@@ -387,6 +387,7 @@ def run_readiness_checks() -> dict[str, dict[str, Any]]:
         "celery": check_celery(),
         "critical_data": check_critical_data(),
         "decision_data": check_decision_data_readiness(),
+        "decision_runtime": check_decision_runtime_state(),
         "alpha_workspace_consistency": check_alpha_workspace_consistency(),
     }
     return checks
@@ -394,13 +395,13 @@ def run_readiness_checks() -> dict[str, dict[str, Any]]:
 
 def is_healthy(checks: dict[str, dict[str, Any]]) -> bool:
     """
-    Determine if all readiness checks passed.
+    Determine whether infrastructure services can accept general traffic.
 
     Args:
         checks: Dict of check results from run_readiness_checks()
 
     Returns:
-        True if all checks are "ok" or "skipped", False otherwise
+        True when database, Redis, and Celery are available or intentionally skipped.
     """
     service_checks = {"database", "redis", "celery"}
     if not service_checks.issubset(checks):

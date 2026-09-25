@@ -4740,8 +4740,8 @@
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_current_publication_candidates(",
-          "freq=\"1d\"",
-          "adjustment=PriceAdjustment.NONE.value",
+          "\"freq\": \"1d\"",
+          "\"adjustment\": PriceAdjustment.NONE.value",
           "publication_fact_reference_for_dataset"
         ],
         "apps/data_center/infrastructure/quote_snapshot_repository.py": [

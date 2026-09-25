@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from io import StringIO
 from types import SimpleNamespace
 
@@ -37,6 +38,35 @@ def test_activation_command_is_dry_run_by_default(mocker) -> None:
     use_case.preview.assert_called_once_with(release_ref=RELEASE_REF)
     use_case.execute.assert_not_called()
     factory.assert_called_once_with()
+
+
+def test_activation_command_serializes_nested_probe_datetimes(mocker) -> None:
+    """Production readiness probes may expose timezone-aware observation times."""
+
+    observed_at = datetime(2026, 9, 24, 8, 15, tzinfo=UTC)
+    use_case = mocker.Mock()
+    use_case.preview.return_value = SimpleNamespace(
+        to_dict=lambda: {
+            "ready": False,
+            "release_ref": RELEASE_REF,
+            "checks": {"decision_data": {"observed_at": observed_at}},
+        }
+    )
+    mocker.patch(
+        f"{COMMAND_MODULE}.make_decision_runtime_activation_use_case",
+        return_value=use_case,
+    )
+    stdout = StringIO()
+
+    call_command(
+        "activate_decision_runtime_fail_closed",
+        "--release-ref",
+        RELEASE_REF,
+        stdout=stdout,
+    )
+
+    payload = json.loads(stdout.getvalue())
+    assert payload["checks"]["decision_data"]["observed_at"] == ("2026-09-24T08:15:00Z")
 
 
 def test_activation_command_requires_operator_for_execute() -> None:

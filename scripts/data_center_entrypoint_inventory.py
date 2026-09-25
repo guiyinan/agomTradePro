@@ -81,6 +81,7 @@ GOVERNANCE_SCRIPT_ENTRYPOINTS = frozenset(
         "scripts/verify_postgres_backup_restore.py",
         "scripts/check_migration_graph.py",
         "scripts/run_data02_isolated_simulation.py",
+        "scripts/run_release_rehearsal.py",
     }
 )
 

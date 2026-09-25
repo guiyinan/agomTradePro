@@ -44,6 +44,14 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
     assert readiness_entry["kwargs"]["calendar_source"] == "auto"
     assert readiness_entry["kwargs"]["repair_accounts"] is False
     assert readiness_entry["kwargs"]["allow_unclosed_target_date"] is False
+    daily_inference = settings_module.CELERY_BEAT_SCHEDULE["qlib-daily-inference"]
+    assert daily_inference["task"] == "apps.alpha.application.tasks.qlib_daily_inference"
+    assert daily_inference["kwargs"] == {
+        "universe_id": "csi300",
+        "top_n": 30,
+        "refresh_data": True,
+        "lookback_days": 400,
+    }
 
 
 def test_database_scheduler_entries_use_persisted_expiration_field() -> None:

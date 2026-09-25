@@ -356,11 +356,21 @@ class CoreCurrentPublicationRebuildResult:
 
         return tuple(publication.publication_id for publication in self.publications)
 
+    @property
+    def run_id(self) -> str:
+        """Return the single publication run identity shared by every dataset."""
+
+        run_ids = {publication.run_id for publication in self.publications}
+        if len(run_ids) != 1:
+            raise ValueError("Core current publications do not share one run identity")
+        return next(iter(run_ids))
+
     def to_dict(self) -> dict[str, object]:
         """Return stable JSON-safe publication evidence."""
 
         return {
             "published_count": self.published_count,
+            "run_id": self.run_id,
             "publication_ids": list(self.publication_ids),
             "datasets": [
                 {

@@ -1449,9 +1449,42 @@ rollback_deployment() {
     if [ -n "$OLD_IMAGE_ARCHIVE" ] && [ -f "$OLD_IMAGE_ARCHIVE" ]; then
       docker load -i "$OLD_IMAGE_ARCHIVE" >/dev/null 2>&1 || true
     fi
+    rm -f "$TARGET_DIR/.current-rollback"
+    ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.current-rollback"
+    mv -Tf "$TARGET_DIR/.current-rollback" "$TARGET_DIR/current"
     cd "$PREVIOUS_RELEASE"
     $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env down --remove-orphans >/dev/null 2>&1 || true
-    $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env up -d >/dev/null 2>&1 || true
+    rollback_started=0
+    rollback_attempt=1
+    while [ "$rollback_attempt" -le 3 ]; do
+      if $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env up -d; then
+        rollback_started=1
+        break
+      fi
+      echo "[WARN] Previous release start attempt $rollback_attempt failed" >&2
+      rollback_attempt=$((rollback_attempt + 1))
+      sleep 3
+    done
+    rollback_verified=0
+    if [ "$rollback_started" = "1" ]; then
+      rollback_check=1
+      while [ "$rollback_check" -le 30 ]; do
+        required_services_ready=1
+        for rollback_service in postgres redis web caddy; do
+          rollback_cid="$($COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q "$rollback_service" 2>/dev/null || true)"
+          if [ -z "$rollback_cid" ] || [ "$(docker inspect -f '{{.State.Running}}' "$rollback_cid" 2>/dev/null || true)" != "true" ]; then
+            required_services_ready=0
+            break
+          fi
+        done
+        if [ "$required_services_ready" = "1" ] && $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env exec -T web python -c "import urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=10); raise SystemExit(0 if response.status == 200 else 1)" >/dev/null 2>&1; then
+          rollback_verified=1
+          break
+        fi
+        rollback_check=$((rollback_check + 1))
+        sleep 2
+      done
+    fi
     if [ -f scripts/publish-tui-release.sh ]; then
       if ! $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env run --rm --no-deps web sh scripts/publish-tui-release.sh "rollback-$(basename "$PREVIOUS_RELEASE")"; then
         echo "[ERROR] Previous release TUI registry restore failed" >&2
@@ -1463,10 +1496,12 @@ rollback_deployment() {
     else
       echo "[ERROR] Previous release has no reviewed TUI metadata artifact" >&2
     fi
-    rm -f "$TARGET_DIR/.current-rollback"
-    ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.current-rollback"
-    mv -Tf "$TARGET_DIR/.current-rollback" "$TARGET_DIR/current"
-    echo "[WARN] Previous release restore attempted" >&2
+    if [ "$rollback_verified" = "1" ]; then
+      echo "[WARN] Previous release restore verified" >&2
+    else
+      echo "[ERROR] Automatic rollback failed service and health verification; operator recovery is required" >&2
+      $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env ps >&2 || true
+    fi
   fi
   [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
   exit "$exit_code"

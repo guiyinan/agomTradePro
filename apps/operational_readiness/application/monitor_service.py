@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from django.core.cache import cache
+from django.core.management.base import CommandError
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,21 +35,64 @@ def get_personal_readiness_monitor_summary(
         if cached_summary is not None:
             return cached_summary
 
-    payload = build_personal_readiness_status(
-        output_dir=Path(DEFAULT_OUTPUT_DIR),
-        required_days=DEFAULT_REQUIRED_DAYS,
-        calendar_source=DEFAULT_CALENDAR_SOURCE,
-        expected_latest_date=resolve_default_readiness_target_date(),
-        require_local_scheduler_runtime=strict_runtime,
-        include_current_macro_context=True,
-        include_current_decision_data=True,
-    )
+    try:
+        payload = build_personal_readiness_status(
+            output_dir=Path(DEFAULT_OUTPUT_DIR),
+            required_days=DEFAULT_REQUIRED_DAYS,
+            calendar_source=DEFAULT_CALENDAR_SOURCE,
+            expected_latest_date=resolve_default_readiness_target_date(),
+            require_local_scheduler_runtime=strict_runtime,
+            include_current_macro_context=True,
+            include_current_decision_data=True,
+        )
+    except CommandError as exc:
+        logger.warning("Personal readiness calendar coverage is unavailable: %s", exc)
+        return _calendar_coverage_blocked_summary()
     summary = _summarize_personal_readiness_payload(payload)
     if include_raw:
         summary["raw"] = payload
     elif strict_runtime:
         _set_cached_strict_runtime_summary(summary)
     return summary
+
+
+def _calendar_coverage_blocked_summary() -> dict[str, Any]:
+    """Return a stable operator payload when the trading calendar has no forward coverage."""
+
+    reason_code = "readiness_calendar_coverage_unavailable"
+    message = "交易日历缺少后续覆盖，个人 readiness 验收暂不可计算；请先同步交易日历。"
+    return {
+        "status": "blocked",
+        "block_reason_code": reason_code,
+        "must_not_use_for_decision": True,
+        "blocking_issues": [message],
+        "daily_state": {
+            "code": reason_code,
+            "severity": "danger",
+            "title": "交易日历覆盖不足",
+            "message": message,
+        },
+        "monitor_gate": {
+            "ok": False,
+            "state": "blocked",
+            "reason": reason_code,
+            "next_action": "sync_trading_calendar",
+            "next_check_after": None,
+            "command": None,
+        },
+        "window": {
+            "accepted": False,
+            "accepted_days": 0,
+            "required_days": DEFAULT_REQUIRED_DAYS,
+            "remaining_days": DEFAULT_REQUIRED_DAYS,
+            "latest_target_date": None,
+            "next_required_date": None,
+            "next_required_reason": reason_code,
+            "projected_completion_date": None,
+            "projected_scheduler_completion_date": None,
+        },
+        "observed_at": timezone.now().isoformat(),
+    }
 
 
 def build_personal_readiness_status(**kwargs: Any) -> dict[str, Any]:

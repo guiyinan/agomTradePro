@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 
-from django.db.models import OuterRef, Subquery
-
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
@@ -14,7 +12,11 @@ from apps.data_center.infrastructure._repository_helpers import _resolve_asset_c
 from apps.data_center.infrastructure.models import PriceBarModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
-from .published_fact_versions import latest_fact_revisions, upsert_publication_safe_facts
+from .published_fact_versions import (
+    latest_fact_revisions,
+    latest_versioned_rows_for_assets,
+    upsert_publication_safe_facts,
+)
 
 _NATURAL_KEY = ("asset_code", "bar_date", "freq", "adjustment", "source")
 
@@ -161,24 +163,18 @@ class PriceBarRepository:
     ) -> list[PublicationFactReference]:
         """Select the latest daily unadjusted fact for every requested asset."""
 
-        if not asset_codes:
-            return []
-        latest_row = (
-            latest_fact_revisions(PriceBarModel, _NATURAL_KEY)
-            .filter(
-                asset_code=OuterRef("asset_code"),
-                freq="1d",
-                adjustment=PriceAdjustment.NONE.value,
-            )
-            .order_by("-bar_date", "-fetched_at", "-revision_number", "-id")
-            .values("id")[:1]
+        publication_filters = {
+            "freq": "1d",
+            "adjustment": PriceAdjustment.NONE.value,
+        }
+        rows = latest_versioned_rows_for_assets(
+            PriceBarModel,
+            natural_key=_NATURAL_KEY,
+            asset_codes=asset_codes,
+            observation_field="bar_date",
+            asset_order=("-bar_date", "-fetched_at", "-revision_number", "-id"),
+            filters=publication_filters,
         )
-        rows = PriceBarModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            freq="1d",
-            adjustment=PriceAdjustment.NONE.value,
-            pk=Subquery(latest_row),
-        ).order_by("asset_code")
         return [_price_bar_publication_reference(row) for row in rows]
 
 

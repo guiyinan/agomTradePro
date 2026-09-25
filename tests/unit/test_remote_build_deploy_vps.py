@@ -719,6 +719,21 @@ def test_remote_deploy_publishes_and_verifies_tui_release_metadata() -> None:
     assert "reviewed TUI metadata is missing" in release_helper
 
 
+def test_remote_deploy_rollback_retries_and_verifies_required_services_and_health() -> None:
+    """A failed deployment cannot describe an unverified rollback as restored."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    assert 'while [ "$rollback_attempt" -le 3 ]' in script
+    assert "for rollback_service in postgres redis web caddy" in script
+    assert "docker inspect -f '{{.State.Running}}'" in script
+    assert "urllib.request.urlopen('http://127.0.0.1:8000/api/health/'" in script
+    assert 'while [ "$rollback_check" -le 30 ]' in script
+    assert "Previous release restore verified" in script
+    assert "Automatic rollback failed service and health verification" in script
+    assert "Previous release restore attempted" not in script
+
+
 def test_legacy_deploy_verifies_canonical_schema_after_migrations() -> None:
     script = (Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh").read_text(
         encoding="utf-8"

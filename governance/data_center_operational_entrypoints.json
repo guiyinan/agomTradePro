@@ -127,6 +127,7 @@
         "tests/unit/data_center/test_archive_application.py",
         "tests/unit/data_center/test_archive_tasks.py",
         "tests/unit/data_center/test_financial_source_time_retention.py",
+        "tests/unit/data_center/test_isolated_write_rehearsal_runner.py",
         "tests/unit/data_center/test_raw_archive_store.py",
         "tests/unit/data_center/test_retention_control_plane.py",
         "tests/unit/data_center/test_retention_plan_domain.py",

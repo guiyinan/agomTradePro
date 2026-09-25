@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-工作基线：`dev/next-development@12c65a919`；生产版本必须另行读取，不能把本地 HEAD 当作部署版本。
+当前集成基线：`dev/next-development@9c77c51182c49613699fe916a4ad0d82c7a6cd2d`；该精确 SHA 已部署生产，当前工作树中的后续修复尚未提交或部署，不能把本地改动当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -241,3 +241,56 @@
 - 首轮修复又被截断响应反例推翻：仅一条 open date 曾被服务层错误包装成完整 coverage。现由 Tushare 适配器读取请求区间内每个自然日的 `cal_date/is_open`，严格拒绝缺尾、缺中间、非法状态和重复冲突；路由层只转发来源签发的 coverage/source/observed_at，不能根据请求参数制造覆盖。完整链复验 6/6 通过，包含 pandas 数值 `0/1`。
 - 工作台受控 Chromium 复验覆盖慢投顾、账户 17→18 切换、已有阻断推荐、推荐查询失败及点击重试。常驻研究入口不再被状态 banner 覆盖；失败重试仅增加一次同账户 GET，三场景无写请求和 JS 错误。生产普通用户认证 UAT 仍须绑定部署候选执行。
 - SDK 真实 loopback 复现两次 503 后 urllib3 `RetryError` 丢失最终响应。重试现使用 `raise_on_status=False`，耗尽后由 SDK 解析最后一份 JSON；独立复验保留 status=503、`decision_runtime_blocked` 和完整阻断字段。已连接的旧 MCP 进程仍可能缓存旧 SDK，部署重启后需再次验证。
+
+### 后续执行：readiness 决策状态与全市场预览规模复验（2026-09-26）
+
+- 生产复验报告 `/api/ready/` 在 decision runtime 为 `blocked` 时仍返回 `status=ok`、HTTP 200。根因是基础 readiness 聚合只计算数据库/Redis/Celery 的服务可用性，既未把持久决策运行时放入 checks，也没有把已有的决策数据 warning 映射到总体状态；`/api/health/` 则是独立 liveness 探针。
+- 已在 readiness checks 中显式加入 `decision_runtime`，响应新增 `service_status` 与 `decision_availability`。决策受阻时状态为 `degraded`，载明 `must_not_use_for_decision=true` 和稳定阻断码；一般服务仍为 ready 并返回 HTTP 200。基础 `/api/health/` 不读取运行时门，仍只报告进程存活。blocked/available 两条接口契约及 liveness 独立性已回归。
+- 生产 5,557 只证券 dry-run 超过 10 分钟的代码根因之一为报价候选 N+1：先批量读最新报价，再对每只报价单独查询 ORM 行以生成 Publication fact reference。现由共享 `_latest_quote_rows` 查询同时服务普通最新报价和 current publication 候选，直接基于相同排序与最新 revision SQL 行构造引用；覆盖、事实 hash、原子发布和 execute 审计预检保持原样。
+- 新增命令级 5,557 证券组件测试：调用真实 `rebuild_active_a_share_core_publications` dry-run，quote/price/valuation 各选出 5,557 个候选，financial 为空时仍准确 `ready=false`；数据库读取不超过 8 条 SQL，且断言没有 INSERT/UPDATE/DELETE/REPLACE。格式化后的 readiness 与发布聚焦组合 **49 passed（24.88 秒）**；SQLite 首轮新建测试库应用完整迁移耗时 284 秒，后续使用同一 disposable DB 复验，不将建库时间误报为查询耗时。Ruff、Black、isort、diff check 通过；增量 mypy（3 个生产文件，0 regression）和全量 debt ceiling（0 errors in 0 files）通过。
+- 剩余风险：5,557 规模测试证明命令编排、SQL 查询预算及 dry-run 零写入，不代表生产 PostgreSQL 的 P95/锁竞争/内存和真实 provider wall-clock 预算；必须在生产预演或同规格隔离 PostgreSQL 复测时另记实测时长和数据库查询数。此测试未提供财报事实，维持业务阻断；不能据其声称正式四类 Publication 已恢复。
+
+### 2026-09-26 生产重跑根因、修复候选与剩余执行矩阵
+
+#### 原任务与本次重跑证据
+
+- 原任务 `0d739398-3052-4378-bed1-0b99405ebfdf` 的持久业务结果为 `requested=57 / succeeded=56 / failed=1 / stored=11114`，`publication_updated=false`、`published_members=0`；另有预取估值 `valuation_seed_stored=5557`，统计单位不同，不能合并后伪装为全成功。旧结果只保留 `ValueError`，无法反推更细异常，因此根因结论仅限定为“同步完成后、正式发布阶段失败”。
+- 生产已部署并核验精确 SHA `9c77c51182c49613699fe916a4ad0d82c7a6cd2d`，镜像 `sha256:bed0fa3badbc3e3c38bda192cb662ef84e24b28b8e072405f9d0541e4d55a743`，release `20260925201025`。审计 authority 已按正常 V5.3 receipt/evidence 与 V3 authority 链恢复，未编辑历史 receipt、未关闭保护开关。
+- 本次全市场任务 `e9941169-d5c8-4f04-901f-a9579d9c7939` 于 2026-09-25 19:28:46–20:27:06 UTC 运行，在 55 个 100 只批次及末批 57 只的报价/估值写入完成后，进入估值 current publication 候选查询；该 PostgreSQL 查询约 8 分钟后触发任务固定的 3,500 秒软时限。Celery 最终只留下 `SoftTimeLimitExceeded()` 和 FAILURE，没有业务 outcome、阶段或写入统计。这同时复现用户第 1、9 项。
+- 当前实现用相关子查询在完整历史事实表上逐资产寻找最新自然键修订；5,557 只证券的 SQLite SQL 数量测试没有暴露 PostgreSQL 查询计划退化。修复候选改为 PostgreSQL CTE：先按资产求最大观测日，再在该有界横截面选最新修订，最后每资产排序取一条；SQLite 保留便携 ORM 路径。
+- 任务捕获 `SoftTimeLimitExceeded`，返回 `outcome=failed`、实际 `requested/succeeded/failed/stored`、`phase`、稳定码 `MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED`、`publication_updated=false`、`must_not_use_for_decision=true` 和本次 `publication_run_id`。成功路径把正式 Publication 的 id/hash/run_id 合并进同一任务结果，支持结果与发布内容对账。
+- 本次实际交易范围为 5,557，只排除 12 只 provider 明确返回当日成交量为 0 的停牌证券：`000016.SZ, 002731.SZ, 002860.SZ, 300082.SZ, 300096.SZ, 301139.SZ, 601059.SH, 601198.SH, 601238.SH, 603400.SH, 605303.SH, 688496.SH`。不能为凑 5,569 人工制造 09-24 日线/估值；正式结果必须把排除代码、原因、目标日和 per-security 阻断与 run_id 一并保留。
+
+#### 十项状态、下一退出条件和剩余风险
+
+| 用户项 | 当前根因 / 改动证据 | 下一退出条件 | 剩余风险 |
+| --- | --- | --- | --- |
+| 1 全市场刷新 | 原任务发布阶段失败；本次重跑定位到估值候选 SQL 触发软时限。已优化查询并规范超时业务结果 | 最终 SHA 部署后重跑，Task Monitor 与数据库逐项对账四计数、阶段、发布状态和 run_id | 新 SQL 尚未在生产 PostgreSQL 实测执行计划与 wall-clock |
+| 2 正式发布 | 旧 quote/price/valuation publication 均为 5,557 成员；财报仍为历史部分发布。财报批任务 50/50 失败的首因是 provider 配置使用裸 HTTP；改走现有 HTTPS gateway 后真实 probe 得到 26 条事实，但 `available_at/announced_at` 仍缺失，`financial_source_time_match_contracts` 仍待 owner approval。成功结果此前未带发布 id/hash | 用同一 run_id 重建三类合格发布并核对策略版本、来源时间、成员 hash；财报必须取得 provider-native exact source-time 并由获批 match contract 验证 | 12 只停牌例外需保持可审计；严禁用 fetched_at 推断公告时间或把待审批合同自动激活 |
+| 3 决策总阻断 | 历史 MCP 审计失败门与行情 freshness 是两条链；authority 已正常恢复，readiness 曾错误显示 ok | 四类正常 activation preflight 全通过后才 CAS 激活；Regime/估值接口再验业务结果 | Regime 另有 PMI/CPI 数据不足；不能误归因行情或总闸 |
+| 4 Alpha | 生产评分日已到 2026-09-24，workspace default 有 1,831 候选；自然调度此前缺失，现补工作日 17:30 显式推理 | 部署后核对日线准备、调度回执、账户 scope、缓存日期/hash 和候选更新；真实自然周期留证 | 页面仍可能受 quote/financial/valuation 阻断；手动成功不替代自然周期 |
+| 5 信号契约 | API/SDK/MCP 的 offset、过滤和空集契约已形成候选回归 | 部署重启新 MCP 会话，验证默认、offset=0、非零分页、状态、证券和空集 | 旧长连接进程可能缓存旧 schema/SDK |
+| 6 MCP 信息 | 业务 503、政策 PX/unclassified/manual review 的安全透传已有候选测试 | 生产分别复验 runtime blocked、网络失败、政策待审及数据时间 | 上游 Regime 数据不足须保持独立稳定码 |
+| 7 候选详情 | 本地受控 Chromium 已覆盖账户切换、宏观阻断下研究详情、慢请求与重试 | 生产普通用户从山东黄金进入正确账户详情，记录冷/热时延和超时恢复 | 尚无可用于生产的普通用户验收凭据 |
+| 8 只读零写入 | GET/MCP 缓存 miss、workspace 浏览和研究读取已改为只读；刷新留给显式动作/调度 | 生产前后对账重复 GET/MCP 的任务、建议、历史行数；显式 POST 验权限 | provider alert 等旁路写入需在联合 UAT 继续观察 |
+| 9 进度可观测 | 本次软超时证明旧页面只得技术状态；候选结果已保留阶段、计数和稳定码，状态 DTO 已区分本次/最近完成 | 以真实重跑检查运行中、失败、成功三态及用户/运维字段边界 | 旧历史任务无法补造当时不存在的精细 phase |
+| 10 文案与时间 | readiness 已拆成 service status 与 decision availability；缺价格保留 None，原始/正式时间分离 | 生产普通用户页面验“不可用原因/可做动作/处理角色”、北京时间和缺失值 | `/api/ready/` 保持 HTTP 200 是负载均衡契约，必须以 body 的 degraded/decision 字段解释 |
+
+#### 五类永久整改和生产预演状态
+
+| 类别 | 已形成候选 | 本轮必须补齐的生产证据 |
+| --- | --- | --- |
+| S1 真实 provider 契约 | 真实响应身份、单位、源时间及 replay 进入 S6 bundle | 最终新 SHA 重新执行完整 S6；旧 SHA 报告不能授权新查询实现 |
+| S2 业务不变量 | 软超时业务统计、发布 run_id/id/hash、一致范围、只读零写入均有反例 | 生产任务结果与 publication/member/事实逐项对账 |
+| S3 时间维度 | provider-backed 交易日历、来源观测/可用/获取时间分离 | 休市、停牌、自然调度和真实周期回执 |
+| S4 规模测算 | 5,557 命令组件限制为 8 条读取 SQL、零写入；查询算法消除逐历史相关扫描 | PostgreSQL `EXPLAIN`、实际 wall-clock、锁/内存和 3,500 秒余量 |
+| S5 component PR CI | 当前数据、Celery、SDK/MCP、PostgreSQL publication 选择器已纳管 | 最终提交同 SHA 的远端 CI 全绿且零 skipped |
+| S6 生产预演 | 旧候选曾完整通过 50 只真实 provider、5,569 容量、隔离 PG 写入回滚和不可变 bundle | 查询/部署脚本变更后必须生成全新候选并完整重跑，不复用旧放行 |
+
+#### 本轮本地验证与部署前停止线
+
+- 任务、发布仓储、current rebuild、5,557 规模、readiness/TUI 聚焦组合：**81 passed（315.64 秒）**。
+- 入口治理重建：1,261 项，`candidate-review=0`；相关治理和健康/部署组合：**109 passed（500.16 秒）**。
+- current-data guard：**70 surfaces**；Celery guard：**94 tasks / 21 exemptions / 24 files**。
+- 候选尚未提交、未跑最终增量 mypy/债务门禁、未绑定远端 CI/S6、未部署，因此以上均不得写成生产恢复。部署前还必须验证自动回滚确实恢复旧服务和内部 `/api/health/`；首次新部署曾出现 transient `check --deploy` 失败后自动回滚未完整拉起服务，候选已加入重试和回滚健康核验。
+- 生产 `/api/tui/operator/governance-queue/` 另复现交易日历未来 coverage 缺失导致 500；候选把它转换为 `readiness_calendar_coverage_unavailable` 的结构化 blocked 结果，保留中文原因和 `must_not_use_for_decision=true`，部署后需复验不再 500。

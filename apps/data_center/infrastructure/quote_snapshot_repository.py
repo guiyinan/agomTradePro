@@ -5,15 +5,17 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 
-from django.db.models import OuterRef, Subquery
-
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import QuoteSnapshotModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
-from .published_fact_versions import latest_fact_revisions, upsert_publication_safe_facts
+from .published_fact_versions import (
+    latest_fact_revisions,
+    latest_versioned_rows_for_assets,
+    upsert_publication_safe_facts,
+)
 
 _NATURAL_KEY = ("asset_code", "snapshot_at", "source")
 
@@ -153,12 +155,7 @@ class QuoteSnapshotRepository:
                 continue
             fact_pk = str(row.pk)
             seen_fact_pks.add(fact_pk)
-            references.append(
-                publication_fact_reference_for_dataset(
-                    row,
-                    dataset_key="equity.quote.snapshot",
-                )
-            )
+            references.append(_quote_snapshot_publication_reference(row))
         return references
 
     def list_latest_for_asset_codes(
@@ -167,19 +164,7 @@ class QuoteSnapshotRepository:
     ) -> list[QuoteSnapshot]:
         """Return one deterministic latest source snapshot per requested asset."""
 
-        if not asset_codes:
-            return []
-        latest_row = (
-            latest_fact_revisions(QuoteSnapshotModel, _NATURAL_KEY)
-            .filter(asset_code=OuterRef("asset_code"))
-            .order_by("-snapshot_at", "-fetched_at", "-revision_number", "-id")
-            .values("id")[:1]
-        )
-        rows = QuoteSnapshotModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            pk=Subquery(latest_row),
-        ).order_by("asset_code")
-        return [self._from_model(row) for row in rows]
+        return [self._from_model(row) for row in _latest_quote_rows(asset_codes)]
 
     def list_current_publication_candidates(
         self,
@@ -187,8 +172,32 @@ class QuoteSnapshotRepository:
     ) -> list[PublicationFactReference]:
         """Select the latest immutable quote fact for every requested asset."""
 
-        quotes = self.list_latest_for_asset_codes(asset_codes)
-        return self.list_publication_candidates(quotes)
+        return [
+            _quote_snapshot_publication_reference(row) for row in _latest_quote_rows(asset_codes)
+        ]
+
+
+def _latest_quote_rows(asset_codes: tuple[str, ...]) -> list[QuoteSnapshotModel]:
+    """Return one exact latest-revision row per requested asset in a single query."""
+
+    return latest_versioned_rows_for_assets(
+        QuoteSnapshotModel,
+        natural_key=_NATURAL_KEY,
+        asset_codes=asset_codes,
+        observation_field="snapshot_at",
+        asset_order=("-snapshot_at", "-fetched_at", "-revision_number", "-id"),
+    )
+
+
+def _quote_snapshot_publication_reference(
+    row: QuoteSnapshotModel,
+) -> PublicationFactReference:
+    """Create the exact persisted evidence reference for one quote row."""
+
+    return publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
 
 
 __all__ = ["QuoteSnapshotRepository"]

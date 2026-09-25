@@ -4,7 +4,7 @@
       "admin_surface": 13,
       "agent_skill": 3,
       "application_consumer": 161,
-      "beat_schedule": 60,
+      "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 19,
       "celery_task": 129,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 794,
+      "active_public": 797,
       "adjacent_operational": 327,
-      "candidate-review": 2,
+      "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1260
+    "total": 1261
   },
   "entries": [
     {
@@ -2202,6 +2202,16 @@
     {
       "category": "beat_schedule",
       "evidence": "governance/celery_task_contracts.json",
+      "id": "beat_schedule:core/settings/celery_schedule.py:qlib_daily_inference:qlib-daily-inference",
+      "locator": "qlib-daily-inference",
+      "path": "core/settings/celery_schedule.py",
+      "status": "active_public",
+      "symbol": "qlib_daily_inference",
+      "target": "apps.alpha.application.tasks.qlib_daily_inference"
+    },
+    {
+      "category": "beat_schedule",
+      "evidence": "governance/celery_task_contracts.json",
       "id": "beat_schedule:core/settings/celery_schedule.py:qlib_daily_scoped_inference:qlib-daily-scoped-inference",
       "locator": "qlib-daily-scoped-inference",
       "path": "core/settings/celery_schedule.py",
@@ -2782,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:744",
-      "locator": "line:744",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:799",
+      "locator": "line:799",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -8392,8 +8402,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2095",
-      "locator": "line:2095",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2130",
+      "locator": "line:2130",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8402,8 +8412,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2045",
-      "locator": "line:2045",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2080",
+      "locator": "line:2080",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8412,8 +8422,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2095",
-      "locator": "line:2095",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2130",
+      "locator": "line:2130",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8422,8 +8432,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2037",
-      "locator": "line:2037",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2072",
+      "locator": "line:2072",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -10921,11 +10931,11 @@
     },
     {
       "category": "script",
-      "evidence": "static Data Center reference; explicit owner review required",
+      "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/run_release_rehearsal.py:__main__:",
       "locator": "",
       "path": "scripts/run_release_rehearsal.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "__main__",
       "target": ""
     },
@@ -12341,11 +12351,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/data_center/test_isolated_write_rehearsal_runner.py:test_isolated_write_rehearsal_runner:",
       "locator": "",
       "path": "tests/unit/data_center/test_isolated_write_rehearsal_runner.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_isolated_write_rehearsal_runner",
       "target": ""
     },

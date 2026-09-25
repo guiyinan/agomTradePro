@@ -69,24 +69,58 @@ def readiness_view(request: HttpRequest) -> JsonResponse:
     database and Redis (if configured) connections.
     Public endpoint, no authentication required.
 
-    Returns HTTP 200 if all checks pass, HTTP 503 if any check fails.
+    The HTTP status reflects whether the service can accept general traffic.
+    Decision-runtime failures are reported as degraded decision availability,
+    while the independent liveness endpoint remains unaffected.
     """
     checks = run_readiness_checks()
+    service_ready = is_healthy(checks)
+    decision_availability = _decision_availability(checks)
+    status = (
+        "error"
+        if not service_ready
+        else "degraded" if decision_availability["must_not_use_for_decision"] else "ok"
+    )
 
-    if is_healthy(checks):
-        response_data: dict[str, Any] = {
-            "status": "ok",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "checks": checks,
-        }
-        return JsonResponse(response_data, status=200)
-    else:
-        response_data = {
-            "status": "error",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "checks": checks,
-        }
-        return JsonResponse(response_data, status=503)
+    response_data: dict[str, Any] = {
+        "status": status,
+        "service_status": "ready" if service_ready else "unavailable",
+        "decision_availability": decision_availability,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "checks": checks,
+    }
+    return JsonResponse(response_data, status=200 if service_ready else 503)
+
+
+def _decision_availability(
+    checks: dict[str, dict[str, Any]],
+) -> dict[str, str | bool]:
+    """Summarize runtime and current-data availability without changing liveness."""
+
+    runtime = checks.get("decision_runtime")
+    decision_data = checks.get("decision_data")
+    runtime_blocked = (
+        runtime is None
+        or runtime.get("status") != "ok"
+        or runtime.get("must_not_use_for_decision") is True
+    )
+    data_blocked = (
+        decision_data is None
+        or decision_data.get("status") != "ok"
+        or decision_data.get("must_not_use_for_decision") is True
+    )
+    blocked = runtime_blocked or data_blocked
+    block_source = runtime if runtime_blocked else decision_data
+    raw_code = block_source.get("block_reason_code") if block_source is not None else None
+    if not isinstance(raw_code, str) or not raw_code:
+        raw_code = (
+            "decision_runtime_unavailable" if runtime_blocked else "decision_data_unavailable"
+        )
+    return {
+        "status": "blocked" if blocked else "available",
+        "must_not_use_for_decision": blocked,
+        "block_reason_code": raw_code if blocked else "",
+    }
 
 
 def decision_readiness_view(request: HttpRequest) -> JsonResponse:

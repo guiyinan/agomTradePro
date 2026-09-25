@@ -197,6 +197,19 @@ CELERY_BEAT_SCHEDULE = {
     },
     # ============================================
     # ========== Alpha Qlib 推理任务 ==========
+    "qlib-daily-inference": {
+        "task": "apps.alpha.application.tasks.qlib_daily_inference",
+        "schedule": crontab(hour=17, minute=30, day_of_week="mon-fri"),
+        "kwargs": {
+            "universe_id": "csi300",
+            "top_n": 30,
+            "refresh_data": True,
+            "lookback_days": 400,
+        },
+        "options": {
+            "expire_seconds": 7200,
+        },
+    },
     "qlib-daily-scoped-inference": {
         "task": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
         "schedule": crontab(hour=17, minute=40, day_of_week="mon-fri"),  # 每个交易日 17:40

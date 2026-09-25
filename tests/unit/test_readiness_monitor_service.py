@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from django.core.management.base import CommandError
+
 from apps.task_monitor.application import readiness_monitor_service as service
 from apps.task_monitor.application.readiness_monitor_service import (
     _summarize_personal_readiness_payload,
@@ -81,9 +83,7 @@ def test_readiness_monitor_summary_marks_operator_attention(monkeypatch):
                 "required_days": 20,
                 "remaining_days": 17,
                 "next_required_date": "2026-07-03",
-                "blocking_issues": [
-                    {"target_date": "2026-07-03", "reason": "evidence is missing"}
-                ],
+                "blocking_issues": [{"target_date": "2026-07-03", "reason": "evidence is missing"}],
                 "accepted_dates": [],
             },
             "latest_evidence": {"status": "missing", "target_date": None},
@@ -169,6 +169,31 @@ def test_non_strict_readiness_monitor_summary_does_not_use_strict_cache(monkeypa
     assert second["window"]["accepted_days"] == 2
     assert len(calls) == 2
     assert fake_cache.set_calls == []
+
+
+def test_readiness_monitor_calendar_gap_returns_structured_block(monkeypatch):
+    """A finite provider calendar must not turn the read-only operator queue into HTTP 500."""
+
+    monkeypatch.setattr(
+        service,
+        "build_personal_readiness_status",
+        lambda **_: (_ for _ in ()).throw(
+            CommandError("Trading calendar forward coverage is unavailable")
+        ),
+    )
+    monkeypatch.setattr(
+        service,
+        "resolve_default_readiness_target_date",
+        lambda: "2026-09-24",
+    )
+
+    summary = service.get_personal_readiness_monitor_summary(strict_runtime=False)
+
+    assert summary["status"] == "blocked"
+    assert summary["block_reason_code"] == "readiness_calendar_coverage_unavailable"
+    assert summary["must_not_use_for_decision"] is True
+    assert summary["daily_state"]["severity"] == "danger"
+    assert summary["monitor_gate"]["reason"] == "readiness_calendar_coverage_unavailable"
 
 
 def test_raw_strict_readiness_monitor_summary_bypasses_cache(monkeypatch):

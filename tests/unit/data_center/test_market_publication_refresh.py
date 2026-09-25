@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 
 from apps.data_center.application.market_publication_refresh import (
     MarketPublicationRefreshPorts,
@@ -635,12 +636,30 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
         for key in ("equity.quote.snapshot", "equity.valuation.fact")
     ]
     datasets.append(SimpleNamespace(dataset_key="equity.price.bar", ready=False))
+    publication_id = "bf8c00f5-59df-42c0-a3cb-44d2e306d668"
     monkeypatch.setattr(
         tasks,
         "make_core_current_publication_rebuild_use_case",
         lambda **_: SimpleNamespace(
             preview=lambda **_: SimpleNamespace(ready=False, datasets=datasets),
-            execute=lambda **_: (events.append("publish") or SimpleNamespace(published_count=3)),
+            execute=lambda **kwargs: (
+                events.append("publish")
+                or SimpleNamespace(
+                    published_count=3,
+                    to_dict=lambda: {
+                        "published_count": 3,
+                        "publication_ids": [publication_id],
+                        "datasets": [
+                            {
+                                "dataset_key": "equity.quote.snapshot",
+                                "publication_id": publication_id,
+                                "publication_hash": "a" * 64,
+                            }
+                        ],
+                        "run_id": kwargs["run_id"],
+                    },
+                )
+            ),
         ),
     )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
@@ -653,7 +672,68 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert events == ["refresh_prices", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
+    assert result["publication_ids"] == [publication_id]
+    assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "akshare"
     assert result["valuation_source"] == "tushare"
     assert quote_provider_ids == [7]
     assert valuation_provider_ids == [3]
+
+
+def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(monkeypatch):
+    """A worker timeout must preserve the completed write counts and failed phase."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    provider_ids = {"tushare": 3, "akshare": 7}
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda name: provider_ids[name])
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: ["000001.SZ", "600000.SH"],
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_quote_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda *_args, **_kwargs: SimpleNamespace(
+                stored_count=2,
+                stored_asset_codes=("000001.SZ", "600000.SH"),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda *_args, **_kwargs: SimpleNamespace(
+                stored_count=2,
+                succeeded_asset_codes=("000001.SZ", "600000.SH"),
+                returned_asset_codes=("000001.SZ", "600000.SH"),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(
+            preview=lambda **_: (_ for _ in ()).throw(SoftTimeLimitExceeded()),
+            execute=lambda **_: pytest.fail("timed-out preview reached publication"),
+        ),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert result["outcome"] == "failed"
+    assert result["requested"] == 3
+    assert result["succeeded"] == 2
+    assert result["failed"] == 1
+    assert result["stored"] == 4
+    assert result["phase"] == "publication"
+    assert result["error_code"] == "MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED"
+    assert result["publication_updated"] is False
+    assert result["must_not_use_for_decision"] is True
+    assert result["publication_run_id"]

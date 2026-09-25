@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
+from django.core.serializers.json import DjangoJSONEncoder
 
 from apps.config_center.application.decision_runtime_activation import (
     DecisionRuntimeActivationError,
@@ -57,6 +58,7 @@ class Command(BaseCommand):
         self.stdout.write(
             json.dumps(
                 payload,
+                cls=DjangoJSONEncoder,
                 ensure_ascii=False,
                 sort_keys=True,
                 separators=(",", ":"),

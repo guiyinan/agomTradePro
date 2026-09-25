@@ -11,6 +11,7 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 from django.db import DatabaseError
 from django.utils import timezone
@@ -227,6 +228,11 @@ def refresh_full_market_publications_task(
         }
 
     price_evidence: dict[str, object] = {}
+    publication_evidence: dict[str, object] = {}
+    publication_run_id = str(uuid4())
+    completed_operation_count = 0
+    stored_row_count = 0
+    current_phase = "scope"
     authority_current = True
 
     def authority_allows_next_write() -> bool:
@@ -332,21 +338,33 @@ def refresh_full_market_publications_task(
     excluded_non_trading_codes = sorted(requested_codes - set(tradable_codes))
 
     def sync_quote_batch(codes: list[str]) -> int:
+        nonlocal completed_operation_count, current_phase, stored_row_count
+        current_phase = "quote"
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before quote batch")
         result = quotes.execute(SyncQuoteRequest(quote_provider_id, codes, True, target_date))
-        return _exact_provider_batch_count(
+        stored_count = _exact_provider_batch_count(
             requested_asset_codes=codes,
             stored_count=result.stored_count,
             returned_asset_codes=result.stored_asset_codes,
         )
+        completed_operation_count += 1
+        stored_row_count += stored_count
+        return stored_count
 
     def sync_valuation_batch(codes: list[str], day: date) -> int:
+        nonlocal completed_operation_count, current_phase, stored_row_count
+        current_phase = "valuation"
         if day != target_date or not set(codes).issubset(tradable_codes):
             raise ValueError("prefetched valuation scope changed before publication")
-        return len(codes)
+        stored_count = len(codes)
+        completed_operation_count += 1
+        stored_row_count += stored_count
+        return stored_count
 
     def publish_complete_session(codes: list[str]) -> int:
+        nonlocal current_phase
+        current_phase = "publication"
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before publication")
         preview = publications.preview(asset_codes=codes)
@@ -368,18 +386,53 @@ def refresh_full_market_publications_task(
             price_target_date=target_date.isoformat(),
             suspended_codes=list(suspended),
         )
-        return publications.execute(asset_codes=codes).published_count
+        publication_result = publications.execute(
+            asset_codes=codes,
+            run_id=publication_run_id,
+        )
+        publication_evidence.update(publication_result.to_dict())
+        return publication_result.published_count
 
-    result = refresh_market_publications(
-        as_of_date=target_date,
-        batch_size=batch_size,
-        ports=MarketPublicationRefreshPorts(
-            list_codes=lambda: tradable_codes,
-            sync_quotes=sync_quote_batch,
-            sync_valuations=sync_valuation_batch,
-            publish=publish_complete_session,
-        ),
-    )
+    batches = (len(tradable_codes) + batch_size - 1) // batch_size
+    requested_operations = batches * 2 + 1
+    try:
+        result = refresh_market_publications(
+            as_of_date=target_date,
+            batch_size=batch_size,
+            ports=MarketPublicationRefreshPorts(
+                list_codes=lambda: tradable_codes,
+                sync_quotes=sync_quote_batch,
+                sync_valuations=sync_valuation_batch,
+                publish=publish_complete_session,
+            ),
+        )
+    except SoftTimeLimitExceeded:
+        return {
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "success": False,
+            "requested": requested_operations,
+            "succeeded": completed_operation_count,
+            "failed": 1,
+            "stored": stored_row_count,
+            "count_unit": "sync_operation",
+            "stored_count_unit": "fact_row",
+            "target_trade_date": target_date.isoformat(),
+            "phase": current_phase,
+            "asset_count": len(tradable_codes),
+            "published_members": 0,
+            "publication_updated": False,
+            "publication_run_id": publication_run_id,
+            "error_code": "MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED",
+            "blocked_reason": "market_refresh_soft_time_limit_exceeded",
+            "errors": ["MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED"],
+            "must_not_use_for_decision": True,
+            "quote_source": selected_quote_source,
+            "valuation_source": selected_valuation_source,
+            "market_universe": universe_report,
+            "valuation_seed_stored": valuation_seed.stored_count,
+            "excluded_non_trading_count": len(excluded_non_trading_codes),
+            "excluded_non_trading_codes": excluded_non_trading_codes,
+        }
     if not authority_current:
         return {
             **result,
@@ -393,6 +446,8 @@ def refresh_full_market_publications_task(
     return {
         **result,
         **price_evidence,
+        **publication_evidence,
+        "publication_run_id": publication_run_id,
         "quote_source": selected_quote_source,
         "valuation_source": selected_valuation_source,
         "market_universe": universe_report,

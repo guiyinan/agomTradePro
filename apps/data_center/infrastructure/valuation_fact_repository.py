@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 
-from django.db.models import F, Max, OuterRef, Subquery
+from django.db.models import Max
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import ValuationFact
@@ -13,7 +13,11 @@ from apps.data_center.infrastructure._repository_helpers import _resolve_asset_c
 from apps.data_center.infrastructure.models import ValuationFactModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
-from .published_fact_versions import latest_fact_revisions, upsert_publication_safe_facts
+from .published_fact_versions import (
+    latest_fact_revisions,
+    latest_versioned_rows_for_assets,
+    upsert_publication_safe_facts,
+)
 
 _NATURAL_KEY = ("asset_code", "val_date", "source")
 
@@ -186,25 +190,20 @@ class ValuationFactRepository:
     ) -> list[PublicationFactReference]:
         """Select the latest deterministic valuation fact for every asset."""
 
-        if not asset_codes:
-            return []
-        latest_row = (
-            latest_fact_revisions(ValuationFactModel, _NATURAL_KEY)
-            .filter(asset_code=OuterRef("asset_code"))
-            .order_by(
-                F("val_date").desc(),
-                F("observed_at").desc(nulls_last=True),
-                F("available_at").desc(nulls_last=True),
-                F("fetched_at").desc(),
-                F("revision_number").desc(),
-                F("id").desc(),
-            )
-            .values("id")[:1]
+        rows = latest_versioned_rows_for_assets(
+            ValuationFactModel,
+            natural_key=_NATURAL_KEY,
+            asset_codes=asset_codes,
+            observation_field="val_date",
+            asset_order=(
+                "-val_date",
+                "-observed_at",
+                "-available_at",
+                "-fetched_at",
+                "-revision_number",
+                "-id",
+            ),
         )
-        rows = ValuationFactModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            pk=Subquery(latest_row),
-        ).order_by("asset_code")
         now = datetime.now(UTC)
         return [_valuation_publication_reference(row, now=now) for row in rows]
 

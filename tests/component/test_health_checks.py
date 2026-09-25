@@ -75,6 +75,14 @@ class TestHealthCheckEndpoints:
     def test_readiness_probe_with_healthy_database(self, db, monkeypatch):
         """Test readiness probe returns 200 when database is healthy"""
         monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.setattr(
+            "core.health_checks.check_decision_runtime_state",
+            lambda: {"status": "ok", "must_not_use_for_decision": False},
+        )
+        monkeypatch.setattr(
+            "core.health_checks.check_decision_data_readiness",
+            lambda: {"status": "ok", "must_not_use_for_decision": False},
+        )
         with override_settings(
             CACHES=LOCAL_MEMORY_CACHE,
             CELERY_BROKER_URL=None,
@@ -89,6 +97,61 @@ class TestHealthCheckEndpoints:
         assert "timestamp" in data
         assert "checks" in data
         assert data["checks"]["database"]["status"] == "ok"
+        assert data["decision_availability"]["status"] == "available"
+        assert data["service_status"] == "ready"
+
+    @patch("core.views.run_readiness_checks")
+    def test_readiness_exposes_runtime_block_without_failing_service_or_liveness(
+        self,
+        mock_checks,
+        db,
+    ):
+        mock_checks.return_value = {
+            "database": {"status": "ok"},
+            "redis": {"status": "skipped"},
+            "celery": {"status": "skipped"},
+            "critical_data": {"status": "ok"},
+            "decision_data": {"status": "warning", "must_not_use_for_decision": True},
+            "decision_runtime": {
+                "status": "blocked",
+                "must_not_use_for_decision": True,
+                "block_reason_code": "decision_runtime_blocked",
+            },
+        }
+
+        client = Client()
+        response = client.get("/api/ready/")
+        liveness = client.get("/api/health/")
+
+        payload = response.json()
+        assert response.status_code == 200
+        assert payload["status"] == "degraded"
+        assert payload["service_status"] == "ready"
+        assert payload["decision_availability"] == {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_runtime_blocked",
+        }
+        assert liveness.status_code == 200
+        assert liveness.json()["status"] == "ok"
+
+    @patch("core.views.run_readiness_checks")
+    def test_readiness_reports_decision_runtime_available(self, mock_checks, db):
+        mock_checks.return_value = {
+            "database": {"status": "ok"},
+            "redis": {"status": "skipped"},
+            "celery": {"status": "skipped"},
+            "decision_data": {"status": "ok", "must_not_use_for_decision": False},
+            "decision_runtime": {"status": "ok", "must_not_use_for_decision": False},
+        }
+
+        response = Client().get("/api/ready/")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "ok"
+        assert payload["decision_availability"]["status"] == "available"
+        assert payload["decision_availability"]["must_not_use_for_decision"] is False
 
     def test_decision_provider_health_check_uses_public_port(self, monkeypatch):
         """Core readiness must not import Data Center internal provider services."""
