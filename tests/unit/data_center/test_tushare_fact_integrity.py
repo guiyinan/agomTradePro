@@ -123,7 +123,10 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
         def __init__(self, **_kwargs: object) -> None:
             pass
 
-        def get_quote_snapshots(self, _asset_codes: list[str]) -> list[SimpleNamespace]:
+        def get_quote_snapshots(
+            self, _asset_codes: list[str], *, target_trade_date: date
+        ) -> list[SimpleNamespace]:
+            assert target_trade_date == date(2026, 7, 28)
             return [
                 SimpleNamespace(
                     stock_code="000001.SZ",
@@ -156,8 +159,8 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
         FakeGateway,
     )
 
-    facts = TushareUnifiedProviderAdapter(_config()).fetch_quote_snapshots(
-        ["000001.SZ", "000002.SZ"]
+    facts = TushareUnifiedProviderAdapter(_config()).fetch_quote_snapshots_for_session(
+        ["000001.SZ", "000002.SZ"], date(2026, 7, 28)
     )
 
     assert len(facts) == 1
