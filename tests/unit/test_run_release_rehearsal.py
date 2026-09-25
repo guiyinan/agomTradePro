@@ -438,6 +438,43 @@ def test_failed_container_stage_preserves_one_stable_rehearsal_code(
     assert exc_info.value.code == "REHEARSAL_WRITE_CATALOG_UNAVAILABLE"
 
 
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "provider mentioned REHEARSAL_WRITE_CATALOG_UNAVAILABLE in a diagnostic",
+        (
+            "CommandError: REHEARSAL_WRITE_CATALOG_UNAVAILABLE\n"
+            "CommandError: REHEARSAL_WRITE_SCOPE_INVALID"
+        ),
+    ],
+)
+def test_failed_container_stage_rejects_ambiguous_or_unanchored_codes(
+    tmp_path: Path,
+    stderr: str,
+) -> None:
+    class UnsafeFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            return CommandResult(returncode=1, stderr=stderr)
+
+    destination = tmp_path / "stage"
+    destination.mkdir()
+    gid = os.getgid() if hasattr(os, "getgid") else 1000
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            UnsafeFailureRunner(),
+            argv=("candidate",),
+            root=tmp_path,
+            label="stage",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=gid,
+        )
+
+    assert exc_info.value.code == "S6_STAGE_COMMAND_FAILED"
+
+
 def test_container_stage_rejects_symlink(tmp_path: Path) -> None:
     target = tmp_path / "target"
     target.mkdir()

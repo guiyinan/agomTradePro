@@ -32,7 +32,7 @@ COMMIT = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 TAG = re.compile(r"[0-9]{14}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
-STABLE_REHEARSAL_CODE = re.compile(r"(?<![A-Z0-9_])(REHEARSAL_[A-Z0-9_]{3,96})(?![A-Z0-9_])")
+STABLE_REHEARSAL_CODE = re.compile(r"^CommandError: (REHEARSAL_[A-Z0-9_]{3,96})\s*$", re.MULTILINE)
 IMAGE_NAME = "agomtradepro-web"
 STAGES = (
     "provider_probe",

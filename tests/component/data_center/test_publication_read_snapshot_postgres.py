@@ -7,6 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from importlib import import_module
+from pathlib import Path
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
 
@@ -322,6 +323,7 @@ def test_isolated_write_command_initializes_reviewed_catalog_and_rolls_back_busi
     monkeypatch,
     tmp_path,
 ) -> None:
+    from django.conf import settings
     from django.core.management import call_command
 
     from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
@@ -329,6 +331,7 @@ def test_isolated_write_command_initializes_reviewed_catalog_and_rolls_back_busi
     del actual_publication_pg
     _allow_component_loopback_scope(monkeypatch, runner)
     _allow_component_migration_snapshot(monkeypatch, runner)
+    monkeypatch.setattr(settings, "BASE_DIR", Path(__file__).resolve().parents[3], raising=False)
     monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
     monkeypatch.setattr(
         runner,
@@ -363,6 +366,53 @@ def test_isolated_write_command_initializes_reviewed_catalog_and_rolls_back_busi
     assert CanonicalPublicationModel.objects.count() == 0
     assert PublicationMemberModel.objects.count() == 0
     assert CoverageSnapshotModel.objects.count() == 0
+
+
+def test_isolated_write_command_without_catalog_initialization_fails_closed(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from django.conf import settings
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+
+    del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
+    _allow_component_migration_snapshot(monkeypatch, runner)
+    monkeypatch.setattr(settings, "BASE_DIR", Path(__file__).resolve().parents[3], raising=False)
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+    output_dir = tmp_path / "missing-catalog-evidence"
+
+    with pytest.raises(CommandError, match="REHEARSAL_WRITE_CATALOG_UNAVAILABLE"):
+        call_command(
+            "rehearse_isolated_publication_write",
+            candidate_sha="e" * 40,
+            target_trade_date=date.today() - timedelta(days=1),
+            universe_sha256="a" * 64,
+            provider_identities_sha256="b" * 64,
+            expected_database_name="agom_release_rehearsal_ci",
+            expected_database_host=str(connections["default"].settings_dict["HOST"]),
+            output_dir=output_dir,
+            verbosity=0,
+        )
+
+    assert DatasetContractModel.objects.count() == 0
+    assert DatasetProviderBindingModel.objects.count() == 0
+    assert DatasetPublicationPolicyModel.objects.count() == 0
+    assert DataOwnerRegistrationModel.objects.count() == 0
+    assert ValuationFactModel.objects.count() == 0
+    assert CanonicalPublicationModel.objects.count() == 0
+    assert PublicationMemberModel.objects.count() == 0
+    assert CoverageSnapshotModel.objects.count() == 0
+    assert not output_dir.exists()
 
 
 def _isolated_write_arguments(tmp_path) -> dict[str, object]:

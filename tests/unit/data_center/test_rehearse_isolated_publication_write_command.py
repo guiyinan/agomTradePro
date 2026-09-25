@@ -94,6 +94,10 @@ def test_default_command_keeps_missing_catalog_fail_closed(
 ) -> None:
     events: list[str] = []
 
+    def reject_missing_catalog(**kwargs: object) -> dict[str, object]:
+        events.append("collect")
+        raise DataFetchError("missing", code="REHEARSAL_WRITE_CATALOG_UNAVAILABLE")
+
     monkeypatch.setattr(
         command,
         "preflight_isolated_write_rehearsal",
@@ -107,9 +111,10 @@ def test_default_command_keeps_missing_catalog_fail_closed(
     monkeypatch.setattr(
         command,
         "collect_isolated_write_rehearsal",
-        lambda **kwargs: events.append("collect") or {"outcome": "success"},
+        reject_missing_catalog,
     )
 
-    command.Command().handle(**_options(tmp_path, initialize=False))
+    with pytest.raises(CommandError, match="REHEARSAL_WRITE_CATALOG_UNAVAILABLE"):
+        command.Command().handle(**_options(tmp_path, initialize=False))
 
     assert events == ["collect"]
