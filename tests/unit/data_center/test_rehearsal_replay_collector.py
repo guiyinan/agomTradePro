@@ -165,6 +165,24 @@ def test_replay_rejects_invalid_baseline_instead_of_generating_success(modules, 
         replay.replay_retained_dataset([response], contracts)
 
 
+def test_quote_replay_rejects_missing_volume_and_amount_witnesses(modules):
+    replay = modules["rehearsal_response_replay"]
+    payload = json.loads(_body("equity.quote.snapshot"))
+    fields = payload["data"]["fields"]
+    payload["data"]["fields"] = fields[:4]
+    payload["data"]["items"] = [row[:4] for row in payload["data"]["items"]]
+    body = json.dumps(payload).encode()
+    response = replay.ReplayResponse(
+        _context(modules, "equity.quote.snapshot"),
+        body,
+        hashlib.sha256(body).hexdigest(),
+        FINISHED,
+    )
+
+    with pytest.raises(ValueError, match="REHEARSAL_REPLAY_UNIT_WITNESS_MISSING"):
+        replay.replay_retained_dataset([response], _contracts(modules, "equity.quote.snapshot"))
+
+
 def _fixture(modules, tmp_path):
     collector = modules["rehearsal_replay_collector"]
     source = tmp_path / "source"

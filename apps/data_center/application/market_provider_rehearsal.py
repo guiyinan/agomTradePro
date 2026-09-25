@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections import Counter
 from collections.abc import Sequence
 from datetime import date, datetime
@@ -94,6 +95,17 @@ def assess_market_probe(
             "fetched_at": fetched.isoformat() if fetched else None,
         }
         if isinstance(fact, QuoteSnapshot):
+            if (
+                fact.volume is None
+                or fact.amount is None
+                or isinstance(fact.volume, bool)
+                or isinstance(fact.amount, bool)
+                or not math.isfinite(float(fact.volume))
+                or not math.isfinite(float(fact.amount))
+                or fact.volume < 0
+                or fact.amount < 0
+            ):
+                failures.append("REHEARSAL_QUOTE_MEASURES_MISSING")
             row.update(
                 {
                     "current_price": fact.current_price,

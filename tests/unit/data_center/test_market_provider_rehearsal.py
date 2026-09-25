@@ -65,6 +65,8 @@ def test_current_complete_probe_reports_facts_not_publication_success() -> None:
         12.3,
         "provider",
         fetched_at=start + timedelta(seconds=1),
+        volume=100.0,
+        amount=1_000.0,
     )
     report = assess_market_probe(
         dataset="equity.quote.snapshot",
@@ -78,3 +80,28 @@ def test_current_complete_probe_reports_facts_not_publication_success() -> None:
     assert report["requested"] == report["succeeded"] == 1
     assert report["failed"] == report["stored"] == 0
     assert report["publication_updated"] is False
+
+
+def test_probe_blocks_quote_without_volume_or_amount_witnesses() -> None:
+    start = datetime(2026, 9, 24, 8, tzinfo=UTC)
+    fact = QuoteSnapshot(
+        "600000.SH",
+        start - timedelta(hours=1),
+        12.3,
+        "provider",
+        fetched_at=start + timedelta(seconds=1),
+    )
+
+    report = assess_market_probe(
+        dataset="equity.quote.snapshot",
+        facts=[fact],
+        sample=(fact.asset_code,),
+        target_date=date(2026, 9, 24),
+        started_at=start,
+        finished_at=start + timedelta(seconds=3),
+    )
+
+    assert report["outcome"] == "blocked"
+    assert report["issues"] == [
+        {"asset_code": "600000.SH", "code": "REHEARSAL_QUOTE_MEASURES_MISSING"}
+    ]

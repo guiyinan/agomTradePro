@@ -113,7 +113,7 @@ def _same_number(left: object, right: object) -> bool:
     """Compare finite provider values without accepting booleans as numbers."""
 
     if left is None or right is None:
-        return left is right
+        return False
     if (
         isinstance(left, bool)
         or isinstance(right, bool)
@@ -437,13 +437,10 @@ def collect_response_replay(
             with (output_dir / name).open("xb") as stream:
                 stream.write(body)
             references.append({"path": name, "sha256": body_hash})
-        contracts = _contracts(units, dataset)
         receipt_report: dict[str, object] = {
             **common,
             **results[dataset],
-            "schema": "release.real-provider-response-replay.v1",
-            "raw_unit": contracts[0].raw_unit,
-            "canonical_unit": contracts[0].canonical_unit,
+            "schema": "release.real-provider-response-replay.v2",
             "source_observed_at": _text(
                 cast(dict[str, object], cast(list[object], results[dataset]["observations"])[0]),
                 "source_observed_at",
@@ -452,6 +449,10 @@ def collect_response_replay(
             "response_bodies": references,
             "response_set_scope": "all_retained_responses_for_dataset",
             "unit_contract_sha256": expected_unit_contract_sha256,
+            "unit_contract": {
+                "path": "unit-contract.json",
+                "sha256": expected_unit_contract_sha256,
+            },
         }
         name = "quote-replay.json" if dataset == DATASETS[0] else "valuation-replay.json"
         receipt_refs.append(_write_json(output_dir / name, receipt_report))

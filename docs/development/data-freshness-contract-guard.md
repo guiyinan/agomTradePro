@@ -215,4 +215,4 @@ Tushare `daily_basic` 的直连传输同时对实际 HTTP response bytes 计算 
 
 [Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。全市场自然发布默认安排在 17:05，确保任务确定的最近收盘交易日已有完整估值截面；提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。
 
-Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和历史日线在进入 Domain 前必须分别转换为股和元；真实响应候选门禁必须同时重放 `close`、`vol`、`amount` 并与在线标准化事实逐项相等，不能只用价格一致性替代成交量与成交额量纲验证。
+Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和历史日线在进入 Domain 前必须分别转换为股和元；完整收盘行情缺少成交量或成交额时不得物化为可发布日线。真实响应候选门禁必须同时重放 `close`、`vol`、`amount` 并与在线标准化事实逐项相等，原始值或规范值缺失、非有限、负数、单位或倍率不符都必须失败关闭。最终发布门禁从绑定的逐资产 observation 和单位合同原件重新计算，不能只信 `units_verified` 布尔值或只用价格一致性替代成交量与成交额量纲验证。

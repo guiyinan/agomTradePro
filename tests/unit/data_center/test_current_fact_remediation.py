@@ -241,6 +241,41 @@ def test_completed_session_materialization_rejects_missing_or_old_quotes() -> No
     assert preview.invalid_asset_codes == ("000001.SZ",)
 
 
+@pytest.mark.parametrize("missing_field", ["volume", "amount"])
+def test_completed_session_materialization_rejects_missing_liquidity_measures(
+    missing_field: str,
+) -> None:
+    quote = _quote("000001.SZ")
+    values = {"volume": quote.volume, "amount": quote.amount}
+    values[missing_field] = None
+    incomplete = QuoteSnapshot(
+        asset_code=quote.asset_code,
+        snapshot_at=quote.snapshot_at,
+        fetched_at=quote.fetched_at,
+        current_price=quote.current_price,
+        open=quote.open,
+        high=quote.high,
+        low=quote.low,
+        volume=values["volume"],
+        amount=values["amount"],
+        source=quote.source,
+    )
+    use_case = CompletedSessionPriceBarUseCase(
+        quote_repository=_QuoteRepository([incomplete]),
+        price_repository=_PriceRepository(),
+        transaction=_transaction,
+    )
+
+    preview = use_case.preview(
+        asset_codes=[incomplete.asset_code],
+        session_date=SESSION_DATE,
+        recorded_at=COMPLETED_AT,
+    )
+
+    assert preview.ready is False
+    assert preview.invalid_asset_codes == (incomplete.asset_code,)
+
+
 class _SyncUseCase:
     def __init__(self, result) -> None:
         self.result = result

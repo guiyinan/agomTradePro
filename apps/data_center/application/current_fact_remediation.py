@@ -351,8 +351,18 @@ class CompletedSessionPriceBarUseCase:
                 or numeric_values[1] < max(numeric_values[0], numeric_values[2], numeric_values[3])
                 or numeric_values[2] > min(numeric_values[0], numeric_values[1], numeric_values[3])
             )
-            invalid_volume = quote.volume is not None and quote.volume < 0
-            invalid_amount = quote.amount is not None and quote.amount < 0
+            invalid_volume = (
+                quote.volume is None
+                or isinstance(quote.volume, bool)
+                or not math.isfinite(float(quote.volume))
+                or quote.volume < 0
+            )
+            invalid_amount = (
+                quote.amount is None
+                or isinstance(quote.amount, bool)
+                or not math.isfinite(float(quote.amount))
+                or quote.amount < 0
+            )
             if (
                 quote.snapshot_at > recorded_at
                 or local_observed_at.date() != session_date

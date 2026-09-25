@@ -33,7 +33,7 @@
 - Alpha 评分缓存写入后若交易日历不可用，任务不再整段重试或伪报全成功：缓存阶段保留成功，账户推荐同步阶段记录 `market_calendar_unavailable`，整体发布 `partial`，Alpha 页面显示安全提示并继续标注实际评分日期。
 - SDK/MCP 统一信号分页、政策待分类/人工复核语义和决策运行时阻断字段；上游 `block_reason_code/block_reason` 会安全透传，投资者可以看到数据为什么不可用于决策。
 - Tushare SDK 路由按其单一 Data API URL 协议发送请求，endpoint 与密钥继续由 Data Center / Config Center 和部署环境管理，不写入仓库。发布前的候选绑定门禁会联合校验真实响应与单位重放、完整 universe 容量、隔离 PostgreSQL 写入/回滚和固定 23 项 PostgreSQL 回归；容量结论必须绑定原始运行回执，并由门禁按 provider 窗口配额、任务时限、数据库连接、锁等待和内存峰值重新计算，不能只提交自报布尔值。GitHub Actions 官方接口既要确认同 SHA 的成功 run，还要校验该 run 的官方 artifact ZIP 摘要及两份 JUnit 原始字节。缺失、过期、mock、partial、blocked、skip 或候选不一致都会在任何自动推送、npm 安装或部署凭据创建前阻断。50 只股票的真实 provider 探针仍用于早期发现问题，不能单独作为发布批准。
-- 真实 provider 预演可选择性留存经过大小限制的原始响应正文；回执绑定候选、交易日、完整 universe、provider 身份和每个响应摘要，离线重放复用正式行情/估值解析器并校验传输完成、标准化完成和源观测三个时钟。Tushare `daily` 的价格、成交量和成交额同时执行单位重放，其中 `vol` 从手转换为股、`amount` 从千元转换为元；留存范围中的任一响应缺失、实时事实与重放结果不同或 DataFrame 包装破坏下游调用都会失败关闭。
+- 真实 provider 预演可选择性留存经过大小限制的原始响应正文；回执绑定候选、交易日、完整 universe、provider 身份和每个响应摘要，离线重放复用正式行情/估值解析器并校验传输完成、标准化完成和源观测三个时钟。Tushare `daily` 的价格、成交量和成交额同时执行单位重放，其中 `vol` 从手转换为股、`amount` 从千元转换为元；缺少成交量或成交额不会再被当成单位验证成功，也不能物化为可发布日线。最终门禁逐资产重算原始值、规范值、单位和倍率；留存范围中的任一响应缺失、实时事实与重放结果不同或 DataFrame 包装破坏下游调用都会失败关闭。
 - VPS 的审计续期请求路径已固定注入 Web 与 Celery Worker，并落在持久化 `/app/var` 卷。容器或代码版本替换后请求通道不会静默消失；缺少经过复核的续期请求会明确返回 `renewal_request_not_found`，继续保持决策链阻断。
 - 财报仍坚持来源时点证据门槛：provider 只给日期、没有可验证的精确发布时间时，系统会显示 `financial_available_at_missing` / `financial_source_evidence_incomplete`，不会用抓取时间伪装来源时间，也不会把该链路标记为可用于投资决策。
 - 中国市场日期统一使用来源签发的完整交易日历证据：区间内每个自然日都必须有开/闭市状态，缺尾、缺中间、冲突或来源不可用都会阻断，不再把工作日或节假日猜成交易日。

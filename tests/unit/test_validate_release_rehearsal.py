@@ -142,39 +142,155 @@ def _common(kind: str, now: datetime) -> dict[str, Any]:
 
 def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path]]:
     tmp_path.mkdir(parents=True, exist_ok=True)
+    unit_contract_path = tmp_path / "unit-contract.json"
+    unit_contract_digest = _write_json(
+        unit_contract_path,
+        {
+            "schema": "release.provider-unit-contract.v1",
+            "candidate_sha": CANDIDATE,
+            "provider_identities_sha256": PROVIDER_DIGEST,
+            "source_reference": "unit-test-contract",
+            "datasets": {
+                "equity.quote.snapshot": [
+                    {"field": "close", "raw_unit": "元", "canonical_unit": "元", "multiplier": 1.0},
+                    {"field": "vol", "raw_unit": "手", "canonical_unit": "股", "multiplier": 100.0},
+                    {
+                        "field": "amount",
+                        "raw_unit": "千元",
+                        "canonical_unit": "元",
+                        "multiplier": 1000.0,
+                    },
+                ],
+                "equity.valuation.fact": [
+                    {
+                        "field": "total_mv",
+                        "raw_unit": "万元",
+                        "canonical_unit": "元",
+                        "multiplier": 10000.0,
+                    },
+                    {
+                        "field": "circ_mv",
+                        "raw_unit": "万元",
+                        "canonical_unit": "元",
+                        "multiplier": 10000.0,
+                    },
+                ],
+            },
+        },
+    )
     response_artifacts: list[dict[str, str]] = []
-    for dataset, raw_unit, canonical_unit in (
-        ("equity.quote.snapshot", "CNY/share", "CNY/share"),
-        ("equity.valuation.fact", "CNY/10k", "CNY"),
-    ):
+    for dataset in ("equity.quote.snapshot", "equity.valuation.fact"):
         slug = dataset.replace(".", "-")
         response_path = tmp_path / f"{slug}-response.json"
-        response_path.write_text('{"data":[{"ts_code":"000001.SZ"}]}', encoding="utf-8")
+        response_fields = (
+            ["ts_code", "trade_date", "close", "vol", "amount"]
+            if dataset == "equity.quote.snapshot"
+            else ["ts_code", "trade_date", "total_mv", "circ_mv"]
+        )
+        response_values = (
+            [TARGET_DATE.replace("-", ""), 10.0, 2.0, 3.0]
+            if dataset == "equity.quote.snapshot"
+            else [TARGET_DATE.replace("-", ""), 3.0, 2.0]
+        )
+        response_path.write_text(
+            json.dumps(
+                {
+                    "code": 0,
+                    "data": {
+                        "fields": response_fields,
+                        "items": [[code, *response_values] for code in ASSET_CODES],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        response_digest = hashlib.sha256(response_path.read_bytes()).hexdigest()
+        if dataset == "equity.quote.snapshot":
+            units = [
+                {
+                    "field": "close",
+                    "raw": 10.0,
+                    "canonical": 10.0,
+                    "raw_unit": "元",
+                    "canonical_unit": "元",
+                    "multiplier": 1.0,
+                },
+                {
+                    "field": "vol",
+                    "raw": 2.0,
+                    "canonical": 200.0,
+                    "raw_unit": "手",
+                    "canonical_unit": "股",
+                    "multiplier": 100.0,
+                },
+                {
+                    "field": "amount",
+                    "raw": 3.0,
+                    "canonical": 3000.0,
+                    "raw_unit": "千元",
+                    "canonical_unit": "元",
+                    "multiplier": 1000.0,
+                },
+            ]
+        else:
+            units = [
+                {
+                    "field": "total_mv",
+                    "raw": 3.0,
+                    "canonical": 30000.0,
+                    "raw_unit": "万元",
+                    "canonical_unit": "元",
+                    "multiplier": 10000.0,
+                },
+                {
+                    "field": "circ_mv",
+                    "raw": 2.0,
+                    "canonical": 20000.0,
+                    "raw_unit": "万元",
+                    "canonical_unit": "元",
+                    "multiplier": 10000.0,
+                },
+            ]
         receipt_path = tmp_path / f"{slug}-replay.json"
         receipt = {
-            "schema": "release.real-provider-response-replay.v1",
+            "schema": "release.real-provider-response-replay.v2",
             "candidate_sha": CANDIDATE,
             "target_trade_date": TARGET_DATE,
             "universe_sha256": UNIVERSE,
             "provider_identities_sha256": PROVIDER_DIGEST,
             "outcome": "success",
             "dataset": dataset,
-            "raw_unit": raw_unit,
-            "canonical_unit": canonical_unit,
             "source_observed_at": "2026-09-24T07:00:00+00:00",
             "sampled_assets": ASSET_CODES,
+            "observations": [
+                {
+                    "asset_code": code,
+                    "source_observed_at": "2026-09-24T07:00:00+00:00",
+                    "transport_received_at": "2026-09-24T23:55:00+00:00",
+                    "normalization_completed_at": "2026-09-24T23:55:01+00:00",
+                    "response_completed_at": "2026-09-24T23:55:01+00:00",
+                    "body_sha256": response_digest,
+                    "units": units,
+                }
+                for code in ASSET_CODES
+            ],
             "replay_cases": sorted(validator.REQUIRED_REPLAY_CASES),
             "response_body": {
                 "path": response_path.name,
-                "sha256": hashlib.sha256(response_path.read_bytes()).hexdigest(),
+                "sha256": response_digest,
             },
             "response_bodies": [
                 {
                     "path": response_path.name,
-                    "sha256": hashlib.sha256(response_path.read_bytes()).hexdigest(),
+                    "sha256": response_digest,
                 }
             ],
             "response_set_scope": "all_retained_responses_for_dataset",
+            "unit_contract_sha256": unit_contract_digest,
+            "unit_contract": {
+                "path": unit_contract_path.name,
+                "sha256": unit_contract_digest,
+            },
         }
         receipt_digest = _write_json(receipt_path, receipt)
         response_artifacts.append({"path": receipt_path.name, "sha256": receipt_digest})
@@ -362,6 +478,17 @@ def _replace_capacity_receipt(
     _replace_report(manifest, capacity_report_path, report)
 
 
+def _write_replay_receipt(
+    manifest: Path,
+    replay_report_path: Path,
+    report: dict[str, Any],
+    receipt_path: Path,
+    receipt: dict[str, Any],
+) -> None:
+    report["response_artifacts"][0]["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, replay_report_path, report)
+
+
 def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> None:
     now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
     manifest, _reports = _build_evidence(tmp_path, now)
@@ -459,6 +586,100 @@ def test_validator_recomputes_capacity_from_bound_measurement_receipt(
     now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
     manifest, reports = _build_evidence(tmp_path, now)
     _replace_capacity_receipt(manifest, reports["full_universe_capacity"], mutation)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == expected_code
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "missing_observations",
+        "null_raw",
+        "nan_canonical",
+        "infinite_raw",
+        "wrong_multiplier",
+        "opaque_unit",
+        "duplicate_field",
+        "missing_asset",
+        "extra_asset",
+        "unknown_body",
+        "tampered_contract",
+        "legacy_schema",
+        "body_raw_drift",
+        "body_scope_missing",
+        "body_scope_duplicate",
+        "body_wrong_date",
+    ],
+)
+def test_validator_recomputes_every_replayed_unit_observation(tmp_path: Path, defect: str) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / report["response_artifacts"][0]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    expected_code = "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID"
+    if defect == "missing_observations":
+        receipt.pop("observations")
+    elif defect == "null_raw":
+        receipt["observations"][0]["units"][1]["raw"] = None
+    elif defect == "nan_canonical":
+        receipt["observations"][0]["units"][1]["canonical"] = float("nan")
+    elif defect == "infinite_raw":
+        receipt["observations"][0]["units"][1]["raw"] = float("inf")
+    elif defect == "wrong_multiplier":
+        receipt["observations"][0]["units"][1]["multiplier"] = 1.0
+    elif defect == "opaque_unit":
+        receipt["observations"][0]["units"][1]["raw_unit"] = "opaque"
+    elif defect == "duplicate_field":
+        receipt["observations"][0]["units"][2]["field"] = "vol"
+    elif defect == "missing_asset":
+        receipt["observations"].pop()
+    elif defect == "extra_asset":
+        extra = dict(receipt["observations"][0])
+        extra["asset_code"] = "999999.SZ"
+        receipt["observations"].append(extra)
+    elif defect == "unknown_body":
+        receipt["observations"][0]["body_sha256"] = "f" * 64
+    elif defect == "tampered_contract":
+        expected_code = "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID"
+        contract_path = tmp_path / receipt["unit_contract"]["path"]
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        contract["datasets"]["equity.quote.snapshot"][1]["raw_unit"] = "opaque"
+        digest = _write_json(contract_path, contract)
+        receipt["unit_contract"]["sha256"] = digest
+        receipt["unit_contract_sha256"] = digest
+    elif defect == "legacy_schema":
+        expected_code = "REHEARSAL_REPLAY_RECEIPT_INVALID"
+        receipt["schema"] = "release.real-provider-response-replay.v1"
+    elif defect in {
+        "body_raw_drift",
+        "body_scope_missing",
+        "body_scope_duplicate",
+        "body_wrong_date",
+    }:
+        response_path = tmp_path / receipt["response_body"]["path"]
+        response = json.loads(response_path.read_text(encoding="utf-8"))
+        if defect == "body_raw_drift":
+            response["data"]["items"][0][3] = 9.0
+        elif defect == "body_scope_missing":
+            expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"
+            response["data"]["items"].pop()
+        elif defect == "body_scope_duplicate":
+            expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"
+            response["data"]["items"].append(list(response["data"]["items"][0]))
+        else:
+            expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"
+            response["data"]["items"][0][1] = "20260923"
+        response_digest = _write_json(response_path, response)
+        receipt["response_body"]["sha256"] = response_digest
+        receipt["response_bodies"][0]["sha256"] = response_digest
+        for observation in receipt["observations"]:
+            observation["body_sha256"] = response_digest
+    _write_replay_receipt(manifest, report_path, report, receipt_path, receipt)
 
     with pytest.raises(validator.RehearsalValidationError) as exc_info:
         _validate(manifest, now)

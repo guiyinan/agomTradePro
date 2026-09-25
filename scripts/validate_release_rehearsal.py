@@ -17,6 +17,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, NoReturn, cast
 from zoneinfo import ZoneInfo
@@ -68,6 +69,17 @@ REQUIRED_REPLAY_CASES = {
     "duplicate",
     "unit_error",
     "subsequent_fact_update",
+}
+REQUIRED_REPLAY_UNIT_CONTRACTS = {
+    "equity.quote.snapshot": {
+        "close": ("元", "元", 1.0, False),
+        "vol": ("手", "股", 100.0, True),
+        "amount": ("千元", "元", 1000.0, True),
+    },
+    "equity.valuation.fact": {
+        "total_mv": ("万元", "元", 10000.0, False),
+        "circ_mv": ("万元", "元", 10000.0, False),
+    },
 }
 REQUIRED_GITHUB_WORKFLOW = "Publication PostgreSQL contracts"
 REQUIRED_GITHUB_ARTIFACT = "publication-postgres-evidence"
@@ -380,6 +392,185 @@ def _validate_receipt_identity(
         _fail("REHEARSAL_RECEIPT_NOT_SUCCESSFUL")
 
 
+def _replay_number(value: object) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or float(value) < 0
+    ):
+        _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+    return float(value)
+
+
+def _read_tushare_response_rows(path: Path) -> list[dict[str, object]]:
+    payload = _read_json(path, "REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+    data = payload.get("data")
+    if payload.get("code") != 0 or not isinstance(data, dict):
+        _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+    fields = data.get("fields")
+    items = data.get("items")
+    if (
+        not isinstance(fields, list)
+        or not fields
+        or any(not isinstance(field, str) or not field for field in fields)
+        or len(set(fields)) != len(fields)
+        or not isinstance(items, list)
+    ):
+        _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+    rows: list[dict[str, object]] = []
+    for item in cast(list[object], items):
+        if not isinstance(item, list) or len(item) != len(fields):
+            _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+        rows.append(dict(zip(cast(list[str], fields), cast(list[object], item), strict=True)))
+    return rows
+
+
+def _validate_unit_contract_artifact(
+    payload: dict[str, Any],
+    *,
+    expected_candidate: str,
+    expected_provider_digest: str,
+) -> None:
+    if (
+        payload.get("schema") != "release.provider-unit-contract.v1"
+        or payload.get("candidate_sha") != expected_candidate
+        or payload.get("provider_identities_sha256") != expected_provider_digest
+    ):
+        _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+    _require_string(payload, "source_reference", "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+    datasets = payload.get("datasets")
+    if not isinstance(datasets, dict) or set(datasets) != set(REQUIRED_REPLAY_UNIT_CONTRACTS):
+        _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+    for dataset, expected_fields in REQUIRED_REPLAY_UNIT_CONTRACTS.items():
+        values = datasets.get(dataset)
+        if not isinstance(values, list) or len(values) != len(expected_fields):
+            _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+        observed: dict[str, tuple[object, object, object]] = {}
+        for value in cast(list[object], values):
+            if not isinstance(value, dict):
+                _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+            record = cast(dict[str, object], value)
+            if set(record) != {"field", "raw_unit", "canonical_unit", "multiplier"}:
+                _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+            field = record.get("field")
+            if not isinstance(field, str) or field in observed:
+                _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+            observed[field] = (
+                record.get("raw_unit"),
+                record.get("canonical_unit"),
+                record.get("multiplier"),
+            )
+        if set(observed) != set(expected_fields):
+            _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+        for field, (raw_unit, canonical_unit, multiplier, _allow_zero) in expected_fields.items():
+            observed_raw, observed_canonical, observed_multiplier = observed[field]
+            if (
+                observed_raw != raw_unit
+                or observed_canonical != canonical_unit
+                or isinstance(observed_multiplier, bool)
+                or not isinstance(observed_multiplier, (int, float))
+                or not math.isclose(float(observed_multiplier), multiplier, abs_tol=0.0)
+            ):
+                _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+
+
+def _validate_unit_observations(
+    receipt: dict[str, Any],
+    *,
+    dataset: str,
+    expected_sample: list[str],
+    expected_date: str,
+    response_rows_by_hash: dict[str, list[dict[str, object]]],
+) -> None:
+    observations = receipt.get("observations")
+    if not isinstance(observations, list) or len(observations) != len(expected_sample):
+        _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+    expected_fields = REQUIRED_REPLAY_UNIT_CONTRACTS[dataset]
+    observed_assets: set[str] = set()
+    receipt_observed_at = receipt.get("source_observed_at")
+    for value in cast(list[object], observations):
+        if not isinstance(value, dict):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        observation = cast(dict[str, object], value)
+        asset_code = observation.get("asset_code")
+        body_sha = observation.get("body_sha256")
+        if (
+            not isinstance(asset_code, str)
+            or asset_code in observed_assets
+            or asset_code not in expected_sample
+            or not isinstance(body_sha, str)
+            or body_sha not in response_rows_by_hash
+            or observation.get("source_observed_at") != receipt_observed_at
+        ):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        observed_assets.add(asset_code)
+        source_observed = _parse_datetime(
+            observation.get("source_observed_at"), "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID"
+        )
+        transport_received = _parse_datetime(
+            observation.get("transport_received_at"),
+            "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID",
+        )
+        normalization_completed = _parse_datetime(
+            observation.get("normalization_completed_at"),
+            "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID",
+        )
+        if (
+            source_observed.astimezone(ZoneInfo("Asia/Shanghai")).date()
+            != date.fromisoformat(expected_date)
+            or not source_observed <= transport_received <= normalization_completed
+            or observation.get("response_completed_at")
+            != observation.get("normalization_completed_at")
+        ):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        units = observation.get("units")
+        if not isinstance(units, list) or len(units) != len(expected_fields):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        units_by_field: dict[str, dict[str, object]] = {}
+        for unit_value in cast(list[object], units):
+            if not isinstance(unit_value, dict):
+                _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+            unit = cast(dict[str, object], unit_value)
+            field = unit.get("field")
+            if not isinstance(field, str) or field in units_by_field:
+                _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+            units_by_field[field] = unit
+        if set(units_by_field) != set(expected_fields):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        source_rows = [
+            row
+            for row in response_rows_by_hash[body_sha]
+            if row.get("ts_code") == asset_code
+            and row.get("trade_date") == expected_date.replace("-", "")
+        ]
+        if len(source_rows) != 1:
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+        source_row = source_rows[0]
+        for field, (raw_unit, canonical_unit, multiplier, allow_zero) in expected_fields.items():
+            unit = units_by_field[field]
+            observed_multiplier = _replay_number(unit.get("multiplier"))
+            raw = _replay_number(unit.get("raw"))
+            canonical = _replay_number(unit.get("canonical"))
+            response_raw = _replay_number(source_row.get(field))
+            if (
+                unit.get("raw_unit") != raw_unit
+                or unit.get("canonical_unit") != canonical_unit
+                or not math.isclose(observed_multiplier, multiplier, abs_tol=0.0)
+                or not math.isclose(response_raw, raw, rel_tol=1e-12, abs_tol=1e-12)
+                or (not allow_zero and (raw <= 0 or canonical <= 0))
+                or not math.isclose(
+                    float(Decimal(str(raw)) * Decimal(str(multiplier))),
+                    canonical,
+                    rel_tol=1e-12,
+                    abs_tol=1e-9,
+                )
+            ):
+                _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+    if observed_assets != set(expected_sample):
+        _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+
+
 def _validate_real_replay(
     report: dict[str, Any],
     base: Path,
@@ -416,7 +607,7 @@ def _validate_real_replay(
             base, artifact_payload.get("path"), artifact_payload.get("sha256")
         )
         receipt = _read_json(receipt_path, "REHEARSAL_REPLAY_RECEIPT_INVALID")
-        if receipt.get("schema") != "release.real-provider-response-replay.v1":
+        if receipt.get("schema") != "release.real-provider-response-replay.v2":
             _fail("REHEARSAL_REPLAY_RECEIPT_INVALID")
         _validate_receipt_identity(
             receipt,
@@ -428,9 +619,8 @@ def _validate_real_replay(
         dataset = receipt.get("dataset")
         if dataset not in {"equity.quote.snapshot", "equity.valuation.fact"}:
             _fail("REHEARSAL_REPLAY_DATASET_INVALID")
-        datasets.add(cast(str, dataset))
-        for unit_key in ("raw_unit", "canonical_unit"):
-            _require_string(receipt, unit_key, "REHEARSAL_REPLAY_UNIT_MISSING")
+        dataset_name = cast(str, dataset)
+        datasets.add(dataset_name)
         observed = _parse_datetime(
             receipt.get("source_observed_at"), "REHEARSAL_REPLAY_SOURCE_TIME_INVALID"
         )
@@ -460,6 +650,7 @@ def _validate_real_replay(
         ):
             _fail("REHEARSAL_REAL_RESPONSE_MISSING")
         response_paths: set[str] = set()
+        response_rows_by_hash: dict[str, list[dict[str, object]]] = {}
         for response_value in cast(list[object], responses):
             if not isinstance(response_value, dict):
                 _fail("REHEARSAL_REAL_RESPONSE_MISSING")
@@ -468,11 +659,52 @@ def _validate_real_replay(
             if not isinstance(response_path, str) or response_path in response_paths:
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
             response_paths.add(response_path)
-            _resolve_artifact(
+            response_sha = response_payload.get("sha256")
+            if not isinstance(response_sha, str):
+                _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            if response_sha in response_rows_by_hash:
+                _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            resolved_response = _resolve_artifact(
                 receipt_path.parent,
                 response_path,
-                response_payload.get("sha256"),
+                response_sha,
             )
+            response_rows_by_hash[response_sha] = _read_tushare_response_rows(resolved_response)
+        target_compact = expected_date.replace("-", "")
+        response_scope_counts = {
+            asset: sum(
+                1
+                for rows in response_rows_by_hash.values()
+                for row in rows
+                if row.get("ts_code") == asset and row.get("trade_date") == target_compact
+            )
+            for asset in expected_sample
+        }
+        if any(count != 1 for count in response_scope_counts.values()):
+            _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+        contract_reference = receipt.get("unit_contract")
+        if not isinstance(contract_reference, dict):
+            _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+        contract_payload = cast(dict[str, object], contract_reference)
+        contract_path = _resolve_artifact(
+            receipt_path.parent,
+            contract_payload.get("path"),
+            contract_payload.get("sha256"),
+        )
+        if receipt.get("unit_contract_sha256") != contract_payload.get("sha256"):
+            _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
+        _validate_unit_contract_artifact(
+            _read_json(contract_path, "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID"),
+            expected_candidate=expected_candidate,
+            expected_provider_digest=expected_provider_digest,
+        )
+        _validate_unit_observations(
+            receipt,
+            dataset=dataset_name,
+            expected_sample=expected_sample,
+            expected_date=expected_date,
+            response_rows_by_hash=response_rows_by_hash,
+        )
     if datasets != {"equity.quote.snapshot", "equity.valuation.fact"}:
         _fail("REHEARSAL_REPLAY_DATASET_INCOMPLETE")
     if replayed_cases != REQUIRED_REPLAY_CASES:

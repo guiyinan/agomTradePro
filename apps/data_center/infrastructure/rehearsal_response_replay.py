@@ -76,9 +76,9 @@ def verify_unit_pair(raw: object, canonical: object, multiplier: float) -> None:
     """Compare actual raw/canonical observations using an explicit unit contract."""
     raw_number, canonical_number = _number(raw), _number(canonical)
     if raw_number is None or canonical_number is None:
-        if raw_number is not canonical_number:
-            raise ValueError("REHEARSAL_REPLAY_UNIT_MISMATCH")
-        return
+        raise ValueError("REHEARSAL_REPLAY_UNIT_WITNESS_MISSING")
+    if raw_number < 0 or canonical_number < 0:
+        raise ValueError("REHEARSAL_REPLAY_NUMBER_INVALID")
     expected = Decimal(str(raw_number)) * Decimal(str(multiplier))
     if not math.isclose(float(expected), canonical_number, rel_tol=1e-12, abs_tol=1e-9):
         raise ValueError("REHEARSAL_REPLAY_UNIT_MISMATCH")
