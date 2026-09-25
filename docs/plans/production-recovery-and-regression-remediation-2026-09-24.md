@@ -1,6 +1,6 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
-状态：执行中。用户已要求主代理带领 GPT-5.6 Luna（max）子代理完成本计划，并设置持续执行 goal。
+状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
 工作基线：`dev/next-development@12c65a919`；生产版本必须另行读取，不能把本地 HEAD 当作部署版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。

@@ -30,9 +30,10 @@
 
 - 行情、日线、估值和财报事实采用不可变修订：已经进入 Publication 的事实不会再被后续同步原地覆盖；新数据追加 revision，历史 Publication 继续绑定原始行和内容摘要，避免后台更新造成已发布成员校验失效。
 - Alpha 首页和决策工作台的普通 GET/查看流程改为只读；刷新、推理和建议写回必须由明确动作触发。任务监控同时展示本次运行阶段、业务 `outcome`、安全错误码和 requested/succeeded/failed/stored 计数，不再用 Celery `SUCCESS` 掩盖业务失败。
+- Alpha 评分缓存写入后若交易日历不可用，任务不再整段重试或伪报全成功：缓存阶段保留成功，账户推荐同步阶段记录 `market_calendar_unavailable`，整体发布 `partial`，Alpha 页面显示安全提示并继续标注实际评分日期。
 - SDK/MCP 统一信号分页、政策待分类/人工复核语义和决策运行时阻断字段；上游 `block_reason_code/block_reason` 会安全透传，投资者可以看到数据为什么不可用于决策。
-- Tushare SDK 路由按其单一 Data API URL 协议发送请求，endpoint 与密钥继续由 Data Center / Config Center 和部署环境管理，不写入仓库。发布前的候选绑定门禁会联合校验真实响应与单位重放、完整 universe 容量、隔离 PostgreSQL 写入/回滚和固定 23 项 PostgreSQL 回归；GitHub Actions 官方接口既要确认同 SHA 的成功 run，还要校验该 run 的官方 artifact ZIP 摘要及两份 JUnit 原始字节。缺失、过期、mock、partial、blocked、skip 或候选不一致都会在任何自动推送、npm 安装或部署凭据创建前阻断。50 只股票的真实 provider 探针仍用于早期发现问题，不能单独作为发布批准。
-- 真实 provider 预演可选择性留存经过大小限制的原始响应正文；回执绑定候选、交易日、完整 universe、provider 身份和每个响应摘要，离线重放复用正式行情/估值解析器并校验传输完成、标准化完成和源观测三个时钟。留存范围中的任一响应缺失、实时事实与重放结果不同或 DataFrame 包装破坏下游调用都会失败关闭。
+- Tushare SDK 路由按其单一 Data API URL 协议发送请求，endpoint 与密钥继续由 Data Center / Config Center 和部署环境管理，不写入仓库。发布前的候选绑定门禁会联合校验真实响应与单位重放、完整 universe 容量、隔离 PostgreSQL 写入/回滚和固定 23 项 PostgreSQL 回归；容量结论必须绑定原始运行回执，并由门禁按 provider 窗口配额、任务时限、数据库连接、锁等待和内存峰值重新计算，不能只提交自报布尔值。GitHub Actions 官方接口既要确认同 SHA 的成功 run，还要校验该 run 的官方 artifact ZIP 摘要及两份 JUnit 原始字节。缺失、过期、mock、partial、blocked、skip 或候选不一致都会在任何自动推送、npm 安装或部署凭据创建前阻断。50 只股票的真实 provider 探针仍用于早期发现问题，不能单独作为发布批准。
+- 真实 provider 预演可选择性留存经过大小限制的原始响应正文；回执绑定候选、交易日、完整 universe、provider 身份和每个响应摘要，离线重放复用正式行情/估值解析器并校验传输完成、标准化完成和源观测三个时钟。Tushare `daily` 的价格、成交量和成交额同时执行单位重放，其中 `vol` 从手转换为股、`amount` 从千元转换为元；留存范围中的任一响应缺失、实时事实与重放结果不同或 DataFrame 包装破坏下游调用都会失败关闭。
 - VPS 的审计续期请求路径已固定注入 Web 与 Celery Worker，并落在持久化 `/app/var` 卷。容器或代码版本替换后请求通道不会静默消失；缺少经过复核的续期请求会明确返回 `renewal_request_not_found`，继续保持决策链阻断。
 - 财报仍坚持来源时点证据门槛：provider 只给日期、没有可验证的精确发布时间时，系统会显示 `financial_available_at_missing` / `financial_source_evidence_incomplete`，不会用抓取时间伪装来源时间，也不会把该链路标记为可用于投资决策。
 - 中国市场日期统一使用来源签发的完整交易日历证据：区间内每个自然日都必须有开/闭市状态，缺尾、缺中间、冲突或来源不可用都会阻断，不再把工作日或节假日猜成交易日。
@@ -41,7 +42,7 @@
 ### 2026-09-24
 
 - 全市场自动发布根因已系统修复并部署到 VPS：长任务时限扩到 3600 秒；审计授权允许同身份 successor 续期；资产全集在发布前刷新并对短暂连接失败重试三次；停牌等当日无估值股票从可交易范围显式排除，不再阻断其他股票。
-- Tushare `daily_basic` 改为单次交易日批量取数，`total_mv/circ_mv` 从万元转换为元；只有交易日期时统一把中国市场 15:00 收盘时刻写入 `observed_at`，不再因缺少源观测时间拒绝估值 Publication，也不使用抓取时间冒充市场时间。
+- Tushare `daily_basic` 改为单次交易日批量取数，`total_mv/circ_mv` 从万元转换为元；`daily` 行情快照与历史日线统一把成交量从手转换为股、成交额从千元转换为元。只有交易日期时统一把中国市场 15:00 收盘时刻写入 `observed_at`，不再因缺少源观测时间拒绝估值 Publication，也不使用抓取时间冒充市场时间。
 - 全市场自然发布默认从 16:30 调整为工作日 17:05，晚于 Tushare 官方 15:00～17:00 更新窗口，并位于 17:40 Alpha 推理前。提前人工触发若当日截面尚未形成，会保留旧 Publication 并在 Alpha 页面显示行情自动发布异常。
 - 生产运行在 `d21202318`：HTTPS、PostgreSQL、Redis、Celery、迁移、TUI metadata、Qlib 身份和版本一致性均通过；9 月 23 日 5,556 条估值已补齐收盘观测时间。9 月 24 日完整 Publication 与后续 Regime/Alpha 自然链仍等待 17:05 数据窗口验收，当前未标记为完全恢复。
 
