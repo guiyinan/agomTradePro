@@ -20,6 +20,11 @@ from xml.etree import ElementTree
 
 import pytest
 
+from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS as BUNDLE_REQUIRED_SCHEMAS
+from scripts.build_release_rehearsal_manifest import (
+    build_manifest,
+)
+
 TEST_PATH = Path(__file__).resolve()
 PROPOSAL_ROOT = TEST_PATH.parents[2]
 COLLECTOR_SCRIPT = PROPOSAL_ROOT / "scripts/collect_release_regression_evidence.py"
@@ -28,6 +33,7 @@ CANDIDATE_SHA = "a" * 40
 UNIVERSE_SHA = "b" * 64
 REPOSITORY = "agomtradepro/agomTradePro"
 RUN_ID = 36069605796
+IMAGE_ID = "sha256:" + "c" * 64
 IDENTITIES = [
     {
         "role": "quote",
@@ -44,6 +50,9 @@ IDENTITIES = [
         "endpoint_id": "valuation",
     },
 ]
+PROVIDER_DIGEST = hashlib.sha256(
+    json.dumps(IDENTITIES, sort_keys=True, separators=(",", ":")).encode()
+).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -272,6 +281,7 @@ def test_collects_validated_candidate_only_report_and_exact_junit_bytes(
     )
     assert report["kind"] == "candidate_regression_evidence"
     assert report["outcome"] == "success"
+    assert report["provider_identities_sha256"] == PROVIDER_DIGEST
     assert report["release_ready"] is False
     assert set(report["remaining_release_gates"]) == {
         "real_response_unit_replay",
@@ -288,6 +298,62 @@ def test_collects_validated_candidate_only_report_and_exact_junit_bytes(
     assert stub.archive_reads == 2
     assert len([url for url in stub.json_calls or [] if "/artifacts" not in url]) == 3
     assert len([url for url in stub.json_calls or [] if "/artifacts" in url]) == 4
+
+
+def test_collector_report_satisfies_bundle_identity_contract(
+    collector_sandbox: CollectorSandbox,
+    tmp_path: Path,
+) -> None:
+    stub = GithubStub(collector_sandbox.validator)
+    _install_github_stub(collector_sandbox, stub)
+    output_dir = tmp_path / "collector-output"
+
+    assert collector_sandbox.collector.main(_arguments(tmp_path, output_dir)) == 0
+    reports = {"candidate_regression_evidence": output_dir / "candidate-regression-evidence.json"}
+    for kind in (
+        "real_response_unit_replay",
+        "full_universe_capacity",
+        "isolated_write_rehearsal",
+    ):
+        report_dir = tmp_path / kind
+        report_dir.mkdir()
+        artifact = report_dir / "receipt.json"
+        artifact.write_text(json.dumps({"kind": kind}), encoding="utf-8")
+        artifact_digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        report_path = report_dir / "report.json"
+        report_path.write_text(
+            json.dumps(
+                {
+                    "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
+                    "kind": kind,
+                    "outcome": "success",
+                    "candidate_sha": CANDIDATE_SHA,
+                    "candidate_image_id": IMAGE_ID,
+                    "target_trade_date": "2026-09-25",
+                    "universe_sha256": UNIVERSE_SHA,
+                    "provider_identities_sha256": PROVIDER_DIGEST,
+                    "artifact": {
+                        "path": artifact.name,
+                        "sha256": artifact_digest,
+                    },
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        reports[kind] = report_path
+
+    manifest_path = build_manifest(
+        reports=reports,
+        output_dir=tmp_path / "bundle",
+        candidate_sha=CANDIDATE_SHA,
+        target_trade_date="2026-09-25",
+        universe_sha256=UNIVERSE_SHA,
+        provider_identities_sha256=PROVIDER_DIGEST,
+        candidate_image_id=IMAGE_ID,
+    )
+
+    assert manifest_path.is_file()
 
 
 @pytest.mark.parametrize(
