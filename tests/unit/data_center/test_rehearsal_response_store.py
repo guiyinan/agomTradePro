@@ -223,6 +223,39 @@ def test_strict_parser_accepts_success_and_full_market_superset(proposal_modules
 
 
 @pytest.mark.parametrize(
+    ("dataset", "foreign_field"),
+    [
+        ("equity.quote.snapshot", "total_mv"),
+        ("equity.valuation.fact", "vol"),
+    ],
+)
+def test_dataset_foreign_fields_are_rejected_without_artifact(
+    proposal_modules: Any,
+    tmp_path: Path,
+    dataset: str,
+    foreign_field: str,
+) -> None:
+    """Keep retained provider responses bound to the requested dataset contract."""
+    root = tmp_path / "evidence"
+    root.mkdir()
+    context = _context(proposal_modules, dataset=dataset)
+    body = _body(
+        dataset=dataset,
+        fields=["ts_code", "trade_date", foreign_field],
+        rows=[["000001.SZ", "20260924", 100.0]],
+    )
+
+    with pytest.raises(ValueError, match="REHEARSAL_RESPONSE_FIELD_UNSUPPORTED"):
+        proposal_modules[0].parse_validate_tushare_response(body, context)
+
+    with pytest.raises(proposal_modules[0].DataFetchError) as failure:
+        _persist(_store(proposal_modules, root), context, body)
+
+    assert failure.value.code == "REHEARSAL_RESPONSE_NOT_RETAINABLE"
+    assert list(root.rglob("*.body")) == []
+
+
+@pytest.mark.parametrize(
     "body",
     [
         _body(message="provider failure echoed: secret"),
