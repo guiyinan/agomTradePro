@@ -294,7 +294,7 @@ class RefreshRecommendationsView(APIView):
         触发刷新
 
         Request body:
-            account_id: 账户 ID（可选，不传则使用 default 账户口径）
+            account_id: 当前用户持有的账户 ID（必填）
             security_codes: 证券代码列表（可选）
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）

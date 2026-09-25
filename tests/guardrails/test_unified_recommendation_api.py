@@ -17,14 +17,24 @@ from apps.decision_rhythm.infrastructure.models import (
     UnifiedRecommendationModel,
 )
 from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
 @pytest.fixture
 def authenticated_client():
     """创建已认证的客户端"""
     user = User.objects.create_user(username="testuser", password="testpass")
+    account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="guardrail owned account",
+        account_type="simulated",
+        initial_capital="100000",
+        current_cash="100000",
+        total_value="100000",
+    )
     client = Client()
     client.force_login(user)
+    client.workspace_account_id = str(account.pk)
     return client
 
 
@@ -45,7 +55,8 @@ class TestUnifiedRecommendationsAPI:
     def test_recommendations_list_empty(self, authenticated_client):
         """测试推荐列表为空"""
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -74,7 +85,7 @@ class TestUnifiedRecommendationsAPI:
         cache.clear()
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_001",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000001.SZ",
             side="BUY",
             composite_score=0.8,
@@ -82,7 +93,8 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -97,7 +109,7 @@ class TestUnifiedRecommendationsAPI:
         """测试默认不返回已忽略推荐"""
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_ignored",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000009.SZ",
             side="BUY",
             composite_score=0.6,
@@ -105,7 +117,8 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -116,7 +129,7 @@ class TestUnifiedRecommendationsAPI:
         """测试可按用户动作过滤推荐"""
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_watch",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000010.SZ",
             side="BUY",
             composite_score=0.7,
@@ -124,7 +137,7 @@ class TestUnifiedRecommendationsAPI:
         )
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_adopt",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000011.SZ",
             side="BUY",
             composite_score=0.8,
@@ -132,7 +145,11 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001&user_action=WATCHING"
+            "/api/decision/workspace/recommendations/",
+            {
+                "account_id": authenticated_client.workspace_account_id,
+                "user_action": "WATCHING",
+            },
         )
 
         assert response.status_code == 200
@@ -144,7 +161,7 @@ class TestUnifiedRecommendationsAPI:
         """测试推荐列表返回估值修复摘要"""
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_valuation_001",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000001.SZ",
             side="BUY",
             composite_score=0.8,
@@ -175,7 +192,8 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -192,7 +210,7 @@ class TestUnifiedRecommendationsAPI:
         """测试没有估值修复快照时返回 null"""
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_valuation_002",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="600519.SH",
             side="BUY",
             composite_score=0.9,
@@ -200,7 +218,8 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -213,7 +232,7 @@ class TestUnifiedRecommendationsAPI:
         # 创建正常推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_001",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000001.SZ",
             side="BUY",
             composite_score=0.8,
@@ -222,7 +241,7 @@ class TestUnifiedRecommendationsAPI:
         # 创建冲突推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_002",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000002.SZ",
             side="BUY",
             composite_score=0.7,
@@ -230,7 +249,8 @@ class TestUnifiedRecommendationsAPI:
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001"
+            "/api/decision/workspace/recommendations/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -244,14 +264,19 @@ class TestUnifiedRecommendationsAPI:
         for i in range(25):
             UnifiedRecommendationModel.objects.create(
                 recommendation_id=f"urec_{i:03d}",
-                account_id="account_001",
+                account_id=authenticated_client.workspace_account_id,
                 security_code=f"00000{i:02d}.SZ",
                 side="BUY",
                 composite_score=0.8 - i * 0.01,
             )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/recommendations/?account_id=account_001&page=2&page_size=10"
+            "/api/decision/workspace/recommendations/",
+            {
+                "account_id": authenticated_client.workspace_account_id,
+                "page": 2,
+                "page_size": 10,
+            },
         )
 
         assert response.status_code == 200
@@ -269,7 +294,7 @@ class TestRefreshRecommendationsAPI:
         """测试刷新推荐 POST"""
         response = authenticated_client.post(
             "/api/decision/workspace/recommendations/refresh/",
-            data={"account_id": "account_001"},
+            data={"account_id": authenticated_client.workspace_account_id},
             content_type="application/json",
         )
 
@@ -280,17 +305,17 @@ class TestRefreshRecommendationsAPI:
         assert "data" in data
         assert "task_id" in data["data"]
 
-    def test_refresh_recommendations_accepts_empty_body(self, authenticated_client):
-        """测试刷新推荐接受空请求体"""
+    def test_refresh_recommendations_rejects_empty_body(self, authenticated_client):
+        """测试刷新推荐拒绝缺少账户归属的请求体"""
         response = authenticated_client.post(
             "/api/decision/workspace/recommendations/refresh/",
             data={},
             content_type="application/json",
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 400
         data = response.json()
-        assert data["success"] is True
+        assert data == {"success": False, "error": "account_id is required"}
 
 
 @pytest.mark.django_db
@@ -301,7 +326,7 @@ class TestRecommendationUserActionAPI:
         """测试用户动作可更新推荐"""
         recommendation = UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_action_001",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="600519.SH",
             side="BUY",
             composite_score=0.88,
@@ -311,7 +336,7 @@ class TestRecommendationUserActionAPI:
             "/api/decision/workspace/recommendations/action/",
             data={
                 "recommendation_id": recommendation.recommendation_id,
-                "account_id": "account_001",
+                "account_id": authenticated_client.workspace_account_id,
                 "action": "watch",
                 "note": "来自首页",
             },
@@ -341,7 +366,8 @@ class TestConflictsAPI:
     def test_conflicts_list_empty(self, authenticated_client):
         """测试冲突列表为空"""
         response = authenticated_client.get(
-            "/api/decision/workspace/conflicts/?account_id=account_001"
+            "/api/decision/workspace/conflicts/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
@@ -354,21 +380,22 @@ class TestConflictsAPI:
         # 创建冲突推荐
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_buy",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000001.SZ",
             side="BUY",
             status="CONFLICT",
         )
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_sell",
-            account_id="account_001",
+            account_id=authenticated_client.workspace_account_id,
             security_code="000001.SZ",
             side="SELL",
             status="CONFLICT",
         )
 
         response = authenticated_client.get(
-            "/api/decision/workspace/conflicts/?account_id=account_001"
+            "/api/decision/workspace/conflicts/",
+            {"account_id": authenticated_client.workspace_account_id},
         )
 
         assert response.status_code == 200
