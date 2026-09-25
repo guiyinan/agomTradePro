@@ -14,6 +14,7 @@ from apps.data_center.infrastructure.market_rehearsal_runner import (
     market_rehearsal_source_digest,
     run_market_provider_rehearsal,
 )
+from apps.data_center.infrastructure.rehearsal_identity import load_rehearsal_identities
 from core.exceptions import AgomTradeProException
 
 
@@ -34,6 +35,10 @@ class Command(BaseCommand):
         parser.add_argument("--max-dispatches", type=int, default=100)
         parser.add_argument("--max-seconds", type=float, default=180.0)
         parser.add_argument("--output", type=Path)
+        parser.add_argument("--response-evidence-root", type=Path)
+        parser.add_argument("--provider-identities", type=Path)
+        parser.add_argument("--max-response-bytes", type=int, default=8_000_000)
+        parser.add_argument("--max-total-response-bytes", type=int, default=32_000_000)
 
     def handle(self, *args: object, **options: Any) -> None:
         """Write one new evidence file; never treat provider success as release approval."""
@@ -49,6 +54,16 @@ class Command(BaseCommand):
         destination: Path = options["output"]
         if destination.exists():
             raise CommandError("refusing to overwrite existing rehearsal evidence")
+        evidence_root: Path | None = options["response_evidence_root"]
+        identity_path: Path | None = options["provider_identities"]
+        if (evidence_root is None) != (identity_path is None):
+            raise CommandError(
+                "response retention requires both evidence root and public provider identities"
+            )
+        if evidence_root is not None and destination.resolve().parent != evidence_root.resolve():
+            raise CommandError(
+                "retained response report must be written directly inside its evidence root"
+            )
         destination.parent.mkdir(parents=True, exist_ok=True)
         try:
             report = run_market_provider_rehearsal(
@@ -59,6 +74,12 @@ class Command(BaseCommand):
                 sample_size=options["sample_size"],
                 max_dispatches=options["max_dispatches"],
                 max_seconds=options["max_seconds"],
+                response_evidence_root=evidence_root,
+                provider_identities=(
+                    load_rehearsal_identities(identity_path) if identity_path is not None else None
+                ),
+                max_response_bytes=options["max_response_bytes"],
+                max_total_response_bytes=options["max_total_response_bytes"],
             )
         except (AgomTradeProException, DatabaseError, ValueError, OSError) as exc:
             # Retain a machine-visible failure without transport exception text or credentials.

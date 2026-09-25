@@ -32,6 +32,8 @@
 - Alpha 首页和决策工作台的普通 GET/查看流程改为只读；刷新、推理和建议写回必须由明确动作触发。任务监控同时展示本次运行阶段、业务 `outcome`、安全错误码和 requested/succeeded/failed/stored 计数，不再用 Celery `SUCCESS` 掩盖业务失败。
 - SDK/MCP 统一信号分页、政策待分类/人工复核语义和决策运行时阻断字段；上游 `block_reason_code/block_reason` 会安全透传，投资者可以看到数据为什么不可用于决策。
 - Tushare SDK 路由按其单一 Data API URL 协议发送请求，endpoint 与密钥继续由 Data Center / Config Center 和部署环境管理，不写入仓库。发布前的候选绑定门禁会联合校验真实响应与单位重放、完整 universe 容量、隔离 PostgreSQL 写入/回滚和固定 23 项 PostgreSQL 回归；GitHub Actions 官方接口既要确认同 SHA 的成功 run，还要校验该 run 的官方 artifact ZIP 摘要及两份 JUnit 原始字节。缺失、过期、mock、partial、blocked、skip 或候选不一致都会在任何自动推送、npm 安装或部署凭据创建前阻断。50 只股票的真实 provider 探针仍用于早期发现问题，不能单独作为发布批准。
+- 真实 provider 预演可选择性留存经过大小限制的原始响应正文；回执绑定候选、交易日、完整 universe、provider 身份和每个响应摘要，离线重放复用正式行情/估值解析器并校验传输完成、标准化完成和源观测三个时钟。留存范围中的任一响应缺失、实时事实与重放结果不同或 DataFrame 包装破坏下游调用都会失败关闭。
+- VPS 的审计续期请求路径已固定注入 Web 与 Celery Worker，并落在持久化 `/app/var` 卷。容器或代码版本替换后请求通道不会静默消失；缺少经过复核的续期请求会明确返回 `renewal_request_not_found`，继续保持决策链阻断。
 - 财报仍坚持来源时点证据门槛：provider 只给日期、没有可验证的精确发布时间时，系统会显示 `financial_available_at_missing` / `financial_source_evidence_incomplete`，不会用抓取时间伪装来源时间，也不会把该链路标记为可用于投资决策。
 - 中国市场日期统一使用来源签发的完整交易日历证据：区间内每个自然日都必须有开/闭市状态，缺尾、缺中间、冲突或来源不可用都会阻断，不再把工作日或节假日猜成交易日。
 - SDK 的 HTTP 状态重试会保留最后一次业务响应；连续 503 后仍能向 MCP 透传 `decision_runtime_blocked`、`blocked_reason` 和不可用于决策标记，不再退化为 `HTTP unknown`。

@@ -9,7 +9,6 @@ Tushare Gateway
 import logging
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, time, timedelta
-from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol, cast
 from zoneinfo import ZoneInfo
 
@@ -23,6 +22,11 @@ from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewa
 from apps.data_center.infrastructure.tushare_client import (
     TushareRelayAuthorizationError,
     create_tushare_pro_client,
+)
+from apps.data_center.infrastructure.tushare_replay_parser import (
+    _safe_decimal,
+    _safe_int,
+    parse_tushare_daily_quote_rows,
 )
 from shared.numeric import safe_float
 
@@ -67,6 +71,9 @@ class _DataFrameLike(Protocol):
     def __getitem__(self, key: str) -> Any:
         """Return one provider column."""
 
+    def to_dict(self, orient: str) -> list[dict[str, object]]:
+        """Return provider rows as mappings."""
+
 
 class _TushareProClientProtocol(Protocol):
     """Tushare endpoints used by historical price retrieval."""
@@ -92,23 +99,6 @@ class _CompatibilityAdapterProtocol(Protocol):
         end_date: str,
     ) -> Any:
         """Return a pandas-like daily data frame."""
-
-
-def _safe_decimal(value: object) -> Decimal | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        d = Decimal(str(value))
-        return d if d.is_finite() else None
-    except (InvalidOperation, ValueError, TypeError):
-        return None
-
-
-def _safe_int(value: object) -> int | None:
-    parsed = safe_float(value)
-    if parsed is None or parsed < 0 or not parsed.is_integer():
-        return None
-    return int(parsed)
 
 
 def _parse_compact_date(value: str) -> date | None:
@@ -199,48 +189,24 @@ class TushareGateway(MarketGatewayProtocol):
                     if df is None or df.empty:
                         continue
 
-                    if "trade_date" not in df.columns:
-                        continue
-                    trade_dates = df["trade_date"].astype(str)
-                    latest = df.loc[trade_dates.idxmax()]
-                    raw_trade_date = str(latest.get("trade_date") or "").strip()
-                    try:
-                        observed_at = datetime.combine(
-                            datetime.strptime(raw_trade_date, "%Y%m%d").date(),
-                            time(hour=15),
-                            tzinfo=ZoneInfo("Asia/Shanghai"),
-                        ).astimezone(UTC)
-                    except ValueError:
-                        continue
-                    price = _safe_decimal(latest.get("close"))
-                    if price is None or price <= 0:
-                        continue
-
-                    # 计算涨跌额/涨跌幅
-                    pre_close = _safe_decimal(latest.get("pre_close"))
-                    change = None
-                    change_pct = None
-                    if price and pre_close and pre_close > 0:
-                        change = price - pre_close
-                        change_pct = float(change / pre_close * 100)
-
-                    results.append(
-                        QuoteSnapshot(
-                            stock_code=code,
-                            price=price,
-                            change=change,
-                            change_pct=change_pct,
-                            volume=_safe_int(latest.get("vol")),
-                            amount=_safe_decimal(latest.get("amount")),
-                            turnover_rate=safe_float(latest.get("turnover_rate")),
-                            high=_safe_decimal(latest.get("high")),
-                            low=_safe_decimal(latest.get("low")),
-                            open=_safe_decimal(latest.get("open")),
-                            pre_close=pre_close,
-                            source="tushare",
-                            observed_at=observed_at,
-                        )
+                    rows = df.to_dict("records")
+                    response_evidence = getattr(df, "response_evidence", None)
+                    completed_at = getattr(response_evidence, "response_completed_at", None)
+                    fetched_at = (
+                        completed_at
+                        if isinstance(completed_at, datetime)
+                        and completed_at.tzinfo is not None
+                        and completed_at.utcoffset() is not None
+                        else datetime.now(UTC)
                     )
+                    quote = parse_tushare_daily_quote_rows(
+                        rows,
+                        requested_asset_code=code,
+                        source="tushare",
+                        fetched_at=fetched_at,
+                    )
+                    if quote is not None:
+                        results.append(quote)
                 except Exception:
                     logger.warning("Tushare 获取 %s 失败", code, exc_info=True)
                     continue

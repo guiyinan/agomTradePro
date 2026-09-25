@@ -438,14 +438,29 @@ def _validate_real_replay(
             _fail("REHEARSAL_REPLAY_CASES_INVALID")
         replayed_cases.update(cast(list[str], cases))
         response = receipt.get("response_body")
-        if not isinstance(response, dict):
+        responses = receipt.get("response_bodies")
+        if (
+            not isinstance(response, dict)
+            or not isinstance(responses, list)
+            or not responses
+            or receipt.get("response_set_scope") != "all_retained_responses_for_dataset"
+            or response != responses[0]
+        ):
             _fail("REHEARSAL_REAL_RESPONSE_MISSING")
-        response_payload = cast(dict[str, object], response)
-        _resolve_artifact(
-            receipt_path.parent,
-            response_payload.get("path"),
-            response_payload.get("sha256"),
-        )
+        response_paths: set[str] = set()
+        for response_value in cast(list[object], responses):
+            if not isinstance(response_value, dict):
+                _fail("REHEARSAL_REAL_RESPONSE_MISSING")
+            response_payload = cast(dict[str, object], response_value)
+            response_path = response_payload.get("path")
+            if not isinstance(response_path, str) or response_path in response_paths:
+                _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            response_paths.add(response_path)
+            _resolve_artifact(
+                receipt_path.parent,
+                response_path,
+                response_payload.get("sha256"),
+            )
     if datasets != {"equity.quote.snapshot", "equity.valuation.fact"}:
         _fail("REHEARSAL_REPLAY_DATASET_INCOMPLETE")
     if replayed_cases != REQUIRED_REPLAY_CASES:

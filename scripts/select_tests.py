@@ -288,6 +288,7 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/component/test_realtime_data_center_provider.py",
         "tests/integration/data_center/",
         "tests/unit/data_center/",
+        "tests/unit/shared/infrastructure/test_tushare_client.py",
         "tests/critical/",
         "tests/migrations/test_research_integrity_migrations.py",
     ],

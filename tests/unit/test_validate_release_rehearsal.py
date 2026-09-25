@@ -168,6 +168,13 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                 "path": response_path.name,
                 "sha256": hashlib.sha256(response_path.read_bytes()).hexdigest(),
             },
+            "response_bodies": [
+                {
+                    "path": response_path.name,
+                    "sha256": hashlib.sha256(response_path.read_bytes()).hexdigest(),
+                }
+            ],
+            "response_set_scope": "all_retained_responses_for_dataset",
         }
         receipt_digest = _write_json(receipt_path, receipt)
         response_artifacts.append({"path": receipt_path.name, "sha256": receipt_digest})
@@ -445,6 +452,25 @@ def test_validator_rejects_replay_sample_outside_frozen_universe(tmp_path: Path)
         _validate(manifest, now)
 
     assert exc_info.value.code == "REHEARSAL_REPLAY_SAMPLE_INVALID"
+
+
+def test_validator_rejects_unverified_secondary_replay_response(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["real_response_unit_replay"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    receipt_reference = report["response_artifacts"][0]
+    receipt_path = tmp_path / receipt_reference["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    missing = {"path": "missing-response.json", "sha256": "0" * 64}
+    receipt["response_bodies"].append(missing)
+    receipt_reference["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_ARTIFACT_UNREADABLE"
 
 
 def test_validator_rejects_stale_and_candidate_mismatch(tmp_path: Path) -> None:

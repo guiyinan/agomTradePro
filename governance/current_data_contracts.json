@@ -4633,6 +4633,7 @@
         "apps/data_center/application/on_demand.py",
         "apps/equity/application/tasks_valuation_sync.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/tushare_replay_parser.py",
         "apps/data_center/infrastructure/_provider_adapter_akshare.py"
       ],
       "required_markers": {
@@ -5041,7 +5042,9 @@
           "require_decision_evidence=True"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
-          "observed_at=cn_market_session_close_utc(record.trade_date)",
+          "observed_at=cn_market_session_close_utc(record.trade_date)"
+        ],
+        "apps/data_center/infrastructure/tushare_replay_parser.py": [
           "observed_at=cn_market_session_close_utc(val_date)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
@@ -5054,6 +5057,11 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "tushare_production_and_replay_valuation_mapping_match",
+          "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
+          "test_function": "test_production_daily_basic_path_uses_the_same_row_mapper"
+        },
         {
           "case": "scheduled_financial_refresh_publishes_only_after_full_universe",
           "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",

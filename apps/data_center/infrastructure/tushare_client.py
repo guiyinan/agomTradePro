@@ -124,6 +124,23 @@ class _WitnessedProviderFrame:
 
         return cast(list[dict[str, object]], self.frame.to_dict(orient))
 
+    def __len__(self) -> int:
+        """Preserve dataframe row-count semantics for completeness checks."""
+
+        return int(len(self.frame))
+
+    def __getitem__(self, key: object) -> Any:
+        """Delegate column and mask selection to the wrapped dataframe."""
+
+        return self.frame[key]
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate public dataframe operations while retaining response evidence."""
+
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self.frame, name)
+
 
 def _unwrap_retained_financial_payload(
     value: object,

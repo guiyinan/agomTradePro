@@ -179,6 +179,14 @@ class TestSelectTests(unittest.TestCase):
         tests = select_tests_func({"shared"}, ["shared/domain/interfaces.py"])
         self.assertEqual(tests, FULL_TEST_SUITES)
 
+    def test_data_center_transport_change_selects_legacy_tushare_client_contracts(self):
+        """Tushare transport tests remain selected after their source moved to Data Center."""
+
+        changed = ["apps/data_center/infrastructure/tushare_client.py"]
+        tests = select_tests_func(get_changed_modules(changed), changed, "logic_guardrails")
+
+        self.assertIn("tests/unit/shared/infrastructure/test_tushare_client.py", tests)
+
     def test_select_tests_with_regime_changes(self):
         """regime 模块变更选择对应测试"""
         tests = select_tests_func({"regime"}, ["apps/regime/domain/services.py"])
