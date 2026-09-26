@@ -320,6 +320,8 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_source": provider["source"],
             "provider_version": provider["version"],
             "endpoint_id": provider["endpoint_id"],
+            "provider_format": "tushare_pro_table.v1",
+            "response_asset_codes": ASSET_CODES,
             "operation": "daily" if role == "quote" else "daily_basic",
             "response_scope": ("full_market_trade_date"),
         }
@@ -341,10 +343,23 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
             "valuation_missing_target_session_codes": [],
+            "valuation_missing_target_session_reasons": [],
+            "valuation_requested_count": len(ASSET_CODES),
+            "valuation_returned_count": len(ASSET_CODES),
+            "valuation_coverage_ratio": 1.0,
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
             "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
+            **(
+                {
+                    "requested": len(ASSET_CODES),
+                    "succeeded": len(ASSET_CODES),
+                    "failed": 0,
+                }
+                if dataset == "equity.valuation.fact"
+                else {}
+            ),
             "observations": [
                 {
                     "asset_code": code,
@@ -382,6 +397,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "provider_id": provider["provider_id"],
                     "provider_source": provider["source"],
                     "endpoint_id": provider["endpoint_id"],
+                    "provider_format": "tushare_pro_table.v1",
                     "sample_codes": ASSET_CODES,
                 },
             }
@@ -403,11 +419,17 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_identities": PROVIDERS,
             "asset_codes": ASSET_CODES,
             "sample": ASSET_CODES,
+            "valuation_sample": ASSET_CODES,
             "eligible_asset_codes": ASSET_CODES,
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
             "valuation_missing_target_session_codes": [],
+            "valuation_missing_target_session_reasons": [],
+            "valuation_requested_count": len(ASSET_CODES),
+            "valuation_returned_count": len(ASSET_CODES),
+            "valuation_coverage_ratio": 1.0,
+            "valuation_outcome": "success",
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
@@ -417,6 +439,17 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "dataset": dataset,
                     "outcome": "success",
                     "receipt_indexes": [index],
+                    **(
+                        {
+                            "requested": len(ASSET_CODES),
+                            "succeeded": len(ASSET_CODES),
+                            "failed": 0,
+                            "valuation_missing_target_session_codes": [],
+                            "valuation_missing_target_session_reasons": [],
+                        }
+                        if dataset == "equity.valuation.fact"
+                        else {}
+                    ),
                 }
                 for index, dataset in enumerate(("equity.quote.snapshot", "equity.valuation.fact"))
             ],
@@ -437,6 +470,12 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
             "valuation_missing_target_session_codes": [],
+            "valuation_missing_target_session_reasons": [],
+            "valuation_requested_count": len(ASSET_CODES),
+            "valuation_returned_count": len(ASSET_CODES),
+            "valuation_coverage_ratio": 1.0,
+            "valuation_outcome": "success",
+            "valuation_sample": ASSET_CODES,
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
@@ -468,6 +507,10 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "excluded_asset_count": 0,
             "excluded_asset_codes": [],
             "valuation_missing_target_session_codes": [],
+            "valuation_missing_target_session_reasons": [],
+            "valuation_requested_count": len(ASSET_CODES),
+            "valuation_returned_count": len(ASSET_CODES),
+            "valuation_outcome": "success",
             "valuation_minimum_coverage_ratio": POLICY_CONTENT["minimum_coverage_ratio"],
             "valuation_coverage_ratio": 1.0,
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
@@ -525,6 +568,11 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
             "valuation_missing_target_session_codes": [],
+            "valuation_missing_target_session_reasons": [],
+            "valuation_requested_count": len(ASSET_CODES),
+            "valuation_returned_count": len(ASSET_CODES),
+            "valuation_coverage_ratio": 1.0,
+            "valuation_outcome": "success",
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
@@ -679,6 +727,31 @@ def _validate(manifest: Path, now: datetime) -> dict[str, object]:
         max_age_hours=24,
         now=now,
     )
+
+
+def test_legacy_policy_evidence_cannot_authorize_partial_release() -> None:
+    """The validator preserves whether canonical policy evidence is versioned."""
+
+    content = {**POLICY_CONTENT, "policy_version": "legacy", "allow_partial": True}
+    digest = hashlib.sha256(
+        json.dumps(
+            content,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    evidence = validator._validated_policy_evidence(
+        {
+            "content": content,
+            "content_sha256": digest,
+            "identity": "1.0:1.0",
+        }
+    )
+
+    assert evidence.allow_partial is True
+    assert evidence.uses_versioned_evidence is False
 
 
 def _replace_report(manifest: Path, report_path: Path, payload: dict[str, Any]) -> None:
@@ -1160,10 +1233,10 @@ def test_validator_recomputes_every_replayed_unit_observation(tmp_path: Path, de
         if defect == "body_raw_drift":
             response["data"]["items"][0][3] = 9.0
         elif defect == "body_scope_missing":
-            expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"
+            expected_code = "REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID"
             response["data"]["items"].pop()
         elif defect == "body_scope_duplicate":
-            expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"
+            expected_code = "REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID"
             response["data"]["items"].append(list(response["data"]["items"][0]))
         else:
             expected_code = "REHEARSAL_REPLAY_RESPONSE_SET_INVALID"

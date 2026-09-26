@@ -44,32 +44,55 @@ def modules():
                 del sys.modules[name]
 
 
-def _body(dataset: str, *, extra_asset: bool = True) -> bytes:
+def _body(
+    dataset: str,
+    *,
+    extra_asset: bool = True,
+    asset_codes: tuple[str, ...] | None = None,
+) -> bytes:
     fields = (
         ["ts_code", "trade_date", "close", "pre_close", "vol", "amount"]
         if "quote" in dataset
         else ["ts_code", "trade_date", "total_mv", "circ_mv", "pe_ttm", "pb"]
     )
+    selected_codes = SAMPLE if asset_codes is None else asset_codes
     rows = [
         (
             [code, "20260924", 12.5, 12.0, 100.5, 2_000.25]
             if "quote" in dataset
             else [code, "20260924", 300.0, 200.0, 8.0, 1.2]
         )
-        for code in SAMPLE
+        for code in selected_codes
     ]
-    if extra_asset:
+    if extra_asset and asset_codes is None:
         rows.append(["600001.SH", *rows[0][1:]])
     return json.dumps({"code": 0, "msg": None, "data": {"fields": fields, "items": rows}}).encode()
 
 
-def _identities(modules):
+def _tencent_body(asset_codes: tuple[str, ...], *, timestamp: str = "20260924150000") -> bytes:
+    lines: list[str] = []
+    for asset_code in asset_codes:
+        numeric, exchange = asset_code.split(".", 1)
+        prefix = {"SZ": "sz", "SH": "sh", "BJ": "bj"}[exchange]
+        fields = [""] * 47
+        fields[1] = "测试证券"
+        fields[2] = numeric
+        fields[30] = timestamp
+        fields[39] = "8.0"
+        fields[44] = "200.0"
+        fields[45] = "300.0"
+        fields[46] = "1.2"
+        lines.append(f'v_{prefix}{numeric}="{"~".join(fields)}";')
+    return ("\n".join(lines) + "\n").encode("gb18030")
+
+
+def _identities(modules, *, valuation_source: str = "tushare"):
     return modules["rehearsal_identity"].parse_rehearsal_identities(
         [
             {
                 "role": role,
                 "provider_id": index + 1,
-                "source": "tushare",
+                "source": valuation_source if role == "valuation" else "tushare",
                 "version": "fixture-v1",
                 "endpoint_id": "fixture-primary",
             }
@@ -78,24 +101,33 @@ def _identities(modules):
     )
 
 
-def _context(modules, dataset):
-    identities = _identities(modules)
+def _context(
+    modules,
+    dataset,
+    *,
+    universe=SAMPLE,
+    sample_codes=SAMPLE,
+    valuation_source: str = "tushare",
+):
+    identities = _identities(modules, valuation_source=valuation_source)
+    is_tencent = "valuation" in dataset and valuation_source == "tencent"
     return modules["rehearsal_response_store"].RehearsalResponseContext(
         candidate_sha=CANDIDATE,
         target_trade_date=DATE,
-        universe_sha256=modules["rehearsal_replay_collector"].rehearsal_digest(SAMPLE),
+        universe_sha256=modules["rehearsal_replay_collector"].rehearsal_digest(universe),
         provider_identities_sha256=modules["rehearsal_identity"].rehearsal_identities_digest(
             identities
         ),
         provider_id=1 if "quote" in dataset else 2,
-        provider_source="tushare",
+        provider_source="tencent" if is_tencent else "tushare",
         endpoint_id="fixture-primary",
         dataset=dataset,
-        sample_codes=SAMPLE,
+        sample_codes=sample_codes,
+        provider_format="tencent_quote_batch.v1" if is_tencent else "tushare_pro_table.v1",
     )
 
 
-def _contracts(modules, dataset):
+def _contracts(modules, dataset, *, valuation_source: str = "tushare"):
     cls = modules["rehearsal_response_replay"].ReplayUnitContract
     return (
         (
@@ -104,19 +136,29 @@ def _contracts(modules, dataset):
             cls("amount", "thousand_CNY", "CNY", 1000.0),
         )
         if "quote" in dataset
-        else (cls("total_mv", "万元", "元", 10000.0), cls("circ_mv", "万元", "元", 10000.0))
+        else (
+            (
+                cls("total_mv", "亿元", "元", 100_000_000.0),
+                cls("circ_mv", "亿元", "元", 100_000_000.0),
+            )
+            if valuation_source == "tencent"
+            else (
+                cls("total_mv", "万元", "元", 10000.0),
+                cls("circ_mv", "万元", "元", 10000.0),
+            )
+        )
     )
 
 
-def _policy_evidence():
+def _policy_evidence(*, allow_partial=True, minimum_coverage_ratio=0.5, policy_version="fixture"):
     content = {
         "encoding": "publication-policy-v1",
         "dataset_key": "equity.valuation.fact",
         "contract_version": "1.0",
         "schema_version": "1.0",
-        "policy_version": "fixture",
-        "minimum_coverage_ratio": 0.5,
-        "allow_partial": True,
+        "policy_version": policy_version,
+        "minimum_coverage_ratio": minimum_coverage_ratio,
+        "allow_partial": allow_partial,
         "conflict_action": "block",
         "required_evidence": ["source"],
         "retention_days": 30,
@@ -127,7 +169,9 @@ def _policy_evidence():
     return {
         "content": content,
         "content_sha256": content_hash,
-        "identity": f"p2:fixture:{content_hash}",
+        "identity": (
+            "1.0:1.0" if policy_version == "legacy" else f"p2:{policy_version}:{content_hash}"
+        ),
     }
 
 
@@ -207,7 +251,18 @@ def test_quote_replay_rejects_missing_volume_and_amount_witnesses(modules):
         replay.replay_retained_dataset([response], _contracts(modules, "equity.quote.snapshot"))
 
 
-def _fixture(modules, tmp_path, monkeypatch):
+def _fixture(
+    modules,
+    tmp_path,
+    monkeypatch,
+    *,
+    missing_asset: str | None = None,
+    allow_partial: bool = True,
+    minimum_coverage_ratio: float = 0.5,
+    valuation_source: str = "tushare",
+    policy_version: str = "fixture",
+    include_missing_old_tencent_row: bool = False,
+):
     collector = modules["rehearsal_replay_collector"]
     source = tmp_path / "source"
     source.mkdir()
@@ -229,11 +284,23 @@ def _fixture(modules, tmp_path, monkeypatch):
     store = modules["rehearsal_response_store"].RehearsalResponseStore(
         capture, max_responses=2, max_response_bytes=10000, max_total_bytes=20000
     )
+    universe = tuple(sorted((*SAMPLE, missing_asset))) if missing_asset else SAMPLE
+    quote_sample = universe
+    valuation_available = tuple(code for code in universe if code != missing_asset)
+    valuation_sample = valuation_available
     receipts = []
     probes = []
     for index, dataset in enumerate(collector.DATASETS):
+        is_quote = dataset == "equity.quote.snapshot"
+        dataset_sample = quote_sample if is_quote else valuation_sample
         ref = store.persist_response(
-            _context(modules, dataset),
+            _context(
+                modules,
+                dataset,
+                universe=universe,
+                sample_codes=universe if not is_quote else quote_sample,
+                valuation_source=valuation_source,
+            ),
             receipt_index=index,
             host="fixture.invalid",
             path_sha256="b" * 64,
@@ -241,7 +308,23 @@ def _fixture(modules, tmp_path, monkeypatch):
             started_at="2026-09-24T08:00:00+00:00",
             finished_at=FINISHED.isoformat(),
             status_code=200,
-            response_body=_body(dataset),
+            response_body=(
+                _tencent_body(dataset_sample)
+                + (
+                    _tencent_body(
+                        (missing_asset,),
+                        timestamp="20260923150000",
+                    )
+                    if include_missing_old_tencent_row and missing_asset is not None
+                    else b""
+                )
+                if not is_quote and valuation_source == "tencent"
+                else _body(
+                    dataset,
+                    extra_asset=False,
+                    asset_codes=dataset_sample if not is_quote or missing_asset else None,
+                )
+            ),
         )
         record = asdict(ref)
         receipts.append(
@@ -265,10 +348,12 @@ def _fixture(modules, tmp_path, monkeypatch):
         )
         observed_at = "2026-09-24T07:00:00+00:00"
         facts = []
-        for asset_code in SAMPLE:
+        for asset_code in dataset_sample:
             fact = {
                 "asset_code": asset_code,
-                "source": "tushare",
+                "source": (
+                    "tencent" if not is_quote and valuation_source == "tencent" else "tushare"
+                ),
                 "observed_at": observed_at,
                 "fetched_at": NORMALIZED.isoformat(),
             }
@@ -278,24 +363,90 @@ def _fixture(modules, tmp_path, monkeypatch):
                 fact.update(
                     {
                         "val_date": DATE,
-                        "market_cap": 3_000_000.0,
-                        "float_market_cap": 2_000_000.0,
+                        "pe_ttm": 8.0,
+                        "pb": 1.2,
+                        "market_cap": (
+                            30_000_000_000.0 if valuation_source == "tencent" else 3_000_000.0
+                        ),
+                        "float_market_cap": (
+                            20_000_000_000.0 if valuation_source == "tencent" else 2_000_000.0
+                        ),
                         "available_at": NORMALIZED.isoformat(),
                         "raw_payload_hash": record["body_sha256"],
                     }
                 )
             facts.append(fact)
-        probes.append(
-            {
-                "dataset": dataset,
-                "outcome": "success",
-                "receipt_indexes": [index],
-                "facts": facts,
-            }
-        )
-    identities = _identities(modules)
+        probe_row = {
+            "dataset": dataset,
+            "outcome": "success",
+            "receipt_indexes": [index],
+            "facts": facts,
+        }
+        if is_quote:
+            probe_row.update(
+                {
+                    "requested": len(quote_sample),
+                    "succeeded": len(quote_sample),
+                    "failed": 0,
+                }
+            )
+        else:
+            missing_codes = [] if missing_asset is None else [missing_asset]
+            returned_count = len(universe) - len(missing_codes)
+            valuation_outcome = "partial" if missing_codes else "success"
+            missing_reasons = [
+                {
+                    "asset_code": code,
+                    "reason_code": "valuation_source_data_unavailable",
+                }
+                for code in missing_codes
+            ]
+            probe_row.update(
+                {
+                    "outcome": valuation_outcome,
+                    "count_unit": "registered_asset",
+                    "requested": len(universe),
+                    "succeeded": returned_count,
+                    "failed": len(missing_codes),
+                    "valuation_coverage_ratio": returned_count / len(universe),
+                    "valuation_policy_identity": "",
+                    "valuation_minimum_coverage_ratio": minimum_coverage_ratio,
+                    "valuation_missing_target_session_codes": missing_codes,
+                    "valuation_missing_target_session_reasons": missing_reasons,
+                    "issues": [
+                        {"asset_code": item["asset_code"], "code": item["reason_code"]}
+                        for item in missing_reasons
+                    ],
+                }
+            )
+        probes.append(probe_row)
+    identities = _identities(modules, valuation_source=valuation_source)
     digest = modules["rehearsal_identity"].rehearsal_identities_digest(identities)
-    policy = _policy_evidence()
+    policy = _policy_evidence(
+        allow_partial=allow_partial,
+        minimum_coverage_ratio=minimum_coverage_ratio,
+        policy_version=policy_version,
+    )
+    missing_codes = [] if missing_asset is None else [missing_asset]
+    returned_count = len(universe) - len(missing_codes)
+    valuation_outcome = "partial" if missing_codes else "success"
+    missing_reasons = [
+        {"asset_code": code, "reason_code": "valuation_source_data_unavailable"}
+        for code in missing_codes
+    ]
+    probes[1].update(
+        {
+            "valuation_policy_identity": policy["identity"],
+            "valuation_minimum_coverage_ratio": minimum_coverage_ratio,
+            "valuation_coverage_ratio": returned_count / len(universe),
+            "valuation_missing_target_session_codes": missing_codes,
+            "valuation_missing_target_session_reasons": missing_reasons,
+            "issues": [
+                {"asset_code": item["asset_code"], "code": item["reason_code"]}
+                for item in missing_reasons
+            ],
+        }
+    )
     probe = {
         "schema": "market.provider-rehearsal.v1",
         "outcome": "success",
@@ -312,21 +463,28 @@ def _fixture(modules, tmp_path, monkeypatch):
         "publication_updated": False,
         "provider_identities": [asdict(identity) for identity in identities],
         "provider_identities_sha256": digest,
-        "asset_codes": list(SAMPLE),
-        "universe_count": len(SAMPLE),
-        "universe_sha256": collector.rehearsal_digest(SAMPLE),
-        "eligible_asset_codes": list(SAMPLE),
-        "eligible_asset_count": len(SAMPLE),
+        "asset_codes": list(universe),
+        "universe_count": len(universe),
+        "universe_sha256": collector.rehearsal_digest(universe),
+        "eligible_asset_codes": list(universe),
+        "eligible_asset_count": len(universe),
         "excluded_asset_codes": [],
         "excluded_asset_count": 0,
-        "valuation_missing_target_session_codes": [],
+        "valuation_missing_target_session_codes": missing_codes,
+        "valuation_missing_target_session_reasons": missing_reasons,
         "valuation_policy_identity": policy["identity"],
         "valuation_policy_sha256": policy["content_sha256"],
         "valuation_policy_snapshot": policy,
-        "valuation_minimum_coverage_ratio": 0.5,
-        "sample": list(SAMPLE),
-        "sample_sha256": collector.rehearsal_digest(SAMPLE),
-        "sample_size": len(SAMPLE),
+        "valuation_minimum_coverage_ratio": minimum_coverage_ratio,
+        "valuation_coverage_ratio": returned_count / len(universe),
+        "valuation_requested_count": len(universe),
+        "valuation_returned_count": returned_count,
+        "valuation_outcome": valuation_outcome,
+        "valuation_sample": list(valuation_sample),
+        "valuation_sample_sha256": collector.rehearsal_digest(valuation_sample),
+        "sample": list(quote_sample),
+        "sample_sha256": collector.rehearsal_digest(quote_sample),
+        "sample_size": len(quote_sample),
         "probes": probes,
         "started_at": "2026-09-24T08:00:00+00:00",
         "finished_at": "2026-09-24T08:00:02+00:00",
@@ -338,7 +496,14 @@ def _fixture(modules, tmp_path, monkeypatch):
         "provider_identities_sha256": digest,
         "source_reference": "synthetic-contract-for-unit-test-only",
         "datasets": {
-            dataset: [asdict(contract) for contract in _contracts(modules, dataset)]
+            dataset: [
+                asdict(contract)
+                for contract in _contracts(
+                    modules,
+                    dataset,
+                    valuation_source=valuation_source,
+                )
+            ]
             for dataset in collector.DATASETS
         },
     }
@@ -384,6 +549,8 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
             registered_asset_codes=SAMPLE,
             eligible_asset_codes=SAMPLE,
             excluded_asset_codes=(),
+            valuation_missing_asset_codes=(),
+            valuation_missing_reasons=(),
             policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
         ),
     )
@@ -395,41 +562,142 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
     assert observation["normalization_completed_at"] == NORMALIZED.isoformat()
 
 
-def test_collector_rejects_unverified_partial_valuation_scope(modules, tmp_path, monkeypatch):
-    collector = modules["rehearsal_replay_collector"]
-    kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
-    excluded = "600001.SH"
-    universe = (*SAMPLE, excluded)
-    universe_sha256 = collector.rehearsal_digest(universe)
-    probe.update(
-        {
-            "asset_codes": list(universe),
-            "universe_count": len(universe),
-            "universe_sha256": universe_sha256,
-            "excluded_asset_codes": [],
-            "excluded_asset_count": 0,
-            "valuation_missing_target_session_codes": [excluded],
-        }
-    )
-    receipts = probe["transport"]["receipts"]
-    for receipt in receipts:
-        receipt["response_artifact"]["universe_sha256"] = universe_sha256
-    valuation_receipt = receipts[1]
-    valuation_ref = valuation_receipt["response_artifact"]
-    valuation_ref["sample_codes"] = list(universe)
-    valuation_body = _body("equity.valuation.fact", extra_asset=False)
-    valuation_hash = hashlib.sha256(valuation_body).hexdigest()
-    valuation_path = kwargs["probe_path"].parent / valuation_ref["path"]
-    valuation_path.write_bytes(valuation_body)
-    for record in (valuation_receipt, valuation_ref):
-        record["body_sha256"] = valuation_hash
-        record["body_bytes"] = len(valuation_body)
-    for fact in probe["probes"][1]["facts"]:
-        fact["raw_payload_hash"] = valuation_hash
-    kwargs["probe_path"].write_text(json.dumps(probe), encoding="utf-8")
-    kwargs["expected_probe_sha256"] = hashlib.sha256(kwargs["probe_path"].read_bytes()).hexdigest()
+def test_collector_replays_tencent_valuation_bytes_through_release_validator(
+    modules, tmp_path, monkeypatch
+):
+    from scripts import validate_release_rehearsal as validator
 
-    with pytest.raises(ValueError, match="REHEARSAL_REPLAY_VALUATION_SCOPE_INCOMPLETE"):
+    collector = modules["rehearsal_replay_collector"]
+    kwargs, probe = _fixture(
+        modules,
+        tmp_path,
+        monkeypatch,
+        valuation_source="tencent",
+    )
+    result = collector.collect_response_replay(**kwargs)
+
+    validator._validate_real_replay(
+        result,
+        kwargs["output_dir"],
+        expected_candidate=CANDIDATE,
+        expected_image_id=IMAGE_ID,
+        expected_date=DATE,
+        expected_universe=probe["universe_sha256"],
+        expected_provider_digest=probe["provider_identities_sha256"],
+        capacity=validator._ValidatedCapacityEvidence(
+            registered_asset_codes=SAMPLE,
+            eligible_asset_codes=SAMPLE,
+            excluded_asset_codes=(),
+            valuation_missing_asset_codes=(),
+            valuation_missing_reasons=(),
+            policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
+        ),
+    )
+    receipt = json.loads(
+        (kwargs["output_dir"] / "valuation-replay.json").read_text(encoding="utf-8")
+    )
+    assert receipt["response_body"]["provider_format"] == "tencent_quote_batch.v1"
+    assert receipt["response_body"]["operation"] == "tencent_quote_batch"
+    assert receipt["response_body"]["response_asset_codes"] == list(SAMPLE)
+    assert receipt["observations"][0]["units"][0]["multiplier"] == 100_000_000.0
+
+
+@pytest.mark.parametrize(
+    ("valuation_source", "include_missing_old_tencent_row"),
+    [("tushare", False), ("tencent", True)],
+)
+def test_collector_accepts_policy_qualified_partial_valuation_scope(
+    modules,
+    tmp_path,
+    monkeypatch,
+    valuation_source,
+    include_missing_old_tencent_row,
+):
+    from scripts import validate_release_rehearsal as validator
+
+    collector = modules["rehearsal_replay_collector"]
+    kwargs, _probe = _fixture(
+        modules,
+        tmp_path,
+        monkeypatch,
+        missing_asset="600001.SH",
+        allow_partial=True,
+        minimum_coverage_ratio=0.5,
+        valuation_source=valuation_source,
+        include_missing_old_tencent_row=include_missing_old_tencent_row,
+    )
+    result = collector.collect_response_replay(**kwargs)
+
+    assert result["outcome"] == "success"
+    assert result["eligible_asset_codes"] == [*SAMPLE, "600001.SH"]
+    assert result["excluded_asset_codes"] == []
+    assert result["valuation_missing_target_session_codes"] == ["600001.SH"]
+    assert result["valuation_missing_target_session_reasons"] == [
+        {
+            "asset_code": "600001.SH",
+            "reason_code": "valuation_source_data_unavailable",
+        }
+    ]
+    assert result["valuation_outcome"] == "partial"
+    quote_receipt = json.loads(
+        (kwargs["output_dir"] / "quote-replay.json").read_text(encoding="utf-8")
+    )
+    valuation_receipt = json.loads(
+        (kwargs["output_dir"] / "valuation-replay.json").read_text(encoding="utf-8")
+    )
+    assert quote_receipt["outcome"] == "success"
+    assert quote_receipt["sampled_assets"] == [*SAMPLE, "600001.SH"]
+    assert len(quote_receipt["observations"]) == 3
+    assert valuation_receipt["outcome"] == "partial"
+    assert valuation_receipt["requested"] == 3
+    assert valuation_receipt["succeeded"] == 2
+    assert valuation_receipt["failed"] == 1
+    assert (
+        valuation_receipt["valuation_missing_target_session_reasons"]
+        == result["valuation_missing_target_session_reasons"]
+    )
+    validator._validate_real_replay(
+        result,
+        kwargs["output_dir"],
+        expected_candidate=CANDIDATE,
+        expected_image_id=IMAGE_ID,
+        expected_date=DATE,
+        expected_universe=_probe["universe_sha256"],
+        expected_provider_digest=_probe["provider_identities_sha256"],
+        capacity=validator._ValidatedCapacityEvidence(
+            registered_asset_codes=(*SAMPLE, "600001.SH"),
+            eligible_asset_codes=(*SAMPLE, "600001.SH"),
+            excluded_asset_codes=(),
+            valuation_missing_asset_codes=("600001.SH",),
+            valuation_missing_reasons=(("600001.SH", "valuation_source_data_unavailable"),),
+            policy=validator._validated_policy_evidence(_probe["valuation_policy_snapshot"]),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("allow_partial", "minimum_coverage_ratio", "policy_version"),
+    [(False, 0.5, "fixture"), (True, 0.75, "fixture"), (True, 0.5, "legacy")],
+)
+def test_collector_blocks_partial_valuation_without_policy_coverage(
+    modules,
+    tmp_path,
+    monkeypatch,
+    allow_partial,
+    minimum_coverage_ratio,
+    policy_version,
+):
+    collector = modules["rehearsal_replay_collector"]
+    kwargs, _probe = _fixture(
+        modules,
+        tmp_path,
+        monkeypatch,
+        missing_asset="600001.SH",
+        allow_partial=allow_partial,
+        minimum_coverage_ratio=minimum_coverage_ratio,
+        policy_version=policy_version,
+    )
+    with pytest.raises(ValueError, match="REHEARSAL_REPLAY_ELIGIBLE_SCOPE_INVALID"):
         collector.collect_response_replay(**kwargs)
     assert not kwargs["output_dir"].exists()
 
@@ -450,12 +718,24 @@ def test_collector_rejects_unverified_partial_valuation_scope(modules, tmp_path,
         "receipt_clock",
         "receipt_identity",
         "live_fact_mismatch",
+        "live_valuation_pe_mismatch",
+        "live_valuation_pb_mismatch",
         "output_exists",
     ],
 )
 def test_collector_failures_never_write_success_report(modules, tmp_path, monkeypatch, failure):
     collector = modules["rehearsal_replay_collector"]
-    kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
+    valuation_source = (
+        "tencent"
+        if failure in {"live_valuation_pe_mismatch", "live_valuation_pb_mismatch"}
+        else "tushare"
+    )
+    kwargs, probe = _fixture(
+        modules,
+        tmp_path,
+        monkeypatch,
+        valuation_source=valuation_source,
+    )
     if failure == "candidate":
         kwargs["candidate_sha"] = "c" * 40
     elif failure == "date":
@@ -491,6 +771,10 @@ def test_collector_failures_never_write_success_report(modules, tmp_path, monkey
         probe["transport"]["receipts"][0]["response_artifact"]["provider_id"] = 2
     elif failure == "live_fact_mismatch":
         probe["probes"][0]["facts"][0]["current_price"] = 99.0
+    elif failure == "live_valuation_pe_mismatch":
+        probe["probes"][1]["facts"][0]["pe_ttm"] = 9.0
+    elif failure == "live_valuation_pb_mismatch":
+        probe["probes"][1]["facts"][0]["pb"] = 1.3
     elif failure == "output_exists":
         kwargs["output_dir"].mkdir()
     if failure != "hash":

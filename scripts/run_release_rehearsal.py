@@ -33,6 +33,9 @@ IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 TAG = re.compile(r"[0-9]{14}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 STABLE_REHEARSAL_CODE = re.compile(r"^CommandError: (REHEARSAL_[A-Z0-9_]{3,96})\s*$", re.MULTILINE)
+STABLE_REHEARSAL_HEADROOM_ERROR_CODE = re.compile(
+    r"\[ERROR\]\s+(REHEARSAL_BUILD_DISK_HEADROOM_(?:INSUFFICIENT|UNAVAILABLE))(?=[:\s]|$)"
+)
 STABLE_REHEARSAL_CODE_VALUE = re.compile(r"REHEARSAL_[A-Z0-9_]{3,96}")
 IMAGE_NAME = "agomtradepro-web"
 STAGES = (
@@ -213,6 +216,7 @@ def _invoke(
     if result.returncode:
         output = result.stdout + "\n" + result.stderr
         safe_codes = set(STABLE_REHEARSAL_CODE.findall(output))
+        safe_codes.update(STABLE_REHEARSAL_HEADROOM_ERROR_CODE.findall(output))
         for line in output.splitlines():
             try:
                 payload: object = json.loads(line)

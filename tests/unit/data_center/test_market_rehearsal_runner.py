@@ -190,8 +190,21 @@ def test_calendar_resolution_runs_inside_total_transport_budget(tmp_path, monkey
     }
 
 
-def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize(
+    ("minimum_coverage_ratio", "expected_outcome", "valuation_source", "policy_version"),
+    [
+        (0.8, "blocked", "tushare", "fixture"),
+        (0.6, "success", "tencent", "fixture"),
+        (0.6, "blocked", "tushare", "legacy"),
+    ],
+)
+def test_probe_handles_policy_qualified_partial_valuation_scope(
+    tmp_path,
+    monkeypatch,
+    minimum_coverage_ratio,
+    expected_outcome,
+    valuation_source,
+    policy_version,
 ) -> None:
     target = date(2026, 9, 24)
     registered = ("000001.SZ", "600000.SH", "600001.SH")
@@ -254,8 +267,11 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
             return {"dispatch_count": len(self.receipts), "receipts": []}
 
     class Provider:
+        def __init__(self, source):
+            self.source = source
+
         def provider_source(self):
-            return "tushare"
+            return self.source
 
         def fetch_current_valuations(self, asset_codes, as_of_date):
             provider_calls.append("valuation")
@@ -268,7 +284,7 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
                 ValuationFact(
                     asset_code=code,
                     val_date=target,
-                    source="tushare",
+                    source=valuation_source,
                     observed_at=observed,
                     available_at=now,
                     fetched_at=now,
@@ -280,7 +296,7 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
 
         def fetch_quote_snapshots_for_session(self, asset_codes, target_trade_date):
             provider_calls.append("quote")
-            assert tuple(asset_codes) == registered[:2]
+            assert tuple(asset_codes) == runner.select_rehearsal_sample(registered, 2)
             assert target_trade_date == target
             Capture.active.add_receipt("b" * 64)
             now = datetime.now(UTC)
@@ -299,12 +315,12 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
 
     policy = PublicationPolicy(
         dataset=DatasetKey("equity.valuation.fact", "1.0", "1.0"),
-        minimum_coverage_ratio=0.5,
+        minimum_coverage_ratio=minimum_coverage_ratio,
         allow_partial=True,
         conflict_action="block",
         required_evidence=("source",),
         retention_days=30,
-        policy_version="fixture",
+        policy_version=policy_version,
     )
     from apps.data_center.infrastructure import publication_policy_repository
 
@@ -320,7 +336,13 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
     monkeypatch.setattr(
         runner,
         "get_provider_registry",
-        lambda: SimpleNamespace(get_by_id=lambda _provider_id: Provider()),
+        lambda: SimpleNamespace(
+            get_by_id=lambda provider_id: Provider(
+                "tushare"
+                if provider_id == 1
+                else ("akshare" if valuation_source == "tencent" else "tushare")
+            )
+        ),
     )
     monkeypatch.setattr(runner, "market_rehearsal_source_digest", lambda _root: "d" * 64)
     monkeypatch.setattr(
@@ -340,7 +362,7 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
         RehearsalProviderIdentity(
             role="valuation",
             provider_id=2,
-            source="tushare",
+            source=valuation_source,
             version="v1",
             endpoint_id="relay",
         ),
@@ -365,16 +387,45 @@ def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
         provider_identities=identities,
     )
 
-    assert report["outcome"] == "blocked"
-    assert report["stage_error_code"] == "REHEARSAL_VALUATION_SCOPE_INCOMPLETE"
+    assert report["outcome"] == expected_outcome
     assert report["asset_codes"] == list(registered)
-    assert report["eligible_asset_codes"] == []
+    assert report["eligible_asset_codes"] == (
+        list(registered[:2]) if expected_outcome == "blocked" else list(registered)
+    )
     assert report["excluded_asset_codes"] == []
     assert report["valuation_missing_target_session_codes"] == [registered[2]]
-    assert report["probes"] == []
+    if expected_outcome == "blocked":
+        assert report["stage_error_code"] == "REHEARSAL_ELIGIBLE_SCOPE_UNAVAILABLE"
+        assert report["probes"] == []
+        assert provider_calls == ["valuation"]
+    else:
+        assert report["stage_error_code"] == ""
+        assert report["valuation_outcome"] == "partial"
+        assert report["valuation_missing_target_session_reasons"] == [
+            {
+                "asset_code": registered[2],
+                "reason_code": "valuation_source_data_unavailable",
+            }
+        ]
+        probes = {probe["dataset"]: probe for probe in report["probes"]}
+        valuation_probe = probes["equity.valuation.fact"]
+        quote_probe = probes["equity.quote.snapshot"]
+        assert valuation_probe["outcome"] == "partial"
+        assert valuation_probe["requested"] == len(registered)
+        assert valuation_probe["succeeded"] == 2
+        assert valuation_probe["failed"] == 1
+        assert quote_probe["outcome"] == "success"
+        assert quote_probe["requested"] == 2
+        assert quote_probe["succeeded"] == 2
+        assert quote_probe["failed"] == 0
+        assert provider_calls == ["valuation", "quote"]
     assert contexts[0].sample_codes == registered
-    assert len(contexts) == 1
-    assert provider_calls == ["valuation"]
+    assert contexts[0].provider_format == (
+        "tencent_quote_batch.v1" if valuation_source == "tencent" else "tushare_pro_table.v1"
+    )
+    if expected_outcome == "success":
+        assert contexts[1].sample_codes == runner.select_rehearsal_sample(registered, 2)
+    assert len(contexts) == (1 if expected_outcome == "blocked" else 2)
     assert identity_checks == [identities, identities]
 
 

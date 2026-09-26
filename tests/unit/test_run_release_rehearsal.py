@@ -386,6 +386,72 @@ def test_failed_provider_stage_stops_before_replay_and_never_emits_receipt(
     assert status["error_code"] == "S6_STAGE_COMMAND_FAILED"
 
 
+@pytest.mark.parametrize(
+    "stable_code",
+    [
+        "REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT",
+        "REHEARSAL_BUILD_DISK_HEADROOM_UNAVAILABLE",
+    ],
+)
+def test_failed_build_only_preserves_remote_disk_headroom_rehearsal_code(
+    tmp_path: Path, stable_code: str
+) -> None:
+
+    class BuildHeadroomFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "build_only":
+                return CommandResult(
+                    returncode=1,
+                    stderr=(
+                        "[ERROR] Remote build failed. Exit=1. "
+                        f"Stderr=[ERROR] {stable_code}: only 8 GiB available"
+                    ),
+                )
+            return super().run(command)
+
+    runner = BuildHeadroomFailureRunner()
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(config, runner=runner)
+
+    assert exc_info.value.stage == "build_only"
+    assert exc_info.value.code == stable_code
+    assert "docker_load" not in runner.labels
+    status = json.loads((config.output_dir / "run-status.json").read_text(encoding="utf-8"))
+    assert status["outcome"] == "blocked"
+    assert status["current_stage"] == "build_only"
+    assert status["error_code"] == stable_code
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "[ERROR] REHEARSAL_BUILD_TAG_ALREADY_ACTIVE: build tag is in use",
+        (
+            "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT: low space\n"
+            "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_UNAVAILABLE: df failed"
+        ),
+    ],
+)
+def test_failed_build_only_rejects_nonunique_or_non_headroom_error_codes(
+    tmp_path: Path, stderr: str
+) -> None:
+    class BuildFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "build_only":
+                return CommandResult(returncode=1, stderr=stderr)
+            return super().run(command)
+
+    runner = BuildFailureRunner()
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(_config(tmp_path, root=_fake_checkout(tmp_path)), runner=runner)
+
+    assert exc_info.value.stage == "build_only"
+    assert exc_info.value.code == "S6_STAGE_COMMAND_FAILED"
+
+
 def test_preoccupied_ci_evidence_directory_fails_closed_without_overwrite(
     tmp_path: Path,
 ) -> None:

@@ -7,16 +7,21 @@ import json
 import math
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import cast
 
 from apps.data_center.application.market_provider_rehearsal import rehearsal_digest
+from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.infrastructure.tushare_client import TushareResponseEvidence
 
-from .rehearsal_response_store import RehearsalResponseContext, parse_validate_tushare_response
+from .rehearsal_response_store import (
+    TENCENT_PROVIDER_FORMAT,
+    RehearsalResponseContext,
+    parse_validate_provider_response,
+)
 from .tushare_replay_parser import (
     map_tushare_daily_basic_row,
     parse_tushare_daily_quote_rows,
@@ -72,6 +77,64 @@ def _number(value: object) -> float | None:
     return float(value)
 
 
+def _parse_observed_at(value: object) -> datetime:
+    """Read a canonical timezone-bearing provider timestamp from a replay row."""
+    if not isinstance(value, str):
+        raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_INVALID")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_INVALID") from exc
+    if parsed.utcoffset() is None or parsed.isoformat() != value:
+        raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_INVALID")
+    return parsed
+
+
+def _map_tencent_valuation_row(
+    row: Mapping[str, object],
+    *,
+    asset_code: str,
+    response_completed_at: datetime,
+    response_sha256: str,
+) -> ValuationFact | None:
+    """Map a parsed Tencent row while preserving source and transport time separately."""
+    raw_date = row.get("trade_date")
+    if not isinstance(raw_date, str) or len(raw_date) != 8 or not raw_date.isdigit():
+        return None
+    try:
+        val_date = datetime.strptime(raw_date, "%Y%m%d").date()
+        observed_at = _parse_observed_at(row.get("observed_at"))
+    except ValueError:
+        return None
+    market_cap = _number(row.get("total_mv"))
+    float_market_cap = _number(row.get("circ_mv"))
+    pe_ttm = _number(row.get("pe_ttm"))
+    pb = _number(row.get("pb"))
+    multiplier = 100_000_000.0
+    return ValuationFact(
+        asset_code=asset_code,
+        val_date=val_date,
+        pe_ttm=pe_ttm,
+        pb=pb,
+        market_cap=market_cap * multiplier if market_cap is not None else None,
+        float_market_cap=float_market_cap * multiplier if float_market_cap is not None else None,
+        source="tencent",
+        observed_at=observed_at,
+        available_at=response_completed_at,
+        fetched_at=response_completed_at,
+        source_record_id=f"tencent:quote_batch:{asset_code}:{response_sha256}",
+        raw_payload_hash=response_sha256,
+        extra={
+            "market_cap_original_unit": "亿元",
+            "market_cap_canonical_unit": "元",
+            "market_cap_multiplier_to_storage": multiplier,
+            "availability_basis": "response_completed_utc",
+            "raw_payload_scope": "batch_response_body",
+            "response_completed_at": response_completed_at.isoformat(),
+        },
+    )
+
+
 def verify_unit_pair(raw: object, canonical: object, multiplier: float) -> None:
     """Compare actual raw/canonical observations using an explicit unit contract."""
     raw_number, canonical_number = _number(raw), _number(canonical)
@@ -114,11 +177,17 @@ def _replay_rows(
         asset = str(row["ts_code"])
         response = response_by_asset[asset]
         transport_finished = response.finished_at
+        is_tencent = context.provider_format == TENCENT_PROVIDER_FORMAT
         finished = response.normalization_completed_at or transport_finished
-        observed = cn_market_session_close_utc(target_date)
+        observed = (
+            _parse_observed_at(row.get("observed_at"))
+            if is_tencent
+            else cn_market_session_close_utc(target_date)
+        )
         if finished.utcoffset() is None or finished < observed:
             raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_INVALID")
         units: list[dict[str, object]] = []
+        valuation_ratios: tuple[float | None, float | None] | None = None
         if context.dataset == "equity.quote.snapshot":
             quote = parse_tushare_daily_quote_rows(
                 [row],
@@ -150,22 +219,22 @@ def _replay_rows(
                         "multiplier": contract.multiplier,
                     }
                 )
-        else:
-            fact = map_tushare_daily_basic_row(
+        elif is_tencent:
+            fact = _map_tencent_valuation_row(
                 row,
                 asset_code=asset,
-                source=context.provider_source,
-                provider_extra={},
                 response_completed_at=finished,
-                response_evidence=TushareResponseEvidence(response.body_sha256, finished),
+                response_sha256=response.body_sha256,
             )
             if (
                 fact is None
                 or fact.observed_at != observed
                 or fact.available_at != finished
+                or fact.fetched_at != finished
                 or fact.raw_payload_hash != response.body_sha256
             ):
                 raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_MISMATCH")
+            valuation_ratios = (fact.pe_ttm, fact.pb)
             multiplier = _number(fact.extra.get("market_cap_multiplier_to_storage"))
             if multiplier is None or multiplier <= 0:
                 raise ValueError("REHEARSAL_REPLAY_UNIT_CONTRACT_MISSING")
@@ -191,22 +260,69 @@ def _replay_rows(
                         "multiplier": multiplier,
                     }
                 )
-        observations.append(
-            {
-                "asset_code": asset,
-                "source_observed_at": observed.isoformat(),
-                "transport_received_at": transport_finished.isoformat(),
-                "normalization_completed_at": finished.isoformat(),
-                "response_completed_at": finished.isoformat(),
-                "body_sha256": response.body_sha256,
-                "units": units,
-            }
-        )
+        else:
+            fact = map_tushare_daily_basic_row(
+                row,
+                asset_code=asset,
+                source=context.provider_source,
+                provider_extra={},
+                response_completed_at=finished,
+                response_evidence=TushareResponseEvidence(response.body_sha256, finished),
+            )
+            if (
+                fact is None
+                or fact.observed_at != observed
+                or fact.available_at != finished
+                or fact.raw_payload_hash != response.body_sha256
+            ):
+                raise ValueError("REHEARSAL_REPLAY_SOURCE_TIME_MISMATCH")
+            valuation_ratios = (fact.pe_ttm, fact.pb)
+            multiplier = _number(fact.extra.get("market_cap_multiplier_to_storage"))
+            if multiplier is None or multiplier <= 0:
+                raise ValueError("REHEARSAL_REPLAY_UNIT_CONTRACT_MISSING")
+            for field, valuation_canonical in (
+                ("total_mv", fact.market_cap),
+                ("circ_mv", fact.float_market_cap),
+            ):
+                contract = unit_contracts[field]
+                if (
+                    contract.multiplier != multiplier
+                    or contract.raw_unit != fact.extra.get("market_cap_original_unit")
+                    or contract.canonical_unit != fact.extra.get("market_cap_canonical_unit")
+                ):
+                    raise ValueError("REHEARSAL_REPLAY_UNIT_CONTRACT_MISMATCH")
+                verify_unit_pair(row.get(field), valuation_canonical, contract.multiplier)
+                units.append(
+                    {
+                        "field": field,
+                        "raw": row.get(field),
+                        "canonical": valuation_canonical,
+                        "raw_unit": fact.extra.get("market_cap_original_unit"),
+                        "canonical_unit": fact.extra.get("market_cap_canonical_unit"),
+                        "multiplier": multiplier,
+                    }
+                )
+        observation: dict[str, object] = {
+            "asset_code": asset,
+            "source_observed_at": observed.isoformat(),
+            "transport_received_at": transport_finished.isoformat(),
+            "normalization_completed_at": finished.isoformat(),
+            "response_completed_at": finished.isoformat(),
+            "body_sha256": response.body_sha256,
+            "units": units,
+        }
+        if valuation_ratios is not None:
+            observation["pe_ttm"] = valuation_ratios[0]
+            observation["pb"] = valuation_ratios[1]
+        observations.append(observation)
     return sorted(observations, key=lambda row: str(row["asset_code"]))
 
 
 def replay_retained_dataset(
-    responses: Sequence[ReplayResponse], unit_contracts: Sequence[ReplayUnitContract]
+    responses: Sequence[ReplayResponse],
+    unit_contracts: Sequence[ReplayUnitContract],
+    *,
+    sample_codes: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Exercise seven explicit cases; synthetic mutations never become provider evidence.
 
@@ -215,7 +331,11 @@ def replay_retained_dataset(
     """
     if not responses:
         raise ValueError("REHEARSAL_REAL_RESPONSE_MISSING")
-    context = responses[0].context
+    first_context = responses[0].context
+    context = replace(
+        first_context,
+        sample_codes=sample_codes or first_context.sample_codes,
+    )
     units_by_field = {contract.field: contract for contract in unit_contracts}
     required_fields = (
         {"close", "vol", "amount"}
@@ -227,10 +347,23 @@ def replay_retained_dataset(
     rows: list[Mapping[str, object]] = []
     response_by_asset: dict[str, ReplayResponse] = {}
     for response in responses:
-        if response.context != context:
+        if any(
+            getattr(response.context, field) != getattr(first_context, field)
+            for field in (
+                "candidate_sha",
+                "target_trade_date",
+                "universe_sha256",
+                "provider_identities_sha256",
+                "provider_id",
+                "provider_source",
+                "endpoint_id",
+                "provider_format",
+                "dataset",
+            )
+        ):
             raise ValueError("REHEARSAL_REPLAY_CONTEXT_MISMATCH")
         verify_response_digest(response.body, response.body_sha256)
-        batch = parse_validate_tushare_response(response.body, context)
+        batch = parse_validate_provider_response(response.body, response.context)
         rows.extend(batch)
         for row in batch:
             if row.get("ts_code") in context.sample_codes and row.get(

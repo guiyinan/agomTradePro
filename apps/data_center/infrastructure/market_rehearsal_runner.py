@@ -39,9 +39,15 @@ from .rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identity_matches_adapter_source,
     verify_configured_rehearsal_identities,
 )
-from .rehearsal_response_store import RehearsalResponseContext, RehearsalResponseStore
+from .rehearsal_response_store import (
+    TENCENT_PROVIDER_FORMAT,
+    TUSHARE_PROVIDER_FORMAT,
+    RehearsalResponseContext,
+    RehearsalResponseStore,
+)
 
 
 @runtime_checkable
@@ -280,7 +286,10 @@ def run_market_provider_rehearsal(
     if provider_identities is not None:
         checked = parse_rehearsal_identities([asdict(value) for value in provider_identities])
         identities = {identity.role: identity for identity in checked}
-        if any(identity.source != "tushare" for identity in checked):
+        if identities["quote"].source != "tushare" or identities["valuation"].source not in {
+            "tushare",
+            "tencent",
+        }:
             raise ValueError("REHEARSAL_RESPONSE_FORMAT_UNSUPPORTED")
         if (
             identities["quote"].provider_id != quote_provider_id
@@ -321,8 +330,12 @@ def run_market_provider_rehearsal(
         eligible_universe: tuple[str, ...] = ()
         excluded_universe: tuple[str, ...] = ()
         valuation_missing_target_session_codes: tuple[str, ...] = ()
+        valuation_missing_target_session_reasons: list[dict[str, str]] = []
         valuation_policy_identity = ""
         valuation_minimum_coverage_ratio: float | None = None
+        valuation_coverage_ratio: float | None = None
+        valuation_outcome = ""
+        valuation_sample: tuple[str, ...] = ()
         valuation_policy_sha256 = ""
         valuation_policy_snapshot: dict[str, object] | None = None
         valuation_scope: list[ValuationFact] = []
@@ -381,7 +394,9 @@ def run_market_provider_rehearsal(
                     stage_error_code = stage_error_code or "REHEARSAL_PROVIDER_UNAVAILABLE"
                 elif identities and any(
                     not isinstance(provider, _SourceIdentity)
-                    or provider.provider_source() != identities[role].source
+                    or not rehearsal_identity_matches_adapter_source(
+                        identities[role], adapter_source=provider.provider_source()
+                    )
                     for role, provider in (("quote", quotes), ("valuation", valuations))
                 ):
                     stage_error_code = "REHEARSAL_PROVIDER_IDENTITY_MISMATCH"
@@ -399,6 +414,11 @@ def run_market_provider_rehearsal(
                                 endpoint_id=identities["valuation"].endpoint_id,
                                 dataset="equity.valuation.fact",
                                 sample_codes=registered_universe,
+                                provider_format=(
+                                    TENCENT_PROVIDER_FORMAT
+                                    if identities["valuation"].source == "tencent"
+                                    else TUSHARE_PROVIDER_FORMAT
+                                ),
                             )
                             if identities
                             else None
@@ -425,7 +445,7 @@ def run_market_provider_rehearsal(
                             )
                         )
                         if (
-                            not eligible_universe
+                            not registered_universe
                             or len(returned) != len(set(returned))
                             or len(eligible_universe) != len(set(eligible_universe))
                             or not set(returned).issubset(requested)
@@ -445,19 +465,35 @@ def run_market_provider_rehearsal(
                         valuation_minimum_coverage_ratio = policy.minimum_coverage_ratio
                         valuation_policy_snapshot = canonical_publication_policy_evidence(policy)
                         valuation_policy_sha256 = str(valuation_policy_snapshot["content_sha256"])
+                        valuation_coverage_ratio = len(eligible_universe) / len(registered_universe)
                         if valuation_missing_target_session_codes:
-                            eligible_universe = ()
-                            sample = ()
-                            stage_error_code = "REHEARSAL_VALUATION_SCOPE_INCOMPLETE"
-                        elif len(eligible_universe) != len(registered_universe):
-                            raise ValueError("valuation target-session scope is incomplete")
-                        elif len(eligible_universe) / len(registered_universe) < (
-                            policy.minimum_coverage_ratio
-                        ):
-                            raise ValueError("valuation coverage below active policy")
+                            if (
+                                not policy.allow_partial
+                                or not policy.uses_versioned_evidence
+                                or valuation_coverage_ratio < policy.minimum_coverage_ratio
+                            ):
+                                raise ValueError("valuation coverage below active policy")
+                            valuation_outcome = "partial"
+                            valuation_missing_target_session_reasons = [
+                                {
+                                    "asset_code": asset_code,
+                                    "reason_code": "valuation_source_data_unavailable",
+                                }
+                                for asset_code in valuation_missing_target_session_codes
+                            ]
                         else:
-                            eligible_universe = registered_universe
-                            sample = select_rehearsal_sample(eligible_universe, sample_size)
+                            valuation_outcome = "success"
+                        eligible_universe = registered_universe
+                        sample = select_rehearsal_sample(eligible_universe, sample_size)
+                        valuation_sample = select_rehearsal_sample(
+                            tuple(
+                                sorted(
+                                    set(registered_universe)
+                                    - set(valuation_missing_target_session_codes)
+                                )
+                            ),
+                            sample_size,
+                        )
                     except (
                         AgomTradeProException,
                         OSError,
@@ -486,35 +522,67 @@ def run_market_provider_rehearsal(
                             endpoint_id=identity.endpoint_id,
                             dataset=dataset,
                             sample_codes=sample,
+                            provider_format=TUSHARE_PROVIDER_FORMAT,
                         )
 
                     if not stage_error_code:
                         sampled_valuations = [
-                            fact for fact in valuation_scope if fact.asset_code in sample
+                            fact
+                            for fact in valuation_scope
+                            if fact.asset_code in valuation_sample and fact.val_date == target_date
                         ]
+                        valuation_probe = _probe(
+                            dataset="equity.valuation.fact",
+                            fetch=lambda: sampled_valuations,
+                            sample=valuation_sample,
+                            target_date=target_date,
+                            capture=capture,
+                            response_context=valuation_scope_context,
+                            receipt_start=valuation_receipt_start,
+                            receipt_end=valuation_receipt_end,
+                            captured_started_at=valuation_call_started,
+                            captured_finished_at=valuation_call_finished,
+                        )
+                        if valuation_probe["outcome"] == "success":
+                            valuation_probe.update(
+                                {
+                                    "outcome": valuation_outcome,
+                                    "requested": len(registered_universe),
+                                    "succeeded": len(eligible_universe)
+                                    - len(valuation_missing_target_session_codes),
+                                    "failed": len(valuation_missing_target_session_codes),
+                                    "count_unit": "registered_asset",
+                                    "valuation_coverage_ratio": valuation_coverage_ratio,
+                                    "valuation_policy_identity": valuation_policy_identity,
+                                    "valuation_minimum_coverage_ratio": valuation_minimum_coverage_ratio,
+                                    "valuation_missing_target_session_codes": list(
+                                        valuation_missing_target_session_codes
+                                    ),
+                                    "valuation_missing_target_session_reasons": (
+                                        valuation_missing_target_session_reasons
+                                    ),
+                                    "issues": [
+                                        {
+                                            "asset_code": item["asset_code"],
+                                            "code": item["reason_code"],
+                                        }
+                                        for item in valuation_missing_target_session_reasons
+                                    ],
+                                }
+                            )
+                        quote_probe = _probe(
+                            dataset="equity.quote.snapshot",
+                            fetch=lambda: quotes.fetch_quote_snapshots_for_session(
+                                list(sample), target_date
+                            ),
+                            sample=sample,
+                            target_date=target_date,
+                            capture=capture,
+                            response_context=response_context("quote", "equity.quote.snapshot"),
+                        )
                         probes = [
-                            _probe(
-                                dataset="equity.valuation.fact",
-                                fetch=lambda: sampled_valuations,
-                                sample=sample,
-                                target_date=target_date,
-                                capture=capture,
-                                response_context=valuation_scope_context,
-                                receipt_start=valuation_receipt_start,
-                                receipt_end=valuation_receipt_end,
-                                captured_started_at=valuation_call_started,
-                                captured_finished_at=valuation_call_finished,
-                            ),
-                            _probe(
-                                dataset="equity.quote.snapshot",
-                                fetch=lambda: quotes.fetch_quote_snapshots_for_session(
-                                    list(sample), target_date
-                                ),
-                                sample=sample,
-                                target_date=target_date,
-                                capture=capture,
-                                response_context=response_context("quote", "equity.quote.snapshot"),
-                            ),
+                            valuation_probe,
+                            quote_probe,
                         ]
         transport = capture.to_dict()
         within_budget = time.monotonic() - capture.started <= max_seconds
@@ -530,7 +598,16 @@ def run_market_provider_rehearsal(
         and source_unchanged
         and not stage_error_code
         and len(probes) == 2
-        and all(probe["outcome"] == "success" for probe in probes)
+        and all(
+            probe["outcome"]
+            == (
+                "partial"
+                if probe.get("dataset") == "equity.valuation.fact"
+                and valuation_outcome == "partial"
+                else "success"
+            )
+            for probe in probes
+        )
         else "blocked"
     )
     return {
@@ -562,6 +639,12 @@ def run_market_provider_rehearsal(
         "excluded_asset_codes": list(excluded_universe),
         "excluded_asset_count": len(excluded_universe),
         "valuation_missing_target_session_codes": list(valuation_missing_target_session_codes),
+        "valuation_missing_target_session_reasons": valuation_missing_target_session_reasons,
+        "valuation_requested_count": len(registered_universe),
+        "valuation_returned_count": len(eligible_universe)
+        - len(valuation_missing_target_session_codes),
+        "valuation_coverage_ratio": valuation_coverage_ratio,
+        "valuation_outcome": valuation_outcome,
         "valuation_policy_identity": valuation_policy_identity,
         "valuation_policy_sha256": valuation_policy_sha256,
         "valuation_policy_snapshot": valuation_policy_snapshot,
@@ -569,6 +652,8 @@ def run_market_provider_rehearsal(
         "sample": list(sample),
         "sample_sha256": rehearsal_digest(sample),
         "sample_size": len(sample),
+        "valuation_sample": list(valuation_sample),
+        "valuation_sample_sha256": rehearsal_digest(valuation_sample),
         "quote_provider_id": quote_provider_id,
         "provider_identities": [asdict(identity) for identity in (provider_identities or ())],
         "provider_identities_sha256": identity_digest,

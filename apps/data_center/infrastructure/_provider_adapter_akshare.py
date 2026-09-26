@@ -800,7 +800,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         asset_codes: list[str],
         as_of_date: date,
     ) -> list[ValuationFact]:
-        """Fetch current valuation coverage through Tencent's batch quote contract."""
+        """Fetch exact-session valuations through Tencent's batch quote contract."""
 
         from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
 
@@ -843,7 +843,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 ),
             )
             for snapshot in snapshots
-            if snapshot.observed_at.date() <= as_of_date
+            if snapshot.observed_at.date() == as_of_date
         ]
 
     def fetch_sector_memberships(

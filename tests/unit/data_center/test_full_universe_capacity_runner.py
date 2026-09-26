@@ -37,6 +37,8 @@ def _prepare_capacity_scenario(
     *,
     policy_available: bool = True,
     policy_coverage: float = 0.95,
+    policy_allow_partial: bool = False,
+    policy_version: str = "fixture",
     margin_floor: float = 0.15,
     valuation_codes: tuple[str, ...] | None = None,
     quote_codes: tuple[str, ...] | None = None,
@@ -167,11 +169,11 @@ def _prepare_capacity_scenario(
     default_policy = PublicationPolicy(
         dataset=DatasetKey("equity.valuation.fact", "1.0", "1.0"),
         minimum_coverage_ratio=policy_coverage,
-        allow_partial=False,
+        allow_partial=policy_allow_partial,
         conflict_action="block",
         required_evidence=("source",),
         retention_days=30,
-        policy_version="fixture",
+        policy_version=policy_version,
     )
     policy = default_policy if policy_available else None
     digest_values = iter(source_digests)
@@ -663,6 +665,67 @@ def test_collector_fails_closed_on_missing_valuation_without_status_evidence(
     assert exc_info.value.details["failed"] == 1
     assert exc_info.value.details["active_asset_codes"] == ["000001.SZ", "600000.SH"]
     assert exc_info.value.details["missing_asset_codes"] == ["600000.SH"]
+    assert provider_calls == ["valuation"]
+    assert not output_dir.exists()
+
+
+def test_collector_reports_policy_qualified_partial_valuation_without_blocking_universe(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    source_root, output_dir, provider_calls = _prepare_capacity_scenario(
+        monkeypatch,
+        tmp_path,
+        valuation_codes=("000001.SZ",),
+        policy_coverage=0.5,
+        policy_allow_partial=True,
+    )
+
+    report = _collect_capacity(source_root, output_dir)
+    receipt = json.loads(
+        (output_dir / "full-universe-capacity-receipt.json").read_text(encoding="utf-8")
+    )
+
+    expected_assets = ["000001.SZ", "600000.SH"]
+    expected_missing = ["600000.SH"]
+    expected_reasons = [
+        {
+            "asset_code": "600000.SH",
+            "reason_code": "valuation_source_data_unavailable",
+        }
+    ]
+    for artifact in (report, receipt):
+        assert artifact["outcome"] == "success"
+        assert artifact["asset_codes"] == expected_assets
+        assert artifact["eligible_asset_codes"] == expected_assets
+        assert artifact["excluded_asset_codes"] == []
+        assert artifact["valuation_missing_target_session_codes"] == expected_missing
+        assert artifact["valuation_missing_target_session_reasons"] == expected_reasons
+        assert artifact["valuation_outcome"] == "partial"
+        assert artifact["valuation_requested_count"] == 2
+        assert artifact["valuation_returned_count"] == 1
+        assert artifact["valuation_coverage_ratio"] == 0.5
+    assert receipt["quote_coverage"]["missing_target_session_count"] == 0
+    assert provider_calls == ["valuation", "quote"]
+
+
+def test_collector_rejects_partial_valuation_under_legacy_policy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """A legacy policy cannot authorize the versioned partial-publication path."""
+
+    source_root, output_dir, provider_calls = _prepare_capacity_scenario(
+        monkeypatch,
+        tmp_path,
+        valuation_codes=("000001.SZ",),
+        policy_coverage=0.5,
+        policy_allow_partial=True,
+        policy_version="legacy",
+    )
+
+    with pytest.raises(DataFetchError) as exc_info:
+        _collect_capacity(source_root, output_dir)
+
+    assert exc_info.value.code == "REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE"
     assert provider_calls == ["valuation"]
     assert not output_dir.exists()
 

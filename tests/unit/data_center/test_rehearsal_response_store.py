@@ -66,6 +66,8 @@ def _context(
     *,
     dataset: str = "equity.quote.snapshot",
     sample_codes: tuple[str, ...] = ("000001.SZ", "600000.SH"),
+    provider_format: str = "tushare_pro_table.v1",
+    provider_source: str = "tushare",
 ) -> Any:
     """Build the frozen Tushare association context used only by these local fixtures."""
     return modules[0].RehearsalResponseContext(
@@ -74,10 +76,11 @@ def _context(
         universe_sha256="a" * 64,
         provider_identities_sha256="b" * 64,
         provider_id=7,
-        provider_source="tushare",
+        provider_source=provider_source,
         endpoint_id="primary",
         dataset=dataset,
         sample_codes=sample_codes,
+        provider_format=provider_format,
     )
 
 
@@ -113,6 +116,30 @@ def _body(
     if extra:
         envelope.update(extra)
     return json.dumps(envelope, separators=(",", ":"), allow_nan=True).encode("utf-8")
+
+
+def _tencent_body(
+    *,
+    codes: tuple[str, ...] = ("000001.SZ", "600000.SH"),
+    timestamp: str = "20260924150000",
+    total_mv: str = "1234.5",
+) -> bytes:
+    """Build the actual line-oriented Tencent quote assignment shape in memory."""
+    symbols = {"SZ": "sz", "SH": "sh", "BJ": "bj"}
+    lines: list[str] = []
+    for asset_code in codes:
+        numeric, exchange = asset_code.split(".", 1)
+        fields = [""] * 47
+        fields[0] = "1"
+        fields[1] = "测试证券"
+        fields[2] = numeric
+        fields[30] = timestamp
+        fields[39] = "10.5"
+        fields[44] = "987.6"
+        fields[45] = total_mv
+        fields[46] = "1.2"
+        lines.append(f'v_{symbols[exchange]}{numeric}="{"~".join(fields)}";')
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def _store(
@@ -220,6 +247,79 @@ def test_strict_parser_accepts_success_and_full_market_superset(proposal_modules
     assert [row["ts_code"] for row in parsed] == ["000001.SZ", "600000.SH"]
     assert parsed[0]["trade_date"] == "20260924"
     assert parsed[1]["pe_ttm"] is None
+
+
+def test_tencent_parser_maps_provider_fields_and_normalizes_source_instant(
+    proposal_modules: Any,
+) -> None:
+    """Normalize Tencent slots and express the source instant in canonical UTC."""
+    store_module = proposal_modules[0]
+    context = _context(
+        proposal_modules,
+        dataset="equity.valuation.fact",
+        provider_format="tencent_quote_batch.v1",
+        provider_source="akshare",
+    )
+
+    parsed = store_module.parse_validate_provider_response(_tencent_body(), context)
+
+    assert [row["ts_code"] for row in parsed] == ["000001.SZ", "600000.SH"]
+    assert parsed[0] == {
+        "ts_code": "000001.SZ",
+        "trade_date": "20260924",
+        "observed_at": "2026-09-24T07:00:00+00:00",
+        "pe_ttm": 10.5,
+        "pb": 1.2,
+        "total_mv": 1234.5,
+        "circ_mv": 987.6,
+    }
+
+
+@pytest.mark.parametrize(
+    ("body", "error_code"),
+    [
+        (_tencent_body(codes=("000001.SZ", "600001.SH")), "REHEARSAL_RESPONSE_ASSET_UNREQUESTED"),
+        (_tencent_body(codes=("000001.SZ", "000001.SZ")), "REHEARSAL_RESPONSE_DUPLICATE_ASSET"),
+        (_tencent_body(timestamp="20260925150000"), "REHEARSAL_RESPONSE_FUTURE_DATE"),
+        (_tencent_body(total_mv="1e999"), "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+        (_tencent_body(timestamp="2026092415bad0"), "REHEARSAL_RESPONSE_SCHEMA_INVALID"),
+    ],
+)
+def test_tencent_parser_rejects_unrequested_duplicate_future_and_invalid_values(
+    proposal_modules: Any,
+    body: bytes,
+    error_code: str,
+) -> None:
+    """Fail closed on out-of-scope symbols, duplicate rows and invalid source values."""
+    context = _context(
+        proposal_modules,
+        dataset="equity.valuation.fact",
+        provider_format="tencent_quote_batch.v1",
+        provider_source="akshare",
+    )
+    with pytest.raises(ValueError, match=error_code):
+        proposal_modules[0].parse_validate_provider_response(body, context)
+
+
+def test_tencent_store_retains_exact_body_hash_and_format_ref(
+    proposal_modules: Any, tmp_path: Path
+) -> None:
+    """Bind a Tencent artifact reference to the exact original provider bytes."""
+    root = tmp_path / "evidence"
+    root.mkdir()
+    body = _tencent_body()
+    context = _context(
+        proposal_modules,
+        dataset="equity.valuation.fact",
+        provider_format="tencent_quote_batch.v1",
+        provider_source="akshare",
+    )
+
+    ref = _persist(_store(proposal_modules, root), context, body)
+
+    assert ref.provider_format == "tencent_quote_batch.v1"
+    assert ref.body_sha256 == hashlib.sha256(body).hexdigest()
+    assert (root / ref.path).read_bytes() == body
 
 
 @pytest.mark.parametrize(

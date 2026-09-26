@@ -4628,6 +4628,7 @@
         "apps/data_center/application/financial_refresh_lease.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
+        "apps/data_center/management/commands/setup_full_market_publications.py",
         "apps/data_center/application/backfill_control_plane.py",
         "apps/data_center/domain/control_plane.py",
         "apps/data_center/infrastructure/backfill_item_attempt_store.py",
@@ -4647,7 +4648,15 @@
         "apps/equity/application/tasks_valuation_sync.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
         "apps/data_center/infrastructure/tushare_replay_parser.py",
-        "apps/data_center/infrastructure/_provider_adapter_akshare.py"
+        "apps/data_center/infrastructure/_provider_adapter_akshare.py",
+        "apps/data_center/application/publication_utils.py",
+        "apps/data_center/application/control_plane.py",
+        "apps/data_center/application/published_equity_context.py",
+        "apps/data_center/application/query_services.py",
+        "apps/data_center/domain/publication_snapshot_policy.py",
+        "apps/data_center/infrastructure/publication_rollback_models.py",
+        "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py",
+        "shared/domain/task_outcomes.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4728,7 +4737,10 @@
           "newest_observed_at",
           "covered_asset_count: int",
           "\"covered_asset_count\": self.covered_asset_count",
-          "\"policy_identity\": publication.policy_version"
+          "\"policy_identity\": publication.policy_version",
+          "reason_code=\"valuation_source_data_unavailable\"",
+          "and policy.allow_partial",
+          "and coverage_ratio >= policy.minimum_coverage_ratio"
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
@@ -4961,7 +4973,12 @@
         "apps/data_center/domain/control_plane.py": [
           "class SyncItemAttemptState(StrEnum):",
           "class SyncItemAttemptPhase(StrEnum):",
-          "class SyncItemAttempt:"
+          "class SyncItemAttempt:",
+          "class PublicationScopeBlock:",
+          "target_trade_date: date | None = None",
+          "publication_run_id: str = \"\"",
+          "policy_version: str = \"\"",
+          "publication_id: str = \"\""
         ],
         "apps/data_center/infrastructure/sync_item_attempt_models.py": [
           "class SyncItemAttemptModel(models.Model):",
@@ -5076,12 +5093,38 @@
           "observed_at=cn_market_session_close_utc(val_date)"
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
-          "observed_at=cn_market_session_close_utc(val_date)"
+          "observed_at=cn_market_session_close_utc(val_date)",
+          "if snapshot.observed_at.date() == as_of_date",
+          "\"actual_source\": snapshot.source",
+          "raw_payload_hash=snapshot.raw_payload_hash"
+        ],
+        "apps/data_center/application/publication_utils.py": [
+          "publication-evidence-v3",
+          "key != \"publication_id\"",
+          "def current_publication_id_for_hash("
+        ],
+        "apps/data_center/management/commands/setup_full_market_publications.py": [
+          "--quote-source\", choices=(\"akshare\", \"tushare\"), default=\"tushare\"",
+          "--valuation-source\", choices=(\"akshare\", \"tushare\"), default=\"akshare\""
         ],
         "apps/data_center/application/full_market_task_support.py": [
           "def exact_provider_batch_count(",
           "def full_market_input_failure(",
           "provider batch asset identities are incomplete"
+        ],
+        "apps/data_center/domain/publication_snapshot_policy.py": [
+          "Publication policy does not allow partial coverage",
+          "Partial current valuation requires per-asset scope blocks",
+          "Partial current valuation scope block evidence is incomplete",
+          "Partial current valuation scope block identity differs"
+        ],
+        "apps/data_center/application/query_services.py": [
+          "\"publication_outcome\":",
+          "scope_block = next(",
+          "gate[\"scope_block\"] = scope_block.to_dict()"
+        ],
+        "shared/domain/task_outcomes.py": [
+          "if outcome is TaskBusinessOutcome.SUCCESS and result.get(\"success\") is False:"
         ]
       },
       "required_tests": [
@@ -5761,9 +5804,54 @@
           "test_function": "test_tushare_current_valuations_use_one_session_batch"
         },
         {
+          "case": "akshare_valuation_requires_exact_observation_date_and_preserves_evidence",
+          "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
+          "test_function": "test_akshare_current_valuation_batch_rejects_old_and_future_observations"
+        },
+        {
+          "case": "scheduled_market_refresh_uses_tushare_quote_and_tencent_valuation",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_repairs_missing_price_scope_before_final_publication"
+        },
+        {
+          "case": "full_market_schedule_defaults_to_tencent_valuations",
+          "test_file": "tests/component/data_center/test_full_market_schedule.py",
+          "test_function": "test_full_market_schedule_is_idempotent_and_precedes_inference"
+        },
+        {
           "case": "market_session_close_boundary",
           "test_file": "tests/unit/data_center/test_market_time.py",
           "test_function": "test_cn_market_session_close_maps_to_official_close_in_utc"
+        },
+        {
+          "case": "policy_allowed_partial_valuation_keeps_full_denominator",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block"
+        },
+        {
+          "case": "partial_valuation_policy_threshold_and_disable_fail_closed",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_blocks_partial_valuation_when_policy_does_not_allow_it"
+        },
+        {
+          "case": "partial_valuation_task_reports_asset_counts_and_scope_blocks",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_counts"
+        },
+        {
+          "case": "partial_valuation_read_preserves_per_security_reason",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_partial_valuation_missing_asset_preserves_stable_scope_reason"
+        },
+        {
+          "case": "single_security_api_projects_only_its_traceable_scope_block",
+          "test_file": "tests/integration/data_center/test_api.py",
+          "test_function": "test_published_valuation_query_returns_traceable_scope_block"
+        },
+        {
+          "case": "partial_scope_blocks_are_immutable",
+          "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
+          "test_function": "test_p2_partial_scope_blocks_are_hashed_persisted_and_immutable"
         }
       ]
     },
@@ -6401,19 +6489,55 @@
     },
     {
       "id": "data_center.market_provider_rehearsal",
-      "surface": "Read-only live provider probe binds sampled scope, source clock and observed HTTP receipts; it is not release approval",
+      "surface": "Read-only live provider probe, retained response replay, policy-qualified valuation gaps and full-universe capacity bind source clocks, units, batch scope and stable missing reasons; this evidence is not release approval",
       "source_files": [
         "apps/data_center/application/market_provider_rehearsal.py",
         "apps/data_center/infrastructure/market_rehearsal_runner.py",
         "apps/data_center/infrastructure/rehearsal_http_capture.py",
-        "apps/data_center/management/commands/rehearse_market_providers.py"
+        "apps/data_center/infrastructure/rehearsal_identity.py",
+        "apps/data_center/infrastructure/rehearsal_response_store.py",
+        "apps/data_center/infrastructure/rehearsal_response_replay.py",
+        "apps/data_center/infrastructure/rehearsal_replay_collector.py",
+        "apps/data_center/infrastructure/full_universe_capacity_runner.py",
+        "apps/data_center/management/commands/rehearse_market_providers.py",
+        "scripts/validate_release_rehearsal.py"
       ],
       "required_markers": {
         "apps/data_center/infrastructure/market_rehearsal_runner.py": [
           "REPEATABLE READ, READ ONLY",
           "REHEARSAL_REAL_RESPONSE_MISSING",
-          "REHEARSAL_SOURCE_RESPONSE_MISMATCH",
+          "valuation_source_data_unavailable",
+          "TENCENT_PROVIDER_FORMAT",
           "remaining_release_gates"
+        ],
+        "apps/data_center/infrastructure/rehearsal_identity.py": [
+          "rehearsal_identity_matches_adapter_source",
+          "tencent_quote_batch"
+        ],
+        "apps/data_center/infrastructure/rehearsal_response_store.py": [
+          "tencent_quote_batch.v1",
+          "parse_validate_provider_response",
+          "artifact_sample_codes"
+        ],
+        "apps/data_center/infrastructure/rehearsal_response_replay.py": [
+          "_map_tencent_valuation_row",
+          "100_000_000.0",
+          "sample_codes: tuple[str, ...] | None"
+        ],
+        "apps/data_center/infrastructure/rehearsal_replay_collector.py": [
+          "valuation_missing_target_session_reasons",
+          "response_asset_codes",
+          "parse_validate_provider_response"
+        ],
+        "apps/data_center/infrastructure/full_universe_capacity_runner.py": [
+          "valuation_source_data_unavailable",
+          "valuation_coverage_ratio",
+          "valuation_missing_target_session_codes"
+        ],
+        "scripts/validate_release_rehearsal.py": [
+          "TENCENT_REPLAY_UNIT_CONTRACTS",
+          "valuation_missing_asset_codes",
+          "accepted_outcomes=(\"success\", \"partial\")"
         ]
       },
       "required_tests": [
@@ -6436,6 +6560,41 @@
           "case": "no_receipt_no_pass",
           "test_file": "tests/unit/data_center/test_market_rehearsal_runner.py",
           "test_function": "test_probe_without_real_response_receipt_cannot_pass"
+        },
+        {
+          "case": "policy_qualified_dynamic_valuation_gap",
+          "test_file": "tests/unit/data_center/test_market_rehearsal_runner.py",
+          "test_function": "test_probe_handles_policy_qualified_partial_valuation_scope"
+        },
+        {
+          "case": "tencent_provider_identity",
+          "test_file": "tests/unit/data_center/test_rehearsal_identity.py",
+          "test_function": "test_akshare_valuation_identity_binds_actual_tencent_transport"
+        },
+        {
+          "case": "tencent_raw_response_parser",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_store.py",
+          "test_function": "test_tencent_parser_maps_provider_fields_and_normalizes_source_instant"
+        },
+        {
+          "case": "tencent_unit_and_source_time_replay",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_replay.py",
+          "test_function": "test_tencent_replay_converts_billion_yuan_and_uses_transport_completion"
+        },
+        {
+          "case": "tencent_replay_release_validation",
+          "test_file": "tests/unit/data_center/test_rehearsal_replay_collector.py",
+          "test_function": "test_collector_replays_tencent_valuation_bytes_through_release_validator"
+        },
+        {
+          "case": "policy_qualified_partial_replay_validation",
+          "test_file": "tests/unit/data_center/test_rehearsal_replay_collector.py",
+          "test_function": "test_collector_accepts_policy_qualified_partial_valuation_scope"
+        },
+        {
+          "case": "full_universe_capacity_dynamic_gap",
+          "test_file": "tests/unit/data_center/test_full_universe_capacity_runner.py",
+          "test_function": "test_collector_reports_policy_qualified_partial_valuation_without_blocking_universe"
         }
       ]
     }

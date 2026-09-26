@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, cast
@@ -27,7 +27,12 @@ from .rehearsal_response_replay import (
     replay_retained_dataset,
     verify_response_digest,
 )
-from .rehearsal_response_store import RehearsalResponseContext, parse_validate_tushare_response
+from .rehearsal_response_store import (
+    TENCENT_PROVIDER_FORMAT,
+    TUSHARE_PROVIDER_FORMAT,
+    RehearsalResponseContext,
+    parse_validate_provider_response,
+)
 
 Dataset = Literal["equity.quote.snapshot", "equity.valuation.fact"]
 DATASETS: tuple[Dataset, ...] = ("equity.quote.snapshot", "equity.valuation.fact")
@@ -41,6 +46,8 @@ class _PolicyEvidence:
     identity: str
     content_sha256: str
     minimum_coverage_ratio: float
+    allow_partial: bool
+    uses_versioned_evidence: bool
 
 
 def _object(value: object) -> dict[str, object]:
@@ -148,6 +155,8 @@ def _policy_evidence(value: object) -> _PolicyEvidence:
         identity=identity,
         content_sha256=digest,
         minimum_coverage_ratio=float(ratio),
+        allow_partial=cast(bool, content["allow_partial"]),
+        uses_versioned_evidence=version != "legacy",
     )
 
 
@@ -213,11 +222,21 @@ def _same_number(left: object, right: object) -> bool:
     )
 
 
+def _same_optional_number(left: object, right: object) -> bool:
+    """Compare nullable finite provider values using the standard numeric tolerance."""
+
+    if left is None or right is None:
+        return left is None and right is None
+    return _same_number(left, right)
+
+
 def _verify_probe_replay_equivalence(
     *,
     probe_rows: list[object],
     results: Mapping[Dataset, dict[str, object]],
     sample: tuple[str, ...],
+    valuation_sample: tuple[str, ...],
+    valuation_missing_codes: tuple[str, ...],
     target_trade_date: str,
     identities_by_role: Mapping[str, object],
 ) -> None:
@@ -227,6 +246,11 @@ def _verify_probe_replay_equivalence(
         cast(Dataset, _object(value).get("dataset")): _object(value) for value in probe_rows
     }
     for dataset in DATASETS:
+        expected_sample = sample if dataset == "equity.quote.snapshot" else valuation_sample
+        if dataset == "equity.valuation.fact" and set(expected_sample) & set(
+            valuation_missing_codes
+        ):
+            raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
         probe = probes_by_dataset.get(dataset)
         observations = results[dataset].get("observations")
         facts = probe.get("facts") if probe is not None else None
@@ -234,20 +258,22 @@ def _verify_probe_replay_equivalence(
             probe is None
             or not isinstance(facts, list)
             or not isinstance(observations, list)
-            or len(facts) != len(sample)
-            or len(observations) != len(sample)
+            or len(facts) != len(expected_sample)
+            or len(observations) != len(expected_sample)
         ):
             raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
         live_by_asset = {_text(_object(value), "asset_code"): _object(value) for value in facts}
         replay_by_asset = {
             _text(_object(value), "asset_code"): _object(value) for value in observations
         }
-        if set(live_by_asset) != set(sample) or set(replay_by_asset) != set(sample):
+        if set(live_by_asset) != set(expected_sample) or set(replay_by_asset) != set(
+            expected_sample
+        ):
             raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
         role = "quote" if dataset == "equity.quote.snapshot" else "valuation"
         identity = identities_by_role[role]
         source = getattr(identity, "source", None)
-        for asset_code in sample:
+        for asset_code in expected_sample:
             live = live_by_asset[asset_code]
             replay = replay_by_asset[asset_code]
             units_value = replay.get("units")
@@ -274,6 +300,8 @@ def _verify_probe_replay_equivalence(
                 live.get("val_date") != target_trade_date
                 or live.get("available_at") != replay.get("response_completed_at")
                 or live.get("raw_payload_hash") != replay.get("body_sha256")
+                or not _same_optional_number(live.get("pe_ttm"), replay.get("pe_ttm"))
+                or not _same_optional_number(live.get("pb"), replay.get("pb"))
                 or set(units) != {"total_mv", "circ_mv"}
                 or not _same_number(live.get("market_cap"), units["total_mv"].get("canonical"))
                 or not _same_number(live.get("float_market_cap"), units["circ_mv"].get("canonical"))
@@ -340,33 +368,67 @@ def collect_response_replay(
     missing_valuation_codes = _strings(
         probe.get("valuation_missing_target_session_codes"), allow_empty=True
     )
+    missing_reasons_value = probe.get("valuation_missing_target_session_reasons")
+    expected_missing_reasons = [
+        {"asset_code": code, "reason_code": "valuation_source_data_unavailable"}
+        for code in missing_valuation_codes
+    ]
     policy = _policy_evidence(probe.get("valuation_policy_snapshot"))
     minimum_ratio = probe.get("valuation_minimum_coverage_ratio")
+    coverage_ratio = probe.get("valuation_coverage_ratio")
+    returned_count = probe.get("valuation_returned_count")
+    requested_count = probe.get("valuation_requested_count")
+    valuation_outcome = "partial" if missing_valuation_codes else "success"
     if (
         eligible != tuple(sorted(set(eligible)))
         or excluded != tuple(sorted(set(excluded)))
-        or set(eligible) & set(excluded)
-        or not set(eligible).issubset(set(universe))
-        or not set(excluded).issubset(set(universe))
+        or eligible != universe
+        or excluded
         or probe.get("eligible_asset_count") != len(eligible)
         or probe.get("excluded_asset_count") != len(excluded)
+        or missing_valuation_codes != tuple(sorted(set(missing_valuation_codes)))
+        or not set(missing_valuation_codes).issubset(set(universe))
+        or missing_reasons_value != expected_missing_reasons
         or probe.get("valuation_policy_identity") != policy.identity
         or probe.get("valuation_policy_sha256") != policy.content_sha256
         or isinstance(minimum_ratio, bool)
         or not isinstance(minimum_ratio, (int, float))
         or float(minimum_ratio) != policy.minimum_coverage_ratio
+        or isinstance(coverage_ratio, bool)
+        or not isinstance(coverage_ratio, (int, float))
+        or not math.isfinite(float(coverage_ratio))
+        or not math.isclose(
+            float(coverage_ratio),
+            (len(universe) - len(missing_valuation_codes)) / len(universe),
+            abs_tol=1e-12,
+        )
+        or type(requested_count) is not int
+        or requested_count != len(universe)
+        or type(returned_count) is not int
+        or returned_count != len(universe) - len(missing_valuation_codes)
+        or probe.get("valuation_outcome") != valuation_outcome
+        or (
+            missing_valuation_codes
+            and (
+                not policy.allow_partial
+                or not policy.uses_versioned_evidence
+                or float(coverage_ratio) < policy.minimum_coverage_ratio
+            )
+        )
     ):
         raise ValueError("REHEARSAL_REPLAY_ELIGIBLE_SCOPE_INVALID")
-    if eligible != universe or excluded or missing_valuation_codes:
-        raise ValueError("REHEARSAL_REPLAY_VALUATION_SCOPE_INCOMPLETE")
     sample_size = probe.get("sample_size")
     if isinstance(sample_size, bool) or not isinstance(sample_size, int):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
     sample = select_rehearsal_sample(eligible, sample_size)
+    valuation_available = tuple(sorted(set(universe) - set(missing_valuation_codes)))
+    valuation_sample = select_rehearsal_sample(valuation_available, sample_size)
     if (
         probe.get("universe_sha256") != universe_digest
         or _strings(probe.get("sample")) != sample
         or probe.get("sample_sha256") != rehearsal_digest(sample)
+        or _strings(probe.get("valuation_sample")) != valuation_sample
+        or probe.get("valuation_sample_sha256") != rehearsal_digest(valuation_sample)
     ):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
     if (
@@ -398,7 +460,8 @@ def collect_response_replay(
         indexes = row.get("receipt_indexes")
         if (
             dataset_value not in DATASETS
-            or row.get("outcome") != "success"
+            or row.get("outcome")
+            != (valuation_outcome if row.get("dataset") == "equity.valuation.fact" else "success")
             or not isinstance(indexes, list)
             or not indexes
         ):
@@ -407,6 +470,32 @@ def collect_response_replay(
         if dataset in observed_datasets:
             raise ValueError("REHEARSAL_REPLAY_PROBE_INVALID")
         observed_datasets.add(dataset)
+        if dataset == DATASETS[0]:
+            if (
+                row.get("requested") != len(sample)
+                or row.get("succeeded") != len(sample)
+                or row.get("failed") != 0
+            ):
+                raise ValueError("REHEARSAL_REPLAY_PROBE_INVALID")
+        else:
+            expected_issues = [
+                {"asset_code": item["asset_code"], "code": item["reason_code"]}
+                for item in expected_missing_reasons
+            ]
+            if (
+                row.get("count_unit") != "registered_asset"
+                or row.get("requested") != requested_count
+                or row.get("succeeded") != returned_count
+                or row.get("failed") != len(missing_valuation_codes)
+                or row.get("valuation_coverage_ratio") != coverage_ratio
+                or row.get("valuation_policy_identity") != policy.identity
+                or row.get("valuation_minimum_coverage_ratio") != policy.minimum_coverage_ratio
+                or row.get("valuation_missing_target_session_codes")
+                != list(missing_valuation_codes)
+                or row.get("valuation_missing_target_session_reasons") != expected_missing_reasons
+                or row.get("issues") != expected_issues
+            ):
+                raise ValueError("REHEARSAL_REPLAY_PROBE_INVALID")
         facts_value = row.get("facts")
         if not isinstance(facts_value, list):
             raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
@@ -414,7 +503,10 @@ def collect_response_replay(
             _text(_object(fact), "asset_code"): _object(fact)
             for fact in cast(list[object], facts_value)
         }
-        if len(facts_by_asset) != len(facts_value) or set(facts_by_asset) != set(sample):
+        expected_fact_sample = sample if dataset == DATASETS[0] else valuation_sample
+        if len(facts_by_asset) != len(facts_value) or set(facts_by_asset) != set(
+            expected_fact_sample
+        ):
             raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
         live_facts[dataset] = facts_by_asset
         for index in cast(list[object], indexes):
@@ -427,8 +519,11 @@ def collect_response_replay(
                 raise ValueError("REHEARSAL_REPLAY_PROBE_INVALID")
             expected_indexes[index] = dataset
     grouped: dict[Dataset, list[ReplayResponse]] = {dataset: [] for dataset in DATASETS}
-    retained: dict[Dataset, list[tuple[str, bytes, str]]] = {dataset: [] for dataset in DATASETS}
+    retained: dict[Dataset, list[tuple[str, bytes, str, str, tuple[str, ...]]]] = {
+        dataset: [] for dataset in DATASETS
+    }
     seen_paths: set[str] = set()
+    valuation_response_codes: set[str] = set()
     total_bytes = 0
     for index, value in enumerate(cast(list[object], receipts)):
         receipt = _object(value)
@@ -445,6 +540,19 @@ def collect_response_replay(
         if expected_indexes.get(index) != dataset:
             raise ValueError("REHEARSAL_REPLAY_RECEIPT_MISMATCH")
         identity = identities_by_role["quote" if dataset == DATASETS[0] else "valuation"]
+        expected_format = (
+            TENCENT_PROVIDER_FORMAT
+            if dataset == "equity.valuation.fact" and identity.source == "tencent"
+            else TUSHARE_PROVIDER_FORMAT
+        )
+        response_codes = _strings(ref.get("sample_codes"))
+        allowed_codes = universe
+        if (
+            response_codes != tuple(sorted(set(response_codes)))
+            or not set(response_codes).issubset(set(allowed_codes))
+            or ref.get("provider_format") != expected_format
+        ):
+            raise ValueError("REHEARSAL_REPLAY_CONTEXT_MISMATCH")
         artifact_context = RehearsalResponseContext(
             candidate_sha=candidate_sha,
             target_trade_date=target_trade_date,
@@ -454,7 +562,8 @@ def collect_response_replay(
             provider_source=identity.source,
             endpoint_id=identity.endpoint_id,
             dataset=dataset,
-            sample_codes=universe if dataset == "equity.valuation.fact" else sample,
+            sample_codes=response_codes,
+            provider_format=expected_format,
         )
         if ref.get("schema") != "release.provider-response-artifact-ref.v1" or any(
             ref.get(key) != (list(expected) if isinstance(expected, tuple) else expected)
@@ -496,39 +605,56 @@ def collect_response_replay(
         body_hash = _text(ref, "body_sha256")
         verify_response_digest(body, body_hash)
         target_compact = target_trade_date.replace("-", "")
+        parsed_rows = parse_validate_provider_response(body, artifact_context)
+        if dataset == "equity.valuation.fact":
+            valuation_response_codes.update(
+                str(row["ts_code"])
+                for row in parsed_rows
+                if row.get("ts_code") in universe and row.get("trade_date") == target_compact
+            )
+        dataset_sample = sample if dataset == DATASETS[0] else valuation_sample
         response_assets = {
             str(row["ts_code"])
-            for row in parse_validate_tushare_response(body, artifact_context)
-            if row.get("ts_code") in sample and row.get("trade_date") == target_compact
+            for row in parsed_rows
+            if row.get("ts_code") in dataset_sample and row.get("trade_date") == target_compact
         }
         normalization_clocks = {
             _clock(_text(live_facts[dataset][asset_code], "fetched_at"))
             for asset_code in response_assets
         }
-        if not response_assets or len(normalization_clocks) != 1:
+        if response_assets and len(normalization_clocks) != 1:
             raise ValueError("REHEARSAL_REPLAY_LIVE_FACT_MISMATCH")
-        normalization_completed = next(iter(normalization_clocks))
+        normalization_completed = (
+            next(iter(normalization_clocks)) if normalization_clocks else response_finished
+        )
         if not response_finished <= normalization_completed <= finished:
             raise ValueError("REHEARSAL_REPLAY_CLOCK_INVALID")
-        replay_context = replace(artifact_context, sample_codes=sample)
         grouped[dataset].append(
             ReplayResponse(
-                replay_context,
+                artifact_context,
                 body,
                 body_hash,
                 response_finished,
                 normalization_completed,
             )
         )
-        retained[dataset].append((relative, body, body_hash))
+        retained[dataset].append((relative, body, body_hash, expected_format, response_codes))
     results: dict[Dataset, dict[str, object]] = {
-        dataset: replay_retained_dataset(grouped[dataset], _contracts(units, dataset))
+        dataset: replay_retained_dataset(
+            grouped[dataset],
+            _contracts(units, dataset),
+            sample_codes=sample if dataset == DATASETS[0] else valuation_sample,
+        )
         for dataset in DATASETS
     }
+    if valuation_response_codes != set(universe) - set(missing_valuation_codes):
+        raise ValueError("REHEARSAL_REPLAY_VALUATION_SCOPE_INCOMPLETE")
     _verify_probe_replay_equivalence(
         probe_rows=cast(list[object], probe_rows),
         results=results,
         sample=sample,
+        valuation_sample=valuation_sample,
+        valuation_missing_codes=missing_valuation_codes,
         target_trade_date=target_trade_date,
         identities_by_role=identities_by_role,
     )
@@ -555,20 +681,35 @@ def collect_response_replay(
         "excluded_asset_count": len(excluded),
         "excluded_asset_codes": list(excluded),
         "valuation_missing_target_session_codes": list(missing_valuation_codes),
+        "valuation_missing_target_session_reasons": expected_missing_reasons,
         "valuation_policy_identity": policy.identity,
         "valuation_policy_sha256": policy.content_sha256,
         "valuation_policy_snapshot": policy.snapshot,
         "valuation_minimum_coverage_ratio": policy.minimum_coverage_ratio,
+        "valuation_coverage_ratio": float(coverage_ratio),
+        "valuation_outcome": valuation_outcome,
+        "valuation_requested_count": requested_count,
+        "valuation_returned_count": returned_count,
+        "valuation_sample": list(valuation_sample),
+        "valuation_sample_sha256": rehearsal_digest(valuation_sample),
         "outcome": "success",
     }
     receipt_refs: list[dict[str, str]] = []
     for dataset in DATASETS:
         role = "quote" if dataset == "equity.quote.snapshot" else "valuation"
         identity = identities_by_role[role]
-        operation = "daily" if role == "quote" else "daily_basic"
-        response_scope = "full_market_trade_date"
         references: list[dict[str, object]] = []
-        for name, body, body_hash in retained[dataset]:
+        for name, body, body_hash, provider_format, response_codes in retained[dataset]:
+            operation = (
+                "tencent_quote_batch"
+                if provider_format == TENCENT_PROVIDER_FORMAT
+                else ("daily" if role == "quote" else "daily_basic")
+            )
+            response_scope = (
+                "batch_response_body"
+                if provider_format == TENCENT_PROVIDER_FORMAT
+                else "full_market_trade_date"
+            )
             (output_dir / name).parent.mkdir(parents=True, exist_ok=True)
             with (output_dir / name).open("xb") as stream:
                 stream.write(body)
@@ -582,6 +723,8 @@ def collect_response_replay(
                     "provider_source": identity.source,
                     "provider_version": identity.version,
                     "endpoint_id": identity.endpoint_id,
+                    "provider_format": provider_format,
+                    "response_asset_codes": list(response_codes),
                     "operation": operation,
                     "response_scope": response_scope,
                 }
@@ -603,6 +746,16 @@ def collect_response_replay(
                 "sha256": expected_unit_contract_sha256,
             },
         }
+        if dataset == "equity.valuation.fact":
+            receipt_report.update(
+                {
+                    "outcome": valuation_outcome,
+                    "requested": requested_count,
+                    "succeeded": returned_count,
+                    "failed": len(missing_valuation_codes),
+                    "count_unit": "registered_asset",
+                }
+            )
         name = "quote-replay.json" if dataset == DATASETS[0] else "valuation-replay.json"
         receipt_refs.append(_write_json(output_dir / name, receipt_report))
     with (output_dir / "probe-capture.json").open("xb") as stream:

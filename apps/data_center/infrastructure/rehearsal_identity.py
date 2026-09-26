@@ -95,17 +95,29 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
         ).get(pk=provider_id)
     except ProviderConfigModel.DoesNotExist as exc:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH") from exc
-    if not provider.is_active or provider.source_type != "tushare":
+    source_type = str(provider.source_type or "").strip().lower()
+    if not provider.is_active or source_type not in {"tushare", "akshare"}:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+    if source_type == "akshare" and role != "valuation":
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
     extra = provider.extra_config if isinstance(provider.extra_config, Mapping) else {}
-    request_mode = str(extra.get("tushare_request_mode") or "sdk_path").strip()
-    endpoint = str(provider.http_url or "").strip().rstrip("/") or "tushare-sdk-default"
+    request_mode = (
+        str(extra.get("tushare_request_mode") or "sdk_path").strip()
+        if source_type == "tushare"
+        else "tencent_quote_batch"
+    )
+    endpoint = (
+        str(provider.http_url or "").strip().rstrip("/") or "tushare-sdk-default"
+        if source_type == "tushare"
+        else "https://qt.gtimg.cn"
+    )
     api_endpoint = str(provider.api_endpoint or "").strip().rstrip("/")
     endpoint_material = json.dumps(
         {
             "provider_id": provider_id,
             "request_mode": request_mode,
-            "source": provider.source_type,
+            "source": source_type,
+            "upstream_source": "tencent" if source_type == "akshare" else source_type,
             "transport_endpoint": endpoint,
             "api_endpoint": api_endpoint,
         },
@@ -113,7 +125,8 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
         separators=(",", ":"),
     ).encode()
     try:
-        installed_version = importlib.metadata.version("tushare")
+        package_name = "tushare" if source_type == "tushare" else "requests"
+        installed_version = importlib.metadata.version(package_name)
     except importlib.metadata.PackageNotFoundError as exc:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_UNAVAILABLE") from exc
     config_material = json.dumps(
@@ -124,7 +137,8 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
             "name": provider.name,
             "priority": provider.priority,
             "request_mode": request_mode,
-            "source_type": provider.source_type,
+            "source_type": source_type,
+            "upstream_source": "tencent" if source_type == "akshare" else source_type,
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -133,8 +147,12 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
     identity = RehearsalProviderIdentity(
         role=role,
         provider_id=provider_id,
-        source=provider.source_type,
-        version=f"tushare-{installed_version}-cfg-{config_digest}",
+        source="tencent" if source_type == "akshare" else source_type,
+        version=(
+            f"tushare-{installed_version}-cfg-{config_digest}"
+            if source_type == "tushare"
+            else f"tencent-quote-batch-v1-requests-{installed_version}-cfg-{config_digest}"
+        ),
         endpoint_id=f"provider-config-{hashlib.sha256(endpoint_material).hexdigest()}",
     )
     companion = RehearsalProviderIdentity(
@@ -145,6 +163,19 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
         endpoint_id=identity.endpoint_id,
     )
     return parse_rehearsal_identities([asdict(identity), asdict(companion)])[0]
+
+
+def rehearsal_identity_matches_adapter_source(
+    identity: RehearsalProviderIdentity,
+    *,
+    adapter_source: str,
+) -> bool:
+    """Match a configured adapter to the upstream source it actually exercises."""
+
+    normalized = str(adapter_source or "").strip().lower()
+    return normalized == identity.source or (
+        identity.role == "valuation" and normalized == "akshare" and identity.source == "tencent"
+    )
 
 
 def verify_configured_rehearsal_identities(

@@ -787,6 +787,68 @@ def test_akshare_current_valuation_batch_propagates_transport_evidence(monkeypat
     assert facts[0].extra["raw_payload_scope"] == "batch_response_body"
 
 
+def test_akshare_current_valuation_batch_rejects_old_and_future_observations(
+    monkeypatch,
+):
+    from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
+
+    target_date = date(2026, 9, 24)
+    available_at = datetime(2026, 9, 24, 8, 15, tzinfo=UTC)
+    raw_payload_hash = "c" * 64
+    snapshots = [
+        ValuationSnapshot(
+            stock_code="000001.SZ",
+            observed_at=datetime(2026, 9, 23, 15, 0, tzinfo=UTC),
+            pe_ttm=1.0,
+            pb=1.0,
+            market_cap=1.0,
+            source="tencent",
+        ),
+        ValuationSnapshot(
+            stock_code="000002.SZ",
+            observed_at=datetime(2026, 9, 24, 7, 14, tzinfo=UTC),
+            pe_ttm=12.5,
+            pb=0.85,
+            market_cap=123_456_000_000.0,
+            float_market_cap=98_765_000_000.0,
+            source="tencent",
+            available_at=available_at,
+            fetched_at=available_at,
+            raw_payload_hash=raw_payload_hash,
+            source_record_id=f"tencent:quote_batch:000002.SZ:{raw_payload_hash}",
+            raw_payload_scope="batch_response_body",
+        ),
+        ValuationSnapshot(
+            stock_code="000003.SZ",
+            observed_at=datetime(2026, 9, 25, 15, 0, tzinfo=UTC),
+            pe_ttm=3.0,
+            pb=3.0,
+            market_cap=3.0,
+            source="tencent",
+        ),
+    ]
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_valuation_snapshots",
+        lambda _self, _codes: snapshots,
+    )
+
+    facts = AkshareUnifiedProviderAdapter(
+        _config("akshare", "AKShare Public")
+    ).fetch_current_valuations(["000001.SZ", "000002.SZ", "000003.SZ"], target_date)
+
+    assert [fact.asset_code for fact in facts] == ["000002.SZ"]
+    assert facts[0].val_date == target_date
+    assert facts[0].pe_ttm == 12.5
+    assert facts[0].pb == 0.85
+    assert facts[0].market_cap == 123_456_000_000.0
+    assert facts[0].source == "tencent"
+    assert facts[0].extra["actual_source"] == "tencent"
+    assert facts[0].available_at == available_at
+    assert facts[0].raw_payload_hash == raw_payload_hash
+    assert facts[0].source_record_id == f"tencent:quote_batch:000002.SZ:{raw_payload_hash}"
+    assert facts[0].extra["raw_payload_scope"] == "batch_response_body"
+
+
 def test_akshare_current_valuation_batch_chunks_tencent_requests(monkeypatch):
     from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
 

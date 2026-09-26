@@ -4586,6 +4586,7 @@
           "SectorMembershipPublicationCandidateRepositoryProtocol"
         ],
         "application/publication_utils.py": [
+          "current_publication_id_for_hash",
           "member_reference",
           "publication_hash",
           "publication_member_from_reference"

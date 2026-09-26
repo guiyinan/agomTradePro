@@ -29,6 +29,33 @@ def test_configured_identity_binds_version_and_hashed_endpoint(
 
 
 @pytest.mark.django_db
+def test_akshare_valuation_identity_binds_actual_tencent_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = ProviderConfigModel.objects.create(
+        name="rehearsal-akshare",
+        source_type="akshare",
+        is_active=True,
+        priority=2,
+    )
+    monkeypatch.setattr(identity.importlib.metadata, "version", lambda name: f"{name}-test")
+
+    actual = identity.configured_rehearsal_identity(
+        provider_id=provider.pk,
+        role="valuation",
+    )
+
+    assert actual.source == "tencent"
+    assert actual.version.startswith("tencent-quote-batch-v1-requests-")
+    assert identity.rehearsal_identity_matches_adapter_source(
+        actual,
+        adapter_source="akshare",
+    )
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_MISMATCH"):
+        identity.configured_rehearsal_identity(provider_id=provider.pk, role="quote")
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("field", "value"),
     [

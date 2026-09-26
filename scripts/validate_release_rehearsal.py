@@ -94,6 +94,15 @@ REQUIRED_REPLAY_UNIT_CONTRACTS = {
         "circ_mv": ("万元", "元", 10000.0, False),
     },
 }
+TENCENT_REPLAY_UNIT_CONTRACTS = {
+    **REQUIRED_REPLAY_UNIT_CONTRACTS,
+    "equity.valuation.fact": {
+        "total_mv": ("亿元", "元", 100_000_000.0, False),
+        "circ_mv": ("亿元", "元", 100_000_000.0, False),
+    },
+}
+TUSHARE_PROVIDER_FORMAT = "tushare_pro_table.v1"
+TENCENT_PROVIDER_FORMAT = "tencent_quote_batch.v1"
 REQUIRED_GITHUB_WORKFLOW = "Publication PostgreSQL contracts"
 REQUIRED_GITHUB_ARTIFACT = "publication-postgres-evidence"
 REQUIRED_JUNIT_FILES = {
@@ -121,6 +130,8 @@ class _ValidatedPolicyEvidence:
     identity: str
     content_sha256: str
     minimum_coverage_ratio: float
+    allow_partial: bool
+    uses_versioned_evidence: bool
 
 
 @dataclass(frozen=True)
@@ -130,6 +141,8 @@ class _ValidatedCapacityEvidence:
     registered_asset_codes: tuple[str, ...]
     eligible_asset_codes: tuple[str, ...]
     excluded_asset_codes: tuple[str, ...]
+    valuation_missing_asset_codes: tuple[str, ...]
+    valuation_missing_reasons: tuple[tuple[str, str], ...]
     policy: _ValidatedPolicyEvidence
 
 
@@ -458,6 +471,7 @@ def _validate_receipt_identity(
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
+    accepted_outcomes: tuple[str, ...] = ("success",),
 ) -> None:
     if receipt.get("candidate_sha") != expected_candidate:
         _fail("REHEARSAL_RECEIPT_CANDIDATE_MISMATCH")
@@ -471,7 +485,7 @@ def _validate_receipt_identity(
         _fail("REHEARSAL_RECEIPT_IMAGE_MISMATCH")
     if receipt.get("candidate_source_attestation") != "image_release_manifest":
         _fail("REHEARSAL_RECEIPT_IMAGE_MISMATCH")
-    if receipt.get("outcome") != "success":
+    if receipt.get("outcome") not in accepted_outcomes:
         _fail("REHEARSAL_RECEIPT_NOT_SUCCESSFUL")
 
 
@@ -554,6 +568,8 @@ def _validated_policy_evidence(
         identity=identity,
         content_sha256=digest,
         minimum_coverage_ratio=float(ratio),
+        allow_partial=cast(bool, content["allow_partial"]),
+        uses_versioned_evidence=version != "legacy",
     )
 
 
@@ -607,11 +623,70 @@ def _read_tushare_response_rows(path: Path) -> list[dict[str, object]]:
     return rows
 
 
+def _read_tencent_response_rows(path: Path) -> list[dict[str, object]]:
+    try:
+        body = path.read_bytes()
+        decoded = body.decode("gb18030", errors="strict")
+    except (OSError, UnicodeError):
+        _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+    rows: list[dict[str, object]] = []
+    seen: set[str] = set()
+    pattern = re.compile(r'^v_((?:sh|sz|bj)([0-9]{6}))="([^"]*)";$')
+    for raw_line in decoded.splitlines():
+        match = pattern.fullmatch(raw_line.strip())
+        if match is None:
+            _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+        symbol, numeric, payload = match.groups()
+        suffix = {"sh": "SH", "sz": "SZ", "bj": "BJ"}.get(symbol[:2])
+        asset_code = f"{numeric}.{suffix}" if suffix is not None else ""
+        fields = payload.split("~")
+        if asset_code in seen or len(fields) <= 46:
+            _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+        seen.add(asset_code)
+        timestamp = fields[30]
+        try:
+            observed = datetime.strptime(timestamp, "%Y%m%d%H%M%S").replace(
+                tzinfo=ZoneInfo("Asia/Shanghai")
+            )
+        except ValueError:
+            _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+        row: dict[str, object] = {
+            "ts_code": asset_code,
+            "trade_date": observed.strftime("%Y%m%d"),
+            "observed_at": observed.isoformat(),
+        }
+        for field, index in (("pe_ttm", 39), ("pb", 46), ("total_mv", 45), ("circ_mv", 44)):
+            raw = fields[index]
+            if raw in {"", "-"}:
+                row[field] = None
+                continue
+            try:
+                value = float(raw)
+            except ValueError:
+                _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+            if not math.isfinite(value) or (field in {"total_mv", "circ_mv"} and value < 0):
+                _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+            row[field] = value
+        rows.append(row)
+    if not rows:
+        _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
+    return rows
+
+
+def _read_provider_response_rows(path: Path, provider_format: str) -> list[dict[str, object]]:
+    if provider_format == TUSHARE_PROVIDER_FORMAT:
+        return _read_tushare_response_rows(path)
+    if provider_format == TENCENT_PROVIDER_FORMAT:
+        return _read_tencent_response_rows(path)
+    _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
+
+
 def _validate_unit_contract_artifact(
     payload: dict[str, Any],
     *,
     expected_candidate: str,
     expected_provider_digest: str,
+    expected_contracts: dict[str, dict[str, tuple[str, str, float, bool]]],
 ) -> None:
     if (
         payload.get("schema") != "release.provider-unit-contract.v1"
@@ -621,9 +696,9 @@ def _validate_unit_contract_artifact(
         _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
     _require_string(payload, "source_reference", "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
     datasets = payload.get("datasets")
-    if not isinstance(datasets, dict) or set(datasets) != set(REQUIRED_REPLAY_UNIT_CONTRACTS):
+    if not isinstance(datasets, dict) or set(datasets) != set(expected_contracts):
         _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
-    for dataset, expected_fields in REQUIRED_REPLAY_UNIT_CONTRACTS.items():
+    for dataset, expected_fields in expected_contracts.items():
         values = datasets.get(dataset)
         if not isinstance(values, list) or len(values) != len(expected_fields):
             _fail("REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID")
@@ -663,11 +738,11 @@ def _validate_unit_observations(
     expected_sample: list[str],
     expected_date: str,
     response_rows_by_hash: dict[str, list[dict[str, object]]],
+    expected_fields: dict[str, tuple[str, str, float, bool]],
 ) -> None:
     observations = receipt.get("observations")
     if not isinstance(observations, list) or len(observations) != len(expected_sample):
         _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
-    expected_fields = REQUIRED_REPLAY_UNIT_CONTRACTS[dataset]
     observed_assets: set[str] = set()
     receipt_observed_at = receipt.get("source_observed_at")
     for value in cast(list[object], observations):
@@ -786,6 +861,11 @@ def _validate_real_replay(
         provider_identities[role] = identity
     if set(provider_identities) != {"quote", "valuation"}:
         _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    expected_contracts = (
+        TENCENT_REPLAY_UNIT_CONTRACTS
+        if provider_identities["valuation"].get("source") == "tencent"
+        else REQUIRED_REPLAY_UNIT_CONTRACTS
+    )
     claimed_response_datasets: dict[str, str] = {}
     expected_assets = capacity.eligible_asset_codes
     ranked = sorted(expected_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
@@ -798,6 +878,28 @@ def _validate_real_replay(
             break
         selected.add(code)
     expected_sample = sorted(selected)
+    missing_valuation_codes = list(capacity.valuation_missing_asset_codes)
+    missing_valuation_reasons = [
+        {"asset_code": asset_code, "reason_code": reason_code}
+        for asset_code, reason_code in capacity.valuation_missing_reasons
+    ]
+    valuation_assets = tuple(
+        code for code in expected_assets if code not in capacity.valuation_missing_asset_codes
+    )
+    valuation_ranked = sorted(
+        valuation_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest()
+    )
+    valuation_groups: dict[str, str] = {}
+    for code in valuation_ranked:
+        valuation_groups.setdefault(code.rsplit(".", 1)[-1], code)
+    valuation_selected = set(valuation_groups.values())
+    for code in valuation_ranked:
+        if len(valuation_selected) >= min(50, len(valuation_assets)):
+            break
+        valuation_selected.add(code)
+    expected_valuation_sample = sorted(valuation_selected)
+    expected_valuation_outcome = "partial" if missing_valuation_codes else "success"
+    expected_valuation_ratio = len(valuation_assets) / len(expected_assets)
     _validate_policy_fields(report, capacity.policy, error_code="REHEARSAL_REPLAY_POLICY_MISMATCH")
     report_policy = _validated_policy_evidence(
         report.get("valuation_policy_snapshot"),
@@ -810,8 +912,21 @@ def _validate_real_replay(
         or report.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
         or report.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
         or report.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-        or report.get("valuation_missing_target_session_codes") != []
+        or report.get("valuation_missing_target_session_codes") != missing_valuation_codes
+        or report.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
+        or report.get("valuation_requested_count") != len(expected_assets)
+        or report.get("valuation_returned_count") != len(valuation_assets)
+        or report.get("valuation_outcome") != expected_valuation_outcome
+        or report.get("valuation_sample") != expected_valuation_sample
     ):
+        _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
+    report_ratio = _require_finite_number(
+        report,
+        "valuation_coverage_ratio",
+        "REHEARSAL_REPLAY_SCOPE_MISMATCH",
+        allow_zero=True,
+    )
+    if not math.isclose(report_ratio, expected_valuation_ratio, abs_tol=1e-12):
         _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
     probe_reference = report.get("probe_capture")
     if not isinstance(probe_reference, dict):
@@ -837,12 +952,17 @@ def _validate_real_replay(
         or probe.get("provider_identities_sha256") != expected_provider_digest
         or probe.get("candidate_image_id") != expected_image_id
         or probe.get("sample") != expected_sample
+        or probe.get("valuation_sample") != expected_valuation_sample
         or probe.get("provider_identities") != provider_values
         or probe.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
         or probe.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
         or probe.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
         or probe.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-        or probe.get("valuation_missing_target_session_codes") != []
+        or probe.get("valuation_missing_target_session_codes") != missing_valuation_codes
+        or probe.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
+        or probe.get("valuation_requested_count") != len(expected_assets)
+        or probe.get("valuation_returned_count") != len(valuation_assets)
+        or probe.get("valuation_outcome") != expected_valuation_outcome
         or not isinstance(registered_assets, list)
         or registered_assets != sorted(set(registered_assets))
         or hashlib.sha256(
@@ -865,6 +985,14 @@ def _validate_real_replay(
         _fail("REHEARSAL_REPLAY_PROBE_INVALID")
     if registered_assets != list(capacity.registered_asset_codes):
         _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+    probe_ratio = _require_finite_number(
+        probe,
+        "valuation_coverage_ratio",
+        "REHEARSAL_REPLAY_PROBE_INVALID",
+        allow_zero=True,
+    )
+    if not math.isclose(probe_ratio, expected_valuation_ratio, abs_tol=1e-12):
+        _fail("REHEARSAL_REPLAY_PROBE_INVALID")
     probe_rows = probe.get("probes")
     transport = probe.get("transport")
     transport_receipts = transport.get("receipts") if isinstance(transport, dict) else None
@@ -884,9 +1012,23 @@ def _validate_real_replay(
         indexes = probe_row.get("receipt_indexes")
         if (
             dataset_value not in {"equity.quote.snapshot", "equity.valuation.fact"}
-            or probe_row.get("outcome") != "success"
+            or probe_row.get("outcome")
+            != (
+                expected_valuation_outcome
+                if dataset_value == "equity.valuation.fact"
+                else "success"
+            )
             or not isinstance(indexes, list)
             or not indexes
+        ):
+            _fail("REHEARSAL_REPLAY_PROBE_INVALID")
+        if dataset_value == "equity.valuation.fact" and (
+            probe_row.get("requested") != len(expected_assets)
+            or probe_row.get("succeeded") != len(valuation_assets)
+            or probe_row.get("failed") != len(missing_valuation_codes)
+            or probe_row.get("valuation_missing_target_session_codes") != missing_valuation_codes
+            or probe_row.get("valuation_missing_target_session_reasons")
+            != missing_valuation_reasons
         ):
             _fail("REHEARSAL_REPLAY_PROBE_INVALID")
         for index in cast(list[object], indexes):
@@ -909,7 +1051,13 @@ def _validate_real_replay(
             body_sha = artifact_payload.get("body_sha256")
             role = "quote" if dataset_value == "equity.quote.snapshot" else "valuation"
             provider_identity = provider_identities[role]
-            expected_context_sample = expected_sample if role == "quote" else registered_assets
+            expected_format = (
+                TENCENT_PROVIDER_FORMAT
+                if role == "valuation" and provider_identity.get("source") == "tencent"
+                else TUSHARE_PROVIDER_FORMAT
+            )
+            artifact_codes = artifact_payload.get("sample_codes")
+            allowed_context_codes = expected_sample if role == "quote" else registered_assets
             if (
                 SHA256_PATTERN.fullmatch(str(body_sha or "")) is None
                 or artifact_payload.get("dataset") != dataset_value
@@ -920,7 +1068,12 @@ def _validate_real_replay(
                 or artifact_payload.get("provider_id") != provider_identity.get("provider_id")
                 or artifact_payload.get("provider_source") != provider_identity.get("source")
                 or artifact_payload.get("endpoint_id") != provider_identity.get("endpoint_id")
-                or artifact_payload.get("sample_codes") != expected_context_sample
+                or artifact_payload.get("provider_format") != expected_format
+                or not isinstance(artifact_codes, list)
+                or artifact_codes != sorted(set(artifact_codes))
+                or not set(cast(list[str], artifact_codes)).issubset(
+                    set(cast(list[str], allowed_context_codes))
+                )
                 or receipt_payload.get("body_sha256") != body_sha
                 or body_sha in captured_response_datasets
             ):
@@ -943,13 +1096,17 @@ def _validate_real_replay(
             expected_date=expected_date,
             expected_universe=expected_universe,
             expected_provider_digest=expected_provider_digest,
+            accepted_outcomes=("success", "partial"),
         )
         if (
             receipt.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
             or receipt.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
             or receipt.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
             or receipt.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-            or receipt.get("valuation_missing_target_session_codes") != []
+            or receipt.get("valuation_missing_target_session_codes") != missing_valuation_codes
+            or receipt.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
+            or receipt.get("valuation_requested_count") != len(expected_assets)
+            or receipt.get("valuation_returned_count") != len(valuation_assets)
         ):
             _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
         replay_policy = _validated_policy_evidence(
@@ -967,9 +1124,32 @@ def _validate_real_replay(
         dataset_name = cast(str, dataset)
         datasets.add(dataset_name)
         role = "quote" if dataset_name == "equity.quote.snapshot" else "valuation"
+        expected_dataset_sample = expected_sample if role == "quote" else expected_valuation_sample
+        expected_dataset_outcome = "success" if role == "quote" else expected_valuation_outcome
+        if receipt.get("outcome") != expected_dataset_outcome:
+            _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
+        if role == "valuation" and (
+            receipt.get("requested") != len(expected_assets)
+            or receipt.get("succeeded") != len(valuation_assets)
+            or receipt.get("failed") != len(missing_valuation_codes)
+        ):
+            _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
         provider_identity = provider_identities[role]
-        expected_operation = "daily" if role == "quote" else "daily_basic"
-        expected_scope = "full_market_trade_date"
+        expected_format = (
+            TENCENT_PROVIDER_FORMAT
+            if role == "valuation" and provider_identity.get("source") == "tencent"
+            else TUSHARE_PROVIDER_FORMAT
+        )
+        expected_operation = (
+            "tencent_quote_batch"
+            if expected_format == TENCENT_PROVIDER_FORMAT
+            else ("daily" if role == "quote" else "daily_basic")
+        )
+        expected_scope = (
+            "batch_response_body"
+            if expected_format == TENCENT_PROVIDER_FORMAT
+            else "full_market_trade_date"
+        )
         observed = _parse_datetime(
             receipt.get("source_observed_at"), "REHEARSAL_REPLAY_SOURCE_TIME_INVALID"
         )
@@ -981,7 +1161,7 @@ def _validate_real_replay(
         if (
             not isinstance(sampled_assets, list)
             or any(not isinstance(asset, str) or not asset.strip() for asset in sampled_assets)
-            or sampled_assets != expected_sample
+            or sampled_assets != expected_dataset_sample
         ):
             _fail("REHEARSAL_REPLAY_SAMPLE_INVALID")
         cases = receipt.get("replay_cases")
@@ -1013,6 +1193,8 @@ def _validate_real_replay(
                 "provider_source",
                 "provider_version",
                 "endpoint_id",
+                "provider_format",
+                "response_asset_codes",
                 "operation",
                 "response_scope",
             } or any(
@@ -1024,6 +1206,7 @@ def _validate_real_replay(
                     ("provider_source", provider_identity.get("source")),
                     ("provider_version", provider_identity.get("version")),
                     ("endpoint_id", provider_identity.get("endpoint_id")),
+                    ("provider_format", expected_format),
                     ("operation", expected_operation),
                     ("response_scope", expected_scope),
                 )
@@ -1034,8 +1217,15 @@ def _validate_real_replay(
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
             response_paths.add(response_path)
             response_sha = response_payload.get("sha256")
+            response_asset_codes = response_payload.get("response_asset_codes")
             if not isinstance(response_sha, str):
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            if (
+                not isinstance(response_asset_codes, list)
+                or response_asset_codes != sorted(set(response_asset_codes))
+                or not set(cast(list[str], response_asset_codes)).issubset(set(expected_assets))
+            ):
+                _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
             if response_sha in response_rows_by_hash:
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
             claimed_dataset = claimed_response_datasets.get(response_sha)
@@ -1047,8 +1237,18 @@ def _validate_real_replay(
                 response_path,
                 response_sha,
             )
-            response_rows_by_hash[response_sha] = _read_tushare_response_rows(resolved_response)
+            parsed_response_rows = _read_provider_response_rows(
+                resolved_response,
+                expected_format,
+            )
+            if (
+                sorted(str(row.get("ts_code")) for row in parsed_response_rows)
+                != response_asset_codes
+            ):
+                _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
+            response_rows_by_hash[response_sha] = parsed_response_rows
         target_compact = expected_date.replace("-", "")
+        expected_bound_assets = set(expected_sample if role == "quote" else valuation_assets)
         response_scope_counts = {
             asset: sum(
                 1
@@ -1056,9 +1256,19 @@ def _validate_real_replay(
                 for row in rows
                 if row.get("ts_code") == asset and row.get("trade_date") == target_compact
             )
-            for asset in expected_sample
+            for asset in expected_bound_assets
         }
         if any(count != 1 for count in response_scope_counts.values()):
+            _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+        bound_target_response_assets = {
+            str(row.get("ts_code"))
+            for rows in response_rows_by_hash.values()
+            for row in rows
+            if row.get("trade_date") == target_compact
+        }
+        if (
+            role == "quote" and not expected_bound_assets.issubset(bound_target_response_assets)
+        ) or (role == "valuation" and bound_target_response_assets != expected_bound_assets):
             _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
         contract_reference = receipt.get("unit_contract")
         if not isinstance(contract_reference, dict):
@@ -1075,13 +1285,15 @@ def _validate_real_replay(
             _read_json(contract_path, "REHEARSAL_REPLAY_UNIT_CONTRACT_INVALID"),
             expected_candidate=expected_candidate,
             expected_provider_digest=expected_provider_digest,
+            expected_contracts=expected_contracts,
         )
         _validate_unit_observations(
             receipt,
             dataset=dataset_name,
-            expected_sample=expected_sample,
+            expected_sample=expected_dataset_sample,
             expected_date=expected_date,
             response_rows_by_hash=response_rows_by_hash,
+            expected_fields=expected_contracts[dataset_name],
         )
     if datasets != {"equity.quote.snapshot", "equity.valuation.fact"}:
         _fail("REHEARSAL_REPLAY_DATASET_INCOMPLETE")
@@ -1174,7 +1386,20 @@ def _validate_capacity(
     ):
         _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
     missing_valuation_codes = receipt.get("valuation_missing_target_session_codes")
-    if eligible_codes != asset_codes or excluded_codes or missing_valuation_codes != []:
+    if (
+        eligible_codes != asset_codes
+        or excluded_codes
+        or not isinstance(missing_valuation_codes, list)
+        or any(not isinstance(code, str) or not code for code in missing_valuation_codes)
+        or missing_valuation_codes != sorted(set(missing_valuation_codes))
+        or not set(missing_valuation_codes).issubset(set(asset_codes))
+    ):
+        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
+    missing_reasons = [
+        {"asset_code": code, "reason_code": "valuation_source_data_unavailable"}
+        for code in missing_valuation_codes
+    ]
+    if receipt.get("valuation_missing_target_session_reasons") != missing_reasons:
         _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     policy = _validated_policy_evidence(
         receipt.get("valuation_policy_snapshot"),
@@ -1195,12 +1420,30 @@ def _validate_capacity(
         "REHEARSAL_CAPACITY_COVERAGE_INVALID",
         allow_zero=True,
     )
-    derived_valuation_ratio = len(eligible_codes) / universe_count
+    expected_valuation_count = universe_count - len(missing_valuation_codes)
+    derived_valuation_ratio = expected_valuation_count / universe_count
+    expected_valuation_outcome = "partial" if missing_valuation_codes else "success"
+    report_valuation_ratio = _require_finite_number(
+        report,
+        "valuation_coverage_ratio",
+        "REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE",
+        allow_zero=True,
+    )
     if (
         valuation_minimum > 1
         or valuation_ratio > 1
         or not math.isclose(valuation_ratio, derived_valuation_ratio, abs_tol=1e-12)
-        or not math.isclose(valuation_ratio, 1.0, abs_tol=1e-12)
+        or receipt.get("valuation_requested_count") != universe_count
+        or receipt.get("valuation_returned_count") != expected_valuation_count
+        or receipt.get("valuation_outcome") != expected_valuation_outcome
+        or (
+            bool(missing_valuation_codes)
+            and (
+                not policy.allow_partial
+                or not policy.uses_versioned_evidence
+                or valuation_ratio < valuation_minimum
+            )
+        )
     ):
         _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     if (
@@ -1208,12 +1451,21 @@ def _validate_capacity(
         or report.get("eligible_asset_count") != len(eligible_codes)
         or report.get("excluded_asset_codes") != excluded_codes
         or report.get("excluded_asset_count") != len(excluded_codes)
-        or report.get("valuation_missing_target_session_codes") != []
+        or report.get("valuation_missing_target_session_codes") != missing_valuation_codes
+        or report.get("valuation_missing_target_session_reasons") != missing_reasons
+        or report.get("valuation_requested_count") != universe_count
+        or report.get("valuation_returned_count") != expected_valuation_count
+        or report.get("valuation_outcome") != expected_valuation_outcome
+        or not math.isclose(report_valuation_ratio, valuation_ratio, abs_tol=1e-12)
     ):
         _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     coverage_expectations: dict[str, tuple[int, int, list[str]]] = {
-        "valuation_coverage": (universe_count, universe_count, []),
-        "quote_coverage": (len(eligible_codes), len(eligible_codes), []),
+        "valuation_coverage": (
+            universe_count,
+            expected_valuation_count,
+            cast(list[str], missing_valuation_codes),
+        ),
+        "quote_coverage": (universe_count, universe_count, []),
     }
     for key, (
         expected_requested,
@@ -1359,6 +1611,11 @@ def _validate_capacity(
         registered_asset_codes=tuple(cast(list[str], asset_codes)),
         eligible_asset_codes=tuple(cast(list[str], eligible_codes)),
         excluded_asset_codes=tuple(cast(list[str], excluded_codes)),
+        valuation_missing_asset_codes=tuple(cast(list[str], missing_valuation_codes)),
+        valuation_missing_reasons=tuple(
+            (cast(str, item["asset_code"]), cast(str, item["reason_code"]))
+            for item in missing_reasons
+        ),
         policy=policy,
     )
 

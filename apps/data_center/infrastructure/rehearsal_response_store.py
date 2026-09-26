@@ -1,4 +1,4 @@
-"""Bounded retention of strict, successful Tushare table responses for rehearsal replay."""
+"""Bounded retention of strict provider responses for rehearsal replay."""
 
 from __future__ import annotations
 
@@ -9,16 +9,20 @@ import os
 import re
 import threading
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from core.exceptions import DataFetchError
 
 RESPONSE_REF_SCHEMA: Literal["release.provider-response-artifact-ref.v1"] = (
     "release.provider-response-artifact-ref.v1"
 )
-PROVIDER_FORMAT: Literal["tushare_pro_table.v1"] = "tushare_pro_table.v1"
+TUSHARE_PROVIDER_FORMAT: Literal["tushare_pro_table.v1"] = "tushare_pro_table.v1"
+TENCENT_PROVIDER_FORMAT: Literal["tencent_quote_batch.v1"] = "tencent_quote_batch.v1"
+PROVIDER_FORMAT = TUSHARE_PROVIDER_FORMAT
+ProviderFormat = Literal["tushare_pro_table.v1", "tencent_quote_batch.v1"]
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _CANDIDATE_RE = re.compile(r"[0-9a-f]{40}")
@@ -26,6 +30,10 @@ _CODE_RE = re.compile(r"[0-9]{6}\.(?:SZ|SH|BJ)")
 _DATE_RE = re.compile(r"[0-9]{8}")
 _IDENTIFIER_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,127}")
 _REQUEST_ID_RE = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+_TENCENT_ASSIGNMENT_RE = re.compile(r'^v_((?:sh|sz|bj)[0-9]{6})="([^"]*)";$')
+_TENCENT_NUMBER_RE = re.compile(r"[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?")
+_TENCENT_SOURCE_TIMESTAMP_RE = re.compile(r"[0-9]{14}")
+_SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 _QUOTE_FIELDS = frozenset(
     {
@@ -67,6 +75,7 @@ _VALUATION_FIELDS = frozenset(
 
 SafeResponseValue = str | int | float | None
 TushareResponseRow = dict[str, SafeResponseValue]
+ProviderResponseRow = dict[str, SafeResponseValue]
 
 
 @dataclass(frozen=True)
@@ -82,7 +91,7 @@ class RehearsalResponseContext:
     endpoint_id: str
     dataset: Literal["equity.quote.snapshot", "equity.valuation.fact"]
     sample_codes: tuple[str, ...]
-    provider_format: Literal["tushare_pro_table.v1"] = PROVIDER_FORMAT
+    provider_format: ProviderFormat = TUSHARE_PROVIDER_FORMAT
 
     def __post_init__(self) -> None:
         """Reject malformed, secret-like or mismatched context before any response is stored."""
@@ -110,14 +119,23 @@ class RehearsalResponseContext:
             raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
         if isinstance(self.provider_id, bool) or not isinstance(self.provider_id, int):
             raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
-        if self.provider_id <= 0 or self.provider_source != "tushare":
+        if self.provider_id <= 0 or not isinstance(self.provider_source, str):
             raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
         if (
             not isinstance(self.endpoint_id, str)
             or _IDENTIFIER_RE.fullmatch(self.endpoint_id) is None
         ):
             raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
-        if self.provider_format != PROVIDER_FORMAT:
+        if self.provider_format == TUSHARE_PROVIDER_FORMAT:
+            if self.provider_source != "tushare":
+                raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
+        elif self.provider_format == TENCENT_PROVIDER_FORMAT:
+            if self.dataset != "equity.valuation.fact" or self.provider_source not in (
+                "akshare",
+                "tencent",
+            ):
+                raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
+        else:
             raise ValueError("REHEARSAL_RESPONSE_FORMAT_UNSUPPORTED")
         if self.dataset not in ("equity.quote.snapshot", "equity.valuation.fact"):
             raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
@@ -155,7 +173,7 @@ class RehearsalResponseArtifactRef:
     provider_id: int
     provider_source: str
     endpoint_id: str
-    provider_format: Literal["tushare_pro_table.v1"]
+    provider_format: ProviderFormat
     dataset: Literal["equity.quote.snapshot", "equity.valuation.fact"]
     sample_codes: tuple[str, ...]
 
@@ -243,6 +261,87 @@ def parse_validate_tushare_response(
     return tuple(rows)
 
 
+def parse_validate_tencent_quote_batch(
+    response_body: bytes, context: RehearsalResponseContext
+) -> tuple[ProviderResponseRow, ...]:
+    """Parse one strict Tencent quote batch into canonical valuation rows."""
+    if (
+        context.provider_format != TENCENT_PROVIDER_FORMAT
+        or context.dataset != "equity.valuation.fact"
+        or not isinstance(response_body, bytes)
+        or not response_body
+    ):
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    try:
+        decoded = response_body.decode("gb18030", errors="strict")
+    except UnicodeError as exc:
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID") from exc
+    lines = decoded.splitlines()
+    if not lines or any(not line.strip() for line in lines):
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+
+    code_by_symbol = {_tencent_symbol(code): code for code in context.sample_codes}
+    parsed: list[ProviderResponseRow] = []
+    seen_codes: set[str] = set()
+    target_date = date.fromisoformat(context.target_trade_date)
+    for raw_line in lines:
+        line = raw_line.strip()
+        match = _TENCENT_ASSIGNMENT_RE.fullmatch(line)
+        if match is None:
+            raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+        symbol, raw_fields = match.groups()
+        asset_code = code_by_symbol.get(symbol)
+        if asset_code is None:
+            raise ValueError("REHEARSAL_RESPONSE_ASSET_UNREQUESTED")
+        if asset_code in seen_codes:
+            raise ValueError("REHEARSAL_RESPONSE_DUPLICATE_ASSET")
+        seen_codes.add(asset_code)
+        fields = raw_fields.split("~")
+        if len(fields) <= 46:
+            raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+        raw_observed_at = fields[30]
+        if _TENCENT_SOURCE_TIMESTAMP_RE.fullmatch(raw_observed_at) is None:
+            raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+        try:
+            source_observed_at = datetime.strptime(raw_observed_at, "%Y%m%d%H%M%S").replace(
+                tzinfo=_SHANGHAI
+            )
+        except ValueError as exc:
+            raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID") from exc
+        trade_date = source_observed_at.date()
+        if trade_date > target_date:
+            raise ValueError("REHEARSAL_RESPONSE_FUTURE_DATE")
+        observed_at = source_observed_at.astimezone(UTC)
+
+        row: ProviderResponseRow = {
+            "ts_code": asset_code,
+            "trade_date": trade_date.strftime("%Y%m%d"),
+            "observed_at": observed_at.isoformat(),
+        }
+        for output_field, source_index in (
+            ("pe_ttm", 39),
+            ("pb", 46),
+            ("total_mv", 45),
+            ("circ_mv", 44),
+        ):
+            row[output_field] = _parse_tencent_number(fields[source_index], output_field)
+        parsed.append(row)
+    if not parsed:
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    return tuple(parsed)
+
+
+def parse_validate_provider_response(
+    response_body: bytes, context: RehearsalResponseContext
+) -> tuple[ProviderResponseRow, ...]:
+    """Dispatch a retained body through the parser selected by its frozen format."""
+    if context.provider_format == TUSHARE_PROVIDER_FORMAT:
+        return parse_validate_tushare_response(response_body, context)
+    if context.provider_format == TENCENT_PROVIDER_FORMAT:
+        return parse_validate_tencent_quote_batch(response_body, context)
+    raise ValueError("REHEARSAL_RESPONSE_FORMAT_UNSUPPORTED")
+
+
 class RehearsalResponseStore:
     """Write explicit, validated provider bodies under strict exclusive file and byte budgets."""
 
@@ -312,12 +411,13 @@ class RehearsalResponseStore:
                 code="REHEARSAL_RESPONSE_BODY_LIMIT",
             )
         try:
-            parse_validate_tushare_response(response_body, context)
+            parsed_rows = parse_validate_provider_response(response_body, context)
         except ValueError as exc:
             raise DataFetchError(
                 "Rehearsal response is not a supported successful table",
                 code="REHEARSAL_RESPONSE_NOT_RETAINABLE",
             ) from exc
+        artifact_sample_codes = tuple(sorted({str(row["ts_code"]) for row in parsed_rows}))
         body_sha256 = hashlib.sha256(response_body).hexdigest()
         relative_path = f"provider-responses/{receipt_index:04d}-{body_sha256}.body"
         responses_dir = self.root / "provider-responses"
@@ -419,7 +519,7 @@ class RehearsalResponseStore:
             endpoint_id=context.endpoint_id,
             provider_format=context.provider_format,
             dataset=context.dataset,
-            sample_codes=context.sample_codes,
+            sample_codes=artifact_sample_codes,
         )
 
 
@@ -431,6 +531,29 @@ def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]
             raise ValueError("duplicate JSON key")
         result[key] = value
     return result
+
+
+def _tencent_symbol(asset_code: str) -> str:
+    """Translate one canonical A-share code into Tencent's quote symbol."""
+    numeric, exchange = asset_code.split(".", 1)
+    prefix = {"SH": "sh", "SZ": "sz", "BJ": "bj"}.get(exchange)
+    if prefix is None:
+        raise ValueError("REHEARSAL_RESPONSE_CONTEXT_INVALID")
+    return f"{prefix}{numeric}"
+
+
+def _parse_tencent_number(value: str, field: str) -> float | None:
+    """Parse one finite numeric field, retaining Tencent's empty/dash null markers."""
+    if value in ("", "-"):
+        return None
+    if _TENCENT_NUMBER_RE.fullmatch(value) is None:
+        raise ValueError("REHEARSAL_RESPONSE_VALUE_UNSUPPORTED")
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    if field in ("total_mv", "circ_mv") and parsed < 0:
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    return parsed
 
 
 def _as_object(value: object) -> dict[str, object]:

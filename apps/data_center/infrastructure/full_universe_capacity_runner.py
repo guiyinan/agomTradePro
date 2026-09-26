@@ -39,6 +39,7 @@ from .rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identity_matches_adapter_source,
     verify_configured_rehearsal_identities,
 )
 
@@ -342,9 +343,10 @@ def collect_full_universe_capacity(
                 code="REHEARSAL_PROVIDER_UNAVAILABLE",
             )
         for role, provider in (("quote", quotes), ("valuation", valuations)):
-            if (
-                not isinstance(provider, _SourceIdentity)
-                or provider.provider_source() != by_role[role].source
+            if not isinstance(
+                provider, _SourceIdentity
+            ) or not rehearsal_identity_matches_adapter_source(
+                by_role[role], adapter_source=provider.provider_source()
             ):
                 raise DataFetchError(
                     "Provider identity changed", code="REHEARSAL_PROVIDER_IDENTITY_MISMATCH"
@@ -365,7 +367,14 @@ def collect_full_universe_capacity(
                 missing_valuation_codes = cast(
                     list[str], valuation_coverage["missing_target_session_codes"]
                 )
-                if missing_valuation_codes:
+                valuation_coverage_ratio = int(valuation_coverage["target_session_count"]) / len(
+                    registered_universe
+                )
+                if missing_valuation_codes and (
+                    not valuation_policy.allow_partial
+                    or not valuation_policy.uses_versioned_evidence
+                    or valuation_coverage_ratio < valuation_policy.minimum_coverage_ratio
+                ):
                     asset_codes = list(registered_universe)
                     universe_digest = hashlib.sha256(
                         json.dumps(
@@ -391,6 +400,8 @@ def collect_full_universe_capacity(
                             "active_policy_minimum_coverage_ratio": (
                                 valuation_policy.minimum_coverage_ratio
                             ),
+                            "active_policy_allow_partial": valuation_policy.allow_partial,
+                            "valuation_coverage_ratio": valuation_coverage_ratio,
                         },
                     )
                 eligible_codes = registered_universe
@@ -419,7 +430,6 @@ def collect_full_universe_capacity(
         requested=eligible_codes,
         target_trade_date=target_trade_date,
     )
-    valuation_coverage_ratio = len(eligible_codes) / len(registered_universe)
     if quote_coverage["missing_target_session_count"] != 0:
         raise DataFetchError(
             "Eligible quote scope is incomplete for the target session",
@@ -447,7 +457,17 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
-        "valuation_missing_target_session_codes": [],
+        "valuation_missing_target_session_codes": missing_valuation_codes,
+        "valuation_missing_target_session_reasons": [
+            {
+                "asset_code": code,
+                "reason_code": "valuation_source_data_unavailable",
+            }
+            for code in missing_valuation_codes
+        ],
+        "valuation_outcome": "partial" if missing_valuation_codes else "success",
+        "valuation_requested_count": len(registered_universe),
+        "valuation_returned_count": int(valuation_coverage["target_session_count"]),
         "valuation_minimum_coverage_ratio": valuation_policy.minimum_coverage_ratio,
         "valuation_coverage_ratio": valuation_coverage_ratio,
         "valuation_policy_identity": valuation_policy.identity,
@@ -533,7 +553,14 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
-        "valuation_missing_target_session_codes": [],
+        "valuation_missing_target_session_codes": missing_valuation_codes,
+        "valuation_missing_target_session_reasons": receipt[
+            "valuation_missing_target_session_reasons"
+        ],
+        "valuation_outcome": receipt["valuation_outcome"],
+        "valuation_requested_count": receipt["valuation_requested_count"],
+        "valuation_returned_count": receipt["valuation_returned_count"],
+        "valuation_coverage_ratio": valuation_coverage_ratio,
         "valuation_policy_identity": valuation_policy.identity,
         "valuation_policy_sha256": valuation_policy_sha256,
         "valuation_policy_snapshot": valuation_policy_snapshot,
