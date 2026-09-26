@@ -601,7 +601,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
                     "Financial raw capture requires an explicit egress route",
                     code="TUSHARE_FINANCIAL_ARTIFACT_ROUTE_REQUIRED",
                 )
-            if api_name == "daily_basic":
+            if self._legacy_bypass_url is not None:
                 return super().query(api_name, fields=fields, **params)
             _append_custom_endpoint_to_no_proxy(self._legacy_bypass_url)
             return cast(Any, self._sdk_client).query(api_name, fields=fields, **params)

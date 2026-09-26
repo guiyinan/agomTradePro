@@ -271,3 +271,65 @@ def test_sdk_rechecks_rule_when_existing_client_is_reused(monkeypatch):
     assert client.stock_basic().iloc[0]["name"] == "example"
     assert sdk.query.call_count == 1
     assert execute.call_args.args[0].dataset_key == "tushare.stock_basic"
+
+
+def test_configured_sdk_endpoint_keeps_single_post_url_without_an_egress_rule(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A configured relay URL must not be rewritten by the third-party SDK."""
+
+    settings = tushare_client.TushareRuntimeSettings(
+        token="test-private-token",
+        http_url="https://market.example.com/internal/tushare-gateway",
+        request_mode="sdk_path",
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "resolve_tushare_runtime_settings",
+        lambda **_kwargs: settings,
+    )
+    sdk = Mock()
+    sdk._DataApi__http_url = settings.http_url
+    sdk_module = SimpleNamespace(pro_api=lambda _token: sdk)
+    original_import = tushare_client.import_module
+    monkeypatch.setattr(
+        tushare_client,
+        "import_module",
+        lambda name: sdk_module if name == "tushare" else original_import(name),
+    )
+    response = Mock()
+    response.status_code = 200
+    response.content = b'{"code":0}'
+    response.json.return_value = {
+        "code": 0,
+        "data": {"fields": ["ts_code", "close"], "items": [["000001.SZ", 12.3]]},
+    }
+    session = Mock()
+    session.headers = {}
+    session.post.return_value = response
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(
+            return_value=EgressRouteDecision(
+                rule_id=None,
+                strategy=EgressStrategy.DIRECT,
+                candidates=(None,),
+                reason="no_matching_rule",
+            )
+        ),
+    )
+
+    client = tushare_client.create_tushare_pro_client(
+        provider_id=2,
+        deployment_region="overseas",
+        dataset_key="equity.quote.snapshot",
+    )
+    result = client.daily(trade_date="20260924")
+
+    assert result.iloc[0]["close"] == 12.3
+    session.post.assert_called_once()
+    assert session.post.call_args.args[0] == settings.http_url
+    assert session.post.call_args.kwargs["json"]["api_name"] == "daily"
+    sdk.query.assert_not_called()
