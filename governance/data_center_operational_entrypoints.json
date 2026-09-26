@@ -144,6 +144,7 @@
         "tests/unit/test_backup_delivery_secret_ownership.py",
         "tests/unit/test_backup_vps_postgres.py",
         "tests/unit/test_data_center_entrypoint_inventory.py",
+        "tests/unit/test_data_center_0085_rollback_compatibility.py",
         "tests/unit/test_deploy_vps_verify.py",
         "tests/unit/data_center/test_data01_restore_evidence.py",
         "tests/unit/test_docker_pyqlib_install.py",

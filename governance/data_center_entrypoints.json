@@ -26,17 +26,17 @@
       "script": 11,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 75,
+      "test_evidence": 76,
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 797,
+      "active_public": 798,
       "adjacent_operational": 327,
       "candidate-review": 0,
       "compatibility": 137,
       "retired_blocked": 0
     },
-    "total": 1261
+    "total": 1262
   },
   "entries": [
     {
@@ -2792,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:721",
-      "locator": "line:721",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:725",
+      "locator": "line:725",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -5261,7 +5261,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=60",
+      "evidence": "governed current-data contract; source_files=61",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -8402,8 +8402,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2130",
-      "locator": "line:2130",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2186",
+      "locator": "line:2186",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8412,8 +8412,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2080",
-      "locator": "line:2080",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2136",
+      "locator": "line:2136",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8422,8 +8422,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2130",
-      "locator": "line:2130",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2186",
+      "locator": "line:2186",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8432,8 +8432,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2072",
-      "locator": "line:2072",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2128",
+      "locator": "line:2128",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -12467,6 +12467,16 @@
       "path": "tests/unit/test_backup_vps_postgres.py",
       "status": "active_public",
       "symbol": "test_backup_vps_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_data_center_0085_rollback_compatibility.py:test_data_center_0085_rollback_compatibility:",
+      "locator": "",
+      "path": "tests/unit/test_data_center_0085_rollback_compatibility.py",
+      "status": "active_public",
+      "symbol": "test_data_center_0085_rollback_compatibility",
       "target": ""
     },
     {
