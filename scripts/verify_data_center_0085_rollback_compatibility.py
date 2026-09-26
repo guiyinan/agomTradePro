@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when a deployment's rollback release cannot write schema 0085."""
+"""Fail closed when a deployment's rollback release cannot write the active data-center schema."""
 
 from __future__ import annotations
 
@@ -27,10 +27,15 @@ MODEL_NAMES: dict[str, str] = {
     "valuationfactmodel": "ValuationFactModel",
 }
 MIGRATION_PATH = Path("apps/data_center/migrations/0085_published_market_fact_revisions.py")
+SCOPE_BLOCKS_MIGRATION_PATH = Path(
+    "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py"
+)
 MODELS_PATH = Path("apps/data_center/infrastructure/models.py")
 OTHER_FACT_MODELS_PATH = Path("apps/data_center/infrastructure/fact_and_operational_models.py")
 VERSION_WRITER_PATH = Path("apps/data_center/infrastructure/published_fact_versions.py")
 FINANCIAL_WRITER_PATH = Path("apps/data_center/infrastructure/financial_fact_write_guard.py")
+SCOPE_BLOCKS_MODEL_PATH = Path("apps/data_center/infrastructure/publication_rollback_models.py")
+CURRENT_RELEASE_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_MANIFEST_PATH = Path(".agom-release-manifest.json")
 DEPLOY_ENV_PATH = Path("deploy/.env")
 MANIFEST_KEYS = {
@@ -515,22 +520,122 @@ def _check_financial_writer(module: ast.Module, errors: list[str]) -> None:
         errors.append("financial_fact_write_guard.py does not select the latest revision")
 
 
+def _check_scope_blocks_field(field: ast.AST, source_name: str, errors: list[str]) -> None:
+    """Require an application default and a persistent empty-array DB default."""
+    if not isinstance(field, ast.Call) or not isinstance(field.func, ast.Attribute):
+        errors.append(f"{source_name} scope_blocks is not a JSONField")
+        return
+    if field.func.attr != "JSONField":
+        errors.append(f"{source_name} scope_blocks is not a JSONField")
+        return
+    keywords = {keyword.arg: keyword.value for keyword in field.keywords if keyword.arg}
+    default_value = keywords.get("default")
+    if not isinstance(default_value, ast.Name) or default_value.id != "list":
+        errors.append(f"{source_name} scope_blocks lacks its empty-list ORM default")
+    db_default = keywords.get("db_default")
+    if not isinstance(db_default, ast.List) or db_default.elts:
+        errors.append(f"{source_name} scope_blocks lacks its empty-array database default")
+    null_value = keywords.get("null")
+    if isinstance(null_value, ast.Constant) and null_value.value is True:
+        errors.append(f"{source_name} scope_blocks must remain non-null")
+
+
+def _check_scope_blocks_migration(module: ast.Module, errors: list[str]) -> None:
+    """Verify 0086 adds a non-null scope field with a persistent empty-array default."""
+    migration = _find_class(module, "Migration")
+    if migration is None:
+        errors.append("0086 migration has no Migration class")
+        return
+    dependencies = _assigned_value(migration.body, "dependencies")
+    try:
+        dependency_values: object = ast.literal_eval(dependencies) if dependencies else None
+    except (ValueError, TypeError, SyntaxError):
+        dependency_values = None
+    expected_dependency = ("data_center", "0085_published_market_fact_revisions")
+    if (
+        not isinstance(dependency_values, (list, tuple))
+        or expected_dependency not in dependency_values
+    ):
+        errors.append("0086 migration does not depend on data_center.0085")
+
+    operations = _assigned_value(migration.body, "operations")
+    operation_nodes = operations.elts if isinstance(operations, (ast.List, ast.Tuple)) else []
+    scope_field: ast.AST | None = None
+    for operation in operation_nodes:
+        if not isinstance(operation, ast.Call) or not isinstance(operation.func, ast.Attribute):
+            continue
+        if operation.func.attr != "AddField":
+            continue
+        keywords = {keyword.arg: keyword.value for keyword in operation.keywords if keyword.arg}
+        model_node = keywords.get("model_name")
+        field_node = keywords.get("name")
+        if model_node is None or field_node is None:
+            continue
+        try:
+            model_name = ast.literal_eval(model_node)
+            field_name = ast.literal_eval(field_node)
+        except (ValueError, TypeError, SyntaxError):
+            continue
+        if model_name == "canonicalpublicationmodel" and field_name == "scope_blocks":
+            scope_field = keywords.get("field")
+            break
+    if scope_field is None:
+        errors.append("0086 migration does not add CanonicalPublicationModel.scope_blocks")
+        return
+    _check_scope_blocks_field(scope_field, "0086 migration", errors)
+
+
+def _check_scope_blocks_model(module: ast.Module, errors: list[str]) -> None:
+    """Verify the current ORM field retains the migration's rollback-safe defaults."""
+    model = _find_class(module, "CanonicalPublicationModel")
+    if model is None:
+        errors.append("publication rollback models have no CanonicalPublicationModel")
+        return
+    for statement in model.body:
+        if not isinstance(statement, ast.Assign):
+            continue
+        if any(
+            isinstance(target, ast.Name) and target.id == "scope_blocks"
+            for target in statement.targets
+        ):
+            _check_scope_blocks_field(statement.value, "CanonicalPublicationModel", errors)
+            return
+    errors.append("CanonicalPublicationModel has no scope_blocks field")
+
+
 def verify_previous_release(
     release_root: Path,
     database_migration_0085: str,
+    database_migration_0086: str,
+    database_scope_blocks_default: str,
 ) -> tuple[str, ...]:
     """Validate the rollback source, manifest, Docker image, and migration state.
 
     The previous code is checked against the immutable image and source commit.
     The database migration state is supplied by a read-only query from the
     running PostgreSQL container. Revision-aware writer compatibility is
-    required only when 0085 is already applied. Both states still require the
-    previous source, release manifest, and immutable image identities to agree.
+    required only when 0085 is already applied. When 0086 is applied, the
+    canonical publication column must retain its non-null JSON empty-array
+    database default so an 0085 ORM insert that omits the column remains valid.
+    Both states still require the previous source, release manifest, and
+    immutable image identities to agree.
     """
     if not release_root.is_dir():
         return ("previous release directory is missing or unreadable",)
     if database_migration_0085 not in {"applied", "not_applied"}:
         return ("database data_center.0085 migration state is unknown",)
+    if database_migration_0086 not in {"applied", "not_applied"}:
+        return ("database data_center.0086 migration state is unknown",)
+    if database_migration_0086 == "applied" and database_migration_0085 != "applied":
+        return ("database data_center.0086 is applied while data_center.0085 is not",)
+    if database_migration_0086 == "applied" and database_scope_blocks_default != "empty_array":
+        return (
+            "database CanonicalPublicationModel.scope_blocks lacks its non-null JSON [] default",
+        )
+    if database_migration_0086 == "not_applied" and database_scope_blocks_default != "not_checked":
+        return (
+            "database scope_blocks default must be not_checked while data_center.0086 is unapplied",
+        )
     errors: list[str] = []
     identity = _load_release_identity(release_root, errors)
     if identity is not None:
@@ -569,6 +674,12 @@ def verify_previous_release(
             _check_version_writer(version_writer, errors)
         if financial_writer is not None:
             _check_financial_writer(financial_writer, errors)
+    scope_migration = _read_module(CURRENT_RELEASE_ROOT, SCOPE_BLOCKS_MIGRATION_PATH, errors)
+    scope_model = _read_module(CURRENT_RELEASE_ROOT, SCOPE_BLOCKS_MODEL_PATH, errors)
+    if scope_migration is not None:
+        _check_scope_blocks_migration(scope_migration, errors)
+    if scope_model is not None:
+        _check_scope_blocks_model(scope_model, errors)
     return tuple(errors)
 
 
@@ -582,8 +693,25 @@ def main(argv: list[str] | None = None) -> int:
         choices=("applied", "not_applied"),
         help="Read-only migration state queried from the currently running PostgreSQL container",
     )
+    parser.add_argument(
+        "--database-migration-0086",
+        required=True,
+        choices=("applied", "not_applied"),
+        help="Read-only 0086 migration state queried from the currently running PostgreSQL container",
+    )
+    parser.add_argument(
+        "--database-scope-blocks-default",
+        required=True,
+        choices=("empty_array", "not_checked", "incompatible", "missing"),
+        help="Read-only PostgreSQL check of the non-null scope_blocks JSON [] default",
+    )
     args = parser.parse_args(argv)
-    errors = verify_previous_release(args.previous_release, args.database_migration_0085)
+    errors = verify_previous_release(
+        args.previous_release,
+        args.database_migration_0085,
+        args.database_migration_0086,
+        args.database_scope_blocks_default,
+    )
     if errors:
         print("ROLLBACK_SCHEMA_INCOMPATIBLE: " + "; ".join(errors), file=sys.stderr)
         print(
@@ -595,7 +723,9 @@ def main(argv: list[str] | None = None) -> int:
         return 42
     print(
         "PREVIOUS_RELEASE_0085_COMPATIBLE: "
-        f"release={args.previous_release.name} database_migration={args.database_migration_0085}"
+        f"release={args.previous_release.name} database_migration_0085={args.database_migration_0085} "
+        f"database_migration_0086={args.database_migration_0086} "
+        f"scope_blocks_default={args.database_scope_blocks_default}"
     )
     return 0
 

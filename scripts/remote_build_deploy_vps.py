@@ -29,6 +29,10 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+REMOTE_SOURCE_UPLOAD_DIR = "/tmp/agomtradepro-source-upload"
+REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS = 60 * 60
+REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND = 2
+REMOTE_TEMP_ARTIFACT_LOCK_NAME = ".agomtradepro-temp-artifacts.lock"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -56,6 +60,355 @@ def _warn(msg: str) -> None:
 def _die(msg: str, code: int = 1) -> NoReturn:
     print(f"[ERROR] {msg}", file=sys.stderr)
     raise SystemExit(code)
+
+
+_REMOTE_TEMP_ARTIFACT_PRUNER = r"""
+import errno
+import os
+import re
+import shutil
+import stat
+import sys
+import time
+from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
+
+root = Path(sys.argv[1])
+expected_root = Path(sys.argv[2])
+current_tag = sys.argv[3]
+minimum_age_seconds = int(sys.argv[4])
+max_retained_per_kind = int(sys.argv[5])
+lock_name = sys.argv[6]
+tag_pattern = re.compile(r"[0-9]{14}")
+artifact_patterns = (
+    ("source bundle", re.compile(r"agomtradepro-source-deploy-([0-9]{14})\.tar\.gz"), "file"),
+    ("image archive", re.compile(r"agomtradepro-web-([0-9]{14})\.tar"), "file"),
+    ("build tree", re.compile(r"build-([0-9]{14})"), "directory"),
+)
+
+try:
+    root_stat = root.lstat()
+    expected_root_resolved = expected_root.resolve(strict=True)
+    root_resolved = root.resolve(strict=True)
+except OSError:
+    raise SystemExit(0)
+if stat.S_ISLNK(root_stat.st_mode) or not stat.S_ISDIR(root_stat.st_mode):
+    raise SystemExit(0)
+if root_resolved != expected_root_resolved:
+    raise SystemExit(0)
+
+
+def lock_directory() -> int:
+    # Hold the shared marker/pruner lock until this process exits.
+    lock_path = root / lock_name
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    lock_fd = os.open(lock_path, flags, 0o600)
+    lock_stat = os.fstat(lock_fd)
+    path_stat = lock_path.lstat()
+    if (
+        not stat.S_ISREG(lock_stat.st_mode)
+        or lock_stat.st_nlink != 1
+        or stat.S_ISLNK(path_stat.st_mode)
+        or (lock_stat.st_dev, lock_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino)
+    ):
+        os.close(lock_fd)
+        raise OSError("unsafe artifact lock")
+    if fcntl is not None:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    elif msvcrt is not None:
+        if lock_stat.st_size == 0:
+            os.write(lock_fd, b"\0")
+        os.lseek(lock_fd, 0, os.SEEK_SET)
+        msvcrt.locking(lock_fd, msvcrt.LK_LOCK, 1)
+    else:
+        os.close(lock_fd)
+        raise OSError("artifact locking is unavailable")
+    return lock_fd
+
+
+def marker_is_active(tag: str) -> bool:
+    # Preserve live or unverifiable markers; remove only dead PIDs.
+    marker = root / f".agomtradepro-build-active-{tag}"
+    try:
+        marker_stat = marker.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    if stat.S_ISLNK(marker_stat.st_mode) or not stat.S_ISREG(marker_stat.st_mode):
+        return True
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        marker_fd = os.open(marker, flags)
+        try:
+            opened_stat = os.fstat(marker_fd)
+            if (
+                not stat.S_ISREG(opened_stat.st_mode)
+                or (opened_stat.st_dev, opened_stat.st_ino)
+                != (marker_stat.st_dev, marker_stat.st_ino)
+            ):
+                return True
+            marker_text = os.read(marker_fd, 129).decode("ascii").strip()
+        finally:
+            os.close(marker_fd)
+        if len(marker_text) > 128 or re.fullmatch(r"[1-9][0-9]*", marker_text) is None:
+            return True
+        pid = int(marker_text)
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            marker.unlink()
+            return False
+        except OSError as exc:
+            if exc.errno == errno.ESRCH:
+                marker.unlink()
+                return False
+            return True
+        return True
+    except (OSError, UnicodeError, ValueError):
+        return True
+
+
+try:
+    artifact_lock_fd = lock_directory()
+except OSError:
+    raise SystemExit(0)
+
+now = time.time()
+candidates = {kind: [] for kind, _pattern, _expected_type in artifact_patterns}
+for child in root.iterdir():
+    if child.is_symlink():
+        continue
+    matched = None
+    for kind, pattern, expected_type in artifact_patterns:
+        match = pattern.fullmatch(child.name)
+        if match is not None:
+            matched = (kind, expected_type, match.group(1))
+            break
+    if matched is None:
+        continue
+    kind, expected_type, tag = matched
+    if tag_pattern.fullmatch(tag) is None or tag == current_tag:
+        continue
+    if marker_is_active(tag):
+        continue
+    try:
+        item_stat = child.lstat()
+    except OSError:
+        continue
+    if expected_type == "file" and not stat.S_ISREG(item_stat.st_mode):
+        continue
+    if expected_type == "directory" and not stat.S_ISDIR(item_stat.st_mode):
+        continue
+    if now - item_stat.st_mtime < minimum_age_seconds:
+        continue
+    candidates[kind].append((item_stat.st_mtime, child.name, child))
+
+for kind, _pattern, expected_type in artifact_patterns:
+    stale_items = sorted(candidates[kind], key=lambda item: (item[0], item[1]))
+    remove_count = max(0, len(stale_items) - max_retained_per_kind)
+    for _modified_at, name, child in stale_items[:remove_count]:
+        try:
+            if child.parent.resolve(strict=True) != root_resolved or child.is_symlink():
+                continue
+            if expected_type == "directory":
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+            print(f"[INFO] Pruned stale source-upload {kind}: {name}")
+        except OSError as exc:
+            print(f"[WARN] Could not prune stale source-upload artifact {name}: {exc}", file=sys.stderr)
+os.close(artifact_lock_fd)
+"""
+
+
+_REMOTE_ACTIVE_BUILD_MARKER_HELPER = r"""
+import errno
+import os
+import re
+import stat
+import sys
+from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
+
+root = Path(sys.argv[1])
+operation = sys.argv[2]
+tag = sys.argv[3]
+pid_text = sys.argv[4]
+lock_name = sys.argv[5]
+if operation not in {"claim", "release"} or re.fullmatch(r"[0-9]{14}", tag) is None:
+    raise SystemExit("REHEARSAL_BUILD_MARKER_INPUT_INVALID")
+if re.fullmatch(r"[1-9][0-9]*", pid_text) is None:
+    raise SystemExit("REHEARSAL_BUILD_MARKER_INPUT_INVALID")
+pid = int(pid_text)
+try:
+    root_stat = root.lstat()
+except OSError as exc:
+    raise SystemExit("REHEARSAL_BUILD_MARKER_DIRECTORY_INVALID") from exc
+if stat.S_ISLNK(root_stat.st_mode) or not stat.S_ISDIR(root_stat.st_mode):
+    raise SystemExit("REHEARSAL_BUILD_MARKER_DIRECTORY_INVALID")
+lock_path = root / lock_name
+marker_path = root / f".agomtradepro-build-active-{tag}"
+flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+try:
+    lock_fd = os.open(lock_path, flags, 0o600)
+except OSError as exc:
+    raise SystemExit("REHEARSAL_BUILD_MARKER_LOCK_FAILED") from exc
+lock_stat = os.fstat(lock_fd)
+try:
+    path_stat = lock_path.lstat()
+except OSError as exc:
+    os.close(lock_fd)
+    raise SystemExit("REHEARSAL_BUILD_MARKER_LOCK_FAILED") from exc
+if (
+    not stat.S_ISREG(lock_stat.st_mode)
+    or lock_stat.st_nlink != 1
+    or stat.S_ISLNK(path_stat.st_mode)
+    or (lock_stat.st_dev, lock_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino)
+):
+    os.close(lock_fd)
+    raise SystemExit("REHEARSAL_BUILD_MARKER_LOCK_FAILED")
+try:
+    if fcntl is not None:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    elif msvcrt is not None:
+        if lock_stat.st_size == 0:
+            os.write(lock_fd, b"\0")
+        os.lseek(lock_fd, 0, os.SEEK_SET)
+        msvcrt.locking(lock_fd, msvcrt.LK_LOCK, 1)
+    else:
+        raise OSError("marker locking is unavailable")
+except OSError as exc:
+    os.close(lock_fd)
+    raise SystemExit("REHEARSAL_BUILD_MARKER_LOCK_FAILED") from exc
+
+def read_marker() -> str | None:
+    # Read one owned regular marker without following a symlink.
+    try:
+        marker_stat = marker_path.lstat()
+    except FileNotFoundError:
+        return None
+    if stat.S_ISLNK(marker_stat.st_mode) or not stat.S_ISREG(marker_stat.st_mode):
+        raise SystemExit("REHEARSAL_BUILD_MARKER_INVALID")
+    marker_fd = os.open(
+        marker_path,
+        os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+    )
+    try:
+        opened_stat = os.fstat(marker_fd)
+        if (
+            not stat.S_ISREG(opened_stat.st_mode)
+            or opened_stat.st_nlink != 1
+            or (opened_stat.st_dev, opened_stat.st_ino)
+            != (marker_stat.st_dev, marker_stat.st_ino)
+        ):
+            raise SystemExit("REHEARSAL_BUILD_MARKER_INVALID")
+        text = os.read(marker_fd, 129).decode("ascii").strip()
+    finally:
+        os.close(marker_fd)
+    if len(text) > 128 or re.fullmatch(r"[1-9][0-9]*", text) is None:
+        raise SystemExit("REHEARSAL_BUILD_MARKER_INVALID")
+    return text
+
+
+try:
+    existing_pid_text = read_marker()
+    if operation == "claim":
+        if existing_pid_text is not None:
+            existing_pid = int(existing_pid_text)
+            try:
+                os.kill(existing_pid, 0)
+            except ProcessLookupError:
+                marker_path.unlink()
+            except OSError as exc:
+                if exc.errno == errno.ESRCH:
+                    marker_path.unlink()
+                else:
+                    raise SystemExit(
+                        "[ERROR] REHEARSAL_BUILD_TAG_ALREADY_ACTIVE: active build marker is present"
+                    ) from exc
+            else:
+                raise SystemExit(
+                    "[ERROR] REHEARSAL_BUILD_TAG_ALREADY_ACTIVE: active build marker is present"
+                )
+        marker_fd = os.open(
+            marker_path,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0),
+            0o600,
+        )
+        try:
+            os.write(marker_fd, f"{pid}\n".encode("ascii"))
+            os.fsync(marker_fd)
+        finally:
+            os.close(marker_fd)
+    elif existing_pid_text == pid_text:
+        marker_path.unlink()
+finally:
+    os.close(lock_fd)
+"""
+
+
+def _build_remote_temp_artifact_cleanup_command(remote_dir: str, current_tag: str) -> str | None:
+    """Build a bounded cleaner command only for the dedicated source-upload directory."""
+    if remote_dir != REMOTE_SOURCE_UPLOAD_DIR:
+        return None
+    if re.fullmatch(r"[0-9]{14}", current_tag) is None:
+        return None
+    arguments = (
+        remote_dir,
+        REMOTE_SOURCE_UPLOAD_DIR,
+        current_tag,
+        str(REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS),
+        str(REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND),
+        REMOTE_TEMP_ARTIFACT_LOCK_NAME,
+    )
+    return (
+        "python3 -c "
+        + shlex.quote(_REMOTE_TEMP_ARTIFACT_PRUNER)
+        + " "
+        + " ".join(shlex.quote(argument) for argument in arguments)
+    )
+
+
+def _build_remote_active_build_marker_command(
+    remote_base: str, *, operation: str, release_tag: str, pid: str
+) -> str:
+    """Build a shell-safe, lock-serialized remote build-marker operation."""
+    arguments = (
+        remote_base,
+        operation,
+        release_tag,
+        pid,
+        REMOTE_TEMP_ARTIFACT_LOCK_NAME,
+    )
+    return (
+        "python3 -c "
+        + shlex.quote(_REMOTE_ACTIVE_BUILD_MARKER_HELPER)
+        + " "
+        + " ".join(shlex.quote(argument) for argument in arguments)
+    )
 
 
 def _prompt(prompt: str, default: str | None = None) -> str:
@@ -880,6 +1233,20 @@ def _create_local_runtime_bundle(
     return bundle_zip_path
 
 
+def _build_remote_active_build_marker_shell_command(operation: str) -> str:
+    """Build a fixed claim/release command for the active build marker."""
+    if operation not in {"claim", "release"}:
+        raise ValueError("unsupported remote build marker operation")
+    return (
+        "python3 -c "
+        + shlex.quote(_REMOTE_ACTIVE_BUILD_MARKER_HELPER)
+        + ' "$REMOTE_BASE" '
+        + operation
+        + ' "$RELEASE_TAG" "$$" '
+        + shlex.quote(REMOTE_TEMP_ARTIFACT_LOCK_NAME)
+    )
+
+
 def _build_remote_build_script() -> str:
     return r"""set -eu
 
@@ -899,16 +1266,24 @@ command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; ex
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "[ERROR] python3 is required" >&2; exit 1; }
 
-python3 - "$SOURCE_COMMIT" <<'PY'
+python3 - "$SOURCE_COMMIT" "$RELEASE_TAG" <<'PY'
 import re
 import sys
 
 source_commit = sys.argv[1]
+release_tag = sys.argv[2]
 if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
     raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
+if re.fullmatch(r"[0-9]{14}", release_tag) is None:
+    raise SystemExit("[ERROR] RELEASE_TAG must be an exact 14-digit UTC deployment tag")
 PY
 
 REMOTE_BASE="$(dirname "$REMOTE_TARBALL")"
+__CLAIM_ACTIVE_BUILD_MARKER__
+release_active_build_marker() {
+  __RELEASE_ACTIVE_BUILD_MARKER__ >/dev/null 2>&1 || true
+}
+trap release_active_build_marker EXIT
 WORK_ROOT="$REMOTE_BASE/build-$RELEASE_TAG"
 rm -rf "$WORK_ROOT"
 mkdir -p "$WORK_ROOT"
@@ -960,12 +1335,12 @@ MIN_DOCKER_BUILD_FREE_KB=12582912
 DOCKER_BUILD_FREE_KB="$(df -Pk /var/lib/docker | awk 'NR == 2 {print $4}')"
 case "$DOCKER_BUILD_FREE_KB" in
   ''|*[!0-9]*)
-    echo "[ERROR] Could not determine free Docker disk space" >&2
+    echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_UNAVAILABLE: could not determine free Docker disk space" >&2
     exit 1
     ;;
 esac
 if [ "$DOCKER_BUILD_FREE_KB" -lt "$MIN_DOCKER_BUILD_FREE_KB" ]; then
-  echo "[ERROR] Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
+  echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT: Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
   exit 1
 fi
 echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
@@ -1038,7 +1413,7 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
   REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
   if [ "$AVAIL_BYTES" -lt "$REQUIRED_BYTES" ]; then
-    echo "[ERROR] insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
+    echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT: insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
     exit 1
   fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
@@ -1074,7 +1449,13 @@ fi
 
 echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
-"""
+""".replace(
+        "__CLAIM_ACTIVE_BUILD_MARKER__",
+        _build_remote_active_build_marker_shell_command("claim"),
+    ).replace(
+        "__RELEASE_ACTIVE_BUILD_MARKER__",
+        _build_remote_active_build_marker_shell_command("release"),
+    )
 
 
 def _cleanup_remote_build_artifacts(
@@ -1195,12 +1576,12 @@ MIN_DOCKER_BUILD_FREE_KB=12582912
 DOCKER_BUILD_FREE_KB="$(df -Pk /var/lib/docker | awk 'NR == 2 {print $4}')"
 case "$DOCKER_BUILD_FREE_KB" in
   ''|*[!0-9]*)
-    echo "[ERROR] Could not determine free Docker disk space" >&2
+    echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_UNAVAILABLE: could not determine free Docker disk space" >&2
     exit 1
     ;;
 esac
 if [ "$DOCKER_BUILD_FREE_KB" -lt "$MIN_DOCKER_BUILD_FREE_KB" ]; then
-  echo "[ERROR] Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
+  echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT: Insufficient Docker disk headroom: ${DOCKER_BUILD_FREE_KB} KiB available, ${MIN_DOCKER_BUILD_FREE_KB} KiB required after project image cleanup" >&2
   exit 1
 fi
 echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
@@ -1274,7 +1655,7 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
   REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
   if [ "$AVAIL_BYTES" -lt "$REQUIRED_BYTES" ]; then
-    echo "[ERROR] insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
+    echo "[ERROR] REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT: insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
     exit 1
   fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
@@ -1476,16 +1857,32 @@ if [ -n "$PREVIOUS_RELEASE" ]; then
           exit 42
           ;;
       esac
+      MIGRATION_0086_PRESENT="$(docker exec "$PREVIOUS_POSTGRES_CID" sh -c "psql -XAtq -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT EXISTS (SELECT 1 FROM public.django_migrations WHERE app='data_center' AND name='0086_canonical_publication_scope_blocks')\"" 2>/dev/null || true)"
+      case "$MIGRATION_0086_PRESENT" in
+        t) DATABASE_MIGRATION_0086="applied" ;;
+        f) DATABASE_MIGRATION_0086="not_applied" ;;
+        *)
+          echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: data_center.0086 migration state could not be read" >&2
+          exit 42
+          ;;
+      esac
+      if [ "$DATABASE_MIGRATION_0086" = "applied" ]; then
+        SCOPE_BLOCKS_DATABASE_DEFAULT="$(docker exec "$PREVIOUS_POSTGRES_CID" sh -c "psql -XAtq -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='data_center_canonical_publication' AND column_name='scope_blocks') THEN 'missing' WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='data_center_canonical_publication' AND column_name='scope_blocks' AND data_type='jsonb' AND is_nullable='NO' AND regexp_replace(column_default, '[[:space:]()]', '', 'g')='''[]''::jsonb') THEN 'empty_array' ELSE 'incompatible' END\"" 2>/dev/null || true)"
+      else
+        SCOPE_BLOCKS_DATABASE_DEFAULT="not_checked"
+      fi
       ;;
     *)
       echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: Django migration state could not be read" >&2
       exit 42
       ;;
   esac
-  echo "[INFO] Verifying previous release identity and data_center.0085 rollback compatibility"
+  echo "[INFO] Verifying previous release identity and data_center.0085/0086 rollback compatibility"
   if ! python3 "$RELEASE_DIR/scripts/verify_data_center_0085_rollback_compatibility.py" \
     --previous-release "$PREVIOUS_RELEASE" \
-    --database-migration-0085 "$DATABASE_MIGRATION_0085"; then
+    --database-migration-0085 "$DATABASE_MIGRATION_0085" \
+    --database-migration-0086 "$DATABASE_MIGRATION_0086" \
+    --database-scope-blocks-default "$SCOPE_BLOCKS_DATABASE_DEFAULT"; then
     echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: deployment stopped before backup or database migration. Keep the current data intact; deploy a revision-aware rollback release or a forward compatibility release. Do not delete revisions or restore an older database." >&2
     exit 42
   fi
@@ -2765,6 +3162,18 @@ def main() -> int:
             code, _out, err = _run(ssh, f"mkdir -p {shlex.quote(remote_dir)}", timeout=args.timeout)
             if code != 0:
                 _die(f"Failed to create remote dir. Stderr={err.strip()}")
+            cleanup_command = _build_remote_temp_artifact_cleanup_command(remote_dir, tag)
+            if cleanup_command is not None:
+                _info("Pruning stale source-upload build artifacts")
+                cleanup_code, cleanup_out, cleanup_err = _run(
+                    ssh, cleanup_command, timeout=min(args.timeout, 60)
+                )
+                if cleanup_out.strip():
+                    _info(cleanup_out.strip())
+                if cleanup_err.strip():
+                    _warn(cleanup_err.strip())
+                if cleanup_code != 0:
+                    _warn("Remote source-upload cleanup failed; continuing without cleanup")
 
             _info(f"Uploading source bundle: {remote_bundle}")
             sftp = ssh.open_sftp()

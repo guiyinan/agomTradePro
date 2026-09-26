@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from types import ModuleType
 
@@ -310,11 +312,431 @@ def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroo
     assert "MIN_DOCKER_BUILD_FREE_KB=12582912" in script
     assert disk_check in script
     assert "Insufficient Docker disk headroom" in script
+    assert "REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT" in script
+    assert "REHEARSAL_BUILD_DISK_HEADROOM_UNAVAILABLE" in script
     assert "docker system prune" not in script
     assert "docker volume" not in script
     assert script.index(active_check) < script.index(removal)
     assert script.index(removal) < script.index(disk_check)
     assert script.index(disk_check) < script.index("docker build")
+
+
+def test_remote_source_upload_cleanup_is_scoped_to_dedicated_temp_directory() -> None:
+    """The cleaner is opt-in only for the default, exact temporary upload path."""
+    tag = "20260926123045"
+
+    command = remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+        "/tmp/agomtradepro-source-upload", tag
+    )
+
+    assert command is not None
+    assert command.startswith("python3 -c ")
+    assert (
+        remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+            "/opt/agomtradepro/current", tag
+        )
+        is None
+    )
+    assert (
+        remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+            "/tmp/agomtradepro-source-upload/../current", tag
+        )
+        is None
+    )
+    assert (
+        remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+            "/tmp/agomtradepro-source-upload/", tag
+        )
+        is None
+    )
+    assert (
+        remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+            "/tmp//agomtradepro-source-upload", tag
+        )
+        is None
+    )
+    assert (
+        remote_build_deploy_vps._build_remote_temp_artifact_cleanup_command(
+            "/tmp/agomtradepro-source-upload", "current"
+        )
+        is None
+    )
+
+
+def _set_artifact_age(
+    path: Path,
+    *,
+    age_seconds: int,
+    now: float,
+    directory_payload: str | None = None,
+) -> None:
+    """Create a file or directory with a predictable modification age."""
+    if path.name.startswith("build-"):
+        path.mkdir()
+        if directory_payload is not None:
+            (path / "payload.txt").write_text(directory_payload, encoding="utf-8")
+    else:
+        path.write_bytes(b"temporary")
+    modified_at = now - age_seconds
+    os.utime(path, (modified_at, modified_at))
+
+
+def _run_remote_temp_pruner(
+    root: Path,
+    *,
+    expected_root: Path,
+    current_tag: str,
+    simulate_live_pid: int | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Execute the exact cleaner program sent to the remote host against a fixture tree."""
+    helper = remote_build_deploy_vps._REMOTE_TEMP_ARTIFACT_PRUNER
+    if simulate_live_pid is None:
+        command = [sys.executable, "-c", helper]
+    else:
+        bootstrap = """\
+import os
+import sys
+
+live_pid = int(sys.argv[1])
+helper = sys.argv[2]
+real_kill = os.kill
+
+def kill_preserving_live_process(pid, sig):
+    if pid == live_pid and sig == 0:
+        return None
+    return real_kill(pid, sig)
+
+os.kill = kill_preserving_live_process
+sys.argv = [sys.argv[0], *sys.argv[3:]]
+exec(compile(helper, "<remote-temp-artifact-pruner>", "exec"))
+"""
+        command = [
+            sys.executable,
+            "-c",
+            bootstrap,
+            str(simulate_live_pid),
+            helper,
+        ]
+    return subprocess.run(
+        command
+        + [
+            str(root),
+            str(expected_root),
+            current_tag,
+            str(remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS),
+            str(remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND),
+            remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_LOCK_NAME,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _run_remote_build_marker_helper(
+    root: Path,
+    *,
+    operation: str,
+    tag: str,
+    pid: int,
+    simulate_missing_pid: int | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run the exact marker helper embedded into the remote build script."""
+    helper = remote_build_deploy_vps._REMOTE_ACTIVE_BUILD_MARKER_HELPER
+    if simulate_missing_pid is None:
+        command = [sys.executable, "-c", helper]
+    else:
+        # Exercise the helper's ESRCH branch without relying on the host OS to
+        # report a just-exited PID consistently or to avoid reusing that PID.
+        bootstrap = """\
+import os
+import sys
+
+missing_pid = int(sys.argv[1])
+helper = sys.argv[2]
+real_kill = os.kill
+
+def kill_with_missing_pid(pid, sig):
+    if pid == missing_pid:
+        raise ProcessLookupError(pid, "No such process")
+    return real_kill(pid, sig)
+
+os.kill = kill_with_missing_pid
+sys.argv = [sys.argv[0], *sys.argv[3:]]
+exec(compile(helper, "<remote-build-marker-helper>", "exec"))
+"""
+        command = [sys.executable, "-c", bootstrap, str(simulate_missing_pid), helper]
+    return subprocess.run(
+        command
+        + [
+            str(root),
+            operation,
+            tag,
+            str(pid),
+            remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_LOCK_NAME,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_remote_source_upload_pruner_obeys_age_count_and_asset_boundaries(
+    tmp_path: Path,
+) -> None:
+    """Only old, exact-name temp artifacts are pruned; current and outside assets survive."""
+    now = time.time()
+    minimum_age = remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS
+    root = tmp_path / "source-upload"
+    root.mkdir()
+    current_tag = "20260926123045"
+
+    stale_source_tags = ("20260101000001", "20260101000002", "20260101000003")
+    for offset, tag in enumerate(stale_source_tags, start=1):
+        _set_artifact_age(
+            root / f"agomtradepro-source-deploy-{tag}.tar.gz",
+            age_seconds=minimum_age + 86400 * (len(stale_source_tags) - offset + 1),
+            now=now,
+        )
+    recent_source = root / "agomtradepro-source-deploy-20260926000001.tar.gz"
+    _set_artifact_age(recent_source, age_seconds=minimum_age - 300, now=now)
+    current_source = root / f"agomtradepro-source-deploy-{current_tag}.tar.gz"
+    _set_artifact_age(current_source, age_seconds=minimum_age + 86400 * 10, now=now)
+    current_image = root / f"agomtradepro-web-{current_tag}.tar"
+    _set_artifact_age(current_image, age_seconds=minimum_age + 86400 * 10, now=now)
+    current_build = root / f"build-{current_tag}"
+    _set_artifact_age(current_build, age_seconds=minimum_age + 86400 * 10, now=now)
+
+    stale_image_tags = ("20260102000001", "20260102000002", "20260102000003")
+    for offset, tag in enumerate(stale_image_tags, start=1):
+        _set_artifact_age(
+            root / f"agomtradepro-web-{tag}.tar",
+            age_seconds=minimum_age + 86400 * (len(stale_image_tags) - offset + 1),
+            now=now,
+        )
+    stale_build_tags = ("20260103000001", "20260103000002", "20260103000003")
+    for offset, tag in enumerate(stale_build_tags, start=1):
+        build_dir = root / f"build-{tag}"
+        _set_artifact_age(
+            build_dir,
+            age_seconds=minimum_age + 86400 * (len(stale_build_tags) - offset + 1),
+            now=now,
+            directory_payload="temporary build source",
+        )
+
+    unmatched = root / "agomtradepro-source-deploy-current.tar.gz"
+    _set_artifact_age(unmatched, age_seconds=minimum_age + 86400 * 10, now=now)
+    production_asset = tmp_path / "production-current-release.txt"
+    production_asset.write_text("protected", encoding="utf-8")
+
+    result = _run_remote_temp_pruner(root, expected_root=root, current_tag=current_tag)
+
+    assert result.returncode == 0, result.stderr
+    assert not (root / f"agomtradepro-source-deploy-{stale_source_tags[0]}.tar.gz").exists()
+    assert (root / f"agomtradepro-source-deploy-{stale_source_tags[1]}.tar.gz").exists()
+    assert (root / f"agomtradepro-source-deploy-{stale_source_tags[2]}.tar.gz").exists()
+    assert recent_source.exists()
+    assert current_source.exists()
+    assert current_image.exists()
+    assert current_build.exists()
+    assert unmatched.exists()
+    assert not (root / f"agomtradepro-web-{stale_image_tags[0]}.tar").exists()
+    assert (root / f"agomtradepro-web-{stale_image_tags[1]}.tar").exists()
+    assert (root / f"agomtradepro-web-{stale_image_tags[2]}.tar").exists()
+    assert not (root / f"build-{stale_build_tags[0]}").exists()
+    assert (root / f"build-{stale_build_tags[1]}").exists()
+    assert (root / f"build-{stale_build_tags[2]}").exists()
+    assert production_asset.read_text(encoding="utf-8") == "protected"
+
+
+def test_remote_source_upload_pruner_protects_active_builds_and_rejects_wrong_root(
+    tmp_path: Path,
+) -> None:
+    """Active markers and root identity keep builds outside the cleanup scope."""
+    now = time.time()
+    minimum_age = remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS
+    root = tmp_path / "source-upload"
+    root.mkdir()
+    active_tag = "20260104000001"
+    active_archive = root / f"agomtradepro-web-{active_tag}.tar"
+    _set_artifact_age(active_archive, age_seconds=minimum_age + 86400 * 3, now=now)
+    claim_result = _run_remote_build_marker_helper(
+        root, operation="claim", tag=active_tag, pid=os.getpid()
+    )
+    assert claim_result.returncode == 0, claim_result.stderr
+    ordinary_tag = "20260104000002"
+    ordinary_archive = root / f"agomtradepro-web-{ordinary_tag}.tar"
+    _set_artifact_age(ordinary_archive, age_seconds=minimum_age + 86400 * 2, now=now)
+    newest_tag = "20260104000003"
+    newest_archive = root / f"agomtradepro-web-{newest_tag}.tar"
+    _set_artifact_age(newest_archive, age_seconds=minimum_age + 86400, now=now)
+
+    wrong_root_result = _run_remote_temp_pruner(
+        root,
+        expected_root=tmp_path,
+        current_tag="20260926123045",
+        simulate_live_pid=os.getpid() if os.name == "nt" else None,
+    )
+    assert wrong_root_result.returncode == 0, wrong_root_result.stderr
+    assert active_archive.exists()
+    assert ordinary_archive.exists()
+
+    result = _run_remote_temp_pruner(
+        root,
+        expected_root=root,
+        current_tag="20260926123045",
+        simulate_live_pid=os.getpid() if os.name == "nt" else None,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert active_archive.exists()
+    assert ordinary_archive.exists()
+    assert newest_archive.exists()
+
+
+def test_remote_build_marker_claim_is_concurrent_and_release_is_owner_checked(
+    tmp_path: Path,
+) -> None:
+    """One claimant wins; a mismatched release cannot remove the winning marker."""
+    root = tmp_path / "source-upload"
+    root.mkdir()
+    tag = "20260105000001"
+    helper = remote_build_deploy_vps._REMOTE_ACTIVE_BUILD_MARKER_HELPER
+    helper_arguments = [
+        str(root),
+        "claim",
+        tag,
+        str(os.getpid()),
+        remote_build_deploy_vps.REMOTE_TEMP_ARTIFACT_LOCK_NAME,
+    ]
+    if os.name == "nt":
+        # The helper runs on Linux in production. CPython implements
+        # os.kill(pid, 0) differently on Windows and may terminate the target,
+        # so emulate POSIX's successful liveness probe while still executing
+        # the real marker and Windows lock code concurrently.
+        bootstrap = """\
+import os
+import sys
+
+active_pid = int(sys.argv[1])
+helper = sys.argv[2]
+real_kill = os.kill
+
+def kill_preserving_active_process(pid, sig):
+    if pid == active_pid and sig == 0:
+        return None
+    return real_kill(pid, sig)
+
+os.kill = kill_preserving_active_process
+sys.argv = [sys.argv[0], *sys.argv[3:]]
+exec(compile(helper, "<remote-build-marker-helper>", "exec"))
+"""
+        command = [
+            sys.executable,
+            "-c",
+            bootstrap,
+            str(os.getpid()),
+            helper,
+            *helper_arguments,
+        ]
+    else:
+        command = [sys.executable, "-c", helper, *helper_arguments]
+    first = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    second = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    first_output = first.communicate(timeout=10)
+    second_output = second.communicate(timeout=10)
+
+    assert sorted((first.returncode, second.returncode)) == [0, 1]
+    active_marker = root / f".agomtradepro-build-active-{tag}"
+    assert active_marker.read_text(encoding="ascii").strip() == str(os.getpid())
+    loser_stderr = first_output[1] + second_output[1]
+    if os.name == "nt":
+        # Windows msvcrt uses a non-blocking one-byte lock here, so the
+        # concurrent loser can fail at the lock boundary before it observes
+        # the marker. Both paths fail closed and leave the winning marker.
+        assert (
+            loser_stderr.count("REHEARSAL_BUILD_TAG_ALREADY_ACTIVE")
+            + loser_stderr.count("REHEARSAL_BUILD_MARKER_LOCK_FAILED")
+            == 1
+        )
+    else:
+        assert loser_stderr.count("REHEARSAL_BUILD_TAG_ALREADY_ACTIVE") == 1
+
+    wrong_owner_release = _run_remote_build_marker_helper(
+        root, operation="release", tag=tag, pid=os.getpid() + 1
+    )
+    assert wrong_owner_release.returncode == 0, wrong_owner_release.stderr
+    assert active_marker.exists()
+
+    owner_release = _run_remote_build_marker_helper(
+        root, operation="release", tag=tag, pid=os.getpid()
+    )
+    assert owner_release.returncode == 0, owner_release.stderr
+    assert not active_marker.exists()
+    assert first_output[0] or first_output[1] or second_output[0] or second_output[1]
+
+
+def test_remote_build_marker_recovers_stale_pid_and_rejects_symlinks(
+    tmp_path: Path,
+) -> None:
+    """Dead markers can be reclaimed while marker and artifact symlinks stay protected."""
+    root = tmp_path / "source-upload"
+    root.mkdir()
+    stale_tag = "20260106000001"
+    stale_marker = root / f".agomtradepro-build-active-{stale_tag}"
+    stale_pid = 987_654_321
+    stale_marker.write_text(f"{stale_pid}\n", encoding="ascii")
+
+    reclaimed = _run_remote_build_marker_helper(
+        root,
+        operation="claim",
+        tag=stale_tag,
+        pid=os.getpid(),
+        simulate_missing_pid=stale_pid,
+    )
+    assert reclaimed.returncode == 0, reclaimed.stderr
+    assert stale_marker.read_text(encoding="ascii").strip() == str(os.getpid())
+    assert (
+        _run_remote_build_marker_helper(
+            root, operation="release", tag=stale_tag, pid=os.getpid()
+        ).returncode
+        == 0
+    )
+
+    protected_target = tmp_path / "protected.txt"
+    protected_target.write_text("outside", encoding="utf-8")
+    symlink_tag = "20260106000002"
+    active_marker = root / f".agomtradepro-build-active-{symlink_tag}"
+    symlink_artifact = root / f"agomtradepro-source-deploy-{symlink_tag}.tar.gz"
+    try:
+        active_marker.symlink_to(protected_target)
+        symlink_artifact.symlink_to(protected_target)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable in this test environment: {exc}")
+
+    claim = _run_remote_build_marker_helper(
+        root, operation="claim", tag=symlink_tag, pid=os.getpid()
+    )
+    assert claim.returncode != 0
+    prune = _run_remote_temp_pruner(root, expected_root=root, current_tag="20260926123045")
+
+    assert prune.returncode == 0, prune.stderr
+    assert active_marker.is_symlink()
+    assert symlink_artifact.is_symlink()
+    assert protected_target.read_text(encoding="utf-8") == "outside"
+
+
+def test_remote_build_marker_command_validates_release_tag_before_path_use() -> None:
+    """The generated source build claims/releases markers through the shared lock."""
+    script = remote_build_deploy_vps._build_remote_build_script()
+
+    assert "release_tag = sys.argv[2]" in script
+    assert 're.fullmatch(r"[0-9]{14}", release_tag)' in script
+    assert "fcntl.flock(lock_fd, fcntl.LOCK_EX)" in script
+    assert "trap release_active_build_marker EXIT" in script
+    assert "docker system prune" not in script
+    assert "docker volume" not in script
+    assert "/opt/agomtradepro" not in remote_build_deploy_vps._REMOTE_TEMP_ARTIFACT_PRUNER
 
 
 def test_upload_mode_passes_exact_local_source_commit_without_unknown_fallback() -> None:

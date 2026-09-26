@@ -101,6 +101,8 @@ def _run_checker(
     capsys: pytest.CaptureFixture[str],
     *,
     database_state: str = DATABASE_STATE,
+    database_migration_0086: str = "not_applied",
+    database_scope_blocks_default: str = "not_checked",
 ) -> tuple[int, str, str]:
     """Run the production checker entry point with only Docker reads mocked."""
     _install_fake_docker(monkeypatch, previous_release)
@@ -110,6 +112,10 @@ def _run_checker(
             str(previous_release),
             "--database-migration-0085",
             database_state,
+            "--database-migration-0086",
+            database_migration_0086,
+            "--database-scope-blocks-default",
+            database_scope_blocks_default,
         ]
     )
     captured = capsys.readouterr()
@@ -127,7 +133,8 @@ def test_manifest_source_env_image_and_applied_schema_pass_gate(
 
     assert return_code == 0, stderr
     assert "PREVIOUS_RELEASE_0085_COMPATIBLE" in stdout
-    assert "database_migration=applied" in stdout
+    assert "database_migration_0085=applied" in stdout
+    assert "database_migration_0086=not_applied" in stdout
 
 
 def test_non_applied_database_keeps_identity_gate_without_writer_compatibility(
@@ -153,7 +160,8 @@ def test_non_applied_database_keeps_identity_gate_without_writer_compatibility(
 
     assert return_code == 0, stderr
     assert "PREVIOUS_RELEASE_0085_COMPATIBLE" in stdout
-    assert "database_migration=not_applied" in stdout
+    assert "database_migration_0085=not_applied" in stdout
+    assert "database_migration_0086=not_applied" in stdout
 
 
 def test_non_applied_database_still_checks_previous_image_identity(
@@ -170,6 +178,10 @@ def test_non_applied_database_still_checks_previous_image_identity(
             str(previous_release),
             "--database-migration-0085",
             "not_applied",
+            "--database-migration-0086",
+            "not_applied",
+            "--database-scope-blocks-default",
+            "not_checked",
         ]
     )
     captured = capsys.readouterr()
@@ -237,7 +249,9 @@ def test_actual_docker_id_oci_revision_and_checked_source_are_bound(
         image_source_digest=image_source_digest,
     )
 
-    result = CHECKER.verify_previous_release(previous_release, DATABASE_STATE)
+    result = CHECKER.verify_previous_release(
+        previous_release, DATABASE_STATE, "not_applied", "not_checked"
+    )
 
     assert any(expected_error in error for error in result)
 
@@ -245,9 +259,96 @@ def test_actual_docker_id_oci_revision_and_checked_source_are_bound(
 def test_missing_database_migration_state_fails_closed(tmp_path: Path) -> None:
     previous_release = _make_previous_release(tmp_path)
 
-    result = CHECKER.verify_previous_release(previous_release, "unknown")
+    result = CHECKER.verify_previous_release(
+        previous_release, "unknown", "not_applied", "not_checked"
+    )
 
     assert "database data_center.0085 migration state is unknown" in result
+
+
+def test_unknown_0086_migration_state_fails_closed(tmp_path: Path) -> None:
+    previous_release = _make_previous_release(tmp_path)
+
+    result = CHECKER.verify_previous_release(previous_release, "applied", "unknown", "not_checked")
+
+    assert "database data_center.0086 migration state is unknown" in result
+
+
+def test_applied_0086_requires_a_non_null_empty_array_database_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    previous_release = _make_previous_release(tmp_path)
+
+    return_code, _stdout, stderr = _run_checker(
+        previous_release,
+        monkeypatch,
+        capsys,
+        database_migration_0086="applied",
+        database_scope_blocks_default="incompatible",
+    )
+
+    assert return_code == 42
+    assert "database CanonicalPublicationModel.scope_blocks" in stderr
+    assert "JSON [] default" in stderr
+
+
+def test_applied_0086_passes_when_database_default_is_verified(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    previous_release = _make_previous_release(tmp_path)
+
+    return_code, stdout, stderr = _run_checker(
+        previous_release,
+        monkeypatch,
+        capsys,
+        database_migration_0086="applied",
+        database_scope_blocks_default="empty_array",
+    )
+
+    assert return_code == 0, stderr
+    assert "database_migration_0086=applied" in stdout
+    assert "scope_blocks_default=empty_array" in stdout
+
+
+def test_0086_applied_without_0085_fails_closed(tmp_path: Path) -> None:
+    previous_release = _make_previous_release(tmp_path)
+
+    result = CHECKER.verify_previous_release(
+        previous_release, "not_applied", "applied", "empty_array"
+    )
+
+    assert "database data_center.0086 is applied while data_center.0085 is not" in result
+
+
+def test_candidate_0086_migration_must_keep_database_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    previous_release = _make_previous_release(tmp_path)
+    candidate_root = tmp_path / "candidate"
+    migration_path = candidate_root / CHECKER.SCOPE_BLOCKS_MIGRATION_PATH
+    model_path = candidate_root / CHECKER.SCOPE_BLOCKS_MODEL_PATH
+    migration_path.parent.mkdir(parents=True)
+    model_path.parent.mkdir(parents=True)
+    migration_source = (REPOSITORY_ROOT / CHECKER.SCOPE_BLOCKS_MIGRATION_PATH).read_text(
+        encoding="utf-8"
+    )
+    model_source = (REPOSITORY_ROOT / CHECKER.SCOPE_BLOCKS_MODEL_PATH).read_text(encoding="utf-8")
+    migration_path.write_text(
+        migration_source.replace("db_default=[]", "db_default=None"), encoding="utf-8"
+    )
+    model_path.write_text(model_source, encoding="utf-8")
+    monkeypatch.setattr(CHECKER, "CURRENT_RELEASE_ROOT", candidate_root)
+
+    return_code, _stdout, stderr = _run_checker(previous_release, monkeypatch, capsys)
+
+    assert return_code == 42
+    assert "0086 migration scope_blocks lacks its empty-array database default" in stderr
 
 
 def test_missing_previous_release_0085_migration_fails_closed(
@@ -281,7 +382,7 @@ def test_unapplied_0085_does_not_require_a_legacy_migration_file(
     )
 
     assert return_code == 0, stderr
-    assert "database_migration=not_applied" in stdout
+    assert "database_migration_0085=not_applied" in stdout
 
 
 def test_financial_writer_without_successor_revision_fails_closed(
@@ -337,6 +438,12 @@ def test_remote_deploy_reads_db_and_gates_before_all_mutations() -> None:
 
     assert migration_probe in source
     assert '--database-migration-0085 "$DATABASE_MIGRATION_0085"' in source
+    assert "0086_canonical_publication_scope_blocks" in source
+    assert "data_center.0086 migration state could not be read" in source
+    assert "column_default" in source
+    assert "is_nullable='NO'" in source
+    assert '--database-migration-0086 "$DATABASE_MIGRATION_0086"' in source
+    assert '--database-scope-blocks-default "$SCOPE_BLOCKS_DATABASE_DEFAULT"' in source
     assert "ROLLBACK_SCHEMA_INCOMPATIBLE" in source
     assert source.index(previous_release_assignment) < source.index(migration_probe)
     assert source.index(postgres_container_lookup) < source.index(migration_probe)
