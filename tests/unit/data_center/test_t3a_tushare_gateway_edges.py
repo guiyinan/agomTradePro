@@ -117,6 +117,61 @@ def test_native_quote_path_uses_full_market_session_batches(
     assert set(calls[0]) == {"trade_date"}
 
 
+def test_configured_quote_provider_never_uses_legacy_compatibility_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provider-bound quote read must preserve the configured single-URL contract."""
+
+    monkeypatch.setattr(
+        tushare_gateway,
+        "build_tushare_stock_adapter",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("configured provider must not use the legacy adapter")
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    def create_client(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return SimpleNamespace(
+            daily=lambda **_params: pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260924",
+                        "close": 12,
+                        "pre_close": 10,
+                        "vol": 100,
+                        "amount": 200,
+                    }
+                ]
+            )
+        )
+
+    monkeypatch.setattr(tushare_gateway, "create_tushare_pro_client", create_client)
+    gateway = tushare_gateway.TushareGateway(
+        token="relay-token",
+        http_url="https://relay.example.test/tushare/pro",
+        request_mode="sdk_path",
+        source_name="tushare-relay",
+        provider_id=7,
+        deployment_region="cn-east",
+        dataset_key="equity.quote.snapshot",
+    )
+
+    result = gateway.get_quote_snapshots(["000001.SZ"], target_trade_date=date(2026, 9, 24))
+
+    assert [item.stock_code for item in result] == ["000001.SZ"]
+    assert captured == {
+        "token": "relay-token",
+        "http_url": "https://relay.example.test/tushare/pro",
+        "request_mode": "sdk_path",
+        "provider_id": 7,
+        "deployment_region": "cn-east",
+        "dataset_key": "equity.quote.snapshot",
+    }
+
+
 def test_native_quote_authorization_failure_is_visible(monkeypatch: pytest.MonkeyPatch) -> None:
     class _Pro:
         def daily(self, **_kwargs: str) -> pd.DataFrame:

@@ -182,7 +182,9 @@ class TushareGateway(MarketGatewayProtocol):
     ) -> list[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
-            compatibility_adapter = build_tushare_stock_adapter()
+            compatibility_adapter = (
+                build_tushare_stock_adapter() if self._provider_id is None else None
+            )
             if compatibility_adapter is not None:
                 return self._get_quote_snapshots_from_compatibility_adapter(
                     cast(_CompatibilityAdapterProtocol, compatibility_adapter),
