@@ -11231,27 +11231,27 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 278,
+      "line": 332,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
     },
     {
-      "line": 303,
+      "line": 357,
       "path": "apps/data_center/application/tasks.py",
       "text": "raise ValueError(\"current Audit authority changed before publication\")"
     },
     {
-      "line": 683,
+      "line": 687,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 805,
+      "line": 825,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1179,
+      "line": 1199,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -11426,12 +11426,12 @@
       "text": "current = current.__cause__ or current.__context__"
     },
     {
-      "line": 21,
+      "line": 22,
       "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
       "text": "\"\"\"Provider contract for current A-share code-name rows.\"\"\""
     },
     {
-      "line": 29,
+      "line": 30,
       "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
       "text": "\"\"\"Summary of an A-share universe synchronization run.\"\"\""
     },
@@ -25888,27 +25888,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 93,
+      "line": 92,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 407,
+      "line": 436,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 930,
+      "line": 950,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 962,
+      "line": 982,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1044,
+      "line": 1064,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
