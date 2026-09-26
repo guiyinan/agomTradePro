@@ -350,7 +350,7 @@
 - 只读真实 Tencent 估值探针在目标日 2026-09-24 对上述 12 只返回 12/12，且 PE/PB/市值、`available_at`、raw hash 和来源身份完整。默认估值链因此切换到现有 AKShare 适配入口所承载的 Tencent 合同，Tushare 保留为显式诊断/回滚源；该 12/12 证据和 50 只 dry-run 仍不能单独替代全市场 S6 或生产 Publication。
 - 50 只真实 provider 小样本结果为 requested=50、returned=50、exact_target_date=50、evidence_complete=50，scope SHA-256 为 `7b0d9b41f61eae10d62db79a04091e002794ee57b58d0a0c37ee8bf11be66947`。它满足 S1 小样本预演输入，S4 仍须全量 5,569 容量和隔离 PostgreSQL 写路径。
 - `db5197f6f` 的 CI 已全绿，但 S6 `db5197f6f6-root-20260926d` 在 `build_only` 返回 `S6_STAGE_COMMAND_FAILED`。根据失败时 `/var/lib/docker` 仅约 9.6 GiB 可用、构建脚本 12 GiB 硬门、源码已解压但候选镜像不存在，根因为可重建的磁盘余量不足；原 stderr 未持久化，因此这是重建根因，不冒充直接日志。
-- 旧 S6 使用 `--keep-remote-temp` 遗留多组 source tar、image tar 和 build tree。已只清理 `/tmp/agomtradepro-source-upload` 下严格命名且非当前 tag 的旧预演临时物，未触碰 `/opt` release、生产镜像、容器、volume 或数据库；可用空间恢复到约 32.2 GiB。候选加入有界清理、活动 PID 保护、并发锁和稳定磁盘错误码，仍须通过测试及全新 S6。
+- 旧 S6 使用 `--keep-remote-temp` 遗留多组 source tar、image tar 和 build tree。已只清理远端临时根目录 `agomtradepro-source-upload` 下严格命名且非当前 tag 的旧预演临时物，未触碰正式 release、生产镜像、容器、volume 或数据库；可用空间恢复到约 32.2 GiB。候选加入有界清理、活动 PID 保护、并发锁和稳定磁盘错误码，仍须通过测试及全新 S6。
 - 当前集成基线 `c31639633` 只增加生产复验事实，不代表代码候选或部署授权。完成 PVAL-1 至 PVAL-5 后冻结新的唯一 SHA，依次执行格式/静态检查、增量 mypy、治理 guard、聚焦和组合测试、同 SHA CI/PostgreSQL、全新完整 S6；只有全部通过才使用该预构建镜像部署。
 - 部署后按同一 run id 联合复验正式发布、原任务重跑、decision runtime、Alpha、API/SDK/MCP 和普通用户页面。财报 owner contract、普通用户真实身份和自然调度回执仍必须单列，不能由估值 partial 成功代替。
 
