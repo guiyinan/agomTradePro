@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前集成基线：`dev/next-development@9c77c51182c49613699fe916a4ad0d82c7a6cd2d`；该精确 SHA 已部署生产，当前工作树中的后续修复尚未提交或部署，不能把本地改动当作生产版本。
+当前生产基线：`9c77c51182c49613699fe916a4ad0d82c7a6cd2d`。当前工作树中的三项 P1 修复尚未提交或部署；提交后以新的唯一候选 SHA 重新绑定 CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动或历史 S6 当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -37,7 +37,7 @@
 
 所有代理使用同一长期分支，不创建分支、不 reset、不覆盖其他工作、不自行提交/部署；主代理整合独立 commit。各测试使用独立 basetemp；共享 SQLite 建库和大回归串行协调。共享治理清单及本计划由主代理统一编辑。独立代码审查使用另一位 Luna，不允许仅自评完成。
 
-执行协调更新：任务 `01a0b754-cfdb-7a11-8416-3d72c88dee45` 正在处理审计身份恢复、生产重跑和最终提交/合并/部署。本任务及三位子代理保留未提交补丁，完成本地审查与证据后交接，暂不执行 commit/merge/deploy；避免修改 `apps/audit/**`、部署脚本和仓库根 README。`data_center.0085` 由本任务保留用于事实修订，部署前须确认所有写入器版本一致。
+执行协调更新（2026-09-26）：本任务是唯一集成与部署负责人；重复生产任务已停止。主代理在同一长期分支整合补丁，只有冻结新 SHA、同 SHA CI/PostgreSQL/S6 全部通过后才部署。`data_center.0085` 部署前必须验证当前 schema 与回滚目标 writer 兼容，健康检查不能代替写入兼容证明。
 
 ## 4. 十项整改工作包
 
@@ -263,14 +263,15 @@
 - 本次全市场任务 `e9941169-d5c8-4f04-901f-a9579d9c7939` 于 2026-09-25 19:28:46–20:27:06 UTC 运行，在 55 个 100 只批次及末批 57 只的报价/估值写入完成后，进入估值 current publication 候选查询；该 PostgreSQL 查询约 8 分钟后触发任务固定的 3,500 秒软时限。Celery 最终只留下 `SoftTimeLimitExceeded()` 和 FAILURE，没有业务 outcome、阶段或写入统计。这同时复现用户第 1、9 项。
 - 当前实现用相关子查询在完整历史事实表上逐资产寻找最新自然键修订；5,557 只证券的 SQLite SQL 数量测试没有暴露 PostgreSQL 查询计划退化。修复候选改为 PostgreSQL CTE：先按资产求最大观测日，再在该有界横截面选最新修订，最后每资产排序取一条；SQLite 保留便携 ORM 路径。
 - 任务捕获 `SoftTimeLimitExceeded`，返回 `outcome=failed`、实际 `requested/succeeded/failed/stored`、`phase`、稳定码 `MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED`、`publication_updated=false`、`must_not_use_for_decision=true` 和本次 `publication_run_id`。成功路径把正式 Publication 的 id/hash/run_id 合并进同一任务结果，支持结果与发布内容对账。
-- 本次实际交易范围为 5,557，只排除 12 只 provider 明确返回当日成交量为 0 的停牌证券：`000016.SZ, 002731.SZ, 002860.SZ, 300082.SZ, 300096.SZ, 301139.SZ, 601059.SH, 601198.SH, 601238.SH, 603400.SH, 605303.SH, 688496.SH`。不能为凑 5,569 人工制造 09-24 日线/估值；正式结果必须把排除代码、原因、目标日和 per-security 阻断与 run_id 一并保留。
+- 后续反例推翻了“估值 provider 未返回即可视为非交易”的假设：活动 universe 为 3 只、seed 只返回 1 只的隔离复现仍被旧任务报为 success，并把另外 2 只写入 `excluded_non_trading_codes`。此前 12 只代码仅能证明目标日估值缺行，不能证明停牌、未上市或退市。修复后 `active_count` 与冻结代码集合必须精确相等，valuation seed 未覆盖完整分母即以 `CURRENT_VALUATION_SCOPE_INCOMPLETE` 阻断并保留缺失代码；在取得可验证交易状态/上市状态证据前，排除集合必须为空，不能为通过验收造事实或放宽策略。
+- 2026-09-26 对这 12 只代码执行生产只读证据探针：Tushare `suspend_d` 的无类型查询和 `suspend_type=S` 查询均返回空，AssetMaster 的 `list_date/delist_date` 也为空。同日 retained `daily` 原始行虽然全部表现为 `open/high/low=0`、`vol/amount=0`、`close=pre_close>0`，但启用的 provider 契约没有把该数值形状定义为停牌或无交易状态，因此不得据此建立排除。缺口只能由版本化的 source-native 交易状态或上市状态合同补齐；在此之前生产任务和 S6 都必须保留完整分母并稳定阻断。
 
 #### 十项状态、下一退出条件和剩余风险
 
 | 用户项 | 当前根因 / 改动证据 | 下一退出条件 | 剩余风险 |
 | --- | --- | --- | --- |
 | 1 全市场刷新 | 原任务发布阶段失败；本次重跑定位到估值候选 SQL 触发软时限。已优化查询并规范超时业务结果 | 最终 SHA 部署后重跑，Task Monitor 与数据库逐项对账四计数、阶段、发布状态和 run_id | 新 SQL 尚未在生产 PostgreSQL 实测执行计划与 wall-clock |
-| 2 正式发布 | 旧 quote/price/valuation publication 均为 5,557 成员；财报仍为历史部分发布。财报批任务 50/50 失败的首因是 provider 配置使用裸 HTTP；改走现有 HTTPS gateway 后真实 probe 得到 26 条事实，但 `available_at/announced_at` 仍缺失，`financial_source_time_match_contracts` 仍待 owner approval。成功结果此前未带发布 id/hash | 用同一 run_id 重建三类合格发布并核对策略版本、来源时间、成员 hash；财报必须取得 provider-native exact source-time 并由获批 match contract 验证 | 12 只停牌例外需保持可审计；严禁用 fetched_at 推断公告时间或把待审批合同自动激活 |
+| 2 正式发布 | 旧 quote/price/valuation publication 均为 5,557 成员；财报仍为历史部分发布。财报批任务 50/50 失败的首因是 provider 配置使用裸 HTTP；改走现有 HTTPS gateway 后真实 probe 得到 26 条事实，但 `available_at/announced_at` 仍缺失，`financial_source_time_match_contracts` 仍待 owner approval。成功结果此前未带发布 id/hash | 用同一 run_id 重建三类合格发布并核对策略版本、来源时间、成员 hash；任何范围排除须有交易/上市状态证据；财报必须取得 provider-native exact source-time 并由获批 match contract 验证 | 目标日缺估值的 12 只证券当前只能形成明确阻断；`suspend_d` 与上市/退市字段未提供排除证据，`daily` 零值形状也无获批语义合同。严禁把 provider 缺行当停牌证据、用 fetched_at 推断公告时间或把待审批合同自动激活 |
 | 3 决策总阻断 | 历史 MCP 审计失败门与行情 freshness 是两条链；authority 已正常恢复，readiness 曾错误显示 ok | 四类正常 activation preflight 全通过后才 CAS 激活；Regime/估值接口再验业务结果 | Regime 另有 PMI/CPI 数据不足；不能误归因行情或总闸 |
 | 4 Alpha | 生产评分日已到 2026-09-24，workspace default 有 1,831 候选；自然调度此前缺失，现补工作日 17:30 显式推理 | 部署后核对日线准备、调度回执、账户 scope、缓存日期/hash 和候选更新；真实自然周期留证 | 页面仍可能受 quote/financial/valuation 阻断；手动成功不替代自然周期 |
 | 5 信号契约 | API/SDK/MCP 的 offset、过滤和空集契约已形成候选回归 | 部署重启新 MCP 会话，验证默认、offset=0、非零分页、状态、证券和空集 | 旧长连接进程可能缓存旧 schema/SDK |
@@ -289,7 +290,7 @@
 | S3 时间维度 | provider-backed 交易日历、来源观测/可用/获取时间分离 | 休市、停牌、自然调度和真实周期回执 |
 | S4 规模测算 | 5,557 命令组件限制为 8 条读取 SQL、零写入；查询算法消除逐历史相关扫描 | PostgreSQL `EXPLAIN`、实际 wall-clock、锁/内存和 3,500 秒余量 |
 | S5 component PR CI | 当前数据、Celery、SDK/MCP、PostgreSQL publication 选择器已纳管 | 最终提交同 SHA 的远端 CI 全绿且零 skipped |
-| S6 生产预演 | 旧候选曾完整通过 50 只真实 provider、5,569 容量、隔离 PG 写入回滚和不可变 bundle | 查询/部署脚本变更后必须生成全新候选并完整重跑，不复用旧放行 |
+| S6 生产预演 | `634474a62d` 已以唯一运行 `634474a62d-root-20260926c` 完整通过九阶段，绑定主分支 PostgreSQL run `36214635059`、目标日 2026-09-24、镜像 `sha256:522082…c8c`；该证据早于本轮分母/锁/回滚保护修复，只能作为历史诊断 | 三项 P1 修复形成新 SHA 后必须重新执行同 SHA CI、PostgreSQL 和全新完整 S6；不得用 `634474a62d` bundle 授权部署 |
 
 #### 本轮本地验证与部署前停止线
 
@@ -298,3 +299,21 @@
 - current-data guard：**70 surfaces**；Celery guard：**94 tasks / 21 exemptions / 24 files**。
 - 候选尚未提交、未跑最终增量 mypy/债务门禁、未绑定远端 CI/S6、未部署，因此以上均不得写成生产恢复。部署前还必须验证自动回滚确实恢复旧服务和内部 `/api/health/`；首次新部署曾出现 transient `check --deploy` 失败后自动回滚未完整拉起服务，候选已加入重试和回滚健康核验。
 - 生产 `/api/tui/operator/governance-queue/` 另复现交易日历未来 coverage 缺失导致 500；候选把它转换为 `readiness_calendar_coverage_unavailable` 的结构化 blocked 结果，保留中文原因和 `must_not_use_for_decision=true`，部署后需复验不再 500。
+
+### 2026-09-26 部署前追加审查门禁
+
+`634474a62d` 完整 S6 成功后、生产切换前的独立审查确认三项 P1。部署暂停，生产继续运行原版本；以下三项修复进入同一最终候选，但按独立测试和提交边界保留证据。
+
+1. **全市场 Publication 分母不变量**：`41fd15e11` 起任务把 valuation seed 成功集合直接当可交易集合，provider 缺行被错误归类为非交易。退出条件：universe report 与冻结代码精确对账；seed 任一身份缺失均阻断且不调用报价/preview/publish；结果携带完整资产计数、缺失代码、实际 seed 写入数和稳定码；无交易状态证据时排除列表为空。真实停牌/上市状态排除须另建显式证据合同，不能复用 provider 缺行。
+2. **财报刷新短租约与续批恢复**：`12c65a919` 起七天 lock TTL 与 checkpoint TTL 混用，provider 软超时和 broker 投递异常会遗留锁。退出条件：锁使用带 owner 的短租约并可续租；checkpoint 独立保留七天；软超时返回规范业务失败并释放当前 owner；续批 enqueue 失败保留 checkpoint、释放锁并返回稳定码；worker 丢失后租约到期可由新 workflow 恢复。单元测试只使用隔离 cache/替身，不连接生产 Redis/DB。
+3. **跨 `data_center.0085` 回滚兼容**：新 schema 的自然键含 `revision_number`，旧 writer 的旧冲突键不能写入。退出条件：部署入口在生产 mutation 前读取数据库 migration 状态和 previous image revision/兼容声明，拒绝把不支持 0085 的 previous release 登记为可自动回滚目标；失败信息给出保留数据的 forward recovery 路径。PostgreSQL 组件测试验证真实新 schema/旧 writer 不兼容及门禁，SQLite 只作快速复现，不冒充 PostgreSQL 演练；禁止删除修订数据或整库覆盖。
+
+当前回滚目标已只读核实：VPS `current` 指向 `source-20260925201025`，release manifest、运行镜像 OCI revision 和本地源码均绑定 `9c77c51182c49613699fe916a4ad0d82c7a6cd2d`，运行镜像 digest 为 `sha256:bed0fa3badbc3e3c38bda192cb662ef84e24b28b8e072405f9d0541e4d55a743`。运行容器 `showmigrations data_center` 显示 0084/0085 均已应用，四类事实 ORM 均有 `revision_number` 和 revision-aware 唯一键；从该精确提交提取五个兼容源文件运行 verifier 返回 `PREVIOUS_RELEASE_0085_COMPATIBLE`。该结论只证明本次 current 回滚目标安全；长期保护由部署前自动门禁执行，不能用手工核实替代后续候选的门禁。
+
+三项通过聚焦回归、增量 mypy、Celery/current-data/部署治理后冻结新 SHA。随后只允许一次全新 S6，bundle/receipt/镜像/CI run 全部绑定该 SHA；成功后使用预构建镜像部署，并继续原十项正式发布、API/SDK/MCP 和普通用户页面联合复验。
+
+本轮集成结果：全市场分母、财报租约和 0085 部署门禁联合回归 **113 passed**；A 股 universe provider 代码集合摘要组件测试 **1 passed**。Ruff、Black、isort、增量 mypy 5 文件 0 regression、全量 mypy debt ceiling 0 errors、governance consistency 0 violations、current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、module map 44 modules / 210 edges 全部通过。财报锁 key 从 v1 升为 v2 用于摆脱旧七天残锁；部署切换必须停止旧 worker 并确认旧 workflow 不再运行，避免切换瞬间 v1/v2 两套 worker 并行。
+
+追加独立 Luna max 复核把同一分母不变量贯穿 S6 四层：真实 provider probe、retained response replay、全量容量 runner 和最终 validator 都要求 valuation/quote 覆盖完整 active universe；估值任一缺行返回 `REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE`，保留完整代码集合及 SHA、缺失代码和 requested/succeeded/failed/stored，且不再调用 quote 或生成成功 artifact。四组定向回归 **137 passed**，Black/isort/Ruff、增量 mypy 和全量 debt ceiling 均通过。由于当前 12 只缺行没有获批的 source-native 状态证据合同，最终 SHA 的真实 S6 预期在该阶段诚实阻断；该阻断不能改写为成功，也不能以旧 S6 授权部署。
+
+0085 回滚门禁也完成身份闭环：previous release 存在时，在备份、symlink、服务启停和 migrate 前只读核对 0444 manifest、唯一 `WEB_IMAGE`、实际 Docker image ID、OCI revision、镜像内兼容源码摘要、Git HEAD（适用时）及 PostgreSQL migration 状态；0085 已应用才强制 revision-aware writer，未应用仍完成身份绑定，状态未知则 fail closed。无 previous release 的首次部署不受此门阻断。部署与 verifier 定向回归 **67 passed**，格式、Ruff、增量 mypy 和全量 debt ceiling 均通过；Docker 行为由 mock 覆盖，生产只读核查仍以本节前述 current release 证据为准。
