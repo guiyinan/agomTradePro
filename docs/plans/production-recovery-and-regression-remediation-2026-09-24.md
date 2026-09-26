@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`9c77c51182c49613699fe916a4ad0d82c7a6cd2d`。当前工作树中的三项 P1 修复尚未提交或部署；提交后以新的唯一候选 SHA 重新绑定 CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动或历史 S6 当作生产版本。
+当前生产基线：`9c77c51182c49613699fe916a4ad0d82c7a6cd2d`。仓库当前集成基线为 `c31639633`；其父候选 `db5197f6f` 的同 SHA CI 已通过，但 S6 在 `build_only` 阶段失败，且尚未部署。下一候选必须重新绑定 CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -130,7 +130,7 @@
 3. 默认不修改生产事实、current publication、推荐或任务；写路径演练在隔离 staging/临时数据库中走真实装配并验证回滚/零残留。provider 读取本身消耗配额，必须记录预算。
 4. 重放有效/缺失/截断/陈旧/重复/单位错误/后续事实更新等契约；财报 source-time 无证据必须明确 blocked。
 5. 按真实规模测算全量预算，记录审计有效窗口、软硬时限和安全余量；不接受线性外推掩盖有状态锁/配额上限。
-6. 发布门检查报告的候选、测试哈希、provider/范围/目标日、实际调用证据与时效；缺报告、mock-only、failed/partial/blocked 均不得宣称门禁通过。
+6. 发布门检查报告的候选、测试哈希、provider/范围/目标日、实际调用证据与时效。缺报告、mock-only、failed 或 blocked 不得宣称门禁通过；`partial` 只有在运行时发布策略明确允许、覆盖率达到策略门槛、完整 requested 分母和逐证券缺失原因均可核验时，才是估值数据集的合格业务结果，不能扩展到报价或用来掩盖范围缺失。
 7. 保留生产部署后自然周期联合复验；预演成功不替代全量正式发布和普通用户验收。
 
 ## 7. 阶段与停止线
@@ -317,3 +317,50 @@
 追加独立 Luna max 复核把同一分母不变量贯穿 S6 四层：真实 provider probe、retained response replay、全量容量 runner 和最终 validator 都要求 valuation/quote 覆盖完整 active universe；估值任一缺行返回 `REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE`，保留完整代码集合及 SHA、缺失代码和 requested/succeeded/failed/stored，且不再调用 quote 或生成成功 artifact。四组定向回归 **137 passed**，Black/isort/Ruff、增量 mypy 和全量 debt ceiling 均通过。由于当前 12 只缺行没有获批的 source-native 状态证据合同，最终 SHA 的真实 S6 预期在该阶段诚实阻断；该阻断不能改写为成功，也不能以旧 S6 授权部署。
 
 0085 回滚门禁也完成身份闭环：previous release 存在时，在备份、symlink、服务启停和 migrate 前只读核对 0444 manifest、唯一 `WEB_IMAGE`、实际 Docker image ID、OCI revision、镜像内兼容源码摘要、Git HEAD（适用时）及 PostgreSQL migration 状态；0085 已应用才强制 revision-aware writer，未应用仍完成身份绑定，状态未知则 fail closed。无 previous release 的首次部署不受此门阻断。部署与 verifier 定向回归 **67 passed**，格式、Ruff、增量 mypy 和全量 debt ceiling 均通过；Docker 行为由 mock 覆盖，生产只读核查仍以本节前述 current release 证据为准。
+
+### 2026-09-26 用户决策：估值局部缺失不得阻断整个系统
+
+本节取代上文“估值必须覆盖完整 active universe，否则任务和 S6 全局阻断”的临时收紧结论。完整 active universe 仍是 requested 分母，12 只证券仍是缺失事实；变化只在于满足已激活的估值发布策略时允许发布合格成员，并把缺失证券作为局部阻断公开呈现。该决策不修改报价规则、不降低 freshness、不关闭审计保护，也不改变 `SIGNAL_WEAK=0.6000`。
+
+#### 规则与不变量
+
+1. `equity.valuation.fact` 使用当前已激活的运行时政策；只有 `allow_partial=true` 且 `succeeded/requested >= minimum_coverage_ratio` 时允许部分发布。本轮政策基线为 `minimum_coverage_ratio=0.99`，不得在代码中硬编码或为通过验收临时降低。
+2. requested 始终等于冻结的完整 active universe；succeeded 是具备合格估值事实并进入 Publication 的证券数；failed 是缺失或不合格证券数；stored 是本轮实际新写入事实数。四项必须标明统计单位并与数据库对账。
+3. 缺失证券不进入 Publication member，不生成默认估值，不标记为停牌、退市或 excluded。每只证券记录稳定原因 `valuation_source_data_unavailable`，并绑定目标交易日、来源、run id、policy version 和 publication id。
+4. Publication 内容身份必须包含完整 requested scope、实际成员、局部阻断集合和政策身份；成员或阻断集合变化时不得复用旧 publication id/hash。
+5. 估值部分发布的业务 outcome 为 `partial`。任务、Task Monitor、API、SDK、MCP 和用户页面均保留该 outcome，不得压成 Celery `SUCCESS`、`capability_execution_failed` 或无条件 neutral。
+6. 报价继续遵守其严格策略。估值覆盖低于门槛、政策不允许 partial、缺少政策证据、范围无法冻结、发布内容不一致或审计失败时，仍全局 blocked，禁止发布半成品。
+7. 管理员看到代码清单、来源响应身份、重试入口和诊断 trace；普通用户看到安全摘要、受影响证券、数据日期、可继续使用的功能和“等待管理员刷新/数据源恢复”的动作。局部估值阻断不能使无关证券的研究、行情浏览和合格决策数据不可用。
+
+#### 实现工作包
+
+| 工作包 | 改动范围 | 验收证据 |
+| --- | --- | --- |
+| PVAL-1 发布核心 | `CurrentPublicationRebuildUseCase`、发布政策校验、不可变 publication/member/scope-block 仓储 | allow_partial 正向、阈值以下反向、allow_partial=false 反向；requested/eligible/selected/missing 与实际行一致；事务失败零残留 |
+| PVAL-2 任务与统计 | 全市场刷新任务、Task Monitor DTO、Celery 契约 | 5,569 requested / 5,557 succeeded / 12 failed 的受控反例返回 `partial`；发布 id/hash/run id 可对账；报价失败仍 blocked |
+| PVAL-3 查询与用户解释 | current publication 查询、估值 API/SDK/MCP、用户及运维投影 | 合格证券可读取；12 只返回 `valuation_source_data_unavailable`、目标日和决策可用性；用户摘要不泄漏内部异常 |
+| PVAL-4 S6 预演 | provider probe、retained replay、全量容量、isolated PostgreSQL、bundle/validator | 完整分母、策略版本、覆盖率、12 只清单及 reason 贯穿所有报告；quote 必须完整；缺证据或内容漂移 fail closed |
+| PVAL-5 CI 防回归 | current-data/Celery 治理、component 与 PostgreSQL workflow | 默认全量、政策 partial、阈值边界、空集、来源陈旧、发布身份篡改、读取零写入均进入 PR 选择器 |
+
+#### 当前证据与部署停止线
+
+- 生产复验仍运行 `9c77c51182`：active universe 为 5,569，quote/price/valuation 正式 Publication 各 5,557，decision-ready 仍为 503，worker/beat 状态不可用；这些是未恢复证据，不是部分发布验收通过。
+- 12 只代码为 `000016.SZ`、`002731.SZ`、`002860.SZ`、`300082.SZ`、`300096.SZ`、`301139.SZ`、`601059.SH`、`601198.SH`、`601238.SH`、`603400.SH`、`605303.SH`、`688496.SH`。Tushare 未给出估值；`suspend_d` 和资产上市/退市字段也没有提供可用的排除证据。
+- 上述代码只用于记录本次故障证据，禁止进入生产分支、排除表或白名单。运行时必须按当次完整请求范围与 provider 实际成功集合动态计算缺口，数量和证券集合变化时沿用同一政策、原因码与审计契约。
+- 只读真实 Tencent 估值探针在目标日 2026-09-24 对上述 12 只返回 12/12，且 PE/PB/市值、`available_at`、raw hash 和来源身份完整。默认估值链因此切换到现有 AKShare 适配入口所承载的 Tencent 合同，Tushare 保留为显式诊断/回滚源；该 12/12 证据和 50 只 dry-run 仍不能单独替代全市场 S6 或生产 Publication。
+- 50 只真实 provider 小样本结果为 requested=50、returned=50、exact_target_date=50、evidence_complete=50，scope SHA-256 为 `7b0d9b41f61eae10d62db79a04091e002794ee57b58d0a0c37ee8bf11be66947`。它满足 S1 小样本预演输入，S4 仍须全量 5,569 容量和隔离 PostgreSQL 写路径。
+- `db5197f6f` 的 CI 已全绿，但 S6 `db5197f6f6-root-20260926d` 在 `build_only` 返回 `S6_STAGE_COMMAND_FAILED`。根据失败时 `/var/lib/docker` 仅约 9.6 GiB 可用、构建脚本 12 GiB 硬门、源码已解压但候选镜像不存在，根因为可重建的磁盘余量不足；原 stderr 未持久化，因此这是重建根因，不冒充直接日志。
+- 旧 S6 使用 `--keep-remote-temp` 遗留多组 source tar、image tar 和 build tree。已只清理 `/tmp/agomtradepro-source-upload` 下严格命名且非当前 tag 的旧预演临时物，未触碰 `/opt` release、生产镜像、容器、volume 或数据库；可用空间恢复到约 32.2 GiB。候选加入有界清理、活动 PID 保护、并发锁和稳定磁盘错误码，仍须通过测试及全新 S6。
+- 当前集成基线 `c31639633` 只增加生产复验事实，不代表代码候选或部署授权。完成 PVAL-1 至 PVAL-5 后冻结新的唯一 SHA，依次执行格式/静态检查、增量 mypy、治理 guard、聚焦和组合测试、同 SHA CI/PostgreSQL、全新完整 S6；只有全部通过才使用该预构建镜像部署。
+- 部署后按同一 run id 联合复验正式发布、原任务重跑、decision runtime、Alpha、API/SDK/MCP 和普通用户页面。财报 owner contract、普通用户真实身份和自然调度回执仍必须单列，不能由估值 partial 成功代替。
+
+### 2026-09-27 动态容错候选的提交前复核
+
+- 实现没有把事故中的 12 只证券或数量写入生产分支、配置白名单或排除逻辑。每次运行以冻结 requested universe 与 provider 目标日实际成功集合做差；覆盖率、`allow_partial` 和政策版本均从当前激活政策读取。事故清单只保留在本计划的历史证据段。
+- `PublicationScopeBlock` 现绑定证券、稳定原因、目标交易日、来源、publication run id、政策版本及 publication id。除由内容摘要派生的 publication id 外，其余字段进入 v3 publication hash；父 Publication、持久化 JSON、幂等重放、查询 gate 和任务投影均校验同一证据。缺失证券返回局部 blocked，有成员证券继续读取；报价仍要求完整范围。
+- 单证券用户响应只返回命中证券的一条 `scope_block`，不公开完整缺口列表。完整清单保留在 Publication 和运维任务证据。API blocked 与 available 两条路径均有契约测试；SDK/MCP/UI 尚无 scope-block 专项消费者测试，继续列为同 SHA CI 与部署后联合验收风险。
+- `data_center.0086` 为非空 `scope_blocks` JSON 列保留 ORM `default=list` 和 PostgreSQL `db_default=[]`。部署回滚门禁读取 0086 状态；状态未知 fail closed，已应用时必须证明列为 non-null `jsonb` 且默认 `[]`。候选加入旧 0085 ORM 省略该列的 PostgreSQL INSERT 组件测试；本机无 PostgreSQL 服务，因此该用例按真实环境限制 skip，必须由专用 PostgreSQL workflow 补证。
+- Luna max 独立复核发现并修复 Tencent retained replay 未比较 PE/PB、时区归一、版本化 partial 政策门、单证券 query gate、旧日期 raw 行误计入目标日覆盖、0086 回滚兼容及 scope-block 追溯/投影问题。Tencent live/replay 现在逐证券比较 PE、PB、市值、日期、来源时间和 raw hash。
+- 提交前统一 Data Center/S6/回滚/API 组合为 **470 passed / 2 skipped**；两项 skip 是 Windows symlink 能力与本机未启用 PostgreSQL。API/SDK/MCP/TUI 高风险包首次失败定位到总表测试依赖未配置交易日历；注入确定性交易日历 fixture 并补齐估值单证券安全投影后，完整高风险组合重新执行为 **383 passed**。远端同 SHA CI 仍须重跑，不能把本地结果冒充远端 CI。
+- Black、isort、Ruff、`git diff --check`、增量 mypy（最终全变更 28 个生产文件，0 regression）、全量 mypy debt ceiling（0 errors）、迁移检查、current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、module map 44 modules / 210 edges 均通过。部署工具生成的 source build、git build、deploy shell 均通过 `bash -n`，prebuilt Python 验证载荷通过 `py_compile`。
+- 动态容错实现已按职责冻结为 `892c28cda`（估值 partial、Publication 证据、业务 outcome）、`d9ce1351c`（真实 provider/replay/capacity/S6 合同）和 `4971f78ae`（有界远端清理与 0086 回滚门禁）。最终候选 SHA 以本计划提交后的分支 HEAD 为准；尚未取得该 SHA 的 PostgreSQL workflow、远端 CI、全量 5,569 容量、完整 S6、镜像或生产部署回执。生产仍运行旧版本；正式发布、decision runtime、Alpha、API/SDK/MCP 和普通用户页面的联合复验状态不变。
