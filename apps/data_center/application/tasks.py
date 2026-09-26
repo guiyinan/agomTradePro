@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from apps.data_center.composition import (
     get_backfill_item_attempt_store,
+    get_publication_policy_repository,
     make_core_current_publication_rebuild_use_case,
     persist_sync_control_plane_snapshot,
     sync_active_a_share_universe,
@@ -94,7 +95,7 @@ def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
     quote_source: str = "tushare",
-    valuation_source: str = "tushare",
+    valuation_source: str = "akshare",
 ) -> dict[str, object]:
     """Refresh all active market quotes and valuations without waiting for financial filings."""
     from .dtos import SyncQuoteRequest
@@ -277,6 +278,7 @@ def refresh_full_market_publications_task(
         or len(set(succeeded_codes)) != len(succeeded_codes)
         or not set(returned_codes).issubset(requested_codes)
         or not set(succeeded_codes).issubset(requested_codes)
+        or not set(succeeded_codes).issubset(set(returned_codes))
         or valuation_seed.stored_count != len(set(succeeded_codes))
     ):
         return {
@@ -291,10 +293,22 @@ def refresh_full_market_publications_task(
     returned_code_set = set(returned_codes)
     missing_codes = sorted(requested_codes - succeeded_code_set)
     unexpected_returned_codes = sorted(returned_code_set - requested_codes)
-    if (
-        getattr(valuation_seed, "status", "success") != "success"
-        or succeeded_code_set != requested_codes
-        or returned_code_set != requested_codes
+    valuation_coverage_ratio = len(succeeded_code_set) / len(requested_codes)
+    valuation_policy = (
+        get_publication_policy_repository().get_active("equity.valuation.fact")
+        if missing_codes
+        else None
+    )
+    valuation_partial_allowed = (
+        valuation_policy is not None
+        and valuation_policy.dataset.value == "equity.valuation.fact"
+        and valuation_policy.allow_partial
+        and valuation_policy.uses_versioned_evidence
+        and valuation_coverage_ratio >= valuation_policy.minimum_coverage_ratio
+    )
+    if getattr(valuation_seed, "status", "success") not in {"success", "partial"} or (
+        (succeeded_code_set != requested_codes or returned_code_set != requested_codes)
+        and not valuation_partial_allowed
     ):
         return {
             **_full_market_input_failure("valuation_scope_incomplete"),
@@ -304,10 +318,15 @@ def refresh_full_market_publications_task(
             "blocked_reason": "current_valuation_scope_incomplete",
             "error_code": "CURRENT_VALUATION_SCOPE_INCOMPLETE",
             "errors": ["CURRENT_VALUATION_SCOPE_INCOMPLETE"],
-            "requested": 1,
-            "succeeded": 0,
-            "failed": 1,
+            "requested": len(requested_codes),
+            "succeeded": len(succeeded_code_set),
+            "failed": len(missing_codes),
             "stored": valuation_seed.stored_count,
+            "count_unit": "valuation_asset",
+            "stored_count_unit": "fact_row",
+            "operation_requested": 1,
+            "operation_succeeded": 0,
+            "operation_failed": 1,
             "publication_updated": False,
             "published_members": 0,
             "publication_run_id": publication_run_id,
@@ -321,9 +340,14 @@ def refresh_full_market_publications_task(
             "excluded_non_trading_count": 0,
             "excluded_non_trading_codes": [],
             "valuation_seed_stored": valuation_seed.stored_count,
+            "valuation_coverage_ratio": valuation_coverage_ratio,
+            "valuation_policy_identity": (
+                valuation_policy.identity if valuation_policy is not None else None
+            ),
         }
     tradable_codes = sorted(requested_codes)
     excluded_non_trading_codes: list[str] = []
+    stored_row_count = valuation_seed.stored_count
 
     def sync_quote_batch(codes: list[str]) -> int:
         nonlocal completed_operation_count, current_phase, stored_row_count
@@ -341,14 +365,16 @@ def refresh_full_market_publications_task(
         return stored_count
 
     def sync_valuation_batch(codes: list[str], day: date) -> int:
-        nonlocal completed_operation_count, current_phase, stored_row_count
+        nonlocal completed_operation_count, current_phase
         current_phase = "valuation"
         if day != target_date or not set(codes).issubset(tradable_codes):
             raise ValueError("prefetched valuation scope changed before publication")
-        stored_count = len(codes)
         completed_operation_count += 1
-        stored_row_count += stored_count
-        return stored_count
+        # The valuation rows were persisted by the full-scope seed above.
+        # Returning the requested batch size tells the generic coordinator
+        # that this phase validated the frozen prefetch; actual stored rows
+        # remain the seed's durable count in the final business result.
+        return len(codes)
 
     def publish_complete_session(codes: list[str]) -> int:
         nonlocal current_phase
@@ -356,16 +382,33 @@ def refresh_full_market_publications_task(
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before publication")
         preview = publications.preview(asset_codes=codes)
-        current_snapshots = tuple(
-            dataset for dataset in preview.datasets if dataset.dataset_key != "equity.price.bar"
+        snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
+        quote_preview = snapshots.get("equity.quote.snapshot")
+        valuation_preview = snapshots.get("equity.valuation.fact")
+        valuation_preview_allowed = valuation_preview is not None and (
+            valuation_preview.ready
+            or (
+                valuation_partial_allowed
+                and set(valuation_preview.missing_asset_codes) == set(missing_codes)
+                and not valuation_preview.unexpected_asset_codes
+                and valuation_preview.covered_asset_count == len(succeeded_code_set)
+            )
         )
-        if len(current_snapshots) != 2 or any(
-            not dataset.ready
-            or dataset.oldest_observed_at is None
-            or cn_market_date_from_observation(dataset.oldest_observed_at) != target_date
-            or dataset.newest_observed_at is None
-            or cn_market_date_from_observation(dataset.newest_observed_at) != target_date
-            for dataset in current_snapshots
+        current_snapshots = tuple(
+            item for item in (quote_preview, valuation_preview) if item is not None
+        )
+        if (
+            len(current_snapshots) != 2
+            or quote_preview is None
+            or not quote_preview.ready
+            or not valuation_preview_allowed
+            or any(
+                dataset.oldest_observed_at is None
+                or cn_market_date_from_observation(dataset.oldest_observed_at) != target_date
+                or dataset.newest_observed_at is None
+                or cn_market_date_from_observation(dataset.newest_observed_at) != target_date
+                for dataset in current_snapshots
+            )
         ):
             raise ValueError("Market publication observations do not match the completed session")
         suspended = refresh_market_price_inputs(get_model_market_data_port(), codes, target_date)
@@ -419,8 +462,47 @@ def refresh_full_market_publications_task(
             "publication_updated": False,
             "published_members": 0,
         }
+    operation_result = dict(result)
+    raw_phase_results = result.get("phase_results")
+    phase_results = (
+        [dict(item) for item in raw_phase_results if isinstance(item, Mapping)]
+        if isinstance(raw_phase_results, list)
+        else []
+    )
+    for phase_result in phase_results:
+        if phase_result.get("phase") == "valuation":
+            phase_result["stored"] = valuation_seed.stored_count
+    raw_publication_datasets = publication_evidence.get("datasets")
+    valuation_publication_evidence = (
+        next(
+            (
+                item
+                for item in raw_publication_datasets
+                if isinstance(item, Mapping) and item.get("dataset_key") == "equity.valuation.fact"
+            ),
+            None,
+        )
+        if isinstance(raw_publication_datasets, list)
+        else None
+    )
+    raw_scope_blocks = (
+        valuation_publication_evidence.get("scope_blocks")
+        if isinstance(valuation_publication_evidence, Mapping)
+        else None
+    )
+    partial_scope_blocks = (
+        [dict(item) for item in raw_scope_blocks if isinstance(item, Mapping)]
+        if missing_codes and isinstance(raw_scope_blocks, list)
+        else []
+    )
+    business_outcome = (
+        TaskBusinessOutcome.PARTIAL.value
+        if missing_codes and result.get("publication_updated")
+        else str(result.get("outcome") or TaskBusinessOutcome.FAILED.value)
+    )
     return {
         **result,
+        "phase_results": phase_results,
         **price_evidence,
         **publication_evidence,
         "publication_run_id": publication_run_id,
@@ -430,6 +512,26 @@ def refresh_full_market_publications_task(
         "valuation_seed_stored": valuation_seed.stored_count,
         "excluded_non_trading_count": len(excluded_non_trading_codes),
         "excluded_non_trading_codes": excluded_non_trading_codes,
+        "outcome": business_outcome,
+        "success": business_outcome == TaskBusinessOutcome.SUCCESS.value,
+        "requested": len(requested_codes),
+        "succeeded": len(succeeded_code_set),
+        "failed": len(missing_codes),
+        "stored": stored_row_count,
+        "count_unit": "valuation_asset",
+        "stored_count_unit": "fact_row",
+        "operation_requested": operation_result.get("requested"),
+        "operation_succeeded": operation_result.get("succeeded"),
+        "operation_failed": operation_result.get("failed"),
+        "requested_asset_count": len(requested_codes),
+        "succeeded_asset_count": len(succeeded_code_set),
+        "failed_asset_count": len(missing_codes),
+        "missing_asset_codes": missing_codes,
+        "scope_blocks": partial_scope_blocks,
+        "valuation_coverage_ratio": valuation_coverage_ratio,
+        "valuation_policy_identity": (
+            valuation_policy.identity if valuation_policy is not None else None
+        ),
     }
 
 

@@ -891,7 +891,10 @@ def financials(request: Request) -> Response:
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = _public_publication_payload(publication)
+        payload["publication"] = _public_publication_payload(
+            publication,
+            include_scope_blocks=False,
+        )
     return Response(payload)
 
 
@@ -943,7 +946,10 @@ def valuations(request: Request) -> Response:
     payload = {"asset_code": asset_code, "total": len(data), "data": data}
     if publication is not None:
         payload["publication_id"] = publication["publication_id"]
-        payload["publication"] = _public_publication_payload(publication)
+        payload["publication"] = _public_publication_payload(
+            publication,
+            include_scope_blocks=False,
+        )
     return Response(payload)
 
 

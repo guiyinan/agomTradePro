@@ -9,12 +9,17 @@ from types import SimpleNamespace
 import pytest
 
 from apps.data_center.application import query_services
-from apps.data_center.application.publication_utils import member_reference, publication_hash
+from apps.data_center.application.publication_utils import (
+    current_publication_id_for_hash,
+    member_reference,
+    publication_hash,
+)
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationMember,
+    PublicationScopeBlock,
     PublicationState,
 )
 from apps.data_center.domain.entities import (
@@ -235,6 +240,148 @@ def test_asset_price_freshness_does_not_inherit_another_stocks_suspension(monkey
     assert tampered["freshness_status"] == "unverified"
 
 
+def test_partial_valuation_missing_asset_preserves_stable_scope_reason(monkeypatch) -> None:
+    """A missing valuation member reports its policy-bound per-security reason."""
+
+    now = datetime(2026, 9, 18, 8, tzinfo=UTC)
+    policy = PublicationPolicy(
+        dataset=DatasetKey("equity.valuation.fact", "1.0", "1.0"),
+        minimum_coverage_ratio=0.5,
+        allow_partial=True,
+        conflict_action="quarantine",
+        required_evidence=("source", "observed_at", "payload_hash"),
+        retention_days=3650,
+        policy_version="scope-partial-v1",
+    )
+    member = replace(
+        _member(
+            publication_id="partial-valuations",
+            dataset_key="equity.valuation.fact",
+            observed_at=now,
+        ),
+        natural_key="000001.SZ:2026-09-17:test",
+    )
+    block = PublicationScopeBlock(
+        asset_code="000002.SZ",
+        reason_code="valuation_source_data_unavailable",
+        target_trade_date=date(2026, 9, 17),
+        source="test",
+        publication_run_id="partial-run-20260918",
+        policy_version=policy.identity,
+    )
+    publication_hash_value = publication_hash(
+        (member_reference(member),),
+        policy_identity=policy.identity,
+        scope_blocks=(block,),
+    )
+    publication_id = current_publication_id_for_hash(
+        "equity.valuation.fact",
+        "current",
+        publication_hash_value,
+    )
+    member = replace(member, publication_id=publication_id)
+    block = replace(block, publication_id=publication_id)
+    publication = CanonicalPublication(
+        publication_id=publication_id,
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+        policy_version=policy.identity,
+        state=PublicationState.PUBLISHED,
+        selected_source="test",
+        publication_hash=publication_hash_value,
+        coverage=CoverageSnapshot(
+            coverage_id=publication_id,
+            publication_id=publication_id,
+            requested_count=2,
+            eligible_count=1,
+            selected_count=1,
+            missing_count=1,
+            generated_at=now,
+        ),
+        member_count=1,
+        as_of=now,
+        published_at=now,
+        scope_blocks=(block,),
+        run_id="partial-run-20260918",
+    )
+    repository = SimpleNamespace(
+        get_current=lambda *_: publication,
+        list_members=lambda _: (member,),
+        get_fact_content_hashes=lambda _: {
+            (member.fact_table, member.fact_pk): member.fact_content_hash
+        },
+        get_oldest_member_observed_at=lambda _: now,
+    )
+    monkeypatch.setattr(query_services, "get_canonical_publication_repository", lambda: repository)
+    monkeypatch.setattr(
+        query_services,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _: policy),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(
+            get_active=lambda _: SimpleNamespace(freshness_seconds=3650 * 86_400)
+        ),
+    )
+
+    gate = query_services._publication_gate(
+        "equity.valuation.fact",
+        "current",
+        now=now,
+        asset_code="000002.SZ",
+    )
+
+    assert gate is not None
+    assert gate["must_not_use_for_decision"] is True
+    assert gate["blocked_reason"] == "valuation_source_data_unavailable"
+    assert gate["publication_outcome"] == "partial"
+    assert gate["coverage_requested_count"] == 2
+    assert gate["coverage_missing_count"] == 1
+    assert gate["scope_block"] == block.to_dict()
+
+    monkeypatch.setattr(
+        query_services,
+        "query_valuation_facts",
+        lambda *_args, **_kwargs: pytest.fail("blocked asset reached fact query"),
+    )
+    result = query_services.query_published_valuation_facts("000002.SZ")
+
+    assert result["rows"] == []
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "valuation_source_data_unavailable"
+    assert result["scope_block"] == block.to_dict()
+
+    from apps.data_center.application.published_equity_context import (
+        get_published_equity_context_payloads,
+    )
+
+    monkeypatch.setattr(
+        "apps.data_center.application.published_equity_context.get_canonical_publication_repository",
+        lambda: repository,
+    )
+    queried_assets: list[str] = []
+
+    def query_selected_valuation(asset_code: str, **_kwargs: object) -> list[dict[str, object]]:
+        queried_assets.append(asset_code)
+        return []
+
+    monkeypatch.setattr(query_services, "query_valuation_facts", query_selected_valuation)
+    context = get_published_equity_context_payloads(
+        ["000001.SZ", "000002.SZ"],
+        include_price=False,
+        include_financial=False,
+        include_valuation=True,
+    )
+
+    assert queried_assets == ["000001.SZ"]
+    assert context["000002.SZ"]["valuation"]["scope_block"] == block.to_dict()
+    assert context["000002.SZ"]["valuation"]["blocked_reason"] == (
+        "valuation_source_data_unavailable"
+    )
+
+
 _RAISE_OLDEST = object()
 _DATASET_FACT_TABLES: dict[str, str] = {
     "macro.fact": "data_center_macro_fact",
@@ -323,7 +470,10 @@ def _member(
         member_id=f"member-{publication_id}-{fact_pk}",
         publication_id=publication_id,
         dataset_key=dataset_key,
-        natural_key=f"{'600000.SH' if dataset_key == 'equity.price.bar' else 'test'}:{dataset_key}:{fact_pk}",
+        natural_key=(
+            f"{'600000.SH' if dataset_key in {'equity.price.bar', 'equity.valuation.fact'} else 'test'}:"
+            f"{dataset_key}:{fact_pk}"
+        ),
         source="test",
         source_record_id=f"record-{publication_id}-{fact_pk}",
         fact_table=_DATASET_FACT_TABLES[dataset_key],

@@ -350,6 +350,14 @@ def _publication_gate(
         "as_of": publication_as_of.isoformat() if publication_as_of else None,
         "must_not_use_for_decision": publication.must_not_use_for_decision,
         "blocked_reason": publication.blocked_reason,
+        "policy_identity": publication.policy_version,
+        "policy_version": publication.policy_version,
+        "selected_source": publication.selected_source,
+        "publication_run_id": publication.run_id,
+        "coverage_requested_count": publication.coverage.requested_count,
+        "coverage_selected_count": publication.coverage.selected_count,
+        "coverage_missing_count": publication.coverage.missing_count,
+        "publication_outcome": ("partial" if publication.coverage.missing_count else "success"),
     }
     if publication.dataset_key != dataset_key or publication.publication_key != publication_key:
         gate.update(
@@ -395,11 +403,28 @@ def _publication_gate(
             if member.natural_key.split(":", 1)[0].strip().upper() == asset_code.strip().upper()
         )
         if not selected_members or any(member.observed_at is None for member in selected_members):
+            normalized_asset_code = asset_code.strip().upper()
+            scope_block = next(
+                (
+                    block
+                    for block in publication.scope_blocks
+                    if block.asset_code.strip().upper() == normalized_asset_code
+                ),
+                None,
+            )
+            scope_reason = (
+                scope_block.reason_code
+                if scope_block is not None
+                else "canonical_publication_members_missing"
+            )
             gate.update(
                 must_not_use_for_decision=True,
-                blocked_reason="canonical_publication_members_missing",
+                blocked_reason=scope_reason,
                 freshness_status="missing",
+                asset_code=normalized_asset_code,
             )
+            if scope_block is not None:
+                gate["scope_block"] = scope_block.to_dict()
             return gate
         oldest_observed_at = min(
             member.observed_at for member in selected_members if member.observed_at is not None
@@ -653,7 +678,11 @@ def query_published_valuation_facts(
 ) -> dict[str, object]:
     """Read valuation facts only after the current valuation publication gate."""
 
-    gate = _publication_gate("equity.valuation.fact", publication_key)
+    gate = _publication_gate(
+        "equity.valuation.fact",
+        publication_key,
+        asset_code=asset_code,
+    )
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
     member_pks = _publication_member_fact_pks(

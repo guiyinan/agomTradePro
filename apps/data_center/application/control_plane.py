@@ -206,6 +206,28 @@ class PublishCanonicalDatasetUseCase:
             raise ValueError("Publication coverage must reference the same publication")
         if publication.coverage.selected_count != publication.member_count:
             raise ValueError("Publication member_count must match selected coverage count")
+        if publication.scope_blocks:
+            blocked_codes = {block.asset_code.strip().upper() for block in publication.scope_blocks}
+            member_codes = {
+                member.natural_key.split(":", 1)[0].strip().upper() for member in members
+            }
+            if blocked_codes & member_codes:
+                raise ValueError("Publication scope blocks cannot also be selected members")
+        if (
+            publication.dataset_key == "equity.valuation.fact"
+            and publication.publication_key == "current"
+            and publication.coverage.missing_count > 0
+        ):
+            if (
+                publication.coverage.selected_count + publication.coverage.missing_count
+                != publication.coverage.requested_count
+            ):
+                raise ValueError("Partial valuation coverage does not match requested scope")
+            if any(
+                block.reason_code != "valuation_source_data_unavailable"
+                for block in publication.scope_blocks
+            ):
+                raise ValueError("Partial valuation uses an unsupported scope-block reason")
         if publication.as_of is None:
             raise ValueError("Published publication requires an explicit as_of boundary")
         if publication.published_at is None:
@@ -247,7 +269,11 @@ class PublishCanonicalDatasetUseCase:
                 for member in sorted(members, key=lambda item: item.natural_key)
             )
             if (
-                publication_hash(references, policy_identity=policy.identity)
+                publication_hash(
+                    references,
+                    policy_identity=policy.identity,
+                    scope_blocks=publication.scope_blocks,
+                )
                 != publication.publication_hash
             ):
                 raise ValueError("Publication member evidence hash mismatch")

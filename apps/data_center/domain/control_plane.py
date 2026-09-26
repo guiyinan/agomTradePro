@@ -504,6 +504,70 @@ class CoverageSnapshot:
 
 
 @dataclass(frozen=True)
+class PublicationScopeBlock:
+    """One requested asset intentionally absent from a partial publication."""
+
+    asset_code: str
+    reason_code: str
+    target_trade_date: date | None = None
+    source: str = ""
+    publication_run_id: str = ""
+    policy_version: str = ""
+    publication_id: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.asset_code.strip():
+            raise ValueError("PublicationScopeBlock.asset_code cannot be empty")
+        if not self.reason_code.strip():
+            raise ValueError("PublicationScopeBlock.reason_code cannot be empty")
+        if self.target_trade_date is not None and (
+            not isinstance(self.target_trade_date, date)
+            or isinstance(self.target_trade_date, datetime)
+        ):
+            raise ValueError("PublicationScopeBlock.target_trade_date must be a date")
+        for field_name in (
+            "source",
+            "publication_run_id",
+            "policy_version",
+            "publication_id",
+        ):
+            value = getattr(self, field_name)
+            if value and (not value.strip() or value != value.strip()):
+                raise ValueError(f"PublicationScopeBlock.{field_name} must be canonical")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return stable JSON evidence, retaining compatibility for legacy blocks."""
+
+        payload: dict[str, object] = {
+            "asset_code": self.asset_code.strip().upper(),
+            "reason_code": self.reason_code.strip(),
+        }
+        if any(
+            (
+                self.target_trade_date is not None,
+                self.source,
+                self.publication_run_id,
+                self.policy_version,
+                self.publication_id,
+            )
+        ):
+            payload.update(
+                {
+                    "target_trade_date": (
+                        self.target_trade_date.isoformat()
+                        if self.target_trade_date is not None
+                        else None
+                    ),
+                    "source": self.source,
+                    "publication_run_id": self.publication_run_id,
+                    "policy_version": self.policy_version,
+                    "publication_id": self.publication_id,
+                }
+            )
+        return payload
+
+
+@dataclass(frozen=True)
 class CanonicalPublication:
     """Versioned, auditable selection of canonical facts."""
 
@@ -525,6 +589,7 @@ class CanonicalPublication:
     blocked_reason: str = ""
     created_by: str = "system"
     run_id: str = ""
+    scope_blocks: tuple[PublicationScopeBlock, ...] = ()
 
     def __post_init__(self) -> None:
         for name in (
@@ -557,6 +622,27 @@ class CanonicalPublication:
                 raise ValueError("Published publication requires at least one member")
         if self.state is PublicationState.BLOCKED and not self.blocked_reason.strip():
             raise ValueError("Blocked publication requires blocked_reason")
+        block_codes = [item.asset_code.strip().upper() for item in self.scope_blocks]
+        if len(block_codes) != len(set(block_codes)):
+            raise ValueError("Publication scope blocks must use unique asset codes")
+        if self.scope_blocks and len(self.scope_blocks) != self.coverage.missing_count:
+            raise ValueError("Publication scope block count must match missing coverage")
+        for block in self.scope_blocks:
+            if block.source and block.source != self.selected_source:
+                raise ValueError("Publication scope block source does not match selected source")
+            if block.publication_run_id and block.publication_run_id != self.run_id:
+                raise ValueError("Publication scope block run id does not match publication")
+            if block.policy_version and block.policy_version != self.policy_version:
+                raise ValueError("Publication scope block policy does not match publication")
+            if block.publication_id and block.publication_id != self.publication_id:
+                raise ValueError("Publication scope block id does not match publication")
+        target_trade_dates = {
+            block.target_trade_date
+            for block in self.scope_blocks
+            if block.target_trade_date is not None
+        }
+        if len(target_trade_dates) > 1:
+            raise ValueError("Publication scope blocks must share one target trade date")
 
 
 @dataclass(frozen=True)

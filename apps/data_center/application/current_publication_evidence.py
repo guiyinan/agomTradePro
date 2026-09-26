@@ -7,7 +7,11 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Final
 
-from apps.data_center.application.publication_utils import member_reference, publication_hash
+from apps.data_center.application.publication_utils import (
+    current_publication_id_for_hash,
+    member_reference,
+    publication_hash,
+)
 from apps.data_center.domain.contracts import PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -107,10 +111,26 @@ def current_publication_evidence_blocked_reason(
         return "publication_member_evidence_missing"
     policy_identity = policy.identity if policy.uses_versioned_evidence else None
     try:
-        digest = publication_hash(references, policy_identity=policy_identity)
+        digest = publication_hash(
+            references,
+            policy_identity=policy_identity,
+            scope_blocks=publication.scope_blocks,
+        )
     except (TypeError, ValueError):
         return "publication_member_snapshot_invalid"
     if digest != publication.publication_hash:
+        return "publication_member_snapshot_invalid"
+    if (
+        publication.dataset_key == "equity.valuation.fact"
+        and publication.publication_key == "current"
+        and publication.scope_blocks
+        and publication.publication_id
+        != current_publication_id_for_hash(
+            publication.dataset_key,
+            publication.publication_key,
+            digest,
+        )
+    ):
         return "publication_member_snapshot_invalid"
     return None
 

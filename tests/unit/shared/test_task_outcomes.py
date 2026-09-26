@@ -17,6 +17,7 @@ from shared.domain.task_outcomes import (
             {"success": True, "outcome": "partial", "partial_success": True},
             TaskBusinessOutcome.PARTIAL,
         ),
+        ({"success": False, "outcome": "partial"}, TaskBusinessOutcome.PARTIAL),
         ({"success": True, "outcome": "noop"}, TaskBusinessOutcome.NOOP),
         (
             {"success": True, "stage": "gate_blocked"},

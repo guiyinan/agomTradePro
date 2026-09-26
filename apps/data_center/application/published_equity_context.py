@@ -37,11 +37,27 @@ def _dataset_payloads(
         members_by_asset.setdefault(code, []).append(member)
 
     result: dict[str, dict[str, object]] = {}
+    publication = get_canonical_publication_repository().get_current(dataset_key, publication_key)
+    scope_blocks_by_code = {
+        block.asset_code.strip().upper(): block
+        for block in (() if publication is None else publication.scope_blocks)
+    }
     for code in asset_codes:
         selected = members_by_asset.get(code, [])
         asset_gate = dict(gate)
         if not selected:
-            result[code] = blocked_publication_members_result(asset_gate)
+            scope_block = scope_blocks_by_code.get(code)
+            blocked = blocked_publication_members_result(
+                asset_gate,
+                reason=(
+                    scope_block.reason_code
+                    if scope_block is not None
+                    else "canonical_publication_members_missing"
+                ),
+            )
+            if scope_block is not None:
+                blocked["scope_block"] = scope_block.to_dict()
+            result[code] = blocked
             continue
         if is_price:
             age_limit = gate.get("max_age_seconds")

@@ -526,7 +526,9 @@ def get_current_publication(
         "policy_version": publication.policy_version,
         "state": publication.state.value,
         "selected_source": publication.selected_source,
+        "publication_run_id": publication.run_id,
         "publication_hash": publication.publication_hash,
+        "scope_blocks": [block.to_dict() for block in publication.scope_blocks],
         "coverage_ratio": publication.coverage.coverage_ratio,
         "coverage": {
             "requested_count": publication.coverage.requested_count,

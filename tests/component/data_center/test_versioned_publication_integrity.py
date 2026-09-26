@@ -17,6 +17,7 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationMember,
+    PublicationScopeBlock,
     PublicationState,
 )
 from apps.data_center.domain.entities import PriceBar
@@ -186,6 +187,159 @@ def test_p2_same_id_exact_replay_is_idempotent() -> None:
         PublicationMemberModel.objects.filter(publication_id=publication.publication_id).count()
         == 1
     )
+
+
+def test_p2_partial_scope_blocks_are_hashed_persisted_and_immutable() -> None:
+    """A policy-allowed partial snapshot binds its per-asset block evidence."""
+
+    policy, publication, member = _snapshot()
+    policy = replace(
+        policy,
+        minimum_coverage_ratio=0.5,
+        policy_version="partial-scope-v1",
+    )
+    PublicationPolicyRepository().save(policy)
+    block = PublicationScopeBlock(
+        asset_code="000002.SZ",
+        reason_code="valuation_source_data_unavailable",
+        target_trade_date=date(2026, 9, 12),
+        source="tencent",
+        publication_run_id=publication.run_id,
+        policy_version=policy.identity,
+        publication_id=publication.publication_id,
+    )
+    partial = replace(
+        publication,
+        policy_version=policy.identity,
+        publication_hash=publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity,
+            scope_blocks=(block,),
+        ),
+        coverage=replace(
+            publication.coverage,
+            requested_count=2,
+            eligible_count=1,
+            selected_count=1,
+            missing_count=1,
+        ),
+        scope_blocks=(block,),
+    )
+    repository = CanonicalPublicationRepository()
+
+    stored = repository.publish_with_members(partial, (member,))
+
+    assert stored.scope_blocks == (block,)
+    assert repository.get_by_id(partial.publication_id).scope_blocks == (block,)
+    persisted = CanonicalPublicationModel.objects.get(publication_id=partial.publication_id)
+    assert persisted.scope_blocks == [
+        {
+            "asset_code": "000002.SZ",
+            "reason_code": "valuation_source_data_unavailable",
+            "target_trade_date": "2026-09-12",
+            "source": "tencent",
+            "publication_run_id": publication.run_id,
+            "policy_version": policy.identity,
+            "publication_id": publication.publication_id,
+        }
+    ]
+    tampered_block = PublicationScopeBlock(
+        asset_code="000003.SZ",
+        reason_code="valuation_source_data_unavailable",
+    )
+    forged = replace(
+        partial,
+        publication_hash=publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity,
+            scope_blocks=(tampered_block,),
+        ),
+        scope_blocks=(tampered_block,),
+    )
+    with pytest.raises(ValueError, match="immutable"):
+        repository.publish_with_members(forged, (member,))
+
+
+def test_scope_block_evidence_is_hashed_except_derived_publication_id() -> None:
+    """Block evidence contributes to content identity without a hash/id cycle."""
+
+    policy, publication, member = _snapshot()
+    block = PublicationScopeBlock(
+        asset_code="000002.SZ",
+        reason_code="valuation_source_data_unavailable",
+        target_trade_date=date(2026, 9, 12),
+        source="tencent",
+        publication_run_id=publication.run_id,
+        policy_version=policy.identity,
+        publication_id=publication.publication_id,
+    )
+    digest = publication_hash(
+        (member_reference(member),),
+        policy_identity=policy.identity,
+        scope_blocks=(block,),
+    )
+
+    assert (
+        publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity,
+            scope_blocks=(replace(block, publication_id="derived-publication-id"),),
+        )
+        == digest
+    )
+    evidence_drifts = (
+        replace(block, target_trade_date=date(2026, 9, 11)),
+        replace(block, source="another-provider"),
+        replace(block, publication_run_id="another-run"),
+        replace(block, policy_version="another-policy"),
+    )
+    assert all(
+        publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity,
+            scope_blocks=(drift,),
+        )
+        != digest
+        for drift in evidence_drifts
+    )
+
+
+def test_scope_block_publication_id_must_match_derived_parent_identity() -> None:
+    """A block cannot claim another publication while retaining the same content hash."""
+
+    policy, publication, member = _snapshot()
+    block = PublicationScopeBlock(
+        asset_code="000002.SZ",
+        reason_code="valuation_source_data_unavailable",
+        target_trade_date=date(2026, 9, 12),
+        source="tencent",
+        publication_run_id=publication.run_id,
+        policy_version=policy.identity,
+        publication_id=publication.publication_id,
+    )
+    partial = replace(
+        publication,
+        policy_version=policy.identity,
+        publication_hash=publication_hash(
+            (member_reference(member),),
+            policy_identity=policy.identity,
+            scope_blocks=(block,),
+        ),
+        coverage=replace(
+            publication.coverage,
+            requested_count=2,
+            eligible_count=1,
+            selected_count=1,
+            missing_count=1,
+        ),
+        scope_blocks=(block,),
+    )
+
+    with pytest.raises(ValueError, match="scope block id"):
+        replace(
+            partial,
+            scope_blocks=(replace(block, publication_id="other-publication"),),
+        )
 
 
 @pytest.mark.parametrize("change", ["selected_source", "published_at", "coverage"])

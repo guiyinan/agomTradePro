@@ -444,6 +444,7 @@ class CanonicalPublicationRepository:
                 "blocked_reason": publication.blocked_reason,
                 "created_by": publication.created_by,
                 "run_id": _uuid(publication.run_id) if publication.run_id else None,
+                "scope_blocks": [block.to_dict() for block in publication.scope_blocks],
             },
         )
         coverage_id = _uuid(publication.coverage.coverage_id)
@@ -611,7 +612,11 @@ class CanonicalPublicationRepository:
             for member in sorted(members, key=lambda item: item.natural_key)
         ]
         if (
-            publication_hash(references, policy_identity=policy.identity)
+            publication_hash(
+                references,
+                policy_identity=policy.identity,
+                scope_blocks=publication.scope_blocks,
+            )
             != publication.publication_hash
         ):
             raise ValueError("Publication versioned evidence hash mismatch")
@@ -647,6 +652,7 @@ class CanonicalPublicationRepository:
             "blocked_reason": publication.blocked_reason,
             "created_by": publication.created_by,
             "run_id": _uuid(publication.run_id) if publication.run_id else None,
+            "scope_blocks": [block.to_dict() for block in publication.scope_blocks],
         }
         if any(getattr(existing, field_name) != value for field_name, value in expected.items()):
             raise ValueError("Versioned publication identity is immutable")
@@ -704,6 +710,10 @@ class CanonicalPublicationRepository:
             raise ValueError("Publication member_count must match selected coverage count")
         if len(members) != publication.member_count:
             raise ValueError("Publication member_count does not match supplied members")
+        blocked_codes = {block.asset_code.strip().upper() for block in publication.scope_blocks}
+        member_codes = {member.natural_key.split(":", 1)[0].strip().upper() for member in members}
+        if blocked_codes & member_codes:
+            raise ValueError("Publication scope blocks cannot also be selected members")
         natural_keys = [member.natural_key for member in members]
         if len(set(natural_keys)) != len(natural_keys):
             raise ValueError("Publication members must have unique natural_key values")

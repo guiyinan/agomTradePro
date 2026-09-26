@@ -10,6 +10,7 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationFactReference,
     PublicationMember,
+    PublicationScopeBlock,
     PublicationState,
 )
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
@@ -27,12 +28,22 @@ def publication_replay_matches(
     members: Sequence[PublicationMember],
     *,
     knowledge_cutoff: datetime,
+    scope_blocks: Sequence[PublicationScopeBlock] | None = None,
 ) -> bool:
     """Return exact replay only after validating policy and the complete frozen snapshot."""
 
     identity = policy.identity if policy.uses_versioned_evidence else None
-    expected = publication_hash(references, policy_identity=identity)
-    if current.policy_version != policy.identity or current.publication_hash != expected:
+    expected_scope_blocks = current.scope_blocks if scope_blocks is None else tuple(scope_blocks)
+    expected = publication_hash(
+        references,
+        policy_identity=identity,
+        scope_blocks=expected_scope_blocks,
+    )
+    if (
+        current.policy_version != policy.identity
+        or current.publication_hash != expected
+        or current.scope_blocks != expected_scope_blocks
+    ):
         return False
     if (
         current.dataset_key != policy.dataset.value
@@ -82,6 +93,13 @@ def publication_replay_matches(
     restored = [
         member_reference(member) for member in sorted(members, key=lambda item: item.natural_key)
     ]
-    if publication_hash(restored, policy_identity=identity) != expected:
+    if (
+        publication_hash(
+            restored,
+            policy_identity=identity,
+            scope_blocks=current.scope_blocks,
+        )
+        != expected
+    ):
         raise ValueError("Current publication frozen member hash mismatch")
     return True

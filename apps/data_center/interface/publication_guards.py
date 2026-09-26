@@ -69,10 +69,19 @@ def published_as_of_date(publication: dict[str, object] | None) -> date | None:
 
 def public_publication_payload(
     publication: dict[str, object],
+    *,
+    include_scope_blocks: bool = False,
 ) -> dict[str, object]:
-    """Remove interface-private publication state before serialization."""
+    """Remove interface-private publication state before user serialization.
 
-    return {key: value for key, value in publication.items() if not str(key).startswith("_")}
+    The complete blocked-asset scope is operational evidence. A single-asset
+    response may expose only its matching top-level ``scope_block``.
+    """
+
+    payload = {key: value for key, value in publication.items() if not str(key).startswith("_")}
+    if not include_scope_blocks:
+        payload.pop("scope_blocks", None)
+    return payload
 
 
 def published_bounded_end(
@@ -106,7 +115,10 @@ def published_empty_intersection_response(
             "data": [],
             "status": "blocked",
             "publication_id": publication.get("publication_id"),
-            "publication": public_publication_payload(publication),
+            "publication": public_publication_payload(
+                publication,
+                include_scope_blocks=False,
+            ),
             "must_not_use_for_decision": True,
             "blocked_reason": blocked_reason,
             "freshness_status": publication.get("freshness_status", "fresh"),
@@ -255,6 +267,58 @@ def apply_published_gate(
                     "freshness_status": "unverified",
                 }
             )
+        if dataset_key == "equity.valuation.fact" and identity_field == "asset_code":
+            normalized_identity = identity_value.strip().upper()
+            scope_blocks = publication.get("scope_blocks")
+            if isinstance(scope_blocks, list):
+                for raw_block in scope_blocks:
+                    if not isinstance(raw_block, dict):
+                        continue
+                    if (
+                        str(raw_block.get("asset_code") or "").strip().upper()
+                        != normalized_identity
+                    ):
+                        continue
+                    scope_block = dict(raw_block)
+                    evidence_matches = (
+                        scope_block.get("publication_id") == publication.get("publication_id")
+                        and scope_block.get("policy_version") == publication.get("policy_version")
+                        and scope_block.get("publication_run_id")
+                        == publication.get("publication_run_id")
+                        and scope_block.get("source") == publication.get("selected_source")
+                        and isinstance(scope_block.get("target_trade_date"), str)
+                        and bool(scope_block.get("target_trade_date"))
+                    )
+                    blocked_reason = (
+                        str(scope_block.get("reason_code") or "")
+                        if evidence_matches
+                        else "publication_scope_block_identity_mismatch"
+                    )
+                    contract_payload: dict[str, object] = {
+                        "mode": "published",
+                        "publication_key": publication_key,
+                        "must_not_use_for_decision": True,
+                        "blocked_reason": blocked_reason,
+                    }
+                    response_payload: dict[str, object] = {
+                        identity_field: identity_value,
+                        "total": 0,
+                        "data": [],
+                        "status": "blocked",
+                        "publication_id": publication.get("publication_id"),
+                        "publication": public_publication_payload(
+                            publication,
+                            include_scope_blocks=False,
+                        ),
+                        "must_not_use_for_decision": True,
+                        "blocked_reason": blocked_reason,
+                        "freshness_status": publication.get("freshness_status", "unverified"),
+                        "contract": contract_payload,
+                    }
+                    if evidence_matches:
+                        response_payload["scope_block"] = scope_block
+                        contract_payload["scope_block"] = scope_block
+                    return None, Response(response_payload, status=status.HTTP_200_OK)
         if not bool(publication.get("must_not_use_for_decision")):
             return publication, None
         blocked_reason = str(publication.get("blocked_reason") or "canonical_publication_stale")
@@ -265,7 +329,12 @@ def apply_published_gate(
                 "data": [],
                 "status": "blocked",
                 "publication_id": publication.get("publication_id"),
-                "publication": public_publication_payload(publication),
+                "publication": public_publication_payload(
+                    publication,
+                    include_scope_blocks=(
+                        dataset_key != "equity.valuation.fact" or identity_field != "asset_code"
+                    ),
+                ),
                 "must_not_use_for_decision": True,
                 "blocked_reason": blocked_reason,
                 "freshness_status": publication.get("freshness_status", "unverified"),

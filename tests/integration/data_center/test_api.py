@@ -174,6 +174,93 @@ def test_data_center_query_valuations_returns_json_contract(admin_client):
     assert payload["data"][0]["pe_ttm"] == 12.34
 
 
+@pytest.mark.django_db
+def test_published_valuation_query_returns_traceable_scope_block(
+    admin_client,
+    mocker,
+):
+    """A published read for an excluded valuation asset returns its scoped evidence."""
+
+    from apps.data_center.interface import api_views
+
+    scope_block = {
+        "asset_code": "600000.SH",
+        "reason_code": "valuation_source_data_unavailable",
+        "target_trade_date": "2026-09-18",
+        "source": "akshare",
+        "publication_run_id": "market-run-20260918",
+        "policy_version": "p2:valuation-current-v1:policy-digest",
+        "publication_id": "valuation-publication-20260918",
+    }
+    unrelated_scope_block = {**scope_block, "asset_code": "000001.SZ"}
+    mocker.patch.object(
+        api_views,
+        "get_current_publication",
+        return_value={
+            "publication_id": scope_block["publication_id"],
+            "dataset_key": "equity.valuation.fact",
+            "publication_key": "current",
+            "policy_version": scope_block["policy_version"],
+            "selected_source": scope_block["source"],
+            "publication_run_id": scope_block["publication_run_id"],
+            "scope_blocks": [scope_block, unrelated_scope_block],
+            "must_not_use_for_decision": False,
+        },
+    )
+    mocker.patch.object(
+        api_views,
+        "get_current_publication_freshness_gate",
+        return_value={
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+        },
+    )
+    mocker.patch.object(
+        api_views,
+        "make_query_valuations_use_case",
+        side_effect=AssertionError("a blocked asset must not query valuation facts"),
+    )
+
+    response = admin_client.get("/api/data-center/valuations/?asset_code=600000.SH&mode=published")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["status"] == "blocked"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["blocked_reason"] == "valuation_source_data_unavailable"
+    assert payload["scope_block"] == scope_block
+    assert payload["contract"]["scope_block"] == scope_block
+    assert "scope_blocks" not in payload["publication"]
+    assert payload["total"] == 0
+    assert payload["data"] == []
+
+    api_views.get_current_publication.return_value = {
+        "publication_id": scope_block["publication_id"],
+        "dataset_key": "equity.valuation.fact",
+        "publication_key": "current",
+        "policy_version": scope_block["policy_version"],
+        "selected_source": scope_block["source"],
+        "publication_run_id": scope_block["publication_run_id"],
+        "scope_blocks": [unrelated_scope_block],
+        "must_not_use_for_decision": False,
+    }
+    valuation_query = mocker.Mock()
+    valuation_query.execute.return_value = []
+    api_views.make_query_valuations_use_case.side_effect = None
+    api_views.make_query_valuations_use_case.return_value = valuation_query
+
+    available_response = admin_client.get(
+        "/api/data-center/valuations/?asset_code=600000.SH&mode=published"
+    )
+
+    assert available_response.status_code == 200
+    available_payload = available_response.json()
+    assert available_payload["data"] == []
+    assert "scope_block" not in available_payload
+    assert "scope_blocks" not in available_payload["publication"]
+
+
 class _StubProvider:
     def provider_name(self) -> str:
         return "stub-provider"

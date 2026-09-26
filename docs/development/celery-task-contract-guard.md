@@ -141,9 +141,13 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-20 合并前维护：Alpha 的数据阻断结果和旧源评分标记由 `task_outcome_contracts` 统一生成，任务入口及原有 outcome、计数和阻断原因保持不变。
 
-2026-09-24 Tushare 全市场估值修复：`daily_basic.total_mv/circ_mv` 的原始单位为“万元”，Provider 适配器必须在进入 Domain 前转换为存储规范“元”，并在 `extra` 保留原始单位、规范单位和 `10000` 转换倍数；迁移 `data_center.0084` 同步修复既有 Tushare 估值事实。停牌等原因造成 Provider 少返回资产时，严格身份校验仍然拒绝写入该批估值，但全市场任务必须返回结构化 `partial`、保留上一版 Publication，并把 `PROVIDER_ASSET_IDENTITY_MISMATCH` 暴露给 Task Monitor/Alpha 告警，禁止以未捕获异常结束或发布不完整范围。
+2026-09-24 Tushare 全市场估值修复：`daily_basic.total_mv/circ_mv` 的原始单位为“万元”，Provider 适配器必须在进入 Domain 前转换为存储规范“元”，并在 `extra` 保留原始单位、规范单位和 `10000` 转换倍数；迁移 `data_center.0084` 同步修复既有 Tushare 估值事实。Provider 少返回资产时，任务保持完整 active universe 为 requested 分母；只有激活政策 `allow_partial=true`、覆盖率达到 `minimum_coverage_ratio` 且逐证券缺失原因完整时，才发布合格估值成员并返回结构化 `partial`。低于门槛、缺少政策证据或报价不完整时继续 fail closed，禁止以未捕获异常结束或发布不合格范围。
 
-同日生产验收确认单一 Provider 无法同时覆盖停牌报价与估值。自然调度使用 AKShare 批量报价与估值；报价个别缺失时，适配器只在 Tencent 同批重叠价格全部处于 1% 容差后补入缺失身份，零重叠或冲突继续失败关闭。兼容参数 `source` 只用于显式单源诊断；自然调度仍写入独立的 `quote_source` / `valuation_source`，不得因某一能力缺口放宽全集校验。
+同日生产验收确认单一 Provider 无法同时覆盖停牌报价与估值，任务按 `quote_source` / `valuation_source` 分别路由。显式选择 AKShare 行情时，报价个别缺失只在 Tencent 同批重叠价格全部处于 1% 容差后补入缺失身份，零重叠或冲突继续失败关闭。兼容参数 `source` 只用于显式单源诊断；估值 partial 规则不能扩展为报价范围放宽。
+
+2026-09-26 估值日期校验：只读生产证据显示，Tushare 缺失的 12 个估值代码由 Tencent 对 2026-09-24 目标日 12/12 返回，且 PE、PB、市值、原始响应哈希和 `available_at` 齐全。AKShare 估值适配器通过 Tencent 批量响应取值，只接受 `snapshot.observed_at.date() == as_of_date`，旧日和未来快照均不进入估值事实；精确目标日事实继续保留 `actual_source`、`available_at`、`fetched_at`、`raw_payload_hash`、`raw_payload_scope` 和 `source_record_id`。全市场任务与 Beat 默认估值源改为该 Tencent 合同，报价继续默认 Tushare；显式 `valuation_source=tushare` 保留用于诊断和回滚。
+
+2026-09-26 估值局部缺失契约：全市场任务顶层 `requested/succeeded/failed` 使用估值证券口径，`stored` 使用实际事实行口径，并另保留 operation 统计；允许 partial 时每只缺失证券记录 `valuation_source_data_unavailable`，Publication 覆盖、scope block、policy identity、publication id/hash 和 run id 必须一致。兼容 `success=false` 不能把明确的 `outcome=partial` 降格为 failed；Task Monitor 以 outcome 为准。
 
 生产 200 只批次实测约 65 秒，全市场约 28 批；任务 hard/soft time limit 为 3600/3500 秒，审计授权预检至少覆盖 3900 秒。三者必须同时调整，禁止让合法全集刷新在发布前被旧 30 分钟预算终止。
 

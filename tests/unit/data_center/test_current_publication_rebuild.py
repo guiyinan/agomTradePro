@@ -13,6 +13,10 @@ from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationPreview,
     CurrentPublicationRebuildUseCase,
 )
+from apps.data_center.application.publication_utils import (
+    current_publication_id_for_hash,
+    publication_hash,
+)
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -69,6 +73,28 @@ class _PolicyRepository:
         )
 
 
+class _PartialPolicyRepository:
+    def __init__(
+        self,
+        *,
+        minimum_coverage_ratio: float = 0.99,
+        allow_partial: bool = True,
+    ) -> None:
+        self.minimum_coverage_ratio = minimum_coverage_ratio
+        self.allow_partial = allow_partial
+
+    def get_active(self, dataset_key: str) -> PublicationPolicy:
+        return PublicationPolicy(
+            dataset=DatasetKey(dataset_key, "1.0", "1.0"),
+            minimum_coverage_ratio=self.minimum_coverage_ratio,
+            allow_partial=self.allow_partial,
+            conflict_action="block",
+            required_evidence=("source", "observed_at", "payload_hash"),
+            retention_days=3650,
+            policy_version="scope-partial-v1",
+        )
+
+
 class _PublicationRepository:
     def __init__(self) -> None:
         self.current: dict[tuple[str, str], CanonicalPublication] = {}
@@ -100,14 +126,22 @@ def _reference(
     observed_at: datetime = NOW - timedelta(hours=1),
     suffix: str = "latest",
 ) -> PublicationFactReference:
+    natural_key_suffix = suffix
+    if dataset.dataset_key == "equity.valuation.fact" and suffix == "latest":
+        natural_key_suffix = NOW.date().isoformat()
     return PublicationFactReference(
-        natural_key=f"{asset_code}:{suffix}:source-main",
+        natural_key=f"{asset_code}:{natural_key_suffix}:source-main",
         source="source-main",
         source_record_id=f"record-{fact_pk}",
         fact_table=dataset.fact_table,
         fact_pk=fact_pk,
         observed_at=observed_at,
         raw_payload_hash="a" * 64,
+        available_at=observed_at,
+        fetched_at=observed_at,
+        source_published_at=observed_at,
+        raw_payload_scope="record",
+        fact_content_hash="b" * 64,
     )
 
 
@@ -115,12 +149,13 @@ def _use_case(
     dataset: CurrentPublicationDataset,
     references: list[PublicationFactReference],
     publications: _PublicationRepository | None = None,
+    policy_repository: object | None = None,
 ) -> CurrentPublicationRebuildUseCase:
     return CurrentPublicationRebuildUseCase(
         dataset=dataset,
         candidate_repository=_CandidateRepository(references),
         publication_repository=publications or _PublicationRepository(),
-        policy_repository=_PolicyRepository(),
+        policy_repository=policy_repository or _PolicyRepository(),
     )
 
 
@@ -178,6 +213,121 @@ def test_rebuild_preview_reports_missing_asset_and_execute_fails_closed() -> Non
     assert preview.ready is False
     assert preview.covered_asset_count == 1
     assert preview.missing_asset_codes == ("600000.SH",)
+    with pytest.raises(ValueError, match="missing active assets"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            published_at=NOW,
+        )
+
+
+def test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block() -> None:
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    codes = [f"{index:06d}.SZ" for index in range(100)]
+    references = [
+        _reference(code, str(index), dataset=dataset)
+        for index, code in enumerate(codes[:-1], start=1)
+    ]
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        references,
+        repository,
+        policy_repository=_PartialPolicyRepository(),
+    )
+    publication = use_case.execute(
+        asset_codes=codes,
+        published_at=NOW,
+        run_id="partial-run-20260830",
+    )
+    replay = use_case.execute(
+        asset_codes=codes,
+        published_at=NOW + timedelta(seconds=1),
+        run_id="partial-run-20260830",
+    )
+
+    assert publication.coverage.requested_count == 100
+    assert publication.coverage.selected_count == 99
+    assert publication.coverage.missing_count == 1
+    assert publication.member_count == 99
+    assert publication.scope_blocks[0].asset_code == codes[-1]
+    assert publication.scope_blocks[0].reason_code == "valuation_source_data_unavailable"
+    block = publication.scope_blocks[0]
+    assert block.target_trade_date == NOW.date()
+    assert block.source == publication.selected_source == "source-main"
+    assert block.publication_run_id == publication.run_id == "partial-run-20260830"
+    assert block.policy_version == publication.policy_version
+    assert block.publication_id == publication.publication_id
+    assert replay is publication
+    assert repository.published == [publication]
+    assert (
+        publication_hash(
+            references,
+            policy_identity=publication.policy_version,
+            scope_blocks=publication.scope_blocks,
+        )
+        == publication.publication_hash
+    )
+    assert publication.publication_id == current_publication_id_for_hash(
+        publication.dataset_key,
+        publication.publication_key,
+        publication.publication_hash,
+    )
+
+
+@pytest.mark.parametrize(
+    ("minimum_coverage_ratio", "allow_partial"),
+    [(1.0, True), (0.5, False)],
+    ids=["below-policy-threshold", "partial-disabled"],
+)
+def test_rebuild_blocks_partial_valuation_when_policy_does_not_allow_it(
+    minimum_coverage_ratio: float,
+    allow_partial: bool,
+) -> None:
+    """Both threshold failure and explicit partial prohibition leave no publication."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    codes = ["000001.SZ", "600000.SH"]
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [_reference(codes[0], "1", dataset=dataset)],
+        repository,
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=minimum_coverage_ratio,
+            allow_partial=allow_partial,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="missing active assets"):
+        use_case.execute(
+            asset_codes=codes,
+            published_at=NOW,
+            run_id="blocked-partial-run",
+        )
+
+    assert repository.published == []
+
+
+def test_partial_policy_does_not_relax_quote_publication_scope() -> None:
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    use_case = _use_case(
+        dataset,
+        [_reference("000001.SZ", "1", dataset=dataset)],
+        policy_repository=_PartialPolicyRepository(),
+    )
+
     with pytest.raises(ValueError, match="missing active assets"):
         use_case.execute(
             asset_codes=["000001.SZ", "600000.SH"],

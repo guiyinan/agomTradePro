@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 
 from django.db import models
 
@@ -11,6 +12,7 @@ from apps.data_center.domain.control_plane import (
     CoverageSnapshot,
     PublicationMember,
     PublicationRollback,
+    PublicationScopeBlock,
     PublicationState,
 )
 
@@ -44,6 +46,7 @@ class CanonicalPublicationModel(models.Model):
     blocked_reason = models.TextField(blank=True)
     created_by = models.CharField(max_length=150, default="system")
     run_id = models.UUIDField(null=True, blank=True, db_index=True)
+    scope_blocks = models.JSONField(default=list, db_default=[])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -104,7 +107,29 @@ class CanonicalPublicationModel(models.Model):
             blocked_reason=self.blocked_reason,
             created_by=self.created_by,
             run_id=str(self.run_id) if self.run_id else "",
+            scope_blocks=tuple(
+                PublicationScopeBlock(
+                    asset_code=str(item["asset_code"]),
+                    reason_code=str(item["reason_code"]),
+                    target_trade_date=_publication_scope_block_date(item.get("target_trade_date")),
+                    source=str(item.get("source") or ""),
+                    publication_run_id=str(item.get("publication_run_id") or ""),
+                    policy_version=str(item.get("policy_version") or ""),
+                    publication_id=str(item.get("publication_id") or ""),
+                )
+                for item in self.scope_blocks
+            ),
         )
+
+
+def _publication_scope_block_date(value: object) -> date | None:
+    """Parse an optional target date from the embedded JSON scope evidence."""
+
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("Publication scope block target_trade_date must be text")
+    return date.fromisoformat(value)
 
 
 class PublicationMemberModel(models.Model):

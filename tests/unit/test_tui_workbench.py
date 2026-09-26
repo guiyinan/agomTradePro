@@ -10082,7 +10082,22 @@ def test_published_tui_dashboard_alpha_history_renders_datagrid_runtime(client, 
 
 
 @pytest.mark.django_db
-def test_published_tui_write_and_admin_actions_are_gated_consistently(client, tui_admin_user):
+def test_published_tui_write_and_admin_actions_are_gated_consistently(
+    client,
+    tui_admin_user,
+    monkeypatch,
+):
+    from apps.data_center.application import market_calendar
+
+    def open_sessions(now):
+        local_date = now.astimezone(market_calendar.CN_MARKET_TIMEZONE).date()
+        return tuple(
+            local_date - timedelta(days=days_ago)
+            for days_ago in range(10, 0, -1)
+            if (local_date - timedelta(days=days_ago)).weekday() < 5
+        )
+
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", open_sessions)
     save_production_coverage_universe_config_payload(
         universe_id="active_a_share",
         asset_type="stock",

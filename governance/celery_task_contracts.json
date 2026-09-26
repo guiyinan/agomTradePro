@@ -1795,7 +1795,8 @@
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_publication_failure_preserves_phase_and_actual_write_counts"
+          "test_function": "test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_counts",
+          "coverage_note": "Dynamic provider gaps keep the full requested denominator, stable per-security reasons, policy identity and publication evidence; no asset code list is hard-coded."
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

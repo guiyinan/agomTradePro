@@ -406,6 +406,18 @@ def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(mo
     from apps.data_center.application import tasks
 
     active_codes = ["000001.SZ", "000002.SZ", "000003.SZ"]
+    policy = SimpleNamespace(
+        dataset=SimpleNamespace(value="equity.valuation.fact"),
+        allow_partial=True,
+        uses_versioned_evidence=True,
+        minimum_coverage_ratio=0.99,
+        identity="p2:valuation-current-v1:" + "a" * 64,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _dataset: policy),
+    )
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
     monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(
@@ -454,6 +466,14 @@ def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(mo
     assert result["success"] is False
     assert result["publication_updated"] is False
     assert result["published_members"] == 0
+    assert result["requested"] == 3
+    assert result["succeeded"] == 1
+    assert result["failed"] == 2
+    assert result["stored"] == 1
+    assert result["count_unit"] == "valuation_asset"
+    assert result["operation_requested"] == 1
+    assert result["operation_succeeded"] == 0
+    assert result["operation_failed"] == 1
     assert result["requested_asset_count"] == 3
     assert result["succeeded_asset_count"] == 1
     assert result["failed_asset_count"] == 2
@@ -461,6 +481,136 @@ def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(mo
     assert result["excluded_non_trading_codes"] == []
     assert result["error_code"] == "CURRENT_VALUATION_SCOPE_INCOMPLETE"
     assert result["blocked_reason"] == "current_valuation_scope_incomplete"
+
+
+def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_counts(monkeypatch):
+    """A bounded valuation gap remains visible without blocking qualified assets."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import market_publication_refresh, public, tasks
+
+    active_codes = [f"{index:06d}.SZ" for index in range(100)]
+    succeeded_codes = tuple(active_codes[:-1])
+    missing_code = active_codes[-1]
+    observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
+    policy = SimpleNamespace(
+        dataset=SimpleNamespace(value="equity.valuation.fact"),
+        allow_partial=True,
+        uses_versioned_evidence=True,
+        minimum_coverage_ratio=0.99,
+        identity="p2:valuation-current-v1:" + "a" * 64,
+    )
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks, "sync_active_a_share_universe", lambda: _universe_report(active_codes)
+    )
+    monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: list(active_codes))
+    monkeypatch.setattr(
+        tasks,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _dataset: policy),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_quote_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda request: SimpleNamespace(
+                stored_count=len(request.asset_codes),
+                stored_asset_codes=tuple(request.asset_codes),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda **_: SimpleNamespace(
+                stored_count=len(succeeded_codes),
+                status="partial",
+                succeeded_asset_codes=succeeded_codes,
+                returned_asset_codes=succeeded_codes,
+            )
+        ),
+    )
+    quote_preview = SimpleNamespace(
+        dataset_key="equity.quote.snapshot",
+        ready=True,
+        oldest_observed_at=observed,
+        newest_observed_at=observed,
+    )
+    valuation_preview = SimpleNamespace(
+        dataset_key="equity.valuation.fact",
+        ready=False,
+        covered_asset_count=len(succeeded_codes),
+        missing_asset_codes=(missing_code,),
+        unexpected_asset_codes=(),
+        oldest_observed_at=observed,
+        newest_observed_at=observed,
+    )
+    publication_id = "bf8c00f5-59df-42c0-a3cb-44d2e306d668"
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(
+            preview=lambda **_: SimpleNamespace(datasets=[quote_preview, valuation_preview]),
+            execute=lambda **kwargs: SimpleNamespace(
+                published_count=299,
+                to_dict=lambda: {
+                    "published_count": 299,
+                    "publication_ids": [publication_id],
+                    "datasets": [
+                        {
+                            "dataset_key": "equity.valuation.fact",
+                            "scope_blocks": [
+                                {
+                                    "asset_code": missing_code,
+                                    "reason_code": "valuation_source_data_unavailable",
+                                    "target_trade_date": "2026-09-18",
+                                    "source": "akshare",
+                                    "publication_run_id": kwargs["run_id"],
+                                    "policy_version": policy.identity,
+                                    "publication_id": publication_id,
+                                }
+                            ],
+                        }
+                    ],
+                    "run_id": kwargs["run_id"],
+                },
+            ),
+        ),
+    )
+    monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
+    monkeypatch.setattr(
+        market_publication_refresh,
+        "refresh_market_price_inputs",
+        lambda *_: (),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=100)
+
+    assert result["outcome"] == "partial"
+    assert result["success"] is False
+    assert result["publication_updated"] is True
+    assert result["requested"] == 100
+    assert result["succeeded"] == 99
+    assert result["failed"] == 1
+    assert result["stored"] == 199
+    assert result["missing_asset_codes"] == [missing_code]
+    assert result["scope_blocks"] == [
+        {
+            "asset_code": missing_code,
+            "reason_code": "valuation_source_data_unavailable",
+            "target_trade_date": "2026-09-18",
+            "source": "akshare",
+            "publication_run_id": result["publication_run_id"],
+            "policy_version": policy.identity,
+            "publication_id": publication_id,
+        }
+    ]
+    assert result["excluded_non_trading_codes"] == []
+    assert result["publication_run_id"] == result["run_id"]
 
 
 def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):
@@ -845,9 +995,9 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert result["publication_ids"] == [publication_id]
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
-    assert result["valuation_source"] == "tushare"
+    assert result["valuation_source"] == "akshare"
     assert quote_provider_ids == [3]
-    assert valuation_provider_ids == [3]
+    assert valuation_provider_ids == [7]
 
 
 def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(monkeypatch):

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from enum import Enum
+from enum import StrEnum
 
 
-class TaskBusinessOutcome(str, Enum):
+class TaskBusinessOutcome(StrEnum):
     """Normalized business outcomes carried by serialized task payloads."""
 
     SUCCESS = "success"
@@ -23,16 +23,19 @@ def resolve_task_business_outcome(result: object) -> TaskBusinessOutcome:
     if not isinstance(result, Mapping):
         return TaskBusinessOutcome.UNKNOWN
 
-    success = result.get("success")
-    if success is False:
-        return TaskBusinessOutcome.FAILED
-
     raw_outcome = result.get("outcome")
     if isinstance(raw_outcome, str):
         try:
-            return TaskBusinessOutcome(raw_outcome.strip().lower())
+            outcome = TaskBusinessOutcome(raw_outcome.strip().lower())
         except ValueError:
             return TaskBusinessOutcome.UNKNOWN
+        if outcome is TaskBusinessOutcome.SUCCESS and result.get("success") is False:
+            return TaskBusinessOutcome.FAILED
+        return outcome
+
+    success = result.get("success")
+    if success is False:
+        return TaskBusinessOutcome.FAILED
 
     if result.get("partial_success") is True:
         return TaskBusinessOutcome.PARTIAL

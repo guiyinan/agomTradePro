@@ -18,6 +18,7 @@ from django.apps import apps
 from django.db import IntegrityError, OperationalError, connections, transaction
 from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.data_center.application.publication_utils import (
@@ -1048,3 +1049,55 @@ def test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade(
             cursor, PublicationMemberModel._meta.db_table
         )
     assert "dc_pub_member_fact_idx" in indexes
+
+
+def test_postgres_0085_orm_insert_uses_0086_scope_blocks_database_default(
+    actual_publication_pg,
+) -> None:
+    """An 0085 model insert omitting scope_blocks must succeed after 0086."""
+    migration_type = import_module(
+        "apps.data_center.migrations.0086_canonical_publication_scope_blocks"
+    ).Migration
+    migration = migration_type("0086_canonical_publication_scope_blocks", "data_center")
+    current_state = ProjectState.from_apps(apps)
+    previous_state = current_state.clone()
+    previous_state.remove_field("data_center", "canonicalpublicationmodel", "scope_blocks")
+    connection = connections["default"]
+
+    with connection.schema_editor() as editor:
+        migration.unapply(current_state, editor)
+    with connection.schema_editor() as editor:
+        migration.apply(previous_state.clone(), editor)
+
+    previous_model = previous_state.apps.get_model("data_center", "CanonicalPublicationModel")
+    with CaptureQueriesContext(connection) as captured_queries:
+        row = previous_model._default_manager.create(
+            dataset_key="rollback-compatibility",
+            publication_key="legacy-writer",
+            policy_version="0085",
+            publication_hash="legacy-writer-hash",
+        )
+
+    insert_statements = [
+        query["sql"]
+        for query in captured_queries.captured_queries
+        if query["sql"].lstrip().upper().startswith("INSERT INTO")
+    ]
+    assert len(insert_statements) == 1
+    assert "scope_blocks" not in insert_statements[0]
+    assert row.pk
+    persisted = CanonicalPublicationModel._default_manager.get(pk=row.pk)
+    assert persisted.scope_blocks == []
+
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT is_nullable, data_type, column_default
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'data_center_canonical_publication'
+              AND column_name = 'scope_blocks'
+            """)
+        column_metadata = cursor.fetchone()
+    assert column_metadata is not None
+    assert column_metadata[0:2] == ("NO", "jsonb")
+    assert column_metadata[2] is not None and "[]" in column_metadata[2]

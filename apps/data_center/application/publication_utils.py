@@ -8,8 +8,13 @@ import re
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Final
+from uuid import NAMESPACE_URL, uuid5
 
-from apps.data_center.domain.control_plane import PublicationFactReference, PublicationMember
+from apps.data_center.domain.control_plane import (
+    PublicationFactReference,
+    PublicationMember,
+    PublicationScopeBlock,
+)
 
 _POLICY_IDENTITY_RE: Final[re.Pattern[str]] = re.compile(r"p2:[^:\s]{1,40}:[0-9a-f]{64}")
 
@@ -18,6 +23,7 @@ def publication_hash(
     references: Sequence[PublicationFactReference],
     *,
     policy_identity: str | None = None,
+    scope_blocks: Sequence[PublicationScopeBlock] = (),
 ) -> str:
     """Return a legacy or policy-bound digest for an ordered member snapshot.
 
@@ -27,15 +33,37 @@ def publication_hash(
     """
 
     if policy_identity is None:
+        if scope_blocks:
+            raise ValueError("legacy publication hashes cannot contain scope blocks")
         payload: object = [_legacy_reference_payload(reference) for reference in references]
     else:
         if _POLICY_IDENTITY_RE.fullmatch(policy_identity) is None:
             raise ValueError("policy_identity must be p2:<version>:<sha256>")
-        payload = {
-            "encoding": "publication-evidence-v2",
+        # publication_id is derived from this digest, so binding it here would be circular.
+        normalized_blocks = sorted(
+            (
+                {key: value for key, value in block.to_dict().items() if key != "publication_id"}
+                for block in scope_blocks
+            ),
+            key=lambda item: (
+                str(item["asset_code"]),
+                str(item["reason_code"]),
+                str(item.get("target_trade_date") or ""),
+                str(item.get("source") or ""),
+                str(item.get("publication_run_id") or ""),
+                str(item.get("policy_version") or ""),
+            ),
+        )
+        versioned_payload: dict[str, object] = {
+            "encoding": (
+                "publication-evidence-v3" if normalized_blocks else "publication-evidence-v2"
+            ),
             "policy_identity": policy_identity,
             "members": [_versioned_reference_payload(reference) for reference in references],
         }
+        if normalized_blocks:
+            versioned_payload["scope_blocks"] = normalized_blocks
+        payload = versioned_payload
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -43,6 +71,28 @@ def publication_hash(
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def current_publication_id_for_hash(
+    dataset_key: str,
+    publication_key: str,
+    content_hash: str,
+) -> str:
+    """Return the deterministic ID bound to one current-publication digest."""
+
+    for field_name, value in (
+        ("dataset_key", dataset_key),
+        ("publication_key", publication_key),
+        ("content_hash", content_hash),
+    ):
+        if not value.strip():
+            raise ValueError(f"{field_name} cannot be empty")
+    return str(
+        uuid5(
+            NAMESPACE_URL,
+            f"agomtradepro:{dataset_key}:{publication_key}:{content_hash}",
+        )
+    )
 
 
 def member_reference(member: PublicationMember) -> PublicationFactReference:
@@ -134,6 +184,7 @@ def _timestamp(value: datetime | None) -> str | None:
 
 
 __all__ = [
+    "current_publication_id_for_hash",
     "member_reference",
     "publication_hash",
     "publication_member_from_reference",

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime
 from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
 
@@ -13,6 +13,7 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
     PublicationFactReference,
+    PublicationScopeBlock,
     PublicationState,
 )
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
@@ -21,7 +22,11 @@ from apps.data_center.domain.publication_snapshot_policy import publication_sele
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
 from .publication_idempotence import publication_replay_matches
-from .publication_utils import publication_hash, publication_member_from_reference
+from .publication_utils import (
+    current_publication_id_for_hash,
+    publication_hash,
+    publication_member_from_reference,
+)
 
 _EVIDENCE_ASSET_CODE_LIMIT = 20
 
@@ -114,6 +119,36 @@ class _CurrentPublicationSelection:
     preview: CurrentPublicationPreview
 
 
+def _valuation_target_trade_date(
+    references: Sequence[PublicationFactReference],
+) -> date:
+    """Return the one trade date shared by selected valuation facts."""
+
+    target_dates: set[date] = set()
+    if not references:
+        raise ValueError("Partial current valuation requires selected valuation facts")
+    for reference in references:
+        parts = reference.natural_key.split(":")
+        if len(parts) < 3:
+            raise ValueError("Current valuation natural key lacks its trade date and source")
+        asset_code, raw_trade_date = parts[0], parts[1]
+        try:
+            target_trade_date = date.fromisoformat(raw_trade_date)
+        except ValueError as exc:
+            raise ValueError("Current valuation natural key has an invalid trade date") from exc
+        natural_key_source = ":".join(parts[2:])
+        if (
+            target_trade_date.isoformat() != raw_trade_date
+            or not asset_code.strip()
+            or natural_key_source != reference.source
+        ):
+            raise ValueError("Current valuation natural key identity is inconsistent")
+        target_dates.add(target_trade_date)
+    if len(target_dates) != 1:
+        raise ValueError("Current valuation candidates must share one target trade date")
+    return next(iter(target_dates))
+
+
 class CurrentPublicationRebuildUseCase:
     """Publish one immutable current snapshot only at exact universe coverage."""
 
@@ -153,27 +188,65 @@ class CurrentPublicationRebuildUseCase:
         """Build and atomically publish a complete current member snapshot."""
 
         selection = self._select(asset_codes=asset_codes, published_at=published_at)
-        if not selection.preview.ready:
+        policy = self._policies.get_active(self.dataset.dataset_key)
+        if policy is None:
+            raise ValueError(f"No active publication policy for {self.dataset.dataset_key}")
+        if policy.dataset.value != self.dataset.dataset_key:
+            raise ValueError("Publication policy dataset mismatch")
+        coverage_ratio = (
+            selection.preview.covered_asset_count / selection.preview.requested_asset_count
+        )
+        partial_valuation_allowed = (
+            self.dataset.dataset_key == "equity.valuation.fact"
+            and policy.allow_partial
+            and policy.uses_versioned_evidence
+            and coverage_ratio >= policy.minimum_coverage_ratio
+            and selection.preview.member_count > 0
+            and not selection.preview.unexpected_asset_codes
+        )
+        if not selection.preview.ready and not partial_valuation_allowed:
             missing = ",".join(selection.preview.missing_asset_codes[:20])
             unexpected = ",".join(selection.preview.unexpected_asset_codes[:20])
             raise ValueError(
                 "Current publication is missing active assets or contains unexpected assets: "
                 f"missing=[{missing}] unexpected=[{unexpected}]"
             )
-        policy = self._policies.get_active(self.dataset.dataset_key)
-        if policy is None:
-            raise ValueError(f"No active publication policy for {self.dataset.dataset_key}")
-        if policy.dataset.value != self.dataset.dataset_key:
-            raise ValueError("Publication policy dataset mismatch")
         if "payload_hash" in policy.required_evidence and any(
             not reference.raw_payload_hash.strip() for reference in selection.references
         ):
             raise ValueError("Current publication requires payload_hash evidence")
 
         validate_publication_evidence(policy, selection.references, published_at=published_at)
+        is_valuation_partial = bool(selection.preview.missing_asset_codes)
+        source_summary = publication_selected_source_summary(selection.references)
+        block_target_trade_date = (
+            _valuation_target_trade_date(selection.references) if is_valuation_partial else None
+        )
+        if is_valuation_partial and not run_id.strip():
+            raise ValueError("Partial current valuation requires publication run id")
+        block_drafts = tuple(
+            PublicationScopeBlock(
+                asset_code=asset_code,
+                reason_code="valuation_source_data_unavailable",
+                target_trade_date=block_target_trade_date,
+                source=source_summary,
+                publication_run_id=run_id,
+                policy_version=policy.identity,
+            )
+            for asset_code in selection.preview.missing_asset_codes
+        )
         digest = publication_hash(
             selection.references,
             policy_identity=policy.identity if policy.uses_versioned_evidence else None,
+            scope_blocks=block_drafts,
+        )
+        publication_id = current_publication_id_for_hash(
+            self.dataset.dataset_key,
+            self.publication_key,
+            digest,
+        )
+        scope_blocks = tuple(
+            replace(block, publication_id=publication_id) for block in block_drafts
         )
         current = self._publications.get_current(
             self.dataset.dataset_key,
@@ -185,15 +258,10 @@ class CurrentPublicationRebuildUseCase:
             selection.references,
             self._publications.list_members(current.publication_id),
             knowledge_cutoff=published_at,
+            scope_blocks=scope_blocks,
         ):
             return current
 
-        publication_id = str(
-            uuid5(
-                NAMESPACE_URL,
-                (f"agomtradepro:{self.dataset.dataset_key}:" f"{self.publication_key}:{digest}"),
-            )
-        )
         members = tuple(
             publication_member_from_reference(
                 reference,
@@ -204,7 +272,13 @@ class CurrentPublicationRebuildUseCase:
             for reference in selection.references
         )
         as_of = max(reference.observed_at for reference in selection.references)
-        source_summary = publication_selected_source_summary(selection.references)
+        is_valuation = self.dataset.dataset_key == "equity.valuation.fact"
+        coverage_requested = (
+            len(selection.asset_codes) if is_valuation else len(selection.references)
+        )
+        coverage_eligible = (
+            selection.preview.covered_asset_count if is_valuation else len(selection.references)
+        )
         publication = CanonicalPublication(
             publication_id=publication_id,
             dataset_key=self.dataset.dataset_key,
@@ -216,10 +290,10 @@ class CurrentPublicationRebuildUseCase:
             coverage=CoverageSnapshot(
                 coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
                 publication_id=publication_id,
-                requested_count=len(selection.references),
-                eligible_count=len(selection.references),
+                requested_count=coverage_requested,
+                eligible_count=coverage_eligible,
                 selected_count=len(selection.references),
-                missing_count=0,
+                missing_count=len(scope_blocks),
                 conflict_count=0,
                 generated_at=published_at,
             ),
@@ -229,6 +303,7 @@ class CurrentPublicationRebuildUseCase:
             published_at=published_at,
             created_by=self.dataset.created_by,
             run_id=run_id,
+            scope_blocks=scope_blocks,
         )
         return self._publisher.execute(
             policy=policy,
@@ -378,7 +453,11 @@ class CoreCurrentPublicationRebuildResult:
                     "publication_id": publication.publication_id,
                     "publication_hash": publication.publication_hash,
                     "member_count": publication.member_count,
-                    "covered_asset_count": self.covered_asset_count,
+                    "requested_asset_count": publication.coverage.requested_count,
+                    "covered_asset_count": publication.coverage.eligible_count,
+                    "missing_asset_count": publication.coverage.missing_count,
+                    "outcome": ("partial" if publication.coverage.missing_count else "success"),
+                    "scope_blocks": [block.to_dict() for block in publication.scope_blocks],
                     "policy_identity": publication.policy_version,
                     "as_of": publication.as_of.isoformat() if publication.as_of else None,
                     "published_at": (
