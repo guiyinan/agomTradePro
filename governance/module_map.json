@@ -4209,6 +4209,15 @@
           "QuerySectorConstituentsUseCase",
           "QueryValuationsUseCase"
         ],
+        "application/financial_refresh_lease.py": [
+          "claim_financial_refresh_lock",
+          "clear_financial_refresh_progress",
+          "financial_refresh_checkpoint",
+          "financial_refresh_lock_noop_result",
+          "release_financial_refresh_lock",
+          "restore_financial_refresh_offset",
+          "save_financial_refresh_progress"
+        ],
         "application/financial_response_artifact.py": [
           "FinancialResponseArtifactAuditError",
           "FinancialResponseArtifactAuditLookupError",
@@ -4842,7 +4851,7 @@
         ]
       },
       "layers": {
-        "application": 101,
+        "application": 102,
         "domain": 32,
         "infrastructure": 152,
         "interface": 19,

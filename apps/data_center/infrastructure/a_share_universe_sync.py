@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, replace
@@ -35,6 +36,7 @@ class AShareUniverseSyncReport:
     deactivated_count: int
     skipped_count: int
     sample_codes: list[str]
+    active_codes_sha256: str
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable payload."""
@@ -47,6 +49,7 @@ class AShareUniverseSyncReport:
             "deactivated_count": self.deactivated_count,
             "skipped_count": self.skipped_count,
             "sample_codes": self.sample_codes,
+            "active_codes_sha256": self.active_codes_sha256,
         }
 
 
@@ -199,6 +202,13 @@ class AShareUniverseSyncService:
             deactivated_count=deactivated_count,
             skipped_count=skipped_count,
             sample_codes=sorted(touched_codes)[:20],
+            active_codes_sha256=hashlib.sha256(
+                json.dumps(
+                    sorted(touched_codes),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
         )
 
     @staticmethod

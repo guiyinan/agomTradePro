@@ -4625,6 +4625,7 @@
         "apps/data_center/domain/publication_evidence.py",
         "apps/data_center/application/full_market_task_support.py",
         "apps/data_center/application/data02_task_authority.py",
+        "apps/data_center/application/financial_refresh_lease.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
         "apps/data_center/application/backfill_control_plane.py",
@@ -4903,6 +4904,15 @@
           "def same_data02_task_authority_is_current(",
           "data02_authority_failure(\"authority_window_too_short\")"
         ],
+        "apps/data_center/application/financial_refresh_lease.py": [
+          "FINANCIAL_REFRESH_LOCK_LEASE_TTL = 3900",
+          "FINANCIAL_REFRESH_CHECKPOINT_TTL = 7 * 86400",
+          "def claim_financial_refresh_lock(",
+          "if not lease_renewed:",
+          "def release_financial_refresh_lock(",
+          "def restore_financial_refresh_offset(",
+          "def save_financial_refresh_progress("
+        ],
         "apps/data_center/application/tasks.py": [
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
@@ -4917,6 +4927,9 @@
           "valuation_seed.returned_asset_codes",
           "valuation_seed.succeeded_asset_codes",
           "universe_report = sync_active_a_share_universe()",
+          "reported_universe_sha256",
+          "MARKET_UNIVERSE_SCOPE_INVALID",
+          "CURRENT_VALUATION_SCOPE_INCOMPLETE",
           "excluded_non_trading_codes",
           "def refresh_financial_publications_batch_task(",
           "financial_publication_rebuild_failed",
@@ -5371,6 +5384,41 @@
           "case": "scheduled_market_refresh_exact_provider_asset_identities",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_rejects_duplicate_provider_asset_identities_before_publication"
+        },
+        {
+          "case": "scheduled_market_refresh_preserves_active_universe_denominator",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes"
+        },
+        {
+          "case": "scheduled_market_refresh_binds_active_universe_identity",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_blocks_same_count_universe_identity_substitution"
+        },
+        {
+          "case": "scheduled_market_refresh_rejects_unverified_provider_omissions",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions"
+        },
+        {
+          "case": "financial_refresh_soft_timeout_releases_lease",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_soft_timeout_releases_lease_and_can_retry"
+        },
+        {
+          "case": "financial_refresh_broker_failure_preserves_checkpoint",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_broker_failure_keeps_checkpoint_and_releases_lease"
+        },
+        {
+          "case": "financial_refresh_worker_loss_recovers_after_lease_expiry",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_recovers_after_worker_lease_expires"
+        },
+        {
+          "case": "financial_refresh_lease_renewal_failure_fails_closed",
+          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
+          "test_function": "test_financial_refresh_fails_closed_when_lease_renewal_fails"
         },
         {
           "case": "resumable_backfill_records_all_item_phases",

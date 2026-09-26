@@ -1,19 +1,26 @@
 """Evidence-complete scheduled financial publication refresh contracts."""
 
+import hashlib
+import json
+import time
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from django.core.cache import cache
+from celery.exceptions import SoftTimeLimitExceeded
+from django.core.cache.backends.locmem import LocMemCache
 
-from apps.data_center.application import tasks
+from apps.data_center.application import financial_refresh_lease, tasks
 from core.exceptions import InvalidInputError
 
 
 @pytest.fixture(autouse=True)
-def _clear_refresh_state() -> None:
-    cache.delete(tasks._FINANCIAL_REFRESH_LOCK_KEY)
-    cache.delete(tasks._FINANCIAL_REFRESH_PROGRESS_KEY)
+def _clear_refresh_state(monkeypatch) -> None:
+    """Use an isolated in-memory cache so these tests never touch Redis."""
+
+    isolated_cache = LocMemCache("financial-publication-refresh-tests", {})
+    isolated_cache.clear()
+    monkeypatch.setattr(tasks, "cache", isolated_cache)
 
 
 @pytest.fixture
@@ -115,7 +122,61 @@ def test_financial_refresh_schedules_next_exact_batch(
     assert result["published"] == 0
     assert result["continuation_task_id"] == "next-task"
     assert result["checkpoint"]["next_offset"] == 2
-    assert cache.get(tasks._FINANCIAL_REFRESH_LOCK_KEY)
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY)
+
+
+def test_financial_refresh_continuation_renews_its_owned_lease(
+    monkeypatch,
+    _financial_runtime,
+) -> None:
+    owner = "scheduled-financial-workflow"
+    tasks.cache.set(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY, owner, timeout=1)
+    original_touch = tasks.cache.touch
+    touched: list[tuple[str, int | None]] = []
+
+    def record_touch(key: str, timeout: int | None = None) -> bool:
+        touched.append((key, timeout))
+        return original_touch(key, timeout=timeout)
+
+    monkeypatch.setattr(tasks.cache, "touch", record_touch)
+
+    result = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=3,
+        auto_continue=True,
+        workflow_id=owner,
+    )
+
+    assert result["outcome"] == "success"
+    assert touched == [
+        (
+            financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY,
+            financial_refresh_lease.FINANCIAL_REFRESH_LOCK_LEASE_TTL,
+        )
+    ]
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY) is None
+
+
+def test_financial_refresh_fails_closed_when_lease_renewal_fails(
+    monkeypatch,
+    _financial_runtime,
+) -> None:
+    owner = "scheduled-financial-workflow"
+    sync, _ = _financial_runtime
+    sync.execute = lambda _: pytest.fail("provider called without a renewed lease")
+    tasks.cache.set(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY, owner, timeout=30)
+    monkeypatch.setattr(tasks.cache, "touch", lambda *_args, **_kwargs: False)
+
+    result = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=2,
+        auto_continue=True,
+        workflow_id=owner,
+    )
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "lock"
+    assert result["blocked_reason"] == "financial_refresh_lock_lost"
+    assert result["must_not_use_for_decision"] is True
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY) == owner
 
 
 def test_financial_refresh_publishes_only_after_full_universe(
@@ -195,3 +256,122 @@ def test_financial_refresh_exposes_source_evidence_block(
     assert result["stage"] == "financial_evidence"
     assert result["blocked_reason"] == "financial_source_evidence_required"
     assert result["must_not_use_for_decision"] is True
+
+
+def test_financial_refresh_soft_timeout_releases_lease_and_can_retry(
+    monkeypatch,
+    _financial_runtime,
+) -> None:
+    sync, _ = _financial_runtime
+    sync.execute = lambda _: (_ for _ in ()).throw(SoftTimeLimitExceeded())
+
+    result = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=2,
+        auto_continue=True,
+    )
+
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "provider"
+    assert result["error_code"] == "financial_refresh_soft_time_limit_exceeded"
+    assert result["requested"] == 2
+    assert result["succeeded"] == 0
+    assert result["failed"] == 2
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY) is None
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_PROGRESS_KEY) is None
+
+    sync.execute = lambda _: SimpleNamespace(stored_count=4)
+    retry = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=3,
+        auto_continue=True,
+    )
+
+    assert retry["outcome"] == "success"
+    assert retry["checkpoint"]["complete"] is True
+
+
+def test_financial_refresh_broker_failure_keeps_checkpoint_and_releases_lease(
+    monkeypatch,
+    _financial_runtime,
+) -> None:
+    calls: list[str] = []
+    sync, _ = _financial_runtime
+
+    def execute(request):
+        calls.append(request.asset_code)
+        return SimpleNamespace(stored_count=4)
+
+    sync.execute = execute
+    monkeypatch.setattr(
+        tasks.refresh_financial_publications_batch_task,
+        "apply_async",
+        lambda **_: (_ for _ in ()).throw(OSError("broker unavailable")),
+    )
+
+    first = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=2,
+        auto_continue=True,
+    )
+
+    assert first["outcome"] == "failed"
+    assert first["stage"] == "continuation"
+    assert first["error_code"] == "financial_refresh_continuation_enqueue_failed"
+    assert first["requested"] == 2
+    assert first["succeeded"] == 2
+    assert first["failed"] == 0
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY) is None
+    assert (
+        tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_PROGRESS_KEY)["next_offset"] == 2
+    )
+
+    monkeypatch.setattr(
+        tasks.refresh_financial_publications_batch_task,
+        "apply_async",
+        lambda **_: SimpleNamespace(id="recovered-continuation"),
+    )
+    resumed = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=2,
+        auto_continue=True,
+    )
+
+    assert calls == ["000001.SZ", "000002.SZ", "000003.SZ"]
+    assert resumed["outcome"] == "success"
+    assert resumed["requested"] == 1
+    assert resumed["checkpoint"]["complete"] is True
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_PROGRESS_KEY) is None
+
+
+def test_financial_refresh_recovers_after_worker_lease_expires(
+    _financial_runtime,
+) -> None:
+    active_codes = ["000001.SZ", "000002.SZ", "000003.SZ"]
+    encoded_universe = json.dumps(
+        {"schema": "active-a-share-universe.v1", "asset_codes": active_codes},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    universe_hash = hashlib.sha256(encoded_universe.encode("utf-8")).hexdigest()
+    tasks.cache.set(
+        financial_refresh_lease.FINANCIAL_REFRESH_PROGRESS_KEY,
+        {
+            "next_offset": 2,
+            "universe_hash": universe_hash,
+            "source": "tushare",
+            "financial_periods": 8,
+            "batch_size": 2,
+        },
+        timeout=financial_refresh_lease.FINANCIAL_REFRESH_CHECKPOINT_TTL,
+    )
+    tasks.cache.set(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY, "lost-worker", timeout=0.02)
+    time.sleep(0.04)
+
+    result = tasks.refresh_financial_publications_batch_task.run(
+        batch_size=2,
+        auto_continue=True,
+    )
+
+    assert result["outcome"] == "success"
+    assert result["requested"] == 1
+    assert result["checkpoint"]["offset"] == 2
+    assert result["checkpoint"]["complete"] is True
+    assert tasks.cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY) is None

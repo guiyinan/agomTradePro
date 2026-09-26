@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
@@ -995,6 +997,16 @@ def test_a_share_universe_sync_upserts_current_market_boards():
 
     assert report.active_count == 4
     assert report.skipped_count == 1
+    assert (
+        report.active_codes_sha256
+        == hashlib.sha256(
+            json.dumps(
+                ["000001.SZ", "300750.SZ", "688111.SH", "920992.BJ"],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+    )
     assert AssetMasterModel.objects.filter(code="000001.SZ", exchange="SZSE").exists()
     assert AssetMasterModel.objects.filter(code="300750.SZ", exchange="SZSE").exists()
     assert AssetMasterModel.objects.filter(code="688111.SH", exchange="SSE").exists()

@@ -1,5 +1,7 @@
 """Full-market snapshots must never publish an intermediate or failed batch."""
 
+import hashlib
+import json
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -11,6 +13,23 @@ from apps.data_center.application.market_publication_refresh import (
     refresh_market_publications,
 )
 from core.exceptions import DataFetchError
+
+
+def _universe_report(codes: list[str], *, active_count: int | None = None) -> dict[str, object]:
+    """Return provider-bound universe evidence for task-path tests."""
+
+    normalized = sorted(codes)
+    return {
+        "active_count": len(normalized) if active_count is None else active_count,
+        "touched_count": len(normalized),
+        "active_codes_sha256": hashlib.sha256(
+            json.dumps(
+                normalized,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest(),
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +60,7 @@ def _patch_current_authority(monkeypatch):
     monkeypatch.setattr(
         tasks,
         "sync_active_a_share_universe",
-        lambda: {"active_count": 1, "touched_count": 1},
+        lambda: _universe_report(tasks.list_active_stock_codes_for_backfill()),
     )
     return context
 
@@ -379,6 +398,152 @@ def test_task_exposes_stable_universe_refresh_error(monkeypatch):
     assert "secret" not in str(result)
 
 
+def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(monkeypatch):
+    """A provider omission cannot silently reduce the active publication denominator."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    active_codes = ["000001.SZ", "000002.SZ", "000003.SZ"]
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(active_codes),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: list(active_codes),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_quote_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda *_args, **_kwargs: pytest.fail(
+                "quote provider called after incomplete valuation scope"
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda **_kwargs: SimpleNamespace(
+                stored_count=1,
+                status="partial",
+                succeeded_asset_codes=("000001.SZ",),
+                returned_asset_codes=("000001.SZ",),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(
+            preview=lambda **_: pytest.fail("incomplete scope reached publication preview"),
+            execute=lambda **_: pytest.fail("incomplete scope reached publication"),
+        ),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["success"] is False
+    assert result["publication_updated"] is False
+    assert result["published_members"] == 0
+    assert result["requested_asset_count"] == 3
+    assert result["succeeded_asset_count"] == 1
+    assert result["failed_asset_count"] == 2
+    assert result["missing_asset_codes"] == ["000002.SZ", "000003.SZ"]
+    assert result["excluded_non_trading_codes"] == []
+    assert result["error_code"] == "CURRENT_VALUATION_SCOPE_INCOMPLETE"
+    assert result["blocked_reason"] == "current_valuation_scope_incomplete"
+
+
+def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):
+    """The refreshed active count is the denominator and cannot be silently reduced."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(["000001.SZ", "000002.SZ"], active_count=3),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: ["000001.SZ", "000002.SZ"],
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", SimpleNamespace)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(execute=lambda **_: pytest.fail("valuation provider called")),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(preview=lambda **_: pytest.fail("publication preview called")),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["error_code"] == "MARKET_UNIVERSE_SCOPE_INVALID"
+    assert result["blocked_reason"] == "market_universe_scope_invalid"
+    assert result["publication_updated"] is False
+    assert result["published_members"] == 0
+    assert result["requested_asset_count"] == 2
+    assert result["market_universe"]["active_count"] == 3
+
+
+def test_task_blocks_same_count_universe_identity_substitution(monkeypatch):
+    """Equal counts cannot hide a different provider-observed security identity."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(["000001.SZ", "000003.SZ"]),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: ["000001.SZ", "000002.SZ"],
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", SimpleNamespace)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(execute=lambda **_: pytest.fail("valuation provider called")),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(preview=lambda **_: pytest.fail("publication preview called")),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["error_code"] == "MARKET_UNIVERSE_SCOPE_INVALID"
+    assert result["frozen_universe_sha256"] != result["reported_universe_sha256"]
+    assert result["publication_updated"] is False
+
+
 def test_equivalent_authority_successor_does_not_interrupt_active_refresh(
     monkeypatch,
     _patch_current_authority,
@@ -501,6 +666,11 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
         tasks,
         "list_active_stock_codes_for_backfill",
         lambda: ["000001.SZ", "000002.SZ"],
+    )
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(["000001.SZ", "000002.SZ"]),
     )
     quote = SimpleNamespace(
         execute=lambda *_args, **_kwargs: SimpleNamespace(
@@ -694,6 +864,11 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
         tasks,
         "list_active_stock_codes_for_backfill",
         lambda: ["000001.SZ", "600000.SH"],
+    )
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(["000001.SZ", "600000.SH"]),
     )
     monkeypatch.setattr(
         tasks,
