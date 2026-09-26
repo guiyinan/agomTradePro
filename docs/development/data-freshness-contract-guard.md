@@ -29,6 +29,10 @@ Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日�
 
 日频 A 股 quote/price/valuation 的自然小时预算到期后，只允许在所有 Publication member 都精确绑定最近已收盘交易日时标记为 `latest_completed_session`；quote 只在盘后、开盘前或休市日沿用最近已收盘交易日，新的交易时段一旦完成便必须重新发布。这不会改变源观测时间。全市场 current Publication 必须按冻结 universe 原子发布，单标的或中间批次同步只写 fact，不得缩小既有 current member 集合。
 
+全市场任务的冻结分母同时绑定 universe refresh 报告、规范化代码集合及集合 SHA-256；数量或身份摘要不一致即以 `MARKET_UNIVERSE_SCOPE_INVALID` 失败关闭。Provider 缺行不构成停牌、未上市或退市证据；valuation seed 未完整覆盖冻结分母时发布 `CURRENT_VALUATION_SCOPE_INCOMPLETE`，保留缺失代码并禁止创建缩小范围的 current Publication。
+
+生产预演也必须沿用完整 active universe 分母。`daily_basic` 等估值响应缺行时，即使缺失比例满足当前 Publication policy，也不能把这些证券转成 excluded 或继续测量缩小后的行情范围；容量预演以 `REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE` 阻断，并输出完整 active 代码集合、其 SHA-256、缺失代码和 requested/succeeded/failed/stored 统计。只有具备版本化、可校验的交易/上市状态证据合同后，才可将明确状态作为排除依据；provider 缺行和零值模式本身不构成该证据。
+
 全市场刷新任务使用 `latest_closed_cn_market_session` 选择目标日：收盘后选择当日，盘中、开盘前和周末选择上一已收盘工作日。盘中触发不得因为实时决策函数返回 `None` 而跳过上一完整交易日的恢复；Publication 仍须通过完整范围、源观测日和事实证据检查后才能发布。
 
 单股 published price 读取必须把 UTC 观测时间转换为中国市场日期后再限制 `end_date`，不得把中国收盘时刻截断为前一自然日。公开 API 只返回 Publication 的公开证据字段，以下划线开头的成员主键和内部快照状态不得序列化。Alpha 刷新提示应以更新且验证可用的 quote/price/valuation Publication 调和历史失败记录；恢复时间不晚于失败完成时间时仍保留告警。

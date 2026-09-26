@@ -190,13 +190,14 @@ def test_calendar_resolution_runs_inside_total_transport_budget(tmp_path, monkey
     }
 
 
-def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_receipts(
+def test_probe_blocks_partial_valuation_scope_without_proving_asset_status(
     tmp_path, monkeypatch
 ) -> None:
     target = date(2026, 9, 24)
     registered = ("000001.SZ", "600000.SH", "600001.SH")
     observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
     contexts = []
+    provider_calls = []
 
     class Cursor:
         def __enter__(self):
@@ -257,6 +258,7 @@ def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_recei
             return "tushare"
 
         def fetch_current_valuations(self, asset_codes, as_of_date):
+            provider_calls.append("valuation")
             assert tuple(asset_codes) == registered
             assert as_of_date == target
             body_hash = "a" * 64
@@ -277,6 +279,7 @@ def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_recei
             ]
 
         def fetch_quote_snapshots_for_session(self, asset_codes, target_trade_date):
+            provider_calls.append("quote")
             assert tuple(asset_codes) == registered[:2]
             assert target_trade_date == target
             Capture.active.add_receipt("b" * 64)
@@ -362,14 +365,16 @@ def test_probe_uses_registered_valuation_scope_and_disjoint_eligible_quote_recei
         provider_identities=identities,
     )
 
-    assert report["outcome"] == "success"
-    assert report["eligible_asset_codes"] == list(registered[:2])
-    assert report["excluded_asset_codes"] == [registered[2]]
-    probes = {probe["dataset"]: probe for probe in report["probes"]}
-    assert probes["equity.valuation.fact"]["receipt_indexes"] == [0]
-    assert probes["equity.quote.snapshot"]["receipt_indexes"] == [1]
+    assert report["outcome"] == "blocked"
+    assert report["stage_error_code"] == "REHEARSAL_VALUATION_SCOPE_INCOMPLETE"
+    assert report["asset_codes"] == list(registered)
+    assert report["eligible_asset_codes"] == []
+    assert report["excluded_asset_codes"] == []
+    assert report["valuation_missing_target_session_codes"] == [registered[2]]
+    assert report["probes"] == []
     assert contexts[0].sample_codes == registered
-    assert contexts[-1].sample_codes == registered[:2]
+    assert len(contexts) == 1
+    assert provider_calls == ["valuation"]
     assert identity_checks == [identities, identities]
 
 

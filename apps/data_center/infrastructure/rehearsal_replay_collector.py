@@ -337,26 +337,28 @@ def collect_response_replay(
     universe_digest = rehearsal_digest(universe)
     eligible = _strings(probe.get("eligible_asset_codes"))
     excluded = _strings(probe.get("excluded_asset_codes"), allow_empty=True)
+    missing_valuation_codes = _strings(
+        probe.get("valuation_missing_target_session_codes"), allow_empty=True
+    )
     policy = _policy_evidence(probe.get("valuation_policy_snapshot"))
     minimum_ratio = probe.get("valuation_minimum_coverage_ratio")
     if (
         eligible != tuple(sorted(set(eligible)))
         or excluded != tuple(sorted(set(excluded)))
         or set(eligible) & set(excluded)
-        or tuple(sorted((*eligible, *excluded))) != universe
+        or not set(eligible).issubset(set(universe))
+        or not set(excluded).issubset(set(universe))
         or probe.get("eligible_asset_count") != len(eligible)
         or probe.get("excluded_asset_count") != len(excluded)
-        or probe.get("exclusion_reason") != "valuation_not_returned_for_target_session"
-        or probe.get("exclusion_rule_version") != "valuation-target-session-v1"
         or probe.get("valuation_policy_identity") != policy.identity
         or probe.get("valuation_policy_sha256") != policy.content_sha256
         or isinstance(minimum_ratio, bool)
         or not isinstance(minimum_ratio, (int, float))
         or float(minimum_ratio) != policy.minimum_coverage_ratio
-        or not eligible
-        or len(eligible) / len(universe) < float(minimum_ratio)
     ):
         raise ValueError("REHEARSAL_REPLAY_ELIGIBLE_SCOPE_INVALID")
+    if eligible != universe or excluded or missing_valuation_codes:
+        raise ValueError("REHEARSAL_REPLAY_VALUATION_SCOPE_INCOMPLETE")
     sample_size = probe.get("sample_size")
     if isinstance(sample_size, bool) or not isinstance(sample_size, int):
         raise ValueError("REHEARSAL_REPLAY_SCOPE_INVALID")
@@ -552,8 +554,7 @@ def collect_response_replay(
         "eligible_asset_codes": list(eligible),
         "excluded_asset_count": len(excluded),
         "excluded_asset_codes": list(excluded),
-        "exclusion_reason": probe.get("exclusion_reason"),
-        "exclusion_rule_version": probe.get("exclusion_rule_version"),
+        "valuation_missing_target_session_codes": list(missing_valuation_codes),
         "valuation_policy_identity": policy.identity,
         "valuation_policy_sha256": policy.content_sha256,
         "valuation_policy_snapshot": policy.snapshot,

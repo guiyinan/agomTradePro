@@ -130,8 +130,6 @@ class _ValidatedCapacityEvidence:
     registered_asset_codes: tuple[str, ...]
     eligible_asset_codes: tuple[str, ...]
     excluded_asset_codes: tuple[str, ...]
-    exclusion_reason: str
-    exclusion_rule_version: str
     policy: _ValidatedPolicyEvidence
 
 
@@ -812,8 +810,7 @@ def _validate_real_replay(
         or report.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
         or report.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
         or report.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-        or report.get("exclusion_reason") != capacity.exclusion_reason
-        or report.get("exclusion_rule_version") != capacity.exclusion_rule_version
+        or report.get("valuation_missing_target_session_codes") != []
     ):
         _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
     probe_reference = report.get("probe_capture")
@@ -845,8 +842,7 @@ def _validate_real_replay(
         or probe.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
         or probe.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
         or probe.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-        or probe.get("exclusion_reason") != capacity.exclusion_reason
-        or probe.get("exclusion_rule_version") != capacity.exclusion_rule_version
+        or probe.get("valuation_missing_target_session_codes") != []
         or not isinstance(registered_assets, list)
         or registered_assets != sorted(set(registered_assets))
         or hashlib.sha256(
@@ -953,8 +949,7 @@ def _validate_real_replay(
             or receipt.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
             or receipt.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
             or receipt.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
-            or receipt.get("exclusion_reason") != capacity.exclusion_reason
-            or receipt.get("exclusion_rule_version") != capacity.exclusion_rule_version
+            or receipt.get("valuation_missing_target_session_codes") != []
         ):
             _fail("REHEARSAL_REPLAY_SCOPE_MISMATCH")
         replay_policy = _validated_policy_evidence(
@@ -1141,8 +1136,7 @@ def _validate_capacity(
     if (
         receipt.get("schema") != "release.full-universe-capacity-receipt.v1"
         or receipt.get("measurement_source") != "candidate_runtime_instrumentation"
-        or receipt.get("measurement_scope")
-        != "production_valuation_seed_and_eligible_quote_dispatch"
+        or receipt.get("measurement_scope") != "production_full_active_valuation_and_quote_dispatch"
     ):
         _fail("REHEARSAL_CAPACITY_RECEIPT_INVALID")
     _validate_receipt_identity(
@@ -1169,17 +1163,19 @@ def _validate_capacity(
         or excluded_codes != sorted(set(excluded_codes))
         or not all(isinstance(code, str) and code for code in eligible_codes + excluded_codes)
         or set(eligible_codes) & set(excluded_codes)
-        or sorted(eligible_codes + excluded_codes) != asset_codes
+        or not set(eligible_codes).issubset(set(asset_codes))
+        or not set(excluded_codes).issubset(set(asset_codes))
         or receipt.get("eligible_asset_count") != len(eligible_codes)
         or receipt.get("excluded_asset_count") != len(excluded_codes)
-        or receipt.get("exclusion_reason") != "valuation_not_returned_for_target_session"
-        or receipt.get("exclusion_rule_version") != "valuation-target-session-v1"
         or not isinstance(receipt.get("valuation_policy_identity"), str)
         or not str(receipt.get("valuation_policy_identity")).strip()
         or SHA256_PATTERN.fullmatch(str(receipt.get("valuation_policy_sha256") or "")) is None
         or not eligible_codes
     ):
         _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
+    missing_valuation_codes = receipt.get("valuation_missing_target_session_codes")
+    if eligible_codes != asset_codes or excluded_codes or missing_valuation_codes != []:
+        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     policy = _validated_policy_evidence(
         receipt.get("valuation_policy_snapshot"),
         error_code="REHEARSAL_CAPACITY_POLICY_INVALID",
@@ -1204,20 +1200,19 @@ def _validate_capacity(
         valuation_minimum > 1
         or valuation_ratio > 1
         or not math.isclose(valuation_ratio, derived_valuation_ratio, abs_tol=1e-12)
-        or valuation_ratio < valuation_minimum
+        or not math.isclose(valuation_ratio, 1.0, abs_tol=1e-12)
     ):
-        _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     if (
         report.get("eligible_asset_codes") != eligible_codes
         or report.get("eligible_asset_count") != len(eligible_codes)
         or report.get("excluded_asset_codes") != excluded_codes
         or report.get("excluded_asset_count") != len(excluded_codes)
-        or report.get("exclusion_reason") != receipt.get("exclusion_reason")
-        or report.get("exclusion_rule_version") != receipt.get("exclusion_rule_version")
+        or report.get("valuation_missing_target_session_codes") != []
     ):
-        _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
-    coverage_expectations = {
-        "valuation_coverage": (universe_count, len(eligible_codes), excluded_codes),
+        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
+    coverage_expectations: dict[str, tuple[int, int, list[str]]] = {
+        "valuation_coverage": (universe_count, universe_count, []),
         "quote_coverage": (len(eligible_codes), len(eligible_codes), []),
     }
     for key, (
@@ -1250,7 +1245,12 @@ def _validate_capacity(
             or coverage_payload.get("extra_count") != 0
             or coverage_payload.get("duplicate_count") != 0
         ):
-            _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+            error_code = (
+                "REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE"
+                if key == "valuation_coverage"
+                else "REHEARSAL_CAPACITY_COVERAGE_INVALID"
+            )
+            _fail(error_code)
         fact_count_key = "quote_fact_count" if key == "quote_coverage" else "valuation_fact_count"
         if receipt.get(fact_count_key) != returned:
             _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
@@ -1359,8 +1359,6 @@ def _validate_capacity(
         registered_asset_codes=tuple(cast(list[str], asset_codes)),
         eligible_asset_codes=tuple(cast(list[str], eligible_codes)),
         excluded_asset_codes=tuple(cast(list[str], excluded_codes)),
-        exclusion_reason=cast(str, receipt.get("exclusion_reason")),
-        exclusion_rule_version=cast(str, receipt.get("exclusion_rule_version")),
         policy=policy,
     )
 

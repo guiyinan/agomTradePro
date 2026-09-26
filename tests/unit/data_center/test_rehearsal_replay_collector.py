@@ -319,8 +319,7 @@ def _fixture(modules, tmp_path, monkeypatch):
         "eligible_asset_count": len(SAMPLE),
         "excluded_asset_codes": [],
         "excluded_asset_count": 0,
-        "exclusion_reason": "valuation_not_returned_for_target_session",
-        "exclusion_rule_version": "valuation-target-session-v1",
+        "valuation_missing_target_session_codes": [],
         "valuation_policy_identity": policy["identity"],
         "valuation_policy_sha256": policy["content_sha256"],
         "valuation_policy_snapshot": policy,
@@ -385,8 +384,6 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
             registered_asset_codes=SAMPLE,
             eligible_asset_codes=SAMPLE,
             excluded_asset_codes=(),
-            exclusion_reason="valuation_not_returned_for_target_session",
-            exclusion_rule_version="valuation-target-session-v1",
             policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
         ),
     )
@@ -398,9 +395,7 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
     assert observation["normalization_completed_at"] == NORMALIZED.isoformat()
 
 
-def test_collector_replays_eligible_sample_when_valuation_response_excludes_assets(
-    modules, tmp_path, monkeypatch
-):
+def test_collector_rejects_unverified_partial_valuation_scope(modules, tmp_path, monkeypatch):
     collector = modules["rehearsal_replay_collector"]
     kwargs, probe = _fixture(modules, tmp_path, monkeypatch)
     excluded = "600001.SH"
@@ -411,8 +406,9 @@ def test_collector_replays_eligible_sample_when_valuation_response_excludes_asse
             "asset_codes": list(universe),
             "universe_count": len(universe),
             "universe_sha256": universe_sha256,
-            "excluded_asset_codes": [excluded],
-            "excluded_asset_count": 1,
+            "excluded_asset_codes": [],
+            "excluded_asset_count": 0,
+            "valuation_missing_target_session_codes": [excluded],
         }
     )
     receipts = probe["transport"]["receipts"]
@@ -433,14 +429,9 @@ def test_collector_replays_eligible_sample_when_valuation_response_excludes_asse
     kwargs["probe_path"].write_text(json.dumps(probe), encoding="utf-8")
     kwargs["expected_probe_sha256"] = hashlib.sha256(kwargs["probe_path"].read_bytes()).hexdigest()
 
-    result = collector.collect_response_replay(**kwargs)
-
-    assert result["outcome"] == "success"
-    valuation_report = json.loads(
-        (kwargs["output_dir"] / "valuation-replay.json").read_text(encoding="utf-8")
-    )
-    assert valuation_report["sampled_assets"] == list(SAMPLE)
-    assert {row["asset_code"] for row in valuation_report["observations"]} == set(SAMPLE)
+    with pytest.raises(ValueError, match="REHEARSAL_REPLAY_VALUATION_SCOPE_INCOMPLETE"):
+        collector.collect_response_replay(**kwargs)
+    assert not kwargs["output_dir"].exists()
 
 
 @pytest.mark.parametrize(

@@ -320,6 +320,7 @@ def run_market_provider_rehearsal(
         sample: tuple[str, ...] = ()
         eligible_universe: tuple[str, ...] = ()
         excluded_universe: tuple[str, ...] = ()
+        valuation_missing_target_session_codes: tuple[str, ...] = ()
         valuation_policy_identity = ""
         valuation_minimum_coverage_ratio: float | None = None
         valuation_policy_sha256 = ""
@@ -430,7 +431,9 @@ def run_market_provider_rehearsal(
                             or not set(returned).issubset(requested)
                         ):
                             raise ValueError("invalid valuation eligibility scope")
-                        excluded_universe = tuple(sorted(requested - set(eligible_universe)))
+                        valuation_missing_target_session_codes = tuple(
+                            sorted(requested - set(eligible_universe))
+                        )
                         from .publication_policy_repository import (
                             PublicationPolicyRepository,
                         )
@@ -442,12 +445,19 @@ def run_market_provider_rehearsal(
                         valuation_minimum_coverage_ratio = policy.minimum_coverage_ratio
                         valuation_policy_snapshot = canonical_publication_policy_evidence(policy)
                         valuation_policy_sha256 = str(valuation_policy_snapshot["content_sha256"])
-                        if (
-                            len(eligible_universe) / len(registered_universe)
-                            < policy.minimum_coverage_ratio
+                        if valuation_missing_target_session_codes:
+                            eligible_universe = ()
+                            sample = ()
+                            stage_error_code = "REHEARSAL_VALUATION_SCOPE_INCOMPLETE"
+                        elif len(eligible_universe) != len(registered_universe):
+                            raise ValueError("valuation target-session scope is incomplete")
+                        elif len(eligible_universe) / len(registered_universe) < (
+                            policy.minimum_coverage_ratio
                         ):
                             raise ValueError("valuation coverage below active policy")
-                        sample = select_rehearsal_sample(eligible_universe, sample_size)
+                        else:
+                            eligible_universe = registered_universe
+                            sample = select_rehearsal_sample(eligible_universe, sample_size)
                     except (
                         AgomTradeProException,
                         OSError,
@@ -551,8 +561,7 @@ def run_market_provider_rehearsal(
         "eligible_asset_count": len(eligible_universe),
         "excluded_asset_codes": list(excluded_universe),
         "excluded_asset_count": len(excluded_universe),
-        "exclusion_reason": "valuation_not_returned_for_target_session",
-        "exclusion_rule_version": "valuation-target-session-v1",
+        "valuation_missing_target_session_codes": list(valuation_missing_target_session_codes),
         "valuation_policy_identity": valuation_policy_identity,
         "valuation_policy_sha256": valuation_policy_sha256,
         "valuation_policy_snapshot": valuation_policy_snapshot,

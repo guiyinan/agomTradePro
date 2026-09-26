@@ -362,15 +362,39 @@ def collect_full_universe_capacity(
                     requested=registered_universe,
                     target_trade_date=target_trade_date,
                 )
-                excluded_codes = tuple(
-                    cast(list[str], valuation_coverage["missing_target_session_codes"])
+                missing_valuation_codes = cast(
+                    list[str], valuation_coverage["missing_target_session_codes"]
                 )
-                eligible_codes = tuple(sorted(set(registered_universe) - set(excluded_codes)))
-                if not eligible_codes:
+                if missing_valuation_codes:
+                    asset_codes = list(registered_universe)
+                    universe_digest = hashlib.sha256(
+                        json.dumps(
+                            asset_codes,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        ).encode()
+                    ).hexdigest()
                     raise DataFetchError(
-                        "Valuation scope has no eligible assets",
-                        code="REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_EMPTY",
+                        "Valuation provider did not cover the complete active universe",
+                        code="REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE",
+                        details={
+                            "outcome": "blocked",
+                            "target_trade_date": target_trade_date.isoformat(),
+                            "requested": len(registered_universe),
+                            "succeeded": valuation_coverage["target_session_count"],
+                            "failed": len(missing_valuation_codes),
+                            "stored": len(valuation_facts),
+                            "active_asset_codes": asset_codes,
+                            "active_universe_sha256": universe_digest,
+                            "missing_asset_codes": missing_valuation_codes,
+                            "active_policy_minimum_coverage_ratio": (
+                                valuation_policy.minimum_coverage_ratio
+                            ),
+                        },
                     )
+                eligible_codes = registered_universe
+                excluded_codes: tuple[str, ...] = ()
                 quote_facts = quotes.fetch_quote_snapshots_for_session(
                     list(eligible_codes), target_trade_date
                 )
@@ -396,11 +420,6 @@ def collect_full_universe_capacity(
         target_trade_date=target_trade_date,
     )
     valuation_coverage_ratio = len(eligible_codes) / len(registered_universe)
-    if valuation_coverage_ratio < valuation_policy.minimum_coverage_ratio:
-        raise DataFetchError(
-            "Valuation scope does not satisfy the active publication policy",
-            code="REHEARSAL_CAPACITY_VALUATION_COVERAGE_LOW",
-        )
     if quote_coverage["missing_target_session_count"] != 0:
         raise DataFetchError(
             "Eligible quote scope is incomplete for the target session",
@@ -413,7 +432,7 @@ def collect_full_universe_capacity(
     receipt: dict[str, object] = {
         "schema": "release.full-universe-capacity-receipt.v1",
         "measurement_source": "candidate_runtime_instrumentation",
-        "measurement_scope": "production_valuation_seed_and_eligible_quote_dispatch",
+        "measurement_scope": "production_full_active_valuation_and_quote_dispatch",
         "candidate_sha": candidate_sha,
         "candidate_image_id": candidate_image_id,
         "target_trade_date": target_trade_date.isoformat(),
@@ -428,13 +447,12 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
-        "exclusion_reason": "valuation_not_returned_for_target_session",
+        "valuation_missing_target_session_codes": [],
         "valuation_minimum_coverage_ratio": valuation_policy.minimum_coverage_ratio,
         "valuation_coverage_ratio": valuation_coverage_ratio,
         "valuation_policy_identity": valuation_policy.identity,
         "valuation_policy_sha256": valuation_policy_sha256,
         "valuation_policy_snapshot": valuation_policy_snapshot,
-        "exclusion_rule_version": "valuation-target-session-v1",
         "started_at": started.isoformat(),
         "finished_at": finished.isoformat(),
         "elapsed_seconds": elapsed,
@@ -515,8 +533,7 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
-        "exclusion_reason": "valuation_not_returned_for_target_session",
-        "exclusion_rule_version": "valuation-target-session-v1",
+        "valuation_missing_target_session_codes": [],
         "valuation_policy_identity": valuation_policy.identity,
         "valuation_policy_sha256": valuation_policy_sha256,
         "valuation_policy_snapshot": valuation_policy_snapshot,

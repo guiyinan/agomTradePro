@@ -304,6 +304,68 @@ def test_capacity_command_preserves_allowlisted_identity_failure_code(
         )
 
 
+def test_capacity_command_preserves_missing_asset_diagnostics(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from apps.data_center.management.commands import rehearse_full_universe_capacity as command
+
+    identities = tmp_path / "identities.json"
+    identities.write_text(
+        json.dumps([_identity("quote").__dict__, _identity("valuation").__dict__]),
+        encoding="utf-8",
+    )
+    details = {
+        "outcome": "blocked",
+        "requested": 2,
+        "succeeded": 1,
+        "failed": 1,
+        "active_asset_codes": ["000001.SZ", "600000.SH"],
+        "missing_asset_codes": ["600000.SH"],
+    }
+    monkeypatch.setattr(
+        command,
+        "collect_full_universe_capacity",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            DataFetchError(
+                "valuation scope incomplete",
+                code="REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE",
+                details=details,
+            )
+        ),
+    )
+
+    with pytest.raises(CommandError) as exc_info:
+        call_command(
+            "rehearse_full_universe_capacity",
+            "--candidate-sha",
+            "c" * 40,
+            "--target-trade-date",
+            "2026-09-24",
+            "--quote-provider-id",
+            "7",
+            "--valuation-provider-id",
+            "7",
+            "--provider-identities",
+            str(identities),
+            "--provider-request-limit",
+            "100",
+            "--provider-window-seconds",
+            "60",
+            "--task-deadline-seconds",
+            "3600",
+            "--lock-wait-limit-seconds",
+            "5",
+            "--output-dir",
+            str(tmp_path / "output"),
+        )
+
+    message = str(exc_info.value)
+    assert "REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE" in message
+    assert "active_asset_codes" in message
+    assert "missing_asset_codes" in message
+    assert "600000.SH" in message
+
+
 @pytest.mark.parametrize(
     "facts",
     [
@@ -581,21 +643,27 @@ def test_collector_fails_closed_when_active_valuation_policy_is_missing(
     assert not output_dir.exists()
 
 
-def test_collector_fails_closed_when_valuation_coverage_is_below_active_policy(
+def test_collector_fails_closed_on_missing_valuation_without_status_evidence(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     source_root, output_dir, provider_calls = _prepare_capacity_scenario(
         monkeypatch,
         tmp_path,
         valuation_codes=("000001.SZ",),
-        policy_coverage=0.95,
+        policy_coverage=0.5,
     )
 
     with pytest.raises(DataFetchError) as exc_info:
         _collect_capacity(source_root, output_dir)
 
-    assert exc_info.value.code == "REHEARSAL_CAPACITY_VALUATION_COVERAGE_LOW"
-    assert provider_calls == ["valuation", "quote"]
+    assert exc_info.value.code == "REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE"
+    assert exc_info.value.details["outcome"] == "blocked"
+    assert exc_info.value.details["requested"] == 2
+    assert exc_info.value.details["succeeded"] == 1
+    assert exc_info.value.details["failed"] == 1
+    assert exc_info.value.details["active_asset_codes"] == ["000001.SZ", "600000.SH"]
+    assert exc_info.value.details["missing_asset_codes"] == ["600000.SH"]
+    assert provider_calls == ["valuation"]
     assert not output_dir.exists()
 
 

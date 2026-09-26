@@ -61,7 +61,9 @@ class Command(BaseCommand):
             code = getattr(exc, "code", None) or safe_rehearsal_identity_error_code(
                 exc, default="REHEARSAL_CAPACITY_COLLECTION_FAILED"
             )
-            raise CommandError(str(code)) from exc
+            details = getattr(exc, "details", {})
+            diagnostic = json.dumps(details, ensure_ascii=False, sort_keys=True)
+            raise CommandError(f"{code}: {diagnostic}") from exc
         self.stdout.write(
             json.dumps(
                 {
