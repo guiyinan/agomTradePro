@@ -1432,10 +1432,66 @@ then
   echo "[ERROR] release provenance validation failed before deployment mutation" >&2
   exit 1
 fi
-PREVIOUS_RELEASE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
+PREVIOUS_RELEASE=""
+if [ -L "$TARGET_DIR/current" ]; then
+  PREVIOUS_RELEASE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
+  TARGET_RELEASES_DIR="$(readlink -f "$TARGET_DIR/releases" 2>/dev/null || true)"
+  case "$PREVIOUS_RELEASE" in
+    "$TARGET_RELEASES_DIR"/source-*) ;;
+    *)
+      echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: current release pointer is invalid; deployment stopped before mutation" >&2
+      exit 42
+      ;;
+  esac
+elif [ -e "$TARGET_DIR/current" ]; then
+  echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: current release path is not an immutable release symlink" >&2
+  exit 42
+fi
 PREVIOUS_IMAGE=""
-if [ -n "$PREVIOUS_RELEASE" ] && [ -f "$PREVIOUS_RELEASE/deploy/.env" ]; then
-  PREVIOUS_IMAGE="$(grep '^WEB_IMAGE=' "$PREVIOUS_RELEASE/deploy/.env" | tail -n 1 | cut -d '=' -f2- || true)"
+if [ -n "$PREVIOUS_RELEASE" ]; then
+  PREVIOUS_COMPOSE_FILE="$PREVIOUS_RELEASE/docker/docker-compose.vps.yml"
+  PREVIOUS_ENV_FILE="$PREVIOUS_RELEASE/deploy/.env"
+  if [ ! -f "$PREVIOUS_COMPOSE_FILE" ] || [ ! -f "$PREVIOUS_ENV_FILE" ]; then
+    echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: previous release runtime configuration is missing; deployment stopped before mutation" >&2
+    exit 42
+  fi
+  PREVIOUS_POSTGRES_CID="$(docker ps --filter 'label=com.docker.compose.project=agomtradepro' --filter 'label=com.docker.compose.service=postgres' --format '{{.ID}}' 2>/dev/null || true)"
+  if [ -z "$PREVIOUS_POSTGRES_CID" ]; then
+    echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: current PostgreSQL container is unavailable; migration state is unknown" >&2
+    exit 42
+  fi
+  if [ "$(printf '%s\n' "$PREVIOUS_POSTGRES_CID" | wc -l)" -ne 1 ]; then
+    echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: current PostgreSQL container identity is ambiguous" >&2
+    exit 42
+  fi
+  MIGRATION_TABLE_PRESENT="$(docker exec "$PREVIOUS_POSTGRES_CID" sh -c "psql -XAtq -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT to_regclass('public.django_migrations') IS NOT NULL\"" 2>/dev/null || true)"
+  case "$MIGRATION_TABLE_PRESENT" in
+    t)
+      MIGRATION_0085_PRESENT="$(docker exec "$PREVIOUS_POSTGRES_CID" sh -c "psql -XAtq -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT EXISTS (SELECT 1 FROM public.django_migrations WHERE app='data_center' AND name='0085_published_market_fact_revisions')\"" 2>/dev/null || true)"
+      case "$MIGRATION_0085_PRESENT" in
+        t) DATABASE_MIGRATION_0085="applied" ;;
+        f) DATABASE_MIGRATION_0085="not_applied" ;;
+        *)
+          echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: data_center.0085 migration state could not be read" >&2
+          exit 42
+          ;;
+      esac
+      ;;
+    *)
+      echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: Django migration state could not be read" >&2
+      exit 42
+      ;;
+  esac
+  echo "[INFO] Verifying previous release identity and data_center.0085 rollback compatibility"
+  if ! python3 "$RELEASE_DIR/scripts/verify_data_center_0085_rollback_compatibility.py" \
+    --previous-release "$PREVIOUS_RELEASE" \
+    --database-migration-0085 "$DATABASE_MIGRATION_0085"; then
+    echo "[ERROR] ROLLBACK_SCHEMA_INCOMPATIBLE: deployment stopped before backup or database migration. Keep the current data intact; deploy a revision-aware rollback release or a forward compatibility release. Do not delete revisions or restore an older database." >&2
+    exit 42
+  fi
+  PREVIOUS_IMAGE="$(grep '^WEB_IMAGE=' "$PREVIOUS_ENV_FILE" | cut -d '=' -f2- || true)"
+else
+  echo "[INFO] No current release exists; there is no automatic rollback target to validate"
 fi
 ROLLBACK_READY=0
 DEPLOY_SUCCEEDED=0
