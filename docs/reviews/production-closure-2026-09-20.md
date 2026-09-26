@@ -773,3 +773,27 @@ mode=`required`、outbox=`true`、authority selector 有效，temporally current
 输出和哈希清单见同名 `-raw.zip`。registry v180 → v181；DATA-02、EVID-01/02、AUD-03 状态不变，
 TUI-02 与 DATA-18 继续 active。验证 harness 没有直接调用 provider 或执行生产写入；由于两个 no-execute
 子进程超时，其内部是否到达 provider/写路径未决。没有观察到 profile 激活或 Publication 切换。
+
+## 生产 revision 9c77c51182 只读重验（2026-09-26）
+
+生产已推进到 `9c77c51182`，release `20260925201025`；探针采集时 `dev/next-development` HEAD 为
+`db5197f6f6`，生产落后 18 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 为 403。A 股有效分母仍为 5,569；quote、price、valuation current Publication
+仍各为 5,557，financial 仍为 80，覆盖与 freshness 没有推进。
+
+生产 profile v19 已绑定部署 revision `9c77c51182`。audit mode=`required`、outbox=`true`、selector
+有效；temporally current actor、owner、joined heads 从 1/1/1 增至 2/2/2，actor 有效期至
+2026-10-09，owner authority 有效期至 2027-09-12。该变化证明当前身份可用性增加，但仍不能替代
+EVID-01/02 与 AUD-03 所需的 PostgreSQL 并发、writer/recovery、archive-restore、告警和真实验收。
+
+部署 revision 的 source-time contract 与 numeric tolerance registry 均仍为 `awaiting_owner_approval`、零条目，
+approval 缺失，exact matcher registry 为空；本次也没有观察到 retained real provider sample 或显式生产写授权。
+
+未传 `--execute` 的 repair 预检在交易时段以 `latest completed China market session is unavailable during
+live trading` 结构化失败关闭，并报告没有写入。未传 `--execute` 的 Publication 预检仍超过 180 秒，
+没有结构化结果，其内部是否到达 provider/写路径未决。受保护监控连续两次对凭据和匿名请求均返回 401、
+`DENY_STOP_LINES`，TUI-02 仍不能绑定首样本或启动观察窗口。
+
+结构化证据见 [生产 revision 9c77c51182 只读重验](../deployment/production-closure-revalidation-2026-09-26-9c77c51182.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v181 → v182；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、profile 激活或 Publication 切换。
