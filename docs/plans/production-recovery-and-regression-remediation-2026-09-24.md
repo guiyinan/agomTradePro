@@ -162,8 +162,8 @@
 | R2 信号/MCP | 候选代码完成，生产待验 | API/SDK/MCP 分页、最后业务 503、政策待分类及安全业务码已回归；部署重启后的新 MCP 会话待验 |
 | R3 只读/工作台/文案 | 候选代码完成，生产待验 | 账户归属、GET 零写入、研究入口、慢请求/重试和缺失价格语义已通过本地行为验收；生产普通投资者浏览器 UAT 待验 |
 | R4 进度/诊断 | 候选代码完成，生产待验 | current attempt / last completed、phase、outcome、计数单位和安全错误投影已形成回归；生产任务结果待验 |
-| S1–S5 | 候选代码完成，远端 CI 待验 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；同一最终 SHA 的远端 CI 结果仍须冻结 |
-| S6 | 第十一次真实演练完整成功，部署器修复待最终 SHA 重跑 | `66615517e3` 的同 SHA CI 和 25 项 PostgreSQL 契约全绿；全新候选完整通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只全市场容量、隔离 PostgreSQL 写入回滚、官方 CI 证据、不可变 bundle 和最终 validator。独立下载后复算 bundle tree、manifest、GitHub run 与四类报告也通过，临时凭据和隔离 PostgreSQL 已清理。首次部署在任何生产切换前因 prebuilt 校验 payload 的 Python 引号错误阻断；修复属于部署代码变更，必须以最终新 SHA 重跑全部 CI 和整套真实 S6，不能用旧候选绕过 |
+| S1–S5 | 候选代码完成，最终 SHA 远端 CI 待冻结 | 真实 provider 契约、不变量、时间、规模和跨消费者选测已集成；本地回归与 mypy 债务门禁已通过，同一最终 SHA 的远端 CI 结果仍须冻结 |
+| S6 | 历史完整成功；当前候选发现真实契约分叉并修复，待最终 SHA 重跑 | `66615517e3` 曾完整通过构建、镜像身份、真实 provider 探针、原始响应重放、5,569 只容量、隔离 PostgreSQL 写入回滚、官方 CI 证据、不可变 bundle 和最终 validator。后续候选 `d614863a8` 在真实 provider_probe 阶段按规则阻断，证明旧报告不能授权新实现；根因和修复见下方执行记录。最终新 SHA 必须从头重跑，不能复用历史 bundle |
 | 生产联合复验 | 部署前阻断 | prebuilt 校验 payload quoting 修复后待最终候选部署；真实普通用户、四发布、自然周期和准确 runtime 门尚需验证 |
 
 本表在每个阶段完成后更新，只写实际验证结果。最终报告必须列完成项、未完成项、已验证测试与未验证风险。
@@ -187,6 +187,7 @@
 - `1ea5641a4b` 第九次真实 S6 成功创建完整 bundle，最终 validator 在读取真实四类报告后阻断。只读重放确认稳定码为 `REHEARSAL_PROVIDER_IDENTITY_INVALID`；真实 capacity 与 isolated 报告只有已冻结的 `provider_identities_sha256`，而 synthetic validator fixture 曾给四类报告全部添加身份数组，掩盖了生产契约差异。修复后测试 fixture 与真实生产形态一致，并覆盖四类顶层摘要必填、replay/CI 完整数组必填和摘要重算。launcher 另以严格的二字段 blocked JSON 解析 validator 稳定码，含附加诊断字段或多个错误码的输出仍降级为通用安全错误。
 - `24da5c943` 第十次真实 S6 证明身份形态与稳定码透传修复有效，最终 validator 随后在单位合同检查 fail closed。冻结 bundle 的只读复核确认报价合同与单位重放均使用系统已规范化的英文 canonical 名称和正确倍率，只有 validator 的 synthetic 常量仍保留旧中文别名。修复只统一单位名称，不改变数值倍率、原始响应、已发布事实或估值合同；失败运行的临时凭据和隔离 PostgreSQL 已清理。随后增加报价旧中文别名、报价及估值五字段任一合同倍率漂移、微小 observation 倍率漂移的 fail-closed 回归；单位倍率按已定义的整数转换系数精确匹配。聚焦 validator suite 76 项通过，Ruff、Black、isort 和增量 mypy 通过；新的候选 SHA 仍须跑完整 CI 与全新 S6。
 - `66615517e3` 第十一次真实 S6 首次完整成功，九个阶段全部完成且 `success_evidence/error_code=null`。候选镜像 `sha256:5fb0f6c…f8a3`、release tag `20260925190720`、bundle tree `d5501f57…a800` 与 GitHub run `36163499730` 绑定同一提交；本地独立 validator 重放再次成功。随后正式部署入口在 SSH 和镜像定位后、生产 mutation 前因生成的 `python -c` payload 将 Docker label 模板双引号错误嵌入双引号字符串而 `SyntaxError`。修复把 payload 收敛为有类型、有 docstring 的单一生成函数，并直接编译测试生成结果；生产服务仍保持旧版本。
+- `d614863a8` 的全新 S6 在真实 `provider_probe` 阶段正确返回 `blocked/S6_STAGE_COMMAND_FAILED`：估值 50/50 成功，行情 0/50；留存 transport 显示估值向统一 HTTPS relay 单端点 POST 成功，而行情绕过 provider 治理出口后由 Tushare SDK 拼接 `/daily`，relay 返回 HTTP 404，最终稳定为 `REHEARSAL_RETAINED_RESPONSE_MISSING` 与逐证券 `REHEARSAL_ASSET_MISSING`。这不是日期、数据阈值或 S6 误报。`252ebcfe3` 将 Tushare 行情和历史行情的 provider_id、部署区域及 dataset key 传入统一出口，并补齐直接契约测试；同类复核又发现生产定时默认 AKShare 行情，但显式交易日协议此前未实现。最终候选仅接受 AKShare 自带观察时间映射到目标中国市场交易日的结果，并把正式定时默认源调整为已进入 retained-response 回放门的 Tushare。AKShare 仍可显式选择，日期不匹配时按完整性门禁阻断；不得用抓取时间冒充目标日。最终候选仍须重跑同 SHA CI、PostgreSQL、完整 S6 和部署后联合验收。
 
 ### 2026-09-24 首轮执行证据
 

@@ -11376,22 +11376,22 @@
       "text": "\"\"\"Return fractional rate of change ``(current / previous) - 1``.\"\"\""
     },
     {
-      "line": 351,
+      "line": 354,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch market-wide ETF net flow from the latest ETF spot snapshot.\"\"\""
     },
     {
-      "line": 787,
+      "line": 803,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "\"\"\"Fetch current valuation coverage through Tencent's batch quote contract.\"\"\""
     },
     {
-      "line": 857,
+      "line": 873,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },
     {
-      "line": 875,
+      "line": 891,
       "path": "apps/data_center/infrastructure/_provider_adapter_akshare.py",
       "text": "summary=article.content,"
     },

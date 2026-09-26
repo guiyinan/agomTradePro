@@ -29,7 +29,10 @@ from apps.data_center.domain.entities import (
 from apps.data_center.domain.enums import (
     DataQualityStatus,
 )
-from apps.data_center.domain.market_time import cn_market_session_close_utc
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    cn_market_session_close_utc,
+)
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure._provider_adapter_base import (
@@ -587,6 +590,19 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             for quote in quotes
             if quote.observed_at is not None
+        ]
+
+    def fetch_quote_snapshots_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[QuoteSnapshot]:
+        """Return only provider-observed quotes from the requested China-market session."""
+
+        return [
+            quote
+            for quote in self.fetch_quote_snapshots(asset_codes)
+            if cn_market_date_from_observation(quote.snapshot_at) == target_trade_date
         ]
 
     def fetch_fund_nav(

@@ -674,9 +674,9 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert result["price_scope_verified"] == 1
     assert result["publication_ids"] == [publication_id]
     assert result["publication_run_id"] == result["run_id"]
-    assert result["quote_source"] == "akshare"
+    assert result["quote_source"] == "tushare"
     assert result["valuation_source"] == "tushare"
-    assert quote_provider_ids == [7]
+    assert quote_provider_ids == [3]
     assert valuation_provider_ids == [3]
 
 

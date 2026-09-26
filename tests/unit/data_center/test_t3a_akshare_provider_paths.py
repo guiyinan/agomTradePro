@@ -150,12 +150,18 @@ def test_price_quote_and_stock_news_gateway_rows_are_converted(
 
     prices = adapter.fetch_price_history("000001", START, END)
     quotes = adapter.fetch_quote_snapshots(["000001.SZ"])
+    session_quotes = adapter.fetch_quote_snapshots_for_session(["000001.SZ"], date(2024, 1, 2))
+    stale_session_quotes = adapter.fetch_quote_snapshots_for_session(
+        ["000001.SZ"], date(2024, 1, 3)
+    )
     news = adapter.fetch_news("000001.SZ", limit=1)
 
     assert prices[0].asset_code == "000001.SZ"
     assert quotes[0].current_price == 10.5
     assert quotes[0].source == "eastmoney"
     assert quotes[0].extra["actual_source"] == "eastmoney"
+    assert [quote.asset_code for quote in session_quotes] == ["000001.SZ"]
+    assert stale_session_quotes == []
     assert news[0].published_at.tzinfo is UTC
 
 

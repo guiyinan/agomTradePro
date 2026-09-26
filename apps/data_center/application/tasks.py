@@ -94,7 +94,7 @@ _FINANCIAL_REFRESH_CACHE_TTL = 7 * 86400
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
-    quote_source: str = "akshare",
+    quote_source: str = "tushare",
     valuation_source: str = "tushare",
 ) -> dict[str, object]:
     """Refresh all active market quotes and valuations without waiting for financial filings."""
