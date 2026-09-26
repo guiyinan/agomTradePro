@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any, Protocol
 
 import pandas as pd  # type: ignore[import-untyped]
 
-from apps.data_center.domain.model_market_data import ModelDailyBar
+from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
 from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
@@ -143,12 +143,48 @@ class AkshareModelMarketSource:
 
     def trade_days(self, start_date: date, end_date: date) -> tuple[date, ...]:
         """Read the provider's exchange calendar without weekday approximation."""
-        frame = self._client.tool_trade_date_hist_sina()
-        if frame is None or "trade_date" not in frame.columns:
+        try:
+            return self.trading_calendar_evidence(start_date, end_date).open_sessions
+        except DataFetchError:
             return ()
-        days = pd.to_datetime(frame["trade_date"], errors="coerce").dropna()
-        return tuple(
-            sorted({item.date() for item in days if start_date <= item.date() <= end_date})
+
+    def trading_calendar_evidence(
+        self, start_date: date, end_date: date
+    ) -> TradingCalendarEvidence:
+        """Bind AKShare's exchange-session history to the requested calendar window."""
+
+        if start_date > end_date:
+            raise ValueError("Trading calendar start_date must not exceed end_date")
+        frame = self._client.tool_trade_date_hist_sina()
+        if frame is None or frame.empty or "trade_date" not in frame.columns:
+            raise DataFetchError(
+                "AKShare trading calendar schema is unavailable",
+                code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID",
+            )
+        parsed = pd.to_datetime(frame["trade_date"], errors="coerce")
+        if parsed.isna().any():
+            raise DataFetchError(
+                "AKShare trading calendar contains an invalid date",
+                code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID",
+            )
+        raw_provider_days = tuple(item.date() for item in parsed)
+        if len(set(raw_provider_days)) != len(raw_provider_days):
+            raise DataFetchError(
+                "AKShare trading calendar contains duplicate sessions",
+                code="MODEL_MARKET_CALENDAR_CONFLICT",
+            )
+        provider_days = tuple(sorted(raw_provider_days))
+        if not provider_days or provider_days[0] > start_date or provider_days[-1] < end_date:
+            raise DataFetchError(
+                "AKShare trading calendar coverage is incomplete",
+                code="MODEL_MARKET_CALENDAR_COVERAGE_INCOMPLETE",
+            )
+        return TradingCalendarEvidence(
+            coverage_start=start_date,
+            coverage_end=end_date,
+            open_sessions=tuple(item for item in provider_days if start_date <= item <= end_date),
+            source=self._source,
+            observed_at=datetime.now(UTC),
         )
 
     def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:

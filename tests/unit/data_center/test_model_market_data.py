@@ -67,6 +67,27 @@ def test_calendar_evidence_binds_requested_coverage_and_provider_source():
     assert evidence.observed_at.tzinfo is not None
 
 
+def test_calendar_evidence_fails_over_to_akshare_complete_series():
+    class RejectedCalendar(Source):
+        def trading_calendar_evidence(self, start_date, end_date):
+            raise DataFetchError(
+                "primary calendar invalid", code="MODEL_MARKET_CALENDAR_SCHEMA_INVALID"
+            )
+
+    class AkshareCalendarClient:
+        def tool_trade_date_hist_sina(self):
+            return pd.DataFrame({"trade_date": [date(2026, 9, 6), D1, D2, date(2026, 9, 9)]})
+
+    backup = AkshareModelMarketSource(
+        AkshareCalendarClient(), source="akshare-calendar", tolerance=0.01
+    )
+
+    evidence = service(RejectedCalendar(), backup).trading_calendar_evidence(D1, D2)
+
+    assert evidence.open_sessions == (D1, D2)
+    assert evidence.source == "akshare-calendar"
+
+
 def test_stale_primary_continues_to_consistent_fresh_source_and_stores_raw_values():
     first, second = Source((bar(),)), Source((bar(source="backup"), bar(D2, source="backup")))
     stored = []

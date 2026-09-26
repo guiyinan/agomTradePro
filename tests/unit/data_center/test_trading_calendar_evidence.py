@@ -5,6 +5,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
+from apps.data_center.infrastructure.akshare_model_market_source import AkshareModelMarketSource
 from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
 from core.exceptions import DataFetchError
 
@@ -17,6 +18,14 @@ class CalendarClient:
     def trade_cal(self, **kwargs: object) -> pd.DataFrame:
         self.calls.append(kwargs)
         return pd.DataFrame(self.rows)
+
+
+class AkshareCalendarClient:
+    def __init__(self, values: list[object]) -> None:
+        self.values = values
+
+    def tool_trade_date_hist_sina(self) -> pd.DataFrame:
+        return pd.DataFrame({"trade_date": self.values})
 
 
 def test_complete_calendar_binds_closed_days_source_and_coverage() -> None:
@@ -76,3 +85,43 @@ def test_conflicting_calendar_state_is_rejected() -> None:
         source.trading_calendar_evidence(date(2026, 9, 23), date(2026, 9, 23))
 
     assert caught.value.code == "MODEL_MARKET_CALENDAR_CONFLICT"
+
+
+def test_akshare_calendar_proves_holiday_window_from_exchange_session_history() -> None:
+    source = AkshareModelMarketSource(
+        AkshareCalendarClient(["2026-09-23", "2026-09-24", "2026-09-28"]),
+        source="configured-akshare",
+        tolerance=0.01,
+    )
+
+    evidence = source.trading_calendar_evidence(date(2026, 9, 23), date(2026, 9, 26))
+
+    assert evidence.open_sessions == (date(2026, 9, 23), date(2026, 9, 24))
+    assert evidence.coverage_start == date(2026, 9, 23)
+    assert evidence.coverage_end == date(2026, 9, 26)
+    assert evidence.source == "configured-akshare"
+    assert evidence.observed_at.utcoffset() is not None
+
+
+@pytest.mark.parametrize(
+    ("values", "code"),
+    [
+        (["not-a-date"], "MODEL_MARKET_CALENDAR_SCHEMA_INVALID"),
+        (["2026-09-01"], "MODEL_MARKET_CALENDAR_COVERAGE_INCOMPLETE"),
+        (
+            ["2026-09-01", "2026-09-01", "2026-09-28"],
+            "MODEL_MARKET_CALENDAR_CONFLICT",
+        ),
+    ],
+)
+def test_akshare_calendar_rejects_invalid_or_stale_history(values: list[object], code: str) -> None:
+    source = AkshareModelMarketSource(
+        AkshareCalendarClient(values),
+        source="configured-akshare",
+        tolerance=0.01,
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        source.trading_calendar_evidence(date(2026, 9, 1), date(2026, 9, 26))
+
+    assert caught.value.code == code
