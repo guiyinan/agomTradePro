@@ -668,6 +668,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             http_url=self._config.http_url,
             request_mode=self._configured_request_mode(),
             source_name=self.provider_name(),
+            provider_id=self._config.id,
+            deployment_region=_deployment_region(),
+            dataset_key="equity.price.bar",
         )
         canonical_asset_code = normalize_asset_code(asset_code, "tushare")
         bars = gateway.get_historical_prices(
@@ -715,6 +718,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             http_url=self._config.http_url,
             request_mode=self._configured_request_mode(),
             source_name=self.provider_name(),
+            provider_id=self._config.id,
+            deployment_region=_deployment_region(),
+            dataset_key="equity.quote.snapshot",
         )
         quotes = gateway.get_quote_snapshots(
             asset_codes,

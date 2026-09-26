@@ -255,6 +255,9 @@ def test_gateway_uses_its_configured_tushare_route(monkeypatch: pytest.MonkeyPat
         http_url="https://relay.example.test/tushare/pro",
         request_mode="unified_relay",
         source_name="tushare-relay",
+        provider_id=7,
+        deployment_region="cn-east",
+        dataset_key="equity.quote.snapshot",
     )
 
     gateway.get_historical_prices("000001.SZ", "20240101", "20240131")
@@ -264,6 +267,9 @@ def test_gateway_uses_its_configured_tushare_route(monkeypatch: pytest.MonkeyPat
         "token": "relay-token",
         "http_url": "https://relay.example.test/tushare/pro",
         "request_mode": "unified_relay",
+        "provider_id": 7,
+        "deployment_region": "cn-east",
+        "dataset_key": "equity.quote.snapshot",
     }
 
 

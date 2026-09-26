@@ -144,11 +144,17 @@ class TushareGateway(MarketGatewayProtocol):
         http_url: str | None = None,
         request_mode: str | None = None,
         source_name: str = "tushare",
+        provider_id: int | None = None,
+        deployment_region: str = "unknown",
+        dataset_key: str = "",
     ) -> None:
         self._token = token
         self._http_url = http_url
         self._request_mode = request_mode
         self._source_name = source_name
+        self._provider_id = provider_id
+        self._deployment_region = deployment_region
+        self._dataset_key = dataset_key
 
     def _create_client(self) -> object:
         """Build the client for this configured Tushare route only."""
@@ -157,6 +163,9 @@ class TushareGateway(MarketGatewayProtocol):
             token=self._token,
             http_url=self._http_url,
             request_mode=self._request_mode,
+            provider_id=self._provider_id,
+            deployment_region=self._deployment_region,
+            dataset_key=self._dataset_key,
         )
 
     def provider_name(self) -> str:

@@ -118,10 +118,43 @@ def test_macro_adapter_skips_nonfinite_provider_points(monkeypatch) -> None:
     assert [fact.value for fact in facts] == [42.5]
 
 
-def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> None:
+def test_price_adapter_propagates_egress_routing_identity(monkeypatch) -> None:
+    gateway_config: dict[str, object] = {}
+
     class FakeGateway:
-        def __init__(self, **_kwargs: object) -> None:
-            pass
+        def __init__(self, **kwargs: object) -> None:
+            gateway_config.update(kwargs)
+
+        def get_historical_prices(self, **kwargs: object) -> list[object]:
+            assert kwargs == {
+                "asset_code": "000001.SZ",
+                "start_date": "20260701",
+                "end_date": "20260702",
+            }
+            return []
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway",
+        FakeGateway,
+    )
+
+    facts = TushareUnifiedProviderAdapter(_config()).fetch_price_history(
+        "000001.SZ",
+        date(2026, 7, 1),
+        date(2026, 7, 2),
+    )
+
+    assert facts == []
+    assert gateway_config["provider_id"] == 1
+    assert gateway_config["dataset_key"] == "equity.price.bar"
+
+
+def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> None:
+    gateway_config: dict[str, object] = {}
+
+    class FakeGateway:
+        def __init__(self, **kwargs: object) -> None:
+            gateway_config.update(kwargs)
 
         def get_quote_snapshots(
             self, _asset_codes: list[str], *, target_trade_date: date
@@ -168,6 +201,8 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
     assert facts[0].current_price == 10.5
     assert facts[0].volume is None
     assert facts[0].amount is None
+    assert gateway_config["provider_id"] == 1
+    assert gateway_config["dataset_key"] == "equity.quote.snapshot"
 
 
 def test_fund_nav_adapter_skips_invalid_primary_nav(monkeypatch) -> None:
