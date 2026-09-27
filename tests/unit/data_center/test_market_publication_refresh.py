@@ -888,6 +888,110 @@ def test_price_stage_never_publishes_stale_or_conflicting_existing_facts(reason)
     assert caught.value.code == reason
 
 
+def test_price_stage_prefetches_only_target_session_at_full_market_scale():
+    """Full-market validation must reuse one target-session prefetch, not Qlib history."""
+    from types import SimpleNamespace
+
+    target = date(2026, 9, 18)
+    codes = [f"{value:06d}.SZ" for value in range(1, 5570)]
+
+    class PreparedPort:
+        def __init__(self):
+            self.prepare_calls = []
+            self.provider_batch_requests = 0
+            self.per_asset_provider_requests = []
+            self.prepared_rows = {}
+
+        def prepare_stock_history(self, asset_codes, start_date, end_date):
+            self.prepare_calls.append((asset_codes, start_date, end_date))
+            self.provider_batch_requests += 1
+            self.prepared_codes = set(asset_codes)
+            self.prepared_rows = {
+                code: (SimpleNamespace(trade_date=target),) for code in asset_codes
+            }
+
+        def stock_history(self, asset_code, start_date, end_date):
+            assert (start_date, end_date) == (target, target)
+            assert asset_code in self.prepared_codes
+            if asset_code not in self.prepared_rows:
+                self.per_asset_provider_requests.append(asset_code)
+                return ()
+            return self.prepared_rows[asset_code]
+
+    port = PreparedPort()
+
+    assert refresh_market_price_inputs(port, codes, target) == ()
+    assert port.prepare_calls == [(tuple(codes), target, target)]
+    assert port.provider_batch_requests == 1
+    assert port.per_asset_provider_requests == []
+
+
+def test_price_stage_expands_only_missing_assets_for_native_suspension_evidence():
+    """Only missing target-session members may use the bounded history fallback."""
+    from types import SimpleNamespace
+
+    target = date(2026, 9, 18)
+    missing_code = "000016.SZ"
+    calls = []
+
+    class Port:
+        def prepare_stock_history(self, asset_codes, start_date, end_date):
+            calls.append(("prepare", asset_codes, start_date, end_date))
+
+        def stock_history(self, asset_code, start_date, end_date):
+            calls.append(("read", asset_code, start_date, end_date))
+            if start_date == target:
+                if asset_code == missing_code:
+                    raise DataFetchError("missing target session", code="MODEL_MARKET_UNAVAILABLE")
+                return (SimpleNamespace(trade_date=target),)
+            assert start_date == target - timedelta(days=120)
+            assert asset_code == missing_code
+            raise DataFetchError(
+                "verified suspension",
+                code="MODEL_MARKET_SUSPENDED",
+                details={"asset_code": missing_code, "suspended_through": target.isoformat()},
+            )
+
+    assert refresh_market_price_inputs(
+        Port(), ["000001.SZ", missing_code, "000002.SZ"], target
+    ) == (missing_code,)
+    assert calls[0] == ("prepare", ("000001.SZ", missing_code, "000002.SZ"), target, target)
+    assert [call[1] for call in calls if call[0] == "read" and call[2] != target] == [missing_code]
+
+
+def test_price_stage_rejects_unverified_suspension_after_missing_target_read():
+    """A historical gap without exact target-day suspension evidence still blocks."""
+    from types import SimpleNamespace
+
+    target = date(2026, 9, 18)
+
+    class Port:
+        def stock_history(self, asset_code, start_date, end_date):
+            if start_date == target:
+                raise DataFetchError("missing target session", code="MODEL_MARKET_UNAVAILABLE")
+            return (SimpleNamespace(trade_date=target - timedelta(days=1)),)
+
+    with pytest.raises(DataFetchError) as caught:
+        refresh_market_price_inputs(Port(), ["000016.SZ"], target)
+    assert caught.value.code == "MODEL_MARKET_STALE"
+
+
+def test_price_stage_does_not_expand_provider_rejection_into_history_requests():
+    """Provider rejection is a terminal route error, not evidence of a missing price."""
+    target = date(2026, 9, 18)
+    calls = []
+
+    class Port:
+        def stock_history(self, asset_code, start_date, end_date):
+            calls.append((asset_code, start_date, end_date))
+            raise DataFetchError("rejected", code="TUSHARE_PROVIDER_REJECTED")
+
+    with pytest.raises(DataFetchError) as caught:
+        refresh_market_price_inputs(Port(), ["000001.SZ"], target)
+    assert caught.value.code == "TUSHARE_PROVIDER_REJECTED"
+    assert calls == [("000001.SZ", target, target)]
+
+
 @pytest.mark.parametrize("evidence_date", ["2026-09-18", "2026-09-17"])
 def test_price_stage_requires_target_bound_suspension_evidence(evidence_date):
     from types import SimpleNamespace

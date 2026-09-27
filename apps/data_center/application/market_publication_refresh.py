@@ -31,14 +31,14 @@ class _PhaseResult(TypedDict):
 def refresh_market_price_inputs(
     port: ModelMarketDataPort, asset_codes: list[str], target_date: date
 ) -> tuple[str, ...]:
-    """Refresh raw price facts and verify every current member before publication."""
-    start_date = target_date - timedelta(days=120)
+    """Verify target-session prices, expanding only missing assets for suspension proof."""
+    history_start = target_date - timedelta(days=120)
     if isinstance(port, ModelHistoryPreparationPort):
-        port.prepare_stock_history(tuple(asset_codes), start_date, target_date)
+        port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
     for code in asset_codes:
         try:
-            rows = port.stock_history(code, start_date, target_date)
+            rows = port.stock_history(code, target_date, target_date)
             if not rows or max(row.trade_date for row in rows) != target_date:
                 raise DataFetchError(
                     "Current price observations missing", code="MODEL_MARKET_STALE"
@@ -49,7 +49,22 @@ def refresh_market_price_inputs(
                 or exc.details.get("asset_code") != code
                 or exc.details.get("suspended_through") != target_date.isoformat()
             ):
-                raise
+                if exc.code not in {"MODEL_MARKET_UNAVAILABLE", "MODEL_MARKET_STALE"}:
+                    raise
+                try:
+                    rows = port.stock_history(code, history_start, target_date)
+                    if rows and max(row.trade_date for row in rows) == target_date:
+                        continue
+                    raise DataFetchError(
+                        "Current price observations missing", code="MODEL_MARKET_STALE"
+                    )
+                except DataFetchError as history_error:
+                    if (
+                        history_error.code != "MODEL_MARKET_SUSPENDED"
+                        or history_error.details.get("asset_code") != code
+                        or history_error.details.get("suspended_through") != target_date.isoformat()
+                    ):
+                        raise
             suspended.append(code)
     return tuple(suspended)
 

@@ -235,3 +235,7 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 每个当前估值 scope block 必须保留目标交易日、provider/source、publication run id、policy version 与所属 publication id，并与父 Publication 的日期、来源、运行、政策和确定性 id 一致。内容 hash 纳入 block 的证据字段，但不纳入 publication id（它由内容 hash 确定）；重建、持久化不变性校验和查询 gate 必须按同一规则复算。单证券查询只投影该证券的完整阻断证据，不向用户返回其他证券的 aggregate blocks。
 
 正式估值默认通过 AKShare provider 配置调用 Tencent quote-batch 上游。Provider identity 同时绑定配置行和实际 Tencent 上游，响应 artifact 使用 `tencent_quote_batch.v1`，逐 HTTP 批次记录实际返回证券集合并校验所有批次并集。原始响应字段 30 提供 Asia/Shanghai 来源时间，字段 44/45 的流通/总市值原始单位为亿元，进入 Domain 前按 `100000000` 转换为元；`available_at/fetched_at`、原始 body SHA-256、batch scope 和 source record id 必须保留。S6 离线重放必须从留存 bytes 重新解析这些字段并与在线事实逐项相等，不能套用 Tushare `daily_basic` 的万元单位或交易日收盘替代真实 Tencent 来源时间。
+
+### 2026-09-27 正式价格发布与 Qlib 历史窗口隔离
+
+全市场 current `equity.price.bar` 发布只对目标完成交易日执行批量预取和逐证券当前验证；逐证券读取必须复用这次单会话预取缓存。只有目标日缺行或明确不可用的证券才进入 120 日历史读取，以便既有 Data Center 路由验证来源一致性及逐日全日停牌证据。精确目标日停牌证据以外的缺失、过期、跨源冲突、权限或额度错误继续失败关闭。Qlib 特征构建仍可使用其历史窗口；该窗口不应扩大正式 Publication 的全市场 provider 请求。

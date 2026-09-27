@@ -4639,6 +4639,7 @@
         "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/financial_refresh_lease.py",
         "apps/data_center/application/tasks.py",
+        "apps/data_center/application/market_publication_refresh.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
         "apps/data_center/management/commands/setup_full_market_publications.py",
         "apps/data_center/application/backfill_control_plane.py",
@@ -4960,6 +4961,13 @@
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
           "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
+        ],
+        "apps/data_center/application/market_publication_refresh.py": [
+          "port.prepare_stock_history(tuple(asset_codes), target_date, target_date)",
+          "history_start = target_date - timedelta(days=120)",
+          "port.stock_history(code, target_date, target_date)",
+          "port.stock_history(code, history_start, target_date)",
+          "if exc.code not in {\"MODEL_MARKET_UNAVAILABLE\", \"MODEL_MARKET_STALE\"}:"
         ],
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py": [
           "--execute is required for this production writer",
@@ -5826,6 +5834,26 @@
           "case": "scheduled_market_refresh_uses_tushare_quote_and_tencent_valuation",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_repairs_missing_price_scope_before_final_publication"
+        },
+        {
+          "case": "full_market_price_prefetch_is_target_session_bounded",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_price_stage_prefetches_only_target_session_at_full_market_scale"
+        },
+        {
+          "case": "missing_price_scope_alone_uses_source_native_suspension_check",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_price_stage_expands_only_missing_assets_for_native_suspension_evidence"
+        },
+        {
+          "case": "price_scope_without_exact_suspension_stays_blocked",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_price_stage_rejects_unverified_suspension_after_missing_target_read"
+        },
+        {
+          "case": "price_provider_rejection_does_not_expand_history_scope",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_price_stage_does_not_expand_provider_rejection_into_history_requests"
         },
         {
           "case": "full_market_schedule_defaults_to_tencent_valuations",
