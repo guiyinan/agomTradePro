@@ -27,10 +27,30 @@ def _load_module():
 validator = _load_module()
 CANDIDATE = "a" * 40
 IMAGE_ID = "sha256:" + "f" * 64
-ASSET_CODES = ["000001.SZ", "600000.SH", "830001.BJ"]
+ASSET_CODES = sorted(
+    ["000001.SZ", "600000.SH", "830001.BJ"] + [f"{index:06d}.SZ" for index in range(2, 50)]
+)
 UNIVERSE = hashlib.sha256(
     json.dumps(ASSET_CODES, sort_keys=True, separators=(",", ":")).encode()
 ).hexdigest()
+
+
+def _deterministic_sample(asset_codes: list[str]) -> list[str]:
+    """Mirror the governed provider sample over a larger frozen universe."""
+
+    ranked = sorted(asset_codes, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
+    groups: dict[str, str] = {}
+    for code in ranked:
+        groups.setdefault(code.rsplit(".", 1)[-1], code)
+    selected = set(groups.values())
+    for code in ranked:
+        if len(selected) >= min(50, len(asset_codes)):
+            break
+        selected.add(code)
+    return sorted(selected)
+
+
+SAMPLE_CODES = _deterministic_sample(ASSET_CODES)
 TARGET_DATE = "2026-09-24"
 GITHUB_REPOSITORY = "guiyinan/agomTradePro"
 GITHUB_RUN_ID = 123456
@@ -337,7 +357,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "outcome": "success",
             "dataset": dataset,
             "source_observed_at": "2026-09-24T07:00:00+00:00",
-            "sampled_assets": ASSET_CODES,
+            "sampled_assets": SAMPLE_CODES,
             "eligible_asset_codes": ASSET_CODES,
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
@@ -370,7 +390,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "body_sha256": response_digest,
                     "units": units,
                 }
-                for code in ASSET_CODES
+                for code in SAMPLE_CODES
             ],
             "replay_cases": sorted(validator.REQUIRED_REPLAY_CASES),
             "response_body": response_reference,
@@ -418,8 +438,8 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_identities_sha256": PROVIDER_DIGEST,
             "provider_identities": PROVIDERS,
             "asset_codes": ASSET_CODES,
-            "sample": ASSET_CODES,
-            "valuation_sample": ASSET_CODES,
+            "sample": SAMPLE_CODES,
+            "valuation_sample": SAMPLE_CODES,
             "eligible_asset_codes": ASSET_CODES,
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
@@ -475,7 +495,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "valuation_returned_count": len(ASSET_CODES),
             "valuation_coverage_ratio": 1.0,
             "valuation_outcome": "success",
-            "valuation_sample": ASSET_CODES,
+            "valuation_sample": SAMPLE_CODES,
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
@@ -787,7 +807,21 @@ def _write_replay_receipt(
 
 def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> None:
     now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
-    manifest, _reports = _build_evidence(tmp_path, now)
+    manifest, reports = _build_evidence(tmp_path, now)
+
+    replay = json.loads(reports["real_response_unit_replay"].read_text(encoding="utf-8"))
+    probe_path = tmp_path / replay["probe_capture"]["path"]
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    quote_receipt_path = tmp_path / replay["response_artifacts"][0]["path"]
+    quote_receipt = json.loads(quote_receipt_path.read_text(encoding="utf-8"))
+    quote_body_path = tmp_path / quote_receipt["response_body"]["path"]
+    quote_body = json.loads(quote_body_path.read_text(encoding="utf-8"))
+
+    assert len(probe["asset_codes"]) == 51
+    assert len(probe["sample"]) == 50
+    assert probe["transport"]["receipts"][0]["response_artifact"]["sample_codes"] == ASSET_CODES
+    assert len(quote_body["data"]["items"]) == 51
+    assert len(quote_receipt["observations"]) == 50
 
     result = _validate(manifest, now)
 
@@ -999,6 +1033,131 @@ def test_validator_rejects_false_green_evidence(
         _validate(manifest, now)
 
     assert exc_info.value.code == expected_code
+
+
+def test_retained_full_market_response_scope_can_exceed_probe_sample() -> None:
+    """Raw full-market responses stay valid when every code is in the frozen universe."""
+
+    registered_assets = ["000001.SZ", "600000.SH", "830001.BJ"]
+    probe_sample = ["000001.SZ"]
+
+    assert not set(registered_assets).issubset(probe_sample)
+    assert validator._response_codes_within_registered_universe(
+        registered_assets,
+        registered_assets=registered_assets,
+    )
+    assert not validator._response_codes_within_registered_universe(
+        ["000001.SZ", "999999.SH"],
+        registered_assets=registered_assets,
+    )
+    assert not validator._response_codes_within_registered_universe(
+        ["600000.SH", "000001.SZ"],
+        registered_assets=registered_assets,
+    )
+    assert not validator._response_codes_within_registered_universe(
+        ["000001.SZ", "000001.SZ"],
+        registered_assets=registered_assets,
+    )
+    assert not validator._response_codes_within_registered_universe(
+        ["000001.SZ", 600000],
+        registered_assets=registered_assets,
+    )
+
+
+def test_source_observation_uses_per_asset_response_time_before_receipt_fallback() -> None:
+    """Tencent row timestamps may differ while Tushare keeps one dataset-level time."""
+
+    source_observed = datetime(2026, 9, 24, 8, 14, 24, tzinfo=UTC)
+
+    assert validator._source_observation_matches_response(
+        source_observed,
+        response_observed_at="2026-09-24T16:14:24+08:00",
+        receipt_observed_at="2026-09-24T08:15:00+00:00",
+    )
+    assert validator._source_observation_matches_response(
+        source_observed,
+        response_observed_at=None,
+        receipt_observed_at="2026-09-24T08:14:24+00:00",
+    )
+    assert not validator._source_observation_matches_response(
+        source_observed,
+        response_observed_at="2026-09-24T16:14:25+08:00",
+        receipt_observed_at="2026-09-24T08:14:24+00:00",
+    )
+
+
+def test_unit_observations_accept_distinct_per_asset_response_times() -> None:
+    """A batch receipt keeps its scalar time while each Tencent row keeps its own time."""
+
+    codes = ["000001.SZ", "600000.SH"]
+    observed_at = ["2026-09-24T16:14:24+08:00", "2026-09-24T16:14:25+08:00"]
+    units = [
+        {
+            "field": "total_mv",
+            "raw": 3.0,
+            "canonical": 30000.0,
+            "raw_unit": "万元",
+            "canonical_unit": "元",
+            "multiplier": 10000.0,
+        },
+        {
+            "field": "circ_mv",
+            "raw": 2.0,
+            "canonical": 20000.0,
+            "raw_unit": "万元",
+            "canonical_unit": "元",
+            "multiplier": 10000.0,
+        },
+    ]
+    receipt = {
+        "source_observed_at": observed_at[0],
+        "observations": [
+            {
+                "asset_code": code,
+                "source_observed_at": source_time,
+                "transport_received_at": "2026-09-24T08:15:00+00:00",
+                "normalization_completed_at": "2026-09-24T08:15:01+00:00",
+                "response_completed_at": "2026-09-24T08:15:01+00:00",
+                "body_sha256": "response-body",
+                "units": units,
+            }
+            for code, source_time in zip(codes, observed_at, strict=True)
+        ],
+    }
+    response_rows = {
+        "response-body": [
+            {
+                "ts_code": code,
+                "trade_date": "20260924",
+                "observed_at": source_time,
+                "total_mv": 3.0,
+                "circ_mv": 2.0,
+            }
+            for code, source_time in zip(codes, observed_at, strict=True)
+        ]
+    }
+
+    validator._validate_unit_observations(
+        receipt,
+        dataset="equity.valuation.fact",
+        expected_sample=codes,
+        expected_date=TARGET_DATE,
+        response_rows_by_hash=response_rows,
+        expected_fields=validator.REQUIRED_REPLAY_UNIT_CONTRACTS["equity.valuation.fact"],
+    )
+
+    receipt["observations"][1]["source_observed_at"] = observed_at[0]
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        validator._validate_unit_observations(
+            receipt,
+            dataset="equity.valuation.fact",
+            expected_sample=codes,
+            expected_date=TARGET_DATE,
+            response_rows_by_hash=response_rows,
+            expected_fields=validator.REQUIRED_REPLAY_UNIT_CONTRACTS["equity.valuation.fact"],
+        )
+
+    assert exc_info.value.code == "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID"
 
 
 @pytest.mark.parametrize(

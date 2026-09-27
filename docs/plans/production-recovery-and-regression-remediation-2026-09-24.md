@@ -373,3 +373,11 @@
 - 候选修复以目标交易日建立确定性的 observed/available/published 时间线，并新增绑定精确 publication id、要求时区明确 knowledge cutoff 的受限验证入口。预演先证明普通 current 查询仍按当前时钟拒绝 stale，再在历史截止点验证同一发布、篡改阻断和事务回滚。组件用例改为真实 172800 秒及七日前目标日；普通 current stale 和历史验证成功必须同时成立。
 - S6 外层单阶段超时从 1800 秒显式提高到 3600 秒，只解决镜像装载等环境开销；provider 60 秒、任务 900 秒、锁等待 10 秒等业务预算保持不变。此前同镜像在 VPS 运行正常，而本机 Docker VM 出现高负载和极慢启动，因此后续官方 S6继续在隔离的远端 Linux 环境执行，不能把环境卡顿归因于 provider 或缺失证券。
 - 本轮修复的单元查询/runner 组合 **33 passed**，current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、Ruff、增量 mypy和 module map 已通过；专用 PostgreSQL 组件、最终同 SHA CI 和全新 S6仍是部署停止线。
+
+### 2026-09-27 S6 验证器契约收敛与最终停止线
+
+- `94ba80a2a` 已绑定全绿的同 SHA CI，并在远端 S6 依次通过镜像构建与身份、真实 provider、原始响应回放、5,569 只全量容量、隔离 PostgreSQL 写入、官方 CI 证据和不可变 bundle。全量容量本次估值为 5,569/5,569；此前缺失约 12 只、本次缺失 0 只，直接证明实现按实际成功集合与政策动态处理，没有硬编码事故数量。
+- 最终 validator 首次阻断于 `REHEARSAL_REPLAY_PROBE_INVALID`。冻结证据显示 Tushare `daily` 是全市场端点，原始响应合法包含注册全集 5,569 只，而 probe 标准化事实只重放确定性样本 50 只。collector 已按“原始响应代码有序、唯一且属于冻结注册全集”保存，validator 却错误要求报价原始响应属于 50 只样本。修复保持注册全集为外边界；全集外代码、重复和乱序继续 fail closed。
+- 修复上述范围误判后，冻结 bundle 暴露第二个误判 `REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID`。Tencent 批量估值的每只证券携带自己的 provider 时间，本次 50 条 observation 有 28 个不同来源时间；receipt 顶层时间只表示兼容的批次基准。修复优先将每条 observation 与同证券原始响应行的 `observed_at` 精确绑定，只有日期型、没有行时间的响应才回退到 receipt 时间；时区、目标交易日和 source ≤ transport ≤ normalize 顺序约束不变。
+- 回归夹具现显式区分注册全集 51、probe/observation 样本 50 和原始全市场响应 51，并覆盖同一批次两只证券具有不同 provider 时间。验证器与 launcher 联合测试 **113 passed / 1 skipped**，Ruff/Black/isort、增量 mypy和全量 debt ceiling 均通过。将相同 validator 上传到独立 `validator-tool` 后，对未修改的 `94ba80a2a` 不可变 bundle 只读重放返回 `outcome=success`，四类报告全部通过。
+- 上述只读重放用于根因和修复证明，不冒充官方 S6 成功。launcher 没有 validator-only/resume 模式，失败路径不会生成部署 handoff receipt；提交 validator 修复又会产生新候选 SHA，旧镜像、CI、bundle 和报告不能授权新 SHA。冻结本提交后只允许执行一次同 SHA CI 和全新完整 S6；不得手工补造 receipt、复制旧 bundle 或继续加入非阻断改进。完整 S6 成功并生成严格绑定的回执后才允许部署和十项生产联合复验。

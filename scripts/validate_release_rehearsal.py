@@ -150,6 +150,44 @@ def _fail(code: str) -> NoReturn:
     raise RehearsalValidationError(code)
 
 
+def _response_codes_within_registered_universe(
+    value: object,
+    *,
+    registered_assets: list[str],
+) -> bool:
+    """Accept one retained response scope only within the frozen universe.
+
+    A sampled probe may call a provider's full-market endpoint, so the raw
+    response scope can legitimately be larger than the fact sample replayed
+    by the probe. The frozen registered universe remains the outer boundary.
+    """
+
+    if not isinstance(value, list) or any(not isinstance(code, str) for code in value):
+        return False
+    response_codes = cast(list[str], value)
+    return response_codes == sorted(set(response_codes)) and set(response_codes).issubset(
+        set(registered_assets)
+    )
+
+
+def _source_observation_matches_response(
+    source_observed: datetime,
+    *,
+    response_observed_at: object,
+    receipt_observed_at: object,
+) -> bool:
+    """Bind an observation to the row timestamp or the dataset-level fallback."""
+
+    expected_value = (
+        response_observed_at if response_observed_at is not None else receipt_observed_at
+    )
+    expected = _parse_datetime(
+        expected_value,
+        "REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID",
+    )
+    return source_observed == expected
+
+
 def _require_candidate_attestation(payload: dict[str, Any]) -> None:
     if payload.get("candidate_source_attestation") not in {
         "image_release_manifest",
@@ -757,7 +795,6 @@ def _validate_unit_observations(
             or asset_code not in expected_sample
             or not isinstance(body_sha, str)
             or body_sha not in response_rows_by_hash
-            or observation.get("source_observed_at") != receipt_observed_at
         ):
             _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
         observed_assets.add(asset_code)
@@ -803,6 +840,12 @@ def _validate_unit_observations(
         if len(source_rows) != 1:
             _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
         source_row = source_rows[0]
+        if not _source_observation_matches_response(
+            source_observed,
+            response_observed_at=source_row.get("observed_at"),
+            receipt_observed_at=receipt_observed_at,
+        ):
+            _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
         for field, (raw_unit, canonical_unit, multiplier, allow_zero) in expected_fields.items():
             unit = units_by_field[field]
             observed_multiplier = _replay_number(unit.get("multiplier"))
@@ -1057,7 +1100,6 @@ def _validate_real_replay(
                 else TUSHARE_PROVIDER_FORMAT
             )
             artifact_codes = artifact_payload.get("sample_codes")
-            allowed_context_codes = expected_sample if role == "quote" else registered_assets
             if (
                 SHA256_PATTERN.fullmatch(str(body_sha or "")) is None
                 or artifact_payload.get("dataset") != dataset_value
@@ -1069,10 +1111,9 @@ def _validate_real_replay(
                 or artifact_payload.get("provider_source") != provider_identity.get("source")
                 or artifact_payload.get("endpoint_id") != provider_identity.get("endpoint_id")
                 or artifact_payload.get("provider_format") != expected_format
-                or not isinstance(artifact_codes, list)
-                or artifact_codes != sorted(set(artifact_codes))
-                or not set(cast(list[str], artifact_codes)).issubset(
-                    set(cast(list[str], allowed_context_codes))
+                or not _response_codes_within_registered_universe(
+                    artifact_codes,
+                    registered_assets=cast(list[str], registered_assets),
                 )
                 or receipt_payload.get("body_sha256") != body_sha
                 or body_sha in captured_response_datasets
