@@ -25,7 +25,7 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 
 ## 阶段与环境
 
-1. 构建前验证执行端 Docker daemon、指定网络和同一运行遗留的活动容器。检测到活动容器时停止，不自动杀掉身份未确认的旧工作。
+1. 构建前验证执行端 Docker daemon、指定网络、隔离 PostgreSQL 容器及同一运行遗留的活动容器。`--isolated-database-container` 必须是正在运行且加入指定网络的容器，其网络 aliases/DNSNames 必须包含 `--isolated-database-host`；写入前再次核对容器 ID。检测到活动容器或数据库容器被替换时停止，不自动杀掉身份未确认的旧工作。
 2. 构建报告和镜像归档独立落检查点；镜像装载失败也不需要重新构建。
 3. 使用候选镜像验证隔离 PostgreSQL 实际连接身份及迁移图，在 provider 请求之前阻断未迁移数据库。此检查不执行 migrate、不初始化 catalog、不写入业务数据。第一次运行需要先取得候选镜像才能做该精确检查。
 4. 真实 provider probe 仍是权威链路验证，沿用真实 payload 和预算；不新增简化 smoke 请求冒充真实请求，也不为预检重复消耗一轮 provider 配额。

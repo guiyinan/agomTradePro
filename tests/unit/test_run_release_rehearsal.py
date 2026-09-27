@@ -104,9 +104,17 @@ class FakeRunner:
                 stdout=json.dumps(
                     {
                         "id": "f" * 64,
-                        "name": "/agom-s6-postgres-abcdefghij",
+                        "name": "/agom-s6-pg-abcdefghij",
                         "running": True,
-                        "networks": {"agomtradepro_rehearsal": {}},
+                        "networks": {
+                            "agomtradepro_rehearsal": {
+                                "Aliases": ["agom-s6-postgres-abcdefghij"],
+                                "DNSNames": [
+                                    "agom-s6-pg-abcdefghij",
+                                    "agom-s6-postgres-abcdefghij",
+                                ],
+                            }
+                        },
                     }
                 ),
             )
@@ -279,6 +287,7 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         docker_network="agomtradepro_rehearsal",
         isolated_database_name="agom_release_rehearsal_abcdefghij",
         isolated_database_host="agom-s6-postgres-abcdefghij",
+        isolated_database_container="agom-s6-pg-abcdefghij",
         provider_request_limit=100,
         provider_window_seconds=60.0,
         task_deadline_seconds=900.0,
@@ -409,7 +418,7 @@ def test_database_container_must_be_running_on_the_selected_network(tmp_path: Pa
                     stdout=json.dumps(
                         {
                             "id": "f" * 64,
-                            "name": "/agom-s6-postgres-abcdefghij",
+                            "name": "/agom-s6-pg-abcdefghij",
                             "running": True,
                             "networks": {"unexpected-network": {}},
                         }

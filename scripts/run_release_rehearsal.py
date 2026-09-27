@@ -309,6 +309,7 @@ class RehearsalConfig:
     docker_network: str
     isolated_database_name: str
     isolated_database_host: str
+    isolated_database_container: str
     target_trade_date: str
     universe_sha256: str
     provider_identities_path: Path
@@ -562,6 +563,7 @@ def _validate_inputs(
         or not config.docker_network.strip()
         or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", config.isolated_database_name) is None
         or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", config.isolated_database_host) is None
+        or re.fullmatch(r"agom-s6-pg-[a-z0-9-]+", config.isolated_database_container) is None
         or config.quote_provider_id <= 0
         or config.valuation_provider_id <= 0
         or config.github_run_id <= 0
@@ -1070,7 +1072,7 @@ def _preflight_isolated_database_container(config: RehearsalConfig, runner: Comm
             "docker",
             "container",
             "inspect",
-            config.isolated_database_host,
+            config.isolated_database_container,
             "--format",
             template,
         ),
@@ -1081,18 +1083,26 @@ def _preflight_isolated_database_container(config: RehearsalConfig, runner: Comm
     try:
         payload = _object(json.loads(result.stdout), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
         networks = _object(payload.get("networks"), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
+        network = _object(
+            networks.get(config.docker_network), "S6_ISOLATED_DATABASE_CONTAINER_INVALID"
+        )
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RehearsalBlocked(
             "preflight_isolated_database_container",
             "S6_ISOLATED_DATABASE_CONTAINER_INVALID",
         ) from exc
     container_id = payload.get("id")
+    network_names: set[str] = set()
+    for key in ("Aliases", "DNSNames"):
+        values = network.get(key)
+        if isinstance(values, list):
+            network_names.update(value for value in values if isinstance(value, str))
     if (
         not isinstance(container_id, str)
         or re.fullmatch(r"[0-9a-f]{64}", container_id) is None
-        or payload.get("name") != f"/{config.isolated_database_host}"
+        or payload.get("name") != f"/{config.isolated_database_container}"
         or payload.get("running") is not True
-        or config.docker_network not in networks
+        or config.isolated_database_host not in network_names
     ):
         raise RehearsalBlocked(
             "preflight_isolated_database_container",
@@ -1578,6 +1588,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--docker-network", required=True)
     parser.add_argument("--isolated-database-name", required=True)
     parser.add_argument("--isolated-database-host", required=True)
+    parser.add_argument("--isolated-database-container", required=True)
     parser.add_argument("--target-trade-date", required=True)
     parser.add_argument("--universe-sha256", required=True)
     parser.add_argument("--provider-identities", type=Path, required=True)
@@ -1612,6 +1623,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         docker_network=args.docker_network,
         isolated_database_name=args.isolated_database_name,
         isolated_database_host=args.isolated_database_host,
+        isolated_database_container=args.isolated_database_container,
         target_trade_date=args.target_trade_date,
         universe_sha256=args.universe_sha256,
         provider_identities_path=args.provider_identities.resolve(),
