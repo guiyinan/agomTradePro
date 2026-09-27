@@ -5,17 +5,22 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import os
 import re
+import signal
 import stat
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+import time
+from collections.abc import Callable, Mapping, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Protocol, cast
+from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -26,6 +31,47 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     parse_rehearsal_identities,
     rehearsal_identities_digest,
 )
+
+
+class _Checkpoint(Protocol):
+    """Typed boundary for the helper imported by both script and package entrypoints."""
+
+    records: dict[str, dict[str, object]]
+
+    def done(self, stage: str) -> bool:
+        """Return whether validated artifacts exist for this stage."""
+        ...
+
+    def complete(self, stage: str, artifacts: Sequence[Path]) -> None:
+        """Save validated stage artifacts."""
+        ...
+
+    def prepare(self, stage: str, paths: Sequence[Path], *, resume: bool) -> None:
+        """Preserve incomplete attempts before retrying."""
+        ...
+
+
+class _CheckpointFactory(Protocol):
+    def __call__(
+        self,
+        root: Path,
+        binding: Mapping[str, object],
+        *,
+        resume: bool,
+        max_age_hours: float,
+        stage_order: Sequence[str],
+    ) -> _Checkpoint:
+        """Open a new or verified existing journal."""
+        ...
+
+
+# scripts/ is a namespace directory. Match the deployment entrypoint's explicit
+# import boundary so direct-file mypy checks do not load this helper twice.
+_checkpoint_module = importlib.import_module("scripts.rehearsal_checkpoint")
+Checkpoint = cast(_CheckpointFactory, _checkpoint_module.Checkpoint)
+atomic_json = cast(Callable[[Path, Mapping[str, object]], None], _checkpoint_module.atomic_json)
+file_digest = cast(Callable[[Path], str], _checkpoint_module.file_digest)
+run_lock = cast(Callable[[Path], AbstractContextManager[None]], _checkpoint_module.run_lock)
 
 SHA = re.compile(r"[0-9a-f]{64}")
 COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -87,23 +133,166 @@ class _Chown(Protocol):
 class SubprocessRunner:
     """Production runner that captures output and never invokes a shell."""
 
+    def __init__(self, progress_dir: Path | None = None) -> None:
+        self.progress_dir = progress_dir
+
+    def _progress(
+        self,
+        command: Command,
+        started: float,
+        *,
+        outcome: str,
+        stdout: str | bytes = "",
+        stderr: str | bytes = "",
+        returncode: int | None = None,
+    ) -> None:
+        if self.progress_dir is None:
+            return
+        self.progress_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        error_text = stderr.decode("utf-8", "replace") if isinstance(stderr, bytes) else stderr
+        output_text = stdout.decode("utf-8", "replace") if isinstance(stdout, bytes) else stdout
+        diagnostic_text = output_text + "\n" + error_text
+        # Only allow-listed diagnostic categories leave the subprocess boundary.
+        # No argv, environment, raw exception message or provider response is persisted.
+        categories = [
+            name
+            for name, pattern in (
+                ("database", r"OperationalError|connection refused|could not connect"),
+                ("permission", r"PermissionError|permission denied"),
+                ("network", r"NameResolutionError|Name or service not known|network .*not found"),
+                ("timeout", r"TimeoutExpired|timed out"),
+                ("syntax", r"SyntaxError"),
+            )
+            if re.search(pattern, diagnostic_text, re.IGNORECASE)
+        ]
+        frames = [
+            {
+                "file": Path(filename.replace("\\", "/")).name,
+                "line": int(line),
+                "function": function,
+            }
+            for filename, line, function in re.findall(
+                r'File "([^"\r\n]+\.py)", line ([0-9]+), in ([A-Za-z0-9_<>]+)', diagnostic_text
+            )[-8:]
+        ]
+        payload: dict[str, object] = {
+            "schema": "release.rehearsal-command-progress.v1",
+            "command": command.label,
+            "outcome": outcome,
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "timeout_seconds": command.timeout_seconds,
+            "returncode": returncode,
+            "stdout_bytes": len(stdout if isinstance(stdout, bytes) else stdout.encode()),
+            "stderr_bytes": len(stderr if isinstance(stderr, bytes) else stderr.encode()),
+            "diagnostic_categories": categories,
+            "traceback_locations": frames,
+            "stable_error_codes": sorted(set(STABLE_REHEARSAL_CODE.findall(diagnostic_text))),
+            "updated_at": datetime.now(UTC).isoformat(),
+        }
+        atomic_json(self.progress_dir / "current-command.json", payload)
+        if outcome != "running":
+            atomic_json(self.progress_dir / f"{command.label}-{uuid4().hex}.json", payload)
+
     def run(self, command: Command) -> CommandResult:
         """Run one command and convert launch errors to a failed result."""
         environment = os.environ.copy()
         environment.update(command.env)
+        started = time.monotonic()
+        self._progress(command, started, outcome="running")
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 command.argv,
                 cwd=command.cwd,
                 env=environment,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                check=False,
-                timeout=command.timeout_seconds,
+                encoding="utf-8",
+                errors="replace",
+                start_new_session=sys.platform != "win32",
+                creationflags=(
+                    subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+                    if sys.platform == "win32"
+                    else 0
+                ),
             )
+            with process:
+                while True:
+                    remaining = command.timeout_seconds - (time.monotonic() - started)
+                    try:
+                        stdout, stderr = process.communicate(timeout=max(0.001, min(5, remaining)))
+                        break
+                    except subprocess.TimeoutExpired as exc:
+                        self._progress(
+                            command,
+                            started,
+                            outcome="running",
+                            stdout=exc.output or b"",
+                            stderr=exc.stderr or b"",
+                        )
+                        if time.monotonic() - started >= command.timeout_seconds:
+                            self._stop_process(process)
+                            stdout, stderr = process.communicate(timeout=10)
+                            self._progress(
+                                command,
+                                started,
+                                outcome="timed_out",
+                                stdout=stdout,
+                                stderr=stderr + "\nTimeoutExpired",
+                                returncode=124,
+                            )
+                            self._remove_timed_out_container(command)
+                            return CommandResult(124, stdout, stderr)
+                    except KeyboardInterrupt:
+                        self._stop_process(process)
+                        self._remove_timed_out_container(command)
+                        self._progress(command, started, outcome="interrupted")
+                        raise
+            self._progress(
+                command,
+                started,
+                outcome="success" if process.returncode == 0 else "failed",
+                stdout=stdout,
+                stderr=stderr,
+                returncode=process.returncode,
+            )
+            return CommandResult(process.returncode, stdout, stderr)
         except (OSError, subprocess.SubprocessError) as exc:
+            self._progress(
+                command, started, outcome="launch_failed", stderr=type(exc).__name__, returncode=127
+            )
             return CommandResult(127, stderr=type(exc).__name__)
-        return CommandResult(result.returncode, result.stdout, result.stderr)
+
+    def _stop_process(self, process: subprocess.Popen[str]) -> None:
+        """Stop only this command's process tree so inherited pipes cannot hang a timeout."""
+        if sys.platform == "win32":
+            subprocess.run(
+                ("taskkill", "/PID", str(process.pid), "/T", "/F"),
+                capture_output=True,
+                timeout=10,
+                check=False,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+            if process.poll() is None:
+                process.kill()
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+    def _remove_timed_out_container(self, command: Command) -> None:
+        """Remove only the uniquely named container launched by this command."""
+        if command.argv[:2] != ("docker", "run") or "--name" not in command.argv:
+            return
+        name = command.argv[command.argv.index("--name") + 1]
+        if re.fullmatch(r"agom-s6-stage-[0-9a-f]{32}", name) is None:
+            return
+        cleanup = subprocess.run(
+            ("docker", "rm", "--force", name), capture_output=True, timeout=30, check=False
+        )
+        if cleanup.returncode:
+            raise OSError("S6_CONTAINER_CLEANUP_FAILED")
 
 
 @dataclass(frozen=True)
@@ -136,6 +325,7 @@ class RehearsalConfig:
     build_timeout_seconds: int = 3600
     stage_timeout_seconds: int = 1800
     max_dispatches: int = 100
+    resume: bool = False
 
 
 @dataclass(frozen=True)
@@ -231,7 +421,11 @@ def _invoke(
                 and STABLE_REHEARSAL_CODE_VALUE.fullmatch(code) is not None
             ):
                 safe_codes.add(code)
-        code = safe_codes.pop() if len(safe_codes) == 1 else "S6_STAGE_COMMAND_FAILED"
+        code = (
+            "S6_STAGE_TIMEOUT"
+            if result.returncode == 124
+            else safe_codes.pop() if len(safe_codes) == 1 else "S6_STAGE_COMMAND_FAILED"
+        )
         raise RehearsalBlocked(label, code)
     return result
 
@@ -409,42 +603,48 @@ def _validate_inputs(
 
 
 def _build_image(
-    config: RehearsalConfig, runner: CommandRunner, run_dir: Path, candidate_sha: str
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    run_dir: Path,
+    candidate_sha: str,
+    checkpoint: _Checkpoint,
 ) -> tuple[dict[str, object], Path]:
     """Build once in build-only mode, retain the image tar and inspect the loaded image."""
     report_dir, image_dir = run_dir / "build-report", run_dir / "images"
-    report_dir.mkdir()
-    image_dir.mkdir()
-    builder = config.root / "scripts" / "remote_build_deploy_vps.py"
-    argv = (
-        sys.executable,
-        str(builder),
-        "--host",
-        config.build_host,
-        "--user",
-        config.build_user,
-        "--password-file",
-        str(config.password_file.resolve()),
-        "--expected-source-commit",
-        candidate_sha,
-        "--report-dir",
-        str(report_dir),
-        "--built-image-dir",
-        str(image_dir),
-        "--timeout",
-        str(config.build_timeout_seconds),
-        "--skip-deploy-after-build",
-        "--download-built-image",
-        "--keep-remote-temp",
-    )
-    _invoke(
-        runner,
-        argv=argv,
-        root=config.root,
-        label="build_only",
-        timeout=config.build_timeout_seconds,
-        artifact_dir=run_dir,
-    )
+    if not checkpoint.done("build_artifacts"):
+        checkpoint.prepare("build_artifacts", (report_dir, image_dir), resume=config.resume)
+        report_dir.mkdir()
+        image_dir.mkdir()
+        builder = config.root / "scripts" / "remote_build_deploy_vps.py"
+        argv = (
+            sys.executable,
+            str(builder),
+            "--host",
+            config.build_host,
+            "--user",
+            config.build_user,
+            "--password-file",
+            str(config.password_file.resolve()),
+            "--expected-source-commit",
+            candidate_sha,
+            "--report-dir",
+            str(report_dir),
+            "--built-image-dir",
+            str(image_dir),
+            "--timeout",
+            str(config.build_timeout_seconds),
+            "--skip-deploy-after-build",
+            "--download-built-image",
+            "--keep-remote-temp",
+        )
+        _invoke(
+            runner,
+            argv=argv,
+            root=config.root,
+            label="build_only",
+            timeout=config.build_timeout_seconds,
+            artifact_dir=run_dir,
+        )
     reports = tuple(report_dir.glob("remote-build-report-*.json"))
     archives = tuple(image_dir.glob(f"{IMAGE_NAME}-*.tar"))
     if len(reports) != 1 or len(archives) != 1:
@@ -468,14 +668,30 @@ def _build_image(
         or archives[0].name != f"{IMAGE_NAME}-{tag}.tar"
     ):
         raise RehearsalBlocked("build_only", "S6_BUILD_IDENTITY_MISMATCH")
-    _invoke(
-        runner,
-        argv=("docker", "load", "--input", str(archives[0].resolve())),
-        root=config.root,
-        label="docker_load",
-        timeout=config.stage_timeout_seconds,
-        artifact_dir=run_dir,
-    )
+    checkpoint.complete("build_artifacts", (report_dir, image_dir))
+    loaded = checkpoint.done("build_only")
+    if loaded:
+        loaded = (
+            runner.run(
+                Command(
+                    ("docker", "image", "inspect", str(image_id), "--format", "{{.Id}}"),
+                    config.root,
+                    {},
+                    30,
+                    "docker_image_available",
+                )
+            ).returncode
+            == 0
+        )
+    if not loaded:
+        _invoke(
+            runner,
+            argv=("docker", "load", "--input", str(archives[0].resolve())),
+            root=config.root,
+            label="docker_load",
+            timeout=config.stage_timeout_seconds,
+            artifact_dir=run_dir,
+        )
     inspected = _invoke(
         runner,
         argv=("docker", "image", "inspect", str(image_tag), "--format", "{{json .}}"),
@@ -508,6 +724,8 @@ def _write_identity(
     identities: tuple[RehearsalProviderIdentity, ...],
     provider_raw: bytes,
     unit_raw: bytes,
+    *,
+    reuse: bool = False,
 ) -> tuple[Identity, Path, Path, Path]:
     """Write read-only identity, release manifest and provider snapshots."""
     image_id = cast(str, build_report["image_id"])
@@ -521,6 +739,13 @@ def _write_identity(
         provider_digest,
     )
     input_dir = run_dir / "inputs"
+    if reuse:
+        return (
+            identity,
+            input_dir / "candidate-identity.json",
+            input_dir / "candidate-release-manifest.json",
+            input_dir / "provider-identities.json",
+        )
     input_dir.mkdir()
     identity_path = input_dir / "candidate-identity.json"
     manifest_path = input_dir / "candidate-release-manifest.json"
@@ -588,6 +813,11 @@ def _docker_command(
         "docker",
         "run",
         "--rm",
+        "--name",
+        f"agom-s6-stage-{uuid4().hex}",
+        "--label",
+        "agom.s6.run="
+        + hashlib.sha256(str(identity_path.parent.parent.resolve()).encode()).hexdigest(),
         "--network",
         network,
         "--env-file",
@@ -799,7 +1029,6 @@ def _status(
     path: Path, outcome: str, completed: Sequence[str], stage: str | None, code: str | None
 ) -> None:
     """Write safe progress for this run, never command output or credentials."""
-    temporary = path.with_suffix(".tmp")
     _write = {
         "schema": "release.rehearsal-launch-status.v1",
         "outcome": outcome,
@@ -808,11 +1037,145 @@ def _status(
         "error_code": code,
         "updated_at": datetime.now(UTC).isoformat(),
     }
-    temporary.write_text(json.dumps(_write, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    atomic_json(path, _write)
+
+
+def _checkpoint_binding(config: RehearsalConfig, candidate: str) -> dict[str, object]:
+    """Bind all semantic inputs without storing environment secrets in the journal."""
+    values: dict[str, object] = {"candidate_sha": candidate}
+    for key, value in asdict(config).items():
+        if key in {"resume", "output_dir", "password_file", "build_timeout_seconds"}:
+            continue
+        if isinstance(value, Path):
+            values[key] = str(value.resolve()) if key == "root" else file_digest(value)
+        else:
+            values[key] = value
+    return values
+
+
+def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> None:
+    """Check the execution daemon and exact network before paying for a remote build."""
+    for label, argv in (
+        ("preflight_docker", ("docker", "info", "--format", "{{.ID}}")),
+        ("preflight_network", ("docker", "network", "inspect", config.docker_network)),
+    ):
+        _invoke(runner, argv=argv, root=config.root, label=label, timeout=30)
+    run_id = hashlib.sha256(str(config.output_dir.resolve()).encode()).hexdigest()
+    containers = _invoke(
+        runner,
+        argv=("docker", "ps", "--filter", f"label=agom.s6.run={run_id}", "--format", "{{.ID}}"),
+        root=config.root,
+        label="preflight_containers",
+        timeout=30,
+    )
+    if containers.stdout.strip():
+        raise RehearsalBlocked("preflight_containers", "S6_RUN_CONTAINERS_ACTIVE")
+
+
+def _preflight_database(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    identity: Identity,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    run_dir: Path,
+) -> None:
+    """Check exact disposable DB identity and migrations before any provider dispatch."""
+    code = (
+        "from pathlib import Path\n"
+        "from django.conf import settings\n"
+        "from django.core.management.base import CommandError\n"
+        "from core.exceptions import AgomTradeProException\n"
+        "from apps.data_center.infrastructure.isolated_write_rehearsal_runner import preflight_isolated_write_rehearsal\n"
+        "try:\n"
+        " preflight_isolated_write_rehearsal("
+        f"candidate_sha={identity.candidate_sha!r}, source_root=Path(settings.BASE_DIR), "
+        f"expected_database_name={config.isolated_database_name!r}, "
+        f"expected_database_host={config.isolated_database_host!r}, require_ephemeral_host=True)\n"
+        "except AgomTradeProException as exc:\n"
+        " raise CommandError(exc.code) from None\n"
+    )
+    preflight_dir = run_dir / "preflight"
+    preflight_dir.mkdir(exist_ok=True)
+    spec = StageSpec(
+        "preflight_database",
+        "",
+        ("python", "manage.py", "shell", "-c", code),
+        config.isolated_postgres_env_file,
+    )
+    _invoke(
+        runner,
+        argv=_docker_command(
+            identity,
+            config.docker_network,
+            spec.env_file,
+            identity_path,
+            manifest_path,
+            provider_path,
+            preflight_dir,
+            spec,
+        ),
+        root=config.root,
+        label=spec.name,
+        timeout=min(config.stage_timeout_seconds, 120),
+    )
 
 
 def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | None = None) -> Path:
+    """Run or resume a locked same-candidate rehearsal without weakening final validation."""
+    try:
+        _validate_inputs(config)
+        if config.output_dir.is_symlink():
+            raise ValueError("S6_CHECKPOINT_INVALID")
+        if config.output_dir.exists() and not config.resume:
+            raise RehearsalBlocked("inputs", "S6_OUTPUT_DIRECTORY_EXISTS")
+        if config.resume and not config.output_dir.is_dir():
+            raise ValueError("S6_CHECKPOINT_MISSING")
+        active = runner or SubprocessRunner(config.output_dir / "diagnostics")
+        candidate = _candidate_sha(active if runner else SubprocessRunner(), config.root)
+        config.output_dir.mkdir(parents=True, exist_ok=config.resume)
+        with run_lock(config.output_dir):
+            checkpoint = Checkpoint(
+                config.output_dir.resolve(),
+                _checkpoint_binding(config, candidate),
+                resume=config.resume,
+                max_age_hours=config.max_age_hours,
+                stage_order=("build_artifacts", "build_only", "docker_identity", *STAGES[:-1]),
+            )
+            if (config.output_dir / "s6-handoff-receipt.json").exists():
+                raise RehearsalBlocked("handoff", "S6_RUN_ALREADY_COMPLETE")
+            try:
+                _status(
+                    config.output_dir / "run-status.json",
+                    "running",
+                    tuple(checkpoint.records),
+                    "preflight",
+                    None,
+                )
+                _preflight_environment(config, active)
+            except RehearsalBlocked as exc:
+                _status(
+                    config.output_dir / "run-status.json",
+                    "blocked",
+                    tuple(checkpoint.records),
+                    exc.stage,
+                    exc.code,
+                )
+                raise
+            return _run_release_rehearsal(config, checkpoint, runner=active)
+    except ValueError as exc:
+        code = str(exc)
+        if not re.fullmatch(r"S6_(?:CHECKPOINT|RUN)_[A-Z_]+", code):
+            code = "S6_INPUT_OR_ARTIFACT_INVALID"
+        raise RehearsalBlocked("inputs", code) from exc
+    except OSError as exc:
+        raise RehearsalBlocked("inputs", "S6_INPUT_OR_ARTIFACT_INVALID") from exc
+
+
+def _run_release_rehearsal(
+    config: RehearsalConfig, checkpoint: _Checkpoint, *, runner: CommandRunner
+) -> Path:
     """Execute S6 in fixed order and emit a non-authorizing evidence handoff receipt."""
     active = runner or SubprocessRunner()
     completed: list[str] = []
@@ -825,19 +1188,17 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
         unit = _object(json.loads(unit_raw), "S6_UNIT_CONTRACT_INVALID")
         if unit.get("candidate_sha") != candidate:
             raise RehearsalBlocked("inputs", "S6_UNIT_CONTRACT_CANDIDATE_MISMATCH")
-        if config.output_dir.exists():
-            raise RehearsalBlocked("inputs", "S6_OUTPUT_DIRECTORY_EXISTS")
-        config.output_dir.parent.mkdir(parents=True, exist_ok=True)
-        config.output_dir.mkdir()
         run_dir = config.output_dir.resolve()
         status_path = run_dir / "run-status.json"
         _status(status_path, "running", completed, "build_only", None)
         _assert_candidate(active, config.root, candidate)
 
         stage = "build_only"
-        build_report, _archive = _build_image(config, active, run_dir, candidate)
+        build_report, _archive = _build_image(config, active, run_dir, candidate, checkpoint)
+        checkpoint.complete("build_only", ())
         completed.append(stage)
         stage = "docker_identity"
+        checkpoint.prepare("docker_identity", (run_dir / "inputs",), resume=config.resume)
         identity, identity_path, manifest_path, provider_path = _write_identity(
             run_dir,
             build_report,
@@ -848,7 +1209,9 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             identities,
             provider_raw,
             unit_raw,
+            reuse=checkpoint.done("docker_identity"),
         )
+        checkpoint.complete("docker_identity", (run_dir / "inputs",))
         container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
         unit_path = run_dir / "inputs" / "provider-unit-contract.json"
         provider_dir, replay_dir, capacity_dir, isolated_dir, ci_dir = (
@@ -861,9 +1224,10 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 "github-ci-evidence",
             )
         )
-        for folder in (provider_dir, replay_dir, capacity_dir, isolated_dir):
-            folder.mkdir()
         completed.append(stage)
+        _preflight_database(
+            config, active, identity, identity_path, manifest_path, provider_path, run_dir
+        )
 
         path_values: dict[str, Path] = {
             "provider_dir": provider_dir,
@@ -875,34 +1239,38 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             stage = spec.name
             _status(status_path, "running", completed, stage, None)
             _assert_candidate(active, config.root, candidate)
-            argv = _docker_command(
-                identity,
-                config.docker_network,
-                spec.env_file,
-                identity_path,
-                manifest_path,
-                provider_path,
-                provider_dir,
-                spec,
-            )
-            _invoke_container_stage(
-                active,
-                argv=argv,
-                root=config.root,
-                label=stage,
-                timeout=config.stage_timeout_seconds,
-                env={
-                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
-                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
-                },
-                artifact_dir=provider_dir,
-                container_gid=container_gid,
-            )
+            if not checkpoint.done(stage):
+                checkpoint.prepare(stage, (provider_dir,), resume=config.resume)
+                provider_dir.mkdir(exist_ok=True)
+                argv = _docker_command(
+                    identity,
+                    config.docker_network,
+                    spec.env_file,
+                    identity_path,
+                    manifest_path,
+                    provider_path,
+                    provider_dir,
+                    spec,
+                )
+                _invoke_container_stage(
+                    active,
+                    argv=argv,
+                    root=config.root,
+                    label=stage,
+                    timeout=config.stage_timeout_seconds,
+                    env={
+                        "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                        "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                    },
+                    artifact_dir=provider_dir,
+                    container_gid=container_gid,
+                )
             probe_path = provider_dir / spec.report_name
             probe = _report(probe_path, identity, image_bound=True)
             if probe.get("response_retention_enabled") is not True:
                 raise RehearsalBlocked(stage, "S6_PROVIDER_RESPONSES_NOT_RETAINED")
             path_values["probe_sha"] = Path(hashlib.sha256(_read_file(probe_path)).hexdigest())
+            checkpoint.complete(stage, (provider_dir,))
             completed.append(stage)
 
         specs = _stage_specs(config, identity, path_values)
@@ -910,30 +1278,34 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             stage = spec.name
             _status(status_path, "running", completed, stage, None)
             _assert_candidate(active, config.root, candidate)
-            argv = _docker_command(
-                identity,
-                config.docker_network,
-                spec.env_file,
-                identity_path,
-                manifest_path,
-                provider_path,
-                folder,
-                spec,
-            )
-            _invoke_container_stage(
-                active,
-                argv=argv,
-                root=config.root,
-                label=stage,
-                timeout=config.stage_timeout_seconds,
-                env={
-                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
-                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
-                },
-                artifact_dir=folder,
-                container_gid=container_gid,
-            )
+            if not checkpoint.done(stage):
+                checkpoint.prepare(stage, (folder,), resume=config.resume)
+                folder.mkdir(exist_ok=True)
+                argv = _docker_command(
+                    identity,
+                    config.docker_network,
+                    spec.env_file,
+                    identity_path,
+                    manifest_path,
+                    provider_path,
+                    folder,
+                    spec,
+                )
+                _invoke_container_stage(
+                    active,
+                    argv=argv,
+                    root=config.root,
+                    label=stage,
+                    timeout=config.stage_timeout_seconds,
+                    env={
+                        "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                        "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                    },
+                    artifact_dir=folder,
+                    container_gid=container_gid,
+                )
             _report(folder / spec.report_name, identity, image_bound=True)
+            checkpoint.complete(stage, (folder,))
             completed.append(stage)
 
         stage = "github_ci_evidence"
@@ -960,19 +1332,22 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             "--output-dir",
             str(ci_dir),
         )
-        _invoke(
-            active,
-            argv=ci_argv,
-            root=config.root,
-            label=stage,
-            timeout=config.stage_timeout_seconds,
-            env={
-                "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
-                "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
-            },
-            artifact_dir=ci_dir,
-        )
+        if not checkpoint.done(stage):
+            checkpoint.prepare(stage, (ci_dir,), resume=config.resume)
+            _invoke(
+                active,
+                argv=ci_argv,
+                root=config.root,
+                label=stage,
+                timeout=config.stage_timeout_seconds,
+                env={
+                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                },
+                artifact_dir=ci_dir,
+            )
         _report(ci_path, identity, image_bound=False)
+        checkpoint.complete(stage, (ci_dir,))
         completed.append(stage)
 
         stage = "bundle_build"
@@ -1003,18 +1378,20 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             "--candidate-image-id",
             identity.candidate_image_id,
         )
-        _invoke(
-            active,
-            argv=bundle_argv,
-            root=config.root,
-            label=stage,
-            timeout=120,
-            env={
-                "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
-                "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
-            },
-            artifact_dir=bundle_dir,
-        )
+        if not checkpoint.done(stage):
+            checkpoint.prepare(stage, (bundle_dir,), resume=config.resume)
+            _invoke(
+                active,
+                argv=bundle_argv,
+                root=config.root,
+                label=stage,
+                timeout=120,
+                env={
+                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                },
+                artifact_dir=bundle_dir,
+            )
         final_manifest = bundle_dir / "release-rehearsal-manifest.json"
         manifest_payload = _object(json.loads(_read_file(final_manifest)), "S6_MANIFEST_INVALID")
         for key, expected in (
@@ -1028,6 +1405,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 raise RehearsalBlocked(stage, "S6_MANIFEST_IDENTITY_MISMATCH")
         _freeze_bundle(bundle_dir)
         frozen_digest = bundle_tree_digest(bundle_dir)
+        checkpoint.complete(stage, (bundle_dir,))
         completed.append(stage)
 
         stage = "release_validator"
@@ -1131,6 +1509,11 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume a verified same-candidate checkpoint in --output-dir",
+    )
     parser.add_argument("--build-host", required=True)
     parser.add_argument("--build-user", default="root")
     parser.add_argument("--password-file", type=Path, required=True)
@@ -1188,6 +1571,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         build_timeout_seconds=args.build_timeout_seconds,
         stage_timeout_seconds=args.stage_timeout_seconds,
         max_dispatches=args.max_dispatches,
+        resume=args.resume,
     )
     try:
         receipt = run_release_rehearsal(config)

@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -16,11 +18,13 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     rehearsal_identities_digest,
 )
 from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS, build_manifest
+from scripts.rehearsal_checkpoint import run_lock
 from scripts.run_release_rehearsal import (
     Command,
     CommandResult,
     RehearsalBlocked,
     RehearsalConfig,
+    SubprocessRunner,
     _invoke,
     _invoke_container_stage,
     bundle_tree_digest,
@@ -276,6 +280,220 @@ def _fake_checkout(tmp_path: Path) -> Path:
     root = tmp_path / "checkout"
     root.mkdir()
     return root
+
+
+@pytest.mark.parametrize(
+    "failed_stage",
+    [
+        "docker_load",
+        "provider_probe",
+        "response_replay",
+        "full_universe_capacity",
+        "isolated_postgresql_write",
+        "github_ci_evidence",
+        "bundle_build",
+        "release_validator",
+    ],
+)
+def test_resume_reuses_verified_prefix_without_rebuilding(
+    tmp_path: Path, failed_stage: str
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    first = FakeRunner(fail_label=failed_stage)
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=first)
+    second = FakeRunner()
+    receipt = run_release_rehearsal(replace(config, resume=True), runner=second)
+    assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
+    assert "build_only" not in second.labels
+    assert failed_stage in second.labels
+    stages = [
+        "provider_probe",
+        "response_replay",
+        "full_universe_capacity",
+        "isolated_postgresql_write",
+        "github_ci_evidence",
+        "bundle_build",
+        "release_validator",
+    ]
+    if failed_stage in stages:
+        assert not set(stages[: stages.index(failed_stage)]) & set(second.labels)
+
+
+def test_resume_rejects_changed_artifact_before_commands(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="response_replay"))
+    probe = config.output_dir / "provider-probe" / "probe.json"
+    probe.write_bytes(probe.read_bytes() + b" ")
+    runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_CHECKPOINT_ARTIFACT_CHANGED"):
+        run_release_rehearsal(replace(config, resume=True), runner=runner)
+    assert "build_only" not in runner.labels
+    assert "provider_probe" not in runner.labels
+
+
+@pytest.mark.parametrize("change", ["env", "budget", "scope", "ci"])
+def test_resume_rejects_input_drift(tmp_path: Path, change: str) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+    if change == "env":
+        config.provider_env_file.write_text("CHANGED=1\n", encoding="utf-8")
+    elif change == "budget":
+        config = replace(config, max_dispatches=101)
+    elif change == "scope":
+        config = replace(config, universe_sha256="e" * 64)
+    else:
+        config = replace(config, github_run_id=54321)
+    with pytest.raises(RehearsalBlocked, match="S6_CHECKPOINT_INPUT_CHANGED"):
+        run_release_rehearsal(replace(config, resume=True), runner=FakeRunner())
+
+
+@pytest.mark.parametrize("label", ["preflight_docker", "preflight_network"])
+def test_environment_failure_precedes_expensive_build(tmp_path: Path, label: str) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(fail_label=label)
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=runner)
+    assert "build_only" not in runner.labels
+
+
+def test_database_preflight_precedes_provider_and_is_read_only(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(fail_label="preflight_database")
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=runner)
+    assert "provider_probe" not in runner.labels
+    assert "isolated_postgresql_write" not in runner.labels
+
+
+def test_database_preflight_executes_existing_scope_guard_without_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from django.core.management.base import CommandError
+
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as isolated
+    from core.exceptions import DataFetchError
+
+    observed: list[dict[str, object]] = []
+
+    def guard(**kwargs: object) -> tuple[str, str, str]:
+        observed.append(kwargs)
+        raise DataFetchError("private detail", code="REHEARSAL_WRITE_MIGRATIONS_PENDING")
+
+    monkeypatch.setattr(isolated, "preflight_isolated_write_rehearsal", guard)
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(fail_label="preflight_database")
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=runner)
+    command = next(c for c in runner.commands if c.label == "preflight_database")
+    code = command.argv[command.argv.index("-c") + 1]
+    with pytest.raises(CommandError, match="^REHEARSAL_WRITE_MIGRATIONS_PENDING$"):
+        exec(compile(code, "<s6-preflight>", "exec"), {})
+    assert observed[0]["expected_database_name"] == config.isolated_database_name
+    assert observed[0]["expected_database_host"] == config.isolated_database_host
+    assert observed[0]["require_ephemeral_host"] is True
+
+
+def test_resume_keeps_failed_attempt_outputs_and_only_reloads_missing_image(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+    failed = config.output_dir / "provider-probe" / "failed-response.json"
+    failed.write_text('{"failed": true}', encoding="utf-8")
+    runner = FakeRunner(fail_label="docker_image_available")
+    run_release_rehearsal(replace(config, resume=True), runner=runner)
+    assert "build_only" not in runner.labels
+    assert runner.labels.count("docker_load") == 1
+    archived = list(
+        (config.output_dir / "failed-attempts").glob("*/provider-probe/failed-response.json")
+    )
+    assert len(archived) == 1
+    assert archived[0].read_text(encoding="utf-8") == '{"failed": true}'
+
+
+@pytest.mark.parametrize("invalid", ["missing", "expired", "future", "active", "prefix"])
+def test_resume_rejects_missing_expired_or_active_checkpoint(tmp_path: Path, invalid: str) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+    path = config.output_dir / "checkpoint.json"
+    if invalid == "missing":
+        path.unlink()
+        expected = "S6_CHECKPOINT_MISSING"
+    elif invalid in {"expired", "future"}:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        offset = timedelta(days=-2 if invalid == "expired" else 2)
+        data["stages"]["build_artifacts"]["completed_at"] = (datetime.now(UTC) + offset).isoformat()
+        path.write_text(json.dumps(data), encoding="utf-8")
+        expected = "S6_CHECKPOINT_EXPIRED"
+    elif invalid == "prefix":
+        data = json.loads(path.read_text(encoding="utf-8"))
+        del data["stages"]["build_only"]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        expected = "S6_CHECKPOINT_INVALID"
+    else:
+        with run_lock(config.output_dir):
+            with pytest.raises(RehearsalBlocked, match="S6_RUN_ALREADY_ACTIVE"):
+                run_release_rehearsal(replace(config, resume=True), runner=FakeRunner())
+        # Lock release permits a later resume without deleting a lock file.
+        run_release_rehearsal(replace(config, resume=True), runner=FakeRunner())
+        return
+    with pytest.raises(RehearsalBlocked, match=expected):
+        run_release_rehearsal(replace(config, resume=True), runner=FakeRunner())
+
+
+def test_resume_blocks_orphan_stage_container(tmp_path: Path) -> None:
+    class OrphanRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "preflight_containers":
+                return CommandResult(0, "container-still-running")
+            return super().run(command)
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = OrphanRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_RUN_CONTAINERS_ACTIVE"):
+        run_release_rehearsal(config, runner=runner)
+    assert "build_only" not in runner.labels
+
+
+def test_process_diagnostics_keep_categories_without_private_output(tmp_path: Path) -> None:
+    runner = SubprocessRunner(tmp_path / "diagnostics")
+    result = runner.run(
+        Command(
+            (sys.executable, "-c", "raise PermissionError('secret-token-123')"),
+            tmp_path,
+            {},
+            10,
+            "probe",
+        )
+    )
+    assert result.returncode != 0
+    reports = list((tmp_path / "diagnostics").glob("*.json"))
+    assert len(reports) == 2
+    for path in reports:
+        text = path.read_text(encoding="utf-8")
+        assert "secret-token-123" not in text
+        assert json.loads(text)["diagnostic_categories"] == ["permission"]
+
+
+def test_process_timeout_is_distinct_and_has_terminal_progress(tmp_path: Path) -> None:
+    runner = SubprocessRunner(tmp_path / "diagnostics")
+    with pytest.raises(RehearsalBlocked, match="S6_STAGE_TIMEOUT"):
+        _invoke(
+            runner,
+            argv=(sys.executable, "-c", "import time; time.sleep(10)"),
+            root=tmp_path,
+            label="probe",
+            timeout=0.3,
+        )
+    progress = json.loads(
+        (tmp_path / "diagnostics" / "current-command.json").read_text(encoding="utf-8")
+    )
+    assert progress["outcome"] == "timed_out"
+    assert progress["returncode"] == 124
 
 
 def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handoff(

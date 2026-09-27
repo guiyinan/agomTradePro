@@ -468,6 +468,7 @@ def get_changed_modules(changed_files: list[str]) -> set[str]:
             "scripts/deploy-on-vps.sh",
             "scripts/remote_build_deploy_vps.py",
             "scripts/run_release_rehearsal.py",
+            "scripts/rehearsal_checkpoint.py",
             "scripts/build_release_rehearsal_manifest.py",
             "scripts/validate_release_rehearsal.py",
             "scripts/verify-vps-bundle.ps1",
