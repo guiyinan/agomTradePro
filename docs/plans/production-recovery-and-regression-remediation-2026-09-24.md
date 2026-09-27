@@ -479,3 +479,43 @@
   契约测试必须证明两条构建路径都在 Docker build 前执行规范化，并枚举 Compose 的全部只读宿主文件
   挂载，防止新增挂载漏入合同。新的提交会改变候选 SHA，必须重新取得同 SHA CI 和完整 S6，再使用
   其新 receipt 部署；不得手工改模式后复用旧回执。
+
+### 2026-09-28 部署后全市场重跑、动态容错与规模根因
+
+- 当前生产候选为 `d43739eed7e030c4afd4aca024181002e94fe28b`。首次重跑
+  `7c795089-604c-44b4-856d-5d612b4c4036` 在 universe 阶段返回
+  `outcome=blocked`、`requested/succeeded/failed/stored=0/0/0/0`、
+  `MARKET_UNIVERSE_REFRESH_FAILED`。worker 证据为同一 AKShare 聚合名单接口依次出现一次
+  `ConnectionError` 和两次 `JSONDecodeError`；随后四个原生分类接口分别返回上交所主板 1,702、
+  深交所 A 股 2,902、科创板 618、北交所 347，证明是聚合端点瞬时失败，不是固定证券集合问题。
+- universe 整改按 provider 契约处理：AKShare 分四类独立校验和重试，全部失败后才调用已配置的
+  Tushare `stock_basic`，按 SSE/SZSE/BSE 和 `list_status=L` 读取当前范围。备用范围与数据库 active
+  canonical code 集合做 1% 对称差校验，超限在任何 upsert 前阻断；数据库集合只作一致性参照，
+  不作为本次成功输出或陈旧回退。实际来源、failover 来源、差异率和容差进入结果；没有写死 12 只、
+  5,569 只或任一事故证券代码。
+- 第二次重跑 `223f0460-1550-4f9c-bb63-b3a0d70ac768` 完成 universe 5,569、估值
+  5,569/5,569 和行情 5,569/5,569，但在 publication 阶段于精确 3,500.171438 秒触发软时限。
+  规范结果为 `outcome=failed`、`requested/succeeded/failed/stored=113/112/1/11138`、
+  `phase=publication`、`target_trade_date=2026-09-24`、
+  `MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED`；run id 为
+  `a97bc347-d47f-48fb-8f06-7e7a81d52cf3`，`publication_updated=false`、`published_members=0`。
+- 规模证据确认 quote 阶段每个 100 只批次都重复调用一次 Tushare 全市场
+  `daily(trade_date=20260924)`，56 个批次约耗时 44 分钟；最后价格准备又对当轮实际缺口逐证券执行
+  历史 failover，AKShare 连接失败继续消耗剩余预算。因此只延长 timeout 不能作为根因修复。
+  Application 现按任务、provider 和目标交易日生成一次 `PreparedQuoteSession`，冻结完整 universe、
+  规范行 hash、响应完成时间及真实可用的原始 body SHA；后续批次只消费其子集，下一任务重新读取，
+  禁止跨任务缓存。预取缺失、重复、越界、错误日期、来源时间冲突或 provider 拒绝均在 quote 写入前
+  fail closed，并返回规范 `partial/failed` outcome 和资产/操作双口径统计。
+- 按用户要求将全市场任务 soft/hard 外层兜底从 3,500/3,600 秒调整为 4,200/4,500 秒，审计授权
+  预检同步为 4,800 秒；provider 单次请求、重试、锁、freshness、coverage 和一致性门槛保持不变。
+  这为异常网络和少量动态补录留出余量，常态目标仍由一次全市场读取显著缩短。
+- Task Monitor 增加运行中 `runtime_seconds` 和 universe/scope/valuation/quote_prefetch/quote/publication
+  阶段聚合计数；进度只在记录仍为 `STARTED` 时条件写入，不能覆盖 postrun 终态。公开结果保留稳定码
+  和安全摘要，diagnostics 仍由运维权限控制。本轮现网旧版本因尚无中途 writer，在运行中仍显示空阶段；
+  该现象不能再作为新版本验收标准。
+- 本次失败没有误发布。生产 current Publication 仍为旧的 5,557 成员版本：quote
+  `04cb3649-961b-5e88-b767-73aab5a6a646`、valuation
+  `0423a262-6b47-56e1-a8c1-5106a94854f8`、price
+  `69a8760f-7321-5341-93dd-a109a3b0ed01`。三者 `published_at=2026-09-24T11:13:00.640680Z`，
+  仍缺有效 source_observed_at/ruleset_version；正式发布、财报、guarded runtime activation、Alpha 和
+  普通用户页面联合验收仍未完成。
