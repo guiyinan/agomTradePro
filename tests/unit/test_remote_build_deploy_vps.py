@@ -294,6 +294,66 @@ def test_remote_builds_fail_closed_and_write_immutable_release_manifest(
     "builder_name",
     ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
 )
+def test_remote_builds_normalize_runtime_bind_mount_permissions_before_build(
+    builder_name: str,
+) -> None:
+    """Restrictive checkout umasks must not make runtime configs unreadable."""
+
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    normalizer = "normalize_runtime_source_permissions()"
+    normalizer_call = "normalize_runtime_source_permissions\n"
+    docker_build = "docker build"
+    assert normalizer in script
+    assert normalizer_call in script
+    assert 'chmod 0755 "$runtime_directory"' in script
+    assert 'chmod 0644 "$runtime_config"' in script
+    assert script.index(normalizer_call) < script.index(docker_build)
+    assert "deploy/.env" not in remote_build_deploy_vps._RUNTIME_SOURCE_PERMISSION_NORMALIZER
+    assert "secrets.env" not in remote_build_deploy_vps._RUNTIME_SOURCE_PERMISSION_NORMALIZER
+
+
+def test_runtime_permission_contract_covers_all_compose_read_only_source_mounts() -> None:
+    """Every source-controlled read-only bind mount needs an explicit mode owner."""
+
+    repository_root = Path(__file__).resolve().parents[2]
+    compose_text = (repository_root / "docker/docker-compose.vps.yml").read_text(encoding="utf-8")
+    readonly_sources: set[str] = set()
+    for raw_line in compose_text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped.startswith("- ") or not stripped.endswith(":ro"):
+            continue
+        source = stripped[2:].split(":", 1)[0]
+        if source.startswith("../"):
+            readonly_sources.add(source[3:])
+        elif source.startswith("./"):
+            readonly_sources.add(f"docker/{source[2:]}")
+
+    generated_readable_sources = {
+        ".agom-release-manifest.json",
+        "docker/Caddyfile",
+    }
+    normalizer = remote_build_deploy_vps._RUNTIME_SOURCE_PERMISSION_NORMALIZER
+    normalized_sources = {
+        source
+        for source in readonly_sources
+        if source in normalizer or source in generated_readable_sources
+    }
+
+    assert readonly_sources == normalized_sources
+    assert "manifest_path.chmod(0o444)" in remote_build_deploy_vps._build_remote_build_script()
+    deploy_script = remote_build_deploy_vps._build_remote_deploy_script()
+    assert 'sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template' in deploy_script
+    assert "chmod 0644 docker/Caddyfile" in deploy_script
+    assert deploy_script.index("chmod 0644 docker/Caddyfile") < deploy_script.index(
+        "compose up -d $SERVICES"
+    )
+
+
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
 def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroom(
     builder_name: str,
 ) -> None:

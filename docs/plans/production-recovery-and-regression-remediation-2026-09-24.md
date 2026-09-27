@@ -452,3 +452,30 @@
 - 修复在两个生产 Dockerfile 中显式设置 `chmod 0755 /entrypoint.sh`，并增加双 Dockerfile 契约
   测试，固定入口必须对运行用户可读且可执行。禁止在 S6 使用 `--entrypoint python` 绕过镜像入口；
   修复候选须重新取得同 SHA CI、重新构建镜像并完成全新 S6。
+
+### 2026-09-28 完整 S6、部署回滚与发布包权限整改
+
+- 最终候选 `ffde6de93666e4599b2759af9d6ced2bbb34e813` 的四组同 SHA CI 全部成功；全新 S6
+  `s6-ffde6de93-20260927a/evidence-20260927a` 九阶段全部返回 `success_evidence`。候选镜像
+  `sha256:ed7b7745…2644ac`、release tag `20260927174551`、GitHub run `36330096748` 和
+  handoff receipt 严格绑定同一提交。全量 active universe 为 5,569，估值 requested/returned
+  为 5,569/5,569、缺失 0、覆盖率 1.0；隔离 PostgreSQL 写入 4 行，读回、publication、回滚
+  均成功且 residual=0。该结果继续证明缺失集合按真实 provider 响应和已激活政策动态计算，未写死
+  历史事故中的 12 只证券。
+- S6 外层 build/stage 与部署等待预算为 5,400 秒；provider 1,800 秒、业务任务 900 秒、锁等待
+  10 秒及请求上限 200 保持不变。延长只覆盖真实构建、镜像装载和远端环境开销，不改变 freshness、
+  coverage、健康检查或业务阻断标准。
+- 使用上述预构建镜像的两次生产切换均在候选 `web` 健康后，由 Compose 报
+  `container agomtradepro-prometheus-1 is unhealthy` 并自动回滚。两次回滚都恢复并验证旧 release
+  `source-20260927152935`，生产当前仍运行旧镜像；因此正式发布和十项联合复验仍未开始，不能把 S6
+  成功写成生产恢复。
+- 只读对比取得直接根因证据：旧 release 的 `monitoring/prometheus.vps.yml`、`alerts.yml`、compose
+  和入口脚本均为 `0644 root:root`；候选相同文件分别为 `0600 root:root`，Prometheus 配置内容无差异，
+  回滚后相同 Prometheus 镜像立即健康。候选包来自 `umask 077` 的 S6 checkout，source tar 继承了
+  checkout 的私有模式，导致容器内非 root Prometheus 无法读取只读 bind mount。这与等待时长无关。
+- 整改在 source-upload 与 git-clone 两条 release build 边界统一规范化运行时 bind mount 权限：
+  `docker/monitoring` 目录为 `0755`，Compose、Prometheus、alerts 和入口模板为 `0644`，部署生成的
+  Caddyfile 也显式设为 `0644`。SQLite、`secrets.env` 与 `deploy/.env` 不进入该列表并继续为 `0600`。
+  契约测试必须证明两条构建路径都在 Docker build 前执行规范化，并枚举 Compose 的全部只读宿主文件
+  挂载，防止新增挂载漏入合同。新的提交会改变候选 SHA，必须重新取得同 SHA CI 和完整 S6，再使用
+  其新 receipt 部署；不得手工改模式后复用旧回执。

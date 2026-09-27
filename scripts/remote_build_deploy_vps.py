@@ -33,6 +33,34 @@ REMOTE_SOURCE_UPLOAD_DIR = "/tmp/agomtradepro-source-upload"
 REMOTE_TEMP_ARTIFACT_MIN_AGE_SECONDS = 60 * 60
 REMOTE_TEMP_ARTIFACT_MAX_RETAINED_PER_KIND = 2
 REMOTE_TEMP_ARTIFACT_LOCK_NAME = ".agomtradepro-temp-artifacts.lock"
+_RUNTIME_SOURCE_PERMISSION_NORMALIZER = r"""normalize_runtime_source_permissions() {
+  for runtime_directory in docker monitoring; do
+    if [ ! -d "$runtime_directory" ]; then
+      echo "[ERROR] runtime config directory is missing: $runtime_directory" >&2
+      return 1
+    fi
+    chmod 0755 "$runtime_directory"
+  done
+
+  for runtime_config in \
+    docker/docker-compose.vps.yml \
+    docker/Caddyfile.template \
+    docker/entrypoint.prod.sh \
+    monitoring/prometheus.vps.yml \
+    monitoring/alerts.yml; do
+    if [ ! -f "$runtime_config" ]; then
+      echo "[ERROR] runtime config file is missing: $runtime_config" >&2
+      return 1
+    fi
+    chmod 0644 "$runtime_config"
+  done
+
+  if [ -f docker/Caddyfile ]; then
+    chmod 0644 docker/Caddyfile
+  fi
+}
+normalize_runtime_source_permissions
+"""
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -1248,7 +1276,8 @@ def _build_remote_active_build_marker_shell_command(operation: str) -> str:
 
 
 def _build_remote_build_script() -> str:
-    return r"""set -eu
+    return (
+        r"""set -eu
 
 TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 REMOTE_TARBALL="${REMOTE_TARBALL:?missing REMOTE_TARBALL}"
@@ -1301,6 +1330,8 @@ rm -rf "$RELEASE_DIR"
 mkdir -p "$(dirname "$RELEASE_DIR")"
 cp -a "$SRC_DIR" "$RELEASE_DIR"
 cd "$RELEASE_DIR"
+
+__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__
 
 if [ ! -f deploy/.env ]; then
   cp deploy/.env.vps.example deploy/.env
@@ -1450,11 +1481,17 @@ fi
 echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """.replace(
-        "__CLAIM_ACTIVE_BUILD_MARKER__",
-        _build_remote_active_build_marker_shell_command("claim"),
-    ).replace(
-        "__RELEASE_ACTIVE_BUILD_MARKER__",
-        _build_remote_active_build_marker_shell_command("release"),
+            "__CLAIM_ACTIVE_BUILD_MARKER__",
+            _build_remote_active_build_marker_shell_command("claim"),
+        )
+        .replace(
+            "__RELEASE_ACTIVE_BUILD_MARKER__",
+            _build_remote_active_build_marker_shell_command("release"),
+        )
+        .replace(
+            "__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__",
+            _RUNTIME_SOURCE_PERMISSION_NORMALIZER,
+        )
     )
 
 
@@ -1539,6 +1576,8 @@ if [ "$CLONED_SOURCE_COMMIT" != "$EXPECTED_SOURCE_COMMIT" ]; then
 fi
 SOURCE_COMMIT="$CLONED_SOURCE_COMMIT"
 export SOURCE_COMMIT
+
+__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__
 
 if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
 if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example || true; fi
@@ -1685,7 +1724,10 @@ PY
 
 echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
-"""
+""".replace(
+        "__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__",
+        _RUNTIME_SOURCE_PERMISSION_NORMALIZER,
+    )
 
 
 def _build_remote_deploy_script() -> str:
@@ -2446,6 +2488,7 @@ else
 fi
 
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
+chmod 0644 docker/Caddyfile
 if [ -n "$EFFECTIVE_DOMAIN" ] && [ -n "$HOST" ]; then
   HTTP_REDIRECT_HOST="$HOST"
   case "$HTTP_REDIRECT_HOST" in
