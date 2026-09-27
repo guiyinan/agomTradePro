@@ -8,6 +8,7 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from apps.data_center.application.market_publication_refresh import (
+    MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
     refresh_market_price_inputs,
     refresh_market_publications,
@@ -101,6 +102,135 @@ def test_partial_market_refresh_keeps_previous_publication():
     assert result["requested"] == result["succeeded"] + result["failed"]
     assert result["published_members"] == 0
     assert published == []
+
+
+def test_terminal_authority_block_stops_remaining_batches() -> None:
+    """A task-wide authority loss is recorded once without replaying every batch."""
+
+    quote_calls: list[list[str]] = []
+
+    def blocked_quote(codes: list[str]) -> int:
+        quote_calls.append(codes)
+        raise MarketPublicationRefreshBlocked(
+            "Audit authority is temporarily unavailable",
+            code="system_audit_authority_unavailable",
+        )
+
+    ports = MarketPublicationRefreshPorts(
+        list_codes=lambda: ["000001.SZ", "000002.SZ", "000003.SZ"],
+        sync_quotes=blocked_quote,
+        sync_valuations=lambda _codes, _day: pytest.fail("valuation batch executed"),
+        publish=lambda _codes: pytest.fail("publication executed"),
+    )
+
+    result = refresh_market_publications(
+        ports=ports,
+        as_of_date=date(2026, 9, 18),
+        batch_size=2,
+    )
+
+    assert quote_calls == [["000001.SZ", "000002.SZ"]]
+    assert result["requested"] == 5
+    assert result["succeeded"] == 0
+    assert result["failed"] == 5
+    assert result["errors"] == ["system_audit_authority_unavailable"]
+    assert result["phase_results"] == [
+        {"phase": "quote", "requested": 2, "succeeded": 0, "failed": 2, "stored": 0},
+        {"phase": "valuation", "requested": 2, "succeeded": 0, "failed": 2, "stored": 0},
+        {"phase": "publication", "requested": 1, "succeeded": 0, "failed": 1, "stored": 0},
+    ]
+
+
+def test_authority_revalidation_retries_transient_unavailability(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """One lock-contention read cannot poison the remainder of a long refresh."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        revalidate_data02_task_authority,
+    )
+
+    calls = 0
+
+    def transient_then_current(**_):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SystemAuditCompositionUnavailable(
+                "lock contention",
+                reason_code="authority_unavailable",
+            )
+        return _patch_current_authority
+
+    waits: list[float] = []
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        transient_then_current,
+    )
+    observed_at = datetime.now(UTC)
+
+    result = revalidate_data02_task_authority(
+        _patch_current_authority,
+        as_of=observed_at,
+        max_attempts=2,
+        retry_delay_seconds=0.25,
+        sleeper=waits.append,
+        clock=lambda: observed_at + timedelta(seconds=1),
+    )
+
+    assert result.current is True
+    assert result.reason_code == "authority_current"
+    assert result.attempts == 2
+    assert waits == [0.25]
+
+
+def test_authority_revalidation_does_not_retry_identity_drift(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """A real actor change remains fail-closed without transient retries."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        revalidate_data02_task_authority,
+    )
+
+    changed = SimpleNamespace(
+        **{
+            **vars(_patch_current_authority),
+            "actor_id": "service:other-refresh",
+        }
+    )
+    calls = 0
+
+    def changed_context(**_):
+        nonlocal calls
+        calls += 1
+        return changed
+
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        changed_context,
+    )
+
+    result = revalidate_data02_task_authority(
+        _patch_current_authority,
+        as_of=datetime.now(UTC),
+        max_attempts=3,
+        sleeper=lambda _: pytest.fail("identity drift retried"),
+    )
+
+    assert result.current is False
+    assert result.reason_code == "operator_actor_mismatch"
+    assert result.attempts == 1
+    assert calls == 1
 
 
 def test_provider_identity_gap_is_a_partial_business_result() -> None:
@@ -359,7 +489,7 @@ def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch)
     result = tasks.refresh_full_market_publications_task.run(batch_size=1)
 
     assert result["outcome"] == "blocked"
-    assert result["blocked_reason"] == "authority_changed_or_expired"
+    assert result["blocked_reason"] == "operator_actor_mismatch"
     assert result["stored"] == 0
 
 

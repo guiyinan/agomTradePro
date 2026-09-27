@@ -418,3 +418,24 @@
 3. 本次最终 S6 已按失败停止。只有在上述预检全部通过并明确恢复执行后，才允许以新 SHA 建立唯一全新 evidence 目录；失败即停止，不循环重跑。成功必须生成同 SHA 的 immutable bundle 和 deploy handoff receipt。
 4. 只有完整 S6 成功后才部署应用候选。部署后重跑全市场任务并核对规范业务 `outcome`、`requested/succeeded/failed/stored`、阶段、run id、publication id/hash/member/scope block；随后恢复财报续批、按 guarded activation 解除 decision runtime，并完成 API/SDK/MCP、工作台主流程与普通用户权限补充验收。
 5. 生产正式发布尚未恢复前，用户页面必须明确区分“原始事实已写入”“正式发布仍旧”“局部证券数据不可用”和“管理员正在处理”。不得让 readiness HTTP 200、Celery SUCCESS 或局部 provider 成功掩盖决策不可用。
+
+### 2026-09-27 部署后 authority 周期竞争与修复计划
+
+- 候选 `6ef438334` 的完整 S6、同 SHA CI、部署和独立部署检查已经通过。部署后任务
+  `48f4d59a-2eb6-43e4-83e8-ae13f60956c9`（batch 100）与
+  `59379b6f-1760-47f1-a74c-ae521634c06a`（batch 200）分别运行约 285 秒和 280 秒，
+  均在 valuation 全范围写入 5,569 行后，于每 15 分钟的 audit authority renewal guard
+  边界进入 quote 阶段并返回 `blocked`。两次任务分别为 requested 113/57、succeeded 56/28、
+  failed 57/29、stored 5,569、published 0；Celery 技术状态均为 SUCCESS，不能视为恢复。
+- authority 当前租约有效至 2026-10-09，连续快照的 source、actor、user、tenant、owner、role
+  和 content hash 一致；同时间 renewal guard 返回 `noop/authority_window_healthy`。因此实际根因
+  是只读 current-authority 图使用排他锁，任务复验与守卫并发时一次短暂
+  `authority_unavailable` 被 sticky-close，当成永久身份变化；协调器随后把同一错误复制到全部批次。
+- 修复保持审计门不变：只对 `system_audit_authority_unavailable` 最多三次有界重读，每次按新
+  UTC 时刻重算剩余有效期；任何真实身份、范围、角色、来源或时效变化立即阻断。若重读耗尽，
+  协调器停止剩余操作、按完整 requested 分母计失败、只返回一次稳定原因。该逻辑与证券数量、
+  事故中的 12 只及 provider 清单无关。
+- 本次代码候选需通过聚焦测试、增量 mypy、debt ceiling、Celery/current-data guards、同 SHA CI
+  和 PostgreSQL 证据后部署。部署后再以动态全市场范围重跑；验收必须得到规范 outcome、四项计数、
+  publication run/id/hash/member 对账。随后才能继续财报、decision runtime、Alpha、API/SDK/MCP
+  和普通用户页面联合复验。

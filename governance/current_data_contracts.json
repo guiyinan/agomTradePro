@@ -5441,6 +5441,16 @@
           "test_function": "test_task_stops_before_provider_when_authority_identity_changes"
         },
         {
+          "case": "scheduled_market_refresh_retries_transient_authority_read_contention",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_authority_revalidation_retries_transient_unavailability"
+        },
+        {
+          "case": "scheduled_market_refresh_stops_after_terminal_authority_block",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_terminal_authority_block_stops_remaining_batches"
+        },
+        {
           "case": "scheduled_market_refresh_accepts_equivalent_authority_successor",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_equivalent_authority_successor_does_not_interrupt_active_refresh"

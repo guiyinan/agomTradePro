@@ -20,6 +20,13 @@ from .batch_identity import ProviderAssetIdentityError
 logger = logging.getLogger(__name__)
 
 
+class MarketPublicationRefreshBlocked(DataFetchError):
+    """Stop a refresh when a task-wide prerequisite becomes unavailable."""
+
+    default_message = "Current Audit authority is unavailable before a market write"
+    default_code = "authority_changed_or_expired"
+
+
 class _PhaseResult(TypedDict):
     phase: str
     requested: int
@@ -103,6 +110,7 @@ def refresh_market_publications(
         )
     ]
     failed_phase = ""
+    terminal_blocked = False
     succeeded = failed = stored = 0
     errors: list[str] = []
     for offset in range(0, len(codes), batch_size):
@@ -136,6 +144,15 @@ def refresh_market_publications(
                 logger.exception(
                     "Market refresh phase failed: phase=%s offset=%s", phase["phase"], offset
                 )
+                if isinstance(exc, MarketPublicationRefreshBlocked):
+                    terminal_blocked = True
+                    break
+        if terminal_blocked:
+            break
+    if terminal_blocked:
+        for phase in phases:
+            phase["failed"] = phase["requested"] - phase["succeeded"]
+        failed = requested - succeeded
     published = 0
     if codes and failed == 0:
         try:
@@ -158,7 +175,7 @@ def refresh_market_publications(
             failed_phase = "publication"
             errors.append(str(getattr(exc, "code", "") or "MARKET_PUBLICATION_VALIDATION_FAILED"))
             logger.exception("Market publication validation failed for target_date=%s", as_of_date)
-    elif codes:
+    elif codes and not terminal_blocked:
         failed += 1
         phases[2]["failed"] = 1
         errors.append("market_publication_skipped_incomplete_refresh")

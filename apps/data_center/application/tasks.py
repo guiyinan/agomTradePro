@@ -48,6 +48,7 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
+from .data02_task_authority import Data02AuthorityLatch as _Data02AuthorityLatch
 from .data02_task_authority import data02_authority_failure as _data02_authority_failure
 from .data02_task_authority import (
     preflight_data02_task_authority as _preflight_data02_task_authority,
@@ -96,6 +97,7 @@ def refresh_full_market_publications_task(
     """Refresh all active market quotes and valuations without waiting for financial filings."""
     from .dtos import SyncQuoteRequest
     from .market_publication_refresh import (
+        MarketPublicationRefreshBlocked,
         MarketPublicationRefreshPorts,
         refresh_market_price_inputs,
         refresh_market_publications,
@@ -163,21 +165,10 @@ def refresh_full_market_publications_task(
     completed_operation_count = 0
     stored_row_count = 0
     current_phase = "scope"
-    authority_current = True
+    authority_latch = _Data02AuthorityLatch(authority)
 
-    def authority_allows_next_write() -> bool:
-        """Revalidate at every write boundary and stay closed after drift."""
-
-        nonlocal authority_current
-        if authority_current:
-            authority_current = _same_data02_task_authority_is_current(
-                authority,
-                as_of=datetime.now(UTC),
-            )
-        return authority_current
-
-    if not authority_allows_next_write():
-        return _data02_authority_failure("authority_changed_or_expired")
+    if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
+        return _data02_authority_failure(authority_latch.reason_code)
     try:
         universe_report = sync_active_a_share_universe()
     except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
@@ -232,8 +223,8 @@ def refresh_full_market_publications_task(
             "reported_universe_sha256": reported_universe_sha256,
             "market_universe": universe_report,
         }
-    if not authority_allows_next_write():
-        return _data02_authority_failure("authority_changed_or_expired")
+    if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
+        return _data02_authority_failure(authority_latch.reason_code)
     try:
         valuation_seed = valuations.execute(
             provider_id=valuation_provider_id,
@@ -322,8 +313,8 @@ def refresh_full_market_publications_task(
     def sync_quote_batch(codes: list[str]) -> int:
         nonlocal completed_operation_count, current_phase, stored_row_count
         current_phase = "quote"
-        if not authority_allows_next_write():
-            raise ValueError("current Audit authority changed before quote batch")
+        if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
+            raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
         result = quotes.execute(SyncQuoteRequest(quote_provider_id, codes, True, target_date))
         stored_count = market_task.exact_provider_batch_count(
             requested_asset_codes=codes,
@@ -349,8 +340,8 @@ def refresh_full_market_publications_task(
     def publish_complete_session(codes: list[str]) -> int:
         nonlocal current_phase
         current_phase = "publication"
-        if not authority_allows_next_write():
-            raise ValueError("current Audit authority changed before publication")
+        if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
+            raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
         preview = publications.preview(asset_codes=codes)
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
@@ -422,13 +413,14 @@ def refresh_full_market_publications_task(
             valuation_seed_stored=valuation_seed.stored_count,
             excluded_non_trading_codes=excluded_non_trading_codes,
         )
-    if not authority_current:
+    if not authority_latch.current:
         return {
             **result,
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "success": False,
             "must_not_use_for_decision": True,
-            "blocked_reason": "authority_changed_or_expired",
+            "blocked_reason": authority_latch.reason_code,
+            "error_code": authority_latch.reason_code,
             "publication_updated": False,
             "published_members": 0,
         }

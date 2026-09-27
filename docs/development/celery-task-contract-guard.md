@@ -139,6 +139,12 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 17:05（项目时区）的 Beat 任务，可用参数调整或禁用；该时间晚于 Tushare `daily_basic` 官方 15:00～17:00 更新窗口，不能在数据源尚未形成当日完整截面时发布前一日数据冒充当期。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
 
+2026-09-27 审计 authority 复验容错：全市场长任务与每 15 分钟续租守卫并发时，
+只允许对稳定码 `system_audit_authority_unavailable` 做最多三次有界重读；每次使用新的 UTC
+时刻重新验证剩余授权窗口。actor、user、tenant、owner、认证/职员状态、role、来源身份或
+有效期真实变化不得重试放行。重读耗尽后立即停止剩余批次，把未执行操作计入失败并只保留
+一次稳定根因；禁止把同一 authority 阻断复制成全 universe 异常列表。
+
 2026-09-20 合并前维护：Alpha 的数据阻断结果和旧源评分标记由 `task_outcome_contracts` 统一生成，任务入口及原有 outcome、计数和阻断原因保持不变。
 
 2026-09-24 Tushare 全市场估值修复：`daily_basic.total_mv/circ_mv` 的原始单位为“万元”，Provider 适配器必须在进入 Domain 前转换为存储规范“元”，并在 `extra` 保留原始单位、规范单位和 `10000` 转换倍数；迁移 `data_center.0084` 同步修复既有 Tushare 估值事实。Provider 少返回资产时，任务保持完整 active universe 为 requested 分母；只有激活政策 `allow_partial=true`、覆盖率达到 `minimum_coverage_ratio` 且逐证券缺失原因完整时，才发布合格估值成员并返回结构化 `partial`。低于门槛、缺少政策证据或报价不完整时继续 fail closed，禁止以未捕获异常结束或发布不合格范围。

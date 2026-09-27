@@ -2,12 +2,45 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from time import sleep
 
 from core.integration import data_center_audit as audit_integration
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 _FINALIZATION_WINDOW = timedelta(seconds=300)
+_TRANSIENT_AUTHORITY_REASONS = frozenset({"system_audit_authority_unavailable"})
+_DEFAULT_REVALIDATION_ATTEMPTS = 3
+_DEFAULT_REVALIDATION_DELAY_SECONDS = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class Data02AuthorityRevalidation:
+    """Describe one bounded authority revalidation result."""
+
+    current: bool
+    reason_code: str
+    attempts: int
+
+
+@dataclass(slots=True)
+class Data02AuthorityLatch:
+    """Keep one long-running task closed after a failed authority revalidation."""
+
+    authority: audit_integration.SystemAuditReaderContext
+    current: bool = True
+    reason_code: str = "authority_current"
+
+    def allows_next_write(self, *, as_of: datetime) -> bool:
+        """Revalidate one write boundary and latch the first failed result."""
+
+        if self.current:
+            result = revalidate_data02_task_authority(self.authority, as_of=as_of)
+            self.current = result.current
+            self.reason_code = result.reason_code
+        return self.current
 
 
 def data02_authority_failure(reason: str) -> dict[str, object]:
@@ -64,23 +97,75 @@ def same_data02_task_authority_is_current(
 ) -> bool:
     """Allow an equivalent active successor while the starting grant remains valid."""
 
-    current, failure = preflight_data02_task_authority(
+    return revalidate_data02_task_authority(
+        authority,
         as_of=as_of,
         minimum_window=minimum_window,
-        expected_actor=authority.actor_id,
-    )
-    if failure is not None or current is None:
-        return False
-    if authority.authority_valid_until < as_of + minimum_window:
-        return False
-    identity_fields = (
-        "authority_source_id",
-        "actor_id",
-        "user_id",
-        "tenant_id",
-        "owner_id",
-        "is_authenticated",
-        "is_staff",
-        "role",
-    )
-    return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)
+    ).current
+
+
+def revalidate_data02_task_authority(
+    authority: audit_integration.SystemAuditReaderContext,
+    *,
+    as_of: datetime,
+    minimum_window: timedelta = _FINALIZATION_WINDOW,
+    max_attempts: int = _DEFAULT_REVALIDATION_ATTEMPTS,
+    retry_delay_seconds: float = _DEFAULT_REVALIDATION_DELAY_SECONDS,
+    sleeper: Callable[[float], None] = sleep,
+    clock: Callable[[], datetime] | None = None,
+) -> Data02AuthorityRevalidation:
+    """Revalidate authority, retrying only bounded transient read unavailability."""
+
+    if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
+        raise ValueError("max_attempts must be a positive integer")
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("as_of must be timezone-aware")
+    if type(minimum_window) is not timedelta or minimum_window <= timedelta(0):
+        raise ValueError("minimum_window must be a positive timedelta")
+    if (
+        isinstance(retry_delay_seconds, bool)
+        or not isinstance(retry_delay_seconds, (int, float))
+        or retry_delay_seconds < 0
+    ):
+        raise ValueError("retry_delay_seconds must be a non-negative number")
+    if not callable(sleeper):
+        raise TypeError("sleeper must be callable")
+    if clock is not None and not callable(clock):
+        raise TypeError("clock must be callable")
+
+    current_as_of = as_of
+    for attempt in range(1, max_attempts + 1):
+        current, failure = preflight_data02_task_authority(
+            as_of=current_as_of,
+            minimum_window=minimum_window,
+            expected_actor=authority.actor_id,
+        )
+        if failure is not None or current is None:
+            reason_code = str(
+                (failure or {}).get("blocked_reason") or "authority_changed_or_expired"
+            )
+            if reason_code in _TRANSIENT_AUTHORITY_REASONS and attempt < max_attempts:
+                sleeper(float(retry_delay_seconds))
+                current_as_of = clock() if clock is not None else datetime.now(UTC)
+                if current_as_of.tzinfo is None or current_as_of.utcoffset() is None:
+                    raise ValueError("clock must return a timezone-aware datetime")
+                continue
+            return Data02AuthorityRevalidation(False, reason_code, attempt)
+        if authority.authority_valid_until < current_as_of + minimum_window:
+            return Data02AuthorityRevalidation(False, "authority_window_too_short", attempt)
+        identity_fields = (
+            "authority_source_id",
+            "actor_id",
+            "user_id",
+            "tenant_id",
+            "owner_id",
+            "is_authenticated",
+            "is_staff",
+            "role",
+        )
+        if not all(
+            getattr(current, field) == getattr(authority, field) for field in identity_fields
+        ):
+            return Data02AuthorityRevalidation(False, "authority_identity_changed", attempt)
+        return Data02AuthorityRevalidation(True, "authority_current", attempt)
+    raise RuntimeError("authority revalidation attempt accounting is invalid")
