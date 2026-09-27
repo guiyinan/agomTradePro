@@ -124,3 +124,24 @@ def test_alpha_candidate_execution_link_preserves_request_and_account_scope():
     assert "execution_ref.account_id" in template
     assert "candidate.last_decision_request_id and execution_ref.account_id" in template
     assert "缺少可验证的账户归属" in template
+
+
+def test_alpha_trigger_tui_deep_links_use_flat_action_parameters():
+    """Classic compatibility links must bind TUI action fields by query key."""
+
+    templates = {
+        "candidate": Path(
+            "apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html"
+        ).read_text(encoding="utf-8"),
+        "trigger_detail": Path("apps/alpha_trigger/templates/alpha_trigger/detail.html").read_text(
+            encoding="utf-8"
+        ),
+        "trigger_edit": Path("apps/alpha_trigger/templates/alpha_trigger/edit.html").read_text(
+            encoding="utf-8"
+        ),
+    }
+
+    assert "&amp;candidate_id={{ candidate.candidate_id|urlencode }}" in templates["candidate"]
+    assert "&amp;trigger_id={{ trigger.trigger_id|urlencode }}" in templates["trigger_detail"]
+    assert "&amp;trigger_id={{ trigger.trigger_id|urlencode }}" in templates["trigger_edit"]
+    assert all("&amp;params=%7B" not in template for template in templates.values())
