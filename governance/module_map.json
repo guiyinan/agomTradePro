@@ -3933,14 +3933,6 @@
           "imports": 2
         }
       },
-      "depends_on": {
-        "task_monitor": {
-          "imports": 1,
-          "target_layers": [
-            "application"
-          ]
-        }
-      },
       "entrypoints": {
         "application/_market_thermometer_runtime.py": [
           "provider_timeout_overrides",
@@ -10492,9 +10484,6 @@
         },
         "dashboard": {
           "imports": 4
-        },
-        "data_center": {
-          "imports": 1
         },
         "decision_rhythm": {
           "imports": 1

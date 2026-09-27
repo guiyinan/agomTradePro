@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5134,
+    "current_surface_references": 5140,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11336,32 +11336,32 @@
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
     },
     {
-      "line": 55,
+      "line": 58,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
     {
-      "line": 365,
+      "line": 368,
       "path": "apps/data_center/application/sync_market_use_cases.py",
       "text": "publication_key = \"current\""
     },
     {
-      "line": 416,
+      "line": 695,
       "path": "apps/data_center/application/tasks.py",
       "text": "if not authority_latch.current:"
     },
     {
-      "line": 696,
+      "line": 975,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 834,
+      "line": 1113,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1208,
+      "line": 1487,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -11601,14 +11601,29 @@
       "text": "current = current.__cause__ or current.__context__"
     },
     {
-      "line": 22,
+      "line": 39,
+      "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
+      "text": "default_message = \"A-share universe refresh could not establish a current scope\""
+    },
+    {
+      "line": 84,
       "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
       "text": "\"\"\"Provider contract for current A-share code-name rows.\"\"\""
     },
     {
-      "line": 30,
+      "line": 92,
       "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
       "text": "\"\"\"Summary of an A-share universe synchronization run.\"\"\""
+    },
+    {
+      "line": 308,
+      "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
+      "text": "\"\"\"Load current listed A-shares from Tushare by documented exchange scope.\"\"\""
+    },
+    {
+      "line": 316,
+      "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
+      "text": "\"\"\"Request each exchange with Tushare's current-listed stock contract.\"\"\""
     },
     {
       "line": 44,
@@ -12566,7 +12581,7 @@
       "text": "an old flow into a current observation."
     },
     {
-      "line": 251,
+      "line": 252,
       "path": "apps/data_center/infrastructure/market_gateway_entities.py",
       "text": "\"\"\"Current valuation fields with optional transport provenance."
     },
@@ -12856,72 +12871,72 @@
       "text": "\"\"\"Fetch the latest effective constituents for one configured index.\"\"\""
     },
     {
-      "line": 158,
+      "line": 159,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "\"\"\"Map the latest daily row, optionally requiring an exact replay date."
     },
     {
-      "line": 160,
+      "line": 161,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "Production passes no target date and retains the gateway's latest-row"
     },
     {
-      "line": 162,
+      "line": 163,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "satisfy a requested session. The latest row is selected before value"
     },
     {
-      "line": 163,
+      "line": 164,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "validation, matching the existing fail-closed behavior for a bad latest row."
     },
     {
-      "line": 168,
+      "line": 169,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "latest = max(rows, key=lambda row: str(row.get(\"trade_date\") or \"\"))"
     },
     {
-      "line": 169,
+      "line": 170,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "trade_date = _parse_compact_quote_date(latest.get(\"trade_date\"))"
     },
     {
-      "line": 172,
+      "line": 173,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "price = _safe_decimal(latest.get(\"close\"))"
     },
     {
-      "line": 175,
+      "line": 176,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "pre_close = _safe_decimal(latest.get(\"pre_close\"))"
     },
     {
-      "line": 187,
+      "line": 188,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "volume=_tushare_daily_volume_shares(latest.get(\"vol\")),"
     },
     {
-      "line": 188,
+      "line": 189,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "amount=_tushare_daily_amount_cny(latest.get(\"amount\")),"
     },
     {
-      "line": 189,
+      "line": 190,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "turnover_rate=safe_float(latest.get(\"turnover_rate\")),"
     },
     {
-      "line": 190,
+      "line": 191,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "high=_safe_decimal(latest.get(\"high\")),"
     },
     {
-      "line": 191,
+      "line": 192,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "low=_safe_decimal(latest.get(\"low\")),"
     },
     {
-      "line": 192,
+      "line": 193,
       "path": "apps/data_center/infrastructure/tushare_replay_parser.py",
       "text": "open=_safe_decimal(latest.get(\"open\")),"
     },
@@ -23416,7 +23431,7 @@
       "text": "summary=\"按策略计算仓位管理建议\","
     },
     {
-      "line": 452,
+      "line": 467,
       "path": "apps/task_monitor/application/dtos.py",
       "text": "summary: SchedulerSummaryResponse"
     },
@@ -23429,6 +23444,21 @@
       "line": 63,
       "path": "apps/task_monitor/application/interface_services.py",
       "text": "\"summary\": asdict(response.summary),"
+    },
+    {
+      "line": 92,
+      "path": "apps/task_monitor/application/tracking.py",
+      "text": "logger.info(\"Current task progress unavailable: error_type=%s\", type(exc).__name__)"
+    },
+    {
+      "line": 103,
+      "path": "apps/task_monitor/application/tracking.py",
+      "text": "current = _phase_payload("
+    },
+    {
+      "line": 115,
+      "path": "apps/task_monitor/application/tracking.py",
+      "text": "**current,"
     },
     {
       "line": 420,
@@ -23486,22 +23516,22 @@
       "text": "backup_temp = output_path / \".postgres-current.dump.partial\""
     },
     {
-      "line": 300,
+      "line": 315,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "latest = base_qs.order_by(\"-created_at\").first()"
     },
     {
-      "line": 309,
+      "line": 324,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "last_execution_status=TaskStatus(latest.status) if latest else TaskStatus.PENDING,"
     },
     {
-      "line": 310,
+      "line": 325,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "last_execution_at=latest.created_at if latest else None,"
     },
     {
-      "line": 30,
+      "line": 32,
       "path": "apps/task_monitor/interface/serializers.py",
       "text": "\"\"\"Safe business summary for one task attempt.\"\"\""
     },
@@ -26063,27 +26093,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 90,
+      "line": 96,
       "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
+      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=4500, soft_time_limit=4200)  # type: ignore[misc]"
     },
     {
-      "line": 445,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(  # type: ignore[misc]"
-    },
-    {
-      "line": 959,
+      "line": 724,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 991,
+      "line": 1238,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1073,
+      "line": 1270,
+      "path": "apps/data_center/application/tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "line": 1352,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
