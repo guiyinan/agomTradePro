@@ -4253,6 +4253,10 @@
           "FinancialSourceTimeContractReader",
           "FinancialSourceTimeEvidenceVerifier"
         ],
+        "application/full_market_refresh_orchestration.py": [
+          "FullMarketRefreshDependencies",
+          "run_full_market_publication_refresh"
+        ],
         "application/full_market_task_support.py": [
           "asset_code_scope_sha256",
           "exact_provider_batch_count",
@@ -4866,7 +4870,7 @@
         ]
       },
       "layers": {
-        "application": 103,
+        "application": 104,
         "domain": 32,
         "infrastructure": 152,
         "interface": 19,

@@ -205,6 +205,81 @@ def test_quote_adapter_isolates_bad_prices_and_optional_amounts(monkeypatch) -> 
     assert gateway_config["dataset_key"] == "equity.quote.snapshot"
 
 
+@pytest.mark.parametrize(
+    ("quote_extra", "expected_evidence"),
+    [
+        (None, {}),
+        ("malformed transport metadata", {}),
+        ({"raw_payload_hash": "not-a-sha256"}, {}),
+        (
+            {
+                "raw_payload_hash": "a" * 64,
+                "raw_payload_scope": "batch_response_body",
+            },
+            {},
+        ),
+        (
+            {
+                "raw_payload_hash": "b" * 64,
+                "raw_payload_scope": "batch_response_body",
+                "response_completed_at": "2026-07-28T08:00:00+00:00",
+            },
+            {
+                "raw_payload_hash": "b" * 64,
+                "raw_payload_scope": "batch_response_body",
+                "response_completed_at": "2026-07-28T08:00:00+00:00",
+            },
+        ),
+    ],
+)
+def test_quote_adapter_handles_optional_transport_evidence_safely(
+    monkeypatch, quote_extra: object, expected_evidence: dict[str, str]
+) -> None:
+    class FakeGateway:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        def get_quote_snapshots(
+            self, _asset_codes: list[str], *, target_trade_date: date
+        ) -> list[SimpleNamespace]:
+            assert target_trade_date == date(2026, 7, 28)
+            return [
+                SimpleNamespace(
+                    stock_code="000002.SZ",
+                    observed_at=datetime(2026, 7, 28, 7, tzinfo=UTC),
+                    fetched_at=datetime(2026, 7, 28, 8, tzinfo=UTC),
+                    price=10.5,
+                    open=None,
+                    high=None,
+                    low=None,
+                    pre_close=None,
+                    volume=None,
+                    amount=None,
+                    extra=quote_extra,
+                )
+            ]
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway",
+        FakeGateway,
+    )
+
+    facts = TushareUnifiedProviderAdapter(_config()).fetch_quote_snapshots_for_session(
+        ["000002.SZ"], date(2026, 7, 28)
+    )
+
+    assert len(facts) == 1
+    assert facts[0].current_price == 10.5
+    assert facts[0].snapshot_at == datetime(2026, 7, 28, 7, tzinfo=UTC)
+    assert facts[0].source == "tushare"
+    expected_extra = {
+        "provider_name": "Tushare Pro",
+        "source_type": "tushare",
+    }
+    expected_extra.update(expected_evidence)
+    assert facts[0].extra == expected_extra
+
+
 def test_fund_nav_adapter_skips_invalid_primary_nav(monkeypatch) -> None:
     frame = pd.DataFrame(
         [

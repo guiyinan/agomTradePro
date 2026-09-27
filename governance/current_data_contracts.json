@@ -4637,6 +4637,7 @@
         "apps/data_center/infrastructure/financial_source_policy.py",
         "apps/data_center/domain/publication_evidence.py",
         "apps/data_center/application/full_market_task_support.py",
+        "apps/data_center/application/full_market_refresh_orchestration.py",
         "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/financial_refresh_lease.py",
         "apps/data_center/application/tasks.py",
@@ -4962,22 +4963,24 @@
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
-          "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
-          "latest_closed_cn_market_session(timezone.now())",
-          "returned_asset_codes=result.stored_asset_codes",
-          "valuation_seed.returned_asset_codes",
-          "valuation_seed.succeeded_asset_codes",
-          "universe_report = sync_active_a_share_universe()",
-          "reported_universe_sha256",
-          "MARKET_UNIVERSE_SCOPE_INVALID",
-          "excluded_non_trading_codes",
           "def refresh_financial_publications_batch_task(",
           "financial_publication_rebuild_failed",
           "dataset_keys=(\"equity.financial.fact\",)",
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
-          "publication_evidence_hash_from_result as _publication_evidence_hash_from_result",
-          "exc.code.startswith(",
+          "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
+        ],
+        "apps/data_center/application/full_market_refresh_orchestration.py": [
+          "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
+          "dependencies.latest_closed_market_session(timezone.now())",
+          "returned_asset_codes=result.stored_asset_codes",
+          "valuation_seed.returned_asset_codes",
+          "valuation_seed.succeeded_asset_codes",
+          "universe_report = dependencies.sync_active_universe()",
+          "reported_universe_sha256",
+          "MARKET_UNIVERSE_SCOPE_INVALID",
+          "excluded_non_trading_codes",
+          "exc.code.startswith(\"A_SHARE_UNIVERSE_\")",
           "A_SHARE_UNIVERSE_",
           "market_universe_error"
         ],
@@ -5141,7 +5144,7 @@
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "observed_at=cn_market_session_close_utc(record.trade_date)",
-          "extra=self._provider_extra(quote.extra)"
+          "extra=self._provider_extra(_optional_quote_transport_extra(quote))"
         ],
         "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
           "response_evidence=response_evidence"

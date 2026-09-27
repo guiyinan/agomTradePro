@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
@@ -84,6 +84,44 @@ _A_SHARE_BEHAVIOR_CODES = frozenset(
         "CN_A_LIMIT_DOWN_COUNT",
     }
 )
+
+
+def _optional_quote_transport_extra(quote: object) -> dict[str, Any]:
+    """Read optional quote provenance without inventing response evidence."""
+
+    raw_extra = getattr(quote, "extra", None)
+    if not isinstance(raw_extra, Mapping):
+        return {}
+
+    extra = {key: value for key, value in raw_extra.items() if isinstance(key, str)}
+    evidence_keys = (
+        "raw_payload_hash",
+        "raw_payload_scope",
+        "response_completed_at",
+    )
+    if not any(key in extra for key in evidence_keys):
+        return extra
+
+    raw_payload_hash = extra.get("raw_payload_hash")
+    raw_payload_scope = extra.get("raw_payload_scope")
+    completed_at_text = extra.get("response_completed_at")
+    try:
+        if (
+            not isinstance(raw_payload_hash, str)
+            or raw_payload_scope != "batch_response_body"
+            or not isinstance(completed_at_text, str)
+        ):
+            raise ValueError("incomplete Tushare quote response evidence")
+        completed_at = datetime.fromisoformat(completed_at_text.replace("Z", "+00:00"))
+        TushareResponseEvidence(
+            body_sha256=raw_payload_hash,
+            response_completed_at=completed_at,
+            raw_payload_scope=raw_payload_scope,
+        )
+    except (TypeError, ValueError):
+        for key in evidence_keys:
+            extra.pop(key, None)
+    return extra
 
 
 # Test and migration seams.  Production uses the native Data Center gateways
@@ -751,7 +789,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     prev_close=safe_float(quote.pre_close),
                     volume=_optional_nonnegative_float(quote.volume),
                     amount=_optional_nonnegative_float(quote.amount),
-                    extra=self._provider_extra(quote.extra),
+                    extra=self._provider_extra(_optional_quote_transport_extra(quote)),
                 )
             )
         return results

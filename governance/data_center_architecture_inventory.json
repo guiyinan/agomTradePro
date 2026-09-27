@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5140,
+    "current_surface_references": 5141,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10161,6 +10161,16 @@
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
+      "line": 51,
+      "path": "apps/data_center/application/full_market_refresh_orchestration.py",
+      "text": "\"\"\"Build a current-publication use case for the fixed refresh datasets.\"\"\""
+    },
+    {
+      "line": 689,
+      "path": "apps/data_center/application/full_market_refresh_orchestration.py",
+      "text": "if not authority_latch.current:"
+    },
+    {
       "line": 143,
       "path": "apps/data_center/application/interface_services.py",
       "text": "\"\"\"Refresh the latest pulse snapshot through the owning pulse use case.\"\"\""
@@ -11346,22 +11356,17 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 695,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "if not authority_latch.current:"
-    },
-    {
-      "line": 975,
+      "line": 381,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 1113,
+      "line": 519,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1487,
+      "line": 893,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -26093,27 +26098,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 96,
+      "line": 95,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=4500, soft_time_limit=4200)  # type: ignore[misc]"
     },
     {
-      "line": 724,
+      "line": 130,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1238,
+      "line": 644,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1270,
+      "line": 676,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1352,
+      "line": 758,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

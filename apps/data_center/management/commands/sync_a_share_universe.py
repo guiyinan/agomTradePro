@@ -9,6 +9,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.infrastructure.a_share_universe_sync import (
+    AShareUniverseSyncError,
     AShareUniverseSyncService,
     JsonFileAshareCodeNameProvider,
 )
@@ -51,8 +52,17 @@ class Command(BaseCommand):
             report = AShareUniverseSyncService(provider=provider).sync(
                 deactivate_missing=deactivate_missing
             )
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            raise CommandError("A-share universe input could not be loaded.") from exc
+        except AShareUniverseSyncError as exc:
+            if input_file:
+                raise CommandError("A-share universe input could not be loaded.") from exc
+            raise CommandError(f"A-share universe sync failed ({exc.code}).") from exc
+        except (OSError, ValueError) as exc:
+            message = (
+                "A-share universe input could not be loaded."
+                if input_file
+                else "A-share universe sync failed."
+            )
+            raise CommandError(message) from exc
         payload = report.to_dict()
         if options.get("as_json"):
             self.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2))

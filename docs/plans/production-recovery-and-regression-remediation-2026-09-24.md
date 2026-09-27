@@ -519,3 +519,27 @@
   `69a8760f-7321-5341-93dd-a109a3b0ed01`。三者 `published_at=2026-09-24T11:13:00.640680Z`，
   仍缺有效 source_observed_at/ruleset_version；正式发布、财报、guarded runtime activation、Alpha 和
   普通用户页面联合验收仍未完成。
+
+### 2026-09-28 最终候选 CI 反例与任务边界收口
+
+- 第一轮推送的 Architecture Layer Guard 发现 Data Center 为上报任务进度直接依赖 Task Monitor，
+  使 app dependency edge 超过 206 的基线；Consistency 同时发现架构清单未随新增源码更新。进度
+  类型和写入口已收口到既有 `core.integration.task_monitor_runtime` composition facade，重新生成
+  architecture inventory 和 module map 后，依赖恢复为 206 edges、零双向依赖、零循环，没有抬高预算。
+- 第二轮推送的 Consistency/Fast Feedback 又给出三个独立反例：完整 Data Center entrypoint 清单陈旧；
+  `tasks.py` 因新增编排达到 1,470 个非空行；管理命令未捕获同步服务归一后的
+  `AShareUniverseSyncError`，以及旧 provider 替身缺少可选 `quote.extra` 时 adapter 抛
+  `AttributeError`。这些都是门禁真实失败，不能用重跑或 baseline 放宽处理。
+- 全市场编排已移入独立 Application orchestrator，Celery task 名、签名、4200/4500 秒 soft/hard
+  timeout、4800 秒 authority 窗口、单次 quote prefetch、动态 universe/failover 和发布策略保持不变；
+  `tasks.py` 降至 886 个非空行。管理命令现在按输入文件与 provider 两类边界输出脱敏稳定错误；
+  Tushare adapter 将 transport evidence 视为可选，只有 SHA、`batch_response_body` scope 与带时区
+  completion time 全部有效才保留，缺失时不合成 raw body hash。
+- 合并工作树的聚焦回归为 87 passed；远端 Fast Feedback 等价选择集本地重跑为
+  **2,491 passed / 58 skipped**。skip 是本机未启用的专用 PostgreSQL/平台能力用例，必须继续由
+  同 SHA Publication PostgreSQL workflow 和远端 Linux S6 补证。governance consistency 为
+  0 violations，current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、完整
+  entrypoint 1,264 项且 `candidate-review=0`、module map 44 modules / 210 edges 均通过。
+- 上述结果仍是提交前证据。冻结的新 SHA 必须重新取得五组远端 CI、workflow-dispatch PostgreSQL
+  artifact 和全新九阶段 S6；不得复用 `d43739eed` 的镜像、bundle 或 handoff receipt。生产正式发布、
+  guarded decision runtime、财报 owner contract、Alpha 和普通用户页面联合验收状态不变。

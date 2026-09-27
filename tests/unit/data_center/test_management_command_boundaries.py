@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 from django.core.management import CommandError, call_command
 
-from apps.data_center.management.commands import import_investor_accounts
+from apps.data_center.infrastructure.a_share_universe_sync import AShareUniverseSyncError
+from apps.data_center.management.commands import import_investor_accounts, sync_a_share_universe
 
 
 @pytest.mark.parametrize(
@@ -90,3 +91,51 @@ def test_a_share_sync_redacts_malformed_file_details(tmp_path: Path) -> None:
     assert message == "A-share universe input could not be loaded."
     assert "secret-universe" not in message
     assert "token=private" not in message
+
+
+def test_a_share_sync_redacts_provider_validation_details(tmp_path: Path) -> None:
+    """Validated JSON rows that fail the service contract stay behind the command boundary."""
+
+    json_path = tmp_path / "secret-invalid-universe.json"
+    json_path.write_text(
+        '{"rows": [{"code": "private-invalid-code", "name": "secret-name"}]}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CommandError) as error:
+        call_command("sync_a_share_universe", "--input-file", str(json_path))
+
+    message = str(error.value)
+    assert message == "A-share universe input could not be loaded."
+    assert "secret-invalid-universe" not in message
+    assert "private-invalid-code" not in message
+    assert "secret-name" not in message
+
+
+def test_a_share_sync_preserves_stable_service_error_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provider failures expose the stable service code without internal details."""
+
+    class _FailingService:
+        def __init__(self, *, provider: object) -> None:
+            del provider
+
+        def sync(self, *, deactivate_missing: bool) -> object:
+            del deactivate_missing
+            raise AShareUniverseSyncError(
+                "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT",
+                category="failover_consistency",
+                source="tushare.stock_basic[provider_id=7]",
+                details={"credential": "private-token"},
+            )
+
+    monkeypatch.setattr(sync_a_share_universe, "AShareUniverseSyncService", _FailingService)
+
+    with pytest.raises(CommandError) as error:
+        call_command("sync_a_share_universe", stdout=StringIO())
+
+    message = str(error.value)
+    assert message == ("A-share universe sync failed (A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT).")
+    assert "private-token" not in message
+    assert "provider_id" not in message

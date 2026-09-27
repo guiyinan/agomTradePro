@@ -10,7 +10,7 @@
       "celery_task": 129,
       "compatibility_facade": 95,
       "current_data_surface": 70,
-      "dynamic_import_edge": 12,
+      "dynamic_import_edge": 13,
       "management_command": 36,
       "management_command_edge": 59,
       "mcp_tool": 40,
@@ -31,12 +31,12 @@
     },
     "by_status": {
       "active_public": 798,
-      "adjacent_operational": 327,
+      "adjacent_operational": 328,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1263
+    "total": 1264
   },
   "entries": [
     {
@@ -2792,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:734",
-      "locator": "line:734",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:419",
+      "locator": "line:419",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -5271,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=71",
+      "evidence": "governed current-data contract; source_files=77",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5808,6 +5808,16 @@
       "status": "adjacent_operational",
       "symbol": "import_module",
       "target": "kombu.exceptions"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "statically resolved dynamic import target",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/a_share_universe_sync.py:import_module:line:133",
+      "locator": "line:133",
+      "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
+      "status": "adjacent_operational",
+      "symbol": "import_module",
+      "target": "akshare"
     },
     {
       "category": "dynamic_import_edge",
@@ -6702,8 +6712,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/init_scheduler_defaults.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:init_scheduler_defaults:line:711",
-      "locator": "line:711",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:init_scheduler_defaults:line:726",
+      "locator": "line:726",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "init_scheduler_defaults",
@@ -6712,8 +6722,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_auto_advisor_weekly_report:line:747",
-      "locator": "line:747",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_auto_advisor_weekly_report:line:762",
+      "locator": "line:762",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "adjacent_operational",
       "symbol": "setup_auto_advisor_weekly_report",
@@ -6722,8 +6732,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/setup_decision_quote_refresh.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_decision_quote_refresh:line:733",
-      "locator": "line:733",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_decision_quote_refresh:line:748",
+      "locator": "line:748",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "setup_decision_quote_refresh",
@@ -6732,8 +6742,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/setup_personal_readiness_daily.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_personal_readiness_daily:line:740",
-      "locator": "line:740",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_personal_readiness_daily:line:755",
+      "locator": "line:755",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "adjacent_operational",
       "symbol": "setup_personal_readiness_daily",
