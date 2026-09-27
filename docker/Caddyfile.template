@@ -56,7 +56,9 @@ __SITE_ADDRESS__ {
     }
     handle @tushare_gateway {
         uri replace /internal/tushare-gateway /
-        reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9}
+        reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9} {
+            header_up Host {upstream_hostport}
+        }
     }
 
     reverse_proxy web:8000

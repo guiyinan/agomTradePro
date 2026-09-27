@@ -295,14 +295,20 @@ def test_tushare_gateway_is_private_and_fails_closed_without_host_config() -> No
     """The HTTPS bridge must stay internal and use an inert default upstream."""
 
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
-    caddyfile = (REPO_ROOT / "docker" / "Caddyfile.template").read_text(encoding="utf-8")
+    caddyfile_template = (REPO_ROOT / "docker" / "Caddyfile.template").read_text(encoding="utf-8")
+    production_caddyfile = caddyfile_template.replace("__SITE_ADDRESS__", "demo.agomtrade.pro")
 
     assert "TUSHARE_GATEWAY_UPSTREAM: ${TUSHARE_GATEWAY_UPSTREAM:-http://127.0.0.1:9}" in compose
     assert "TUSHARE_GATEWAY_ALLOWED_IP: ${TUSHARE_GATEWAY_ALLOWED_IP:-127.0.0.1}" in compose
-    assert "path /internal/tushare-gateway" in caddyfile
-    assert "remote_ip private_ranges {$TUSHARE_GATEWAY_ALLOWED_IP:127.0.0.1}" in caddyfile
-    assert "uri replace /internal/tushare-gateway /" in caddyfile
-    assert "reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9}" in caddyfile
+    for caddyfile in (caddyfile_template, production_caddyfile):
+        assert "path /internal/tushare-gateway" in caddyfile
+        assert "remote_ip private_ranges {$TUSHARE_GATEWAY_ALLOWED_IP:127.0.0.1}" in caddyfile
+        assert "uri replace /internal/tushare-gateway /" in caddyfile
+        assert (
+            "reverse_proxy {$TUSHARE_GATEWAY_UPSTREAM:http://127.0.0.1:9} {\n"
+            "            header_up Host {upstream_hostport}\n"
+            "        }"
+        ) in caddyfile
 
 
 def test_apps_with_infrastructure_models_have_django_discovery_bridge() -> None:
