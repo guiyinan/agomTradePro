@@ -4941,7 +4941,6 @@
           "universe_report = sync_active_a_share_universe()",
           "reported_universe_sha256",
           "MARKET_UNIVERSE_SCOPE_INVALID",
-          "CURRENT_VALUATION_SCOPE_INCOMPLETE",
           "excluded_non_trading_codes",
           "def refresh_financial_publications_batch_task(",
           "financial_publication_rebuild_failed",
@@ -5110,7 +5109,10 @@
         "apps/data_center/application/full_market_task_support.py": [
           "def exact_provider_batch_count(",
           "def full_market_input_failure(",
-          "provider batch asset identities are incomplete"
+          "provider batch asset identities are incomplete",
+          "def valuation_scope_incomplete_failure(",
+          "CURRENT_VALUATION_SCOPE_INCOMPLETE",
+          "def finalize_full_market_result("
         ],
         "apps/data_center/domain/publication_snapshot_policy.py": [
           "Publication policy does not allow partial coverage",

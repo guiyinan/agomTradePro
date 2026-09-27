@@ -40,6 +40,7 @@ from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
 from . import financial_refresh_lease
+from . import full_market_task_support as market_task
 from .archive_tasks import verify_archive_manifest_task  # noqa: F401
 from .backfill_control_plane import backfill_control_plane_ids
 from .core_data_backfill import (
@@ -53,11 +54,6 @@ from .data02_task_authority import (
 )
 from .data02_task_authority import (
     same_data02_task_authority_is_current as _same_data02_task_authority_is_current,
-)
-from .full_market_task_support import exact_provider_batch_count as _exact_provider_batch_count
-from .full_market_task_support import full_market_input_failure as _full_market_input_failure
-from .full_market_task_support import (
-    full_market_soft_timeout_failure as _full_market_soft_timeout_failure,
 )
 from .interface_services import (
     make_backfill_sync_current_valuation_batch_use_case,
@@ -108,11 +104,11 @@ def refresh_full_market_publications_task(
 
     allowed_sources = {"akshare", "tushare"}
     if source is not None and (type(source) is not str or source not in allowed_sources):
-        return _full_market_input_failure("unsupported_market_source")
+        return market_task.full_market_input_failure("unsupported_market_source")
     if type(quote_source) is not str or quote_source not in allowed_sources:
-        return _full_market_input_failure("unsupported_quote_source")
+        return market_task.full_market_input_failure("unsupported_quote_source")
     if type(valuation_source) is not str or valuation_source not in allowed_sources:
-        return _full_market_input_failure("unsupported_valuation_source")
+        return market_task.full_market_input_failure("unsupported_valuation_source")
     selected_quote_source = source or quote_source
     selected_valuation_source = source or valuation_source
     if (
@@ -120,7 +116,7 @@ def refresh_full_market_publications_task(
         or not isinstance(batch_size, int)
         or not 1 <= batch_size <= 200
     ):
-        return _full_market_input_failure("invalid_batch_size")
+        return market_task.full_market_input_failure("invalid_batch_size")
     started_at = datetime.now(UTC)
     authority, authority_failure = _preflight_data02_task_authority(
         as_of=started_at,
@@ -133,14 +129,14 @@ def refresh_full_market_publications_task(
     quote_provider_id = get_active_provider_id_by_source(selected_quote_source)
     valuation_provider_id = get_active_provider_id_by_source(selected_valuation_source)
     if quote_provider_id is None:
-        return _full_market_input_failure("quote_provider_unavailable")
+        return market_task.full_market_input_failure("quote_provider_unavailable")
     if valuation_provider_id is None:
-        return _full_market_input_failure("valuation_provider_unavailable")
+        return market_task.full_market_input_failure("valuation_provider_unavailable")
     try:
         quotes = make_backfill_sync_quote_use_case()
     except audit_integration.SystemAuditCompositionUnavailable as exc:
         return {
-            **_full_market_input_failure(f"system_audit_{exc.reason_code}"),
+            **market_task.full_market_input_failure(f"system_audit_{exc.reason_code}"),
             "outcome": "blocked",
             "must_not_use_for_decision": True,
         }
@@ -190,7 +186,7 @@ def refresh_full_market_publications_task(
             type(exc).__name__,
         )
         return {
-            **_full_market_input_failure(type(exc).__name__),
+            **market_task.full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "market_universe_refresh_failed",
@@ -204,7 +200,7 @@ def refresh_full_market_publications_task(
         or universe_active_count <= 0
     ):
         return {
-            **_full_market_input_failure("market_universe_empty"),
+            **market_task.full_market_input_failure("market_universe_empty"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "market_universe_refresh_failed",
@@ -214,13 +210,7 @@ def refresh_full_market_publications_task(
 
     active_codes = list_active_stock_codes_for_backfill()
     normalized_active_codes = tuple(str(code or "").strip().upper() for code in active_codes)
-    frozen_universe_sha256 = hashlib.sha256(
-        json.dumps(
-            sorted(normalized_active_codes),
-            ensure_ascii=False,
-            separators=(",", ":"),
-        ).encode("utf-8")
-    ).hexdigest()
+    frozen_universe_sha256 = market_task.asset_code_scope_sha256(normalized_active_codes)
     reported_universe_sha256 = universe_report.get("active_codes_sha256")
     if (
         any(not code for code in normalized_active_codes)
@@ -229,7 +219,7 @@ def refresh_full_market_publications_task(
         or reported_universe_sha256 != frozen_universe_sha256
     ):
         return {
-            **_full_market_input_failure("market_universe_scope_invalid"),
+            **market_task.full_market_input_failure("market_universe_scope_invalid"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "market_universe_scope_invalid",
@@ -257,7 +247,7 @@ def refresh_full_market_publications_task(
             type(exc).__name__,
         )
         return {
-            **_full_market_input_failure(type(exc).__name__),
+            **market_task.full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_unavailable",
@@ -282,7 +272,7 @@ def refresh_full_market_publications_task(
         or valuation_seed.stored_count != len(set(succeeded_codes))
     ):
         return {
-            **_full_market_input_failure("valuation_scope_identity_invalid"),
+            **market_task.full_market_input_failure("valuation_scope_identity_invalid"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_invalid",
@@ -301,50 +291,30 @@ def refresh_full_market_publications_task(
     )
     valuation_partial_allowed = (
         valuation_policy is not None
-        and valuation_policy.dataset.value == "equity.valuation.fact"
-        and valuation_policy.allow_partial
-        and valuation_policy.uses_versioned_evidence
-        and valuation_coverage_ratio >= valuation_policy.minimum_coverage_ratio
+        and market_task.valuation_partial_policy_allows(
+            dataset_key=valuation_policy.dataset.value,
+            allow_partial=valuation_policy.allow_partial,
+            uses_versioned_evidence=valuation_policy.uses_versioned_evidence,
+            coverage_ratio=valuation_coverage_ratio,
+            minimum_coverage_ratio=valuation_policy.minimum_coverage_ratio,
+        )
     )
     if getattr(valuation_seed, "status", "success") not in {"success", "partial"} or (
         (succeeded_code_set != requested_codes or returned_code_set != requested_codes)
         and not valuation_partial_allowed
     ):
-        return {
-            **_full_market_input_failure("valuation_scope_incomplete"),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "success": False,
-            "must_not_use_for_decision": True,
-            "blocked_reason": "current_valuation_scope_incomplete",
-            "error_code": "CURRENT_VALUATION_SCOPE_INCOMPLETE",
-            "errors": ["CURRENT_VALUATION_SCOPE_INCOMPLETE"],
-            "requested": len(requested_codes),
-            "succeeded": len(succeeded_code_set),
-            "failed": len(missing_codes),
-            "stored": valuation_seed.stored_count,
-            "count_unit": "valuation_asset",
-            "stored_count_unit": "fact_row",
-            "operation_requested": 1,
-            "operation_succeeded": 0,
-            "operation_failed": 1,
-            "publication_updated": False,
-            "published_members": 0,
-            "publication_run_id": publication_run_id,
-            "target_trade_date": target_date.isoformat(),
-            "market_universe": universe_report,
-            "requested_asset_count": len(requested_codes),
-            "succeeded_asset_count": len(succeeded_code_set),
-            "failed_asset_count": len(requested_codes - succeeded_code_set),
-            "missing_asset_codes": missing_codes,
-            "unexpected_returned_asset_codes": unexpected_returned_codes,
-            "excluded_non_trading_count": 0,
-            "excluded_non_trading_codes": [],
-            "valuation_seed_stored": valuation_seed.stored_count,
-            "valuation_coverage_ratio": valuation_coverage_ratio,
-            "valuation_policy_identity": (
-                valuation_policy.identity if valuation_policy is not None else None
-            ),
-        }
+        return market_task.valuation_scope_incomplete_failure(
+            requested_codes=requested_codes,
+            succeeded_codes=succeeded_code_set,
+            missing_codes=missing_codes,
+            unexpected_returned_codes=unexpected_returned_codes,
+            stored_count=valuation_seed.stored_count,
+            publication_run_id=publication_run_id,
+            target_trade_date=target_date.isoformat(),
+            market_universe=universe_report,
+            coverage_ratio=valuation_coverage_ratio,
+            policy_identity=(valuation_policy.identity if valuation_policy is not None else None),
+        )
     tradable_codes = sorted(requested_codes)
     excluded_non_trading_codes: list[str] = []
     stored_row_count = valuation_seed.stored_count
@@ -355,7 +325,7 @@ def refresh_full_market_publications_task(
         if not authority_allows_next_write():
             raise ValueError("current Audit authority changed before quote batch")
         result = quotes.execute(SyncQuoteRequest(quote_provider_id, codes, True, target_date))
-        stored_count = _exact_provider_batch_count(
+        stored_count = market_task.exact_provider_batch_count(
             requested_asset_codes=codes,
             stored_count=result.stored_count,
             returned_asset_codes=result.stored_asset_codes,
@@ -438,7 +408,7 @@ def refresh_full_market_publications_task(
             ),
         )
     except SoftTimeLimitExceeded:
-        return _full_market_soft_timeout_failure(
+        return market_task.full_market_soft_timeout_failure(
             requested_operations=requested_operations,
             completed_operations=completed_operation_count,
             stored_rows=stored_row_count,
@@ -462,77 +432,22 @@ def refresh_full_market_publications_task(
             "publication_updated": False,
             "published_members": 0,
         }
-    operation_result = dict(result)
-    raw_phase_results = result.get("phase_results")
-    phase_results = (
-        [dict(item) for item in raw_phase_results if isinstance(item, Mapping)]
-        if isinstance(raw_phase_results, list)
-        else []
+    return market_task.finalize_full_market_result(
+        result=result,
+        price_evidence=price_evidence,
+        publication_evidence=publication_evidence,
+        publication_run_id=publication_run_id,
+        quote_source=selected_quote_source,
+        valuation_source=selected_valuation_source,
+        market_universe=universe_report,
+        valuation_seed_stored=valuation_seed.stored_count,
+        stored_row_count=stored_row_count,
+        requested_codes=requested_codes,
+        succeeded_codes=succeeded_code_set,
+        missing_codes=missing_codes,
+        coverage_ratio=valuation_coverage_ratio,
+        policy_identity=(valuation_policy.identity if valuation_policy is not None else None),
     )
-    for phase_result in phase_results:
-        if phase_result.get("phase") == "valuation":
-            phase_result["stored"] = valuation_seed.stored_count
-    raw_publication_datasets = publication_evidence.get("datasets")
-    valuation_publication_evidence = (
-        next(
-            (
-                item
-                for item in raw_publication_datasets
-                if isinstance(item, Mapping) and item.get("dataset_key") == "equity.valuation.fact"
-            ),
-            None,
-        )
-        if isinstance(raw_publication_datasets, list)
-        else None
-    )
-    raw_scope_blocks = (
-        valuation_publication_evidence.get("scope_blocks")
-        if isinstance(valuation_publication_evidence, Mapping)
-        else None
-    )
-    partial_scope_blocks = (
-        [dict(item) for item in raw_scope_blocks if isinstance(item, Mapping)]
-        if missing_codes and isinstance(raw_scope_blocks, list)
-        else []
-    )
-    business_outcome = (
-        TaskBusinessOutcome.PARTIAL.value
-        if missing_codes and result.get("publication_updated")
-        else str(result.get("outcome") or TaskBusinessOutcome.FAILED.value)
-    )
-    return {
-        **result,
-        "phase_results": phase_results,
-        **price_evidence,
-        **publication_evidence,
-        "publication_run_id": publication_run_id,
-        "quote_source": selected_quote_source,
-        "valuation_source": selected_valuation_source,
-        "market_universe": universe_report,
-        "valuation_seed_stored": valuation_seed.stored_count,
-        "excluded_non_trading_count": len(excluded_non_trading_codes),
-        "excluded_non_trading_codes": excluded_non_trading_codes,
-        "outcome": business_outcome,
-        "success": business_outcome == TaskBusinessOutcome.SUCCESS.value,
-        "requested": len(requested_codes),
-        "succeeded": len(succeeded_code_set),
-        "failed": len(missing_codes),
-        "stored": stored_row_count,
-        "count_unit": "valuation_asset",
-        "stored_count_unit": "fact_row",
-        "operation_requested": operation_result.get("requested"),
-        "operation_succeeded": operation_result.get("succeeded"),
-        "operation_failed": operation_result.get("failed"),
-        "requested_asset_count": len(requested_codes),
-        "succeeded_asset_count": len(succeeded_code_set),
-        "failed_asset_count": len(missing_codes),
-        "missing_asset_codes": missing_codes,
-        "scope_blocks": partial_scope_blocks,
-        "valuation_coverage_ratio": valuation_coverage_ratio,
-        "valuation_policy_identity": (
-            valuation_policy.identity if valuation_policy is not None else None
-        ),
-    }
 
 
 @shared_task(  # type: ignore[misc]
@@ -578,7 +493,7 @@ def refresh_financial_publications_batch_task(
         )
     ):
         return {
-            **_full_market_input_failure("invalid_financial_refresh_input"),
+            **market_task.full_market_input_failure("invalid_financial_refresh_input"),
             "stage": "input",
         }
 
@@ -594,7 +509,7 @@ def refresh_financial_publications_batch_task(
     provider_id = get_active_provider_id_by_source(source)
     if provider_id is None:
         return {
-            **_full_market_input_failure("financial_provider_unavailable"),
+            **market_task.full_market_input_failure("financial_provider_unavailable"),
             "stage": "provider",
         }
 
@@ -605,7 +520,7 @@ def refresh_financial_publications_batch_task(
         or len(set(active_codes)) != len(active_codes)
     ):
         return {
-            **_full_market_input_failure("financial_universe_invalid"),
+            **market_task.full_market_input_failure("financial_universe_invalid"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "universe",
             "must_not_use_for_decision": True,
@@ -638,7 +553,7 @@ def refresh_financial_publications_batch_task(
             return financial_refresh_lease.financial_refresh_lock_noop_result()
     elif auto_continue and not financial_refresh_lease.claim_financial_refresh_lock(cache, owner):
         return {
-            **_full_market_input_failure("financial_refresh_lock_lost"),
+            **market_task.full_market_input_failure("financial_refresh_lock_lost"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "lock",
             "must_not_use_for_decision": True,
@@ -647,7 +562,7 @@ def refresh_financial_publications_batch_task(
     if offset > 0 and not universe_hash:
         financial_refresh_lease.release_financial_refresh_lock(cache, owner)
         return {
-            **_full_market_input_failure("financial_universe_hash_required"),
+            **market_task.full_market_input_failure("financial_universe_hash_required"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "universe",
             "must_not_use_for_decision": True,
@@ -656,7 +571,7 @@ def refresh_financial_publications_batch_task(
         financial_refresh_lease.clear_financial_refresh_progress(cache)
         financial_refresh_lease.release_financial_refresh_lock(cache, owner)
         return {
-            **_full_market_input_failure("financial_universe_hash_mismatch"),
+            **market_task.full_market_input_failure("financial_universe_hash_mismatch"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "stage": "universe",
             "must_not_use_for_decision": True,
