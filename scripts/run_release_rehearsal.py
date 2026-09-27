@@ -563,7 +563,8 @@ def _validate_inputs(
         or not config.docker_network.strip()
         or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", config.isolated_database_name) is None
         or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", config.isolated_database_host) is None
-        or re.fullmatch(r"agom-s6-pg-[a-z0-9-]+", config.isolated_database_container) is None
+        or re.fullmatch(r"agom-s6-(?:pg|postgres)-[a-z0-9-]+", config.isolated_database_container)
+        is None
         or config.quote_provider_id <= 0
         or config.valuation_provider_id <= 0
         or config.github_run_id <= 0
