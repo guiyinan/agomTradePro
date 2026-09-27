@@ -98,6 +98,18 @@ class FakeRunner:
         elif command.label == "docker_gid":
             gid = os.getgid() if hasattr(os, "getgid") else 1000
             return CommandResult(returncode=0, stdout=f"{gid}\n")
+        elif command.label == "preflight_isolated_database_container":
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "id": "f" * 64,
+                        "name": "/agom-s6-postgres-abcdefghij",
+                        "running": True,
+                        "networks": {"agomtradepro_rehearsal": {}},
+                    }
+                ),
+            )
         elif command.label == "github_ci_evidence":
             assert command.artifact_dir is not None
             output_dir = Path(command.argv[command.argv.index("--output-dir") + 1])
@@ -333,7 +345,24 @@ def test_resume_rejects_changed_artifact_before_commands(tmp_path: Path) -> None
     assert "provider_probe" not in runner.labels
 
 
-@pytest.mark.parametrize("change", ["env", "budget", "scope", "ci"])
+def test_resume_rejects_checkpoint_copied_to_another_output_directory(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+    copied = tmp_path / "copied-rehearsal-run"
+    shutil.copytree(config.output_dir, copied)
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_CHECKPOINT_INPUT_CHANGED"):
+        run_release_rehearsal(replace(config, output_dir=copied, resume=True), runner=runner)
+
+    assert "build_only" not in runner.labels
+    assert "provider_probe" not in runner.labels
+
+
+@pytest.mark.parametrize(
+    "change", ["env", "budget", "scope", "ci", "provider_timeout", "outer_timeout"]
+)
 def test_resume_rejects_input_drift(tmp_path: Path, change: str) -> None:
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     with pytest.raises(RehearsalBlocked):
@@ -344,19 +373,82 @@ def test_resume_rejects_input_drift(tmp_path: Path, change: str) -> None:
         config = replace(config, max_dispatches=101)
     elif change == "scope":
         config = replace(config, universe_sha256="e" * 64)
-    else:
+    elif change == "ci":
         config = replace(config, github_run_id=54321)
+    elif change == "provider_timeout":
+        config = replace(config, provider_probe_timeout_seconds=1801)
+    else:
+        config = replace(config, stage_timeout_seconds=3601)
     with pytest.raises(RehearsalBlocked, match="S6_CHECKPOINT_INPUT_CHANGED"):
         run_release_rehearsal(replace(config, resume=True), runner=FakeRunner())
 
 
-@pytest.mark.parametrize("label", ["preflight_docker", "preflight_network"])
+@pytest.mark.parametrize(
+    "label",
+    [
+        "preflight_docker",
+        "preflight_network",
+        "preflight_isolated_database_container",
+    ],
+)
 def test_environment_failure_precedes_expensive_build(tmp_path: Path, label: str) -> None:
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     runner = FakeRunner(fail_label=label)
     with pytest.raises(RehearsalBlocked):
         run_release_rehearsal(config, runner=runner)
     assert "build_only" not in runner.labels
+
+
+def test_database_container_must_be_running_on_the_selected_network(tmp_path: Path) -> None:
+    class WrongNetworkRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "preflight_isolated_database_container":
+                self.commands.append(command)
+                return CommandResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "id": "f" * 64,
+                            "name": "/agom-s6-postgres-abcdefghij",
+                            "running": True,
+                            "networks": {"unexpected-network": {}},
+                        }
+                    ),
+                )
+            return super().run(command)
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = WrongNetworkRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_DATABASE_CONTAINER_INVALID"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+
+
+def test_database_container_replacement_blocks_isolated_write(tmp_path: Path) -> None:
+    class ReplacedContainerRunner(FakeRunner):
+        def __init__(self) -> None:
+            super().__init__()
+            self.container_inspections = 0
+
+        def run(self, command: Command) -> CommandResult:
+            result = super().run(command)
+            if command.label == "preflight_isolated_database_container":
+                self.container_inspections += 1
+                if self.container_inspections == 3:
+                    payload = json.loads(result.stdout)
+                    payload["id"] = "e" * 64
+                    return CommandResult(returncode=0, stdout=json.dumps(payload))
+            return result
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = ReplacedContainerRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_DATABASE_CONTAINER_CHANGED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "isolated_postgresql_write" not in runner.labels
 
 
 def test_database_preflight_precedes_provider_and_is_read_only(tmp_path: Path) -> None:
@@ -366,6 +458,21 @@ def test_database_preflight_precedes_provider_and_is_read_only(tmp_path: Path) -
         run_release_rehearsal(config, runner=runner)
     assert "provider_probe" not in runner.labels
     assert "isolated_postgresql_write" not in runner.labels
+
+
+def test_outer_stage_timeout_does_not_expand_provider_probe_budget(tmp_path: Path) -> None:
+    config = replace(
+        _config(tmp_path, root=_fake_checkout(tmp_path)),
+        stage_timeout_seconds=3600,
+        provider_probe_timeout_seconds=1800,
+    )
+    runner = FakeRunner()
+
+    run_release_rehearsal(config, runner=runner)
+
+    probe = next(command for command in runner.commands if command.label == "provider_probe")
+    assert probe.timeout_seconds == 3600
+    assert probe.argv[probe.argv.index("--max-seconds") + 1] == "1800"
 
 
 def test_database_preflight_executes_existing_scope_guard_without_writes(

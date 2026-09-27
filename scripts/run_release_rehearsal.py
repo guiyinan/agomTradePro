@@ -323,7 +323,8 @@ class RehearsalConfig:
     github_run_id: int
     max_age_hours: float = 24.0
     build_timeout_seconds: int = 3600
-    stage_timeout_seconds: int = 1800
+    stage_timeout_seconds: int = 3600
+    provider_probe_timeout_seconds: int = 1800
     max_dispatches: int = 100
     resume: bool = False
 
@@ -570,6 +571,7 @@ def _validate_inputs(
         or config.lock_wait_limit_seconds <= 0
         or config.build_timeout_seconds <= 0
         or config.stage_timeout_seconds <= 0
+        or config.provider_probe_timeout_seconds <= 0
         or config.max_dispatches <= 0
         or not 0 < config.max_age_hours <= 168
     ):
@@ -888,7 +890,7 @@ def _stage_specs(
         "--max-dispatches",
         str(config.max_dispatches),
         "--max-seconds",
-        str(config.stage_timeout_seconds),
+        str(config.provider_probe_timeout_seconds),
         "--output",
         "/run/agom/stage/probe.json",
         "--response-evidence-root",
@@ -1044,13 +1046,59 @@ def _checkpoint_binding(config: RehearsalConfig, candidate: str) -> dict[str, ob
     """Bind all semantic inputs without storing environment secrets in the journal."""
     values: dict[str, object] = {"candidate_sha": candidate}
     for key, value in asdict(config).items():
-        if key in {"resume", "output_dir", "password_file", "build_timeout_seconds"}:
+        if key in {"resume", "password_file", "build_timeout_seconds"}:
             continue
         if isinstance(value, Path):
-            values[key] = str(value.resolve()) if key == "root" else file_digest(value)
+            values[key] = (
+                str(value.resolve()) if key in {"root", "output_dir"} else file_digest(value)
+            )
         else:
             values[key] = value
     return values
+
+
+def _preflight_isolated_database_container(config: RehearsalConfig, runner: CommandRunner) -> str:
+    """Bind the configured isolated database host to a running container on the S6 network."""
+    template = (
+        '{"id":{{json .Id}},"name":{{json .Name}},'
+        '"running":{{json .State.Running}},'
+        '"networks":{{json .NetworkSettings.Networks}}}'
+    )
+    result = _invoke(
+        runner,
+        argv=(
+            "docker",
+            "container",
+            "inspect",
+            config.isolated_database_host,
+            "--format",
+            template,
+        ),
+        root=config.root,
+        label="preflight_isolated_database_container",
+        timeout=30,
+    )
+    try:
+        payload = _object(json.loads(result.stdout), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
+        networks = _object(payload.get("networks"), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RehearsalBlocked(
+            "preflight_isolated_database_container",
+            "S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+        ) from exc
+    container_id = payload.get("id")
+    if (
+        not isinstance(container_id, str)
+        or re.fullmatch(r"[0-9a-f]{64}", container_id) is None
+        or payload.get("name") != f"/{config.isolated_database_host}"
+        or payload.get("running") is not True
+        or config.docker_network not in networks
+    ):
+        raise RehearsalBlocked(
+            "preflight_isolated_database_container",
+            "S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+        )
+    return container_id
 
 
 def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> None:
@@ -1060,6 +1108,7 @@ def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> No
         ("preflight_network", ("docker", "network", "inspect", config.docker_network)),
     ):
         _invoke(runner, argv=argv, root=config.root, label=label, timeout=30)
+    _preflight_isolated_database_container(config, runner)
     run_id = hashlib.sha256(str(config.output_dir.resolve()).encode()).hexdigest()
     containers = _invoke(
         runner,
@@ -1225,6 +1274,7 @@ def _run_release_rehearsal(
             )
         )
         completed.append(stage)
+        isolated_database_container_id = _preflight_isolated_database_container(config, active)
         _preflight_database(
             config, active, identity, identity_path, manifest_path, provider_path, run_dir
         )
@@ -1278,6 +1328,12 @@ def _run_release_rehearsal(
             stage = spec.name
             _status(status_path, "running", completed, stage, None)
             _assert_candidate(active, config.root, candidate)
+            if (
+                stage == "isolated_postgresql_write"
+                and _preflight_isolated_database_container(config, active)
+                != isolated_database_container_id
+            ):
+                raise RehearsalBlocked(stage, "S6_ISOLATED_DATABASE_CONTAINER_CHANGED")
             if not checkpoint.done(stage):
                 checkpoint.prepare(stage, (folder,), resume=config.resume)
                 folder.mkdir(exist_ok=True)
@@ -1536,7 +1592,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--github-run-id", type=int, required=True)
     parser.add_argument("--max-age-hours", type=float, default=24.0)
     parser.add_argument("--build-timeout-seconds", type=int, default=3600)
-    parser.add_argument("--stage-timeout-seconds", type=int, default=1800)
+    parser.add_argument("--stage-timeout-seconds", type=int, default=3600)
+    parser.add_argument("--provider-probe-timeout-seconds", type=int, default=1800)
     parser.add_argument("--max-dispatches", type=int, default=100)
     return parser
 
@@ -1570,6 +1627,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_age_hours=args.max_age_hours,
         build_timeout_seconds=args.build_timeout_seconds,
         stage_timeout_seconds=args.stage_timeout_seconds,
+        provider_probe_timeout_seconds=args.provider_probe_timeout_seconds,
         max_dispatches=args.max_dispatches,
         resume=args.resume,
     )
