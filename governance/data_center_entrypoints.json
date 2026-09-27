@@ -8,7 +8,7 @@
       "capability_runtime": 25,
       "celery_dispatch_edge": 19,
       "celery_task": 129,
-      "compatibility_facade": 94,
+      "compatibility_facade": 95,
       "current_data_surface": 70,
       "dynamic_import_edge": 12,
       "management_command": 36,
@@ -33,10 +33,10 @@
       "active_public": 798,
       "adjacent_operational": 327,
       "candidate-review": 0,
-      "compatibility": 137,
+      "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1262
+    "total": 1263
   },
   "entries": [
     {
@@ -4927,6 +4927,16 @@
       "path": "apps/data_center/application/query_services.py",
       "status": "compatibility",
       "symbol": "macro_fact_exists_on_or_before",
+      "target": ""
+    },
+    {
+      "category": "compatibility_facade",
+      "evidence": "registered legacy Application facade pending consumer cutover",
+      "id": "compatibility_facade:apps/data_center/application/query_services.py:query_current_valuation_publication_at_cutoff:",
+      "locator": "",
+      "path": "apps/data_center/application/query_services.py",
+      "status": "compatibility",
+      "symbol": "query_current_valuation_publication_at_cutoff",
       "target": ""
     },
     {

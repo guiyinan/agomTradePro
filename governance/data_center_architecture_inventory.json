@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5125,
+    "current_surface_references": 5128,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11116,57 +11116,72 @@
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 677,
+      "line": 676,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 679,
-      "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Read valuation facts only after the current valuation publication gate.\"\"\""
-    },
-    {
-      "line": 711,
+      "line": 723,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 739,
+      "line": 725,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Read current valuation facts using the wall-clock freshness boundary.\"\"\""
+    },
+    {
+      "line": 743,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 785,
+      "line": 745,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "\"\"\"Verify the selected current publication at one pinned historical cutoff.\"\"\""
+    },
+    {
+      "line": 766,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 879,
+      "line": 794,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 840,
+      "path": "apps/data_center/application/query_services.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 934,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 938,
+      "line": 993,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 1028,
+      "line": 1083,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 1041,
+      "line": 1096,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 1043,
+      "line": 1098,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 1044,
+      "line": 1099,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
@@ -12416,7 +12431,7 @@
       "text": "\"\"\"Fetch current PE/PB and market-cap fields in one Tencent quote request.\"\"\""
     },
     {
-      "line": 236,
+      "line": 239,
       "path": "apps/data_center/infrastructure/isolated_write_rehearsal_runner.py",
       "text": "publication_key = \"current\""
     },
