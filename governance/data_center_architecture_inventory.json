@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5128,
+    "current_surface_references": 5134,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10091,24 +10091,54 @@
       "text": "f\"{dataset_key} Publication id does not match its canonical current identity\""
     },
     {
-      "line": 42,
+      "line": 23,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "current: bool"
+    },
+    {
+      "line": 33,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "current: bool = True"
+    },
+    {
+      "line": 39,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "if self.current:"
+    },
+    {
+      "line": 41,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "self.current = result.current"
+    },
+    {
+      "line": 43,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": "return self.current"
+    },
+    {
+      "line": 75,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 67,
+      "line": 104,
+      "path": "apps/data_center/application/data02_task_authority.py",
+      "text": ").current"
+    },
+    {
+      "line": 138,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current, failure = preflight_data02_task_authority("
     },
     {
-      "line": 72,
+      "line": 143,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 86,
+      "line": 167,
       "path": "apps/data_center/application/data02_task_authority.py",
-      "text": "return all(getattr(current, field) == getattr(authority, field) for field in identity_fields)"
+      "text": "getattr(current, field) == getattr(authority, field) for field in identity_fields"
     },
     {
       "line": 336,
@@ -10241,12 +10271,17 @@
       "text": "\"\"\"Resolve the latest exchange session whose post-close readiness time passed.\"\"\""
     },
     {
-      "line": 44,
+      "line": 26,
+      "path": "apps/data_center/application/market_publication_refresh.py",
+      "text": "default_message = \"Current Audit authority is unavailable before a market write\""
+    },
+    {
+      "line": 51,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
     {
-      "line": 59,
+      "line": 66,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
@@ -11311,27 +11346,22 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 326,
+      "line": 416,
       "path": "apps/data_center/application/tasks.py",
-      "text": "raise ValueError(\"current Audit authority changed before quote batch\")"
+      "text": "if not authority_latch.current:"
     },
     {
-      "line": 353,
-      "path": "apps/data_center/application/tasks.py",
-      "text": "raise ValueError(\"current Audit authority changed before publication\")"
-    },
-    {
-      "line": 704,
+      "line": 696,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 842,
+      "line": 834,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 1216,
+      "line": 1208,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -26033,27 +26063,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 89,
+      "line": 90,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]"
     },
     {
-      "line": 453,
+      "line": 445,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 967,
+      "line": 959,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 999,
+      "line": 991,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 1081,
+      "line": 1073,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

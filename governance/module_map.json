@@ -4089,8 +4089,11 @@
           "serialize_data02_successor_checkpoint"
         ],
         "application/data02_task_authority.py": [
+          "Data02AuthorityLatch",
+          "Data02AuthorityRevalidation",
           "data02_authority_failure",
           "preflight_data02_task_authority",
+          "revalidate_data02_task_authority",
           "same_data02_task_authority_is_current"
         ],
         "application/data03_readiness_evidence.py": [
@@ -4360,6 +4363,7 @@
           "select_rehearsal_sample"
         ],
         "application/market_publication_refresh.py": [
+          "MarketPublicationRefreshBlocked",
           "MarketPublicationRefreshPorts",
           "refresh_market_price_inputs",
           "refresh_market_publications"
