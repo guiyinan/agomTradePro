@@ -4251,9 +4251,13 @@
           "FinancialSourceTimeEvidenceVerifier"
         ],
         "application/full_market_task_support.py": [
+          "asset_code_scope_sha256",
           "exact_provider_batch_count",
+          "finalize_full_market_result",
           "full_market_input_failure",
-          "full_market_soft_timeout_failure"
+          "full_market_soft_timeout_failure",
+          "valuation_partial_policy_allows",
+          "valuation_scope_incomplete_failure"
         ],
         "application/interface_services.py": [
           "fetch_latest_prices",
