@@ -20,6 +20,7 @@ from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.tushare_client import (
     TushareRelayAuthorizationError,
+    TushareResponseEvidence,
     create_tushare_pro_client,
 )
 from apps.data_center.infrastructure.tushare_replay_parser import _safe_decimal as _safe_decimal
@@ -204,6 +205,8 @@ class TushareGateway(MarketGatewayProtocol):
                 return []
             rows = df.to_dict("records")
             response_evidence = getattr(df, "response_evidence", None)
+            if not isinstance(response_evidence, TushareResponseEvidence):
+                response_evidence = None
             completed_at = getattr(response_evidence, "response_completed_at", None)
             fetched_at = (
                 completed_at
@@ -225,6 +228,7 @@ class TushareGateway(MarketGatewayProtocol):
                     source="tushare",
                     fetched_at=fetched_at,
                     target_date=session,
+                    response_evidence=response_evidence,
                 )
                 if quote is not None:
                     results_by_code[normalized_code] = quote

@@ -9,6 +9,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from django.utils import timezone
+
+from apps.task_monitor.domain.entities import TaskStatus
+
 if TYPE_CHECKING:
     from apps.task_monitor.domain.entities import TaskExecutionRecord
 
@@ -42,6 +46,8 @@ class TaskPhaseResultResponse:
     succeeded: int | None
     failed: int | None
     stored: int | None
+    count_unit: str | None = None
+    stored_count_unit: str | None = None
 
 
 @dataclass(frozen=True)
@@ -171,6 +177,8 @@ def _phase_result(value: object) -> TaskPhaseResultResponse | None:
         succeeded=_count_value(value, "succeeded"),
         failed=_count_value(value, "failed"),
         stored=_count_value(value, "stored"),
+        count_unit=_safe_token(value.get("count_unit")),
+        stored_count_unit=_safe_token(value.get("stored_count_unit")),
     )
 
 
@@ -276,13 +284,20 @@ def task_status_response(
     """Build a public task status projection with optional operator diagnostics."""
 
     projection = project_task_business_result(record.result)
+    runtime_seconds = record.runtime_seconds
+    if (
+        record.status is TaskStatus.STARTED
+        and record.started_at is not None
+        and timezone.is_aware(record.started_at)
+    ):
+        runtime_seconds = max(0.0, (timezone.now() - record.started_at).total_seconds())
     return TaskStatusResponse(
         task_id=record.task_id,
         task_name=record.task_name,
         status=record.status.value,
         started_at=record.started_at.isoformat() if record.started_at else None,
         finished_at=record.finished_at.isoformat() if record.finished_at else None,
-        runtime_seconds=record.runtime_seconds,
+        runtime_seconds=runtime_seconds,
         retries=record.retries,
         is_success=record.status.value == "success",
         is_failure=record.status.value in {"failure", "timeout"},

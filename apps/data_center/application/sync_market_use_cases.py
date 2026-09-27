@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import date, datetime
 
 from apps.data_center.application.dtos import SyncPriceRequest, SyncQuoteRequest, SyncResult
 from apps.data_center.domain.entities import PriceBar, ProviderConfig, QuoteSnapshot
@@ -14,6 +14,7 @@ from apps.data_center.domain.protocols import (
     ProviderRegistryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
+    SessionQuoteBatchProviderProtocol,
 )
 from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
@@ -23,7 +24,9 @@ from core.integration.data_center_audit import (
 )
 
 from .batch_identity import require_exact_asset_identities
+from .full_market_task_support import asset_code_scope_sha256
 from .publication_sync import PublishPriceBarBatchUseCase, PublishQuoteSnapshotBatchUseCase
+from .quote_session_prefetch import PreparedQuoteSession, prepare_quote_session
 from .sync_identity import (
     IssueSyncExecutionIdentityCommand,
     IssueSyncExecutionIdentityUseCase,
@@ -447,6 +450,101 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             request_params=request_params,
             quotes=quotes,
             started_at=started_at,
+        )
+
+    def prepare_session(
+        self,
+        *,
+        provider_id: int,
+        asset_codes: tuple[str, ...],
+        target_trade_date: date,
+    ) -> PreparedQuoteSession:
+        """Fetch and freeze one exact provider session for subsequent bounded writes."""
+
+        config, provider = self._get_provider(provider_id)
+        provider_name = provider.provider_name()
+        request_params: Mapping[str, object] = {
+            "asset_count": len(asset_codes),
+            "quote_session_universe_sha256": asset_code_scope_sha256(asset_codes),
+            "target_trade_date": target_trade_date.isoformat(),
+            "quote_session_prefetch": True,
+        }
+        started_at = self._clock.now()
+        try:
+            if not isinstance(provider, SessionQuoteBatchProviderProtocol):
+                raise DataFetchError(
+                    "Provider cannot fetch an explicit quote session",
+                    code="CURRENT_QUOTE_SESSION_UNSUPPORTED",
+                )
+            return prepare_quote_session(
+                provider=provider,
+                provider_id=provider_id,
+                provider_name=provider_name,
+                source_type=config.source_type,
+                asset_codes=asset_codes,
+                target_trade_date=target_trade_date,
+            )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS + (DataFetchError,) as error:
+            self._commit_quote_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+            )
+            raise
+
+    def execute_prefetched_session_batch(
+        self, request: SyncQuoteRequest, prepared: PreparedQuoteSession
+    ) -> SyncResult:
+        """Persist one exact batch from a task-local frozen market-session response."""
+
+        if not isinstance(prepared, PreparedQuoteSession):
+            raise DataFetchError(
+                "A prepared quote session is required",
+                code="CURRENT_QUOTE_SESSION_SCOPE_INVALID",
+            )
+        if (
+            request.require_exact_asset_codes is not True
+            or request.target_trade_date != prepared.target_trade_date
+            or request.provider_id != prepared.provider_id
+            or tuple(request.asset_codes)
+            != tuple(str(code or "").strip().upper() for code in request.asset_codes)
+        ):
+            raise DataFetchError(
+                "Prepared quote batch request does not match its frozen session",
+                code="CURRENT_QUOTE_SESSION_SCOPE_MISMATCH",
+            )
+        config, provider = self._get_provider(request.provider_id)
+        provider_name = provider.provider_name()
+        if provider_name != prepared.provider_name or config.source_type != prepared.source_type:
+            raise DataFetchError(
+                "Prepared quote session provider identity changed",
+                code="CURRENT_QUOTE_SESSION_PROVIDER_MISMATCH",
+            )
+        quotes = self._normalize_fact_sources(
+            list(prepared.quote_rows_for(tuple(request.asset_codes))),
+            source_type=config.source_type,
+            provider_name=provider_name,
+        )
+        request_params: Mapping[str, object] = {
+            "asset_codes": list(request.asset_codes),
+            "target_trade_date": prepared.target_trade_date.isoformat(),
+            "quote_session_universe_sha256": prepared.universe_sha256,
+            "quote_session_rows_sha256": prepared.quote_rows_sha256,
+            "quote_session_response_completed_at": (
+                prepared.response_completed_at.isoformat()
+                if prepared.response_completed_at is not None
+                else None
+            ),
+            "quote_session_raw_response_sha256s": list(prepared.raw_response_sha256s),
+        }
+        return self._commit_quote_fetch_success(
+            config=config,
+            provider_name=provider_name,
+            request_params=request_params,
+            quotes=quotes,
+            started_at=self._clock.now(),
         )
 
     def _issue_identity(self, *, provider_name: str) -> SyncExecutionIdentity:

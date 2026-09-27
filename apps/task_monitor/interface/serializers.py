@@ -24,6 +24,8 @@ class TaskPhaseResultSerializer(serializers.Serializer[TaskPhaseResultResponse])
     succeeded = serializers.IntegerField(read_only=True, allow_null=True)
     failed = serializers.IntegerField(read_only=True, allow_null=True)
     stored = serializers.IntegerField(read_only=True, allow_null=True)
+    count_unit = serializers.CharField(read_only=True, allow_null=True)
+    stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
 
 
 class TaskAttemptSerializer(serializers.Serializer[TaskAttemptResponse]):

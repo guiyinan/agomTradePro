@@ -4,6 +4,26 @@
 from .core_registry_support import *
 
 
+def test_task_monitor_phase_schema_declares_count_units() -> None:
+    """Task Monitor MCP output documents the phase count units exposed by the API."""
+
+    from agomtradepro_mcp.registry.modules.owners.task_monitor_read_capabilities import (
+        _TASK_ATTEMPT_OUTPUT_SCHEMA,
+        _TASK_STATUS_OUTPUT_PROPERTIES,
+    )
+
+    expected_unit_schema = {"type": ["string", "null"]}
+    status_phase_properties = _TASK_STATUS_OUTPUT_PROPERTIES["phase_results"]["items"]["properties"]
+    attempt_phase_properties = _TASK_ATTEMPT_OUTPUT_SCHEMA["properties"]["phase_results"]["items"][
+        "properties"
+    ]
+
+    assert status_phase_properties["count_unit"] == expected_unit_schema
+    assert status_phase_properties["stored_count_unit"] == expected_unit_schema
+    assert attempt_phase_properties["count_unit"] == expected_unit_schema
+    assert attempt_phase_properties["stored_count_unit"] == expected_unit_schema
+
+
 @pytest.mark.parametrize(
     ("capability_key", "legacy_tool_name", "arguments", "payload", "expected"),
     [

@@ -47,6 +47,8 @@ def _task_status() -> TaskStatusResponse:
                 succeeded=1,
                 failed=None,
                 stored=12,
+                count_unit="sync_operation",
+                stored_count_unit="fact_row",
             ),
         ),
         business_success=True,
@@ -73,6 +75,8 @@ def _task_status() -> TaskStatusResponse:
                     succeeded=1,
                     failed=None,
                     stored=12,
+                    count_unit="sync_operation",
+                    stored_count_unit="fact_row",
                 ),
             ),
             business_success=True,
@@ -115,6 +119,8 @@ def test_response_serializers_accept_application_dtos() -> None:
     assert listed["items"][0]["requested"] == 3
     assert listed["items"][0]["current_attempt"]["stored"] == 12
     assert listed["items"][0]["phase_results"][0]["failed"] is None
+    assert listed["items"][0]["phase_results"][0]["count_unit"] == "sync_operation"
+    assert listed["items"][0]["phase_results"][0]["stored_count_unit"] == "fact_row"
     assert listed["items"][0]["business_success"] is True
     assert "exception" not in listed["items"][0]
     assert "traceback" not in listed["items"][0]

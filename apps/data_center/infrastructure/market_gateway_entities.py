@@ -34,6 +34,7 @@ class QuoteSnapshot:
     source: str = ""
     observed_at: datetime | None = None
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.stock_code:

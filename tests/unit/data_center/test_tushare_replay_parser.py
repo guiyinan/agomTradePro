@@ -59,6 +59,7 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
         source="tushare",
         fetched_at=completed_at,
         target_date=date(2026, 9, 23),
+        response_evidence=frame.response_evidence,
     )
 
     assert len(quotes) == 1
@@ -66,6 +67,9 @@ def test_production_quote_path_accepts_witnessed_frame_and_replay_target(monkeyp
     assert quotes[0].price == replayed.price == 12.5
     assert quotes[0].observed_at == datetime(2026, 9, 23, 7, tzinfo=UTC)
     assert quotes[0].fetched_at == completed_at
+    assert quotes[0].extra["raw_payload_hash"] == "a" * 64
+    assert quotes[0].extra["raw_payload_scope"] == "batch_response_body"
+    assert quotes[0].extra["response_completed_at"] == completed_at.isoformat()
     assert quotes[0].volume == replayed.volume == 20_000
     assert quotes[0].amount == replayed.amount == 2_500_000
 

@@ -34,6 +34,11 @@ from apps.data_center.domain.control_plane import (
 from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
 )
+from apps.task_monitor.application.tracking import (
+    TaskProgress,
+    TaskProgressPhase,
+    record_current_task_progress,
+)
 from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
 from core.integration import data_center_audit as audit_integration
 from shared.domain.task_outcomes import TaskBusinessOutcome
@@ -82,12 +87,13 @@ DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_strea
 BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
 _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
-_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=3900)
+_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=4800)
+_FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
 
 
-@shared_task(name="data_center.refresh_full_market_publications", time_limit=3600, soft_time_limit=3500)  # type: ignore[misc]
+@shared_task(name="data_center.refresh_full_market_publications", time_limit=4500, soft_time_limit=4200)  # type: ignore[misc]
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
@@ -164,8 +170,40 @@ def refresh_full_market_publications_task(
     publication_run_id = str(uuid4())
     completed_operation_count = 0
     stored_row_count = 0
-    current_phase = "scope"
+    current_phase = "universe"
     authority_latch = _Data02AuthorityLatch(authority)
+    progress_phases: dict[str, TaskProgressPhase] = {}
+
+    def publish_progress(phase_result: TaskProgressPhase) -> None:
+        """Publish aggregate phase evidence without exposing asset identities."""
+
+        progress_phases[phase_result.phase] = phase_result
+        record_current_task_progress(
+            TaskProgress(
+                phase=phase_result.phase,
+                requested=phase_result.requested,
+                succeeded=phase_result.succeeded,
+                failed=phase_result.failed,
+                stored=phase_result.stored,
+                count_unit=phase_result.count_unit,
+                stored_count_unit=phase_result.stored_count_unit,
+                phase_results=tuple(progress_phases.values()),
+            )
+        )
+
+    # Universe refresh can spend most of its time in provider-backed per-asset
+    # upserts. Until the provider reports a real universe size, report only
+    # the one in-flight sync operation rather than inventing a security count.
+    publish_progress(
+        TaskProgressPhase(
+            phase="universe",
+            requested=1,
+            succeeded=0,
+            failed=0,
+            stored=None,
+            count_unit="sync_operation",
+        )
+    )
 
     if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
         return _data02_authority_failure(authority_latch.reason_code)
@@ -176,13 +214,36 @@ def refresh_full_market_publications_task(
             "Full-market universe refresh failed: %s",
             type(exc).__name__,
         )
+        publish_progress(
+            TaskProgressPhase(
+                phase="universe",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=None,
+                count_unit="sync_operation",
+            )
+        )
+        universe_error = (
+            exc
+            if isinstance(exc, DataFetchError) and exc.code.startswith("A_SHARE_UNIVERSE_")
+            else None
+        )
+        error_code = (
+            universe_error.code if universe_error is not None else "MARKET_UNIVERSE_REFRESH_FAILED"
+        )
         return {
             **market_task.full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
-            "blocked_reason": "market_universe_refresh_failed",
-            "error_code": "MARKET_UNIVERSE_REFRESH_FAILED",
-            "errors": ["MARKET_UNIVERSE_REFRESH_FAILED"],
+            "blocked_reason": error_code.lower(),
+            "error_code": error_code,
+            "errors": [error_code],
+            **(
+                {"market_universe_error": universe_error.details}
+                if universe_error is not None
+                else {}
+            ),
         }
     universe_active_count = universe_report.get("active_count")
     if (
@@ -190,6 +251,16 @@ def refresh_full_market_publications_task(
         or not isinstance(universe_active_count, int)
         or universe_active_count <= 0
     ):
+        publish_progress(
+            TaskProgressPhase(
+                phase="universe",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=None,
+                count_unit="sync_operation",
+            )
+        )
         return {
             **market_task.full_market_input_failure("market_universe_empty"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
@@ -198,7 +269,29 @@ def refresh_full_market_publications_task(
             "error_code": "MARKET_UNIVERSE_REFRESH_FAILED",
             "errors": ["MARKET_UNIVERSE_REFRESH_FAILED"],
         }
+    publish_progress(
+        TaskProgressPhase(
+            phase="universe",
+            requested=1,
+            succeeded=1,
+            failed=0,
+            stored=universe_active_count,
+            count_unit="sync_operation",
+            stored_count_unit="universe_asset",
+        )
+    )
 
+    current_phase = "scope"
+    publish_progress(
+        TaskProgressPhase(
+            phase="scope",
+            requested=1,
+            succeeded=0,
+            failed=0,
+            stored=None,
+            count_unit="scope_validation",
+        )
+    )
     active_codes = list_active_stock_codes_for_backfill()
     normalized_active_codes = tuple(str(code or "").strip().upper() for code in active_codes)
     frozen_universe_sha256 = market_task.asset_code_scope_sha256(normalized_active_codes)
@@ -209,6 +302,16 @@ def refresh_full_market_publications_task(
         or universe_active_count != len(normalized_active_codes)
         or reported_universe_sha256 != frozen_universe_sha256
     ):
+        publish_progress(
+            TaskProgressPhase(
+                phase="scope",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=None,
+                count_unit="scope_validation",
+            )
+        )
         return {
             **market_task.full_market_input_failure("market_universe_scope_invalid"),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
@@ -223,8 +326,30 @@ def refresh_full_market_publications_task(
             "reported_universe_sha256": reported_universe_sha256,
             "market_universe": universe_report,
         }
+    publish_progress(
+        TaskProgressPhase(
+            phase="scope",
+            requested=1,
+            succeeded=1,
+            failed=0,
+            stored=universe_active_count,
+            count_unit="scope_validation",
+            stored_count_unit="universe_asset",
+        )
+    )
     if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
         return _data02_authority_failure(authority_latch.reason_code)
+    publish_progress(
+        TaskProgressPhase(
+            phase="valuation",
+            requested=len(normalized_active_codes),
+            succeeded=None,
+            failed=None,
+            stored=None,
+            count_unit="valuation_asset",
+            stored_count_unit="fact_row",
+        )
+    )
     try:
         valuation_seed = valuations.execute(
             provider_id=valuation_provider_id,
@@ -275,6 +400,17 @@ def refresh_full_market_publications_task(
     missing_codes = sorted(requested_codes - succeeded_code_set)
     unexpected_returned_codes = sorted(returned_code_set - requested_codes)
     valuation_coverage_ratio = len(succeeded_code_set) / len(requested_codes)
+    publish_progress(
+        TaskProgressPhase(
+            phase="valuation",
+            requested=len(requested_codes),
+            succeeded=len(succeeded_code_set),
+            failed=len(missing_codes),
+            stored=valuation_seed.stored_count,
+            count_unit="valuation_asset",
+            stored_count_unit="fact_row",
+        )
+    )
     valuation_policy = (
         get_publication_policy_repository().get_active("equity.valuation.fact")
         if missing_codes
@@ -309,20 +445,132 @@ def refresh_full_market_publications_task(
     tradable_codes = sorted(requested_codes)
     excluded_non_trading_codes: list[str] = []
     stored_row_count = valuation_seed.stored_count
+    batches = (len(tradable_codes) + batch_size - 1) // batch_size
+    requested_operations = batches * 2 + 1
+    current_phase = "quote"
+    publish_progress(
+        TaskProgressPhase(
+            phase="quote_prefetch",
+            requested=1,
+            succeeded=0,
+            failed=None,
+            stored=0,
+            count_unit="provider_request",
+            stored_count_unit="fact_row",
+        )
+    )
+    try:
+        prepared_quote_session = quotes.prepare_session(
+            provider_id=quote_provider_id,
+            asset_codes=tuple(tradable_codes),
+            target_trade_date=target_date,
+        )
+    except SoftTimeLimitExceeded:
+        return market_task.full_market_soft_timeout_failure(
+            requested_operations=requested_operations,
+            completed_operations=completed_operation_count,
+            stored_rows=stored_row_count,
+            target_trade_date=target_date.isoformat(),
+            phase=current_phase,
+            asset_count=len(tradable_codes),
+            publication_run_id=publication_run_id,
+            quote_source=selected_quote_source,
+            valuation_source=selected_valuation_source,
+            market_universe=universe_report,
+            valuation_seed_stored=valuation_seed.stored_count,
+            excluded_non_trading_codes=excluded_non_trading_codes,
+        )
+    except (DataFetchError, OSError, RuntimeError, ValueError) as exc:
+        provider_error_code = getattr(exc, "code", None)
+        error_code = (
+            provider_error_code
+            if isinstance(provider_error_code, str) and provider_error_code
+            else type(exc).__name__
+        )
+        publish_progress(
+            TaskProgressPhase(
+                phase="quote_prefetch",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=0,
+                count_unit="provider_request",
+                stored_count_unit="fact_row",
+            )
+        )
+        return market_task.quote_session_prefetch_failure(
+            asset_count=len(tradable_codes),
+            batch_count=batches,
+            target_trade_date=target_date.isoformat(),
+            publication_run_id=publication_run_id,
+            quote_source=selected_quote_source,
+            valuation_source=selected_valuation_source,
+            market_universe=universe_report,
+            valuation_requested_count=len(requested_codes),
+            valuation_succeeded_count=len(succeeded_code_set),
+            valuation_missing_codes=missing_codes,
+            valuation_stored_count=valuation_seed.stored_count,
+            valuation_coverage_ratio=valuation_coverage_ratio,
+            valuation_policy_identity=(
+                valuation_policy.identity if valuation_policy is not None else None
+            ),
+            error_code=error_code,
+        )
+    publish_progress(
+        TaskProgressPhase(
+            phase="quote_prefetch",
+            requested=1,
+            succeeded=1,
+            failed=0,
+            stored=0,
+            count_unit="provider_request",
+            stored_count_unit="fact_row",
+        )
+    )
+    quote_batches_succeeded = 0
+    quote_stored_rows = 0
 
     def sync_quote_batch(codes: list[str]) -> int:
-        nonlocal completed_operation_count, current_phase, stored_row_count
+        nonlocal completed_operation_count, current_phase
+        nonlocal quote_batches_succeeded, quote_stored_rows, stored_row_count
         current_phase = "quote"
+        publish_progress(
+            TaskProgressPhase(
+                phase="quote",
+                requested=batches,
+                succeeded=quote_batches_succeeded,
+                failed=None,
+                stored=quote_stored_rows,
+                count_unit="sync_operation",
+                stored_count_unit="fact_row",
+            )
+        )
         if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
             raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
-        result = quotes.execute(SyncQuoteRequest(quote_provider_id, codes, True, target_date))
+        result = quotes.execute_prefetched_session_batch(
+            SyncQuoteRequest(quote_provider_id, codes, True, target_date),
+            prepared_quote_session,
+        )
         stored_count = market_task.exact_provider_batch_count(
             requested_asset_codes=codes,
             stored_count=result.stored_count,
             returned_asset_codes=result.stored_asset_codes,
         )
         completed_operation_count += 1
+        quote_batches_succeeded += 1
+        quote_stored_rows += stored_count
         stored_row_count += stored_count
+        publish_progress(
+            TaskProgressPhase(
+                phase="quote",
+                requested=batches,
+                succeeded=quote_batches_succeeded,
+                failed=0,
+                stored=quote_stored_rows,
+                count_unit="sync_operation",
+                stored_count_unit="fact_row",
+            )
+        )
         return stored_count
 
     def sync_valuation_batch(codes: list[str], day: date) -> int:
@@ -331,6 +579,17 @@ def refresh_full_market_publications_task(
         if day != target_date or not set(codes).issubset(tradable_codes):
             raise ValueError("prefetched valuation scope changed before publication")
         completed_operation_count += 1
+        publish_progress(
+            TaskProgressPhase(
+                phase="valuation",
+                requested=len(requested_codes),
+                succeeded=len(succeeded_code_set),
+                failed=len(missing_codes),
+                stored=valuation_seed.stored_count,
+                count_unit="valuation_asset",
+                stored_count_unit="fact_row",
+            )
+        )
         # The valuation rows were persisted by the full-scope seed above.
         # Returning the requested batch size tells the generic coordinator
         # that this phase validated the frozen prefetch; actual stored rows
@@ -340,6 +599,17 @@ def refresh_full_market_publications_task(
     def publish_complete_session(codes: list[str]) -> int:
         nonlocal current_phase
         current_phase = "publication"
+        publish_progress(
+            TaskProgressPhase(
+                phase="publication",
+                requested=1,
+                succeeded=0,
+                failed=None,
+                stored=None,
+                count_unit="sync_operation",
+                stored_count_unit="publication_member",
+            )
+        )
         if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
             raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
         preview = publications.preview(asset_codes=codes)
@@ -383,10 +653,19 @@ def refresh_full_market_publications_task(
             run_id=publication_run_id,
         )
         publication_evidence.update(publication_result.to_dict())
+        publish_progress(
+            TaskProgressPhase(
+                phase="publication",
+                requested=1,
+                succeeded=1,
+                failed=0,
+                stored=publication_result.published_count,
+                count_unit="sync_operation",
+                stored_count_unit="publication_member",
+            )
+        )
         return publication_result.published_count
 
-    batches = (len(tradable_codes) + batch_size - 1) // batch_size
-    requested_operations = batches * 2 + 1
     try:
         result = refresh_market_publications(
             as_of_date=target_date,
@@ -492,7 +771,7 @@ def refresh_financial_publications_batch_task(
     started_at = datetime.now(UTC)
     authority, authority_failure = _preflight_data02_task_authority(
         as_of=started_at,
-        minimum_window=_FULL_MARKET_AUTHORITY_WINDOW,
+        minimum_window=_FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW,
     )
     if authority_failure is not None:
         return authority_failure

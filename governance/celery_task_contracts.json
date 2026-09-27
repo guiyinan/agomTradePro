@@ -1796,7 +1796,7 @@
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_counts",
-          "coverage_note": "Dynamic provider gaps keep the full requested denominator, stable per-security reasons, policy identity and publication evidence; no asset code list is hard-coded."
+          "coverage_note": "Dynamic provider gaps keep the full requested denominator, stable per-security reasons, policy identity and publication evidence; the same task-path test verifies safe live universe/scope/valuation/quote/publication progress counters and units without exposing asset identities."
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
@@ -1808,7 +1808,8 @@
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_task_blocks_without_current_authority_before_provider_access"
+          "test_function": "test_task_blocks_without_current_authority_before_provider_access",
+          "coverage_note": "The task also pins the 4200/4500-second soft/hard limits and fails closed when authority validity is shorter than the 4800-second hard-plus-finalization budget."
         }
       }
     }

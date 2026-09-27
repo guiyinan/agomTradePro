@@ -99,6 +99,21 @@ class AssetRepository:
             for m in AssetMasterModel.objects.filter(exchange=exchange, is_active=True)
         ]
 
+    def list_active_stock_codes(self) -> set[str]:
+        """Return the active stock scope used to validate a provider failover."""
+
+        return set(
+            AssetMasterModel.objects.filter(
+                asset_type=AssetType.STOCK.value,
+                exchange__in=[
+                    MarketExchange.SSE.value,
+                    MarketExchange.SZSE.value,
+                    MarketExchange.BSE.value,
+                ],
+                is_active=True,
+            ).values_list("code", flat=True)
+        )
+
     def list_active(self) -> list[AssetMaster]:
         """Return active canonical asset-master records in code order."""
 

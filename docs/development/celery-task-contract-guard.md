@@ -155,9 +155,11 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-26 估值局部缺失契约：全市场任务顶层 `requested/succeeded/failed` 使用估值证券口径，`stored` 使用实际事实行口径，并另保留 operation 统计；允许 partial 时每只缺失证券记录 `valuation_source_data_unavailable`，Publication 覆盖、scope block、policy identity、publication id/hash 和 run id 必须一致。兼容 `success=false` 不能把明确的 `outcome=partial` 降格为 failed；Task Monitor 以 outcome 为准。
 
-生产 200 只批次实测约 65 秒，全市场约 28 批；任务 hard/soft time limit 为 3600/3500 秒，审计授权预检至少覆盖 3900 秒。三者必须同时调整，禁止让合法全集刷新在发布前被旧 30 分钟预算终止。
+生产 200 只批次实测约 65 秒，全市场约 28 批；全市场任务的 Celery soft/hard limit 为 4200/4500 秒，只作为外层兜底。审计授权预检至少覆盖 4800 秒（hard limit 加 300 秒收尾预算）。该调整不放宽 provider 单次请求、重试或锁时限；三者必须保持各自独立，禁止让合法全集刷新在发布前被旧 30 分钟预算终止。
 
 2026-09-27 正式行情发布的日线验证只批量准备目标交易日，并让逐证券校验复用该预取结果。只有目标日事实缺失或不可用的证券才扩大到 120 日历史，供 Data Center 继续执行来源一致性和逐日全停牌证据校验；额度、权限、冲突和其他不可信错误不得触发逐证券历史回退。此 120 日窗口服务 Qlib/停牌核验，不是正式 Publication 的全市场预取窗口。
+
+2026-09-28 全市场快照规模契约：一次 `refresh_full_market_publications_task` 对一个 provider 和目标交易日只执行一次全市场 `daily` 快照读取；Application 将响应完成时间、真实可用的原始响应 SHA-256、规范化报价行 hash、provider identity 和冻结 universe hash 放入 task-local `PreparedQuoteSession`。后续有界 fact-write 批次只能读取该冻结响应的子集，不能再次访问 provider；下一任务必须重新读取，禁止跨任务缓存。Provider 拒绝、返回缺失/重复/越界 identity、错误交易日或无来源时间时在任何 quote fact 写入前失败关闭；不得因范围错误缩小全集、把缺行认作停牌或放宽 Publication freshness。
 
 同日阶段诊断整改：市场发布编排结果增加 `phase`、`phase_results`、`target_trade_date` 和 `stored_count_unit=fact_row`。各阶段分别保留 requested/succeeded/failed/stored；事实同步完成而发布失败必须为 partial，并保留前序存储计数和失败阶段。`stored` 沿用 repository 已接受持久化事实数量口径（包括成功幂等 upsert），不表示新增物理行数量，也不包含独立的 valuation seed 计数；`published_members` 独立统计。公开结果只含稳定码，完整异常栈进入运维日志。
 

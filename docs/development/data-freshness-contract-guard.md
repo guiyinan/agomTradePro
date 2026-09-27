@@ -223,6 +223,8 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 
 全市场行情快照必须按 `trade_date` 批量读取 Tushare `daily` 截面，并在有限的最近自然日窗口内寻找每只请求资产的最近完整交易日。禁止按股票逐只调用 `daily`，否则全市场任务会把一次发布放大为数千次外部请求并耗尽时限或配额。候选响应回执相应绑定 `full_market_trade_date` 范围；授权错误必须向任务层传播并形成可见阻断，不能被空列表掩盖。
 
+2026-09-28 全市场快照只按任务/目标交易日预取一次：Application 冻结 provider identity、目标日期、规范化响应行 hash、真实可用的响应 body SHA-256/完成时间和完整 universe hash，再由每个事实写入批次读取该对象中的精确子集。该快照不得进入全局或跨任务缓存；下一任务必须重新向 provider 读取。响应 identity、日期、来源时间不完整或 provider 失败时，不得写 quote fact；不得把部分返回解释成停牌或缩小 current Publication 分母。
+
 ### 2026-09-26 当前估值容错与 Tencent 证据
 
 隔离发布预演的合成事实使用目标交易日建立确定性的观测、可用和发布时间线，并通过显式、

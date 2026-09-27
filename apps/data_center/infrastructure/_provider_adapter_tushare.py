@@ -751,7 +751,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     prev_close=safe_float(quote.pre_close),
                     volume=_optional_nonnegative_float(quote.volume),
                     amount=_optional_nonnegative_float(quote.amount),
-                    extra=self._provider_extra(),
+                    extra=self._provider_extra(quote.extra),
                 )
             )
         return results

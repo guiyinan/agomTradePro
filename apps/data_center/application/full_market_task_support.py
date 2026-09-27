@@ -138,6 +138,116 @@ def full_market_soft_timeout_failure(
     }
 
 
+def quote_session_prefetch_failure(
+    *,
+    asset_count: int,
+    batch_count: int,
+    target_trade_date: str,
+    publication_run_id: str,
+    quote_source: str,
+    valuation_source: str,
+    market_universe: Mapping[str, object],
+    valuation_requested_count: int,
+    valuation_succeeded_count: int,
+    valuation_missing_codes: Sequence[str],
+    valuation_stored_count: int,
+    valuation_coverage_ratio: float,
+    valuation_policy_identity: str | None,
+    error_code: str,
+) -> dict[str, object]:
+    """Shape a pre-write quote response failure while preserving seed-write evidence."""
+
+    if (
+        isinstance(asset_count, bool)
+        or not isinstance(asset_count, int)
+        or asset_count < 0
+        or isinstance(batch_count, bool)
+        or not isinstance(batch_count, int)
+        or batch_count < 0
+        or not isinstance(error_code, str)
+        or not error_code.strip()
+    ):
+        raise ValueError("quote prefetch failure evidence is invalid")
+    failed_operations = batch_count * 2 + 2 if asset_count else 0
+    outcome = (
+        TaskBusinessOutcome.PARTIAL.value
+        if valuation_stored_count > 0
+        else TaskBusinessOutcome.FAILED.value
+    )
+    missing_codes = tuple(valuation_missing_codes)
+    return {
+        "outcome": outcome,
+        "success": False,
+        "must_not_use_for_decision": True,
+        "blocked_reason": error_code,
+        "error_code": error_code,
+        "errors": [error_code],
+        "phase": "quote",
+        "phase_results": [
+            {
+                "phase": "valuation_seed",
+                "requested": valuation_requested_count,
+                "succeeded": valuation_succeeded_count,
+                "failed": len(missing_codes),
+                "stored": valuation_stored_count,
+                "count_unit": "valuation_asset",
+                "stored_count_unit": "fact_row",
+            },
+            {
+                "phase": "quote_prefetch",
+                "requested": int(bool(asset_count)),
+                "succeeded": 0,
+                "failed": int(bool(asset_count)),
+                "stored": 0,
+                "count_unit": "provider_request",
+                "stored_count_unit": "fact_row",
+            },
+            {
+                "phase": "quote",
+                "requested": asset_count,
+                "succeeded": 0,
+                "failed": asset_count,
+                "stored": 0,
+                "count_unit": "quote_asset",
+                "stored_count_unit": "fact_row",
+            },
+            {
+                "phase": "publication",
+                "requested": int(bool(asset_count)),
+                "succeeded": 0,
+                "failed": int(bool(asset_count)),
+                "stored": 0,
+                "count_unit": "sync_operation",
+                "stored_count_unit": "publication_member",
+            },
+        ],
+        "requested": asset_count,
+        "succeeded": 0,
+        "failed": asset_count,
+        "stored": valuation_stored_count,
+        "count_unit": "quote_asset",
+        "stored_count_unit": "fact_row",
+        "operation_requested": failed_operations,
+        "operation_succeeded": 0,
+        "operation_failed": failed_operations,
+        "operation_count_unit": "sync_operation",
+        "target_trade_date": target_trade_date,
+        "publication_run_id": publication_run_id,
+        "publication_updated": False,
+        "published_members": 0,
+        "asset_count": asset_count,
+        "quote_source": quote_source,
+        "valuation_source": valuation_source,
+        "market_universe": dict(market_universe),
+        "valuation_seed_stored": valuation_stored_count,
+        "valuation_coverage_ratio": valuation_coverage_ratio,
+        "valuation_policy_identity": valuation_policy_identity,
+        "missing_asset_codes": list(missing_codes),
+        "excluded_non_trading_count": 0,
+        "excluded_non_trading_codes": [],
+    }
+
+
 def valuation_scope_incomplete_failure(
     *,
     requested_codes: Set[str],

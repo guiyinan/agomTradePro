@@ -1,6 +1,8 @@
 """Task Monitor contracts for technical state, business outcome, and heartbeat loss."""
 
 import gzip
+import json
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,12 +12,21 @@ import pytest
 from django.utils import timezone
 
 from apps.task_monitor.application import tasks
+from apps.task_monitor.application.dtos import task_status_response
+from apps.task_monitor.application.tracking import (
+    TaskProgress,
+    TaskProgressPhase,
+    record_task_progress,
+)
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
     TaskPriority,
     TaskStatus,
 )
-from apps.task_monitor.infrastructure.repositories import CeleryHealthChecker
+from apps.task_monitor.infrastructure.repositories import (
+    CeleryHealthChecker,
+    DjangoTaskRecordRepository,
+)
 
 
 def _record(*, status: TaskStatus = TaskStatus.STARTED, retries: int = 0) -> TaskExecutionRecord:
@@ -51,6 +62,133 @@ class _Repository:
         self.saved.append(record)
         self.record = record
         return "saved"
+
+    def update_result_if_status(
+        self,
+        *,
+        task_id: str,
+        result: str,
+        expected_status: TaskStatus,
+    ) -> bool:
+        if (
+            self.record is None
+            or self.record.task_id != task_id
+            or self.record.status is not expected_status
+        ):
+            return False
+        self.record = replace(self.record, result=result)
+        return True
+
+
+def test_task_progress_updates_only_active_record_and_postrun_replaces_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live progress is safe metadata and terminal task outcome remains authoritative."""
+
+    repository = _Repository(_record())
+    monkeypatch.setattr(
+        "apps.task_monitor.application.tracking.get_task_record_repository",
+        lambda: repository,
+    )
+
+    progress = TaskProgress(
+        phase="scope",
+        requested=1,
+        succeeded=0,
+        failed=0,
+        stored=None,
+        count_unit="universe_sync_operation",
+        phase_results=(
+            TaskProgressPhase(
+                phase="scope",
+                requested=1,
+                succeeded=0,
+                failed=0,
+                stored=None,
+                count_unit="universe_sync_operation",
+            ),
+        ),
+    )
+
+    assert record_task_progress(task_id="task-1", progress=progress) is True
+    assert repository.record is not None
+    assert json.loads(repository.record.result or "{}") == {
+        "count_unit": "universe_sync_operation",
+        "failed": 0,
+        "phase": "scope",
+        "phase_results": [
+            {
+                "count_unit": "universe_sync_operation",
+                "failed": 0,
+                "phase": "scope",
+                "requested": 1,
+                "stored": None,
+                "stored_count_unit": None,
+                "succeeded": 0,
+            }
+        ],
+        "requested": 1,
+        "stored": None,
+        "stored_count_unit": None,
+        "succeeded": 0,
+    }
+
+    response = task_status_response(repository.record)
+    assert response.outcome is None
+    assert response.phase == "scope"
+    assert response.requested == 1
+    assert response.stored is None
+
+    terminal = replace(repository.record, status=TaskStatus.SUCCESS)
+    repository.record = terminal
+    assert record_task_progress(task_id="task-1", progress=progress) is False
+    assert repository.record is terminal
+
+
+def test_started_task_runtime_is_derived_from_started_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Active runtime stays live without writing elapsed-time snapshots to storage."""
+
+    record = _record()
+    assert record.started_at is not None
+    observed_at = record.started_at + timedelta(seconds=42)
+    monkeypatch.setattr(
+        "apps.task_monitor.application.dtos.timezone.now",
+        lambda: observed_at,
+    )
+
+    assert task_status_response(record).runtime_seconds == 42.0
+    assert record.runtime_seconds is None
+
+    completed = replace(record, status=TaskStatus.SUCCESS, runtime_seconds=9.5)
+    assert task_status_response(completed).runtime_seconds == 9.5
+
+
+def test_progress_repository_update_is_conditioned_on_started_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The progress write cannot overwrite a terminal Task Monitor record."""
+
+    from apps.task_monitor.infrastructure import repositories
+
+    update = Mock(return_value=1)
+    filter_records = Mock(return_value=SimpleNamespace(update=update))
+    monkeypatch.setattr(
+        repositories.TaskExecutionModel,
+        "objects",
+        SimpleNamespace(filter=filter_records),
+    )
+
+    updated = DjangoTaskRecordRepository().update_result_if_status(
+        task_id="task-1",
+        result='{"phase":"quote"}',
+        expected_status=TaskStatus.STARTED,
+    )
+
+    assert updated is True
+    filter_records.assert_called_once_with(task_id="task-1", status="started")
+    update.assert_called_once_with(result='{"phase":"quote"}')
 
 
 @pytest.mark.parametrize("outcome", ["failed", "partial", "blocked"])

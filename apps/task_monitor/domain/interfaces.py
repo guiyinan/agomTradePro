@@ -14,6 +14,7 @@ from apps.task_monitor.domain.entities import (
     SchedulerCatalogSummary,
     TaskExecutionRecord,
     TaskStatistics,
+    TaskStatus,
 )
 
 
@@ -42,11 +43,18 @@ class TaskRecordRepositoryProtocol(Protocol):
         """
         ...
 
-    def list_by_task_name(
+    def update_result_if_status(
         self,
-        task_name: str,
-        limit: int = 100,
-        status: str | None = None
+        *,
+        task_id: str,
+        result: str,
+        expected_status: TaskStatus,
+    ) -> bool:
+        """Atomically update result only while the record retains its expected state."""
+        ...
+
+    def list_by_task_name(
+        self, task_name: str, limit: int = 100, status: str | None = None
     ) -> list[TaskExecutionRecord]:
         """根据任务名称列出记录
 
@@ -60,11 +68,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         """
         ...
 
-    def list_recent_failures(
-        self,
-        hours: int = 24,
-        limit: int = 50
-    ) -> list[TaskExecutionRecord]:
+    def list_recent_failures(self, hours: int = 24, limit: int = 50) -> list[TaskExecutionRecord]:
         """列出最近的失败记录
 
         Args:
@@ -76,11 +80,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_statistics(
-        self,
-        task_name: str,
-        days: int = 7
-    ) -> TaskStatistics | None:
+    def get_statistics(self, task_name: str, days: int = 7) -> TaskStatistics | None:
         """获取任务统计信息
 
         Args:
@@ -120,11 +120,7 @@ class AlertChannelProtocol(Protocol):
     """告警渠道协议"""
 
     def send_alert(
-        self,
-        level: str,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: str, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """发送告警
 

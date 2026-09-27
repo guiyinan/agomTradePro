@@ -255,6 +255,21 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         except TaskExecutionModel.DoesNotExist:
             return None
 
+    def update_result_if_status(
+        self,
+        *,
+        task_id: str,
+        result: str,
+        expected_status: TaskStatus,
+    ) -> bool:
+        """Atomically update a task result without changing its execution state."""
+
+        updated_count = TaskExecutionModel.objects.filter(
+            task_id=task_id,
+            status=expected_status.value,
+        ).update(result=_redact_evidence_text(result))
+        return updated_count == 1
+
     def list_by_task_name(
         self, task_name: str, limit: int = 100, status: str | None = None
     ) -> list[TaskExecutionRecord]:

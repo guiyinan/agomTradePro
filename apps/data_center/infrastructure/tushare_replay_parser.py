@@ -154,6 +154,7 @@ def parse_tushare_daily_quote_rows(
     source: str,
     fetched_at: datetime,
     target_date: date | None = None,
+    response_evidence: ResponseEvidenceLike | None = None,
 ) -> QuoteSnapshot | None:
     """Map the latest daily row, optionally requiring an exact replay date.
 
@@ -194,6 +195,15 @@ def parse_tushare_daily_quote_rows(
         source=source,
         observed_at=cn_market_session_close_utc(trade_date),
         fetched_at=fetched_at,
+        extra=(
+            {
+                "raw_payload_hash": response_evidence.body_sha256,
+                "raw_payload_scope": response_evidence.raw_payload_scope,
+                "response_completed_at": response_evidence.response_completed_at.isoformat(),
+            }
+            if response_evidence is not None
+            else {}
+        ),
     )
 
 

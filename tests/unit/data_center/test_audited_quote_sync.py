@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -22,6 +22,7 @@ from apps.data_center.application.sync_identity import (
 from apps.data_center.application.sync_use_cases import SyncQuoteUseCase
 from apps.data_center.domain.entities import ProviderConfig, QuoteSnapshot, RawAudit
 from apps.data_center.domain.enums import DataCapability
+from core.exceptions import DataFetchError
 
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 
@@ -68,11 +69,20 @@ class _Provider:
     ) -> None:
         self.quotes = quotes or []
         self.error = error
+        self.session_calls: list[tuple[tuple[str, ...], date]] = []
 
     def provider_name(self) -> str:
         return "provider-main"
 
     def fetch_quote_snapshots(self, _asset_codes: list[str]) -> list[QuoteSnapshot]:
+        if self.error is not None:
+            raise self.error
+        return list(self.quotes)
+
+    def fetch_quote_snapshots_for_session(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> list[QuoteSnapshot]:
+        self.session_calls.append((tuple(asset_codes), target_trade_date))
         if self.error is not None:
             raise self.error
         return list(self.quotes)
@@ -265,6 +275,7 @@ def _build(
     quotes: list[QuoteSnapshot],
     *,
     publisher: _Publisher | None = None,
+    provider: _Provider | None = None,
 ) -> tuple[SyncQuoteUseCase, _Uow, _AuditWriter, _Facts, _RawAudit, _PublicationQualityRecorder]:
     events: list[str] = []
     uow = _Uow(events)
@@ -274,7 +285,7 @@ def _build(
     quality_recorder = _PublicationQualityRecorder()
     use_case = SyncQuoteUseCase(
         provider_repo=_ProviderRepository(events),
-        provider_registry=_Registry(_Provider(quotes)),
+        provider_registry=_Registry(provider or _Provider(quotes)),
         fact_repo=facts,
         raw_audit_repo=raw,
         publication_publisher=publisher,
@@ -286,6 +297,66 @@ def _build(
         clock=_Clock(),
     )
     return use_case, uow, writer, facts, raw, quality_recorder
+
+
+def test_prefetched_quote_batches_reuse_one_provider_response_and_audit_its_scope() -> None:
+    """One full-session response feeds multiple auditable fact-write batches."""
+
+    first = _quote()
+    second = dataclasses.replace(first, asset_code="600000.SH")
+    provider = _Provider([first, second])
+    use_case, _uow, _writer, facts, raw, _quality_recorder = _build([], provider=provider)
+    codes = ("000001.SZ", "600000.SH")
+    target_date = date(2026, 8, 27)
+
+    prepared = use_case.prepare_session(
+        provider_id=1,
+        asset_codes=codes,
+        target_trade_date=target_date,
+    )
+    for code in codes:
+        use_case.execute_prefetched_session_batch(
+            SyncQuoteRequest(
+                provider_id=1,
+                asset_codes=[code],
+                require_exact_asset_codes=True,
+                target_trade_date=target_date,
+            ),
+            prepared,
+        )
+
+    assert provider.session_calls == [(codes, target_date)]
+    assert tuple(row.asset_code for row in facts.saved) == codes
+    assert all(
+        row.extra["market_publication_quote_session"]["universe_sha256"] == prepared.universe_sha256
+        for row in facts.saved
+    )
+    assert all(
+        audit.request_params["quote_session_rows_sha256"] == prepared.quote_rows_sha256
+        for audit in raw.rows
+    )
+
+
+def test_quote_session_prefetch_provider_rejection_is_audited_and_propagated() -> None:
+    """A failed full-session response cannot fall back to cached rows."""
+
+    provider = _Provider(
+        [_quote()], error=DataFetchError("rejected", code="TUSHARE_PROVIDER_REJECTED")
+    )
+    use_case, _uow, writer, facts, raw, _quality_recorder = _build([], provider=provider)
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.prepare_session(
+            provider_id=1,
+            asset_codes=("000001.SZ",),
+            target_trade_date=date(2026, 8, 27),
+        )
+
+    assert caught.value.code == "TUSHARE_PROVIDER_REJECTED"
+    assert provider.session_calls == [(("000001.SZ",), date(2026, 8, 27))]
+    assert facts.saved == []
+    assert raw.rows[-1].status == "error"
+    assert writer.fetch[-1].outcome is AuditOutcome.FAILED
 
 
 def _request() -> SyncQuoteRequest:

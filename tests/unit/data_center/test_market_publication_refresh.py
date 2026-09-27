@@ -2,7 +2,9 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
@@ -14,6 +16,27 @@ from apps.data_center.application.market_publication_refresh import (
     refresh_market_publications,
 )
 from core.exceptions import DataFetchError
+
+
+def _prefetched_quote_sync(execute: Callable[[object], object]) -> SimpleNamespace:
+    """Build a quote-sync test double that exposes the frozen-session contract."""
+
+    prepared = object()
+    prepare_calls: list[dict[str, object]] = []
+
+    def prepare_session(**kwargs: object) -> object:
+        prepare_calls.append(dict(kwargs))
+        return prepared
+
+    return SimpleNamespace(
+        prepare_session=prepare_session,
+        execute_prefetched_session_batch=lambda request, session: (
+            execute(request)
+            if session is prepared
+            else pytest.fail("quote batch used a different prepared session")
+        ),
+        prepare_calls=prepare_calls,
+    )
 
 
 def _universe_report(codes: list[str], *, active_count: int | None = None) -> dict[str, object]:
@@ -413,7 +436,9 @@ def test_task_blocks_authority_window_shorter_than_task_budget(
 
     from apps.data_center.application import tasks
 
-    _patch_current_authority.authority_valid_until = datetime.now(UTC) + timedelta(minutes=10)
+    assert tasks.refresh_full_market_publications_task.time_limit == 4500
+    assert tasks.refresh_full_market_publications_task.soft_time_limit == 4200
+    _patch_current_authority.authority_valid_until = datetime.now(UTC) + timedelta(seconds=4799)
     monkeypatch.setattr(
         tasks,
         "get_active_provider_id_by_source",
@@ -493,7 +518,36 @@ def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch)
     assert result["stored"] == 0
 
 
-def test_task_exposes_stable_universe_refresh_error(monkeypatch):
+@pytest.mark.parametrize(
+    ("failure", "expected_code", "expected_reason", "provider_details"),
+    [
+        pytest.param(
+            ValueError("secret upstream response"),
+            "MARKET_UNIVERSE_REFRESH_FAILED",
+            "market_universe_refresh_failed",
+            None,
+            id="unknown-provider-error-is-redacted",
+        ),
+        pytest.param(
+            DataFetchError(
+                "secret upstream response",
+                code="A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT",
+                details={"source": "tushare.stock_basic[provider_id=7]", "tolerance": 0.01},
+            ),
+            "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT",
+            "a_share_universe_failover_inconsistent",
+            {"source": "tushare.stock_basic[provider_id=7]", "tolerance": 0.01},
+            id="classified-provider-error-keeps-code-and-provenance",
+        ),
+    ],
+)
+def test_task_exposes_stable_universe_refresh_error(
+    monkeypatch,
+    failure: Exception,
+    expected_code: str,
+    expected_reason: str,
+    provider_details: dict[str, object] | None,
+) -> None:
     """Provider exception text stays out of the user-facing task result."""
 
     from types import SimpleNamespace
@@ -516,15 +570,19 @@ def test_task_exposes_stable_universe_refresh_error(monkeypatch):
     monkeypatch.setattr(
         tasks,
         "sync_active_a_share_universe",
-        lambda: (_ for _ in ()).throw(ValueError("secret upstream response")),
+        lambda: (_ for _ in ()).throw(failure),
     )
 
     result = tasks.refresh_full_market_publications_task.run()
 
     assert result["outcome"] == "blocked"
-    assert result["blocked_reason"] == "market_universe_refresh_failed"
-    assert result["error_code"] == "MARKET_UNIVERSE_REFRESH_FAILED"
-    assert result["errors"] == ["MARKET_UNIVERSE_REFRESH_FAILED"]
+    assert result["blocked_reason"] == expected_reason
+    assert result["error_code"] == expected_code
+    assert result["errors"] == [expected_code]
+    if provider_details is not None:
+        assert result["market_universe_error"] == provider_details
+    else:
+        assert "market_universe_error" not in result
     assert "secret" not in str(result)
 
 
@@ -620,6 +678,13 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
 
     from apps.data_center.application import market_publication_refresh, public, tasks
 
+    progress_snapshots = []
+    monkeypatch.setattr(
+        tasks,
+        "record_current_task_progress",
+        lambda progress: progress_snapshots.append(progress) or True,
+    )
+
     active_codes = [f"{index:06d}.SZ" for index in range(100)]
     succeeded_codes = tuple(active_codes[:-1])
     missing_code = active_codes[-1]
@@ -645,8 +710,8 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_quote_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda request: SimpleNamespace(
+        lambda: _prefetched_quote_sync(
+            lambda request: SimpleNamespace(
                 stored_count=len(request.asset_codes),
                 stored_asset_codes=tuple(request.asset_codes),
             )
@@ -741,6 +806,118 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     ]
     assert result["excluded_non_trading_codes"] == []
     assert result["publication_run_id"] == result["run_id"]
+    assert progress_snapshots[0].phase == "universe"
+    assert progress_snapshots[0].requested == 1
+    assert progress_snapshots[0].succeeded == 0
+    assert progress_snapshots[0].stored is None
+    assert [phase.phase for phase in progress_snapshots[-1].phase_results] == [
+        "universe",
+        "scope",
+        "valuation",
+        "quote_prefetch",
+        "quote",
+        "publication",
+    ]
+    phase_results = {phase.phase: phase for phase in progress_snapshots[-1].phase_results}
+    assert phase_results["universe"].requested == 1
+    assert phase_results["universe"].succeeded == 1
+    assert phase_results["universe"].stored == len(active_codes)
+    assert phase_results["universe"].stored_count_unit == "universe_asset"
+    assert phase_results["scope"].requested == 1
+    assert phase_results["scope"].succeeded == 1
+    assert phase_results["scope"].stored == len(active_codes)
+    assert phase_results["scope"].stored_count_unit == "universe_asset"
+    assert phase_results["valuation"].requested == len(active_codes)
+    assert phase_results["valuation"].succeeded == len(succeeded_codes)
+    assert phase_results["valuation"].failed == 1
+    assert phase_results["valuation"].stored == len(succeeded_codes)
+    assert phase_results["valuation"].count_unit == "valuation_asset"
+    assert phase_results["valuation"].stored_count_unit == "fact_row"
+    assert phase_results["quote_prefetch"].requested == 1
+    assert phase_results["quote_prefetch"].succeeded == 1
+    assert phase_results["quote_prefetch"].stored == 0
+    assert phase_results["quote_prefetch"].count_unit == "provider_request"
+    assert phase_results["quote"].requested == 1
+    assert phase_results["quote"].succeeded == 1
+    assert phase_results["quote"].stored == len(active_codes)
+    assert phase_results["quote"].stored_count_unit == "fact_row"
+    assert phase_results["publication"].count_unit == "sync_operation"
+    assert phase_results["publication"].stored_count_unit == "publication_member"
+    quote_in_progress = next(
+        progress
+        for progress in progress_snapshots
+        if progress.phase == "quote" and progress.succeeded == 0
+    )
+    assert quote_in_progress.requested == 1
+    assert quote_in_progress.stored == 0
+    assert progress_snapshots[-1].phase == "publication"
+    assert progress_snapshots[-1].succeeded == 1
+    assert progress_snapshots[-1].stored == 299
+    assert progress_snapshots[-1].stored_count_unit == "publication_member"
+
+
+def test_task_reports_quote_prefetch_failure_before_any_quote_write(monkeypatch):
+    """A failed full-session read keeps seed evidence and never enters batch writes."""
+
+    from apps.data_center.application import tasks
+
+    active_codes = ["000001.SZ", "600000.SH"]
+    progress_snapshots = []
+    monkeypatch.setattr(
+        tasks,
+        "record_current_task_progress",
+        lambda progress: progress_snapshots.append(progress) or True,
+    )
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(
+        tasks, "sync_active_a_share_universe", lambda: _universe_report(active_codes)
+    )
+    monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: active_codes)
+
+    def fail_prefetch(**_: object) -> object:
+        raise DataFetchError("provider rejected", code="TUSHARE_PROVIDER_REJECTED")
+
+    quote = SimpleNamespace(
+        prepare_session=fail_prefetch,
+        execute_prefetched_session_batch=lambda *_: pytest.fail("quote batch write executed"),
+    )
+    valuation = SimpleNamespace(
+        execute=lambda **_: SimpleNamespace(
+            stored_count=2,
+            status="success",
+            succeeded_asset_codes=tuple(active_codes),
+            returned_asset_codes=tuple(active_codes),
+        )
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote)
+    monkeypatch.setattr(
+        tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: valuation
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(
+            preview=lambda **__: pytest.fail("publication preview executed"),
+            execute=lambda **__: pytest.fail("publication write executed"),
+        ),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert result["outcome"] == "partial"
+    assert result["phase"] == "quote"
+    assert result["requested"] == 2
+    assert result["succeeded"] == 0
+    assert result["failed"] == 2
+    assert result["stored"] == 2
+    assert result["count_unit"] == "quote_asset"
+    assert result["error_code"] == "TUSHARE_PROVIDER_REJECTED"
+    assert result["publication_updated"] is False
+    assert result["published_members"] == 0
+    assert progress_snapshots[-1].phase == "quote_prefetch"
+    assert progress_snapshots[-1].failed == 1
+    assert progress_snapshots[-1].stored == 0
 
 
 def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):
@@ -883,16 +1060,21 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
     monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
     monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
-    sync = SimpleNamespace(
-        execute=lambda *_, **kwargs: SimpleNamespace(
+
+    def execute_sync(*_: object, **_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(
             stored_count=1,
             stored_asset_codes=("000001.SZ",),
             succeeded_asset_codes=("000001.SZ",),
             returned_asset_codes=("000001.SZ",),
         )
+
+    quote_sync = _prefetched_quote_sync(execute_sync)
+    valuation_sync = SimpleNamespace(execute=execute_sync)
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote_sync)
+    monkeypatch.setattr(
+        tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: valuation_sync
     )
-    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: sync)
-    monkeypatch.setattr(tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: sync)
     preview = SimpleNamespace(
         ready=True,
         datasets=[
@@ -952,8 +1134,8 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
         "sync_active_a_share_universe",
         lambda: _universe_report(["000001.SZ", "000002.SZ"]),
     )
-    quote = SimpleNamespace(
-        execute=lambda *_args, **_kwargs: SimpleNamespace(
+    quote = _prefetched_quote_sync(
+        lambda *_args, **_kwargs: SimpleNamespace(
             stored_count=2,
             stored_asset_codes=quote_codes,
         )
@@ -1174,9 +1356,8 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
             returned_asset_codes=("000001.SZ",),
         )
 
-    monkeypatch.setattr(
-        tasks, "make_backfill_sync_quote_use_case", lambda: SimpleNamespace(execute=sync_quote)
-    )
+    quote_sync = _prefetched_quote_sync(sync_quote)
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote_sync)
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
@@ -1230,6 +1411,13 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
     assert result["valuation_source"] == "akshare"
+    assert quote_sync.prepare_calls == [
+        {
+            "provider_id": 3,
+            "asset_codes": ("000001.SZ",),
+            "target_trade_date": date(2026, 9, 18),
+        }
+    ]
     assert quote_provider_ids == [3]
     assert valuation_provider_ids == [7]
 
@@ -1257,8 +1445,8 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_quote_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda *_args, **_kwargs: SimpleNamespace(
+        lambda: _prefetched_quote_sync(
+            lambda *_args, **_kwargs: SimpleNamespace(
                 stored_count=2,
                 stored_asset_codes=("000001.SZ", "600000.SH"),
             )

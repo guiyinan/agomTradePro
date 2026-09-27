@@ -4602,6 +4602,7 @@
         "apps/data_center/application/batch_identity.py",
         "apps/data_center/application/current_fact_remediation.py",
         "apps/data_center/application/dtos.py",
+        "apps/data_center/application/quote_session_prefetch.py",
         "apps/data_center/application/sync_market_use_cases.py",
         "apps/data_center/application/current_valuation_sync.py",
         "apps/data_center/composition.py",
@@ -4660,12 +4661,16 @@
         "apps/data_center/application/on_demand.py",
         "apps/equity/application/tasks_valuation_sync.py",
         "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+        "apps/data_center/infrastructure/market_gateway_entities.py",
         "apps/data_center/infrastructure/tushare_replay_parser.py",
         "apps/data_center/infrastructure/_provider_adapter_akshare.py",
         "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/control_plane.py",
         "apps/data_center/application/published_equity_context.py",
         "apps/data_center/application/query_services.py",
+        "apps/data_center/infrastructure/a_share_universe_sync.py",
+        "apps/data_center/infrastructure/catalog_repositories.py",
         "apps/data_center/domain/publication_snapshot_policy.py",
         "apps/data_center/infrastructure/publication_rollback_models.py",
         "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py",
@@ -4700,7 +4705,18 @@
         "apps/data_center/application/sync_market_use_cases.py": [
           "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)",
           "if request.require_exact_asset_codes:",
-          "returned_asset_codes=[quote.asset_code for quote in quotes]"
+          "returned_asset_codes=[quote.asset_code for quote in quotes]",
+          "def prepare_session(",
+          "def execute_prefetched_session_batch(",
+          "quote_session_universe_sha256",
+          "quote_session_raw_response_sha256s"
+        ],
+        "apps/data_center/application/quote_session_prefetch.py": [
+          "def prepare_quote_session(",
+          "require_exact_asset_identities(",
+          "def quote_rows_for(",
+          "quote_rows_sha256",
+          "raw_response_sha256s"
         ],
         "apps/data_center/application/current_valuation_sync.py": [
           "returned_asset_codes=tuple(fact.asset_code for fact in facts)",
@@ -4942,7 +4958,7 @@
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
           "universe_hash is required when offset is nonzero",
-          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=3900)",
+          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=4800)",
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
@@ -4960,7 +4976,25 @@
           "dataset_keys=(\"equity.financial.fact\",)",
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
-          "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
+          "publication_evidence_hash_from_result as _publication_evidence_hash_from_result",
+          "exc.code.startswith(",
+          "A_SHARE_UNIVERSE_",
+          "market_universe_error"
+        ],
+        "apps/data_center/infrastructure/a_share_universe_sync.py": [
+          "_AKSHARE_SEGMENTS",
+          "stock_info_sh_name_code",
+          "stock_info_sz_name_code",
+          "stock_info_bj_name_code",
+          "cache_clear",
+          "stock_basic",
+          "list_status=\"L\"",
+          "_DEFAULT_FAILOVER_TOLERANCE = 0.01",
+          "symmetric_difference",
+          "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT"
+        ],
+        "apps/data_center/infrastructure/catalog_repositories.py": [
+          "def list_active_stock_codes(self) -> set[str]:"
         ],
         "apps/data_center/application/market_publication_refresh.py": [
           "port.prepare_stock_history(tuple(asset_codes), target_date, target_date)",
@@ -5106,10 +5140,16 @@
           "require_decision_evidence=True"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
-          "observed_at=cn_market_session_close_utc(record.trade_date)"
+          "observed_at=cn_market_session_close_utc(record.trade_date)",
+          "extra=self._provider_extra(quote.extra)"
+        ],
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
+          "response_evidence=response_evidence"
         ],
         "apps/data_center/infrastructure/tushare_replay_parser.py": [
-          "observed_at=cn_market_session_close_utc(val_date)"
+          "observed_at=cn_market_session_close_utc(val_date)",
+          "\"raw_payload_hash\": response_evidence.body_sha256",
+          "\"response_completed_at\": response_evidence.response_completed_at.isoformat()"
         ],
         "apps/data_center/infrastructure/_provider_adapter_akshare.py": [
           "observed_at=cn_market_session_close_utc(val_date)",
@@ -5132,6 +5172,7 @@
           "provider batch asset identities are incomplete",
           "def valuation_scope_incomplete_failure(",
           "CURRENT_VALUATION_SCOPE_INCOMPLETE",
+          "def quote_session_prefetch_failure(",
           "def finalize_full_market_result("
         ],
         "apps/data_center/domain/publication_snapshot_policy.py": [
@@ -5150,6 +5191,31 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "a_share_provider_retries_segmented_connection_and_json_failures",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_akshare_universe_provider_retries_transient_failure"
+        },
+        {
+          "case": "a_share_tushare_stock_basic_exchange_contract",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_tushare_stock_basic_uses_exchange_scopes_and_current_listing_contract"
+        },
+        {
+          "case": "a_share_failover_scope_drift_blocks_before_write",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_failover_blocks_scope_drift_before_any_write"
+        },
+        {
+          "case": "a_share_failover_source_and_provenance_are_reported",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_failover_accepts_consistent_fresh_provider_and_reports_source"
+        },
+        {
+          "case": "scheduled_market_refresh_exposes_classified_universe_provider_failure",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_exposes_stable_universe_refresh_error"
+        },
         {
           "case": "tushare_production_and_replay_valuation_mapping_match",
           "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
@@ -5864,6 +5930,46 @@
           "case": "price_provider_rejection_does_not_expand_history_scope",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_price_stage_does_not_expand_provider_rejection_into_history_requests"
+        },
+        {
+          "case": "full_market_quote_session_fetches_one_5569_asset_response",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_full_market_quote_session_fetches_once_and_reuses_frozen_rows"
+        },
+        {
+          "case": "quote_session_prefetch_does_not_cross_task_cache",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_has_no_cross_task_cache"
+        },
+        {
+          "case": "quote_session_rejects_mixed_response_completion_times",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_rejects_rows_from_multiple_responses"
+        },
+        {
+          "case": "quote_session_provider_rejection_propagates_without_cached_data",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_provider_failure_is_not_replaced_with_cached_data"
+        },
+        {
+          "case": "quote_prefetch_failure_preserves_counts_and_blocks_publication",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_prefetch_failure_result_preserves_partial_writes_and_stops_publication"
+        },
+        {
+          "case": "prefetched_quote_batches_do_not_requery_provider",
+          "test_file": "tests/unit/data_center/test_audited_quote_sync.py",
+          "test_function": "test_prefetched_quote_batches_reuse_one_provider_response_and_audit_its_scope"
+        },
+        {
+          "case": "quote_session_provider_failure_is_audited_and_propagated",
+          "test_file": "tests/unit/data_center/test_audited_quote_sync.py",
+          "test_function": "test_quote_session_prefetch_provider_rejection_is_audited_and_propagated"
+        },
+        {
+          "case": "tushare_quote_batch_response_evidence_is_preserved",
+          "test_file": "tests/unit/data_center/test_tushare_replay_parser.py",
+          "test_function": "test_production_quote_path_accepts_witnessed_frame_and_replay_target"
         },
         {
           "case": "full_market_schedule_defaults_to_tencent_valuations",
