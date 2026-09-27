@@ -10241,12 +10241,12 @@
       "text": "\"\"\"Resolve the latest exchange session whose post-close readiness time passed.\"\"\""
     },
     {
-      "line": 34,
+      "line": 44,
       "path": "apps/data_center/application/market_publication_refresh.py",
-      "text": "\"\"\"Refresh raw price facts and verify every current member before publication.\"\"\""
+      "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
     {
-      "line": 44,
+      "line": 59,
       "path": "apps/data_center/application/market_publication_refresh.py",
       "text": "\"Current price observations missing\", code=\"MODEL_MARKET_STALE\""
     },
