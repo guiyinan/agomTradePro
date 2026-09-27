@@ -2858,6 +2858,8 @@
         "apps/data_center/application/query_services.py": [
           "def query_published_financial_facts(",
           "def query_published_valuation_facts(",
+          "def query_current_valuation_publication_at_cutoff(",
+          "knowledge_cutoff must be timezone-aware",
           "def _publication_as_of_date(",
           "cn_market_date_from_observation(as_of)",
           "equity.financial.fact",
@@ -2977,6 +2979,16 @@
           "case": "old_member_observation_blocks_new_publication",
           "test_file": "tests/unit/data_center/test_published_query_ports.py",
           "test_function": "test_published_gate_blocks_old_member_observation_even_when_publication_is_new"
+        },
+        {
+          "case": "historical_replay_preserves_current_freshness_gate",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_historical_valuation_replay_preserves_current_freshness_gate"
+        },
+        {
+          "case": "isolated_postgresql_replay_uses_real_freshness_window",
+          "test_file": "tests/component/data_center/test_publication_read_snapshot_postgres.py",
+          "test_function": "test_isolated_write_rehearsal_uses_production_publication_and_rolls_back"
         },
         {
           "case": "equity_financials_stale_publication_blocks_before_read",

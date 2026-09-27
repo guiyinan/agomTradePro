@@ -365,3 +365,11 @@
 - Black、isort、Ruff、`git diff --check`、增量 mypy（最终全变更 28 个生产文件，0 regression）、全量 mypy debt ceiling（0 errors）、迁移检查、current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、module map 44 modules / 210 edges 均通过。部署工具生成的 source build、git build、deploy shell 均通过 `bash -n`，prebuilt Python 验证载荷通过 `py_compile`。
 - 动态容错实现已按职责冻结为 `892c28cda`（估值 partial、Publication 证据、业务 outcome）、`d9ce1351c`（真实 provider/replay/capacity/S6 合同）和 `4971f78ae`（有界远端清理与 0086 回滚门禁）。最终候选 SHA 以本计划提交后的分支 HEAD 为准；尚未取得该 SHA 的 PostgreSQL workflow、远端 CI、全量 5,569 容量、完整 S6、镜像或生产部署回执。生产仍运行旧版本；正式发布、decision runtime、Alpha、API/SDK/MCP 和普通用户页面的联合复验状态不变。
 - 首次推送后的远端门禁补获两个本地漏项：Data Center 架构清单、完整 entrypoint 清单与 module map 未按本轮源码重新生成；`tasks.py` 因新增结果投影达到 1,285 个非空行，超过 1,200 行治理上限。已把范围摘要、政策判断、阻断结果和最终业务 outcome 投影提取到 `full_market_task_support.py`，Celery task 名和注册入口保持不变，`tasks.py` 降至 1,200 行；重新生成三份投影后，本地治理一致性为 0 violations，entrypoint 共 1,262 项且 `candidate-review=0`，相关任务与发布负例 **55 passed**，两文件增量 mypy 0 regression。该修复必须随最终 SHA 重新取得远端门禁，不能沿用失败 run。
+
+### 2026-09-27 S6 真实时钟缺口与超时边界
+
+- `e1c9b0619` 的远端原生 Linux S6 已通过 build、镜像身份、50 只真实 provider、原始响应重放和 5,569 只全量容量；容量结果证明估值缺口按运行时集合与政策动态处理，没有硬编码 12 只，也没有阻断其他合格证券。隔离 PostgreSQL 写入阶段以 `REHEARSAL_WRITE_READBACK_FAILED` 阻断，事务回滚且生产未部署、未写入。
+- 只读复现确认根因是时间维度测试缺口：正式 `equity.valuation.fact` 新鲜度为 172800 秒，目标交易日 2026-09-24 的合成事实到 2026-09-27 已超过 48 小时；预演却调用普通 current 查询读回，因此正确得到 `canonical_publication_stale`。原组件测试使用 604800 秒和 `today-1`，掩盖了跨周末边界。不得通过延长正式 freshness 或把执行时间伪装成源观测时间修复。
+- 候选修复以目标交易日建立确定性的 observed/available/published 时间线，并新增绑定精确 publication id、要求时区明确 knowledge cutoff 的受限验证入口。预演先证明普通 current 查询仍按当前时钟拒绝 stale，再在历史截止点验证同一发布、篡改阻断和事务回滚。组件用例改为真实 172800 秒及七日前目标日；普通 current stale 和历史验证成功必须同时成立。
+- S6 外层单阶段超时从 1800 秒显式提高到 3600 秒，只解决镜像装载等环境开销；provider 60 秒、任务 900 秒、锁等待 10 秒等业务预算保持不变。此前同镜像在 VPS 运行正常，而本机 Docker VM 出现高负载和极慢启动，因此后续官方 S6继续在隔离的远端 Linux 环境执行，不能把环境卡顿归因于 provider 或缺失证券。
+- 本轮修复的单元查询/runner 组合 **33 passed**，current-data 70 surfaces、Celery 94 tasks / 21 exemptions / 24 files、Ruff、增量 mypy和 module map 已通过；专用 PostgreSQL 组件、最终同 SHA CI 和全新 S6仍是部署停止线。

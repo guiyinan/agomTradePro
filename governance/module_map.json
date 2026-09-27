@@ -4625,6 +4625,7 @@
           "list_price_covered_asset_codes",
           "list_valuation_covered_asset_codes",
           "macro_fact_exists_on_or_before",
+          "query_current_valuation_publication_at_cutoff",
           "query_financial_facts",
           "query_latest_quote_payloads",
           "query_macro_fact_series",

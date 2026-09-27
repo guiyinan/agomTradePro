@@ -8,7 +8,7 @@ import os
 import re
 import socket
 from dataclasses import asdict
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -17,7 +17,10 @@ from django.db import connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
-from apps.data_center.application.query_services import query_published_valuation_facts
+from apps.data_center.application.query_services import (
+    query_current_valuation_publication_at_cutoff,
+    query_published_valuation_facts,
+)
 from apps.data_center.application.valuation_publication import PublishValuationBatchUseCase
 from apps.data_center.domain.entities import ValuationFact
 from core.exceptions import DataFetchError
@@ -241,6 +244,9 @@ def collect_isolated_write_rehearsal(
         15,
         tzinfo=ZoneInfo("Asia/Shanghai"),
     ).astimezone(UTC)
+    available_at = observed_at + timedelta(minutes=1)
+    published_at = available_at + timedelta(minutes=1)
+    knowledge_cutoff = published_at + timedelta(seconds=1)
     identity = {
         "candidate_sha": candidate_sha,
         "candidate_image_id": candidate_image_id,
@@ -257,7 +263,12 @@ def collect_isolated_write_rehearsal(
         contract = DatasetContractRepository().get_active("equity.valuation.fact")
         policies = PublicationPolicyRepository()
         policy = policies.get_active("equity.valuation.fact")
-        if contract is None or policy is None or contract.key != policy.dataset:
+        if (
+            contract is None
+            or policy is None
+            or contract.key != policy.dataset
+            or contract.freshness_seconds is None
+        ):
             raise DataFetchError(
                 "Candidate valuation catalog seed is incomplete or inconsistent",
                 code="REHEARSAL_WRITE_CATALOG_UNAVAILABLE",
@@ -279,8 +290,8 @@ def collect_isolated_write_rehearsal(
             market_cap=1_000_000_000.0,
             source=source,
             observed_at=observed_at,
-            fetched_at=started,
-            available_at=started,
+            fetched_at=available_at,
+            available_at=available_at,
             source_record_id=identity_digest,
             raw_payload_hash=synthetic_payload_sha256,
             extra={
@@ -304,7 +315,7 @@ def collect_isolated_write_rehearsal(
             [fact],
             provider_name=source,
             publication_key=publication_key,
-            published_at=started,
+            published_at=published_at,
         )
         if publication is None:
             raise DataFetchError(
@@ -313,9 +324,28 @@ def collect_isolated_write_rehearsal(
             )
         publication_id = publication.publication_id
         member = publications.list_members(publication_id)[0]
-        readback = query_published_valuation_facts(
+        current_readback = query_published_valuation_facts(
             "000001.SZ",
             publication_key=publication_key,
+        )
+        current_time_stale_expected = (
+            started - observed_at
+        ).total_seconds() > contract.freshness_seconds
+        if current_time_stale_expected:
+            current_time_freshness_guard_verified = (
+                current_readback.get("must_not_use_for_decision") is True
+                and current_readback.get("blocked_reason") == "canonical_publication_stale"
+                and current_readback.get("rows") == []
+            )
+        else:
+            current_time_freshness_guard_verified = (
+                current_readback.get("must_not_use_for_decision") is False
+            )
+        readback = query_current_valuation_publication_at_cutoff(
+            "000001.SZ",
+            publication_key=publication_key,
+            expected_publication_id=publication_id,
+            knowledge_cutoff=knowledge_cutoff,
         )
         rows_value = readback.get("rows")
         rows = (
@@ -344,16 +374,22 @@ def collect_isolated_write_rehearsal(
                 selected_count=1,
             ).exists()
         )
-        if not readback_verified or not publication_verified:
+        if (
+            not current_time_freshness_guard_verified
+            or not readback_verified
+            or not publication_verified
+        ):
             raise DataFetchError(
                 "Isolated publication readback failed",
                 code="REHEARSAL_WRITE_READBACK_FAILED",
             )
         with transaction.atomic():
             ValuationFactModel.objects.filter(pk=member.fact_pk).update(pe_ttm=99)
-            tampered = query_published_valuation_facts(
+            tampered = query_current_valuation_publication_at_cutoff(
                 "000001.SZ",
                 publication_key=publication_key,
+                expected_publication_id=publication_id,
+                knowledge_cutoff=knowledge_cutoff,
             )
             tamper_blocked = (
                 tampered.get("must_not_use_for_decision") is True
@@ -361,9 +397,11 @@ def collect_isolated_write_rehearsal(
                 and tampered.get("rows") == []
             )
             transaction.set_rollback(True)
-        restored = query_published_valuation_facts(
+        restored = query_current_valuation_publication_at_cutoff(
             "000001.SZ",
             publication_key=publication_key,
+            expected_publication_id=publication_id,
+            knowledge_cutoff=knowledge_cutoff,
         )
         if not tamper_blocked or restored.get("must_not_use_for_decision") is not False:
             raise DataFetchError(
@@ -406,6 +444,8 @@ def collect_isolated_write_rehearsal(
         "written_rows": written_rows,
         "publication_verified": publication_verified,
         "readback_verified": readback_verified,
+        "current_time_stale_expected": current_time_stale_expected,
+        "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
         "rollback_verified": rollback_verified,
         "residual_rows": residual_rows,
@@ -436,6 +476,8 @@ def collect_isolated_write_rehearsal(
         "written_rows": written_rows,
         "publication_verified": publication_verified,
         "readback_verified": readback_verified,
+        "current_time_stale_expected": current_time_stale_expected,
+        "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
         "rollback_verified": rollback_verified,
         "residual_rows": residual_rows,

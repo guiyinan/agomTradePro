@@ -382,6 +382,68 @@ def test_partial_valuation_missing_asset_preserves_stable_scope_reason(monkeypat
     )
 
 
+def test_historical_valuation_replay_preserves_current_freshness_gate(monkeypatch) -> None:
+    """Historical replay is explicit while the same publication stays stale for current use."""
+
+    observed_at = datetime(2020, 1, 2, 7, tzinfo=UTC)
+    published_at = datetime(2020, 1, 2, 7, 2, tzinfo=UTC)
+    knowledge_cutoff = datetime(2020, 1, 2, 7, 3, tzinfo=UTC)
+    publication = _publication(
+        dataset_key="equity.valuation.fact",
+        publication_id="historical-valuations",
+        as_of=observed_at,
+        published_at=published_at,
+    )
+    repository = _PublicationRepository(fixed_publication=publication)
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: repository,
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_dataset_contract_repository",
+        lambda: SimpleNamespace(get_active=lambda _: SimpleNamespace(freshness_seconds=172800)),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "query_valuation_facts",
+        lambda *_args, **_kwargs: [{"asset_code": "600000.SH", "pe_ttm": 12.5}],
+    )
+
+    current = query_services.query_published_valuation_facts("600000.SH")
+    replay = query_services.query_current_valuation_publication_at_cutoff(
+        "600000.SH",
+        expected_publication_id=publication.publication_id,
+        knowledge_cutoff=knowledge_cutoff,
+    )
+    mismatched = query_services.query_current_valuation_publication_at_cutoff(
+        "600000.SH",
+        expected_publication_id="different-publication",
+        knowledge_cutoff=knowledge_cutoff,
+    )
+
+    assert current["blocked_reason"] == "canonical_publication_stale"
+    assert current["must_not_use_for_decision"] is True
+    assert current["rows"] == []
+    assert replay["must_not_use_for_decision"] is False
+    assert replay["rows"] == [{"asset_code": "600000.SH", "pe_ttm": 12.5}]
+    assert mismatched["blocked_reason"] == "publication_identity_mismatch"
+    assert mismatched["rows"] == []
+    with pytest.raises(ValueError, match="expected_publication_id must not be empty"):
+        query_services.query_current_valuation_publication_at_cutoff(
+            "600000.SH",
+            expected_publication_id=" ",
+            knowledge_cutoff=knowledge_cutoff,
+        )
+    with pytest.raises(ValueError, match="knowledge_cutoff must be timezone-aware"):
+        query_services.query_current_valuation_publication_at_cutoff(
+            "600000.SH",
+            expected_publication_id=publication.publication_id,
+            knowledge_cutoff=datetime(2020, 1, 2, 7, 3),
+        )
+
+
 _RAISE_OLDEST = object()
 _DATASET_FACT_TABLES: dict[str, str] = {
     "macro.fact": "data_center_macro_fact",

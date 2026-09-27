@@ -260,7 +260,7 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
         frequency="daily",
         decision_critical=True,
         fields=[{"name": "observed_at", "type": "datetime", "nullable": False}],
-        freshness_seconds=604800,
+        freshness_seconds=172800,
     )
     DatasetPublicationPolicyModel.objects.create(
         dataset_key="equity.valuation.fact",
@@ -308,7 +308,7 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
 
     report = runner.collect_isolated_write_rehearsal(
         candidate_sha=candidate,
-        target_trade_date=date.today() - timedelta(days=1),
+        target_trade_date=date.today() - timedelta(days=7),
         universe_sha256="a" * 64,
         provider_identities_sha256="b" * 64,
         output_dir=tmp_path / "evidence",
@@ -323,6 +323,8 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert report["outcome"] == "success"
     assert receipt["publication_verified"] is True
     assert receipt["readback_verified"] is True
+    assert receipt["current_time_stale_expected"] is True
+    assert receipt["current_time_freshness_guard_verified"] is True
     assert receipt["tamper_guard_verified"] is True
     assert receipt["rollback_verified"] is True
     assert receipt["residual_rows"] == 0

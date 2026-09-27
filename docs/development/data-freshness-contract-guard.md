@@ -225,6 +225,11 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 
 ### 2026-09-26 当前估值容错与 Tencent 证据
 
+隔离发布预演的合成事实使用目标交易日建立确定性的观测、可用和发布时间线，并通过显式、
+时区明确的历史知识截止点读取。普通 current 查询仍使用当前时钟；跨周末超过正式新鲜度
+窗口时必须返回 `canonical_publication_stale`。预演不得通过延长正式新鲜度或把执行时间写成
+源观测时间来获得成功。
+
 当前估值的 `requested` 始终是运行时冻结的完整 active universe。缺口由 `requested - target_session_succeeded` 动态计算，禁止把某次故障的证券代码、数量或排除结果写入生产规则。只有活动政策 `allow_partial=true`、实际覆盖率达到 `minimum_coverage_ratio`、逐证券原因均为 `valuation_source_data_unavailable` 且 Publication scope block 与事实集合可对账时，合格成员才可形成 `partial` 发布。报价仍要求完整；政策缺失、低于门槛、来源日期不符或证据链不完整继续全局阻断。
 
 每个当前估值 scope block 必须保留目标交易日、provider/source、publication run id、policy version 与所属 publication id，并与父 Publication 的日期、来源、运行、政策和确定性 id 一致。内容 hash 纳入 block 的证据字段，但不纳入 publication id（它由内容 hash 确定）；重建、持久化不变性校验和查询 gate 必须按同一规则复算。单证券查询只投影该证券的完整阻断证据，不向用户返回其他证券的 aggregate blocks。

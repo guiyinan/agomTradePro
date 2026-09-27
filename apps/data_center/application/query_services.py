@@ -668,22 +668,33 @@ def query_published_financial_facts(
     }
 
 
-@publication_snapshot("equity.valuation.fact")
-def query_published_valuation_facts(
+def _query_published_valuation_facts(
     asset_code: str,
     *,
     as_of: date | None = None,
     limit: int | None = None,
     publication_key: str = "current",
+    knowledge_cutoff: datetime | None = None,
+    expected_publication_id: str | None = None,
 ) -> dict[str, object]:
-    """Read valuation facts only after the current valuation publication gate."""
+    """Read valuation facts after validating them at an explicit knowledge boundary."""
 
     gate = _publication_gate(
         "equity.valuation.fact",
         publication_key,
+        now=knowledge_cutoff,
         asset_code=asset_code,
     )
     if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return _blocked_publication_result(gate)
+    if (
+        expected_publication_id is not None
+        and gate.get("publication_id") != expected_publication_id
+    ):
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="publication_identity_mismatch",
+        )
         return _blocked_publication_result(gate)
     member_pks = _publication_member_fact_pks(
         gate,
@@ -701,6 +712,50 @@ def query_published_valuation_facts(
         ),
         **gate,
     }
+
+
+@publication_snapshot("equity.valuation.fact")
+def query_published_valuation_facts(
+    asset_code: str,
+    *,
+    as_of: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Read current valuation facts using the wall-clock freshness boundary."""
+
+    return _query_published_valuation_facts(
+        asset_code,
+        as_of=as_of,
+        limit=limit,
+        publication_key=publication_key,
+    )
+
+
+@publication_snapshot("equity.valuation.fact")
+def query_current_valuation_publication_at_cutoff(
+    asset_code: str,
+    *,
+    expected_publication_id: str,
+    knowledge_cutoff: datetime,
+    as_of: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> dict[str, object]:
+    """Verify the selected current publication at one pinned historical cutoff."""
+
+    if not expected_publication_id.strip():
+        raise ValueError("expected_publication_id must not be empty")
+    if knowledge_cutoff.tzinfo is None or knowledge_cutoff.utcoffset() is None:
+        raise ValueError("knowledge_cutoff must be timezone-aware")
+    return _query_published_valuation_facts(
+        asset_code,
+        as_of=as_of,
+        limit=limit,
+        publication_key=publication_key,
+        knowledge_cutoff=knowledge_cutoff,
+        expected_publication_id=expected_publication_id,
+    )
 
 
 @publication_snapshot("sector.membership")
