@@ -9,8 +9,10 @@ import sys
 import time
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
+import yaml
 
 
 def _load_module() -> ModuleType:
@@ -317,17 +319,39 @@ def test_runtime_permission_contract_covers_all_compose_read_only_source_mounts(
     """Every source-controlled read-only bind mount needs an explicit mode owner."""
 
     repository_root = Path(__file__).resolve().parents[2]
-    compose_text = (repository_root / "docker/docker-compose.vps.yml").read_text(encoding="utf-8")
+    compose_path = repository_root / "docker/docker-compose.vps.yml"
+    compose_payload = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+    assert isinstance(compose_payload, dict)
+    services = compose_payload.get("services")
+    assert isinstance(services, dict)
     readonly_sources: set[str] = set()
-    for raw_line in compose_text.splitlines():
-        stripped = raw_line.strip()
-        if not stripped.startswith("- ") or not stripped.endswith(":ro"):
-            continue
-        source = stripped[2:].split(":", 1)[0]
-        if source.startswith("../"):
-            readonly_sources.add(source[3:])
-        elif source.startswith("./"):
-            readonly_sources.add(f"docker/{source[2:]}")
+    unsupported_sources: set[str] = set()
+    for service in services.values():
+        assert isinstance(service, dict)
+        for raw_mount in service.get("volumes", []):
+            source = ""
+            read_only = False
+            if isinstance(raw_mount, str):
+                parts = raw_mount.split(":")
+                if len(parts) >= 3:
+                    source = parts[0]
+                    read_only = "ro" in parts[-1].split(",")
+            elif isinstance(raw_mount, dict):
+                mount: dict[str, Any] = raw_mount
+                if mount.get("type") == "bind" and mount.get("read_only") is True:
+                    source_value = mount.get("source")
+                    source = source_value if isinstance(source_value, str) else ""
+                    read_only = True
+            if not read_only:
+                continue
+            if source.startswith("../"):
+                readonly_sources.add(source[3:])
+            elif source.startswith("./"):
+                readonly_sources.add(f"docker/{source[2:]}")
+            elif source and all(character.isalnum() or character in "._-" for character in source):
+                continue
+            else:
+                unsupported_sources.add(source or "<missing>")
 
     generated_readable_sources = {
         ".agom-release-manifest.json",
@@ -340,8 +364,13 @@ def test_runtime_permission_contract_covers_all_compose_read_only_source_mounts(
         if source in normalizer or source in generated_readable_sources
     }
 
+    assert not unsupported_sources
     assert readonly_sources == normalized_sources
-    assert "manifest_path.chmod(0o444)" in remote_build_deploy_vps._build_remote_build_script()
+    for builder_name in (
+        "_build_remote_build_script",
+        "_build_remote_git_clone_build_script",
+    ):
+        assert "manifest_path.chmod(0o444)" in getattr(remote_build_deploy_vps, builder_name)()
     deploy_script = remote_build_deploy_vps._build_remote_deploy_script()
     assert 'sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template' in deploy_script
     assert "chmod 0644 docker/Caddyfile" in deploy_script
