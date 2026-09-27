@@ -2792,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:742",
-      "locator": "line:742",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:734",
+      "locator": "line:734",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
