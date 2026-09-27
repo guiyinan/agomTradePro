@@ -200,6 +200,14 @@ def test_production_runtime_mounts_and_embeds_release_identity() -> None:
         assert "'source_commit': os.environ['SOURCE_COMMIT']" in dockerfile, relative_path
 
 
+def test_production_entrypoint_is_world_readable_and_executable() -> None:
+    """Keep shell entrypoints runnable when source archives use a restrictive umask."""
+    for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
+        dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "chmod 0755 /entrypoint.sh" in dockerfile, relative_path
+        assert "chmod +x /entrypoint.sh" not in dockerfile, relative_path
+
+
 def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
     one_click_script = (REPO_ROOT / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")

@@ -439,3 +439,16 @@
   和 PostgreSQL 证据后部署。部署后再以动态全市场范围重跑；验收必须得到规范 outcome、四项计数、
   publication run/id/hash/member 对账。随后才能继续财报、decision runtime、Alpha、API/SDK/MCP
   和普通用户页面联合复验。
+
+### 2026-09-27 S6 受限 umask 下的镜像入口权限
+
+- authority 竞争修复候选在同 SHA CI 全绿后启动完整 S6。外层 build/stage 预算由 3,600 秒调整为
+  5,400 秒；真实 provider 1,800 秒、任务 900 秒、锁等待 10 秒和请求上限 200 均保持不变。
+  镜像构建实际约 21 分钟并成功，证明外层预算需要覆盖真实构建规模，但不能用来放宽业务门槛。
+- 隔离 PostgreSQL 预检随后在 provider 调用前以 `S6_STAGE_COMMAND_FAILED` 阻断。数据库连接和主体
+  已只读验证正常；精确复现的 stderr 为 `/bin/sh: 0: cannot open /entrypoint.sh: Permission denied`。
+  根因是 S6 工作区在 `umask 077` 下创建，source archive 内入口脚本模式为 0600；Dockerfile 的
+  `chmod +x` 只得到 0711。容器以 `appuser` 启动时内核可执行脚本，但 `/bin/sh` 无法读取脚本。
+- 修复在两个生产 Dockerfile 中显式设置 `chmod 0755 /entrypoint.sh`，并增加双 Dockerfile 契约
+  测试，固定入口必须对运行用户可读且可执行。禁止在 S6 使用 `--entrypoint python` 绕过镜像入口；
+  修复候选须重新取得同 SHA CI、重新构建镜像并完成全新 S6。
