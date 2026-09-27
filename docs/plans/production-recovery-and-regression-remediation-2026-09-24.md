@@ -381,3 +381,38 @@
 - 修复上述范围误判后，冻结 bundle 暴露第二个误判 `REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID`。Tencent 批量估值的每只证券携带自己的 provider 时间，本次 50 条 observation 有 28 个不同来源时间；receipt 顶层时间只表示兼容的批次基准。修复优先将每条 observation 与同证券原始响应行的 `observed_at` 精确绑定，只有日期型、没有行时间的响应才回退到 receipt 时间；时区、目标交易日和 source ≤ transport ≤ normalize 顺序约束不变。
 - 回归夹具现显式区分注册全集 51、probe/observation 样本 50 和原始全市场响应 51，并覆盖同一批次两只证券具有不同 provider 时间。验证器与 launcher 联合测试 **113 passed / 1 skipped**，Ruff/Black/isort、增量 mypy和全量 debt ceiling 均通过。将相同 validator 上传到独立 `validator-tool` 后，对未修改的 `94ba80a2a` 不可变 bundle 只读重放返回 `outcome=success`，四类报告全部通过。
 - 上述只读重放用于根因和修复证明，不冒充官方 S6 成功。launcher 没有 validator-only/resume 模式，失败路径不会生成部署 handoff receipt；提交 validator 修复又会产生新候选 SHA，旧镜像、CI、bundle 和报告不能授权新 SHA。冻结本提交后只允许执行一次同 SHA CI 和全新完整 S6；不得手工补造 receipt、复制旧 bundle 或继续加入非阻断改进。完整 S6 成功并生成严格绑定的回执后才允许部署和十项生产联合复验。
+
+### 2026-09-27 全市场发布失败的最终定位、网关修复与当前停止线
+
+#### 任务结果与超时结论
+
+- 原任务 `0d739398-3052-4378-bed1-0b99405ebfdf` 的持久业务结果确认是 `outcome=partial`、`requested=57`、`succeeded=56`、`failed=1`、`stored=11114`、`asset_count=5557`、`published_members=0`。行情和估值事实存在部分写入，但正式 Publication 未更新；不能用 Celery failure 或任务结束代替该业务结论。
+- 后续全市场任务 `59fe4eab-1981-4567-96f5-b082e09e8305` 运行约 2,985 秒，低于 soft/hard time limit 3,500/3,600 秒。报价和估值事实为 5,569/5,569、`stored=11138`，正式发布为 0/1，稳定失败类别为 `TUSHARE_PROVIDER_REJECTED`。因此本次恢复不再把“继续增加 Celery 超时”作为根因修复；3,600 秒外层限额可保留环境余量，但不能掩盖 provider、发布验证或规模合同错误。
+- 实际失败阶段是正式行情发布准备。旧实现为全市场每只证券复用 120 日 Qlib 历史窗口，触发约 80 个交易日的 `daily` 与 `adj_factor` 全市场请求。事实同步已经完成，发布准备随后被 provider 拒绝，正式 Publication 按 fail-closed 保留旧版本。
+
+#### 动态容错实现
+
+- `0b6d35999` 起，全市场发布只批量准备目标交易日一次；仅当某只证券在目标日缺失或具有可验证的不可用状态时，才为该证券动态扩展 120 日历史。provider 配额、权限、拒绝、来源冲突等错误不触发扩窗，继续保留阻断。
+- 证券集合、缺口数量和事故中的 12 只均未写入运行时代码。每轮以冻结 universe、目标日实际返回集合、激活政策和来源证据重新计算。5,569 只规模、仅缺失证券扩窗、无效停牌证据、provider 拒绝和来源冲突均有契约反例。
+- 该变更只减少无必要的 provider 请求，不降低 freshness、覆盖率或审计门槛，不改变 `SIGNAL_WEAK=0.6000`，也不把缺失价格填成 0。
+
+#### S6 阶段证据与失败停止
+
+- 候选 `3ed4a964f` 的远端运行 `evidence-20260927d` 已通过 build、镜像身份、真实 provider、原始响应回放和 5,569 只容量；隔离 PostgreSQL 写入因新数据库尚未迁移而以 `REHEARSAL_WRITE_MIGRATIONS_PENDING` 阻断。对同一隔离数据库应用候选迁移并确认 pending=0 后，单独的 targeted isolated write 成功：publication id=`4f3cb95a-9d71-59f7-aa12-f57bb29ea846`、written rows=4、residual rows=0，读回、回滚、防篡改与历史时点验证全部通过。该定向成功不能合并成部署回执。
+- launcher 当前要求一次运行从同一 SHA 生成 manifest、receipt、release tag 和 image id，没有受支持的 resume/merge 模式。因此最终统一运行必须重跑前置阶段；这是现有工具合同，不是市场业务本身要求重复 provider 工作。后续整改应增加已验证 artifact 的受控 resume 设计，但在实现前不得手工拼接证据。
+- 最终统一运行 `evidence-20260927e` 在真实 provider probe 阶段失败并已停止，没有自动重跑：估值 5,569/5,569，行情 0/50；gateway receipt 为 HTTP 404、GB2312 HTML、516 bytes、SHA-256=`2b3e9bb…`。当前计划禁止在同一故障未修复且精确预检未通过时重复完整 S6。
+
+#### Tushare 网关根因与生产热修复
+
+- 对完全相同的 `daily(trade_date=20260924)` 全市场请求，直连上游返回 HTTP 200、JSON、5,569 行、541,160 bytes；经 `https://demo.agomtrade.pro/internal/tushare-gateway` 返回与“直连上游但强制 `Host: demo.agomtrade.pro`”完全相同的 404/516 bytes/GB2312 响应。结论是 Caddy 透传外部 Host，导致上游虚拟主机错误路由；token、额度、数据范围和应用 provider 代码均不是该失败的根因。单证券小请求曾返回 200，证明预演必须使用真实全市场 payload，不能以简化 smoke request 代替 provider 合同。
+- 仓库修复提交 `4d18f78f4deaf5d9ae34586df2f10912561985a6` 仅修改 `docker/Caddyfile.template`，在 Tushare `reverse_proxy` 中设置 `header_up Host {upstream_hostport}`，并以模板和部署渲染结果双重契约测试固定该行为。相关单元测试 26 passed，Ruff、Black、`git diff --check` 通过；同 SHA 的 Consistency `36315731454`、Fast Feedback `36315731384`、Architecture `36315731467` 和 Security `36315731428` 全部成功。
+- 生产当前应用镜像和源码仍为 `fd86bf41919f703e7192a83d097de1da78d5e058`，没有热更新 Python 或绕过 S6。仅对挂载的生成版 Caddyfile 做了有备份的配置热修复：备份目录 `/opt/agomtradepro/manual-file-backups/20260927112906-caddy-host-routing`；候选配置和运行配置均通过 `caddy validate`，随后热重载成功。
+- 热修复后的真实全市场请求返回 HTTP 200、`application/json`、provider code 0、5,569 行、541,160 bytes、SHA-256=`c0dc1c665d1513898626010a3fe4d21f8eeff41dd30ac15ad180c449c39f161a`，与直连上游证据一致。该结果只证明网关合同恢复；正式行情、估值和财报 Publication 仍未恢复，decision runtime 仍不得解除阻断。
+
+#### 下一步与退出条件
+
+1. 等待 `4d18f78f4` 的 Consistency、Fast Feedback、Architecture 和 Security 全部完成；若任一失败，先定位并修复，不启动 S6。
+2. 在再次运行 S6 前执行三个有界预检：真实全市场 gateway 请求必须保持 200/code 0/5,569；隔离 PostgreSQL `showmigrations` 必须 pending=0；候选仓库必须 clean 且 SHA、CI、provider/universe identity 完全一致。网络 alias 只作为预演环境依赖记录，不能依赖偶然的容器重建状态。
+3. 本次最终 S6 已按失败停止。只有在上述预检全部通过并明确恢复执行后，才允许以新 SHA 建立唯一全新 evidence 目录；失败即停止，不循环重跑。成功必须生成同 SHA 的 immutable bundle 和 deploy handoff receipt。
+4. 只有完整 S6 成功后才部署应用候选。部署后重跑全市场任务并核对规范业务 `outcome`、`requested/succeeded/failed/stored`、阶段、run id、publication id/hash/member/scope block；随后恢复财报续批、按 guarded activation 解除 decision runtime，并完成 API/SDK/MCP、工作台主流程与普通用户权限补充验收。
+5. 生产正式发布尚未恢复前，用户页面必须明确区分“原始事实已写入”“正式发布仍旧”“局部证券数据不可用”和“管理员正在处理”。不得让 readiness HTTP 200、Celery SUCCESS 或局部 provider 成功掩盖决策不可用。
