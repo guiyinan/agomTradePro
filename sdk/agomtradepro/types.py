@@ -250,8 +250,12 @@ class WorkbenchSummary:
     工作台概览
 
     Attributes:
-        policy_level: 当前政策档位 (P0-P3)
+        policy_level: 当前政策档位 (PX/P0-P3)
         policy_level_name: 政策档位名称
+        observed_at: 工作台来源数据时间
+        requires_manual_approval: 是否需要人工复核
+        must_not_use_for_decision: 当前摘要是否禁止用于决策
+        blocked_reason: 稳定业务阻断原因
         gate_level: 热点情绪闸门等级 (L0-L3)
         gate_level_name: 闸门等级名称
         global_heat: 全局热度评分 (0-100)
@@ -263,6 +267,10 @@ class WorkbenchSummary:
 
     policy_level: PolicyLevel
     policy_level_name: str
+    observed_at: datetime | None = None
+    requires_manual_approval: bool = False
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
     gate_level: GateLevel | None = None
     gate_level_name: str | None = None
     global_heat: float | None = None

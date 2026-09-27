@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from unittest.mock import call, patch
 
 from agomtradepro import AgomTradeProClient
@@ -94,6 +94,25 @@ def test_policy_status_rejects_sensitive_diagnostic_fields() -> None:
     assert status.freshness_status == "unknown"
     assert status.blocked_reason == "policy_unclassified_manual_review"
     assert status.trace_id is None
+
+
+def test_workbench_summary_preserves_unclassified_manual_review_contract() -> None:
+    client = _client()
+    response = {
+        "policy_level": "PX",
+        "last_fetch_at": "2026-09-28T03:15:00Z",
+        "pending_review_count": 12,
+    }
+
+    with patch.object(client, "get", return_value=response):
+        summary = client.policy.get_workbench_summary()
+
+    assert summary.policy_level == "PX"
+    assert summary.policy_level_name == "待分类"
+    assert summary.observed_at == datetime(2026, 9, 28, 3, 15, tzinfo=UTC)
+    assert summary.requires_manual_approval is True
+    assert summary.must_not_use_for_decision is True
+    assert summary.blocked_reason == "policy_unclassified_manual_review"
 
 
 def test_policy_events_reads_canonical_envelope_and_applies_limit() -> None:

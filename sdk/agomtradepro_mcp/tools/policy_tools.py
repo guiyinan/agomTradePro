@@ -163,6 +163,10 @@ def register_policy_tools(server: FastMCP) -> None:
         return {
             "policy_level": summary.policy_level,
             "policy_level_name": summary.policy_level_name,
+            "observed_at": summary.observed_at.isoformat() if summary.observed_at else None,
+            "requires_manual_approval": summary.requires_manual_approval,
+            "must_not_use_for_decision": summary.must_not_use_for_decision,
+            "blocked_reason": summary.blocked_reason,
             "gate_level": summary.gate_level,
             "gate_level_name": summary.gate_level_name,
             "global_heat": summary.global_heat,

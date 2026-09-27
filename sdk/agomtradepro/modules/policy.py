@@ -706,9 +706,57 @@ class PolicyModule(BaseModule):
 
     def _parse_workbench_summary(self, data: dict[str, Any]) -> WorkbenchSummary:
         """解析工作台概览数据"""
+        raw_level = data.get("policy_level")
+        policy_level: PolicyLevel = (
+            raw_level if raw_level in {"PX", "P0", "P1", "P2", "P3"} else "PX"
+        )
+        level_names = {
+            "PX": "待分类",
+            "P0": "常态",
+            "P1": "预警",
+            "P2": "干预",
+            "P3": "危机",
+        }
+        raw_level_name = data.get("policy_level_name")
+        policy_level_name = (
+            raw_level_name.strip()
+            if isinstance(raw_level_name, str)
+            and raw_level_name.strip()
+            and len(raw_level_name.strip()) <= 128
+            and not _UNSAFE_POLICY_TEXT_PATTERN.search(raw_level_name)
+            else level_names[policy_level]
+        )
+        requires_manual_approval = bool(
+            data.get("requires_manual_approval", False) or policy_level == "PX"
+        )
+        must_not_use_for_decision = bool(
+            data.get("must_not_use_for_decision", False) or requires_manual_approval
+        )
+        blocked_reason = data.get("blocked_reason")
+        if (
+            not isinstance(blocked_reason, str)
+            or len(blocked_reason.strip()) > 240
+            or (blocked_reason and not _SAFE_POLICY_CODE_PATTERN.fullmatch(blocked_reason.strip()))
+        ):
+            blocked_reason = ""
+        if must_not_use_for_decision and not blocked_reason:
+            blocked_reason = "policy_unclassified_manual_review"
+        observed_at = data.get("observed_at", data.get("last_fetch_at"))
+        if isinstance(observed_at, str):
+            try:
+                parsed_observed_at = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+                observed_at = parsed_observed_at if parsed_observed_at.tzinfo is not None else None
+            except ValueError:
+                observed_at = None
+        elif not isinstance(observed_at, datetime) or observed_at.tzinfo is None:
+            observed_at = None
         return WorkbenchSummary(
-            policy_level=data.get("policy_level", "P0"),
-            policy_level_name=data.get("policy_level_name", "常态"),
+            policy_level=policy_level,
+            policy_level_name=policy_level_name,
+            observed_at=observed_at,
+            requires_manual_approval=requires_manual_approval,
+            must_not_use_for_decision=must_not_use_for_decision,
+            blocked_reason=blocked_reason,
             gate_level=data.get("gate_level"),
             gate_level_name=data.get("gate_level_name"),
             global_heat=data.get("global_heat"),

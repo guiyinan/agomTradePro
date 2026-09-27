@@ -120,6 +120,10 @@ MANIFESTS = [
             "properties": {
                 "policy_level": {"type": "string"},
                 "policy_level_name": {"type": "string"},
+                "observed_at": {"type": ["string", "null"]},
+                "requires_manual_approval": {"type": "boolean"},
+                "must_not_use_for_decision": {"type": "boolean"},
+                "blocked_reason": {"type": "string"},
                 "gate_level": {"type": "string"},
                 "gate_level_name": {"type": "string"},
                 "global_heat": {},

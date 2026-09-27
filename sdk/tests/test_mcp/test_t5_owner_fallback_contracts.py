@@ -461,6 +461,10 @@ def test_policy_fallback_matrix_formats_workbench_records(
     service.get_workbench_summary.return_value = SimpleNamespace(
         policy_level="P1",
         policy_level_name="observe",
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        requires_manual_approval=False,
+        must_not_use_for_decision=False,
+        blocked_reason="",
         gate_level="open",
         gate_level_name="open",
         global_heat=0.5,
@@ -510,7 +514,12 @@ def test_policy_fallback_matrix_formats_workbench_records(
     assert policy._fallback_get_policy_status()["recent_events_count"] == 1
     assert policy._fallback_get_policy_events("2026-01-01", "2026-07-25", 10)["total_count"] == 1
     assert policy._fallback_get_workbench_bootstrap()["tabs"] == ["pending"]
-    assert policy._fallback_get_workbench_summary()["policy_level"] == "P1"
+    summary = policy._fallback_get_workbench_summary()
+    assert summary["policy_level"] == "P1"
+    assert summary["observed_at"] == "2026-07-25T00:00:00+00:00"
+    assert summary["requires_manual_approval"] is False
+    assert summary["must_not_use_for_decision"] is False
+    assert summary["blocked_reason"] == ""
     assert policy._fallback_get_workbench_event_detail(1)["id"] == 1
     assert policy._fallback_get_workbench_items("pending", "rate", "P1", "open", "decision", 1, 20)[
         "items"
