@@ -373,6 +373,9 @@ def test_backfill_batch_blocks_before_repository_access_without_current_authorit
     """A missing canonical authority must stop before universe/provider reads."""
 
     from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import data02_task_authority
+
+    mocker.patch.object(data02_task_authority, "sleep", return_value=None)
 
     _patch_current_authority.side_effect = SystemAuditCompositionUnavailable(
         "unavailable",

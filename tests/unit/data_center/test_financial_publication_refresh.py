@@ -80,6 +80,9 @@ def test_financial_refresh_rejects_invalid_input_before_provider_access(monkeypa
 
 def test_financial_refresh_blocks_without_current_authority(monkeypatch) -> None:
     from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import data02_task_authority
+
+    monkeypatch.setattr(data02_task_authority, "sleep", lambda _: None)
 
     monkeypatch.setattr(
         tasks.audit_integration,

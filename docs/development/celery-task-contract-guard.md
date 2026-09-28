@@ -140,7 +140,7 @@ python scripts/check_celery_task_contracts.py \
 2026-09-19：`data_center.refresh_full_market_publications` 冻结有效 A 股全集，按批刷新报价与估值事实；任何批次不完整均保留原 Publication。全部事实齐备且源观测日匹配最近完成交易日后才发布报价、估值、日线全集。停牌日线保留实际日期，财报发布仍独立校验。`setup_full_market_publications` 幂等配置工作日 17:05（项目时区）的 Beat 任务，可用参数调整或禁用；该时间晚于 Tushare `daily_basic` 官方 15:00～17:00 更新窗口，不能在数据源尚未形成当日完整截面时发布前一日数据冒充当期。审计配置/服务身份不可用时，在任何行情请求和写入前返回 `outcome=blocked`、`stored=0` 及稳定原因；不得以关闭审计、空 writer 或临时管理员身份作为恢复措施。
 
 2026-09-27 审计 authority 复验容错：全市场长任务与每 15 分钟续租守卫并发时，
-只允许对稳定码 `system_audit_authority_unavailable` 做最多三次有界重读；每次使用新的 UTC
+只允许对稳定码 `system_audit_authority_unavailable` 做最多六次有界重读；每次使用新的 UTC
 时刻重新验证剩余授权窗口。actor、user、tenant、owner、认证/职员状态、role、来源身份或
 有效期真实变化不得重试放行。重读耗尽后立即停止剩余批次，把未执行操作计入失败并只保留
 一次稳定根因；禁止把同一 authority 阻断复制成全 universe 异常列表。
@@ -170,6 +170,14 @@ policy 和 publication identity 的证券级 scope block，其他证券继续可
 `requested/succeeded/failed/stored`、动态排除清单和安全说明，不合成 0 价格或沿用旧报价冒充当日值。
 
 2026-09-28 审计锁竞争容错：长任务在每个写边界仍须复验同一 authority identity。仅当读取返回稳定的 `system_audit_authority_unavailable` 时，允许最多 6 次递增、单次不超过 5 秒的有界重读，以跨过其他受治理写入持有的短事务锁；每次重读都使用新的 UTC 时钟重算有效窗口。authority source、actor、user、tenant、owner、认证/职员状态、role 或有效期发生变化时立即失败关闭，不得重试为成功，也不得跳过最终发布前复验。
+
+2026-09-29 初始 authority 预检容错：任务尚未访问 provider 或写入事实前，初始预检也可能与
+续租或其他受治理写入争用 Account authority 表。初始预检与写边界复验共享同一个单次读取和
+有界退避原语，但各自独立计数，禁止形成嵌套重试；只对
+`system_audit_authority_unavailable` 最多读取 6 次，累计等待不超过 15 秒，并在每次重读时使用新的
+UTC 时刻重新计算完整任务授权窗口。配置缺失、identity/actor/role/scope 变化以及有效期不足立即
+返回 `blocked` 和 `requested/succeeded/failed/stored=0/0/0/0`。授权有效期必须严格晚于任务窗口
+端点；恰好等于端点也按不足处理。
 
 同日阶段诊断整改：市场发布编排结果增加 `phase`、`phase_results`、`target_trade_date` 和 `stored_count_unit=fact_row`。各阶段分别保留 requested/succeeded/failed/stored；事实同步完成而发布失败必须为 partial，并保留前序存储计数和失败阶段。`stored` 沿用 repository 已接受持久化事实数量口径（包括成功幂等 upsert），不表示新增物理行数量，也不包含独立的 valuation seed 计数；`published_members` 独立统计。公开结果只含稳定码，完整异常栈进入运维日志。
 

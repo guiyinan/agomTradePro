@@ -10151,52 +10151,52 @@
       "text": "f\"{dataset_key} Publication id does not match its canonical current identity\""
     },
     {
-      "line": 24,
+      "line": 26,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current: bool"
     },
     {
-      "line": 34,
+      "line": 36,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current: bool = True"
     },
     {
-      "line": 40,
+      "line": 42,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "if self.current:"
     },
     {
-      "line": 42,
+      "line": 44,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "self.current = result.current"
     },
     {
-      "line": 44,
+      "line": 46,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "return self.current"
     },
     {
-      "line": 76,
+      "line": 82,
       "path": "apps/data_center/application/data02_task_authority.py",
-      "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
+      "text": "\"\"\"Resolve current authority with bounded retries for transient read contention.\"\"\""
     },
     {
-      "line": 105,
+      "line": 130,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": ").current"
     },
     {
-      "line": 143,
+      "line": 157,
       "path": "apps/data_center/application/data02_task_authority.py",
-      "text": "current, failure = preflight_data02_task_authority("
+      "text": "current, failure = _read_data02_authority_once("
     },
     {
-      "line": 148,
+      "line": 162,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 176,
+      "line": 188,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "getattr(current, field) == getattr(authority, field) for field in identity_fields"
     },

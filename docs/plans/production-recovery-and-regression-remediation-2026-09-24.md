@@ -714,3 +714,27 @@
   刷新。只有 persisted Publication member/hash/id/run id 与本次 task 完全一致，才可认定行情、价格和
   估值正式发布恢复。财报 owner contract、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读
   零写入仍按既定顺序验收；当前不得提前宣称整体恢复。
+
+### 2026-09-29 初始审计授权预检锁竞争
+
+- frozen member 修复已形成提交 `e3b737d7a471717710433f4544651230686c0a53`，同 SHA 五组 CI、
+  全新九阶段 S6 和生产部署检查全部通过。部署后只启动一次显式全市场刷新
+  `afc2775f-b91c-4ba7-8c88-48a58efba7a0`；任务在 1.795 秒内以
+  `outcome=blocked`、`stage=authority`、`requested/succeeded/failed/stored=0/0/0/0` 和稳定码
+  `system_audit_authority_unavailable` 结束，没有访问 provider 或写入事实，因此仍不能认定正式发布恢复。
+- 生产只读分段诊断确认 runtime binding 为 `required`、outbox 已启用，actor、tenant、owner、role 和
+  authority selector 均一致，授权有效至 2026-10-09。actor 读取约 0.6 秒，V3 scope 物理行证据重建约
+  23.7 秒，完整 runtime preflight 约 22.3 秒；PostgreSQL 后续诊断时没有阻塞链。任务在 1.8 秒快速返回
+  `authority_unavailable`，结合 authority reader 的 `NOWAIT` 锁契约，与受治理写入持有短暂 authority 表锁
+  的竞争路径一致；当前证据已排除授权过期、配置缺失、行情时间错误和 provider 超时。
+- 类别修复把初始 preflight 和长任务写边界 revalidation 统一到同一个单次读取、参数校验和有界退避
+  原语，但保留各自独立的最多 6 次计数，避免 6×6 嵌套。只对
+  `system_audit_authority_unavailable` 按 1/2/3/4/5 秒递增等待；每次使用新的 aware UTC 时刻并重新校验
+  完整运行窗口。配置/来源/actor/tenant/owner/role/认证状态变化及有效期不足不重试，继续 fail closed。
+- 有效期边界同步收紧为严格晚于 `as_of + minimum_window`；等于窗口端点也阻断。新增测试覆盖瞬时锁后
+  恢复、连续锁耗尽、非瞬时原因、瞬时锁后 identity 漂移、端点相等以及调用方试图扩大重试上限。Luna
+  Max 独立审查确认拆分避免了嵌套重试，并指出、复核了有效期半开区间修复。
+- 这仍是未提交候选。完成格式化、增量及全量 mypy、Celery/current-data/module-map 与高风险回归后，
+  需要冻结新 SHA、取得同 SHA CI/PostgreSQL、全新 S6 和部署回执，再只启动一次显式刷新。技术等待的
+  延长不改变北京时间 15:00 收盘、新鲜度、完整率、财报 owner contract、审计或 `SIGNAL_WEAK=0.6000`
+  门槛。

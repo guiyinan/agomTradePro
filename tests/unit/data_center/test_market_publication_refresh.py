@@ -211,6 +211,261 @@ def test_authority_revalidation_retries_transient_unavailability(
     assert waits == [0.25]
 
 
+def test_initial_authority_preflight_retries_only_transient_unavailability(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """A short authority writer lock cannot abort a zero-write task preflight."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    observed_at = datetime.now(UTC)
+    fresh_as_of = observed_at + timedelta(seconds=2)
+    calls: list[datetime] = []
+
+    def transient_then_current(*, as_of: datetime, **_: object) -> object:
+        calls.append(as_of)
+        if len(calls) == 1:
+            raise SystemAuditCompositionUnavailable(
+                "authority writer holds the canonical tables",
+                reason_code="authority_unavailable",
+            )
+        return _patch_current_authority
+
+    waits: list[float] = []
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        transient_then_current,
+    )
+
+    authority, failure = preflight_data02_task_authority(
+        as_of=observed_at,
+        minimum_window=timedelta(minutes=30),
+        max_attempts=2,
+        retry_delay_seconds=0.25,
+        sleeper=waits.append,
+        clock=lambda: fresh_as_of,
+    )
+
+    assert authority is _patch_current_authority
+    assert failure is None
+    assert calls == [observed_at, fresh_as_of]
+    assert waits == [0.25]
+
+
+def test_initial_authority_preflight_does_not_retry_nontransient_failure(
+    monkeypatch,
+) -> None:
+    """Missing runtime wiring remains an immediate fail-closed denial."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    calls = 0
+
+    def not_wired(**_: object) -> object:
+        nonlocal calls
+        calls += 1
+        raise SystemAuditCompositionUnavailable(
+            "authority bundle is absent",
+            reason_code="authority_not_wired",
+        )
+
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        not_wired,
+    )
+
+    authority, failure = preflight_data02_task_authority(
+        as_of=datetime.now(UTC),
+        minimum_window=timedelta(minutes=30),
+        sleeper=lambda _: pytest.fail("nontransient authority failure was retried"),
+    )
+
+    assert authority is None
+    assert failure is not None
+    assert failure["blocked_reason"] == "system_audit_authority_not_wired"
+    assert failure["stored"] == 0
+    assert calls == 1
+
+
+def test_initial_authority_preflight_exhaustion_stays_zero_write(
+    monkeypatch,
+) -> None:
+    """Bounded transient retries exhaust into one normalized zero-write result."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    calls = 0
+
+    def unavailable(**_: object) -> object:
+        nonlocal calls
+        calls += 1
+        raise SystemAuditCompositionUnavailable(
+            "authority tables remain contended",
+            reason_code="authority_unavailable",
+        )
+
+    waits: list[float] = []
+    observed_at = datetime.now(UTC)
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        unavailable,
+    )
+
+    authority, failure = preflight_data02_task_authority(
+        as_of=observed_at,
+        minimum_window=timedelta(minutes=30),
+        sleeper=waits.append,
+        clock=lambda: observed_at + timedelta(seconds=sum(waits)),
+    )
+
+    assert authority is None
+    assert failure is not None
+    assert failure["outcome"] == "blocked"
+    assert failure["blocked_reason"] == "system_audit_authority_unavailable"
+    assert failure["requested"] == 0
+    assert failure["succeeded"] == 0
+    assert failure["failed"] == 0
+    assert failure["stored"] == 0
+    assert calls == 6
+    assert waits == [1.0, 2.0, 3.0, 4.0, 5.0]
+
+
+def test_initial_authority_preflight_rejects_identity_drift_after_transient_retry(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """A recovered read still fails closed when its actor identity changed."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    calls = 0
+    changed = SimpleNamespace(
+        **{**vars(_patch_current_authority), "actor_id": "service:other-refresh"}
+    )
+
+    def transient_then_changed(**_: object) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SystemAuditCompositionUnavailable(
+                "short writer lock",
+                reason_code="authority_unavailable",
+            )
+        return changed
+
+    waits: list[float] = []
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        transient_then_changed,
+    )
+
+    authority, failure = preflight_data02_task_authority(
+        as_of=datetime.now(UTC),
+        minimum_window=timedelta(minutes=30),
+        expected_actor=_patch_current_authority.actor_id,
+        sleeper=waits.append,
+    )
+
+    assert authority is None
+    assert failure is not None
+    assert failure["blocked_reason"] == "operator_actor_mismatch"
+    assert calls == 2
+    assert waits == [1.0]
+
+
+def test_initial_authority_preflight_rejects_exact_expiry_window_boundary(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """Authority must remain valid beyond the full task window, not merely to its endpoint."""
+
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    observed_at = datetime.now(UTC)
+    minimum_window = timedelta(minutes=30)
+    boundary = SimpleNamespace(
+        **{
+            **vars(_patch_current_authority),
+            "authority_valid_until": observed_at + minimum_window,
+        }
+    )
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: boundary,
+    )
+
+    authority, failure = preflight_data02_task_authority(
+        as_of=observed_at,
+        minimum_window=minimum_window,
+        sleeper=lambda _: pytest.fail("expiry boundary was retried"),
+    )
+
+    assert authority is None
+    assert failure is not None
+    assert failure["blocked_reason"] == "authority_window_too_short"
+
+
+def test_initial_authority_preflight_rejects_unbounded_attempt_override(
+    _patch_current_authority,
+) -> None:
+    """Callers cannot expand the governed initial authority retry window."""
+
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    with pytest.raises(ValueError, match="max_attempts must be between 1 and 6"):
+        preflight_data02_task_authority(
+            as_of=datetime.now(UTC),
+            minimum_window=timedelta(minutes=30),
+            max_attempts=7,
+        )
+
+
+@pytest.mark.parametrize("retry_delay_seconds", [float("nan"), float("inf")])
+def test_initial_authority_preflight_rejects_nonfinite_retry_delay(
+    _patch_current_authority,
+    retry_delay_seconds: float,
+) -> None:
+    """A non-finite delay cannot escape the bounded retry policy."""
+
+    from apps.data_center.application.data02_task_authority import (
+        preflight_data02_task_authority,
+    )
+
+    with pytest.raises(ValueError, match="retry_delay_seconds must be a non-negative number"):
+        preflight_data02_task_authority(
+            as_of=datetime.now(UTC),
+            minimum_window=timedelta(minutes=30),
+            retry_delay_seconds=retry_delay_seconds,
+        )
+
+
 def test_authority_revalidation_outlasts_back_to_back_writer_transactions(
     monkeypatch,
     _patch_current_authority,
@@ -371,6 +626,43 @@ def test_authority_revalidation_does_not_retry_identity_drift(
     assert calls == 1
 
 
+def test_authority_revalidation_rejects_starting_grant_at_exact_window_boundary(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """The starting grant must outlive, rather than equal, the finalization window."""
+
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        revalidate_data02_task_authority,
+    )
+
+    observed_at = datetime.now(UTC)
+    minimum_window = timedelta(minutes=5)
+    boundary = SimpleNamespace(
+        **{
+            **vars(_patch_current_authority),
+            "authority_valid_until": observed_at + minimum_window,
+        }
+    )
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: boundary,
+    )
+
+    result = revalidate_data02_task_authority(
+        boundary,
+        as_of=observed_at,
+        minimum_window=minimum_window,
+        sleeper=lambda _: pytest.fail("expiry boundary was retried"),
+    )
+
+    assert result.current is False
+    assert result.reason_code == "authority_window_too_short"
+    assert result.attempts == 1
+
+
 def test_provider_identity_gap_is_a_partial_business_result() -> None:
     def reject_valuation(_codes, _day):
         from apps.data_center.application.batch_identity import ProviderAssetIdentityError
@@ -516,7 +808,9 @@ def test_task_blocks_without_current_authority_before_provider_access(monkeypatc
     """Scheduled market writes require the canonical current Audit authority."""
 
     from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
-    from apps.data_center.application import tasks
+    from apps.data_center.application import data02_task_authority, tasks
+
+    monkeypatch.setattr(data02_task_authority, "sleep", lambda _: None)
 
     def unavailable(**_):
         raise SystemAuditCompositionUnavailable(
