@@ -301,6 +301,26 @@ def test_tencent_parser_rejects_unrequested_duplicate_future_and_invalid_values(
         proposal_modules[0].parse_validate_provider_response(body, context)
 
 
+def test_tencent_store_preserves_safe_future_date_code_without_artifact(
+    proposal_modules: Any, tmp_path: Path
+) -> None:
+    """Expose the time-dimension failure while retaining neither body nor unsafe text."""
+    root = tmp_path / "evidence"
+    root.mkdir()
+    context = _context(
+        proposal_modules,
+        dataset="equity.valuation.fact",
+        provider_format="tencent_quote_batch.v1",
+        provider_source="akshare",
+    )
+
+    with pytest.raises(proposal_modules[0].DataFetchError) as failure:
+        _persist(_store(proposal_modules, root), context, _tencent_body(timestamp="20260925150000"))
+
+    assert failure.value.code == "REHEARSAL_RESPONSE_FUTURE_DATE"
+    assert list(root.rglob("*.body")) == []
+
+
 def test_tencent_store_retains_exact_body_hash_and_format_ref(
     proposal_modules: Any, tmp_path: Path
 ) -> None:
@@ -351,7 +371,7 @@ def test_dataset_foreign_fields_are_rejected_without_artifact(
     with pytest.raises(proposal_modules[0].DataFetchError) as failure:
         _persist(_store(proposal_modules, root), context, body)
 
-    assert failure.value.code == "REHEARSAL_RESPONSE_NOT_RETAINABLE"
+    assert failure.value.code == "REHEARSAL_RESPONSE_FIELD_UNSUPPORTED"
     assert list(root.rglob("*.body")) == []
 
 
@@ -529,7 +549,7 @@ def test_capture_rejects_unsupported_response_without_success_reference(
                 _send_fake_request(transport, _body(code=500))
     receipt = capture.receipts[-1]
     assert receipt.response_artifact is None
-    assert receipt.error_code == "REHEARSAL_RESPONSE_NOT_RETAINABLE"
+    assert receipt.error_code == "REHEARSAL_RESPONSE_NOT_SUCCESS"
     assert list(root.rglob("*.body")) == []
 
 

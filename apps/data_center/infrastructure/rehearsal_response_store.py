@@ -24,6 +24,19 @@ TENCENT_PROVIDER_FORMAT: Literal["tencent_quote_batch.v1"] = "tencent_quote_batc
 PROVIDER_FORMAT = TUSHARE_PROVIDER_FORMAT
 ProviderFormat = Literal["tushare_pro_table.v1", "tencent_quote_batch.v1"]
 
+_SAFE_RESPONSE_FAILURE_CODES = frozenset(
+    {
+        "REHEARSAL_RESPONSE_ASSET_UNREQUESTED",
+        "REHEARSAL_RESPONSE_DUPLICATE_ASSET",
+        "REHEARSAL_RESPONSE_FIELD_UNSUPPORTED",
+        "REHEARSAL_RESPONSE_FUTURE_DATE",
+        "REHEARSAL_RESPONSE_INCOMPLETE",
+        "REHEARSAL_RESPONSE_NOT_SUCCESS",
+        "REHEARSAL_RESPONSE_SCHEMA_INVALID",
+        "REHEARSAL_RESPONSE_VALUE_UNSUPPORTED",
+    }
+)
+
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _CANDIDATE_RE = re.compile(r"[0-9a-f]{40}")
 _CODE_RE = re.compile(r"[0-9]{6}\.(?:SZ|SH|BJ)")
@@ -342,6 +355,13 @@ def parse_validate_provider_response(
     raise ValueError("REHEARSAL_RESPONSE_FORMAT_UNSUPPORTED")
 
 
+def safe_rehearsal_response_failure_code(exc: Exception) -> str:
+    """Return a stable non-secret parser code without exposing provider response text."""
+
+    code = str(exc)
+    return code if code in _SAFE_RESPONSE_FAILURE_CODES else "REHEARSAL_RESPONSE_NOT_RETAINABLE"
+
+
 class RehearsalResponseStore:
     """Write explicit, validated provider bodies under strict exclusive file and byte budgets."""
 
@@ -415,7 +435,7 @@ class RehearsalResponseStore:
         except ValueError as exc:
             raise DataFetchError(
                 "Rehearsal response is not a supported successful table",
-                code="REHEARSAL_RESPONSE_NOT_RETAINABLE",
+                code=safe_rehearsal_response_failure_code(exc),
             ) from exc
         artifact_sample_codes = tuple(sorted({str(row["ts_code"]) for row in parsed_rows}))
         body_sha256 = hashlib.sha256(response_body).hexdigest()

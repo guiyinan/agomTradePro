@@ -47,12 +47,26 @@ from .rehearsal_response_store import (
     TUSHARE_PROVIDER_FORMAT,
     RehearsalResponseContext,
     RehearsalResponseStore,
+    safe_rehearsal_response_failure_code,
 )
 
 
 @runtime_checkable
 class _SourceIdentity(Protocol):
     def provider_source(self) -> str: ...
+
+
+def _eligible_scope_error_code(exc: Exception) -> str:
+    """Preserve safe provider codes while hiding arbitrary exception text."""
+
+    if isinstance(exc, DataFetchError) and re.fullmatch(r"[A-Z][A-Z0-9_]{1,127}", exc.code):
+        return exc.code
+    parser_code = safe_rehearsal_response_failure_code(exc)
+    return (
+        "REHEARSAL_ELIGIBLE_SCOPE_UNAVAILABLE"
+        if parser_code == "REHEARSAL_RESPONSE_NOT_RETAINABLE"
+        else parser_code
+    )
 
 
 def market_rehearsal_source_digest(root: Path) -> str:
@@ -501,8 +515,8 @@ def run_market_provider_rehearsal(
                         RuntimeError,
                         TypeError,
                         ValueError,
-                    ):
-                        stage_error_code = "REHEARSAL_ELIGIBLE_SCOPE_UNAVAILABLE"
+                    ) as exc:
+                        stage_error_code = _eligible_scope_error_code(exc)
 
                     def response_context(
                         role: str,

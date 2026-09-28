@@ -16,7 +16,7 @@ from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
 from apps.data_center.infrastructure import market_rehearsal_runner as runner
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
-from core.exceptions import MissingConfigError
+from core.exceptions import DataFetchError, MissingConfigError
 
 
 def test_probe_without_real_response_receipt_cannot_pass() -> None:
@@ -74,6 +74,24 @@ def test_provider_configuration_failure_keeps_stable_business_code() -> None:
     assert result["failed"] == 1
     assert result["issues"] == [{"code": "TUSHARE_CREDENTIAL_UNAVAILABLE"}]
     assert result["transport_error_code"] == "REHEARSAL_REAL_RESPONSE_MISSING"
+
+
+def test_eligible_scope_preserves_safe_provider_time_failure() -> None:
+    """Keep an exact target-session mismatch instead of collapsing it to setup failure."""
+
+    assert (
+        runner._eligible_scope_error_code(
+            DataFetchError(
+                "provider returned a later session",
+                code="REHEARSAL_RESPONSE_FUTURE_DATE",
+            )
+        )
+        == "REHEARSAL_RESPONSE_FUTURE_DATE"
+    )
+    assert (
+        runner._eligible_scope_error_code(ValueError("unsafe provider response body"))
+        == "REHEARSAL_ELIGIBLE_SCOPE_UNAVAILABLE"
+    )
 
 
 def test_source_digest_binds_actual_files_and_rejects_missing_tree(tmp_path) -> None:

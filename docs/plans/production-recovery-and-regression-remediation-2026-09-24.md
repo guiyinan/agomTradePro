@@ -543,3 +543,35 @@
 - 上述结果仍是提交前证据。冻结的新 SHA 必须重新取得五组远端 CI、workflow-dispatch PostgreSQL
   artifact 和全新九阶段 S6；不得复用 `d43739eed` 的镜像、bundle 或 handoff receipt。生产正式发布、
   guarded decision runtime、财报 owner contract、Alpha 和普通用户页面联合验收状态不变。
+
+### 2026-09-28 authority/工作台候选与 S6 时间维度阻断
+
+- authority current graph 的排他锁会形成连续短锁窗口。旧实现固定三次、每次一秒，可能全部撞在窗口内；
+  候选改为最多六次、总上限 15 秒的递增等待，只重试
+  `system_audit_authority_unavailable`。身份、范围、角色、来源、有效期等任何真实变化仍立即 fail closed；
+  重试耗尽返回 `blocked` 以及 `requested/succeeded/failed/stored=0/0/0/0`，不关闭审计保护。
+- 工作台证券研究读取已按账户与证券收窄，并使用轻量 Alpha exit-watch 查询。研究详情在宏观或决策准入
+  阻断时仍可读取，SELL/失效条件保持可见；查询失败显示 `exit_watch_unavailable`，不伪装为空列表。
+  页面明确这是单证券视图并链接完整退出监控；GET、重试和详情跳转继续保持零写入。
+- 候选 `e92858793fe902af72189481d1662c6b04cde861` 的四组 push CI 和手工触发的 PostgreSQL workflow
+  均绑定同一 SHA 并成功。工作台相关全套 111 项、authority 反例、增量 mypy、debt ceiling、current-data、
+  Celery、module map 和 architecture 门禁均通过。这些仍只属于候选证据。
+- 全新 S6 `s6-e92858793-20260928c` 冷构建约 19 分钟并通过镜像身份，候选镜像为
+  `sha256:68bee3fe…760708`；真实 provider 阶段收到腾讯 HTTP 200 后以
+  `REHEARSAL_RESPONSE_NOT_RETAINABLE` 阻断，未继续 replay/capacity/write/deploy。此前 11GB 磁盘余量
+  不足只清理未使用 Docker builder cache，释放到 29GB；没有删除镜像、容器、volume 或数据库。
+- 真实 provider 只读复现确认 AKShare valuation 适配器已按 200 只分批，并非把 5,569 只拼成一次请求：
+  50 只和 200 只请求分别约 471/1,821 字符，均返回 HTTP 200、50/200 行、每行 88 字段且请求范围完整。
+  将全部 5,569 只直接拼接会得到约 50,142 字符和 HTTP 414，但这只是规模边界反例，不是本次 S6
+  实际首批失败路径。
+- 实际根因是本次 S6 launcher 的目标交易日仍固定为 `2026-09-24`，而 9 月 28 日午盘腾讯 current-only
+  接口返回 `2026-09-28` 实时观测。相同 50/200 只真实响应在严格 parser 中稳定返回
+  `REHEARSAL_RESPONSE_FUTURE_DATE`；时间门正确阻断，不能把当日未收盘数据当成已完成交易日估值，
+  也不能靠延长超时或放宽 freshness 通过。
+- 候选整改将 response parser 的安全 allowlist 子码写入 receipt，并让 provider scope 保留稳定的
+  `REHEARSAL_RESPONSE_FUTURE_DATE`、字段、重复证券、范围和 schema 等原因；未知异常继续折叠为安全通用码，
+  原始失败正文不留存。技术等待可适度延长且有上限：S6 build/stage 使用 7,200 秒、provider probe
+  使用 2,400 秒；单请求 timeout、freshness、coverage、审计和策略阈值均不变。
+- 下一次完整 S6 必须绑定包含该可观测性修复的新 SHA，并在 provider-backed 日历确认 9 月 28 日收盘后，
+  使用 `2026-09-28` 作为目标交易日建立全新 evidence 目录。若腾讯仍返回其他日期、覆盖不足或任一批次
+  解析失败，按精确业务码停止；不得复用本次失败目录或手工修改目标证据。
