@@ -117,8 +117,12 @@ def revalidate_data02_task_authority(
 ) -> Data02AuthorityRevalidation:
     """Revalidate authority, retrying only bounded transient read unavailability."""
 
-    if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
-        raise ValueError("max_attempts must be a positive integer")
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or not 1 <= max_attempts <= _DEFAULT_REVALIDATION_ATTEMPTS
+    ):
+        raise ValueError(f"max_attempts must be between 1 and {_DEFAULT_REVALIDATION_ATTEMPTS}")
     if as_of.tzinfo is None or as_of.utcoffset() is None:
         raise ValueError("as_of must be timezone-aware")
     if type(minimum_window) is not timedelta or minimum_window <= timedelta(0):

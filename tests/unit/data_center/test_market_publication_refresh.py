@@ -258,6 +258,74 @@ def test_authority_revalidation_outlasts_back_to_back_writer_transactions(
     assert waits == [1.0, 2.0, 3.0, 4.0]
 
 
+def test_authority_revalidation_rejects_unbounded_attempt_override(
+    _patch_current_authority,
+) -> None:
+    """Callers cannot expand the governed authority retry window."""
+
+    from apps.data_center.application.data02_task_authority import (
+        revalidate_data02_task_authority,
+    )
+
+    with pytest.raises(ValueError, match="max_attempts must be between 1 and 6"):
+        revalidate_data02_task_authority(
+            _patch_current_authority,
+            as_of=datetime.now(UTC),
+            max_attempts=7,
+        )
+
+
+def test_authority_revalidation_exhaustion_stays_blocked_and_zero_write(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """Six transient read failures exhaust the budget without fabricating progress."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        data02_authority_failure,
+        revalidate_data02_task_authority,
+    )
+
+    calls = 0
+
+    def unavailable(**_):
+        nonlocal calls
+        calls += 1
+        raise SystemAuditCompositionUnavailable(
+            "authority tables remain contended",
+            reason_code="authority_unavailable",
+        )
+
+    waits: list[float] = []
+    observed_at = datetime.now(UTC)
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        unavailable,
+    )
+
+    result = revalidate_data02_task_authority(
+        _patch_current_authority,
+        as_of=observed_at,
+        sleeper=waits.append,
+        clock=lambda: observed_at + timedelta(seconds=sum(waits)),
+    )
+    failure = data02_authority_failure(result.reason_code)
+
+    assert result.current is False
+    assert result.reason_code == "system_audit_authority_unavailable"
+    assert result.attempts == 6
+    assert calls == 6
+    assert waits == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert failure["outcome"] == "blocked"
+    assert failure["requested"] == 0
+    assert failure["succeeded"] == 0
+    assert failure["failed"] == 0
+    assert failure["stored"] == 0
+
+
 def test_authority_revalidation_does_not_retry_identity_drift(
     monkeypatch,
     _patch_current_authority,

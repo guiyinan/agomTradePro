@@ -5522,6 +5522,11 @@
           "test_function": "test_authority_revalidation_outlasts_back_to_back_writer_transactions"
         },
         {
+          "case": "scheduled_market_refresh_exhausts_authority_retry_budget_as_zero_write_block",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_authority_revalidation_exhaustion_stays_blocked_and_zero_write"
+        },
+        {
           "case": "scheduled_market_refresh_stops_after_terminal_authority_block",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_terminal_authority_block_stops_remaining_batches"
