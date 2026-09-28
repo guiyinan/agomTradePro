@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 19,
       "celery_task": 129,
       "compatibility_facade": 95,
-      "current_data_surface": 70,
+      "current_data_surface": 71,
       "dynamic_import_edge": 13,
       "management_command": 36,
       "management_command_edge": 59,
@@ -30,13 +30,13 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 798,
+      "active_public": 799,
       "adjacent_operational": 328,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1264
+    "total": 1265
   },
   "entries": [
     {
@@ -5481,6 +5481,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.tushare_full_market_empty_response:Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
+      "locator": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.tushare_full_market_empty_response",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=4",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.unified_price:UnifiedPriceService -> Account/Simulated Trading",
       "locator": "UnifiedPriceService -> Account/Simulated Trading",
@@ -5852,8 +5862,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:285",
-      "locator": "line:285",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:346",
+      "locator": "line:346",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -5872,8 +5882,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:697",
-      "locator": "line:697",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/tushare_client.py:import_module:line:728",
+      "locator": "line:728",
       "path": "apps/data_center/infrastructure/tushare_client.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -12691,7 +12701,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 94,
-    "current_data_contracts": 70,
+    "current_data_contracts": 71,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 28,
     "runtime_config_keys": 45
