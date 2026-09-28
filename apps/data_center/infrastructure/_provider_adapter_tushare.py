@@ -56,6 +56,7 @@ from apps.data_center.infrastructure.tushare_replay_parser import (
 from apps.data_center.infrastructure.tushare_replay_parser import (
     tushare_market_cap_cny as _tushare_market_cap_cny,
 )
+from core.exceptions import TushareError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -1021,7 +1022,14 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             else datetime.now(UTC)
         )
         if frame is None or frame.empty:
-            return []
+            raise TushareError(
+                "目标交易日的估值数据尚未可用",
+                code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+                details={
+                    "api_name": "daily_basic",
+                    "trade_date": as_of_date.strftime("%Y%m%d"),
+                },
+            )
         facts: list[ValuationFact] = []
         provider_extra = self._provider_extra()
         for row in frame.to_dict("records"):

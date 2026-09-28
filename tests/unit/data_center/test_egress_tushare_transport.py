@@ -170,6 +170,109 @@ def test_routed_clients_reject_non_integer_provider_codes(
 
 
 @pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
+@pytest.mark.parametrize("api_name", ["daily", "daily_basic"])
+@pytest.mark.parametrize(
+    ("provider_data", "expected_code"),
+    [
+        ({"fields": [], "items": []}, "TUSHARE_DATA_NOT_YET_AVAILABLE"),
+        ({"fields": ["unknown"], "items": []}, "TUSHARE_INVALID_PAYLOAD"),
+        (
+            {"fields": ["ts_code", "trade_date", "close"], "items": [["000001.SZ"]]},
+            "TUSHARE_INVALID_PAYLOAD",
+        ),
+    ],
+)
+def test_daily_snapshot_contract_rejects_empty_and_malformed_provider_tables(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    api_name: str,
+    provider_data: dict[str, object],
+    expected_code: str,
+) -> None:
+    """The observed successful-empty envelope is unavailable, never a valid snapshot."""
+
+    settings = tushare_client.TushareRuntimeSettings(
+        token="test-private-token",
+        http_url="https://market.example.com/pro",
+        request_mode=mode,
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "resolve_tushare_runtime_settings",
+        lambda **_kwargs: settings,
+    )
+    sdk = Mock()
+    sdk._DataApi__http_url = settings.http_url
+    sdk_module = SimpleNamespace(pro_api=lambda _token: sdk)
+    original_import = tushare_client.import_module
+    monkeypatch.setattr(
+        tushare_client,
+        "import_module",
+        lambda name: sdk_module if name == "tushare" else original_import(name),
+    )
+    session = Mock()
+    session.headers = {}
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(
+            return_value=EgressRouteDecision(
+                rule_id=5,
+                strategy=EgressStrategy.FIXED,
+                candidates=(9,),
+                reason="matched_rule",
+            )
+        ),
+    )
+    execute = Mock(return_value={"code": 0, "msg": None, "data": provider_data})
+    monkeypatch.setattr(egress_service, "execute_provider_request", execute)
+    client = tushare_client.create_tushare_pro_client(
+        provider_id=3,
+        deployment_region="overseas",
+        dataset_key="equity.quote.snapshot",
+    )
+
+    with pytest.raises(tushare_client.TushareError) as caught:
+        getattr(client, api_name)(trade_date="20260928")
+
+    assert caught.value.code == expected_code
+
+
+def test_sdk_direct_daily_empty_result_is_not_treated_as_success(monkeypatch: pytest.MonkeyPatch):
+    """The un-routed official SDK branch must enforce the same full-session contract."""
+
+    sdk = Mock()
+    sdk.query.return_value = SimpleNamespace(empty=True)
+    client = tushare_client._RoutedSdkClient(
+        sdk_client=sdk,
+        token="test-private-token",
+        http_url="https://market.example.com/pro",
+        provider_id=3,
+        deployment_region="overseas",
+        dataset_key="equity.quote.snapshot",
+    )
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(
+            return_value=EgressRouteDecision(
+                rule_id=None,
+                strategy=EgressStrategy.DIRECT,
+                candidates=(None,),
+                reason="no_matching_rule",
+            )
+        ),
+    )
+
+    with pytest.raises(tushare_client.TushareError) as caught:
+        client.daily(trade_date="20260928")
+
+    assert caught.value.code == "TUSHARE_DATA_NOT_YET_AVAILABLE"
+    sdk.query.assert_called_once_with("daily", fields="", trade_date="20260928")
+
+
+@pytest.mark.parametrize("mode", ["sdk_path", "rest_path", "unified_relay"])
 def test_routed_financial_clients_preserve_retained_artifact_reference(
     monkeypatch: pytest.MonkeyPatch,
     mode: str,
@@ -302,7 +405,10 @@ def test_configured_sdk_endpoint_keeps_single_post_url_without_an_egress_rule(
     response.content = b'{"code":0}'
     response.json.return_value = {
         "code": 0,
-        "data": {"fields": ["ts_code", "close"], "items": [["000001.SZ", 12.3]]},
+        "data": {
+            "fields": ["ts_code", "trade_date", "close"],
+            "items": [["000001.SZ", "20260924", 12.3]],
+        },
     }
     session = Mock()
     session.headers = {}

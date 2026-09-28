@@ -2205,6 +2205,74 @@
       ]
     },
     {
+      "id": "data_center.tushare_full_market_empty_response",
+      "surface": "Full-session Tushare daily and daily_basic reads reject successful-empty and malformed tables before facts or retained replay evidence are accepted",
+      "source_files": [
+        "apps/data_center/infrastructure/tushare_client.py",
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py",
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py",
+        "apps/data_center/infrastructure/rehearsal_response_store.py",
+        "apps/data_center/infrastructure/provider_registry.py"
+      ],
+      "required_markers": {
+        "apps/data_center/infrastructure/tushare_client.py": [
+          "def _is_full_market_trade_date_query(",
+          "def _validated_provider_table(",
+          "TUSHARE_DATA_NOT_YET_AVAILABLE",
+          "TUSHARE_INVALID_PAYLOAD",
+          "MODEL_MARKET_INCOMPLETE_RESULT"
+        ],
+        "apps/data_center/infrastructure/gateways/tushare_gateway.py": [
+          "目标交易日的行情数据尚未可用",
+          "except TushareError:"
+        ],
+        "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
+          "目标交易日的估值数据尚未可用",
+          "TUSHARE_DATA_NOT_YET_AVAILABLE"
+        ],
+        "apps/data_center/infrastructure/rehearsal_response_store.py": [
+          "TUSHARE_DATA_NOT_YET_AVAILABLE",
+          "def persist_response("
+        ],
+        "apps/data_center/infrastructure/provider_registry.py": [
+          "returned no data for",
+          "marking failure and trying next"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "successful_empty_and_malformed_daily_tables_fail_closed_in_all_wire_modes",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_daily_snapshot_contract_rejects_empty_and_malformed_provider_tables"
+        },
+        {
+          "case": "direct_sdk_empty_daily_result_fails_closed",
+          "test_file": "tests/unit/data_center/test_egress_tushare_transport.py",
+          "test_function": "test_sdk_direct_daily_empty_result_is_not_treated_as_success"
+        },
+        {
+          "case": "successful_empty_body_is_not_retained",
+          "test_file": "tests/unit/data_center/test_rehearsal_response_store.py",
+          "test_function": "test_actual_tushare_successful_empty_envelope_is_not_retained"
+        },
+        {
+          "case": "gateway_preserves_retryable_business_code",
+          "test_file": "tests/unit/data_center/test_t3a_tushare_gateway_edges.py",
+          "test_function": "test_native_quote_preserves_successful_empty_provider_business_code"
+        },
+        {
+          "case": "full_session_valuation_empty_response_is_retryable",
+          "test_file": "tests/unit/data_center/test_tushare_fact_integrity.py",
+          "test_function": "test_full_session_valuation_empty_response_is_retryable_data_error"
+        },
+        {
+          "case": "provider_failover_continues_after_successful_empty_response",
+          "test_file": "tests/unit/data_center/test_source_registry.py",
+          "test_function": "test_successful_empty_tushare_snapshot_continues_to_next_provider"
+        }
+      ]
+    },
+    {
       "id": "data_center.quote_observation_provenance",
       "surface": "Provider quote gateway -> QuoteSnapshot -> Realtime read",
       "source_files": [

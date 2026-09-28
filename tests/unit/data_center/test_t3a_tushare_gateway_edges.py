@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from apps.data_center.infrastructure.gateways import tushare_gateway
-from core.exceptions import MissingConfigError
+from core.exceptions import MissingConfigError, TushareError
 
 
 def test_tushare_scalar_and_code_helpers() -> None:
@@ -188,6 +188,33 @@ def test_native_quote_authorization_failure_is_visible(monkeypatch: pytest.Monke
         tushare_gateway.TushareGateway().get_quote_snapshots(
             ["000001.SZ"], target_trade_date=date(2026, 9, 24)
         )
+
+
+def test_native_quote_preserves_successful_empty_provider_business_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provider's code=0 empty daily table must remain a retryable data error."""
+
+    class _Pro:
+        def daily(self, **_kwargs: str) -> pd.DataFrame:
+            raise TushareError(
+                "目标交易日的日线数据尚未可用",
+                code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+            )
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: None)
+    monkeypatch.setattr(
+        tushare_gateway,
+        "create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+
+    with pytest.raises(TushareError) as caught:
+        tushare_gateway.TushareGateway(provider_id=2).get_quote_snapshots(
+            ["000001.SZ"], target_trade_date=date(2026, 9, 24)
+        )
+
+    assert caught.value.code == "TUSHARE_DATA_NOT_YET_AVAILABLE"
 
 
 @pytest.mark.parametrize(

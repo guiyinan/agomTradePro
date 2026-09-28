@@ -249,6 +249,25 @@ def test_strict_parser_accepts_success_and_full_market_superset(proposal_modules
     assert parsed[1]["pe_ttm"] is None
 
 
+def test_actual_tushare_successful_empty_envelope_is_not_retained(
+    proposal_modules: Any, tmp_path: Path
+) -> None:
+    """Accept the real optional-field shape, but classify its empty table as unavailable."""
+
+    root = tmp_path / "evidence"
+    root.mkdir()
+    context = _context(proposal_modules)
+    body = b'{"code":0,"msg":null,"data":{"fields":[],"items":[]}}'
+
+    with pytest.raises(ValueError, match="TUSHARE_DATA_NOT_YET_AVAILABLE"):
+        proposal_modules[0].parse_validate_tushare_response(body, context)
+    with pytest.raises(proposal_modules[0].DataFetchError) as failure:
+        _persist(_store(proposal_modules, root), context, body)
+
+    assert failure.value.code == "TUSHARE_DATA_NOT_YET_AVAILABLE"
+    assert list(root.rglob("*.body")) == []
+
+
 def test_tencent_parser_maps_provider_fields_and_normalizes_source_instant(
     proposal_modules: Any,
 ) -> None:
@@ -387,6 +406,7 @@ def test_dataset_foreign_fields_are_rejected_without_artifact(
         _body(rows=[["000001.SZ", "20260925", 10.0, 100]]),
         _body(rows=[["000001.SZ", "20260924", float("nan"), 100]]),
         b'{"code":0,"code":0,"data":{"fields":["ts_code","trade_date"],"items":[]}}',
+        b'{"code":0,"data":{"fields":["unsupported"],"items":[]}}',
     ],
 )
 def test_invalid_responses_are_never_retained(

@@ -18,6 +18,7 @@ from apps.data_center.infrastructure import _provider_adapter_tushare as adapter
 from apps.data_center.infrastructure._provider_adapter_tushare import (
     TushareUnifiedProviderAdapter,
 )
+from core.exceptions import TushareError
 
 
 def _config() -> ProviderConfig:
@@ -86,6 +87,24 @@ def test_valuation_market_caps_reject_negative_values() -> None:
             market_cap=-1.0,
             source="test",
         )
+
+
+def test_full_session_valuation_empty_response_is_retryable_data_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty daily_basic session cannot be interpreted as a successful valuation batch."""
+
+    class _Pro:
+        def daily_basic(self, **_kwargs: str) -> pd.DataFrame:
+            return pd.DataFrame()
+
+    adapter = TushareUnifiedProviderAdapter(_config())
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda **_kwargs: _Pro())
+
+    with pytest.raises(TushareError) as caught:
+        adapter.fetch_current_valuations(["000001.SZ"], date(2026, 9, 28))
+
+    assert caught.value.code == "TUSHARE_DATA_NOT_YET_AVAILABLE"
 
 
 def test_macro_adapter_skips_nonfinite_provider_points(monkeypatch) -> None:

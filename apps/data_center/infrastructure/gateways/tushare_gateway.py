@@ -28,7 +28,7 @@ from apps.data_center.infrastructure.tushare_replay_parser import _safe_int as _
 from apps.data_center.infrastructure.tushare_replay_parser import (
     parse_tushare_daily_quote_rows,
 )
-from core.exceptions import MissingConfigError
+from core.exceptions import MissingConfigError, TushareError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -209,7 +209,11 @@ class TushareGateway(MarketGatewayProtocol):
             trade_date = session.strftime("%Y%m%d")
             df = pro.daily(trade_date=trade_date)
             if df is None or df.empty:
-                return []
+                raise TushareError(
+                    "目标交易日的行情数据尚未可用",
+                    code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+                    details={"api_name": "daily", "trade_date": trade_date},
+                )
             rows = df.to_dict("records")
             response_evidence = getattr(df, "response_evidence", None)
             if not isinstance(response_evidence, TushareResponseEvidence):
@@ -245,6 +249,8 @@ class TushareGateway(MarketGatewayProtocol):
             return results
 
         except TushareRelayAuthorizationError:
+            raise
+        except TushareError:
             raise
         except ValueError as exc:
             error_code = _TUSHARE_RUNTIME_CONFIG_ERRORS.get(str(exc))

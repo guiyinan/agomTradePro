@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
-状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`9c77c51182c49613699fe916a4ad0d82c7a6cd2d`。仓库当前集成基线为 `c31639633`；其父候选 `db5197f6f` 的同 SHA CI 已通过，但 S6 在 `build_only` 阶段失败，且尚未部署。下一候选必须重新绑定 CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
+状态：执行中。用户已要求主代理带领 GPT-5.6 Luna（max）子代理完成本计划，并设置持续执行 goal。
+当前生产基线：`64147fbb60d85a12f461d0181ce3b8c18e8786f4`。仓库当前集成基线为 `eba1408add6fe7dce2afc968e5fe6f99aad09c05`；该 SHA 的五组 CI（含手工触发 PostgreSQL）已通过，但 2026-09-28 的 S6 在真实 provider probe 阶段因目标日行情尚未就绪而阻断，且尚未部署。下一候选必须重新绑定 CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -575,3 +575,23 @@
 - 下一次完整 S6 必须绑定包含该可观测性修复的新 SHA，并在 provider-backed 日历确认 9 月 28 日收盘后，
   使用 `2026-09-28` 作为目标交易日建立全新 evidence 目录。若腾讯仍返回其他日期、覆盖不足或任一批次
   解析失败，按精确业务码停止；不得复用本次失败目录或手工修改目标证据。
+
+### 2026-09-28 收盘时间、provider 就绪窗口与空截面契约
+
+- A 股日收盘边界为北京时间 15:00；Tushare `daily` 的数据更新窗口可持续到 16:00，
+  `daily_basic` 可持续到 17:00。交易所已经收盘不等于 provider 已完成目标日全截面，正式 Beat 仍按
+  17:05 触发。此前 14:55 与 15:05 的 S6 调度均不适合作为当日 provider-ready 成功门；15:05 只能作为
+  就绪性探测，不能靠延长单请求 timeout 把已返回的空响应变为数据。
+- `eba1408ad` 的全新 S6 在 15:05:55 启动，构建和镜像身份通过，随后在 provider probe 阶段诚实阻断。
+  估值路径对完整 5,569 只返回成功；行情样本为 0/50。15:17 的单请求脱敏复现收到 HTTP 200、
+  `code=0`、`msg=null`、`data.fields=[]`、`data.items=[]`，且没有 `request_id/has_more`。这不是历史 12 只
+  证券、网络超时或收盘边界错误，而是目标日 `daily` 尚未形成可用截面；原 parser 将它折叠成
+  `REHEARSAL_RESPONSE_SCHEMA_INVALID`，信息不足。
+- 本轮候选新增统一的 Tushare 全市场表契约：`daily` / `daily_basic` 的合法成功空表返回稳定码
+  `TUSHARE_DATA_NOT_YET_AVAILABLE`，在线网关、SDK/REST/relay、估值适配器与 retained-response parser
+  保持同一含义。空表不得生成事实、Publication 或成功预演证据；畸形非空表、缺身份列、截断响应仍按
+  schema/incomplete 失败关闭。provider registry 可继续尝试后备源，但本轮不增加任务级自动重试，
+  不调整 freshness、coverage、审计、策略阈值或单请求 timeout。
+- 聚焦回归为 131 passed；Ruff、Black、isort、current-data 71 surfaces、增量 mypy和 debt ceiling 均通过。
+  这些仍是未提交、未部署的候选证据。冻结新 SHA 后须重新执行同 SHA CI/PostgreSQL，并在 17:05 之后
+  建立全新 S6；旧 `eba1408ad` 镜像、空响应和失败目录只用于根因证据，不能授权部署。

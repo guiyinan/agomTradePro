@@ -20,6 +20,7 @@ from apps.data_center.infrastructure.provider_registry import (
     _CIRCUIT_OPEN_THRESHOLD,
     ProviderRegistry,
 )
+from core.exceptions import TushareError
 from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
 # ---------------------------------------------------------------------------
@@ -118,6 +119,36 @@ class TestProviderRegistryPriority:
 
 
 class TestProviderRegistryFailover:
+    def test_successful_empty_tushare_snapshot_continues_to_next_provider(self):
+        reg = ProviderRegistry()
+        primary = _StubProvider(
+            "tushare-primary",
+            [DataCapability.HISTORICAL_PRICE],
+            source_type="tushare",
+        )
+        backup = _StubProvider(
+            "tushare-backup",
+            [DataCapability.HISTORICAL_PRICE],
+            source_type="tushare",
+        )
+        reg.register(primary, priority=10)
+        reg.register(backup, priority=20)
+        calls: list[str] = []
+
+        def fetch(provider):
+            calls.append(provider.provider_name())
+            if provider is primary:
+                raise TushareError(
+                    "目标交易日的日线数据尚未可用",
+                    code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+                )
+            return ["complete-fallback-snapshot"]
+
+        assert reg.call_with_failover(DataCapability.HISTORICAL_PRICE, fetch) == [
+            "complete-fallback-snapshot"
+        ]
+        assert calls == ["tushare-primary", "tushare-backup"]
+
     def test_last_successful_same_source_route_is_reused_before_static_priority(self):
         reg = ProviderRegistry()
         primary = _StubProvider(

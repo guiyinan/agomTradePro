@@ -34,6 +34,7 @@ _SAFE_RESPONSE_FAILURE_CODES = frozenset(
         "REHEARSAL_RESPONSE_NOT_SUCCESS",
         "REHEARSAL_RESPONSE_SCHEMA_INVALID",
         "REHEARSAL_RESPONSE_VALUE_UNSUPPORTED",
+        "TUSHARE_DATA_NOT_YET_AVAILABLE",
     }
 )
 
@@ -229,7 +230,11 @@ def parse_validate_tushare_response(
         raise ValueError("REHEARSAL_RESPONSE_INCOMPLETE")
     raw_fields = data["fields"]
     raw_items = data["items"]
-    if not isinstance(raw_fields, list) or not raw_fields or not isinstance(raw_items, list):
+    if not isinstance(raw_fields, list) or not isinstance(raw_items, list):
+        raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    if not raw_fields and not raw_items:
+        raise ValueError("TUSHARE_DATA_NOT_YET_AVAILABLE")
+    if not raw_fields:
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
     fields: list[str] = []
     for raw_field in raw_fields:
@@ -238,6 +243,8 @@ def parse_validate_tushare_response(
         fields.append(raw_field)
     if len(set(fields)) != len(fields) or "ts_code" not in fields or "trade_date" not in fields:
         raise ValueError("REHEARSAL_RESPONSE_SCHEMA_INVALID")
+    if not raw_items:
+        raise ValueError("TUSHARE_DATA_NOT_YET_AVAILABLE")
     target_date = date.fromisoformat(context.target_trade_date)
     rows: list[TushareResponseRow] = []
     for raw_row in raw_items:

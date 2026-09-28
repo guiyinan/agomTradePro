@@ -170,6 +170,67 @@ def _provider_frame(
     return _RetainedFinancialFrame(frame=frame, artifact_reference=artifact_reference)
 
 
+def _is_full_market_trade_date_query(api_name: str, params: Mapping[str, object]) -> bool:
+    """Identify daily tables requested for one complete session rather than one symbol."""
+
+    trade_date = params.get("trade_date")
+    asset_code = params.get("ts_code")
+    return (
+        api_name in {"daily", "daily_basic"}
+        and isinstance(trade_date, str)
+        and re.fullmatch(r"[0-9]{8}", trade_date) is not None
+        and not (isinstance(asset_code, str) and asset_code.strip())
+    )
+
+
+def _empty_trade_date_error(api_name: str, trade_date: object) -> TushareError:
+    """Build the stable retryable error for a successful but unavailable session table."""
+
+    return TushareError(
+        "目标交易日的行情数据尚未可用",
+        code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+        details={"api_name": api_name, "trade_date": trade_date},
+    )
+
+
+def _validated_provider_table(
+    data: dict[str, object],
+    *,
+    api_name: str,
+    params: Mapping[str, object],
+) -> tuple[list[str], list[object]]:
+    """Validate one Tushare table envelope before constructing a dataframe."""
+
+    if set(data) - {"fields", "items", "has_more"}:
+        raise TushareError("Tushare table envelope is invalid", code="TUSHARE_INVALID_PAYLOAD")
+    columns = data.get("fields")
+    items = data.get("items")
+    has_more = data.get("has_more", False)
+    if (
+        not isinstance(columns, list)
+        or not all(isinstance(column, str) and column.strip() for column in columns)
+        or len(set(columns)) != len(columns)
+        or not isinstance(items, list)
+        or type(has_more) is not bool
+    ):
+        raise TushareError("Tushare table shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
+    if has_more:
+        raise TushareError("Tushare table is incomplete", code="MODEL_MARKET_INCOMPLETE_RESULT")
+    if not all(isinstance(row, list) and len(row) == len(columns) for row in items):
+        raise TushareError("Tushare table row shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
+    if (
+        _is_full_market_trade_date_query(api_name, params)
+        and columns
+        and not {"ts_code", "trade_date"}.issubset(columns)
+    ):
+        raise TushareError(
+            "Tushare session identity fields are missing", code="TUSHARE_INVALID_PAYLOAD"
+        )
+    if _is_full_market_trade_date_query(api_name, params) and not items:
+        raise _empty_trade_date_error(api_name, params.get("trade_date"))
+    return cast(list[str], columns), cast(list[object], items)
+
+
 class TushareRelayAuthorizationError(PermissionError):
     """Raised when the configured relay rejects its API credential."""
 
@@ -387,18 +448,7 @@ class _UnifiedRelayClient:
                 "Tushare relay response is missing data",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        columns = data.get("fields")
-        items = data.get("items")
-        if not isinstance(columns, list) or not all(isinstance(column, str) for column in columns):
-            raise TushareError(
-                "Tushare relay response fields are invalid",
-                code="TUSHARE_INVALID_PAYLOAD",
-            )
-        if not isinstance(items, list):
-            raise TushareError(
-                "Tushare relay response items are invalid",
-                code="TUSHARE_INVALID_PAYLOAD",
-            )
+        columns, items = _validated_provider_table(data, api_name=api_name, params=params)
         return _provider_frame(
             items,
             columns,
@@ -540,23 +590,7 @@ class _RestPathClient(_UnifiedRelayClient):
                 "Tushare resource response is missing data",
                 code="TUSHARE_INVALID_PAYLOAD",
             )
-        if data.get("has_more"):
-            raise TushareError(
-                "Tushare resource result is incomplete; narrow the requested range",
-                code="MODEL_MARKET_INCOMPLETE_RESULT",
-            )
-        columns, items = data.get("fields"), data.get("items")
-        if (
-            not isinstance(columns, list)
-            or not all(isinstance(column, str) for column in columns)
-            or len(set(columns)) != len(columns)
-            or not isinstance(items, list)
-            or not all(isinstance(row, list) and len(row) == len(columns) for row in items)
-        ):
-            raise TushareError(
-                "Tushare resource table shape is invalid",
-                code="TUSHARE_INVALID_PAYLOAD",
-            )
+        columns, items = _validated_provider_table(data, api_name=api_name, params=params)
         return _provider_frame(items, columns, artifact_reference)
 
 
@@ -604,7 +638,12 @@ class _RoutedSdkClient(_UnifiedRelayClient):
             if self._legacy_bypass_url is not None:
                 return super().query(api_name, fields=fields, **params)
             _append_custom_endpoint_to_no_proxy(self._legacy_bypass_url)
-            return cast(Any, self._sdk_client).query(api_name, fields=fields, **params)
+            frame = cast(Any, self._sdk_client).query(api_name, fields=fields, **params)
+            if _is_full_market_trade_date_query(api_name, params) and (
+                frame is None or bool(getattr(frame, "empty", False))
+            ):
+                raise _empty_trade_date_error(api_name, params.get("trade_date"))
+            return frame
         payload = self._request_through_egress(
             target_url,
             method="POST",
@@ -628,15 +667,7 @@ class _RoutedSdkClient(_UnifiedRelayClient):
         data = payload.get("data")
         if not isinstance(data, dict):
             raise TushareError("Tushare response is missing data", code="TUSHARE_INVALID_PAYLOAD")
-        columns, items = data.get("fields"), data.get("items")
-        if (
-            not isinstance(columns, list)
-            or not all(isinstance(column, str) for column in columns)
-            or len(set(columns)) != len(columns)
-            or not isinstance(items, list)
-            or not all(isinstance(row, list) and len(row) == len(columns) for row in items)
-        ):
-            raise TushareError("Tushare table shape is invalid", code="TUSHARE_INVALID_PAYLOAD")
+        columns, items = _validated_provider_table(data, api_name=api_name, params=params)
         return _provider_frame(items, columns, artifact_reference)
 
 
