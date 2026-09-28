@@ -184,13 +184,12 @@ class DataCenterDiagnosticRepository:
                 str(block["asset_code"]) for block in publication_summary["scope_blocks"]
             )
         scope_blocked_codes = sorted(scope_blocked_code_set)
-        return {
+        payload: dict[str, object] = {
             "status": "ok" if ready else "incomplete",
             "availability": (
                 "partial" if ready and scope_blocked_codes else "complete" if ready else "blocked"
             ),
             "must_not_use_for_decision": not ready,
-            "block_reason_code": "" if ready else "active_stock_fact_coverage_incomplete",
             "scope_blocked_asset_count": len(scope_blocked_codes),
             "scope_blocked_asset_codes": scope_blocked_codes,
             "universe": config.universe_id,
@@ -199,6 +198,8 @@ class DataCenterDiagnosticRepository:
             "universe_quality": universe_quality,
             "domains": domains,
         }
+        payload["block_reason_code"] = "" if ready else "core_data_coverage_incomplete"
+        return payload
 
     def list_active_stock_codes(self) -> list[str]:
         """Return the configured production A-share universe in stable code order."""
@@ -693,8 +694,7 @@ class DataCenterDiagnosticRepository:
             ),
             scope_block_count=int(cast(int, summary["scope_block_count"])),
             scope_blocks=[
-                dict(item)
-                for item in cast(list[dict[str, object]], summary["scope_blocks"])
+                dict(item) for item in cast(list[dict[str, object]], summary["scope_blocks"])
             ],
             as_of=str(summary["as_of"]) if summary.get("as_of") is not None else None,
             published_at=(
