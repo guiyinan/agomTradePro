@@ -673,3 +673,44 @@
   universe hash 与动态 scope blocks。正式 market Publication 成功后才继续财报 owner contract、guarded
   decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零写入联合验收；任何未满足项继续保留明确
   blocked，不以 HTTP 200、Celery 终态或部分事实写入替代恢复结论。
+
+### 2026-09-29 frozen member 来源范围一致性修复
+
+- 动态停牌范围修复已形成提交 `c45894ec923a7327e4f76e79968468f7c22af9cc`；容量测试共享 fixture
+  修复形成提交 `e74804125bf00b5b72bf78b60b4aa19bd1ca3e6c`。`e74804125` 的 Architecture、
+  Security、Consistency、Fast Feedback 和手工 Publication PostgreSQL workflow 全部通过；第三个全新 S6
+  目录 `s6-e74804125-20260929c` 九阶段成功，镜像为
+  `sha256:ba918f1bf9e617b0d5e1a5e57609873f70e13fc60d45873c28e22eb166065321`，release 为
+  `20260928194747`。生产采用该预构建镜像升级，独立检查确认 HTTPS、容器、迁移、运行 SHA、pyqlib 和
+  Celery 均一致，数据卷及数据库保留。
+- 部署后只触发一次显式全市场任务 `06e42f3a-345d-4d2f-aea6-8116d4e692a7`。任务运行
+  3,647.316 秒并正常到达业务终态，没有超时或未捕获异常；返回
+  `outcome=partial`、`requested/succeeded/failed/stored=5569/5558/11/11127`。quote 与 valuation
+  分别写入 5,558 和 5,569，publication 为 0/1，稳定码仍为
+  `MARKET_PUBLICATION_VALIDATION_FAILED`，publication run id 为
+  `533706bd-b433-4c9e-b69c-8f9c5979ee50`。11 只目标日全天停牌证券保持动态局部阻断，旧正式
+  Publication 未切换。
+- 新一轮只读逐数据集核对确认 scope preview 已修复：price 与 valuation 的 frozen member/fact 哈希均
+  全量一致；quote 5,558 条全部在原子发布的独立复核中被拒绝。根因是证据声明规则发生漂移：引用创建器
+  仅在规范事实行同时持久化 `source_record_id` 和 `raw_payload_hash` 时才声明
+  `raw_payload_scope`；独立 verifier 却无条件读取 `extra.raw_payload_scope`。Tushare quote 行的
+  `extra` 带 `batch_response_body`，但这两个规范字段为空，于是 member 正确地没有声明原始响应范围，
+  verifier 却要求该范围，造成 5,558/5,558 假不一致。这与 11 只停牌证券无关，也不能通过删除历史行、
+  放宽完整率或关闭复核解决。
+- 类别修复集中到共享 `stored_fact_evidence`：非严格来源证据只有在持久事实行同时具有非空白来源记录 ID、
+  合法小写 SHA-256 原始响应哈希和范围时才声明 transport scope；引用创建和 frozen member 复核统一消费
+  这一结果。若只有 `extra` 范围或响应哈希，仍用完整规范事实行 SHA-256 验证内容，但不冒充 provider
+  原始响应证据。财报 `require_verified_source_evidence=True` 分支继续强制公告/可用/抓取时间顺序、来源
+  记录 ID、合法响应哈希和受支持范围，未降低发布门槛。
+- 组件反例覆盖生产形态：DB 的来源 ID/哈希为空而 `extra` 带 transport metadata 时，frozen member
+  必须以空 scope 通过规范事实绑定；正例覆盖三项来源证据齐全时 scope 必须保留，篡改或删除 scope 继续
+  失败关闭；另覆盖非法摘要不能声明 transport scope。当前相关组件 19 项通过，扩大后的 Publication、
+  financial strict-source 与 current rebuild 回归 76 项通过；Black、isort、Ruff 通过。Luna Max 独立
+  静态复核未发现 P0/P1，并确认财报严格分支没有被放宽。
+- 时间语义再次明确：北京时间 15:00 才是正式收盘边界。14:55 行情不能计入完整收盘覆盖；它只证明该
+  证券当日出现过行情，从而否定“全天停牌”。这两个不变量分别测试，不得相互替代。
+- 本修复尚未形成新的部署候选。完成增量 mypy、debt ceiling、current-data/Celery/module map 和高风险
+  回归后，必须提交并推送新 SHA，重新取得同 SHA 五组 CI、全新 S6 与部署回执，再只触发一次显式全市场
+  刷新。只有 persisted Publication member/hash/id/run id 与本次 task 完全一致，才可认定行情、价格和
+  估值正式发布恢复。财报 owner contract、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读
+  零写入仍按既定顺序验收；当前不得提前宣称整体恢复。

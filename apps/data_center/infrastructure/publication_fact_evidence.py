@@ -143,7 +143,7 @@ def stored_fact_evidence(
     *,
     require_verified_source_evidence: bool = False,
 ) -> StoredFactEvidence:
-    """Narrow dynamic ORM timestamps and JSON scope before returning immutable evidence."""
+    """Return only evidence that the normalized row can independently substantiate."""
 
     available: object = getattr(row, "available_at", None)
     fetched: object = getattr(row, "fetched_at", None)
@@ -168,6 +168,8 @@ def stored_fact_evidence(
             raise ValueError("Canonical source published_at must be date/datetime or None")
     if not isinstance(scope, str):
         raise ValueError("Canonical raw_payload_scope must be text")
+    if not require_verified_source_evidence:
+        scope = _claimable_raw_payload_scope(row, scope)
     return StoredFactEvidence(
         available_at=available if isinstance(available, datetime) else None,
         fetched_at=fetched if isinstance(fetched, datetime) else None,
@@ -175,6 +177,16 @@ def stored_fact_evidence(
         raw_payload_scope=scope,
         fact_content_hash=canonical_fact_content_hash(row),
     )
+
+
+def _claimable_raw_payload_scope(row: models.Model, scope: str) -> str:
+    """Expose transport scope only with its persisted record id and body hash."""
+
+    source_record_id: object = getattr(row, "source_record_id", "")
+    raw_payload_hash: object = getattr(row, "raw_payload_hash", "")
+    if not isinstance(source_record_id, str) or not isinstance(raw_payload_hash, str):
+        raise ValueError("Canonical fact source evidence must be text")
+    return scope if source_record_id.strip() and _is_sha256(raw_payload_hash) else ""
 
 
 def publication_fact_reference(
@@ -232,7 +244,7 @@ def publication_fact_reference(
         available_at=evidence.available_at,
         fetched_at=evidence.fetched_at,
         source_published_at=evidence.source_published_at,
-        raw_payload_scope=evidence.raw_payload_scope if raw_hash and stored_record else "",
+        raw_payload_scope=evidence.raw_payload_scope,
         fact_content_hash=evidence.fact_content_hash,
     )
 

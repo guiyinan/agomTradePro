@@ -80,6 +80,107 @@ def test_valid_member_with_empty_scope_binds_fallback_identity_and_row_hash() ->
     }
 
 
+def test_unclaimable_quote_transport_scope_does_not_break_frozen_fact_binding() -> None:
+    """Transport scope alone cannot become provenance or invalidate normalized evidence."""
+
+    observed = datetime(2026, 9, 28, 7, tzinfo=UTC)
+    row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=observed,
+        fetched_at=observed + timedelta(minutes=5),
+        current_price=Decimal("10.5000"),
+        source="tushare",
+        source_record_id="",
+        raw_payload_hash="",
+        extra={
+            "raw_payload_hash": "a" * 64,
+            "raw_payload_scope": "batch_response_body",
+            "response_completed_at": "2026-09-28T07:05:00Z",
+        },
+    )
+    reference = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=str(uuid4()),
+        dataset_key="equity.quote.snapshot",
+    )
+
+    assert member.raw_payload_scope == ""
+    assert member.source_record_id == member.natural_key
+    assert publication_fact_content_hashes((member,)) == {
+        (member.fact_table, member.fact_pk): member.fact_content_hash
+    }
+
+
+def test_complete_quote_transport_evidence_remains_strictly_bound() -> None:
+    """Persisted record id, body hash and scope remain one indivisible claim."""
+
+    observed = datetime(2026, 9, 28, 7, tzinfo=UTC)
+    raw_payload_hash = "b" * 64
+    row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=observed,
+        fetched_at=observed + timedelta(minutes=5),
+        current_price=Decimal("10.5000"),
+        source="tushare",
+        source_record_id="tushare:quotes:000001.SZ:20260928",
+        raw_payload_hash=raw_payload_hash,
+        extra={"raw_payload_scope": "batch_response_body"},
+    )
+    reference = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=str(uuid4()),
+        dataset_key="equity.quote.snapshot",
+    )
+
+    assert member.raw_payload_scope == "batch_response_body"
+    assert member.source_record_id == row.source_record_id
+    assert member.raw_payload_hash == raw_payload_hash
+    assert publication_fact_content_hashes((member,)) == {
+        (member.fact_table, member.fact_pk): member.fact_content_hash
+    }
+    assert publication_fact_content_hashes((replace(member, raw_payload_scope=""),)) == {}
+
+
+def test_malformed_quote_body_hash_cannot_claim_transport_scope() -> None:
+    """A record id and scope cannot promote a malformed body digest to provenance."""
+
+    observed = datetime(2026, 9, 28, 7, tzinfo=UTC)
+    row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=observed,
+        current_price=Decimal("10.5000"),
+        source="tushare",
+        source_record_id="tushare:quotes:000001.SZ:20260928",
+        raw_payload_hash="not-a-sha256",
+        extra={"raw_payload_scope": "batch_response_body"},
+    )
+    reference = publication_fact_reference_for_dataset(
+        row,
+        dataset_key="equity.quote.snapshot",
+    )
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=str(uuid4()),
+        dataset_key="equity.quote.snapshot",
+    )
+
+    assert member.raw_payload_scope == ""
+    assert publication_fact_content_hashes((member,)) == {
+        (member.fact_table, member.fact_pk): member.fact_content_hash
+    }
+
+
 @pytest.mark.parametrize(
     ("field", "changed"),
     (
