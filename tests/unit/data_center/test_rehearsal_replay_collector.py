@@ -23,6 +23,38 @@ FINISHED = datetime(2026, 9, 24, 8, 0, 1, tzinfo=UTC)
 NORMALIZED = datetime(2026, 9, 24, 8, 0, 1, 1000, tzinfo=UTC)
 
 
+def _validated_capacity(
+    validator: ModuleType,
+    policy_snapshot: dict[str, object],
+    *,
+    registered_asset_codes: tuple[str, ...] = SAMPLE,
+    eligible_asset_codes: tuple[str, ...] = SAMPLE,
+    excluded_asset_codes: tuple[str, ...] = (),
+    excluded_asset_reasons: tuple[tuple[str, str], ...] = (),
+    valuation_missing_asset_codes: tuple[str, ...] = (),
+    valuation_missing_reasons: tuple[tuple[str, str], ...] = (),
+) -> object:
+    """Build complete capacity evidence for release replay contract tests."""
+
+    assert not set(eligible_asset_codes) & set(excluded_asset_codes)
+    assert set(eligible_asset_codes) | set(excluded_asset_codes) == set(registered_asset_codes)
+    assert excluded_asset_reasons == tuple(
+        (code, validator.QUOTE_FULL_DAY_SUSPENSION_REASON) for code in excluded_asset_codes
+    )
+    assert valuation_missing_reasons == tuple(
+        (code, "valuation_source_data_unavailable") for code in valuation_missing_asset_codes
+    )
+    return validator._ValidatedCapacityEvidence(
+        registered_asset_codes=registered_asset_codes,
+        eligible_asset_codes=eligible_asset_codes,
+        excluded_asset_codes=excluded_asset_codes,
+        excluded_asset_reasons=excluded_asset_reasons,
+        valuation_missing_asset_codes=valuation_missing_asset_codes,
+        valuation_missing_reasons=valuation_missing_reasons,
+        policy=validator._validated_policy_evidence(policy_snapshot),
+    )
+
+
 @pytest.fixture(scope="module")
 def modules():
     package = ModuleType(PREFIX)
@@ -545,13 +577,9 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
         expected_date=DATE,
         expected_universe=probe["universe_sha256"],
         expected_provider_digest=probe["provider_identities_sha256"],
-        capacity=validator._ValidatedCapacityEvidence(
-            registered_asset_codes=SAMPLE,
-            eligible_asset_codes=SAMPLE,
-            excluded_asset_codes=(),
-            valuation_missing_asset_codes=(),
-            valuation_missing_reasons=(),
-            policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
+        capacity=_validated_capacity(
+            validator,
+            probe["valuation_policy_snapshot"],
         ),
     )
     quote_receipt = json.loads(
@@ -584,13 +612,9 @@ def test_collector_replays_tencent_valuation_bytes_through_release_validator(
         expected_date=DATE,
         expected_universe=probe["universe_sha256"],
         expected_provider_digest=probe["provider_identities_sha256"],
-        capacity=validator._ValidatedCapacityEvidence(
-            registered_asset_codes=SAMPLE,
-            eligible_asset_codes=SAMPLE,
-            excluded_asset_codes=(),
-            valuation_missing_asset_codes=(),
-            valuation_missing_reasons=(),
-            policy=validator._validated_policy_evidence(probe["valuation_policy_snapshot"]),
+        capacity=_validated_capacity(
+            validator,
+            probe["valuation_policy_snapshot"],
         ),
     )
     receipt = json.loads(
@@ -664,13 +688,13 @@ def test_collector_accepts_policy_qualified_partial_valuation_scope(
         expected_date=DATE,
         expected_universe=_probe["universe_sha256"],
         expected_provider_digest=_probe["provider_identities_sha256"],
-        capacity=validator._ValidatedCapacityEvidence(
+        capacity=_validated_capacity(
+            validator,
+            _probe["valuation_policy_snapshot"],
             registered_asset_codes=(*SAMPLE, "600001.SH"),
             eligible_asset_codes=(*SAMPLE, "600001.SH"),
-            excluded_asset_codes=(),
             valuation_missing_asset_codes=("600001.SH",),
             valuation_missing_reasons=(("600001.SH", "valuation_source_data_unavailable"),),
-            policy=validator._validated_policy_evidence(_probe["valuation_policy_snapshot"]),
         ),
     )
 
