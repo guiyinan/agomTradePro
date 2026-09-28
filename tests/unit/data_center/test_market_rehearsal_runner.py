@@ -16,6 +16,7 @@ from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
 from apps.data_center.infrastructure import market_rehearsal_runner as runner
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
+from core.exceptions import MissingConfigError
 
 
 def test_probe_without_real_response_receipt_cannot_pass() -> None:
@@ -47,6 +48,32 @@ def test_provider_exception_never_leaks_credential_text() -> None:
         )
     assert result["outcome"] != "success"
     assert "secret-rehearsal-test" not in json.dumps(result)
+
+
+def test_provider_configuration_failure_keeps_stable_business_code() -> None:
+    """A missing provider credential must not be reported as missing assets."""
+
+    def fail() -> list[QuoteSnapshot]:
+        raise MissingConfigError(
+            "provider credential unavailable",
+            code="TUSHARE_CREDENTIAL_UNAVAILABLE",
+        )
+
+    with RehearsalHttpCapture(max_dispatches=1, max_seconds=5) as capture:
+        result = runner._probe(
+            dataset="equity.quote.snapshot",
+            fetch=fail,
+            sample=("600000.SH",),
+            target_date=date(2026, 9, 24),
+            capture=capture,
+        )
+
+    assert result["outcome"] == "blocked"
+    assert result["requested"] == 1
+    assert result["succeeded"] == 0
+    assert result["failed"] == 1
+    assert result["issues"] == [{"code": "TUSHARE_CREDENTIAL_UNAVAILABLE"}]
+    assert result["transport_error_code"] == "REHEARSAL_REAL_RESPONSE_MISSING"
 
 
 def test_source_digest_binds_actual_files_and_rejects_missing_tree(tmp_path) -> None:

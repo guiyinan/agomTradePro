@@ -28,6 +28,7 @@ from apps.data_center.infrastructure.tushare_replay_parser import _safe_int as _
 from apps.data_center.infrastructure.tushare_replay_parser import (
     parse_tushare_daily_quote_rows,
 )
+from core.exceptions import MissingConfigError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,12 @@ _SUPPORTED = {
     DataCapability.REALTIME_QUOTE,
     DataCapability.TECHNICAL_FACTORS,
     DataCapability.HISTORICAL_PRICE,
+}
+
+_TUSHARE_RUNTIME_CONFIG_ERRORS = {
+    "Tushare token 未配置": "TUSHARE_CREDENTIAL_UNAVAILABLE",
+    "Tushare unified relay URL 未配置": "TUSHARE_RUNTIME_CONFIG_UNAVAILABLE",
+    "Tushare SDK endpoint is unavailable": "TUSHARE_RUNTIME_CONFIG_UNAVAILABLE",
 }
 
 
@@ -239,6 +246,12 @@ class TushareGateway(MarketGatewayProtocol):
 
         except TushareRelayAuthorizationError:
             raise
+        except ValueError as exc:
+            error_code = _TUSHARE_RUNTIME_CONFIG_ERRORS.get(str(exc))
+            if error_code is not None:
+                raise MissingConfigError(str(exc), code=error_code) from exc
+            logger.exception("Tushare gateway 批量行情失败")
+            return []
         except Exception:
             logger.exception("Tushare gateway 批量行情失败")
             return []

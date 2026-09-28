@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from apps.data_center.infrastructure.gateways import tushare_gateway
+from core.exceptions import MissingConfigError
 
 
 def test_tushare_scalar_and_code_helpers() -> None:
@@ -187,6 +188,37 @@ def test_native_quote_authorization_failure_is_visible(monkeypatch: pytest.Monke
         tushare_gateway.TushareGateway().get_quote_snapshots(
             ["000001.SZ"], target_trade_date=date(2026, 9, 24)
         )
+
+
+@pytest.mark.parametrize(
+    ("provider_error", "expected_code"),
+    [
+        ("Tushare token 未配置", "TUSHARE_CREDENTIAL_UNAVAILABLE"),
+        ("Tushare unified relay URL 未配置", "TUSHARE_RUNTIME_CONFIG_UNAVAILABLE"),
+        ("Tushare SDK endpoint is unavailable", "TUSHARE_RUNTIME_CONFIG_UNAVAILABLE"),
+    ],
+)
+def test_native_quote_runtime_configuration_failure_is_visible(
+    monkeypatch: pytest.MonkeyPatch,
+    provider_error: str,
+    expected_code: str,
+) -> None:
+    """Runtime configuration failures must not masquerade as missing securities."""
+
+    monkeypatch.setattr(tushare_gateway, "build_tushare_stock_adapter", lambda: None)
+    monkeypatch.setattr(
+        tushare_gateway,
+        "create_tushare_pro_client",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError(provider_error)),
+    )
+
+    with pytest.raises(MissingConfigError) as raised:
+        tushare_gateway.TushareGateway(provider_id=2).get_quote_snapshots(
+            ["000001.SZ"], target_trade_date=date(2026, 9, 24)
+        )
+
+    assert raised.value.code == expected_code
+    assert raised.value.to_dict()["must_not_use_for_decision"] is True
 
 
 def test_history_routes_etf_index_and_stock_and_skips_invalid_rows(
