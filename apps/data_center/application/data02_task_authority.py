@@ -12,8 +12,9 @@ from shared.domain.task_outcomes import TaskBusinessOutcome
 
 _FINALIZATION_WINDOW = timedelta(seconds=300)
 _TRANSIENT_AUTHORITY_REASONS = frozenset({"system_audit_authority_unavailable"})
-_DEFAULT_REVALIDATION_ATTEMPTS = 3
+_DEFAULT_REVALIDATION_ATTEMPTS = 6
 _DEFAULT_REVALIDATION_DELAY_SECONDS = 1.0
+_MAX_REVALIDATION_DELAY_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +146,11 @@ def revalidate_data02_task_authority(
                 (failure or {}).get("blocked_reason") or "authority_changed_or_expired"
             )
             if reason_code in _TRANSIENT_AUTHORITY_REASONS and attempt < max_attempts:
-                sleeper(float(retry_delay_seconds))
+                delay_seconds = min(
+                    float(retry_delay_seconds) * attempt,
+                    _MAX_REVALIDATION_DELAY_SECONDS,
+                )
+                sleeper(delay_seconds)
                 current_as_of = clock() if clock is not None else datetime.now(UTC)
                 if current_as_of.tzinfo is None or current_as_of.utcoffset() is None:
                     raise ValueError("clock must return a timezone-aware datetime")

@@ -161,6 +161,8 @@ python scripts/check_celery_task_contracts.py \
 
 2026-09-28 全市场快照规模契约：一次 `refresh_full_market_publications_task` 对一个 provider 和目标交易日只执行一次全市场 `daily` 快照读取；Application 将响应完成时间、真实可用的原始响应 SHA-256、规范化报价行 hash、provider identity 和冻结 universe hash 放入 task-local `PreparedQuoteSession`。后续有界 fact-write 批次只能读取该冻结响应的子集，不能再次访问 provider；下一任务必须重新读取，禁止跨任务缓存。Provider 拒绝、返回缺失/重复/越界 identity、错误交易日或无来源时间时在任何 quote fact 写入前失败关闭；不得因范围错误缩小全集、把缺行认作停牌或放宽 Publication freshness。
 
+2026-09-28 审计锁竞争容错：长任务在每个写边界仍须复验同一 authority identity。仅当读取返回稳定的 `system_audit_authority_unavailable` 时，允许最多 6 次递增、单次不超过 5 秒的有界重读，以跨过其他受治理写入持有的短事务锁；每次重读都使用新的 UTC 时钟重算有效窗口。authority source、actor、user、tenant、owner、认证/职员状态、role 或有效期发生变化时立即失败关闭，不得重试为成功，也不得跳过最终发布前复验。
+
 同日阶段诊断整改：市场发布编排结果增加 `phase`、`phase_results`、`target_trade_date` 和 `stored_count_unit=fact_row`。各阶段分别保留 requested/succeeded/failed/stored；事实同步完成而发布失败必须为 partial，并保留前序存储计数和失败阶段。`stored` 沿用 repository 已接受持久化事实数量口径（包括成功幂等 upsert），不表示新增物理行数量，也不包含独立的 valuation seed 计数；`published_members` 独立统计。公开结果只含稳定码，完整异常栈进入运维日志。
 
 证券主数据自然刷新对 AKShare 的瞬时 `OSError/RuntimeError/ValueError` 最多尝试 3 次；最终失败返回 `MARKET_UNIVERSE_REFRESH_FAILED`，任务结果和 Alpha 页面只显示稳定错误码，不回显第三方响应。空名单同样阻断，不能用旧名单伪装本次同步成功。

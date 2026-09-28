@@ -4942,6 +4942,8 @@
           "publication evidence source_published_at is after available_at"
         ],
         "apps/data_center/application/data02_task_authority.py": [
+          "_DEFAULT_REVALIDATION_ATTEMPTS = 6",
+          "_MAX_REVALIDATION_DELAY_SECONDS = 5.0",
           "def preflight_data02_task_authority(",
           "def same_data02_task_authority_is_current(",
           "data02_authority_failure(\"authority_window_too_short\")"
@@ -5513,6 +5515,11 @@
           "case": "scheduled_market_refresh_retries_transient_authority_read_contention",
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_authority_revalidation_retries_transient_unavailability"
+        },
+        {
+          "case": "scheduled_market_refresh_outlasts_back_to_back_authority_writer_locks",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_authority_revalidation_outlasts_back_to_back_writer_transactions"
         },
         {
           "case": "scheduled_market_refresh_stops_after_terminal_authority_block",

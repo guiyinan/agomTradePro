@@ -211,6 +211,53 @@ def test_authority_revalidation_retries_transient_unavailability(
     assert waits == [0.25]
 
 
+def test_authority_revalidation_outlasts_back_to_back_writer_transactions(
+    monkeypatch,
+    _patch_current_authority,
+) -> None:
+    """Bounded backoff crosses repeated short writer locks without weakening identity checks."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center.application import tasks
+    from apps.data_center.application.data02_task_authority import (
+        revalidate_data02_task_authority,
+    )
+
+    calls = 0
+
+    def contended_then_current(**_):
+        nonlocal calls
+        calls += 1
+        if calls <= 4:
+            raise SystemAuditCompositionUnavailable(
+                "back-to-back writer lock",
+                reason_code="authority_unavailable",
+            )
+        return _patch_current_authority
+
+    waits: list[float] = []
+    observed_at = datetime.now(UTC)
+    monkeypatch.setattr(
+        tasks.audit_integration,
+        "preflight_data_reliability_audit_runtime",
+        contended_then_current,
+    )
+
+    result = revalidate_data02_task_authority(
+        _patch_current_authority,
+        as_of=observed_at,
+        max_attempts=6,
+        retry_delay_seconds=1.0,
+        sleeper=waits.append,
+        clock=lambda: observed_at + timedelta(seconds=sum(waits)),
+    )
+
+    assert result.current is True
+    assert result.reason_code == "authority_current"
+    assert result.attempts == 5
+    assert waits == [1.0, 2.0, 3.0, 4.0]
+
+
 def test_authority_revalidation_does_not_retry_identity_drift(
     monkeypatch,
     _patch_current_authority,
