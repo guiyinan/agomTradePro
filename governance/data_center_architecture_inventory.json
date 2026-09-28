@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5141,
+    "current_surface_references": 5144,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -210,12 +210,12 @@
     },
     {
       "import": "apps.data_center.infrastructure.models",
-      "line": 16,
+      "line": 17,
       "path": "apps/dashboard/tests/test_alpha_queries.py"
     },
     {
       "import": "apps.rotation.infrastructure.models",
-      "line": 17,
+      "line": 18,
       "path": "apps/dashboard/tests/test_alpha_queries.py"
     },
     {
@@ -9286,6 +9286,16 @@
       "text": "\"\"\"Atomically consume the current token and reject replay/expiry.\"\"\""
     },
     {
+      "line": 85,
+      "path": "apps/dashboard/application/alpha_homepage.py",
+      "text": "summary: dict[str, Any]"
+    },
+    {
+      "line": 268,
+      "path": "apps/dashboard/application/alpha_homepage.py",
+      "text": "summary=self._build_exit_watch_summary(items),"
+    },
+    {
       "line": 444,
       "path": "apps/dashboard/application/alpha_homepage_candidates.py",
       "text": "\"summary\": f\"若跌出 Top {max(rank + 5, 10)}、政策/风控转差或{strength_invalidation}，则当前候选失效。\","
@@ -9301,17 +9311,17 @@
       "text": "\"summary\": \"若执行失败或审批撤回，该待执行请求失效。\","
     },
     {
-      "line": 528,
+      "line": 543,
       "path": "apps/dashboard/application/alpha_homepage_exit_watch.py",
       "text": "current = latest_by_security.get(security_code)"
     },
     {
-      "line": 529,
+      "line": 544,
       "path": "apps/dashboard/application/alpha_homepage_exit_watch.py",
       "text": "if current is None:"
     },
     {
-      "line": 534,
+      "line": 549,
       "path": "apps/dashboard/application/alpha_homepage_exit_watch.py",
       "text": "getattr(current, \"updated_at\", None) or getattr(current, \"created_at\", None)"
     },
@@ -9451,27 +9461,32 @@
       "text": "logger.warning(\"Failed to get regime summary: error_type=%s\", type(exc).__name__)"
     },
     {
-      "line": 237,
+      "line": 251,
+      "path": "apps/dashboard/application/interface_services.py",
+      "text": "\"exit_watch_summary\": data.summary,"
+    },
+    {
+      "line": 279,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Load valuation-repair config summary for dashboard widgets.\"\"\""
     },
     {
-      "line": 243,
+      "line": 285,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "summary = load_summary(use_cache=use_cache)"
     },
     {
-      "line": 244,
+      "line": 286,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "return _json_object(summary) if summary is not None else None"
     },
     {
-      "line": 246,
+      "line": 288,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "logger.warning(\"Failed to get valuation repair config summary: %s\", exc)"
     },
     {
-      "line": 321,
+      "line": 363,
       "path": "apps/dashboard/application/interface_services.py",
       "text": "\"\"\"Build the current Beta conclusion used before reading Alpha candidates.\"\"\""
     },
@@ -10091,52 +10106,52 @@
       "text": "f\"{dataset_key} Publication id does not match its canonical current identity\""
     },
     {
-      "line": 23,
+      "line": 24,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current: bool"
     },
     {
-      "line": 33,
+      "line": 34,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current: bool = True"
     },
     {
-      "line": 39,
+      "line": 40,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "if self.current:"
     },
     {
-      "line": 41,
+      "line": 42,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "self.current = result.current"
     },
     {
-      "line": 43,
+      "line": 44,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "return self.current"
     },
     {
-      "line": 75,
+      "line": 76,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "\"\"\"Resolve current authority and prove it covers the task's bounded runtime.\"\"\""
     },
     {
-      "line": 104,
+      "line": 105,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": ").current"
     },
     {
-      "line": 138,
+      "line": 143,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "current, failure = preflight_data02_task_authority("
     },
     {
-      "line": 143,
+      "line": 148,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "if failure is not None or current is None:"
     },
     {
-      "line": 167,
+      "line": 176,
       "path": "apps/data_center/application/data02_task_authority.py",
       "text": "getattr(current, field) == getattr(authority, field) for field in identity_fields"
     },
@@ -25806,92 +25821,92 @@
       "text": "\"\"\"Summarize runtime and current-data availability without changing liveness.\"\"\""
     },
     {
-      "line": 372,
+      "line": 373,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get valuation repair config summary: {e}\")"
     },
     {
-      "line": 381,
+      "line": 382,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get current regime: {e}\")"
     },
     {
-      "line": 392,
+      "line": 393,
       "path": "core/views.py",
       "text": "logger.warning(f\"Failed to get current policy: {e}\")"
     },
     {
-      "line": 622,
+      "line": 636,
       "path": "core/views.py",
       "text": "\"summary\": f\"待审批 {admin_counts['pending_profiles']} 人\","
     },
     {
-      "line": 628,
+      "line": 642,
       "path": "core/views.py",
       "text": "\"summary\": f\"活跃 Token {admin_counts['active_tokens']} 个\","
     },
     {
-      "line": 634,
+      "line": 648,
       "path": "core/views.py",
       "text": "\"summary\": \"系统级参数编辑页\","
     },
     {
-      "line": 645,
+      "line": 659,
       "path": "core/views.py",
       "text": "\"summary\": \"交易前、投后与日报统一入口\","
     },
     {
-      "line": 651,
+      "line": 665,
       "path": "core/views.py",
       "text": "\"summary\": \"任务观测与恢复\","
     },
     {
-      "line": 657,
+      "line": 671,
       "path": "core/views.py",
       "text": "\"summary\": \"提案审批与执行记录\","
     },
     {
-      "line": 663,
+      "line": 677,
       "path": "core/views.py",
       "text": "\"summary\": \"能力治理与接入自检\","
     },
     {
-      "line": 669,
+      "line": 683,
       "path": "core/views.py",
       "text": "\"summary\": \"配置、训练与运行记录\","
     },
     {
-      "line": 680,
+      "line": 694,
       "path": "core/views.py",
       "text": "\"summary\": \"Qlib 推理观测与手动触发\","
     },
     {
-      "line": 686,
+      "line": 700,
       "path": "core/views.py",
       "text": "\"summary\": \"Qlib runtime data 运维入口\","
     },
     {
-      "line": 692,
+      "line": 706,
       "path": "core/views.py",
       "text": "\"summary\": \"生产验收与证据闭环\","
     },
     {
-      "line": 698,
+      "line": 712,
       "path": "core/views.py",
       "text": "\"summary\": \"调度与周期任务值守\","
     },
     {
-      "line": 704,
+      "line": 718,
       "path": "core/views.py",
       "text": "\"summary\": \"排障与值守入口\","
     },
     {
-      "line": 710,
+      "line": 724,
       "path": "core/views.py",
       "text": "\"summary\": f\"草稿 {documentation_stats.draft} 篇 / 总计 {documentation_stats.total} 篇\","
     },
     {
-      "line": 716,
+      "line": 730,
       "path": "core/views.py",
       "text": "\"summary\": f\"用户总数 {admin_counts['users']}\","
     },
