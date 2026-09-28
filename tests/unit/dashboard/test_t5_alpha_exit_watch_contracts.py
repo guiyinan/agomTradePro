@@ -194,6 +194,42 @@ def test_exit_watchlist_groups_accounts_loads_signals_and_sorts(
     assert harness._build_exit_watchlist(user_id=5, trade_date=date.today()) == []
 
 
+def test_exit_watchlist_scopes_account_and_security_before_related_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct research reads only related exit evidence for the requested holding."""
+
+    harness = _Harness()
+    captured_position_query: dict[str, object] = {}
+
+    def positions(**kwargs):
+        captured_position_query.update(kwargs)
+        return [
+            _position(account_id=7, asset_code="000001.SZ"),
+            _position(account_id=7, asset_code="600547.SH"),
+        ]
+
+    monkeypatch.setattr(exit_watch, "list_user_position_payloads", positions)
+    signal_repository = MagicMock()
+    signal_repository.get_invalidation_payloads.return_value = {}
+    monkeypatch.setattr(exit_watch, "get_signal_repository", lambda: signal_repository)
+
+    watchlist = harness._build_exit_watchlist(
+        user_id=5,
+        trade_date=date(2026, 9, 24),
+        account_id=7,
+        asset_code="600547.SH",
+    )
+
+    assert captured_position_query == {
+        "user_id": 5,
+        "account_id": 7,
+        "include_account_meta": True,
+    }
+    assert [item["asset_code"] for item in watchlist] == ["600547.SH"]
+    harness.unified_recommendation_repo.get_by_account.assert_called_once_with("7")
+
+
 def test_exit_watch_repository_failures_are_isolated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

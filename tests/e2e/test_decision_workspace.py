@@ -162,6 +162,68 @@ class TestWorkspacePageFlow:
         content = _assert_decision_workspace_page_contract(response)
         assert '审计复盘' not in content
 
+    def test_direct_research_link_scopes_exit_watch_query(self, monkeypatch):
+        """A selected security avoids loading the user's full exit-watch graph."""
+        from apps.dashboard.application import interface_services
+
+        captured_scope = {}
+
+        def scoped_exit_watch(**kwargs):
+            captured_scope.update(kwargs)
+            return {
+                'exit_watchlist': [
+                    {
+                        'asset_code': '600547.SH',
+                        'asset_name': '山东黄金',
+                        'account_id': None,
+                        'account_name': '默认账户',
+                        'exit_action': 'SELL',
+                        'exit_action_label': '立即退出',
+                        'exit_source': 'simulated_trading.position_invalidation',
+                        'exit_reason_text': '风控证伪，停止继续持有。',
+                        'invalidation_summary': '风控证伪，停止继续持有。',
+                        'priority_label': '立即处理',
+                        'decision_side_label': '卖出',
+                        'contract_status_label': '契约有效',
+                        'decision_workspace_url': '/decision/workspace/',
+                        'recommendation_snapshot': {},
+                    }
+                ],
+                'exit_watch_summary': {
+                    'total': 1,
+                    'urgent_count': 1,
+                    'sell_count': 1,
+                    'reduce_count': 0,
+                    'hold_count': 0,
+                },
+                'exit_watch_available': True,
+                'exit_watch_error_code': '',
+            }
+
+        monkeypatch.setattr(
+            interface_services,
+            'get_alpha_exit_watch_payload',
+            scoped_exit_watch,
+        )
+
+        response = self.client.get(
+            '/decision/workspace/',
+            {
+                'source': 'dashboard-alpha',
+                'security_code': '600547.SH',
+                'step': '3',
+                'account_id': 'default',
+                'action': 'research',
+            },
+        )
+
+        content = _assert_decision_workspace_page_contract(response)
+        assert '查看研究详情与数据阻断' in content
+        assert '当前仅显示所选证券的退出证据' in content
+        assert '风控证伪，停止继续持有。' in content
+        assert captured_scope['account_id'] is None
+        assert captured_scope['asset_code'] == '600547.SH'
+
     def test_recommendations_api_returns_data(self):
         """
         测试场景 2：推荐 API 返回数据

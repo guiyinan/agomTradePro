@@ -50,9 +50,22 @@ class AlphaExitWatchMixin:
     unified_recommendation_repo: UnifiedRecommendationRepositoryProtocol
     transition_plan_repo: PortfolioTransitionPlanRepositoryProtocol
 
-    def _build_exit_watchlist(self, *, user_id: int, trade_date: date) -> list[dict[str, Any]]:
+    def _build_exit_watchlist(
+        self,
+        *,
+        user_id: int,
+        trade_date: date,
+        account_id: int | None = None,
+        asset_code: str | None = None,
+    ) -> list[dict[str, Any]]:
+        requested_asset_code = None
+        if asset_code is not None:
+            requested_asset_code = self._normalize_security_code(asset_code)
+            if requested_asset_code is None:
+                return []
         positions = list_user_position_payloads(
             user_id=user_id,
+            account_id=account_id,
             include_account_meta=True,
         )
         if not positions:
@@ -63,13 +76,15 @@ class AlphaExitWatchMixin:
         for position in positions:
             if not isinstance(position, dict):
                 continue
-            account_id = self._safe_int(position.get("account_id"))
-            asset_code = self._normalize_security_code(position.get("asset_code"))
-            if account_id is None or asset_code is None:
+            position_account_id = self._safe_int(position.get("account_id"))
+            position_asset_code = self._normalize_security_code(position.get("asset_code"))
+            if position_account_id is None or position_asset_code is None:
+                continue
+            if requested_asset_code is not None and position_asset_code != requested_asset_code:
                 continue
             normalized_position = dict(position)
-            normalized_position["asset_code"] = asset_code
-            positions_by_account[account_id].append(normalized_position)
+            normalized_position["asset_code"] = position_asset_code
+            positions_by_account[position_account_id].append(normalized_position)
             signal_id = self._safe_int(position.get("signal_id"))
             if signal_id is not None:
                 signal_ids.add(signal_id)

@@ -145,3 +145,27 @@ def test_alpha_trigger_tui_deep_links_use_flat_action_parameters():
     assert "&amp;trigger_id={{ trigger.trigger_id|urlencode }}" in templates["trigger_detail"]
     assert "&amp;trigger_id={{ trigger.trigger_id|urlencode }}" in templates["trigger_edit"]
     assert all("&amp;params=%7B" not in template for template in templates.values())
+
+
+def test_decision_workspace_uses_scoped_exit_watch_and_fast_research_path():
+    """Direct research links preserve alerts without loading the full Alpha ranking chain."""
+
+    source = Path("core/views.py").read_text(encoding="utf-8")
+
+    assert "get_alpha_exit_watch_payload(" in source
+    assert "dashboard_views._get_alpha_stock_scores_payload(" not in source
+    assert 'requested_workspace_source != "dashboard-exit"' in source
+    assert "account_id=parsed_workspace_account_id if direct_research_request else None" in source
+    assert "asset_code=requested_security_code if direct_research_request else None" in source
+    assert 'context["workspace_exit_watch_scoped"] = direct_research_request' in source
+
+
+def test_decision_workspace_distinguishes_exit_watch_failure_from_empty() -> None:
+    """A source failure must not render as a valid empty exit watch."""
+
+    template = Path("core/templates/decision/workspace.html").read_text(encoding="utf-8")
+
+    assert "{% if not workspace_exit_watch_available %}" in template
+    assert "退出链路暂时不可用，请稍后重试。" in template
+    assert "当前仅显示所选证券的退出证据" in template
+    assert "Dashboard 完整退出监控" in template

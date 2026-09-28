@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "ALPHA_SCOPE_GENERAL",
     "ALPHA_SCOPE_PORTFOLIO",
+    "AlphaExitWatchData",
     "AlphaHomepageData",
     "AlphaHomepageQuery",
     "GetSizingContextUseCase",
@@ -74,6 +75,14 @@ class AlphaHomepageData:
     pending_requests: list[dict[str, Any]]
     recent_runs: list[dict[str, Any]]
     history_run_id: int | None
+
+
+@dataclass(frozen=True)
+class AlphaExitWatchData:
+    """Read-only exit-watch payload for workspace and dashboard consumers."""
+
+    items: list[dict[str, Any]]
+    summary: dict[str, Any]
 
 
 class AlphaHomepageQuery(
@@ -236,6 +245,27 @@ class AlphaHomepageQuery(
             pending_requests=pending_requests,
             recent_runs=recent_runs,
             history_run_id=history_run_id,
+        )
+
+    def get_exit_watch(
+        self,
+        *,
+        user: DashboardUser,
+        account_id: int | None = None,
+        asset_code: str | None = None,
+    ) -> AlphaExitWatchData:
+        """Load an optionally scoped exit watch without running Alpha scoring."""
+
+        trade_date = resolve_recent_closed_trade_date()
+        items = self._build_exit_watchlist(
+            user_id=user.id,
+            trade_date=trade_date,
+            account_id=account_id,
+            asset_code=asset_code,
+        )
+        return AlphaExitWatchData(
+            items=items,
+            summary=self._build_exit_watch_summary(items),
         )
 
     def _execute_general(

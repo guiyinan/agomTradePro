@@ -3636,6 +3636,7 @@
           "AlphaDecisionChainQuery"
         ],
         "application/alpha_homepage.py": [
+          "AlphaExitWatchData",
           "AlphaHomepageData",
           "AlphaHomepageQuery",
           "DashboardUser",
@@ -3692,6 +3693,7 @@
           "build_performance_chart_data",
           "ensure_dashboard_positions",
           "get_alpha_decision_chain_data",
+          "get_alpha_exit_watch_payload",
           "get_alpha_stock_scores_payload",
           "get_alpha_visualization_data",
           "get_dashboard_accounts",

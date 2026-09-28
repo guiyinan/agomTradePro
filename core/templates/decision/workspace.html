@@ -648,6 +648,12 @@
             <div class="workspace-sidebar-card">
                 <div class="workspace-sidebar-title">退出链路</div>
                 <p class="workspace-sidebar-subtitle">统一退出建议、调仓计划与信号契约的当前卖出跟踪入口。</p>
+                {% if workspace_exit_watch_scoped %}
+                <p class="workspace-sidebar-subtitle">
+                    当前仅显示所选证券的退出证据；其他持仓的 SELL / REDUCE 提醒请到
+                    <a href="{% url 'dashboard:index' %}">Dashboard 完整退出监控</a>查看。
+                </p>
+                {% endif %}
                 {% if workspace_exit_watch_summary.total %}
                 <div class="workspace-exit-summary">
                     <span class="workspace-exit-pill workspace-exit-pill-urgent">立即处理 {{ workspace_exit_watch_summary.urgent_count|default:0 }}</span>
@@ -678,7 +684,11 @@
                     </div>
                 </div>
                 {% endif %}
-                {% if workspace_exit_watchlist %}
+                {% if not workspace_exit_watch_available %}
+                <ul class="workspace-position-list">
+                    <li class="workspace-sidebar-subtitle">退出链路暂时不可用，请稍后重试。</li>
+                </ul>
+                {% elif workspace_exit_watchlist %}
                 <div style="margin-top: 12px;">
                     {% for item in workspace_exit_watchlist %}
                     <div class="workspace-exit-card{% if item.is_selected %} is-selected{% endif %}">

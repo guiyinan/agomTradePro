@@ -228,6 +228,48 @@ def get_alpha_stock_scores_payload(
         )
 
 
+def get_alpha_exit_watch_payload(
+    *,
+    user: Any | None,
+    query_factory: Callable[[], AlphaHomepageQuery],
+    account_id: int | None = None,
+    asset_code: str | None = None,
+) -> dict[str, Any]:
+    """Return the user's exit watch without loading Alpha scores or candidates."""
+
+    started_at = perf_counter()
+    try:
+        if user is None:
+            raise ValueError("An authenticated dashboard user is required.")
+        data = query_factory().get_exit_watch(
+            user=user,
+            account_id=account_id,
+            asset_code=asset_code,
+        )
+        return {
+            "exit_watchlist": data.items,
+            "exit_watch_summary": data.summary,
+            "exit_watch_available": True,
+            "exit_watch_error_code": "",
+        }
+    except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
+        logger.warning("Failed to get alpha exit watch payload: %s", exc)
+        return {
+            "exit_watchlist": [],
+            "exit_watch_summary": {},
+            "exit_watch_available": False,
+            "exit_watch_error_code": "exit_watch_unavailable",
+        }
+    finally:
+        duration_ms = int((perf_counter() - started_at) * 1000)
+        _log_dashboard_interface_timing(
+            "Dashboard alpha exit watch query completed",
+            event="dashboard_alpha_exit_watch_query_completed",
+            duration_ms=duration_ms,
+            user_id=getattr(user, "id", None),
+        )
+
+
 def get_portfolio_options(user_id: int) -> list[dict[str, Any]]:
     """Load user portfolio options for dashboard selectors."""
     return _json_rows(get_portfolio_repository().get_user_portfolios(user_id))

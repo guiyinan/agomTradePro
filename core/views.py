@@ -357,6 +357,7 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     logger = logging.getLogger(__name__)
     requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
     requested_security_code = str(request.GET.get("security_code") or "").strip().upper()
+    requested_workspace_source = str(request.GET.get("source") or "").strip().lower()
 
     context: dict[str, Any] = {
         "page_title": "决策工作台",
@@ -478,6 +479,7 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
 
     # ========== 当前持仓退出链路 ==========
     try:
+        from apps.dashboard.application import interface_services as dashboard_interface_services
         from apps.dashboard.interface import views as dashboard_views
 
         parsed_workspace_account_id = None
@@ -486,12 +488,14 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
                 parsed_workspace_account_id = int(requested_workspace_account_id)
             except (TypeError, ValueError):
                 parsed_workspace_account_id = None
-        exit_alpha_payload = dashboard_views._get_alpha_stock_scores_payload(
-            top_n=10,
+        direct_research_request = bool(requested_security_code) and (
+            requested_workspace_source != "dashboard-exit"
+        )
+        exit_alpha_payload = dashboard_interface_services.get_alpha_exit_watch_payload(
             user=request.user,
-            portfolio_id=None,
-            pool_mode=None,
-            alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+            query_factory=dashboard_views.get_alpha_homepage_query,
+            account_id=parsed_workspace_account_id if direct_research_request else None,
+            asset_code=requested_security_code if direct_research_request else None,
         )
         workspace_exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
             dashboard_views._annotate_alpha_exit_watchlist_navigation(
@@ -509,11 +513,21 @@ def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
         context["workspace_exit_watchlist"] = workspace_exit_watchlist[:5]
         context["workspace_exit_watch_summary"] = exit_alpha_payload.get("exit_watch_summary", {})
         context["workspace_selected_exit_item"] = workspace_exit_detail.get("selected")
+        context["workspace_exit_watch_available"] = exit_alpha_payload.get(
+            "exit_watch_available", False
+        )
+        context["workspace_exit_watch_error_code"] = exit_alpha_payload.get(
+            "exit_watch_error_code", "exit_watch_unavailable"
+        )
+        context["workspace_exit_watch_scoped"] = direct_research_request
     except Exception as e:
         logger.warning(f"Failed to get workspace exit watchlist: {e}")
         context["workspace_exit_watchlist"] = []
         context["workspace_exit_watch_summary"] = {}
         context["workspace_selected_exit_item"] = None
+        context["workspace_exit_watch_available"] = False
+        context["workspace_exit_watch_error_code"] = "exit_watch_unavailable"
+        context["workspace_exit_watch_scoped"] = bool(requested_security_code)
 
     # ========== 告警信息 ==========
     alerts: list[dict[str, str]] = []

@@ -7,6 +7,7 @@ from django.core.cache import cache
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+from apps.dashboard.application.interface_services import get_alpha_exit_watch_payload
 from apps.dashboard.application.queries import (
     AlphaDecisionChainQuery,
     AlphaVisualizationQuery,
@@ -47,6 +48,70 @@ def _make_alpha_pool_scope(
         portfolio_id=portfolio_id,
         portfolio_name="默认组合" if portfolio_id is not None else None,
     )
+
+
+def test_exit_watch_query_does_not_run_alpha_scoring(monkeypatch):
+    """Workspace exit-watch reads stay independent from the expensive Alpha ranking chain."""
+
+    query = object.__new__(AlphaHomepageQuery)
+    captured_scope: dict[str, object] = {}
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.resolve_recent_closed_trade_date",
+        lambda: date(2026, 9, 24),
+    )
+    monkeypatch.setattr(
+        query,
+        "_build_exit_watchlist",
+        lambda **kwargs: (
+            captured_scope.update(kwargs) or [{"asset_code": "000001.SZ", "account_id": 21}]
+        ),
+    )
+    monkeypatch.setattr(
+        query,
+        "_build_exit_watch_summary",
+        lambda rows: {"total": len(rows)},
+    )
+    monkeypatch.setattr(
+        query,
+        "execute",
+        lambda **_: pytest.fail("exit-watch query must not execute Alpha scoring"),
+    )
+
+    payload = get_alpha_exit_watch_payload(
+        user=SimpleNamespace(id=7),
+        query_factory=lambda: query,
+        account_id=21,
+        asset_code="000001.SZ",
+    )
+
+    assert payload == {
+        "exit_watchlist": [{"asset_code": "000001.SZ", "account_id": 21}],
+        "exit_watch_summary": {"total": 1},
+        "exit_watch_available": True,
+        "exit_watch_error_code": "",
+    }
+    assert captured_scope == {
+        "user_id": 7,
+        "trade_date": date(2026, 9, 24),
+        "account_id": 21,
+        "asset_code": "000001.SZ",
+    }
+
+
+def test_exit_watch_query_reports_unavailable_instead_of_empty() -> None:
+    """Read failures must not be presented as a valid empty exit watch."""
+
+    payload = get_alpha_exit_watch_payload(
+        user=SimpleNamespace(id=7),
+        query_factory=lambda: (_ for _ in ()).throw(TimeoutError("slow source")),
+    )
+
+    assert payload == {
+        "exit_watchlist": [],
+        "exit_watch_summary": {},
+        "exit_watch_available": False,
+        "exit_watch_error_code": "exit_watch_unavailable",
+    }
 
 
 def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
