@@ -1138,8 +1138,14 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
             },
         )
 
+    preview_calls: list[dict[str, object]] = []
+
+    def preview_publication(**kwargs: object) -> SimpleNamespace:
+        preview_calls.append(dict(kwargs))
+        return SimpleNamespace(datasets=datasets)
+
     publication = SimpleNamespace(
-        preview=lambda **_: SimpleNamespace(datasets=datasets),
+        preview=preview_publication,
         execute=execute_publication,
     )
     monkeypatch.setattr(
@@ -1172,6 +1178,11 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     exclusions = publication_calls[0]["scope_exclusions_by_dataset"]["equity.quote.snapshot"]
     assert exclusions[0].asset_code == excluded
     assert exclusions[0].reason_code == "quote_full_day_suspension"
+    assert preview_calls[0]["asset_codes"] == active_codes
+    assert (
+        preview_calls[0]["scope_exclusions_by_dataset"]
+        == publication_calls[0]["scope_exclusions_by_dataset"]
+    )
 
 
 def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):

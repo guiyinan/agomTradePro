@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import QuoteSnapshot
+from apps.data_center.domain.market_time import cn_market_date_start_utc
 from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
 from apps.data_center.infrastructure.models import QuoteSnapshotModel
 
@@ -175,6 +176,24 @@ class QuoteSnapshotRepository:
         return [
             _quote_snapshot_publication_reference(row) for row in _latest_quote_rows(asset_codes)
         ]
+
+    def list_asset_codes_with_observation_on_date(
+        self,
+        asset_codes: tuple[str, ...],
+        observation_date: date,
+    ) -> tuple[str, ...]:
+        """Return requested assets with any persisted observation on one China-market date."""
+
+        if not asset_codes:
+            return ()
+        observed_from = cn_market_date_start_utc(observation_date)
+        observed_until = cn_market_date_start_utc(observation_date + timedelta(days=1))
+        rows = QuoteSnapshotModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            snapshot_at__gte=observed_from,
+            snapshot_at__lt=observed_until,
+        ).values_list("asset_code", flat=True)
+        return tuple(sorted({str(asset_code) for asset_code in rows}))
 
 
 def _latest_quote_rows(asset_codes: tuple[str, ...]) -> list[QuoteSnapshotModel]:

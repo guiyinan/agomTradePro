@@ -4038,7 +4038,8 @@
           "CurrentPublicationDataset",
           "CurrentPublicationPreview",
           "CurrentPublicationRebuildUseCase",
-          "CurrentPublicationScopeExclusion"
+          "CurrentPublicationScopeExclusion",
+          "TargetDatePublicationObservationProbeProtocol"
         ],
         "application/current_valuation_sync.py": [
           "SyncCurrentValuationBatchUseCase"

@@ -5345,6 +5345,21 @@
           "test_function": "test_rebuild_preview_reports_missing_asset_and_execute_fails_closed"
         },
         {
+          "case": "quote_suspension_preview_execute_scope_parity",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_preview_and_execute_exclude_stale_suspended_quote_candidate"
+        },
+        {
+          "case": "quote_suspension_target_day_observation_conflict",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_suspension_exclusion_rejects_target_session_quote_observation"
+        },
+        {
+          "case": "quote_suspension_eligible_gap_remains_blocking",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_suspension_exclusion_does_not_hide_an_eligible_quote_gap"
+        },
+        {
           "case": "future_observation_blocks_publication",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_rebuild_rejects_wrong_fact_table_and_future_observation"
@@ -5353,6 +5368,11 @@
           "case": "quote_observation_preserved",
           "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
           "test_function": "test_quote_selector_returns_latest_snapshot_per_asset"
+        },
+        {
+          "case": "quote_target_date_probe_survives_later_snapshot",
+          "test_file": "tests/component/data_center/test_current_publication_candidate_repositories.py",
+          "test_function": "test_quote_target_date_probe_is_not_hidden_by_a_later_snapshot"
         },
         {
           "case": "price_observation_preserved",

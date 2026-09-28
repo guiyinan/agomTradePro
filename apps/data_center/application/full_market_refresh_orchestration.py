@@ -713,7 +713,10 @@ def run_full_market_publication_refresh(
                 for code in excluded_non_trading_codes
             ),
         }
-        preview = publications.preview(asset_codes=publication_scope_codes)
+        preview = publications.preview(
+            asset_codes=publication_scope_codes,
+            scope_exclusions_by_dataset=publication_scope_exclusions,
+        )
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
         valuation_preview = snapshots.get("equity.valuation.fact")

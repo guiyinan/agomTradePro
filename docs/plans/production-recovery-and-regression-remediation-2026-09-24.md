@@ -636,3 +636,40 @@
 - 拆分后的首轮 CI 已通过 size headroom，随后由确定性 Data Center 架构清单门禁检出新增模块尚未进入
   生成投影；已使用 `scripts/data_center_architecture_inventory.py --write` 重建清单并以默认 check 模式复核，
   未手工修改计数或治理基线。
+
+### 2026-09-29 正式发布预检与动态停牌范围一致性
+
+- 最终部署候选 `d387ddc191a33cdb651a4a9d3271ab914fb47df0` 已取得五组同 SHA CI，并以全新
+  S6 `s6-d387ddc19-20260928a` 完成九阶段证据：active universe 5,569，quote eligible 5,558、
+  动态全天停牌排除 11，valuation 5,569/5,569；隔离 PostgreSQL 写入、读回和回滚成功。生产使用该
+  预构建镜像部署，release 为 `20260928155512`，独立部署检查确认 SHA、镜像、迁移、TLS、容器、
+  pyqlib 与 Celery worker 均一致。
+- 部署后全市场任务 `91942966-4d7c-48c1-97bf-13cb47b4a54d` 运行 3,461.33 秒，没有触发
+  4,200/4,500 秒 soft/hard timeout。业务结果为 `outcome=partial`、
+  `requested/succeeded/failed/stored=5569/5558/11/11127`；quote 5,558、valuation 5,569 均写入，
+  publication 阶段 0/1，稳定码 `MARKET_PUBLICATION_VALIDATION_FAILED`，run id
+  `360318a2-5084-49d4-98bc-1c8dcfa4e31d`。这次失败是发布验证错误，不是超时，也不是财报 owner
+  contract 触发；旧 quote/valuation/price Publication 保持未变。
+- 只读诊断定位到预检与执行使用了不同范围。执行阶段已收到 quote 的 11 条动态 suspension
+  exclusions；预检仍按完整 5,569 只查询“最新”行情。停牌证券在数据库保留 9 月 24 日旧行情，预检将其
+  当作当前候选，得到最早观测日 9 月 24 日并拒绝 9 月 28 日正式发布。删除历史事实、伪造目标日价格或
+  放宽 freshness 都不是可接受修复。
+- 当前修复让 preview 与 execute 接收同一 dataset exclusion mapping。完整 5,569 只继续作为
+  `requested`；候选仓只为当轮 eligible 集选择 publication members，动态排除继续计入 missing 和逐证券
+  scope block。任何 eligible 真缺口会与 exclusions 一并出现，因集合不等而全局阻断，不能借排除参数
+  缩小 100% eligible coverage。
+- 为防止 exclusions 自证成立，preview 与 execute 还会按目标交易日独立查询被排除证券的全部持久行情，
+  不能让 D+1 的更新记录遮住 D 日事实。若 D 日存在记录，14:55 盘中值和 15:00 收盘值都会与“全天停牌”
+  矛盾并拒绝发布；目标日前旧行情可保留但不得进入 members，目标日后的复牌行情不反证此前目标日全天停牌。排除来源仍只能由本次任务内的
+  `PreparedQuoteSession` 缺口和显式 suspension verifier 精确交集产生，不能由 API、用户参数或静态名单注入。
+- A 股正式收盘边界仍为北京时间 15:00。quote prefetch、全量 capacity、Publication policy 及回归反例都
+  保持该门槛；14:55 不能成为正式收盘行情。延长的技术 timeout 只覆盖真实规模运行时间，不改变这个业务
+  时间门、freshness、政策阈值或 `SIGNAL_WEAK=0.6000`。
+- 本候选新增预检/执行范围一致性、旧行情保留、14:55/15:00 矛盾、eligible 真实缺口、D+1 复牌语义、
+  unknown dataset 和编排层 mapping 一致性测试，并登记到 current-data 治理合同。提交前须再次完成格式化、
+  增量及全量 mypy、current-data/Celery/module map、Publication 组件和高风险回归；随后冻结新 SHA，重新取得
+  同 SHA CI、PostgreSQL 和完整 S6。代码变化后不得复用 `d387ddc19` 的 bundle 或部署回执。
+- 新候选部署后只重跑一次显式全市场刷新并对账 task、facts、Publication members/hash/id/run id、完整
+  universe hash 与动态 scope blocks。正式 market Publication 成功后才继续财报 owner contract、guarded
+  decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零写入联合验收；任何未满足项继续保留明确
+  blocked，不以 HTTP 200、Celery 终态或部分事实写入替代恢复结论。

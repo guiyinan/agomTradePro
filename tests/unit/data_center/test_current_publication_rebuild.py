@@ -23,6 +23,7 @@ from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationFactReference,
 )
+from apps.data_center.domain.market_time import cn_market_date_from_observation
 
 NOW = datetime(2026, 8, 30, 2, 0, tzinfo=UTC)
 
@@ -53,13 +54,37 @@ class _CandidateRepository:
     def __init__(self, references: list[PublicationFactReference]) -> None:
         self.references = references
         self.calls: list[tuple[str, ...]] = []
+        self.date_probe_calls: list[tuple[tuple[str, ...], date]] = []
 
     def list_current_publication_candidates(
         self,
         asset_codes: tuple[str, ...],
     ) -> list[PublicationFactReference]:
         self.calls.append(asset_codes)
-        return list(self.references)
+        requested = set(asset_codes)
+        return [
+            reference
+            for reference in self.references
+            if reference.natural_key.split(":", 1)[0] in requested
+        ]
+
+    def list_asset_codes_with_observation_on_date(
+        self,
+        asset_codes: tuple[str, ...],
+        observation_date: date,
+    ) -> tuple[str, ...]:
+        self.date_probe_calls.append((asset_codes, observation_date))
+        requested = set(asset_codes)
+        return tuple(
+            sorted(
+                {
+                    reference.natural_key.split(":", 1)[0]
+                    for reference in self.references
+                    if reference.natural_key.split(":", 1)[0] in requested
+                    and cn_market_date_from_observation(reference.observed_at) == observation_date
+                }
+            )
+        )
 
 
 class _PolicyRepository:
@@ -396,6 +421,259 @@ def test_rebuild_publishes_verified_target_session_suspension_scope() -> None:
     assert repository.published == [publication]
 
 
+def test_preview_and_execute_exclude_stale_suspended_quote_candidate() -> None:
+    """Preview and publish must select the same target-session eligible quote scope."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    active_code = "000001.SZ"
+    suspended_code = "000016.SZ"
+    candidate_repository = _CandidateRepository(
+        [
+            _reference(
+                active_code,
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            ),
+            _reference(
+                suspended_code,
+                "2",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 27, 7, 0, tzinfo=UTC),
+            ),
+        ]
+    )
+    publication_repository = _PublicationRepository()
+    use_case = CurrentPublicationRebuildUseCase(
+        dataset=dataset,
+        candidate_repository=candidate_repository,
+        publication_repository=publication_repository,
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+    exclusions = (
+        CurrentPublicationScopeExclusion(
+            asset_code=suspended_code,
+            reason_code="quote_full_day_suspension",
+            target_trade_date=date(2026, 8, 28),
+            evidence_source="tushare.suspend_d",
+        ),
+    )
+
+    preview = use_case.preview(
+        asset_codes=(active_code, suspended_code),
+        published_at=NOW,
+        scope_exclusions=exclusions,
+    )
+    publication = use_case.execute(
+        asset_codes=(active_code, suspended_code),
+        published_at=NOW,
+        run_id="suspension-run-20260828",
+        scope_exclusions=exclusions,
+    )
+
+    assert candidate_repository.calls == [(active_code,), (active_code,)]
+    assert candidate_repository.date_probe_calls == [
+        ((suspended_code,), date(2026, 8, 28)),
+        ((suspended_code,), date(2026, 8, 28)),
+    ]
+    assert preview.requested_asset_count == 2
+    assert preview.covered_asset_count == 1
+    assert preview.missing_asset_codes == (suspended_code,)
+    assert preview.oldest_observed_at == datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+    assert preview.newest_observed_at == datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+    assert publication.coverage.requested_count == 2
+    assert publication.coverage.eligible_count == 1
+    assert publication.coverage.missing_count == 1
+    assert publication.member_count == 1
+    assert publication.scope_blocks[0].asset_code == suspended_code
+
+
+@pytest.mark.parametrize(
+    "observed_at",
+    (
+        datetime(2026, 8, 28, 6, 55, tzinfo=UTC),
+        datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+    ),
+)
+def test_suspension_exclusion_rejects_target_session_quote_observation(
+    observed_at: datetime,
+) -> None:
+    """A target-day quote contradicts a claimed full-day suspension, even before close."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    active_code = "000001.SZ"
+    falsely_excluded_code = "000016.SZ"
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                active_code,
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            ),
+            _reference(
+                falsely_excluded_code,
+                "2",
+                dataset=dataset,
+                observed_at=observed_at,
+            ),
+            _reference(
+                falsely_excluded_code,
+                "3",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 29, 7, 0, tzinfo=UTC),
+            ),
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+    exclusions = (
+        CurrentPublicationScopeExclusion(
+            asset_code=falsely_excluded_code,
+            reason_code="quote_full_day_suspension",
+            target_trade_date=date(2026, 8, 28),
+            evidence_source="tushare.suspend_d",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="conflicts with a target-session quote"):
+        use_case.preview(
+            asset_codes=(active_code, falsely_excluded_code),
+            published_at=NOW,
+            scope_exclusions=exclusions,
+        )
+    with pytest.raises(ValueError, match="conflicts with a target-session quote"):
+        use_case.execute(
+            asset_codes=(active_code, falsely_excluded_code),
+            published_at=NOW,
+            run_id="suspension-run-20260828",
+            scope_exclusions=exclusions,
+        )
+
+
+def test_suspension_exclusion_does_not_hide_an_eligible_quote_gap() -> None:
+    """A real eligible gap remains blocking beside independently excluded suspensions."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    active_code = "000001.SZ"
+    missing_eligible_code = "000002.SZ"
+    suspended_code = "000016.SZ"
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                active_code,
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            ),
+            _reference(
+                suspended_code,
+                "2",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 27, 7, 0, tzinfo=UTC),
+            ),
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+    exclusions = (
+        CurrentPublicationScopeExclusion(
+            asset_code=suspended_code,
+            reason_code="quote_full_day_suspension",
+            target_trade_date=date(2026, 8, 28),
+            evidence_source="tushare.suspend_d",
+        ),
+    )
+
+    preview = use_case.preview(
+        asset_codes=(active_code, missing_eligible_code, suspended_code),
+        published_at=NOW,
+        scope_exclusions=exclusions,
+    )
+
+    assert preview.covered_asset_count == 1
+    assert preview.missing_asset_codes == (missing_eligible_code, suspended_code)
+    with pytest.raises(ValueError, match="match publication gaps"):
+        use_case.execute(
+            asset_codes=(active_code, missing_eligible_code, suspended_code),
+            published_at=NOW,
+            run_id="suspension-run-20260828",
+            scope_exclusions=exclusions,
+        )
+
+
+def test_suspension_exclusion_is_not_contradicted_by_next_session_quote() -> None:
+    """A later-session quote does not disprove an evidenced prior-day suspension."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    active_code = "000001.SZ"
+    suspended_code = "000016.SZ"
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                active_code,
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            ),
+            _reference(
+                suspended_code,
+                "2",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 29, 7, 0, tzinfo=UTC),
+            ),
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+    exclusions = (
+        CurrentPublicationScopeExclusion(
+            asset_code=suspended_code,
+            reason_code="quote_full_day_suspension",
+            target_trade_date=date(2026, 8, 28),
+            evidence_source="tushare.suspend_d",
+        ),
+    )
+
+    publication = use_case.execute(
+        asset_codes=(active_code, suspended_code),
+        published_at=NOW,
+        run_id="suspension-run-20260828",
+        scope_exclusions=exclusions,
+    )
+
+    assert publication.member_count == 1
+    assert publication.scope_blocks[0].asset_code == suspended_code
+
+
 @pytest.mark.parametrize(
     ("scope_exclusions", "message"),
     [
@@ -604,6 +882,33 @@ def test_core_preview_is_read_only() -> None:
     assert payload.ready is True
     assert payload.member_count == 1
     assert publications.published == []
+
+
+def test_core_preview_rejects_unknown_exclusion_dataset() -> None:
+    """Preview rejects exclusion mappings that execute could not consume."""
+
+    dataset = CurrentPublicationDataset(
+        "equity.quote.snapshot",
+        "data_center_quote_snapshot",
+        "ops.current_publication_rebuild",
+    )
+    coordinator = CoreCurrentPublicationRebuildUseCase(
+        rebuilders=(
+            _use_case(
+                dataset,
+                [_reference("000001.SZ", "1", dataset=dataset)],
+            ),
+        ),
+        transaction=nullcontext,
+        authority_preflight=lambda _as_of: None,
+    )
+
+    with pytest.raises(ValueError, match="unknown datasets"):
+        coordinator.preview(
+            asset_codes=["000001.SZ"],
+            published_at=NOW,
+            scope_exclusions_by_dataset={"equity.unknown": ()},
+        )
 
 
 def test_core_rebuild_denied_authority_never_enters_transaction() -> None:

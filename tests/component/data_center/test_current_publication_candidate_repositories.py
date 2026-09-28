@@ -98,6 +98,38 @@ def test_quote_selector_returns_latest_snapshot_per_asset() -> None:
 
 
 @pytest.mark.django_db
+def test_quote_target_date_probe_is_not_hidden_by_a_later_snapshot() -> None:
+    """A later quote must not hide an earlier target-date suspension conflict."""
+
+    target_date = date(2026, 8, 28)
+    QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=datetime(2026, 8, 28, 6, 55, tzinfo=UTC),
+        current_price=10,
+        source="source-target-day",
+    )
+    QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=datetime(2026, 8, 29, 7, 0, tzinfo=UTC),
+        current_price=11,
+        source="source-next-day",
+    )
+    QuoteSnapshotModel.objects.create(
+        asset_code="000002.SZ",
+        snapshot_at=datetime(2026, 8, 29, 7, 0, tzinfo=UTC),
+        current_price=12,
+        source="source-next-day",
+    )
+
+    observed_codes = QuoteSnapshotRepository().list_asset_codes_with_observation_on_date(
+        ("000001.SZ", "000002.SZ"),
+        target_date,
+    )
+
+    assert observed_codes == ("000001.SZ",)
+
+
+@pytest.mark.django_db
 def test_price_selector_returns_latest_daily_unadjusted_fact_per_asset() -> None:
     for asset_code in ("000001.SZ", "600000.SH"):
         PriceBarModel.objects.create(
