@@ -14,13 +14,17 @@ from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Protocol, cast
-from zoneinfo import ZoneInfo
 
 from django.db import connection, connections, transaction
 
 from apps.data_center.application.query_services import list_active_stock_codes_for_backfill
 from apps.data_center.composition import get_provider_registry
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    cn_market_session_close_utc,
+)
+from apps.data_center.domain.model_market_data import ModelSuspensionPort
 from apps.data_center.domain.protocols import (
     CurrentValuationBatchProviderProtocol,
     SessionQuoteBatchProviderProtocol,
@@ -48,6 +52,16 @@ class _Sysconf(Protocol):
     """Portable typed boundary for Unix host memory queries."""
 
     def __call__(self, name: str) -> int: ...
+
+
+class _ModelMarketSourceFactory(Protocol):
+    """Typed boundary for a configured provider's model-market source factory."""
+
+    def __call__(self, *, tolerance: float) -> object: ...
+
+
+_QUOTE_SUSPENSION_REASON = "quote_full_day_suspension"
+_QUOTE_UNVERIFIED_REASON = "quote_target_session_unverified"
 
 
 class _RuntimeMonitor:
@@ -229,13 +243,17 @@ def _fact_coverage(
             "Provider returned ambiguous full-universe identities",
             code="REHEARSAL_CAPACITY_PROVIDER_SCOPE_INVALID",
         )
+    target_close = cn_market_session_close_utc(target_trade_date)
     target_codes = {
         fact.asset_code
         for fact in facts
         if (
             fact.val_date == target_trade_date
             if isinstance(fact, ValuationFact)
-            else fact.snapshot_at.astimezone(ZoneInfo("Asia/Shanghai")).date() == target_trade_date
+            else (
+                cn_market_date_from_observation(fact.snapshot_at) == target_trade_date
+                and fact.snapshot_at >= target_close
+            )
         )
     }
     missing = sorted(requested_set - target_codes)
@@ -248,6 +266,70 @@ def _fact_coverage(
         "extra_count": 0,
         "duplicate_count": 0,
     }
+
+
+def _quote_suspension_evidence(
+    provider: SessionQuoteBatchProviderProtocol,
+    missing_codes: list[str],
+    target_trade_date: date,
+) -> tuple[tuple[str, ...], tuple[dict[str, str], ...], tuple[dict[str, str], ...]]:
+    """Classify quote gaps only from the provider's explicit full-day suspension port."""
+    if not missing_codes:
+        return (), (), ()
+    factory_value = getattr(provider, "model_market_source", None)
+    if not callable(factory_value):
+        return (
+            (),
+            (),
+            tuple(
+                {"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON}
+                for code in missing_codes
+            ),
+        )
+    factory = cast(_ModelMarketSourceFactory, factory_value)
+    try:
+        source = factory(tolerance=0.01)
+    except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
+        return (
+            (),
+            (),
+            tuple(
+                {"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON}
+                for code in missing_codes
+            ),
+        )
+    if not isinstance(source, ModelSuspensionPort):
+        return (
+            (),
+            (),
+            tuple(
+                {"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON}
+                for code in missing_codes
+            ),
+        )
+    suspended: list[str] = []
+    unverified: list[dict[str, str]] = []
+    for code in missing_codes:
+        try:
+            observed_days = source.suspended_days(code, target_trade_date, target_trade_date)
+            if not isinstance(observed_days, tuple) or any(
+                type(observed_day) is not date for observed_day in observed_days
+            ):
+                raise TypeError("suspension evidence must be a tuple of dates")
+            is_suspended = target_trade_date in observed_days
+        except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
+            unverified.append({"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON})
+            continue
+        if is_suspended:
+            suspended.append(code)
+        else:
+            unverified.append({"asset_code": code, "reason_code": _QUOTE_UNVERIFIED_REASON})
+    suspended.sort()
+    return (
+        tuple(suspended),
+        tuple({"asset_code": code, "reason_code": _QUOTE_SUSPENSION_REASON} for code in suspended),
+        tuple(unverified),
+    )
 
 
 def collect_full_universe_capacity(
@@ -313,6 +395,14 @@ def collect_full_universe_capacity(
         source_root, candidate_sha
     )
     source_digest = market_rehearsal_source_digest(source_root)
+    missing_valuation_codes: list[str] = []
+    eligible_codes: tuple[str, ...] = ()
+    excluded_codes: tuple[str, ...] = ()
+    excluded_reasons: tuple[dict[str, str], ...] = ()
+    quote_missing_codes: list[str] = []
+    quote_missing_reasons: tuple[dict[str, str], ...] = ()
+    quote_facts: list[QuoteSnapshot] = []
+    quote_scope_facts: list[QuoteSnapshot] = []
     with transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
@@ -405,14 +495,76 @@ def collect_full_universe_capacity(
                         },
                     )
                 eligible_codes = registered_universe
-                excluded_codes: tuple[str, ...] = ()
                 quote_facts = quotes.fetch_quote_snapshots_for_session(
                     list(eligible_codes), target_trade_date
                 )
+                full_quote_coverage = _fact_coverage(
+                    quote_facts,
+                    requested=registered_universe,
+                    target_trade_date=target_trade_date,
+                )
+                quote_missing_codes = cast(
+                    list[str], full_quote_coverage["missing_target_session_codes"]
+                )
+                suspended_codes, excluded_reasons, quote_missing_reasons = (
+                    _quote_suspension_evidence(
+                        quotes,
+                        quote_missing_codes,
+                        target_trade_date,
+                    )
+                )
+                suspended_set = set(suspended_codes)
+                eligible_codes = tuple(
+                    code for code in registered_universe if code not in suspended_set
+                )
+                excluded_codes = suspended_codes
+                eligible_set = set(eligible_codes)
+                quote_scope_facts = [
+                    fact for fact in quote_facts if fact.asset_code in eligible_set
+                ]
+                quote_coverage = _fact_coverage(
+                    quote_scope_facts,
+                    requested=eligible_codes,
+                    target_trade_date=target_trade_date,
+                )
+                if quote_missing_reasons:
+                    asset_codes = list(registered_universe)
+                    universe_digest = hashlib.sha256(
+                        json.dumps(
+                            asset_codes,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        ).encode()
+                    ).hexdigest()
+                    missing_codes = [item["asset_code"] for item in quote_missing_reasons]
+                    raise DataFetchError(
+                        "Eligible quote scope is incomplete for the target session",
+                        code="REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
+                        details={
+                            "outcome": "blocked",
+                            "target_trade_date": target_trade_date.isoformat(),
+                            "requested": len(eligible_codes),
+                            "succeeded": int(quote_coverage["target_session_count"]),
+                            "failed": len(quote_missing_reasons),
+                            "stored": len(quote_scope_facts),
+                            "missing": missing_codes,
+                            "missing_asset_codes": missing_codes,
+                            "active_asset_codes": asset_codes,
+                            "active_universe_sha256": universe_digest,
+                            "eligible_asset_codes": list(eligible_codes),
+                            "excluded_asset_codes": list(excluded_codes),
+                            "excluded_asset_reasons": list(excluded_reasons),
+                            "quote_missing_target_session_reasons": list(quote_missing_reasons),
+                        },
+                    )
     finished = datetime.now(UTC)
     if monitor.error_code:
         raise DataFetchError("Capacity runtime monitor failed", code=monitor.error_code)
-    if not quote_facts or not valuation_facts or not capture.receipts:
+    elapsed = (finished - started).total_seconds()
+    memory_limit = _memory_limit_bytes()
+    asset_codes = list(registered_universe)
+    if not eligible_codes or not quote_scope_facts or not valuation_facts or not capture.receipts:
         raise DataFetchError(
             "Full-universe provider exercise returned no usable facts",
             code="REHEARSAL_CAPACITY_PROVIDER_EMPTY",
@@ -421,19 +573,6 @@ def collect_full_universe_capacity(
         raise DataFetchError(
             "Full-universe provider transport failed",
             code="REHEARSAL_CAPACITY_PROVIDER_FAILED",
-        )
-    elapsed = (finished - started).total_seconds()
-    memory_limit = _memory_limit_bytes()
-    asset_codes = list(registered_universe)
-    quote_coverage = _fact_coverage(
-        quote_facts,
-        requested=eligible_codes,
-        target_trade_date=target_trade_date,
-    )
-    if quote_coverage["missing_target_session_count"] != 0:
-        raise DataFetchError(
-            "Eligible quote scope is incomplete for the target session",
-            code="REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
         )
     universe_digest = hashlib.sha256(
         json.dumps(asset_codes, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
@@ -457,6 +596,13 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
+        "excluded_asset_reasons": list(excluded_reasons),
+        "quote_missing_target_session_codes": [],
+        "quote_missing_target_session_reasons": [],
+        "quote_requested_count": len(eligible_codes),
+        "quote_returned_count": int(quote_coverage["target_session_count"]),
+        "quote_fact_count": len(quote_scope_facts),
+        "quote_coverage": quote_coverage,
         "valuation_missing_target_session_codes": missing_valuation_codes,
         "valuation_missing_target_session_reasons": [
             {
@@ -495,9 +641,7 @@ def collect_full_universe_capacity(
         "memory_peak_measurement_method": "linux_proc_status_vmhwm",
         "memory_limit_measurement_method": "cgroup_effective_or_host_physical",
         "minimum_capacity_margin_ratio": minimum_capacity_margin,
-        "quote_fact_count": len(quote_facts),
         "valuation_fact_count": len(valuation_facts),
-        "quote_coverage": quote_coverage,
         "valuation_coverage": valuation_coverage,
         "source_tree_sha256": source_digest,
         "candidate_source_attestation": source_attestation,
@@ -553,6 +697,13 @@ def collect_full_universe_capacity(
         "eligible_asset_codes": list(eligible_codes),
         "excluded_asset_count": len(excluded_codes),
         "excluded_asset_codes": list(excluded_codes),
+        "excluded_asset_reasons": list(excluded_reasons),
+        "quote_missing_target_session_codes": [],
+        "quote_missing_target_session_reasons": [],
+        "quote_requested_count": len(eligible_codes),
+        "quote_returned_count": int(quote_coverage["target_session_count"]),
+        "quote_fact_count": len(quote_scope_facts),
+        "quote_coverage": quote_coverage,
         "valuation_missing_target_session_codes": missing_valuation_codes,
         "valuation_missing_target_session_reasons": receipt[
             "valuation_missing_target_session_reasons"

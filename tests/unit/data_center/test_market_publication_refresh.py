@@ -1035,6 +1035,145 @@ def test_task_reports_quote_prefetch_failure_before_any_quote_write(monkeypatch)
     assert progress_snapshots[-1].stored == 0
 
 
+def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion(monkeypatch):
+    """A proven suspension narrows quote writes while publication keeps the frozen denominator."""
+
+    from apps.data_center.application import market_publication_refresh, tasks
+
+    target = date(2026, 9, 18)
+    active_codes = ["000001.SZ", "600000.SH"]
+    excluded = active_codes[1]
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: target)
+    monkeypatch.setattr(
+        tasks, "sync_active_a_share_universe", lambda: _universe_report(active_codes)
+    )
+    monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: list(active_codes))
+
+    quote_calls: list[tuple[str, ...]] = []
+    verify_calls: list[tuple[str, ...]] = []
+
+    def prepare_session(**kwargs: object) -> SimpleNamespace:
+        verifier = kwargs["missing_asset_verifier"]
+        assert callable(verifier)
+        verified = verifier((excluded,), target)
+        verify_calls.append(tuple(verified))
+        return SimpleNamespace(
+            universe_codes=tuple(active_codes),
+            available_codes=(active_codes[0],),
+            eligible_codes=(active_codes[0],),
+            excluded_codes=(excluded,),
+        )
+
+    quote = SimpleNamespace(
+        prepare_session=prepare_session,
+        execute_prefetched_session_batch=lambda request, _session: (
+            quote_calls.append(tuple(request.asset_codes))
+            or SimpleNamespace(
+                stored_count=len(request.asset_codes),
+                stored_asset_codes=tuple(request.asset_codes),
+            )
+        ),
+    )
+    valuation = SimpleNamespace(
+        execute=lambda **_: SimpleNamespace(
+            stored_count=len(active_codes),
+            succeeded_asset_codes=tuple(active_codes),
+            returned_asset_codes=tuple(active_codes),
+            status="success",
+        )
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote)
+    monkeypatch.setattr(
+        tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: valuation
+    )
+
+    observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
+    datasets = [
+        SimpleNamespace(
+            dataset_key="equity.quote.snapshot",
+            ready=False,
+            covered_asset_count=1,
+            missing_asset_codes=(excluded,),
+            unexpected_asset_codes=(),
+            oldest_observed_at=observed,
+            newest_observed_at=observed,
+        ),
+        SimpleNamespace(
+            dataset_key="equity.valuation.fact",
+            ready=True,
+            covered_asset_count=len(active_codes),
+            missing_asset_codes=(),
+            unexpected_asset_codes=(),
+            oldest_observed_at=observed,
+            newest_observed_at=observed,
+        ),
+    ]
+    publication_calls: list[dict[str, object]] = []
+
+    def execute_publication(**kwargs: object) -> SimpleNamespace:
+        publication_calls.append(dict(kwargs))
+        run_id = str(kwargs["run_id"])
+        block = {
+            "asset_code": excluded,
+            "reason_code": "quote_full_day_suspension",
+            "target_trade_date": target.isoformat(),
+            "source": "tushare",
+            "publication_run_id": run_id,
+            "policy_version": "p2:quote-current-v1:policy-digest",
+            "publication_id": "quote-publication-20260918",
+            "evidence_source": "tushare.suspend_d",
+        }
+        return SimpleNamespace(
+            published_count=1,
+            to_dict=lambda: {
+                "published_count": 1,
+                "run_id": run_id,
+                "datasets": [
+                    {
+                        "dataset_key": "equity.quote.snapshot",
+                        "scope_blocks": [block],
+                    }
+                ],
+            },
+        )
+
+    publication = SimpleNamespace(
+        preview=lambda **_: SimpleNamespace(datasets=datasets),
+        execute=execute_publication,
+    )
+    monkeypatch.setattr(
+        tasks, "make_core_current_publication_rebuild_use_case", lambda **_: publication
+    )
+    monkeypatch.setattr(tasks.public_services, "get_model_market_data_port", lambda: object())
+    monkeypatch.setattr(
+        market_publication_refresh,
+        "refresh_market_price_inputs",
+        lambda _port, codes, _target: ((excluded,) if tuple(codes) == (excluded,) else (excluded,)),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert verify_calls == [(excluded,)]
+    assert quote_calls == [(active_codes[0],)]
+    assert result["excluded_non_trading_codes"] == [excluded]
+    assert result["missing_asset_codes"] == [excluded]
+    assert result["requested"] == 2
+    assert result["succeeded"] == 1
+    assert result["failed"] == 1
+    assert result["quote_eligible_asset_count"] == 1
+    assert result["quote_selected_asset_count"] == 1
+    assert result["suspension_evidence_source"] == "tushare.suspend_d"
+    assert result["quote_scope_blocks"][0]["asset_code"] == excluded
+    assert result["scope_blocks"] == result["quote_scope_blocks"]
+    assert "全天停牌" in result["scope_notice"]
+    assert result.get("must_not_use_for_decision") is not True
+    assert publication_calls[0]["asset_codes"] == active_codes
+    exclusions = publication_calls[0]["scope_exclusions_by_dataset"]["equity.quote.snapshot"]
+    assert exclusions[0].asset_code == excluded
+    assert exclusions[0].reason_code == "quote_full_day_suspension"
+
+
 def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):
     """The refreshed active count is the denominator and cannot be silently reduced."""
 
@@ -1526,13 +1665,16 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
     assert result["valuation_source"] == "akshare"
-    assert quote_sync.prepare_calls == [
-        {
-            "provider_id": 3,
-            "asset_codes": ("000001.SZ",),
-            "target_trade_date": date(2026, 9, 18),
-        }
-    ]
+    assert len(quote_sync.prepare_calls) == 1
+    prepare_call = quote_sync.prepare_calls[0]
+    assert callable(prepare_call["missing_asset_verifier"])
+    assert {
+        key: value for key, value in prepare_call.items() if key != "missing_asset_verifier"
+    } == {
+        "provider_id": 3,
+        "asset_codes": ("000001.SZ",),
+        "target_trade_date": date(2026, 9, 18),
+    }
     assert quote_provider_ids == [3]
     assert valuation_provider_ids == [7]
 

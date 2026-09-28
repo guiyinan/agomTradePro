@@ -355,6 +355,7 @@ def _publication_gate(
         "selected_source": publication.selected_source,
         "publication_run_id": publication.run_id,
         "coverage_requested_count": publication.coverage.requested_count,
+        "coverage_eligible_count": publication.coverage.eligible_count,
         "coverage_selected_count": publication.coverage.selected_count,
         "coverage_missing_count": publication.coverage.missing_count,
         "publication_outcome": ("partial" if publication.coverage.missing_count else "success"),

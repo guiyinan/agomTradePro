@@ -502,6 +502,14 @@ class CoverageSnapshot:
             return 0.0
         return self.selected_count / self.requested_count
 
+    @property
+    def eligible_coverage_ratio(self) -> float:
+        """Return selected/eligible coverage, with an empty eligible scope failing closed."""
+
+        if self.eligible_count == 0:
+            return 0.0
+        return self.selected_count / self.eligible_count
+
 
 @dataclass(frozen=True)
 class PublicationScopeBlock:
@@ -514,6 +522,7 @@ class PublicationScopeBlock:
     publication_run_id: str = ""
     policy_version: str = ""
     publication_id: str = ""
+    evidence_source: str = ""
 
     def __post_init__(self) -> None:
         if not self.asset_code.strip():
@@ -530,6 +539,7 @@ class PublicationScopeBlock:
             "publication_run_id",
             "policy_version",
             "publication_id",
+            "evidence_source",
         ):
             value = getattr(self, field_name)
             if value and (not value.strip() or value != value.strip()):
@@ -564,6 +574,8 @@ class PublicationScopeBlock:
                     "publication_id": self.publication_id,
                 }
             )
+        if self.evidence_source:
+            payload["evidence_source"] = self.evidence_source
         return payload
 
 

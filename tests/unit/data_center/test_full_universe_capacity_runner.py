@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from contextlib import contextmanager
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -42,6 +42,7 @@ def _prepare_capacity_scenario(
     margin_floor: float = 0.15,
     valuation_codes: tuple[str, ...] | None = None,
     quote_codes: tuple[str, ...] | None = None,
+    suspended_codes: tuple[str, ...] = (),
     receipt_count: int = 1,
     monitor_error_code: str = "",
     source_digests: tuple[str, ...] = ("d" * 64,),
@@ -122,6 +123,21 @@ def _prepare_capacity_scenario(
                 )
                 for code in codes
             ]
+
+        def model_market_source(self, *, tolerance: float):
+            assert tolerance == pytest.approx(0.01)
+
+            class SuspensionSource:
+                def suspended_days(
+                    self,
+                    asset_code: str,
+                    start_date: date,
+                    end_date: date,
+                ) -> tuple[date, ...]:
+                    assert start_date == end_date == date(2026, 9, 24)
+                    return (start_date,) if asset_code in suspended_codes else ()
+
+            return SuspensionSource()
 
     class Monitor:
         database_peak_connections = 2
@@ -368,6 +384,65 @@ def test_capacity_command_preserves_missing_asset_diagnostics(
     assert "600000.SH" in message
 
 
+def test_capacity_command_emits_strict_machine_failure_line_with_diagnostics(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from io import StringIO
+
+    from apps.data_center.management.commands import rehearse_full_universe_capacity as command
+
+    identities = tmp_path / "identities.json"
+    identities.write_text(
+        json.dumps([_identity("quote").__dict__, _identity("valuation").__dict__]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        command,
+        "collect_full_universe_capacity",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            DataFetchError(
+                "quote scope incomplete",
+                code="REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
+                details={"missing_asset_codes": ["600000.SH"]},
+            )
+        ),
+    )
+    output = StringIO()
+
+    with pytest.raises(CommandError) as exc_info:
+        call_command(
+            "rehearse_full_universe_capacity",
+            "--candidate-sha",
+            "c" * 40,
+            "--target-trade-date",
+            "2026-09-24",
+            "--quote-provider-id",
+            "7",
+            "--valuation-provider-id",
+            "7",
+            "--provider-identities",
+            str(identities),
+            "--provider-request-limit",
+            "100",
+            "--provider-window-seconds",
+            "60",
+            "--task-deadline-seconds",
+            "3600",
+            "--lock-wait-limit-seconds",
+            "5",
+            "--output-dir",
+            str(tmp_path / "output"),
+            stdout=output,
+        )
+
+    machine_line = json.loads(output.getvalue().strip())
+    assert machine_line == {
+        "outcome": "blocked",
+        "code": "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE",
+    }
+    assert "missing_asset_codes" in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     "facts",
     [
@@ -388,6 +463,29 @@ def test_fact_coverage_rejects_duplicate_and_out_of_scope_provider_rows(
             target_trade_date=date(2026, 9, 24),
         )
     assert exc_info.value.code == "REHEARSAL_CAPACITY_PROVIDER_SCOPE_INVALID"
+
+
+def test_quote_fact_coverage_does_not_count_same_day_pre_close_snapshot() -> None:
+    """Capacity evidence treats a 14:55 quote as missing from the closed session."""
+
+    code = "000001.SZ"
+    observed_at = datetime(2026, 9, 24, 6, 55, tzinfo=UTC)
+    coverage = runner._fact_coverage(
+        [
+            QuoteSnapshot(
+                asset_code=code,
+                snapshot_at=observed_at,
+                current_price=10.0,
+                source="tushare",
+                fetched_at=observed_at + timedelta(minutes=10),
+            )
+        ],
+        requested=(code,),
+        target_trade_date=date(2026, 9, 24),
+    )
+
+    assert coverage["target_session_count"] == 0
+    assert coverage["missing_target_session_codes"] == [code]
 
 
 def test_collector_writes_validator_compatible_measured_artifacts(
@@ -743,8 +841,68 @@ def test_collector_fails_closed_when_eligible_quote_is_missing(
         _collect_capacity(source_root, output_dir)
 
     assert exc_info.value.code == "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE"
+    assert exc_info.value.details == {
+        "outcome": "blocked",
+        "target_trade_date": "2026-09-24",
+        "requested": 2,
+        "succeeded": 1,
+        "failed": 1,
+        "stored": 1,
+        "missing": ["600000.SH"],
+        "missing_asset_codes": ["600000.SH"],
+        "active_asset_codes": ["000001.SZ", "600000.SH"],
+        "active_universe_sha256": exc_info.value.details["active_universe_sha256"],
+        "eligible_asset_codes": ["000001.SZ", "600000.SH"],
+        "excluded_asset_codes": [],
+        "excluded_asset_reasons": [],
+        "quote_missing_target_session_reasons": [
+            {
+                "asset_code": "600000.SH",
+                "reason_code": "quote_target_session_unverified",
+            }
+        ],
+    }
     assert provider_calls == ["valuation", "quote"]
     assert not output_dir.exists()
+
+
+def test_collector_accepts_only_quote_gaps_with_explicit_full_day_suspension_evidence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    source_root, output_dir, provider_calls = _prepare_capacity_scenario(
+        monkeypatch,
+        tmp_path,
+        quote_codes=("000001.SZ",),
+        suspended_codes=("600000.SH",),
+    )
+
+    report = _collect_capacity(source_root, output_dir)
+    receipt = json.loads(
+        (output_dir / "full-universe-capacity-receipt.json").read_text(encoding="utf-8")
+    )
+    expected_reasons = [{"asset_code": "600000.SH", "reason_code": "quote_full_day_suspension"}]
+
+    for artifact in (report, receipt):
+        assert artifact["asset_codes"] == ["000001.SZ", "600000.SH"]
+        assert artifact["eligible_asset_codes"] == ["000001.SZ"]
+        assert artifact["eligible_asset_count"] == 1
+        assert artifact["excluded_asset_codes"] == ["600000.SH"]
+        assert artifact["excluded_asset_count"] == 1
+        assert artifact["excluded_asset_reasons"] == expected_reasons
+        assert artifact["quote_missing_target_session_codes"] == []
+        assert artifact["quote_missing_target_session_reasons"] == []
+        assert artifact["quote_requested_count"] == 1
+        assert artifact["quote_returned_count"] == 1
+    assert receipt["quote_coverage"] == {
+        "requested_count": 1,
+        "returned_count": 1,
+        "target_session_count": 1,
+        "missing_target_session_count": 0,
+        "missing_target_session_codes": [],
+        "extra_count": 0,
+        "duplicate_count": 0,
+    }
+    assert provider_calls == ["valuation", "quote"]
 
 
 @pytest.mark.parametrize(

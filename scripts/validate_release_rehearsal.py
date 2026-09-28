@@ -103,6 +103,7 @@ TENCENT_REPLAY_UNIT_CONTRACTS = {
 }
 TUSHARE_PROVIDER_FORMAT = "tushare_pro_table.v1"
 TENCENT_PROVIDER_FORMAT = "tencent_quote_batch.v1"
+QUOTE_FULL_DAY_SUSPENSION_REASON = "quote_full_day_suspension"
 REQUIRED_GITHUB_WORKFLOW = "Publication PostgreSQL contracts"
 REQUIRED_GITHUB_ARTIFACT = "publication-postgres-evidence"
 REQUIRED_JUNIT_FILES = {
@@ -141,6 +142,7 @@ class _ValidatedCapacityEvidence:
     registered_asset_codes: tuple[str, ...]
     eligible_asset_codes: tuple[str, ...]
     excluded_asset_codes: tuple[str, ...]
+    excluded_asset_reasons: tuple[tuple[str, str], ...]
     valuation_missing_asset_codes: tuple[str, ...]
     valuation_missing_reasons: tuple[tuple[str, str], ...]
     policy: _ValidatedPolicyEvidence
@@ -910,7 +912,11 @@ def _validate_real_replay(
         else REQUIRED_REPLAY_UNIT_CONTRACTS
     )
     claimed_response_datasets: dict[str, str] = {}
-    expected_assets = capacity.eligible_asset_codes
+    # Real replay exercises the provider's independent full-market stage.  The
+    # capacity stage may exclude quote-only gaps after explicit suspension
+    # evidence, while replay still retains the registered universe as its
+    # denominator and does not inherit those quote-scope exclusions.
+    expected_assets = capacity.registered_asset_codes
     ranked = sorted(expected_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
     groups: dict[str, str] = {}
     for code in ranked:
@@ -951,10 +957,10 @@ def _validate_real_replay(
     if report_policy != capacity.policy or report.get("candidate_image_id") != expected_image_id:
         _fail("REHEARSAL_REPLAY_POLICY_MISMATCH")
     if (
-        report.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
-        or report.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
-        or report.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
-        or report.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+        report.get("eligible_asset_codes") != list(capacity.registered_asset_codes)
+        or report.get("eligible_asset_count") != len(capacity.registered_asset_codes)
+        or report.get("excluded_asset_codes") != []
+        or report.get("excluded_asset_count") != 0
         or report.get("valuation_missing_target_session_codes") != missing_valuation_codes
         or report.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
         or report.get("valuation_requested_count") != len(expected_assets)
@@ -997,10 +1003,10 @@ def _validate_real_replay(
         or probe.get("sample") != expected_sample
         or probe.get("valuation_sample") != expected_valuation_sample
         or probe.get("provider_identities") != provider_values
-        or probe.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
-        or probe.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
-        or probe.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
-        or probe.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+        or probe.get("eligible_asset_codes") != list(capacity.registered_asset_codes)
+        or probe.get("eligible_asset_count") != len(capacity.registered_asset_codes)
+        or probe.get("excluded_asset_codes") != []
+        or probe.get("excluded_asset_count") != 0
         or probe.get("valuation_missing_target_session_codes") != missing_valuation_codes
         or probe.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
         or probe.get("valuation_requested_count") != len(expected_assets)
@@ -1140,10 +1146,10 @@ def _validate_real_replay(
             accepted_outcomes=("success", "partial"),
         )
         if (
-            receipt.get("eligible_asset_codes") != list(capacity.eligible_asset_codes)
-            or receipt.get("eligible_asset_count") != len(capacity.eligible_asset_codes)
-            or receipt.get("excluded_asset_codes") != list(capacity.excluded_asset_codes)
-            or receipt.get("excluded_asset_count") != len(capacity.excluded_asset_codes)
+            receipt.get("eligible_asset_codes") != list(capacity.registered_asset_codes)
+            or receipt.get("eligible_asset_count") != len(capacity.registered_asset_codes)
+            or receipt.get("excluded_asset_codes") != []
+            or receipt.get("excluded_asset_count") != 0
             or receipt.get("valuation_missing_target_session_codes") != missing_valuation_codes
             or receipt.get("valuation_missing_target_session_reasons") != missing_valuation_reasons
             or receipt.get("valuation_requested_count") != len(expected_assets)
@@ -1409,6 +1415,7 @@ def _validate_capacity(
         _fail("REHEARSAL_CAPACITY_RECEIPT_UNIVERSE_MISMATCH")
     eligible_codes = receipt.get("eligible_asset_codes")
     excluded_codes = receipt.get("excluded_asset_codes")
+    excluded_reasons_value = receipt.get("excluded_asset_reasons")
     if (
         not isinstance(eligible_codes, list)
         or not isinstance(excluded_codes, list)
@@ -1416,8 +1423,8 @@ def _validate_capacity(
         or excluded_codes != sorted(set(excluded_codes))
         or not all(isinstance(code, str) and code for code in eligible_codes + excluded_codes)
         or set(eligible_codes) & set(excluded_codes)
-        or not set(eligible_codes).issubset(set(asset_codes))
-        or not set(excluded_codes).issubset(set(asset_codes))
+        or set(eligible_codes) | set(excluded_codes) != set(asset_codes)
+        or len(eligible_codes) + len(excluded_codes) != universe_count
         or receipt.get("eligible_asset_count") != len(eligible_codes)
         or receipt.get("excluded_asset_count") != len(excluded_codes)
         or not isinstance(receipt.get("valuation_policy_identity"), str)
@@ -1426,11 +1433,24 @@ def _validate_capacity(
         or not eligible_codes
     ):
         _fail("REHEARSAL_CAPACITY_ELIGIBLE_SCOPE_INVALID")
+    if not isinstance(excluded_reasons_value, list) or any(
+        not isinstance(item, dict)
+        or set(item) != {"asset_code", "reason_code"}
+        or not isinstance(item.get("asset_code"), str)
+        or not isinstance(item.get("reason_code"), str)
+        for item in cast(list[object], excluded_reasons_value)
+    ):
+        _fail("REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE")
+    excluded_reasons = cast(list[dict[str, object]], excluded_reasons_value)
+    expected_excluded_reasons = [
+        {"asset_code": code, "reason_code": QUOTE_FULL_DAY_SUSPENSION_REASON}
+        for code in cast(list[str], excluded_codes)
+    ]
+    if excluded_reasons != expected_excluded_reasons:
+        _fail("REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE")
     missing_valuation_codes = receipt.get("valuation_missing_target_session_codes")
     if (
-        eligible_codes != asset_codes
-        or excluded_codes
-        or not isinstance(missing_valuation_codes, list)
+        not isinstance(missing_valuation_codes, list)
         or any(not isinstance(code, str) or not code for code in missing_valuation_codes)
         or missing_valuation_codes != sorted(set(missing_valuation_codes))
         or not set(missing_valuation_codes).issubset(set(asset_codes))
@@ -1442,6 +1462,14 @@ def _validate_capacity(
     ]
     if receipt.get("valuation_missing_target_session_reasons") != missing_reasons:
         _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
+    quote_missing_codes = receipt.get("quote_missing_target_session_codes")
+    quote_missing_reasons = receipt.get("quote_missing_target_session_reasons")
+    if (
+        quote_missing_codes != []
+        or quote_missing_reasons != []
+        or receipt.get("quote_requested_count") != len(eligible_codes)
+    ):
+        _fail("REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE")
     policy = _validated_policy_evidence(
         receipt.get("valuation_policy_snapshot"),
         error_code="REHEARSAL_CAPACITY_POLICY_INVALID",
@@ -1487,26 +1515,13 @@ def _validate_capacity(
         )
     ):
         _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
-    if (
-        report.get("eligible_asset_codes") != eligible_codes
-        or report.get("eligible_asset_count") != len(eligible_codes)
-        or report.get("excluded_asset_codes") != excluded_codes
-        or report.get("excluded_asset_count") != len(excluded_codes)
-        or report.get("valuation_missing_target_session_codes") != missing_valuation_codes
-        or report.get("valuation_missing_target_session_reasons") != missing_reasons
-        or report.get("valuation_requested_count") != universe_count
-        or report.get("valuation_returned_count") != expected_valuation_count
-        or report.get("valuation_outcome") != expected_valuation_outcome
-        or not math.isclose(report_valuation_ratio, valuation_ratio, abs_tol=1e-12)
-    ):
-        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
     coverage_expectations: dict[str, tuple[int, int, list[str]]] = {
         "valuation_coverage": (
             universe_count,
             expected_valuation_count,
             cast(list[str], missing_valuation_codes),
         ),
-        "quote_coverage": (universe_count, universe_count, []),
+        "quote_coverage": (len(eligible_codes), len(eligible_codes), []),
     }
     for key, (
         expected_requested,
@@ -1547,6 +1562,27 @@ def _validate_capacity(
         fact_count_key = "quote_fact_count" if key == "quote_coverage" else "valuation_fact_count"
         if receipt.get(fact_count_key) != returned:
             _fail("REHEARSAL_CAPACITY_COVERAGE_INVALID")
+
+    if (
+        report.get("eligible_asset_codes") != eligible_codes
+        or report.get("eligible_asset_count") != len(eligible_codes)
+        or report.get("excluded_asset_codes") != excluded_codes
+        or report.get("excluded_asset_count") != len(excluded_codes)
+        or report.get("excluded_asset_reasons") != excluded_reasons
+        or report.get("quote_missing_target_session_codes") != quote_missing_codes
+        or report.get("quote_missing_target_session_reasons") != quote_missing_reasons
+        or report.get("quote_requested_count") != len(eligible_codes)
+        or report.get("quote_returned_count") != len(eligible_codes)
+        or report.get("quote_fact_count") != len(eligible_codes)
+        or report.get("quote_coverage") != receipt.get("quote_coverage")
+        or report.get("valuation_missing_target_session_codes") != missing_valuation_codes
+        or report.get("valuation_missing_target_session_reasons") != missing_reasons
+        or report.get("valuation_requested_count") != universe_count
+        or report.get("valuation_returned_count") != expected_valuation_count
+        or report.get("valuation_outcome") != expected_valuation_outcome
+        or not math.isclose(report_valuation_ratio, valuation_ratio, abs_tol=1e-12)
+    ):
+        _fail("REHEARSAL_CAPACITY_VALUATION_SCOPE_INCOMPLETE")
 
     receipt_started = _parse_datetime(
         receipt.get("started_at"), "REHEARSAL_CAPACITY_MEASUREMENT_INVALID"
@@ -1652,6 +1688,10 @@ def _validate_capacity(
         registered_asset_codes=tuple(cast(list[str], asset_codes)),
         eligible_asset_codes=tuple(cast(list[str], eligible_codes)),
         excluded_asset_codes=tuple(cast(list[str], excluded_codes)),
+        excluded_asset_reasons=tuple(
+            (cast(str, item["asset_code"]), cast(str, item["reason_code"]))
+            for item in excluded_reasons
+        ),
         valuation_missing_asset_codes=tuple(cast(list[str], missing_valuation_codes)),
         valuation_missing_reasons=tuple(
             (cast(str, item["asset_code"]), cast(str, item["reason_code"]))

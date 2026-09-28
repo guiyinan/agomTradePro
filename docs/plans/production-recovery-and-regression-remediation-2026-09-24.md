@@ -595,3 +595,38 @@
 - 聚焦回归为 131 passed；Ruff、Black、isort、current-data 71 surfaces、增量 mypy和 debt ceiling 均通过。
   这些仍是未提交、未部署的候选证据。冻结新 SHA 后须重新执行同 SHA CI/PostgreSQL，并在 17:05 之后
   建立全新 S6；旧 `eba1408ad` 镜像、空响应和失败目录只用于根因证据，不能授权部署。
+
+### 2026-09-28 17:05 S6 动态停牌缺口与正式发布容错
+
+- 候选 `c0db3624ba6a4a1384ef7f24ffda623403b73738` 的同 SHA 四组 push CI 和手工
+  PostgreSQL workflow 均成功。17:05 后的全新 S6 已通过 build、镜像身份、真实 provider probe
+  和 retained-response replay；provider probe 的完整 active universe 与估值均为 5,569/5,569，
+  quote 50/50。随后 full-universe capacity 在约 74 秒主动失败，未进入写入或部署。
+- 只读精确复现返回 `REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE`：全量 quote 请求 5,569、返回
+  5,558、动态缺口 11。对这 11 个缺口逐项查询目标日 `2026-09-28` 的 Tushare `suspend_d`，
+  11/11 均为全天停牌，无查询错误；缺口集合 SHA-256 为
+  `a612ec7980b2e923042a50b7617590d022b785df6bf8359c78946e5375093b59`。这证明事故数量不是固定
+  “12 只”，也不能写入静态证券名单。
+- S6 只显示通用 `S6_STAGE_COMMAND_FAILED` 的直接原因是 management command 抛出
+  `CommandError: REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE: {...}`，而 launcher 正则只接受错误码
+  单独成行。命令边界现在另发严格机器行 `{"outcome":"blocked","code":"..."}`，诊断正文继续保留，
+  因而重跑可返回真实业务码和 `requested/succeeded/failed/stored/missing`，不再只有阶段技术状态。
+- 容错按类别实现：每次运行保留完整 requested universe，provider raw missing 逐项核验目标日全天停牌；
+  只将已证实成员划入 `quote_full_day_suspension`，eligible quote 仍要求 100% 完整。任一缺口未证实、
+  日期不符、日内停牌、重复、越界或 eligible 为空仍全局阻断。容量 report/receipt 同时保留完整分母、
+  eligible/excluded partition 与原因，validator 独立复算。
+- 正式发布复用相同不变量：`PreparedQuoteSession` 冻结 full universe、eligible/excluded hashes 和原始响应
+  证据；quote fact 批次只写 eligible，valuation seed、price verification 和原子 publication 继续使用完整
+  requested 范围。Quote Publication 记录 requested/eligible/selected/missing 和逐证券 scope block；政策
+  阈值及 `allow_partial` 不变，未生成 0 价格或陈旧当日值。停牌证券查询返回局部阻断，其他证券继续可用；
+  任务业务结果为 `partial` 并显示动态排除数量、代码、目标日和证据来源。
+- 当前实现仍是未提交、未部署候选。合并回归、增量 mypy、debt ceiling、current-data/Celery/module-map
+  门禁通过后，须冻结新 SHA、重新取得同 SHA CI/PostgreSQL，并在新目录完整重跑 S6。旧 c0db 失败目录
+  只能作为根因证据。只有新 S6 九阶段成功后才可部署并继续正式 Publication、财报、decision runtime、
+  Alpha、API/SDK/MCP 与普通用户页面联合验收。
+- Luna Max 终审补出一个独立时间反例：只比较目标中国日期会让北京时间 14:55 的盘中 quote 在任务
+  15:00 后执行时被误计为正式收盘覆盖。正式预取与容量测算现均要求观测时间达到目标交易日 15:00
+  收盘时点；同日盘中值稳定阻断，延长任务 timeout 不改变该业务判断。
+- 全局 readiness 现与正式查询复用同一版本化证据判断，重新校验持久化成员、事实内容哈希、Publication
+  哈希/派生 ID 和 scope block。证据完整的全天停牌只形成逐证券局部阻断；政策、成员、哈希或日期证据
+  不一致仍全局失败关闭。

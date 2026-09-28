@@ -63,6 +63,13 @@ class Command(BaseCommand):
             )
             details = getattr(exc, "details", {})
             diagnostic = json.dumps(details, ensure_ascii=False, sort_keys=True)
+            self.stdout.write(
+                json.dumps(
+                    {"outcome": "blocked", "code": code},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+            )
             raise CommandError(f"{code}: {diagnostic}") from exc
         self.stdout.write(
             json.dumps(

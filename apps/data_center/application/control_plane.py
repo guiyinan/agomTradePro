@@ -26,7 +26,10 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
 )
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
-from apps.data_center.domain.publication_snapshot_policy import validate_publication_snapshot_policy
+from apps.data_center.domain.publication_snapshot_policy import (
+    publication_policy_coverage_ratio,
+    validate_publication_snapshot_policy,
+)
 from core.integration.data_center_audit import (
     AuditOutcome,
     DataPublicationRollbackAuditObservation,
@@ -196,7 +199,7 @@ class PublishCanonicalDatasetUseCase:
             raise ValueError("Publication dataset_key does not match policy")
         if publication.policy_version != policy.identity:
             raise ValueError("Publication policy identity does not match active policy")
-        if publication.coverage.coverage_ratio < policy.minimum_coverage_ratio:
+        if publication_policy_coverage_ratio(policy, publication) < policy.minimum_coverage_ratio:
             raise ValueError("Publication coverage is below policy threshold")
         if publication.conflict_count > 0 and policy.conflict_action == "block":
             raise ValueError("Publication contains conflicts blocked by policy")

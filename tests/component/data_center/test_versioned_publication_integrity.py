@@ -207,6 +207,7 @@ def test_p2_partial_scope_blocks_are_hashed_persisted_and_immutable() -> None:
         publication_run_id=publication.run_id,
         policy_version=policy.identity,
         publication_id=publication.publication_id,
+        evidence_source="tushare.suspend_d",
     )
     partial = replace(
         publication,
@@ -241,6 +242,7 @@ def test_p2_partial_scope_blocks_are_hashed_persisted_and_immutable() -> None:
             "publication_run_id": publication.run_id,
             "policy_version": policy.identity,
             "publication_id": publication.publication_id,
+            "evidence_source": "tushare.suspend_d",
         }
     ]
     tampered_block = PublicationScopeBlock(
@@ -272,6 +274,7 @@ def test_scope_block_evidence_is_hashed_except_derived_publication_id() -> None:
         publication_run_id=publication.run_id,
         policy_version=policy.identity,
         publication_id=publication.publication_id,
+        evidence_source="tushare.suspend_d",
     )
     digest = publication_hash(
         (member_reference(member),),
@@ -292,6 +295,7 @@ def test_scope_block_evidence_is_hashed_except_derived_publication_id() -> None:
         replace(block, source="another-provider"),
         replace(block, publication_run_id="another-run"),
         replace(block, policy_version="another-policy"),
+        replace(block, evidence_source="another-suspension-source"),
     )
     assert all(
         publication_hash(

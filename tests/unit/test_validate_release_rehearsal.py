@@ -362,6 +362,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
+            "excluded_asset_reasons": [],
             "valuation_missing_target_session_codes": [],
             "valuation_missing_target_session_reasons": [],
             "valuation_requested_count": len(ASSET_CODES),
@@ -444,6 +445,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
+            "excluded_asset_reasons": [],
             "valuation_missing_target_session_codes": [],
             "valuation_missing_target_session_reasons": [],
             "valuation_requested_count": len(ASSET_CODES),
@@ -489,6 +491,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
+            "excluded_asset_reasons": [],
             "valuation_missing_target_session_codes": [],
             "valuation_missing_target_session_reasons": [],
             "valuation_requested_count": len(ASSET_CODES),
@@ -526,6 +529,21 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "eligible_asset_codes": ASSET_CODES,
             "excluded_asset_count": 0,
             "excluded_asset_codes": [],
+            "excluded_asset_reasons": [],
+            "quote_missing_target_session_codes": [],
+            "quote_missing_target_session_reasons": [],
+            "quote_requested_count": len(ASSET_CODES),
+            "quote_returned_count": len(ASSET_CODES),
+            "quote_fact_count": len(ASSET_CODES),
+            "quote_coverage": {
+                "requested_count": len(ASSET_CODES),
+                "returned_count": len(ASSET_CODES),
+                "target_session_count": len(ASSET_CODES),
+                "missing_target_session_count": 0,
+                "missing_target_session_codes": [],
+                "extra_count": 0,
+                "duplicate_count": 0,
+            },
             "valuation_missing_target_session_codes": [],
             "valuation_missing_target_session_reasons": [],
             "valuation_requested_count": len(ASSET_CODES),
@@ -536,17 +554,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "valuation_policy_identity": POLICY_EVIDENCE["identity"],
             "valuation_policy_sha256": POLICY_SHA256,
             "valuation_policy_snapshot": POLICY_EVIDENCE,
-            "quote_fact_count": len(ASSET_CODES),
             "valuation_fact_count": len(ASSET_CODES),
-            "quote_coverage": {
-                "requested_count": len(ASSET_CODES),
-                "returned_count": len(ASSET_CODES),
-                "target_session_count": len(ASSET_CODES),
-                "missing_target_session_count": 0,
-                "missing_target_session_codes": [],
-                "extra_count": 0,
-                "duplicate_count": 0,
-            },
             "valuation_coverage": {
                 "requested_count": len(ASSET_CODES),
                 "returned_count": len(ASSET_CODES),
@@ -587,6 +595,21 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
             "excluded_asset_count": 0,
+            "excluded_asset_reasons": [],
+            "quote_missing_target_session_codes": [],
+            "quote_missing_target_session_reasons": [],
+            "quote_requested_count": len(ASSET_CODES),
+            "quote_returned_count": len(ASSET_CODES),
+            "quote_fact_count": len(ASSET_CODES),
+            "quote_coverage": {
+                "requested_count": len(ASSET_CODES),
+                "returned_count": len(ASSET_CODES),
+                "target_session_count": len(ASSET_CODES),
+                "missing_target_session_count": 0,
+                "missing_target_session_codes": [],
+                "extra_count": 0,
+                "duplicate_count": 0,
+            },
             "valuation_missing_target_session_codes": [],
             "valuation_missing_target_session_reasons": [],
             "valuation_requested_count": len(ASSET_CODES),
@@ -828,6 +851,97 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
     assert len(result["validated_reports"]) == 4
+
+
+def test_validator_accepts_evidence_backed_quote_scope_exclusion(tmp_path: Path) -> None:
+    """A confirmed suspension may narrow quote scope without shrinking the universe."""
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["full_universe_capacity"]
+    capacity = json.loads(capacity_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / capacity["measurement_artifact"]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    eligible = ASSET_CODES[:-1]
+    excluded = ASSET_CODES[-1]
+    reasons = [{"asset_code": excluded, "reason_code": "quote_full_day_suspension"}]
+    quote_coverage = {
+        "requested_count": len(eligible),
+        "returned_count": len(eligible),
+        "target_session_count": len(eligible),
+        "missing_target_session_count": 0,
+        "missing_target_session_codes": [],
+        "extra_count": 0,
+        "duplicate_count": 0,
+    }
+    receipt.update(
+        {
+            "eligible_asset_codes": eligible,
+            "eligible_asset_count": len(eligible),
+            "excluded_asset_codes": [excluded],
+            "excluded_asset_count": 1,
+            "excluded_asset_reasons": reasons,
+            "quote_requested_count": len(eligible),
+            "quote_returned_count": len(eligible),
+            "quote_fact_count": len(eligible),
+            "quote_coverage": quote_coverage,
+        }
+    )
+    receipt_digest = _write_json(receipt_path, receipt)
+    capacity.update(
+        {
+            "eligible_asset_codes": eligible,
+            "eligible_asset_count": len(eligible),
+            "excluded_asset_codes": [excluded],
+            "excluded_asset_count": 1,
+            "excluded_asset_reasons": reasons,
+            "quote_requested_count": len(eligible),
+            "quote_returned_count": len(eligible),
+            "quote_fact_count": len(eligible),
+            "quote_coverage": quote_coverage,
+        }
+    )
+    capacity["measurement_artifact"]["sha256"] = receipt_digest
+    _replace_report(manifest, capacity_path, capacity)
+
+    result = _validate(manifest, now)
+
+    assert result["outcome"] == "success"
+
+
+def test_validator_rejects_unverified_quote_scope_exclusion_reason(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+
+    _replace_capacity_receipt(
+        manifest,
+        reports["full_universe_capacity"],
+        {
+            "eligible_asset_codes": ASSET_CODES[:-1],
+            "eligible_asset_count": len(ASSET_CODES) - 1,
+            "excluded_asset_codes": [ASSET_CODES[-1]],
+            "excluded_asset_count": 1,
+            "excluded_asset_reasons": [
+                {"asset_code": ASSET_CODES[-1], "reason_code": "quote_data_missing"}
+            ],
+            "quote_requested_count": len(ASSET_CODES) - 1,
+            "quote_returned_count": len(ASSET_CODES) - 1,
+            "quote_fact_count": len(ASSET_CODES) - 1,
+            "quote_coverage": {
+                "requested_count": len(ASSET_CODES) - 1,
+                "returned_count": len(ASSET_CODES) - 1,
+                "target_session_count": len(ASSET_CODES) - 1,
+                "missing_target_session_count": 0,
+                "missing_target_session_codes": [],
+                "extra_count": 0,
+                "duplicate_count": 0,
+            },
+        },
+    )
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE"
 
 
 @pytest.mark.parametrize("kind", validator.REQUIRED_REPORT_SCHEMAS)
@@ -1276,6 +1390,24 @@ def test_validator_rejects_false_readback_in_bound_write_receipt(tmp_path: Path)
                 "eligible_asset_count": len(ASSET_CODES) - 1,
                 "excluded_asset_codes": [ASSET_CODES[-1]],
                 "excluded_asset_count": 1,
+                "excluded_asset_reasons": [
+                    {
+                        "asset_code": ASSET_CODES[-1],
+                        "reason_code": "quote_full_day_suspension",
+                    }
+                ],
+                "quote_requested_count": len(ASSET_CODES) - 1,
+                "quote_returned_count": len(ASSET_CODES) - 1,
+                "quote_fact_count": len(ASSET_CODES) - 1,
+                "quote_coverage": {
+                    "requested_count": len(ASSET_CODES) - 1,
+                    "returned_count": len(ASSET_CODES) - 1,
+                    "target_session_count": len(ASSET_CODES) - 1,
+                    "missing_target_session_count": 0,
+                    "missing_target_session_codes": [],
+                    "extra_count": 0,
+                    "duplicate_count": 0,
+                },
                 "valuation_missing_target_session_codes": [ASSET_CODES[-1]],
                 "valuation_coverage_ratio": (len(ASSET_CODES) - 1) / len(ASSET_CODES),
             },

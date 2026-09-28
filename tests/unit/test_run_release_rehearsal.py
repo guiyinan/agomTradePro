@@ -917,6 +917,31 @@ def test_failed_stage_preserves_exact_validator_json_code(tmp_path: Path) -> Non
     assert exc_info.value.code == stable_code
 
 
+def test_failed_capacity_stage_extracts_machine_code_alongside_diagnostics(
+    tmp_path: Path,
+) -> None:
+    stable_code = "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE"
+
+    class CapacityFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            return CommandResult(
+                returncode=1,
+                stdout=json.dumps({"outcome": "blocked", "code": stable_code}),
+                stderr='CommandError: quote scope incomplete {"missing": ["600000.SH"]}',
+            )
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke(
+            CapacityFailureRunner(),
+            argv=("capacity",),
+            root=tmp_path,
+            label="full_universe_capacity",
+            timeout=1,
+        )
+
+    assert exc_info.value.code == stable_code
+
+
 @pytest.mark.parametrize(
     "stderr",
     [

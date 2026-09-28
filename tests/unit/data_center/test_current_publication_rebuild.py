@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -12,6 +12,7 @@ from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
     CurrentPublicationPreview,
     CurrentPublicationRebuildUseCase,
+    CurrentPublicationScopeExclusion,
 )
 from apps.data_center.application.publication_utils import (
     current_publication_id_for_hash,
@@ -333,6 +334,138 @@ def test_partial_policy_does_not_relax_quote_publication_scope() -> None:
             asset_codes=["000001.SZ", "600000.SH"],
             published_at=NOW,
         )
+
+
+def test_rebuild_publishes_verified_target_session_suspension_scope() -> None:
+    """A strict policy may exclude only a fully evidenced target-day suspension."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    codes = ["000001.SZ", "000016.SZ"]
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                codes[0],
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            )
+        ],
+        repository,
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+
+    publication = use_case.execute(
+        asset_codes=codes,
+        published_at=NOW,
+        run_id="suspension-run-20260828",
+        scope_exclusions=(
+            CurrentPublicationScopeExclusion(
+                asset_code=codes[1],
+                reason_code="quote_full_day_suspension",
+                target_trade_date=date(2026, 8, 28),
+                evidence_source="tushare.suspend_d",
+            ),
+        ),
+    )
+
+    assert publication.coverage.requested_count == 2
+    assert publication.coverage.eligible_count == 1
+    assert publication.coverage.selected_count == 1
+    assert publication.coverage.missing_count == 1
+    assert publication.member_count == 1
+    assert publication.policy_version.startswith("p2:")
+    assert publication.scope_blocks[0].to_dict() == {
+        "asset_code": codes[1],
+        "reason_code": "quote_full_day_suspension",
+        "target_trade_date": "2026-08-28",
+        "evidence_source": "tushare.suspend_d",
+        "source": publication.selected_source,
+        "publication_run_id": "suspension-run-20260828",
+        "policy_version": publication.policy_version,
+        "publication_id": publication.publication_id,
+    }
+    assert repository.published == [publication]
+
+
+@pytest.mark.parametrize(
+    ("scope_exclusions", "message"),
+    [
+        ((), "missing active assets"),
+        (
+            (
+                CurrentPublicationScopeExclusion(
+                    asset_code="000002.SZ",
+                    reason_code="quote_full_day_suspension",
+                    target_trade_date=date(2026, 8, 30),
+                    evidence_source="tushare.suspend_d",
+                ),
+            ),
+            "match publication gaps",
+        ),
+        (
+            (
+                CurrentPublicationScopeExclusion(
+                    asset_code="000016.SZ",
+                    reason_code="provider_missing",
+                    target_trade_date=date(2026, 8, 30),
+                    evidence_source="tushare.suspend_d",
+                ),
+            ),
+            "unsupported scope exclusion",
+        ),
+        (
+            (
+                CurrentPublicationScopeExclusion(
+                    asset_code="000016.SZ",
+                    reason_code="quote_full_day_suspension",
+                    target_trade_date=date(2026, 8, 29),
+                    evidence_source="tushare.suspend_d",
+                ),
+            ),
+            "target trade date",
+        ),
+    ],
+)
+def test_rebuild_rejects_unverified_or_misaligned_market_scope_exclusion(
+    scope_exclusions: tuple[CurrentPublicationScopeExclusion, ...],
+    message: str,
+) -> None:
+    """Missing rows remain globally blocked without exact target-session evidence."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [_reference("000001.SZ", "1", dataset=dataset)],
+        repository,
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        use_case.execute(
+            asset_codes=["000001.SZ", "000016.SZ"],
+            published_at=NOW,
+            run_id="suspension-run-20260830",
+            scope_exclusions=scope_exclusions,
+        )
+
+    assert repository.published == []
 
 
 def test_rebuild_rejects_wrong_fact_table_and_future_observation() -> None:

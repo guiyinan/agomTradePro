@@ -8,6 +8,11 @@ from django.contrib.auth.models import User
 from django.db import OperationalError, connection, models
 from django.test.utils import CaptureQueriesContext
 
+from apps.data_center.application.publication_utils import (
+    current_publication_id_for_hash,
+    publication_hash,
+)
+from apps.data_center.domain.control_plane import PublicationScopeBlock
 from apps.data_center.domain.entities import (
     MacroFact,
     MarketThermometerThresholds,
@@ -15,7 +20,11 @@ from apps.data_center.domain.entities import (
     ProductionCoverageUniverseConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
-from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    cn_market_date_start_utc,
+    cn_market_session_close_utc,
+)
 from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from apps.data_center.infrastructure import orm_retry
 from apps.data_center.infrastructure.a_share_universe_sync import (
@@ -38,7 +47,11 @@ from apps.data_center.infrastructure.models import (
     ProductionCoverageUniverseConfigModel,
     PublicationMemberModel,
     PublisherCatalogModel,
+    QuoteSnapshotModel,
     ValuationFactModel,
+)
+from apps.data_center.infrastructure.publication_fact_evidence import (
+    publication_fact_reference_for_dataset,
 )
 from apps.data_center.infrastructure.repositories import (
     MacroFactRepository,
@@ -814,6 +827,159 @@ def test_diagnostic_coverage_keeps_system_ready_for_policy_approved_partial_scop
             "reason_code": "provider_record_missing",
         }
     ]
+
+
+@pytest.mark.django_db
+def test_diagnostic_quote_suspension_scope_does_not_block_global_readiness() -> None:
+    """A versioned full-day suspension exclusion is healthy for eligible quote members."""
+
+    codes = _configure_diagnostic_test_universe()
+    target_session = date(2026, 9, 28)
+    observed_at = cn_market_session_close_utc(target_session)
+    diagnostic_now = observed_at + timedelta(hours=2)
+    quote = QuoteSnapshotModel.objects.create(
+        asset_code=codes[0],
+        snapshot_at=observed_at,
+        fetched_at=observed_at,
+        current_price="10.0000",
+        source="test",
+        source_record_id="quote-1",
+        raw_payload_hash="a" * 64,
+    )
+    DatasetContractModel.objects.create(
+        dataset_key="equity.quote.snapshot",
+        contract_version="test-1",
+        schema_version="1.0",
+        owner="data-platform",
+        frequency="daily",
+        decision_critical=True,
+        fields=[
+            {
+                "name": "observed_at",
+                "value_type": "datetime",
+                "nullable": False,
+                "zero_allowed": False,
+            }
+        ],
+        freshness_seconds=2_592_000,
+        active=True,
+    )
+    policy_model = DatasetPublicationPolicyModel.objects.create(
+        dataset_key="equity.quote.snapshot",
+        contract_version="test-1",
+        schema_version="1.0",
+        policy_version="p2",
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=["source_record_id"],
+        retention_days=30,
+        active=True,
+    )
+    policy_identity = policy_model.to_domain().identity
+    run_id = str(uuid4())
+    target_trade_date = cn_market_date_from_observation(observed_at)
+    reference = publication_fact_reference_for_dataset(
+        quote,
+        dataset_key="equity.quote.snapshot",
+    )
+    draft_block = PublicationScopeBlock(
+        asset_code=codes[1],
+        reason_code="quote_full_day_suspension",
+        target_trade_date=target_trade_date,
+        source="test",
+        publication_run_id=run_id,
+        policy_version=policy_identity,
+        publication_id="pending",
+        evidence_source="tushare.suspend_d",
+    )
+    digest = publication_hash(
+        (reference,),
+        policy_identity=policy_identity,
+        scope_blocks=(draft_block,),
+    )
+    publication_id = current_publication_id_for_hash(
+        "equity.quote.snapshot",
+        "current",
+        digest,
+    )
+    scope_block = PublicationScopeBlock(
+        asset_code=codes[1],
+        reason_code="quote_full_day_suspension",
+        target_trade_date=target_trade_date,
+        source="test",
+        publication_run_id=run_id,
+        policy_version=policy_identity,
+        publication_id=publication_id,
+        evidence_source="tushare.suspend_d",
+    )
+    CanonicalPublicationModel.objects.create(
+        publication_id=publication_id,
+        dataset_key="equity.quote.snapshot",
+        publication_key="current",
+        policy_version=policy_identity,
+        state="published",
+        selected_source="test",
+        publication_hash=digest,
+        member_count=1,
+        coverage_requested_count=2,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        coverage_missing_count=1,
+        coverage_conflict_count=0,
+        as_of=observed_at,
+        published_at=observed_at,
+        run_id=run_id,
+        scope_blocks=[scope_block.to_dict()],
+        must_not_use_for_decision=False,
+    )
+    PublicationMemberModel.objects.create(
+        member_id=uuid4(),
+        publication_id=publication_id,
+        dataset_key="equity.quote.snapshot",
+        natural_key=reference.natural_key,
+        source=reference.source,
+        source_record_id=reference.source_record_id,
+        fact_table=reference.fact_table,
+        fact_pk=reference.fact_pk,
+        observed_at=reference.observed_at,
+        raw_payload_hash=reference.raw_payload_hash,
+        quality_status=reference.quality_status,
+        revision_number=reference.revision_number,
+        available_at=reference.available_at,
+        fetched_at=reference.fetched_at,
+        source_published_at=reference.source_published_at,
+        raw_payload_scope=reference.raw_payload_scope,
+        fact_content_hash=reference.fact_content_hash,
+    )
+
+    repository = DataCenterDiagnosticRepository(clock=lambda: diagnostic_now)
+    summary = repository._publication_domain_summary(
+        codes,
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        model=QuoteSnapshotModel,
+        date_field="snapshot_at",
+    )
+
+    assert summary["status"] == "ok"
+    assert summary["coverage_status"] == "partial"
+    assert summary["must_not_use_for_decision"] is False
+    assert summary["blocked_reason"] == ""
+
+    CanonicalPublicationModel.objects.filter(publication_id=publication_id).update(
+        publication_hash="b" * 64
+    )
+    tampered = repository._publication_domain_summary(
+        codes,
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        model=QuoteSnapshotModel,
+        date_field="snapshot_at",
+    )
+
+    assert tampered["status"] == "blocked"
+    assert tampered["blocked_reason"] == "publication_member_snapshot_invalid"
 
 
 @pytest.mark.django_db

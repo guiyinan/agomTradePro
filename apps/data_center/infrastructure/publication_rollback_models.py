@@ -116,6 +116,7 @@ class CanonicalPublicationModel(models.Model):
                     publication_run_id=str(item.get("publication_run_id") or ""),
                     policy_version=str(item.get("policy_version") or ""),
                     publication_id=str(item.get("publication_id") or ""),
+                    evidence_source=str(item.get("evidence_source") or ""),
                 )
                 for item in self.scope_blocks
             ),

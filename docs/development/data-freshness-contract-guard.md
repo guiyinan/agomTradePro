@@ -241,3 +241,18 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 ### 2026-09-27 正式价格发布与 Qlib 历史窗口隔离
 
 全市场 current `equity.price.bar` 发布只对目标完成交易日执行批量预取和逐证券当前验证；逐证券读取必须复用这次单会话预取缓存。只有目标日缺行或明确不可用的证券才进入 120 日历史读取，以便既有 Data Center 路由验证来源一致性及逐日全日停牌证据。精确目标日停牌证据以外的缺失、过期、跨源冲突、权限或额度错误继续失败关闭。Qlib 特征构建仍可使用其历史窗口；该窗口不应扩大正式 Publication 的全市场 provider 请求。
+
+全市场 current `equity.quote.snapshot` 对停牌采用 requested/eligible 双范围。requested 永远是本次
+冻结的完整 active universe；eligible 只能由本次 quote 缺口与目标交易日全天停牌证据的精确交集
+推导，不能来自静态名单、数量阈值或旧行情。Publication 保留 requested 全分母，要求
+`selected == eligible`，并为每个 `requested - eligible` 成员写入
+`quote_full_day_suspension` scope block；政策的 minimum coverage 数值和 `allow_partial` 不变，
+策略校验按 eligible coverage 验证为 100%。单证券读取命中 block 时返回该证券的目标日与证据来源，
+其余成员继续服务；任何未证实缺口仍全局阻断并保留旧 Publication。
+
+目标交易日相同并不足以证明报价属于已完成交易会话。正式 quote 预取和全量容量预演都必须验证
+`snapshot_at >= cn_market_session_close_utc(target_trade_date)`；北京时间 14:55 等同日盘中观测不得计入
+收盘覆盖，也不得因任务在 15:00 以后执行而被重新解释为收盘行情。全局 readiness 对已核验停牌缺口
+复用同一版本化政策验证：持久化成员、事实内容哈希、Publication 哈希/派生 ID、scope block 或时间证据
+不一致时仍全局阻断；证据完整时只对停牌
+证券保留局部说明，其他 eligible 证券继续可用。

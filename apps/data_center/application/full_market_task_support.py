@@ -248,6 +248,61 @@ def quote_session_prefetch_failure(
     }
 
 
+def quote_session_scope_empty_failure(
+    *,
+    requested_codes: Set[str],
+    valuation_missing_codes: Sequence[str],
+    valuation_stored_count: int,
+    excluded_codes: Sequence[str],
+    target_trade_date: str,
+    publication_run_id: str,
+    quote_source: str,
+    valuation_source: str,
+    market_universe: Mapping[str, object],
+    valuation_coverage_ratio: float,
+    valuation_policy_identity: str | None,
+) -> dict[str, object]:
+    """Block when every frozen asset is explicitly excluded as suspended."""
+
+    excluded = tuple(sorted({str(code or "").strip().upper() for code in excluded_codes}))
+    valuation_missing = tuple(
+        sorted({str(code or "").strip().upper() for code in valuation_missing_codes})
+    )
+    missing = tuple(sorted(set(excluded).union(valuation_missing)))
+    return {
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "success": False,
+        "blocked_reason": "quote_full_day_suspension",
+        "error_code": "CURRENT_QUOTE_SESSION_SCOPE_EMPTY",
+        "errors": ["CURRENT_QUOTE_SESSION_SCOPE_EMPTY"],
+        "requested": len(requested_codes),
+        "succeeded": 0,
+        "failed": len(missing),
+        "stored": valuation_stored_count,
+        "count_unit": "valuation_asset",
+        "stored_count_unit": "fact_row",
+        "operation_requested": 1,
+        "operation_succeeded": 0,
+        "operation_failed": 1,
+        "publication_updated": False,
+        "published_members": 0,
+        "publication_run_id": publication_run_id,
+        "target_trade_date": target_trade_date,
+        "quote_source": quote_source,
+        "valuation_source": valuation_source,
+        "market_universe": dict(market_universe),
+        "valuation_seed_stored": valuation_stored_count,
+        "valuation_coverage_ratio": valuation_coverage_ratio,
+        "valuation_policy_identity": valuation_policy_identity,
+        "requested_asset_count": len(requested_codes),
+        "succeeded_asset_count": 0,
+        "failed_asset_count": len(missing),
+        "missing_asset_codes": list(missing),
+        "excluded_non_trading_count": len(excluded),
+        "excluded_non_trading_codes": list(excluded),
+    }
+
+
 def valuation_scope_incomplete_failure(
     *,
     requested_codes: Set[str],
@@ -314,6 +369,7 @@ def finalize_full_market_result(
     missing_codes: Sequence[str],
     coverage_ratio: float,
     policy_identity: str | None,
+    excluded_codes: Sequence[str] = (),
 ) -> dict[str, object]:
     """Project operation results into the stable asset-denominated task contract."""
 
@@ -326,29 +382,41 @@ def finalize_full_market_result(
         if phase_result.get("phase") == "valuation":
             phase_result["stored"] = valuation_seed_stored
     datasets = publication_evidence.get("datasets")
-    valuation_evidence = (
-        next(
-            (
-                item
-                for item in datasets
-                if isinstance(item, Mapping) and item.get("dataset_key") == "equity.valuation.fact"
-            ),
-            None,
-        )
+    dataset_evidence = (
+        [item for item in datasets if isinstance(item, Mapping)]
         if isinstance(datasets, list)
-        else None
-    )
-    raw_scope_blocks = (
-        valuation_evidence.get("scope_blocks") if isinstance(valuation_evidence, Mapping) else None
-    )
-    scope_blocks = (
-        [dict(item) for item in raw_scope_blocks if isinstance(item, Mapping)]
-        if missing_codes and isinstance(raw_scope_blocks, list)
         else []
     )
+    scope_blocks_by_dataset: dict[str, list[dict[str, object]]] = {}
+    for dataset in dataset_evidence:
+        dataset_key = dataset.get("dataset_key")
+        raw_scope_blocks = dataset.get("scope_blocks")
+        if not isinstance(dataset_key, str) or not isinstance(raw_scope_blocks, list):
+            continue
+        scoped = [dict(item) for item in raw_scope_blocks if isinstance(item, Mapping)]
+        if scoped:
+            scope_blocks_by_dataset[dataset_key] = scoped
+    scope_blocks = [
+        block
+        for dataset_key in sorted(scope_blocks_by_dataset)
+        for block in scope_blocks_by_dataset[dataset_key]
+    ]
+    quote_scope_blocks = scope_blocks_by_dataset.get("equity.quote.snapshot", [])
+    excluded = tuple(
+        sorted(
+            {str(code or "").strip().upper() for code in excluded_codes if str(code or "").strip()}
+        )
+    )
+    valuation_missing = tuple(
+        sorted(
+            {str(code or "").strip().upper() for code in missing_codes if str(code or "").strip()}
+        )
+    )
+    combined_missing = tuple(sorted(set(valuation_missing).union(excluded)))
+    effective_succeeded = set(succeeded_codes).difference(excluded)
     business_outcome = (
         TaskBusinessOutcome.PARTIAL.value
-        if missing_codes and result.get("publication_updated")
+        if combined_missing and result.get("publication_updated")
         else str(result.get("outcome") or TaskBusinessOutcome.FAILED.value)
     )
     return {
@@ -361,13 +429,19 @@ def finalize_full_market_result(
         "valuation_source": valuation_source,
         "market_universe": dict(market_universe),
         "valuation_seed_stored": valuation_seed_stored,
-        "excluded_non_trading_count": 0,
-        "excluded_non_trading_codes": [],
+        "excluded_non_trading_count": len(excluded),
+        "excluded_non_trading_codes": list(excluded),
+        "quote_eligible_asset_count": len(requested_codes) - len(excluded),
+        "quote_selected_asset_count": len(requested_codes) - len(excluded),
+        "suspension_evidence_source": "tushare.suspend_d" if excluded else None,
+        "scope_notice": (
+            "目标交易日全天停牌证券无当日行情，其他证券已按有效范围发布。" if excluded else ""
+        ),
         "outcome": business_outcome,
         "success": business_outcome == TaskBusinessOutcome.SUCCESS.value,
         "requested": len(requested_codes),
-        "succeeded": len(succeeded_codes),
-        "failed": len(missing_codes),
+        "succeeded": len(effective_succeeded),
+        "failed": len(combined_missing),
         "stored": stored_row_count,
         "count_unit": "valuation_asset",
         "stored_count_unit": "fact_row",
@@ -375,10 +449,11 @@ def finalize_full_market_result(
         "operation_succeeded": result.get("succeeded"),
         "operation_failed": result.get("failed"),
         "requested_asset_count": len(requested_codes),
-        "succeeded_asset_count": len(succeeded_codes),
-        "failed_asset_count": len(missing_codes),
-        "missing_asset_codes": list(missing_codes),
+        "succeeded_asset_count": len(effective_succeeded),
+        "failed_asset_count": len(combined_missing),
+        "missing_asset_codes": list(combined_missing),
         "scope_blocks": scope_blocks,
+        "quote_scope_blocks": quote_scope_blocks,
         "valuation_coverage_ratio": coverage_ratio,
         "valuation_policy_identity": policy_identity,
     }

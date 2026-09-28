@@ -8,7 +8,10 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
-from apps.data_center.application.full_market_task_support import quote_session_prefetch_failure
+from apps.data_center.application.full_market_task_support import (
+    asset_code_scope_sha256,
+    quote_session_prefetch_failure,
+)
 from apps.data_center.application.quote_session_prefetch import prepare_quote_session
 from apps.data_center.domain.entities import QuoteSnapshot
 from core.exceptions import DataFetchError
@@ -145,6 +148,30 @@ def test_quote_session_prefetch_has_no_cross_task_cache() -> None:
     assert first.quote_rows_sha256 != second.quote_rows_sha256
 
 
+def test_quote_session_prefetch_rejects_same_day_pre_close_snapshot() -> None:
+    """A 14:55 observation cannot represent the target session's official close."""
+
+    code = "000001.SZ"
+    pre_close = datetime(2026, 9, 24, 6, 55, tzinfo=UTC)
+    quote = dataclasses.replace(
+        _quote(code),
+        snapshot_at=pre_close,
+        fetched_at=pre_close + timedelta(minutes=10),
+    )
+
+    with pytest.raises(DataFetchError) as exc_info:
+        prepare_quote_session(
+            provider=_Provider([quote]),
+            provider_id=7,
+            provider_name="tushare-main",
+            source_type="tushare",
+            asset_codes=(code,),
+            target_trade_date=TARGET,
+        )
+
+    assert exc_info.value.code == "CURRENT_QUOTE_SESSION_DATE_MISMATCH"
+
+
 @pytest.mark.parametrize(
     "returned_codes",
     [
@@ -164,6 +191,79 @@ def test_quote_session_prefetch_rejects_incomplete_or_duplicate_scope(returned_c
             asset_codes=("000001.SZ", "000002.SZ"),
             target_trade_date=TARGET,
         )
+
+
+def test_quote_session_prefetch_accepts_only_explicitly_verified_missing_suspensions() -> None:
+    """A provider gap becomes an exclusion only after exact target-day proof."""
+
+    available = "000001.SZ"
+    suspended = "000002.SZ"
+    verifier_calls: list[tuple[tuple[str, ...], date]] = []
+
+    def verify(missing: tuple[str, ...], target: date) -> tuple[str, ...]:
+        verifier_calls.append((missing, target))
+        return (suspended,)
+
+    prepared = prepare_quote_session(
+        provider=_Provider([_quote(available)]),
+        provider_id=7,
+        provider_name="tushare-main",
+        source_type="tushare",
+        asset_codes=(available, suspended),
+        target_trade_date=TARGET,
+        missing_asset_verifier=verify,
+    )
+
+    assert prepared.universe_codes == (available, suspended)
+    assert prepared.available_codes == (available,)
+    assert prepared.eligible_codes == (available,)
+    assert prepared.excluded_codes == (suspended,)
+    assert verifier_calls == [((suspended,), TARGET)]
+    evidence = prepared.quote_rows_for((available,))[0].extra["market_publication_quote_session"]
+    assert evidence["eligible_codes_sha256"] == asset_code_scope_sha256((available,))
+    assert evidence["excluded_codes"] == (suspended,)
+    assert evidence["excluded_count"] == 1
+    assert len(evidence["excluded_codes_sha256"]) == 64
+    with pytest.raises(DataFetchError) as caught:
+        prepared.quote_rows_for((suspended,))
+    assert caught.value.code == "CURRENT_QUOTE_SESSION_SCOPE_MISMATCH"
+
+
+def test_quote_session_prefetch_rejects_partial_suspension_proof() -> None:
+    """A verifier that omits one missing code keeps the session fail-closed."""
+
+    with pytest.raises(DataFetchError) as caught:
+        prepare_quote_session(
+            provider=_Provider([_quote("000001.SZ")]),
+            provider_id=7,
+            provider_name="tushare-main",
+            source_type="tushare",
+            asset_codes=("000001.SZ", "000002.SZ", "000003.SZ"),
+            target_trade_date=TARGET,
+            missing_asset_verifier=lambda _missing, _target: ("000002.SZ",),
+        )
+
+    assert caught.value.code == "CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED"
+
+
+def test_quote_session_prefetch_can_represent_all_verified_suspensions_without_rows() -> None:
+    """An all-suspension response remains an empty eligible scope for blocking."""
+
+    codes = ("000001.SZ", "000002.SZ")
+    prepared = prepare_quote_session(
+        provider=_Provider([]),
+        provider_id=7,
+        provider_name="tushare-main",
+        source_type="tushare",
+        asset_codes=codes,
+        target_trade_date=TARGET,
+        missing_asset_verifier=lambda missing, _target: missing,
+    )
+
+    assert prepared.available_codes == ()
+    assert prepared.eligible_codes == ()
+    assert prepared.excluded_codes == codes
+    assert prepared.response_completed_at is None
 
 
 def test_quote_session_prefetch_rejects_wrong_observation_date() -> None:

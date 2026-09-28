@@ -261,6 +261,67 @@ def test_published_valuation_query_returns_traceable_scope_block(
     assert "scope_blocks" not in available_payload["publication"]
 
 
+@pytest.mark.django_db
+def test_published_quote_query_returns_verified_suspension_scope_block(
+    admin_client,
+    mocker,
+):
+    """A suspended asset is locally blocked while the quote publication remains usable."""
+
+    from apps.data_center.interface import api_views
+
+    scope_block = {
+        "asset_code": "000016.SZ",
+        "reason_code": "quote_full_day_suspension",
+        "target_trade_date": "2026-09-28",
+        "source": "tushare",
+        "publication_run_id": "market-run-20260928",
+        "policy_version": "p2:quote-current-v1:policy-digest",
+        "publication_id": "quote-publication-20260928",
+        "evidence_source": "tushare.suspend_d",
+    }
+    mocker.patch.object(
+        api_views,
+        "get_current_publication",
+        return_value={
+            "publication_id": scope_block["publication_id"],
+            "dataset_key": "equity.quote.snapshot",
+            "publication_key": "current",
+            "policy_version": scope_block["policy_version"],
+            "selected_source": scope_block["source"],
+            "publication_run_id": scope_block["publication_run_id"],
+            "scope_blocks": [scope_block],
+            "must_not_use_for_decision": False,
+        },
+    )
+    mocker.patch.object(
+        api_views,
+        "get_current_publication_freshness_gate",
+        return_value={
+            "freshness_status": "fresh",
+            "must_not_use_for_decision": False,
+        },
+    )
+    mocker.patch.object(
+        api_views,
+        "make_query_latest_quote_use_case",
+        side_effect=AssertionError("a suspended asset must not query quote facts"),
+    )
+
+    response = admin_client.get(
+        "/api/data-center/prices/quotes/?asset_code=000016.SZ&mode=published"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "blocked"
+    assert payload["blocked_reason"] == "quote_full_day_suspension"
+    assert payload["scope_block"] == scope_block
+    assert payload["contract"]["scope_block"] == scope_block
+    assert "scope_blocks" not in payload["publication"]
+    assert payload["data"] == []
+
+
 class _StubProvider:
     def provider_name(self) -> str:
         return "stub-provider"

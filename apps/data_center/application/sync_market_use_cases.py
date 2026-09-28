@@ -26,7 +26,11 @@ from core.integration.data_center_audit import (
 from .batch_identity import require_exact_asset_identities
 from .full_market_task_support import asset_code_scope_sha256
 from .publication_sync import PublishPriceBarBatchUseCase, PublishQuoteSnapshotBatchUseCase
-from .quote_session_prefetch import PreparedQuoteSession, prepare_quote_session
+from .quote_session_prefetch import (
+    PreparedQuoteSession,
+    QuoteSessionMissingAssetVerifier,
+    prepare_quote_session,
+)
 from .sync_identity import (
     IssueSyncExecutionIdentityCommand,
     IssueSyncExecutionIdentityUseCase,
@@ -458,8 +462,14 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         provider_id: int,
         asset_codes: tuple[str, ...],
         target_trade_date: date,
+        missing_asset_verifier: QuoteSessionMissingAssetVerifier | None = None,
     ) -> PreparedQuoteSession:
-        """Fetch and freeze one exact provider session for subsequent bounded writes."""
+        """Fetch and freeze one provider session for subsequent bounded writes.
+
+        The default remains exact scope.  A verifier is supplied only by the
+        full-market orchestration when every missing row must be proven to be a
+        target-day full suspension before it can be excluded.
+        """
 
         config, provider = self._get_provider(provider_id)
         provider_name = provider.provider_name()
@@ -483,6 +493,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 source_type=config.source_type,
                 asset_codes=asset_codes,
                 target_trade_date=target_trade_date,
+                missing_asset_verifier=missing_asset_verifier,
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS + (DataFetchError,) as error:
             self._commit_quote_fetch_failure(
@@ -538,6 +549,9 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 else None
             ),
             "quote_session_raw_response_sha256s": list(prepared.raw_response_sha256s),
+            "quote_session_available_codes": list(prepared.available_codes),
+            "quote_session_eligible_codes": list(prepared.eligible_codes),
+            "quote_session_excluded_codes": list(prepared.excluded_codes),
         }
         return self._commit_quote_fetch_success(
             config=config,

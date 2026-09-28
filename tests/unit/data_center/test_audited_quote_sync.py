@@ -359,6 +359,45 @@ def test_quote_session_prefetch_provider_rejection_is_audited_and_propagated() -
     assert writer.fetch[-1].outcome is AuditOutcome.FAILED
 
 
+def test_prefetched_quote_sync_keeps_verified_suspensions_out_of_fact_batches() -> None:
+    """Audited writes can consume available rows while rejecting excluded rows."""
+
+    available = _quote()
+    provider = _Provider([available])
+    use_case, _uow, _writer, facts, _raw, _quality_recorder = _build([], provider=provider)
+    target_date = date(2026, 8, 27)
+    prepared = use_case.prepare_session(
+        provider_id=1,
+        asset_codes=("000001.SZ", "600000.SH"),
+        target_trade_date=target_date,
+        missing_asset_verifier=lambda missing, _target: missing,
+    )
+
+    use_case.execute_prefetched_session_batch(
+        SyncQuoteRequest(
+            provider_id=1,
+            asset_codes=["000001.SZ"],
+            require_exact_asset_codes=True,
+            target_trade_date=target_date,
+        ),
+        prepared,
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.execute_prefetched_session_batch(
+            SyncQuoteRequest(
+                provider_id=1,
+                asset_codes=["600000.SH"],
+                require_exact_asset_codes=True,
+                target_trade_date=target_date,
+            ),
+            prepared,
+        )
+
+    assert caught.value.code == "CURRENT_QUOTE_SESSION_SCOPE_MISMATCH"
+    assert tuple(row.asset_code for row in facts.saved) == ("000001.SZ",)
+
+
 def _request() -> SyncQuoteRequest:
     return SyncQuoteRequest(provider_id=1, asset_codes=["000001.SZ"])
 

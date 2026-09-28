@@ -9,10 +9,17 @@ from typing import TypedDict, cast
 from django.db import models
 from django.db.models import Q
 
+from apps.data_center.application.current_publication_evidence import (
+    current_publication_evidence_blocked_reason,
+)
 from apps.data_center.application.market_calendar import latest_closed_cn_market_session
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
 from apps.data_center.domain.market_time import cn_market_date_from_observation
+from apps.data_center.domain.publication_snapshot_policy import (
+    is_policy_authorized_quote_suspension_scope,
+    publication_policy_coverage_ratio,
+)
 from apps.data_center.infrastructure.catalog_runtime_repositories import (
     DatasetContractRepository,
 )
@@ -25,6 +32,9 @@ from apps.data_center.infrastructure.models import (
     ProviderConfigModel,
     PublicationMemberModel,
     ValuationFactModel,
+)
+from apps.data_center.infrastructure.publication_member_store import (
+    publication_fact_content_hashes,
 )
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
@@ -479,7 +489,6 @@ class DataCenterDiagnosticRepository:
                 blocked_reason="canonical_publication_coverage_incomplete",
             )
             return self._typed_publication_summary(summary)
-
         fact_pks = list(members.values_list("fact_pk", flat=True))
         bound_codes = {
             str(code)
@@ -516,9 +525,11 @@ class DataCenterDiagnosticRepository:
                 blocked_reason="canonical_publication_coverage_incomplete",
             )
             return self._typed_publication_summary(summary)
+        quote_suspension_scope = is_policy_authorized_quote_suspension_scope(policy, publication)
         if partial_coverage and (
-            not policy.allow_partial
-            or publication.coverage.coverage_ratio < policy.minimum_coverage_ratio
+            (not policy.allow_partial and not quote_suspension_scope)
+            or publication_policy_coverage_ratio(policy, publication)
+            < policy.minimum_coverage_ratio
         ):
             summary.update(
                 status="blocked",
@@ -584,6 +595,27 @@ class DataCenterDiagnosticRepository:
                 blocked_reason="diagnostic_clock_naive",
             )
             return self._typed_publication_summary(summary)
+        if policy.uses_versioned_evidence:
+            try:
+                domain_members = tuple(member.to_domain() for member in members)
+                evidence_reason = current_publication_evidence_blocked_reason(
+                    publication,
+                    policy=policy,
+                    members=domain_members,
+                    fact_content_hashes=publication_fact_content_hashes(domain_members),
+                    knowledge_cutoff=current_time,
+                )
+            except (KeyError, TypeError, ValueError):
+                evidence_reason = "publication_member_snapshot_invalid"
+            if evidence_reason is not None:
+                summary.update(
+                    status="blocked",
+                    coverage_status="invalid",
+                    freshness_status="blocked",
+                    blocked_reason=evidence_reason,
+                )
+                return self._typed_publication_summary(summary)
+
         age_seconds = max((current_time.astimezone(UTC) - oldest).total_seconds(), 0.0)
         summary["age_seconds"] = age_seconds
         if age_seconds > int(max_age_seconds):

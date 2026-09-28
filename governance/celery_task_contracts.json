@@ -1795,8 +1795,8 @@
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
-          "test_function": "test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_counts",
-          "coverage_note": "Dynamic provider gaps keep the full requested denominator, stable per-security reasons, policy identity and publication evidence; the same task-path test verifies safe live universe/scope/valuation/quote/publication progress counters and units without exposing asset identities."
+          "test_function": "test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion",
+          "coverage_note": "A dynamically verified full-day suspension keeps the full requested denominator, publishes the 100% eligible quote scope, returns partial with requested/succeeded/failed/stored and exposes only the affected security scope block. Valuation partial-policy coverage remains pinned by the current-data contract suite."
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

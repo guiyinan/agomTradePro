@@ -4037,7 +4037,8 @@
           "CurrentPublicationCandidateRepositoryProtocol",
           "CurrentPublicationDataset",
           "CurrentPublicationPreview",
-          "CurrentPublicationRebuildUseCase"
+          "CurrentPublicationRebuildUseCase",
+          "CurrentPublicationScopeExclusion"
         ],
         "application/current_valuation_sync.py": [
           "SyncCurrentValuationBatchUseCase"
@@ -4266,6 +4267,7 @@
           "full_market_input_failure",
           "full_market_soft_timeout_failure",
           "quote_session_prefetch_failure",
+          "quote_session_scope_empty_failure",
           "valuation_partial_policy_allows",
           "valuation_scope_incomplete_failure"
         ],
@@ -4665,6 +4667,7 @@
         ],
         "application/quote_session_prefetch.py": [
           "PreparedQuoteSession",
+          "QuoteSessionMissingAssetVerifier",
           "prepare_quote_session"
         ],
         "application/raw_landing.py": [

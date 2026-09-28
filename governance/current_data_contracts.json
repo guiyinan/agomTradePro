@@ -4778,14 +4778,20 @@
           "def prepare_session(",
           "def execute_prefetched_session_batch(",
           "quote_session_universe_sha256",
-          "quote_session_raw_response_sha256s"
+          "quote_session_raw_response_sha256s",
+          "quote_session_eligible_codes",
+          "quote_session_excluded_codes"
         ],
         "apps/data_center/application/quote_session_prefetch.py": [
           "def prepare_quote_session(",
           "require_exact_asset_identities(",
           "def quote_rows_for(",
           "quote_rows_sha256",
-          "raw_response_sha256s"
+          "raw_response_sha256s",
+          "missing_asset_verifier",
+          "eligible_codes: tuple[str, ...]",
+          "excluded_codes: tuple[str, ...]",
+          "quote.snapshot_at < session_close"
         ],
         "apps/data_center/application/current_valuation_sync.py": [
           "returned_asset_codes=tuple(fact.asset_code for fact in facts)",
@@ -4837,6 +4843,9 @@
           "\"covered_asset_count\": self.covered_asset_count",
           "\"policy_identity\": publication.policy_version",
           "reason_code=\"valuation_source_data_unavailable\"",
+          "class CurrentPublicationScopeExclusion:",
+          "reason_code != \"quote_full_day_suspension\"",
+          "scope_exclusions_by_dataset",
           "and policy.allow_partial",
           "and coverage_ratio >= policy.minimum_coverage_ratio"
         ],
@@ -4848,7 +4857,10 @@
         "apps/data_center/infrastructure/diagnostic_queries.py": [
           "latest_closed_cn_market_session(current_time)",
           "freshness_status=\"latest_completed_session\"",
-          "canonical_publication_stale"
+          "canonical_publication_stale",
+          "is_policy_authorized_quote_suspension_scope(",
+          "current_publication_evidence_blocked_reason(",
+          "publication_fact_content_hashes("
         ],
         "apps/data_center/infrastructure/price_bar_repository.py": [
           "def list_current_publication_candidates(",
@@ -5050,6 +5062,10 @@
           "reported_universe_sha256",
           "MARKET_UNIVERSE_SCOPE_INVALID",
           "excluded_non_trading_codes",
+          "missing_asset_verifier=cast(",
+          "verify_quote_suspensions,",
+          "reason_code=\"quote_full_day_suspension\"",
+          "scope_exclusions_by_dataset=publication_scope_exclusions",
           "exc.code.startswith(\"A_SHARE_UNIVERSE_\")",
           "A_SHARE_UNIVERSE_",
           "market_universe_error"
@@ -5104,7 +5120,9 @@
           "target_trade_date: date | None = None",
           "publication_run_id: str = \"\"",
           "policy_version: str = \"\"",
-          "publication_id: str = \"\""
+          "publication_id: str = \"\"",
+          "evidence_source: str = \"\"",
+          "def eligible_coverage_ratio(self) -> float:"
         ],
         "apps/data_center/infrastructure/sync_item_attempt_models.py": [
           "class SyncItemAttemptModel(models.Model):",
@@ -5246,13 +5264,20 @@
           "def valuation_scope_incomplete_failure(",
           "CURRENT_VALUATION_SCOPE_INCOMPLETE",
           "def quote_session_prefetch_failure(",
-          "def finalize_full_market_result("
+          "def finalize_full_market_result(",
+          "quote_eligible_asset_count",
+          "quote_scope_blocks",
+          "suspension_evidence_source"
         ],
         "apps/data_center/domain/publication_snapshot_policy.py": [
           "Publication policy does not allow partial coverage",
           "Partial current valuation requires per-asset scope blocks",
           "Partial current valuation scope block evidence is incomplete",
-          "Partial current valuation scope block identity differs"
+          "Partial current valuation scope block identity differs",
+          "def publication_policy_coverage_ratio(",
+          "Quote suspension scope block evidence is incomplete",
+          "quote_full_day_suspension",
+          "cn_market_session_close_utc("
         ],
         "apps/data_center/application/query_services.py": [
           "\"publication_outcome\":",
@@ -6025,6 +6050,16 @@
           "test_function": "test_quote_session_prefetch_has_no_cross_task_cache"
         },
         {
+          "case": "quote_session_accepts_only_exact_verified_suspension_gaps",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_accepts_only_explicitly_verified_missing_suspensions"
+        },
+        {
+          "case": "quote_session_rejects_incomplete_suspension_proof",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_rejects_partial_suspension_proof"
+        },
+        {
           "case": "quote_session_rejects_mixed_response_completion_times",
           "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
           "test_function": "test_quote_session_prefetch_rejects_rows_from_multiple_responses"
@@ -6070,6 +6105,16 @@
           "test_function": "test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block"
         },
         {
+          "case": "verified_quote_suspension_keeps_full_denominator_and_strict_policy",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_publishes_verified_target_session_suspension_scope"
+        },
+        {
+          "case": "unverified_quote_scope_exclusion_fails_closed",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_rejects_unverified_or_misaligned_market_scope_exclusion"
+        },
+        {
           "case": "partial_valuation_policy_threshold_and_disable_fail_closed",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_rebuild_blocks_partial_valuation_when_policy_does_not_allow_it"
@@ -6090,9 +6135,24 @@
           "test_function": "test_published_valuation_query_returns_traceable_scope_block"
         },
         {
+          "case": "suspended_quote_api_projects_only_its_traceable_scope_block",
+          "test_file": "tests/integration/data_center/test_api.py",
+          "test_function": "test_published_quote_query_returns_verified_suspension_scope_block"
+        },
+        {
           "case": "partial_scope_blocks_are_immutable",
           "test_file": "tests/component/data_center/test_versioned_publication_integrity.py",
           "test_function": "test_p2_partial_scope_blocks_are_hashed_persisted_and_immutable"
+        },
+        {
+          "case": "quote_session_rejects_same_day_pre_close_snapshot",
+          "test_file": "tests/unit/data_center/test_quote_session_prefetch.py",
+          "test_function": "test_quote_session_prefetch_rejects_same_day_pre_close_snapshot"
+        },
+        {
+          "case": "versioned_quote_suspension_scope_is_local_to_readiness",
+          "test_file": "tests/component/data_center/test_repositories.py",
+          "test_function": "test_diagnostic_quote_suspension_scope_does_not_block_global_readiness"
         }
       ]
     },
@@ -6773,7 +6833,8 @@
         "apps/data_center/infrastructure/full_universe_capacity_runner.py": [
           "valuation_source_data_unavailable",
           "valuation_coverage_ratio",
-          "valuation_missing_target_session_codes"
+          "valuation_missing_target_session_codes",
+          "cn_market_session_close_utc(target_trade_date)"
         ],
         "scripts/validate_release_rehearsal.py": [
           "TENCENT_REPLAY_UNIT_CONTRACTS",
@@ -6836,6 +6897,11 @@
           "case": "full_universe_capacity_dynamic_gap",
           "test_file": "tests/unit/data_center/test_full_universe_capacity_runner.py",
           "test_function": "test_collector_reports_policy_qualified_partial_valuation_without_blocking_universe"
+        },
+        {
+          "case": "full_universe_capacity_rejects_same_day_pre_close_quote",
+          "test_file": "tests/unit/data_center/test_full_universe_capacity_runner.py",
+          "test_function": "test_quote_fact_coverage_does_not_count_same_day_pre_close_snapshot"
         }
       ]
     }

@@ -267,7 +267,11 @@ def apply_published_gate(
                     "freshness_status": "unverified",
                 }
             )
-        if dataset_key == "equity.valuation.fact" and identity_field == "asset_code":
+        asset_scoped_dataset = dataset_key in {
+            "equity.quote.snapshot",
+            "equity.valuation.fact",
+        }
+        if asset_scoped_dataset and identity_field == "asset_code":
             normalized_identity = identity_value.strip().upper()
             scope_blocks = publication.get("scope_blocks")
             if isinstance(scope_blocks, list):
@@ -332,7 +336,7 @@ def apply_published_gate(
                 "publication": public_publication_payload(
                     publication,
                     include_scope_blocks=(
-                        dataset_key != "equity.valuation.fact" or identity_field != "asset_code"
+                        not asset_scoped_dataset or identity_field != "asset_code"
                     ),
                 ),
                 "must_not_use_for_decision": True,

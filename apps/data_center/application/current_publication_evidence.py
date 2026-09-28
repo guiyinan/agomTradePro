@@ -121,8 +121,7 @@ def current_publication_evidence_blocked_reason(
     if digest != publication.publication_hash:
         return "publication_member_snapshot_invalid"
     if (
-        publication.dataset_key == "equity.valuation.fact"
-        and publication.publication_key == "current"
+        publication.publication_key == "current"
         and publication.scope_blocks
         and publication.publication_id
         != current_publication_id_for_hash(

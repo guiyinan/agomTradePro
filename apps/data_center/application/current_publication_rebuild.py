@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
@@ -16,6 +16,7 @@ from apps.data_center.domain.control_plane import (
     PublicationScopeBlock,
     PublicationState,
 )
+from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
 from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
@@ -53,6 +54,28 @@ class CurrentPublicationDataset:
         for field_name in ("dataset_key", "fact_table", "created_by"):
             if not getattr(self, field_name).strip():
                 raise ValueError(f"CurrentPublicationDataset.{field_name} cannot be empty")
+
+
+@dataclass(frozen=True)
+class CurrentPublicationScopeExclusion:
+    """One externally verified asset exclusion for a dataset-specific current scope."""
+
+    asset_code: str
+    reason_code: str
+    target_trade_date: date
+    evidence_source: str
+
+    def __post_init__(self) -> None:
+        if not self.asset_code.strip() or self.asset_code != self.asset_code.strip().upper():
+            raise ValueError("Current publication scope exclusion asset code is not canonical")
+        if not self.reason_code.strip() or self.reason_code != self.reason_code.strip():
+            raise ValueError("Current publication scope exclusion reason code is not canonical")
+        if not isinstance(self.target_trade_date, date) or isinstance(
+            self.target_trade_date, datetime
+        ):
+            raise ValueError("Current publication scope exclusion target date is invalid")
+        if not self.evidence_source.strip() or self.evidence_source != self.evidence_source.strip():
+            raise ValueError("Current publication scope exclusion evidence source is required")
 
 
 @dataclass(frozen=True)
@@ -184,10 +207,14 @@ class CurrentPublicationRebuildUseCase:
         asset_codes: Sequence[str],
         published_at: datetime,
         run_id: str = "",
+        scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
     ) -> CanonicalPublication:
         """Build and atomically publish a complete current member snapshot."""
 
         selection = self._select(asset_codes=asset_codes, published_at=published_at)
+        exclusions = tuple(sorted(scope_exclusions, key=lambda item: item.asset_code))
+        if len({item.asset_code for item in exclusions}) != len(exclusions):
+            raise ValueError("Current publication scope exclusions must use unique asset codes")
         policy = self._policies.get_active(self.dataset.dataset_key)
         if policy is None:
             raise ValueError(f"No active publication policy for {self.dataset.dataset_key}")
@@ -204,7 +231,15 @@ class CurrentPublicationRebuildUseCase:
             and selection.preview.member_count > 0
             and not selection.preview.unexpected_asset_codes
         )
-        if not selection.preview.ready and not partial_valuation_allowed:
+        suspension_scope_allowed = self._validate_quote_suspension_scope(
+            selection=selection,
+            exclusions=exclusions,
+            policy_uses_versioned_evidence=policy.uses_versioned_evidence,
+            run_id=run_id,
+        )
+        if not selection.preview.ready and not (
+            partial_valuation_allowed or suspension_scope_allowed
+        ):
             missing = ",".join(selection.preview.missing_asset_codes[:20])
             unexpected = ",".join(selection.preview.unexpected_asset_codes[:20])
             raise ValueError(
@@ -217,23 +252,38 @@ class CurrentPublicationRebuildUseCase:
             raise ValueError("Current publication requires payload_hash evidence")
 
         validate_publication_evidence(policy, selection.references, published_at=published_at)
-        is_valuation_partial = bool(selection.preview.missing_asset_codes)
+        is_valuation_partial = bool(selection.preview.missing_asset_codes) and not exclusions
         source_summary = publication_selected_source_summary(selection.references)
         block_target_trade_date = (
             _valuation_target_trade_date(selection.references) if is_valuation_partial else None
         )
         if is_valuation_partial and not run_id.strip():
             raise ValueError("Partial current valuation requires publication run id")
-        block_drafts = tuple(
-            PublicationScopeBlock(
-                asset_code=asset_code,
-                reason_code="valuation_source_data_unavailable",
-                target_trade_date=block_target_trade_date,
-                source=source_summary,
-                publication_run_id=run_id,
-                policy_version=policy.identity,
+        block_drafts = (
+            tuple(
+                PublicationScopeBlock(
+                    asset_code=item.asset_code,
+                    reason_code=item.reason_code,
+                    target_trade_date=item.target_trade_date,
+                    source=source_summary,
+                    publication_run_id=run_id,
+                    policy_version=policy.identity,
+                    evidence_source=item.evidence_source,
+                )
+                for item in exclusions
             )
-            for asset_code in selection.preview.missing_asset_codes
+            if exclusions
+            else tuple(
+                PublicationScopeBlock(
+                    asset_code=asset_code,
+                    reason_code="valuation_source_data_unavailable",
+                    target_trade_date=block_target_trade_date,
+                    source=source_summary,
+                    publication_run_id=run_id,
+                    policy_version=policy.identity,
+                )
+                for asset_code in selection.preview.missing_asset_codes
+            )
         )
         digest = publication_hash(
             selection.references,
@@ -272,12 +322,12 @@ class CurrentPublicationRebuildUseCase:
             for reference in selection.references
         )
         as_of = max(reference.observed_at for reference in selection.references)
-        is_valuation = self.dataset.dataset_key == "equity.valuation.fact"
+        has_scope_blocks = bool(scope_blocks)
         coverage_requested = (
-            len(selection.asset_codes) if is_valuation else len(selection.references)
+            len(selection.asset_codes) if has_scope_blocks else len(selection.references)
         )
         coverage_eligible = (
-            selection.preview.covered_asset_count if is_valuation else len(selection.references)
+            selection.preview.covered_asset_count if has_scope_blocks else len(selection.references)
         )
         publication = CanonicalPublication(
             publication_id=publication_id,
@@ -309,6 +359,46 @@ class CurrentPublicationRebuildUseCase:
             policy=policy,
             publication=publication,
             members=members,
+        )
+
+    def _validate_quote_suspension_scope(
+        self,
+        *,
+        selection: _CurrentPublicationSelection,
+        exclusions: tuple[CurrentPublicationScopeExclusion, ...],
+        policy_uses_versioned_evidence: bool,
+        run_id: str,
+    ) -> bool:
+        """Accept only an exact, fully evidenced quote suspension partition."""
+
+        if not exclusions:
+            return False
+        if self.dataset.dataset_key != "equity.quote.snapshot":
+            raise ValueError("Scope exclusions are unsupported for this current dataset")
+        if not policy_uses_versioned_evidence:
+            raise ValueError("Quote suspension scope requires a versioned publication policy")
+        if not run_id.strip():
+            raise ValueError("Quote suspension scope requires publication run id")
+        exclusion_codes = {item.asset_code for item in exclusions}
+        if exclusion_codes != set(selection.preview.missing_asset_codes):
+            raise ValueError("Quote suspension scope exclusions must match publication gaps")
+        if selection.preview.unexpected_asset_codes:
+            raise ValueError("Quote suspension scope contains unexpected assets")
+        if not selection.references:
+            raise ValueError("Quote suspension scope cannot exclude the full requested universe")
+        if any(item.reason_code != "quote_full_day_suspension" for item in exclusions):
+            raise ValueError("Quote suspension scope has an unsupported scope exclusion")
+        target_dates = {item.target_trade_date for item in exclusions}
+        if len(target_dates) != 1:
+            raise ValueError("Quote suspension scope must share one target trade date")
+        target_trade_date = next(iter(target_dates))
+        if any(
+            cn_market_date_from_observation(reference.observed_at) != target_trade_date
+            for reference in selection.references
+        ):
+            raise ValueError("Quote suspension scope target trade date differs from members")
+        return selection.preview.covered_asset_count == (
+            selection.preview.requested_asset_count - len(exclusions)
         )
 
     def _select(
@@ -513,17 +603,29 @@ class CoreCurrentPublicationRebuildUseCase:
         asset_codes: Sequence[str],
         published_at: datetime | None = None,
         run_id: str = "",
+        scope_exclusions_by_dataset: (
+            Mapping[str, Sequence[CurrentPublicationScopeExclusion]] | None
+        ) = None,
     ) -> CoreCurrentPublicationRebuildResult:
         """Publish all datasets in one transaction or leave all current rows intact."""
 
         observed_at = published_at or datetime.now(UTC)
         self._authority_preflight(observed_at)
+        exclusions_by_dataset = scope_exclusions_by_dataset or {}
+        known_dataset_keys = {rebuilder.dataset.dataset_key for rebuilder in self._rebuilders}
+        unknown_dataset_keys = set(exclusions_by_dataset) - known_dataset_keys
+        if unknown_dataset_keys:
+            raise ValueError(
+                "Current publication scope exclusions contain unknown datasets: "
+                + ",".join(sorted(unknown_dataset_keys))
+            )
         with self._transaction():
             publications = tuple(
                 rebuilder.execute(
                     asset_codes=asset_codes,
                     published_at=observed_at,
                     run_id=run_id,
+                    scope_exclusions=exclusions_by_dataset.get(rebuilder.dataset.dataset_key, ()),
                 )
                 for rebuilder in self._rebuilders
             )
@@ -548,4 +650,5 @@ __all__ = [
     "CurrentPublicationDataset",
     "CurrentPublicationPreview",
     "CurrentPublicationRebuildUseCase",
+    "CurrentPublicationScopeExclusion",
 ]

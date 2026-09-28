@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import uuid4
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -22,7 +22,10 @@ from core.integration.task_monitor_runtime import TaskProgress, TaskProgressPhas
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 from . import full_market_task_support as market_task
-from .current_publication_rebuild import CoreCurrentPublicationRebuildUseCase
+from .current_publication_rebuild import (
+    CoreCurrentPublicationRebuildUseCase,
+    CurrentPublicationScopeExclusion,
+)
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .data02_task_authority import Data02AuthorityLatch
 from .dtos import SyncQuoteRequest
@@ -30,6 +33,7 @@ from .market_publication_refresh import (
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
 )
+from .quote_session_prefetch import QuoteSessionMissingAssetVerifier
 from .sync_market_use_cases import SyncQuoteUseCase
 
 logger = logging.getLogger(__name__)
@@ -434,9 +438,42 @@ def run_full_market_publication_refresh(
             coverage_ratio=valuation_coverage_ratio,
             policy_identity=(valuation_policy.identity if valuation_policy is not None else None),
         )
-    tradable_codes = sorted(requested_codes)
+    full_scope_codes = sorted(requested_codes)
+    tradable_codes = list(full_scope_codes)
     excluded_non_trading_codes: list[str] = []
     stored_row_count = valuation_seed.stored_count
+
+    def verify_quote_suspensions(
+        missing_asset_codes: tuple[str, ...], missing_target_date: date
+    ) -> tuple[str, ...]:
+        """Prove provider-missing quote rows are full-day target-date suspensions."""
+
+        missing = tuple(sorted(set(missing_asset_codes)))
+        if missing_target_date != target_date or not missing:
+            raise DataFetchError(
+                "Quote suspension verification scope is invalid",
+                code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED",
+            )
+        verified = dependencies.refresh_market_price_inputs(
+            dependencies.model_market_data_port(), list(missing), missing_target_date
+        )
+        normalized_verified = tuple(sorted(str(code or "").strip().upper() for code in verified))
+        if (
+            any(not code for code in normalized_verified)
+            or len(normalized_verified) != len(set(normalized_verified))
+            or set(normalized_verified) != set(missing)
+        ):
+            raise DataFetchError(
+                "Quote suspension evidence does not cover every provider-missing asset",
+                code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED",
+                details={
+                    "missing_codes": list(missing),
+                    "verified_codes": list(normalized_verified),
+                    "target_trade_date": missing_target_date.isoformat(),
+                },
+            )
+        return normalized_verified
+
     batches = (len(tradable_codes) + batch_size - 1) // batch_size
     requested_operations = batches * 2 + 1
     current_phase = "quote"
@@ -456,6 +493,10 @@ def run_full_market_publication_refresh(
             provider_id=quote_provider_id,
             asset_codes=tuple(tradable_codes),
             target_trade_date=target_date,
+            missing_asset_verifier=cast(
+                QuoteSessionMissingAssetVerifier,
+                verify_quote_suspensions,
+            ),
         )
     except SoftTimeLimitExceeded:
         return market_task.full_market_soft_timeout_failure(
@@ -508,6 +549,46 @@ def run_full_market_publication_refresh(
             ),
             error_code=error_code,
         )
+    prepared_universe_codes = tuple(
+        str(code or "").strip().upper()
+        for code in getattr(prepared_quote_session, "universe_codes", full_scope_codes)
+    )
+    available_codes = tuple(
+        sorted(
+            str(code or "").strip().upper()
+            for code in getattr(prepared_quote_session, "available_codes", tradable_codes)
+        )
+    )
+    eligible_codes = tuple(
+        sorted(
+            str(code or "").strip().upper()
+            for code in getattr(prepared_quote_session, "eligible_codes", available_codes)
+        )
+    )
+    excluded_codes = tuple(
+        sorted(
+            str(code or "").strip().upper()
+            for code in getattr(prepared_quote_session, "excluded_codes", ())
+        )
+    )
+    if (
+        tuple(full_scope_codes) != prepared_universe_codes
+        or any(not code for code in (*available_codes, *eligible_codes, *excluded_codes))
+        or len(available_codes) != len(set(available_codes))
+        or len(eligible_codes) != len(set(eligible_codes))
+        or len(excluded_codes) != len(set(excluded_codes))
+        or eligible_codes != available_codes
+        or set(eligible_codes).intersection(excluded_codes)
+        or set(available_codes).union(excluded_codes) != set(full_scope_codes)
+    ):
+        raise DataFetchError(
+            "Prepared quote session scope is not a complete frozen partition",
+            code="CURRENT_QUOTE_SESSION_SCOPE_INVALID",
+        )
+    tradable_codes = list(eligible_codes)
+    excluded_non_trading_codes = list(excluded_codes)
+    batches = (len(tradable_codes) + batch_size - 1) // batch_size
+    requested_operations = batches * 2 + 1
     publish_progress(
         TaskProgressPhase(
             phase="quote_prefetch",
@@ -519,6 +600,22 @@ def run_full_market_publication_refresh(
             stored_count_unit="fact_row",
         )
     )
+    if not tradable_codes:
+        return market_task.quote_session_scope_empty_failure(
+            requested_codes=requested_codes,
+            valuation_missing_codes=missing_codes,
+            valuation_stored_count=valuation_seed.stored_count,
+            excluded_codes=excluded_non_trading_codes,
+            target_trade_date=target_date.isoformat(),
+            publication_run_id=publication_run_id,
+            quote_source=selected_quote_source,
+            valuation_source=selected_valuation_source,
+            market_universe=universe_report,
+            valuation_coverage_ratio=valuation_coverage_ratio,
+            valuation_policy_identity=(
+                valuation_policy.identity if valuation_policy is not None else None
+            ),
+        )
     quote_batches_succeeded = 0
     quote_stored_rows = 0
 
@@ -568,7 +665,7 @@ def run_full_market_publication_refresh(
     def sync_valuation_batch(codes: list[str], day: date) -> int:
         nonlocal completed_operation_count, current_phase
         current_phase = "valuation"
-        if day != target_date or not set(codes).issubset(tradable_codes):
+        if day != target_date or not set(codes).issubset(requested_codes):
             raise ValueError("prefetched valuation scope changed before publication")
         completed_operation_count += 1
         publish_progress(
@@ -604,10 +701,32 @@ def run_full_market_publication_refresh(
         )
         if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
             raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
-        preview = publications.preview(asset_codes=codes)
+        publication_scope_codes = list(full_scope_codes)
+        publication_scope_exclusions = {
+            "equity.quote.snapshot": tuple(
+                CurrentPublicationScopeExclusion(
+                    asset_code=code,
+                    reason_code="quote_full_day_suspension",
+                    target_trade_date=target_date,
+                    evidence_source="tushare.suspend_d",
+                )
+                for code in excluded_non_trading_codes
+            ),
+        }
+        preview = publications.preview(asset_codes=publication_scope_codes)
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
         valuation_preview = snapshots.get("equity.valuation.fact")
+        quote_preview_allowed = quote_preview is not None and (
+            quote_preview.ready
+            or (
+                bool(excluded_non_trading_codes)
+                and set(getattr(quote_preview, "missing_asset_codes", ()))
+                == set(excluded_non_trading_codes)
+                and not getattr(quote_preview, "unexpected_asset_codes", ())
+                and getattr(quote_preview, "covered_asset_count", -1) == len(tradable_codes)
+            )
+        )
         valuation_preview_allowed = valuation_preview is not None and (
             valuation_preview.ready
             or (
@@ -623,7 +742,7 @@ def run_full_market_publication_refresh(
         if (
             len(current_snapshots) != 2
             or quote_preview is None
-            or not quote_preview.ready
+            or not quote_preview_allowed
             or not valuation_preview_allowed
             or any(
                 dataset.oldest_observed_at is None
@@ -635,16 +754,18 @@ def run_full_market_publication_refresh(
         ):
             raise ValueError("Market publication observations do not match the completed session")
         suspended = dependencies.refresh_market_price_inputs(
-            dependencies.model_market_data_port(), codes, target_date
+            dependencies.model_market_data_port(), publication_scope_codes, target_date
         )
+        suspended_codes = tuple(sorted(set(excluded_non_trading_codes).union(suspended)))
         price_evidence.update(
-            price_scope_verified=len(codes),
+            price_scope_verified=len(publication_scope_codes),
             price_target_date=target_date.isoformat(),
-            suspended_codes=list(suspended),
+            suspended_codes=list(suspended_codes),
         )
         publication_result = publications.execute(
-            asset_codes=codes,
+            asset_codes=publication_scope_codes,
             run_id=publication_run_id,
+            scope_exclusions_by_dataset=publication_scope_exclusions,
         )
         publication_evidence.update(publication_result.to_dict())
         publish_progress(
@@ -712,4 +833,5 @@ def run_full_market_publication_refresh(
         missing_codes=missing_codes,
         coverage_ratio=valuation_coverage_ratio,
         policy_identity=(valuation_policy.identity if valuation_policy is not None else None),
+        excluded_codes=excluded_non_trading_codes,
     )
