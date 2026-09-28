@@ -630,3 +630,6 @@
 - 全局 readiness 现与正式查询复用同一版本化证据判断，重新校验持久化成员、事实内容哈希、Publication
   哈希/派生 ID 和 scope block。证据完整的全天停牌只形成逐证券局部阻断；政策、成员、哈希或日期证据
   不一致仍全局失败关闭。
+- `d01f9577c` 的首轮 Fast Feedback 在 changed-file size headroom 门禁失败：`query_services.py` 已有
+  1,082 个非空行，本轮新增 eligible 计数后为 1,083。修复不抬高规模基线；Publication gate 的稳定
+  元数据投影已拆到独立 Application 模块，查询入口保留原签名与行为，并由既有 published-query 回归覆盖。

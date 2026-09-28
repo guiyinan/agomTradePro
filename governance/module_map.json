@@ -4554,6 +4554,9 @@
           "save_macro_facts",
           "update_asset_display_name"
         ],
+        "application/publication_gate_metadata.py": [
+          "publication_gate_metadata"
+        ],
         "application/publication_idempotence.py": [
           "publication_replay_matches"
         ],
@@ -4875,7 +4878,7 @@
         ]
       },
       "layers": {
-        "application": 104,
+        "application": 105,
         "domain": 32,
         "infrastructure": 152,
         "interface": 19,

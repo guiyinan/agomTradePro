@@ -4737,6 +4737,7 @@
         "apps/data_center/application/publication_utils.py",
         "apps/data_center/application/control_plane.py",
         "apps/data_center/application/published_equity_context.py",
+        "apps/data_center/application/publication_gate_metadata.py",
         "apps/data_center/application/query_services.py",
         "apps/data_center/infrastructure/a_share_universe_sync.py",
         "apps/data_center/infrastructure/catalog_repositories.py",
@@ -5280,12 +5281,16 @@
           "cn_market_session_close_utc("
         ],
         "apps/data_center/application/query_services.py": [
-          "\"publication_outcome\":",
           "scope_block = next(",
           "gate[\"scope_block\"] = scope_block.to_dict()"
         ],
         "shared/domain/task_outcomes.py": [
           "if outcome is TaskBusinessOutcome.SUCCESS and result.get(\"success\") is False:"
+        ],
+        "apps/data_center/application/publication_gate_metadata.py": [
+          "def publication_gate_metadata(",
+          "\"coverage_eligible_count\": publication.coverage.eligible_count",
+          "\"publication_outcome\":"
         ]
       },
       "required_tests": [

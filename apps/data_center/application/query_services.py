@@ -10,6 +10,7 @@ from typing import Any
 from apps.data_center.application.current_publication_evidence import (
     current_publication_evidence_blocked_reason,
 )
+from apps.data_center.application.publication_gate_metadata import publication_gate_metadata
 from apps.data_center.application.publication_query_bounds import (
     blocked_publication_members_result as _blocked_publication_members_result,
 )
@@ -342,24 +343,11 @@ def _publication_gate(
     if publication is None:
         return None
     publication_as_of = getattr(publication, "as_of", None)
-    gate: dict[str, object] = {
-        "publication_id": publication.publication_id,
-        "dataset_key": getattr(publication, "dataset_key", dataset_key),
-        "publication_key": getattr(publication, "publication_key", publication_key),
-        "published_at": publication.published_at.isoformat() if publication.published_at else None,
-        "as_of": publication_as_of.isoformat() if publication_as_of else None,
-        "must_not_use_for_decision": publication.must_not_use_for_decision,
-        "blocked_reason": publication.blocked_reason,
-        "policy_identity": publication.policy_version,
-        "policy_version": publication.policy_version,
-        "selected_source": publication.selected_source,
-        "publication_run_id": publication.run_id,
-        "coverage_requested_count": publication.coverage.requested_count,
-        "coverage_eligible_count": publication.coverage.eligible_count,
-        "coverage_selected_count": publication.coverage.selected_count,
-        "coverage_missing_count": publication.coverage.missing_count,
-        "publication_outcome": ("partial" if publication.coverage.missing_count else "success"),
-    }
+    gate = publication_gate_metadata(
+        publication,
+        requested_dataset_key=dataset_key,
+        requested_publication_key=publication_key,
+    )
     if publication.dataset_key != dataset_key or publication.publication_key != publication_key:
         gate.update(
             must_not_use_for_decision=True,
