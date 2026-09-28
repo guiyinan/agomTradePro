@@ -22,7 +22,10 @@ from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
     JsonFileAshareCodeNameProvider,
 )
-from apps.data_center.infrastructure.catalog_models import DatasetContractModel
+from apps.data_center.infrastructure.catalog_models import (
+    DatasetContractModel,
+    DatasetPublicationPolicyModel,
+)
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
 from apps.data_center.infrastructure.models import (
     AssetMasterModel,
@@ -523,7 +526,13 @@ def _configure_diagnostic_test_universe() -> list[str]:
     return codes
 
 
-def _save_diagnostic_contract(dataset_key: str, *, freshness_seconds: int = 86_400) -> None:
+def _save_diagnostic_contract(
+    dataset_key: str,
+    *,
+    freshness_seconds: int = 86_400,
+    minimum_coverage_ratio: float = 1.0,
+    allow_partial: bool = False,
+) -> None:
     """Persist the minimum runtime contract required by the freshness gate."""
 
     DatasetContractModel.objects.create(
@@ -542,6 +551,18 @@ def _save_diagnostic_contract(dataset_key: str, *, freshness_seconds: int = 86_4
             }
         ],
         freshness_seconds=freshness_seconds,
+        active=True,
+    )
+    DatasetPublicationPolicyModel.objects.create(
+        dataset_key=dataset_key,
+        contract_version="test-1",
+        schema_version="1.0",
+        policy_version="legacy",
+        minimum_coverage_ratio=minimum_coverage_ratio,
+        allow_partial=allow_partial,
+        conflict_action="block",
+        required_evidence=["source_record_id"],
+        retention_days=30,
         active=True,
     )
 
@@ -678,6 +699,121 @@ def test_diagnostic_coverage_reports_member_bound_subset_as_incomplete():
     assert price["published_status"] == "blocked"
     assert price["publication"]["blocked_reason"] == ("canonical_publication_coverage_incomplete")
     assert payload["status"] == "incomplete"
+
+
+@pytest.mark.django_db
+def test_diagnostic_coverage_keeps_system_ready_for_policy_approved_partial_scope():
+    """A governed partial publication blocks only its evidenced missing securities."""
+
+    codes = _configure_diagnostic_test_universe()
+    today = date.today()
+    observed_at = datetime.now(UTC) - timedelta(minutes=1)
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=code,
+            bar_date=today,
+            freq="1d",
+            adjustment="none",
+            open="1",
+            high="1",
+            low="1",
+            close="1",
+            source="test",
+        )
+        for code in codes
+    ]
+    valuation_rows = [
+        ValuationFactModel.objects.create(
+            asset_code=code,
+            val_date=today,
+            pe_ttm="10",
+            source="test",
+        )
+        for code in codes
+    ]
+    financial_rows = [
+        FinancialFactModel.objects.create(
+            asset_code=code,
+            period_end=today,
+            period_type="quarterly",
+            metric_code="revenue",
+            value="100",
+            source="test",
+        )
+        for code in codes
+    ]
+    _save_diagnostic_contract("equity.price.bar")
+    _save_diagnostic_contract(
+        "equity.valuation.fact",
+        minimum_coverage_ratio=0.5,
+        allow_partial=True,
+    )
+    _save_diagnostic_contract("equity.financial.fact")
+    _save_diagnostic_publication(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        fact_rows=price_rows,
+        observed_at=observed_at,
+    )
+    _save_diagnostic_publication(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        fact_rows=valuation_rows[:1],
+        observed_at=observed_at,
+    )
+    valuation_publication = CanonicalPublicationModel.objects.get(
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+    )
+    valuation_publication.coverage_requested_count = len(codes)
+    valuation_publication.coverage_eligible_count = len(codes)
+    valuation_publication.coverage_selected_count = 1
+    valuation_publication.coverage_missing_count = 1
+    valuation_publication.scope_blocks = [
+        {
+            "asset_code": codes[1],
+            "reason_code": "provider_record_missing",
+        }
+    ]
+    valuation_publication.save(
+        update_fields=[
+            "coverage_requested_count",
+            "coverage_eligible_count",
+            "coverage_selected_count",
+            "coverage_missing_count",
+            "scope_blocks",
+        ]
+    )
+    _save_diagnostic_publication(
+        dataset_key="equity.financial.fact",
+        fact_table="data_center_financial_fact",
+        fact_rows=financial_rows,
+        observed_at=observed_at,
+    )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+    valuation = payload["domains"]["valuation"]
+
+    assert payload["status"] == "ok"
+    assert payload["availability"] == "partial"
+    assert payload["must_not_use_for_decision"] is False
+    assert payload["block_reason_code"] == ""
+    assert payload["scope_blocked_asset_count"] == 1
+    assert payload["scope_blocked_asset_codes"] == [codes[1]]
+    assert valuation["published_status"] == "ok"
+    assert valuation["published_covered_count"] == 1
+    assert valuation["published_missing_count"] == 1
+    assert valuation["publication"]["coverage_status"] == "partial"
+    assert valuation["publication"]["coverage_ratio"] == 0.5
+    assert valuation["publication"]["minimum_coverage_ratio"] == 0.5
+    assert valuation["publication"]["allow_partial"] is True
+    assert valuation["publication"]["must_not_use_for_decision"] is False
+    assert valuation["publication"]["scope_blocks"] == [
+        {
+            "asset_code": codes[1],
+            "reason_code": "provider_record_missing",
+        }
+    ]
 
 
 @pytest.mark.django_db

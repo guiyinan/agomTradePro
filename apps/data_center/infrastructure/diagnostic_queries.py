@@ -26,6 +26,9 @@ from apps.data_center.infrastructure.models import (
     PublicationMemberModel,
     ValuationFactModel,
 )
+from apps.data_center.infrastructure.publication_policy_repository import (
+    PublicationPolicyRepository,
+)
 from apps.data_center.infrastructure.repositories import (
     ProductionCoverageUniverseConfigRepository,
 )
@@ -53,6 +56,13 @@ class _PublicationCoverageSummary(TypedDict):
     member_missing_count: int
     coverage_selected_count: int
     coverage_missing_count: int
+    coverage_ratio: float
+    coverage_status: str
+    policy_version: str | None
+    minimum_coverage_ratio: float | None
+    allow_partial: bool | None
+    scope_block_count: int
+    scope_blocks: list[dict[str, object]]
     as_of: str | None
     published_at: str | None
     published_latest_date: str | None
@@ -160,18 +170,29 @@ class DataCenterDiagnosticRepository:
                 "published_status": publication_summary["status"],
                 "publication": publication_summary,
             }
-        facts_ready = asset_count > 0 and all(
-            domain["covered_count"] == asset_count for domain in domains.values()
-        )
         publications_ready = asset_count > 0 and all(
             domain["published_status"] == "ok" for domain in domains.values()
         )
+        ready = publications_ready and universe_quality["status"] == "ok"
+        scope_blocked_code_set: set[str] = set()
+        for domain in domains.values():
+            publication_summary = cast(
+                _PublicationCoverageSummary,
+                domain["publication"],
+            )
+            scope_blocked_code_set.update(
+                str(block["asset_code"]) for block in publication_summary["scope_blocks"]
+            )
+        scope_blocked_codes = sorted(scope_blocked_code_set)
         return {
-            "status": (
-                "ok"
-                if facts_ready and publications_ready and universe_quality["status"] == "ok"
-                else "incomplete"
+            "status": "ok" if ready else "incomplete",
+            "availability": (
+                "partial" if ready and scope_blocked_codes else "complete" if ready else "blocked"
             ),
+            "must_not_use_for_decision": not ready,
+            "block_reason_code": "" if ready else "active_stock_fact_coverage_incomplete",
+            "scope_blocked_asset_count": len(scope_blocked_codes),
+            "scope_blocked_asset_codes": scope_blocked_codes,
             "universe": config.universe_id,
             "asset_count": asset_count,
             "universe_config": config.to_dict(),
@@ -331,6 +352,7 @@ class DataCenterDiagnosticRepository:
         publication_id = str(publication_model.publication_id)
         summary.update(
             publication_id=publication_id,
+            policy_version=str(publication_model.policy_version),
             state=str(publication_model.state),
             member_count=int(publication_model.member_count),
             coverage_selected_count=int(publication_model.coverage_selected_count),
@@ -393,7 +415,40 @@ class DataCenterDiagnosticRepository:
                 blocked_reason="publication_boundary_invalid",
             )
             return self._typed_publication_summary(summary)
-
+        try:
+            publication = publication_model.to_domain()
+            policy = PublicationPolicyRepository().get_active(dataset_key)
+        except (KeyError, TypeError, ValueError):
+            summary.update(
+                status="blocked",
+                coverage_status="invalid",
+                freshness_status="blocked",
+                blocked_reason="canonical_publication_policy_evidence_invalid",
+            )
+            return self._typed_publication_summary(summary)
+        if policy is None:
+            summary.update(
+                status="blocked",
+                coverage_status="unverified",
+                freshness_status="blocked",
+                blocked_reason="canonical_publication_policy_missing",
+            )
+            return self._typed_publication_summary(summary)
+        summary.update(
+            coverage_ratio=publication.coverage.coverage_ratio,
+            minimum_coverage_ratio=policy.minimum_coverage_ratio,
+            allow_partial=policy.allow_partial,
+            scope_block_count=len(publication.scope_blocks),
+            scope_blocks=[block.to_dict() for block in publication.scope_blocks],
+        )
+        if publication.policy_version != policy.identity:
+            summary.update(
+                status="blocked",
+                coverage_status="invalid",
+                freshness_status="blocked",
+                blocked_reason="canonical_publication_policy_version_mismatch",
+            )
+            return self._typed_publication_summary(summary)
         members = PublicationMemberModel._default_manager.filter(
             publication_id=publication_model.publication_id,
             dataset_key=dataset_key,
@@ -415,12 +470,10 @@ class DataCenterDiagnosticRepository:
                 blocked_reason="canonical_publication_members_incomplete",
             )
             return self._typed_publication_summary(summary)
-        if (
-            int(publication_model.coverage_selected_count) != member_row_count
-            or int(publication_model.coverage_missing_count) > 0
-        ):
+        if int(publication_model.coverage_selected_count) != member_row_count:
             summary.update(
                 status="blocked",
+                coverage_status="invalid",
                 freshness_status="incomplete",
                 blocked_reason="canonical_publication_coverage_incomplete",
             )
@@ -445,13 +498,35 @@ class DataCenterDiagnosticRepository:
         )
         if isinstance(latest_value, date):
             summary["published_latest_date"] = latest_value.isoformat()
-        if member_bound_count != len(active_codes):
+        missing_codes = set(active_codes) - bound_codes
+        block_codes = {block.asset_code.strip().upper() for block in publication.scope_blocks}
+        partial_coverage = bool(missing_codes)
+        expected_missing_count = len(missing_codes)
+        if (
+            member_bound_count != int(publication_model.coverage_selected_count)
+            or int(publication_model.coverage_requested_count) != len(active_codes)
+            or int(publication_model.coverage_missing_count) != expected_missing_count
+            or block_codes != missing_codes
+        ):
             summary.update(
                 status="blocked",
+                coverage_status="invalid",
                 freshness_status="incomplete",
                 blocked_reason="canonical_publication_coverage_incomplete",
             )
             return self._typed_publication_summary(summary)
+        if partial_coverage and (
+            not policy.allow_partial
+            or publication.coverage.coverage_ratio < policy.minimum_coverage_ratio
+        ):
+            summary.update(
+                status="blocked",
+                coverage_status="below_policy",
+                freshness_status="incomplete",
+                blocked_reason="canonical_publication_coverage_below_policy",
+            )
+            return self._typed_publication_summary(summary)
+        summary["coverage_status"] = "partial" if partial_coverage else "complete"
 
         observed_values = list(members.values_list("observed_at", flat=True))
         if any(value is None for value in observed_values):
@@ -561,6 +636,13 @@ class DataCenterDiagnosticRepository:
             "member_missing_count": 0,
             "coverage_selected_count": 0,
             "coverage_missing_count": 0,
+            "coverage_ratio": 0.0,
+            "coverage_status": "missing",
+            "policy_version": None,
+            "minimum_coverage_ratio": None,
+            "allow_partial": None,
+            "scope_block_count": 0,
+            "scope_blocks": [],
             "as_of": None,
             "published_at": None,
             "published_latest_date": None,
@@ -594,6 +676,26 @@ class DataCenterDiagnosticRepository:
             member_missing_count=int(cast(int, summary["member_missing_count"])),
             coverage_selected_count=int(cast(int, summary["coverage_selected_count"])),
             coverage_missing_count=int(cast(int, summary["coverage_missing_count"])),
+            coverage_ratio=float(cast(float, summary["coverage_ratio"])),
+            coverage_status=str(summary["coverage_status"]),
+            policy_version=(
+                str(summary["policy_version"])
+                if summary.get("policy_version") is not None
+                else None
+            ),
+            minimum_coverage_ratio=(
+                float(cast(float, summary["minimum_coverage_ratio"]))
+                if summary.get("minimum_coverage_ratio") is not None
+                else None
+            ),
+            allow_partial=(
+                bool(summary["allow_partial"]) if summary.get("allow_partial") is not None else None
+            ),
+            scope_block_count=int(cast(int, summary["scope_block_count"])),
+            scope_blocks=[
+                dict(item)
+                for item in cast(list[dict[str, object]], summary["scope_blocks"])
+            ],
             as_of=str(summary["as_of"]) if summary.get("as_of") is not None else None,
             published_at=(
                 str(summary["published_at"]) if summary.get("published_at") is not None else None
