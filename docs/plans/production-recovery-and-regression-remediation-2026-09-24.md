@@ -633,3 +633,6 @@
 - `d01f9577c` 的首轮 Fast Feedback 在 changed-file size headroom 门禁失败：`query_services.py` 已有
   1,082 个非空行，本轮新增 eligible 计数后为 1,083。修复不抬高规模基线；Publication gate 的稳定
   元数据投影已拆到独立 Application 模块，查询入口保留原签名与行为，并由既有 published-query 回归覆盖。
+- 拆分后的首轮 CI 已通过 size headroom，随后由确定性 Data Center 架构清单门禁检出新增模块尚未进入
+  生成投影；已使用 `scripts/data_center_architecture_inventory.py --write` 重建清单并以默认 check 模式复核，
+  未手工修改计数或治理基线。
