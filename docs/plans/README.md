@@ -497,13 +497,13 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 
 | 口径 | 数量 |
 |------|-----:|
-| 独立工作流 | 9 |
-| 主计划 | 18 |
-| 支撑文档、证据与矩阵 | 27 |
+| 独立工作流 | 10 |
+| 主计划 | 19 |
+| 支撑文档、证据与矩阵 | 33 |
 | 限期审查项 | 0 |
-| 注册表覆盖的活跃文件 | 45 |
+| 注册表覆盖的活跃文件 | 52 |
 | 历史未勾选细项 | 136（非执行口径） |
-| 去重后 canonical closure units | 50 |
+| 去重后 canonical closure units | 56 |
 
 “主计划”是需求和证据入口，不等于独立工程量；同一工作流下的路线图、readiness 和生产跟踪不会再重复计算成多条主线。完整文件归属、owner、状态、依赖和唯一退出门见机器注册表的 `closure_backlog`。
 
@@ -520,6 +520,7 @@ DATA-02 的 [财务 availability 切片](../deployment/data02-financial-availabi
 | `ai-native-release` | P1 | external_validation | Agent Runtime / Terminal | [AI-Native delivery pack](ai-native/README.md) | `TUI-01` 已完成；等待 TAR-05 后绑定同候选 staging/production 真实模型 UAT 与单一所有者验收 |
 | `qmt-live-bridge` | P2 | blocked_external | Broker Execution / 外部券商 Owner | [QMT 实盘桥](qmt-live-trading-bridge-plan.md) | Windows XtQuant Phase 0、连续仿真和受控小额实盘 |
 | `tui-usability-governance` | P1 | production_validation | Terminal | [TUI 可用性与 metadata 治理](tui-usability-and-metadata-governance-plan-2026-08-18.md) | TUX-01～05 repository gate 全部完成，当前候选 `aa7127ff4…` / `20260901232812` 已部署；production-safe UAT、cleanup matrix 与 rollback drill 已通过，剩余为 TUI-02 自然观察、结构化快照和单一 owner 最终确认 |
+| `index-dividend-thermometer` | P2 | active | Personal Project Owner / Data Center / Signal | [指数温度分析能力开发计划](index-dividend-thermometer-plan-2026-09-28.md) | `IDX-01` 为 planned、不抢占 DATA-18 执行焦点：先做 000922/H00922 估值、全收益、ETF 份额/净申赎的真实数据源实测，覆盖证实后再开始 R1 仓库实施；缺数据的 R2 增强项保持未完成 |
 
 ## 当前执行焦点
 

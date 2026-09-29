@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-29.v184",
+  "version": "2026-09-29.v185",
   "updated_at": "2026-09-29",
   "execution_focus": {
     "unit_id": "DATA-18",
@@ -313,11 +313,26 @@
           "role": "supporting"
         }
       ]
+    },
+    {
+      "id": "index-dividend-thermometer",
+      "title": "Index dividend thermometer (000922) R1/R2 capability",
+      "category": "data_and_production_reliability",
+      "priority": "P2",
+      "owner": "personal_project_owner+data_center+signal",
+      "status": "active",
+      "next_gate": "IDX-01 is planned, not scheduled: run real source probes for 000922/H00922 valuation, total-return, ETF share and subscription coverage before claiming repository implementation; the DATA-18 recovery focus is not preempted.",
+      "documents": [
+        {
+          "path": "docs/plans/index-dividend-thermometer-plan-2026-09-28.md",
+          "role": "primary"
+        }
+      ]
     }
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-10.v60",
+    "version": "2026-09-29.v61",
     "legacy_unchecked_count": 136,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -328,7 +343,8 @@
       "terminal-agent-multi-user-runtime": 0,
       "ai-native-release": 0,
       "qmt-live-bridge": 11,
-      "tui-usability-governance": 0
+      "tui-usability-governance": 0,
+      "index-dividend-thermometer": 0
     },
     "legacy_sources": [
       {
@@ -1410,6 +1426,17 @@
           "AUD-05"
         ],
         "exit_gate": "Complete the repository phases R1-R4 and S1-S6 in docs/plans/production-recovery-and-regression-remediation-2026-09-24.md with failing-first behavior evidence, appropriate SQLite/PostgreSQL and API/SDK/MCP/browser regression, unchanged safety thresholds, zero implicit business writes on reads, mandatory candidate-bound real-provider rehearsal validation and independent Luna max review. Report unavailable real-provider inputs explicitly; no mock-only rehearsal or skipped required check can satisfy the gate. Repository closure does not complete DATA-02, EVID/AUD or TUI production acceptance; real publication reconciliation and ordinary-user production UAT remain separate."
+      },
+      {
+        "id": "IDX-01",
+        "workstream_id": "index-dividend-thermometer",
+        "wave": 2,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Implement index dividend thermometer R1 base scope with versioned rules and TUI primary task",
+        "depends_on": [],
+        "exit_gate": "R1 base version (DY/PE/PB, dividend spread, 5y/10y percentiles, temperature with explanation, history chart and 12-month table, signal falsification loop) passes failing-first tests, data-source probes prove real 000922/H00922 coverage, R2 enhancements stay explicitly incomplete when data is missing, and the feature does not bypass decision gates or the DATA-18 recovery focus."
       }
     ]
   }
