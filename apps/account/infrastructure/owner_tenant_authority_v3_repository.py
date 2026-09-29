@@ -90,6 +90,12 @@ from apps.account.infrastructure.single_owner_authority_policy_v1_models import 
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
 )
+from shared.infrastructure.postgres_advisory_lock import (
+    ScopedAdvisoryLockError,
+    ScopedAdvisoryLockKey,
+    try_acquire_scoped_advisory_exclusive,
+    try_acquire_scoped_advisory_shared,
+)
 
 
 class OwnerTenantAuthorityV3Clock(Protocol):
@@ -995,36 +1001,59 @@ def _lock_owner_tenant_authority_v3_sources(*, using: str, policy_id: str, read_
             "owner tenant authority v3 locks require an active PostgreSQL transaction"
         )
     try:
-        with connection.cursor() as cursor:
-            cursor.execute("SHOW transaction_isolation")
-            if cursor.fetchone() != ("read committed",):
-                raise OwnerTenantAuthorityV3Unavailable(
-                    "owner tenant authority v3 locks require READ COMMITTED"
-                )
-        parent_locker = (
-            lock_account_owner_assignment_evidence_v5_sources_for_read
-            if read_only
-            else lock_account_owner_assignment_evidence_v5_sources
-        )
-        parent_locker(using=using, policy_id=policy_id)
-        with connection.cursor() as cursor:
-            table_names = sorted(
-                (
-                    OwnerTenantAuthorityV3Model._meta.db_table,
-                    OwnerTenantAuthorityV3RevocationModel._meta.db_table,
-                )
+        with transaction.atomic(using=using):
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW transaction_isolation")
+                if cursor.fetchone() != ("read committed",):
+                    raise OwnerTenantAuthorityV3Unavailable(
+                        "owner tenant authority v3 locks require READ COMMITTED"
+                    )
+            parent_locker = (
+                lock_account_owner_assignment_evidence_v5_sources_for_read
+                if read_only
+                else lock_account_owner_assignment_evidence_v5_sources
             )
-            for table_name in table_names:
-                mode = "SHARE" if read_only else "EXCLUSIVE"
-                cursor.execute(
-                    f"LOCK TABLE {connection.ops.quote_name(table_name)} IN {mode} MODE NOWAIT"
+            parent_locker(using=using, policy_id=policy_id)
+            acquire_scoped_lock = (
+                try_acquire_scoped_advisory_shared
+                if read_only
+                else try_acquire_scoped_advisory_exclusive
+            )
+            acquire_scoped_lock(
+                using=using,
+                keys=(_owner_tenant_authority_v3_policy_lock_key(policy_id),),
+            )
+            with connection.cursor() as cursor:
+                table_names = sorted(
+                    (
+                        OwnerTenantAuthorityV3Model._meta.db_table,
+                        OwnerTenantAuthorityV3RevocationModel._meta.db_table,
+                    )
                 )
+                for table_name in table_names:
+                    mode = "SHARE" if read_only else "EXCLUSIVE"
+                    cursor.execute(
+                        f"LOCK TABLE {connection.ops.quote_name(table_name)} IN {mode} MODE NOWAIT"
+                    )
     except OwnerTenantAuthorityV3Unavailable:
         raise
+    except ScopedAdvisoryLockError as error:
+        raise OwnerTenantAuthorityV3Unavailable(
+            "owner tenant authority v3 scoped policy lock is unavailable"
+        ) from error
     except (DatabaseError, AccountOwnerAssignmentUnavailable) as error:
         raise OwnerTenantAuthorityV3Unavailable(
             "owner tenant authority v3 source lock is unavailable"
         ) from error
+
+
+def _owner_tenant_authority_v3_policy_lock_key(policy_id: str) -> ScopedAdvisoryLockKey:
+    """Build the V1 shared lock key for one Authority V3 policy."""
+
+    return ScopedAdvisoryLockKey(
+        domain="account.owner-tenant-authority-v3.policy",
+        components=(policy_id,),
+    )
 
 
 __all__ = [

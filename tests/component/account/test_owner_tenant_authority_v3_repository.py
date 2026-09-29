@@ -32,6 +32,7 @@ from apps.account.domain.owner_tenant_authority_v3 import (
 )
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
+    _evidence_v5_policy_lock_key,
 )
 from apps.account.infrastructure.account_owner_assignment_v5_models import (
     AccountOwnerAssignmentEvidenceV5Model,
@@ -42,6 +43,7 @@ from apps.account.infrastructure.owner_tenant_authority_v3_models import (
 )
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
+    _owner_tenant_authority_v3_policy_lock_key,
     lock_owner_tenant_authority_v3_sources,
     lock_owner_tenant_authority_v3_sources_for_read,
 )
@@ -59,6 +61,11 @@ from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_model
 )
 from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository import (
     DjangoSimulatedAccountRowSourceV2Repository,
+)
+from shared.infrastructure.postgres_advisory_lock import (
+    ScopedAdvisoryLockUnavailableError,
+    try_acquire_scoped_advisory_exclusive,
+    try_acquire_scoped_advisory_shared,
 )
 from tests.component.account.test_account_owner_assignment_evidence_v5_repository import (
     _seed,
@@ -600,6 +607,28 @@ def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owne
                 using=competing,
                 policy_id="policy-concurrent-read",
             )
+
+        # Exercise each production policy key through the shared PostgreSQL
+        # primitive without duplicating this test's database/schema setup.
+        for key_factory in (
+            _evidence_v5_policy_lock_key,
+            _owner_tenant_authority_v3_policy_lock_key,
+        ):
+            held_key = key_factory("policy-scoped-held")
+            other_policy_key = key_factory("policy-scoped-other")
+            with transaction.atomic(using=owner_alias):
+                assert try_acquire_scoped_advisory_shared(using=owner_alias, keys=(held_key,)) == (
+                    held_key,
+                )
+                with transaction.atomic(using=competing):
+                    assert try_acquire_scoped_advisory_shared(
+                        using=competing, keys=(held_key,)
+                    ) == (held_key,)
+                    with pytest.raises(ScopedAdvisoryLockUnavailableError):
+                        try_acquire_scoped_advisory_exclusive(using=competing, keys=(held_key,))
+                    assert try_acquire_scoped_advisory_exclusive(
+                        using=competing, keys=(other_policy_key,)
+                    ) == (other_policy_key,)
     finally:
         connections[competing].close()
         connections.databases.pop(competing)

@@ -3971,7 +3971,7 @@
       "text": "\"\"\"Append an exact first subject only after current durable parent validation.\"\"\""
     },
     {
-      "line": 107,
+      "line": 113,
       "path": "apps/account/infrastructure/account_owner_assignment_evidence_v5_repository.py",
       "text": "\"\"\"Return the server's current time.\"\"\""
     },
@@ -4366,27 +4366,27 @@
       "text": "\"\"\"Return whether this context owns the current alias/connection phase.\"\"\""
     },
     {
-      "line": 99,
+      "line": 105,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"\"\"Return an exact timezone-aware current timestamp.\"\"\""
     },
     {
-      "line": 108,
+      "line": 114,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 256,
+      "line": 262,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"\"\"Restore one exact row solely to select the lock-bound current read."
     },
     {
-      "line": 799,
+      "line": 805,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"owner tenant authority v3 actor parent is not current at recording\""
     },
     {
-      "line": 876,
+      "line": 882,
       "path": "apps/account/infrastructure/owner_tenant_authority_v3_repository.py",
       "text": "\"owner tenant authority v3 revocation actor is not current at event\""
     },

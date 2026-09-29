@@ -98,6 +98,12 @@ from shared.infrastructure.immutable_read_snapshot import (
     isolated_immutable_read_snapshot,
     suspend_immutable_read_reuse,
 )
+from shared.infrastructure.postgres_advisory_lock import (
+    ScopedAdvisoryLockError,
+    ScopedAdvisoryLockKey,
+    try_acquire_scoped_advisory_exclusive,
+    try_acquire_scoped_advisory_shared,
+)
 
 
 class AccountOwnerAssignmentEvidenceV5Clock(Protocol):
@@ -737,32 +743,56 @@ def _lock_account_owner_assignment_evidence_v5_sources(
             "assignment locks require an active PostgreSQL transaction"
         )
     try:
-        with connection.cursor() as cursor:
-            cursor.execute("SHOW transaction_isolation")
-            if cursor.fetchone() != ("read committed",):
-                raise AccountOwnerAssignmentEvidenceV5Unavailable(
-                    "assignment source locks require READ COMMITTED"
+        with transaction.atomic(using=using):
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW transaction_isolation")
+                if cursor.fetchone() != ("read committed",):
+                    raise AccountOwnerAssignmentEvidenceV5Unavailable(
+                        "assignment source locks require READ COMMITTED"
+                    )
+            acquire_scoped_lock = (
+                try_acquire_scoped_advisory_shared
+                if read_only
+                else try_acquire_scoped_advisory_exclusive
+            )
+            acquire_scoped_lock(
+                using=using,
+                keys=(_evidence_v5_policy_lock_key(policy_id),),
+            )
+            with connection.cursor() as cursor:
+                advisory_lock = (
+                    "pg_try_advisory_xact_lock_shared" if read_only else "pg_try_advisory_xact_lock"
                 )
-            advisory_lock = (
-                "pg_try_advisory_xact_lock_shared" if read_only else "pg_try_advisory_xact_lock"
-            )
-            cursor.execute(
-                f"SELECT {advisory_lock}(hashtextextended(%s, 0))",
-                [policy_id],
-            )
-            if cursor.fetchone() != (True,):
-                raise AccountOwnerAssignmentEvidenceV5Unavailable(
-                    "assignment policy writer is busy"
+                cursor.execute(
+                    f"SELECT {advisory_lock}(hashtextextended(%s, 0))",
+                    [policy_id],
                 )
-            tables = sorted(
-                connection.ops.quote_name(model._meta.db_table) for model in _LOCK_MODELS
-            )
-            mode = "SHARE" if read_only else "EXCLUSIVE"
-            cursor.execute(f"LOCK TABLE {', '.join(tables)} IN {mode} MODE NOWAIT")
+                if cursor.fetchone() != (True,):
+                    raise AccountOwnerAssignmentEvidenceV5Unavailable(
+                        "assignment policy writer is busy"
+                    )
+                tables = sorted(
+                    connection.ops.quote_name(model._meta.db_table) for model in _LOCK_MODELS
+                )
+                mode = "SHARE" if read_only else "EXCLUSIVE"
+                cursor.execute(f"LOCK TABLE {', '.join(tables)} IN {mode} MODE NOWAIT")
+    except ScopedAdvisoryLockError as error:
+        raise AccountOwnerAssignmentEvidenceV5Unavailable(
+            "assignment scoped policy lock unavailable"
+        ) from error
     except DatabaseError as error:
         raise AccountOwnerAssignmentEvidenceV5Unavailable(
             "assignment source locks unavailable"
         ) from error
+
+
+def _evidence_v5_policy_lock_key(policy_id: str) -> ScopedAdvisoryLockKey:
+    """Build the V1 shared lock key for one Evidence V5 policy."""
+
+    return ScopedAdvisoryLockKey(
+        domain="account.assignment-evidence-v5.policy",
+        components=(policy_id,),
+    )
 
 
 def _selectors(*values: str) -> None:
