@@ -19,7 +19,6 @@ from .core_registry_support import *
                         "status": "approved",
                     }
                 ],
-                "total_count": 1,
                 "source": "core-only-fallback",
             },
             "510300.SH",
@@ -103,6 +102,11 @@ def test_signal_list_publishes_offset_and_preserves_empty_page(
         "minimum": 0,
         "maximum": 1_000_000,
     }
+    assert "total_count" not in schema["output_schema"]["properties"]
+    assert (
+        schema["output_schema"]["properties"]["returned_count"]["description"]
+        == "Number of signals in this page, not a total matching count."
+    )
 
     captured: dict[str, object] = {}
 
@@ -110,7 +114,6 @@ def test_signal_list_publishes_offset_and_preserves_empty_page(
         captured.update(kwargs)
         return {
             "signals": [],
-            "total_count": 0,
             "returned_count": 0,
             "limit": kwargs["limit"],
             "offset": kwargs["offset"],
@@ -130,7 +133,73 @@ def test_signal_list_publishes_offset_and_preserves_empty_page(
     assert captured == {"limit": 5, "offset": 10}
     assert result["status"] == "completed"
     assert result["result"]["signals"] == []
+    assert result["result"]["returned_count"] == 0
+    assert result["result"]["limit"] == 5
     assert result["result"]["offset"] == 10
+    assert "total_count" not in result["result"]
+
+
+@pytest.mark.parametrize(
+    ("signal_ids", "expected_count"),
+    [([11], 1), ([], 0)],
+    ids=("non-empty-page", "empty-page"),
+)
+def test_signal_list_fallback_reports_current_page_count_only(
+    monkeypatch: pytest.MonkeyPatch,
+    signal_ids: list[int],
+    expected_count: int,
+) -> None:
+    """Nonzero-offset pages report their returned size without inventing a total."""
+
+    from types import SimpleNamespace
+
+    from agomtradepro_mcp.registry.runtime_handlers.owners import signal as signal_runtime
+
+    returned_signals = [
+        SimpleNamespace(
+            id=signal_id,
+            asset_code="510300.SH",
+            logic_desc="PMI recovery",
+            status="approved",
+            created_at=None,
+            invalidation_logic="PMI falls below 50",
+            invalidation_threshold=49.5,
+            approved_at=None,
+            invalidated_at=None,
+            created_by=None,
+        )
+        for signal_id in signal_ids
+    ]
+    captured_calls: list[dict[str, object]] = []
+
+    class _FakeSignalModule:
+        def list(self, **kwargs: object) -> list[SimpleNamespace]:
+            captured_calls.append(dict(kwargs))
+            return returned_signals
+
+    fake_client = SimpleNamespace(signal=_FakeSignalModule())
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", lambda: fake_client)
+
+    result = signal_runtime._fallback_list_signals(
+        status="approved",
+        asset_code="510300.SH",
+        limit=5,
+        offset=10,
+    )
+
+    assert captured_calls == [
+        {
+            "status": "approved",
+            "asset_code": "510300.SH",
+            "limit": 5,
+            "offset": 10,
+        }
+    ]
+    assert len(result["signals"]) == expected_count
+    assert result["returned_count"] == expected_count
+    assert result["limit"] == 5
+    assert result["offset"] == 10
+    assert "total_count" not in result
 
 
 def test_signal_create_capability_runs_eligibility_preview_before_commit(

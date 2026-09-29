@@ -33,6 +33,7 @@ def _fallback_list_signals(
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, Any]:
+    """Return the requested signal page with its page metadata."""
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
@@ -44,7 +45,6 @@ def _fallback_list_signals(
     )
     return {
         "signals": [_serialize_signal_read_model(signal) for signal in signals],
-        "total_count": len(signals),
         "returned_count": len(signals),
         "limit": limit,
         "offset": offset,

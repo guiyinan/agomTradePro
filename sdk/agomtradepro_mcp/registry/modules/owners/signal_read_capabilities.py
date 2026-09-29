@@ -8,10 +8,14 @@ MANIFESTS = [
     CapabilityManifest(
         capability_key="signal.read.list",
         title="Investment Signal List",
-        summary="Read investment signals with optional status, asset, and pagination filters.",
+        summary=(
+            "Read a page of investment signals with optional status and asset filters; "
+            "the result does not claim a total matching count."
+        ),
         description=(
             "Return investment signals for review, optionally filtered by workflow status "
-            "or asset code."
+            "or asset code. `returned_count` describes only the current page; the signal "
+            "SDK returns a list and does not provide a total matching count."
         ),
         owner_app="signal",
         risk_level="low",
@@ -33,8 +37,11 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "signals": {"type": "array"},
-                "total_count": {"type": "integer"},
-                "returned_count": {"type": "integer"},
+                "returned_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of signals in this page, not a total matching count.",
+                },
                 "limit": {"type": "integer"},
                 "offset": {"type": "integer"},
             },
