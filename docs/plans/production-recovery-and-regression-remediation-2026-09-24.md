@@ -332,3 +332,36 @@ generation 并精确重读 head、revocation、actor、physical source 和 expir
 必需 audit event/outbox append 必须与最终 revalidation 在同一数据库事务；provider fetch、publisher preflight
 和外部 publish 必须在事务外。只有所有 22 张来源表的 writer 都能推进 generation 或取得同一 key，且混合版本
 并发矩阵通过后，才能在独立提交删除旧 relation locks。
+
+22 表的生成清单必须以运行时组合为准：Evidence V5 `_LOCK_MODELS` 的 19 张、OwnerTenant V3 authority/revocation
+两张，以及 `build_account_physical_row_v2_provider()` 实际注入的
+`simulated_account_row_source_v2_ledger`。`account_physical_row_observation_ledger` 已不是这条 System Audit V3
+运行时 physical provider 的第 22 张表，不得因名称相似误装 trigger 或误判覆盖完成。
+
+#### Phase 2a generation/fence 基础设施证据
+
+Phase 2a 选择一个事务性全局 generation 行，而不是 22 个可反向取得的 per-table generation 行。System Audit
+恢复本身读取完整 22 表闭世界，全局行只串行化这组低频 Account authority/source 写事务，不涉及行情、估值、
+财报或证券事实表；它避免多表写事务以 A→B/B→A 顺序取得多个 generation 行。22 张来源表各安装 DML 与
+TRUNCATE 两个 `ENABLE ALWAYS` 的 statement trigger，共 44 个。普通 DML 使用 `BEFORE STATEMENT`，确保在
+触碰业务行前先取得 generation 行；generation 与来源写入同事务提交或回滚，零行和多行语句都只推进一次。
+
+迁移安装后核对 22 表/44 trigger、BEFORE/statement 位、函数名、`SECURITY DEFINER`、固定 search path 和
+ALWAYS 状态；运行时 coverage verifier 以当前 V5/V3/physical composition 重新计算同一 22 表集合，缺表、
+缺 trigger、禁用 trigger、函数漂移或 singleton 缺失均 fail closed。Proof API 强制处于活动的
+`REPEATABLE READ READ ONLY` 事务，确保 generation 与后续完整恢复共享同一 MVCC snapshot；final fence API
+强制处于可写 `READ COMMITTED` 事务，并用 `SELECT ... FOR UPDATE` 比较 proof 后持锁到外层事务结束。
+
+隔离 PostgreSQL 16 最终用例为 `4 passed in 406.32s`：覆盖全部 22 表的直接 SQL、44 trigger catalog、缺失
+trigger/singleton fail closed、多行与零行 DML 各加一、来源与 generation 同步 rollback、TRUNCATE、fence
+先持有时 writer 等待到提交，以及跨表 BEFORE 写入不会预先占住第二张来源表的业务行锁。SQLite 完整 migration
+前进→回退→重放通过；移除 Account→Simulated Trading 的直接 ORM import 后，22 表 runtime coverage 再跑
+`1 passed in 43.54s`。增量 mypy 为零回退、全仓 debt ceiling 为零错误，module map 为 44 modules / 210 edges，
+entrypoint inventory 为 1,269 项且 `candidate-review=0`。CI 同 SHA 结果仍是本阶段提交后的独立门禁。
+
+本阶段仍不授权部署或重跑。旧 relation locks 和 Phase 1 双 policy locks 全部保留，业务 reader/publication
+尚未接入 proof/fence。生产运行角色 ACL 未核实，迁移不会盲目 REVOKE；可直接 UPDATE generation 或修改 trigger
+的 owner/superuser 仍是明确运维限制。PostgreSQL 在触发 `BEFORE TRUNCATE` 前已取得 `ACCESS EXCLUSIVE` 表锁，
+跨表 DML/TRUNCATE 混合事务仍可能由数据库死锁检测中止。Phase 2b 必须先核实运行角色权限，完成 RR 扫描与短
+RC publication 事务接入，在 fence 内重读 head/revocation/actor/physical source/expiry，并保证 publication、
+current pointer 与必需 audit/outbox 同库同事务；上述并发矩阵和混合版本证据完成后，才能独立删除旧关系锁。

@@ -26,17 +26,17 @@
       "script": 11,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 78,
+      "test_evidence": 79,
       "workflow_step": 10
     },
     "by_status": {
       "active_public": 800,
-      "adjacent_operational": 330,
+      "adjacent_operational": 331,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1268
+    "total": 1269
   },
   "entries": [
     {
@@ -11857,6 +11857,16 @@
       "path": "tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_account_actor_authority_raw_source_publisher_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Account-owned disposable PostgreSQL creation, authentication, policy publication and current ownership evidence; no production authority is issued",
+      "id": "test_evidence:tests/component/account/test_account_authority_generation_postgres.py:test_account_authority_generation_postgres:",
+      "locator": "",
+      "path": "tests/component/account/test_account_authority_generation_postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "test_account_authority_generation_postgres",
       "target": ""
     },
     {

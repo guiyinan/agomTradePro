@@ -4,6 +4,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING
 
 from . import account_actor_authority_raw_source_models_v3 as _actor_authority
+from . import account_authority_generation_models as _authority_generation
 from . import account_identity_raw_source_models as _identity_raw
 from . import account_identity_snapshot_models as _identity_snapshot
 from . import account_owner_assignment_actor_authority_source_v3_models as _owner_actor_authority
@@ -34,6 +35,7 @@ from . import trading_config_models as _trading_config
 
 _OWNER_MODULES: tuple[ModuleType, ...] = (
     _actor_authority,
+    _authority_generation,
     _identity_raw,
     _identity_snapshot,
     _owner_actor_authority,
@@ -67,6 +69,7 @@ _OWNER_MODULES: tuple[ModuleType, ...] = (
 # to static consumers (mypy cannot infer attributes created through globals()).
 if TYPE_CHECKING:
     from .account_actor_authority_raw_source_models_v3 import *  # noqa: F403
+    from .account_authority_generation_models import *  # noqa: F403
     from .account_identity_raw_source_models import *  # noqa: F403
     from .account_identity_snapshot_models import *  # noqa: F403
     from .account_owner_assignment_actor_authority_source_v3_models import *  # noqa: F403

@@ -1,6 +1,7 @@
 """Static model exports for type checkers; runtime exports live in models.py."""
 
 from .account_actor_authority_raw_source_models_v3 import *
+from .account_authority_generation_models import *
 from .account_identity_raw_source_models import *
 from .account_identity_snapshot_models import *
 from .account_owner_assignment_actor_authority_source_v3_models import *

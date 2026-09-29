@@ -1012,7 +1012,7 @@
       "layers": {
         "application": 65,
         "domain": 36,
-        "infrastructure": 133,
+        "infrastructure": 135,
         "interface": 24,
         "management": 14,
         "root": 22

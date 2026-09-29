@@ -79,6 +79,15 @@ jobs:
           --ds=core.settings.development_sqlite
           --confcutdir=tests/component/account
           -q -o addopts='' --junitxml=authority-lock-postgres.xml
+      - name: Exercise Account authority generation coverage and fence
+        env:
+          AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+        run: >-
+          python -m pytest
+          tests/component/account/test_account_authority_generation_postgres.py
+          --ds=core.settings.development_sqlite
+          --confcutdir=tests/component/account
+          -q -o addopts='' --junitxml=account-authority-generation-postgres.xml
       - name: Exercise real publication locks and frozen facts
         run: >-
           python -m pytest
@@ -107,13 +116,17 @@ jobs:
           from xml.etree import ElementTree
           publication_cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
           authority_cases = ElementTree.parse('authority-lock-postgres.xml').findall('.//testcase')
+          generation_cases = ElementTree.parse(
+              'account-authority-generation-postgres.xml'
+          ).findall('.//testcase')
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
           assert len(publication_cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
+          assert len(generation_cases) == 4, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
-          cases = [*publication_cases, *authority_cases, *control_plane_cases]
+          cases = [*publication_cases, *authority_cases, *generation_cases, *control_plane_cases]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
           assert all(case.find('failure') is None and case.find('error') is None for case in cases)
           PY
@@ -125,5 +138,6 @@ jobs:
           path: |
             publication-postgres.xml
             authority-lock-postgres.xml
+            account-authority-generation-postgres.xml
             backfill-control-plane-postgres.xml
           if-no-files-found: error
