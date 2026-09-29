@@ -32,6 +32,15 @@ class TaskRecordRepositoryProtocol(Protocol):
         """
         ...
 
+    def save_if_attempt(
+        self,
+        record: TaskExecutionRecord,
+        *,
+        expected_attempt_id: str,
+    ) -> str | None:
+        """Persist a record only when it still belongs to the active attempt."""
+        ...
+
     def get_by_task_id(self, task_id: str) -> TaskExecutionRecord | None:
         """根据任务 ID 获取记录
 
@@ -49,6 +58,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         task_id: str,
         result: str,
         expected_status: TaskStatus,
+        expected_attempt_id: str | None = None,
     ) -> bool:
         """Atomically update result only while the record retains its expected state."""
         ...

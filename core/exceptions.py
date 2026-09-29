@@ -124,6 +124,14 @@ class BusinessLogicError(AgomTradeProException):
     default_status_code = 422
 
 
+class DuplicateTaskExecutionError(BusinessLogicError):
+    """Raised when a Celery delivery would execute an already running task ID."""
+
+    default_message = "任务已在执行中，拒绝重复投递"
+    default_code = "TASK_DUPLICATE_DELIVERY"
+    default_status_code = 409
+
+
 class RegimeNotDeterminedError(BusinessLogicError):
     """Raised when regime cannot be determined."""
 

@@ -29,7 +29,12 @@ from apps.task_monitor.infrastructure.repositories import (
 )
 
 
-def _record(*, status: TaskStatus = TaskStatus.STARTED, retries: int = 0) -> TaskExecutionRecord:
+def _record(
+    *,
+    status: TaskStatus = TaskStatus.STARTED,
+    retries: int = 0,
+    attempt_id: str | None = None,
+) -> TaskExecutionRecord:
     started_at = timezone.now() - timedelta(seconds=3)
     return TaskExecutionRecord(
         task_id="task-1",
@@ -47,6 +52,7 @@ def _record(*, status: TaskStatus = TaskStatus.STARTED, retries: int = 0) -> Tas
         priority=TaskPriority.NORMAL,
         queue="default",
         worker="worker-1",
+        attempt_id=attempt_id,
     )
 
 
@@ -63,17 +69,29 @@ class _Repository:
         self.record = record
         return "saved"
 
+    def save_if_attempt(
+        self,
+        record: TaskExecutionRecord,
+        *,
+        expected_attempt_id: str,
+    ) -> str | None:
+        if self.record is None or self.record.attempt_id != expected_attempt_id:
+            return None
+        return self.save(record)
+
     def update_result_if_status(
         self,
         *,
         task_id: str,
         result: str,
         expected_status: TaskStatus,
+        expected_attempt_id: str | None = None,
     ) -> bool:
         if (
             self.record is None
             or self.record.task_id != task_id
             or self.record.status is not expected_status
+            or (expected_attempt_id is not None and self.record.attempt_id != expected_attempt_id)
         ):
             return False
         self.record = replace(self.record, result=result)
@@ -191,6 +209,92 @@ def test_progress_repository_update_is_conditioned_on_started_status(
     update.assert_called_once_with(result='{"phase":"quote"}')
 
 
+def test_duplicate_prerun_does_not_replace_live_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A broker redelivery cannot reset the original start or live result."""
+
+    original = _record(attempt_id="attempt-original")
+    original_result = '{"phase":"original","requested":10}'
+    original = replace(original, result=original_result)
+    repository = _Repository(original)
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+
+    task = SimpleNamespace(
+        name="demo.task",
+        request={"delivery_info": {"routing_key": "priority"}, "hostname": "worker-b"},
+    )
+    tasks.task_prerun_handler(task_id="task-1", task=task)
+
+    assert repository.record == original
+    execute.assert_not_called()
+
+
+def test_legal_retry_claims_a_new_attempt_without_resetting_original_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Celery retry state is resumable and keeps the first execution timestamp."""
+
+    started_at = timezone.now() - timedelta(minutes=5)
+    original = replace(
+        _record(status=TaskStatus.RETRY, retries=1, attempt_id="attempt-original"),
+        started_at=started_at,
+        result='{"error":"transient"}',
+    )
+    repository = _Repository(original)
+    execute = Mock(side_effect=lambda record, **_kwargs: repository.save(record))
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+
+    task = SimpleNamespace(
+        name="demo.task",
+        request={
+            "delivery_info": {"routing_key": "priority"},
+            "hostname": "worker-b",
+            "retries": 1,
+        },
+    )
+    tasks.task_prerun_handler(task_id="task-1", task=task)
+
+    assert repository.record is not None
+    assert repository.record.status is TaskStatus.STARTED
+    assert repository.record.started_at == started_at
+    assert repository.record.retries == 1
+    assert repository.record.attempt_id not in {None, "attempt-original"}
+
+
+def test_stale_duplicate_postrun_cannot_replace_original_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A duplicate worker's terminal event must not win the task row."""
+
+    original = _record(attempt_id="attempt-original")
+    repository = _Repository(original)
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+    task = SimpleNamespace(
+        name="demo.task",
+        request={
+            "_task_monitor_attempt_id": "attempt-duplicate",
+            "delivery_info": {"routing_key": "priority"},
+            "hostname": "worker-b",
+        },
+    )
+
+    tasks.task_postrun_handler(
+        task_id="task-1",
+        task=task,
+        retval={"outcome": "success", "stored": 99},
+        state="SUCCESS",
+    )
+
+    assert repository.record == original
+    execute.assert_not_called()
+
+
 @pytest.mark.parametrize("outcome", ["failed", "partial", "blocked"])
 def test_postrun_business_outcome_overrides_celery_success(
     monkeypatch: pytest.MonkeyPatch,
@@ -251,7 +355,7 @@ def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repository = _Repository()
-    execute = Mock(side_effect=lambda record: repository.save(record))
+    execute = Mock(side_effect=lambda record, **_kwargs: repository.save(record))
     monkeypatch.setattr(tasks, "get_repository", lambda: repository)
     monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
     celery_task = SimpleNamespace(

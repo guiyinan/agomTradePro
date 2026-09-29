@@ -5,7 +5,9 @@ Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 """
 
 import logging
+from collections.abc import Mapping, MutableMapping
 from typing import Any
+from uuid import uuid4
 
 from celery import Task
 from celery.signals import (
@@ -42,6 +44,74 @@ logger = logging.getLogger(__name__)
 # 全局仓储实例
 _repository: TaskRecordRepositoryProtocol | None = None
 _FAILED_BUSINESS_OUTCOMES = {"failed", "partial", "blocked"}
+_TERMINAL_TASK_STATUSES = {
+    TaskStatus.SUCCESS,
+    TaskStatus.FAILURE,
+    TaskStatus.REVOKED,
+    TaskStatus.TIMEOUT,
+}
+_DUPLICATE_DELIVERY_CODE = "TASK_DUPLICATE_DELIVERY"
+
+
+def _request_value(request: Any, key: str, default: Any = None) -> Any:
+    """Read a Celery request value from Context or test mapping boundaries."""
+
+    if isinstance(request, Mapping):
+        return request.get(key, default)
+    return getattr(request, key, default)
+
+
+def _task_request(task: Task) -> Any:
+    """Return the request object without trusting third-party shape details."""
+
+    return getattr(task, "request", None)
+
+
+def _task_attempt_id(task: Task | None) -> str | None:
+    """Read the monitor attempt marker attached during task_prerun."""
+
+    if task is None:
+        return None
+    value = _request_value(_task_request(task), "_task_monitor_attempt_id")
+    return value if isinstance(value, str) and value else None
+
+
+def _set_task_attempt_id(task: Task, attempt_id: str) -> None:
+    """Attach an attempt marker to a Celery request for later signal guards."""
+
+    request = _task_request(task)
+    if isinstance(request, MutableMapping):
+        try:
+            request["_task_monitor_attempt_id"] = attempt_id
+            return
+        except TypeError:
+            return
+    try:
+        request._task_monitor_attempt_id = attempt_id
+    except (AttributeError, TypeError):
+        return
+
+
+def _task_retries(task: Task) -> int:
+    """Return the Celery retry ordinal, rejecting malformed request input."""
+
+    value = _request_value(_task_request(task), "retries", 0)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return 0
+    return int(value)
+
+
+def _task_queue_and_worker(task: Task) -> tuple[str | None, str | None]:
+    """Extract bounded routing metadata from a Celery request."""
+
+    request = _task_request(task)
+    delivery_info = _request_value(request, "delivery_info", {})
+    queue = delivery_info.get("routing_key") if isinstance(delivery_info, Mapping) else None
+    worker = _request_value(request, "hostname")
+    return (
+        queue if isinstance(queue, str) else None,
+        worker if isinstance(worker, str) else None,
+    )
 
 
 def get_repository() -> TaskRecordRepositoryProtocol:
@@ -74,6 +144,8 @@ def _resolve_terminal_status(*, state: str | None, retval: Any) -> TaskStatus:
         return TaskStatus.FAILURE
     if state == "REVOKED":
         return TaskStatus.REVOKED
+    if state == "RETRY":
+        return TaskStatus.RETRY
     if isinstance(retval, dict):
         outcome = str(retval.get("outcome", "")).strip().lower()
         if outcome in _FAILED_BUSINESS_OUTCOMES:
@@ -98,22 +170,64 @@ def task_prerun_handler(
         return
 
     try:
+        repository = get_repository()
+        existing = repository.get_by_task_id(task_id)
+        retries = _task_retries(task)
+        existing_attempt_id = existing.attempt_id if existing is not None else None
+        request_attempt_id = _task_attempt_id(task)
+
+        if existing is not None and existing.status in _TERMINAL_TASK_STATUSES:
+            attempt_id = request_attempt_id or uuid4().hex
+            _set_task_attempt_id(task, attempt_id)
+            logger.warning(
+                "task_delivery_duplicate_detected code=%s task_id=%s status=%s",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+                existing.status.value,
+            )
+            return
+
+        if (
+            existing is not None
+            and existing.status is TaskStatus.STARTED
+            and retries <= existing.retries
+            and request_attempt_id != existing_attempt_id
+        ):
+            attempt_id = request_attempt_id or uuid4().hex
+            _set_task_attempt_id(task, attempt_id)
+            logger.warning(
+                "task_delivery_duplicate_detected code=%s task_id=%s status=%s",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+                existing.status.value,
+            )
+            return
+
+        attempt_id = request_attempt_id or uuid4().hex
+        _set_task_attempt_id(task, attempt_id)
+        queue, worker = _task_queue_and_worker(task)
+        started_at = (
+            existing.started_at
+            if existing is not None and existing.status in {TaskStatus.STARTED, TaskStatus.RETRY}
+            else timezone.now()
+        )
         record = TaskExecutionRecord(
             task_id=task_id,
             task_name=task.name,
             status=TaskStatus.STARTED,
             args=args or (),
             kwargs=kwargs or {},
-            started_at=timezone.now(),
+            started_at=started_at,
             finished_at=None,
             result=None,
             exception=None,
             traceback=None,
             runtime_seconds=None,
-            retries=0,
+            retries=max(retries, existing.retries if existing is not None else 0),
             priority=TaskPriority.NORMAL,
-            queue=task.request.get("delivery_info", {}).get("routing_key"),
-            worker=task.request.get("hostname"),
+            queue=queue,
+            worker=worker,
+            attempt_id=attempt_id,
         )
 
         use_case = get_use_case()
@@ -149,8 +263,19 @@ def task_postrun_handler(
         if not existing:
             return
 
+        attempt_id = _task_attempt_id(task)
+        if existing.attempt_id is not None and attempt_id != existing.attempt_id:
+            logger.warning(
+                "task_signal_ignored code=%s task_id=%s signal=postrun",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+            )
+            return
+
         # 同时读取 Celery 技术状态和规范化业务 outcome。
         status = _resolve_terminal_status(state=state, retval=retval)
+        if status is TaskStatus.RETRY:
+            return
         business_failure = task_business_failure_message(retval)
 
         # 计算运行时长
@@ -182,10 +307,14 @@ def task_postrun_handler(
             priority=existing.priority,
             queue=existing.queue,
             worker=existing.worker,
+            attempt_id=attempt_id or existing.attempt_id,
         )
 
         use_case = get_use_case()
-        use_case.execute(record)
+        if attempt_id:
+            use_case.execute(record, expected_attempt_id=attempt_id)
+        else:
+            use_case.execute(record)
 
     except Exception as exc:
         logger.error(
@@ -212,6 +341,18 @@ def task_failure_handler(
         existing = repository.get_by_task_id(task_id)
 
         if not existing:
+            return
+
+        signal_task = sender if sender is not None else None
+        attempt_id = _task_attempt_id(signal_task)
+        if sender is None and existing.attempt_id is not None:
+            attempt_id = existing.attempt_id
+        if existing.attempt_id is not None and attempt_id != existing.attempt_id:
+            logger.warning(
+                "task_signal_ignored code=%s task_id=%s signal=failure",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+            )
             return
 
         # 计算运行时长
@@ -247,10 +388,14 @@ def task_failure_handler(
             priority=existing.priority,
             queue=existing.queue,
             worker=existing.worker,
+            attempt_id=attempt_id or existing.attempt_id,
         )
 
         use_case = get_use_case()
-        use_case.execute(record)
+        if attempt_id:
+            use_case.execute(record, expected_attempt_id=attempt_id)
+        else:
+            use_case.execute(record)
 
     except Exception as exc:
         logger.error(
@@ -279,6 +424,23 @@ def task_retry_handler(
         if not existing:
             return
 
+        attempt_id = _task_attempt_id(sender if sender is not None else None)
+        if sender is None and existing.attempt_id is not None:
+            attempt_id = existing.attempt_id
+        if existing.attempt_id is not None and attempt_id != existing.attempt_id:
+            logger.warning(
+                "task_signal_ignored code=%s task_id=%s signal=retry",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+            )
+            return
+        retry_value = _request_value(request, "retries", existing.retries + 1)
+        retries = (
+            retry_value
+            if isinstance(retry_value, int) and not isinstance(retry_value, bool)
+            else existing.retries + 1
+        )
+
         # 更新重试次数
         record = TaskExecutionRecord(
             task_id=task_id,
@@ -296,13 +458,17 @@ def task_retry_handler(
             ),
             traceback=None,
             runtime_seconds=None,
-            retries=existing.retries + 1,
+            retries=max(existing.retries + 1, retries),
             priority=existing.priority,
             queue=existing.queue,
             worker=existing.worker,
+            attempt_id=attempt_id or existing.attempt_id,
         )
 
-        repository.save(record)
+        if attempt_id:
+            repository.save_if_attempt(record, expected_attempt_id=attempt_id)
+        else:
+            repository.save(record)
 
     except Exception as exc:
         logger.error(
@@ -331,6 +497,18 @@ def task_revoked_handler(
         if not existing:
             return
 
+        signal_task = sender if sender is not None else None
+        attempt_id = _task_attempt_id(signal_task)
+        if sender is None and existing.attempt_id is not None:
+            attempt_id = existing.attempt_id
+        if existing.attempt_id is not None and attempt_id != existing.attempt_id:
+            logger.warning(
+                "task_signal_ignored code=%s task_id=%s signal=revoked",
+                _DUPLICATE_DELIVERY_CODE,
+                task_id,
+            )
+            return
+
         # 计算运行时长
         runtime_seconds = None
         if existing.started_at:
@@ -352,9 +530,13 @@ def task_revoked_handler(
             priority=existing.priority,
             queue=existing.queue,
             worker=existing.worker,
+            attempt_id=attempt_id or existing.attempt_id,
         )
 
-        repository.save(record)
+        if attempt_id:
+            repository.save_if_attempt(record, expected_attempt_id=attempt_id)
+        else:
+            repository.save(record)
 
     except Exception as exc:
         logger.error(

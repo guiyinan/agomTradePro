@@ -21,6 +21,7 @@ from uuid import UUID
 
 from django.core.management import call_command
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count
 from django.utils import timezone
 
@@ -43,6 +44,7 @@ from apps.task_monitor.domain.interfaces import (
     TaskRecordRepositoryProtocol,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
+from core.exceptions import DuplicateTaskExecutionError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -202,28 +204,10 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         normalized_args = _to_json_compatible(record.args)
         normalized_kwargs = _to_json_compatible(record.kwargs)
 
-        try:
-            # 尝试更新现有记录
-            model = TaskExecutionModel.objects.get(task_id=record.task_id)
-            model.status = record.status.value
-            model.args = normalized_args
-            model.kwargs = normalized_kwargs
-            model.started_at = record.started_at
-            model.finished_at = record.finished_at
-            model.result = _redact_evidence_text(record.result) if record.result else None
-            model.exception = (
-                _redact_evidence_text(record.exception, limit=2_000) if record.exception else None
-            )
-            model.traceback = _redact_evidence_text(record.traceback) if record.traceback else None
-            model.runtime_seconds = record.runtime_seconds
-            model.retries = record.retries
-            model.priority = record.priority.value
-            model.queue = record.queue
-            model.worker = record.worker
-            model.save()
-        except TaskExecutionModel.DoesNotExist:
-            # 创建新记录
-            model = TaskExecutionModel.objects.create(
+        def create_model() -> TaskExecutionModel:
+            """Create the first evidence row for a Celery task ID."""
+
+            return TaskExecutionModel.objects.create(
                 task_id=record.task_id,
                 task_name=record.task_name,
                 status=record.status.value,
@@ -243,9 +227,132 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
                 priority=record.priority.value,
                 queue=record.queue,
                 worker=record.worker,
+                attempt_id=record.attempt_id,
             )
 
+        with transaction.atomic():
+            try:
+                # Serialize updates for one task ID so a visibility redelivery
+                # cannot reset the original STARTED row while it is progressing.
+                model = TaskExecutionModel.objects.select_for_update().get(task_id=record.task_id)
+            except TaskExecutionModel.DoesNotExist:
+                try:
+                    # Keep the create in a savepoint so a concurrent first
+                    # delivery can be recovered by reading its unique row.
+                    with transaction.atomic():
+                        model = create_model()
+                except IntegrityError:
+                    model = TaskExecutionModel.objects.select_for_update().get(
+                        task_id=record.task_id
+                    )
+                else:
+                    return str(model.id)
+
+            if self._attempt_conflicts(model, record):
+                if (
+                    record.status is TaskStatus.STARTED
+                    and model.status == TaskStatus.STARTED.value
+                    and record.retries <= model.retries
+                ):
+                    raise DuplicateTaskExecutionError(
+                        details={"task_id": record.task_id},
+                    )
+                # A stale terminal signal from a duplicate delivery must not
+                # overwrite the winner's state or live progress.
+                return str(model.id)
+
+            if record.status is TaskStatus.STARTED and model.status != "pending":
+                # Celery can invoke task_prerun more than once for one ID when
+                # Redis visibility expires. Keep the first start timestamp,
+                # worker, and live progress (stored in result). A RETRY row is
+                # allowed to become STARTED for its next attempt, but keeps the
+                # original lifecycle evidence intact.
+                if model.status == TaskStatus.RETRY.value or record.retries > model.retries:
+                    model.status = TaskStatus.STARTED.value
+                    model.attempt_id = record.attempt_id or model.attempt_id
+                    model.retries = record.retries
+                    model.save(update_fields=["status", "attempt_id", "retries", "updated_at"])
+                return str(model.id)
+
+            model.status = record.status.value
+            model.args = normalized_args
+            model.kwargs = normalized_kwargs
+            model.started_at = record.started_at
+            model.finished_at = record.finished_at
+            model.result = _redact_evidence_text(record.result) if record.result else None
+            model.exception = (
+                _redact_evidence_text(record.exception, limit=2_000) if record.exception else None
+            )
+            model.traceback = _redact_evidence_text(record.traceback) if record.traceback else None
+            model.runtime_seconds = record.runtime_seconds
+            model.retries = record.retries
+            model.priority = record.priority.value
+            model.queue = record.queue
+            model.worker = record.worker
+            if record.attempt_id is not None:
+                model.attempt_id = record.attempt_id
+            model.save()
+
         return str(model.id)
+
+    @staticmethod
+    def _attempt_conflicts(model: TaskExecutionModel, record: TaskExecutionRecord) -> bool:
+        """Return whether an event belongs to a different execution attempt."""
+
+        if model.attempt_id == record.attempt_id:
+            return False
+        if model.attempt_id is None and record.attempt_id is None:
+            return False
+        if record.status is TaskStatus.STARTED and model.status in {
+            TaskStatus.PENDING.value,
+            TaskStatus.RETRY.value,
+        }:
+            return False
+        if (
+            record.status is TaskStatus.STARTED
+            and model.status == TaskStatus.STARTED.value
+            and record.retries > model.retries
+        ):
+            return False
+        return True
+
+    def save_if_attempt(
+        self,
+        record: TaskExecutionRecord,
+        *,
+        expected_attempt_id: str,
+    ) -> str | None:
+        """Persist an event only while its attempt still owns the task row."""
+
+        normalized_args = _to_json_compatible(record.args)
+        normalized_kwargs = _to_json_compatible(record.kwargs)
+        with transaction.atomic():
+            model = (
+                TaskExecutionModel.objects.select_for_update()
+                .filter(
+                    task_id=record.task_id,
+                    attempt_id=expected_attempt_id,
+                )
+                .first()
+            )
+            if model is None:
+                return None
+            model.status = record.status.value
+            model.args = normalized_args
+            model.kwargs = normalized_kwargs
+            model.finished_at = record.finished_at
+            model.result = _redact_evidence_text(record.result) if record.result else None
+            model.exception = (
+                _redact_evidence_text(record.exception, limit=2_000) if record.exception else None
+            )
+            model.traceback = _redact_evidence_text(record.traceback) if record.traceback else None
+            model.runtime_seconds = record.runtime_seconds
+            model.retries = record.retries
+            model.priority = record.priority.value
+            model.queue = record.queue
+            model.worker = record.worker
+            model.save()
+            return str(model.id)
 
     def get_by_task_id(self, task_id: str) -> TaskExecutionRecord | None:
         """根据任务 ID 获取记录"""
@@ -261,13 +368,19 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         task_id: str,
         result: str,
         expected_status: TaskStatus,
+        expected_attempt_id: str | None = None,
     ) -> bool:
         """Atomically update a task result without changing its execution state."""
 
-        updated_count = TaskExecutionModel.objects.filter(
-            task_id=task_id,
-            status=expected_status.value,
-        ).update(result=_redact_evidence_text(result))
+        filters: dict[str, str] = {
+            "task_id": task_id,
+            "status": expected_status.value,
+        }
+        if expected_attempt_id is not None:
+            filters["attempt_id"] = expected_attempt_id
+        updated_count = TaskExecutionModel.objects.filter(**filters).update(
+            result=_redact_evidence_text(result)
+        )
         return updated_count == 1
 
     def list_by_task_name(
@@ -427,6 +540,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
             priority=TaskPriority(model.priority),
             queue=model.queue,
             worker=model.worker,
+            attempt_id=model.attempt_id,
         )
 
 

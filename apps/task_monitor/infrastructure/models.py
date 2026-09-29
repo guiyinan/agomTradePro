@@ -4,7 +4,6 @@ Task Monitor Infrastructure Models
 Django ORM 模型定义。
 """
 
-
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -13,17 +12,15 @@ class TaskExecutionModel(models.Model):
     """任务执行记录模型"""
 
     # 任务基本信息
-    task_id = models.CharField(
-        max_length=255,
-        unique=True,
+    task_id = models.CharField(max_length=255, unique=True, db_index=True, verbose_name="任务ID")
+    attempt_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
         db_index=True,
-        verbose_name="任务ID"
+        verbose_name="执行尝试ID",
     )
-    task_name = models.CharField(
-        max_length=255,
-        db_index=True,
-        verbose_name="任务名称"
-    )
+    task_name = models.CharField(max_length=255, db_index=True, verbose_name="任务名称")
 
     # 任务状态
     STATUS_CHOICES = [
@@ -36,10 +33,7 @@ class TaskExecutionModel(models.Model):
         ("timeout", "超时"),
     ]
     status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        db_index=True,
-        verbose_name="状态"
+        max_length=20, choices=STATUS_CHOICES, db_index=True, verbose_name="状态"
     )
 
     # 任务参数
@@ -47,17 +41,8 @@ class TaskExecutionModel(models.Model):
     kwargs = models.JSONField(default=dict, verbose_name="关键字参数")
 
     # 时间信息
-    started_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        verbose_name="开始时间"
-    )
-    finished_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name="完成时间"
-    )
+    started_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name="开始时间")
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="完成时间")
 
     # 执行结果
     result = models.TextField(null=True, blank=True, verbose_name="执行结果")
@@ -65,11 +50,7 @@ class TaskExecutionModel(models.Model):
     traceback = models.TextField(null=True, blank=True, verbose_name="堆栈跟踪")
 
     # 性能指标
-    runtime_seconds = models.FloatField(
-        null=True,
-        blank=True,
-        verbose_name="运行时长(秒)"
-    )
+    runtime_seconds = models.FloatField(null=True, blank=True, verbose_name="运行时长(秒)")
 
     # 重试信息
     retries = models.IntegerField(default=0, verbose_name="重试次数")
@@ -82,36 +63,16 @@ class TaskExecutionModel(models.Model):
         ("critical", "紧急"),
     ]
     priority = models.CharField(
-        max_length=20,
-        choices=PRIORITY_CHOICES,
-        default="normal",
-        verbose_name="优先级"
+        max_length=20, choices=PRIORITY_CHOICES, default="normal", verbose_name="优先级"
     )
-    queue = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        verbose_name="队列名称"
-    )
+    queue = models.CharField(max_length=100, null=True, blank=True, verbose_name="队列名称")
 
     # Worker 信息
-    worker = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        verbose_name="Worker 名称"
-    )
+    worker = models.CharField(max_length=100, null=True, blank=True, verbose_name="Worker 名称")
 
     # 创建时间
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        verbose_name="创建时间"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name="更新时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
         verbose_name = "任务执行记录"
@@ -133,9 +94,7 @@ class TaskExecutionModel(models.Model):
 
             # 自动计算运行时长
             if not self.runtime_seconds:
-                self.runtime_seconds = (
-                    self.finished_at - self.started_at
-                ).total_seconds()
+                self.runtime_seconds = (self.finished_at - self.started_at).total_seconds()
 
 
 class TaskAlertModel(models.Model):
@@ -148,10 +107,7 @@ class TaskAlertModel(models.Model):
         ("critical", "严重"),
     ]
     level = models.CharField(
-        max_length=20,
-        choices=LEVEL_CHOICES,
-        db_index=True,
-        verbose_name="告警级别"
+        max_length=20, choices=LEVEL_CHOICES, db_index=True, verbose_name="告警级别"
     )
 
     # 任务信息
@@ -173,11 +129,7 @@ class TaskAlertModel(models.Model):
     metadata = models.JSONField(default=dict, verbose_name="元数据")
 
     # 时间信息
-    triggered_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        verbose_name="触发时间"
-    )
+    triggered_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="触发时间")
 
     class Meta:
         verbose_name = "任务告警记录"

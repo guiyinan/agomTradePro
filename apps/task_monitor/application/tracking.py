@@ -87,7 +87,27 @@ def record_current_task_progress(progress: TaskProgress) -> bool:
         task_id = getattr(request, "id", None)
         if not isinstance(task_id, str) or not task_id:
             return False
-        return record_task_progress(task_id=task_id, progress=progress)
+        attempt_id = getattr(request, "_task_monitor_attempt_id", None)
+        if not isinstance(attempt_id, str) or not attempt_id:
+            return record_task_progress(task_id=task_id, progress=progress)
+        repository = get_task_record_repository()
+        payload = _progress_payload(progress)
+        serialized = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        return (
+            repository.update_result_if_status(
+                task_id=task_id,
+                result=serialized,
+                expected_status=TaskStatus.STARTED,
+                expected_attempt_id=attempt_id,
+            )
+            is True
+        )
     except Exception as exc:
         logger.info("Current task progress unavailable: error_type=%s", type(exc).__name__)
         return False

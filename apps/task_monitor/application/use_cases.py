@@ -103,7 +103,12 @@ class RecordTaskExecutionUseCase:
         self.repository = repository
         self.alert_channels = alert_channels or []
 
-    def execute(self, record: TaskExecutionRecord) -> str:
+    def execute(
+        self,
+        record: TaskExecutionRecord,
+        *,
+        expected_attempt_id: str | None = None,
+    ) -> str:
         """
         执行记录任务
 
@@ -113,7 +118,16 @@ class RecordTaskExecutionUseCase:
         Returns:
             str: 记录 ID
         """
-        record_id = self.repository.save(record)
+        if expected_attempt_id is None:
+            record_id = self.repository.save(record)
+        else:
+            attempt_record_id = self.repository.save_if_attempt(
+                record,
+                expected_attempt_id=expected_attempt_id,
+            )
+            if attempt_record_id is None:
+                return ""
+            record_id = attempt_record_id
 
         # 如果任务失败，创建告警
         if record.status in [TaskStatus.FAILURE, TaskStatus.TIMEOUT]:

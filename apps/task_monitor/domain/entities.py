@@ -12,6 +12,7 @@ from typing import Any
 
 class TaskStatus(Enum):
     """任务状态枚举"""
+
     PENDING = "pending"
     STARTED = "started"
     SUCCESS = "success"
@@ -23,6 +24,7 @@ class TaskStatus(Enum):
 
 class TaskPriority(Enum):
     """任务优先级"""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -48,6 +50,7 @@ class TaskExecutionRecord:
     priority: TaskPriority
     queue: str | None
     worker: str | None
+    attempt_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
@@ -144,7 +147,9 @@ class TaskStatistics:
             "average_runtime": self.average_runtime,
             "success_rate": self.success_rate,
             "last_execution_status": self.last_execution_status.value,
-            "last_execution_at": self.last_execution_at.isoformat() if self.last_execution_at else None,
+            "last_execution_at": (
+                self.last_execution_at.isoformat() if self.last_execution_at else None
+            ),
         }
 
 
