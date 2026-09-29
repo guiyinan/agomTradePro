@@ -6732,8 +6732,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/init_scheduler_defaults.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:init_scheduler_defaults:line:726",
-      "locator": "line:726",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:init_scheduler_defaults:line:840",
+      "locator": "line:840",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "init_scheduler_defaults",
@@ -6742,8 +6742,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/dashboard/management/commands/setup_auto_advisor_weekly_report.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_auto_advisor_weekly_report:line:762",
-      "locator": "line:762",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_auto_advisor_weekly_report:line:876",
+      "locator": "line:876",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "adjacent_operational",
       "symbol": "setup_auto_advisor_weekly_report",
@@ -6752,8 +6752,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/data_center/management/commands/setup_decision_quote_refresh.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_decision_quote_refresh:line:748",
-      "locator": "line:748",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_decision_quote_refresh:line:862",
+      "locator": "line:862",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "active_public",
       "symbol": "setup_decision_quote_refresh",
@@ -6762,8 +6762,8 @@
     {
       "category": "management_command_edge",
       "evidence": "call_command resolves to apps/task_monitor/management/commands/setup_personal_readiness_daily.py",
-      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_personal_readiness_daily:line:755",
-      "locator": "line:755",
+      "id": "management_command_edge:apps/task_monitor/infrastructure/repositories.py:setup_personal_readiness_daily:line:869",
+      "locator": "line:869",
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "status": "adjacent_operational",
       "symbol": "setup_personal_readiness_daily",
