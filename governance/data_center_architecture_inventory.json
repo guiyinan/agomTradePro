@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5187,
+    "current_surface_references": 5193,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3679,6 +3679,36 @@
       "line": 377,
       "path": "apps/account/infrastructure/account_authentication_context_source_v3_repository.py",
       "text": "current_row, current = next_row, successor"
+    },
+    {
+      "line": 123,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Identity-safe comparison fields for one current authority observation.\"\"\""
+    },
+    {
+      "line": 216,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "raise TypeError(\"legacy_current must be an exact current authority observation\")"
+    },
+    {
+      "line": 257,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Restore current authority with the existing Application service graph.\"\"\""
+    },
+    {
+      "line": 354,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Bind one Application current-read use case.\"\"\""
+    },
+    {
+      "line": 362,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Execute current Evidence V5 validation without adding persistence rules.\"\"\""
+    },
+    {
+      "line": 560,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"\"\"Project one checked current result without exposing actor or account IDs.\"\"\""
     },
     {
       "line": 62,
