@@ -91,13 +91,13 @@ DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_strea
 BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
 _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
-_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=4800)
 _FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
+_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=6300)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
 
 
-@shared_task(name="data_center.refresh_full_market_publications", time_limit=4500, soft_time_limit=4200)  # type: ignore[misc]
+@shared_task(name="data_center.refresh_full_market_publications", time_limit=5700, soft_time_limit=5400)  # type: ignore[misc]
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,

@@ -611,6 +611,33 @@ CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_ACKS_LATE = True
 
+# Redis requeues late-acked messages after its visibility timeout.  Keep the
+# governed repository hard-limit ceiling and the broker timeout together so a
+# long-running task cannot become visible on another worker while it is still
+# executing.  The guard test scans every Application task and must be updated
+# if a new task raises the ceiling.
+CELERY_REPOSITORY_TASK_HARD_LIMIT = 5700
+CELERY_TASK_MAX_HARD_LIMIT = env.int(
+    "CELERY_TASK_MAX_HARD_LIMIT",
+    default=CELERY_REPOSITORY_TASK_HARD_LIMIT,
+)
+if CELERY_TASK_MAX_HARD_LIMIT < CELERY_REPOSITORY_TASK_HARD_LIMIT:
+    raise ValueError(
+        "CELERY_TASK_MAX_HARD_LIMIT cannot be lower than " "CELERY_REPOSITORY_TASK_HARD_LIMIT"
+    )
+CELERY_BROKER_VISIBILITY_TIMEOUT = env.int(
+    "CELERY_BROKER_VISIBILITY_TIMEOUT",
+    default=CELERY_TASK_MAX_HARD_LIMIT + 1500,
+)
+if CELERY_BROKER_VISIBILITY_TIMEOUT <= CELERY_TASK_MAX_HARD_LIMIT:
+    raise ValueError(
+        "CELERY_BROKER_VISIBILITY_TIMEOUT must be strictly greater than "
+        "CELERY_TASK_MAX_HARD_LIMIT"
+    )
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": CELERY_BROKER_VISIBILITY_TIMEOUT,
+}
+
 CELERY_TASK_DEFAULT_QUEUE = "celery"
 CELERY_TASK_QUEUES = (
     Queue("celery"),

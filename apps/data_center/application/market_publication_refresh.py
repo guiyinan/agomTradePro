@@ -174,12 +174,21 @@ def refresh_market_publications(
             phases[2]["failed"] = 1
             failed_phase = "publication"
             errors.append(str(getattr(exc, "code", "") or "MARKET_PUBLICATION_VALIDATION_FAILED"))
+            if isinstance(exc, MarketPublicationRefreshBlocked):
+                terminal_blocked = True
             logger.exception("Market publication validation failed for target_date=%s", as_of_date)
     elif codes and not terminal_blocked:
         failed += 1
         phases[2]["failed"] = 1
         errors.append("market_publication_skipped_incomplete_refresh")
-    outcome = "success" if published else "partial" if stored else "failed"
+    if terminal_blocked:
+        outcome = "partial" if stored else "blocked"
+    elif published:
+        outcome = "success"
+    elif stored:
+        outcome = "partial"
+    else:
+        outcome = "failed"
     result: dict[str, object] = {
         "outcome": outcome,
         "success": outcome == "success",
@@ -200,4 +209,6 @@ def refresh_market_publications(
     if errors:
         result["error_code"] = errors[0]
         result["blocked_reason"] = errors[0]
+    if terminal_blocked:
+        result["must_not_use_for_decision"] = True
     return result

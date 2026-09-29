@@ -192,6 +192,116 @@ def test_terminal_authority_block_stops_remaining_batches() -> None:
     ]
 
 
+def test_publication_authority_block_returns_normalized_partial_result() -> None:
+    """A final publication authority denial preserves fact counts and blocks current state."""
+
+    def blocked_publish(_codes: list[str]) -> int:
+        raise MarketPublicationRefreshBlocked(
+            "Audit authority is temporarily unavailable",
+            code="system_audit_authority_unavailable",
+        )
+
+    result = refresh_market_publications(
+        ports=MarketPublicationRefreshPorts(
+            list_codes=lambda: ["000001.SZ", "000002.SZ", "000003.SZ"],
+            sync_quotes=lambda codes: len(codes),
+            sync_valuations=lambda codes, _day: len(codes),
+            publish=blocked_publish,
+        ),
+        as_of_date=date(2026, 9, 18),
+        batch_size=2,
+    )
+
+    assert result["outcome"] == "partial"
+    assert result["phase"] == "publication"
+    assert result["requested"] == 5
+    assert result["succeeded"] == 4
+    assert result["failed"] == 1
+    assert result["stored"] == 6
+    assert result["error_code"] == "system_audit_authority_unavailable"
+    assert result["blocked_reason"] == "system_audit_authority_unavailable"
+    assert result["publication_updated"] is False
+    assert result["must_not_use_for_decision"] is True
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected_outcome"),
+    [(6, "partial"), (0, "blocked")],
+)
+def test_late_authority_latch_preserves_completed_fact_writes(
+    stored: int,
+    expected_outcome: str,
+) -> None:
+    """A late authority failure cannot erase completed write evidence."""
+
+    from apps.data_center.application.full_market_refresh_orchestration import (
+        apply_full_market_authority_block,
+    )
+
+    result = apply_full_market_authority_block(
+        {
+            "outcome": "failed",
+            "success": False,
+            "requested": 5,
+            "succeeded": 4,
+            "failed": 1,
+            "stored": stored,
+            "publication_updated": False,
+            "published_members": 0,
+        },
+        reason_code="system_audit_authority_unavailable",
+    )
+
+    assert result["outcome"] == expected_outcome
+    assert result["requested"] == 5
+    assert result["succeeded"] == 4
+    assert result["failed"] == 1
+    assert result["stored"] == stored
+    assert result["error_code"] == "system_audit_authority_unavailable"
+    assert result["blocked_reason"] == "system_audit_authority_unavailable"
+    assert result["must_not_use_for_decision"] is True
+
+
+@pytest.mark.parametrize(
+    ("reason_code", "expected_code"),
+    [
+        ("authority_unavailable", "system_audit_authority_unavailable"),
+        ("system_audit_authority_unavailable", "system_audit_authority_unavailable"),
+    ],
+)
+def test_publication_composition_maps_audit_authority_error_to_data_center_block(
+    monkeypatch,
+    reason_code: str,
+    expected_code: str,
+) -> None:
+    """The Data Center composition root exposes a stable domain-facing exception."""
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+    from apps.data_center import publication_rebuild_composition
+
+    monkeypatch.setattr(
+        publication_rebuild_composition,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_: (_ for _ in ()).throw(
+            SystemAuditCompositionUnavailable(
+                "authority unavailable",
+                reason_code=reason_code,
+            )
+        ),
+    )
+    coordinator = publication_rebuild_composition.build_current_publication_rebuild(
+        dataset_keys=("equity.quote.snapshot",)
+    )
+
+    with pytest.raises(MarketPublicationRefreshBlocked) as caught:
+        coordinator.execute(
+            asset_codes=["000001.SZ"],
+            published_at=datetime(2026, 9, 18, 8, tzinfo=UTC),
+        )
+
+    assert caught.value.code == expected_code
+
+
 def test_authority_revalidation_retries_transient_unavailability(
     monkeypatch,
     _patch_current_authority,
@@ -832,6 +942,85 @@ def test_task_calendar_unavailable_is_blocked(monkeypatch):
     assert result["stored"] == 0
 
 
+def test_task_reports_normalized_publication_authority_block(monkeypatch) -> None:
+    """Publication authority loss remains a serialized partial business result."""
+
+    from apps.data_center.application import market_publication_refresh, public, tasks
+
+    provider_ids = {"tushare": 3, "akshare": 7}
+    active_codes = ["000001.SZ", "600000.SH"]
+    target_date = date(2026, 9, 18)
+    observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", provider_ids.get)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: target_date)
+    monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: active_codes)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_quote_use_case",
+        lambda: _prefetched_quote_sync(
+            lambda *_args, **_kwargs: SimpleNamespace(
+                stored_count=len(active_codes),
+                stored_asset_codes=tuple(active_codes),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda **_kwargs: SimpleNamespace(
+                stored_count=len(active_codes),
+                succeeded_asset_codes=tuple(active_codes),
+                returned_asset_codes=tuple(active_codes),
+            )
+        ),
+    )
+    datasets = [
+        SimpleNamespace(
+            dataset_key=key,
+            ready=True,
+            oldest_observed_at=observed,
+            newest_observed_at=observed,
+        )
+        for key in ("equity.quote.snapshot", "equity.valuation.fact")
+    ]
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(
+            preview=lambda **_: SimpleNamespace(datasets=datasets),
+            execute=lambda **_: (_ for _ in ()).throw(
+                MarketPublicationRefreshBlocked(
+                    code="system_audit_authority_unavailable",
+                )
+            ),
+        ),
+    )
+    monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
+    monkeypatch.setattr(
+        market_publication_refresh,
+        "refresh_market_price_inputs",
+        lambda *_args: (),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert result["outcome"] == "partial"
+    assert result["phase"] == "publication"
+    assert result["error_code"] == "system_audit_authority_unavailable"
+    assert result["blocked_reason"] == "system_audit_authority_unavailable"
+    assert result["publication_updated"] is False
+    assert result["requested"] == len(active_codes)
+    assert result["succeeded"] == len(active_codes)
+    assert result["failed"] == 0
+    assert result["stored"] == len(active_codes) * 2
+    assert result["operation_requested"] == 3
+    assert result["operation_succeeded"] == 2
+    assert result["operation_failed"] == 1
+    assert result["must_not_use_for_decision"] is True
+
+
 def test_task_blocks_without_current_authority_before_provider_access(monkeypatch):
     """Scheduled market writes require the canonical current Audit authority."""
 
@@ -873,9 +1062,9 @@ def test_task_blocks_authority_window_shorter_than_task_budget(
 
     from apps.data_center.application import tasks
 
-    assert tasks.refresh_full_market_publications_task.time_limit == 4500
-    assert tasks.refresh_full_market_publications_task.soft_time_limit == 4200
-    _patch_current_authority.authority_valid_until = datetime.now(UTC) + timedelta(seconds=4799)
+    assert tasks.refresh_full_market_publications_task.time_limit == 5700
+    assert tasks.refresh_full_market_publications_task.soft_time_limit == 5400
+    _patch_current_authority.authority_valid_until = datetime.now(UTC) + timedelta(seconds=6299)
     monkeypatch.setattr(
         tasks,
         "get_active_provider_id_by_source",

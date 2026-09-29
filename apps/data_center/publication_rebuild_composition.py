@@ -9,6 +9,9 @@ from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
     CurrentPublicationRebuildUseCase,
 )
+from apps.data_center.application.market_publication_refresh import (
+    MarketPublicationRefreshBlocked,
+)
 from apps.data_center.financial_source_time_composition import (
     verify_retained_financial_source_time_evidence,
 )
@@ -23,6 +26,7 @@ from apps.data_center.infrastructure.repositories import (
     ValuationFactRepository,
 )
 from core.integration.data_center_audit import (
+    SystemAuditCompositionUnavailable,
     preflight_data_reliability_audit_runtime,
 )
 
@@ -37,11 +41,22 @@ def build_current_publication_rebuild(
     def preflight_current_authority(as_of: datetime) -> None:
         """Require exact current authority before the publication transaction."""
 
-        preflight_data_reliability_audit_runtime(
-            environment="production",
-            using="default",
-            as_of=as_of,
-        )
+        try:
+            preflight_data_reliability_audit_runtime(
+                environment="production",
+                using="default",
+                as_of=as_of,
+            )
+        except SystemAuditCompositionUnavailable as exc:
+            reason_code = exc.reason_code.strip().lower() or "authority_unavailable"
+            error_code = (
+                reason_code
+                if reason_code.startswith("system_audit_")
+                else f"system_audit_{reason_code}"
+            )
+            raise MarketPublicationRefreshBlocked(
+                code=error_code,
+            ) from exc
 
     publication_repository = CanonicalPublicationRepository()
     policy_repository = PublicationPolicyRepository()

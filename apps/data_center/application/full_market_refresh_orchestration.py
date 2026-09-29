@@ -103,6 +103,31 @@ class FullMarketRefreshDependencies:
     refresh_market_publications: _MarketPublicationsRefresh
 
 
+def apply_full_market_authority_block(
+    result: dict[str, object],
+    *,
+    reason_code: str,
+) -> dict[str, object]:
+    """Preserve completed writes when late authority loss blocks publication."""
+
+    stored = result.get("stored")
+    has_stored_facts = isinstance(stored, int) and not isinstance(stored, bool) and stored > 0
+    return {
+        **result,
+        "outcome": (
+            TaskBusinessOutcome.PARTIAL.value
+            if has_stored_facts
+            else TaskBusinessOutcome.BLOCKED.value
+        ),
+        "success": False,
+        "must_not_use_for_decision": True,
+        "blocked_reason": reason_code,
+        "error_code": reason_code,
+        "publication_updated": False,
+        "published_members": 0,
+    }
+
+
 def run_full_market_publication_refresh(
     source: str | None = None,
     batch_size: int = 100,
@@ -903,16 +928,10 @@ def run_full_market_publication_refresh(
             excluded_non_trading_codes=excluded_non_trading_codes,
         )
     if not authority_latch.current:
-        return {
-            **result,
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "success": False,
-            "must_not_use_for_decision": True,
-            "blocked_reason": authority_latch.reason_code,
-            "error_code": authority_latch.reason_code,
-            "publication_updated": False,
-            "published_members": 0,
-        }
+        return apply_full_market_authority_block(
+            result,
+            reason_code=authority_latch.reason_code,
+        )
     return market_task.finalize_full_market_result(
         result=result,
         price_evidence=price_evidence,

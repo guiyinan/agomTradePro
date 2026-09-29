@@ -5045,7 +5045,7 @@
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
           "universe_hash is required when offset is nonzero",
-          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=4800)",
+          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=6300)",
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
