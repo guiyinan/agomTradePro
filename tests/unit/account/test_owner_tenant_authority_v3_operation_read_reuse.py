@@ -146,7 +146,9 @@ def test_nested_evidence_facade_keeps_the_outer_operation_phase(
 
     monkeypatch.setattr(evidence_composition, "transaction", SimpleNamespace(atomic=atomic))
     monkeypatch.setattr(
-        evidence_composition, "lock_account_owner_assignment_evidence_v5_sources", lock_sources
+        evidence_composition,
+        "lock_account_owner_assignment_evidence_v5_sources_for_read",
+        lock_sources,
     )
     facade = evidence_composition.AccountOwnerAssignmentEvidenceV5Facade(
         using="authority-v3",
@@ -156,7 +158,10 @@ def test_nested_evidence_facade_keeps_the_outer_operation_phase(
         exact=cast(object, object()),
         current=cast(object, object()),
         physical_row_provider=cast(
-            object, SimpleNamespace(lock_current_sources=lambda: physical_locks.append("physical"))
+            object,
+            SimpleNamespace(
+                lock_current_sources_for_read=lambda: physical_locks.append("physical")
+            ),
         ),
         repository=cast(DjangoAccountOwnerAssignmentEvidenceV5Repository, object()),
         read_context=context,
@@ -164,8 +169,8 @@ def test_nested_evidence_facade_keeps_the_outer_operation_phase(
     cutoff = datetime(2026, 8, 30, 11, tzinfo=UTC)
 
     with context.phase():
-        first = facade._locked(lambda: probe.read(cutoff=cutoff))
-        second = facade._locked(lambda: probe.read(cutoff=cutoff))
+        first = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=True)
+        second = facade._locked(lambda: probe.read(cutoff=cutoff), read_only=True)
 
     assert second is first
     assert probe.calls == 1

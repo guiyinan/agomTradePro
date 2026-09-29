@@ -38,6 +38,7 @@ from apps.account.infrastructure.owner_tenant_authority_v3_models import (
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
+    lock_owner_tenant_authority_v3_sources_for_read,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -483,6 +484,56 @@ def test_append_only_guards_and_source_lock_isolation(owner_alias, monkeypatch):
             _append_owner(repository, record)
 
 
+def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owner_alias):
+    """Allow concurrent authority reads while keeping mutation fail-closed."""
+
+    competing = "evid07_owner_v3_read_competing"
+    assert competing not in connections.databases
+    connections.databases[competing] = deepcopy(connections.databases[owner_alias])
+    try:
+        with transaction.atomic(using=owner_alias):
+            lock_owner_tenant_authority_v3_sources_for_read(
+                using=owner_alias,
+                policy_id="policy-concurrent-read",
+            )
+            with transaction.atomic(using=competing):
+                lock_owner_tenant_authority_v3_sources_for_read(
+                    using=competing,
+                    policy_id="policy-concurrent-read",
+                )
+            with transaction.atomic(using=competing):
+                with pytest.raises(OwnerTenantAuthorityV3Unavailable):
+                    lock_owner_tenant_authority_v3_sources(
+                        using=competing,
+                        policy_id="policy-concurrent-read",
+                    )
+            with transaction.atomic(using=competing):
+                with pytest.raises(OwnerTenantAuthorityV3Unavailable):
+                    lock_owner_tenant_authority_v3_sources(
+                        using=competing,
+                        policy_id="policy-table-lock-conflict",
+                    )
+        with transaction.atomic(using=owner_alias):
+            lock_owner_tenant_authority_v3_sources(
+                using=owner_alias,
+                policy_id="policy-concurrent-read",
+            )
+            with transaction.atomic(using=competing):
+                with pytest.raises(OwnerTenantAuthorityV3Unavailable):
+                    lock_owner_tenant_authority_v3_sources_for_read(
+                        using=competing,
+                        policy_id="policy-table-lock-conflict",
+                    )
+        with transaction.atomic(using=competing):
+            lock_owner_tenant_authority_v3_sources_for_read(
+                using=competing,
+                policy_id="policy-concurrent-read",
+            )
+    finally:
+        connections[competing].close()
+        connections.databases.pop(competing)
+
+
 def test_competing_decision_writer_and_parent_row_lock_fail_then_retry(owner_alias, monkeypatch):
     record = _owner_seed(owner_alias, monkeypatch)
     repository = DjangoOwnerTenantAuthorityV3Repository(using=owner_alias)
@@ -507,8 +558,8 @@ def test_competing_decision_writer_and_parent_row_lock_fail_then_retry(owner_ali
         connections.databases.pop(competing)
 
 
-def test_current_source_lock_blocks_competing_simulated_successor(owner_alias):
-    """Keep cached Account projections bound to one stable simulated source head."""
+def test_current_source_read_lock_allows_readers_and_blocks_simulated_successor(owner_alias):
+    """Allow concurrent source reads while blocking a competing successor."""
 
     root = _simulated_source()
     successor = _simulated_source(
@@ -531,7 +582,9 @@ def test_current_source_lock_blocks_competing_simulated_successor(owner_alias):
     try:
         other = DjangoSimulatedAccountRowSourceV2Repository(using=competing)
         with transaction.atomic(using=owner_alias):
-            repository.lock_current_sources()
+            repository.lock_current_sources_for_read()
+            with transaction.atomic(using=competing):
+                other.lock_current_sources_for_read()
             with pytest.raises(DatabaseError) as blocked:
                 with other.atomic():
                     with connections[competing].cursor() as cursor:

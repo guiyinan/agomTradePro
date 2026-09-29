@@ -69,6 +69,7 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
     lock_account_owner_assignment_evidence_v5_sources,
+    lock_account_owner_assignment_evidence_v5_sources_for_read,
 )
 from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_repository import (
     DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository,
@@ -144,7 +145,7 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         if type(command) is not ApproveAccountOwnerAssignmentEvidenceV5Command:
             raise TypeError("command must be an exact Evidence V5 approve command")
         command.__post_init__()
-        return self._locked(lambda: self._approve.execute(command))
+        return self._locked(lambda: self._approve.execute(command), read_only=False)
 
     def get_exact(
         self, command: GetExactAccountOwnerAssignmentEvidenceV5Command
@@ -164,10 +165,10 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         if type(command) is not GetCurrentAccountOwnerAssignmentEvidenceV5Command:
             raise TypeError("command must be an exact Evidence V5 current command")
         command.__post_init__()
-        return self._locked(lambda: self._current.execute(command))
+        return self._locked(lambda: self._current.execute(command), read_only=True)
 
     @validation_graph_operation
-    def _locked(self, operation: Callable[[], _ReturnT]) -> _ReturnT:
+    def _locked(self, operation: Callable[[], _ReturnT], *, read_only: bool) -> _ReturnT:
         """Run one current operation under ordered source locks and actor UOW."""
 
         self._ensure_postgresql()
@@ -180,16 +181,21 @@ class AccountOwnerAssignmentEvidenceV5Facade:
         try:
             with nullcontext() if reuse_owned_phase else suspend_immutable_read_reuse():
                 with transaction.atomic(using=self._using):
-                    lock_account_owner_assignment_evidence_v5_sources(
-                        using=self._using,
-                        policy_id=self._policy_id,
+                    source_locker = (
+                        lock_account_owner_assignment_evidence_v5_sources_for_read
+                        if read_only
+                        else lock_account_owner_assignment_evidence_v5_sources
                     )
-                    self._physical_row_provider.lock_current_sources()
+                    source_locker(using=self._using, policy_id=self._policy_id)
+                    if read_only:
+                        self._physical_row_provider.lock_current_sources_for_read()
+                    else:
+                        self._physical_row_provider.lock_current_sources()
                     with nullcontext() if reuse_owned_phase else self._actors.atomic():
                         return operation()
         except (DatabaseError, PhysicalAccountRowObservationV2Unavailable) as error:
             raise AccountOwnerAssignmentEvidenceV5Unavailable(
-                "Evidence V5 write transaction is unavailable"
+                "Evidence V5 source transaction is unavailable"
             ) from error
 
     def _ensure_postgresql(self) -> None:
@@ -245,6 +251,13 @@ def build_account_owner_assignment_evidence_v5_facade(
     provider_locker = getattr(physical_row_provider, "lock_current_sources", None)
     if not callable(provider_locker):
         raise TypeError("physical row provider must expose lock_current_sources")
+    provider_read_locker = getattr(
+        physical_row_provider,
+        "lock_current_sources_for_read",
+        None,
+    )
+    if not callable(provider_read_locker):
+        raise TypeError("physical row provider must expose lock_current_sources_for_read")
 
     actors = (
         actors

@@ -226,7 +226,12 @@ class _FakePhysicalProvider:
     def lock_current_sources(self) -> None:
         """Record the required same-alias source lock."""
 
-        self._events.append("physical")
+        self._events.append("physical-write")
+
+    def lock_current_sources_for_read(self) -> None:
+        """Record a concurrent-safe source read lock."""
+
+        self._events.append("physical-read")
 
 
 class _FakeUseCase:
@@ -264,9 +269,19 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
         assert policy_id == "policy-42"
         events.append("lock")
 
+    def lock_sources_for_read(*, using: str, policy_id: str) -> None:
+        assert using == "evidence-v5"
+        assert policy_id == "policy-42"
+        events.append("lock-read")
+
     monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
     monkeypatch.setattr(
         composition, "lock_account_owner_assignment_evidence_v5_sources", lock_sources
+    )
+    monkeypatch.setattr(
+        composition,
+        "lock_account_owner_assignment_evidence_v5_sources_for_read",
+        lock_sources_for_read,
     )
     provider = _FakePhysicalProvider(events)
 
@@ -296,7 +311,7 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
     assert events == [
         "outer.enter",
         "lock",
-        "physical",
+        "physical-write",
         "actors.enter",
         "approve",
         "actors.exit",
@@ -307,8 +322,8 @@ def test_facade_orders_outer_transaction_lock_actor_uow_and_leaves_exact_unlocke
     assert facade.get_current(_current_command()) == "current"
     assert events == [
         "outer.enter",
-        "lock",
-        "physical",
+        "lock-read",
+        "physical-read",
         "actors.enter",
         "current",
         "actors.exit",

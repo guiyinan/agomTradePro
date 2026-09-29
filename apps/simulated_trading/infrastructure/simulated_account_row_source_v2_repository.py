@@ -85,7 +85,20 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         return f"django:{self._using}"
 
     def lock_current_sources(self) -> None:
-        """Stabilize the source ledger inside an active PostgreSQL transaction."""
+        """Exclusively stabilize the source ledger for a mutation transaction."""
+
+        self._lock_current_sources(mode="EXCLUSIVE")
+
+    def lock_current_sources_for_read(self) -> None:
+        """Stabilize the source ledger while allowing concurrent readers."""
+
+        self._lock_current_sources(mode="SHARE")
+
+    def _lock_current_sources(self, *, mode: str) -> None:
+        """Acquire the selected validated PostgreSQL table lock mode."""
+
+        if mode not in {"EXCLUSIVE", "SHARE"}:
+            raise ValueError("unsupported simulated source lock mode")
 
         try:
             connection = connections[self._using]
@@ -104,7 +117,7 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         try:
             table = connection.ops.quote_name(SimulatedAccountRowSourceV2Model._meta.db_table)
             with connection.cursor() as cursor:
-                cursor.execute(f"LOCK TABLE {table} IN EXCLUSIVE MODE NOWAIT")
+                cursor.execute(f"LOCK TABLE {table} IN {mode} MODE NOWAIT")
         except DatabaseError as error:
             raise DjangoSimulatedAccountRowSourceV2Unavailable(
                 "simulated account-row source v2 lock is unavailable"

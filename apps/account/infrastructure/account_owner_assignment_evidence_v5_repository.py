@@ -690,12 +690,37 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
 
 
 def lock_account_owner_assignment_evidence_v5_sources(*, using: str, policy_id: str) -> None:
-    """Stabilize all sources before Application reads in an existing same-alias transaction.
+    """Exclusively stabilize all sources for a mutation transaction.
 
     The original policy writer key is acquired before deterministic whole-ledger
     table locks. EXCLUSIVE excludes both mutation and competing FOR UPDATE;
     NOWAIT prevents reverse-order lock cycles with legacy writers.
     """
+
+    _lock_account_owner_assignment_evidence_v5_sources(
+        using=using,
+        policy_id=policy_id,
+        read_only=False,
+    )
+
+
+def lock_account_owner_assignment_evidence_v5_sources_for_read(
+    *, using: str, policy_id: str
+) -> None:
+    """Stabilize all sources while allowing concurrent immutable readers."""
+
+    _lock_account_owner_assignment_evidence_v5_sources(
+        using=using,
+        policy_id=policy_id,
+        read_only=True,
+    )
+
+
+def _lock_account_owner_assignment_evidence_v5_sources(
+    *, using: str, policy_id: str, read_only: bool
+) -> None:
+    """Acquire compatible read locks or exclusive mutation locks in one order."""
+
     _selectors(using, policy_id)
     try:
         connection = connections[using]
@@ -716,9 +741,15 @@ def lock_account_owner_assignment_evidence_v5_sources(*, using: str, policy_id: 
             cursor.execute("SHOW transaction_isolation")
             if cursor.fetchone() != ("read committed",):
                 raise AccountOwnerAssignmentEvidenceV5Unavailable(
-                    "assignment writes require READ COMMITTED"
+                    "assignment source locks require READ COMMITTED"
                 )
-            cursor.execute("SELECT pg_try_advisory_xact_lock(hashtextextended(%s, 0))", [policy_id])
+            advisory_lock = (
+                "pg_try_advisory_xact_lock_shared" if read_only else "pg_try_advisory_xact_lock"
+            )
+            cursor.execute(
+                f"SELECT {advisory_lock}(hashtextextended(%s, 0))",
+                [policy_id],
+            )
             if cursor.fetchone() != (True,):
                 raise AccountOwnerAssignmentEvidenceV5Unavailable(
                     "assignment policy writer is busy"
@@ -726,7 +757,8 @@ def lock_account_owner_assignment_evidence_v5_sources(*, using: str, policy_id: 
             tables = sorted(
                 connection.ops.quote_name(model._meta.db_table) for model in _LOCK_MODELS
             )
-            cursor.execute(f"LOCK TABLE {', '.join(tables)} IN EXCLUSIVE MODE NOWAIT")
+            mode = "SHARE" if read_only else "EXCLUSIVE"
+            cursor.execute(f"LOCK TABLE {', '.join(tables)} IN {mode} MODE NOWAIT")
     except DatabaseError as error:
         raise AccountOwnerAssignmentEvidenceV5Unavailable(
             "assignment source locks unavailable"

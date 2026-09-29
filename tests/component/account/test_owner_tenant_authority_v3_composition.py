@@ -304,6 +304,7 @@ def _facade(
             service or _FakeService(events),
         ),
         lock_current_physical_sources=lambda: events.append("lock-physical"),
+        lock_current_physical_sources_for_read=lambda: events.append("lock-physical-read"),
     )
 
 
@@ -606,8 +607,20 @@ def test_facade_orders_v5_v3_lock_then_actor_uow_for_every_operation(
         assert policy_id == "policy-42"
         events.append("lock-v5-v3")
 
+    def lock_sources_for_read(*, using: str, policy_id: str) -> None:
+        """Record the compatible current-read source lock."""
+
+        assert using == "authority-v3"
+        assert policy_id == "policy-42"
+        events.append("lock-v5-v3-read")
+
     monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
     monkeypatch.setattr(composition, "lock_owner_tenant_authority_v3_sources", lock_sources)
+    monkeypatch.setattr(
+        composition,
+        "lock_owner_tenant_authority_v3_sources_for_read",
+        lock_sources_for_read,
+    )
     facade = _facade(events)
     command = cast(object, object())
 
@@ -634,9 +647,13 @@ def test_facade_orders_v5_v3_lock_then_actor_uow_for_every_operation(
         assert result == expected_result
         assert events == [
             "outer.enter",
-            "lock-v5-v3",
+            "lock-v5-v3-read" if expected_call in {"current", "exact"} else "lock-v5-v3",
             "actors.enter",
-            *(["lock-physical"] if expected_call in {"supersede", "successor", "current"} else []),
+            *(
+                ["lock-physical-read"]
+                if expected_call == "current"
+                else ["lock-physical"] if expected_call in {"supersede", "successor"} else []
+            ),
             expected_call,
             "actors.exit",
             "outer.exit",
@@ -661,7 +678,7 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
     monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
     monkeypatch.setattr(
         composition,
-        "lock_owner_tenant_authority_v3_sources",
+        "lock_owner_tenant_authority_v3_sources_for_read",
         lambda **kwargs: events.append("lock"),
     )
     now = datetime(2026, 8, 30, 11, tzinfo=UTC)
@@ -705,7 +722,7 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
     assert events == [
         "lock",
         "actors.enter",
-        "lock-physical",
+        "lock-physical-read",
         "phase.enter",
         "current",
         "phase.exit",
@@ -734,7 +751,7 @@ def test_with_current_rechecks_authority_authentication_and_source_projection(
     assert events == [
         "lock",
         "actors.enter",
-        "lock-physical",
+        "lock-physical-read",
         "phase.enter",
         "current",
         "phase.exit",
@@ -764,7 +781,7 @@ def test_facade_rolls_back_outer_context_and_rejects_non_postgresql_alias(
     monkeypatch.setattr(composition.transaction, "atomic", outer_atomic)
     monkeypatch.setattr(
         composition,
-        "lock_owner_tenant_authority_v3_sources",
+        "lock_owner_tenant_authority_v3_sources_for_read",
         lambda **kwargs: events.append("lock"),
     )
     facade = _facade(events)
@@ -777,7 +794,7 @@ def test_facade_rolls_back_outer_context_and_rejects_non_postgresql_alias(
         "outer.enter",
         "lock",
         "actors.enter",
-        "lock-physical",
+        "lock-physical-read",
         "current",
         "actors.rollback",
         "actors.exit",

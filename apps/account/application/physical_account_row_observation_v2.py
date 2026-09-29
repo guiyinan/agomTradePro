@@ -315,6 +315,11 @@ class ExactPhysicalSimulatedAccountRowV2Provider(Protocol):
 
         ...
 
+    def lock_current_sources_for_read(self) -> None:
+        """Stabilize current sources while allowing concurrent readers."""
+
+        ...
+
     def get_exact_final(
         self,
         *,

@@ -33,10 +33,20 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
         return self._repository.unit_of_work_key
 
     def lock_current_sources(self) -> None:
-        """Stabilize the provider-owned source ledger for a current read."""
+        """Exclusively stabilize the provider-owned source ledger for mutation."""
 
         try:
             self._repository.lock_current_sources()
+        except SimulatedAccountRowSourceV2Unavailable as error:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "source-v2 ledger cannot be stabilized"
+            ) from error
+
+    def lock_current_sources_for_read(self) -> None:
+        """Stabilize the provider source while allowing concurrent readers."""
+
+        try:
+            self._repository.lock_current_sources_for_read()
         except SimulatedAccountRowSourceV2Unavailable as error:
             raise PhysicalAccountRowObservationV2Unavailable(
                 "source-v2 ledger cannot be stabilized"

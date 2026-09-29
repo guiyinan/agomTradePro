@@ -82,6 +82,7 @@ from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
     lock_owner_tenant_authority_v3_sources,
+    lock_owner_tenant_authority_v3_sources_for_read,
 )
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
@@ -143,6 +144,7 @@ class OwnerTenantAuthorityV3Facade:
         actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
         service: OwnerTenantAuthorityV3Service,
         lock_current_physical_sources: Callable[[], None],
+        lock_current_physical_sources_for_read: Callable[[], None],
     ) -> None:
         """Bind one database alias and the server-owned Authority V3 service."""
 
@@ -151,6 +153,7 @@ class OwnerTenantAuthorityV3Facade:
         self._actors = actors
         self._service = service
         self._lock_current_physical_sources = lock_current_physical_sources
+        self._lock_current_physical_sources_for_read = lock_current_physical_sources_for_read
 
     @property
     def unit_of_work_key(self) -> str:
@@ -165,7 +168,11 @@ class OwnerTenantAuthorityV3Facade:
         """Issue or replay one immutable Authority V3 root."""
 
         return self._locked(
-            lambda: self._with_current_physical_source_lock(lambda: self._service.issue(command))
+            lambda: self._with_current_physical_source_lock(
+                lambda: self._service.issue(command),
+                read_only=False,
+            ),
+            read_only=False,
         )
 
     def supersede(
@@ -176,8 +183,10 @@ class OwnerTenantAuthorityV3Facade:
 
         return self._locked(
             lambda: self._with_current_physical_source_lock(
-                lambda: self._service.supersede(command)
-            )
+                lambda: self._service.supersede(command),
+                read_only=False,
+            ),
+            read_only=False,
         )
 
     def successor(
@@ -188,8 +197,10 @@ class OwnerTenantAuthorityV3Facade:
 
         return self._locked(
             lambda: self._with_current_physical_source_lock(
-                lambda: self._service.successor(command)
-            )
+                lambda: self._service.successor(command),
+                read_only=False,
+            ),
+            read_only=False,
         )
 
     def get_current(
@@ -201,7 +212,10 @@ class OwnerTenantAuthorityV3Facade:
         def read_current() -> CurrentOwnerTenantAuthorityV3 | None:
             return self._service.get_current(command)
 
-        return self._locked(lambda: self._with_current_physical_source_lock(read_current))
+        return self._locked(
+            lambda: self._with_current_physical_source_lock(read_current, read_only=True),
+            read_only=True,
+        )
 
     def get_exact(
         self,
@@ -209,7 +223,7 @@ class OwnerTenantAuthorityV3Facade:
     ) -> OwnerTenantAuthorityV3 | None:
         """Return one immutable historical Authority V3 by exact selector."""
 
-        return self._locked(lambda: self._service.get_exact(command))
+        return self._locked(lambda: self._service.get_exact(command), read_only=True)
 
     def with_current(
         self,
@@ -228,7 +242,7 @@ class OwnerTenantAuthorityV3Facade:
             raise TypeError("operation must be callable")
 
         def read_current() -> _ReturnT | None:
-            self._lock_current_physical_sources()
+            self._lock_current_physical_sources_for_read()
             initial = self._service.get_current(command)
             if initial is None:
                 return None
@@ -248,7 +262,7 @@ class OwnerTenantAuthorityV3Facade:
                 return None
             return result
 
-        return self._locked(read_current)
+        return self._locked(read_current, read_only=True)
 
     def revoke(
         self,
@@ -256,20 +270,22 @@ class OwnerTenantAuthorityV3Facade:
     ) -> OwnerTenantAuthorityV3Revocation:
         """Append or replay one immutable Authority V3 revocation."""
 
-        return self._locked(lambda: self._service.revoke(command))
+        return self._locked(lambda: self._service.revoke(command), read_only=False)
 
     @validation_graph_operation
-    def _locked(self, operation: Callable[[], _ReturnT]) -> _ReturnT:
+    def _locked(self, operation: Callable[[], _ReturnT], *, read_only: bool) -> _ReturnT:
         """Run one operation under V5/V3 locks followed by actor capture UOW."""
 
         self._ensure_postgresql()
         try:
             with suspend_immutable_read_reuse():
                 with transaction.atomic(using=self._using):
-                    lock_owner_tenant_authority_v3_sources(
-                        using=self._using,
-                        policy_id=self._policy_id,
+                    source_locker = (
+                        lock_owner_tenant_authority_v3_sources_for_read
+                        if read_only
+                        else lock_owner_tenant_authority_v3_sources
                     )
+                    source_locker(using=self._using, policy_id=self._policy_id)
                     with self._actors.atomic():
                         return operation()
         except (
@@ -307,10 +323,15 @@ class OwnerTenantAuthorityV3Facade:
     def _with_current_physical_source_lock(
         self,
         operation: Callable[[], _ReturnT],
+        *,
+        read_only: bool,
     ) -> _ReturnT:
         """Run one current-Evidence operation after its physical source lock."""
 
-        self._lock_current_physical_sources()
+        if read_only:
+            self._lock_current_physical_sources_for_read()
+        else:
+            self._lock_current_physical_sources()
         return operation()
 
     def _ensure_postgresql(self) -> None:
@@ -361,6 +382,13 @@ def build_owner_tenant_authority_v3_facade(
     provider_locker = getattr(physical_row_provider, "lock_current_sources", None)
     if not callable(provider_locker):
         raise TypeError("physical row provider must expose lock_current_sources")
+    provider_read_locker = getattr(
+        physical_row_provider,
+        "lock_current_sources_for_read",
+        None,
+    )
+    if not callable(provider_read_locker):
+        raise TypeError("physical row provider must expose lock_current_sources_for_read")
 
     read_context = OwnerTenantAuthorityV3OperationReadContext(
         using=alias,
@@ -420,6 +448,7 @@ def build_owner_tenant_authority_v3_facade(
         actors=actors,
         service=service,
         lock_current_physical_sources=provider_locker,
+        lock_current_physical_sources_for_read=provider_read_locker,
     )
 
 

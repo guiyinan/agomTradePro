@@ -71,6 +71,7 @@ from apps.account.infrastructure.account_owner_assignment_actor_authority_source
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
     lock_account_owner_assignment_evidence_v5_sources,
+    lock_account_owner_assignment_evidence_v5_sources_for_read,
 )
 from apps.account.infrastructure.account_owner_assignment_v5_models import (
     AccountOwnerAssignmentEvidenceV5Model,
@@ -937,13 +938,33 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
 
 
 def lock_owner_tenant_authority_v3_sources(*, using: str, policy_id: str) -> None:
-    """Lock parent sources and both V3 ledgers in deterministic PostgreSQL order.
+    """Exclusively lock parent sources and both V3 ledgers for mutation.
 
     The caller must already be inside a transaction on ``using``.  Existing
     Evidence v5 locking is acquired first because its helper owns the parent
     lock order; the two new decision tables are then locked as the final
     append-only layer.
     """
+
+    _lock_owner_tenant_authority_v3_sources(
+        using=using,
+        policy_id=policy_id,
+        read_only=False,
+    )
+
+
+def lock_owner_tenant_authority_v3_sources_for_read(*, using: str, policy_id: str) -> None:
+    """Stabilize the Authority V3 graph while allowing concurrent readers."""
+
+    _lock_owner_tenant_authority_v3_sources(
+        using=using,
+        policy_id=policy_id,
+        read_only=True,
+    )
+
+
+def _lock_owner_tenant_authority_v3_sources(*, using: str, policy_id: str, read_only: bool) -> None:
+    """Acquire compatible read locks or exclusive mutation locks in one order."""
 
     if type(using) is not str or not using or using.strip() != using:
         raise OwnerTenantAuthorityV3Unavailable(
@@ -980,10 +1001,12 @@ def lock_owner_tenant_authority_v3_sources(*, using: str, policy_id: str) -> Non
                 raise OwnerTenantAuthorityV3Unavailable(
                     "owner tenant authority v3 locks require READ COMMITTED"
                 )
-        lock_account_owner_assignment_evidence_v5_sources(
-            using=using,
-            policy_id=policy_id,
+        parent_locker = (
+            lock_account_owner_assignment_evidence_v5_sources_for_read
+            if read_only
+            else lock_account_owner_assignment_evidence_v5_sources
         )
+        parent_locker(using=using, policy_id=policy_id)
         with connection.cursor() as cursor:
             table_names = sorted(
                 (
@@ -992,8 +1015,9 @@ def lock_owner_tenant_authority_v3_sources(*, using: str, policy_id: str) -> Non
                 )
             )
             for table_name in table_names:
+                mode = "SHARE" if read_only else "EXCLUSIVE"
                 cursor.execute(
-                    f"LOCK TABLE {connection.ops.quote_name(table_name)} IN EXCLUSIVE MODE NOWAIT"
+                    f"LOCK TABLE {connection.ops.quote_name(table_name)} IN {mode} MODE NOWAIT"
                 )
     except OwnerTenantAuthorityV3Unavailable:
         raise
@@ -1008,4 +1032,5 @@ __all__ = [
     "DjangoOwnerTenantAuthorityV3Repository",
     "OwnerTenantAuthorityV3Clock",
     "lock_owner_tenant_authority_v3_sources",
+    "lock_owner_tenant_authority_v3_sources_for_read",
 ]

@@ -61,7 +61,12 @@ class AccountSystemAuditOwnerTenantAuthorityV3Reader:
         provider_uow = getattr(self.physical_row_provider, "unit_of_work_key", None)
         if provider_uow != f"django:{self.database_alias}":
             raise ValueError("physical row provider must use the audit database alias")
-        for method in ("get_exact_final", "get_exact_current", "lock_current_sources"):
+        for method in (
+            "get_exact_final",
+            "get_exact_current",
+            "lock_current_sources",
+            "lock_current_sources_for_read",
+        ):
             if not callable(getattr(self.physical_row_provider, method, None)):
                 raise TypeError(f"physical row provider must expose {method}")
 

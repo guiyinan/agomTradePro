@@ -33,6 +33,9 @@ class _PhysicalProvider:
     def lock_current_sources(self) -> None:
         return None
 
+    def lock_current_sources_for_read(self) -> None:
+        return None
+
     def get_exact_final(self, **kwargs: object) -> None:
         return None
 
