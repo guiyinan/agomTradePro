@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-29.v185",
-  "updated_at": "2026-09-29",
+  "version": "2026-09-30.v186",
+  "updated_at": "2026-09-30",
   "execution_focus": {
     "unit_id": "DATA-18",
     "allowed_parallel_execution_modes": [
@@ -1425,7 +1425,7 @@
         "depends_on": [
           "AUD-05"
         ],
-        "exit_gate": "Complete the repository phases R1-R4 and S1-S6 in docs/plans/production-recovery-and-regression-remediation-2026-09-24.md with failing-first behavior evidence, appropriate SQLite/PostgreSQL and API/SDK/MCP/browser regression, unchanged safety thresholds, zero implicit business writes on reads, mandatory candidate-bound real-provider rehearsal validation and independent Luna max review. Report unavailable real-provider inputs explicitly; no mock-only rehearsal or skipped required check can satisfy the gate. Repository closure does not complete DATA-02, EVID/AUD or TUI production acceptance; real publication reconciliation and ordinary-user production UAT remain separate."
+        "exit_gate": "Complete the repository phases R1-R4 and S1-S6 in docs/plans/production-recovery-and-regression-remediation-2026-09-24.md with failing-first behavior evidence, appropriate SQLite/PostgreSQL and API/SDK/MCP/browser regression, unchanged safety thresholds, zero implicit business writes on reads, mandatory candidate-bound real-provider rehearsal validation and independent Luna max review. Audit authority migration must replace the 22-table global SHARE-lock decision path with a complete RR proof and short RC final fence; the fence must remain open through same-database publication/current-pointer/audit/outbox writes, reject cross-alias or generation drift, and pass the no-skip PostgreSQL concurrency matrix before old relation locks are removed. Partial root/revocation evidence cannot authorize production. Report unavailable real-provider inputs explicitly; no mock-only rehearsal or skipped required check can satisfy the gate. Repository closure does not complete DATA-02, EVID/AUD or TUI production acceptance; real publication reconciliation and ordinary-user production UAT remain separate."
       },
       {
         "id": "IDX-01",

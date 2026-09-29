@@ -1,9 +1,9 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-5.6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前集成基线为 `5678c6dae`；`0906f94e1`（任务 attempt 所有权）与 `02d11f952`（超时预算、Redis visibility、发布授权异常归一化）已提交但尚未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
+当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前已推送集成基线为 `91ad92e7326612f9ed880d8f77f5add736220b7d`；其中 `0906f94e1`（任务 attempt 所有权）、`02d11f952`（超时预算、Redis visibility、发布授权异常归一化）以及 `1660ee84f`、`1041591ef`、`1735bc7bd`、`91ad92e73`（authority generation/fence 基础、shadow scanner、治理投影）均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
-仓库集成单元：`DATA-18`；注册表 v180 将其登记为唯一 repository focus，三位子代理是该单元内的有界任务，不新增并行生产放行。
+仓库集成单元：`DATA-18`；注册表 `2026-09-30.v186` 将其登记为唯一 repository focus，Luna 子代理是该单元内的有界任务，不新增并行生产放行。
 
 ## 1. 完成标准与边界
 
@@ -285,6 +285,32 @@ advisory 与 SHARE relation read 应当兼容。同期 System Audit event/outbox
 但不能排除未进入 Task Monitor 的短事务、直接治理写入、连接/数据库异常或失败瞬间已经释放的锁。归档中
 “与受治理写入锁竞争路径一致”的表述只是一项事后推断，不能继续作为具体 blocker 的证明。
 
+#### 2026-09-30 生产只读锁与恢复状态复核
+
+1. 在 release `20260929110229` / SHA `6d9a134e410e8564432cdee3424975684b781e47`
+   上，以 `REPEATABLE READ READ ONLY` 事务采样。`2026-09-29T22:15:12Z` 的同一数据库快照中，
+   同时存在一个非探针 `idle in transaction` 会话，数据库仍持有运行时组合对应的 22 张
+   authority/source 表的已授予 `ShareLock`；首轮采集按 relation 和 session state 分别聚合，未保留 PID→relation
+   连接，因此不能把这 22 张锁事后归到一个具体 PID。探针没有执行 authority preflight、publication 或业务写入；
+   约 58 秒后的 `22:16:10Z` 复采中已没有活动事务，22 张 `ShareLock` 也全部释放。
+   这项生产现象与隔离 PostgreSQL 中“savepoint 内取得的关系锁持续到外层事务结束”的结果一致，直接支持
+   “全局关系锁粒度过大，并被外层事务放大锁寿命”的根因；采样没有观察到未授予锁或 publication 写者，
+   不能把历史失败归因于 preflight/publication 自竞争。
+2. 生产最近五次 `data_center.refresh_full_market_publications` 均为 `failure`，运行时间依次包含
+   `1.7951s`、`22.880788s`、`377.86416s`、`413.943629s`、`319.010601s`。生产表尚无
+   `attempt_id` 字段，Task Monitor 的 `result` 也为空，说明生产仍缺 attempt 所有权和规范业务 outcome 的
+   部署证据；仅凭 Celery/Task Monitor failure 不能区分 authority、provider、写入或 publication 阶段。
+3. 四个 `current/published` 指针仍未由失败任务推进：quote 为 `2026-09-24 08:15Z`、price bar 为
+   `2026-09-23 16:00Z`、valuation 为 `2026-09-24 07:00Z`、financial 为 `2026-04-29`；前三类各
+   5,557 成员，financial 为 80。所有 publication member 的 `source_published_at` 仍为空，当前证据不足以
+   证明正式发布满足新鲜度和来源时间契约。
+4. Alpha cache 已有六个账户范围的 `2026-09-29` / `qlib` / `available` 记录，因此“仍固定在
+   9 月 23 日”不再是当前生产事实；但账户完整覆盖、自然周期及工作台候选更新仍未联合验收。最新 policy
+   仍包含 `PX + pending_review + risk_impact=unknown`，Regime 最新观测仍停在 `2026-08-08`，不能把
+   health/readiness 或 Alpha 局部更新解释为决策链路已经恢复。
+
+脱敏只读回执：`docs/deployment/production-audit-lock-readonly-2026-09-30-6d9a134e4.json`。
+
 #### 类别修复方案与停止线
 
 1. **先恢复诊断因果链。** 在 provider/Application 边界保留公开稳定码和 fail-closed 行为，同时记录有界的
@@ -390,6 +416,32 @@ cutoff，scanner 也不改写这些 Application 的时序不变量。时钟越�
 本切片仍不授权把 scanner 接到 production decision path、部署、删除旧锁或发布。后续 Phase 2b 仍需另行设计并
 验证短 RC final fence、fence 内重读与同库 publication/audit/outbox 原子提交；此前 2a 的角色 ACL 和并发限制
 继续有效。
+
+#### Phase 2b-2 Authority V3 root/revocation final fence 基础切片
+
+新增一个明确标记为 partial、且没有 production composition 的 final revalidator。Shadow scan result 现在携带
+精确 database alias；finalizer 在打开 RR 事务前拒绝跨 alias 结果，避免不同数据库 generation 数值偶然相同而
+混用 proof。调用方只能取得实例内登记的 opaque handle；handle 禁止 pickle/copy、原子单次消费，失败同样消费，
+并有 128 个待消费 proof 的有界容量。该边界仍未证明 physical provider 没有伪报 alias 或跨物理连接。
+
+Capture 阶段在新的最外层 `REPEATABLE READ READ ONLY` 事务中先重读 generation，再只按精确 identity/hash
+读取已选 Authority V3 root、后继和 revocation。Final 阶段提供
+`with finalizer.fence(proof) as result:`：最外层 `READ COMMITTED READ WRITE` 事务首先对 generation singleton
+执行 `SELECT ... FOR UPDATE` 并比较 proof，随后使用数据库 `clock_timestamp()` 重读同一 selected root、后继、
+revocation 与 expiry；generation 行锁和事务保持到调用方退出 context。早期“revalidate 返回后再由调用方写入”
+的接口草案已被拒绝，因为它会在业务副作用前释放线性化点。
+
+本切片的结果 scope 固定为 `owner_tenant_authority_v3_root_revocation_only`，不能代表 Evidence V5 父图、actor、
+physical source 或完整 System Audit authority 仍然有效。它不调用旧 facade、closed-world reader、relation/advisory
+锁、provider 网络、publication、audit 或 outbox，也没有 production 调用点。将来接入时，依赖该结果的同库
+publication/current-pointer/audit/outbox 写入必须发生在 `fence` context 内；外部 provider fetch 和 publisher
+网络调用必须位于事务外。
+
+验证结果：finalizer + shadow 单测 `16 passed`；隔离 PostgreSQL 16 组件 `3 passed in 142.50s`，覆盖定向 SQL、
+RR 后 source 变化在任何 final row read 前被 generation 拒绝，以及 caller hook 运行时仍处于 atomic block、并发
+source writer 一直等待到 fence context 退出。Publication PostgreSQL workflow 增加独立 3-case 步骤、JUnit
+精确计数、no-skip/failure/error 断言和 artifact。增量 mypy、全仓 debt ceiling、Black、Ruff、架构扫描与
+module-map 检查通过后才允许提交该基础切片。
 
 本阶段仍不授权部署或重跑。旧 relation locks 和 Phase 1 双 policy locks 全部保留，业务 reader/publication
 尚未接入 proof/fence。生产运行角色 ACL 未核实，迁移不会盲目 REVOKE；可直接 UPDATE generation 或修改 trigger

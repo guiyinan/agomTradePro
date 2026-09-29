@@ -145,8 +145,9 @@ class AccountAuthorityShadowComparisonV3:
 
 @dataclass(frozen=True, slots=True)
 class AccountAuthorityShadowScanResultV3:
-    """Return the observed generation and redacted legacy/shadow comparison."""
+    """Bind the observed generation and comparison to the database alias."""
 
+    database_alias: str
     proof_generation: int
     comparison: AccountAuthorityShadowComparisonV3
 
@@ -246,6 +247,7 @@ class AccountAuthorityShadowScannerV3:
                     shadow_current.__post_init__()
 
         return AccountAuthorityShadowScanResultV3(
+            database_alias=self._using,
             proof_generation=proof.generation,
             comparison=_compare_current_observations(legacy_current, shadow_current),
         )

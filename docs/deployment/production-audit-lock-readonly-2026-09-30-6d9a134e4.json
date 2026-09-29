@@ -1,0 +1,160 @@
+{
+  "schema_version": "production-audit-lock-readonly.v1",
+  "environment": "production",
+  "collection_mode": "read_only",
+  "release": {
+    "release_id": "20260929110229",
+    "source_commit": "6d9a134e410e8564432cdee3424975684b781e47",
+    "image_id": "sha256:316849080cee63c12ec57a0d8c45b7ad9dcd2e4e27fcaffe97b931ca10068bc6"
+  },
+  "database_probe": {
+    "transaction_read_only": true,
+    "transaction_isolation": "repeatable read",
+    "first_observed_at": "2026-09-29T22:15:12.017602Z",
+    "first_snapshot": {
+      "idle_in_transaction_sessions": 1,
+      "relation_share_locks": [
+        "account_actor_authority_source_v3_ledger",
+        "account_actor_authority_source_v3_root_lock",
+        "account_allocated_physical_row_observation_v3_ledger",
+        "account_auth_context_source_v3_anchor",
+        "account_auth_context_source_v3_ledger",
+        "account_owner_assignment_evidence_v5_ledger",
+        "account_owner_assignment_provenance_receipt_v5_ledger",
+        "account_owner_assignment_subject_v5_ledger",
+        "account_owner_tenant_authority_v3_ledger",
+        "account_owner_tenant_authority_v3_revocation_ledger",
+        "account_physical_row_observation_v2_ledger",
+        "account_rbac_authority_source_v3_anchor",
+        "account_rbac_authority_source_v3_ledger",
+        "account_single_owner_authority_policy_v1",
+        "account_user_authority_source_v3_anchor",
+        "account_user_authority_source_v3_ledger",
+        "canonical_account_creation_allocation_ledger",
+        "canonical_account_creation_binding_ledger",
+        "canonical_account_creation_binding_v2_ledger",
+        "canonical_account_creation_consumption_claim_ledger",
+        "canonical_account_ownership_reobservation_v1_ledger",
+        "simulated_account_row_source_v2_ledger"
+      ],
+      "all_relation_share_locks_granted": true,
+      "ungranted_lock_observed": false,
+      "publication_writer_wait_observed": false,
+      "attribution_limit": "The first collector aggregated locks by relation and sessions by state. It proves the simultaneous idle-in-transaction session and exact 22-table lock footprint, but it did not retain the owning PID-to-relation join."
+    },
+    "second_observed_at": "2026-09-29T22:16:10.937696Z",
+    "second_snapshot": {
+      "active_transactions": 0,
+      "non_probe_sessions": 2,
+      "non_probe_session_states": [
+        "idle",
+        "idle"
+      ],
+      "non_probe_lock_count": 0,
+      "relation_share_lock_count": 0
+    }
+  },
+  "historical_failure": {
+    "task_id": "afc2775f-b91c-4ba7-8c88-48a58efba7a0",
+    "task_name": "data_center.refresh_full_market_publications",
+    "started_at": "2026-09-28T21:15:19.878286Z",
+    "finished_at": "2026-09-28T21:15:21.673436Z",
+    "runtime_seconds": 1.7951,
+    "task_monitor_status": "failure",
+    "business_outcome": "blocked",
+    "stage": "authority",
+    "stable_error_code": "system_audit_authority_unavailable",
+    "requested": 0,
+    "succeeded": 0,
+    "failed": 0,
+    "stored": 0,
+    "provider_accessed": false,
+    "market_fact_write_started": false,
+    "publication_started": false,
+    "exact_blocker_identity_retained": false
+  },
+  "latest_full_market_task_monitor_rows": [
+    {
+      "task_id": "89b521ed-76cd-4625-8f2f-2a6612982621",
+      "status": "failure",
+      "runtime_seconds": 319.010601,
+      "attempt_id": null,
+      "business_result_present": false
+    },
+    {
+      "task_id": "601b9f9d-e653-4b03-9fd0-d97a256e1604",
+      "status": "failure",
+      "runtime_seconds": 413.943629,
+      "attempt_id": null,
+      "business_result_present": false
+    },
+    {
+      "task_id": "d9fb88ac-d270-4841-ac1a-0686ccd0b8d2",
+      "status": "failure",
+      "runtime_seconds": 377.86416,
+      "attempt_id": null,
+      "business_result_present": false
+    },
+    {
+      "task_id": "d4f97dd1-93b4-4169-9056-f9d2ef788fd0",
+      "status": "failure",
+      "runtime_seconds": 22.880788,
+      "attempt_id": null,
+      "business_result_present": false
+    },
+    {
+      "task_id": "afc2775f-b91c-4ba7-8c88-48a58efba7a0",
+      "status": "failure",
+      "runtime_seconds": 1.7951,
+      "attempt_id": null,
+      "business_result_present": false
+    }
+  ],
+  "current_publications": {
+    "equity.quote.snapshot": {
+      "publication_id": "04cb3649-961b-5e88-b767-73aab5a6a646",
+      "as_of": "2026-09-24T08:15:00Z",
+      "member_count": 5557,
+      "members_with_source_published_at": 0
+    },
+    "equity.price.bar": {
+      "publication_id": "69a8760f-7321-5341-93dd-a109a3b0ed01",
+      "as_of": "2026-09-23T16:00:00Z",
+      "member_count": 5557,
+      "members_with_source_published_at": 0
+    },
+    "equity.valuation.fact": {
+      "publication_id": "0423a262-6b47-56e1-a8c1-5106a94854f8",
+      "as_of": "2026-09-24T07:00:00Z",
+      "member_count": 5557,
+      "members_with_source_published_at": 0
+    },
+    "equity.financial.fact": {
+      "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+      "as_of": "2026-04-29T00:00:00Z",
+      "member_count": 80,
+      "members_with_source_published_at": 0
+    }
+  },
+  "other_runtime_observations": {
+    "latest_alpha_asof_date": "2026-09-29",
+    "latest_alpha_provider_source": "qlib",
+    "latest_alpha_available_account_scopes_observed": 6,
+    "latest_policy_event_date": "2026-09-29",
+    "latest_policy_contains_px_pending_review": true,
+    "latest_regime_observed_at": "2026-08-08"
+  },
+  "root_cause_classification": {
+    "primary": "The legacy System Audit authority current read takes global SHARE NOWAIT relation locks across the 22-table runtime closure. When acquired inside a savepoint or nested atomic block, PostgreSQL retains them until the outer transaction ends, expanding unrelated writer conflicts beyond one selector.",
+    "preflight_publication_race": "A real TOCTOU risk exists when authority is checked before a later publication transaction, but the historical 1.7951-second failure ended at initial authority preflight before provider, writes, or publication. No publication writer or ungranted lock was observed in this read-only sample, so publication self-race is not the cause established for that failure.",
+    "remaining_forensics_limit": "The exact historical blocker PID, SQL and relation were not retained. Broad exception mapping collapsed relation-lock conflict, advisory-lock conflict, connection failure, decoding failure and genuinely non-current authority into one external code."
+  },
+  "side_effects": {
+    "database_write": false,
+    "http_post": false,
+    "task_enqueued": false,
+    "deployment": false,
+    "service_restart": false,
+    "token_or_session_created": false
+  }
+}

@@ -154,6 +154,10 @@
           "GetExactAccountAuthenticationContextSourceV3",
           "PersistedAccountAuthenticationContextSourceV3"
         ],
+        "application/account_authority_final_revalidation_v3_contracts.py": [
+          "AccountAuthorityV3FinalRootSelection",
+          "AccountAuthorityV3RootRevocationRevalidationRepository"
+        ],
         "application/account_identity_raw_source.py": [
           "AccountIdentityRawSourceActor",
           "AccountIdentityRawSourceConflict",
@@ -1010,9 +1014,9 @@
         ]
       },
       "layers": {
-        "application": 65,
+        "application": 66,
         "domain": 36,
-        "infrastructure": 136,
+        "infrastructure": 138,
         "interface": 24,
         "management": 14,
         "root": 22

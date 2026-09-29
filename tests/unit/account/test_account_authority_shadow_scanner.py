@@ -214,6 +214,7 @@ def test_shadow_proof_and_closed_world_reader_share_one_rr_transaction_without_w
 
     assert events.index("proof") < events.index("scan")
     assert current_reads == [(connection, True, "repeatable read", "on")]
+    assert result.database_alias == "default"
     assert result.proof_generation == 41
     assert result.comparison.matches is True
     assert result.comparison.differing_fields == ()
@@ -250,9 +251,7 @@ def test_shadow_rejects_legacy_authority_selector_mismatch_before_opening_transa
     selector_values[changed_index] = (
         "different-authority"
         if changed_selector == "authority_id"
-        else "different-version"
-        if changed_selector == "authority_version"
-        else "0" * 64
+        else "different-version" if changed_selector == "authority_version" else "0" * 64
     )
     command = GetCurrentOwnerTenantAuthorityV3Command(
         selector_values[0],

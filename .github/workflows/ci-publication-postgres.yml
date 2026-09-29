@@ -97,6 +97,15 @@ jobs:
           --ds=core.settings.development_sqlite
           --confcutdir=tests/component/account
           -q -o addopts='' --junitxml=account-authority-shadow-postgres.xml
+      - name: Exercise Account authority final revalidation fence
+        env:
+          AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+        run: >-
+          python -m pytest
+          tests/component/account/test_account_authority_final_revalidator_v3_postgres.py
+          --ds=core.settings.development_sqlite
+          --confcutdir=tests/component/account
+          -q -o addopts='' --junitxml=account-authority-final-revalidation-postgres.xml
       - name: Exercise real publication locks and frozen facts
         run: >-
           python -m pytest
@@ -131,6 +140,9 @@ jobs:
           shadow_cases = ElementTree.parse(
               'account-authority-shadow-postgres.xml'
           ).findall('.//testcase')
+          final_revalidation_cases = ElementTree.parse(
+              'account-authority-final-revalidation-postgres.xml'
+          ).findall('.//testcase')
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
@@ -138,12 +150,14 @@ jobs:
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 4, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
+          assert len(final_revalidation_cases) == 3, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
           cases = [
               *publication_cases,
               *authority_cases,
               *generation_cases,
               *shadow_cases,
+              *final_revalidation_cases,
               *control_plane_cases,
           ]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
@@ -159,5 +173,6 @@ jobs:
             authority-lock-postgres.xml
             account-authority-generation-postgres.xml
             account-authority-shadow-postgres.xml
+            account-authority-final-revalidation-postgres.xml
             backfill-control-plane-postgres.xml
           if-no-files-found: error
