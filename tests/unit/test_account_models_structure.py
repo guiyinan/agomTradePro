@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AGGREGATOR_MODULE = "apps.account.infrastructure.models"
 OWNER_MODULES = (
     "apps.account.infrastructure.account_actor_authority_raw_source_models_v3",
+    "apps.account.infrastructure.account_authority_generation_models",
     "apps.account.infrastructure.account_identity_raw_source_models",
     "apps.account.infrastructure.account_identity_snapshot_models",
     "apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_models",

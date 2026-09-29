@@ -65,8 +65,6 @@ _OWNER_MODULES: tuple[ModuleType, ...] = (
     _trading_config,
 )
 
-# Keep the compact runtime facade while exposing the same public model names
-# to static consumers (mypy cannot infer attributes created through globals()).
 if TYPE_CHECKING:
     from .account_actor_authority_raw_source_models_v3 import *  # noqa: F403
     from .account_authority_generation_models import *  # noqa: F403
