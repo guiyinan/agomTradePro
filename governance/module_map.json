@@ -4259,6 +4259,7 @@
         ],
         "application/full_market_refresh_orchestration.py": [
           "FullMarketRefreshDependencies",
+          "apply_full_market_authority_block",
           "run_full_market_publication_refresh"
         ],
         "application/full_market_task_support.py": [
