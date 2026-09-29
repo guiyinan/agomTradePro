@@ -359,6 +359,38 @@ trigger/singleton fail closed、多行与零行 DML 各加一、来源与 genera
 `1 passed in 43.54s`。增量 mypy 为零回退、全仓 debt ceiling 为零错误，module map 为 44 modules / 210 edges，
 entrypoint inventory 为 1,269 项且 `candidate-review=0`。CI 同 SHA 结果仍是本阶段提交后的独立门禁。
 
+#### Phase 2b-1 只读 shadow scanner 切片
+
+已新增独立的 `AccountAuthorityShadowScannerV3` 与 no-lock actor snapshot seam。调用方先完成 legacy
+preflight 并把它的结果作为 sole decision input；scanner 在完全相同的数据库 alias 上开启最外层 PostgreSQL
+`REPEATABLE READ READ ONLY` 事务，首先读取 generation proof，再恢复和验证完整 authority 闭世界。Actor bundle
+通过专用 seam 校验当前连接仍处于同一 RR/RO 事务，不调用旧 locked facade，也不执行 relation lock 或 scoped
+advisory lock。其余 authority、revocation、Evidence V5、actor、participant、physical source 与 expiry 校验复用
+现有 repository、Application use case 和 Domain validator。
+
+Physical provider 的 `unit_of_work_key` 目前只是构造器可检查的受信 composition 声明；scanner 无法证明实现没有
+伪报 alias 或跨到另一条物理连接。该连接身份边界尚未被强制，因此即使测试通过，scanner 仍不得接入 production
+decision path。
+
+Shadow 只返回 generation 与脱敏对比：opaque identity/content hashes、source identity digests 和有效期边界；不
+暴露账户或用户标识，不缓存跨事务结果，不取 RC final fence、不发布、不写 audit/outbox，也不改变旧 reader 与
+legacy preflight 的决策结果。新增单测覆盖 proof-before-scan、同事务 RR/RO、alias/事务模式 fail closed、禁止
+锁与写 SQL；opt-in PostgreSQL composition 契约则用真实闭世界和 Application service graph 覆盖嵌套 repository
+atomic/savepoint，并检查 generation 不变。在本地隔离 PostgreSQL 16、启用
+`AGOM_EVID06_POSTGRES_TEST=1` 后，该真实组合用例为 `1 passed in 169.88s`；PR 的 Publication PostgreSQL workflow
+也已把同一用例列为独立步骤，并要求 JUnit 恰好收集 1 项且不得 skip/fail/error。
+
+Legacy observation 在 shadow 事务之前产生，并使用自己的 root/actor/service 时钟读取。Shadow 先以
+`authority_repository.now()` 选择 provisional root，再以 `actor_repository.now()` 校验 actor；随后既有
+`OwnerTenantAuthorityV3Service.get_current()` 用自身 cutoff 重读 head，并依原有不变量多次调用
+`repository.now()` 检查 assignment、participant、physical source、revocation 与有效期。两次观察不共用
+cutoff，scanner 也不改写这些 Application 的时序不变量。时钟越界或 authority source 在两次观察之间变化可以
+造成差异；这些差异只作诊断并继续由 legacy 结果决定，不允许 scanner 将其改写成业务 allow/deny。
+
+本切片仍不授权把 scanner 接到 production decision path、部署、删除旧锁或发布。后续 Phase 2b 仍需另行设计并
+验证短 RC final fence、fence 内重读与同库 publication/audit/outbox 原子提交；此前 2a 的角色 ACL 和并发限制
+继续有效。
+
 本阶段仍不授权部署或重跑。旧 relation locks 和 Phase 1 双 policy locks 全部保留，业务 reader/publication
 尚未接入 proof/fence。生产运行角色 ACL 未核实，迁移不会盲目 REVOKE；可直接 UPDATE generation 或修改 trigger
 的 owner/superuser 仍是明确运维限制。PostgreSQL 在触发 `BEFORE TRUNCATE` 前已取得 `ACCESS EXCLUSIVE` 表锁，

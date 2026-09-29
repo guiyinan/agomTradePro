@@ -824,6 +824,19 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
 ) -> None:
     """Exercise the complete authenticated facade against the disposable PG graph."""
 
+    from importlib import import_module
+
+    from django.apps import apps
+
+    from apps.account.infrastructure.account_authority_generation_models import (
+        AccountAuthorityGenerationModel,
+    )
+    from apps.account.infrastructure.account_authority_shadow_scanner import (
+        AccountAuthorityShadowScannerV3,
+    )
+    from apps.account.system_audit_authority_v3_composition import (
+        AccountSystemAuditOwnerTenantAuthorityV3Reader,
+    )
     from tests.component.account.test_owner_tenant_authority_v3_repository import _owner_seed
     from tests.support.owner_authority_current_sources import seed_current_actor_source
     from tests.unit.account.test_account_owner_assignment_evidence_v5 import _evidence
@@ -913,6 +926,77 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
     )
     observed = facade.get_current(selector)
     assert observed is not None and observed.authority == issue
+
+    generation_migration = import_module(
+        "apps.account.migrations.0065_account_authority_generation"
+    )
+    connection = connections[owner_alias]
+    with connection.schema_editor() as editor:
+        editor.create_model(AccountAuthorityGenerationModel)
+    with connection.schema_editor() as editor:
+        generation_migration.seed_generation_row(apps, editor)
+        generation_migration.install_source_triggers(apps, editor)
+    try:
+        legacy_reader = AccountSystemAuditOwnerTenantAuthorityV3Reader(
+            actor_source_id=actor_source.source_id,
+            actor_source_version=actor_source.source_version,
+            actor_content_hash=actor_source.content_hash,
+            physical_row_provider=physical_provider,
+            database_alias=owner_alias,
+        )
+        legacy_observed = legacy_reader.execute(selector)
+        assert legacy_observed is not None and legacy_observed == observed
+        generation_before = _read_authority_generation(owner_alias)
+        scanner = AccountAuthorityShadowScannerV3(
+            actor_source_id=actor_source.source_id,
+            actor_source_version=actor_source.source_version,
+            actor_content_hash=actor_source.content_hash,
+            physical_row_provider=physical_provider,
+            using=owner_alias,
+        )
+        shadow_statements: list[str] = []
+
+        def capture_shadow_sql(
+            execute: Callable[..., object],
+            sql: str,
+            params: object,
+            many: bool,
+            context: object,
+        ) -> object:
+            shadow_statements.append(sql)
+            return execute(sql, params, many, context)
+
+        with connection.execute_wrapper(capture_shadow_sql):
+            shadow_result = scanner.scan(selector, legacy_observed)
+        assert shadow_result.comparison.matches is True
+        assert shadow_result.comparison.differing_fields == ()
+        assert legacy_observed == observed
+        assert _read_authority_generation(owner_alias) == generation_before
+        lower_statements = tuple(statement.lower() for statement in shadow_statements)
+        assert any(
+            statement.lstrip().startswith(
+                "set transaction isolation level repeatable read read only"
+            )
+            for statement in lower_statements
+        )
+        assert any("savepoint" in statement for statement in lower_statements)
+        forbidden_sql = (
+            "lock table",
+            "for update",
+            "pg_advisory",
+            "insert into",
+            "update ",
+            "delete from",
+            "truncate ",
+        )
+        assert not any(
+            forbidden in statement for forbidden in forbidden_sql for statement in lower_statements
+        )
+    finally:
+        with connection.schema_editor() as editor:
+            generation_migration.remove_source_triggers(apps, editor)
+            editor.delete_model(AccountAuthorityGenerationModel)
+
     assert (
         facade.with_current(selector, lambda value: value.authority.content_hash)
         == issue.content_hash
@@ -983,3 +1067,16 @@ def test_composition_source_has_no_v4_domain_http_or_execution_boundary() -> Non
     assert "broker_execution" not in source
     assert "lock_owner_tenant_authority_v3_sources" in source
     assert "build_account_owner_assignment_evidence_v5_facade" in source
+
+
+def _read_authority_generation(using: str) -> int:
+    """Read the installed generation row from a disposable PostgreSQL alias."""
+
+    with connections[using].cursor() as cursor:
+        cursor.execute(
+            "SELECT generation FROM public.account_authority_generation WHERE singleton = 1"
+        )
+        row = cast(tuple[object, ...] | None, cursor.fetchone())
+    if row is None or type(row[0]) is not int:
+        raise AssertionError("authority generation singleton row is unavailable")
+    return row[0]

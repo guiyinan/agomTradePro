@@ -88,6 +88,15 @@ jobs:
           --ds=core.settings.development_sqlite
           --confcutdir=tests/component/account
           -q -o addopts='' --junitxml=account-authority-generation-postgres.xml
+      - name: Exercise Account authority shadow scan
+        env:
+          AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+        run: >-
+          python -m pytest
+          tests/component/account/test_owner_tenant_authority_v3_composition.py::test_opt_in_postgres_facade_issues_reads_and_revokes
+          --ds=core.settings.development_sqlite
+          --confcutdir=tests/component/account
+          -q -o addopts='' --junitxml=account-authority-shadow-postgres.xml
       - name: Exercise real publication locks and frozen facts
         run: >-
           python -m pytest
@@ -119,14 +128,24 @@ jobs:
           generation_cases = ElementTree.parse(
               'account-authority-generation-postgres.xml'
           ).findall('.//testcase')
+          shadow_cases = ElementTree.parse(
+              'account-authority-shadow-postgres.xml'
+          ).findall('.//testcase')
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
           assert len(publication_cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 4, 'Expected authority generation PostgreSQL cases were not collected'
+          assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
-          cases = [*publication_cases, *authority_cases, *generation_cases, *control_plane_cases]
+          cases = [
+              *publication_cases,
+              *authority_cases,
+              *generation_cases,
+              *shadow_cases,
+              *control_plane_cases,
+          ]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
           assert all(case.find('failure') is None and case.find('error') is None for case in cases)
           PY
@@ -139,5 +158,6 @@ jobs:
             publication-postgres.xml
             authority-lock-postgres.xml
             account-authority-generation-postgres.xml
+            account-authority-shadow-postgres.xml
             backfill-control-plane-postgres.xml
           if-no-files-found: error
