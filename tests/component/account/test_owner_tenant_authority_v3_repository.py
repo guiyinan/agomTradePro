@@ -1,13 +1,18 @@
 """Real PostgreSQL owner decisions over durable local V5 provenance and actual auth."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from threading import Barrier
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError, connections, transaction
+from django.db import DatabaseError, close_old_connections, connections, transaction
 
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     OwnerTenantAuthorityV3Conflict,
@@ -40,6 +45,12 @@ from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     lock_owner_tenant_authority_v3_sources,
     lock_owner_tenant_authority_v3_sources_for_read,
 )
+from apps.data_center.application.current_publication_rebuild import (
+    CoreCurrentPublicationRebuildUseCase,
+    CurrentPublicationRebuildUseCase,
+    CurrentPublicationScopeExclusion,
+)
+from apps.data_center.domain.control_plane import CanonicalPublication
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
 )
@@ -174,6 +185,49 @@ def _append_revocation(
             expected_authority_content_hash=record.revocation.authority_content_hash,
             recorded_at=record.revocation.recorded_at,
         )
+
+
+@contextmanager
+def _isolated_connection_aliases(
+    base_alias: str,
+    aliases: tuple[str, ...],
+) -> Iterator[tuple[str, ...]]:
+    """Register disposable same-database connections for lock-owner tests."""
+
+    registered: list[str] = []
+    try:
+        for alias in aliases:
+            if alias in connections.databases:
+                raise AssertionError(f"test database alias is already registered: {alias}")
+            connections.databases[alias] = deepcopy(connections.databases[base_alias])
+            registered.append(alias)
+        yield aliases
+    finally:
+        for alias in reversed(registered):
+            connections[alias].close()
+            connections.databases.pop(alias, None)
+
+
+def _parallel_read_lock_worker(alias: str, policy_id: str, barrier: Barrier) -> int:
+    """Hold one production source-read lock until both PostgreSQL readers meet."""
+
+    close_old_connections()
+    try:
+        with transaction.atomic(using=alias):
+            lock_owner_tenant_authority_v3_sources_for_read(
+                using=alias,
+                policy_id=policy_id,
+            )
+            with connections[alias].cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                row = cursor.fetchone()
+            if row is None:
+                raise AssertionError("PostgreSQL did not return the reader backend PID")
+            backend_pid = int(row[0])
+            barrier.wait(timeout=20)
+            return backend_pid
+    finally:
+        connections[alias].close()
 
 
 def _winner(
@@ -484,8 +538,15 @@ def test_append_only_guards_and_source_lock_isolation(owner_alias, monkeypatch):
             _append_owner(repository, record)
 
 
-def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owner_alias):
-    """Allow concurrent authority reads while keeping mutation fail-closed."""
+def test_current_global_relation_lock_rejects_different_policy_writer_defect(owner_alias):
+    """Record the current global-lock defect and its future exit condition.
+
+    A reader for one policy currently holds SHARE locks on every upstream
+    relation. A writer for another policy therefore fails at the relation lock,
+    even though its policy-specific advisory lock is independently available.
+    Once locking is scoped, the different-policy writer should succeed while a
+    conflicting write for the same policy remains excluded.
+    """
 
     competing = "evid07_owner_v3_read_competing"
     assert competing not in connections.databases
@@ -508,6 +569,16 @@ def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owne
                         policy_id="policy-concurrent-read",
                     )
             with transaction.atomic(using=competing):
+                # Prove the different policy's advisory key is not the blocker.
+                with connections[competing].cursor() as cursor:
+                    cursor.execute(
+                        "SELECT pg_try_advisory_xact_lock(hashtextextended(%s, 0))",
+                        ["policy-table-lock-conflict"],
+                    )
+                    assert cursor.fetchone() == (True,)
+                # CURRENT-DEFECT assertion: the global relation lock rejects
+                # an otherwise unrelated policy writer. Invert this assertion
+                # when authority locking is narrowed to its actual scope.
                 with pytest.raises(OwnerTenantAuthorityV3Unavailable):
                     lock_owner_tenant_authority_v3_sources(
                         using=competing,
@@ -532,6 +603,107 @@ def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owne
     finally:
         connections[competing].close()
         connections.databases.pop(competing)
+
+
+def test_two_current_source_readers_hold_relation_locks_in_parallel(owner_alias):
+    """Two PostgreSQL sessions can hold compatible source-reader locks together."""
+
+    alias_names = ("evid07_owner_v3_parallel_reader_a", "evid07_owner_v3_parallel_reader_b")
+    with _isolated_connection_aliases(owner_alias, alias_names) as aliases:
+        barrier = Barrier(2)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = tuple(
+                executor.submit(_parallel_read_lock_worker, alias, "policy-parallel-read", barrier)
+                for alias in aliases
+            )
+            backend_pids = tuple(future.result(timeout=40) for future in futures)
+    assert len(set(backend_pids)) == 2
+
+
+def test_current_source_locks_survive_savepoint_until_outer_commit(owner_alias):
+    """Nested preflight savepoint completion does not release PostgreSQL locks."""
+
+    competing = "evid07_owner_v3_savepoint_competing"
+    with _isolated_connection_aliases(owner_alias, (competing,)):
+        with transaction.atomic(using=owner_alias):
+            with transaction.atomic(using=owner_alias):
+                lock_owner_tenant_authority_v3_sources_for_read(
+                    using=owner_alias,
+                    policy_id="policy-savepoint-reader",
+                )
+            assert connections[owner_alias].in_atomic_block
+            with transaction.atomic(using=competing):
+                # Different policy ID bypasses same-policy advisory contention;
+                # the relation lock remains held until the outer commit.
+                with pytest.raises(OwnerTenantAuthorityV3Unavailable):
+                    lock_owner_tenant_authority_v3_sources(
+                        using=competing,
+                        policy_id="policy-savepoint-writer",
+                    )
+
+        # The exact same unrelated writer succeeds as soon as the outer
+        # transaction commits, proving that the savepoint itself was not the
+        # lock lifetime boundary.
+        with transaction.atomic(using=competing):
+            lock_owner_tenant_authority_v3_sources(
+                using=competing,
+                policy_id="policy-savepoint-writer",
+            )
+
+
+def test_publication_transaction_after_preflight_does_not_inherit_authority_locks(
+    owner_alias: str,
+) -> None:
+    """Core publication starts after preflight locks have left their transaction."""
+
+    competing = "evid07_owner_v3_publication_competing"
+    with _isolated_connection_aliases(owner_alias, (competing,)):
+
+        def authority_preflight(as_of: datetime) -> None:
+            del as_of
+            assert not connections[owner_alias].in_atomic_block
+            with transaction.atomic(using=owner_alias):
+                lock_owner_tenant_authority_v3_sources_for_read(
+                    using=owner_alias,
+                    policy_id="policy-publication-preflight",
+                )
+
+        def publish_probe(
+            *,
+            asset_codes: Sequence[str],
+            published_at: datetime,
+            run_id: str,
+            scope_exclusions: Sequence[CurrentPublicationScopeExclusion],
+        ) -> CanonicalPublication:
+            del asset_codes, published_at, run_id, scope_exclusions
+            assert connections[owner_alias].in_atomic_block
+            # This second session takes a conflicting lock while the publication
+            # transaction is active. Success proves that sequential publication
+            # did not inherit the authority preflight's relation locks.
+            with transaction.atomic(using=competing):
+                lock_owner_tenant_authority_v3_sources(
+                    using=competing,
+                    policy_id="policy-publication-probe",
+                )
+            return cast(CanonicalPublication, object())
+
+        rebuilder = cast(
+            CurrentPublicationRebuildUseCase,
+            SimpleNamespace(
+                dataset=SimpleNamespace(dataset_key="evid06.lock-boundary"),
+                execute=publish_probe,
+            ),
+        )
+        coordinator = CoreCurrentPublicationRebuildUseCase(
+            rebuilders=(rebuilder,),
+            transaction=lambda: transaction.atomic(using=owner_alias),
+            authority_preflight=authority_preflight,
+        )
+        result = coordinator.execute(
+            asset_codes=("600000.SH",),
+            published_at=datetime(2026, 9, 24, tzinfo=UTC),
+        )
+        assert result.covered_asset_count == 1
 
 
 def test_competing_decision_writer_and_parent_row_lock_fail_then_retry(owner_alias, monkeypatch):

@@ -242,3 +242,79 @@
   2 passed，高风险 TUI/terminal agent/SDK/SSL 回归 375 passed；Celery 合同 94 tasks、current-data 72
   surfaces、module map 44 modules / 210 edges、迁移生成检查、Black、isort、Ruff、13 个生产文件增量 mypy
   与全量 debt ceiling 均通过。该证据只证明候选可进入同 SHA CI/S6，尚未形成新生产恢复证据。
+
+### 2026-09-30 Audit authority 锁根因门槛
+
+用户要求在继续部署和全市场重跑前，停止叠加 `tolerate/retry` 补丁，先区分锁粒度缺陷与
+preflight/publication 时序竞争。当前部署及新 S6 因此暂停；候选 `c8f66595906535ce1ecd32474b097dddb2ea77ac`
+的 Architecture、Security、Consistency、Fast Feedback 和手工 Publication PostgreSQL workflow 均已通过，
+但这些代码证据不授权部署。
+
+#### 已证明事实
+
+1. 失败任务 `afc2775f-b91c-4ba7-8c88-48a58efba7a0` 的持久时间为
+   `2026-09-28T21:15:19.878286Z` 至 `21:15:21.673436Z`，耗时 1.7951 秒；业务结果为
+   `blocked/stage=authority/requested=0/succeeded=0/failed=0/stored=0`，稳定码
+   `system_audit_authority_unavailable`。任务未访问 provider、未写市场事实、未开始 publication。
+2. System Audit V3 scope current read 不是普通 MVCC 读。它在一个 `READ COMMITTED` 事务内先取得 policy-id
+   shared advisory lock，再对 V5 父图 19 张表和 Authority V3 两张表执行
+   `LOCK TABLE ... IN SHARE MODE NOWAIT`，随后对 physical account-row source 表再取一张 SHARE NOWAIT；
+   实际关系锁范围为 22 张表。任何被覆盖表上的普通 INSERT/UPDATE/DELETE 都会持有与 SHARE 冲突的
+   `ROW EXCLUSIVE`，即使写入属于不同 policy、账户或 authority selector，也会令读预检立即失败。
+3. 隔离 PostgreSQL 16 组件复验确认：两个 current read 可以并行；reader 存在时，相同 policy writer 被拒绝；
+   不同 policy writer 也因全表关系锁被拒绝。当前测试把这项跨 policy 串行化当成既定行为，证明锁粒度是全局的，
+   不是按当前 selector 收窄。四项真实 PostgreSQL 根因用例均通过（`4 passed in 217.73s`），并额外证明
+   savepoint 内取得的旧关系锁会持续到外层事务结束，而顺序执行的 publication 事务不会继承已结束 preflight
+   事务的锁。
+4. `CoreCurrentPublicationRebuildUseCase.execute` 在进入 publication transaction 前同步执行二次 authority
+   preflight；显式 preflight 与同一 publication 写事务不重叠，也没有该任务内部的异步 publication 竞争。
+   把本次初始预检失败归因于 publication 自竞争不成立。
+5. Data Center quote batch 的外层 UOW 内，DataFetch/DataPublication audit writer 会再次读取 scope；此时
+   authority facade 的 atomic 只是 savepoint，22 张表的 SHARE 锁会保持到整个 batch 外层事务提交。
+   该 batch 不写 Account authority 表，不会直接自冲突，但会扩大其它账户/权限治理写入的冲突窗口。
+6. authority provider 当前以宽泛 `except Exception: return None` 隐去底层异常。relation NOWAIT、advisory
+   lock、数据库连接、解码、物理来源和真实非 current 状态最终都可能压成同一 `authority_unavailable`；失败现场
+   没有 blocker PID、relation、lock mode 或子阶段，因而历史任务的具体持锁者不可追溯。
+
+#### 生产证据边界
+
+失败窗口中唯一重叠的受监控任务是 `system_audit_authority_renewal_guard_task`，时间为
+`2026-09-28T21:15:00.054Z` 至 `21:15:27.814Z`。它按当前租约执行只读检查并返回健康/noop；shared
+advisory 与 SHARE relation read 应当兼容。同期 System Audit event/outbox 为零，22 张来源表没有记录到该窗口的
+新 append。后续只读诊断也没有阻塞链。这些事实排除了“已证明是 renewal guard 或 publication writer”的说法，
+但不能排除未进入 Task Monitor 的短事务、直接治理写入、连接/数据库异常或失败瞬间已经释放的锁。归档中
+“与受治理写入锁竞争路径一致”的表述只是一项事后推断，不能继续作为具体 blocker 的证明。
+
+#### 类别修复方案与停止线
+
+1. **先恢复诊断因果链。** 在 provider/Application 边界保留公开稳定码和 fail-closed 行为，同时记录有界的
+   内部 component、typed exception、transaction/lock phase、task/trace id；不得记录 selector 原文、SQL、
+   token 或账户敏感字段。下一次 unavailable 必须能区分 relation lock、advisory lock、连接、数据损坏、过期和
+   identity drift。失败瞬间运维诊断采集 `pg_locks`、`pg_stat_activity` 和 blocker PID；事后空快照不算根因证据。
+2. **用 selector/source scoped advisory fence 取代全局关系读锁。** key 使用固定命名空间、版本和排序；reader
+   取 shared、writer 在首次变更前取 exclusive，同一事务持有到最终 current revalidation/受保护数据库写提交。
+   Authority head/revocation、policy/evidence lineage、actor/raw source 和 physical source 都必须纳入同一 key
+   计划。只改 reader 不改 writer、只删除 SHARE lock 或只延长 retry 均不合格。
+3. **把重工作与线性化点分开。** 完整 closed-world 恢复可在无锁 `REPEATABLE READ READ ONLY` 候选快照中
+   完成，但该快照不能单独授权：另一个事务可能在快照建立后提交 revoke/successor。最终必须在短
+   `READ COMMITTED` scoped fence 内重读当前 head、revocation、selector、hash、parent/seal、clock、actor 和
+   physical source；任何漂移立即 fail closed。
+4. **修正事务边界。** preflight 保护后续 claim/append 时，最终 revalidation 与数据库副作用必须处在同一
+   fence/事务中；fence 不跨外部 publisher 网络调用。Data Center batch 内 scope read 不得把 selector fence
+   无意义地延长到不相关的 provider I/O 或全批处理尾部。
+5. **混合版本发布必须双锁。** 旧 reader 使用 relation lock、新 writer 只使用 advisory lock 时不会互斥。
+   滚动期所有 writer 同时获取旧 relation lock和新 scoped key；所有 reader/writer 升级并验证后，另一个独立
+   提交才能删除旧 relation lock。不得在单个滚动版本内直接切换协议。
+6. **PostgreSQL 退出测试。** 必须证明 `pg_locks` 不再出现 22 张表的 authority ShareLock；不同
+   policy/authority/source 可并行；同 selector reader-vs-revoke/change 即时 fail closed 且零写入；writer 先提交
+   revoke 后 reader 不返回旧 active；RR 扫描期间提交变更会被最终 fence 发现；反向 key 集合无死锁；rollback、
+   连接复用和事务结束完全释放锁；preflight 与 outbox claim 之间的 revoke 会阻止副作用；混合版本双锁有效。
+
+在上述实现、PostgreSQL 并发矩阵、增量 mypy/债务/架构/current-data/Celery 门禁和独立审查完成前，不再扩大
+authority retry 次数，不部署候选，不启动新的全市场正式重跑。重试可在协议切换完成后仅作为数据库瞬时故障的
+有界韧性保留，不能作为锁设计正确性的验收依据。
+
+首个基础实现切片已经提供固定版本 key 派生、稳定排序、多 key savepoint 回滚、shared/exclusive
+transaction-scoped advisory lock 和脱敏 typed error；两项真实 PostgreSQL 双连接用例均通过（`2 passed in
+1.99s`），证明部分获取失败不会把前序锁泄漏到调用方外层事务，成功获取会保持到外层事务结束。该切片尚未接入
+任何业务 reader/writer，也未删除旧 relation lock，因此只算迁移基础设施证据，不算锁缺陷已经修复。
