@@ -5,6 +5,9 @@ on:
     branches: [main, 'dev/**']
     paths:
       - 'apps/data_center/**'
+      - 'apps/account/**'
+      - 'apps/simulated_trading/**'
+      - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/settings_data_center_sync_identity.py'
       - 'pyproject.toml'
@@ -14,6 +17,9 @@ on:
     branches: [main, 'dev/**']
     paths:
       - 'apps/data_center/**'
+      - 'apps/account/**'
+      - 'apps/simulated_trading/**'
+      - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/settings_data_center_sync_identity.py'
       - 'pyproject.toml'
@@ -31,7 +37,7 @@ concurrency:
 jobs:
   publication-postgres:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -56,6 +62,23 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           python -m pip install -e sdk/
+      - name: Prepare isolated authority contract database
+        env:
+          PGPASSWORD: disposable_ci_only
+        run: >-
+          psql -h 127.0.0.1 -U contract_test -d postgres
+          -v ON_ERROR_STOP=1
+          -c 'CREATE DATABASE evid06_authority_test'
+      - name: Exercise authority read-lock concurrency
+        env:
+          AGOM_EVID06_POSTGRES_TEST_DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/evid06_authority_test
+        run: >-
+          python -m pytest
+          tests/component/account/test_owner_tenant_authority_v3_repository.py::test_current_source_read_locks_are_concurrent_and_still_exclude_writers
+          tests/component/account/test_owner_tenant_authority_v3_repository.py::test_current_source_read_lock_allows_readers_and_blocks_simulated_successor
+          --ds=core.settings.development_sqlite
+          --confcutdir=tests/component/account
+          -q -o addopts='' --junitxml=authority-lock-postgres.xml
       - name: Exercise real publication locks and frozen facts
         run: >-
           python -m pytest
@@ -83,12 +106,14 @@ jobs:
           python - <<'PY'
           from xml.etree import ElementTree
           publication_cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
+          authority_cases = ElementTree.parse('authority-lock-postgres.xml').findall('.//testcase')
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
           assert len(publication_cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
+          assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
-          cases = [*publication_cases, *control_plane_cases]
+          cases = [*publication_cases, *authority_cases, *control_plane_cases]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
           assert all(case.find('failure') is None and case.find('error') is None for case in cases)
           PY
@@ -99,5 +124,6 @@ jobs:
           name: publication-postgres-evidence
           path: |
             publication-postgres.xml
+            authority-lock-postgres.xml
             backfill-control-plane-postgres.xml
           if-no-files-found: error
