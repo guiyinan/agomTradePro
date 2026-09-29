@@ -10241,7 +10241,7 @@
       "text": "\"\"\"Resolve current active A-shares against persisted target-date listing evidence.\"\"\""
     },
     {
-      "line": 905,
+      "line": 930,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "if not authority_latch.current:"
     },
@@ -13461,12 +13461,12 @@
       "text": "\"\"\"Composition of the atomic current-publication rebuild workflow.\"\"\""
     },
     {
-      "line": 38,
+      "line": 42,
       "path": "apps/data_center/publication_rebuild_composition.py",
       "text": "\"\"\"Require exact current authority before the publication transaction.\"\"\""
     },
     {
-      "line": 91,
+      "line": 106,
       "path": "apps/data_center/publication_rebuild_composition.py",
       "text": "raise ValueError(\"Invalid current-publication dataset selection\")"
     },
@@ -23656,62 +23656,62 @@
       "text": "\"summary\": asdict(response.summary),"
     },
     {
-      "line": 92,
+      "line": 112,
       "path": "apps/task_monitor/application/tracking.py",
       "text": "logger.info(\"Current task progress unavailable: error_type=%s\", type(exc).__name__)"
     },
     {
-      "line": 103,
+      "line": 123,
       "path": "apps/task_monitor/application/tracking.py",
       "text": "current = _phase_payload("
     },
     {
-      "line": 115,
+      "line": 135,
       "path": "apps/task_monitor/application/tracking.py",
       "text": "**current,"
     },
     {
-      "line": 420,
+      "line": 434,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "summary = self.scheduler_repository.get_catalog_summary()"
     },
     {
-      "line": 443,
+      "line": 457,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "summary=_map_scheduler_summary(summary),"
     },
     {
-      "line": 575,
+      "line": 589,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "def _map_scheduler_summary(summary: SchedulerCatalogSummary) -> SchedulerSummaryResponse:"
     },
     {
-      "line": 577,
+      "line": 591,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "total_tasks=summary.total_tasks,"
     },
     {
-      "line": 578,
+      "line": 592,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "enabled_tasks=summary.enabled_tasks,"
     },
     {
-      "line": 579,
+      "line": 593,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "disabled_tasks=summary.disabled_tasks,"
     },
     {
-      "line": 580,
+      "line": 594,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "crontab_tasks=summary.crontab_tasks,"
     },
     {
-      "line": 581,
+      "line": 595,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "interval_tasks=summary.interval_tasks,"
     },
     {
-      "line": 582,
+      "line": 596,
       "path": "apps/task_monitor/application/use_cases.py",
       "text": "one_off_tasks=summary.one_off_tasks,"
     },
@@ -23726,17 +23726,17 @@
       "text": "backup_temp = output_path / \".postgres-current.dump.partial\""
     },
     {
-      "line": 315,
+      "line": 428,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "latest = base_qs.order_by(\"-created_at\").first()"
     },
     {
-      "line": 324,
+      "line": 437,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "last_execution_status=TaskStatus(latest.status) if latest else TaskStatus.PENDING,"
     },
     {
-      "line": 325,
+      "line": 438,
       "path": "apps/task_monitor/infrastructure/repositories.py",
       "text": "last_execution_at=latest.created_at if latest else None,"
     },
@@ -26305,7 +26305,7 @@
     {
       "line": 100,
       "path": "apps/data_center/application/tasks.py",
-      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=4500, soft_time_limit=4200)  # type: ignore[misc]"
+      "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=5700, soft_time_limit=5400)  # type: ignore[misc]"
     },
     {
       "line": 135,
@@ -26508,12 +26508,12 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 399,
+      "line": 581,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 447,
+      "line": 629,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
