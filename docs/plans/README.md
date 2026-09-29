@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 2026-09-24：用户授权启动 [生产恢复与系统性防回归整改计划](production-recovery-and-regression-remediation-2026-09-24.md)，覆盖十项用户验收问题、五类防回归整改及真实 provider 小规模预演门槛。主代理带领 GPT-6 Luna（max）子代理执行；本计划不自动改变 DATA-02/EVID/AUD/TUI 生产门禁状态。
+> 2026-09-24：用户授权启动 [生产恢复与系统性防回归整改计划](production-recovery-and-regression-remediation-2026-09-24.md)，覆盖十项用户验收问题、五类防回归整改及真实 provider 小规模预演门槛。主代理带领 GPT-6 Luna（max）子代理执行；本计划不自动改变 DATA-02/EVID/AUD/TUI 生产门禁状态。2026-09-29 更新：计划仍在执行，09-24～09-29 上午已闭环的执行日志已归档至 [../archive/plans/production-recovery-execution-log-2026-09-24.md](../archive/plans/production-recovery-execution-log-2026-09-24.md)；当前活跃事项为任务 attempt 所有权、超时/Redis visibility 与发布授权异常归一化修复（`0906f94e1`+`02d11f952`）的放行与生产重跑对账，未完成工作清单见主计划 §9。
 
 > 2026-09-21 DATA-02 item-attempt 耐久存储基础：新增单资产/阶段/重试 attempt 领域契约、
 > 受保护 ORM、0079 迁移、仓储和 composition factory；重试保留单调历史，RUNNING 只允许一次

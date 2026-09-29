@@ -63,6 +63,7 @@
 | decision-platform-enhancement-2026-02-04.md | 决策平台增强 | 2026-02-04 |
 | uat-execution-plan-2026-02-18.md | UAT 执行计划 | 2026-02-18 |
 | ui-ux-improvement-prd-2026-02-18.md | UI/UX PRD | 2026-02-18 |
+| production-recovery-execution-log-2026-09-24.md | 生产恢复与防回归整改计划的已闭环执行日志（2026-09-24 至 09-29 上午）；主计划仍在 `docs/plans/` 执行中 | 2026-09-29 |
 
 ---
 
