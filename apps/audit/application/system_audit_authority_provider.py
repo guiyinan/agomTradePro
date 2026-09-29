@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -32,6 +33,14 @@ from apps.audit.application.system_audit_composition import (
     SystemAuditAuthoritySnapshot,
     system_audit_authority_content_hash,
 )
+
+logger = logging.getLogger(__name__)
+
+_READER_SQLSTATE_REASON_CODES = {
+    "40001": "serialization_failure",
+    "40P01": "deadlock_detected",
+    "55P03": "lock_not_available",
+}
 
 
 def _token(value: object, field: str) -> None:
@@ -269,6 +278,7 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
         selector = self._selector
         if selector is None:
             return None
+
         try:
             actor = self._actor_reader.get_current(
                 source_id=selector.actor_source_id,
@@ -276,12 +286,30 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
                 expected_content_hash=selector.actor_content_hash,
                 as_of=as_of,
             )
+        except Exception as exc:
+            _log_authority_reader_failure(
+                component="actor_reader",
+                exception=exc,
+                phase="actor_lookup",
+            )
+            return None
+
+        try:
             scope = self._scope_reader.get_current(
                 source_id=selector.scope_source_id,
                 source_version=selector.scope_source_version,
                 expected_content_hash=selector.scope_content_hash,
                 as_of=as_of,
             )
+        except Exception as exc:
+            _log_authority_reader_failure(
+                component="scope_reader",
+                exception=exc,
+                phase="scope_lookup",
+            )
+            return None
+
+        try:
             if not isinstance(actor, SystemAuditActorAuthorityFacts):
                 return None
             if not isinstance(scope, SystemAuditScopeAuthorityFacts):
@@ -338,9 +366,49 @@ class ExactScopedSystemAuditAuthorityProvider(SystemAuditAuthorityProvider):
                 valid_until=valid_until,
                 scope_schema=selector.scope_schema,
             )
-        except Exception:
-            # Database/RBAC/provider errors are intentionally opaque here.
+        except Exception as exc:
+            _log_authority_reader_failure(
+                component="authority_provider",
+                exception=exc,
+                phase="snapshot_projection",
+            )
             return None
+
+
+def _log_authority_reader_failure(*, component: str, exception: Exception, phase: str) -> None:
+    """Log bounded failure metadata without exception or authority contents."""
+
+    logger.warning(
+        "System audit authority lookup failed",
+        extra={
+            "component": component,
+            "exception_type": type(exception).__name__,
+            "reason_code": _authority_reader_failure_reason_code(exception),
+            "phase": phase,
+        },
+    )
+
+
+def _authority_reader_failure_reason_code(exception: Exception) -> str:
+    """Map recognized PostgreSQL transient SQLSTATEs to safe reason codes."""
+
+    current: BaseException | None = exception
+    visited: set[int] = set()
+    for _ in range(5):
+        if current is None or id(current) in visited:
+            break
+        visited.add(id(current))
+        for attribute_name in ("sqlstate", "pgcode"):
+            try:
+                sqlstate = getattr(current, attribute_name, None)
+            except Exception:
+                sqlstate = None
+            if type(sqlstate) is str:
+                reason_code = _READER_SQLSTATE_REASON_CODES.get(sqlstate)
+                if reason_code is not None:
+                    return reason_code
+        current = current.__cause__ or current.__context__
+    return "reader_error"
 
 
 def _matches_actor(

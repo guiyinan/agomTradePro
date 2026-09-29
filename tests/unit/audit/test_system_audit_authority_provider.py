@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from apps.audit.application.system_audit_authority_provider import (
     SYSTEM_AUDIT_SCOPE_SCHEMA_V1,
@@ -189,15 +192,83 @@ def test_expired_or_future_authority_is_fail_closed() -> None:
     )
 
 
-def test_reader_exception_is_fail_closed_without_leaking_details() -> None:
+def test_reader_exception_is_fail_closed_and_logs_safe_classification(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     class BrokenReader:
         def get_current(self, **kwargs: object) -> None:
             del kwargs
-            raise RuntimeError("database password must not escape")
+            raise RuntimeError("postgresql://secret@db SQL SELECT account_id=7 token=private")
 
     provider = ExactScopedSystemAuditAuthorityProvider(
         actor_reader=BrokenReader(),
         scope_reader=ScopeReader(_scope()),
         selector=_selector(),
     )
-    assert provider.get_current(as_of=NOW) is None
+    with caplog.at_level(
+        logging.WARNING,
+        logger="apps.audit.application.system_audit_authority_provider",
+    ):
+        assert provider.get_current(as_of=NOW) is None
+
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.component == "actor_reader"
+    assert record.exception_type == "RuntimeError"
+    assert record.reason_code == "reader_error"
+    assert record.phase == "actor_lookup"
+    assert record.getMessage() == "System audit authority lookup failed"
+    assert "postgresql://" not in caplog.text
+    assert "SELECT" not in caplog.text
+    assert "account_id" not in caplog.text
+    assert "token=private" not in caplog.text
+    assert "actor-source" not in caplog.text
+    assert ACTOR_HASH not in caplog.text
+
+
+def test_scope_reader_lock_exception_has_safe_reason_code_and_phase(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class LockUnavailable(Exception):
+        sqlstate = "55P03"
+
+    class BrokenScopeReader:
+        def get_current(self, **kwargs: object) -> None:
+            del kwargs
+            raise LockUnavailable("sensitive SQL and account data")
+
+    provider = ExactScopedSystemAuditAuthorityProvider(
+        actor_reader=ActorReader(_actor()),
+        scope_reader=BrokenScopeReader(),
+        selector=_selector(),
+    )
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="apps.audit.application.system_audit_authority_provider",
+    ):
+        assert provider.get_current(as_of=NOW) is None
+
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.component == "scope_reader"
+    assert record.exception_type == "LockUnavailable"
+    assert record.reason_code == "lock_not_available"
+    assert record.phase == "scope_lookup"
+    assert "sensitive SQL" not in caplog.text
+    assert "account data" not in caplog.text
+
+
+def test_successful_and_missing_reader_results_do_not_log_failures(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with caplog.at_level(
+        logging.WARNING,
+        logger="apps.audit.application.system_audit_authority_provider",
+    ):
+        snapshot = _provider(_actor(), _scope(), _selector()).get_current(as_of=NOW)
+        unavailable = _provider(None, _scope(), _selector()).get_current(as_of=NOW)
+
+    assert snapshot is not None
+    assert unavailable is None
+    assert caplog.records == []
