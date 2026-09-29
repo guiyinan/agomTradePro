@@ -289,6 +289,7 @@
       "path": [
         "tests/component/account/creation_chain_postgres_fixture.py",
         "tests/component/account/test_account_actor_authority_raw_source_publisher_postgres.py",
+        "tests/component/account/test_account_authority_final_revalidator_v3_postgres.py",
         "tests/component/account/test_account_authority_generation_postgres.py",
         "tests/component/account/test_actual_creation_chain_postgres.py",
         "tests/component/account/test_authenticated_creation_credentials_postgres.py",

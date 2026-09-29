@@ -441,7 +441,9 @@ publication/current-pointer/audit/outbox 写入必须发生在 `fence` context �
 RR 后 source 变化在任何 final row read 前被 generation 拒绝，以及 caller hook 运行时仍处于 atomic block、并发
 source writer 一直等待到 fence context 退出。Publication PostgreSQL workflow 增加独立 3-case 步骤、JUnit
 精确计数、no-skip/failure/error 断言和 artifact。增量 mypy、全仓 debt ceiling、Black、Ruff、架构扫描与
-module-map 检查通过后才允许提交该基础切片。
+module-map 检查通过后才允许提交该基础切片。组件测试已按 Account-owned disposable PostgreSQL evidence 登记；
+重建后的 Data Center entrypoint inventory 为 1,270 项且 `candidate-review=0`，不得把未归属的新测试证据留作
+`candidate-review` 来绕过治理。
 
 本阶段仍不授权部署或重跑。旧 relation locks 和 Phase 1 双 policy locks 全部保留，业务 reader/publication
 尚未接入 proof/fence。生产运行角色 ACL 未核实，迁移不会盲目 REVOKE；可直接 UPDATE generation 或修改 trigger
