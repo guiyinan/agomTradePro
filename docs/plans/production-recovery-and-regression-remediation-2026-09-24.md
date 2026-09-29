@@ -771,3 +771,8 @@
   provider probe、response replay、全量容量、隔离写入和最终 validator。只有九阶段成功后才部署；部署后
   只显式重跑一次全市场任务，并以业务 outcome、四项统计、Publication id/hash/run id、成员和 scope block
   对账，不能以 Celery SUCCESS 或 HTTP 200 代替恢复结论。
+- 首个冻结候选 `5ae2ad857dfb5e2bc89ce2572d73e54698381862` 的 Architecture 与 Security CI 通过；
+  Publication PostgreSQL run `36532220741` 为 34 passed / 1 failed。失败用例是只读事务保护测试仍只替换旧
+  active-code 查询，新 target-date resolver 在空组件库中先返回空范围，测试因而没有执行故意的 provider
+  `UPDATE`，并非 PostgreSQL 接受了写入。组件 fixture 现显式提供同目标日、同证券的 scope，使测试重新到达
+  数据库写保护断言；这会形成新 SHA 并完整重跑五组 CI，不能用 `5ae2ad857` 的其他成功任务拼接放行。

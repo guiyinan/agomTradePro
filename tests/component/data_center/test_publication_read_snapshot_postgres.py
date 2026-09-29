@@ -194,6 +194,7 @@ def test_market_rehearsal_database_enforces_read_only_on_provider_write(
 
     from django.db import DatabaseError
 
+    from apps.data_center.domain.target_date_universe import TargetDateAssetUniverseScope
     from apps.data_center.infrastructure import market_rehearsal_runner as runner
 
     class Provider:
@@ -213,6 +214,17 @@ def test_market_rehearsal_database_enforces_read_only_on_provider_write(
     )
     monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: ["000001.SZ"])
     monkeypatch.setattr(runner, "latest_completed_cn_market_session", lambda now: date(2026, 9, 24))
+    monkeypatch.setattr(
+        runner,
+        "build_target_date_a_share_universe_scope",
+        lambda target_date: TargetDateAssetUniverseScope(
+            target_date=target_date,
+            candidate_codes=("000001.SZ",),
+            requested_codes=("000001.SZ",),
+            excluded_not_yet_listed=(),
+            unknown_listing_date_codes=("000001.SZ",),
+        ),
+    )
     monkeypatch.setattr(
         runner, "get_provider_registry", lambda: SimpleNamespace(get_by_id=lambda _: Provider())
     )
