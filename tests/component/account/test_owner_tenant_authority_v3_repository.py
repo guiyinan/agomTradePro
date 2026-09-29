@@ -538,7 +538,7 @@ def test_append_only_guards_and_source_lock_isolation(owner_alias, monkeypatch):
             _append_owner(repository, record)
 
 
-def test_current_global_relation_lock_rejects_different_policy_writer_defect(owner_alias):
+def test_current_source_read_locks_are_concurrent_and_still_exclude_writers(owner_alias):
     """Record the current global-lock defect and its future exit condition.
 
     A reader for one policy currently holds SHARE locks on every upstream

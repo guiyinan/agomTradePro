@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5182,
+    "current_surface_references": 5187,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -7261,14 +7261,39 @@
       "text": "if current.recorded_at < previous.recorded_at:"
     },
     {
-      "line": 203,
+      "line": 212,
       "path": "apps/audit/application/system_audit_authority_provider.py",
       "text": "\"\"\"Read one exact/current Account actor-authority source.\"\"\""
     },
     {
-      "line": 217,
+      "line": 226,
       "path": "apps/audit/application/system_audit_authority_provider.py",
       "text": "\"\"\"Read one exact/current immutable tenant/owner scope source.\"\"\""
+    },
+    {
+      "line": 395,
+      "path": "apps/audit/application/system_audit_authority_provider.py",
+      "text": "current: BaseException | None = exception"
+    },
+    {
+      "line": 398,
+      "path": "apps/audit/application/system_audit_authority_provider.py",
+      "text": "if current is None or id(current) in visited:"
+    },
+    {
+      "line": 400,
+      "path": "apps/audit/application/system_audit_authority_provider.py",
+      "text": "visited.add(id(current))"
+    },
+    {
+      "line": 403,
+      "path": "apps/audit/application/system_audit_authority_provider.py",
+      "text": "sqlstate = getattr(current, attribute_name, None)"
+    },
+    {
+      "line": 410,
+      "path": "apps/audit/application/system_audit_authority_provider.py",
+      "text": "current = current.__cause__ or current.__context__"
     },
     {
       "line": 36,
