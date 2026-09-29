@@ -318,3 +318,17 @@ authority retry 次数，不部署候选，不启动新的全市场正式重跑�
 transaction-scoped advisory lock 和脱敏 typed error；两项真实 PostgreSQL 双连接用例均通过（`2 passed in
 1.99s`），证明部分获取失败不会把前序锁泄漏到调用方外层事务，成功获取会保持到外层事务结束。该切片尚未接入
 任何业务 reader/writer，也未删除旧 relation lock，因此只算迁移基础设施证据，不算锁缺陷已经修复。
+
+Phase 1 混合版本迁移桥已把 Evidence V5 与 OwnerTenant Authority V3 的 policy reader/writer 接入新 key；
+read 使用 shared、write 使用 exclusive，同时完整保留旧 advisory/relation locks。V3 固定按 V5→V3 获取，整组
+新旧锁由嵌套 savepoint 包围，后续 legacy advisory 或 relation lock 失败会释放本次已经取得的新 key。真实
+PostgreSQL 组件用例通过（`1 passed in 39.07s`），证明同 policy 的新 key 互斥、不同 policy 的新 key 独立；
+快速锁序、异常映射和回滚契约 `7 passed`，inventory 全量测试 `22 passed`，增量 mypy 与全仓 debt ceiling 均为
+零错误。旧 relation lock 仍会跨 policy 阻断，因此该阶段仍不授权部署或重跑。
+
+最终拆锁采用“两阶段 + 最终线性化点”：完整 closed-world 恢复移到锁外的一致只读快照，并生成含 selector、
+ledger generation/high-water 与最早失效时间的不可复用 proof；随后在短 `READ COMMITTED` scoped fence 中比较
+generation 并精确重读 head、revocation、actor、physical source 和 expiry。publication/member/current-pointer、
+必需 audit event/outbox append 必须与最终 revalidation 在同一数据库事务；provider fetch、publisher preflight
+和外部 publish 必须在事务外。只有所有 22 张来源表的 writer 都能推进 generation 或取得同一 key，且混合版本
+并发矩阵通过后，才能在独立提交删除旧 relation locks。
