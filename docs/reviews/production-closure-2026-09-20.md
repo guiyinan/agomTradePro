@@ -818,3 +818,25 @@ real provider sample 或显式生产写授权。
 结构化证据见 [生产 revision 64147fbb60 只读重验](../deployment/production-closure-revalidation-2026-09-28-64147fbb60.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v182 → v183；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、profile 激活或 Publication 切换。
+
+## 生产 revision 9c7a5a71a6 只读重验（2026-09-29）
+
+生产已推进到 `9c7a5a71a6`，release `20260929044615`；封存时 `dev/next-development` HEAD 为
+`6d9a134e41`，生产落后 3 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 为 403。A 股有效分母增至 5,571；quote、price、valuation current Publication
+仍各为 5,557，覆盖缺口扩大到 14，financial 仍为 80。
+
+生产 profile v19 仍绑定 `release_ref=9c77c51182`，而运行时已部署 `9c7a5a71a6`；本轮只读验证未激活或
+修改 profile，exact deployment/profile identity binding 继续 P0 阻断。audit mode=`required`、outbox=`true`、
+selector 有效，temporally current actor、owner、joined heads 仍为 2/2/2。部署 revision 的 source-time
+contract 与 numeric tolerance registry 仍为 `awaiting_owner_approval`、零条目，approval 缺失，exact matcher
+registry 为空；本次未观察到 retained real provider sample 或显式生产写授权。
+
+两个未传 `--execute` 的 DATA-02 预检均因 PostgreSQL 无法创建 `pgsql_tmp` 文件而失败：`No space left
+on device`，且均报告 `mutations_performed=false`。因此本轮没有得到业务 gate 结论，也不声称子进程是否
+到达 provider 或写路径。该临时空间耗尽是新的生产可操作性阻塞。受保护监控连续两次对凭据和匿名请求
+均返回 401、`DENY_STOP_LINES`，TUI-02 仍不能绑定首样本或启动观察窗口。
+
+结构化证据见 [生产 revision 9c7a5a71a6 只读重验](../deployment/production-closure-revalidation-2026-09-29-9c7a5a71a6.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v183 → v184；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
