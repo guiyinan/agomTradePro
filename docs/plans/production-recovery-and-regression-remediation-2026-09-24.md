@@ -776,3 +776,44 @@
   active-code 查询，新 target-date resolver 在空组件库中先返回空范围，测试因而没有执行故意的 provider
   `UPDATE`，并非 PostgreSQL 接受了写入。组件 fixture 现显式提供同目标日、同证券的 scope，使测试重新到达
   数据库写保护断言；这会形成新 SHA 并完整重跑五组 CI，不能用 `5ae2ad857` 的其他成功任务拼接放行。
+
+### 2026-09-29 全市场长任务超时、Redis 重投与发布授权异常归一化
+
+- 修复候选 `6d9a134e410e8564432cdee3424975684b781e47` 已通过同 SHA CI、手工 PostgreSQL
+  workflow 和全新九阶段 S6，并部署为 release `20260929110229`、镜像
+  `sha256:316849080cee63c12ec57a0d8c45b7ad9dcd2e4e27fcaffe97b931ca10068bc6`。随后只显式启动一次生产
+  全市场任务 `89b521ed-76cd-4625-8f2f-2a6612982621`，目标交易日为 `2026-09-29`；本日 active universe
+  为 5,571，前一日两只未上市证券按真实上市日自然进入本日 requested，没有固定证券名单。
+- 原始执行于 09:42:24 UTC 开始。估值阶段写入 5,559、局部失败 12；行情预取完成 56/56 批、写入
+  5,562，对应本日动态行情排除 9。约 3,600 秒后 Redis visibility window 到期，同一 task id 于
+  10:43:08 UTC 被第二个 worker 接收；终止该副本后 late-ack 又在 10:47:01 UTC 重投。副本覆盖了单行
+  Task Monitor 的 `started_at`、进度和结果，最终页面错误地显示约 319 秒运行时长和空 payload。
+- 运维处置只针对该 task id：保留原始 worker，终止两个重复副本，并向两个 worker 广播 revoke 以丢弃后续
+  同 id 重投。原始执行继续到 publication，但于 10:52:24 UTC 命中 4,200 秒 soft limit；同一阶段 Audit
+  authority preflight 又抛出未被 Data Center 业务边界归一化的
+  `system_audit_authority_unavailable`。因此本次结果是技术 failure，不能作为规范业务 outcome；旧 quote、
+  price、valuation 和 financial Publication 均未切换，原子发布保护有效。
+- 根因按类别拆为四项：broker visibility 小于任务 hard limit；4,200/4,500 秒预算不足以覆盖真实规模和发布
+  收尾；同 task id 的重复 attempt 可覆盖监控证据；发布 composition 的 Audit 异常越过业务边界。它们与本日
+  12 个估值局部失败、9 个行情局部排除不是同一问题，局部证券不得阻断其他合格证券，也不得用静态代码表处理。
+- 当前候选把全市场 soft/hard limit 调整为 5,400/5,700 秒，authority window 调整为 6,300 秒，Redis
+  visibility 默认 7,200 秒。启动设置会拒绝低于仓库任务 hard-limit 真值的声明，也会拒绝不严格大于声明上限的
+  visibility；AST 契约测试扫描全部 Application task，新增或提高长任务上限时必须同步治理值。该技术预算不改变
+  provider 单请求超时、北京时间 15:00 收盘、新鲜度、覆盖率、审计或 `SIGNAL_WEAK=0.6000`。
+- Task Monitor 候选为每次执行 attempt 建立所有权：重复 `STARTED` 不再重置首次开始时间、worker 或实时进度，
+  旧 attempt 的 postrun/failure 信号不能覆盖当前 attempt，合法 Celery retry 仍可领取新 attempt 并保留原始生命周期。
+  broker visibility 不变量负责避免正常运行中的并发重投；监控 attempt 防护负责在异常重投时保留可信证据，二者不能
+  相互替代。
+- 发布 composition 候选把 `SystemAuditCompositionUnavailable` 映射为稳定的 Data Center blocked reason。
+  若事实已完成写入而正式发布被 authority 阻断，任务返回 `outcome=partial`、`phase=publication`、完整
+  `requested/succeeded/failed/stored`、`publication_updated=false` 和
+  `must_not_use_for_decision=true`；无已写事实时才返回 blocked，不再只留下 Celery failure 和空结果。
+- 14:55 仍仅用于负向回归：它证明同日出现过交易，因此可否定“全天停牌”，但绝不代表正式收盘。生产常量、
+  current Publication 和容量门都以北京时间 15:00 为收盘边界。候选完成聚焦回归、格式化、mypy 和治理门禁后，
+  必须形成新 SHA、重新取得同 SHA CI/PostgreSQL、全新 S6 和部署回执，再以新 task id 只启动一次生产刷新；只有
+  Task Monitor 与业务结果、Publication id/hash/run id、成员及动态 scope block 全部一致，才能继续解除决策运行时
+  和 Alpha/API/SDK/MCP/普通用户页面的后续阻断。
+- 本地候选验证为：Celery/发布/监控聚焦回归 93 passed，Task Monitor PostgreSQL 等价 ORM 组件反例
+  2 passed，高风险 TUI/terminal agent/SDK/SSL 回归 375 passed；Celery 合同 94 tasks、current-data 72
+  surfaces、module map 44 modules / 210 edges、迁移生成检查、Black、isort、Ruff、13 个生产文件增量 mypy
+  与全量 debt ceiling 均通过。该证据只证明候选可进入同 SHA CI/S6，尚未形成新生产恢复证据。
