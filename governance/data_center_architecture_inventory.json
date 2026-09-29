@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5193,
+    "current_surface_references": 5198,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -484,6 +484,11 @@
       "line": 137,
       "path": "apps/account/application/account_authentication_context_source_v3.py",
       "text": "raise AccountActorAuthorityRawSourceV3Corruption(\"current-head recorder substitution\")"
+    },
+    {
+      "line": 54,
+      "path": "apps/account/application/account_authority_final_revalidation_v3_contracts.py",
+      "text": "\"\"\"Read one exact current-head row without traversing its parent graph.\"\"\""
     },
     {
       "line": 50,
@@ -3681,32 +3686,52 @@
       "text": "current_row, current = next_row, successor"
     },
     {
+      "line": 262,
+      "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
+      "text": "current = self._repository.get_selected_root("
+    },
+    {
+      "line": 268,
+      "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
+      "text": "if current != expected:"
+    },
+    {
+      "line": 272,
+      "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
+      "text": "if self._read_revocation(current, now) is not None:"
+    },
+    {
+      "line": 277,
+      "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
+      "text": "authority_content_hash=current.record.authority.content_hash,"
+    },
+    {
       "line": 123,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Identity-safe comparison fields for one current authority observation.\"\"\""
     },
     {
-      "line": 216,
+      "line": 217,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise TypeError(\"legacy_current must be an exact current authority observation\")"
     },
     {
-      "line": 257,
+      "line": 259,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Restore current authority with the existing Application service graph.\"\"\""
     },
     {
-      "line": 354,
+      "line": 356,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Bind one Application current-read use case.\"\"\""
     },
     {
-      "line": 362,
+      "line": 364,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Execute current Evidence V5 validation without adding persistence rules.\"\"\""
     },
     {
-      "line": 560,
+      "line": 562,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Project one checked current result without exposing actor or account IDs.\"\"\""
     },
