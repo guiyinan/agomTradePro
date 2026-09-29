@@ -32,6 +32,9 @@ from apps.data_center.domain.protocols import (
     SessionQuoteBatchProviderProtocol,
 )
 from apps.data_center.domain.publication_policy_identity import publication_policy_content_hash
+from apps.data_center.target_date_universe_composition import (
+    build_target_date_a_share_universe_scope,
+)
 from core.exceptions import AgomTradeProException, DataFetchError
 
 from .rehearsal_http_capture import RehearsalHttpCapture
@@ -338,8 +341,28 @@ def run_market_provider_rehearsal(
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             cursor.execute("SELECT set_config('statement_timeout', %s, true)", ["30000"])
-        registered_universe = tuple(sorted(set(list_active_stock_codes_for_backfill())))
-        universe = registered_universe
+        candidate_rows = tuple(
+            sorted(
+                str(code or "").strip().upper() for code in list_active_stock_codes_for_backfill()
+            )
+        )
+        candidate_active_universe = tuple(sorted(set(candidate_rows)))
+        registered_universe: tuple[str, ...] = ()
+        universe: tuple[str, ...] = ()
+        target_scope_evidence: dict[str, object] = {
+            "target_date_scope_status": "unavailable",
+            "scope_policy": "exclude_only_verified_list_date_after_target",
+            "candidate_active_asset_count": len(candidate_active_universe),
+            "candidate_active_asset_codes_sha256": rehearsal_digest(candidate_active_universe),
+            "target_requested_asset_count": 0,
+            "target_requested_asset_codes_sha256": rehearsal_digest(()),
+            "excluded_not_yet_listed_count": 0,
+            "excluded_not_yet_listed_evidence": [],
+            "unknown_listing_date_count": 0,
+            "unknown_listing_date_codes": [],
+            "unknown_listing_date_codes_sha256": rehearsal_digest(()),
+            "unknown_listing_date_codes_sample": [],
+        }
         sample: tuple[str, ...] = ()
         eligible_universe: tuple[str, ...] = ()
         excluded_universe: tuple[str, ...] = ()
@@ -386,7 +409,59 @@ def run_market_provider_rehearsal(
                     stage_error_code = "REHEARSAL_CALENDAR_UNAVAILABLE"
             if target_date is None:
                 stage_error_code = stage_error_code or "REHEARSAL_SESSION_UNAVAILABLE"
-            elif not stage_error_code:
+            if target_date is not None and not stage_error_code:
+                try:
+                    target_scope = build_target_date_a_share_universe_scope(target_date)
+                    if (
+                        len(candidate_rows) != len(candidate_active_universe)
+                        or target_scope.target_date != target_date
+                        or tuple(target_scope.candidate_codes) != candidate_active_universe
+                    ):
+                        raise ValueError("target-date scope differs from current active universe")
+                    registered_universe = tuple(target_scope.requested_codes)
+                    universe = registered_universe
+                    if not registered_universe:
+                        raise ValueError("target-date universe is empty")
+                    excluded_evidence = [
+                        {
+                            "asset_code": item.asset_code,
+                            "list_date": item.list_date.isoformat(),
+                            "reason_code": item.reason_code,
+                            "evidence_source": item.evidence_source,
+                        }
+                        for item in target_scope.excluded_not_yet_listed
+                    ]
+                    unknown_codes = tuple(target_scope.unknown_listing_date_codes)
+                    target_scope_evidence = {
+                        "target_date_scope_status": "resolved",
+                        "scope_policy": "exclude_only_verified_list_date_after_target",
+                        "candidate_active_asset_count": len(candidate_active_universe),
+                        "candidate_active_asset_codes_sha256": rehearsal_digest(
+                            candidate_active_universe
+                        ),
+                        "target_requested_asset_count": len(registered_universe),
+                        "target_requested_asset_codes_sha256": rehearsal_digest(
+                            registered_universe
+                        ),
+                        "excluded_not_yet_listed_count": len(excluded_evidence),
+                        "excluded_not_yet_listed_evidence": excluded_evidence,
+                        "unknown_listing_date_count": len(unknown_codes),
+                        "unknown_listing_date_codes": list(unknown_codes),
+                        "unknown_listing_date_codes_sha256": rehearsal_digest(unknown_codes),
+                        "unknown_listing_date_codes_sample": list(unknown_codes[:20]),
+                    }
+                except (
+                    AgomTradeProException,
+                    OSError,
+                    PermissionError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                ) as exc:
+                    stage_error_code = _eligible_scope_error_code(exc)
+                    if stage_error_code == "REHEARSAL_PROVIDER_FAILED":
+                        stage_error_code = "REHEARSAL_TARGET_SCOPE_INVALID"
+            if target_date is not None and not stage_error_code:
                 try:
                     registry = get_provider_registry()
                     quotes = registry.get_by_id(quote_provider_id)
@@ -645,7 +720,8 @@ def run_market_provider_rehearsal(
         "target_trade_date": target_date.isoformat() if target_date is not None else None,
         "stage_error_code": stage_error_code,
         "universe_count": len(universe),
-        "registered_universe_count": len(registered_universe),
+        "registered_universe_count": len(candidate_active_universe),
+        **target_scope_evidence,
         "asset_codes": list(universe),
         "universe_sha256": rehearsal_digest(universe),
         "eligible_asset_codes": list(eligible_universe),

@@ -4744,7 +4744,8 @@
         "apps/data_center/domain/publication_snapshot_policy.py",
         "apps/data_center/infrastructure/publication_rollback_models.py",
         "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py",
-        "shared/domain/task_outcomes.py"
+        "shared/domain/task_outcomes.py",
+        "apps/data_center/infrastructure/tushare_a_share_provider.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -4848,7 +4849,9 @@
           "reason_code != \"quote_full_day_suspension\"",
           "scope_exclusions_by_dataset",
           "and policy.allow_partial",
-          "and coverage_ratio >= policy.minimum_coverage_ratio"
+          "and coverage_ratio >= policy.minimum_coverage_ratio",
+          "reference.observed_at < cn_market_session_close_utc(observation_date)",
+          "official China-market close"
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
@@ -5077,8 +5080,6 @@
           "stock_info_sz_name_code",
           "stock_info_bj_name_code",
           "cache_clear",
-          "stock_basic",
-          "list_status=\"L\"",
           "_DEFAULT_FAILOVER_TOLERANCE = 0.01",
           "symmetric_difference",
           "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT"
@@ -5291,6 +5292,10 @@
           "def publication_gate_metadata(",
           "\"coverage_eligible_count\": publication.coverage.eligible_count",
           "\"publication_outcome\":"
+        ],
+        "apps/data_center/infrastructure/tushare_a_share_provider.py": [
+          "stock_basic",
+          "list_status=\"L\""
         ]
       },
       "required_tests": [
@@ -5353,6 +5358,16 @@
           "case": "quote_suspension_target_day_observation_conflict",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_suspension_exclusion_rejects_target_session_quote_observation"
+        },
+        {
+          "case": "quote_current_rebuild_rejects_pre_close_observation",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_rejects_pre_close_quote_observations_after_publication_time"
+        },
+        {
+          "case": "quote_current_rebuild_accepts_exact_close_observation",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_rebuild_accepts_quote_observation_at_official_close_boundary"
         },
         {
           "case": "quote_suspension_eligible_gap_remains_blocking",
@@ -6178,6 +6193,11 @@
           "case": "versioned_quote_suspension_scope_is_local_to_readiness",
           "test_file": "tests/component/data_center/test_repositories.py",
           "test_function": "test_diagnostic_quote_suspension_scope_does_not_block_global_readiness"
+        },
+        {
+          "case": "empty_history_suspension_coverage",
+          "test_file": "tests/unit/data_center/test_model_market_data.py",
+          "test_function": "test_empty_multi_session_history_requires_suspension_evidence_for_every_open_day"
         }
       ]
     },
@@ -6927,6 +6947,123 @@
           "case": "full_universe_capacity_rejects_same_day_pre_close_quote",
           "test_file": "tests/unit/data_center/test_full_universe_capacity_runner.py",
           "test_function": "test_quote_fact_coverage_does_not_count_same_day_pre_close_snapshot"
+        }
+      ]
+    },
+    {
+      "id": "data_center.point_in_time_active_a_share_universe",
+      "surface": "Target-date active A-share scope for formal full-market publication and S6 rehearsals",
+      "source_files": [
+        "apps/data_center/domain/target_date_universe.py",
+        "apps/data_center/application/full_market_refresh_orchestration.py",
+        "apps/data_center/application/tasks.py",
+        "apps/data_center/infrastructure/a_share_universe_contracts.py",
+        "apps/data_center/infrastructure/a_share_universe_sync.py",
+        "apps/data_center/infrastructure/tushare_a_share_provider.py",
+        "apps/data_center/infrastructure/catalog_repositories.py",
+        "apps/data_center/infrastructure/full_universe_capacity_runner.py",
+        "apps/data_center/infrastructure/market_rehearsal_runner.py",
+        "scripts/validate_release_rehearsal.py",
+        "apps/data_center/application/target_date_universe_scope.py",
+        "apps/data_center/target_date_universe_composition.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/target_date_universe.py": [
+          "list_date_evidence_status",
+          "evidence_status == \"verified\"",
+          "listing_date > target_date",
+          "unknown_listing_date_codes"
+        ],
+        "apps/data_center/application/full_market_refresh_orchestration.py": [
+          "target_date_scope_evidence",
+          "exclude_only_verified_list_date_after_target",
+          "unknown_listing_date_codes_sha256"
+        ],
+        "apps/data_center/application/tasks.py": [
+          "build_target_date_a_share_universe_scope"
+        ],
+        "apps/data_center/infrastructure/a_share_universe_contracts.py": [
+          "list_date: NotRequired[str | None]",
+          "include_list_date"
+        ],
+        "apps/data_center/infrastructure/tushare_a_share_provider.py": [
+          "fields=\"ts_code,name,exchange,list_status,list_date\"",
+          "dataset_key=\"tushare.new_share\"",
+          "new_share.issue_date",
+          "ipo_date"
+        ],
+        "apps/data_center/infrastructure/a_share_universe_sync.py": [
+          "list_date_metadata_source",
+          "list_date_evidence_status",
+          "def _merge_listing_date_metadata("
+        ],
+        "apps/data_center/infrastructure/catalog_repositories.py": [
+          "def list_active_stock_assets("
+        ],
+        "apps/data_center/infrastructure/full_universe_capacity_runner.py": [
+          "build_target_date_a_share_universe_scope",
+          "target_date_universe_scope",
+          "candidate_active_asset_count"
+        ],
+        "apps/data_center/infrastructure/market_rehearsal_runner.py": [
+          "build_target_date_a_share_universe_scope",
+          "target_date_scope_status",
+          "excluded_not_yet_listed_evidence"
+        ],
+        "scripts/validate_release_rehearsal.py": [
+          "def _validate_capacity_target_scope(",
+          "excluded_not_yet_listed_evidence",
+          "unknown_listing_date_codes"
+        ],
+        "apps/data_center/application/target_date_universe_scope.py": [
+          "def build_target_date_a_share_universe_scope(",
+          "list_active_stock_assets()"
+        ],
+        "apps/data_center/target_date_universe_composition.py": [
+          "get_asset_repository()",
+          "_build_target_date_a_share_universe_scope"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "only_verified_source_backed_future_listings_are_excluded",
+          "test_file": "tests/unit/data_center/test_target_date_universe.py",
+          "test_function": "test_target_scope_excludes_only_verified_later_dates_and_keeps_unknowns"
+        },
+        {
+          "case": "new_share_issue_date_is_listing_date",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_tushare_invalid_stock_basic_date_uses_new_share_issue_date_as_listing_date"
+        },
+        {
+          "case": "missing_akshare_date_preserves_persisted_metadata",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_preserves_existing_listing_date_when_primary_omits_it"
+        },
+        {
+          "case": "formal_refresh_uses_target_date_universe",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_uses_verified_target_date_scope_and_keeps_unknown_provider_gap_requested"
+        },
+        {
+          "case": "capacity_receipt_binds_current_and_target_scopes",
+          "test_file": "tests/unit/data_center/test_full_universe_capacity_runner.py",
+          "test_function": "test_capacity_receipt_preserves_current_and_target_date_scope_evidence"
+        },
+        {
+          "case": "market_rehearsal_uses_target_date_scope",
+          "test_file": "tests/unit/data_center/test_market_rehearsal_runner.py",
+          "test_function": "test_probe_handles_policy_qualified_partial_valuation_scope"
+        },
+        {
+          "case": "release_validator_recomputes_capacity_receipt",
+          "test_file": "tests/unit/test_validate_release_rehearsal.py",
+          "test_function": "test_validator_recomputes_capacity_from_bound_measurement_receipt"
+        },
+        {
+          "case": "release_validator_recomputes_unknown_listing_date_digest",
+          "test_file": "tests/unit/test_validate_release_rehearsal.py",
+          "test_function": "test_validator_recomputes_unknown_listing_date_digest_from_full_scope"
         }
       ]
     }

@@ -15,6 +15,7 @@ from django.utils import timezone
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
+from apps.data_center.domain.target_date_universe import TargetDateAssetUniverseScope
 from core.exceptions import DataFetchError
 from core.integration import data_center_audit as audit_integration
 from core.integration.data_center_audit import SystemAuditReaderContext
@@ -74,6 +75,12 @@ class _MarketPublicationsRefresh(Protocol):
     ) -> dict[str, object]: ...
 
 
+class _TargetDateUniverseScopeResolver(Protocol):
+    """Resolve current active A-shares against persisted target-date listing evidence."""
+
+    def __call__(self, target_date: date) -> TargetDateAssetUniverseScope: ...
+
+
 @dataclass(frozen=True, slots=True)
 class FullMarketRefreshDependencies:
     """Application-owned collaborators used by the Celery task adapter."""
@@ -88,7 +95,7 @@ class FullMarketRefreshDependencies:
     make_publication_rebuild_use_case: _PublicationRebuildFactory
     latest_closed_market_session: Callable[[datetime], date | None]
     sync_active_universe: Callable[[], dict[str, object]]
-    list_active_stock_codes: Callable[[], list[str]]
+    target_date_universe_scope: _TargetDateUniverseScopeResolver
     publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
     record_progress: Callable[[TaskProgress], bool]
     model_market_data_port: Callable[[], ModelMarketDataPort]
@@ -288,8 +295,74 @@ def run_full_market_publication_refresh(
             count_unit="scope_validation",
         )
     )
-    active_codes = dependencies.list_active_stock_codes()
-    normalized_active_codes = tuple(str(code or "").strip().upper() for code in active_codes)
+    try:
+        target_date_scope = dependencies.target_date_universe_scope(target_date)
+        candidate_codes = tuple(target_date_scope.candidate_codes)
+        normalized_active_codes = tuple(str(code or "").strip().upper() for code in candidate_codes)
+        normalized_requested_codes = tuple(
+            str(code or "").strip().upper() for code in target_date_scope.requested_codes
+        )
+        excluded_not_yet_listed = tuple(target_date_scope.excluded_not_yet_listed)
+        unknown_listing_date_codes = tuple(target_date_scope.unknown_listing_date_codes)
+        excluded_codes = tuple(item.asset_code for item in excluded_not_yet_listed)
+        if target_date_scope.target_date != target_date:
+            raise ValueError("target-date universe scope is bound to another trade date")
+        target_date_scope_evidence: dict[str, object] = {
+            "scope_policy": "exclude_only_verified_list_date_after_target",
+            "target_trade_date": target_date.isoformat(),
+            "candidate_asset_count": len(normalized_active_codes),
+            "candidate_asset_codes_sha256": market_task.asset_code_scope_sha256(
+                normalized_active_codes
+            ),
+            "requested_asset_count": len(normalized_requested_codes),
+            "requested_asset_codes_sha256": market_task.asset_code_scope_sha256(
+                normalized_requested_codes
+            ),
+            "excluded_not_yet_listed_count": len(excluded_not_yet_listed),
+            "excluded_not_yet_listed_codes": list(excluded_codes),
+            "excluded_not_yet_listed_evidence": [
+                {
+                    "asset_code": item.asset_code,
+                    "list_date": item.list_date.isoformat(),
+                    "reason_code": item.reason_code,
+                    "evidence_source": item.evidence_source,
+                }
+                for item in excluded_not_yet_listed
+            ],
+            "unknown_listing_date_count": len(unknown_listing_date_codes),
+            "unknown_listing_date_codes_sha256": market_task.asset_code_scope_sha256(
+                unknown_listing_date_codes
+            ),
+            "unknown_listing_date_codes_sample": list(unknown_listing_date_codes[:20]),
+        }
+        universe_report = {
+            **universe_report,
+            "target_date_scope": target_date_scope_evidence,
+        }
+    except Exception as exc:
+        logger.warning(
+            "Full-market target-date universe scope failed: %s",
+            type(exc).__name__,
+        )
+        publish_progress(
+            TaskProgressPhase(
+                phase="scope",
+                requested=1,
+                succeeded=0,
+                failed=1,
+                stored=None,
+                count_unit="scope_validation",
+            )
+        )
+        return {
+            **market_task.full_market_input_failure("market_universe_scope_unavailable"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "market_universe_scope_unavailable",
+            "error_code": "MARKET_UNIVERSE_SCOPE_UNAVAILABLE",
+            "errors": ["MARKET_UNIVERSE_SCOPE_UNAVAILABLE"],
+            "market_universe": universe_report,
+        }
     frozen_universe_sha256 = market_task.asset_code_scope_sha256(normalized_active_codes)
     reported_universe_sha256 = universe_report.get("active_codes_sha256")
     if (
@@ -297,6 +370,14 @@ def run_full_market_publication_refresh(
         or len(set(normalized_active_codes)) != len(normalized_active_codes)
         or universe_active_count != len(normalized_active_codes)
         or reported_universe_sha256 != frozen_universe_sha256
+        or any(not code for code in normalized_requested_codes)
+        or len(set(normalized_requested_codes)) != len(normalized_requested_codes)
+        or not set(normalized_requested_codes).issubset(set(normalized_active_codes))
+        or len(set(excluded_codes)) != len(excluded_codes)
+        or set(normalized_requested_codes).intersection(excluded_codes)
+        or set(normalized_requested_codes).union(excluded_codes) != set(normalized_active_codes)
+        or any(code not in set(normalized_active_codes) for code in unknown_listing_date_codes)
+        or len(set(unknown_listing_date_codes)) != len(unknown_listing_date_codes)
     ):
         publish_progress(
             TaskProgressPhase(
@@ -317,7 +398,7 @@ def run_full_market_publication_refresh(
             "errors": ["MARKET_UNIVERSE_SCOPE_INVALID"],
             "publication_updated": False,
             "published_members": 0,
-            "requested_asset_count": len(normalized_active_codes),
+            "requested_asset_count": len(normalized_requested_codes),
             "frozen_universe_sha256": frozen_universe_sha256,
             "reported_universe_sha256": reported_universe_sha256,
             "market_universe": universe_report,
@@ -328,17 +409,28 @@ def run_full_market_publication_refresh(
             requested=1,
             succeeded=1,
             failed=0,
-            stored=universe_active_count,
+            stored=len(normalized_requested_codes),
             count_unit="scope_validation",
             stored_count_unit="universe_asset",
         )
     )
+    if not normalized_requested_codes:
+        return {
+            **market_task.full_market_input_failure("market_universe_scope_empty"),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "market_universe_scope_empty",
+            "error_code": "MARKET_UNIVERSE_SCOPE_EMPTY",
+            "errors": ["MARKET_UNIVERSE_SCOPE_EMPTY"],
+            "requested_asset_count": 0,
+            "market_universe": universe_report,
+        }
     if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
         return dependencies.data02_authority_failure(authority_latch.reason_code)
     publish_progress(
         TaskProgressPhase(
             phase="valuation",
-            requested=len(normalized_active_codes),
+            requested=len(normalized_requested_codes),
             succeeded=None,
             failed=None,
             stored=None,
@@ -349,7 +441,7 @@ def run_full_market_publication_refresh(
     try:
         valuation_seed = valuations.execute(
             provider_id=valuation_provider_id,
-            asset_codes=active_codes,
+            asset_codes=list(normalized_requested_codes),
             as_of_date=target_date,
             require_exact_asset_codes=False,
         )
@@ -366,7 +458,7 @@ def run_full_market_publication_refresh(
             "error_code": "CURRENT_VALUATION_SCOPE_UNAVAILABLE",
             "errors": ["CURRENT_VALUATION_SCOPE_UNAVAILABLE"],
         }
-    requested_codes = set(normalized_active_codes)
+    requested_codes = set(normalized_requested_codes)
     returned_codes = tuple(
         str(code or "").strip().upper() for code in valuation_seed.returned_asset_codes
     )

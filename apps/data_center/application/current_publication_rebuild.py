@@ -16,7 +16,10 @@ from apps.data_center.domain.control_plane import (
     PublicationScopeBlock,
     PublicationState,
 )
-from apps.data_center.domain.market_time import cn_market_date_from_observation
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    cn_market_session_close_utc,
+)
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
 from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
@@ -588,6 +591,13 @@ class CurrentPublicationRebuildUseCase:
                     f"Current publication contains a future observation for "
                     f"{self.dataset.dataset_key}"
                 )
+            if self.dataset.dataset_key == "equity.quote.snapshot":
+                observation_date = cn_market_date_from_observation(reference.observed_at)
+                if reference.observed_at < cn_market_session_close_utc(observation_date):
+                    raise ValueError(
+                        "Current quote publication contains an observation before the "
+                        "official China-market close"
+                    )
             prior = by_natural_key.get(reference.natural_key)
             if prior is not None and prior.fact_pk != reference.fact_pk:
                 raise ValueError("Current publication natural key resolves to multiple facts")

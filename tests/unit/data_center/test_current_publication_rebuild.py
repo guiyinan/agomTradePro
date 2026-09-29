@@ -149,9 +149,15 @@ def _reference(
     fact_pk: str,
     *,
     dataset: CurrentPublicationDataset,
-    observed_at: datetime = NOW - timedelta(hours=1),
+    observed_at: datetime | None = None,
     suffix: str = "latest",
 ) -> PublicationFactReference:
+    if observed_at is None:
+        observed_at = (
+            datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+            if dataset.dataset_key == "equity.quote.snapshot"
+            else NOW - timedelta(hours=1)
+        )
     natural_key_suffix = suffix
     if dataset.dataset_key == "equity.valuation.fact" and suffix == "latest":
         natural_key_suffix = NOW.date().isoformat()
@@ -359,6 +365,69 @@ def test_partial_policy_does_not_relax_quote_publication_scope() -> None:
             asset_codes=["000001.SZ", "600000.SH"],
             published_at=NOW,
         )
+
+
+@pytest.mark.parametrize(
+    "published_at",
+    (
+        datetime(2026, 8, 28, 7, 5, tzinfo=UTC),
+        datetime(2026, 8, 28, 9, 5, tzinfo=UTC),
+    ),
+    ids=["15-05-china-time", "17-05-china-time"],
+)
+def test_rebuild_rejects_pre_close_quote_observations_after_publication_time(
+    published_at: datetime,
+) -> None:
+    """A later publication clock cannot turn a 14:55 quote into a closing quote."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    publications = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                "000001.SZ",
+                "pre-close",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 6, 55, tzinfo=UTC),
+            )
+        ],
+        publications,
+    )
+
+    with pytest.raises(ValueError, match="before the official China-market close"):
+        use_case.preview(asset_codes=("000001.SZ",), published_at=published_at)
+    with pytest.raises(ValueError, match="before the official China-market close"):
+        use_case.execute(asset_codes=("000001.SZ",), published_at=published_at)
+
+    assert publications.published == []
+
+
+def test_rebuild_accepts_quote_observation_at_official_close_boundary() -> None:
+    """An observation exactly at 15:00 China time is eligible for current rebuild."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    close_at = datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+    use_case = _use_case(
+        dataset,
+        [_reference("000001.SZ", "at-close", dataset=dataset, observed_at=close_at)],
+    )
+
+    publication = use_case.execute(
+        asset_codes=("000001.SZ",),
+        published_at=datetime(2026, 8, 28, 7, 5, tzinfo=UTC),
+    )
+
+    assert publication.as_of == close_at
+    assert publication.coverage.selected_count == 1
 
 
 def test_rebuild_publishes_verified_target_session_suspension_scope() -> None:

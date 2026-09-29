@@ -114,6 +114,22 @@ class AssetRepository:
             ).values_list("code", flat=True)
         )
 
+    def list_active_stock_assets(self) -> list[AssetMaster]:
+        """Return active A-share master records, including persisted listing dates."""
+
+        return [
+            self._from_model(model)
+            for model in AssetMasterModel.objects.filter(
+                asset_type=AssetType.STOCK.value,
+                exchange__in=[
+                    MarketExchange.SSE.value,
+                    MarketExchange.SZSE.value,
+                    MarketExchange.BSE.value,
+                ],
+                is_active=True,
+            ).order_by("code")
+        ]
+
     def list_active(self) -> list[AssetMaster]:
         """Return active canonical asset-master records in code order."""
 

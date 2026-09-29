@@ -30,9 +30,9 @@ class Source:
 
     index_history = stock_history
 
-    def trade_days(self, *args):
+    def trade_days(self, start_date, end_date):
         self.calendar_calls += 1
-        return (D1, D2)
+        return tuple(day for day in (D1, D2) if start_date <= day <= end_date)
 
     def trading_calendar_evidence(self, start_date, end_date):
         return TradingCalendarEvidence(
@@ -157,6 +157,141 @@ def test_verified_full_day_suspension_stores_history_without_advancing_observati
     assert caught.value.details["suspended_through"] == D2.isoformat()
     assert stored == [bar()]
     assert stored[0].trade_date == D1
+
+
+def test_empty_target_day_with_complete_suspension_evidence_is_suspended():
+    class Suspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            assert asset_code == "600000.SH"
+            assert start_date == end_date == D2
+            return (D2,)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(Suspended(), Source()).stock_history("600000.SH", D2, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SUSPENDED"
+    assert caught.value.details["asset_code"] == "600000.SH"
+    assert caught.value.details["suspended_through"] == D2.isoformat()
+
+
+def test_empty_multi_session_history_requires_suspension_evidence_for_every_open_day():
+    class LastDaySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            assert start_date == D1
+            assert end_date == D2
+            return (D2,)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(LastDaySuspended(), Source()).stock_history("600000.SH", D1, D2)
+
+    assert caught.value.code == "MODEL_MARKET_UNAVAILABLE"
+
+
+def test_empty_multi_session_history_is_suspended_when_all_open_days_are_confirmed():
+    class FullySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            assert start_date == D1
+            assert end_date == D2
+            return (D1, D2)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(FullySuspended(), Source()).stock_history("600000.SH", D1, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SUSPENDED"
+    assert caught.value.details["suspended_through"] == D2.isoformat()
+
+
+@pytest.mark.parametrize("evidence", [(), (D1,)])
+def test_empty_target_day_without_complete_suspension_evidence_is_unavailable(evidence):
+    class PossiblySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            return evidence
+
+    with pytest.raises(DataFetchError) as caught:
+        service(PossiblySuspended(), Source()).stock_history("600000.SH", D2, D2)
+
+    assert caught.value.code == "MODEL_MARKET_UNAVAILABLE"
+
+
+def test_empty_target_day_suspension_lookup_failure_remains_fail_closed():
+    class FailedSuspensionLookup(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            raise DataFetchError(
+                "suspension evidence unavailable", code="MODEL_MARKET_SUSPENSION_UNAVAILABLE"
+            )
+
+    port = ModelMarketDataService(
+        (ModelMarketRoute("primary", FailedSuspensionLookup()),),
+        enable_failover=True,
+        tolerance=0.01,
+        reference_history=lambda *_: (),
+    )
+    with pytest.raises(DataFetchError) as caught:
+        port.stock_history("600000.SH", D2, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SUSPENSION_UNAVAILABLE"
+
+
+def test_empty_target_day_suspension_does_not_hide_backup_conflict():
+    class Suspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            return (D2,)
+
+    conflict = DataFetchError("backup source conflicted", code="MODEL_MARKET_SOURCE_CONFLICT")
+    with pytest.raises(DataFetchError) as caught:
+        service(Suspended(), Source(error=conflict)).stock_history("600000.SH", D2, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SOURCE_CONFLICT"
+
+
+def test_empty_full_interval_suspension_does_not_hide_stale_backup_history():
+    class FullySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            assert asset_code == "600000.SH"
+            assert start_date == D1
+            assert end_date == D2
+            return (D1, D2)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(FullySuspended(), Source((bar(),))).stock_history("600000.SH", D1, D2)
+
+    assert caught.value.code == "MODEL_MARKET_STALE"
+
+
+def test_empty_full_interval_suspension_conflicting_with_persisted_history_fails_closed():
+    class FullySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            return (D1, D2)
+
+    with pytest.raises(DataFetchError) as caught:
+        service(FullySuspended(), Source(), reference=(bar(),)).stock_history("600000.SH", D1, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SOURCE_CONFLICT"
+
+
+def test_persisted_suspension_conflict_is_not_hidden_by_fresh_fallback():
+    class FullySuspended(Source):
+        def suspended_days(self, asset_code, start_date, end_date):
+            return (D1, D2)
+
+    fresh = Source((bar(source="backup"), bar(D2, source="backup")))
+    with pytest.raises(DataFetchError) as caught:
+        service(FullySuspended(), fresh, reference=(bar(),)).stock_history("600000.SH", D1, D2)
+
+    assert caught.value.code == "MODEL_MARKET_SOURCE_CONFLICT"
+
+
+def test_empty_nontrading_target_is_not_classified_as_suspended():
+    class Suspended(Source):
+        def suspended_days(self, *args):
+            raise AssertionError("suspension evidence is only requested for a trading day")
+
+    with pytest.raises(DataFetchError) as caught:
+        service(Suspended(), Source()).stock_history(
+            "600000.SH", date(2026, 9, 6), date(2026, 9, 6)
+        )
+
+    assert caught.value.code == "MODEL_MARKET_UNAVAILABLE"
 
 
 @pytest.mark.parametrize("evidence", [(), (D1,)])

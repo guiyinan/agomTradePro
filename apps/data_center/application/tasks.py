@@ -31,6 +31,9 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
     SyncRunStatus,
 )
+from apps.data_center.target_date_universe_composition import (
+    build_target_date_a_share_universe_scope,
+)
 from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
 from core.integration import data_center_audit as audit_integration
 from core.integration.task_monitor_runtime import record_current_task_progress
@@ -77,7 +80,9 @@ from .public import (
 from .publication_rebuild_evidence import (
     publication_evidence_hash_from_result as _publication_evidence_hash_from_result,
 )
-from .query_services import list_active_stock_codes_for_backfill
+from .query_services import (
+    list_active_stock_codes_for_backfill,
+)
 from .query_use_cases import latest_completed_cn_market_session
 
 logger = logging.getLogger(__name__)
@@ -117,7 +122,7 @@ def refresh_full_market_publications_task(
             make_publication_rebuild_use_case=make_core_current_publication_rebuild_use_case,
             latest_closed_market_session=latest_closed_cn_market_session,
             sync_active_universe=sync_active_a_share_universe,
-            list_active_stock_codes=list_active_stock_codes_for_backfill,
+            target_date_universe_scope=build_target_date_a_share_universe_scope,
             publication_policy_repository=get_publication_policy_repository,
             record_progress=record_current_task_progress,
             model_market_data_port=public_services.get_model_market_data_port,

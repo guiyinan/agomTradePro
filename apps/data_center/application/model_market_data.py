@@ -171,6 +171,8 @@ class ModelMarketDataService:
         reference: tuple[ModelDailyBar, ...] = ()
         last_error: DataFetchError | None = None
         suspended: dict[str, str] | None = None
+        full_interval_suspension = False
+        observed_history = False
         suspension_conflict: DataFetchError | None = None
         for index, route in enumerate(self._routes):
             if route.name in self._disabled:
@@ -180,8 +182,38 @@ class ModelMarketDataService:
                 read = route.port.index_history if is_index else route.port.stock_history
                 rows = read(asset_code, start_date, end_date)
                 if not rows:
+                    last_error = DataFetchError(
+                        "No model market history available", code="MODEL_MARKET_UNAVAILABLE"
+                    )
+                    if not is_index and isinstance(route.port, ModelSuspensionPort):
+                        calendar = self.trade_days(start_date, end_date)
+                        if calendar:
+                            calendar_sessions = set(calendar)
+                            evidence = set(
+                                route.port.suspended_days(asset_code, min(calendar), max(calendar))
+                            )
+                            if calendar_sessions <= evidence and not observed_history:
+                                persisted = self._reference_history(
+                                    asset_code, start_date, end_date
+                                )
+                                if any(row.trade_date in calendar_sessions for row in persisted):
+                                    suspension_conflict = DataFetchError(
+                                        "Persisted history conflicts with full-interval suspension",
+                                        code="MODEL_MARKET_SOURCE_CONFLICT",
+                                    )
+                                else:
+                                    suspended = {
+                                        "asset_code": asset_code,
+                                        "suspended_through": max(calendar).isoformat(),
+                                        "source": route.name,
+                                    }
+                                    full_interval_suspension = True
                     continue
                 self._validate(rows, asset_code, start_date, end_date, is_index=is_index)
+                observed_history = True
+                if full_interval_suspension:
+                    suspended = None
+                    full_interval_suspension = False
                 calendar = self.trade_days(start_date, end_date)
                 if max(row.trade_date for row in rows) < max(calendar):
                     reference = rows
@@ -216,6 +248,8 @@ class ModelMarketDataService:
                 if index or route.requires_reference or source_changed:
                     reference = reference or persisted_reference
                     self._check_consistency(reference, rows)
+                if suspension_conflict is not None:
+                    continue
                 if self._store_history is not None:
                     self._store_history(rows)
                 return tuple(sorted(rows, key=lambda row: row.trade_date))

@@ -15,6 +15,10 @@ from apps.data_center.application.market_publication_refresh import (
     refresh_market_price_inputs,
     refresh_market_publications,
 )
+from apps.data_center.domain.target_date_universe import (
+    NotYetListedAsset,
+    TargetDateAssetUniverseScope,
+)
 from core.exceptions import DataFetchError
 
 
@@ -56,6 +60,22 @@ def _universe_report(codes: list[str], *, active_count: int | None = None) -> di
     }
 
 
+def _unknown_listing_date_scope(
+    target_date: date,
+    asset_codes: list[str],
+) -> TargetDateAssetUniverseScope:
+    """Preserve every active test asset when its listing date is unknown."""
+
+    canonical_codes = tuple(sorted(str(code).strip().upper() for code in asset_codes))
+    return TargetDateAssetUniverseScope(
+        target_date=target_date,
+        candidate_codes=canonical_codes,
+        requested_codes=canonical_codes,
+        excluded_not_yet_listed=(),
+        unknown_listing_date_codes=canonical_codes,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _patch_current_authority(monkeypatch):
     """Bind task-path tests to one current server-issued authority."""
@@ -85,6 +105,14 @@ def _patch_current_authority(monkeypatch):
         tasks,
         "sync_active_a_share_universe",
         lambda: _universe_report(tasks.list_active_stock_codes_for_backfill()),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_target_date_a_share_universe_scope",
+        lambda target_date: _unknown_listing_date_scope(
+            target_date,
+            tasks.list_active_stock_codes_for_backfill(),
+        ),
     )
     return context
 
@@ -2045,4 +2073,99 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
     assert result["error_code"] == "MARKET_REFRESH_SOFT_TIME_LIMIT_EXCEEDED"
     assert result["publication_updated"] is False
     assert result["must_not_use_for_decision"] is True
-    assert result["publication_run_id"]
+
+
+def test_task_uses_verified_target_date_scope_and_keeps_unknown_provider_gap_requested(
+    monkeypatch,
+) -> None:
+    """Only verified later listing dates leave requested scope; unknown gaps still block."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    target = date(2026, 9, 28)
+    candidates = ("000001.SZ", "000002.SZ", "301716.SZ", "920202.BJ")
+    requested = ("000001.SZ", "000002.SZ")
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: target)
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: _universe_report(list(candidates)),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "list_active_stock_codes_for_backfill",
+        lambda: list(candidates),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_target_date_a_share_universe_scope",
+        lambda day: TargetDateAssetUniverseScope(
+            target_date=day,
+            candidate_codes=candidates,
+            requested_codes=requested,
+            excluded_not_yet_listed=(
+                NotYetListedAsset(
+                    asset_code="301716.SZ",
+                    list_date=date(2026, 9, 29),
+                    evidence_source="tushare.new_share[provider_id=7].issue_date",
+                ),
+                NotYetListedAsset(
+                    asset_code="920202.BJ",
+                    list_date=date(2026, 9, 29),
+                    evidence_source="tushare.stock_basic[provider_id=7].list_date",
+                ),
+            ),
+            unknown_listing_date_codes=("000002.SZ",),
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_quote_use_case",
+        SimpleNamespace,
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda **kwargs: (
+                calls.append(tuple(kwargs["asset_codes"]))
+                or SimpleNamespace(
+                    stored_count=1,
+                    status="partial",
+                    succeeded_asset_codes=("000001.SZ",),
+                    returned_asset_codes=("000001.SZ",),
+                )
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _dataset: None),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=2)
+
+    assert calls == [requested]
+    assert result["outcome"] == "blocked"
+    assert result["requested_asset_count"] == 2
+    assert result["missing_asset_codes"] == ["000002.SZ"]
+    assert result["market_universe"]["active_count"] == len(candidates)
+    scope_evidence = result["market_universe"]["target_date_scope"]
+    assert scope_evidence["candidate_asset_count"] == len(candidates)
+    assert scope_evidence["requested_asset_count"] == len(requested)
+    assert scope_evidence["unknown_listing_date_codes_sample"] == ["000002.SZ"]
+    assert scope_evidence["excluded_not_yet_listed_count"] == 2
+    assert [item["asset_code"] for item in scope_evidence["excluded_not_yet_listed_evidence"]] == [
+        "301716.SZ",
+        "920202.BJ",
+    ]

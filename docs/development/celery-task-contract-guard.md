@@ -184,3 +184,5 @@ UTC 时刻重新计算完整任务授权窗口。配置缺失、identity/actor/r
 证券主数据自然刷新对 AKShare 的瞬时 `OSError/RuntimeError/ValueError` 最多尝试 3 次；最终失败返回 `MARKET_UNIVERSE_REFRESH_FAILED`，任务结果和 Alpha 页面只显示稳定错误码，不回显第三方响应。空名单同样阻断，不能用旧名单伪装本次同步成功。
 
 2026-09-24 财报证据自动恢复：`data_center.refresh_financial_publications_batch` 按冻结的有效 A 股全集分批拉取财报及原始响应、披露时间证据，用 Redis 锁和可恢复游标串行续跑；单批失败或证据不足不得推进游标。只有全集完成后才重建 `equity.financial.fact/current`，禁止把中间批次发布成 current。`setup_full_market_publications` 同时配置每日财报恢复任务，并由 `init_scheduler_defaults` 纳入冷启动默认调度，避免新版本只创建行情任务而遗漏财报任务。
+
+2026-09-29 全市场 point-in-time universe：`refresh_full_market_publications_task` 保留本次同步的当前 active 候选 count/hash，并将目标交易日 eligible universe 作为独立 requested scope；只有带 `list_date_evidence_status=verified` 与非空来源、且 `list_date > target_trade_date` 的资产才可排除，目标日当天上市资产应纳入。未知、冲突或无来源日期继续计入 requested，普通 provider 缺行仍按未解决缺口阻断。目标日 scope 的候选、requested、排除证据和未知日期证据分别进入结果审计字段；`full_universe_capacity_runner` 与 `market_rehearsal_runner` 使用相同 Application resolver 和同一证据口径，release validator 校验两份容量 receipt 一致。

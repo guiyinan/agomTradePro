@@ -362,6 +362,13 @@ def _require_positive_int(payload: dict[str, Any], key: str, code: str) -> int:
     return value
 
 
+def _require_nonnegative_int(payload: dict[str, Any], key: str, code: str) -> int:
+    value = payload.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        _fail(code)
+    return value
+
+
 def _require_finite_number(
     payload: dict[str, Any], key: str, code: str, *, allow_zero: bool = False
 ) -> float:
@@ -1350,6 +1357,126 @@ def _validate_real_replay(
         _fail("REHEARSAL_REPLAY_CASES_INCOMPLETE")
 
 
+def _validate_capacity_target_scope(
+    payload: dict[str, Any],
+    *,
+    target_asset_codes: list[str],
+    expected_date: str,
+) -> dict[str, object]:
+    """Verify candidate and target-date universe partitions in capacity evidence."""
+
+    error_code = "REHEARSAL_CAPACITY_TARGET_SCOPE_INVALID"
+    candidate_count = _require_positive_int(payload, "candidate_active_asset_count", error_code)
+    requested_count = _require_positive_int(payload, "target_requested_asset_count", error_code)
+    excluded_count = _require_nonnegative_int(
+        payload,
+        "excluded_not_yet_listed_count",
+        error_code,
+    )
+    unknown_count = _require_nonnegative_int(payload, "unknown_listing_date_count", error_code)
+    candidate_digest = payload.get("candidate_active_asset_codes_sha256")
+    requested_digest = payload.get("target_requested_asset_codes_sha256")
+    if (
+        payload.get("target_trade_date") != expected_date
+        or payload.get("scope_policy") != "exclude_only_verified_list_date_after_target"
+        or requested_count != len(target_asset_codes)
+        or requested_count + excluded_count != candidate_count
+        or unknown_count > requested_count
+        or not isinstance(candidate_digest, str)
+        or SHA256_PATTERN.fullmatch(candidate_digest) is None
+        or not isinstance(requested_digest, str)
+        or SHA256_PATTERN.fullmatch(requested_digest) is None
+        or requested_digest != payload.get("universe_sha256")
+    ):
+        _fail(error_code)
+    encoded_requested = json.dumps(
+        target_asset_codes,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+    if hashlib.sha256(encoded_requested).hexdigest() != requested_digest:
+        _fail(error_code)
+
+    excluded_evidence = payload.get("excluded_not_yet_listed_evidence")
+    if not isinstance(excluded_evidence, list) or len(excluded_evidence) != excluded_count:
+        _fail(error_code)
+    excluded_codes: list[str] = []
+    for item in excluded_evidence:
+        if (
+            not isinstance(item, dict)
+            or set(item) != {"asset_code", "list_date", "reason_code", "evidence_source"}
+            or not isinstance(item.get("asset_code"), str)
+            or not item.get("asset_code", "").strip()
+            or not isinstance(item.get("list_date"), str)
+            or not isinstance(item.get("reason_code"), str)
+            or item.get("reason_code") != "listed_after_target_date"
+            or not isinstance(item.get("evidence_source"), str)
+            or not item.get("evidence_source", "").strip()
+        ):
+            _fail(error_code)
+        try:
+            listed_date = date.fromisoformat(cast(str, item["list_date"]))
+            target_date = date.fromisoformat(expected_date)
+        except ValueError:
+            _fail(error_code)
+        if listed_date <= target_date:
+            _fail(error_code)
+        excluded_codes.append(cast(str, item["asset_code"]))
+    if excluded_codes != sorted(set(excluded_codes)) or set(excluded_codes) & set(
+        target_asset_codes
+    ):
+        _fail(error_code)
+    candidate_codes = sorted([*target_asset_codes, *excluded_codes])
+    encoded_candidate = json.dumps(
+        candidate_codes,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+    if hashlib.sha256(encoded_candidate).hexdigest() != candidate_digest:
+        _fail(error_code)
+
+    unknown_codes = payload.get("unknown_listing_date_codes")
+    unknown_digest = payload.get("unknown_listing_date_codes_sha256")
+    unknown_sample = payload.get("unknown_listing_date_codes_sample")
+    if (
+        not isinstance(unknown_codes, list)
+        or len(unknown_codes) != unknown_count
+        or any(not isinstance(code, str) or not code.strip() for code in unknown_codes)
+        or unknown_codes != sorted(set(unknown_codes))
+        or not set(unknown_codes).issubset(set(target_asset_codes))
+        or not isinstance(unknown_digest, str)
+        or SHA256_PATTERN.fullmatch(unknown_digest) is None
+        or not isinstance(unknown_sample, list)
+        or len(unknown_sample) != min(unknown_count, 20)
+        or unknown_sample != unknown_codes[:20]
+    ):
+        _fail(error_code)
+    encoded_unknown = json.dumps(
+        unknown_codes,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+    if hashlib.sha256(encoded_unknown).hexdigest() != unknown_digest:
+        _fail(error_code)
+    return {
+        "target_trade_date": expected_date,
+        "scope_policy": "exclude_only_verified_list_date_after_target",
+        "candidate_active_asset_count": candidate_count,
+        "candidate_active_asset_codes_sha256": candidate_digest,
+        "target_requested_asset_count": requested_count,
+        "target_requested_asset_codes_sha256": requested_digest,
+        "excluded_not_yet_listed_count": excluded_count,
+        "excluded_not_yet_listed_evidence": excluded_evidence,
+        "unknown_listing_date_count": unknown_count,
+        "unknown_listing_date_codes": unknown_codes,
+        "unknown_listing_date_codes_sha256": unknown_digest,
+        "unknown_listing_date_codes_sample": unknown_sample,
+    }
+
+
 def _validate_capacity(
     report: dict[str, Any],
     base: Path,
@@ -1383,6 +1510,12 @@ def _validate_capacity(
     if hashlib.sha256(encoded_universe).hexdigest() != report.get("universe_sha256"):
         _fail("REHEARSAL_CAPACITY_UNIVERSE_MISMATCH")
 
+    target_scope_report = _validate_capacity_target_scope(
+        report,
+        target_asset_codes=asset_codes,
+        expected_date=expected_date,
+    )
+
     artifact = report.get("measurement_artifact")
     if not isinstance(artifact, dict):
         _fail("REHEARSAL_CAPACITY_MEASUREMENT_MISSING")
@@ -1395,9 +1528,17 @@ def _validate_capacity(
     if (
         receipt.get("schema") != "release.full-universe-capacity-receipt.v1"
         or receipt.get("measurement_source") != "candidate_runtime_instrumentation"
-        or receipt.get("measurement_scope") != "production_full_active_valuation_and_quote_dispatch"
+        or receipt.get("measurement_scope")
+        != "production_target_date_eligible_valuation_and_quote_dispatch"
     ):
         _fail("REHEARSAL_CAPACITY_RECEIPT_INVALID")
+    target_scope_receipt = _validate_capacity_target_scope(
+        receipt,
+        target_asset_codes=asset_codes,
+        expected_date=expected_date,
+    )
+    if target_scope_receipt != target_scope_report:
+        _fail("REHEARSAL_CAPACITY_TARGET_SCOPE_MISMATCH")
     _validate_receipt_identity(
         receipt,
         expected_candidate=expected_candidate,

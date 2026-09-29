@@ -1796,7 +1796,7 @@
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion",
-          "coverage_note": "A dynamically verified full-day suspension keeps the full requested denominator, publishes the 100% eligible quote scope, returns partial with requested/succeeded/failed/stored and exposes only the affected security scope block. Valuation partial-policy coverage remains pinned by the current-data contract suite."
+          "coverage_note": "Full-day suspensions remain exact quote-scope exclusions. The active-universe sync count/hash stays the raw current candidate scope; formal requested valuation and quote scope is separately derived for target_trade_date. Only a verified source-backed list_date later than target_trade_date can be excluded; same-day listings are included, and unknown/conflicted/source-less dates stay requested. Ordinary provider omissions remain blocking. S6 capacity and market rehearsals use the same target-date resolver and retain candidate, requested, exclusion, and unknown-listing evidence."
         },
         "complete_failure": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",

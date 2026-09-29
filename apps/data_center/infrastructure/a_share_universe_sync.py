@@ -6,59 +6,42 @@ import hashlib
 import importlib
 import json
 import logging
-import os
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
+from datetime import date
 from pathlib import Path
-from typing import Any, Protocol, TypedDict, cast
+from typing import Any, cast
 
 from apps.data_center.domain.entities import AssetAlias, AssetMaster
 from apps.data_center.domain.enums import AssetType, MarketExchange
-from apps.data_center.domain.protocols import ProviderConfigRepositoryProtocol
 from apps.data_center.infrastructure.orm_retry import retry_sqlite_locked_operation
-from apps.data_center.infrastructure.provider_state_repositories import ProviderConfigRepository
 from apps.data_center.infrastructure.repositories import AssetRepository
-from apps.data_center.infrastructure.tushare_client import create_tushare_pro_client
 from core.exceptions import DataFetchError
 
+from .a_share_universe_contracts import (
+    AShareCodeNameProvider,
+    AShareCodeNameRow,
+    AShareUniverseSyncError,
+    _EmptyProviderSegment,
+    _Frame,
+    _normalize_provider_listing_date,
+    _parse_provider_frame,
+    _provider_text,
+)
+from .tushare_a_share_provider import TushareAshareCodeNameProvider
+
 logger = logging.getLogger(__name__)
+__all__ = [
+    "AShareCodeNameProvider",
+    "AShareCodeNameRow",
+    "AShareUniverseSyncError",
+    "AShareUniverseSyncReport",
+    "AShareUniverseSyncService",
+    "AkshareAshareCodeNameProvider",
+    "JsonFileAshareCodeNameProvider",
+    "TushareAshareCodeNameProvider",
+]
 _UNIVERSE_PROVIDER_ATTEMPTS = 3
 _DEFAULT_FAILOVER_TOLERANCE = 0.01
-
-
-class AShareCodeNameRow(TypedDict):
-    """One canonical code and its provider-supplied display name."""
-
-    code: str
-    name: str
-
-
-class AShareUniverseSyncError(DataFetchError):
-    """Stable, redacted error for an A-share universe refresh failure."""
-
-    default_message = "A-share universe refresh could not establish a current scope"
-    default_code = "A_SHARE_UNIVERSE_SYNC_FAILED"
-
-    def __init__(
-        self,
-        code: str,
-        *,
-        category: str,
-        source: str,
-        details: Mapping[str, object] | None = None,
-    ) -> None:
-        error_details: dict[str, Any] = {"category": category, "source": source}
-        error_details.update(details or {})
-        super().__init__(self.default_message, code=code, details=error_details)
-
-
-class _Frame(Protocol):
-    """Narrow the DataFrame surface used at provider boundaries."""
-
-    empty: bool
-    columns: object
-
-    def to_dict(self, orient: str) -> object: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,13 +63,6 @@ _AKSHARE_SEGMENTS = (
 )
 
 
-class AShareCodeNameProvider(Protocol):
-    """Provider contract for current A-share code-name rows."""
-
-    def load_code_names(self) -> list[dict[str, str]]:
-        """Return rows with ``code`` and ``name`` keys."""
-
-
 @dataclass(frozen=True)
 class AShareUniverseSyncReport:
     """Summary of an A-share universe synchronization run."""
@@ -99,6 +75,11 @@ class AShareUniverseSyncReport:
     skipped_count: int
     sample_codes: list[str]
     active_codes_sha256: str
+    list_date_metadata_source: str | None = None
+    list_date_metadata_status: str = "not_configured"
+    list_date_known_count: int = 0
+    list_date_unknown_count: int = 0
+    list_date_conflict_count: int = 0
     failover_from: str | None = None
     failover_difference_ratio: float | None = None
     failover_tolerance: float | None = None
@@ -115,6 +96,11 @@ class AShareUniverseSyncReport:
             "skipped_count": self.skipped_count,
             "sample_codes": self.sample_codes,
             "active_codes_sha256": self.active_codes_sha256,
+            "list_date_metadata_source": self.list_date_metadata_source,
+            "list_date_metadata_status": self.list_date_metadata_status,
+            "list_date_known_count": self.list_date_known_count,
+            "list_date_unknown_count": self.list_date_unknown_count,
+            "list_date_conflict_count": self.list_date_conflict_count,
             "failover_from": self.failover_from,
             "failover_difference_ratio": self.failover_difference_ratio,
             "failover_tolerance": self.failover_tolerance,
@@ -126,7 +112,7 @@ class AkshareAshareCodeNameProvider:
 
     source_name = "akshare.stock_info_[sh_main,sz_main,sh_star,bj]"
 
-    def load_code_names(self) -> list[dict[str, str]]:
+    def load_code_names(self) -> list[AShareCodeNameRow]:
         """Fetch each exchange/board category and preserve its native schema."""
 
         try:
@@ -139,7 +125,7 @@ class AkshareAshareCodeNameProvider:
                 details={"provider": "akshare"},
             ) from exc
 
-        rows: list[dict[str, str]] = []
+        rows: list[AShareCodeNameRow] = []
         for segment in _AKSHARE_SEGMENTS:
             loader = getattr(ak, segment.function_name, None)
             if not callable(loader):
@@ -158,7 +144,7 @@ class AkshareAshareCodeNameProvider:
             )
         return rows
 
-    def _load_segment(self, loader: Any, segment: _AkshareSegment) -> list[dict[str, str]]:
+    def _load_segment(self, loader: Any, segment: _AkshareSegment) -> list[AShareCodeNameRow]:
         """Retry only one failed category, clearing its AKShare cache each time."""
 
         last_error: Exception | None = None
@@ -234,184 +220,6 @@ class AkshareAshareCodeNameProvider:
         ) from last_error
 
 
-class _EmptyProviderSegment(ValueError):
-    """Retryable indication that one required provider category had no rows."""
-
-
-def _parse_provider_frame(
-    frame: _Frame,
-    *,
-    source: str,
-    segment: str,
-    code_column: str,
-    name_column: str,
-    expected_exchange: str | None = None,
-) -> list[dict[str, str]]:
-    """Validate native provider columns and return only canonical row fields."""
-
-    columns = {str(column) for column in cast(Iterable[object], frame.columns)}
-    required = {code_column, name_column}
-    if expected_exchange is not None:
-        required.update({"exchange", "list_status"})
-    if not required.issubset(columns):
-        raise AShareUniverseSyncError(
-            "A_SHARE_UNIVERSE_PROVIDER_SCHEMA_INVALID",
-            category="provider_schema",
-            source=source,
-            details={"segment": segment, "missing_columns": sorted(required - columns)},
-        )
-
-    raw_records = cast(list[object], frame.to_dict("records"))
-    records: list[dict[str, str]] = []
-    for index, raw_record in enumerate(raw_records):
-        if not isinstance(raw_record, Mapping):
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_PROVIDER_SCHEMA_INVALID",
-                category="provider_schema",
-                source=source,
-                details={"segment": segment, "row_index": index},
-            )
-        record = cast(Mapping[str, object], raw_record)
-        raw_code = _provider_text(record.get(code_column))
-        raw_name = _provider_text(record.get(name_column))
-        if not raw_code or not raw_name:
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_PROVIDER_SCHEMA_INVALID",
-                category="provider_schema",
-                source=source,
-                details={"segment": segment, "row_index": index, "invalid_fields": True},
-            )
-        if expected_exchange is not None:
-            exchange = _provider_text(record.get("exchange"))
-            listing_status = _provider_text(record.get("list_status"))
-            if exchange != expected_exchange or listing_status != "L":
-                raise AShareUniverseSyncError(
-                    "A_SHARE_UNIVERSE_PROVIDER_SCOPE_INVALID",
-                    category="provider_scope",
-                    source=source,
-                    details={"segment": segment, "row_index": index},
-                )
-        records.append({"code": raw_code, "name": raw_name})
-    return records
-
-
-def _provider_text(value: object) -> str:
-    """Convert a provider scalar to text while rejecting null-like values."""
-
-    if value is None or isinstance(value, bool):
-        return ""
-    text = str(value).strip()
-    return "" if text.lower() in {"", "nan", "none", "null"} else text
-
-
-class TushareAshareCodeNameProvider:
-    """Load current listed A-shares from Tushare by documented exchange scope."""
-
-    source_name = "tushare.stock_basic"
-
-    def __init__(self, config_repo: ProviderConfigRepositoryProtocol | None = None) -> None:
-        self._config_repo = config_repo or ProviderConfigRepository()
-
-    def load_code_names(self) -> list[dict[str, str]]:
-        """Request each exchange with Tushare's current-listed stock contract."""
-
-        configs = self._config_repo.get_active_by_type("tushare")
-        if not configs:
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_FAILOVER_UNAVAILABLE",
-                category="failover_unavailable",
-                source=self.source_name,
-                details={"provider": "tushare", "reason": "no_active_configuration"},
-            )
-        config = configs[0]
-        if config.id is None:
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_FAILOVER_CONFIG_INVALID",
-                category="failover_configuration",
-                source=self.source_name,
-                details={"reason": "provider_id_missing"},
-            )
-        source = (
-            f"tushare.stock_basic[provider_id={config.id};" "exchanges=SSE,SZSE,BSE;list_status=L]"
-        )
-        self.source_name = source
-        request_mode_value = config.extra_config.get("tushare_request_mode")
-        request_mode = request_mode_value.strip() if isinstance(request_mode_value, str) else None
-        deployment_region = (
-            (
-                os.environ.get("DATA_CENTER_DEPLOYMENT_REGION")
-                or os.environ.get("AGOMTRADEPRO_DEPLOYMENT_REGION")
-                or "unknown"
-            )
-            .strip()
-            .lower()
-        )
-        try:
-            client = cast(
-                Any,
-                create_tushare_pro_client(
-                    token=config.api_key,
-                    http_url=config.http_url,
-                    request_mode=request_mode,
-                    provider_id=config.id,
-                    deployment_region=deployment_region or "unknown",
-                    dataset_key="tushare.stock_basic",
-                ),
-            )
-        except Exception as exc:
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_FAILOVER_UNAVAILABLE",
-                category="failover_unavailable",
-                source=source,
-                details={"exception_type": type(exc).__name__},
-            ) from exc
-
-        rows: list[dict[str, str]] = []
-        for exchange in ("SSE", "SZSE", "BSE"):
-            try:
-                frame_value = client.stock_basic(
-                    exchange=exchange,
-                    list_status="L",
-                    fields="ts_code,name,exchange,list_status",
-                )
-                if frame_value is None:
-                    raise _EmptyProviderSegment(exchange)
-                frame = cast(_Frame, frame_value)
-                if frame.empty:
-                    raise _EmptyProviderSegment(exchange)
-                rows.extend(
-                    _parse_provider_frame(
-                        frame,
-                        source=source,
-                        segment=exchange,
-                        code_column="ts_code",
-                        name_column="name",
-                        expected_exchange=exchange,
-                    )
-                )
-            except AShareUniverseSyncError:
-                raise
-            except Exception as exc:
-                code = (
-                    "A_SHARE_UNIVERSE_FAILOVER_EMPTY_SEGMENT"
-                    if isinstance(exc, _EmptyProviderSegment)
-                    else "A_SHARE_UNIVERSE_FAILOVER_UNAVAILABLE"
-                )
-                raise AShareUniverseSyncError(
-                    code,
-                    category="failover_provider",
-                    source=source,
-                    details={"segment": exchange, "exception_type": type(exc).__name__},
-                ) from exc
-        if not rows:
-            raise AShareUniverseSyncError(
-                "A_SHARE_UNIVERSE_FAILOVER_EMPTY",
-                category="failover_provider",
-                source=source,
-            )
-        return rows
-
-
 class JsonFileAshareCodeNameProvider:
     """Load A-share code-name rows from a local JSON file."""
 
@@ -419,7 +227,7 @@ class JsonFileAshareCodeNameProvider:
         self.path = Path(path)
         self.source_name = f"json_file:{self.path.name}"
 
-    def load_code_names(self) -> list[dict[str, str]]:
+    def load_code_names(self) -> list[AShareCodeNameRow]:
         """Read code-name rows from a JSON file."""
 
         with self.path.open("r", encoding="utf-8") as handle:
@@ -427,14 +235,26 @@ class JsonFileAshareCodeNameProvider:
         rows = payload.get("rows") if isinstance(payload, dict) else payload
         if not isinstance(rows, list):
             raise ValueError("A-share universe input file must contain a row list")
-        return [
-            {
+        result: list[AShareCodeNameRow] = []
+        for row_index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                continue
+            prepared: AShareCodeNameRow = {
                 "code": str(row.get("code") or "").strip(),
                 "name": str(row.get("name") or "").strip(),
             }
-            for row in rows
-            if isinstance(row, dict)
-        ]
+            if "list_date" in row:
+                list_date_value, list_date_status = _normalize_provider_listing_date(
+                    row.get("list_date"),
+                    source=self.source_name,
+                    segment="json_file",
+                    row_index=row_index,
+                )
+                prepared["list_date"] = list_date_value
+                prepared["list_date_status"] = list_date_status
+                prepared["list_date_source"] = "json_file.list_date"
+            result.append(prepared)
+        return result
 
 
 class AShareUniverseSyncService:
@@ -445,14 +265,15 @@ class AShareUniverseSyncService:
         *,
         provider: AShareCodeNameProvider | None = None,
         fallback_provider: AShareCodeNameProvider | None = None,
+        listing_metadata_provider: AShareCodeNameProvider | None = None,
         asset_repo: AssetRepository | None = None,
         failover_tolerance: float = _DEFAULT_FAILOVER_TOLERANCE,
     ) -> None:
         use_default_provider = provider is None
+        default_tushare_provider = TushareAshareCodeNameProvider() if use_default_provider else None
         self._provider = provider or AkshareAshareCodeNameProvider()
-        self._fallback_provider = fallback_provider or (
-            TushareAshareCodeNameProvider() if use_default_provider else None
-        )
+        self._fallback_provider = fallback_provider or (default_tushare_provider)
+        self._listing_metadata_provider = listing_metadata_provider or (default_tushare_provider)
         self._asset_repo = asset_repo or AssetRepository()
         if not 0 <= failover_tolerance <= 1:
             raise ValueError("failover_tolerance must be between 0 and 1")
@@ -466,19 +287,91 @@ class AShareUniverseSyncService:
             self._load_current_rows(primary_source)
         )
         source = getattr(provider, "source_name", provider.__class__.__name__)
+        metadata_provider = self._listing_metadata_provider
+        metadata_status = getattr(provider, "list_date_enrichment_status", "not_configured")
+        metadata_source: str | None = source if metadata_status != "not_configured" else None
+        if metadata_provider is not None and metadata_provider is not provider:
+            try:
+                metadata_rows = metadata_provider.load_code_names()
+                metadata_source = getattr(
+                    metadata_provider,
+                    "source_name",
+                    metadata_provider.__class__.__name__,
+                )
+                metadata_prepared, _ = self._prepare_rows(metadata_rows, metadata_source)
+            except Exception as exc:
+                metadata_status = "unavailable"
+                logger.warning(
+                    "A-share listing metadata refresh unavailable source=%s error=%s",
+                    metadata_source,
+                    type(exc).__name__,
+                )
+            else:
+                metadata_status = getattr(
+                    metadata_provider,
+                    "list_date_enrichment_status",
+                    "partial",
+                )
+                prepared_rows = self._merge_listing_date_metadata(
+                    prepared_rows,
+                    metadata_prepared,
+                )
         touched_codes: set[str] = set()
+        persisted_assets: dict[str, AssetMaster] = {}
 
         for row in prepared_rows:
             code = row["code"]
             name = row["name"]
             existing = self._asset_repo.get_by_code(code)
+            incoming_list_date = self._parse_prepared_list_date(row)
+            extra = {**(existing.extra if existing is not None else {}), "universe_source": source}
+            listing_date = existing.list_date if existing is not None else None
+            if listing_date == date(1970, 1, 1):
+                listing_date = None
+                extra["list_date_evidence_status"] = "placeholder"
+                extra["list_date_refresh_status"] = "placeholder"
+                extra.pop("list_date_source", None)
+            if "list_date" in row:
+                incoming_status = row.get("list_date_status", "unknown")
+                if incoming_status == "conflict":
+                    extra["list_date_evidence_status"] = "conflict"
+                    extra["list_date_conflict"] = {
+                        "incoming_source": row.get("list_date_source", "provider.list_date"),
+                        "reason": "provider_metadata_conflict",
+                    }
+                elif incoming_list_date is None:
+                    if existing is None:
+                        extra["list_date_evidence_status"] = "unknown"
+                    extra["list_date_refresh_status"] = incoming_status
+                elif (
+                    existing is not None
+                    and incoming_list_date is not None
+                    and listing_date is not None
+                    and listing_date != incoming_list_date
+                ):
+                    extra["list_date_evidence_status"] = "conflict"
+                    extra["list_date_conflict"] = {
+                        "existing_list_date": listing_date.isoformat(),
+                        "incoming_list_date": incoming_list_date.isoformat(),
+                        "incoming_source": row.get("list_date_source", "provider.list_date"),
+                    }
+                else:
+                    listing_date = incoming_list_date
+                    extra["list_date_evidence_status"] = "verified"
+                    extra["list_date_source"] = row.get(
+                        "list_date_source",
+                        "provider.list_date",
+                    )
+                    extra.pop("list_date_conflict", None)
+                    extra.pop("list_date_refresh_status", None)
             if existing is not None:
                 asset = replace(
                     existing,
                     name=name,
                     short_name=name,
                     is_active=True,
-                    extra={**existing.extra, "universe_source": source},
+                    list_date=listing_date,
+                    extra=extra,
                 )
             else:
                 asset = AssetMaster(
@@ -488,13 +381,15 @@ class AShareUniverseSyncService:
                     asset_type=AssetType.STOCK,
                     exchange=self._infer_exchange(code),
                     is_active=True,
-                    extra={"universe_source": source},
+                    list_date=listing_date,
+                    extra=extra,
                 )
 
             def upsert_asset(asset_to_save: AssetMaster = asset) -> AssetMaster:
                 return self._asset_repo.upsert(asset_to_save)
 
-            retry_sqlite_locked_operation(upsert_asset)
+            persisted_asset = retry_sqlite_locked_operation(upsert_asset)
+            persisted_assets[code] = persisted_asset
 
             def upsert_alias(asset_code: str = code) -> AssetAlias:
                 alias_provider = (
@@ -530,6 +425,25 @@ class AShareUniverseSyncService:
                     separators=(",", ":"),
                 ).encode("utf-8")
             ).hexdigest(),
+            list_date_metadata_source=metadata_source,
+            list_date_metadata_status=metadata_status,
+            list_date_known_count=sum(
+                1
+                for asset in persisted_assets.values()
+                if asset.list_date is not None
+                and asset.extra.get("list_date_evidence_status") == "verified"
+            ),
+            list_date_unknown_count=sum(
+                1
+                for asset in persisted_assets.values()
+                if asset.list_date is None
+                or asset.extra.get("list_date_evidence_status") != "verified"
+            ),
+            list_date_conflict_count=sum(
+                1
+                for asset in persisted_assets.values()
+                if asset.extra.get("list_date_evidence_status") == "conflict"
+            ),
             failover_from=failover_from,
             failover_difference_ratio=difference_ratio,
             failover_tolerance=(self._failover_tolerance if failover_from is not None else None),
@@ -540,7 +454,7 @@ class AShareUniverseSyncService:
         primary_source: str,
     ) -> tuple[
         AShareCodeNameProvider,
-        list[dict[str, str]],
+        list[AShareCodeNameRow],
         list[AShareCodeNameRow],
         int,
         str | None,
@@ -612,7 +526,7 @@ class AShareUniverseSyncService:
 
     def _prepare_rows(
         self,
-        rows: list[dict[str, str]],
+        rows: list[AShareCodeNameRow],
         source: str,
     ) -> tuple[list[AShareCodeNameRow], int]:
         """Canonicalize the complete source response before the sync writes."""
@@ -644,7 +558,27 @@ class AShareUniverseSyncService:
                     source=source,
                     details={"row_index": index},
                 )
-            prepared_by_code[code] = {"code": code, "name": name}
+            prepared_row: AShareCodeNameRow = {"code": code, "name": name}
+            if "list_date" in row:
+                normalized_date, parsed_status = _normalize_provider_listing_date(
+                    row.get("list_date"),
+                    source=source,
+                    segment="list_date",
+                    row_index=index,
+                )
+                supplied_status = row.get("list_date_status")
+                if supplied_status in {"unknown", "placeholder", "unverified", "invalid"}:
+                    parsed_status = supplied_status
+                    normalized_date = None
+                prepared_row["list_date"] = normalized_date
+                prepared_row["list_date_status"] = parsed_status
+                supplied_source = row.get("list_date_source")
+                prepared_row["list_date_source"] = (
+                    supplied_source.strip()
+                    if isinstance(supplied_source, str) and supplied_source.strip()
+                    else f"{source}.list_date"
+                )
+            prepared_by_code[code] = prepared_row
         if not prepared_by_code:
             raise AShareUniverseSyncError(
                 "A_SHARE_UNIVERSE_PROVIDER_EMPTY",
@@ -652,6 +586,64 @@ class AShareUniverseSyncService:
                 source=source,
             )
         return list(prepared_by_code.values()), skipped_count
+
+    @staticmethod
+    def _merge_listing_date_metadata(
+        current_rows: list[AShareCodeNameRow],
+        metadata_rows: list[AShareCodeNameRow],
+    ) -> list[AShareCodeNameRow]:
+        """Attach only explicit valid listing dates without changing active identities."""
+
+        metadata_by_code = {
+            row["code"]: row
+            for row in metadata_rows
+            if row.get("list_date_status") == "verified" and row.get("list_date")
+        }
+        merged_rows: list[AShareCodeNameRow] = []
+        for row in current_rows:
+            merged: AShareCodeNameRow = {"code": row["code"], "name": row["name"]}
+            if row.get("list_date") is not None:
+                merged["list_date"] = row["list_date"]
+            if row.get("list_date_status") is not None:
+                merged["list_date_status"] = row["list_date_status"]
+            if row.get("list_date_source") is not None:
+                merged["list_date_source"] = row["list_date_source"]
+            metadata = metadata_by_code.get(row["code"])
+            if metadata is not None:
+                current_date = merged.get("list_date")
+                metadata_date = metadata["list_date"]
+                if current_date is not None and current_date != metadata_date:
+                    merged["list_date"] = None
+                    merged["list_date_status"] = "conflict"
+                    merged["list_date_source"] = (
+                        f"{merged.get('list_date_source', 'provider.list_date')}|"
+                        f"{metadata.get('list_date_source', 'provider.list_date')}"
+                    )
+                else:
+                    merged["list_date"] = metadata_date
+                    merged["list_date_status"] = metadata["list_date_status"]
+                    merged["list_date_source"] = metadata.get(
+                        "list_date_source",
+                        "tushare.stock_basic.list_date",
+                    )
+            merged_rows.append(merged)
+        return merged_rows
+
+    @staticmethod
+    def _parse_prepared_list_date(row: AShareCodeNameRow) -> date | None:
+        """Convert a provider-normalized ISO listing date to a Domain date."""
+
+        value = row.get("list_date")
+        if value is None:
+            return None
+        try:
+            return date.fromisoformat(value)
+        except ValueError as exc:
+            raise AShareUniverseSyncError(
+                "A_SHARE_UNIVERSE_LISTING_DATE_INVALID",
+                category="listing_date",
+                source=row.get("list_date_source", "provider.list_date"),
+            ) from exc
 
     def _validate_failover_scope(
         self,

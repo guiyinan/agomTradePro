@@ -518,10 +518,21 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_identities_sha256": PROVIDER_DIGEST,
             "outcome": "success",
             "measurement_source": "candidate_runtime_instrumentation",
-            "measurement_scope": "production_full_active_valuation_and_quote_dispatch",
+            "measurement_scope": "production_target_date_eligible_valuation_and_quote_dispatch",
             "candidate_source_attestation": "image_release_manifest",
             "candidate_image_id": IMAGE_ID,
             "asset_codes": ASSET_CODES,
+            "scope_policy": "exclude_only_verified_list_date_after_target",
+            "candidate_active_asset_count": len(ASSET_CODES),
+            "candidate_active_asset_codes_sha256": UNIVERSE,
+            "target_requested_asset_count": len(ASSET_CODES),
+            "target_requested_asset_codes_sha256": UNIVERSE,
+            "excluded_not_yet_listed_count": 0,
+            "excluded_not_yet_listed_evidence": [],
+            "unknown_listing_date_count": 0,
+            "unknown_listing_date_codes": [],
+            "unknown_listing_date_codes_sha256": hashlib.sha256(b"[]").hexdigest(),
+            "unknown_listing_date_codes_sample": [],
             "requested_asset_count": len(ASSET_CODES),
             "registered_asset_count": len(ASSET_CODES),
             "measured_asset_count": len(ASSET_CODES),
@@ -591,6 +602,17 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "universe_count": len(ASSET_CODES),
             "measured_asset_count": len(ASSET_CODES),
             "asset_codes": ASSET_CODES,
+            "scope_policy": "exclude_only_verified_list_date_after_target",
+            "candidate_active_asset_count": len(ASSET_CODES),
+            "candidate_active_asset_codes_sha256": UNIVERSE,
+            "target_requested_asset_count": len(ASSET_CODES),
+            "target_requested_asset_codes_sha256": UNIVERSE,
+            "excluded_not_yet_listed_count": 0,
+            "excluded_not_yet_listed_evidence": [],
+            "unknown_listing_date_count": 0,
+            "unknown_listing_date_codes": [],
+            "unknown_listing_date_codes_sha256": hashlib.sha256(b"[]").hexdigest(),
+            "unknown_listing_date_codes_sample": [],
             "eligible_asset_codes": ASSET_CODES,
             "eligible_asset_count": len(ASSET_CODES),
             "excluded_asset_codes": [],
@@ -851,6 +873,57 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
     assert len(result["validated_reports"]) == 4
+
+
+def test_validator_recomputes_candidate_universe_digest_from_target_partition(
+    tmp_path: Path,
+) -> None:
+    """A matching report/receipt lie cannot replace the reconstructable candidate scope."""
+
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["full_universe_capacity"]
+    capacity = json.loads(capacity_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / capacity["measurement_artifact"]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    false_digest = "f" * 64
+    capacity["candidate_active_asset_codes_sha256"] = false_digest
+    receipt["candidate_active_asset_codes_sha256"] = false_digest
+    capacity["measurement_artifact"]["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, capacity_path, capacity)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_CAPACITY_TARGET_SCOPE_INVALID"
+
+
+def test_validator_recomputes_unknown_listing_date_digest_from_full_scope(
+    tmp_path: Path,
+) -> None:
+    """The full unknown-date list must bind its count, sample and digest."""
+
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["full_universe_capacity"]
+    capacity = json.loads(capacity_path.read_text(encoding="utf-8"))
+    receipt_path = tmp_path / capacity["measurement_artifact"]["path"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    mutation = {
+        "unknown_listing_date_count": 1,
+        "unknown_listing_date_codes": [ASSET_CODES[0]],
+        "unknown_listing_date_codes_sample": [ASSET_CODES[0]],
+        "unknown_listing_date_codes_sha256": "f" * 64,
+    }
+    capacity.update(mutation)
+    receipt.update(mutation)
+    capacity["measurement_artifact"]["sha256"] = _write_json(receipt_path, receipt)
+    _replace_report(manifest, capacity_path, capacity)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_CAPACITY_TARGET_SCOPE_INVALID"
 
 
 def test_validator_accepts_evidence_backed_quote_scope_exclusion(tmp_path: Path) -> None:

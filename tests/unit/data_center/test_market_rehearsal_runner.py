@@ -13,10 +13,31 @@ from django.core.management.base import CommandError
 
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
+from apps.data_center.domain.target_date_universe import (
+    NotYetListedAsset,
+    TargetDateAssetUniverseScope,
+)
 from apps.data_center.infrastructure import market_rehearsal_runner as runner
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpCapture
 from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
 from core.exceptions import DataFetchError, MissingConfigError
+
+
+@pytest.fixture(autouse=True)
+def _use_unknown_listing_scope_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the registered fixture universe when tests provide no listing evidence."""
+
+    def resolve(target_date: date) -> TargetDateAssetUniverseScope:
+        codes = tuple(sorted(runner.list_active_stock_codes_for_backfill()))
+        return TargetDateAssetUniverseScope(
+            target_date=target_date,
+            candidate_codes=codes,
+            requested_codes=codes,
+            excluded_not_yet_listed=(),
+            unknown_listing_date_codes=codes,
+        )
+
+    monkeypatch.setattr(runner, "build_target_date_a_share_universe_scope", resolve)
 
 
 def test_probe_without_real_response_receipt_cannot_pass() -> None:
@@ -253,6 +274,7 @@ def test_probe_handles_policy_qualified_partial_valuation_scope(
 ) -> None:
     target = date(2026, 9, 24)
     registered = ("000001.SZ", "600000.SH", "600001.SH")
+    candidate_codes = tuple(sorted((*registered, "301716.SZ")))
     observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
     contexts = []
     provider_calls = []
@@ -377,7 +399,28 @@ def test_probe_handles_policy_qualified_partial_valuation_scope(
     monkeypatch.setattr(runner.transaction, "atomic", atomic)
     monkeypatch.setattr(runner, "RehearsalHttpCapture", Capture)
     monkeypatch.setattr(runner, "latest_completed_cn_market_session", lambda _now: target)
-    monkeypatch.setattr(runner, "list_active_stock_codes_for_backfill", lambda: list(registered))
+    monkeypatch.setattr(
+        runner,
+        "list_active_stock_codes_for_backfill",
+        lambda: list(candidate_codes),
+    )
+    monkeypatch.setattr(
+        runner,
+        "build_target_date_a_share_universe_scope",
+        lambda day: TargetDateAssetUniverseScope(
+            target_date=day,
+            candidate_codes=candidate_codes,
+            requested_codes=registered,
+            excluded_not_yet_listed=(
+                NotYetListedAsset(
+                    asset_code="301716.SZ",
+                    list_date=date(2026, 9, 29),
+                    evidence_source="tushare.new_share[provider_id=7].issue_date",
+                ),
+            ),
+            unknown_listing_date_codes=(),
+        ),
+    )
     monkeypatch.setattr(
         runner,
         "get_provider_registry",
@@ -434,6 +477,16 @@ def test_probe_handles_policy_qualified_partial_valuation_scope(
 
     assert report["outcome"] == expected_outcome
     assert report["asset_codes"] == list(registered)
+    assert report["candidate_active_asset_count"] == len(candidate_codes)
+    assert report["target_requested_asset_count"] == len(registered)
+    assert report["excluded_not_yet_listed_evidence"] == [
+        {
+            "asset_code": "301716.SZ",
+            "list_date": "2026-09-29",
+            "reason_code": "listed_after_target_date",
+            "evidence_source": "tushare.new_share[provider_id=7].issue_date",
+        }
+    ]
     assert report["eligible_asset_codes"] == (
         list(registered[:2]) if expected_outcome == "blocked" else list(registered)
     )

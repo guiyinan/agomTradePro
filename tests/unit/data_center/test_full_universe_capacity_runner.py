@@ -14,11 +14,32 @@ from django.core.management.base import CommandError
 
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
+from apps.data_center.domain.target_date_universe import (
+    NotYetListedAsset,
+    TargetDateAssetUniverseScope,
+)
 from apps.data_center.infrastructure import full_universe_capacity_runner as runner
 from apps.data_center.infrastructure.rehearsal_http_capture import RehearsalHttpReceipt
 from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
 from core.exceptions import DataFetchError
 from scripts.validate_release_rehearsal import _validate_capacity
+
+
+@pytest.fixture(autouse=True)
+def _use_unknown_listing_scope_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep test candidates requested when no listing-date evidence is supplied."""
+
+    def resolve(target_date: date) -> TargetDateAssetUniverseScope:
+        codes = tuple(sorted(runner.list_active_stock_codes_for_backfill()))
+        return TargetDateAssetUniverseScope(
+            target_date=target_date,
+            candidate_codes=codes,
+            requested_codes=codes,
+            excluded_not_yet_listed=(),
+            unknown_listing_date_codes=codes,
+        )
+
+    monkeypatch.setattr(runner, "build_target_date_a_share_universe_scope", resolve)
 
 
 def _identity(role: str) -> RehearsalProviderIdentity:
@@ -686,6 +707,71 @@ def test_collector_writes_validator_compatible_measured_artifacts(
     assert validated_capacity.policy.snapshot == report["valuation_policy_snapshot"]
 
 
+def test_capacity_receipt_preserves_current_and_target_date_scope_evidence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    source_root, output_dir, provider_calls = _prepare_capacity_scenario(monkeypatch, tmp_path)
+    candidate_codes = (
+        "000001.SZ",
+        "000002.SZ",
+        "301716.SZ",
+        "600000.SH",
+        "920202.BJ",
+    )
+    target_codes = ("000001.SZ", "000002.SZ", "600000.SH")
+    monkeypatch.setattr(
+        runner,
+        "list_active_stock_codes_for_backfill",
+        lambda: list(candidate_codes),
+    )
+    monkeypatch.setattr(
+        runner,
+        "build_target_date_a_share_universe_scope",
+        lambda target: TargetDateAssetUniverseScope(
+            target_date=target,
+            candidate_codes=candidate_codes,
+            requested_codes=target_codes,
+            excluded_not_yet_listed=(
+                NotYetListedAsset(
+                    asset_code="301716.SZ",
+                    list_date=date(2026, 9, 25),
+                    evidence_source="tushare.new_share[provider_id=7].issue_date",
+                ),
+                NotYetListedAsset(
+                    asset_code="920202.BJ",
+                    list_date=date(2026, 9, 25),
+                    evidence_source="tushare.stock_basic[provider_id=7].list_date",
+                ),
+            ),
+            unknown_listing_date_codes=("000002.SZ",),
+        ),
+    )
+
+    report = _collect_capacity(source_root, output_dir)
+    receipt = json.loads(
+        (output_dir / "full-universe-capacity-receipt.json").read_text(encoding="utf-8")
+    )
+
+    for artifact in (report, receipt):
+        assert artifact["candidate_active_asset_count"] == len(candidate_codes)
+        assert artifact["candidate_active_asset_codes_sha256"] == runner.rehearsal_digest(
+            candidate_codes
+        )
+        assert artifact["target_requested_asset_count"] == len(target_codes)
+        assert artifact["target_requested_asset_codes_sha256"] == runner.rehearsal_digest(
+            target_codes
+        )
+        assert artifact["asset_codes"] == list(target_codes)
+        assert artifact["excluded_not_yet_listed_count"] == 2
+        assert [item["asset_code"] for item in artifact["excluded_not_yet_listed_evidence"]] == [
+            "301716.SZ",
+            "920202.BJ",
+        ]
+        assert artifact["unknown_listing_date_codes_sample"] == ["000002.SZ"]
+        assert artifact["valuation_requested_count"] == 3
+    assert provider_calls == ["valuation", "quote"]
+
+
 def test_collector_rejects_existing_destination_before_runtime(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
@@ -841,7 +927,10 @@ def test_collector_fails_closed_when_eligible_quote_is_missing(
         _collect_capacity(source_root, output_dir)
 
     assert exc_info.value.code == "REHEARSAL_CAPACITY_QUOTE_SCOPE_INCOMPLETE"
-    assert exc_info.value.details == {
+    details = exc_info.value.details
+    assert {
+        key: value for key, value in details.items() if key != "target_date_universe_scope"
+    } == {
         "outcome": "blocked",
         "target_trade_date": "2026-09-24",
         "requested": 2,
@@ -862,6 +951,9 @@ def test_collector_fails_closed_when_eligible_quote_is_missing(
             }
         ],
     }
+    assert details["target_date_universe_scope"]["candidate_active_asset_count"] == 2
+    assert details["target_date_universe_scope"]["target_requested_asset_count"] == 2
+    assert details["target_date_universe_scope"]["excluded_not_yet_listed_count"] == 0
     assert provider_calls == ["valuation", "quote"]
     assert not output_dir.exists()
 

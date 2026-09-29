@@ -4802,6 +4802,9 @@
           "SyncSectorMembershipUseCase",
           "SyncValuationUseCase"
         ],
+        "application/target_date_universe_scope.py": [
+          "build_target_date_a_share_universe_scope"
+        ],
         "application/tasks.py": [
           "backfill_active_a_share_core_data_batch_task",
           "refresh_decision_quote_snapshots_task",
@@ -4879,12 +4882,12 @@
         ]
       },
       "layers": {
-        "application": 105,
-        "domain": 32,
-        "infrastructure": 152,
+        "application": 106,
+        "domain": 33,
+        "infrastructure": 154,
         "interface": 19,
         "management": 29,
-        "root": 15
+        "root": 16
       },
       "orm_models": {
         "infrastructure/models.py": [

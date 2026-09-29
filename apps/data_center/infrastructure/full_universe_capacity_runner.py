@@ -17,6 +17,7 @@ from typing import Protocol, cast
 
 from django.db import connection, connections, transaction
 
+from apps.data_center.application.market_provider_rehearsal import rehearsal_digest
 from apps.data_center.application.query_services import list_active_stock_codes_for_backfill
 from apps.data_center.composition import get_provider_registry
 from apps.data_center.domain.entities import QuoteSnapshot, ValuationFact
@@ -28,6 +29,9 @@ from apps.data_center.domain.model_market_data import ModelSuspensionPort
 from apps.data_center.domain.protocols import (
     CurrentValuationBatchProviderProtocol,
     SessionQuoteBatchProviderProtocol,
+)
+from apps.data_center.target_date_universe_composition import (
+    build_target_date_a_share_universe_scope,
 )
 from core.exceptions import DataFetchError
 
@@ -409,11 +413,48 @@ def collect_full_universe_capacity(
             cursor.execute("SELECT set_config('statement_timeout', %s, true)", ["30000"])
             cursor.execute("SELECT pg_backend_pid()")
             backend_pid = int(cursor.fetchone()[0])
-        registered_universe = tuple(sorted(set(list_active_stock_codes_for_backfill())))
+        candidate_rows = tuple(sorted(list_active_stock_codes_for_backfill()))
+        candidate_universe = tuple(sorted(set(candidate_rows)))
+        target_scope = build_target_date_a_share_universe_scope(target_trade_date)
+        if (
+            len(candidate_rows) != len(candidate_universe)
+            or target_scope.target_date != target_trade_date
+            or tuple(target_scope.candidate_codes) != candidate_universe
+        ):
+            raise DataFetchError(
+                "Target-date universe does not match the current active universe",
+                code="REHEARSAL_CAPACITY_TARGET_SCOPE_INVALID",
+            )
+        registered_universe = tuple(target_scope.requested_codes)
         if not registered_universe:
             raise DataFetchError(
-                "Capacity universe is empty", code="REHEARSAL_CAPACITY_UNIVERSE_EMPTY"
+                "Target-date capacity universe is empty",
+                code="REHEARSAL_CAPACITY_UNIVERSE_EMPTY",
             )
+        excluded_not_yet_listed_evidence = [
+            {
+                "asset_code": item.asset_code,
+                "list_date": item.list_date.isoformat(),
+                "reason_code": item.reason_code,
+                "evidence_source": item.evidence_source,
+            }
+            for item in target_scope.excluded_not_yet_listed
+        ]
+        unknown_listing_date_codes = tuple(target_scope.unknown_listing_date_codes)
+        target_scope_evidence: dict[str, object] = {
+            "scope_policy": "exclude_only_verified_list_date_after_target",
+            "target_trade_date": target_trade_date.isoformat(),
+            "candidate_active_asset_count": len(candidate_universe),
+            "candidate_active_asset_codes_sha256": rehearsal_digest(candidate_universe),
+            "target_requested_asset_count": len(registered_universe),
+            "target_requested_asset_codes_sha256": rehearsal_digest(registered_universe),
+            "excluded_not_yet_listed_count": len(excluded_not_yet_listed_evidence),
+            "excluded_not_yet_listed_evidence": excluded_not_yet_listed_evidence,
+            "unknown_listing_date_count": len(unknown_listing_date_codes),
+            "unknown_listing_date_codes": list(unknown_listing_date_codes),
+            "unknown_listing_date_codes_sha256": rehearsal_digest(unknown_listing_date_codes),
+            "unknown_listing_date_codes_sample": list(unknown_listing_date_codes[:20]),
+        }
         registry = get_provider_registry()
         valuation_policy = PublicationPolicyRepository().get_active("equity.valuation.fact")
         if valuation_policy is None:
@@ -492,6 +533,7 @@ def collect_full_universe_capacity(
                             ),
                             "active_policy_allow_partial": valuation_policy.allow_partial,
                             "valuation_coverage_ratio": valuation_coverage_ratio,
+                            "target_date_universe_scope": target_scope_evidence,
                         },
                     )
                 eligible_codes = registered_universe
@@ -556,6 +598,7 @@ def collect_full_universe_capacity(
                             "excluded_asset_codes": list(excluded_codes),
                             "excluded_asset_reasons": list(excluded_reasons),
                             "quote_missing_target_session_reasons": list(quote_missing_reasons),
+                            "target_date_universe_scope": target_scope_evidence,
                         },
                     )
     finished = datetime.now(UTC)
@@ -581,11 +624,12 @@ def collect_full_universe_capacity(
     receipt: dict[str, object] = {
         "schema": "release.full-universe-capacity-receipt.v1",
         "measurement_source": "candidate_runtime_instrumentation",
-        "measurement_scope": "production_full_active_valuation_and_quote_dispatch",
+        "measurement_scope": "production_target_date_eligible_valuation_and_quote_dispatch",
         "candidate_sha": candidate_sha,
         "candidate_image_id": candidate_image_id,
         "target_trade_date": target_trade_date.isoformat(),
         "universe_sha256": universe_digest,
+        **target_scope_evidence,
         "provider_identities_sha256": identity_digest,
         "outcome": "success",
         "asset_codes": asset_codes,
@@ -681,6 +725,7 @@ def collect_full_universe_capacity(
         "candidate_image_id": candidate_image_id,
         "target_trade_date": target_trade_date.isoformat(),
         "universe_sha256": universe_digest,
+        **target_scope_evidence,
         "provider_identities_sha256": identity_digest,
         "outcome": "success",
         "candidate_source_attestation": source_attestation,

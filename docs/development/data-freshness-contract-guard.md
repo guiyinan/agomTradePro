@@ -256,3 +256,9 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 复用同一版本化政策验证：持久化成员、事实内容哈希、Publication 哈希/派生 ID、scope block 或时间证据
 不一致时仍全局阻断；证据完整时只对停牌
 证券保留局部说明，其他 eligible 证券继续可用。
+
+该 15:00 完成会话门适用于正式全市场 current Publication rebuild。盘中报价的
+`PublishQuoteSnapshotBatchUseCase` 是独立实时发布路径，可按其实时契约在收盘前发布 current quote；
+两条路径具有不同的发布语义。
+
+2026-09-29 全市场 point-in-time universe 契约：active universe 同步报告保留当前候选全集的原始 count/hash；正式全市场刷新和 S6 容量预演按同一目标日解析器派生 requested scope，并分别记录候选全集、目标日 requested、明确排除及未知上市日期的 count/hash。只有 `AssetMaster.list_date` 带有 `list_date_evidence_status=verified` 和非空 `list_date_source`，且日期晚于目标日时，才可作为 `not_yet_listed` 排除；等于目标日应纳入。无来源的历史日期、冲突/未知元数据以及普通 provider 缺行均继续留在 requested scope，provider 缺行不能充当未上市证据。Tushare `stock_basic.list_date` 为主证据；明显无效的 `19700101` 由 `new_share.issue_date` 交叉补正，其中 `issue_date` 表示上市日，`ipo_date` 表示申购日。AKShare 未提供日期时必须保留 AssetMaster 已有日期和来源元数据；元数据补充失败不得破坏当前 active membership 同步，但没有可验证排除证据的目标日缺口仍应阻断。

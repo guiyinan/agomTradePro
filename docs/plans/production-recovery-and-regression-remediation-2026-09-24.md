@@ -738,3 +738,36 @@
   需要冻结新 SHA、取得同 SHA CI/PostgreSQL、全新 S6 和部署回执，再只启动一次显式刷新。技术等待的
   延长不改变北京时间 15:00 收盘、新鲜度、完整率、财报 owner contract、审计或 `SIGNAL_WEAK=0.6000`
   门槛。
+
+### 2026-09-29 目标日范围与空行情分类根因整改
+
+- A 股正式收盘时点再次固定为北京时间 15:00。14:55 只作为负向回归样本和“当日出现过交易、因此
+  不可能是全天停牌”的反证，不是收盘时间。正式 current Publication 重建此前只检查中国市场日期，
+  没有在该独立入口复核观测时间是否达到 15:00；候选现对 `equity.quote.snapshot` 的 preview 与 execute
+  共用收盘时点校验。14:55 即使在 15:05 或 17:05 执行重建也稳定拒绝，恰好 15:00 才满足时间门。
+- 部署版本 `9c7a5a71a6a89051e384064793e0b43a1815355c` 的生产任务
+  `d9fb88ac-d270-4841-ac1a-0686ccd0b8d2` 到达业务终态 `partial`，估值写入 5,557 条，但 quote 阶段以
+  `MODEL_MARKET_UNAVAILABLE` 全局阻断，旧 Publication 未切换。根因是单证券空历史分支先记为 unavailable，
+  却没有继续用开放交易日和 `suspend_d` 证明完整请求区间是否均为全天停牌。候选现仅在区间内每一个开放
+  交易日都有显式停牌证据时返回 `MODEL_MARKET_SUSPENDED`；任一日缺证、日历为空、查询失败、后备源冲突
+  或只有末日证据均继续 fail closed。
+- 对目标日 `2026-09-28` 的生产只读核验得到动态分区：14 个无目标日估值成员中，12 个有明确全天停牌
+  证据；`301716.SZ`、`920202.BJ` 的 `new_share.issue_date=2026-09-29`，属于目标日尚未上市。数量和代码
+  只属于本次运行证据，代码没有静态证券名单。Tushare `stock_basic` 的 `301716.SZ.list_date=1970-01-01`
+  是无效占位；候选将空值、非法值和该占位日期视为未验证，并以 `new_share.issue_date` 补证，明确不使用
+  表示申购日的 `ipo_date`。
+- 当前 active universe 仍完整同步并保留自身 count/hash；新增 target-date scope 只排除“上市日已验证、
+  来源非空且严格晚于目标日”的证券。上市日等于目标日、历史日期无来源、日期未知或来源冲突的证券继续
+  纳入 requested，后续 provider 缺口按局部阻断或全局完整性门处理，不能借未知元数据缩小分母。正式刷新、
+  50 只真实 provider 预演和全量容量测算复用同一 resolver，并同时记录候选全集、目标日 requested、
+  未上市排除和未知日期的 count/hash/evidence。
+- 合并候选回归目前为 **265 passed**；current-data 72 surfaces、Celery 94 tasks / 21 exemptions / 24 files、
+  module map 44 modules / 210 edges、Black、isort、Ruff、15 个生产文件增量 mypy 和全量 debt ceiling 均通过。
+  release validator 会从 target requested 与逐项未上市证据重建 candidate universe 并复算哈希，report 与
+  receipt 即使同时伪造摘要也不能通过；未知上市日范围也保留完整代码列表并独立复算 count/hash/sample，
+  不再只依赖 20 个样本。Luna Max 合并终审未发现 P0/P1 后方可冻结提交。
+- 下一 S6 必须在隔离 PostgreSQL 中先用候选代码同步 active universe 及上市日期元数据，再冻结目标日
+  requested hash；否则复制自旧生产库的空元数据会让预演范围与候选正式运行不一致。随后才执行同 SHA
+  provider probe、response replay、全量容量、隔离写入和最终 validator。只有九阶段成功后才部署；部署后
+  只显式重跑一次全市场任务，并以业务 outcome、四项统计、Publication id/hash/run id、成员和 scope block
+  对账，不能以 Celery SUCCESS 或 HTTP 200 代替恢复结论。
