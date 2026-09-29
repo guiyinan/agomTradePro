@@ -26,17 +26,17 @@
       "script": 11,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 76,
+      "test_evidence": 78,
       "workflow_step": 10
     },
     "by_status": {
       "active_public": 800,
-      "adjacent_operational": 328,
+      "adjacent_operational": 330,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1266
+    "total": 1268
   },
   "entries": [
     {
@@ -12171,6 +12171,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL concurrency evidence for shared transaction-scoped advisory locks",
+      "id": "test_evidence:tests/component/shared/infrastructure/test_postgres_advisory_lock_postgres.py:test_postgres_advisory_lock_postgres:",
+      "locator": "",
+      "path": "tests/component/shared/infrastructure/test_postgres_advisory_lock_postgres.py",
+      "status": "adjacent_operational",
+      "symbol": "test_postgres_advisory_lock_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/test_macro_periodic_tasks.py:test_macro_periodic_tasks:",
       "locator": "",
@@ -12437,6 +12447,16 @@
       "path": "tests/unit/data_center/test_retention_tasks.py",
       "status": "active_public",
       "symbol": "test_retention_tasks",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed deterministic contract evidence for shared transaction-scoped advisory locks",
+      "id": "test_evidence:tests/unit/shared/infrastructure/test_postgres_advisory_lock.py:test_postgres_advisory_lock:",
+      "locator": "",
+      "path": "tests/unit/shared/infrastructure/test_postgres_advisory_lock.py",
+      "status": "adjacent_operational",
+      "symbol": "test_postgres_advisory_lock",
       "target": ""
     },
     {
@@ -12713,7 +12733,7 @@
     "celery_tasks": 94,
     "current_data_contracts": 72,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 28,
+    "operational_governance_rules": 30,
     "runtime_config_keys": 45
   },
   "source_contracts": [

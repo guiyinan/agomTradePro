@@ -206,6 +206,7 @@ OPERATIONAL_SCRIPT_SUFFIXES = frozenset({".py", ".ps1", ".sh", ".bat"})
 IGNORED_PATH_PARTS = frozenset(
     {
         ".git",
+        ".codex_tmp",
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
@@ -220,6 +221,15 @@ IGNORED_PATH_PARTS = frozenset(
 
 def _relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
+
+
+def _is_ignored_path(path: Path) -> bool:
+    """Return whether a repository path belongs to generated or agent-local state."""
+
+    return any(
+        part in IGNORED_PATH_PARTS or part.startswith((".codex-", ".codex_"))
+        for part in path.relative_to(ROOT).parts
+    )
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -320,7 +330,9 @@ def _production_python_files(*roots: str) -> Iterable[Path]:
             continue
         for path in sorted(root.rglob("*.py")):
             relative_parts = path.relative_to(ROOT).parts
-            if any(part in IGNORED_PATH_PARTS | {"migrations", "tests"} for part in relative_parts):
+            if _is_ignored_path(path) or any(
+                part in {"migrations", "tests"} for part in relative_parts
+            ):
                 continue
             yield path
 
@@ -382,8 +394,7 @@ def _operational_script_files() -> Iterable[Path]:
     for path in sorted(candidates):
         if path == own_path or path.suffix.lower() not in OPERATIONAL_SCRIPT_SUFFIXES:
             continue
-        relative_parts = path.relative_to(ROOT).parts
-        if any(part in IGNORED_PATH_PARTS for part in relative_parts):
+        if _is_ignored_path(path):
             continue
         yield path
 
@@ -467,11 +478,7 @@ def _discover_workflow_steps() -> list[dict[str, object]]:
 def _evidence_files(root: Path, pattern: str) -> Iterable[Path]:
     if not root.exists():
         return ()
-    return (
-        path
-        for path in sorted(root.rglob(pattern))
-        if not any(part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts)
-    )
+    return (path for path in sorted(root.rglob(pattern)) if not _is_ignored_path(path))
 
 
 def _discover_test_and_migration_evidence() -> list[dict[str, object]]:
@@ -710,7 +717,7 @@ def _discover_management_commands() -> list[dict[str, object]]:
         path_parts = path.relative_to(ROOT).parts
         if "management" not in path_parts or "commands" not in path_parts:
             continue
-        if any(part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts):
+        if _is_ignored_path(path):
             continue
         if path.name == "__init__.py":
             continue
@@ -1988,9 +1995,7 @@ def _discover_rest_urls() -> list[dict[str, object]]:
                 )
             )
     for path in sorted(ROOT.glob("**/urls.py")):
-        if path in owned_paths or any(
-            part in IGNORED_PATH_PARTS for part in path.relative_to(ROOT).parts
-        ):
+        if path in owned_paths or _is_ignored_path(path):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         if "data-center" not in text and "apps.data_center" not in text:

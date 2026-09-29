@@ -84,10 +84,10 @@ def test_operational_inventory_has_no_unreviewed_repository_entrypoints(
     assert payload["counts"]["by_status"]["candidate-review"] == 0
 
 
-def test_management_command_discovery_ignores_generated_output_tree(
+def test_management_command_discovery_ignores_generated_and_agent_temp_trees(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Generated pytest/output copies must not make the inventory host-dependent."""
+    """Generated and ignored agent copies must not make inventory host-dependent."""
 
     inventory = _load_script()
     real_command = tmp_path / "apps" / "data_center" / "management" / "commands" / "real.py"
@@ -101,10 +101,22 @@ def test_management_command_discovery_ignores_generated_output_tree(
         / "commands"
         / "copied.py"
     )
+    agent_copy = (
+        tmp_path
+        / ".codex_tmp"
+        / "clean-checkout"
+        / "apps"
+        / "data_center"
+        / "management"
+        / "commands"
+        / "agent_copy.py"
+    )
     real_command.parent.mkdir(parents=True)
     copied_command.parent.mkdir(parents=True)
+    agent_copy.parent.mkdir(parents=True)
     real_command.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     copied_command.write_text("from apps.data_center.application import public\n", encoding="utf-8")
+    agent_copy.write_text("from apps.data_center.application import public\n", encoding="utf-8")
     monkeypatch.setattr(inventory, "ROOT", tmp_path)
 
     commands = inventory._discover_management_commands()
@@ -112,6 +124,25 @@ def test_management_command_discovery_ignores_generated_output_tree(
     assert [command["path"] for command in commands] == [
         "apps/data_center/management/commands/real.py"
     ]
+
+
+def test_operational_script_discovery_ignores_agent_root_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Agent-local root scripts cannot become governed operational entrypoints."""
+
+    inventory = _load_script()
+    real_script = tmp_path / "backup.py"
+    agent_script = tmp_path / ".codex-vps-backup.py"
+    real_script.write_text("postgres backup\n", encoding="utf-8")
+    agent_script.write_text("postgres backup\n", encoding="utf-8")
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+
+    paths = [
+        path.relative_to(tmp_path).as_posix() for path in inventory._operational_script_files()
+    ]
+
+    assert paths == ["backup.py"]
 
 
 def test_inventory_keeps_bound_public_and_compatibility_ports_visible(

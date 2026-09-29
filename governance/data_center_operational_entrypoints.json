@@ -220,6 +220,20 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL concurrency evidence for shared transaction-scoped advisory locks",
+      "path": "tests/component/shared/infrastructure/test_postgres_advisory_lock_postgres.py",
+      "symbol": "test_postgres_advisory_lock_postgres",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed deterministic contract evidence for shared transaction-scoped advisory locks",
+      "path": "tests/unit/shared/infrastructure/test_postgres_advisory_lock.py",
+      "symbol": "test_postgres_advisory_lock",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed PostgreSQL settings audit concurrency evidence",
       "path": "tests/settings_audit_postgres_concurrency.py",
       "symbol": "settings_audit_postgres_concurrency",
