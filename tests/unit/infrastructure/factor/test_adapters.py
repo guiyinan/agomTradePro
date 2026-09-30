@@ -89,7 +89,7 @@ def test_financial_factor_uses_decision_knowledge_boundary(
         ]
 
     monkeypatch.setattr(
-        "apps.factor.infrastructure.adapters.get_financial_facts_for_decision",
+        "apps.factor.infrastructure.adapters.get_published_financial_facts_for_decision",
         _financials,
     )
     trade_date = date(2026, 7, 24)
@@ -104,3 +104,64 @@ def test_financial_factor_uses_decision_knowledge_boundary(
             "decision_date": trade_date,
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("adapter_type", "source"),
+    [(TushareFactorAdapter, "tushare"), (AkshareFactorAdapter, "akshare")],
+)
+@pytest.mark.parametrize(
+    ("factor_code", "field", "expected"),
+    [
+        ("pe_ttm", "pe_ttm", 12.5),
+        ("pb", "pb", 1.4),
+        ("ps", "ps_ttm", 2.1),
+        ("dividend_yield", "dv_ratio", 0.03),
+    ],
+)
+def test_valuation_factors_use_publication_bound_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    adapter_type: type[FactorDataSource],
+    source: str,
+    factor_code: str,
+    field: str,
+    expected: float,
+) -> None:
+    """Every valuation factor reads the current publication member port."""
+
+    seen: list[dict[str, object]] = []
+
+    def _valuations(stock_code: str, **kwargs: object) -> list[dict[str, object]]:
+        seen.append({"stock_code": stock_code, **kwargs})
+        return [{"val_date": "2026-07-24", field: expected, "source": source}]
+
+    monkeypatch.setattr(
+        "apps.factor.infrastructure.adapters.get_published_valuation_facts_for_decision",
+        _valuations,
+    )
+    trade_date = date(2026, 7, 24)
+
+    assert adapter_type().get_factor_value("600000.SH", factor_code, trade_date) == expected
+    assert seen == [{"stock_code": "600000.SH", "as_of": trade_date}]
+
+
+@pytest.mark.parametrize("adapter_type", [TushareFactorAdapter, AkshareFactorAdapter])
+def test_factor_fails_closed_when_publication_has_no_member(
+    monkeypatch: pytest.MonkeyPatch,
+    adapter_type: type[FactorDataSource],
+) -> None:
+    """A missing current member cannot produce a valuation or financial factor."""
+
+    monkeypatch.setattr(
+        "apps.factor.infrastructure.adapters.get_published_valuation_facts_for_decision",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        "apps.factor.infrastructure.adapters.get_published_financial_facts_for_decision",
+        lambda *_args, **_kwargs: [],
+    )
+    adapter = adapter_type()
+    trade_date = date(2026, 7, 24)
+
+    assert adapter.get_factor_value("600000.SH", "pe_ttm", trade_date) is None
+    assert adapter.get_factor_value("600000.SH", "roe", trade_date) is None

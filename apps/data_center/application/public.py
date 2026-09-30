@@ -882,8 +882,16 @@ get_published_capital_flow_series = _bind_published_query(
 get_published_financial_facts = _bind_published_query(
     "get_published_financial_facts", _published_queries.get_published_financial_facts
 )
+get_published_financial_facts_for_decision = _bind_published_query(
+    "get_published_financial_facts_for_decision",
+    _published_queries.get_published_financial_facts_for_decision,
+)
 get_published_valuation_facts = _bind_published_query(
     "get_published_valuation_facts", _published_queries.get_published_valuation_facts
+)
+get_published_valuation_facts_for_decision = _bind_published_query(
+    "get_published_valuation_facts_for_decision",
+    _published_queries.get_published_valuation_facts_for_decision,
 )
 get_macro_indicator_catalog = _bind_published_query(
     "get_macro_indicator_catalog", _published_queries.get_macro_indicator_catalog
@@ -935,6 +943,13 @@ list_price_covered_codes = _bind_published_query(
 )
 list_valuation_covered_codes = _bind_published_query(
     "list_valuation_covered_codes", _published_queries.list_valuation_covered_codes
+)
+list_published_price_covered_codes = _bind_published_query(
+    "list_published_price_covered_codes", _published_queries.list_published_price_covered_codes
+)
+list_published_valuation_covered_codes = _bind_published_query(
+    "list_published_valuation_covered_codes",
+    _published_queries.list_published_valuation_covered_codes,
 )
 get_financial_facts = _bind_published_query(
     "get_financial_facts", _published_queries.get_financial_facts
@@ -1027,6 +1042,7 @@ __all__ = [
     "get_published_market_news",
     "get_published_capital_flow_series",
     "get_published_financial_facts",
+    "get_published_financial_facts_for_decision",
     "get_published_equity_context_payloads",
     "get_published_latest_quote_payload",
     "get_published_fund_nav_series",
@@ -1036,6 +1052,7 @@ __all__ = [
     "get_published_quote_series",
     "get_published_sector_memberships",
     "get_published_valuation_facts",
+    "get_published_valuation_facts_for_decision",
     "record_reconciliation_evidence",
     "get_valuation_facts",
     "get_valuation_fact_repository_port",
@@ -1053,6 +1070,8 @@ __all__ = [
     "list_macro_facts_by_original_unit",
     "list_price_covered_codes",
     "list_valuation_covered_codes",
+    "list_published_price_covered_codes",
+    "list_published_valuation_covered_codes",
     "update_asset_display_name",
     "save_macro_facts",
 ]

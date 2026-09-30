@@ -4545,6 +4545,7 @@
           "get_publication_as_of",
           "get_published_capital_flow_series",
           "get_published_financial_facts",
+          "get_published_financial_facts_for_decision",
           "get_published_latest_quote_payload",
           "get_published_market_news",
           "get_published_price_bar_series",
@@ -4552,12 +4553,15 @@
           "get_published_quote_series",
           "get_published_sector_memberships",
           "get_published_valuation_facts",
+          "get_published_valuation_facts_for_decision",
           "get_valuation_facts",
           "list_active_data_sources",
           "list_active_stock_codes",
           "list_macro_facts_by_original_unit",
           "list_macro_indicator_codes",
           "list_price_covered_codes",
+          "list_published_price_covered_codes",
+          "list_published_valuation_covered_codes",
           "list_valuation_covered_codes",
           "resolve_asset_payload",
           "save_data_source_configuration",
@@ -4569,6 +4573,11 @@
         ],
         "application/publication_idempotence.py": [
           "publication_replay_matches"
+        ],
+        "application/publication_member_scope.py": [
+          "find_scope_block",
+          "scope_block_reason",
+          "select_asset_members"
         ],
         "application/publication_policy_activation.py": [
           "ActivatePublicationPoliciesUseCase",
@@ -4891,7 +4900,7 @@
         ]
       },
       "layers": {
-        "application": 106,
+        "application": 107,
         "domain": 33,
         "infrastructure": 154,
         "interface": 19,

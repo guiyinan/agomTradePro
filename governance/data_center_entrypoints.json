@@ -18,7 +18,7 @@
       "operational_dispatch_edge": 66,
       "operational_script": 31,
       "orchestration_entry": 13,
-      "public_port": 93,
+      "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 803,
+      "active_public": 807,
       "adjacent_operational": 334,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1275
+    "total": 1279
   },
   "entries": [
     {
@@ -302,11 +302,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_financial_facts_for_decision:line:21",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_published_financial_facts_for_decision:line:21",
       "locator": "line:21",
       "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
       "status": "active_public",
-      "symbol": "get_financial_facts_for_decision",
+      "symbol": "get_published_financial_facts_for_decision",
       "target": ""
     },
     {
@@ -322,11 +322,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_valuation_facts:line:21",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:get_published_valuation_facts_for_decision:line:21",
       "locator": "line:21",
       "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
       "status": "active_public",
-      "symbol": "get_valuation_facts",
+      "symbol": "get_published_valuation_facts_for_decision",
       "target": ""
     },
     {
@@ -342,11 +342,11 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:list_valuation_covered_codes:line:21",
+      "id": "application_consumer:apps/alpha/infrastructure/adapters/simple_adapter.py:list_published_valuation_covered_codes:line:21",
       "locator": "line:21",
       "path": "apps/alpha/infrastructure/adapters/simple_adapter.py",
       "status": "active_public",
-      "symbol": "list_valuation_covered_codes",
+      "symbol": "list_published_valuation_covered_codes",
       "target": ""
     },
     {
@@ -372,21 +372,21 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_price_covered_codes:line:11",
+      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_published_price_covered_codes:line:11",
       "locator": "line:11",
       "path": "apps/alpha/infrastructure/repositories.py",
       "status": "active_public",
-      "symbol": "list_price_covered_codes",
+      "symbol": "list_published_price_covered_codes",
       "target": ""
     },
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_valuation_covered_codes:line:11",
+      "id": "application_consumer:apps/alpha/infrastructure/repositories.py:list_published_valuation_covered_codes:line:11",
       "locator": "line:11",
       "path": "apps/alpha/infrastructure/repositories.py",
       "status": "active_public",
-      "symbol": "list_valuation_covered_codes",
+      "symbol": "list_published_valuation_covered_codes",
       "target": ""
     },
     {
@@ -822,21 +822,21 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_financial_facts_for_decision:line:15",
+      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_published_financial_facts_for_decision:line:15",
       "locator": "line:15",
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "status": "active_public",
-      "symbol": "get_financial_facts_for_decision",
+      "symbol": "get_published_financial_facts_for_decision",
       "target": ""
     },
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_valuation_facts:line:15",
+      "id": "application_consumer:apps/factor/infrastructure/adapters/__init__.py:get_published_valuation_facts_for_decision:line:15",
       "locator": "line:15",
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "status": "active_public",
-      "symbol": "get_valuation_facts",
+      "symbol": "get_published_valuation_facts_for_decision",
       "target": ""
     },
     {
@@ -5271,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=79",
+      "evidence": "governed current-data contract; source_files=80",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5431,7 +5431,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=15",
+      "evidence": "governed current-data contract; source_files=19",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_only_d4_d5:Current financial and valuation reads use Data Center publication-only ports",
       "locator": "Current financial and valuation reads use Data Center publication-only ports",
       "path": "governance/current_data_contracts.json",
@@ -8992,6 +8992,16 @@
     {
       "category": "public_port",
       "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:get_published_financial_facts_for_decision:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "get_published_financial_facts_for_decision",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
       "id": "public_port:apps/data_center/application/public.py:get_published_fund_nav_series:",
       "locator": "",
       "path": "apps/data_center/application/public.py",
@@ -9087,6 +9097,16 @@
       "path": "apps/data_center/application/public.py",
       "status": "active_public",
       "symbol": "get_published_valuation_facts",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:get_published_valuation_facts_for_decision:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "get_published_valuation_facts_for_decision",
       "target": ""
     },
     {
@@ -9277,6 +9297,26 @@
       "path": "apps/data_center/application/public.py",
       "status": "active_public",
       "symbol": "list_published_macro_indicator_summaries",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:list_published_price_covered_codes:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "list_published_price_covered_codes",
+      "target": ""
+    },
+    {
+      "category": "public_port",
+      "evidence": "canonical Data Center Application public port",
+      "id": "public_port:apps/data_center/application/public.py:list_published_valuation_covered_codes:",
+      "locator": "",
+      "path": "apps/data_center/application/public.py",
+      "status": "active_public",
+      "symbol": "list_published_valuation_covered_codes",
       "target": ""
     },
     {

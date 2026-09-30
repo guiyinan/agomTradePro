@@ -8,13 +8,15 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from apps.data_center.application import query_services
+from apps.data_center.application import public_published_queries, query_services
 from apps.data_center.application.publication_utils import publication_member_from_reference
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot, ValuationFact
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
 )
+from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
 from apps.data_center.infrastructure.models import (
+    FinancialFactModel,
     PriceBarModel,
     QuoteSnapshotModel,
     ValuationFactModel,
@@ -29,17 +31,20 @@ from core.exceptions import DataFetchError
 pytestmark = pytest.mark.django_db
 
 
-def _pin(row, dataset):
+def _pin(row, dataset, *, observed_at=None, natural_key=None):
+    publication_id = uuid4()
     PublicationMemberModel.objects.create(
-        publication_id=uuid4(),
+        publication_id=publication_id,
         dataset_key=dataset,
-        natural_key=str(row.pk),
+        natural_key=natural_key or str(row.pk),
         source=row.source,
         source_record_id="retained-source-row",
         fact_table=row._meta.db_table,
         fact_pk=str(row.pk),
         fact_content_hash=canonical_fact_content_hash(row),
+        observed_at=observed_at,
     )
+    return str(publication_id)
 
 
 def test_refreshing_published_quote_keeps_frozen_row_and_selects_new_revision():
@@ -146,6 +151,164 @@ def test_refetching_published_valuation_does_not_rewrite_knowledge_time():
     # Exact replay of an unmodified latest revision must not create unbounded duplicates.
     repo.bulk_upsert([second])
     assert ValuationFactModel.objects.filter(asset_code=first.asset_code).count() == 2
+
+
+def test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads(
+    monkeypatch,
+) -> None:
+    """Published decision reads resolve exact member PKs, never newer staged revisions."""
+
+    observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
+    asset_code = "000001.SZ"
+    valuation_repository = ValuationFactRepository()
+    valuation = ValuationFact(
+        asset_code,
+        observed.date(),
+        pe_ttm=12.5,
+        source="provider",
+        observed_at=observed,
+        fetched_at=observed,
+        available_at=observed,
+    )
+    valuation_repository.bulk_upsert([valuation])
+    old_valuation = ValuationFactModel.objects.get(asset_code=asset_code)
+    valuation_publication_id = _pin(old_valuation, "equity.valuation.fact")
+    valuation_repository.bulk_upsert(
+        [replace(valuation, pe_ttm=99.0, fetched_at=observed + timedelta(minutes=1))]
+    )
+
+    old_financial = FinancialFactModel.objects.create(
+        asset_code=asset_code,
+        period_end=observed.date(),
+        period_type="quarterly",
+        metric_code="roe",
+        value="0.2000",
+        unit="ratio",
+        source="provider",
+        announced_at=observed,
+        available_at=observed,
+        revision_number=1,
+    )
+    financial_publication_id = _pin(old_financial, "equity.financial.fact")
+    FinancialFactModel.objects.create(
+        asset_code=asset_code,
+        period_end=observed.date(),
+        period_type="quarterly",
+        metric_code="roe",
+        value="0.9900",
+        unit="ratio",
+        source="provider",
+        announced_at=observed,
+        available_at=observed + timedelta(minutes=1),
+        revision_number=2,
+    )
+
+    publication_ids = {
+        "equity.valuation.fact": valuation_publication_id,
+        "equity.financial.fact": financial_publication_id,
+    }
+
+    def _gate(dataset_key: str, *_args, **_kwargs) -> dict[str, object]:
+        return {
+            "dataset_key": dataset_key,
+            "publication_id": publication_ids[dataset_key],
+            "publication_key": "current",
+            "as_of": (observed + timedelta(hours=1)).isoformat(),
+            "must_not_use_for_decision": False,
+        }
+
+    publications = CanonicalPublicationRepository()
+    monkeypatch.setattr(query_services, "_publication_gate", _gate)
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publications
+    )
+    monkeypatch.setattr(
+        query_services, "get_valuation_fact_repository", lambda: valuation_repository
+    )
+    monkeypatch.setattr(
+        query_services, "get_financial_fact_repository", lambda: FinancialFactRepository()
+    )
+
+    raw_valuation = query_services.query_valuation_facts(asset_code, as_of=observed.date())
+    raw_financial = query_services.query_financial_facts(asset_code, limit=1)
+    published_valuation = query_services.query_published_valuation_facts(
+        asset_code, as_of=observed.date()
+    )
+    published_financial = query_services.query_published_financial_facts(
+        asset_code, as_of=observed.date()
+    )
+
+    assert raw_valuation[0]["pe_ttm"] == 99.0
+    assert raw_financial[0]["value"] == 0.99
+    assert published_valuation["rows"][0]["pe_ttm"] == 12.5
+    assert published_financial["rows"][0]["value"] == 0.2
+
+
+def test_published_coverage_excludes_raw_only_valuation_and_price_assets(monkeypatch) -> None:
+    """Alpha coverage is projected from members rather than all persisted facts."""
+
+    observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
+    valuation_repository = ValuationFactRepository()
+    published_valuation = ValuationFact(
+        "000001.SZ",
+        observed.date(),
+        pe_ttm=12.5,
+        source="provider",
+        observed_at=observed,
+        fetched_at=observed,
+        available_at=observed,
+    )
+    raw_only_valuation = replace(published_valuation, asset_code="600000.SH")
+    valuation_repository.bulk_upsert([published_valuation, raw_only_valuation])
+    valuation_publication_id = _pin(
+        ValuationFactModel.objects.get(asset_code="000001.SZ"),
+        "equity.valuation.fact",
+        observed_at=observed,
+        natural_key="000001.SZ:2026-09-24:provider",
+    )
+
+    price_repository = PriceBarRepository()
+    published_price = PriceBar(
+        "000001.SZ",
+        observed.date(),
+        10,
+        11,
+        9,
+        10.5,
+        source="provider",
+    )
+    raw_only_price = replace(published_price, asset_code="600000.SH")
+    price_repository.bulk_upsert([published_price, raw_only_price])
+    price_publication_id = _pin(
+        PriceBarModel.objects.get(asset_code="000001.SZ"),
+        "equity.price.bar",
+        observed_at=observed,
+        natural_key="000001.SZ:2026-09-24:1d:none:provider",
+    )
+    publication_ids = {
+        "equity.valuation.fact": valuation_publication_id,
+        "equity.price.bar": price_publication_id,
+    }
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_current_publication_freshness_gate",
+        lambda dataset_key, _publication_key: {
+            "publication_id": publication_ids[dataset_key],
+            "must_not_use_for_decision": False,
+        },
+    )
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_canonical_publication_repository",
+        CanonicalPublicationRepository,
+    )
+
+    assert public_published_queries.list_published_valuation_covered_codes(observed.date()) == [
+        "000001.SZ"
+    ]
+    assert public_published_queries.list_published_price_covered_codes(observed.date()) == [
+        "000001.SZ"
+    ]
 
 
 def test_duplicate_batch_rolls_back_without_changing_frozen_or_unpublished_rows():

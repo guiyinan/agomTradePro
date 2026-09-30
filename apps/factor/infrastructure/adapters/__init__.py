@@ -13,8 +13,8 @@ from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
 from apps.data_center.application.public import (
-    get_financial_facts_for_decision,
-    get_valuation_facts,
+    get_published_financial_facts_for_decision,
+    get_published_valuation_facts_for_decision,
 )
 from shared.numeric import safe_float
 
@@ -90,7 +90,10 @@ def _get_factor_from_data_center(
     }
 
     if factor_code in valuation_field_map:
-        valuations = get_valuation_facts(stock_code, as_of=trade_date)
+        valuations = get_published_valuation_facts_for_decision(
+            stock_code,
+            as_of=trade_date,
+        )
         if source_hint:
             valuations = [
                 row
@@ -106,7 +109,7 @@ def _get_factor_from_data_center(
     if factor_code in financial_metric_map:
         financial_facts = [
             row
-            for row in get_financial_facts_for_decision(
+            for row in get_published_financial_facts_for_decision(
                 stock_code,
                 limit=200,
                 decision_date=trade_date,

@@ -95,7 +95,7 @@ def test_simple_universe_selection_uses_config_latest_data_and_safe_failures(
     """Simple provider selects only configured/available stocks and fails closed."""
     available_codes = ["000001.SZ", "600000.SH"]
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.list_valuation_covered_codes",
+        "apps.alpha.infrastructure.adapters.simple_adapter.list_published_valuation_covered_codes",
         lambda as_of=None: list(available_codes),
     )
     settings.ALPHA_SIMPLE_UNIVERSE_MAP = {
@@ -112,7 +112,7 @@ def test_simple_universe_selection_uses_config_latest_data_and_safe_failures(
     assert provider._get_universe_stocks("all", TARGET_DATE) == []
 
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.list_valuation_covered_codes",
+        "apps.alpha.infrastructure.adapters.simple_adapter.list_published_valuation_covered_codes",
         lambda as_of=None: (_ for _ in ()).throw(RuntimeError("DB offline")),
     )
     assert provider._get_universe_stocks("all", TARGET_DATE) == []
@@ -129,11 +129,11 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
     ]
     financials = {"000001.SZ": [{"period_end": "2026-07-01", "metric_code": "roe", "value": 0.2}]}
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_valuation_facts",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_valuation_facts_for_decision",
         lambda stock_code, **kwargs: [row for row in valuations if row["asset_code"] == stock_code],
     )
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts_for_decision",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_financial_facts_for_decision",
         lambda stock_code, **kwargs: financials.get(stock_code, []),
     )
     provider = SimpleAlphaProvider()
@@ -149,7 +149,7 @@ def test_simple_fundamentals_classify_complete_partial_missing_and_repository_fa
     assert quality["missing_count"] == 2
 
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_valuation_facts",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_valuation_facts_for_decision",
         lambda stock_code, **kwargs: (_ for _ in ()).throw(RuntimeError("valuation locked")),
     )
     data, quality = provider._get_fundamental_data(["000001.SZ"], TARGET_DATE)
@@ -177,7 +177,7 @@ def test_simple_fundamentals_requests_exact_financial_knowledge_boundary(
         },
     ]
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_valuation_facts",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_valuation_facts_for_decision",
         lambda stock_code, **kwargs: [
             {"asset_code": stock_code, "pe_ttm": 10.0, "pb": 1.0, "dv_ratio": 0.03}
         ],
@@ -188,7 +188,7 @@ def test_simple_fundamentals_requests_exact_financial_knowledge_boundary(
         return financial_rows
 
     monkeypatch.setattr(
-        "apps.alpha.infrastructure.adapters.simple_adapter.get_financial_facts_for_decision",
+        "apps.alpha.infrastructure.adapters.simple_adapter.get_published_financial_facts_for_decision",
         _financials,
     )
 

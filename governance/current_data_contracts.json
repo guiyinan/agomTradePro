@@ -2916,7 +2916,11 @@
         "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/tools/equity_tools.py",
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
-        "apps/data_center/application/publication_query_bounds.py"
+        "apps/data_center/application/publication_query_bounds.py",
+        "apps/data_center/application/publication_member_scope.py",
+        "apps/alpha/infrastructure/adapters/simple_adapter.py",
+        "apps/alpha/infrastructure/repositories.py",
+        "apps/factor/infrastructure/adapters/__init__.py"
       ],
       "required_markers": {
         "apps/data_center/domain/market_time.py": [
@@ -2939,6 +2943,10 @@
         "apps/data_center/application/public_published_queries.py": [
           "def get_published_financial_facts(",
           "def get_published_valuation_facts(",
+          "def get_published_financial_facts_for_decision(",
+          "def get_published_valuation_facts_for_decision(",
+          "def list_published_price_covered_codes(",
+          "def list_published_valuation_covered_codes(",
           "def get_decision_publication_gate("
         ],
         "apps/equity/application/use_cases.py": [
@@ -3020,6 +3028,24 @@
         "apps/data_center/application/publication_query_bounds.py": [
           "canonical_publication_stale",
           "must_not_use_for_decision"
+        ],
+        "apps/data_center/application/publication_member_scope.py": [
+          "def select_asset_members(",
+          "def find_scope_block(",
+          "canonical_publication_members_missing"
+        ],
+        "apps/alpha/infrastructure/adapters/simple_adapter.py": [
+          "get_published_financial_facts_for_decision(",
+          "get_published_valuation_facts_for_decision(",
+          "list_published_valuation_covered_codes("
+        ],
+        "apps/alpha/infrastructure/repositories.py": [
+          "list_published_price_covered_codes(",
+          "list_published_valuation_covered_codes("
+        ],
+        "apps/factor/infrastructure/adapters/__init__.py": [
+          "get_published_financial_facts_for_decision(",
+          "get_published_valuation_facts_for_decision("
         ]
       },
       "required_tests": [
@@ -3162,6 +3188,36 @@
           "case": "equity_pool_member_context_missing_blocks",
           "test_file": "tests/api/test_equity_published_pool_member_bound.py",
           "test_function": "test_published_pool_blocks_when_publication_member_context_is_missing"
+        },
+        {
+          "case": "published_financial_reader_fails_closed_without_members",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_financial_query_fails_closed_without_member_reader"
+        },
+        {
+          "case": "published_coverage_fails_closed_without_current",
+          "test_file": "tests/unit/data_center/test_published_query_ports.py",
+          "test_function": "test_published_coverage_fails_closed_without_current_or_member_reader"
+        },
+        {
+          "case": "staged_financial_and_valuation_revisions_are_invisible",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_unpublished_valuation_and_financial_revisions_stay_outside_published_reads"
+        },
+        {
+          "case": "alpha_coverage_excludes_raw_only_assets",
+          "test_file": "tests/component/data_center/test_published_fact_refresh.py",
+          "test_function": "test_published_coverage_excludes_raw_only_valuation_and_price_assets"
+        },
+        {
+          "case": "factor_valuation_reads_are_publication_bound",
+          "test_file": "tests/unit/infrastructure/factor/test_adapters.py",
+          "test_function": "test_valuation_factors_use_publication_bound_rows"
+        },
+        {
+          "case": "factor_fails_closed_without_publication_member",
+          "test_file": "tests/unit/infrastructure/factor/test_adapters.py",
+          "test_function": "test_factor_fails_closed_when_publication_has_no_member"
         }
       ]
     },
@@ -3239,10 +3295,10 @@
           "knowledge_cutoff=knowledge_cutoff"
         ],
         "apps/data_center/application/public.py": [
-          "get_financial_facts_for_decision = _bind_published_query("
+          "get_published_financial_facts_for_decision = _bind_published_query("
         ],
         "apps/data_center/application/public_published_queries.py": [
-          "def get_financial_facts_for_decision(",
+          "def get_published_financial_facts_for_decision(",
           "decision_date: date",
           "knowledge_cutoff=cn_market_date_start_utc(decision_date)"
         ],
@@ -3260,11 +3316,11 @@
           "available_at__lte=knowledge_cutoff"
         ],
         "apps/alpha/infrastructure/adapters/simple_adapter.py": [
-          "get_financial_facts_for_decision(",
+          "get_published_financial_facts_for_decision(",
           "decision_date=trade_date"
         ],
         "apps/factor/infrastructure/adapters/__init__.py": [
-          "get_financial_facts_for_decision(",
+          "get_published_financial_facts_for_decision(",
           "decision_date=trade_date"
         ]
       },
@@ -4745,7 +4801,8 @@
         "apps/data_center/infrastructure/publication_rollback_models.py",
         "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py",
         "shared/domain/task_outcomes.py",
-        "apps/data_center/infrastructure/tushare_a_share_provider.py"
+        "apps/data_center/infrastructure/tushare_a_share_provider.py",
+        "apps/data_center/application/publication_member_scope.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -5286,7 +5343,7 @@
           "cn_market_session_close_utc("
         ],
         "apps/data_center/application/query_services.py": [
-          "scope_block = next(",
+          "scope_block = find_scope_block(",
           "gate[\"scope_block\"] = scope_block.to_dict()"
         ],
         "shared/domain/task_outcomes.py": [
@@ -5300,6 +5357,11 @@
         "apps/data_center/infrastructure/tushare_a_share_provider.py": [
           "stock_basic",
           "list_status=\"L\""
+        ],
+        "apps/data_center/application/publication_member_scope.py": [
+          "def find_scope_block(",
+          "def scope_block_reason(",
+          "canonical_publication_members_missing"
         ]
       },
       "required_tests": [

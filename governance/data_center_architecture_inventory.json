@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5236,
+    "current_surface_references": 5245,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -6871,7 +6871,7 @@
       "text": "\"\"\"Inspect the typed runtime provider and return its latest trading date.\"\"\""
     },
     {
-      "line": 294,
+      "line": 290,
       "path": "apps/alpha/infrastructure/repositories.py",
       "text": "\"\"\"Return the latest cache row for one universe since a cutoff.\"\"\""
     },
@@ -10896,107 +10896,152 @@
       "text": "return plain DTO-shaped values for the current migration bridge; new callers"
     },
     {
-      "line": 52,
+      "line": 56,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
     },
     {
-      "line": 60,
+      "line": 64,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 85,
+      "line": 89,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 87,
+      "line": 91,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read decision-facing quotes only when publication is current.\"\"\""
     },
     {
-      "line": 95,
-      "path": "apps/data_center/application/public_published_queries.py",
-      "text": "publication_key: str = \"current\","
-    },
-    {
-      "line": 150,
+      "line": 99,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
       "line": 154,
       "path": "apps/data_center/application/public_published_queries.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 158,
+      "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read current intraday quote snapshots behind the Publication gate.\"\"\""
     },
     {
-      "line": 167,
+      "line": 171,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 172,
+      "line": 176,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read decision-facing price bars only when publication is current.\"\"\""
     },
     {
-      "line": 187,
+      "line": 191,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 203,
+      "line": 207,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 221,
+      "line": 225,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 238,
+      "line": 242,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 254,
+      "line": 262,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 291,
+      "line": 301,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "current = existing[0] if existing else None"
     },
     {
-      "line": 294,
+      "line": 304,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "id=current.id if current is not None else None,"
     },
     {
-      "line": 298,
+      "line": 308,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "priority=current.priority if current is not None else 100,"
     },
     {
-      "line": 300,
+      "line": 310,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "api_secret=current.api_secret if current is not None else \"\","
     },
     {
-      "line": 303,
+      "line": 313,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "extra_config=current.extra_config if current is not None else {},"
     },
     {
-      "line": 304,
+      "line": 314,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "description=current.description if current is not None else \"\","
     },
     {
-      "line": 490,
+      "line": 453,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Return price-covered assets from the current publication members only.\"\"\""
+    },
+    {
+      "line": 463,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Return valuation-covered assets from the current publication members only.\"\"\""
+    },
+    {
+      "line": 479,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Project asset codes from a fully validated current member snapshot.\"\"\""
+    },
+    {
+      "line": 481,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "gate = get_current_publication_freshness_gate(dataset_key, \"current\")"
+    },
+    {
+      "line": 556,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 558,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Read decision financial facts only from current publication members.\"\"\""
+    },
+    {
+      "line": 586,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "publication_key: str = \"current\","
+    },
+    {
+      "line": 588,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Read decision valuation facts only from current publication members.\"\"\""
+    },
+    {
+      "line": 606,
+      "path": "apps/data_center/application/public_published_queries.py",
+      "text": "\"\"\"Return rows only when the payload proves a current publication identity.\"\"\""
+    },
+    {
+      "line": 626,
       "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Read latest canonical quotes for a bounded list of assets.\"\"\""
     },
@@ -11431,137 +11476,137 @@
       "text": "\"\"\"Return only the current user's bridge bindings.\"\"\""
     },
     {
-      "line": 65,
+      "line": 70,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
-      "line": 161,
+      "line": 166,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest canonical quote payloads, preserving source observation time.\"\"\""
     },
     {
-      "line": 188,
+      "line": 193,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a current macro value only when its Publication gate passes.\"\"\""
     },
     {
-      "line": 259,
+      "line": 264,
       "path": "apps/data_center/application/query_services.py",
       "text": "This explicit current-data port prevents a non-empty, unpublished, or"
     },
     {
-      "line": 295,
+      "line": 300,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 300,
+      "line": 305,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read fund NAV facts only from the selected current publication members.\"\"\""
     },
     {
-      "line": 452,
+      "line": 442,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
     },
     {
-      "line": 531,
+      "line": 521,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 558,
+      "line": 548,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 595,
+      "line": 585,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 599,
+      "line": 589,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read quote snapshots only from the selected current publication members.\"\"\""
     },
     {
-      "line": 636,
+      "line": 626,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 638,
+      "line": 630,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read financial facts only after the current financial publication gate.\"\"\""
     },
     {
-      "line": 665,
+      "line": 660,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 712,
+      "line": 707,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 714,
+      "line": 710,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current valuation facts using the wall-clock freshness boundary.\"\"\""
     },
     {
-      "line": 732,
+      "line": 729,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 734,
+      "line": 731,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Verify the selected current publication at one pinned historical cutoff.\"\"\""
     },
     {
-      "line": 755,
+      "line": 752,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 783,
+      "line": 780,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 829,
+      "line": 826,
       "path": "apps/data_center/application/query_services.py",
       "text": "publication_key: str = \"current\","
     },
     {
-      "line": 923,
+      "line": 920,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest A-share behavior values with an explicit freshness contract.\"\"\""
     },
     {
-      "line": 982,
+      "line": 979,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Read current market breadth only after every component is published."
     },
     {
-      "line": 1072,
+      "line": 1069,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return latest macro indicator payloads for cache warmup.\"\"\""
     },
     {
-      "line": 1085,
+      "line": 1082,
       "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return only fresh, member-bound macro values for current consumers."
     },
     {
-      "line": 1087,
+      "line": 1084,
       "path": "apps/data_center/application/query_services.py",
       "text": "The cache-warmup helper above intentionally reads the latest canonical fact"
     },
     {
-      "line": 1088,
+      "line": 1085,
       "path": "apps/data_center/application/query_services.py",
       "text": "for deployment warming and maintenance.  Current/ops consumers must not"
     },
@@ -14966,12 +15011,12 @@
       "text": "\"\"\"Return the latest persisted holdings for one factor portfolio config.\"\"\""
     },
     {
-      "line": 221,
+      "line": 224,
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "text": "current = prices[-1]"
     },
     {
-      "line": 224,
+      "line": 227,
       "path": "apps/factor/infrastructure/adapters/__init__.py",
       "text": "return (current - past) / past if past > 0 else 0.0"
     },

@@ -19,11 +19,11 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.data_center.application.public import (
-    get_financial_facts_for_decision,
+    get_published_financial_facts_for_decision,
     get_published_quote_payloads,
-    get_valuation_facts,
+    get_published_valuation_facts_for_decision,
     list_active_stock_codes,
-    list_valuation_covered_codes,
+    list_published_valuation_covered_codes,
 )
 from shared.numeric import safe_float
 
@@ -157,7 +157,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """
         try:
             # 检查是否有最近 7 天内的估值数据
-            has_data = bool(list_valuation_covered_codes(as_of=date.today()))
+            has_data = bool(list_published_valuation_covered_codes(as_of=date.today()))
             quote_cutoff = timezone.now() - timedelta(hours=4)
             active_codes = list_active_stock_codes()[:100]
             quote_payload = get_published_quote_payloads(active_codes)
@@ -346,10 +346,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             if universe_id in configured and configured[universe_id]:
                 # 过滤出有估值数据的股票
                 configured_stocks = list(configured[universe_id])
-                available_stocks = set(list_valuation_covered_codes(as_of=trade_date))
+                available_stocks = set(list_published_valuation_covered_codes(as_of=trade_date))
                 return [code for code in configured_stocks if code in available_stocks]
 
-            stocks = list_valuation_covered_codes(as_of=trade_date)
+            stocks = list_published_valuation_covered_codes(as_of=trade_date)
             if not stocks:
                 logger.warning("数据库中没有估值数据")
                 return []
@@ -391,9 +391,13 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         try:
             for stock_code in stock_list:
-                valuation_rows = get_valuation_facts(stock_code, as_of=trade_date, limit=1)
+                valuation_rows = get_published_valuation_facts_for_decision(
+                    stock_code,
+                    as_of=trade_date,
+                    limit=1,
+                )
                 valuation = valuation_rows[0] if valuation_rows else None
-                financial_rows = get_financial_facts_for_decision(
+                financial_rows = get_published_financial_facts_for_decision(
                     stock_code,
                     limit=100,
                     decision_date=trade_date,

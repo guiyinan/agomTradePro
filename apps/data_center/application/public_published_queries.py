@@ -8,6 +8,7 @@ can use the typed contracts in :mod:`apps.data_center.domain.contracts`.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import date, datetime
 from typing import Any
@@ -41,7 +42,10 @@ from apps.data_center.composition import (
     get_provider_config_repository,
 )
 from apps.data_center.domain.entities import MacroFact
-from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.market_time import (
+    cn_market_date_from_observation,
+    cn_market_date_start_utc,
+)
 from apps.data_center.publication_read_composition import publication_snapshot
 
 
@@ -236,6 +240,8 @@ def get_published_financial_facts(
     *,
     limit: int = 20,
     publication_key: str = "current",
+    as_of: date | None = None,
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
     """Read decision-facing financial facts behind a publication gate."""
 
@@ -243,6 +249,8 @@ def get_published_financial_facts(
         asset_code,
         limit=limit,
         publication_key=publication_key,
+        as_of=as_of,
+        knowledge_cutoff=knowledge_cutoff,
     )
 
 
@@ -252,6 +260,7 @@ def get_published_valuation_facts(
     as_of: date | None = None,
     limit: int | None = None,
     publication_key: str = "current",
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
     """Read decision-facing valuation facts behind a publication gate."""
 
@@ -260,6 +269,7 @@ def get_published_valuation_facts(
         as_of=as_of,
         limit=limit,
         publication_key=publication_key,
+        knowledge_cutoff=knowledge_cutoff,
     )
 
 
@@ -439,6 +449,73 @@ def list_valuation_covered_codes(as_of: date | None = None) -> list[str]:
     return list_valuation_covered_asset_codes(as_of)
 
 
+def list_published_price_covered_codes(as_of: date | None = None) -> list[str]:
+    """Return price-covered assets from the current publication members only."""
+
+    return _list_published_covered_codes(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        as_of=as_of,
+    )
+
+
+def list_published_valuation_covered_codes(as_of: date | None = None) -> list[str]:
+    """Return valuation-covered assets from the current publication members only."""
+
+    return _list_published_covered_codes(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        as_of=as_of,
+    )
+
+
+@publication_snapshot()
+def _list_published_covered_codes(
+    *,
+    dataset_key: str,
+    fact_table: str,
+    as_of: date | None,
+) -> list[str]:
+    """Project asset codes from a fully validated current member snapshot."""
+
+    gate = get_current_publication_freshness_gate(dataset_key, "current")
+    if gate is None or bool(gate.get("must_not_use_for_decision")):
+        return []
+    publication_id = gate.get("publication_id")
+    if not isinstance(publication_id, str) or not publication_id.strip():
+        return []
+    repository = get_canonical_publication_repository()
+    member_reader = getattr(repository, "list_members", None)
+    if not callable(member_reader):
+        return []
+    try:
+        members = tuple(member_reader(publication_id))
+    except (AttributeError, TypeError, ValueError):
+        return []
+    if not members:
+        return []
+    codes: set[str] = set()
+    for member in members:
+        if (
+            getattr(member, "dataset_key", None) != dataset_key
+            or getattr(member, "fact_table", None) != fact_table
+        ):
+            return []
+        natural_key = getattr(member, "natural_key", None)
+        code = natural_key.split(":", 1)[0].strip().upper() if isinstance(natural_key, str) else ""
+        observed_at = getattr(member, "observed_at", None)
+        if not code or observed_at is None:
+            return []
+        if as_of is not None:
+            try:
+                if cn_market_date_from_observation(observed_at) > as_of:
+                    continue
+            except (TypeError, ValueError):
+                return []
+        codes.add(code)
+    return sorted(codes)
+
+
 def get_financial_facts(
     asset_code: str,
     *,
@@ -471,6 +548,25 @@ def get_financial_facts_for_decision(
     )
 
 
+def get_published_financial_facts_for_decision(
+    asset_code: str,
+    *,
+    decision_date: date,
+    limit: int = 20,
+    publication_key: str = "current",
+) -> list[dict[str, object]]:
+    """Read decision financial facts only from current publication members."""
+
+    payload = get_published_financial_facts(
+        asset_code,
+        limit=limit,
+        as_of=decision_date,
+        publication_key=publication_key,
+        knowledge_cutoff=cn_market_date_start_utc(decision_date),
+    )
+    return _usable_decision_rows(payload, dataset_key="equity.financial.fact")
+
+
 def get_valuation_facts(
     asset_code: str,
     *,
@@ -480,6 +576,46 @@ def get_valuation_facts(
     """Read canonical valuation facts for one asset."""
 
     return query_valuation_facts(asset_code, as_of=as_of, limit=limit)
+
+
+def get_published_valuation_facts_for_decision(
+    asset_code: str,
+    *,
+    as_of: date | None = None,
+    limit: int | None = None,
+    publication_key: str = "current",
+) -> list[dict[str, object]]:
+    """Read decision valuation facts only from current publication members."""
+
+    knowledge_cutoff = cn_market_date_start_utc(as_of) if as_of is not None else None
+    payload = get_published_valuation_facts(
+        asset_code,
+        as_of=as_of,
+        limit=limit,
+        publication_key=publication_key,
+        knowledge_cutoff=knowledge_cutoff,
+    )
+    return _usable_decision_rows(payload, dataset_key="equity.valuation.fact")
+
+
+def _usable_decision_rows(
+    payload: Mapping[str, object],
+    *,
+    dataset_key: str,
+) -> list[dict[str, object]]:
+    """Return rows only when the payload proves a current publication identity."""
+
+    if (
+        bool(payload.get("must_not_use_for_decision"))
+        or payload.get("dataset_key") != dataset_key
+        or not isinstance(payload.get("publication_id"), str)
+        or not str(payload.get("publication_id") or "").strip()
+    ):
+        return []
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return []
+    return [dict(row) for row in rows if isinstance(row, Mapping)]
 
 
 def get_latest_quote_payloads(

@@ -11,6 +11,11 @@ from apps.data_center.application.current_publication_evidence import (
     current_publication_evidence_blocked_reason,
 )
 from apps.data_center.application.publication_gate_metadata import publication_gate_metadata
+from apps.data_center.application.publication_member_scope import (
+    find_scope_block,
+    scope_block_reason,
+    select_asset_members,
+)
 from apps.data_center.application.publication_query_bounds import (
     blocked_publication_members_result as _blocked_publication_members_result,
 )
@@ -365,7 +370,7 @@ def _publication_gate(
             fact_content_hashes=repository.get_fact_content_hashes(members),
             knowledge_cutoff=reference,
         )
-    except (DataFetchError, TypeError, ValueError):
+    except (AttributeError, DataFetchError, TypeError, ValueError):
         evidence_reason = "publication_member_snapshot_invalid"
     if evidence_reason is not None:
         gate.update(
@@ -386,26 +391,11 @@ def _publication_gate(
     if asset_code is None:
         oldest_observed_at = repository.get_oldest_member_observed_at(publication.publication_id)
     else:
-        selected_members = tuple(
-            member
-            for member in members
-            if member.natural_key.split(":", 1)[0].strip().upper() == asset_code.strip().upper()
-        )
+        selected_members = select_asset_members(members, asset_code)
         if not selected_members or any(member.observed_at is None for member in selected_members):
             normalized_asset_code = asset_code.strip().upper()
-            scope_block = next(
-                (
-                    block
-                    for block in publication.scope_blocks
-                    if block.asset_code.strip().upper() == normalized_asset_code
-                ),
-                None,
-            )
-            scope_reason = (
-                scope_block.reason_code
-                if scope_block is not None
-                else "canonical_publication_members_missing"
-            )
+            scope_block = find_scope_block(publication.scope_blocks, normalized_asset_code)
+            scope_reason = scope_block_reason(scope_block)
             gate.update(
                 must_not_use_for_decision=True,
                 blocked_reason=scope_reason,
@@ -634,24 +624,29 @@ def query_published_financial_facts(
     *,
     limit: int = 20,
     publication_key: str = "current",
+    as_of: date | None = None,
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
     """Read financial facts only after the current financial publication gate."""
 
-    gate = _publication_gate("equity.financial.fact", publication_key)
+    gate = _publication_gate(
+        "equity.financial.fact", publication_key, now=knowledge_cutoff, asset_code=asset_code
+    )
     if gate is None or bool(gate.get("must_not_use_for_decision")):
         return _blocked_publication_result(gate)
     member_pks = _publication_member_fact_pks(
         gate,
         expected_fact_table="data_center_financial_fact",
     )
-    if member_pks == []:
+    if member_pks is None or member_pks == []:
         return _blocked_publication_members_result(gate)
     return {
         "rows": query_financial_facts(
             asset_code,
             limit=limit,
-            end=_publication_as_of_date(gate),
+            end=_bounded_end_date(as_of, _publication_as_of_date(gate)),
             fact_pks=member_pks,
+            knowledge_cutoff=knowledge_cutoff,
         ),
         **gate,
     }
@@ -689,7 +684,7 @@ def _query_published_valuation_facts(
         gate,
         expected_fact_table="data_center_valuation_fact",
     )
-    if member_pks == []:
+    if member_pks is None or member_pks == []:
         return _blocked_publication_members_result(gate)
     bounded_as_of = _bounded_end_date(as_of, _publication_as_of_date(gate))
     return {
@@ -710,6 +705,7 @@ def query_published_valuation_facts(
     as_of: date | None = None,
     limit: int | None = None,
     publication_key: str = "current",
+    knowledge_cutoff: datetime | None = None,
 ) -> dict[str, object]:
     """Read current valuation facts using the wall-clock freshness boundary."""
 
@@ -718,6 +714,7 @@ def query_published_valuation_facts(
         as_of=as_of,
         limit=limit,
         publication_key=publication_key,
+        knowledge_cutoff=knowledge_cutoff,
     )
 
 

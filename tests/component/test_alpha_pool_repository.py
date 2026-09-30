@@ -12,7 +12,7 @@ from apps.data_center.infrastructure.models import (
 
 
 @pytest.mark.django_db
-def test_alpha_pool_repository_strict_valuation_uses_latest_valuation_intersection():
+def test_alpha_pool_repository_strict_valuation_fails_closed_without_publication():
     AssetMasterModel.objects.create(
         code="000001.SZ",
         name="平安银行",
@@ -41,7 +41,7 @@ def test_alpha_pool_repository_strict_valuation_uses_latest_valuation_intersecti
         pool_mode="strict_valuation",
     )
 
-    assert codes == ["600519.SH"]
+    assert codes == []
 
 
 @pytest.mark.django_db
@@ -71,7 +71,7 @@ def test_alpha_pool_repository_market_mode_uses_asset_master():
 
 
 @pytest.mark.django_db
-def test_alpha_pool_repository_price_covered_mode_uses_price_bar_coverage():
+def test_alpha_pool_repository_price_covered_fails_closed_without_publication():
     AssetMasterModel.objects.create(
         code="000001.SZ",
         name="平安银行",
@@ -104,4 +104,4 @@ def test_alpha_pool_repository_price_covered_mode_uses_price_bar_coverage():
         pool_mode="price_covered",
     )
 
-    assert codes == ["000001.SZ"]
+    assert codes == []

@@ -533,7 +533,7 @@ def _member(
         publication_id=publication_id,
         dataset_key=dataset_key,
         natural_key=(
-            f"{'600000.SH' if dataset_key in {'equity.price.bar', 'equity.valuation.fact'} else 'test'}:"
+            f"{'600000.SH' if dataset_key in {'equity.price.bar', 'equity.valuation.fact', 'equity.financial.fact'} else 'test'}:"
             f"{dataset_key}:{fact_pk}"
         ),
         source="test",
@@ -881,6 +881,120 @@ def test_published_financial_and_valuation_facts_preserve_gate_evidence(monkeypa
     assert valuation_result["must_not_use_for_decision"] is False
 
 
+def test_published_financial_query_passes_exact_member_pks_and_cutoff(monkeypatch) -> None:
+    """A decision financial read reaches the repository only with frozen member PKs."""
+
+    publication_repo = _PublicationRepository()
+    seen: dict[str, object] = {}
+
+    def _facts(*_args: object, **kwargs: object) -> list[SimpleNamespace]:
+        seen.update(kwargs)
+        return [SimpleNamespace(to_dict=lambda: {"metric_code": "roe", "value": 0.2})]
+
+    monkeypatch.setattr(
+        query_services, "get_canonical_publication_repository", lambda: publication_repo
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: SimpleNamespace(get_facts=_facts),
+    )
+    result = query_services.query_published_financial_facts(
+        "600000.SH",
+        as_of=date(2026, 8, 2),
+        knowledge_cutoff=datetime(2026, 8, 3, tzinfo=UTC),
+    )
+
+    assert result["rows"] == [{"metric_code": "roe", "value": 0.2}]
+    assert seen["fact_pks"] == ["1"]
+    assert seen["knowledge_cutoff"] == datetime(2026, 8, 3, tzinfo=UTC)
+
+
+def test_published_financial_query_fails_closed_without_member_reader(monkeypatch) -> None:
+    """A compatibility repository without members cannot fall back to raw facts."""
+
+    publication = _publication()
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(get_current=lambda *_args: publication),
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_financial_fact_repository",
+        lambda: (_ for _ in ()).throw(AssertionError("raw financial facts must not be read")),
+    )
+
+    result = query_services.query_published_financial_facts("600000.SH")
+
+    assert result["rows"] == []
+    assert result["must_not_use_for_decision"] is True
+    assert result["blocked_reason"] == "publication_member_snapshot_invalid"
+
+
+def test_published_coverage_projects_only_current_members(monkeypatch) -> None:
+    """Coverage APIs use the validated member snapshot and reject malformed members."""
+
+    from apps.data_center.application import public_published_queries
+
+    member = _member(
+        publication_id="pub-coverage",
+        dataset_key="equity.valuation.fact",
+        fact_pk="41",
+    )
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_current_publication_freshness_gate",
+        lambda *_args: {
+            "publication_id": "pub-coverage",
+            "must_not_use_for_decision": False,
+        },
+    )
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(list_members=lambda _publication_id: [member]),
+    )
+
+    assert public_published_queries.list_published_valuation_covered_codes() == ["600000.SH"]
+
+    malformed = replace(member, fact_table="data_center_financial_fact")
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(list_members=lambda _publication_id: [malformed]),
+    )
+    assert public_published_queries.list_published_valuation_covered_codes() == []
+
+
+def test_published_coverage_fails_closed_without_current_or_member_reader(monkeypatch) -> None:
+    """Coverage returns no candidates when current publication evidence is unavailable."""
+
+    from apps.data_center.application import public_published_queries
+
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_current_publication_freshness_gate",
+        lambda *_args: None,
+    )
+    assert public_published_queries.list_published_valuation_covered_codes() == []
+
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_current_publication_freshness_gate",
+        lambda *_args: {
+            "publication_id": "pub-coverage",
+            "must_not_use_for_decision": False,
+        },
+    )
+    monkeypatch.setattr(
+        public_published_queries,
+        "get_canonical_publication_repository",
+        lambda: SimpleNamespace(),
+    )
+    assert public_published_queries.list_published_valuation_covered_codes() == []
+
+
 def test_published_macro_facts_block_old_member_observation(monkeypatch) -> None:
     """Macro publication metadata cannot wash an old source observation into current reads."""
 
@@ -1143,9 +1257,9 @@ def test_published_gate_blocks_missing_member_observation(monkeypatch) -> None:
         ),
     )
 
-    result = query_services.query_published_financial_facts("600000.SH")
+    result = query_services._publication_gate("equity.financial.fact", "current")
 
-    assert result["rows"] == []
+    assert result is not None
     assert result["freshness_status"] == "missing"
     assert result["blocked_reason"] == "publication_observation_missing"
 
@@ -1165,9 +1279,9 @@ def test_published_gate_blocks_naive_member_observation(monkeypatch) -> None:
         ),
     )
 
-    result = query_services.query_published_financial_facts("600000.SH")
+    result = query_services._publication_gate("equity.financial.fact", "current")
 
-    assert result["rows"] == []
+    assert result is not None
     assert result["freshness_status"] == "invalid"
     assert result["blocked_reason"] == "publication_observation_naive"
 
