@@ -167,11 +167,17 @@ def test_generation_fence_uses_share_row_lock_for_compatible_final_readers(
         "verify_account_authority_generation_coverage",
         lambda *, using: object(),
     )
+    monkeypatch.setattr(
+        generation_module,
+        "verify_account_authority_generation_runtime_acl",
+        lambda *, using: None,
+    )
 
     assert generation_module.lock_account_authority_generation_fence(proof, using="default") == 41
 
     statement = connection.cursor_value.statements[-1].lower()
-    assert "for share" in statement
+    assert "account_authority_generation_lock()" in statement
+    assert "for share" not in statement
     assert "for update" not in statement
 
 
