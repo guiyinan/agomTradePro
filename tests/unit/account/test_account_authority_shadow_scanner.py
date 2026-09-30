@@ -22,6 +22,7 @@ from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
     caller_owned_account_authority_generation_fence,
+    capture_active_account_authority_physical_provider_identity,
 )
 from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityCurrentGraphReaderV3,
@@ -347,6 +348,7 @@ def test_generation_fenced_reader_rejects_ordinary_rc_rw_transaction_before_grap
     (
         ("alias", "another database alias"),
         ("physical_connection", "another physical connection"),
+        ("connection_wrapper", "another Django connection wrapper"),
         ("transaction_id", "transaction identity changed"),
     ),
 )
@@ -372,6 +374,10 @@ def test_active_generation_fence_rejects_alias_and_physical_connection_mismatch(
             connection.transaction_id = "42"
             other = connection
             using = "default"
+        elif mismatch == "connection_wrapper":
+            other = _Connection(isolation="read committed", read_only="off")
+            other.connection = connection.connection
+            using = "default"
         else:
             other = _Connection(isolation="read committed", read_only="off")
             using = "default"
@@ -383,6 +389,34 @@ def test_active_generation_fence_rejects_alias_and_physical_connection_mismatch(
             )
         if mismatch == "transaction_id":
             connection.transaction_id = "41"
+
+
+def test_generation_fence_exports_wrapper_connection_pid_xid_and_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    with caller_owned_account_authority_generation_fence(proof, using="default") as generation:
+        identity = capture_active_account_authority_physical_provider_identity(
+            using="default",
+            connection=connection,  # type: ignore[arg-type]
+            generation=generation,
+        )
+
+    assert identity.using == "default"
+    assert identity.wrapper_token is connection
+    assert identity.dbapi_token is connection.connection
+    assert identity.backend_pid == connection.backend_pid
+    assert identity.transaction_xid == connection.transaction_id
+    assert identity.thread_id > 0
+    assert identity.generation == generation
 
 
 @pytest.mark.parametrize(

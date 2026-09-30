@@ -79,6 +79,12 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         self._clock = clock or DjangoSimulatedAccountRowSourceV2Clock()
 
     @property
+    def database_alias(self) -> str:
+        """Return the exact Django alias used for ORM and cursor operations."""
+
+        return self._using
+
+    @property
     def unit_of_work_key(self) -> str:
         """Return the transaction identity used by this repository."""
 

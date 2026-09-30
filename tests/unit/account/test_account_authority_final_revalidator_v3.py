@@ -151,12 +151,14 @@ def test_capture_and_final_revalidation_recheck_in_order_and_consume_proof(
     events.clear()
     with revalidator.fence(proof) as result:
         assert result.scope == "owner_tenant_authority_v3_root_revocation_only"
+        assert result.valid_until == current.authority.valid_until
         assert events == [
             "generation_for_update_compare",
             "database_clock",
             "selected_root",
             "revocation",
         ]
+    assert events[-1] == "database_clock"
     with pytest.raises(AccountAuthorityFinalRevalidationUnavailable, match="consumed"):
         with revalidator.fence(proof):
             pytest.fail("a consumed proof must not enter the final fence")
@@ -194,6 +196,39 @@ def test_stale_generation_rejects_before_clock_or_selected_row_reads(
         with revalidator.fence(proof):
             pytest.fail("a changed generation must not yield a final result")
     assert events == ["generation_for_update_compare"]
+
+
+def test_final_fence_rejects_when_authority_expires_during_caller_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[str] = []
+    current = _legacy_current()
+    repository = _Repository(events, clock=current.observed_at + timedelta(seconds=1))
+    command, scan = _scan()
+    revalidator = AccountAuthorityFinalRevalidatorV3(repository, using="default")
+
+    @contextmanager
+    def rr_snapshot(using: str) -> Iterator[AccountAuthorityGenerationProof]:
+        yield AccountAuthorityGenerationProof(using=using, generation=scan.proof_generation)
+
+    @contextmanager
+    def rc_fence(
+        proof: AccountAuthorityGenerationProof,
+        *,
+        using: str,
+    ) -> Iterator[int]:
+        yield proof.generation
+
+    monkeypatch.setattr(module, "_read_only_repeatable_read_snapshot", rr_snapshot)
+    monkeypatch.setattr(module, "_read_committed_generation_fence", rc_fence)
+
+    proof = revalidator.capture(command, scan)
+    with pytest.raises(AccountAuthorityFinalRevalidationUnavailable, match="expired"):
+        with revalidator.fence(proof) as result:
+            assert result.checked_at < result.valid_until
+            repository.clock = result.valid_until
+
+    assert events[-1] == "database_clock"
 
 
 def test_capture_rejects_unmatched_scan_before_opening_database_snapshot(

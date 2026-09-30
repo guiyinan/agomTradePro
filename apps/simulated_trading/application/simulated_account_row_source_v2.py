@@ -210,6 +210,12 @@ class SimulatedAccountRowSourceV2Repository(Protocol):
     """Independent first-winner v2 store with exact PIT and head reads."""
 
     @property
+    def database_alias(self) -> str:
+        """Return the concrete Django alias used by this repository."""
+
+        ...
+
+    @property
     def unit_of_work_key(self) -> str:
         """Return the persistence transaction identity used by this repository."""
 

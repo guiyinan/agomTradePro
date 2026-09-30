@@ -87,6 +87,7 @@ class AccountAuthorityV3RootRevocationRevalidationResult:
     authority_content_hash: str
     generation: int
     checked_at: datetime
+    valid_until: datetime
     scope: Literal["owner_tenant_authority_v3_root_revocation_only"] = (
         "owner_tenant_authority_v3_root_revocation_only"
     )
@@ -104,6 +105,10 @@ class AccountAuthorityV3RootRevocationRevalidationResult:
             raise ValueError("Authority V3 result generation is invalid")
         if type(self.checked_at) is not datetime or not _is_aware(self.checked_at):
             raise ValueError("Authority V3 result clock must be timezone-aware")
+        if type(self.valid_until) is not datetime or not _is_aware(self.valid_until):
+            raise ValueError("Authority V3 result expiry must be timezone-aware")
+        if self.checked_at >= self.valid_until:
+            raise ValueError("Authority V3 result must be checked before expiry")
         if self.scope != "owner_tenant_authority_v3_root_revocation_only":
             raise ValueError("Authority V3 result scope is invalid")
 
@@ -277,8 +282,19 @@ class AccountAuthorityFinalRevalidatorV3:
                 authority_content_hash=current.record.authority.content_hash,
                 generation=generation,
                 checked_at=now,
+                valid_until=current.record.authority.valid_until,
             )
             yield result
+            exit_checked_at = self._repository.database_clock()
+            _validate_database_time(exit_checked_at)
+            if exit_checked_at < result.checked_at:
+                raise AccountAuthorityFinalRevalidationUnavailable(
+                    "the final revalidation database clock moved backwards"
+                )
+            if exit_checked_at >= result.valid_until:
+                raise AccountAuthorityFinalRevalidationUnavailable(
+                    "the selected Authority V3 root expired during final revalidation"
+                )
 
     def _read_revocation(
         self,

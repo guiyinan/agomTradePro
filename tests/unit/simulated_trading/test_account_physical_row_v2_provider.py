@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import get_ident
 from typing import cast
 
 import pytest
@@ -9,6 +12,7 @@ import pytest
 from apps.account.application.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2Corruption,
     PhysicalAccountRowObservationV2Unavailable,
+    PhysicalAccountRowProviderIdentity,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -21,6 +25,9 @@ from apps.simulated_trading.domain.simulated_account_raw_observation import (
 )
 from apps.simulated_trading.domain.simulated_account_row_source_v2 import (
     SimulatedAccountRowSourceV2,
+)
+from apps.simulated_trading.infrastructure import (
+    account_physical_row_v2_provider as provider_module,
 )
 from apps.simulated_trading.infrastructure.account_physical_row_v2_provider import (
     DjangoExactPhysicalSimulatedAccountRowV2Provider,
@@ -87,10 +94,12 @@ class _Repository:
     def __init__(
         self,
         *,
+        database_alias: str = "default",
         winner: PersistedSimulatedAccountRowSourceV2 | None = None,
         head: PersistedSimulatedAccountRowSourceV2 | None = None,
         error: ValueError | None = None,
     ) -> None:
+        self.database_alias = database_alias
         self.winner = winner
         self.head = head
         self.error = error
@@ -101,7 +110,7 @@ class _Repository:
 
     @property
     def unit_of_work_key(self) -> str:
-        return "django:default"
+        return f"django:{self.database_alias}"
 
     def lock_current_sources(self) -> None:
         self.lock_calls += 1
@@ -136,6 +145,56 @@ class _Repository:
 
     def get_exact_by_hash(self, *args: object, **kwargs: object) -> object:
         raise AssertionError("provider must use winner plus full logical head")
+
+
+class _IdentityCursor:
+    def __init__(self, connection: _IdentityConnection) -> None:
+        self._connection = connection
+
+    def __enter__(self) -> _IdentityCursor:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def execute(self, statement: str) -> None:
+        del statement
+
+    def fetchone(self) -> tuple[str, int]:
+        return self._connection.transaction_xid, self._connection.backend_pid
+
+
+class _IdentityConnection:
+    def __init__(self, *, alias: str = "default") -> None:
+        self.alias = alias
+        self.vendor = "postgresql"
+        self.in_atomic_block = True
+        self.autocommit = False
+        self.connection = object()
+        self.transaction_xid = "41"
+        self.backend_pid = 1234
+
+    def get_autocommit(self) -> bool:
+        return self.autocommit
+
+    def cursor(self) -> _IdentityCursor:
+        return _IdentityCursor(self)
+
+
+def _identity(
+    connection: _IdentityConnection,
+    *,
+    using: str = "default",
+) -> PhysicalAccountRowProviderIdentity:
+    return PhysicalAccountRowProviderIdentity(
+        using=using,
+        wrapper_token=connection,
+        dbapi_token=connection.connection,
+        backend_pid=connection.backend_pid,
+        transaction_xid=connection.transaction_xid,
+        thread_id=get_ident(),
+        task_token=provider_module._current_task(),
+    )
 
 
 def _read(
@@ -181,6 +240,106 @@ def test_provider_delegates_concurrent_read_source_lock() -> None:
     provider.lock_current_sources_for_read()
 
     assert repository.read_lock_calls == 1
+
+
+def test_bound_provider_reads_only_on_exact_wrapper_connection_pid_and_xid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _IdentityConnection()
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    record = _record()
+    source = record.source
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(
+        _Repository(winner=record, head=record)
+    )
+
+    with provider.bind_physical_identity(_identity(connection)):
+        value = provider.get_exact_final(
+            source_id=source.source_id,
+            source_version=source.source_version,
+            expected_content_hash=source.content_hash,
+            account_namespace=source.account_namespace,
+            account_id=source.account_id,
+            underlying_unified_account_namespace=source.underlying_unified_account_namespace,
+            underlying_unified_account_id=source.underlying_unified_account_id,
+            as_of=NOW,
+        )
+
+    assert value is not None
+
+
+def test_bound_provider_rejects_cross_alias_and_different_wrapper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _IdentityConnection()
+    other = _IdentityConnection(alias="other")
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="alias"):
+        with provider.bind_physical_identity(_identity(other, using="other")):
+            pass
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="wrapper"):
+        with provider.bind_physical_identity(_identity(other)):
+            pass
+
+
+@pytest.mark.parametrize(
+    ("changed", "message"),
+    (
+        ("connection", "physical connection"),
+        ("backend_pid", "transaction identity"),
+        ("transaction_xid", "transaction identity"),
+    ),
+)
+def test_bound_provider_rejects_reconnect_pid_and_xid_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    changed: str,
+    message: str,
+) -> None:
+    connection = _IdentityConnection()
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+    original = getattr(connection, changed)
+
+    with provider.bind_physical_identity(_identity(connection)):
+        setattr(connection, changed, object() if changed == "connection" else "42")
+        with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match=message):
+            provider.lock_current_sources_for_read()
+        setattr(connection, changed, original)
+
+
+def test_bound_provider_rejects_inherited_identity_in_worker_thread(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _IdentityConnection()
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+
+    with provider.bind_physical_identity(_identity(connection)):
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(provider.lock_current_sources_for_read)
+            with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="context"):
+                future.result()
+
+
+def test_bound_provider_rejects_inherited_identity_in_child_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _IdentityConnection()
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+
+    async def child() -> None:
+        with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="context"):
+            provider.lock_current_sources_for_read()
+
+    async def parent() -> None:
+        with provider.bind_physical_identity(_identity(connection)):
+            await asyncio.create_task(child())
+
+    asyncio.run(parent())
 
 
 def test_provider_maps_source_lock_unavailability_to_account_boundary() -> None:

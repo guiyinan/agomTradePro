@@ -13,6 +13,12 @@ class _RepositorySpy:
     def __init__(self, *, using: str = "default") -> None:
         self.using = using
 
+    @property
+    def database_alias(self) -> str:
+        """Expose the concrete alias required by the physical provider contract."""
+
+        return self.using
+
 
 def test_raw_source_builder_passes_explicit_and_default_alias(
     monkeypatch: pytest.MonkeyPatch,

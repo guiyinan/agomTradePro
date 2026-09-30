@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 
 from apps.account.application.owner_tenant_authority_v3 import (
@@ -8,6 +10,9 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerTenantAuthorityV3,
     PersistedOwnerTenantAuthorityV3,
+)
+from apps.account.application.physical_account_row_observation_v2 import (
+    PhysicalAccountRowProviderIdentity,
 )
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     root_claim_hash_for_actor_authority_source_v3,
@@ -30,11 +35,25 @@ class _PhysicalProvider:
     def unit_of_work_key(self) -> str:
         return self._unit_of_work_key
 
+    @property
+    def database_alias(self) -> str:
+        """Expose the concrete alias required by the V3 physical identity scope."""
+
+        return self._unit_of_work_key.removeprefix("django:")
+
     def lock_current_sources(self) -> None:
         return None
 
     def lock_current_sources_for_read(self) -> None:
         return None
+
+    @contextmanager
+    def bind_physical_identity(
+        self,
+        identity: PhysicalAccountRowProviderIdentity,
+    ) -> Iterator[None]:
+        del identity
+        yield
 
     def get_exact_final(self, **kwargs: object) -> None:
         return None

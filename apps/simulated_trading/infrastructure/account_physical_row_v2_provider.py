@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
+from threading import get_ident
+from typing import cast
+
+from django.db import DatabaseError, connections
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.utils.connection import ConnectionDoesNotExist
 
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2,
     PhysicalAccountRowObservationV2Corruption,
     PhysicalAccountRowObservationV2Unavailable,
+    PhysicalAccountRowProviderIdentity,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -21,10 +31,15 @@ from apps.simulated_trading.application.simulated_account_row_source_v2 import (
 class DjangoExactPhysicalSimulatedAccountRowV2Provider:
     """Expose one exact logical-final source-v2 revision without rewriting it."""
 
-    __slots__ = ("_repository",)
+    __slots__ = ("_identity", "_repository", "_using")
 
     def __init__(self, repository: SimulatedAccountRowSourceV2Repository) -> None:
         self._repository = repository
+        using = getattr(repository, "database_alias", None)
+        if type(using) is not str or not using or using.strip() != using:
+            raise ValueError("physical row repository must expose its exact database alias")
+        self._using = using
+        self._identity: PhysicalAccountRowProviderIdentity | None = None
 
     @property
     def unit_of_work_key(self) -> str:
@@ -32,25 +47,54 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
 
         return self._repository.unit_of_work_key
 
+    @property
+    def database_alias(self) -> str:
+        """Return the concrete repository alias used by all source reads."""
+
+        return self._using
+
+    @contextmanager
+    def bind_physical_identity(
+        self,
+        identity: PhysicalAccountRowProviderIdentity,
+    ) -> Iterator[None]:
+        """Bind one verified identity and reject any connection drift on exit."""
+
+        if type(identity) is not PhysicalAccountRowProviderIdentity:
+            raise TypeError("identity must be an exact PhysicalAccountRowProviderIdentity")
+        if self._identity is not None:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider identity scope cannot be nested"
+            )
+        self._assert_identity(identity)
+        self._identity = identity
+        try:
+            yield
+            self._assert_identity(identity)
+        finally:
+            self._identity = None
+
     def lock_current_sources(self) -> None:
         """Exclusively stabilize the provider-owned source ledger for mutation."""
 
-        try:
-            self._repository.lock_current_sources()
-        except SimulatedAccountRowSourceV2Unavailable as error:
-            raise PhysicalAccountRowObservationV2Unavailable(
-                "source-v2 ledger cannot be stabilized"
-            ) from error
+        with self._verified_operation():
+            try:
+                self._repository.lock_current_sources()
+            except SimulatedAccountRowSourceV2Unavailable as error:
+                raise PhysicalAccountRowObservationV2Unavailable(
+                    "source-v2 ledger cannot be stabilized"
+                ) from error
 
     def lock_current_sources_for_read(self) -> None:
         """Stabilize the provider source while allowing concurrent readers."""
 
-        try:
-            self._repository.lock_current_sources_for_read()
-        except SimulatedAccountRowSourceV2Unavailable as error:
-            raise PhysicalAccountRowObservationV2Unavailable(
-                "source-v2 ledger cannot be stabilized"
-            ) from error
+        with self._verified_operation():
+            try:
+                self._repository.lock_current_sources_for_read()
+            except SimulatedAccountRowSourceV2Unavailable as error:
+                raise PhysicalAccountRowObservationV2Unavailable(
+                    "source-v2 ledger cannot be stabilized"
+                ) from error
 
     def get_exact_final(
         self,
@@ -66,16 +110,17 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
     ) -> ExactPhysicalSimulatedAccountRowV2 | None:
         """Return an exact recorded and unexpired final, including tombstones."""
 
-        record = self._read_final(
-            source_id=source_id,
-            source_version=source_version,
-            expected_content_hash=expected_content_hash,
-            account_namespace=account_namespace,
-            account_id=account_id,
-            underlying_unified_account_namespace=underlying_unified_account_namespace,
-            underlying_unified_account_id=underlying_unified_account_id,
-            as_of=as_of,
-        )
+        with self._verified_operation():
+            record = self._read_final(
+                source_id=source_id,
+                source_version=source_version,
+                expected_content_hash=expected_content_hash,
+                account_namespace=account_namespace,
+                account_id=account_id,
+                underlying_unified_account_namespace=underlying_unified_account_namespace,
+                underlying_unified_account_id=underlying_unified_account_id,
+                as_of=as_of,
+            )
         if record is None or not record.source.is_knowable_at(as_of):
             return None
         return self._map(record)
@@ -94,19 +139,81 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
     ) -> ExactPhysicalSimulatedAccountRowV2 | None:
         """Return an exact final only while it is also a live source revision."""
 
-        record = self._read_final(
-            source_id=source_id,
-            source_version=source_version,
-            expected_content_hash=expected_content_hash,
-            account_namespace=account_namespace,
-            account_id=account_id,
-            underlying_unified_account_namespace=underlying_unified_account_namespace,
-            underlying_unified_account_id=underlying_unified_account_id,
-            as_of=as_of,
-        )
+        with self._verified_operation():
+            record = self._read_final(
+                source_id=source_id,
+                source_version=source_version,
+                expected_content_hash=expected_content_hash,
+                account_namespace=account_namespace,
+                account_id=account_id,
+                underlying_unified_account_namespace=underlying_unified_account_namespace,
+                underlying_unified_account_id=underlying_unified_account_id,
+                as_of=as_of,
+            )
         if record is None or not record.source.is_current_at(as_of):
             return None
         return self._map(record)
+
+    @contextmanager
+    def _verified_operation(self) -> Iterator[None]:
+        """Check an active identity before and after one provider operation."""
+
+        identity = self._identity
+        if identity is not None:
+            self._assert_identity(identity)
+        try:
+            yield
+        finally:
+            if identity is not None:
+                self._assert_identity(identity)
+
+    def _assert_identity(self, identity: PhysicalAccountRowProviderIdentity) -> None:
+        """Require the repository and current Django connection to match identity."""
+
+        repository_alias = getattr(self._repository, "database_alias", None)
+        if repository_alias != self._using:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row repository database alias changed"
+            )
+        if identity.using != self._using:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider database alias differs from the bound identity"
+            )
+        if identity.thread_id != get_ident() or identity.task_token is not _current_task():
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider execution context changed"
+            )
+        try:
+            connection = connections[self._using]
+        except (ConnectionDoesNotExist, DatabaseError, KeyError) as error:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider database alias is unavailable"
+            ) from error
+        if getattr(connection, "alias", None) != self._using:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider Django alias changed"
+            )
+        if connection is not identity.wrapper_token:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider Django connection wrapper changed"
+            )
+        if getattr(connection, "connection", None) is not identity.dbapi_token:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider physical connection changed"
+            )
+        if connection.vendor != "postgresql" or not connection.in_atomic_block:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider requires an active PostgreSQL transaction"
+            )
+        if connection.get_autocommit():
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider transaction became autocommit"
+            )
+        transaction_xid, backend_pid = _read_transaction_identity(connection)
+        if transaction_xid != identity.transaction_xid or backend_pid != identity.backend_pid:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider transaction identity changed"
+            )
 
     def _read_final(
         self,
@@ -240,6 +347,40 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
             raise PhysicalAccountRowObservationV2Corruption(
                 "source-v2 fields cannot be mapped without rewriting"
             ) from error
+
+
+def _read_transaction_identity(connection: BaseDatabaseWrapper) -> tuple[str, int]:
+    """Read PostgreSQL xid and backend PID on the exact Django connection."""
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_current_xact_id()::text, pg_backend_pid()")
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise PhysicalAccountRowObservationV2Unavailable(
+            "physical row provider transaction identity is unavailable"
+        ) from error
+    if (
+        row is None
+        or len(row) != 2
+        or type(row[0]) is not str
+        or not row[0]
+        or type(row[1]) is not int
+        or row[1] <= 0
+    ):
+        raise PhysicalAccountRowObservationV2Unavailable(
+            "physical row provider transaction identity is invalid"
+        )
+    return row[0], row[1]
+
+
+def _current_task() -> object | None:
+    """Return the current asyncio task for synchronous and async callers."""
+
+    try:
+        return asyncio.current_task()
+    except RuntimeError:
+        return None
 
 
 __all__ = ["DjangoExactPhysicalSimulatedAccountRowV2Provider"]

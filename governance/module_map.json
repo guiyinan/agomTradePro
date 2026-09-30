@@ -760,7 +760,9 @@
           "PhysicalAccountRowObservationV2Corruption",
           "PhysicalAccountRowObservationV2Recorder",
           "PhysicalAccountRowObservationV2Repository",
-          "PhysicalAccountRowObservationV2Unavailable"
+          "PhysicalAccountRowObservationV2Unavailable",
+          "PhysicalAccountRowProviderIdentity",
+          "PhysicalAccountRowProviderIdentityScope"
         ],
         "application/portfolio_api_contracts.py": [
           "AccountInterfaceRepository",

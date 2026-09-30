@@ -67,6 +67,65 @@ class PhysicalAccountRowObservationV2Corruption(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class PhysicalAccountRowProviderIdentity:
+    """Verified physical transaction identity supplied by an Account composition root.
+
+    The wrapper and DBAPI connection fields are opaque infrastructure tokens.  The
+    concrete provider compares them by identity and re-reads the PostgreSQL PID
+    and transaction xid before and after each bound operation.
+    """
+
+    using: str
+    wrapper_token: object
+    dbapi_token: object
+    backend_pid: int
+    transaction_xid: str
+    thread_id: int
+    task_token: object | None
+    generation: int | None = None
+
+    def __post_init__(self) -> None:
+        """Reject incomplete or malformed physical transaction identities."""
+
+        if type(self.using) is not str or not self.using or self.using.strip() != self.using:
+            raise ValueError("physical provider identity using must be an exact database alias")
+        if self.wrapper_token is None or self.dbapi_token is None:
+            raise ValueError("physical provider identity requires wrapper and DBAPI tokens")
+        if type(self.backend_pid) is not int or self.backend_pid <= 0:
+            raise ValueError("physical provider identity backend PID must be positive")
+        if (
+            type(self.transaction_xid) is not str
+            or not self.transaction_xid
+            or self.transaction_xid.strip() != self.transaction_xid
+        ):
+            raise ValueError("physical provider identity transaction xid is invalid")
+        if type(self.thread_id) is not int or self.thread_id <= 0:
+            raise ValueError("physical provider identity thread id must be positive")
+        if self.generation is not None and (
+            type(self.generation) is not int or self.generation < 0
+        ):
+            raise ValueError("physical provider identity generation is invalid")
+
+
+class PhysicalAccountRowProviderIdentityScope(Protocol):
+    """Provider capability for one verified physical transaction scope."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the concrete repository alias used by the provider."""
+
+        ...
+
+    def bind_physical_identity(
+        self,
+        identity: PhysicalAccountRowProviderIdentity,
+    ) -> AbstractContextManager[None]:
+        """Bind and validate one identity until the scope exits."""
+
+        ...
+
+
+@dataclass(frozen=True, slots=True)
 class PhysicalAccountRowObservationV2Recorder:
     """Authenticated service identity that materializes Account v2 evidence."""
 
@@ -849,6 +908,8 @@ __all__ = [
     "CapturePhysicalAccountRowObservationV2Command",
     "ExactPhysicalSimulatedAccountRowV2",
     "ExactPhysicalSimulatedAccountRowV2Provider",
+    "PhysicalAccountRowProviderIdentity",
+    "PhysicalAccountRowProviderIdentityScope",
     "GetCurrentPhysicalAccountRowObservationV2",
     "GetCurrentPhysicalAccountRowObservationV2Command",
     "GetExactPhysicalAccountRowObservationV2",

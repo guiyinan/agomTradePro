@@ -57,6 +57,7 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
     GetCurrentPhysicalAccountRowObservationV2,
+    PhysicalAccountRowProviderIdentityScope,
 )
 from apps.account.application.single_owner_actor_authority import (
     CurrentSingleOwnerParticipantsProvider,
@@ -68,6 +69,8 @@ from apps.account.domain.account_owner_assignment_evidence_v5 import (
 from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
+    capture_account_authority_snapshot_physical_provider_identity,
+    capture_active_account_authority_physical_provider_identity,
     read_account_authority_generation_proof,
     require_active_account_authority_generation_fence,
 )
@@ -182,10 +185,9 @@ class AccountAuthorityCurrentGraphReaderV3:
     The reader never opens a transaction. Its mode must match the caller's exact
     PostgreSQL transaction settings: RR/READ ONLY for a shadow scan or
     RC/READ WRITE after a generation fence. It composes the existing Application
-    service graph, including Evidence V5 parent validation. Keep it out of
-    production decision or publication composition while the physical row
-    provider's ``unit_of_work_key`` remains a trusted declaration rather than a
-    verified physical connection identity.
+    service graph, including Evidence V5 parent validation. Every graph read is
+    wrapped in a concrete provider identity scope bound to the caller's Django
+    wrapper, DBAPI connection, backend PID, transaction xid, and execution task.
     """
 
     def __init__(
@@ -208,10 +210,12 @@ class AccountAuthorityCurrentGraphReaderV3:
         ):
             _require_token(value, name)
         _require_hash(actor_content_hash, "actor_content_hash")
-        if getattr(physical_row_provider, "unit_of_work_key", None) != f"django:{using}":
+        if getattr(physical_row_provider, "database_alias", None) != using:
             raise ValueError("physical row provider must use the current graph database alias")
         if not callable(getattr(physical_row_provider, "get_exact_current", None)):
             raise TypeError("physical row provider must expose get_exact_current")
+        if not callable(getattr(physical_row_provider, "bind_physical_identity", None)):
+            raise TypeError("physical row provider must expose bind_physical_identity")
         self._actor_source_id = actor_source_id
         self._actor_source_version = actor_source_version
         self._actor_content_hash = actor_content_hash
@@ -251,8 +255,30 @@ class AccountAuthorityCurrentGraphReaderV3:
                 connection=connection,
                 generation=generation,
             )
-        with suspend_immutable_read_reuse():
-            result = self._read_application_graph(command)
+        if self._transaction_mode == "repeatable_read_read_only":
+            identity = capture_account_authority_snapshot_physical_provider_identity(
+                using=self._using,
+                connection=connection,
+            )
+        else:
+            identity = capture_active_account_authority_physical_provider_identity(
+                using=self._using,
+                connection=connection,
+                generation=generation,
+            )
+        identity_scope_provider = cast(
+            PhysicalAccountRowProviderIdentityScope,
+            self._physical_row_provider,
+        )
+        with identity_scope_provider.bind_physical_identity(identity):
+            with suspend_immutable_read_reuse():
+                result = self._read_application_graph(command)
+        if self._transaction_mode != "repeatable_read_read_only":
+            require_active_account_authority_generation_fence(
+                using=self._using,
+                connection=connection,
+                generation=generation,
+            )
         if result is not None:
             if type(result) is not CurrentOwnerTenantAuthorityV3:
                 raise AccountAuthorityGenerationUnavailable(
@@ -380,14 +406,7 @@ class AccountAuthorityShadowScannerV3:
         physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
         using: str = "default",
     ) -> None:
-        """Bind fixed source selectors and a declared physical-provider alias.
-
-        ``unit_of_work_key`` is a trusted composition contract. This scanner can
-        verify the declared alias, but cannot prove that a provider does not
-        spoof that key or use a different physical connection. Keep this scanner
-        outside the production decision path until provider connection identity
-        can be enforced.
-        """
+        """Bind fixed source selectors and a verified physical-provider capability."""
 
         _require_alias(using)
         for name, value in (
@@ -396,10 +415,12 @@ class AccountAuthorityShadowScannerV3:
         ):
             _require_token(value, name)
         _require_hash(actor_content_hash, "actor_content_hash")
-        if getattr(physical_row_provider, "unit_of_work_key", None) != f"django:{using}":
+        if getattr(physical_row_provider, "database_alias", None) != using:
             raise ValueError("physical row provider must use the shadow scan database alias")
         if not callable(getattr(physical_row_provider, "get_exact_current", None)):
             raise TypeError("physical row provider must expose get_exact_current")
+        if not callable(getattr(physical_row_provider, "bind_physical_identity", None)):
+            raise TypeError("physical row provider must expose bind_physical_identity")
         self._actor_source_id = actor_source_id
         self._actor_source_version = actor_source_version
         self._actor_content_hash = actor_content_hash

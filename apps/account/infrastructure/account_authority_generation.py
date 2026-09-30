@@ -16,6 +16,9 @@ from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Model
 from django.utils.connection import ConnectionDoesNotExist
 
+from apps.account.application.physical_account_row_observation_v2 import (
+    PhysicalAccountRowProviderIdentity,
+)
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     _LOCK_MODELS,
 )
@@ -102,6 +105,7 @@ class _ActiveGenerationFence:
     """Unforgeable context binding for one caller-owned generation lock."""
 
     using: str
+    connection_wrapper: BaseDatabaseWrapper
     physical_connection: object
     transaction_id: str
     backend_pid: int
@@ -708,6 +712,7 @@ def caller_owned_account_authority_generation_fence(
         raise
     binding = _ActiveGenerationFence(
         using=using,
+        connection_wrapper=connection,
         physical_connection=physical_connection,
         transaction_id=transaction_id,
         backend_pid=backend_pid,
@@ -787,6 +792,10 @@ def require_active_account_authority_generation_fence(
         raise AccountAuthorityGenerationUnavailable(
             "active generation fence belongs to another physical connection"
         )
+    if connection is not binding.connection_wrapper:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence belongs to another Django connection wrapper"
+        )
     _require_transaction_mode(connection, isolation="read committed", read_only=False)
     transaction_id, backend_pid = _read_transaction_identity(connection)
     if transaction_id != binding.transaction_id or backend_pid != binding.backend_pid:
@@ -803,6 +812,72 @@ def require_active_account_authority_generation_fence(
             "current graph generation differs from the active fence"
         )
     return binding.generation
+
+
+def capture_active_account_authority_physical_provider_identity(
+    *,
+    using: str,
+    connection: BaseDatabaseWrapper,
+    generation: int | None = None,
+) -> PhysicalAccountRowProviderIdentity:
+    """Export the verified identity of the active caller-owned generation fence."""
+
+    active_generation = require_active_account_authority_generation_fence(
+        using=using,
+        connection=connection,
+        generation=generation,
+    )
+    binding = _ACTIVE_GENERATION_FENCE.get()
+    if binding is None:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence identity is unavailable"
+        )
+    return PhysicalAccountRowProviderIdentity(
+        using=binding.using,
+        wrapper_token=binding.connection_wrapper,
+        dbapi_token=binding.physical_connection,
+        backend_pid=binding.backend_pid,
+        transaction_xid=binding.transaction_id,
+        thread_id=binding.thread_id,
+        task_token=binding.task,
+        generation=active_generation,
+    )
+
+
+def capture_account_authority_snapshot_physical_provider_identity(
+    *,
+    using: str,
+    connection: BaseDatabaseWrapper,
+) -> PhysicalAccountRowProviderIdentity:
+    """Capture a verified identity for one caller-owned RR/RO snapshot transaction."""
+
+    if type(using) is not str or not using or using.strip() != using:
+        raise ValueError("using must be an exact database alias")
+    if getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "snapshot identity belongs to another database alias"
+        )
+    if connection.vendor != "postgresql":
+        raise AccountAuthorityGenerationUnavailable("snapshot identity requires PostgreSQL")
+    if not connection.in_atomic_block or connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "snapshot identity requires an active transaction"
+        )
+    physical_connection = getattr(connection, "connection", None)
+    if physical_connection is None:
+        raise AccountAuthorityGenerationUnavailable(
+            "snapshot identity requires an established physical connection"
+        )
+    transaction_id, backend_pid = _read_transaction_identity(connection)
+    return PhysicalAccountRowProviderIdentity(
+        using=using,
+        wrapper_token=connection,
+        dbapi_token=physical_connection,
+        backend_pid=backend_pid,
+        transaction_xid=transaction_id,
+        thread_id=get_ident(),
+        task_token=_current_task(),
+    )
 
 
 def _runtime_source_tables() -> tuple[str, ...]:
@@ -1030,6 +1105,8 @@ __all__ = [
     "AccountAuthorityGenerationProof",
     "AccountAuthorityGenerationUnavailable",
     "caller_owned_account_authority_generation_fence",
+    "capture_account_authority_snapshot_physical_provider_identity",
+    "capture_active_account_authority_physical_provider_identity",
     "lock_account_authority_generation_fence",
     "require_active_account_authority_generation_fence",
     "read_account_authority_generation_proof",
