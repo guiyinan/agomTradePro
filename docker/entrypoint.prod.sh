@@ -143,6 +143,14 @@ if [ "$#" -eq 0 ] || [ "$1" = "daphne" ] || [ "$1" = "gunicorn" ]; then
 fi
 
 run_startup_migrations="${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-0}"
+database_role="${AGOMTRADEPRO_DATABASE_ROLE:-}"
+
+if [ "$database_role" = "runtime" ]; then
+  python scripts/check_postgres_role_contract.py
+elif [ -n "$database_role" ] && [ "$database_role" != "migrator" ]; then
+  echo "ERROR: unsupported PostgreSQL database role '$database_role'" >&2
+  exit 1
+fi
 
 run_deploy_check="${AGOMTRADEPRO_CHECK_DEPLOY_ON_START:-0}"
 if [ "$is_web_command" = "1" ] && [ "$run_deploy_check" = "1" ]; then
@@ -150,7 +158,8 @@ if [ "$is_web_command" = "1" ] && [ "$run_deploy_check" = "1" ]; then
 fi
 
 if [ "$run_startup_migrations" = "1" ]; then
-  python manage.py migrate --noinput
+  echo "ERROR: startup migrations are disabled; run the one-shot migrator service" >&2
+  exit 1
 fi
 
 if [ "$is_web_command" = "1" ]; then

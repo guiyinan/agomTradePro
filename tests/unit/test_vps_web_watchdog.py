@@ -250,8 +250,16 @@ def test_watchdog_installation_is_explicit_and_packaged_without_docker_sidecar()
     assert "TimeoutStartSec=150s" in service
     assert "OnUnitActiveSec=1min" in timer
     assert "Copy-Item scripts/vps-web-watchdog.sh" in packaging
+    assert "Copy-Item scripts/ensure_vps_postgres_role_env.py" in packaging
+    assert "Copy-Item scripts/migrate-vps-sqlite-to-postgres.sh" in packaging
+    assert "Copy-Item scripts/bootstrap_vps_postgres_roles.sh" in packaging
+    assert "Copy-Item scripts/postgres_role_bootstrap.sql" in packaging
     assert "Copy-Item deploy/agomtradepro-web-watchdog.service" in packaging
     assert "Copy-Item deploy/agomtradepro-web-watchdog.timer" in packaging
     assert '"deploy/agomtradepro-web-watchdog.service"' in verifier
     assert '"deploy/agomtradepro-web-watchdog.timer"' in verifier
     assert '"scripts/vps-web-watchdog.sh"' in verifier
+    assert '"scripts/ensure_vps_postgres_role_env.py"' in verifier
+    assert '"scripts/migrate-vps-sqlite-to-postgres.sh"' in verifier
+    assert '"scripts/bootstrap_vps_postgres_roles.sh"' in verifier
+    assert '"scripts/postgres_role_bootstrap.sql"' in verifier

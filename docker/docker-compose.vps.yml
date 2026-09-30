@@ -64,6 +64,36 @@ services:
         max-size: "25m"
         max-file: "5"
 
+  migrator:
+    image: ${WEB_IMAGE:?WEB_IMAGE is required}
+    profiles: ["ops"]
+    restart: "no"
+    command: ["python", "scripts/manage_vps_migrations.py", "migrate", "--noinput"]
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings.production
+      DATABASE_URL: ${MIGRATOR_DATABASE_URL:?MIGRATOR_DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SECRET_KEY: ${SECRET_KEY:-}
+      AGOMTRADEPRO_AUTO_MIGRATE_ON_START: "0"
+      AGOMTRADEPRO_CHECK_DEPLOY_ON_START: "0"
+      AGOMTRADEPRO_BOOTSTRAP_ON_START: "0"
+      AGOMTRADEPRO_COLLECTSTATIC_ON_START: "0"
+      AGOMTRADEPRO_SETUP_SCHEDULE_ON_START: "0"
+    volumes:
+      - ${AGOM_BACKUP_DIR:-/opt/agomtradepro/backups/database}:/app/backups/database
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    mem_limit: 1g
+    cpus: 1.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
@@ -75,6 +105,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AGOMTRADEPRO_DATABASE_ROLE: runtime
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REALTIME_WEBSOCKET_ENABLED: ${REALTIME_WEBSOCKET_ENABLED:-True}
       APP_BASE_URL: ${APP_BASE_URL:-}
@@ -189,6 +220,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AGOMTRADEPRO_DATABASE_ROLE: runtime
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REALTIME_WEBSOCKET_ENABLED: ${REALTIME_WEBSOCKET_ENABLED:-True}
       REDIS_HOST: redis
@@ -299,6 +331,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      AGOMTRADEPRO_DATABASE_ROLE: runtime
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REALTIME_WEBSOCKET_ENABLED: ${REALTIME_WEBSOCKET_ENABLED:-True}
       REDIS_HOST: redis

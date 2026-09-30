@@ -1252,7 +1252,7 @@ def test_legacy_deploy_verifies_canonical_schema_after_migrations() -> None:
 
     assert "python manage.py verify_canonical_schema --json" in script
     assert script.index("verify_canonical_schema --json") > script.index(
-        "python manage.py migrate --noinput"
+        'COMPOSE_PROJECT_NAME="$PROJECT_NAME" sh scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$release_dir"'
     )
 
 

@@ -3,10 +3,12 @@ set -eu
 umask 077
 
 TARGET_DIR="${1:-/opt/agomtradepro}"
+RELEASE_DIR="${2:-$TARGET_DIR/current}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-agomtradepro}"
 MARKER_FILE="$TARGET_DIR/.postgres-migration-complete"
 FIXTURE_DIR="$TARGET_DIR/backups/database"
-COMPOSE_FILE="docker/docker-compose.vps.yml"
-ENV_FILE="deploy/.env"
+COMPOSE_FILE="$RELEASE_DIR/docker/docker-compose.vps.yml"
+ENV_FILE="$RELEASE_DIR/deploy/.env"
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
@@ -18,8 +20,20 @@ else
 fi
 
 compose() {
-  $COMPOSE -p agomtradepro -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+  $COMPOSE -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
+
+python3 "$RELEASE_DIR/scripts/ensure_vps_postgres_role_env.py" \
+  --env-file "$ENV_FILE" \
+  --secrets-file "$TARGET_DIR/secrets.env"
+
+for runtime_service in web celery_worker celery_qlib_worker celery_beat terminal_agent_worker; do
+  runtime_container="$(compose ps -q "$runtime_service")"
+  if [ -n "$runtime_container" ]; then
+    echo "[ERROR] Runtime service $runtime_service is still running; stop all database writers before migration" >&2
+    exit 1
+  fi
+done
 
 mkdir -p "$FIXTURE_DIR"
 chown 1000:1000 "$FIXTURE_DIR"
@@ -44,14 +58,16 @@ fi
 
 if [ -f "$MARKER_FILE" ]; then
   echo "[INFO] PostgreSQL migration marker exists; applying schema migrations only"
-  compose run --rm --no-deps web python manage.py migrate --noinput
+  bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
+  compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
   exit 0
 fi
 
-if ! docker run --rm -v agomtradepro_sqlite_data:/source:ro alpine:3.20 \
+if ! docker run --rm -v "${COMPOSE_PROJECT_NAME}_sqlite_data:/source:ro" alpine:3.20 \
   test -s /source/db.sqlite3; then
   echo "[INFO] No legacy SQLite database found; initializing PostgreSQL"
-  compose run --rm --no-deps web python manage.py migrate --noinput
+  bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
+  compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
   printf 'initialized_without_legacy_sqlite=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_FILE"
   chmod 600 "$MARKER_FILE"
   exit 0
@@ -60,10 +76,11 @@ fi
 echo "[INFO] Legacy SQLite database found; rebuilding the unmarked PostgreSQL target"
 compose exec -T postgres sh -eu <<'SH'
   dropdb --force --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"
-  createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
+createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
 SH
 
-compose run --rm --no-deps web python manage.py migrate --noinput
+bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
+compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
 
 SOURCE_COUNTS="$FIXTURE_DIR/sqlite-source-counts.json"
 FIXTURE="$FIXTURE_DIR/sqlite-to-postgres.jsonl"
@@ -75,6 +92,7 @@ CONTAINER_TARGET_COUNTS="/app/backups/database/postgres-target-counts.json"
 compose run --rm --no-deps \
   -e PYTHONUTF8=1 \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
+  -e AGOMTRADEPRO_DATABASE_ROLE= \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
   web python - "$CONTAINER_SOURCE_COUNTS" <<'PY'
 import json
@@ -113,6 +131,7 @@ echo "[INFO] Exporting legacy SQLite data"
 compose run --rm --no-deps \
   -e PYTHONUTF8=1 \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
+  -e AGOMTRADEPRO_DATABASE_ROLE= \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
   web python manage.py dumpdata \
     --format jsonl \
@@ -124,13 +143,13 @@ compose run --rm --no-deps \
     --output "$CONTAINER_FIXTURE"
 
 echo "[INFO] Clearing migration seed data before importing the SQLite snapshot"
-compose run --rm --no-deps web python manage.py flush --noinput
+compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py flush --noinput
 
 echo "[INFO] Importing data into PostgreSQL"
 compose run --rm --no-deps \
   -e PYTHONUTF8=1 \
   -e AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
-  web python manage.py loaddata "$CONTAINER_FIXTURE"
+  migrator python scripts/manage_vps_migrations.py loaddata "$CONTAINER_FIXTURE"
 
 compose run --rm --no-deps web python - "$CONTAINER_TARGET_COUNTS" <<'PY'
 import json

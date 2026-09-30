@@ -64,6 +64,12 @@ compose_vps() {
   $COMPOSE -p "$PROJECT_NAME" -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
 }
 
+ensure_database_role_env() {
+  python3 "$SCRIPT_DIR/ensure_vps_postgres_role_env.py" \
+    --env-file deploy/.env \
+    --secrets-file "$TARGET_DIR/secrets.env"
+}
+
 detect_conflicting_project() {
   for candidate in docker agomtradepro; do
     [ "$candidate" = "$PROJECT_NAME" ] && continue
@@ -126,8 +132,6 @@ if [ "$ACTION" = "menu" ]; then
   choose_action
 fi
 
-mkdir -p "$TARGET_DIR/releases"
-
 if [ "$ACTION" = "status" ]; then
   cd "$TARGET_DIR/current" || die "Current deployment missing"
   compose_vps ps
@@ -139,6 +143,8 @@ if [ "$ACTION" = "logs" ]; then
   compose_vps logs -f
   exit 0
 fi
+
+mkdir -p "$TARGET_DIR/releases"
 
 if [ -z "$BUNDLE" ]; then
   BUNDLE=$(ask "Bundle tar.gz path" "./agomtradepro-vps-bundle.tar.gz")
@@ -281,6 +287,7 @@ set_env_kv "CSRF_COOKIE_SECURE" "$csrf_cookie_secure"
 set_env_kv "SECURE_HSTS_SECONDS" "$secure_hsts_seconds"
 set_env_kv "SECURE_HSTS_INCLUDE_SUBDOMAINS" "$secure_hsts_include_subdomains"
 set_env_kv "SECURE_HSTS_PRELOAD" "$secure_hsts_preload"
+set_env_kv "AGOM_BACKUP_DIR" "$TARGET_DIR/backups/database"
 
 sed "s|__SITE_ADDRESS__|$site_addr|g" docker/Caddyfile.template > docker/Caddyfile
 
@@ -371,7 +378,9 @@ if [ -z "$web_image" ] || [ "$web_image" = "agomtradepro-web:latest" ]; then
   fi
 fi
 
-core_services="redis web caddy"
+ensure_database_role_env
+
+core_services="runtime_ns redis postgres"
 extra_services=""
 if is_true "$(env_value ENABLE_RSSHUB deploy/.env)"; then
   extra_services="$extra_services rsshub"
@@ -379,28 +388,42 @@ fi
 if is_true "$(env_value ENABLE_CELERY deploy/.env)"; then
   extra_services="$extra_services celery_worker celery_qlib_worker celery_beat"
 fi
+if is_true "$(env_value TERMINAL_RUNTIME_AUTHORIZED deploy/.env)" \
+  && is_true "$(env_value TERMINAL_QUEUED_INTAKE_ENABLED deploy/.env)" \
+  && is_true "$(env_value TERMINAL_QUEUED_WORKER_ENABLED deploy/.env)"; then
+  extra_services="$extra_services terminal_agent_worker"
+fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restore-only" ]; then
   detect_conflicting_project
+  # Stop application processes before database ownership or schema changes.
+  for runtime_service in web celery_worker celery_qlib_worker celery_beat terminal_agent_worker; do
+    runtime_container=$(compose_vps ps -q "$runtime_service")
+    if [ -n "$runtime_container" ]; then
+      compose_vps stop "$runtime_service" >/dev/null
+    fi
+  done
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ]; then
-  log_info "Starting stack"
-  compose_vps up -d $core_services $extra_services
+  log_info "Starting database and cache services"
+  compose_vps up -d $core_services
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "restore-only" ]; then
   if [ "$ACTION" = "restore-only" ]; then
     log_info "Starting data services for restore"
-    compose_vps up -d redis web
+    compose_vps up -d runtime_ns redis postgres
   fi
 
   if [ -f backups/db.sqlite3 ]; then
     log_info "Restoring SQLite database"
-    web_cid=$(compose_vps ps -q web)
-    [ -n "$web_cid" ] || die "Web container not found"
-    docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
-    compose_vps restart web
+    docker run --rm \
+      -v "${PROJECT_NAME}_sqlite_data:/dest" \
+      -v "$release_dir/backups:/src:ro" \
+      alpine:3.20 \
+      sh -eu -c 'cp /src/db.sqlite3 /dest/db.sqlite3 && chown 1000:1000 /dest /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3'
+    rm -f "$TARGET_DIR/.postgres-migration-complete"
   fi
 
   if [ -f backups/dump.rdb ]; then
@@ -414,19 +437,11 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "restore-only" ]; then
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restore-only" ]; then
-  log_info "Running database migrations"
-  tries=0
-  while :; do
-    if compose_vps exec -T web python manage.py migrate --noinput; then
-      break
-    fi
-    tries=$((tries + 1))
-    if [ "$tries" -ge 10 ]; then
-      die "Database migration failed after retries"
-    fi
-    log_warn "Migration failed (web might not be ready yet). Retrying in 5s..."
-    sleep 5
-  done
+  log_info "Initializing PostgreSQL and applying migrations or SQLite snapshot"
+  COMPOSE_PROJECT_NAME="$PROJECT_NAME" sh scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$release_dir"
+
+  log_info "Starting application services"
+  compose_vps up -d web caddy $extra_services
 
   log_info "Verifying canonical Data Center schema"
   compose_vps exec -T web python manage.py verify_canonical_schema --json

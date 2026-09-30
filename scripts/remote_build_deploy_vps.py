@@ -2081,7 +2081,6 @@ OLD_TUSHARE_GATEWAY_ALLOWED_IP=""
 OLD_POSTGRES_DB=""
 OLD_POSTGRES_USER=""
 OLD_POSTGRES_PASSWORD=""
-OLD_DATABASE_URL=""
 SECRETS_FILE="$TARGET_DIR/secrets.env"
 mkdir -p "$TARGET_DIR" "$TARGET_DIR/backups"
 chmod 700 "$TARGET_DIR" "$TARGET_DIR/backups"
@@ -2112,7 +2111,6 @@ _read_old_keys() {
   [ -z "$OLD_POSTGRES_DB" ] && OLD_POSTGRES_DB="$(get_env_kv POSTGRES_DB "$_src")"
   [ -z "$OLD_POSTGRES_USER" ] && OLD_POSTGRES_USER="$(get_env_kv POSTGRES_USER "$_src")"
   [ -z "$OLD_POSTGRES_PASSWORD" ] && OLD_POSTGRES_PASSWORD="$(get_env_kv POSTGRES_PASSWORD "$_src")"
-  [ -z "$OLD_DATABASE_URL" ] && OLD_DATABASE_URL="$(get_env_kv DATABASE_URL "$_src")"
   return 0
 }
 _read_old_keys "$SECRETS_FILE"
@@ -2256,11 +2254,13 @@ PY
 )"
     ;;
 esac
-DATABASE_URL_VALUE="postgresql://${POSTGRES_USER_VALUE}:${POSTGRES_PASSWORD_VALUE}@postgres:5432/${POSTGRES_DB_VALUE}"
+
 set_env_kv "POSTGRES_DB" "$POSTGRES_DB_VALUE"
 set_env_kv "POSTGRES_USER" "$POSTGRES_USER_VALUE"
 set_env_kv "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
-set_env_kv "DATABASE_URL" "$DATABASE_URL_VALUE"
+python3 scripts/ensure_vps_postgres_role_env.py \
+  --env-file deploy/.env \
+  --secrets-file "$SECRETS_FILE"
 # Deployment-only checks and mutations run explicitly below. Persist zeroes so
 # a routine web-container restart stays fast and never repeats them because an
 # older release left opt-in flags enabled in deploy/.env.
@@ -2273,7 +2273,6 @@ set_env_kv "AGOMTRADEPRO_ENSURE_SUPERUSER_ON_START" "0"
 _persist_secrets_env "POSTGRES_DB" "$POSTGRES_DB_VALUE"
 _persist_secrets_env "POSTGRES_USER" "$POSTGRES_USER_VALUE"
 _persist_secrets_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
-_persist_secrets_env "DATABASE_URL" "$DATABASE_URL_VALUE"
 
 EFFECTIVE_DOMAIN="$DOMAIN"
 if [ -z "$EFFECTIVE_DOMAIN" ] && [ -n "$OLD_DOMAIN" ]; then
@@ -2545,6 +2544,14 @@ if [ "$ACTION" = "fresh" ]; then
   compose down --remove-orphans || true
 fi
 
+# Stop all database writers before bootstrap ownership changes and migrations.
+for runtime_service in web celery_worker celery_qlib_worker celery_beat terminal_agent_worker; do
+  runtime_container="$(compose ps -q "$runtime_service")"
+  if [ -n "$runtime_container" ]; then
+    compose stop "$runtime_service"
+  fi
+done
+
 compose up -d runtime_ns redis postgres
 
 if [ "$INCLUDE_SQLITE" = "1" ]; then
@@ -2560,7 +2567,7 @@ if [ "$INCLUDE_SQLITE" = "1" ]; then
     sh -lc 'cp /src/db.sqlite3 /dest/db.sqlite3 && chown 1000:1000 /dest /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3'
 fi
 
-if ! bash scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR"; then
+if ! COMPOSE_PROJECT_NAME=agomtradepro sh scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$RELEASE_DIR"; then
   echo "[ERROR] PostgreSQL initialization or SQLite migration failed" >&2
   exit 1
 fi

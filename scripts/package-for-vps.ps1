@@ -568,6 +568,10 @@ Copy-Item monitoring/alerts.yml (Join-Path $monitoringDir "alerts.yml") -Force
 Copy-Item deploy/README_DEPLOY.md (Join-Path $deployDir "README_DEPLOY.md") -Force
 Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -Force
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
+Copy-Item scripts/ensure_vps_postgres_role_env.py (Join-Path $scriptsDir "ensure_vps_postgres_role_env.py") -Force
+Copy-Item scripts/migrate-vps-sqlite-to-postgres.sh (Join-Path $scriptsDir "migrate-vps-sqlite-to-postgres.sh") -Force
+Copy-Item scripts/bootstrap_vps_postgres_roles.sh (Join-Path $scriptsDir "bootstrap_vps_postgres_roles.sh") -Force
+Copy-Item scripts/postgres_role_bootstrap.sql (Join-Path $scriptsDir "postgres_role_bootstrap.sql") -Force
 Copy-Item scripts/vps-web-watchdog.sh (Join-Path $scriptsDir "vps-web-watchdog.sh") -Force
 Copy-Item scripts/vps-backup.sh (Join-Path $scriptsDir "vps-backup.sh") -Force
 Copy-Item scripts/vps-restore.sh (Join-Path $scriptsDir "vps-restore.sh") -Force
@@ -578,6 +582,8 @@ Copy-Item scripts/shared/common.ps1 (Join-Path $scriptsDir "common.ps1") -Force
 # Ensure shell scripts have LF line endings for Linux hosts.
 Convert-ToLf -Path (Join-Path $dockerDir "entrypoint.prod.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "deploy-on-vps.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "migrate-vps-sqlite-to-postgres.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "bootstrap_vps_postgres_roles.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-web-watchdog.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-backup.sh")
 Convert-ToLf -Path (Join-Path $scriptsDir "vps-restore.sh")
