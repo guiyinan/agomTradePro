@@ -1,0 +1,51 @@
+{
+  "schema_version": "production-account-authority-acl-audit.v1",
+  "observed_at_utc": "2026-09-30T00:46:29Z",
+  "release_tag": "20260929110229",
+  "image_tag": "agomtradepro-web:20260929110229",
+  "image_sha256": "316849080cee63c12ec57a0d8c45b7ad9dcd2e4e27fcaffe97b931ca10068bc6",
+  "source_sha": "6d9a134e410e8564432cdee3424975684b781e47",
+  "transaction": {
+    "isolation": "REPEATABLE READ",
+    "read_only": true,
+    "operations": "SELECT and ROLLBACK"
+  },
+  "runtime_role": {
+    "database": "agomtradepro",
+    "session_user": "agomtradepro",
+    "current_user": "agomtradepro",
+    "rolsuper": true,
+    "public_schema_create": true
+  },
+  "migration_0065_present": false,
+  "generation_table_present": false,
+  "bump_function_present": false,
+  "source_table_count": {
+    "expected": 22,
+    "present": 22
+  },
+  "source_acl_aggregate": {
+    "all_owned_by_runtime_role": true,
+    "all_runtime_is_owner": true,
+    "effective_privileges": {
+      "SELECT": "22/22",
+      "INSERT": "22/22",
+      "UPDATE": "22/22",
+      "DELETE": "22/22",
+      "TRUNCATE": "22/22",
+      "TRIGGER": "22/22"
+    }
+  },
+  "trigger_counts": {
+    "expected": 44,
+    "actual": 0,
+    "dml": 0,
+    "truncate": 0
+  },
+  "conclusion": "生产尚未部署 migration 0065；runtime role 为 PostgreSQL superuser，并拥有全部 22 张来源表及 public schema CREATE 权限。",
+  "limitations": [
+    "generation table 与 bump function 不存在，因此其 owner、prosecdef、proconfig、proacl 不适用。",
+    "目标触发器实际数量为零；没有可报告的逐个触发器状态。",
+    "本摘要不包含逐表记录或凭据。"
+  ]
+}

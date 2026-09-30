@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前代码整改基线为 `05ce1f7dc`；其中任务 attempt 所有权、超时预算、authority generation/shadow/final-fence 与本次 caller-owned shared fence 均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
+当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前已验证的代码整改基线为 `b65580f7054f87ccebe47504f40395faf80bc0bf`；其中任务 attempt 所有权、超时预算、authority generation/shadow/final-fence、caller-owned shared fence 与锁窗表征均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 `2026-09-30.v186` 将其登记为唯一 repository focus，Luna 子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -523,3 +523,67 @@ physical provider identity 尚不可验证，因此不得接 production。partia
 数据库配置而 `7 skipped`，不计作通过；PR Publication PostgreSQL workflow 已把 exact case count 从 4 更新为 7，
 必须在 CI 中零 skip/failure/error。Black、Ruff、三个生产文件增量 mypy、全仓 debt ceiling、module map 与 workflow
 YAML 解析通过。该切片没有 production composition、没有删除旧 relation locks、没有部署或触发全市场重跑。
+
+#### Phase 2b-3 表征结果与生产 ACL 阻断
+
+接线前的表征测试已锁定现有实现的真实锁窗和复杂度，避免按 12 只异常证券或单次失败打补丁：
+
+1. DataPublication audit writer 对同一 observation 首次写入和 replay 都会重新调用 scope provider；quote UOW 中调用
+   发生在外层 atomic 内，且此时 QuoteSnapshot fact 已经存在。旧 scope reader 在这里取得的 22 表关系锁会持续到
+   整个外层事务结束，而不是 audit 调用返回时释放。
+2. 未发布 QuoteSnapshot revision 可被 legacy `latest` 查询读到；published 查询仍精确返回 current publication
+   member 指向的旧 revision。因而把 fact staging 移到短 activation 事务外之前，必须先把所有决策读取收口到
+   current-publication-member，不能让 staged revision 提前参与决策。
+3. 5,000 条 candidate 查找精确产生 5,000 次 SELECT；`add_member` 以 32 条真实持久化样本证明每成员一条 SELECT
+   加一条 INSERT，即 O(N)。把这段逻辑直接放入 generation fence 会形成新的长锁，必须先批量化或预构建不可见
+   publication，再把 current pointer 切换保留为唯一短线性化点。
+4. 五个聚焦表征文件共 `32 passed in 193.80s`，Black/Ruff 通过；它们只固化现状，没有修改生产行为。提交
+   `b65580f7054f87ccebe47504f40395faf80bc0bf` 的 Architecture、Security、Consistency、Publication PostgreSQL
+   contracts 与 Fast Feedback 五条 workflow 已全部通过；Publication PostgreSQL 的 7 个 generation/fence 用例
+   零 skip/failure/error。
+
+生产 release `20260929110229` / SHA `6d9a134e410e8564432cdee3424975684b781e47` 的只读 ACL 审计在
+`2026-09-30T00:46:29Z` 使用 `REPEATABLE READ READ ONLY` 事务并最终 ROLLBACK，结果为：
+
+- `session_user=current_user=agomtradepro`，该角色是 superuser，同时拥有 `public` schema 的 CREATE；
+- Account 0065 尚未部署，generation table、bump function 与 44 个目标 trigger 均不存在；
+- 22 张来源表全部由该 runtime 角色持有；该角色对 22/22 表均有有效
+  SELECT/INSERT/UPDATE/DELETE/TRUNCATE/TRIGGER 权限。
+
+因此生产尚不满足 generation fence 的最低信任边界。只对 generation table 执行 REVOKE 不成立：superuser/owner
+可以改回 ACL、改函数或 trigger，也能绕过 generation 单调性。脱敏证据保存在
+`docs/deployment/production-account-authority-acl-audit-2026-09-30-6d9a134e4.json`；该文件只记录角色属性、对象数量和
+有效权限矩阵，不含口令、连接串、业务行或账户标识。
+
+角色整改必须先于 0065 和业务接线，并采用三类身份：
+
+1. **NOLOGIN object owner。** 持有 schema 内业务对象、generation singleton、bump/lock functions 和 triggers；
+   runtime 与 migrator 均不能继承该身份，日常连接不能直接登录。
+2. **LOGIN migrator。** 只在受控部署窗口运行 Django migration；可以 `SET ROLE` 到 owner 或通过等价受控机制创建
+   owner-owned 对象，不能被 web/Celery 使用。部署必须在启动候选 runtime 前完成数据库迁移和 ACL 验证。
+3. **LOGIN runtime。** web、Celery 与只读 MCP 共用最小业务 DML；`NOSUPERUSER NOCREATEDB NOCREATEROLE
+   NOREPLICATION NOBYPASSRLS`，无 `public` schema CREATE，无 owner membership；generation table 仅普通 SELECT，
+   无 INSERT/UPDATE/DELETE/TRUNCATE/TRIGGER/ALTER 能力。
+
+这里存在一个 PostgreSQL 权限陷阱：`SELECT ... FOR SHARE/UPDATE` 除 SELECT 外还要求目标列具备 UPDATE 权限。因此
+不能在保留当前直连 SQL 的同时撤销 runtime 对 generation 的 UPDATE。0065 接线前必须新增由 NOLOGIN owner 持有的
+`SECURITY DEFINER` fence-lock function，固定安全 `search_path`，内部对 schema-qualified singleton 执行
+`FOR SHARE` 并返回 generation；runtime 只获该函数 EXECUTE 和 generation 普通 SELECT。验收必须证明 runtime 的
+直接 UPDATE、INSERT、DELETE、TRUNCATE、ALTER、DISABLE TRIGGER 以及直接 `SELECT ... FOR SHARE/UPDATE` 均失败，
+受限 wrapper 可以持共享锁并返回代次，source DML 仍只能经受信 trigger 单调推进 generation。
+
+角色切换采用 fail-closed 的分阶段部署，不在一次应用启动中临时提权：
+
+1. 用现有数据库管理员在独立维护步骤创建 owner/migrator/runtime，撤销 `PUBLIC` 默认 CREATE，并设置未来对象的
+   default privileges；备份当前 ACL/owner 清单作为回滚依据。
+2. 停止业务 writer，迁移现有对象 owner，安装受信 bump/lock functions 与 trigger，并以 runtime 凭据执行权限负测。
+   任一 owner、membership、function 安全属性、44-trigger coverage 或负测不符，恢复旧应用和旧凭据，保留旧关系锁，
+   不启动新 runtime。
+3. 用 migrator 凭据运行 migration 与 `check --deploy`，再用 runtime 凭据执行只读/业务 DML/fence 组件验收；只有两组
+   都通过才向 web/Celery 注入 runtime `DATABASE_URL` 并启动候选容器。migrator URL 不进入长期容器环境。
+4. 切换完成后的回滚只回滚应用和 runtime 凭据，不反向删除 generation/revision 数据或恢复旧数据库；旧应用在
+   schema 向后兼容期继续运行。若旧应用依赖 owner 权限，必须在预演中先暴露并补精确 grant，禁止恢复 superuser。
+
+这一门槛还必须与 physical-provider identity、统一数据库时钟、完整 graph final reread、短 activation、5,000+
+PostgreSQL soak 一起通过。此前不部署 0065、不删除 legacy relation lock、不启动新的全市场刷新，也不把延长 timeout
+或容忍固定 12 只证券当作恢复方案。
