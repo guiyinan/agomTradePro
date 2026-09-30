@@ -639,3 +639,49 @@ PostgreSQL soak 一起通过。此前不部署 0065、不删除 legacy relation 
   在这些证据及后续门槛完成前不得部署 0065/0066、不得移除 legacy relation locks、不得启动新的全市场刷新。
   physical provider identity、统一数据库时钟、current-publication-member 读侧收口、短 activation 和 5,000+ soak 仍是
   后续独立阻断。
+
+#### Physical provider 事务身份与 final expiry lease 基础切片（2026-09-30）
+
+进一步根因审计确认，`unit_of_work_key="django:<alias>"` 只能证明 provider 的声明，不能证明它实际使用 generation
+fence 所在的 Django wrapper、DBAPI socket 和 PostgreSQL transaction。该缺口允许同名 alias 的另一线程连接、重连后
+socket、另一个 alias 或伪造 provider 在 fence 外读取 physical source。候选实现新增类型化
+`PhysicalAccountRowProviderIdentity`，绑定 alias、Django wrapper、DBAPI connection、backend PID、xid、线程/task 和
+可选 generation；RR shadow 与 RC generation-fenced graph reader 都必须把该 capability 交给 concrete provider。
+provider 在每次 lock/read 前后及 scope 正常退出时重新核验真实 repository alias、wrapper、socket、PID、xid 和执行
+上下文。RC graph 结束后还会再次验证 active generation fence，连接替换、raw commit/new xid 和 generation 漂移均
+fail closed。
+
+generation 只能冻结来源写入，不能冻结墙上时间。partial root/revocation finalizer 因此新增 root `valid_until` lease；
+进入 fence 时仍用同连接的 `clock_timestamp()` 验证半开区间 `checked_at < valid_until`，调用方工作结束后再读一次
+`clock_timestamp()`。数据库时钟倒退，或退出时间达到/越过 `valid_until`，都会抛 typed unavailable 并使同一外层事务
+回滚。该结果 scope 仍明确是 `owner_tenant_authority_v3_root_revocation_only`；root lease 不能冒充完整 graph 的最早失效
+时间，也不能据此接 production。
+
+本地验证：physical provider、graph、Audit adapter 与 finalizer 单测 `61 passed`；Black、Ruff、7 个生产文件增量
+mypy 和全仓 mypy debt ceiling 均通过。全新 disposable PostgreSQL 16 上，generation + 完整 V3 composition/shadow
+分组 `10 passed in 489.51s`，final revalidator 独立分组 `3 passed in 160.86s`。前者与后者必须分开调用；pytest 同时把
+generation 测试模块既作为测试文件又作为 fixture plugin 时会造成 3 个 fixture discovery errors，这属于测试调用方式
+限制，不计作产品通过或失败。临时数据库容器已删除。
+
+该切片仍有三条停止线：第一，完整 graph 尚未把所有 repository 统一到同一个数据库 `clock_timestamp()` cutoff；
+第二，finalizer 尚未在 fence 内重读完整 graph 并使用其最早 `valid_until`；第三，尚未完成 candidate pre-stage、
+current-publication-member 决策读收口和 5,000+ 短 activation soak。三项完成前继续保留 legacy production path 和关系锁，
+不部署、不重跑全市场，也不通过延长业务锁等待来规避缺口。
+
+Publication activation 的独立只读复核又确认两项 P0 与四项 P1：现有 published query 会按
+`PublicationMember.fact_pk` 精确读取，但 Factor 的估值/财报和 Simple Alpha 的估值、财务及部分 coverage 路径仍调用
+raw `get_valuation_facts/get_financial_facts_for_decision`，可以消费 staged、尚未发布的 revision；
+`publish_with_members()` 则在一个 outer atomic 内对每个 member 执行 `get_or_create`，5,000 成员约产生 5,000 次
+SELECT、5,000 次 INSERT/冲突检查和 5,000 个 savepoint。`get_current()` 只按 PUBLISHED 时间排序，没有数据库 current
+pointer 或 scope 唯一锁；并发 publish 可能形成双 current，而读侧 `.first()` 只会掩盖冲突。full-market 在 staging 后
+还会重新查询 latest candidate，并非使用 staging 返回的精确 PK/ref；`upsert_publication_safe_facts()` 也只在旧事实已被
+member 引用时追加 revision，未引用事实仍可能原地更新。
+
+后续 publication 切片据此固定为：fence 外 append-only fact staging 并返回不可变 receipt；独立事务预构建不可见
+CANDIDATE 与批量 members；新增 `(dataset_key, publication_key)` 唯一 current pointer 并预建 scope 行；短 RC/RW
+activation 事务只执行 generation fence、完整 authority final reread、pointer row lock、candidate/member/hash/fact
+复核、publication/pointer/audit/outbox 原子切换。current 决策读必须沿 pointer → publication → member → exact fact PK，
+无 pointer 或成员不完整时 fail closed。5,000+ soak 必须固定 query count、持锁时间与 lock wait 硬阈值，并覆盖并发
+ingest 不改变 receipt PK、commit 前只见旧完整快照、commit 后只见新完整快照，以及 candidate/member/pointer/
+audit/outbox 各阶段故障注入和 retry 幂等。Factor 与 Simple Alpha 的 publication-member-bound 契约测试是该切片的
+必验项。
