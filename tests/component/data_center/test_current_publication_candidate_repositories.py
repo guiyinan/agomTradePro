@@ -6,7 +6,10 @@ from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
+from apps.data_center.domain.entities import QuoteSnapshot
 from apps.data_center.infrastructure.financial_fact_repository import (
     FinancialFactRepository,
 )
@@ -95,6 +98,50 @@ def test_quote_selector_returns_latest_snapshot_per_asset() -> None:
     assert len(references) == 2
     assert all(item.observed_at == AVAILABLE_AT for item in references)
     assert all(item.fact_table == "data_center_quote_snapshot" for item in references)
+
+
+@pytest.mark.django_db
+def test_quote_publication_candidate_lookup_is_one_query_per_5000_input_quotes() -> None:
+    """Characterize the writer's current 5k per-candidate lookup count."""
+
+    quote_count = 5000
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(quote_count))
+    observed_at = AVAILABLE_AT
+    QuoteSnapshotModel.objects.bulk_create(
+        [
+            QuoteSnapshotModel(
+                asset_code=asset_code,
+                snapshot_at=observed_at,
+                fetched_at=observed_at,
+                current_price=10,
+                source="scale-characterization",
+            )
+            for asset_code in asset_codes
+        ],
+        batch_size=500,
+    )
+    quotes = [
+        QuoteSnapshot(
+            asset_code=asset_code,
+            snapshot_at=observed_at,
+            fetched_at=observed_at,
+            current_price=10,
+            source="scale-characterization",
+        )
+        for asset_code in asset_codes
+    ]
+
+    with CaptureQueriesContext(connection) as captured:
+        references = QuoteSnapshotRepository().list_publication_candidates(quotes)
+
+    candidate_selects = [
+        query
+        for query in captured
+        if query["sql"].lstrip().upper().startswith("SELECT")
+        and "data_center_quote_snapshot" in query["sql"]
+    ]
+    assert len(references) == quote_count
+    assert len(candidate_selects) == quote_count
 
 
 @pytest.mark.django_db

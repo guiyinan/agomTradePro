@@ -6,8 +6,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.data_center.application.publication_utils import publication_member_from_reference
+from apps.data_center.domain.control_plane import PublicationMember
 from apps.data_center.domain.entities import ValuationFact
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
@@ -105,3 +108,44 @@ def test_mutable_fact_value_change_preserves_raw_body_and_invalidates_frozen_fac
         == member.raw_payload_hash
     )
     assert publications.list_members(member.publication_id) == [member]
+
+
+def test_quote_publication_add_member_uses_one_lookup_and_insert_per_member() -> None:
+    """Characterize the current O(N) member persistence contract."""
+
+    member_count = 32
+    publication_id = str(uuid4())
+    members = tuple(
+        PublicationMember(
+            member_id=str(uuid4()),
+            publication_id=publication_id,
+            dataset_key="equity.quote.snapshot",
+            natural_key=f"{index:06d}.SZ:2026-09-24T07:00:00+00:00:provider",
+            source="provider",
+            source_record_id=f"quote-{index}",
+            fact_table="data_center_quote_snapshot",
+            fact_pk=str(index + 1),
+            observed_at=datetime(2026, 9, 24, 7, tzinfo=UTC),
+        )
+        for index in range(member_count)
+    )
+    publications = CanonicalPublicationRepository()
+
+    with CaptureQueriesContext(connection) as captured:
+        for member in members:
+            publications.add_member(member)
+
+    member_selects = [
+        query
+        for query in captured
+        if query["sql"].lstrip().upper().startswith("SELECT")
+        and "data_center_publication_member" in query["sql"]
+    ]
+    member_inserts = [
+        query
+        for query in captured
+        if query["sql"].lstrip().upper().startswith("INSERT")
+        and "data_center_publication_member" in query["sql"]
+    ]
+    assert len(member_selects) == member_count
+    assert len(member_inserts) == member_count

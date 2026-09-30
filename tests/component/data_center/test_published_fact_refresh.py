@@ -8,7 +8,12 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
+from apps.data_center.application import query_services
+from apps.data_center.application.publication_utils import publication_member_from_reference
 from apps.data_center.domain.entities import PriceBar, QuoteSnapshot, ValuationFact
+from apps.data_center.infrastructure.control_plane_repositories import (
+    CanonicalPublicationRepository,
+)
 from apps.data_center.infrastructure.models import (
     PriceBarModel,
     QuoteSnapshotModel,
@@ -55,6 +60,59 @@ def test_refreshing_published_quote_keeps_frozen_row_and_selects_new_revision():
     assert repo.get_latest(first.asset_code, fact_pks=[str(old.pk)]).current_price == 10.5
     assert repo.list_publication_candidates([second])[0].fact_pk != str(old.pk)
     assert repo.list_current_publication_candidates((first.asset_code,))[0].revision_number == 2
+
+
+def test_unpublished_quote_revision_is_visible_to_legacy_latest_but_not_current_publication_read(
+    monkeypatch,
+) -> None:
+    """The raw latest port sees staging while the publication port stays member-bound."""
+
+    observed = datetime(2026, 9, 24, 7, tzinfo=UTC)
+    repo = QuoteSnapshotRepository()
+    first = QuoteSnapshot("000001.SZ", observed, 10.5, "provider", fetched_at=observed)
+    repo.bulk_upsert([first])
+    reference = repo.list_publication_candidates([first])[0]
+    publication_id = str(uuid4())
+    member = publication_member_from_reference(
+        reference,
+        member_id=str(uuid4()),
+        publication_id=publication_id,
+        dataset_key="equity.quote.snapshot",
+    )
+    publications = CanonicalPublicationRepository()
+    assert publications.add_member(member) == member
+
+    unpublished_revision = replace(
+        first,
+        current_price=10.75,
+        fetched_at=observed + timedelta(minutes=1),
+    )
+    assert repo.bulk_upsert([unpublished_revision]) == 1
+    monkeypatch.setattr(
+        query_services,
+        "_publication_gate",
+        lambda *_args, **_kwargs: {
+            "dataset_key": "equity.quote.snapshot",
+            "publication_id": publication_id,
+            "publication_key": "current",
+            "as_of": (observed + timedelta(hours=1)).isoformat(),
+            "must_not_use_for_decision": False,
+        },
+    )
+    monkeypatch.setattr(
+        query_services,
+        "get_canonical_publication_repository",
+        lambda: publications,
+    )
+    monkeypatch.setattr(query_services, "get_quote_snapshot_repository", lambda: repo)
+
+    legacy_latest = query_services.query_latest_quote_payloads([first.asset_code])
+    published = query_services.query_published_quote_payloads([first.asset_code])
+
+    assert [row["current_price"] for row in legacy_latest] == [10.75]
+    assert [row["current_price"] for row in published["rows"]] == [10.5]
+    unpublished_row = QuoteSnapshotModel._default_manager.get(revision_number=2)
+    assert member.fact_pk != str(unpublished_row.pk)
 
 
 def test_refetching_published_valuation_does_not_rewrite_knowledge_time():

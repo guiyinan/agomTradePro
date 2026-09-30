@@ -113,8 +113,12 @@ def test_invalid_publication_observations_fail_closed(changes: dict[str, object]
 
 
 class _ScopeProvider:
+    def __init__(self) -> None:
+        self.calls: list[datetime] = []
+
     def get_scope(self, *, as_of: datetime) -> AuditScopeRef:
         assert as_of == NOW
+        self.calls.append(as_of)
         return SCOPE
 
 
@@ -179,7 +183,8 @@ class _Writer:
 
 def test_append_binds_authoritative_scope_and_exact_replay_is_idempotent() -> None:
     writer = _Writer()
-    use_case = AppendDataPublicationAuditObservationUseCase(writer, _ScopeProvider())
+    scope_provider = _ScopeProvider()
+    use_case = AppendDataPublicationAuditObservationUseCase(writer, scope_provider)
     observation = _observation()
 
     first = use_case.execute(observation)
@@ -189,3 +194,4 @@ def test_append_binds_authoritative_scope_and_exact_replay_is_idempotent() -> No
     assert replay.event == first.event
     assert len(writer.events) == 1
     assert isinstance(first.outbox_id, UUID)
+    assert scope_provider.calls == [NOW, NOW]

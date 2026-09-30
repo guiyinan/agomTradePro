@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
+from django.db import connection
 
 from apps.audit.application.data_fetch_audit import (
     AppendDataFetchAuditObservationUseCase,
@@ -13,6 +14,7 @@ from apps.audit.application.data_fetch_audit import (
 )
 from apps.audit.application.data_publication_audit import (
     AppendDataPublicationAuditObservationUseCase,
+    DataPublicationAuditScopeProvider,
 )
 from apps.audit.application.data_quality_audit import (
     AppendDataQualityAuditObservationUseCase,
@@ -178,10 +180,12 @@ def _canonical_writer() -> AppendDataFetchAuditObservationUseCase:
     )
 
 
-def _canonical_publication_writer() -> AppendDataPublicationAuditObservationUseCase:
+def _canonical_publication_writer(
+    scope_provider: DataPublicationAuditScopeProvider | None = None,
+) -> AppendDataPublicationAuditObservationUseCase:
     return AppendDataPublicationAuditObservationUseCase(
         DjangoSystemAuditEventOutboxCoordinator(),
-        _ScopeProvider(),
+        scope_provider or _ScopeProvider(),
     )
 
 
@@ -194,6 +198,8 @@ def _canonical_quality_writer() -> AppendDataQualityAuditObservationUseCase:
 
 def _build_use_case(
     audit_writer: AppendDataFetchAuditObservationUseCase | _FailAfterAuditWriter,
+    *,
+    publication_scope_provider: DataPublicationAuditScopeProvider | None = None,
 ) -> tuple[SyncQuoteUseCase, int]:
     provider_id = _seed_contracts()
     provider_repo = ProviderConfigRepository()
@@ -210,7 +216,7 @@ def _build_use_case(
     publication_repo = CanonicalPublicationRepository()
     policy_repo = PublicationPolicyRepository()
     identity_repo = SyncExecutionIdentityRepository()
-    publication_audit_writer = _canonical_publication_writer()
+    publication_audit_writer = _canonical_publication_writer(publication_scope_provider)
     quality_audit_writer = _canonical_quality_writer()
     quality_recorder = RecordPublicationQualityUseCase(
         publication_reader=publication_repo,
@@ -295,6 +301,36 @@ def test_success_commits_correlated_fact_evidence_publication_events_and_outboxe
     assert SystemAuditOutboxModel._default_manager.count() == 2
     assert PublicationMemberModel._default_manager.count() == 1
     assert CoverageSnapshotModel._default_manager.count() == 1
+
+
+class _QuoteUowScopeProvider:
+    def __init__(self) -> None:
+        self.calls: list[tuple[bool, int]] = []
+
+    def get_scope(self, *, as_of: datetime) -> AuditScopeRef:
+        assert as_of == NOW
+        self.calls.append(
+            (
+                connection.in_atomic_block,
+                QuoteSnapshotModel._default_manager.count(),
+            )
+        )
+        return SCOPE
+
+
+def test_publication_scope_provider_runs_inside_quote_uow_after_fact_write() -> None:
+    """Characterize the legacy authority read after quote staging has begun."""
+
+    scope_provider = _QuoteUowScopeProvider()
+    use_case, provider_id = _build_use_case(
+        _canonical_writer(),
+        publication_scope_provider=scope_provider,
+    )
+
+    result = use_case.execute(_request(provider_id))
+
+    assert result.status == "success"
+    assert scope_provider.calls == [(True, 1)]
 
 
 def test_failure_after_audit_append_rolls_back_every_transaction_participant() -> None:
