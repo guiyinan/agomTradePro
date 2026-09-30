@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager, nullcontext
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from dataclasses import dataclass, fields, is_dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Literal, cast
 
 from django.db import DatabaseError, connections, transaction
@@ -160,6 +161,27 @@ class AccountAuthorityShadowFingerprintV3:
     actor_source_identity_hash: str
     physical_source_identity_hash: str
     valid_until: datetime
+    complete_graph_hash: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AccountAuthorityCurrentGraphSelectorV3:
+    """Redacted selector binding for one complete current authority graph."""
+
+    database_alias: str
+    authority_selector_hash: str
+    authority_content_hash: str
+    actor_source_selector_hash: str
+    actor_source_content_hash: str
+
+    def __post_init__(self) -> None:
+        """Reject incomplete aliases, selectors, or content hashes."""
+
+        _require_alias(self.database_alias)
+        _require_hash(self.authority_selector_hash, "authority_selector_hash")
+        _require_hash(self.authority_content_hash, "authority_content_hash")
+        _require_hash(self.actor_source_selector_hash, "actor_source_selector_hash")
+        _require_hash(self.actor_source_content_hash, "actor_source_content_hash")
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,11 +196,19 @@ class AccountAuthorityShadowComparisonV3:
 
 @dataclass(frozen=True, slots=True)
 class AccountAuthorityShadowScanResultV3:
-    """Bind the observed generation and comparison to the database alias."""
+    """Bind the observed generation, cutoff, selector, and comparison to an alias.
+
+    The selector, cutoff, and physical identity are optional only so historical
+    callers that construct partial root/revocation scans remain compatible.
+    Complete-graph proof capture rejects any result missing one of them.
+    """
 
     database_alias: str
     proof_generation: int
     comparison: AccountAuthorityShadowComparisonV3
+    selector: AccountAuthorityCurrentGraphSelectorV3 | None = None
+    checked_at: datetime | None = None
+    physical_identity: PhysicalAccountRowProviderIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,12 +221,17 @@ class AccountAuthorityCurrentGraphReadV3:
 
     checked_at: datetime
     authority: CurrentOwnerTenantAuthorityV3 | None
+    physical_identity: PhysicalAccountRowProviderIdentity | None = None
 
     def __post_init__(self) -> None:
         """Reject naive cutoffs and malformed current projections."""
 
         if type(self.checked_at) is not datetime or not _is_aware(self.checked_at):
             raise ValueError("checked_at must be an exact aware datetime")
+        if self.physical_identity is not None and type(self.physical_identity) is not (
+            PhysicalAccountRowProviderIdentity
+        ):
+            raise TypeError("physical_identity must be an exact provider identity")
         if self.authority is not None:
             if type(self.authority) is not CurrentOwnerTenantAuthorityV3:
                 raise TypeError("authority must be an exact current Authority V3 projection")
@@ -211,6 +246,18 @@ class AccountAuthorityCurrentGraphReadV3:
         """Return the database timestamp used to select the complete graph."""
 
         return self.checked_at
+
+    @property
+    def fingerprint(self) -> AccountAuthorityShadowFingerprintV3 | None:
+        """Return the stable, redacted full graph fingerprint when one exists."""
+
+        return _fingerprint(self.authority)
+
+    @property
+    def valid_until(self) -> datetime | None:
+        """Return the earliest validity boundary sealed by the current graph."""
+
+        return None if self.authority is None else self.authority.valid_until
 
 
 @dataclass(frozen=True, slots=True)
@@ -341,7 +388,46 @@ class AccountAuthorityCurrentGraphReaderV3:
                 raise AccountAuthorityGenerationUnavailable(
                     "current graph projection does not use its database cutoff"
                 )
-        return AccountAuthorityCurrentGraphReadV3(checked_at=checked_at, authority=result)
+        return AccountAuthorityCurrentGraphReadV3(
+            checked_at=checked_at,
+            authority=result,
+            physical_identity=identity,
+        )
+
+    @property
+    def database_alias(self) -> str:
+        """Return the exact alias used by this graph reader."""
+
+        return self._using
+
+    @property
+    def transaction_mode(self) -> AccountAuthorityV3CallerTransactionMode:
+        """Return the caller-owned transaction mode required by this reader."""
+
+        return self._transaction_mode
+
+    def selector_for(
+        self,
+        command: GetCurrentOwnerTenantAuthorityV3Command,
+    ) -> AccountAuthorityCurrentGraphSelectorV3:
+        """Return a redacted selector for the command and fixed actor source."""
+
+        if type(command) is not GetCurrentOwnerTenantAuthorityV3Command:
+            raise TypeError("command must be exact GetCurrentOwnerTenantAuthorityV3Command")
+        command.__post_init__()
+        return AccountAuthorityCurrentGraphSelectorV3(
+            database_alias=self._using,
+            authority_selector_hash=_identity_digest(
+                command.authority_id,
+                command.authority_version,
+            ),
+            authority_content_hash=command.expected_content_hash,
+            actor_source_selector_hash=_identity_digest(
+                self._actor_source_id,
+                self._actor_source_version,
+            ),
+            actor_source_content_hash=self._actor_content_hash,
+        )
 
     def _capture_identity(
         self,
@@ -550,7 +636,8 @@ class AccountAuthorityShadowScannerV3:
                     raise AccountAuthorityGenerationUnavailable(
                         "account authority shadow proof belongs to another database alias"
                     )
-                shadow_current = self._read_shadow(command)
+                graph_read = self._read_shadow(command)
+                shadow_current = graph_read.authority
                 if shadow_current is not None:
                     if type(shadow_current) is not CurrentOwnerTenantAuthorityV3:
                         raise AccountAuthorityGenerationUnavailable(
@@ -562,23 +649,30 @@ class AccountAuthorityShadowScannerV3:
             database_alias=self._using,
             proof_generation=proof.generation,
             comparison=_compare_current_observations(legacy_current, shadow_current),
+            selector=self._graph_reader().selector_for(command),
+            checked_at=graph_read.checked_at,
+            physical_identity=graph_read.physical_identity,
         )
 
     def _read_shadow(
         self,
         command: GetCurrentOwnerTenantAuthorityV3Command,
-    ) -> CurrentOwnerTenantAuthorityV3 | None:
-        """Restore the graph and unwrap its point-in-time current projection."""
+    ) -> AccountAuthorityCurrentGraphReadV3:
+        """Restore the graph and retain its point-in-time result metadata."""
 
-        graph_read = AccountAuthorityCurrentGraphReaderV3(
+        return self._graph_reader().read(command)
+
+    def _graph_reader(self) -> AccountAuthorityCurrentGraphReaderV3:
+        """Build the read-only reader with the scanner's fixed source selectors."""
+
+        return AccountAuthorityCurrentGraphReaderV3(
             actor_source_id=self._actor_source_id,
             actor_source_version=self._actor_source_version,
             actor_content_hash=self._actor_content_hash,
             physical_row_provider=self._physical_row_provider,
             using=self._using,
             transaction_mode="repeatable_read_read_only",
-        ).read(command)
-        return graph_read.authority
+        )
 
 
 class _CurrentEvidenceReader(CurrentOwnerAssignmentEvidenceV5Reader):
@@ -858,6 +952,7 @@ def _compare_current_observations(
                 "actor_source_identity_hash",
                 "physical_source_identity_hash",
                 "valid_until",
+                "complete_graph_hash",
             )
             if getattr(legacy_fingerprint, field_name) != getattr(shadow_fingerprint, field_name)
         )
@@ -899,7 +994,38 @@ def _fingerprint(
             physical.source_content_hash,
         ),
         valid_until=value.valid_until,
+        complete_graph_hash=_complete_graph_digest(
+            (authority, value.authentication, value.valid_until)
+        ),
     )
+
+
+def _complete_graph_digest(value: object) -> str:
+    """Hash every stable dataclass field in a current graph without exposing it."""
+
+    def normalize(item: object) -> object:
+        if type(item) is datetime:
+            if not _is_aware(item):
+                raise ValueError("complete graph fingerprint contains a naive datetime")
+            return {"datetime": item.astimezone(UTC).isoformat().replace("+00:00", "Z")}
+        if is_dataclass(item) and not isinstance(item, type):
+            return {field.name: normalize(getattr(item, field.name)) for field in fields(item)}
+        if type(item) is tuple:
+            return [normalize(value) for value in item]
+        if item is None or type(item) in (str, int, bool):
+            return item
+        raise TypeError(f"complete graph fingerprint cannot normalize {type(item).__name__}")
+
+    payload = json.dumps(
+        normalize(value),
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(
+        b"account-authority-current-graph-v3\x00" + payload.encode("utf-8")
+    ).hexdigest()
 
 
 def _identity_digest(*values: str) -> str:
@@ -958,6 +1084,7 @@ def _validate_transaction_mode(value: object) -> AccountAuthorityV3CallerTransac
 __all__ = [
     "AccountAuthorityCurrentGraphReadV3",
     "AccountAuthorityCurrentGraphReaderV3",
+    "AccountAuthorityCurrentGraphSelectorV3",
     "AccountAuthorityShadowComparisonV3",
     "AccountAuthorityShadowFingerprintV3",
     "AccountAuthorityShadowScanResultV3",

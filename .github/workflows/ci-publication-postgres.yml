@@ -185,7 +185,7 @@ jobs:
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
-          assert len(final_revalidation_cases) == 3, 'Expected authority final-revalidation PostgreSQL cases were not collected'
+          assert len(final_revalidation_cases) == 7, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
           cases = [
               *publication_cases,

@@ -18,6 +18,9 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerTenantAuthorityV3,
 )
+from apps.account.application.physical_account_row_observation_v2 import (
+    PhysicalAccountRowProviderIdentity,
+)
 from apps.account.infrastructure import account_authority_generation as generation_module
 from apps.account.infrastructure import account_authority_shadow_scanner as shadow_module
 from apps.account.infrastructure.account_authority_generation import (
@@ -804,7 +807,17 @@ def test_shadow_proof_and_closed_world_reader_share_one_rr_transaction_without_w
 ) -> None:
     connection = _Connection(in_atomic_block=False, autocommit=True)
     events: list[str] = []
-    legacy = _legacy_current()
+    baseline = _legacy_current()
+    legacy = replace(
+        baseline,
+        authentication=replace(
+            baseline.authentication,
+            source_id="audit-actor-v3",
+            source_version="v1",
+            source_content_hash="c" * 64,
+        ),
+    )
+    legacy.__post_init__()
     legacy_before = legacy
     command = GetCurrentOwnerTenantAuthorityV3Command(
         legacy.authority.authority_id,
@@ -826,12 +839,24 @@ def test_shadow_proof_and_closed_world_reader_share_one_rr_transaction_without_w
     def current_reader(
         _self: AccountAuthorityShadowScannerV3,
         _command: GetCurrentOwnerTenantAuthorityV3Command,
-    ) -> CurrentOwnerTenantAuthorityV3:
+    ) -> AccountAuthorityCurrentGraphReadV3:
         events.append("scan")
         current_reads.append(
             (connection, connection.in_atomic_block, connection.isolation, connection.read_only)
         )
-        return legacy
+        return AccountAuthorityCurrentGraphReadV3(
+            checked_at=legacy.observed_at,
+            authority=legacy,
+            physical_identity=PhysicalAccountRowProviderIdentity(
+                using="default",
+                wrapper_token=connection,
+                dbapi_token=object(),
+                backend_pid=4321,
+                transaction_xid="rr-test-xid",
+                thread_id=1,
+                task_token=None,
+            ),
+        )
 
     monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
     monkeypatch.setattr(
@@ -850,6 +875,9 @@ def test_shadow_proof_and_closed_world_reader_share_one_rr_transaction_without_w
     assert result.proof_generation == 41
     assert result.comparison.matches is True
     assert result.comparison.differing_fields == ()
+    assert result.selector is not None
+    assert result.comparison.shadow is not None
+    assert result.selector == scanner._graph_reader().selector_for(command)
     assert legacy is legacy_before
     assert legacy == legacy_before
     forbidden = ("lock table", "pg_advisory", "insert ", "update ", "delete ", "truncate ")
