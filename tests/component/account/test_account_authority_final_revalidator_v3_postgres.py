@@ -189,15 +189,15 @@ def test_postgres_targeted_repository_uses_only_selected_root_and_revocation_que
 
 
 def test_postgres_rr_proof_rejects_a_committed_source_change_before_any_final_read(
-    generation_alias: str,
+    runtime_alias: str,
 ) -> None:
     """Prove the RC generation lock rejects an RR proof after one committed DML."""
 
-    repository = _MemorySelectionRepository(generation_alias)
-    finalizer, command, scan = _finalizer(generation_alias, repository)
+    repository = _MemorySelectionRepository(runtime_alias)
+    finalizer, command, scan = _finalizer(runtime_alias, repository)
     proof = finalizer.capture(command, scan)
 
-    with connections[generation_alias].cursor() as cursor:
+    with connections[runtime_alias].cursor() as cursor:
         cursor.execute(f"UPDATE {_SOURCE_TABLE} SET id = id WHERE id = %s", [-1])
     statements: list[str] = []
 
@@ -212,12 +212,12 @@ def test_postgres_rr_proof_rejects_a_committed_source_change_before_any_final_re
         return execute(sql, params, many, context)
 
     repository_reads_before = (repository.clock_calls, repository.selected_reads)
-    with connections[generation_alias].execute_wrapper(collect):
+    with connections[runtime_alias].execute_wrapper(collect):
         with pytest.raises(AccountAuthorityGenerationChanged):
             with finalizer.fence(proof):
                 pytest.fail("a stale generation must not yield a final result")
 
-    assert _generation(generation_alias) == scan.proof_generation + 1
+    assert _generation(runtime_alias) == scan.proof_generation + 1
     assert (repository.clock_calls, repository.selected_reads) == repository_reads_before
     assert all(
         statement.lstrip().split(None, 1)[0].upper() in {"SELECT", "SET"}
@@ -235,17 +235,17 @@ def test_postgres_rr_proof_rejects_a_committed_source_change_before_any_final_re
 
 
 def test_postgres_generation_fence_holds_source_writer_until_final_reads_finish(
-    generation_alias: str,
+    runtime_alias: str,
 ) -> None:
     """Prove a real source-trigger writer waits while the RC revalidator holds its fence."""
 
-    repository = _MemorySelectionRepository(generation_alias)
-    finalizer, command, scan = _finalizer(generation_alias, repository)
+    repository = _MemorySelectionRepository(runtime_alias)
+    finalizer, command, scan = _finalizer(runtime_alias, repository)
     proof = finalizer.capture(command, scan)
     competing_alias = "account_authority_final_revalidator_writer"
     if competing_alias in connections.databases:
         raise AssertionError("test writer alias already exists")
-    connections.databases[competing_alias] = deepcopy(connections[generation_alias].settings_dict)
+    connections.databases[competing_alias] = deepcopy(connections[runtime_alias].settings_dict)
     writer_started = Event()
     writer_backend_pids: Queue[int] = Queue()
     fence_entered = Event()
@@ -257,7 +257,7 @@ def test_postgres_generation_fence_holds_source_writer_until_final_reads_finish(
                 _run_final_fence_with_caller_hook,
                 finalizer,
                 proof,
-                generation_alias,
+                runtime_alias,
                 fence_entered,
                 exit_fence,
                 caller_hook_ran,
@@ -272,7 +272,7 @@ def test_postgres_generation_fence_holds_source_writer_until_final_reads_finish(
             )
             assert writer_started.wait(timeout=5)
             backend_pid = writer_backend_pids.get(timeout=5)
-            assert _wait_for_lock_wait(generation_alias, backend_pid)
+            assert _wait_for_lock_wait(runtime_alias, backend_pid)
             assert not writer.done()
             exit_fence.set()
             result = final_check.result(timeout=10)
@@ -281,6 +281,7 @@ def test_postgres_generation_fence_holds_source_writer_until_final_reads_finish(
     finally:
         exit_fence.set()
         connections[competing_alias].close()
+        del connections[competing_alias]
         connections.databases.pop(competing_alias, None)
 
 
