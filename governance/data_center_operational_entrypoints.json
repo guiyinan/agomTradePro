@@ -149,7 +149,9 @@
         "tests/unit/data_center/test_data01_restore_evidence.py",
         "tests/unit/test_docker_pyqlib_install.py",
         "tests/unit/test_evid_02_postgres_evidence.py",
+        "tests/unit/test_postgres_role_contract.py",
         "tests/unit/test_remote_build_deploy_vps.py",
+        "tests/unit/test_vps_web_watchdog.py",
         "tests/unit/ci/test_select_tests.py",
         "tests/unit/test_verify_postgres_backup_restore.py"
       ],

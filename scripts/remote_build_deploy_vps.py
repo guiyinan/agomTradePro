@@ -2565,6 +2565,8 @@ if [ "$INCLUDE_SQLITE" = "1" ]; then
     -v "$RELEASE_DIR/backups:/src:ro" \
     alpine:3.20 \
     sh -lc 'cp /src/db.sqlite3 /dest/db.sqlite3 && chown 1000:1000 /dest /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3'
+  rm -f "$TARGET_DIR/.postgres-migration-complete"
+  echo "[INFO] Included SQLite snapshot will be imported into PostgreSQL"
 fi
 
 if ! COMPOSE_PROJECT_NAME=agomtradepro sh scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$RELEASE_DIR"; then

@@ -1256,6 +1256,22 @@ def test_legacy_deploy_verifies_canonical_schema_after_migrations() -> None:
     )
 
 
+def test_remote_deploy_forces_import_for_included_sqlite_snapshot() -> None:
+    """A supplied snapshot must invalidate the marker before the import helper runs."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    snapshot_copy = "chmod 664 /dest/db.sqlite3"
+    marker_reset = 'rm -f "$TARGET_DIR/.postgres-migration-complete"'
+    migration_helper = (
+        "COMPOSE_PROJECT_NAME=agomtradepro sh "
+        'scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$RELEASE_DIR"'
+    )
+
+    assert script.index(snapshot_copy) < script.index(marker_reset)
+    assert script.index(marker_reset) < script.index(migration_helper)
+
+
 def test_remote_deploy_synchronizes_mcp_catalog_before_release_publish() -> None:
     remote_script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"

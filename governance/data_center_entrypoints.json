@@ -30,9 +30,9 @@
       "workflow_step": 10
     },
     "by_status": {
-      "active_public": 800,
+      "active_public": 802,
       "adjacent_operational": 334,
-      "candidate-review": 2,
+      "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
@@ -8462,8 +8462,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2633",
-      "locator": "line:2633",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:init_macro_indicator_governance:line:2635",
+      "locator": "line:2635",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "init_macro_indicator_governance",
@@ -8472,8 +8472,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2583",
-      "locator": "line:2583",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:initialize_data_center_catalog:line:2585",
+      "locator": "line:2585",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -8482,8 +8482,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2633",
-      "locator": "line:2633",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:normalize_macro_fact_units:line:2635",
+      "locator": "line:2635",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "normalize_macro_fact_units",
@@ -8492,8 +8492,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2575",
-      "locator": "line:2575",
+      "id": "orchestration_entry:scripts/remote_build_deploy_vps.py:verify_canonical_schema:line:2577",
+      "locator": "line:2577",
       "path": "scripts/remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "verify_canonical_schema",
@@ -12641,11 +12641,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_postgres_role_contract.py:test_postgres_role_contract:",
       "locator": "",
       "path": "tests/unit/test_postgres_role_contract.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_postgres_role_contract",
       "target": ""
     },
@@ -12671,11 +12671,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_vps_web_watchdog.py:test_vps_web_watchdog:",
       "locator": "",
       "path": "tests/unit/test_vps_web_watchdog.py",
-      "status": "candidate-review",
+      "status": "active_public",
       "symbol": "test_vps_web_watchdog",
       "target": ""
     },
