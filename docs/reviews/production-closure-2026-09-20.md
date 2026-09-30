@@ -840,3 +840,25 @@ on device`，且均报告 `mutations_performed=false`。因此本轮没有得到
 结构化证据见 [生产 revision 9c7a5a71a6 只读重验](../deployment/production-closure-revalidation-2026-09-29-9c7a5a71a6.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v183 → v184；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
+
+## 生产 revision 6d9a134e41 只读重验（2026-09-30）
+
+生产已推进到 `6d9a134e41`，release `20260929110229`；探针采集与封存时 `dev/next-development` HEAD
+为 `9cba4b0cd3`，生产落后 41 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 为 403。A 股有效分母仍为 5,571；quote、price、valuation current Publication
+仍各为 5,557，覆盖缺口为 14，financial 仍为 80。
+
+生产 profile v19 仍绑定 `release_ref=9c77c51182`，而运行时已部署 `6d9a134e41`；本轮只读验证未激活或
+修改 profile，exact deployment/profile identity binding 继续 P0 阻断。audit mode=`required`、outbox=`true`、
+selector 有效，temporally current actor、owner、joined heads 仍为 2/2/2。部署 revision 的 source-time
+contract 与 numeric tolerance registry 仍为 `awaiting_owner_approval`、零条目，approval 缺失，exact matcher
+registry 为空；本次未观察到 retained real provider sample 或显式生产写授权。
+
+两个未传 `--execute` 的 DATA-02 预检均在 financial decision evidence guard 结构化失败关闭，并报告
+`mutations_performed=false`。上一轮 PostgreSQL `pgsql_tmp` 空间错误本轮未复现，但不能据此声称容量问题
+已修复，也不扩大声称子进程是否到达 provider 路径。受保护监控连续两次对凭据和匿名请求均返回 401、
+`DENY_STOP_LINES`，TUI-02 仍不能绑定首样本或启动观察窗口。
+
+结构化证据见 [生产 revision 6d9a134e41 只读重验](../deployment/production-closure-revalidation-2026-09-30-6d9a134e41.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v186 → v187；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
