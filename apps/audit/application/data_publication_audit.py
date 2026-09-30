@@ -6,7 +6,7 @@ import hashlib
 import re
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Final, Protocol
+from typing import Final, Protocol, cast
 
 from apps.audit.application.system_audit_event_outbox import (
     SystemAuditEventOutboxCommit,
@@ -182,6 +182,45 @@ class DataPublicationAuditEventOutboxWriter(SystemAuditEventOutboxWriter, Protoc
         """Return the scoped stream head used for predecessor CAS."""
 
 
+class _TargetedDataPublicationAuditWriter(Protocol):
+    """Bounded selectors used only by a caller-owned activation transaction."""
+
+    def lock_stream(self, stream_id: str) -> None:
+        """Serialize one audit stream."""
+
+    def get_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+        lock: bool,
+    ) -> SystemAuditEvent | None:
+        """Read one exact event identity."""
+
+    def get_current_head_targeted(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef,
+        lock: bool,
+    ) -> SystemAuditEvent | None:
+        """Read one exact stream head."""
+
+    def append_and_enqueue_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        scope: AuditScopeRef,
+        identity_winner: SystemAuditEvent | None,
+        stream_head: SystemAuditEvent | None,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append event and outbox rows with bounded selectors."""
+
+
 def build_data_publication_audit_event(
     observation: DataPublicationAuditObservation,
     *,
@@ -313,13 +352,96 @@ class AppendDataPublicationAuditObservationUseCase:
         if observation.scope is not None and observation.scope != scope:
             raise ValueError("observation scope differs from current authority")
         scoped_observation = replace(observation, scope=scope)
-        event_id = _stable_event_id(scoped_observation)
-        stream_id = f"data.publication:{scoped_observation.dataset_key}"
-        with self._writer.atomic():
+        return self._append_scoped(scoped_observation, self._writer.atomic, targeted=False)
+
+    def execute_in_caller_transaction(
+        self,
+        observation: DataPublicationAuditObservation,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append using a writer capability bound to the caller's outer transaction."""
+
+        if not isinstance(observation, DataPublicationAuditObservation):
+            raise TypeError("observation must be a DataPublicationAuditObservation")
+        if observation.scope is None:
+            raise ValueError("caller-owned publication audit requires an explicit scope")
+        caller_owned_atomic = getattr(self._writer, "caller_owned_atomic", None)
+        if not callable(caller_owned_atomic):
+            raise ValueError("writer does not expose caller-owned publication audit UOW")
+        return self._append_scoped(observation, caller_owned_atomic, targeted=True)
+
+    def _append_scoped(
+        self,
+        observation: DataPublicationAuditObservation,
+        atomic_factory: object,
+        *,
+        targeted: bool,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append one already-scoped observation through one selected UOW."""
+
+        if not callable(atomic_factory):
+            raise TypeError("audit writer UOW factory is unavailable")
+        scope = observation.scope
+        if scope is None:
+            raise ValueError("publication audit append requires an explicit scope")
+        event_id = _stable_event_id(observation)
+        stream_id = f"data.publication:{observation.dataset_key}"
+        targeted_writer: _TargetedDataPublicationAuditWriter | None = None
+        if targeted:
+            candidate_writer = self._writer
+            if all(
+                callable(getattr(candidate_writer, name, None))
+                for name in (
+                    "append_and_enqueue_targeted",
+                    "lock_stream",
+                    "get_winner_targeted",
+                    "get_current_head_targeted",
+                )
+            ):
+                targeted_writer = cast(_TargetedDataPublicationAuditWriter, candidate_writer)
+            if targeted_writer is None:
+                raise ValueError("writer does not expose bounded publication audit selectors")
+        with atomic_factory():
+            if targeted_writer is not None:
+                targeted_writer.lock_stream(stream_id)
+                winner = targeted_writer.get_winner_targeted(
+                    event_id=event_id,
+                    event_version=_EVENT_VERSION,
+                    as_of=observation.recorded_at,
+                    lock=True,
+                )
+                head: SystemAuditEvent | None = None
+                if winner is not None:
+                    sequence_no = winner.sequence_no
+                    predecessor_hash = winner.predecessor_hash
+                else:
+                    head = targeted_writer.get_current_head_targeted(
+                        stream_id=stream_id,
+                        as_of=observation.recorded_at,
+                        scope=scope,
+                        lock=True,
+                    )
+                    sequence_no = head.sequence_no + 1 if head is not None else 1
+                    predecessor_hash = head.content_hash if head is not None else None
+                event = build_data_publication_audit_event(
+                    observation,
+                    sequence_no=sequence_no,
+                    predecessor_hash=predecessor_hash,
+                )
+                commit = targeted_writer.append_and_enqueue_targeted(
+                    event,
+                    expected_predecessor_hash=event.predecessor_hash,
+                    recorded_at=event.recorded_at,
+                    scope=scope,
+                    identity_winner=winner,
+                    stream_head=head,
+                )
+                if commit.event != event:
+                    raise ValueError("data publication audit writer substituted the event")
+                return commit
             winner = self._writer.get_winner(
                 event_id=event_id,
                 event_version=_EVENT_VERSION,
-                as_of=scoped_observation.recorded_at,
+                as_of=observation.recorded_at,
             )
             if winner is not None:
                 sequence_no = winner.sequence_no
@@ -327,13 +449,13 @@ class AppendDataPublicationAuditObservationUseCase:
             else:
                 head = self._writer.get_current_head(
                     stream_id=stream_id,
-                    as_of=scoped_observation.recorded_at,
+                    as_of=observation.recorded_at,
                     scope=scope,
                 )
                 sequence_no = head.sequence_no + 1 if head is not None else 1
                 predecessor_hash = head.content_hash if head is not None else None
             event = build_data_publication_audit_event(
-                scoped_observation,
+                observation,
                 sequence_no=sequence_no,
                 predecessor_hash=predecessor_hash,
             )

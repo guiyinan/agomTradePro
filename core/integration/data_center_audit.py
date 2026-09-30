@@ -40,6 +40,7 @@ from apps.audit.application.data_validation_audit import (
     DataValidationRejectedObservation,
 )
 from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
+from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxCommit
 from apps.audit.application.system_audit_query import (
     ListCorrelatedSystemAuditEventsCommand,
     ListCorrelatedSystemAuditEventsResult,
@@ -139,6 +140,7 @@ __all__ = [
     "DataFreshnessAuditObservation",
     "DataProviderHealthAuditObservation",
     "DataPublicationAuditObservation",
+    "SystemAuditEventOutboxCommit",
     "DataPublicationRollbackAuditObservation",
     "DataQualityAuditObservation",
     "DataQualityState",

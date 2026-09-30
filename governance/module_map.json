@@ -2299,9 +2299,10 @@
           ]
         },
         "data_center": {
-          "imports": 3,
+          "imports": 5,
           "target_layers": [
-            "application"
+            "application",
+            "domain"
           ]
         },
         "regime": {
@@ -2686,7 +2687,7 @@
       "layers": {
         "application": 35,
         "domain": 10,
-        "infrastructure": 27,
+        "infrastructure": 28,
         "interface": 14,
         "management": 8,
         "root": 4,
@@ -3865,7 +3866,7 @@
           "imports": 1
         },
         "audit": {
-          "imports": 3
+          "imports": 5
         },
         "backtest": {
           "imports": 5
@@ -4568,6 +4569,16 @@
           "save_macro_facts",
           "update_asset_display_name"
         ],
+        "application/publication_activation.py": [
+          "ActivateCanonicalPublicationUseCase",
+          "PublicationActivationAuditWriter",
+          "PublicationActivationAuthorityFence",
+          "PublicationActivationAuthorityLease",
+          "PublicationActivationError",
+          "PublicationActivationRepository",
+          "PublicationActivationRequest",
+          "publication_activation_lease_from_complete_graph"
+        ],
         "application/publication_gate_metadata.py": [
           "publication_gate_metadata"
         ],
@@ -4900,9 +4911,9 @@
         ]
       },
       "layers": {
-        "application": 107,
+        "application": 108,
         "domain": 33,
-        "infrastructure": 154,
+        "infrastructure": 155,
         "interface": 19,
         "management": 29,
         "root": 16

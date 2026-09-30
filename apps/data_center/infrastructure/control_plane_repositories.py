@@ -45,6 +45,7 @@ from .publication_member_store import (
 )
 from .publication_models import (
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     CoverageSnapshotModel,
     PublicationMemberModel,
     PublicationRollbackModel,
@@ -929,17 +930,20 @@ class CanonicalPublicationRepository:
     def get_current(self, dataset_key: str, publication_key: str) -> CanonicalPublication | None:
         """Return only the active published publication for a scope."""
 
-        model = (
-            CanonicalPublicationModel._default_manager.filter(
-                dataset_key=dataset_key,
-                publication_key=publication_key,
-                state=PublicationState.PUBLISHED.value,
-                must_not_use_for_decision=False,
-            )
-            .filter(Q(superseded_at__isnull=True) | Q(reinstated_at__isnull=False))
-            .order_by("-published_at")
-            .first()
-        )
+        pointer = CanonicalPublicationPointerModel._default_manager.filter(
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+        ).first()
+        if pointer is None or pointer.publication_id is None or not pointer.publication_hash:
+            return None
+        model = CanonicalPublicationModel._default_manager.filter(
+            dataset_key=dataset_key,
+            publication_key=publication_key,
+            publication_id=pointer.publication_id,
+            state=PublicationState.PUBLISHED.value,
+            must_not_use_for_decision=False,
+            publication_hash=pointer.publication_hash,
+        ).first()
         return model.to_domain() if model is not None else None
 
     def get_by_id(self, publication_id: str) -> CanonicalPublication | None:

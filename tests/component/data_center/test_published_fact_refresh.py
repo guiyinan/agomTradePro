@@ -23,7 +23,10 @@ from apps.data_center.infrastructure.models import (
 )
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.publication_fact_evidence import canonical_fact_content_hash
-from apps.data_center.infrastructure.publication_models import PublicationMemberModel
+from apps.data_center.infrastructure.publication_models import (
+    CanonicalPublicationModel,
+    PublicationMemberModel,
+)
 from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 from core.exceptions import DataFetchError
@@ -85,6 +88,18 @@ def test_unpublished_quote_revision_is_visible_to_legacy_latest_but_not_current_
         dataset_key="equity.quote.snapshot",
     )
     publications = CanonicalPublicationRepository()
+    CanonicalPublicationModel.objects.create(
+        publication_id=publication_id,
+        dataset_key="equity.quote.snapshot",
+        publication_key="current",
+        policy_version="test-policy",
+        publication_hash="f" * 64,
+        member_count=1,
+        coverage_requested_count=1,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        as_of=observed,
+    )
     assert publications.add_member(member) == member
 
     unpublished_revision = replace(

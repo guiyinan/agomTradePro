@@ -8,14 +8,14 @@ from uuid import UUID
 
 from django.db import models, transaction
 
-from apps.data_center.domain.control_plane import PublicationMember
+from apps.data_center.domain.control_plane import PublicationMember, PublicationState
 
-from .publication_fact_evidence import canonical_fact_content_hash, stored_fact_evidence
+from .publication_fact_evidence import stored_fact_evidence
 from .publication_fact_identity import (
     build_publication_fact_identity,
     publication_fact_model_registry,
 )
-from .publication_models import PublicationMemberModel
+from .publication_models import CanonicalPublicationModel, PublicationMemberModel
 
 _MAX_BIG_AUTO_FIELD_PK: int = (1 << 63) - 1
 
@@ -24,6 +24,18 @@ _MAX_BIG_AUTO_FIELD_PK: int = (1 << 63) - 1
 def add_immutable_publication_member(member: PublicationMember) -> PublicationMember:
     """Append or replay exact frozen content, never overwriting an existing member."""
 
+    publication = (
+        CanonicalPublicationModel._default_manager.select_for_update()
+        .filter(publication_id=UUID(member.publication_id))
+        .first()
+    )
+    if publication is None:
+        raise ValueError("Publication member parent does not exist")
+    if (
+        publication.state != PublicationState.CANDIDATE.value
+        or publication.members_sealed_at is not None
+    ):
+        raise ValueError("Publication member set is sealed")
     row, _created = PublicationMemberModel._default_manager.get_or_create(
         publication_id=UUID(member.publication_id),
         natural_key=member.natural_key,
@@ -78,17 +90,10 @@ def publication_fact_content_hashes(
             query = query.select_for_update()
         rows = query.in_bulk(sorted(keys[table]))
         for pk, row in rows.items():
-            digest = canonical_fact_content_hash(row)
             matching = members_by_fact[(table, pk)]
-            # A changed row remains visible as drift. When the normalized row is
-            # unchanged, independently reject provenance invented in a member.
-            if any(
-                member.fact_content_hash == digest
-                and not _member_provenance_matches_row(member, row)
-                for member in matching
-            ):
-                continue
-            hashes[(table, str(pk))] = digest
+            digest = _fact_hash_when_provenance_matches(matching, row)
+            if digest is not None:
+                hashes[(table, str(pk))] = digest
     return hashes
 
 
@@ -105,33 +110,38 @@ def _normalize_fact_pk(fact_pk: str) -> int:
     return normalized
 
 
-def _member_provenance_matches_row(member: PublicationMember, row: models.Model) -> bool:
-    """Require every frozen identity and evidence claim to match the fact row."""
+def _fact_hash_when_provenance_matches(
+    members: Sequence[PublicationMember],
+    row: models.Model,
+) -> str | None:
+    """Hash once, rejecting matching-hash members with invented provenance."""
 
     try:
-        identity = build_publication_fact_identity(member.dataset_key, row)
+        identity = build_publication_fact_identity(members[0].dataset_key, row)
         evidence = stored_fact_evidence(
             row,
             require_verified_source_evidence=(
-                member.dataset_key == "equity.financial.fact"
-                and member.source_published_at is not None
+                members[0].dataset_key == "equity.financial.fact"
+                and any(member.source_published_at is not None for member in members)
             ),
         )
-    except (AttributeError, TypeError, ValueError):
-        return False
-    if (
-        member.natural_key != identity.natural_key
-        or member.source != identity.source
-        or member.source_record_id != identity.source_record_id
-        or member.observed_at != identity.observed_at
-        or member.raw_payload_hash != identity.raw_payload_hash
-        or member.quality_status != identity.quality_status
-        or member.revision_number != identity.revision_number
-    ):
-        return False
-    return (
-        member.available_at == evidence.available_at
-        and member.fetched_at == evidence.fetched_at
-        and member.source_published_at == evidence.source_published_at
-        and member.raw_payload_scope == evidence.raw_payload_scope
-    )
+    except (AttributeError, IndexError, TypeError, ValueError):
+        return None
+    for member in members:
+        if member.fact_content_hash != evidence.fact_content_hash:
+            continue
+        if (
+            member.natural_key != identity.natural_key
+            or member.source != identity.source
+            or member.source_record_id != identity.source_record_id
+            or member.observed_at != identity.observed_at
+            or member.raw_payload_hash != identity.raw_payload_hash
+            or member.quality_status != identity.quality_status
+            or member.revision_number != identity.revision_number
+            or member.available_at != evidence.available_at
+            or member.fetched_at != evidence.fetched_at
+            or member.source_published_at != evidence.source_published_at
+            or member.raw_payload_scope != evidence.raw_payload_scope
+        ):
+            return None
+    return evidence.fact_content_hash

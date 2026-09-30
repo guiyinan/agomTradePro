@@ -6,6 +6,7 @@ on:
     paths:
       - 'apps/data_center/**'
       - 'apps/account/**'
+      - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
@@ -22,6 +23,7 @@ on:
     paths:
       - 'apps/data_center/**'
       - 'apps/account/**'
+      - 'apps/audit/**'
       - 'apps/simulated_trading/**'
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
@@ -181,7 +183,7 @@ jobs:
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
-          assert len(publication_cases) >= 21, 'Expected publication PostgreSQL cases were not collected'
+          assert len(publication_cases) == 36, 'Expected publication PostgreSQL cases were not collected'
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'

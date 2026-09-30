@@ -4062,7 +4062,7 @@
           "get_locked_active"
         ],
         "apps/data_center/infrastructure/publication_member_store.py": [
-          "_member_provenance_matches_row",
+          "_fact_hash_when_provenance_matches",
           "select_for_update",
           "content is immutable"
         ],

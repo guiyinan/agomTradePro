@@ -17,6 +17,33 @@ from apps.data_center.domain.control_plane import (
 )
 
 
+class CanonicalPublicationPointerModel(models.Model):
+    """One lockable current-publication scope row."""
+
+    pointer_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    dataset_key = models.CharField(max_length=160)
+    publication_key = models.CharField(max_length=300)
+    publication_id = models.UUIDField(null=True, blank=True, db_index=True)
+    publication_hash = models.CharField(max_length=128, blank=True)
+    activation_id = models.CharField(max_length=300, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_canonical_publication_pointer"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset_key", "publication_key"],
+                name="dc_publication_pointer_scope_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["dataset_key", "publication_key", "publication_id"],
+                name="dc_pub_pointer_scope_idx",
+            ),
+        ]
+
+
 class CanonicalPublicationModel(models.Model):
     """Versioned selection of canonical facts for a dataset scope."""
 
@@ -31,6 +58,7 @@ class CanonicalPublicationModel(models.Model):
     )
     selected_source = models.CharField(max_length=100, blank=True, db_index=True)
     publication_hash = models.CharField(max_length=128, db_index=True)
+    member_manifest_hash = models.CharField(max_length=64, blank=True, db_index=True)
     member_count = models.PositiveIntegerField(default=0)
     conflict_count = models.PositiveIntegerField(default=0)
     coverage_requested_count = models.PositiveIntegerField(default=0)
@@ -49,6 +77,7 @@ class CanonicalPublicationModel(models.Model):
     scope_blocks = models.JSONField(default=list, db_default=[])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    members_sealed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "data_center_canonical_publication"
@@ -273,6 +302,7 @@ class PublicationRollbackModel(models.Model):
 
 __all__ = [
     "CanonicalPublicationModel",
+    "CanonicalPublicationPointerModel",
     "CoverageSnapshotModel",
     "PublicationMemberModel",
     "PublicationRollbackModel",

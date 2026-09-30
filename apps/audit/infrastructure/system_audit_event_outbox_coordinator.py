@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 
-from django.db import transaction
+from django.db import connections, transaction
 
 from apps.audit.application.system_audit_event_outbox import (
     SystemAuditEventOutboxCommit,
@@ -55,6 +55,30 @@ class DjangoSystemAuditEventOutboxCoordinator:
         finally:
             self._active = False
 
+    @contextmanager
+    def caller_owned_atomic(self) -> Iterator[None]:
+        """Bind both append capabilities to an existing outer transaction."""
+
+        if self._active:
+            raise SystemAuditEventOutboxConflict("event/outbox UOW cannot be nested")
+        connection = connections[self._using]
+        if not connection.in_atomic_block or connection.get_autocommit():
+            raise SystemAuditEventOutboxConflict(
+                "caller-owned event/outbox UOW requires an active transaction"
+            )
+        atomic_blocks = getattr(connection, "atomic_blocks", None)
+        if not isinstance(atomic_blocks, list) or len(atomic_blocks) != 1:
+            raise SystemAuditEventOutboxConflict(
+                "caller-owned event/outbox UOW requires the outermost transaction"
+            )
+        self._active = True
+        try:
+            with self._event_repository.caller_owned_atomic():
+                with self._outbox_repository.caller_owned_atomic():
+                    yield
+        finally:
+            self._active = False
+
     def append_and_enqueue(
         self,
         event: SystemAuditEvent,
@@ -81,6 +105,79 @@ class DjangoSystemAuditEventOutboxCoordinator:
             outbox_id=outbox_record.outbox_id,
             event_id=persisted_event.event_id,
             idempotency_key=persisted_event.idempotency_key,
+        )
+
+    def append_and_enqueue_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        scope: AuditScopeRef | None = None,
+        identity_winner: SystemAuditEvent | None = None,
+        stream_head: SystemAuditEvent | None = None,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append and enqueue through bounded activation selectors."""
+
+        persisted_event = self._event_repository.append_targeted(
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+            scope=scope,
+            identity_winner=identity_winner,
+            stream_head=stream_head,
+        )
+        outbox_record = self._outbox_repository.enqueue_targeted(
+            persisted_event,
+            created_at=recorded_at,
+            available_at=recorded_at,
+        )
+        if outbox_record.event != persisted_event:
+            raise SystemAuditEventOutboxConflict("outbox payload does not match event winner")
+        return SystemAuditEventOutboxCommit(
+            event=persisted_event,
+            outbox_id=outbox_record.outbox_id,
+            event_id=persisted_event.event_id,
+            idempotency_key=persisted_event.idempotency_key,
+        )
+
+    def lock_stream(self, stream_id: str) -> None:
+        """Serialize the exact audit stream before reading its head."""
+
+        self._event_repository.lock_stream(stream_id)
+
+    def get_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read one event identity through the bounded activation selector."""
+
+        return self._event_repository.get_winner_targeted(
+            event_id=event_id,
+            event_version=event_version,
+            as_of=as_of,
+            lock=lock,
+        )
+
+    def get_current_head_targeted(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read one stream head through a bounded selector."""
+
+        return self._event_repository.get_current_head_targeted(
+            stream_id=stream_id,
+            as_of=as_of,
+            scope=scope,
+            lock=lock,
         )
 
     def get_winner(

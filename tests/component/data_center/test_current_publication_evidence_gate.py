@@ -20,7 +20,10 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
 )
 from apps.data_center.infrastructure.models import ValuationFactModel
-from apps.data_center.infrastructure.publication_models import PublicationMemberModel
+from apps.data_center.infrastructure.publication_models import (
+    CanonicalPublicationPointerModel,
+    PublicationMemberModel,
+)
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
 )
@@ -116,6 +119,13 @@ def _published_snapshot():
     ).execute([fact], provider_name="tencent", published_at=now)
     assert published is not None
     member = publications.list_members(published.publication_id)[0]
+    CanonicalPublicationPointerModel.objects.create(
+        dataset_key=published.dataset_key,
+        publication_key=published.publication_key,
+        publication_id=published.publication_id,
+        publication_hash=published.publication_hash,
+        activation_id="fixture:" + published.publication_id,
+    )
     return policy, published, member
 
 

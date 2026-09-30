@@ -2,6 +2,7 @@
 
 from .publication_rollback_models import (
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     CoverageSnapshotModel,
     PublicationMemberModel,
     PublicationRollbackModel,
@@ -9,6 +10,7 @@ from .publication_rollback_models import (
 
 __all__ = [
     "CanonicalPublicationModel",
+    "CanonicalPublicationPointerModel",
     "CoverageSnapshotModel",
     "PublicationMemberModel",
     "PublicationRollbackModel",

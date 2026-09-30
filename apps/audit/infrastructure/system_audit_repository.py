@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, cast
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connections, transaction
 from django.utils import timezone
 
 from apps.audit.domain.system_audit_event import AuditScopeRef, JSONValue, SystemAuditEvent
@@ -90,6 +90,19 @@ class DjangoSystemAuditEventRepository:
         with transaction.atomic(using=self._using), _activate_system_audit_uow():
             yield
 
+    @contextmanager
+    def caller_owned_atomic(self) -> Iterator[None]:
+        """Activate append capability inside an existing outer transaction."""
+
+        connection = connections[self._using]
+        if not connection.in_atomic_block or connection.get_autocommit():
+            raise SystemAuditConflict("caller-owned audit UOW requires an active transaction")
+        atomic_blocks = getattr(connection, "atomic_blocks", None)
+        if not isinstance(atomic_blocks, list) or len(atomic_blocks) != 1:
+            raise SystemAuditConflict("caller-owned audit UOW requires the outermost transaction")
+        with _activate_system_audit_uow():
+            yield
+
     def now(self) -> datetime:
         """Return an aware server clock or fail closed."""
 
@@ -115,6 +128,71 @@ class DjangoSystemAuditEventRepository:
         if not matches or matches[0].recorded_at > as_of:
             return None
         return matches[0]
+
+    def lock_stream(self, stream_id: str) -> None:
+        """Serialize one stream without scanning unrelated audit rows."""
+
+        if not stream_id or stream_id.strip() != stream_id:
+            raise SystemAuditConflict("audit stream identity is invalid")
+        connection = connections[self._using]
+        if connection.vendor != "postgresql":
+            return
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                [stream_id],
+            )
+
+    def get_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read one exact event identity with a bounded indexed query."""
+
+        self._require_cutoff(as_of)
+        queryset = SystemAuditEventModel._default_manager.using(self._using).filter(
+            event_id=event_id,
+            event_version=event_version,
+        )
+        if lock:
+            queryset = queryset.select_for_update()
+        row = queryset.first()
+        if row is None:
+            return None
+        event = self._restore(row)
+        if event.recorded_at > as_of:
+            return None
+        return event
+
+    def get_current_head_targeted(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read and optionally lock only the latest row of one stream."""
+
+        self._require_cutoff(as_of)
+        queryset = (
+            SystemAuditEventModel._default_manager.using(self._using)
+            .filter(stream_id=stream_id, recorded_at__lte=as_of)
+            .order_by("-sequence_no")
+        )
+        if lock:
+            queryset = queryset.select_for_update()
+        row = queryset.first()
+        if row is None:
+            return None
+        event = self._restore(row)
+        if scope is not None and event.scope != scope:
+            raise SystemAuditUnavailable("audit stream scope differs from activation scope")
+        return event
 
     def get_exact_by_hash(
         self,
@@ -339,6 +417,58 @@ class DjangoSystemAuditEventRepository:
             if winner is not None and winner == event:
                 return winner
             raise SystemAuditConflict("system audit append lost its first-winner race") from None
+        return self._restore(row)
+
+    def append_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        scope: AuditScopeRef | None = None,
+        identity_winner: SystemAuditEvent | None = None,
+        stream_head: SystemAuditEvent | None = None,
+    ) -> SystemAuditEvent:
+        """Append after the caller's serialized exact identity/head reads."""
+
+        if _UOW.get() is None:
+            raise SystemAuditConflict("system audit append requires repository.atomic()")
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise SystemAuditCorruption("system audit recorded_at is naive")
+        if recorded_at > self.now():
+            raise SystemAuditUnavailable("future system audit recorded_at is forbidden")
+        if event.recorded_at != recorded_at or event.scope is None:
+            raise SystemAuditConflict("targeted audit append clock or scope is invalid")
+        if scope is not None and event.scope != scope:
+            raise SystemAuditConflict("targeted audit append scope differs")
+        try:
+            event.validate_hashes()
+        except (TypeError, ValueError) as error:
+            raise SystemAuditCorruption("event candidate hash is invalid") from error
+        if identity_winner is not None:
+            if identity_winner != event:
+                raise SystemAuditConflict("system audit identity already has another winner")
+            return identity_winner
+        head = stream_head
+        if head is not None and (head.stream_id != event.stream_id or head.scope != event.scope):
+            raise SystemAuditConflict("system audit serialized stream head differs")
+        expected = head.content_hash if head is not None else None
+        if expected != expected_predecessor_hash:
+            raise SystemAuditConflict("system audit predecessor CAS failed")
+        expected_sequence = head.sequence_no + 1 if head is not None else 1
+        if event.sequence_no != expected_sequence:
+            raise SystemAuditConflict("system audit sequence is not adjacent to the head")
+        if head is not None and event.recorded_at < head.recorded_at:
+            raise SystemAuditConflict("system audit recorded clock moved backwards")
+        values = _model_values(event)
+        row = SystemAuditEventModel(**values)
+        try:
+            with _claim_system_audit_insert(event.event_id, event.content_hash):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError as error:
+            raise SystemAuditConflict(
+                "system audit serialized append collided with another identity"
+            ) from error
         return self._restore(row)
 
     def _require_cutoff(self, as_of: datetime) -> None:

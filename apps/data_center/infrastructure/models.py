@@ -21,6 +21,7 @@ from shared.numeric import safe_float
 
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
 from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
+from .publication_models import CanonicalPublicationPointerModel as CanonicalPublicationPointerModel
 from .publication_models import CoverageSnapshotModel as CoverageSnapshotModel
 from .publication_models import PublicationMemberModel as PublicationMemberModel
 from .publication_models import PublicationRollbackModel as PublicationRollbackModel

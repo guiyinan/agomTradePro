@@ -162,6 +162,8 @@ class AccountAuthorityV3CompleteGraphRevalidationResult:
     capture_checked_at: datetime
     checked_at: datetime
     valid_until: datetime
+    tenant_id: str
+    owner_id: str
     shadow_backend_pid: int
     shadow_transaction_xid: str
     capture_backend_pid: int
@@ -185,6 +187,15 @@ class AccountAuthorityV3CompleteGraphRevalidationResult:
             raise ValueError("complete graph fingerprint is missing its complete digest")
         if type(self.generation) is not int or self.generation < 0:
             raise ValueError("complete graph generation is invalid")
+        for name, value in (("tenant_id", self.tenant_id), ("owner_id", self.owner_id)):
+            if (
+                type(value) is not str
+                or not value
+                or value.strip() != value
+                or len(value) > 192
+                or any(character.isspace() for character in value)
+            ):
+                raise ValueError(f"complete graph {name} is invalid")
         for name, timestamp in (
             ("shadow_checked_at", self.shadow_checked_at),
             ("capture_checked_at", self.capture_checked_at),
@@ -644,6 +655,8 @@ class AccountAuthorityFinalRevalidatorV3:
                 capture_checked_at=prepared.capture_checked_at,
                 checked_at=graph_read.checked_at,
                 valid_until=valid_until,
+                tenant_id=graph_read.authority.authority.tenant_id,
+                owner_id=graph_read.authority.authority.owner_id,
                 shadow_backend_pid=prepared.shadow_physical_identity.backend_pid,
                 shadow_transaction_xid=prepared.shadow_physical_identity.transaction_xid,
                 capture_backend_pid=prepared.capture_physical_identity.backend_pid,
