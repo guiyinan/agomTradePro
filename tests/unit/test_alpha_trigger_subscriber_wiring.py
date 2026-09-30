@@ -60,13 +60,17 @@ def test_alpha_trigger_registration_failure_propagates(monkeypatch) -> None:
         subscribers.register_subscribers()
 
 
-def test_production_entrypoint_runs_deploy_checks_before_migrations() -> None:
-    """Block container startup before migrations when deploy checks fail."""
+def test_production_entrypoint_checks_deploy_and_refuses_runtime_migrations() -> None:
+    """Run deploy checks and fail closed when runtime startup requests migrations."""
 
     project_root = Path(__file__).resolve().parents[2]
     entrypoint = (project_root / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
 
     deploy_check_offset = entrypoint.index("python manage.py check --deploy")
-    migrate_offset = entrypoint.index("python manage.py migrate --noinput")
+    migration_guard_offset = entrypoint.index('if [ "$run_startup_migrations" = "1" ]; then')
+    migration_rejection_offset = entrypoint.index(
+        "startup migrations are disabled; run the one-shot migrator service"
+    )
 
-    assert deploy_check_offset < migrate_offset
+    assert deploy_check_offset < migration_guard_offset < migration_rejection_offset
+    assert "python manage.py migrate --noinput" not in entrypoint
