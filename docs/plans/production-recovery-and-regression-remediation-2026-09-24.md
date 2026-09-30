@@ -714,3 +714,22 @@ activation 事务只执行 generation fence、完整 authority final reread、po
 ingest 不改变 receipt PK、commit 前只见旧完整快照、commit 后只见新完整快照，以及 candidate/member/pointer/
 audit/outbox 各阶段故障注入和 retry 幂等。Factor 与 Simple Alpha 的 publication-member-bound 契约测试是该切片的
 必验项。
+
+切片①的提交链为代码 `78c2ffdf42e7ab8d51a5d228a29febe9492782ea`、证据台账
+`db3f941f501bdb5eeaba40942f7eed005f9b90c8` 和治理投影
+`34da40428334561b54038956d55377aec5e5b51f`，三者均可独立回滚。Black、isort、Ruff 对 10 个相关生产/测试文件
+通过；isort 在 Windows checkout 规范化工作树后没有产生相对 Git index 的内容差异。增量 mypy 覆盖 6 个生产文件且
+零回归，全仓 mypy debt ceiling 为 0；current-data 72 surfaces、architecture delta/full、module map 44 modules /
+210 edges 均通过。本地 Fast Feedback 为 `4045 passed, 0 skipped`。精确 SHA `34da40428334561b54038956d55377aec5e5b51f`
+的 Architecture、Security、Consistency、CI Fast Feedback 与手动 Publication PostgreSQL workflow 全部通过；
+PostgreSQL workflow 的 authority lock 2、generation 9、shadow 1、finalizer 3、publication 35、backfill 2，共
+`52 passed, 0 skipped`。
+
+CI Fast Feedback 的 Linux no-database job 为 `4044 passed, 1 skipped`。唯一跳过项已定位为
+`test_personal_readiness_status_blocks_final_acceptance_for_missing_formal_evidence[qlib]`：现有全局 pytest hook 用
+`"qlib" in item.keywords` 判断 qlib marker，参数 ID `qlib` 因此在 CI 未安装 pyqlib 时被误标，skip reason 为
+`Microsoft pyqlib is not installed`。该用例验证 readiness 文案参数，并非本切片的 authority cutoff 契约；本机安装
+pyqlib 后同一完整 fast suite 4,045 项全部通过。参数 ID 与 marker 耦合已记为未完成测试基础设施工作，受本次硬边界
+约束不顺手修改。剩余停止线仍是 complete-graph final lease、current-publication-member 决策读、短 activation /
+5,000+ soak、SQLite 快照演练与维护窗口 statement logging；此前不接 production composition、不删除 legacy relation
+locks、不部署、不启动全市场重跑。
