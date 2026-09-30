@@ -5912,8 +5912,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/management/commands/setup_full_market_publications.py:import_module:line:13",
-      "locator": "line:13",
+      "id": "dynamic_import_edge:apps/data_center/management/commands/setup_full_market_publications.py:import_module:line:14",
+      "locator": "line:14",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
@@ -10761,7 +10761,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 100",
+      "evidence": "database-backed Beat schedule writer at line 123",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:financial-current-publication-refresh",
       "locator": "financial-current-publication-refresh",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
@@ -10771,7 +10771,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 71",
+      "evidence": "database-backed Beat schedule writer at line 94",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:full-market-current-publications",
       "locator": "full-market-current-publications",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
