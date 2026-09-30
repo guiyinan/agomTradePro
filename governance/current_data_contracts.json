@@ -5257,7 +5257,11 @@
         ],
         "apps/data_center/management/commands/setup_full_market_publications.py": [
           "--quote-source\", choices=(\"akshare\", \"tushare\"), default=\"tushare\"",
-          "--valuation-source\", choices=(\"akshare\", \"tushare\"), default=\"akshare\""
+          "--valuation-source\", choices=(\"akshare\", \"tushare\"), default=\"akshare\"",
+          "FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)",
+          "CN_MARKET_SCHEDULE_TIMEZONE = \"Asia/Shanghai\"",
+          "time(hour, minute) < FULL_MARKET_PROVIDER_READY_AFTER",
+          "timezone=CN_MARKET_SCHEDULE_TIMEZONE"
         ],
         "apps/data_center/application/full_market_task_support.py": [
           "def exact_provider_batch_count(",
@@ -6133,6 +6137,26 @@
           "case": "full_market_schedule_defaults_to_tencent_valuations",
           "test_file": "tests/component/data_center/test_full_market_schedule.py",
           "test_function": "test_full_market_schedule_is_idempotent_and_precedes_inference"
+        },
+        {
+          "case": "full_market_schedule_rejects_before_provider_ready_time",
+          "test_file": "tests/component/data_center/test_full_market_schedule.py",
+          "test_function": "test_full_market_schedule_rejects_before_provider_ready"
+        },
+        {
+          "case": "full_market_schedule_accepts_provider_ready_boundary",
+          "test_file": "tests/component/data_center/test_full_market_schedule.py",
+          "test_function": "test_full_market_schedule_accepts_provider_ready_boundary"
+        },
+        {
+          "case": "full_market_schedule_uses_china_timezone_independent_of_django_timezone",
+          "test_file": "tests/component/data_center/test_full_market_schedule.py",
+          "test_function": "test_full_market_schedule_uses_china_timezone_independent_of_django_timezone"
+        },
+        {
+          "case": "full_market_provider_ready_schedule_policy_boundaries",
+          "test_file": "tests/component/data_center/test_full_market_schedule.py",
+          "test_function": "test_full_market_provider_ready_schedule_policy"
         },
         {
           "case": "market_session_close_boundary",

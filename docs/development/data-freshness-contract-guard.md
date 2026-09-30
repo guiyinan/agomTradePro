@@ -217,7 +217,7 @@ Tushare `daily_basic` 的直连传输同时对实际 HTTP response bytes 计算 
 不能替代该响应体证据。SDK-path 在估值接口上使用同协议的 Data Center 传输以保留这些证据，
 其他 SDK 接口的既有路由保持不变。
 
-[Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。全市场自然发布默认安排在 17:05，确保任务确定的最近收盘交易日已有完整估值截面；提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。
+[Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。正式收盘的 `observed_at` 仍表示北京时间 15:00；全市场 current Publication 的 17:05 是任务触发时点，默认安排在提供方完整截面窗口之后。`setup_full_market_publications` 的 `--hour/--minute` 是固定按 `Asia/Shanghai` 解释的全市场交易日时刻，人工配置也必须不早于北京时间 17:05；该 Cron 固定使用中国市场时区，不随 Django `TIME_ZONE` 或夏令时变化。独立的财务刷新任务仍使用 Django `TIME_ZONE`。不能通过提前触发把 provider 尚未发布的数据解释成收盘事实。提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。响应完成时点继续记录为独立的 `available_at` / `fetched_at`。
 
 Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和历史日线在进入 Domain 前必须分别转换为股和元；完整收盘行情缺少成交量或成交额时不得物化为可发布日线。真实响应候选门禁必须同时重放 `close`、`vol`、`amount` 并与在线标准化事实逐项相等，原始值或规范值缺失、非有限、负数、单位或倍率不符都必须失败关闭。最终发布门禁从绑定的逐资产 observation 和单位合同原件重新计算，不能只信 `units_verified` 布尔值或只用价格一致性替代成交量与成交额量纲验证。
 

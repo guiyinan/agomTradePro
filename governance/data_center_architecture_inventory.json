@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5214,
+    "current_surface_references": 5215,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3706,22 +3706,22 @@
       "text": "authority_content_hash=current.record.authority.content_hash,"
     },
     {
-      "line": 607,
+      "line": 763,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph read requires an active generation fence context\""
     },
     {
-      "line": 647,
+      "line": 803,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph generation differs from the active fence\""
     },
     {
-      "line": 768,
+      "line": 924,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Read the current transaction-visible generation without taking a lock.\"\"\""
     },
     {
-      "line": 814,
+      "line": 970,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },
@@ -13591,12 +13591,17 @@
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 72,
+      "line": 27,
+      "path": "apps/data_center/management/commands/setup_full_market_publications.py",
+      "text": "\"Full-market current publication must be scheduled at or after \""
+    },
+    {
+      "line": 95,
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "text": "name=\"full-market-current-publications\","
     },
     {
-      "line": 101,
+      "line": 124,
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
       "text": "name=\"financial-current-publication-refresh\","
     },

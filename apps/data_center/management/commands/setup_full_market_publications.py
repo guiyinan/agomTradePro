@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from datetime import time
 from typing import Any
 
 from django.conf import settings
@@ -13,6 +14,19 @@ from django.db import transaction
 _models = importlib.import_module("django_celery_beat.models")
 CrontabSchedule: Any = _models.CrontabSchedule
 PeriodicTask: Any = _models.PeriodicTask
+
+FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)
+CN_MARKET_SCHEDULE_TIMEZONE = "Asia/Shanghai"
+
+
+def _validate_provider_ready_schedule(hour: int, minute: int) -> None:
+    """Require a China-market-local weekday trigger at or after provider readiness."""
+
+    if time(hour, minute) < FULL_MARKET_PROVIDER_READY_AFTER:
+        raise CommandError(
+            "Full-market current publication must be scheduled at or after "
+            "17:05 Asia/Shanghai provider-ready time"
+        )
 
 
 class Command(BaseCommand):
@@ -46,6 +60,15 @@ class Command(BaseCommand):
             value = options[name]
             if type(value) is not int or not lower <= value <= upper:
                 raise CommandError(f"Invalid {name}")
+        hour = options["hour"]
+        minute = options["minute"]
+        if type(hour) is not int or type(minute) is not int:
+            raise CommandError("Invalid full-market schedule time")
+        _validate_provider_ready_schedule(hour, minute)
+        timezone_name = getattr(settings, "TIME_ZONE", None)
+        if not isinstance(timezone_name, str) or not timezone_name.strip():
+            raise CommandError("TIME_ZONE must be a non-empty string")
+        timezone_name = timezone_name.strip()
         source = options["source"]
         quote_source = options["quote_source"]
         valuation_source = options["valuation_source"]
@@ -61,12 +84,12 @@ class Command(BaseCommand):
             raise CommandError("Invalid disable flag")
         with transaction.atomic():
             schedule, _ = CrontabSchedule.objects.get_or_create(
-                minute=str(options["minute"]),
-                hour=str(options["hour"]),
+                minute=str(minute),
+                hour=str(hour),
                 day_of_week="1,2,3,4,5",
                 day_of_month="*",
                 month_of_year="*",
-                timezone=settings.TIME_ZONE,
+                timezone=CN_MARKET_SCHEDULE_TIMEZONE,
             )
             PeriodicTask.objects.update_or_create(
                 name="full-market-current-publications",
@@ -95,7 +118,7 @@ class Command(BaseCommand):
                 day_of_week="*",
                 day_of_month="*",
                 month_of_year="*",
-                timezone=settings.TIME_ZONE,
+                timezone=timezone_name,
             )
             PeriodicTask.objects.update_or_create(
                 name="financial-current-publication-refresh",
