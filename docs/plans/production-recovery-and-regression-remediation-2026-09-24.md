@@ -668,6 +668,35 @@ generation 测试模块既作为测试文件又作为 fixture plugin 时会造�
 current-publication-member 决策读收口和 5,000+ 短 activation soak。三项完成前继续保留 legacy production path 和关系锁，
 不部署、不重跑全市场，也不通过延长业务锁等待来规避缺口。
 
+#### 完整图统一数据库 cutoff 基础切片（`78c2ffdf4`）
+
+进一步审计确认，完整 Authority V3 graph 虽位于一个 RR snapshot 或 generation-fenced RC 事务中，root、actor、policy、
+Evidence V5、canonical binding、physical observation、ownership reobservation、provenance receipt 与 subject repository
+仍会各自调用应用时钟；读取过程中跨过有效期边界时，不同节点可能按不同时间回答“current”。此外，reobservation
+repository 默认重建的 binding/physical 子仓储会丢失父层注入 clock；simulated-trading physical provider 的 source-v2
+future-cutoff guard 也仍使用自己的应用时钟。这是独立于 generation 的时间一致性缺口：generation 能冻结来源写入，
+不能冻结墙上时间。
+
+提交 `78c2ffdf42e7ab8d51a5d228a29febe9492782ea` 在 caller-owned 同 alias/同物理事务中只读取一次 PostgreSQL
+`clock_timestamp()`，把冻结 cutoff 注入完整 Account graph 的所有仓储，并用显式 `AccountAuthorityCurrentGraphReadV3`
+返回 `checked_at` 与 point-in-time projection。projection 的 `observed_at` 必须等于该 cutoff；`checked_at` 明确不是
+退出租约。reobservation 默认子仓储复用同一 clock。physical provider 新增 typed read-clock scope，与已有 alias、wrapper、
+DBAPI connection、backend PID、xid、thread/task identity scope 共同生效；winner/head 两次 source-v2 读取必须使用同一
+authoritative cutoff，未绑定、嵌套、naive、漂移或 `as_of` 超过 cutoff 均 fail closed。未经过 graph scope 的既有
+source-v2 调用仍保留原时钟行为。
+
+验证证据：相关 unit `64 passed`；Black、Ruff、6 个生产文件增量 mypy、全仓 mypy debt ceiling、current-data 72
+surfaces、architecture delta/full verify 与 module map 44 modules / 210 edges 均通过。真实 PostgreSQL 16 composition
+首先按旧固定 fixture 复现 `availability` mismatch，证明 graph 确实不再使用被 monkeypatch 的应用时钟；测试随后把该
+历史图的数据库 cutoff 显式固定在其有效期内，同时另行调用未拦截的真实 `clock_timestamp()` 并验证其落在主机调用
+前后时间之间，最终 `1 passed in 119.78s`。这不是用应用时钟 fallback 获得的通过。
+
+本切片仍不构成 complete-graph final lease：shadow result 当前会解包 graph read，partial finalizer 的 scope 仍是
+`owner_tenant_authority_v3_root_revocation_only`。下一切片必须新增不同 proof/result 类型的 complete final path，在
+generation `FOR SHARE` 成为第一把锁后，以同一 alias/物理事务/generation 重读完整 no-lock graph，精确比对 selector
+与完整 fingerprint，并在 caller work 结束后再次读取数据库时钟，严格要求 `exit_checked_at < graph.valid_until`。
+此前继续保留旧关系锁和 production composition，不部署、不触发全市场刷新。
+
 Publication activation 的独立只读复核又确认两项 P0 与四项 P1：现有 published query 会按
 `PublicationMember.fact_pk` 精确读取，但 Factor 的估值/财报和 Simple Alpha 的估值、财务及部分 coverage 路径仍调用
 raw `get_valuation_facts/get_financial_facts_for_decision`，可以消费 staged、尚未发布的 revision；
