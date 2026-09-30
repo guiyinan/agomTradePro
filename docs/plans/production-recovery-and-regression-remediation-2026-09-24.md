@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
-状态：执行中。用户已要求主代理带领 GPT-5.6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前已推送集成基线为 `91ad92e7326612f9ed880d8f77f5add736220b7d`；其中 `0906f94e1`（任务 attempt 所有权）、`02d11f952`（超时预算、Redis visibility、发布授权异常归一化）以及 `1660ee84f`、`1041591ef`、`1735bc7bd`、`91ad92e73`（authority generation/fence 基础、shadow scanner、治理投影）均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
+状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
+当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前代码整改基线为 `05ce1f7dc`；其中任务 attempt 所有权、超时预算、authority generation/shadow/final-fence 与本次 caller-owned shared fence 均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 `2026-09-30.v186` 将其登记为唯一 repository focus，Luna 子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -376,7 +376,7 @@ TRUNCATE 两个 `ENABLE ALWAYS` 的 statement trigger，共 44 个。普通 DML 
 ALWAYS 状态；运行时 coverage verifier 以当前 V5/V3/physical composition 重新计算同一 22 表集合，缺表、
 缺 trigger、禁用 trigger、函数漂移或 singleton 缺失均 fail closed。Proof API 强制处于活动的
 `REPEATABLE READ READ ONLY` 事务，确保 generation 与后续完整恢复共享同一 MVCC snapshot；final fence API
-强制处于可写 `READ COMMITTED` 事务，并用 `SELECT ... FOR UPDATE` 比较 proof 后持锁到外层事务结束。
+强制处于可写 `READ COMMITTED` 事务，并用 `SELECT ... FOR SHARE` 比较 proof 后持锁到外层事务结束；同代最终读可并行，来源 trigger 的 generation `UPDATE` 必须等待。
 
 隔离 PostgreSQL 16 最终用例为 `4 passed in 406.32s`：覆盖全部 22 表的直接 SQL、44 trigger catalog、缺失
 trigger/singleton fail closed、多行与零行 DML 各加一、来源与 generation 同步 rollback、TRUNCATE、fence
@@ -427,7 +427,7 @@ cutoff，scanner 也不改写这些 Application 的时序不变量。时钟越�
 Capture 阶段在新的最外层 `REPEATABLE READ READ ONLY` 事务中先重读 generation，再只按精确 identity/hash
 读取已选 Authority V3 root、后继和 revocation。Final 阶段提供
 `with finalizer.fence(proof) as result:`：最外层 `READ COMMITTED READ WRITE` 事务首先对 generation singleton
-执行 `SELECT ... FOR UPDATE` 并比较 proof，随后使用数据库 `clock_timestamp()` 重读同一 selected root、后继、
+执行 `SELECT ... FOR SHARE` 并比较 proof，随后使用数据库 `clock_timestamp()` 重读同一 selected root、后继、
 revocation 与 expiry；generation 行锁和事务保持到调用方退出 context。早期“revalidate 返回后再由调用方写入”
 的接口草案已被拒绝，因为它会在业务副作用前释放线性化点。
 
@@ -451,3 +451,75 @@ module-map 检查通过后才允许提交该基础切片。组件测试已按 Ac
 跨表 DML/TRUNCATE 混合事务仍可能由数据库死锁检测中止。Phase 2b 必须先核实运行角色权限，完成 RR 扫描与短
 RC publication 事务接入，在 fence 内重读 head/revocation/actor/physical source/expiry，并保证 publication、
 current pointer 与必需 audit/outbox 同库同事务；上述并发矩阵和混合版本证据完成后，才能独立删除旧关系锁。
+
+#### 2026-09-30 根因结论与 Phase 2b-3 接入路线
+
+根因结论分为两层，不再用一个 `authority_unavailable` 混同：
+
+1. 历史失败的已证明主因是锁粒度和锁寿命。旧 reader 在 22 张来源表上获取全局
+   `SHARE NOWAIT`，并在外层 Data Center UOW 中由 savepoint 放大到整个 batch 事务。该失败在
+   provider、fact write 和 publication 前已终止，因此不能归因为该任务内部的 publication 自竞争。
+2. preflight 与后续 publication 之间确实存在独立 TOCTOU：预检后可以插入 revoke、successor、actor
+   或 physical-source 变更。这不是历史 1.7951 秒失败的已证明 blocker，但新协议必须同时消除这项
+   时序缺陷。修复不能只删 relation lock、放宽 retry 或延长 timeout。
+
+进一步设计复核否定了两个看似简单的接法：
+
+- generation singleton 若用 `SELECT ... FOR UPDATE`，所有最终审计 reader/publication 会在单行上串行。
+  最终读 fence 应用 `FOR SHARE`：多个 reader 兼容，而 22 张来源表 trigger 的 generation `UPDATE`
+  仍需 `FOR NO KEY UPDATE`，会被共享 row fence 阻塞。fence 必须绑定 alias、物理连接、backend PID、
+  PostgreSQL xid 和 generation，正常退出前再读 generation；普通 RC/RW、换连接、raw commit/新 xid、
+  同事务 source DML 或退出校验异常都必须 fail closed 并把外层事务标记为 rollback-only。
+- 不得把现有 quote UOW 整体套入 generation fence。它包含 5,000+ fact upsert、成员逐条写入、
+  candidate/hash 验证和多类 audit，会把全局 Account authority generation 共享锁变成另一个长锁。
+  provider fetch 与 fact staging 必须在 fence 外；只有最终可见性切换和必需审计位于短 activation 事务。
+
+生产接入按以下可独立回滚的切片执行：
+
+1. **表征测试。** 固化 provider fetch 在事务外、现有 latest 读可见未发布 fact、旧 runtime provider
+   重复读 scope 并进入 22-table lock、generation trigger 互斥以及 5,000 成员的查询/写入数。
+   **停止线：** decision reader 清单不完整，或 PostgreSQL harness 不能观测 alias、物理连接与事务模式时，
+   不进入行为改动。
+2. **未接线的 audit scope lease。** 新增 Application Protocol 和 Infrastructure binding，携带
+   `AuditScopeRef`、generation、selector/projection digest、最早失效时间、alias 和物理事务身份。
+   writer 只能复用当前 lease，禁止重新调用旧 facade 或 fallback。
+   **停止线：** DataPublication writer 仍可以无条件重读 `_scope_provider.get_scope()`，或缺 lease/过期/跨库/
+   换连接不会 fail closed。
+3. **完整 Account graph proof/final adapter。** RR/RO 事务中读 generation proof 并用 no-lock
+   `AccountAuthorityCurrentGraphReaderV3` 恢复完整图；调用方拥有的 RC/RW 事务取得共享 generation
+   fence 后重读完整图，精确比对 selector、hash、actor、scope 与最早 `valid_until`。
+   **停止线：** final path 仍依赖 old locked facade，physical provider 不能证明同 alias/物理连接，或
+   proof 与 final read 的数据库时钟/身份无法绑定。
+4. **quote append-only revision 与读侧可见性收口。** 不新增第二张 staging fact 表；继续使用已纳入
+   publication fact registry 的 `QuoteSnapshotModel`，但 staging writer 必须永远追加 immutable revision 并返回精确
+   PK/ref，不得按 natural key 原地更新或在 activation 时重新查“最新”。所有决策读改为
+   current-publication-member bound；raw ingestion/repair 另用显式 candidate API。
+   **停止线：** 任一决策 `get_latest/list_latest_for_asset_codes` 还能读到未发布 revision，无 current
+   publication 时不 fail closed，或并发 ingest 会让 activation 改指其他 PK。
+5. **feature-off 的短 activation UOW。** 最外层同 alias PostgreSQL 事务的首条 SQL 设为 RC/RW，
+   拒绝 ambient atomic；获得 fence、完整图 final reread 并绑定 scope lease 后，在同事务写
+   publication/member/current pointer/required event+outbox。activation 失败时这些全部回滚，锁外的 immutable
+   revision 按 run id 幂等重试，只清理无 PublicationMember 引用的孤儿。
+   **停止线：** 任一 current/member/audit/outbox 不能同回滚，或 actor/policy/assignment/source/expiry 漂移
+   不阻止提交。
+6. **5,000+ PostgreSQL soak 和故障注入。** 校验精确成员 PK 集/hash、audit scope、outbox 幂等、失败回滚、
+   stage 对决策读不可见，并对 activation 的 lock wait/持锁时间/query count 设硬阈值。
+   **停止线：** 成员逐条写/N+1 使持锁时间超过目标，则不灰度；改为批量成员写入，必要时另立
+   “不可见 candidate publication 预构建，current pointer 为唯一可见性原子点”的后续设计项。
+
+部署前还有一个独立的数据库权限硬门槛：运行时角色不得拥有 generation singleton 的直接
+`UPDATE`，不得是可修改 generation table/trigger/function 的 owner/superuser；只有受控 `SECURITY DEFINER`
+trigger owner 可推进 generation。否则 fenced 事务可以先改 source、再把 generation 改回原值，绕过退出复核。
+验收必须用生产 runtime role 执行 `has_table_privilege`、owner/membership、trigger/function owner、`prosecdef`、
+`proacl`、fixed `search_path` 和直接 UPDATE/ALTER/DISABLE TRIGGER 负例；未通过前不接 production composition，不删旧锁，
+不部署，不重跑全市场。
+Phase 2b-3 的首个未接线基础切片已提交为 `05ce1f7dc`：新增 caller-owned generation fence context，
+以 `FOR SHARE` 允许同代最终读并发，并绑定 alias、物理连接、PostgreSQL xid、backend PID、线程/task 与 generation；
+普通 RC/RW、嵌套事务、换连接、raw commit/新 xid、异步子 task、同事务 source DML 和退出漂移均 fail closed，
+异常会把外层事务标为 rollback-only。`AccountAuthorityCurrentGraphReaderV3` 复用完整 Application 图，但文档明确
+physical provider identity 尚不可验证，因此不得接 production。partial finalizer 已复用同一 caller context。
+
+本地证据：相关单测 `37 passed`；新增 generation PostgreSQL 文件共收集 7 项，本机因缺少显式 disposable EVID-06
+数据库配置而 `7 skipped`，不计作通过；PR Publication PostgreSQL workflow 已把 exact case count 从 4 更新为 7，
+必须在 CI 中零 skip/failure/error。Black、Ruff、三个生产文件增量 mypy、全仓 debt ceiling、module map 与 workflow
+YAML 解析通过。该切片没有 production composition、没有删除旧 relation locks、没有部署或触发全市场重跑。
