@@ -220,7 +220,7 @@ def test_postgres_rr_proof_rejects_a_committed_source_change_before_any_final_re
     assert _generation(runtime_alias) == scan.proof_generation + 1
     assert (repository.clock_calls, repository.selected_reads) == repository_reads_before
     assert all(
-        statement.lstrip().split(None, 1)[0].upper() in {"SELECT", "SET"}
+        statement.lstrip().split(None, 1)[0].upper() in {"SELECT", "SET", "WITH"}
         for statement in statements
     )
     lowered_sql = "\n".join(statements).lower()
