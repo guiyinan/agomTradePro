@@ -772,3 +772,36 @@ publication 35、backfill 2，共 `56 passed, 0 skipped`。同次精确 HEAD 首
 剩余停止线：Factor 与 Simple Alpha 的 current-publication-member 决策读尚未收口；无 current pointer 的 fail-closed、
 短 activation UOW、5,000+ PostgreSQL soak、SQLite 快照对账与维护窗口 statement logging 尚未完成。继续保留 legacy
 relation locks 与 production composition；不部署、不启动全市场重跑，也不通过延长 lock wait/retry/timeout 规避失败。
+
+#### Factor / Simple Alpha current-publication-member 读侧切片（`77ab421fd`）
+
+切片③把 Factor 的估值/财务因子、Simple Alpha 的估值/财务事实、health/universe 估值 coverage，以及账户候选池的
+`strict_valuation` / `price_covered` 范围选择统一到 current Publication member。财务查询现在与估值查询一样按证券验证
+member；current 缺失、目标证券缺 member、member reader/hash reader 缺失或 member scope/table 不匹配时 fail closed，
+不会退回 raw fact。coverage 的 freshness gate、Publication 身份和 member 投影位于同一一致读快照；历史决策继续用
+中国市场日首作为 source knowledge cutoff，published 查询只把精确 member fact PK 交给 repository。
+
+代码与治理投影提交为 `77ab421fdc8aa5393ac52be83552a92f7ffe4d5a`，可独立回滚。真实 ORM 组件测试同时保存
+published 旧 revision 和 raw/staged 新 revision，证明 raw 查询能看到新值，而 published 估值、财报仍返回旧 member；
+另以仅 raw 的估值和价格资产证明 Alpha coverage 不会把未发布证券加入候选范围。Factor 对 Tushare/AKShare 两条路径的
+PE/PB/PS/股息率以及缺 member 反例均已覆盖。聚焦回归 `76 passed`；Black、isort、Ruff、7 个生产文件增量 mypy、
+全仓 mypy debt ceiling、current-data 72 surfaces、legacy fact/entrypoint guard、module map 44 modules / 210 edges、
+全量与增量 architecture guard、changed-file size guard 均通过。`query_services.py` 非空行由基线 1,071 降至 1,068，
+没有通过继续扩张超限文件规避门禁。
+
+治理投影附加测试得到 `31 passed, 1 failed`。失败项
+`test_inventory_expands_command_edges_and_publishes_full_task_targets` 来自本切片前已存在的
+`scripts/manage_vps_migrations.py:dynamic-command` entrypoint；基线 `c234a8388` 的已提交
+`governance/data_center_entrypoints.json` 已包含该条目，本切片未修改该脚本或 inventory generator。该失败不计作通过，
+按本次硬边界记入未完成测试基础设施工作，没有顺手修复。
+
+精确代码 SHA 的 Architecture `36741989381`、Security `36741989445`、Consistency `36741989430`、CI Fast Feedback
+`36741989428` 与 Publication PostgreSQL contracts `36741989493` 全部通过。Fast Feedback 的 Python 3.11 / 3.13
+各为 `2,947 passed, 58 skipped`；Publication PostgreSQL 为 authority lock 2、generation 9、shadow 1、finalizer 7、
+publication 35、backfill 2，共 `56 passed, 0 skipped`。这些 PostgreSQL 负例产生的 lock timeout、权限拒绝和 rollback
+错误日志是预期故障注入，workflow 的 missing/skip evidence gate 已通过。
+
+剩余停止线：数据库 current pointer 与短 RC/RW activation UOW 尚未实现；candidate/member/hash 复核及
+publication/pointer/audit/outbox 原子回滚、5,000+ PostgreSQL query count/持锁时间/lock wait 硬阈值尚无证据；SQLite
+快照 dump/flush/loaddata/计数对账与维护窗口关闭生产 statement logging 尚未完成。继续保留 legacy relation locks 与
+production composition；不部署、不启动全市场重跑，也不延长 lock wait、retry 或 timeout。
