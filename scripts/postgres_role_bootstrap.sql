@@ -136,11 +136,11 @@ WHERE pg_catalog.to_regprocedure('public.account_authority_generation_bump()') I
 SELECT 'ALTER FUNCTION public.account_authority_generation_bump() SET search_path = pg_catalog'
 WHERE pg_catalog.to_regprocedure('public.account_authority_generation_bump()') IS NOT NULL
 \gexec
-SELECT 'ALTER FUNCTION public.account_authority_generation_fence_lock() OWNER TO agomtradepro_owner'
-WHERE pg_catalog.to_regprocedure('public.account_authority_generation_fence_lock()') IS NOT NULL
+SELECT 'ALTER FUNCTION public.account_authority_generation_lock() OWNER TO agomtradepro_owner'
+WHERE pg_catalog.to_regprocedure('public.account_authority_generation_lock()') IS NOT NULL
 \gexec
-SELECT 'ALTER FUNCTION public.account_authority_generation_fence_lock() SET search_path = pg_catalog'
-WHERE pg_catalog.to_regprocedure('public.account_authority_generation_fence_lock()') IS NOT NULL
+SELECT 'ALTER FUNCTION public.account_authority_generation_lock() SET search_path = pg_catalog'
+WHERE pg_catalog.to_regprocedure('public.account_authority_generation_lock()') IS NOT NULL
 \gexec
 
 SET ROLE agomtradepro_owner;
@@ -219,13 +219,13 @@ REVOKE EXECUTE ON FUNCTION public.account_authority_generation_bump()
     FROM PUBLIC, agomtradepro_runtime;
 \endif
 
-SELECT pg_catalog.to_regprocedure('public.account_authority_generation_fence_lock()') IS NOT NULL
+SELECT pg_catalog.to_regprocedure('public.account_authority_generation_lock()') IS NOT NULL
        AS fence_lock_function_exists
 \gset
 \if :fence_lock_function_exists
-REVOKE EXECUTE ON FUNCTION public.account_authority_generation_fence_lock()
+REVOKE EXECUTE ON FUNCTION public.account_authority_generation_lock()
     FROM PUBLIC, agomtradepro_runtime;
-GRANT EXECUTE ON FUNCTION public.account_authority_generation_fence_lock()
+GRANT EXECUTE ON FUNCTION public.account_authority_generation_lock()
     TO agomtradepro_runtime;
 \endif
 
@@ -267,9 +267,9 @@ BEGIN
         JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = data_type.typnamespace
         WHERE namespace.nspname = 'public'
         UNION ALL
-        SELECT collation.collowner
-        FROM pg_catalog.pg_collation AS collation
-        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+        SELECT object_collation.collowner
+        FROM pg_catalog.pg_collation AS object_collation
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = object_collation.collnamespace
         WHERE namespace.nspname = 'public'
         UNION ALL
         SELECT conversion.conowner
@@ -389,7 +389,7 @@ BEGIN
         ) THEN
             RAISE EXCEPTION 'authority generation singleton row is invalid';
         END IF;
-        IF pg_catalog.to_regprocedure('public.account_authority_generation_fence_lock()') IS NULL THEN
+        IF pg_catalog.to_regprocedure('public.account_authority_generation_lock()') IS NULL THEN
             RAISE EXCEPTION 'authority generation fence lock function is missing';
         END IF;
     END IF;

@@ -60,6 +60,7 @@ if [ -f "$MARKER_FILE" ]; then
   echo "[INFO] PostgreSQL migration marker exists; applying schema migrations only"
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+  bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   exit 0
 fi
 
@@ -68,6 +69,7 @@ if ! docker run --rm -v "${COMPOSE_PROJECT_NAME}_sqlite_data:/source:ro" alpine:
   echo "[INFO] No legacy SQLite database found; initializing PostgreSQL"
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+  bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   printf 'initialized_without_legacy_sqlite=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_FILE"
   chmod 600 "$MARKER_FILE"
   exit 0
@@ -81,6 +83,7 @@ SH
 
 bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
 compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
 
 SOURCE_COUNTS="$FIXTURE_DIR/sqlite-source-counts.json"
 FIXTURE="$FIXTURE_DIR/sqlite-to-postgres.jsonl"

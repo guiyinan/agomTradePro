@@ -10,6 +10,10 @@ on:
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/settings_data_center_sync_identity.py'
+      - 'scripts/check_postgres_role_contract.py'
+      - 'scripts/manage_vps_migrations.py'
+      - 'scripts/migrate-vps-sqlite-to-postgres.sh'
+      - 'scripts/postgres_role_bootstrap.sql'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/ci-publication-postgres.yml'
@@ -22,6 +26,10 @@ on:
       - 'tests/component/account/**'
       - 'tests/component/data_center/**'
       - 'tests/settings_data_center_sync_identity.py'
+      - 'scripts/check_postgres_role_contract.py'
+      - 'scripts/manage_vps_migrations.py'
+      - 'scripts/migrate-vps-sqlite-to-postgres.sh'
+      - 'scripts/postgres_role_bootstrap.sql'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/ci-publication-postgres.yml'
@@ -37,7 +45,7 @@ concurrency:
 jobs:
   publication-postgres:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16
@@ -128,6 +136,33 @@ jobs:
           --confcutdir=tests/component/data_center
           --create-db
           -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
+      - name: Exercise production role bootstrap and migration ordering
+        env:
+          PGPASSWORD: disposable_ci_only
+          POSTGRES_USER: contract_test
+          AGOMTRADEPRO_ADMIN_PASSWORD: AdminRoleContractCi_20260930_a7Kp9Q4m
+          AGOMTRADEPRO_RUNTIME_PASSWORD: RuntimeRoleContractCi_20260930_b8Lm2R5n
+          AGOMTRADEPRO_MIGRATOR_PASSWORD: MigratorRoleContractCi_20260930_c9Nv3S6p
+          SECRET_KEY: role-contract-ci-secret-key-abcdefghijklmnopqrstuvwxyz-0123456789
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+          DJANGO_SETTINGS_MODULE: core.settings.production
+        run: |
+          createdb -h 127.0.0.1 -U contract_test role_contract_ci
+          psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
+            -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
+            | tee role-bootstrap-postgres.log
+          PYTHONPATH=. \
+            DATABASE_URL=postgresql://agomtradepro_migrator:${AGOMTRADEPRO_MIGRATOR_PASSWORD}@127.0.0.1:5432/role_contract_ci \
+            python scripts/manage_vps_migrations.py migrate --noinput
+          PGPASSWORD="${AGOMTRADEPRO_ADMIN_PASSWORD}" \
+            psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
+            -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
+            | tee -a role-bootstrap-postgres.log
+          PYTHONPATH=. \
+            DATABASE_URL=postgresql://agomtradepro_runtime:${AGOMTRADEPRO_RUNTIME_PASSWORD}@127.0.0.1:5432/role_contract_ci \
+            AGOMTRADEPRO_DATABASE_ROLE=runtime \
+            python scripts/check_postgres_role_contract.py \
+            | tee -a role-bootstrap-postgres.log
       - name: Reject missing or skipped PostgreSQL evidence
         run: |
           python - <<'PY'
@@ -175,4 +210,5 @@ jobs:
             account-authority-shadow-postgres.xml
             account-authority-final-revalidation-postgres.xml
             backfill-control-plane-postgres.xml
+            role-bootstrap-postgres.log
           if-no-files-found: error

@@ -38,9 +38,9 @@ WITH owner_role AS (
     JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = data_type.typnamespace
     WHERE namespace.nspname = 'public'
     UNION ALL
-    SELECT collation.collowner
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+    SELECT object_collation.collowner
+    FROM pg_catalog.pg_collation AS object_collation
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = object_collation.collnamespace
     WHERE namespace.nspname = 'public'
     UNION ALL
     SELECT conversion.conowner
@@ -226,11 +226,11 @@ SELECT
         FROM pg_catalog.pg_proc AS function
         JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = function.pronamespace
         WHERE namespace.nspname = 'public'
-          AND function.proname = 'account_authority_generation_fence_lock'
+          AND function.proname = 'account_authority_generation_lock'
     ) AS fence_lock_function_secure,
     pg_catalog.has_function_privilege(
         'agomtradepro_runtime',
-        'public.account_authority_generation_fence_lock()',
+        'public.account_authority_generation_lock()',
         'EXECUTE'
     ) AS runtime_can_execute_fence_lock;
 """

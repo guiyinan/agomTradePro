@@ -66,6 +66,12 @@ def test_bootstrap_requires_distinct_long_url_safe_role_passwords() -> None:
     assert "length(:'admin_password') >= 32" in bootstrap
     assert "length(:'runtime_password') >= 32" in bootstrap
     assert "length(:'migrator_password') >= 32" in bootstrap
+    assert "public.account_authority_generation_lock()" in bootstrap
+    assert "account_authority_generation_fence_lock" not in bootstrap
+    assert "public.account_authority_generation_lock()" in checker.ROLE_CONTRACT_SQL
+    assert "account_authority_generation_fence_lock" not in checker.ROLE_CONTRACT_SQL
+    assert "AS collation" not in bootstrap
+    assert "AS collation" not in checker.ROLE_CONTRACT_SQL
     assert ":'admin_password' <> :'runtime_password'" in bootstrap
     assert ":'admin_password' <> :'migrator_password'" in bootstrap
     assert ":'runtime_password' <> :'migrator_password'" in bootstrap
@@ -277,12 +283,20 @@ def test_remote_deploy_uses_migration_helper_as_the_only_bootstrap_gate() -> Non
         helper,
         flags=re.MULTILINE,
     )
-    assert len(bootstrap_calls) == len(migrate_calls) == 3
+    assert len(bootstrap_calls) == 6
+    assert len(migrate_calls) == 3
+    bootstrap_positions = [
+        match.start() for match in re.finditer(re.escape(bootstrap_calls[0]), helper)
+    ]
+    migrate_positions = [
+        match.start() for match in re.finditer(re.escape(migrate_calls[0]), helper)
+    ]
     assert all(
-        bootstrap < migrate
-        for bootstrap, migrate in zip(
-            [match.start() for match in re.finditer(re.escape(bootstrap_calls[0]), helper)],
-            [match.start() for match in re.finditer(re.escape(migrate_calls[0]), helper)],
+        before < migrate < after
+        for before, migrate, after in zip(
+            bootstrap_positions[::2],
+            migrate_positions,
+            bootstrap_positions[1::2],
             strict=True,
         )
     )

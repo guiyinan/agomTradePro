@@ -42,7 +42,18 @@ def install_generation_lock_function(apps: Apps, schema_editor: BaseDatabaseSche
 
     if (owner_can_create or temporary_create) and may_set_owner:
         with connection.cursor() as cursor:
-            cursor.execute(f"SET LOCAL ROLE {quote(owner_name)}")
+            cursor.execute("SELECT current_user")
+            current_role_row = cursor.fetchone()
+            if (
+                current_role_row is None
+                or len(current_role_row) != 1
+                or type(current_role_row[0]) is not str
+            ):
+                raise RuntimeError("account authority migration role identity is invalid")
+            current_role = current_role_row[0]
+            switched_role = current_role != owner_name
+            if switched_role:
+                cursor.execute(f"SET LOCAL ROLE {quote(owner_name)}")
             cursor.execute(f"""
                 CREATE FUNCTION {lock_function}() RETURNS bigint
                 LANGUAGE plpgsql
@@ -64,9 +75,10 @@ def install_generation_lock_function(apps: Apps, schema_editor: BaseDatabaseSche
                     RETURN locked_generation;
                 END;
                 $account_authority_generation_lock$
-                """)
+            """)
             cursor.execute(f"REVOKE ALL ON FUNCTION {lock_function}() FROM PUBLIC")
-            cursor.execute("RESET ROLE")
+            if switched_role:
+                cursor.execute(f"SET LOCAL ROLE {quote(current_role)}")
     else:
         with connection.cursor() as cursor:
             cursor.execute(
@@ -150,9 +162,12 @@ def remove_generation_lock_function(apps: Apps, schema_editor: BaseDatabaseSchem
             raise RuntimeError(
                 "cannot reverse account authority generation lock without function-owner role"
             )
-        cursor.execute(f"SET LOCAL ROLE {quote(owner_name)}")
+        switched_role = current_name != owner_name
+        if switched_role:
+            cursor.execute(f"SET LOCAL ROLE {quote(owner_name)}")
         cursor.execute(f"DROP FUNCTION {lock_function}()")
-        cursor.execute("RESET ROLE")
+        if switched_role:
+            cursor.execute(f"SET LOCAL ROLE {quote(current_name)}")
 
 
 def _generation_owner_state(
@@ -253,13 +268,15 @@ def _harden_bump_function(connection: BaseDatabaseWrapper) -> None:
             if function_owner != owner_name:
                 cursor.execute(f"ALTER FUNCTION {bump_function}() OWNER TO {quote(owner_name)}")
         else:
-            if current_name != function_owner:
+            switched_role = current_name != function_owner
+            if switched_role:
                 cursor.execute(f"SET LOCAL ROLE {quote(function_owner)}")
             cursor.execute(f"REVOKE ALL ON FUNCTION {bump_function}() FROM PUBLIC")
             cursor.execute(f"ALTER FUNCTION {bump_function}() SET search_path = pg_catalog")
             if function_owner != owner_name and owner_can_create and may_set_owner:
                 cursor.execute(f"ALTER FUNCTION {bump_function}() OWNER TO {quote(owner_name)}")
-            cursor.execute("RESET ROLE")
+            if switched_role:
+                cursor.execute(f"SET LOCAL ROLE {quote(current_name)}")
         if temporary_create:
             cursor.execute(f"REVOKE CREATE ON SCHEMA {quote(_SCHEMA)} FROM {quote(owner_name)}")
 

@@ -423,10 +423,35 @@ def test_runtime_lock_wrapper_enforces_minimum_generation_acl(
             """)
         migrator_contract = cast(tuple[object, ...] | None, cursor.fetchone())
     assert migrator_contract == (False, False, True, False, False)
-    with migrator_connection.schema_editor() as editor:
-        _LOCK_FUNCTION_MIGRATION.remove_generation_lock_function(apps, editor)
-    with migrator_connection.schema_editor() as editor:
-        _LOCK_FUNCTION_MIGRATION.install_generation_lock_function(apps, editor)
+    with migrator_connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT owner_role.rolname
+              FROM pg_catalog.pg_class AS generation
+              JOIN pg_catalog.pg_namespace AS namespace
+                ON namespace.oid = generation.relnamespace
+              JOIN pg_catalog.pg_roles AS owner_role
+                ON owner_role.oid = generation.relowner
+             WHERE namespace.nspname = 'public'
+               AND generation.relname = 'account_authority_generation'
+            """)
+        owner_row = cast(tuple[object, ...] | None, cursor.fetchone())
+    assert owner_row is not None and len(owner_row) == 1 and type(owner_row[0]) is str
+    owner_name = cast(str, owner_row[0])
+    quoted_owner = migrator_connection.ops.quote_name(owner_name)
+    try:
+        with migrator_connection.cursor() as cursor:
+            cursor.execute(f"SET ROLE {quoted_owner}")
+        with migrator_connection.schema_editor() as editor:
+            _LOCK_FUNCTION_MIGRATION.remove_generation_lock_function(apps, editor)
+        with migrator_connection.schema_editor() as editor:
+            _LOCK_FUNCTION_MIGRATION.install_generation_lock_function(apps, editor)
+        with migrator_connection.cursor() as cursor:
+            cursor.execute("SELECT current_user")
+            owner_role_after_migrations = cast(tuple[object, ...] | None, cursor.fetchone())
+        assert owner_role_after_migrations == (owner_name,)
+    finally:
+        with migrator_connection.cursor() as cursor:
+            cursor.execute("RESET ROLE")
     with pytest.raises(AccountAuthorityGenerationCoverageError, match="ACL contract"):
         verify_account_authority_generation_runtime_acl(using=runtime_alias)
     runtime_connection = connections[runtime_alias]
