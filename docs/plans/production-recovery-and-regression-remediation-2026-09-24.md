@@ -733,3 +733,31 @@ pyqlib 后同一完整 fast suite 4,045 项全部通过。参数 ID 与 marker �
 约束不顺手修改。剩余停止线仍是 complete-graph final lease、current-publication-member 决策读、短 activation /
 5,000+ soak、SQLite 快照演练与维护窗口 statement logging；此前不接 production composition、不删除 legacy relation
 locks、不部署、不启动全市场重跑。
+
+#### 完整 graph final lease 切片（`f8178af21`）
+
+切片②新增与 partial root/revocation API 不可混用的 complete proof/result。shadow scan 现在保留 generation、同一数据库
+cutoff、redacted selector、完整稳定 graph digest 和 RR 物理事务身份；complete capture 在新的 RR/RO 事务中验证同 alias、
+同 generation、selector、数据库时钟单调性和最早 `valid_until`，proof 继续只保存在进程内、一次性消费、不可复制或
+序列化。partial 与 complete proof 共用 128 项容量上限，并按各自 lease 清理过期 proof。
+
+complete fence 保持 production composition 未接线，先在调用方拥有的 RC/RW 事务中取得 generation `FOR SHARE`，再以
+同 alias、Django wrapper、DBAPI connection、backend PID、xid、thread/task 和 generation 调用 no-lock
+`AccountAuthorityCurrentGraphReaderV3` 重读完整 graph。最终 fingerprint 必须与 shadow 完全相同；graph missing、selector/
+fingerprint/physical identity/generation 漂移、数据库时钟倒退、入口过期以及 caller work 结束时
+`exit_checked_at >= graph.valid_until` 均 fail closed，并由同一 outer atomic 回滚。完整 graph digest 对 authority、
+assignment、policy、Evidence V5 parents、authentication、physical/reobservation/receipt 等递归 dataclass 稳定字段做
+canonical SHA-256；命令/actor selector hash 与实体 identity hash 分开，避免把 selector 摘要伪装为 graph identity。
+
+验证证据：相关 unit 与 Audit reader `61 passed`；Black、isort、Ruff、2 个生产文件增量 mypy、全仓 mypy debt
+ceiling、workflow YAML、`git diff --check` 与 module map 44 modules / 210 edges 均通过。两个生产文件非空行分别为
+860/957，提交后 changed-file size guard 在 1,000 行硬限下通过。全新 disposable PostgreSQL 16 容器执行 finalizer
+组件 `7 passed in 1029.09s`，0 failure/0 skip；其中 3 项保留 partial 契约，4 项新增验证 generation lock 先于
+`clock_timestamp()`/graph reread、同 PID/XID/generation、完整 digest mismatch fail closed、caller 写回滚和 source
+writer 在 complete fence 退出前等待。容器已删除，未连接或修改任何长期 PostgreSQL 容器。此前一次未设置 opt-in
+变量的收集得到 `7 skipped`，原因是组件明确要求 `AGOM_EVID06_POSTGRES_TEST=1`；该次不计作通过，随后上述隔离运行
+已零 skip 闭合。Publication PostgreSQL workflow 的 finalizer 精确收集数由 3 更新为 7。
+
+剩余停止线：Factor 与 Simple Alpha 的 current-publication-member 决策读尚未收口；无 current pointer 的 fail-closed、
+短 activation UOW、5,000+ PostgreSQL soak、SQLite 快照对账与维护窗口 statement logging 尚未完成。继续保留 legacy
+relation locks 与 production composition；不部署、不启动全市场重跑，也不通过延长 lock wait/retry/timeout 规避失败。
