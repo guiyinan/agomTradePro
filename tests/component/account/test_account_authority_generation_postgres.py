@@ -179,6 +179,7 @@ def migrator_alias(generation_alias: str) -> Iterator[str]:
         yield alias
     finally:
         migrator_connection.close()
+        del connections[alias]
         connections.databases.pop(alias, None)
         with connection.cursor() as cursor:
             cursor.execute(f"REVOKE {quoted_generation_owner} FROM {quoted_migrator}")
@@ -258,6 +259,7 @@ def runtime_alias(generation_alias: str) -> Iterator[str]:
         yield alias
     finally:
         runtime_connection.close()
+        del connections[alias]
         connections.databases.pop(alias, None)
         with connection.cursor() as cursor:
             cursor.execute(f"DROP OWNED BY {quoted_role}")

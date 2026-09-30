@@ -3706,22 +3706,22 @@
       "text": "authority_content_hash=current.record.authority.content_hash,"
     },
     {
-      "line": 365,
+      "line": 607,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph read requires an active generation fence context\""
     },
     {
-      "line": 405,
+      "line": 647,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph generation differs from the active fence\""
     },
     {
-      "line": 526,
+      "line": 768,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Read the current transaction-visible generation without taking a lock.\"\"\""
     },
     {
-      "line": 572,
+      "line": 814,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },
