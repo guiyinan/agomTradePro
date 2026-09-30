@@ -249,12 +249,14 @@ def _harden_bump_function(connection: BaseDatabaseWrapper) -> None:
             cursor.execute(f"GRANT CREATE ON SCHEMA {quote(_SCHEMA)} TO {quote(owner_name)}")
         if is_superuser:
             cursor.execute(f"REVOKE ALL ON FUNCTION {bump_function}() FROM PUBLIC")
+            cursor.execute(f"ALTER FUNCTION {bump_function}() SET search_path = pg_catalog")
             if function_owner != owner_name:
                 cursor.execute(f"ALTER FUNCTION {bump_function}() OWNER TO {quote(owner_name)}")
         else:
             if current_name != function_owner:
                 cursor.execute(f"SET LOCAL ROLE {quote(function_owner)}")
             cursor.execute(f"REVOKE ALL ON FUNCTION {bump_function}() FROM PUBLIC")
+            cursor.execute(f"ALTER FUNCTION {bump_function}() SET search_path = pg_catalog")
             if function_owner != owner_name and owner_can_create and may_set_owner:
                 cursor.execute(f"ALTER FUNCTION {bump_function}() OWNER TO {quote(owner_name)}")
             cursor.execute("RESET ROLE")

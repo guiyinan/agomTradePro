@@ -57,7 +57,7 @@ _TRIGGER_FUNCTION_NAME = "account_authority_generation_bump"
 _LOCK_FUNCTION_NAME = "account_authority_generation_lock"
 _DML_TRIGGER_TYPE = 30
 _TRUNCATE_TRIGGER_TYPE = 34
-_FUNCTION_SEARCH_PATH = "search_path=pg_catalog, public"
+_FUNCTION_SEARCH_PATH = "search_path=pg_catalog"
 _LOCK_FUNCTION_SEARCH_PATH = "search_path=pg_catalog"
 
 
@@ -179,6 +179,7 @@ def verify_account_authority_generation_runtime_acl(*, using: str = "default") -
     """Require the active role to use the owner-owned wrapper with read-only table access."""
 
     connection = _connection(using)
+    source_tables = _runtime_source_tables()
     if connection.vendor != "postgresql":
         raise AccountAuthorityGenerationCoverageError(
             "account authority generation ACL verification requires PostgreSQL"
@@ -412,6 +413,161 @@ def verify_account_authority_generation_runtime_acl(*, using: str = "default") -
     ):
         raise AccountAuthorityGenerationCoverageError(
             "account authority generation runtime ACL contract is not satisfied"
+        )
+    _verify_account_authority_role_closure(connection, source_tables)
+
+
+def _verify_account_authority_role_closure(
+    connection: BaseDatabaseWrapper,
+    source_tables: tuple[str, ...],
+) -> None:
+    """Reject reachable privilege escalation and mismatched source ownership."""
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                WITH generation_table AS (
+                    SELECT relation.oid, relation.relowner
+                      FROM pg_catalog.pg_class AS relation
+                      JOIN pg_catalog.pg_namespace AS namespace
+                        ON namespace.oid = relation.relnamespace
+                     WHERE namespace.nspname = 'public'
+                       AND relation.relname = 'account_authority_generation'
+                       AND relation.relkind = 'r'
+                ),
+                bump_function AS (
+                    SELECT function.oid
+                      FROM pg_catalog.pg_proc AS function
+                     WHERE function.oid = pg_catalog.to_regprocedure(
+                         'public.account_authority_generation_bump()'
+                     )
+                ),
+                source_relation AS (
+                    SELECT relation.oid, relation.relowner
+                      FROM pg_catalog.pg_class AS relation
+                      JOIN pg_catalog.pg_namespace AS namespace
+                        ON namespace.oid = relation.relnamespace
+                     WHERE namespace.nspname = 'public'
+                       AND relation.relname::text = ANY(%s::text[])
+                       AND relation.relkind = 'r'
+                ),
+                reachable_role AS (
+                    SELECT role.oid, role.rolsuper, role.rolcreaterole,
+                           role.rolreplication, role.rolbypassrls,
+                           (
+                               role.rolname NOT IN (current_user, session_user)
+                               AND (
+                                   pg_catalog.pg_has_role(
+                                       current_user,
+                                       role.oid,
+                                       'MEMBER WITH ADMIN OPTION'
+                                   )
+                                   OR pg_catalog.pg_has_role(
+                                       session_user,
+                                       role.oid,
+                                       'MEMBER WITH ADMIN OPTION'
+                                   )
+                               )
+                           ) AS controlled_by_admin
+                      FROM pg_catalog.pg_roles AS role
+                     WHERE pg_catalog.pg_has_role(current_user, role.oid, 'SET')
+                        OR pg_catalog.pg_has_role(session_user, role.oid, 'SET')
+                        OR (
+                            role.rolname NOT IN (current_user, session_user)
+                            AND (
+                                pg_catalog.pg_has_role(
+                                    current_user,
+                                    role.oid,
+                                    'MEMBER WITH ADMIN OPTION'
+                                )
+                                OR pg_catalog.pg_has_role(
+                                    session_user,
+                                    role.oid,
+                                    'MEMBER WITH ADMIN OPTION'
+                                )
+                            )
+                        )
+                )
+                SELECT (SELECT COUNT(*) FROM source_relation),
+                       COALESCE(
+                           (
+                               SELECT pg_catalog.bool_and(
+                                   source_relation.relowner = generation_table.relowner
+                               )
+                                 FROM source_relation
+                                 CROSS JOIN generation_table
+                           ),
+                           FALSE
+                       ),
+                       EXISTS (
+                           SELECT 1
+                             FROM reachable_role
+                             CROSS JOIN generation_table
+                             CROSS JOIN bump_function
+                            WHERE reachable_role.controlled_by_admin
+                               OR reachable_role.rolsuper
+                               OR reachable_role.rolcreaterole
+                               OR reachable_role.rolreplication
+                               OR reachable_role.rolbypassrls
+                               OR pg_catalog.has_schema_privilege(
+                                   reachable_role.oid, 'public', 'CREATE'
+                               )
+                               OR pg_catalog.has_table_privilege(
+                                   reachable_role.oid, generation_table.oid, 'INSERT'
+                               )
+                               OR pg_catalog.has_table_privilege(
+                                   reachable_role.oid, generation_table.oid, 'UPDATE'
+                               )
+                               OR pg_catalog.has_table_privilege(
+                                   reachable_role.oid, generation_table.oid, 'DELETE'
+                               )
+                               OR pg_catalog.has_table_privilege(
+                                   reachable_role.oid, generation_table.oid, 'TRUNCATE'
+                               )
+                               OR pg_catalog.has_table_privilege(
+                                   reachable_role.oid, generation_table.oid, 'TRIGGER'
+                               )
+                               OR pg_catalog.has_function_privilege(
+                                   reachable_role.oid, bump_function.oid, 'EXECUTE'
+                               )
+                               OR EXISTS (
+                                   SELECT 1
+                                     FROM source_relation
+                                    WHERE pg_catalog.has_table_privilege(
+                                        reachable_role.oid,
+                                        source_relation.oid,
+                                        'TRIGGER'
+                                    )
+                                       OR pg_catalog.has_table_privilege(
+                                           reachable_role.oid,
+                                           source_relation.oid,
+                                           'TRUNCATE'
+                                       )
+                               )
+                       )
+                """,
+                [list(source_tables)],
+            )
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationCoverageError(
+            "account authority runtime role-closure query failed"
+        ) from error
+    if (
+        row is None
+        or len(row) != 3
+        or type(row[0]) is not int
+        or type(row[1]) is not bool
+        or type(row[2]) is not bool
+    ):
+        raise AccountAuthorityGenerationCoverageError(
+            "account authority runtime role-closure catalog row is malformed"
+        )
+    source_count, source_owners_match, reachable_role_is_dangerous = row
+    if source_count != len(source_tables) or not source_owners_match or reachable_role_is_dangerous:
+        raise AccountAuthorityGenerationCoverageError(
+            "account authority runtime role-closure contract is not satisfied"
         )
 
 

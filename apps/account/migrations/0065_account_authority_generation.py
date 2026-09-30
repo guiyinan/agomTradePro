@@ -70,7 +70,7 @@ def install_source_triggers(apps: Apps, schema_editor: BaseDatabaseSchemaEditor)
             CREATE FUNCTION {function_name}() RETURNS trigger
             LANGUAGE plpgsql
             SECURITY DEFINER
-            SET search_path = pg_catalog, public
+            SET search_path = pg_catalog
             AS $account_authority_generation$
             BEGIN
                 UPDATE {generation_table}
@@ -200,7 +200,7 @@ def _validate_source_triggers(connection: BaseDatabaseWrapper) -> None:
             or enabled != "A"
             or function_name != _FUNCTION
             or not security_definer
-            or "search_path=pg_catalog, public" not in config
+            or "search_path=pg_catalog" not in config
         ):
             raise RuntimeError("account authority generation trigger is not trusted")
         triggers_by_table[table_name].add(trigger_name)

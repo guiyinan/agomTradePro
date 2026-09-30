@@ -16,6 +16,7 @@ from uuid import uuid4
 import pytest
 from django.apps import apps
 from django.db import DatabaseError, close_old_connections, connections, transaction
+from django.db.backends.base.base import BaseDatabaseWrapper
 
 from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationChanged,
@@ -83,6 +84,11 @@ def generation_alias(owner_alias: str) -> Iterator[str]:
     connection = connections[owner_alias]
     generation_owner = f"acct_auth_owner_{uuid4().hex}"
     quoted_generation_owner = connection.ops.quote_name(generation_owner)
+    public_create_revoked = False
+    generation_model_created = False
+    trigger_install_started = False
+    owner_created = False
+    source_owners: dict[str, str] = {}
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
@@ -103,35 +109,97 @@ def generation_alias(owner_alias: str) -> Iterator[str]:
     if public_create_row is None or type(public_create_row[0]) is not bool:
         raise AssertionError("public schema ACL catalog row is malformed")
     public_had_create = public_create_row[0]
-    with connection.cursor() as cursor:
-        cursor.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
-    with connection.schema_editor() as editor:
-        editor.create_model(AccountAuthorityGenerationModel)
     try:
+        with connection.cursor() as cursor:
+            cursor.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
+        public_create_revoked = True
+        with connection.schema_editor() as editor:
+            editor.create_model(AccountAuthorityGenerationModel)
+        generation_model_created = True
         with connection.schema_editor() as editor:
             _SCHEMA_FUNCTIONS.seed_generation_row(apps, editor)
+            trigger_install_started = True
             _SCHEMA_FUNCTIONS.install_source_triggers(apps, editor)
             with connection.cursor() as cursor:
                 cursor.execute(
                     f"CREATE ROLE {quoted_generation_owner} "
                     "NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE"
                 )
+                owner_created = True
                 cursor.execute(f"GRANT CREATE ON SCHEMA public TO {quoted_generation_owner}")
+                cursor.execute(
+                    """
+                    SELECT relation.relname, owner_role.rolname
+                      FROM pg_catalog.pg_class AS relation
+                      JOIN pg_catalog.pg_namespace AS namespace
+                        ON namespace.oid = relation.relnamespace
+                      JOIN pg_catalog.pg_roles AS owner_role
+                        ON owner_role.oid = relation.relowner
+                     WHERE namespace.nspname = 'public'
+                       AND relation.relname::text = ANY(%s::text[])
+                       AND relation.relkind = 'r'
+                    """,
+                    [list(_EXPECTED_TABLES)],
+                )
+                source_owner_rows = cast(list[tuple[object, ...]], cursor.fetchall())
+                for table_name, owner_name in source_owner_rows:
+                    if type(table_name) is not str or type(owner_name) is not str:
+                        raise AssertionError("source owner catalog row is malformed")
+                    source_owners[table_name] = owner_name
+                if set(source_owners) != set(_EXPECTED_TABLES):
+                    raise AssertionError("source owner catalog coverage is incomplete")
                 cursor.execute(
                     f"ALTER TABLE {_GENERATION_TABLE} OWNER TO {quoted_generation_owner}"
                 )
+                for table_name in _EXPECTED_TABLES:
+                    quoted_table = connection.ops.quote_name(table_name)
+                    cursor.execute(
+                        f"ALTER TABLE public.{quoted_table} OWNER TO {quoted_generation_owner}"
+                    )
             _LOCK_FUNCTION_MIGRATION.install_generation_lock_function(apps, editor)
         yield owner_alias
     finally:
-        with connection.schema_editor() as editor:
-            _LOCK_FUNCTION_MIGRATION.remove_generation_lock_function(apps, editor)
-            _SCHEMA_FUNCTIONS.remove_source_triggers(apps, editor)
-            editor.delete_model(AccountAuthorityGenerationModel)
-        with connection.cursor() as cursor:
-            cursor.execute(f"DROP OWNED BY {quoted_generation_owner}")
-            cursor.execute(f"DROP ROLE {quoted_generation_owner}")
-            if public_had_create:
+        if generation_model_created:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_catalog.to_regprocedure("
+                    "'public.account_authority_generation_lock()') IS NOT NULL"
+                )
+                lock_row = cast(tuple[object, ...] | None, cursor.fetchone())
+            if lock_row == (True,):
+                with connection.schema_editor() as editor:
+                    _LOCK_FUNCTION_MIGRATION.remove_generation_lock_function(apps, editor)
+        if owner_created and source_owners:
+            with connection.cursor() as cursor:
+                for table_name, owner_name in source_owners.items():
+                    quoted_table = connection.ops.quote_name(table_name)
+                    quoted_owner = connection.ops.quote_name(owner_name)
+                    cursor.execute(f"ALTER TABLE public.{quoted_table} OWNER TO {quoted_owner}")
+        if trigger_install_started:
+            _remove_partial_source_triggers(connection)
+        if generation_model_created:
+            with connection.schema_editor() as editor:
+                editor.delete_model(AccountAuthorityGenerationModel)
+        if owner_created:
+            with connection.cursor() as cursor:
+                cursor.execute(f"DROP OWNED BY {quoted_generation_owner}")
+                cursor.execute(f"DROP ROLE {quoted_generation_owner}")
+        if public_create_revoked and public_had_create:
+            with connection.cursor() as cursor:
                 cursor.execute("GRANT CREATE ON SCHEMA public TO PUBLIC")
+
+
+def _remove_partial_source_triggers(connection: BaseDatabaseWrapper) -> None:
+    """Remove every possible partial 0065 trigger/function installation."""
+
+    with connection.cursor() as cursor:
+        for table_name in _EXPECTED_TABLES:
+            quoted_table = connection.ops.quote_name(table_name)
+            cursor.execute("DROP TRIGGER IF EXISTS acct_auth_gen_stmt " f"ON public.{quoted_table}")
+            cursor.execute(
+                "DROP TRIGGER IF EXISTS acct_auth_gen_truncate " f"ON public.{quoted_table}"
+            )
+        cursor.execute("DROP FUNCTION IF EXISTS public.account_authority_generation_bump()")
 
 
 @pytest.fixture
@@ -382,6 +450,7 @@ def test_runtime_lock_wrapper_enforces_minimum_generation_acl(
             cursor.execute("""
                 SELECT function.prosecdef,
                        function.proconfig,
+                       bump_function.proconfig,
                        table_owner.oid = function.proowner,
                        NOT table_owner.rolcanlogin,
                        NOT table_owner.rolsuper,
@@ -431,6 +500,7 @@ def test_runtime_lock_wrapper_enforces_minimum_generation_acl(
             catalog_row = cast(tuple[object, ...] | None, cursor.fetchone())
         assert catalog_row == (
             True,
+            ["search_path=pg_catalog"],
             ["search_path=pg_catalog"],
             True,
             True,
@@ -512,6 +582,125 @@ def test_runtime_lock_wrapper_enforces_minimum_generation_acl(
     finally:
         with owner_connection.cursor() as cursor:
             cursor.execute(f"REVOKE {quoted_owner} FROM {quoted_runtime}")
+
+
+def test_runtime_acl_rejects_reachable_writer_and_source_owner_drift(
+    generation_alias: str,
+    runtime_alias: str,
+) -> None:
+    """Reject SET-role generation writers and source relations with another owner."""
+
+    owner_connection = connections[generation_alias]
+    with connections[runtime_alias].cursor() as cursor:
+        cursor.execute("SELECT current_user")
+        runtime_row = cast(tuple[object, ...] | None, cursor.fetchone())
+    if runtime_row is None or type(runtime_row[0]) is not str:
+        raise AssertionError("runtime role identity is unavailable")
+    runtime_role = runtime_row[0]
+    escalation_role = f"acct_auth_escalation_{uuid4().hex}"
+    broker_role = f"acct_auth_broker_{uuid4().hex}"
+    alternate_owner = f"acct_auth_source_owner_{uuid4().hex}"
+    quoted_runtime = owner_connection.ops.quote_name(runtime_role)
+    quoted_escalation = owner_connection.ops.quote_name(escalation_role)
+    quoted_broker = owner_connection.ops.quote_name(broker_role)
+    quoted_alternate_owner = owner_connection.ops.quote_name(alternate_owner)
+    protected_source = "account_user_authority_source_v3_anchor"
+    quoted_source = owner_connection.ops.quote_name(protected_source)
+    with owner_connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT owner_role.rolname
+              FROM pg_catalog.pg_class AS generation
+              JOIN pg_catalog.pg_namespace AS namespace
+                ON namespace.oid = generation.relnamespace
+              JOIN pg_catalog.pg_roles AS owner_role
+                ON owner_role.oid = generation.relowner
+             WHERE namespace.nspname = 'public'
+               AND generation.relname = 'account_authority_generation'
+            """)
+        owner_row = cast(tuple[object, ...] | None, cursor.fetchone())
+    if owner_row is None or type(owner_row[0]) is not str:
+        raise AssertionError("generation owner identity is unavailable")
+    quoted_generation_owner = owner_connection.ops.quote_name(owner_row[0])
+    escalation_created = False
+    broker_created = False
+    alternate_owner_created = False
+    source_owner_changed = False
+    try:
+        with owner_connection.cursor() as cursor:
+            cursor.execute(
+                f"CREATE ROLE {quoted_escalation} " "NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE"
+            )
+            escalation_created = True
+            cursor.execute(f"GRANT UPDATE ON TABLE {_GENERATION_TABLE} TO {quoted_escalation}")
+            cursor.execute(
+                f"GRANT {quoted_escalation} TO {quoted_runtime} " "WITH INHERIT FALSE, SET TRUE"
+            )
+        with pytest.raises(AccountAuthorityGenerationCoverageError, match="role-closure"):
+            verify_account_authority_generation_runtime_acl(using=runtime_alias)
+        with transaction.atomic(using=runtime_alias):
+            with connections[runtime_alias].cursor() as cursor:
+                cursor.execute(f"SET LOCAL ROLE {quoted_escalation}")
+                cursor.execute(
+                    "SELECT pg_catalog.has_table_privilege("
+                    "current_user, 'public.account_authority_generation', 'UPDATE')"
+                )
+                escalation_row = cast(tuple[object, ...] | None, cursor.fetchone())
+            assert escalation_row == (True,)
+        with owner_connection.cursor() as cursor:
+            cursor.execute(f"REVOKE {quoted_escalation} FROM {quoted_runtime}")
+            cursor.execute(
+                f"CREATE ROLE {quoted_broker} " "NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE"
+            )
+            broker_created = True
+            cursor.execute(
+                f"GRANT {quoted_escalation} TO {quoted_broker} " "WITH INHERIT FALSE, SET TRUE"
+            )
+            cursor.execute(
+                f"GRANT {quoted_broker} TO {quoted_runtime} "
+                "WITH INHERIT FALSE, SET FALSE, ADMIN TRUE"
+            )
+        with connections[runtime_alias].cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_catalog.pg_has_role(current_user, %s, 'SET'), "
+                "pg_catalog.pg_has_role("
+                "current_user, %s, 'MEMBER WITH ADMIN OPTION')",
+                [escalation_role, broker_role],
+            )
+            admin_escalation_row = cast(tuple[object, ...] | None, cursor.fetchone())
+        assert admin_escalation_row == (False, True)
+        with pytest.raises(AccountAuthorityGenerationCoverageError, match="role-closure"):
+            verify_account_authority_generation_runtime_acl(using=runtime_alias)
+        with owner_connection.cursor() as cursor:
+            cursor.execute(f"REVOKE {quoted_broker} FROM {quoted_runtime}")
+            cursor.execute(f"REVOKE {quoted_escalation} FROM {quoted_broker}")
+            cursor.execute(
+                f"CREATE ROLE {quoted_alternate_owner} "
+                "NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE"
+            )
+            alternate_owner_created = True
+            cursor.execute(f"GRANT CREATE ON SCHEMA public TO {quoted_alternate_owner}")
+            cursor.execute(f"ALTER TABLE public.{quoted_source} OWNER TO {quoted_alternate_owner}")
+            source_owner_changed = True
+        with pytest.raises(AccountAuthorityGenerationCoverageError, match="role-closure"):
+            verify_account_authority_generation_runtime_acl(using=runtime_alias)
+    finally:
+        with owner_connection.cursor() as cursor:
+            if broker_created:
+                cursor.execute(f"REVOKE {quoted_broker} FROM {quoted_runtime}")
+                cursor.execute(f"REVOKE {quoted_escalation} FROM {quoted_broker}")
+                cursor.execute(f"DROP OWNED BY {quoted_broker}")
+                cursor.execute(f"DROP ROLE {quoted_broker}")
+            if escalation_created:
+                cursor.execute(f"REVOKE {quoted_escalation} FROM {quoted_runtime}")
+                cursor.execute(f"DROP OWNED BY {quoted_escalation}")
+                cursor.execute(f"DROP ROLE {quoted_escalation}")
+            if source_owner_changed:
+                cursor.execute(
+                    f"ALTER TABLE public.{quoted_source} OWNER TO {quoted_generation_owner}"
+                )
+            if alternate_owner_created:
+                cursor.execute(f"DROP OWNED BY {quoted_alternate_owner}")
+                cursor.execute(f"DROP ROLE {quoted_alternate_owner}")
 
 
 def test_statement_triggers_count_once_and_rollback_with_source_changes(
