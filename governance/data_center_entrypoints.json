@@ -27,16 +27,16 @@
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 82,
-      "workflow_step": 10
+      "workflow_step": 11
     },
     "by_status": {
-      "active_public": 802,
+      "active_public": 803,
       "adjacent_operational": 334,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1274
+    "total": 1275
   },
   "entries": [
     {
@@ -12688,6 +12688,16 @@
       "status": "active_public",
       "symbol": "Prepare database",
       "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/ci-publication-postgres.yml:Exercise production role bootstrap and migration ordering:tokens:createdb",
+      "locator": "tokens:createdb",
+      "path": ".github/workflows/ci-publication-postgres.yml",
+      "status": "active_public",
+      "symbol": "Exercise production role bootstrap and migration ordering",
+      "target": "postgres:createdb"
     },
     {
       "category": "workflow_step",

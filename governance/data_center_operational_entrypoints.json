@@ -84,6 +84,7 @@
       "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
       "path": [
         ".github/workflows/ci-fast-feedback.yml",
+        ".github/workflows/ci-publication-postgres.yml",
         ".github/workflows/nightly-tests.yml",
         ".github/workflows/rc-gate.yml"
       ],
