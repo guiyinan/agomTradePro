@@ -36,7 +36,7 @@ from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationChanged,
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
-    lock_account_authority_generation_fence,
+    caller_owned_account_authority_generation_fence,
     read_account_authority_generation_proof,
 )
 from apps.account.infrastructure.account_authority_shadow_scanner import (
@@ -365,8 +365,8 @@ def _read_committed_generation_fence(
         with transaction.atomic(using=using):
             with connection.cursor() as cursor:
                 cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
-            generation = lock_account_authority_generation_fence(proof, using=using)
-            yield generation
+            with caller_owned_account_authority_generation_fence(proof, using=using) as generation:
+                yield generation
     except AccountAuthorityGenerationUnavailable:
         raise
     except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:

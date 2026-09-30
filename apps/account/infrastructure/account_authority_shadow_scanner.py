@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 
 from django.db import DatabaseError, connections, transaction
 from django.db.backends.base.base import BaseDatabaseWrapper
@@ -69,6 +69,7 @@ from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
     read_account_authority_generation_proof,
+    require_active_account_authority_generation_fence,
 )
 from apps.account.infrastructure.account_owner_assignment_actor_authority_bundle_provider import (
     DjangoAccountActorAuthorityInputBundleProviderV3,
@@ -105,16 +106,39 @@ from apps.account.infrastructure.single_owner_authority_policy_v1_repository imp
 )
 from shared.infrastructure.immutable_read_snapshot import suspend_immutable_read_reuse
 
+AccountAuthorityV3CallerTransactionMode = Literal[
+    "repeatable_read_read_only", "generation_fenced_read_committed_read_write"
+]
+
 
 class DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
     DjangoAccountActorAuthorityInputBundleProviderV3
 ):
-    """Read actor inputs inside a caller-owned RR/READ ONLY snapshot without locks."""
+    """Read actor inputs inside an exact caller-owned transaction without locks."""
+
+    def __init__(
+        self,
+        *,
+        using: str = "default",
+        transaction_mode: AccountAuthorityV3CallerTransactionMode = ("repeatable_read_read_only"),
+    ) -> None:
+        """Bind the actor input reader to one exact alias and transaction mode."""
+
+        _validate_transaction_mode(transaction_mode)
+        super().__init__(using=using)
+        self._transaction_mode = transaction_mode
 
     def _snapshot(self, connection: BaseDatabaseWrapper) -> AbstractContextManager[None]:
-        """Require the scanner's exact transaction and return a no-op scope."""
+        """Require the selected caller transaction and return a no-op scope."""
 
-        _require_repeatable_read_only_connection(connection, self._using)
+        if self._transaction_mode == "repeatable_read_read_only":
+            _require_repeatable_read_only_connection(connection, self._using)
+        else:
+            _require_caller_owned_transaction(connection, self._using, self._transaction_mode)
+            require_active_account_authority_generation_fence(
+                using=self._using,
+                connection=connection,
+            )
         return nullcontext()
 
 
@@ -150,6 +174,186 @@ class AccountAuthorityShadowScanResultV3:
     database_alias: str
     proof_generation: int
     comparison: AccountAuthorityShadowComparisonV3
+
+
+class AccountAuthorityCurrentGraphReaderV3:
+    """Read the complete current Authority V3 graph in a caller-owned transaction.
+
+    The reader never opens a transaction. Its mode must match the caller's exact
+    PostgreSQL transaction settings: RR/READ ONLY for a shadow scan or
+    RC/READ WRITE after a generation fence. It composes the existing Application
+    service graph, including Evidence V5 parent validation. Keep it out of
+    production decision or publication composition while the physical row
+    provider's ``unit_of_work_key`` remains a trusted declaration rather than a
+    verified physical connection identity.
+    """
+
+    def __init__(
+        self,
+        *,
+        actor_source_id: str,
+        actor_source_version: str,
+        actor_content_hash: str,
+        physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
+        using: str = "default",
+        transaction_mode: AccountAuthorityV3CallerTransactionMode,
+    ) -> None:
+        """Bind current graph source selectors, provider, alias, and transaction mode."""
+
+        _require_alias(using)
+        _validate_transaction_mode(transaction_mode)
+        for name, value in (
+            ("actor_source_id", actor_source_id),
+            ("actor_source_version", actor_source_version),
+        ):
+            _require_token(value, name)
+        _require_hash(actor_content_hash, "actor_content_hash")
+        if getattr(physical_row_provider, "unit_of_work_key", None) != f"django:{using}":
+            raise ValueError("physical row provider must use the current graph database alias")
+        if not callable(getattr(physical_row_provider, "get_exact_current", None)):
+            raise TypeError("physical row provider must expose get_exact_current")
+        self._actor_source_id = actor_source_id
+        self._actor_source_version = actor_source_version
+        self._actor_content_hash = actor_content_hash
+        self._physical_row_provider = physical_row_provider
+        self._using = using
+        self._transaction_mode = transaction_mode
+
+    def read(
+        self,
+        command: GetCurrentOwnerTenantAuthorityV3Command,
+        *,
+        generation: int | None = None,
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        """Return the full current projection in the caller's exact transaction.
+
+        Generation-fenced RC/RW callers must pass the generation yielded by
+        ``caller_owned_account_authority_generation_fence``.
+        """
+
+        if type(command) is not GetCurrentOwnerTenantAuthorityV3Command:
+            raise TypeError("command must be exact GetCurrentOwnerTenantAuthorityV3Command")
+        command.__post_init__()
+        connection = _connection(self._using)
+        _require_caller_owned_transaction(connection, self._using, self._transaction_mode)
+        if self._transaction_mode == "repeatable_read_read_only":
+            if generation is not None:
+                raise AccountAuthorityGenerationUnavailable(
+                    "read-only current graph mode does not accept a generation fence"
+                )
+        else:
+            if type(generation) is not int:
+                raise AccountAuthorityGenerationUnavailable(
+                    "generation-fenced current graph mode requires the locked generation"
+                )
+            require_active_account_authority_generation_fence(
+                using=self._using,
+                connection=connection,
+                generation=generation,
+            )
+        with suspend_immutable_read_reuse():
+            result = self._read_application_graph(command)
+        if result is not None:
+            if type(result) is not CurrentOwnerTenantAuthorityV3:
+                raise AccountAuthorityGenerationUnavailable(
+                    "current graph reader returned an invalid Authority V3 projection"
+                )
+            result.__post_init__()
+        return result
+
+    def _read_application_graph(
+        self,
+        command: GetCurrentOwnerTenantAuthorityV3Command,
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        """Compose the existing Authority V3 Application graph and Evidence V5 readers."""
+
+        authority_repository = DjangoOwnerTenantAuthorityV3Repository(using=self._using)
+        provisional = authority_repository.get_winner(
+            authority_id=command.authority_id,
+            authority_version=command.authority_version,
+            as_of=authority_repository.now(),
+        )
+        if provisional is None:
+            return None
+
+        actor_repository = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
+            using=self._using
+        )
+        actor_current_reader = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
+            input_bundle_provider=DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
+                using=self._using,
+                transaction_mode=self._transaction_mode,
+            ),
+            repository=actor_repository,
+        )
+        actor_source = actor_current_reader.execute(
+            GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3Command(
+                source_id=self._actor_source_id,
+                source_version=self._actor_source_version,
+                expected_content_hash=self._actor_content_hash,
+                as_of=actor_repository.now(),
+            )
+        )
+        if actor_source is None:
+            return None
+
+        principal = AuthenticatedAccountPrincipalV3(
+            principal_id=actor_source.principal_id,
+            user_id=actor_source.user_id,
+            authentication_context_hash=actor_source.authentication_context_content_hash,
+            authenticated_at=actor_source.principal_authenticated_at,
+            valid_until=actor_source.principal_valid_until,
+        )
+        policy = provisional.authority.policy
+        binding = SingleOwnerPolicyBinding(
+            policy_id=policy.policy_id,
+            policy_version=policy.policy_version,
+            expected_content_hash=policy.content_hash,
+            tenant_id=policy.tenant_id,
+            owner_id=policy.owner_id,
+            account_namespace=policy.account_namespace,
+            account_id=policy.account_id,
+        )
+        policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using)
+        actor_request_reader = CanonicalAccountActorAuthorityRequestReader(
+            current_reader=actor_current_reader,
+            source_id=self._actor_source_id,
+            source_version=self._actor_source_version,
+            expected_content_hash=self._actor_content_hash,
+        )
+        participants = CurrentSingleOwnerParticipantsProvider(
+            principal=principal,
+            binding=binding,
+            policies=policies,
+            actors=actor_request_reader,
+        )
+
+        read_context = OwnerTenantAuthorityV3OperationReadContext(
+            using=self._using,
+            connection_provider=lambda: connections[self._using].connection,
+        )
+        evidence_repository, current_evidence, exact_evidence = _build_evidence_readers(
+            using=self._using,
+            actors=actor_repository,
+            policies=policies,
+            participants=participants,
+            physical_row_provider=self._physical_row_provider,
+            read_context=read_context,
+        )
+        service = OwnerTenantAuthorityV3Service(
+            repository=DjangoOwnerTenantAuthorityV3Repository(
+                using=self._using,
+                assignments=evidence_repository,
+                policies=policies,
+                actors=actor_repository,
+            ),
+            current_assignments=_CurrentEvidenceReader(current_evidence),
+            historical_assignments=_HistoricalEvidenceReader(exact_evidence),
+            participants=participants,
+            validity_period=timedelta(seconds=1),
+            read_phase=read_context.phase,
+        )
+        return service.get_current(command)
 
 
 class AccountAuthorityShadowScannerV3:
@@ -258,95 +462,14 @@ class AccountAuthorityShadowScannerV3:
     ) -> CurrentOwnerTenantAuthorityV3 | None:
         """Restore current authority with the existing Application service graph."""
 
-        connection = _connection(self._using)
-        _require_repeatable_read_only_connection(connection, self._using)
-
-        authority_repository = DjangoOwnerTenantAuthorityV3Repository(using=self._using)
-        provisional = authority_repository.get_winner(
-            authority_id=command.authority_id,
-            authority_version=command.authority_version,
-            as_of=authority_repository.now(),
-        )
-        if provisional is None:
-            return None
-
-        actor_repository = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
-            using=self._using
-        )
-        actor_current_reader = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
-            input_bundle_provider=DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
-                using=self._using
-            ),
-            repository=actor_repository,
-        )
-        actor_source = actor_current_reader.execute(
-            GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3Command(
-                source_id=self._actor_source_id,
-                source_version=self._actor_source_version,
-                expected_content_hash=self._actor_content_hash,
-                as_of=actor_repository.now(),
-            )
-        )
-        if actor_source is None:
-            return None
-
-        principal = AuthenticatedAccountPrincipalV3(
-            principal_id=actor_source.principal_id,
-            user_id=actor_source.user_id,
-            authentication_context_hash=actor_source.authentication_context_content_hash,
-            authenticated_at=actor_source.principal_authenticated_at,
-            valid_until=actor_source.principal_valid_until,
-        )
-        policy = provisional.authority.policy
-        binding = SingleOwnerPolicyBinding(
-            policy_id=policy.policy_id,
-            policy_version=policy.policy_version,
-            expected_content_hash=policy.content_hash,
-            tenant_id=policy.tenant_id,
-            owner_id=policy.owner_id,
-            account_namespace=policy.account_namespace,
-            account_id=policy.account_id,
-        )
-        policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using)
-        actor_request_reader = CanonicalAccountActorAuthorityRequestReader(
-            current_reader=actor_current_reader,
-            source_id=self._actor_source_id,
-            source_version=self._actor_source_version,
-            expected_content_hash=self._actor_content_hash,
-        )
-        participants = CurrentSingleOwnerParticipantsProvider(
-            principal=principal,
-            binding=binding,
-            policies=policies,
-            actors=actor_request_reader,
-        )
-
-        read_context = OwnerTenantAuthorityV3OperationReadContext(
-            using=self._using,
-            connection_provider=lambda: connections[self._using].connection,
-        )
-        evidence_repository, current_evidence, exact_evidence = _build_evidence_readers(
-            using=self._using,
-            actors=actor_repository,
-            policies=policies,
-            participants=participants,
+        return AccountAuthorityCurrentGraphReaderV3(
+            actor_source_id=self._actor_source_id,
+            actor_source_version=self._actor_source_version,
+            actor_content_hash=self._actor_content_hash,
             physical_row_provider=self._physical_row_provider,
-            read_context=read_context,
-        )
-        service = OwnerTenantAuthorityV3Service(
-            repository=DjangoOwnerTenantAuthorityV3Repository(
-                using=self._using,
-                assignments=evidence_repository,
-                policies=policies,
-                actors=actor_repository,
-            ),
-            current_assignments=_CurrentEvidenceReader(current_evidence),
-            historical_assignments=_HistoricalEvidenceReader(exact_evidence),
-            participants=participants,
-            validity_period=timedelta(seconds=1),
-            read_phase=read_context.phase,
-        )
-        return service.get_current(command)
+            using=self._using,
+            transaction_mode="repeatable_read_read_only",
+        ).read(command)
 
 
 class _CurrentEvidenceReader(CurrentOwnerAssignmentEvidenceV5Reader):
@@ -503,6 +626,44 @@ def _require_repeatable_read_only_connection(
         )
 
 
+def _require_caller_owned_transaction(
+    connection: BaseDatabaseWrapper,
+    using: str,
+    transaction_mode: AccountAuthorityV3CallerTransactionMode,
+) -> None:
+    """Require an exact PostgreSQL alias and caller-owned transaction mode."""
+
+    if getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph connection belongs to another database alias"
+        )
+    if connection.vendor != "postgresql":
+        raise AccountAuthorityGenerationUnavailable("current graph reader requires PostgreSQL")
+    if not connection.in_atomic_block or connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph reader requires an active caller-owned transaction"
+        )
+    expected_settings = {
+        "repeatable_read_read_only": ("repeatable read", "on"),
+        "generation_fenced_read_committed_read_write": ("read committed", "off"),
+    }[transaction_mode]
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT current_setting('transaction_isolation'), "
+                "current_setting('transaction_read_only')"
+            )
+            mode = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph transaction mode is unavailable"
+        ) from error
+    if mode != expected_settings:
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph transaction mode differs from the requested mode"
+        )
+
+
 def _connection(using: str) -> BaseDatabaseWrapper:
     """Resolve one Django connection without falling back to another alias."""
 
@@ -631,10 +792,23 @@ def _require_hash(value: object, name: str) -> None:
         raise ValueError(f"{name} must be a lowercase SHA-256 digest")
 
 
+def _validate_transaction_mode(value: object) -> AccountAuthorityV3CallerTransactionMode:
+    """Return one exact supported caller transaction mode token."""
+
+    if type(value) is not str or value not in (
+        "repeatable_read_read_only",
+        "generation_fenced_read_committed_read_write",
+    ):
+        raise ValueError("transaction_mode must be an exact supported mode token")
+    return cast(AccountAuthorityV3CallerTransactionMode, value)
+
+
 __all__ = [
+    "AccountAuthorityCurrentGraphReaderV3",
     "AccountAuthorityShadowComparisonV3",
     "AccountAuthorityShadowFingerprintV3",
     "AccountAuthorityShadowScanResultV3",
     "AccountAuthorityShadowScannerV3",
+    "AccountAuthorityV3CallerTransactionMode",
     "DjangoAccountAuthorityNoLockSnapshotBundleProviderV3",
 ]

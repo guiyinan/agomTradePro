@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
+from threading import get_ident
 from typing import cast
 
 from django.apps import apps as django_apps
-from django.db import DatabaseError, connections
+from django.db import DatabaseError, connections, transaction
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Model
 from django.utils.connection import ConnectionDoesNotExist
@@ -80,6 +85,32 @@ class AccountAuthorityGenerationProof:
 
     using: str
     generation: int
+
+    def __post_init__(self) -> None:
+        """Reject malformed alias and epoch values before they reach fence SQL."""
+
+        if type(self.using) is not str or not self.using or self.using.strip() != self.using:
+            raise ValueError("generation proof using must be an exact database alias")
+        if type(self.generation) is not int or self.generation < 0:
+            raise ValueError("generation proof generation must be a nonnegative exact integer")
+
+
+@dataclass(frozen=True, slots=True)
+class _ActiveGenerationFence:
+    """Unforgeable context binding for one caller-owned generation lock."""
+
+    using: str
+    physical_connection: object
+    transaction_id: str
+    backend_pid: int
+    thread_id: int
+    task: object | None
+    generation: int
+
+
+_ACTIVE_GENERATION_FENCE: ContextVar[_ActiveGenerationFence | None] = ContextVar(
+    "account_authority_generation_fence", default=None
+)
 
 
 def verify_account_authority_generation_coverage(
@@ -173,6 +204,10 @@ def lock_account_authority_generation_fence(
             "account authority generation proof belongs to another database alias"
         )
     connection = _connection(using)
+    if getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation fence connection alias differs"
+        )
     if connection.vendor != "postgresql" or not connection.in_atomic_block:
         raise AccountAuthorityGenerationUnavailable(
             "account authority generation fence requires an active PostgreSQL transaction"
@@ -190,7 +225,7 @@ def lock_account_authority_generation_fence(
     try:
         with connection.cursor() as cursor:
             cursor.execute(
-                f"SELECT generation FROM {_GENERATION_TABLE} WHERE singleton = %s FOR UPDATE",
+                f"SELECT generation FROM {_GENERATION_TABLE} WHERE singleton = %s FOR SHARE",
                 [1],
             )
             row = cast(tuple[object, ...] | None, cursor.fetchone())
@@ -210,6 +245,166 @@ def lock_account_authority_generation_fence(
             "account authority source generation changed before final fence"
         )
     return current_generation
+
+
+@contextmanager
+def caller_owned_account_authority_generation_fence(
+    proof: AccountAuthorityGenerationProof,
+    *,
+    using: str = "default",
+) -> Iterator[int]:
+    """Lock a generation in an existing outer RC/RW transaction and bind its context.
+
+    This context manager does not create or finish the caller's transaction.
+    Its binding is valid only for the exact alias, physical DB connection, and
+    generation that were verified while the singleton row lock is held.
+    """
+
+    if type(proof) is not AccountAuthorityGenerationProof:
+        raise TypeError("proof must be an exact AccountAuthorityGenerationProof")
+    if type(using) is not str or not using or using.strip() != using:
+        raise ValueError("using must be an exact database alias")
+    if proof.using != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation proof belongs to another database alias"
+        )
+    if _ACTIVE_GENERATION_FENCE.get() is not None:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation fence context cannot be nested"
+        )
+    connection = _connection(using)
+    if getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation connection alias differs"
+        )
+    if connection.vendor != "postgresql" or not connection.in_atomic_block:
+        raise AccountAuthorityGenerationUnavailable(
+            "generation context requires an active outer PostgreSQL transaction"
+        )
+    if connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "generation context requires an active outer transaction"
+        )
+    atomic_blocks = getattr(connection, "atomic_blocks", None)
+    if not isinstance(atomic_blocks, list) or len(atomic_blocks) != 1:
+        raise AccountAuthorityGenerationUnavailable(
+            "generation context requires the outermost caller transaction"
+        )
+    physical_connection = getattr(connection, "connection", None)
+    if physical_connection is None:
+        raise AccountAuthorityGenerationUnavailable(
+            "generation context requires an established physical connection"
+        )
+    _require_transaction_mode(connection, isolation="read committed", read_only=False)
+    try:
+        generation = lock_account_authority_generation_fence(proof, using=using)
+        transaction_id, backend_pid = _read_transaction_identity(connection)
+    except BaseException as error:
+        try:
+            _mark_outer_transaction_rollback(connection, using)
+        except BaseException as rollback_error:
+            error.add_note(
+                "could not mark the caller transaction for rollback: "
+                f"{type(rollback_error).__name__}"
+            )
+        raise
+    binding = _ActiveGenerationFence(
+        using=using,
+        physical_connection=physical_connection,
+        transaction_id=transaction_id,
+        backend_pid=backend_pid,
+        thread_id=get_ident(),
+        task=_current_task(),
+        generation=generation,
+    )
+    token = _ACTIVE_GENERATION_FENCE.set(binding)
+    try:
+        yield generation
+    except BaseException as error:
+        try:
+            _mark_outer_transaction_rollback(connection, using)
+        except BaseException as rollback_error:
+            error.add_note(
+                "could not mark the caller transaction for rollback: "
+                f"{type(rollback_error).__name__}"
+            )
+        finally:
+            _ACTIVE_GENERATION_FENCE.reset(token)
+        raise
+    else:
+        try:
+            require_active_account_authority_generation_fence(
+                using=using,
+                connection=connection,
+                generation=generation,
+            )
+        except BaseException as error:
+            try:
+                _mark_outer_transaction_rollback(connection, using)
+            except BaseException as rollback_error:
+                error.add_note(
+                    "could not mark the caller transaction for rollback: "
+                    f"{type(rollback_error).__name__}"
+                )
+            raise
+        finally:
+            _ACTIVE_GENERATION_FENCE.reset(token)
+
+
+def require_active_account_authority_generation_fence(
+    *,
+    using: str,
+    connection: BaseDatabaseWrapper,
+    generation: int | None = None,
+) -> int:
+    """Require the active caller fence to match alias, physical connection, and epoch."""
+
+    binding = _ACTIVE_GENERATION_FENCE.get()
+    if binding is None:
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph read requires an active generation fence context"
+        )
+    if type(using) is not str or not using or using.strip() != using:
+        raise ValueError("using must be an exact database alias")
+    if binding.thread_id != get_ident() or binding.task is not _current_task():
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence execution context changed"
+        )
+    if binding.using != using or getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence belongs to another database alias"
+        )
+    if connection.vendor != "postgresql":
+        raise AccountAuthorityGenerationUnavailable("active generation fence requires PostgreSQL")
+    if not connection.in_atomic_block or connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence requires an active outer transaction"
+        )
+    atomic_blocks = getattr(connection, "atomic_blocks", None)
+    if not isinstance(atomic_blocks, list) or len(atomic_blocks) != 1:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence requires the outermost transaction"
+        )
+    if getattr(connection, "connection", None) is not binding.physical_connection:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence belongs to another physical connection"
+        )
+    _require_transaction_mode(connection, isolation="read committed", read_only=False)
+    transaction_id, backend_pid = _read_transaction_identity(connection)
+    if transaction_id != binding.transaction_id or backend_pid != binding.backend_pid:
+        raise AccountAuthorityGenerationUnavailable(
+            "active generation fence transaction identity changed"
+        )
+    current_generation = _read_generation_value(connection)
+    if current_generation != binding.generation:
+        raise AccountAuthorityGenerationChanged(
+            "account authority generation changed inside the caller fence"
+        )
+    if generation is not None and (type(generation) is not int or generation != binding.generation):
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph generation differs from the active fence"
+        )
+    return binding.generation
 
 
 def _runtime_source_tables() -> tuple[str, ...]:
@@ -315,11 +510,85 @@ def _connection(using: str) -> BaseDatabaseWrapper:
     if type(using) is not str or not using or using.strip() != using:
         raise ValueError("using must be an exact database alias")
     try:
-        return connections[using]
+        connection = connections[using]
     except (ConnectionDoesNotExist, KeyError) as error:
         raise AccountAuthorityGenerationUnavailable(
             "account authority generation database alias is unavailable"
         ) from error
+    if getattr(connection, "alias", None) != using:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation connection alias differs"
+        )
+    return connection
+
+
+def _read_generation_value(connection: BaseDatabaseWrapper) -> int:
+    """Read the current transaction-visible generation without taking a lock."""
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT generation FROM {_GENERATION_TABLE} WHERE singleton = %s",
+                [1],
+            )
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation value is unavailable"
+        ) from error
+    if row is None or type(row[0]) is not int or row[0] < 0:
+        raise AccountAuthorityGenerationCoverageError(
+            "account authority generation singleton row is missing or invalid"
+        )
+    return row[0]
+
+
+def _read_transaction_identity(connection: BaseDatabaseWrapper) -> tuple[str, int]:
+    """Read one PostgreSQL transaction ID and backend PID on the bound connection."""
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_current_xact_id()::text, pg_backend_pid()")
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation transaction identity is unavailable"
+        ) from error
+    if (
+        row is None
+        or len(row) != 2
+        or type(row[0]) is not str
+        or not row[0]
+        or type(row[1]) is not int
+        or row[1] <= 0
+    ):
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation transaction identity is invalid"
+        )
+    return row[0], row[1]
+
+
+def _current_task() -> object | None:
+    """Return the current asyncio task when this synchronous call has one."""
+
+    try:
+        return asyncio.current_task()
+    except RuntimeError:
+        return None
+
+
+def _mark_outer_transaction_rollback(
+    connection: BaseDatabaseWrapper,
+    using: str,
+) -> None:
+    """Mark the still-active outer transaction rollback-only after fence failure."""
+
+    if (
+        getattr(connection, "alias", None) == using
+        and connection.in_atomic_block
+        and not connection.get_autocommit()
+    ):
+        transaction.set_rollback(True, using=using)
 
 
 def _require_transaction_mode(
@@ -362,7 +631,9 @@ __all__ = [
     "AccountAuthorityGenerationCoverageError",
     "AccountAuthorityGenerationProof",
     "AccountAuthorityGenerationUnavailable",
+    "caller_owned_account_authority_generation_fence",
     "lock_account_authority_generation_fence",
+    "require_active_account_authority_generation_fence",
     "read_account_authority_generation_proof",
     "verify_account_authority_generation_coverage",
 ]

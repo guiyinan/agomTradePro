@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
+from typing import cast
 
 import pytest
 
@@ -14,12 +16,15 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerTenantAuthorityV3,
 )
+from apps.account.infrastructure import account_authority_generation as generation_module
 from apps.account.infrastructure import account_authority_shadow_scanner as shadow_module
 from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
+    caller_owned_account_authority_generation_fence,
 )
 from apps.account.infrastructure.account_authority_shadow_scanner import (
+    AccountAuthorityCurrentGraphReaderV3,
     AccountAuthorityShadowScannerV3,
     DjangoAccountAuthorityNoLockSnapshotBundleProviderV3,
 )
@@ -41,11 +46,17 @@ class _Cursor:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def execute(self, statement: str) -> None:
+    def execute(self, statement: str, params: object = None) -> None:
+        del params
         self.statements.append(statement)
 
-    def fetchone(self) -> tuple[str, str]:
-        return (self.connection.isolation, self.connection.read_only)
+    def fetchone(self) -> tuple[object, ...]:
+        statement = self.connection.cursor_value.statements[-1].lower()
+        if "current_setting" in statement:
+            return (self.connection.isolation, self.connection.read_only)
+        if "pg_current_xact_id" in statement:
+            return (self.connection.transaction_id, self.connection.backend_pid)
+        return (self.connection.generation,)
 
 
 class _Connection:
@@ -63,8 +74,14 @@ class _Connection:
         self.vendor = vendor
         self.isolation = isolation
         self.read_only = read_only
+        self.generation = 41
+        self.transaction_id = "41"
+        self.backend_pid = 1234
+        self.rollback_only = False
         self.in_atomic_block = in_atomic_block
         self.autocommit = autocommit
+        self.atomic_blocks = [object()] if in_atomic_block else []
+        self.connection = object()
         self.cursor_value = _Cursor(self)
 
     def get_autocommit(self) -> bool:
@@ -132,6 +149,434 @@ def test_no_lock_actor_snapshot_requires_one_active_rr_read_only_alias() -> None
     assert "current_setting" in statement
     assert "lock table" not in statement
     assert "pg_advisory" not in statement
+
+
+def test_generation_fence_uses_share_row_lock_for_compatible_final_readers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "_require_transaction_mode",
+        lambda received, *, isolation, read_only: None,
+    )
+    monkeypatch.setattr(
+        generation_module,
+        "verify_account_authority_generation_coverage",
+        lambda *, using: object(),
+    )
+
+    assert generation_module.lock_account_authority_generation_fence(proof, using="default") == 41
+
+    statement = connection.cursor_value.statements[-1].lower()
+    assert "for share" in statement
+    assert "for update" not in statement
+
+
+@pytest.mark.parametrize(
+    ("mode", "isolation", "read_only"),
+    [
+        ("repeatable_read_read_only", "repeatable read", "on"),
+        ("generation_fenced_read_committed_read_write", "read committed", "off"),
+    ],
+)
+def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    isolation: str,
+    read_only: str,
+) -> None:
+    connection = _Connection(isolation=isolation, read_only=read_only)
+    current = _legacy_current()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    reads: list[GetCurrentOwnerTenantAuthorityV3Command] = []
+
+    def graph_read(
+        _self: AccountAuthorityCurrentGraphReaderV3,
+        received: GetCurrentOwnerTenantAuthorityV3Command,
+    ) -> CurrentOwnerTenantAuthorityV3:
+        reads.append(received)
+        return current
+
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(AccountAuthorityCurrentGraphReaderV3, "_read_application_graph", graph_read)
+    monkeypatch.setattr(
+        shadow_module.transaction,
+        "atomic",
+        lambda **_kwargs: pytest.fail("current graph reader must not own a transaction"),
+    )
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode=mode,
+    )
+
+    if mode == "repeatable_read_read_only":
+        result = reader.read(command)
+    else:
+        proof = AccountAuthorityGenerationProof(using="default", generation=41)
+        monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+        monkeypatch.setattr(
+            generation_module,
+            "lock_account_authority_generation_fence",
+            lambda received, *, using: received.generation,
+        )
+        with caller_owned_account_authority_generation_fence(proof, using="default") as generation:
+            result = reader.read(command, generation=generation)
+    assert result is current
+    assert reads == [command]
+    assert connection.in_atomic_block is True
+    assert connection.get_autocommit() is False
+    assert len(connection.cursor_value.statements) >= 1
+    setting_reads = sum(
+        "current_setting" in statement.lower() for statement in connection.cursor_value.statements
+    )
+    assert setting_reads >= (1 if mode == "repeatable_read_read_only" else 2)
+
+
+@pytest.mark.parametrize(
+    ("mode", "connection", "message"),
+    [
+        ("repeatable_read_read_only", _Connection(alias="other"), "alias"),
+        ("repeatable_read_read_only", _Connection(vendor="sqlite"), "PostgreSQL"),
+        (
+            "repeatable_read_read_only",
+            _Connection(isolation="read committed", read_only="on"),
+            "transaction mode",
+        ),
+        (
+            "generation_fenced_read_committed_read_write",
+            _Connection(isolation="repeatable read", read_only="off"),
+            "transaction mode",
+        ),
+        (
+            "generation_fenced_read_committed_read_write",
+            _Connection(isolation="read committed", read_only="on"),
+            "transaction mode",
+        ),
+        (
+            "generation_fenced_read_committed_read_write",
+            _Connection(in_atomic_block=False, autocommit=True),
+            "active caller-owned transaction",
+        ),
+    ],
+)
+def test_current_graph_reader_fails_closed_before_graph_read_on_mode_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    connection: _Connection,
+    message: str,
+) -> None:
+    current = _legacy_current()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    graph_reads: list[object] = []
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        AccountAuthorityCurrentGraphReaderV3,
+        "_read_application_graph",
+        lambda self, value: graph_reads.append(value),
+    )
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode=mode,
+    )
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match=message):
+        reader.read(command)
+
+    assert graph_reads == []
+
+
+def test_generation_fenced_reader_rejects_ordinary_rc_rw_transaction_before_graph_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    current = _legacy_current()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    graph_reads: list[object] = []
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        AccountAuthorityCurrentGraphReaderV3,
+        "_read_application_graph",
+        lambda self, value: graph_reads.append(value),
+    )
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode="generation_fenced_read_committed_read_write",
+    )
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="active generation fence"):
+        reader.read(command, generation=41)
+
+    assert graph_reads == []
+
+
+@pytest.mark.parametrize(
+    ("mismatch", "message"),
+    (
+        ("alias", "another database alias"),
+        ("physical_connection", "another physical connection"),
+        ("transaction_id", "transaction identity changed"),
+    ),
+)
+def test_active_generation_fence_rejects_alias_and_physical_connection_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    mismatch: str,
+    message: str,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    with caller_owned_account_authority_generation_fence(proof, using="default"):
+        if mismatch == "alias":
+            other = _Connection(alias="other", isolation="read committed", read_only="off")
+            using = "other"
+        elif mismatch == "transaction_id":
+            connection.transaction_id = "42"
+            other = connection
+            using = "default"
+        else:
+            other = _Connection(isolation="read committed", read_only="off")
+            using = "default"
+        with pytest.raises(AccountAuthorityGenerationUnavailable, match=message):
+            generation_module.require_active_account_authority_generation_fence(
+                using=using,
+                connection=other,  # type: ignore[arg-type]
+                generation=41,
+            )
+        if mismatch == "transaction_id":
+            connection.transaction_id = "41"
+
+
+@pytest.mark.parametrize(
+    ("drift", "message"),
+    [
+        ("physical_connection", "another physical connection"),
+        ("transaction", "active outer transaction"),
+    ],
+)
+def test_generation_fence_context_fails_closed_on_normal_exit_drift_and_resets(
+    monkeypatch: pytest.MonkeyPatch,
+    drift: str,
+    message: str,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match=message):
+        with caller_owned_account_authority_generation_fence(proof, using="default"):
+            if drift == "physical_connection":
+                connection.connection = object()
+            else:
+                connection.in_atomic_block = False
+                connection.autocommit = True
+                connection.atomic_blocks = []
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="active generation fence"):
+        generation_module.require_active_account_authority_generation_fence(
+            using="default",
+            connection=connection,  # type: ignore[arg-type]
+            generation=41,
+        )
+
+
+def test_generation_fence_context_cleans_context_after_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    monkeypatch.setattr(
+        generation_module.transaction,
+        "set_rollback",
+        lambda rollback, *, using: setattr(connection, "rollback_only", rollback),
+    )
+    try:
+        with caller_owned_account_authority_generation_fence(proof, using="default"):
+            raise RuntimeError("caller failure")
+    except RuntimeError as error:
+        assert str(error) == "caller failure"
+    else:
+        raise AssertionError("caller exception was swallowed")
+    assert connection.rollback_only is True
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="active generation fence"):
+        generation_module.require_active_account_authority_generation_fence(
+            using="default",
+            connection=connection,  # type: ignore[arg-type]
+            generation=41,
+        )
+
+
+def test_generation_fence_context_marks_rollback_when_exit_recheck_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+    monkeypatch.setattr(
+        generation_module.transaction,
+        "set_rollback",
+        lambda rollback, *, using: setattr(connection, "rollback_only", rollback),
+    )
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="mode is invalid"):
+        with caller_owned_account_authority_generation_fence(proof, using="default"):
+            connection.read_only = "on"
+
+    assert connection.rollback_only is True
+
+
+def test_generation_fence_rejects_live_inherited_child_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    async def child_read() -> None:
+        with pytest.raises(
+            AccountAuthorityGenerationUnavailable, match="execution context changed"
+        ):
+            generation_module.require_active_account_authority_generation_fence(
+                using="default",
+                connection=connection,  # type: ignore[arg-type]
+                generation=41,
+            )
+
+    async def parent_scope() -> None:
+        with caller_owned_account_authority_generation_fence(proof, using="default"):
+            await asyncio.create_task(child_read())
+
+    asyncio.run(parent_scope())
+
+
+def test_generation_fence_scope_end_rejects_following_transaction_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection(isolation="read committed", read_only="off")
+    proof = AccountAuthorityGenerationProof(using="default", generation=41)
+    monkeypatch.setattr(generation_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        generation_module,
+        "lock_account_authority_generation_fence",
+        lambda received, *, using: received.generation,
+    )
+
+    with caller_owned_account_authority_generation_fence(proof, using="default"):
+        pass
+    connection.transaction_id = "42"
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="active generation fence"):
+        generation_module.require_active_account_authority_generation_fence(
+            using="default",
+            connection=connection,  # type: ignore[arg-type]
+            generation=41,
+        )
+
+
+def test_current_graph_reader_rejects_unknown_mode_and_exact_alias_mismatch() -> None:
+    with pytest.raises(ValueError, match="transaction_mode"):
+        AccountAuthorityCurrentGraphReaderV3(
+            actor_source_id="audit-actor-v3",
+            actor_source_version="v1",
+            actor_content_hash="c" * 64,
+            physical_row_provider=_PhysicalProvider(),
+            using="default",
+            transaction_mode="read committed",
+        )
+
+
+def test_current_graph_reader_rejects_non_exact_projection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _Connection()
+    current = _legacy_current()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        AccountAuthorityCurrentGraphReaderV3,
+        "_read_application_graph",
+        lambda self, value: cast(CurrentOwnerTenantAuthorityV3 | None, object()),
+    )
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode="repeatable_read_read_only",
+    )
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="invalid Authority V3"):
+        reader.read(command)
+
+    with pytest.raises(ValueError, match="alias"):
+        AccountAuthorityCurrentGraphReaderV3(
+            actor_source_id="audit-actor-v3",
+            actor_source_version="v1",
+            actor_content_hash="c" * 64,
+            physical_row_provider=_PhysicalProvider(),
+            using=" default",
+            transaction_mode="repeatable_read_read_only",
+        )
 
 
 @pytest.mark.parametrize(

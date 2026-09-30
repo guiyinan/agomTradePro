@@ -21,6 +21,7 @@ from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationCoverageError,
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
+    caller_owned_account_authority_generation_fence,
     lock_account_authority_generation_fence,
     read_account_authority_generation_proof,
     verify_account_authority_generation_coverage,
@@ -311,6 +312,101 @@ def test_generation_fence_waits_for_source_writer_and_serializes_after_commit(
         connections.databases.pop(competing_alias, None)
 
 
+def test_two_generation_fences_coexist_and_each_blocks_source_writer(
+    generation_alias: str,
+) -> None:
+    """Allow two final readers together while either held fence blocks source DML."""
+
+    competing_alias = "account_authority_generation_second_fence"
+    if competing_alias in connections.databases:
+        raise AssertionError("test fence alias already exists")
+    connections.databases[competing_alias] = deepcopy(connections[generation_alias].settings_dict)
+    first_proof = _read_rr_proof(generation_alias)
+    second_proof = _read_rr_proof(competing_alias)
+    second_entered = Event()
+    release_second = Event()
+    writer_started = Event()
+    backend_pids: Queue[int] = Queue()
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            with transaction.atomic(using=generation_alias):
+                with connections[generation_alias].cursor() as cursor:
+                    cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
+                with caller_owned_account_authority_generation_fence(
+                    first_proof, using=generation_alias
+                ) as first_generation:
+                    assert first_generation == first_proof.generation
+                    second_fence = executor.submit(
+                        _hold_generation_fence,
+                        competing_alias,
+                        second_proof,
+                        second_entered,
+                        release_second,
+                    )
+                    assert second_entered.wait(timeout=5)
+
+                    writer = executor.submit(
+                        _direct_zero_row_source_writer,
+                        competing_alias,
+                        writer_started,
+                        backend_pids,
+                    )
+                    assert writer_started.wait(timeout=5)
+                    backend_pid = backend_pids.get(timeout=5)
+                    assert _wait_for_lock_wait(generation_alias, backend_pid)
+                    assert not writer.done()
+
+                    release_second.set()
+                    assert second_fence.result(timeout=10) == first_proof.generation
+                    assert not writer.done()
+                assert writer.result(timeout=10) == first_proof.generation + 1
+    finally:
+        release_second.set()
+        connections[competing_alias].close()
+        connections.databases.pop(competing_alias, None)
+
+
+def test_generation_context_rejects_same_transaction_source_write_and_rolls_back(
+    generation_alias: str,
+) -> None:
+    """Detect an in-fence source trigger bump and mark the caller transaction rollback-only."""
+
+    proof = _read_rr_proof(generation_alias)
+    with pytest.raises(AccountAuthorityGenerationChanged, match="inside the caller fence"):
+        with transaction.atomic(using=generation_alias):
+            with connections[generation_alias].cursor() as cursor:
+                cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
+            with caller_owned_account_authority_generation_fence(proof, using=generation_alias):
+                with connections[generation_alias].cursor() as cursor:
+                    cursor.execute(
+                        f"UPDATE {_SIMULATED_SOURCE_TABLE} SET id = id WHERE id = %s",
+                        [-1],
+                    )
+                assert _generation(generation_alias) == proof.generation + 1
+
+    assert _generation(generation_alias) == proof.generation
+
+
+def test_generation_context_rejects_raw_commit_and_new_xid_on_same_connection(
+    generation_alias: str,
+) -> None:
+    """Detect a caller bypassing Django atomic with psycopg COMMIT on the same socket."""
+
+    proof = _read_rr_proof(generation_alias)
+    connection = connections[generation_alias]
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="transaction identity changed"):
+        with transaction.atomic(using=generation_alias):
+            with connection.cursor() as cursor:
+                cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
+            with caller_owned_account_authority_generation_fence(proof, using=generation_alias):
+                raw_connection = connection.connection
+                if raw_connection is None:
+                    raise AssertionError("Django physical connection is unavailable")
+                raw_connection.commit()
+                with raw_connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+
+
 def _generation(using: str) -> int:
     """Read the transaction-visible generation value for one test alias."""
 
@@ -329,6 +425,54 @@ def _read_rr_proof(using: str) -> AccountAuthorityGenerationProof:
         with connections[using].cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         return read_account_authority_generation_proof(using=using)
+
+
+def _hold_generation_fence(
+    using: str,
+    proof: AccountAuthorityGenerationProof,
+    entered: Event,
+    release: Event,
+) -> int:
+    """Hold one independent caller-owned share fence until the test releases it."""
+
+    close_old_connections()
+    try:
+        with transaction.atomic(using=using):
+            with connections[using].cursor() as cursor:
+                cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
+            with caller_owned_account_authority_generation_fence(proof, using=using) as generation:
+                entered.set()
+                if not release.wait(timeout=10):
+                    raise AssertionError("test did not release the second generation fence")
+                return generation
+    finally:
+        connections[using].close()
+
+
+def _direct_zero_row_source_writer(
+    using: str,
+    started: Event,
+    backend_pids: Queue[int],
+) -> int:
+    """Bump the source generation with zero-row DML after any held fences release."""
+
+    close_old_connections()
+    try:
+        with transaction.atomic(using=using):
+            with connections[using].cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                row = cast(tuple[object, ...] | None, cursor.fetchone())
+                if row is None or type(row[0]) is not int:
+                    raise AssertionError("writer backend PID was not returned")
+                backend_pids.put(row[0])
+                started.set()
+                cursor.execute(
+                    f"UPDATE {_SIMULATED_SOURCE_TABLE} SET id = id WHERE id = %s",
+                    [-1],
+                )
+        return _generation(using)
+    finally:
+        connections[using].close()
 
 
 def _direct_source_writer(
