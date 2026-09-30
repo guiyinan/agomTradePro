@@ -359,7 +359,8 @@ def test_two_generation_fences_coexist_and_each_blocks_source_writer(
                     release_second.set()
                     assert second_fence.result(timeout=10) == first_proof.generation
                     assert not writer.done()
-                assert writer.result(timeout=10) == first_proof.generation + 1
+                assert not writer.done()
+            assert writer.result(timeout=10) == first_proof.generation + 1
     finally:
         release_second.set()
         connections[competing_alias].close()
