@@ -32,6 +32,9 @@ from apps.simulated_trading.infrastructure import (
 from apps.simulated_trading.infrastructure.account_physical_row_v2_provider import (
     DjangoExactPhysicalSimulatedAccountRowV2Provider,
 )
+from apps.simulated_trading.infrastructure.simulated_account_row_source_v2_repository import (
+    DjangoSimulatedAccountRowSourceV2Repository,
+)
 
 NOW = datetime(2026, 8, 13, 12, tzinfo=UTC)
 
@@ -103,8 +106,9 @@ class _Repository:
         self.winner = winner
         self.head = head
         self.error = error
-        self.winner_calls: list[tuple[str, str, datetime]] = []
+        self.winner_calls: list[tuple[str, str, datetime, datetime | None]] = []
         self.head_calls: list[tuple[object, ...]] = []
+        self.head_authoritative_cutoffs: list[datetime | None] = []
         self.lock_calls = 0
         self.read_lock_calls = 0
 
@@ -123,15 +127,23 @@ class _Repository:
             raise self.error
 
     def get_winner(
-        self, *, source_id: str, source_version: str, as_of: datetime
+        self,
+        *,
+        source_id: str,
+        source_version: str,
+        as_of: datetime,
+        authoritative_cutoff: datetime | None = None,
     ) -> PersistedSimulatedAccountRowSourceV2 | None:
-        self.winner_calls.append((source_id, source_version, as_of))
+        self.winner_calls.append((source_id, source_version, as_of, authoritative_cutoff))
         if self.error is not None:
             raise self.error
         return self.winner
 
     def get_current_head(self, **kwargs: object) -> PersistedSimulatedAccountRowSourceV2 | None:
         self.head_calls.append(tuple(kwargs.values()))
+        self.head_authoritative_cutoffs.append(
+            cast(datetime | None, kwargs.get("authoritative_cutoff"))
+        )
         return self.head
 
     def atomic(self) -> object:
@@ -179,6 +191,16 @@ class _IdentityConnection:
 
     def cursor(self) -> _IdentityCursor:
         return _IdentityCursor(self)
+
+
+class _Clock:
+    def __init__(self, value: datetime) -> None:
+        self.value = value
+        self.calls = 0
+
+    def now(self) -> datetime:
+        self.calls += 1
+        return self.value
 
 
 def _identity(
@@ -249,23 +271,132 @@ def test_bound_provider_reads_only_on_exact_wrapper_connection_pid_and_xid(
     monkeypatch.setattr(provider_module, "connections", {"default": connection})
     record = _record()
     source = record.source
+    repository = _Repository(winner=record, head=record)
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(repository)
+    clock = _Clock(NOW)
+
+    with provider.bind_physical_identity(_identity(connection)):
+        with provider.bind_read_clock(clock):
+            value = provider.get_exact_final(
+                source_id=source.source_id,
+                source_version=source.source_version,
+                expected_content_hash=source.content_hash,
+                account_namespace=source.account_namespace,
+                account_id=source.account_id,
+                underlying_unified_account_namespace=source.underlying_unified_account_namespace,
+                underlying_unified_account_id=source.underlying_unified_account_id,
+                as_of=NOW,
+            )
+
+    assert value is not None
+    assert repository.winner_calls[-1][-1] == NOW
+    assert repository.head_authoritative_cutoffs == [NOW]
+    assert clock.calls >= 3
+
+
+def test_bound_provider_rejects_identity_read_without_clock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _IdentityConnection()
+    monkeypatch.setattr(provider_module, "connections", {"default": connection})
+    record = _record()
+    source = record.source
     provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(
         _Repository(winner=record, head=record)
     )
 
     with provider.bind_physical_identity(_identity(connection)):
-        value = provider.get_exact_final(
-            source_id=source.source_id,
-            source_version=source.source_version,
-            expected_content_hash=source.content_hash,
-            account_namespace=source.account_namespace,
-            account_id=source.account_id,
-            underlying_unified_account_namespace=source.underlying_unified_account_namespace,
-            underlying_unified_account_id=source.underlying_unified_account_id,
-            as_of=NOW,
-        )
+        with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="read clock"):
+            provider.get_exact_final(
+                source_id=source.source_id,
+                source_version=source.source_version,
+                expected_content_hash=source.content_hash,
+                account_namespace=source.account_namespace,
+                account_id=source.account_id,
+                underlying_unified_account_namespace=source.underlying_unified_account_namespace,
+                underlying_unified_account_id=source.underlying_unified_account_id,
+                as_of=NOW,
+            )
 
-    assert value is not None
+
+def test_bound_provider_rejects_naive_clock() -> None:
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="aware"):
+        with provider.bind_read_clock(_Clock(datetime(2026, 8, 13, 12))):
+            pass
+
+
+def test_bound_provider_rejects_nested_and_drifting_clock() -> None:
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(_Repository())
+    clock = _Clock(NOW)
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="nested"):
+        with provider.bind_read_clock(clock):
+            with provider.bind_read_clock(clock):
+                pass
+
+    with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="drifted"):
+        with provider.bind_read_clock(clock):
+            clock.value = NOW + timedelta(seconds=1)
+
+
+def test_bound_provider_rejects_as_of_after_bound_cutoff() -> None:
+    record = _record()
+    repository = _Repository(winner=record, head=record)
+    provider = DjangoExactPhysicalSimulatedAccountRowV2Provider(repository)
+    source = record.source
+
+    with provider.bind_read_clock(_Clock(NOW)):
+        with pytest.raises(PhysicalAccountRowObservationV2Unavailable, match="cutoff"):
+            provider.get_exact_final(
+                source_id=source.source_id,
+                source_version=source.source_version,
+                expected_content_hash=source.content_hash,
+                account_namespace=source.account_namespace,
+                account_id=source.account_id,
+                underlying_unified_account_namespace=source.underlying_unified_account_namespace,
+                underlying_unified_account_id=source.underlying_unified_account_id,
+                as_of=NOW + timedelta(microseconds=1),
+            )
+    assert repository.winner_calls == []
+
+
+def test_source_repository_uses_explicit_cutoff_when_application_clock_lags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FailingClock:
+        def now(self) -> datetime:
+            raise AssertionError("application clock must not be read")
+
+    repository = DjangoSimulatedAccountRowSourceV2Repository(clock=_FailingClock())
+    monkeypatch.setattr(
+        DjangoSimulatedAccountRowSourceV2Repository,
+        "_visible_records",
+        lambda self, *, as_of, lock: (),
+    )
+
+    assert (
+        repository.get_winner(
+            source_id="source-1",
+            source_version="v1",
+            as_of=NOW,
+            authoritative_cutoff=NOW,
+        )
+        is None
+    )
+    assert (
+        repository.get_current_head(
+            source_id="source-1",
+            account_namespace="account",
+            account_id="0007",
+            underlying_unified_account_namespace="simulated-account-row",
+            underlying_unified_account_id=7,
+            as_of=NOW,
+            authoritative_cutoff=NOW,
+        )
+        is None
+    )
 
 
 def test_bound_provider_rejects_cross_alias_and_different_wrapper(

@@ -57,7 +57,9 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
     GetCurrentPhysicalAccountRowObservationV2,
+    PhysicalAccountRowProviderIdentity,
     PhysicalAccountRowProviderIdentityScope,
+    PhysicalAccountRowProviderReadClockScope,
 )
 from apps.account.application.single_owner_actor_authority import (
     CurrentSingleOwnerParticipantsProvider,
@@ -179,6 +181,50 @@ class AccountAuthorityShadowScanResultV3:
     comparison: AccountAuthorityShadowComparisonV3
 
 
+@dataclass(frozen=True, slots=True)
+class AccountAuthorityCurrentGraphReadV3:
+    """Expose a point-in-time graph projection and its single database cutoff.
+
+    ``checked_at`` is the graph's selection cutoff. It is not an expiry lease or
+    a promise that the projection remains current after this read completes.
+    """
+
+    checked_at: datetime
+    authority: CurrentOwnerTenantAuthorityV3 | None
+
+    def __post_init__(self) -> None:
+        """Reject naive cutoffs and malformed current projections."""
+
+        if type(self.checked_at) is not datetime or not _is_aware(self.checked_at):
+            raise ValueError("checked_at must be an exact aware datetime")
+        if self.authority is not None:
+            if type(self.authority) is not CurrentOwnerTenantAuthorityV3:
+                raise TypeError("authority must be an exact current Authority V3 projection")
+            self.authority.__post_init__()
+            if self.authority.observed_at != self.checked_at:
+                raise ValueError("authority projection does not use the graph cutoff")
+            if self.authority.valid_until <= self.checked_at:
+                raise ValueError("authority projection is expired at the graph cutoff")
+
+    @property
+    def cutoff(self) -> datetime:
+        """Return the database timestamp used to select the complete graph."""
+
+        return self.checked_at
+
+
+@dataclass(frozen=True, slots=True)
+class _AuthorityGraphFrozenClock:
+    """Serve the one database cutoff to every repository in an authority graph."""
+
+    value: datetime
+
+    def now(self) -> datetime:
+        """Return the immutable point-in-time cutoff without consulting app time."""
+
+        return self.value
+
+
 class AccountAuthorityCurrentGraphReaderV3:
     """Read the complete current Authority V3 graph in a caller-owned transaction.
 
@@ -188,6 +234,9 @@ class AccountAuthorityCurrentGraphReaderV3:
     service graph, including Evidence V5 parent validation. Every graph read is
     wrapped in a concrete provider identity scope bound to the caller's Django
     wrapper, DBAPI connection, backend PID, transaction xid, and execution task.
+    Every repository clock in one graph read receives one checked PostgreSQL
+    ``clock_timestamp()`` value. The result exposes that point-in-time cutoff;
+    it is not a final expiry lease.
     """
 
     def __init__(
@@ -216,6 +265,8 @@ class AccountAuthorityCurrentGraphReaderV3:
             raise TypeError("physical row provider must expose get_exact_current")
         if not callable(getattr(physical_row_provider, "bind_physical_identity", None)):
             raise TypeError("physical row provider must expose bind_physical_identity")
+        if not callable(getattr(physical_row_provider, "bind_read_clock", None)):
+            raise TypeError("physical row provider must expose bind_read_clock")
         self._actor_source_id = actor_source_id
         self._actor_source_version = actor_source_version
         self._actor_content_hash = actor_content_hash
@@ -228,8 +279,8 @@ class AccountAuthorityCurrentGraphReaderV3:
         command: GetCurrentOwnerTenantAuthorityV3Command,
         *,
         generation: int | None = None,
-    ) -> CurrentOwnerTenantAuthorityV3 | None:
-        """Return the full current projection in the caller's exact transaction.
+    ) -> AccountAuthorityCurrentGraphReadV3:
+        """Return the graph projection and one cutoff in the caller's transaction.
 
         Generation-fenced RC/RW callers must pass the generation yielded by
         ``caller_owned_account_authority_generation_fence``.
@@ -255,24 +306,25 @@ class AccountAuthorityCurrentGraphReaderV3:
                 connection=connection,
                 generation=generation,
             )
-        if self._transaction_mode == "repeatable_read_read_only":
-            identity = capture_account_authority_snapshot_physical_provider_identity(
-                using=self._using,
-                connection=connection,
+        identity = self._capture_identity(connection, generation)
+        checked_at = _read_database_clock_timestamp(connection, self._using)
+        if identity != self._capture_identity(connection, generation):
+            raise AccountAuthorityGenerationUnavailable(
+                "current graph transaction identity changed while reading its cutoff"
             )
-        else:
-            identity = capture_active_account_authority_physical_provider_identity(
-                using=self._using,
-                connection=connection,
-                generation=generation,
-            )
+        clock = _AuthorityGraphFrozenClock(checked_at)
         identity_scope_provider = cast(
             PhysicalAccountRowProviderIdentityScope,
             self._physical_row_provider,
         )
+        clock_scope_provider = cast(
+            PhysicalAccountRowProviderReadClockScope,
+            self._physical_row_provider,
+        )
         with identity_scope_provider.bind_physical_identity(identity):
-            with suspend_immutable_read_reuse():
-                result = self._read_application_graph(command)
+            with clock_scope_provider.bind_read_clock(clock):
+                with suspend_immutable_read_reuse():
+                    result = self._read_application_graph(command, clock=clock)
         if self._transaction_mode != "repeatable_read_read_only":
             require_active_account_authority_generation_fence(
                 using=self._using,
@@ -285,15 +337,62 @@ class AccountAuthorityCurrentGraphReaderV3:
                     "current graph reader returned an invalid Authority V3 projection"
                 )
             result.__post_init__()
-        return result
+            if result.observed_at != checked_at:
+                raise AccountAuthorityGenerationUnavailable(
+                    "current graph projection does not use its database cutoff"
+                )
+        return AccountAuthorityCurrentGraphReadV3(checked_at=checked_at, authority=result)
+
+    def _capture_identity(
+        self,
+        connection: BaseDatabaseWrapper,
+        generation: int | None,
+    ) -> PhysicalAccountRowProviderIdentity:
+        """Capture the exact alias, physical transaction, task, and generation."""
+
+        if self._transaction_mode == "repeatable_read_read_only":
+            return capture_account_authority_snapshot_physical_provider_identity(
+                using=self._using,
+                connection=connection,
+            )
+        return capture_active_account_authority_physical_provider_identity(
+            using=self._using,
+            connection=connection,
+            generation=generation,
+        )
 
     def _read_application_graph(
         self,
         command: GetCurrentOwnerTenantAuthorityV3Command,
+        *,
+        clock: _AuthorityGraphFrozenClock,
     ) -> CurrentOwnerTenantAuthorityV3 | None:
         """Compose the existing Authority V3 Application graph and Evidence V5 readers."""
 
-        authority_repository = DjangoOwnerTenantAuthorityV3Repository(using=self._using)
+        actor_repository = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
+            using=self._using,
+            clock=clock,
+        )
+        policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using, clock=clock)
+        subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=self._using, clock=clock)
+        read_context = OwnerTenantAuthorityV3OperationReadContext(
+            using=self._using,
+            connection_provider=lambda: connections[self._using].connection,
+        )
+        evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
+            using=self._using,
+            clock=clock,
+            subjects=subjects,
+            actors=actor_repository,
+            read_context=read_context,
+        )
+        authority_repository = DjangoOwnerTenantAuthorityV3Repository(
+            using=self._using,
+            clock=clock,
+            assignments=evidence_repository,
+            policies=policies,
+            actors=actor_repository,
+        )
         provisional = authority_repository.get_winner(
             authority_id=command.authority_id,
             authority_version=command.authority_version,
@@ -302,9 +401,6 @@ class AccountAuthorityCurrentGraphReaderV3:
         if provisional is None:
             return None
 
-        actor_repository = DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(
-            using=self._using
-        )
         actor_current_reader = GetCurrentAccountOwnerAssignmentActorAuthoritySourceV3(
             input_bundle_provider=DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
                 using=self._using,
@@ -340,7 +436,6 @@ class AccountAuthorityCurrentGraphReaderV3:
             account_namespace=policy.account_namespace,
             account_id=policy.account_id,
         )
-        policies = DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using)
         actor_request_reader = CanonicalAccountActorAuthorityRequestReader(
             current_reader=actor_current_reader,
             source_id=self._actor_source_id,
@@ -354,25 +449,17 @@ class AccountAuthorityCurrentGraphReaderV3:
             actors=actor_request_reader,
         )
 
-        read_context = OwnerTenantAuthorityV3OperationReadContext(
-            using=self._using,
-            connection_provider=lambda: connections[self._using].connection,
-        )
         evidence_repository, current_evidence, exact_evidence = _build_evidence_readers(
             using=self._using,
-            actors=actor_repository,
+            clock=clock,
             policies=policies,
             participants=participants,
+            subjects=subjects,
+            evidence_repository=evidence_repository,
             physical_row_provider=self._physical_row_provider,
-            read_context=read_context,
         )
         service = OwnerTenantAuthorityV3Service(
-            repository=DjangoOwnerTenantAuthorityV3Repository(
-                using=self._using,
-                assignments=evidence_repository,
-                policies=policies,
-                actors=actor_repository,
-            ),
+            repository=authority_repository,
             current_assignments=_CurrentEvidenceReader(current_evidence),
             historical_assignments=_HistoricalEvidenceReader(exact_evidence),
             participants=participants,
@@ -481,9 +568,9 @@ class AccountAuthorityShadowScannerV3:
         self,
         command: GetCurrentOwnerTenantAuthorityV3Command,
     ) -> CurrentOwnerTenantAuthorityV3 | None:
-        """Restore current authority with the existing Application service graph."""
+        """Restore the graph and unwrap its point-in-time current projection."""
 
-        return AccountAuthorityCurrentGraphReaderV3(
+        graph_read = AccountAuthorityCurrentGraphReaderV3(
             actor_source_id=self._actor_source_id,
             actor_source_version=self._actor_source_version,
             actor_content_hash=self._actor_content_hash,
@@ -491,6 +578,7 @@ class AccountAuthorityShadowScannerV3:
             using=self._using,
             transaction_mode="repeatable_read_read_only",
         ).read(command)
+        return graph_read.authority
 
 
 class _CurrentEvidenceReader(CurrentOwnerAssignmentEvidenceV5Reader):
@@ -530,11 +618,12 @@ class _HistoricalEvidenceReader(HistoricalOwnerAssignmentEvidenceV5Reader):
 def _build_evidence_readers(
     *,
     using: str,
-    actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
+    clock: _AuthorityGraphFrozenClock,
     policies: DjangoSingleOwnerAuthorityPolicyV1Repository,
     participants: CurrentSingleOwnerParticipantsProvider,
+    subjects: DjangoAccountOwnerAssignmentSubjectV5Repository,
+    evidence_repository: DjangoAccountOwnerAssignmentEvidenceV5Repository,
     physical_row_provider: ExactPhysicalSimulatedAccountRowV2Provider,
-    read_context: OwnerTenantAuthorityV3OperationReadContext,
 ) -> tuple[
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
     GetCurrentAccountOwnerAssignmentEvidenceV5,
@@ -542,33 +631,40 @@ def _build_evidence_readers(
 ]:
     """Compose existing Evidence V5 Application readers over same-alias repositories."""
 
-    binding_reader = GetExactCanonicalAccountCreationBindingV2(
-        DjangoCanonicalAccountCreationConsumptionRepository(using=using)
+    binding_repository = DjangoCanonicalAccountCreationConsumptionRepository(
+        using=using,
+        clock=clock,
     )
+    physical_repository = DjangoPhysicalAccountRowObservationV2Repository(
+        using=using,
+        clock=clock,
+    )
+    binding_reader = GetExactCanonicalAccountCreationBindingV2(binding_repository)
     physical_reader = GetCurrentPhysicalAccountRowObservationV2(
-        repository=DjangoPhysicalAccountRowObservationV2Repository(using=using),
+        repository=physical_repository,
         row_provider=physical_row_provider,
     )
     reobservation_reader = GetCurrentCanonicalAccountOwnershipReobservationV1(
-        repository=DjangoCanonicalAccountOwnershipReobservationV1Repository(using=using),
+        repository=DjangoCanonicalAccountOwnershipReobservationV1Repository(
+            using=using,
+            clock=clock,
+            binding_repository=binding_repository,
+            physical_repository=physical_repository,
+        ),
         current_physical_reader=physical_reader,
     )
     receipt_reader = GetCurrentAccountOwnerAssignmentProvenanceReceiptV5(
-        repository=DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(using=using),
+        repository=DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(
+            using=using,
+            clock=clock,
+        ),
         binding_reader=binding_reader,
         policy_reader=policies,
         reobservation_reader=reobservation_reader,
     )
-    subjects = DjangoAccountOwnerAssignmentSubjectV5Repository(using=using)
     subject_reader = GetCurrentAccountOwnerAssignmentSubjectV5(
         repository=subjects,
         current_receipt_reader=receipt_reader,
-    )
-    evidence_repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
-        using=using,
-        subjects=subjects,
-        actors=actors,
-        read_context=read_context,
     )
     current_evidence = GetCurrentAccountOwnerAssignmentEvidenceV5(
         subject_reader=subject_reader,
@@ -577,6 +673,41 @@ def _build_evidence_readers(
     )
     exact_evidence = GetExactAccountOwnerAssignmentEvidenceV5(evidence_repository)
     return evidence_repository, current_evidence, exact_evidence
+
+
+def _read_database_clock_timestamp(
+    connection: BaseDatabaseWrapper,
+    using: str,
+) -> datetime:
+    """Read one aware PostgreSQL wall-clock timestamp on the caller's transaction."""
+
+    if getattr(connection, "alias", None) != using or connection.vendor != "postgresql":
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph cutoff requires its caller-owned PostgreSQL alias"
+        )
+    if not connection.in_atomic_block or connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph cutoff requires an active caller-owned transaction"
+        )
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT clock_timestamp()")
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph database cutoff is unavailable"
+        ) from error
+    if row is None or len(row) != 1 or type(row[0]) is not datetime or not _is_aware(row[0]):
+        raise AccountAuthorityGenerationUnavailable(
+            "current graph database cutoff is not one aware timestamp"
+        )
+    return row[0]
+
+
+def _is_aware(value: datetime) -> bool:
+    """Return whether a datetime carries a usable UTC offset."""
+
+    return value.tzinfo is not None and value.utcoffset() is not None
 
 
 @contextmanager
@@ -825,6 +956,7 @@ def _validate_transaction_mode(value: object) -> AccountAuthorityV3CallerTransac
 
 
 __all__ = [
+    "AccountAuthorityCurrentGraphReadV3",
     "AccountAuthorityCurrentGraphReaderV3",
     "AccountAuthorityShadowComparisonV3",
     "AccountAuthorityShadowFingerprintV3",

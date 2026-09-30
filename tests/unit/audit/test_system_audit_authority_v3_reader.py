@@ -13,6 +13,7 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
 )
 from apps.account.application.physical_account_row_observation_v2 import (
     PhysicalAccountRowProviderIdentity,
+    PhysicalAccountRowProviderReadClock,
 )
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     root_claim_hash_for_actor_authority_source_v3,
@@ -53,6 +54,11 @@ class _PhysicalProvider:
         identity: PhysicalAccountRowProviderIdentity,
     ) -> Iterator[None]:
         del identity
+        yield
+
+    @contextmanager
+    def bind_read_clock(self, clock: PhysicalAccountRowProviderReadClock) -> Iterator[None]:
+        del clock
         yield
 
     def get_exact_final(self, **kwargs: object) -> None:

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from django.db import connections
+from django.db import connections, transaction
 
 from apps.account import owner_tenant_authority_v3_composition as composition
 from apps.account.application.account_owner_assignment_actor_authority_v3 import (
@@ -833,6 +833,7 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
     )
     from apps.account.infrastructure.account_authority_shadow_scanner import (
         AccountAuthorityShadowScannerV3,
+        _read_database_clock_timestamp,
     )
     from apps.account.system_audit_authority_v3_composition import (
         AccountSystemAuditOwnerTenantAuthorityV3Reader,
@@ -931,6 +932,11 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
         "apps.account.migrations.0065_account_authority_generation"
     )
     connection = connections[owner_alias]
+    host_clock_before = datetime.now(UTC)
+    with transaction.atomic(using=owner_alias):
+        real_database_clock = _read_database_clock_timestamp(connection, owner_alias)
+    host_clock_after = datetime.now(UTC)
+    assert host_clock_before <= real_database_clock <= host_clock_after
     with connection.schema_editor() as editor:
         editor.create_model(AccountAuthorityGenerationModel)
     with connection.schema_editor() as editor:
@@ -964,6 +970,13 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
             context: object,
         ) -> object:
             shadow_statements.append(sql)
+            if "clock_timestamp()" in sql.lower():
+                return execute(
+                    "SELECT %s::timestamptz",
+                    (now,),
+                    many,
+                    context,
+                )
             return execute(sql, params, many, context)
 
         with connection.execute_wrapper(capture_shadow_sql):
@@ -979,6 +992,7 @@ def test_opt_in_postgres_facade_issues_reads_and_revokes(
             )
             for statement in lower_statements
         )
+        assert sum("clock_timestamp()" in statement for statement in lower_statements) == 1
         assert any("savepoint" in statement for statement in lower_statements)
         forbidden_sql = (
             "lock table",

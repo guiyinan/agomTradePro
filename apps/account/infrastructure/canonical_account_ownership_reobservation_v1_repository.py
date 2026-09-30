@@ -164,10 +164,10 @@ class DjangoCanonicalAccountOwnershipReobservationV1Repository:
         self._using = using
         self._clock = clock or DjangoCanonicalAccountOwnershipReobservationV1Clock()
         self._binding_repository = binding_repository or (
-            DjangoCanonicalAccountCreationConsumptionRepository(using=using)
+            DjangoCanonicalAccountCreationConsumptionRepository(using=using, clock=clock)
         )
         self._physical_repository = physical_repository or (
-            DjangoPhysicalAccountRowObservationV2Repository(using=using)
+            DjangoPhysicalAccountRowObservationV2Repository(using=using, clock=clock)
         )
         self._uow: object | None = None
 

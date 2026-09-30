@@ -18,6 +18,7 @@ from apps.account.application.physical_account_row_observation_v2 import (
     PhysicalAccountRowObservationV2Corruption,
     PhysicalAccountRowObservationV2Unavailable,
     PhysicalAccountRowProviderIdentity,
+    PhysicalAccountRowProviderReadClock,
 )
 from apps.simulated_trading.application.simulated_account_row_source_v2 import (
     PersistedSimulatedAccountRowSourceV2,
@@ -31,7 +32,13 @@ from apps.simulated_trading.application.simulated_account_row_source_v2 import (
 class DjangoExactPhysicalSimulatedAccountRowV2Provider:
     """Expose one exact logical-final source-v2 revision without rewriting it."""
 
-    __slots__ = ("_identity", "_repository", "_using")
+    __slots__ = (
+        "_identity",
+        "_read_clock",
+        "_read_clock_cutoff",
+        "_repository",
+        "_using",
+    )
 
     def __init__(self, repository: SimulatedAccountRowSourceV2Repository) -> None:
         self._repository = repository
@@ -40,6 +47,8 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
             raise ValueError("physical row repository must expose its exact database alias")
         self._using = using
         self._identity: PhysicalAccountRowProviderIdentity | None = None
+        self._read_clock: PhysicalAccountRowProviderReadClock | None = None
+        self._read_clock_cutoff: datetime | None = None
 
     @property
     def unit_of_work_key(self) -> str:
@@ -73,6 +82,27 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
             self._assert_identity(identity)
         finally:
             self._identity = None
+
+    @contextmanager
+    def bind_read_clock(
+        self,
+        clock: PhysicalAccountRowProviderReadClock,
+    ) -> Iterator[None]:
+        """Bind one aware cutoff and reject nested or drifting clock scopes."""
+
+        if self._read_clock is not None:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider read clock scope cannot be nested"
+            )
+        cutoff = _read_clock_value(clock)
+        self._read_clock = clock
+        self._read_clock_cutoff = cutoff
+        try:
+            yield
+            self._assert_read_clock()
+        finally:
+            self._read_clock = None
+            self._read_clock_cutoff = None
 
     def lock_current_sources(self) -> None:
         """Exclusively stabilize the provider-owned source ledger for mutation."""
@@ -161,11 +191,33 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
         identity = self._identity
         if identity is not None:
             self._assert_identity(identity)
+            if self._read_clock is None:
+                raise PhysicalAccountRowObservationV2Unavailable(
+                    "physical row provider read clock is not bound"
+                )
+        if self._read_clock is not None:
+            self._assert_read_clock()
         try:
             yield
         finally:
+            if self._read_clock is not None:
+                self._assert_read_clock()
             if identity is not None:
                 self._assert_identity(identity)
+
+    def _assert_read_clock(self) -> None:
+        """Require that the bound provider clock still returns its original cutoff."""
+
+        clock = self._read_clock
+        cutoff = self._read_clock_cutoff
+        if clock is None or cutoff is None:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider read clock is not bound"
+            )
+        if _read_clock_value(clock) != cutoff:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider read clock drifted"
+            )
 
     def _assert_identity(self, identity: PhysicalAccountRowProviderIdentity) -> None:
         """Require the repository and current Django connection to match identity."""
@@ -227,22 +279,42 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
         underlying_unified_account_id: int,
         as_of: datetime,
     ) -> PersistedSimulatedAccountRowSourceV2 | None:
+        authoritative_cutoff = self._authoritative_cutoff(as_of)
         try:
-            winner = self._repository.get_winner(
-                source_id=source_id,
-                source_version=source_version,
-                as_of=as_of,
-            )
+            if authoritative_cutoff is None:
+                winner = self._repository.get_winner(
+                    source_id=source_id,
+                    source_version=source_version,
+                    as_of=as_of,
+                )
+            else:
+                winner = self._repository.get_winner(
+                    source_id=source_id,
+                    source_version=source_version,
+                    as_of=as_of,
+                    authoritative_cutoff=authoritative_cutoff,
+                )
             if winner is None:
                 return None
-            head = self._repository.get_current_head(
-                source_id=source_id,
-                account_namespace=account_namespace,
-                account_id=account_id,
-                underlying_unified_account_namespace=underlying_unified_account_namespace,
-                underlying_unified_account_id=underlying_unified_account_id,
-                as_of=as_of,
-            )
+            if authoritative_cutoff is None:
+                head = self._repository.get_current_head(
+                    source_id=source_id,
+                    account_namespace=account_namespace,
+                    account_id=account_id,
+                    underlying_unified_account_namespace=underlying_unified_account_namespace,
+                    underlying_unified_account_id=underlying_unified_account_id,
+                    as_of=as_of,
+                )
+            else:
+                head = self._repository.get_current_head(
+                    source_id=source_id,
+                    account_namespace=account_namespace,
+                    account_id=account_id,
+                    underlying_unified_account_namespace=underlying_unified_account_namespace,
+                    underlying_unified_account_id=underlying_unified_account_id,
+                    as_of=as_of,
+                    authoritative_cutoff=authoritative_cutoff,
+                )
         except SimulatedAccountRowSourceV2Unavailable:
             return None
         except (
@@ -283,6 +355,31 @@ class DjangoExactPhysicalSimulatedAccountRowV2Provider:
                 "source-v2 ledger selector substitution"
             )
         return checked_winner
+
+    def _authoritative_cutoff(self, as_of: datetime) -> datetime | None:
+        """Return the bound cutoff and reject future or unbound identity reads."""
+
+        if self._read_clock is None:
+            if self._identity is not None:
+                raise PhysicalAccountRowObservationV2Unavailable(
+                    "physical row provider read clock is not bound"
+                )
+            return None
+        self._assert_read_clock()
+        if type(as_of) is not datetime or not _is_aware(as_of):
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider as_of must be one aware datetime"
+            )
+        cutoff = self._read_clock_cutoff
+        if cutoff is None:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider read clock is not bound"
+            )
+        if as_of > cutoff:
+            raise PhysicalAccountRowObservationV2Unavailable(
+                "physical row provider as_of exceeds its bound read cutoff"
+            )
+        return cutoff
 
     @staticmethod
     def _require_record(value: object) -> PersistedSimulatedAccountRowSourceV2:
@@ -381,6 +478,33 @@ def _current_task() -> object | None:
         return asyncio.current_task()
     except RuntimeError:
         return None
+
+
+def _read_clock_value(clock: PhysicalAccountRowProviderReadClock) -> datetime:
+    """Read and validate one exact aware datetime from a provider clock."""
+
+    now = getattr(clock, "now", None)
+    if not callable(now):
+        raise PhysicalAccountRowObservationV2Unavailable(
+            "physical row provider read clock must expose now"
+        )
+    try:
+        value = now()
+    except (AttributeError, RuntimeError, TypeError, ValueError) as error:
+        raise PhysicalAccountRowObservationV2Unavailable(
+            "physical row provider read clock is unavailable"
+        ) from error
+    if type(value) is not datetime or not _is_aware(value):
+        raise PhysicalAccountRowObservationV2Unavailable(
+            "physical row provider read clock must return one aware datetime"
+        )
+    return value
+
+
+def _is_aware(value: datetime) -> bool:
+    """Return whether a datetime carries a usable UTC offset."""
+
+    return value.tzinfo is not None and value.utcoffset() is not None
 
 
 __all__ = ["DjangoExactPhysicalSimulatedAccountRowV2Provider"]

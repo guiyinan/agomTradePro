@@ -241,6 +241,7 @@ class SimulatedAccountRowSourceV2Repository(Protocol):
         source_id: str,
         source_version: str,
         as_of: datetime,
+        authoritative_cutoff: datetime | None = None,
     ) -> PersistedSimulatedAccountRowSourceV2 | None: ...
 
     def get_current_head(
@@ -252,6 +253,7 @@ class SimulatedAccountRowSourceV2Repository(Protocol):
         underlying_unified_account_namespace: str,
         underlying_unified_account_id: int,
         as_of: datetime,
+        authoritative_cutoff: datetime | None = None,
     ) -> PersistedSimulatedAccountRowSourceV2 | None: ...
 
     def append(

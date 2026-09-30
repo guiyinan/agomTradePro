@@ -406,6 +406,27 @@ class ExactPhysicalSimulatedAccountRowV2Provider(Protocol):
     ) -> ExactPhysicalSimulatedAccountRowV2 | None: ...
 
 
+class PhysicalAccountRowProviderReadClock(Protocol):
+    """Provide one authoritative aware cutoff for a physical-provider read."""
+
+    def now(self) -> datetime:
+        """Return the immutable authoritative read cutoff."""
+
+        ...
+
+
+class PhysicalAccountRowProviderReadClockScope(Protocol):
+    """Bind one authoritative read clock for provider operations."""
+
+    def bind_read_clock(
+        self,
+        clock: PhysicalAccountRowProviderReadClock,
+    ) -> AbstractContextManager[None]:
+        """Bind a frozen clock until the provider scope exits."""
+
+        ...
+
+
 class PhysicalAccountRowObservationV2Repository(Protocol):
     """Independent v2 first-winner, logical-head, and exact-PIT store."""
 
@@ -908,6 +929,8 @@ __all__ = [
     "CapturePhysicalAccountRowObservationV2Command",
     "ExactPhysicalSimulatedAccountRowV2",
     "ExactPhysicalSimulatedAccountRowV2Provider",
+    "PhysicalAccountRowProviderReadClock",
+    "PhysicalAccountRowProviderReadClockScope",
     "PhysicalAccountRowProviderIdentity",
     "PhysicalAccountRowProviderIdentityScope",
     "GetCurrentPhysicalAccountRowObservationV2",

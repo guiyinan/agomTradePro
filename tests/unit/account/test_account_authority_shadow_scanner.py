@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
-from typing import cast
+from dataclasses import replace
+from datetime import datetime, timedelta
+from typing import Protocol, cast
 
 import pytest
+from django.utils import timezone
 
 from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
     AccountActorAuthorityRawSourceV3Corruption,
@@ -26,6 +28,7 @@ from apps.account.infrastructure.account_authority_generation import (
 )
 from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityCurrentGraphReaderV3,
+    AccountAuthorityCurrentGraphReadV3,
     AccountAuthorityShadowScannerV3,
     DjangoAccountAuthorityNoLockSnapshotBundleProviderV3,
 )
@@ -34,6 +37,14 @@ from tests.unit.audit.test_system_audit_authority_v3_reader import (
     _authority_source,
     _PhysicalProvider,
 )
+
+
+class _PhysicalProviderWithoutReadClock(_PhysicalProvider):
+    bind_read_clock = None
+
+
+class _Clock(Protocol):
+    def now(self) -> datetime: ...
 
 
 class _Cursor:
@@ -53,6 +64,8 @@ class _Cursor:
 
     def fetchone(self) -> tuple[object, ...]:
         statement = self.connection.cursor_value.statements[-1].lower()
+        if "clock_timestamp()" in statement:
+            return (self.connection.database_clock_timestamp,)
         if "current_setting" in statement:
             return (self.connection.isolation, self.connection.read_only)
         if "pg_current_xact_id" in statement:
@@ -70,6 +83,7 @@ class _Connection:
         read_only: str = "on",
         in_atomic_block: bool = True,
         autocommit: bool = False,
+        database_clock_timestamp: datetime | None = None,
     ) -> None:
         self.alias = alias
         self.vendor = vendor
@@ -78,6 +92,11 @@ class _Connection:
         self.generation = 41
         self.transaction_id = "41"
         self.backend_pid = 1234
+        self.database_clock_timestamp = (
+            database_clock_timestamp
+            if database_clock_timestamp is not None
+            else _legacy_current().observed_at
+        )
         self.rollback_only = False
         self.in_atomic_block = in_atomic_block
         self.autocommit = autocommit
@@ -195,8 +214,12 @@ def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
     isolation: str,
     read_only: str,
 ) -> None:
-    connection = _Connection(isolation=isolation, read_only=read_only)
     current = _legacy_current()
+    connection = _Connection(
+        isolation=isolation,
+        read_only=read_only,
+        database_clock_timestamp=current.observed_at,
+    )
     command = GetCurrentOwnerTenantAuthorityV3Command(
         current.authority.authority_id,
         current.authority.authority_version,
@@ -207,7 +230,10 @@ def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
     def graph_read(
         _self: AccountAuthorityCurrentGraphReaderV3,
         received: GetCurrentOwnerTenantAuthorityV3Command,
+        *,
+        clock: _Clock,
     ) -> CurrentOwnerTenantAuthorityV3:
+        assert clock.now() is current.observed_at
         reads.append(received)
         return current
 
@@ -239,7 +265,9 @@ def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
         )
         with caller_owned_account_authority_generation_fence(proof, using="default") as generation:
             result = reader.read(command, generation=generation)
-    assert result is current
+    assert type(result) is AccountAuthorityCurrentGraphReadV3
+    assert result.authority is current
+    assert result.checked_at is current.observed_at
     assert reads == [command]
     assert connection.in_atomic_block is True
     assert connection.get_autocommit() is False
@@ -248,6 +276,115 @@ def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
         "current_setting" in statement.lower() for statement in connection.cursor_value.statements
     )
     assert setting_reads >= (1 if mode == "repeatable_read_read_only" else 2)
+
+
+@pytest.mark.parametrize(
+    ("offset_microseconds", "is_current"),
+    ((-1, True), (0, False), (1, False)),
+)
+def test_current_graph_reader_applies_one_database_cutoff_at_valid_until_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    offset_microseconds: int,
+    is_current: bool,
+) -> None:
+    current = _legacy_current()
+    cutoff = current.valid_until + timedelta(microseconds=offset_microseconds)
+    connection = _Connection(database_clock_timestamp=cutoff)
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    cutoffs: list[datetime] = []
+
+    def graph_read(
+        _self: AccountAuthorityCurrentGraphReaderV3,
+        _command: GetCurrentOwnerTenantAuthorityV3Command,
+        *,
+        clock: _Clock,
+    ) -> CurrentOwnerTenantAuthorityV3 | None:
+        cutoff = clock.now()
+        cutoffs.append(cutoff)
+        if cutoff >= current.valid_until:
+            return None
+        return replace(current, observed_at=clock.now())
+
+    monkeypatch.setattr(shadow_module, "_connection", lambda _using: connection)
+    monkeypatch.setattr(AccountAuthorityCurrentGraphReaderV3, "_read_application_graph", graph_read)
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode="repeatable_read_read_only",
+    )
+
+    result = reader.read(command)
+
+    assert result.checked_at == cutoff
+    assert (result.authority is not None) is is_current
+    if result.authority is not None:
+        assert result.authority.observed_at == cutoff
+    assert cutoffs == [cutoff]
+    clock_queries = sum(
+        "clock_timestamp()" in statement.lower() for statement in connection.cursor_value.statements
+    )
+    assert clock_queries == 1
+
+
+def test_current_graph_reader_keeps_one_cutoff_while_application_clock_moves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = _legacy_current()
+    cutoff = current.observed_at
+    connection = _Connection(database_clock_timestamp=cutoff)
+    application_clock_reads: list[datetime] = []
+    clock_calls = 0
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    repository_cutoffs: list[datetime] = []
+
+    def graph_read(
+        _self: AccountAuthorityCurrentGraphReaderV3,
+        _command: GetCurrentOwnerTenantAuthorityV3Command,
+        *,
+        clock: _Clock,
+    ) -> CurrentOwnerTenantAuthorityV3:
+        before = timezone.now()
+        repository_cutoffs.extend(clock.now() for _ in range(8))
+        after = timezone.now()
+        assert before != after
+        return current
+
+    def moving_application_clock() -> datetime:
+        nonlocal clock_calls
+        clock_calls += 1
+        value = cutoff + timedelta(seconds=clock_calls)
+        application_clock_reads.append(value)
+        return value
+
+    monkeypatch.setattr(timezone, "now", moving_application_clock)
+    monkeypatch.setattr(shadow_module, "_connection", lambda _using: connection)
+    monkeypatch.setattr(AccountAuthorityCurrentGraphReaderV3, "_read_application_graph", graph_read)
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode="repeatable_read_read_only",
+    )
+
+    result = reader.read(command)
+
+    assert result.checked_at == cutoff
+    assert result.authority is current
+    assert repository_cutoffs == [cutoff] * 8
+    assert application_clock_reads[-2] != application_clock_reads[-1]
 
 
 @pytest.mark.parametrize(
@@ -579,6 +716,16 @@ def test_current_graph_reader_rejects_unknown_mode_and_exact_alias_mismatch() ->
             transaction_mode="read committed",
         )
 
+    with pytest.raises(TypeError, match="bind_read_clock"):
+        AccountAuthorityCurrentGraphReaderV3(
+            actor_source_id="audit-actor-v3",
+            actor_source_version="v1",
+            actor_content_hash="c" * 64,
+            physical_row_provider=_PhysicalProviderWithoutReadClock(),
+            using="default",
+            transaction_mode="repeatable_read_read_only",
+        )
+
 
 def test_current_graph_reader_rejects_non_exact_projection(
     monkeypatch: pytest.MonkeyPatch,
@@ -594,7 +741,7 @@ def test_current_graph_reader_rejects_non_exact_projection(
     monkeypatch.setattr(
         AccountAuthorityCurrentGraphReaderV3,
         "_read_application_graph",
-        lambda self, value: cast(CurrentOwnerTenantAuthorityV3 | None, object()),
+        lambda self, value, *, clock: cast(CurrentOwnerTenantAuthorityV3 | None, object()),
     )
     reader = AccountAuthorityCurrentGraphReaderV3(
         actor_source_id="audit-actor-v3",

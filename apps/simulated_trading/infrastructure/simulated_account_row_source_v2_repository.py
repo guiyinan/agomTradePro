@@ -216,12 +216,13 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         source_id: str,
         source_version: str,
         as_of: datetime,
+        authoritative_cutoff: datetime | None = None,
     ) -> PersistedSimulatedAccountRowSourceV2 | None:
         """Return the exact first winner recorded by the PIT cutoff."""
 
         _require_token(source_id, "source_id")
         _require_token(source_version, "source_version")
-        self._require_cutoff(as_of)
+        self._require_cutoff(as_of, authoritative_cutoff=authoritative_cutoff)
         matches = tuple(
             record
             for record in self._visible_records(as_of=as_of, lock=False)
@@ -287,6 +288,7 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         underlying_unified_account_namespace: str,
         underlying_unified_account_id: int,
         as_of: datetime,
+        authoritative_cutoff: datetime | None = None,
     ) -> PersistedSimulatedAccountRowSourceV2 | None:
         """Return the final PIT head, even when inactive, tombstoned, or expired."""
 
@@ -301,7 +303,7 @@ class DjangoSimulatedAccountRowSourceV2Repository:
             underlying_unified_account_id,
             "underlying_unified_account_id",
         )
-        self._require_cutoff(as_of)
+        self._require_cutoff(as_of, authoritative_cutoff=authoritative_cutoff)
         key = (
             source_id,
             account_namespace,
@@ -342,9 +344,16 @@ class DjangoSimulatedAccountRowSourceV2Repository:
         restored = tuple(self._restore(row) for row in rows)
         return tuple(record for record in restored if record.source.recorded_at <= as_of)
 
-    def _require_cutoff(self, as_of: datetime) -> None:
+    def _require_cutoff(
+        self,
+        as_of: datetime,
+        *,
+        authoritative_cutoff: datetime | None = None,
+    ) -> None:
         _require_aware(as_of, "simulated account-row source v2 as_of")
-        if as_of > self.now():
+        cutoff = self.now() if authoritative_cutoff is None else authoritative_cutoff
+        _require_aware(cutoff, "simulated account-row source v2 authoritative cutoff")
+        if as_of > cutoff:
             raise DjangoSimulatedAccountRowSourceV2Unavailable(
                 "future simulated account-row source v2 as_of is forbidden"
             )
