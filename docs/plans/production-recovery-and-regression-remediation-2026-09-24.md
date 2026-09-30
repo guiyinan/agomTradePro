@@ -1,7 +1,7 @@
 # 生产恢复与系统性防回归整改计划（2026-09-24）
 
 状态：执行中。用户已要求主代理带领 GPT-6 Luna（max）子代理完成本计划，并设置持续执行 goal。
-当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前已验证的代码整改基线为 `b65580f7054f87ccebe47504f40395faf80bc0bf`；其中任务 attempt 所有权、超时预算、authority generation/shadow/final-fence、caller-owned shared fence 与锁窗表征均未部署。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
+当前生产基线：`6d9a134e410e8564432cdee3424975684b781e47`（release `20260929110229`，同 SHA CI、PostgreSQL workflow 与全新九阶段 S6 已通过）。仓库当前代码整改基线为 `e621b4c1123966a68bff57aefc23da7c37ea1fe2`；其中任务 attempt 所有权、超时预算、authority generation/shadow/final-fence、caller-owned shared fence、锁窗表征和数据库 owner/migrator/runtime 拆分均未部署。角色 bootstrap 尚未在 disposable PostgreSQL 16 完成真实演练，因此该 SHA 仍是候选，不是生产恢复证据。下一候选必须重新绑定同 SHA CI、PostgreSQL 契约、完整 S6、镜像和部署回执，不能把本地改动、历史 S6 或仅完成构建的任务当作生产版本。
 本计划协调既有 DATA-02、EVID/AUD、TUI 相关整改，不替代 `governance/active_plan_registry.json` 的生产状态真源，也不自动晋级既有单元。
 仓库集成单元：`DATA-18`；注册表 `2026-09-30.v186` 将其登记为唯一 repository focus，Luna 子代理是该单元内的有界任务，不新增并行生产放行。
 
@@ -234,7 +234,9 @@
   `requested/succeeded/failed/stored`、`publication_updated=false` 和
   `must_not_use_for_decision=true`；无已写事实时才返回 blocked，不再只留下 Celery failure 和空结果。
 - 14:55 仍仅用于负向回归：它证明同日出现过交易，因此可否定“全天停牌”，但绝不代表正式收盘。生产常量、
-  current Publication 和容量门都以北京时间 15:00 为收盘边界。候选完成聚焦回归、格式化、mypy 和治理门禁后，
+  current Publication 和容量门都以北京时间 15:00 为收盘边界；全市场任务触发时间是 provider-ready 的 17:05，
+  与收盘 observation 时间分开。提交 `e5fd3c0c8` 已禁止把全市场任务配置到 17:05 之前，并覆盖 14:55、15:00、
+  17:04 拒绝和 17:05 接受。候选完成聚焦回归、格式化、mypy 和治理门禁后，
   必须形成新 SHA、重新取得同 SHA CI/PostgreSQL、全新 S6 和部署回执，再以新 task id 只启动一次生产刷新；只有
   Task Monitor 与业务结果、Publication id/hash/run id、成员及动态 scope block 全部一致，才能继续解除决策运行时
   和 Alpha/API/SDK/MCP/普通用户页面的后续阻断。
@@ -519,8 +521,8 @@ Phase 2b-3 的首个未接线基础切片已提交为 `05ce1f7dc`：新增 calle
 异常会把外层事务标为 rollback-only。`AccountAuthorityCurrentGraphReaderV3` 复用完整 Application 图，但文档明确
 physical provider identity 尚不可验证，因此不得接 production。partial finalizer 已复用同一 caller context。
 
-本地证据：相关单测 `37 passed`；新增 generation PostgreSQL 文件共收集 7 项，本机因缺少显式 disposable EVID-06
-数据库配置而 `7 skipped`，不计作通过；PR Publication PostgreSQL workflow 已把 exact case count 从 4 更新为 7，
+本地证据：相关单测 `37 passed`；generation PostgreSQL 文件当前共收集 9 项，本机因缺少显式 disposable EVID-06
+数据库配置而跳过，不计作通过；Publication PostgreSQL workflow 已把 exact case count 更新为 9，
 必须在 CI 中零 skip/failure/error。Black、Ruff、三个生产文件增量 mypy、全仓 debt ceiling、module map 与 workflow
 YAML 解析通过。该切片没有 production composition、没有删除旧 relation locks、没有部署或触发全市场重跑。
 
@@ -538,8 +540,8 @@ YAML 解析通过。该切片没有 production composition、没有删除旧 rel
    加一条 INSERT，即 O(N)。把这段逻辑直接放入 generation fence 会形成新的长锁，必须先批量化或预构建不可见
    publication，再把 current pointer 切换保留为唯一短线性化点。
 4. 五个聚焦表征文件共 `32 passed in 193.80s`，Black/Ruff 通过；它们只固化现状，没有修改生产行为。提交
-   `b65580f7054f87ccebe47504f40395faf80bc0bf` 的 Architecture、Security、Consistency、Publication PostgreSQL
-   contracts 与 Fast Feedback 五条 workflow 已全部通过；Publication PostgreSQL 的 7 个 generation/fence 用例
+   `70efc73c9e170ab5f76cc4a55b7247ca976bbd81` 的 Architecture、Security、Consistency、Publication PostgreSQL
+   contracts 与 Fast Feedback 五条 workflow 已全部通过；Publication PostgreSQL 的 9 个 generation/fence 用例
    零 skip/failure/error。
 
 生产 release `20260929110229` / SHA `6d9a134e410e8564432cdee3424975684b781e47` 的只读 ACL 审计在
@@ -587,3 +589,32 @@ YAML 解析通过。该切片没有 production composition、没有删除旧 rel
 这一门槛还必须与 physical-provider identity、统一数据库时钟、完整 graph final reread、短 activation、5,000+
 PostgreSQL soak 一起通过。此前不部署 0065、不删除 legacy relation lock、不启动新的全市场刷新，也不把延长 timeout
 或容忍固定 12 只证券当作恢复方案。
+
+#### 角色拆分与部署前置检查实现（`31cfbfad5`，治理与 SQLite 导入收口 `e621b4c11`）
+
+- VPS 数据库身份已拆为 NOLOGIN owner、部署期 migrator 和长期 runtime。web、Celery、beat 只接收 runtime URL；
+  migrator URL 仅进入带 `ops` profile 的一次性服务。runtime 启动前以实际连接 fail closed 核验 session/current role、
+  角色闭包、public CREATE、runtime 对 public 对象零所有权、精确 22 张 authority source 表、44 个 ALWAYS trigger、
+  generation ACL、函数 owner/`SECURITY DEFINER`/`search_path=pg_catalog` 和 wrapper 权限。
+- remote 与 bundle 两条部署路径在任何 owner/ACL/migration 变化前都会停止旧 web/Celery/terminal writer；随后按
+  PostgreSQL readiness → role bootstrap → migrator → runtime check → 应用启动执行。SQLite drop/recreate 后必须重新
+  bootstrap；flush/loaddata 只走 migrator。独立 helper 若发现 runtime 仍运行会拒绝继续。
+- 部署 env helper 原子写入权限为 `0600` 的 env/secrets，生成或复用长度至少 32、URL-safe、互不相同且非占位的
+  admin/runtime/migrator 密码；管理员密码也在 bootstrap 事务中同步轮换。status/logs 不生成凭据或改写文件，
+  自定义 Compose project 与 SQLite volume 使用同一项目名。
+- remote 部署显式携带 SQLite 快照时，会在复制、属主和权限设置全部成功后清除旧 migration marker，再调用统一
+  helper 重建 PostgreSQL 并执行 `loaddata`；不能再因旧 marker 静默跳过新快照。顺序契约固定“复制成功 → 清 marker →
+  调用 helper”。
+- 本地独立证据：相关部署/角色/打包测试 `105 passed, 1 skipped`；唯一跳过是 Windows 无 symlink privilege 的既有
+  marker-recovery 用例；Fast Feedback 对应的无数据库套件 `4045 passed`。Ruff、Black、四个生产 Python 文件增量
+  mypy、全仓 mypy debt ceiling、shell syntax、Compose config、Data Center entrypoint inventory 与 `git diff --check`
+  通过。入口清单共 1,274 项，`candidate-review=0`。Luna max 三轮只读复核发现的 P1 均已关闭，最终复核未发现
+  新 P0/P1。
+- 同 SHA `e621b4c1123966a68bff57aefc23da7c37ea1fe2` 的 Architecture `36679612078`、Security
+  `36679612080`、Consistency `36679612108`、CI Fast Feedback `36679612091` 与 Publication PostgreSQL contracts
+  `36679662079` 全部通过；PostgreSQL workflow 包含 generation coverage/fence、shadow、final revalidation、真实
+  publication lock/frozen fact 和 backfill control-plane，并拒绝 skip/missing evidence。
+- **未完成硬门槛：** 尚未在 disposable PostgreSQL 16 真实执行 bootstrap、回滚、migrate、SQLite import 与 runtime
+  ACL 负例；生产 statement logging 必须在维护窗口关闭，避免 password DDL 进入服务器日志。完成该演练前不得部署
+  0065/0066、不得移除 legacy relation locks、不得启动新的全市场刷新。physical provider identity、统一数据库时钟、
+  current-publication-member 读侧收口、短 activation 和 5,000+ soak 仍是后续独立阻断。
