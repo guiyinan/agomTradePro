@@ -758,6 +758,17 @@ writer 在 complete fence 退出前等待。容器已删除，未连接或修改
 变量的收集得到 `7 skipped`，原因是组件明确要求 `AGOM_EVID06_POSTGRES_TEST=1`；该次不计作通过，随后上述隔离运行
 已零 skip 闭合。Publication PostgreSQL workflow 的 finalizer 精确收集数由 3 更新为 7。
 
+切片②的代码提交为 `f8178af210e3d7f61e6358ce92c3f00d5f2bfcf9`，证据台账提交为
+`fe90e0316807fc214adca94f54e29ac2fd9a8a17`，补齐生成投影的独立提交为
+`a915ebdda1c54e63a85271b54e21c79db5b7452f`，均可单独回滚。精确 SHA `fe90e0316807fc214adca94f54e29ac2fd9a8a17`
+的 Publication PostgreSQL contracts `36726731161` 通过：authority lock 2、generation 9、shadow 1、finalizer 7、
+publication 35、backfill 2，共 `56 passed, 0 skipped`。同次精确 HEAD 首先使 Consistency 和 Fast Feedback 因
+`governance/data_center_architecture_inventory.json` 仍是旧投影而失败；这项遗漏没有作为“CI 环境问题”跳过。生成器
+把 current-surface inventory 从 5,226 更新为 5,236 后，精确投影 SHA `a915ebdda1c54e63a85271b54e21c79db5b7452f`
+的 Architecture `36727891815`、Security `36727889376`、Consistency `36727889764` 与 CI Fast Feedback
+`36727889380` 全部通过；后两者实际重新执行并通过 deterministic Data Center architecture inventory guard。该投影
+提交不改生产代码，Publication PostgreSQL 沿用前一精确代码 HEAD 的 56 项零 skip 证据。
+
 剩余停止线：Factor 与 Simple Alpha 的 current-publication-member 决策读尚未收口；无 current pointer 的 fail-closed、
 短 activation UOW、5,000+ PostgreSQL soak、SQLite 快照对账与维护窗口 statement logging 尚未完成。继续保留 legacy
 relation locks 与 production composition；不部署、不启动全市场重跑，也不通过延长 lock wait/retry/timeout 规避失败。
