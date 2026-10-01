@@ -501,7 +501,7 @@ def test_provider_stages_override_stale_provider_database_with_isolated_env(
     ]
     for label in ("provider_probe", "response_replay", "full_universe_capacity"):
         assert env_files(label) == provider_then_isolated
-    assert env_files("preflight_database") == [config.isolated_postgres_env_file.resolve()]
+    assert env_files("preflight_database") == provider_then_isolated
     assert env_files("isolated_postgresql_write") == [config.isolated_postgres_env_file.resolve()]
 
 

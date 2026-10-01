@@ -1166,7 +1166,7 @@ def _preflight_database(
         "preflight_database",
         "",
         ("python", "manage.py", "shell", "-c", code),
-        (config.isolated_postgres_env_file,),
+        (config.provider_env_file, config.isolated_postgres_env_file),
     )
     _invoke(
         runner,
