@@ -974,3 +974,62 @@ architecture full/delta 与 module map 检查均通过。
 门禁齐全后才可启动一个新的显式 task ID，并对 business outcome、计数、quote/valuation Publication id/hash/run id、成员
 日期与 scope blocks 逐项对账。只有正式发布通过后才能继续 decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读
 零副作用联合验收；财报 owner approval 与 token-auth GET 写 last-used 的既有停止线不因本片改变。
+
+#### 2026-10-02 候选部署、单次全市场结果与 production activation 停止线
+
+最终候选 `946ea48106c44ff3465c9712410f82cb908cd1a6` 的 Architecture、Security、Consistency、CI Fast Feedback 与
+Publication PostgreSQL contracts 五组同 SHA workflow 全部通过，对应 run 为 `36903055938`、`36903055826`、
+`36903055832`、`36903055985`、`36903056125`。九阶段 S6 在
+`/opt/agomtradepro/rehearsals/s6-946ea4810-20261002a/evidence-20261002b` 全部通过，绑定预构建镜像
+`sha256:3479241f808d0301f06d1b5701ee3d2d6d2a9db804a52d2bc6b5e8bcf935dde6`、release
+`20261001213508` 和 manifest SHA-256
+`e4c42fdeef7fcc1651f6b44aae19bad41b436003ee6c5df4ad835a75bfb1e9cf`。同镜像部署后，运行 SHA、TLS/health、
+PostgreSQL schema/migration/role、ASGI 连接策略、TUI metadata、Qlib 0.9.7、Celery worker/beat 与两节点 ping 均通过；
+部署前数据库备份为 `/opt/agomtradepro/backups/database/postgres-20261001-220949.dump`。首次 S6 证据目录
+`evidence-20261002a` 因隔离环境的 `AGOM_RELEASE_REHEARSAL_DATABASE` 值不是精确 `1` 以
+`REHEARSAL_WRITE_SCOPE_OPT_IN_MISSING` 失败关闭；修正隔离值后使用新 checkpoint 重跑，没有改写失败现场。
+
+部署后只启动了一次显式全市场刷新，task ID 为 `2f0af418-3cdb-40bf-90d1-8dcdc0406cec`。Celery backend 技术状态为
+`SUCCESS`，规范业务结果为 `outcome=partial`、`requested/succeeded/failed/stored=5572/5561/11/11125`、
+`publication_updated=true`、`published_members=16697`，目标交易日 `2026-09-30`，publication run ID
+`c2d05ff0-327d-43dd-9065-3713f6f28c25`。报价 5,564 成员并以 Tushare `suspend_d` 证据明确阻断 8 个全天停牌证券；
+日线 5,572 成员；估值 5,561 成员并按活动版本化政策为 11 个缺失证券记录
+`valuation_source_data_unavailable`。三组 publication ID 分别为
+`d9b21044-94d7-5765-a11f-331eac58ab80`、`5fcce0d7-82ac-5466-a70b-557b44e0f686`、
+`38125afa-4390-599f-8279-0afa554e219f`；报价和估值的 source observation 均为中国市场 15:00 收盘，未把 14:55
+当作正式收盘。没有启动第二个全市场任务覆盖该结果。
+
+Task Monitor 把该正常返回记成 `failure` 的根因不是 Celery 异常：其本地 `_FAILED_BUSINESS_OUTCOMES` 把
+`partial/blocked` 与 `failed` 合并，并绕过共享 outcome resolver；因此形成 `status=failure`、`exception=None` 与
+业务 payload `partial` 的矛盾。提交 `08646e590` 把技术状态与业务 outcome 分开：仅规范业务 `failed` 或 Celery
+技术失败进入 FAILURE，`partial/blocked/noop` 保留业务投影并记录技术成功；同时把 full-market partial/noop 的兼容
+`success` 修正为 guard 规定的 `true`。聚焦回归 109 passed，Celery 94 tasks、current-data 72 surfaces、两个生产文件
+增量 mypy 零回归，Black/isort/Ruff 与全仓 debt ceiling 通过。该提交尚未部署，生产旧 Task Monitor 行不做历史篡改。
+
+正式恢复仍停在新的、可复现的 production activation 缺口。三组最新 Publication 行及全部 member 已持久化，policy、
+coverage、scope block、日期与 hash 可对账，但 `data_center_canonical_publication_pointer` 对报价、日线、估值和财报均无
+current 行；三组新行的 `member_manifest_hash` 为空且 `members_sealed_at` 为 NULL，也不存在以其 publication ID 绑定的
+SystemAuditEvent。旧 production rebuild 直接写 `PUBLISHED`，不会调用 feature-off 的短 activation UOW；严格 current
+reader 因而按设计 fail closed，不能把“有 published 行”当作“正式 current 已激活”。禁止直接 INSERT/UPDATE pointer、
+把旧行改回 candidate 或补造历史 audit。
+
+只读 lineage 对账进一步证明不能安全采用这三组旧行：报价 5,564 个 member 全部带 ingested run，精确对应 56 个成功
+RawAudit；日线 5,572 个 member 和估值 5,561 个 member 的 `ingested_run_id` 全为空。publication run ID 是协调器独立生成，
+数据库中没有同 run 的 RawAudit；现有 activation 又只接受一条 RawAudit，无法诚实代表 56 个报价批次，更不能代表缺少
+ingestion identity 的日线和估值。内容 hash 生成确定性 publication ID；相同内容重建会撞到未 seal 的 legacy
+`PUBLISHED` 行，普通 candidate staging 也不能绕过。
+
+decision runtime dry-run 因此保持 `ready=false`，未执行激活。正式 valuation publication 本身为 fresh、partial policy
+有效且 11 个 scope block 完整；price publication 虽覆盖 5,572 个证券，但最早 member observation 仍使 dataset gate 返回
+`canonical_publication_stale`；财报仍是旧 `1.0:1.0` policy 并返回 `canonical_publication_policy_version_mismatch`，没有伪造
+owner approval。provider capability gate 同时报告 historical price、valuation、financial success stale。runtime 仍保留
+原 `decision_runtime_blocked` 状态，没有关闭保护开关。
+
+下一整改切片必须先建立候选级多批 RawAudit manifest、让估值/日线事实携带真实 ingestion identity，并把
+current rebuild 拆为 fence 外 CANDIDATE/member/manifest 预构建与 fence 内整组 activation。三组 full-market dataset
+必须在同一个 complete Account graph fence 和同一个 RC/RW 事务中按稳定顺序锁 pointer/candidate，复核 member/fact/
+manifest/policy/freshness 后原子切换，并逐 publication 写 required audit/outbox；任一失败整组回滚。旧关系锁继续保留。
+必须补 5,000+ PostgreSQL query count、持锁时间、lock wait 与故障注入证据。历史 adoption 只有在每个 member 的真实来源
+RawAudit 可完整重建、当前 policy/freshness/coverage 全过且记录“当前发生的 adoption”事件时才允许；本次日线/估值不满足，
+保持 fail closed。上述生产 composition 与 lineage 修复通过同 SHA CI、S6 和同镜像部署前，禁止再次启动全市场刷新，
+也不能继续宣称 decision runtime、Alpha、API/SDK/MCP 或普通用户主流程已恢复。
