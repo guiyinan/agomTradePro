@@ -876,3 +876,46 @@ publication/member/fact 语义重算；CI 历史 member 使用有效 manifest ha
 reference 不是生产事实。数据库级 member immutability trigger/constraint 仍未实现，完整 compose 部署状态机也未在生产环境
 执行。本片未部署、未接 production composition、未删除 legacy relation locks、未启动全市场重跑；①→⑤代码与证据已齐，
 后续生产部署与正式发布属于⑥，必须等待用户单独授权。
+
+#### 2026-10-01 生产恢复与 active universe 容错根因切片（`f392b6fd4`）
+
+用户授权⑥后，候选 `74effb6852bfe0acf8dbb125f5969bc8f41cc067` 的九阶段 S6 在
+`/opt/agomtradepro/rehearsals/s6-74effb685-20261001a` 全部通过，绑定预构建镜像
+`sha256:d2113c82f0d1e0b8ba634d471e025a5db6a3ea56ea29673fac3d0a8ffe303258`、release
+`20261001133636`、manifest SHA-256
+`78bd1d02bd19e5381587dd80fcee69508f4a7b9741ef09b14dd743ff6b77441a`。部署后 TLS、HTTP health、
+PostgreSQL schema/migrations、TUI registry、Qlib identity、Celery worker/beat 和运行 SHA/image 独立复核均通过。
+部署前 PostgreSQL 备份为远端
+`/opt/agomtradepro/backups/database/postgres-20261001T090426Z.dump`、本地
+`backups/vps-postgres/postgres-20261001T090426Z.dump`，大小 223,548,588 bytes，SHA-256
+`a685b6d6028a9891ad3b94ce394df99ce80bac834257f5120bf00afca589fa10`。
+
+只启动了一次显式全市场刷新，task ID
+`0d349eeb-04ee-4187-8b2d-aa29e80696af`。该任务在 263.80 秒后返回规范业务结果
+`outcome=blocked`、`requested/succeeded/failed/stored=0/0/0/0`、
+`error_code=MARKET_UNIVERSE_SCOPE_INVALID`、`publication_updated=false`；没有用第二次任务覆盖失败，也没有进入正式
+Publication。安全诊断证明 provider 本次观察 5,571 个证券，生产资产主表保留 5,572 个 active A 股，唯一差集为
+`301139.SZ`。provider 观察 hash 为
+`2f2baa4f46edec6a81d1ae15227cd27115cdfd33f63a121a0ef089d621dd3347`，持久化范围 hash 为
+`dde92cbeb5d806f450605e6b7c00a908a1868ad0d58f951ec33f9a813011fdc0`。
+
+根因不是该证券本身，而是两条既有不变量互相冲突：自然刷新使用 `deactivate_missing=False`，按规范保留 provider
+一次漏报的 active 证券；`AShareUniverseSyncReport.active_count/active_codes_sha256` 却只按本次 touched 集合计算，随后
+全市场编排把这组 hash 与持久化后的 target-date active 集合做精确相等校验，于是任何保留漏项都会整批阻断。提交
+`f392b6fd4479aca52a6f13750c7231424f11e0bd` 将 provider observed 与数据库 effective 范围拆成两套证据：正式分母和
+active hash 从写后 repository 重读；容差内未观测证券继续保留，并输出完整 code 列表、count/hash、比例、容差和稳定
+reason；比例按刷新前 active 范围计算，provider 新增证券不能稀释。超过既有 1% 一致性容差时，无论普通保留模式还是
+显式 deactivate 模式，都在任何资产写入前以 `A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE` 失败关闭。实现未写死证券或
+固定数量，也未把 provider 缺行解释成退市。
+
+本地回归为 provider/service/orchestration/真实 ORM Repository 组件 `88 passed`；覆盖 0.5% 保留、精确 1% 边界、
+provider extra 不稀释比例、2% 超限、`deactivate_missing=True` 超限写前阻断、effective DB hash 对账，以及保留证券仍进入
+完整 valuation 分母且缺事实时禁止 Publication。增量 mypy 为 0、全仓 mypy debt ceiling 为 0；Black、isort、Ruff、
+current-data 72 surfaces、Celery task contracts、Data Center architecture inventory 和 `git diff --check` 均通过。
+
+剩余停止线：`f392b6fd4` 及本节证据提交尚未取得同 SHA 的 Architecture、Security、Consistency、Fast Feedback、
+Publication PostgreSQL 五组 CI，也尚未重新执行完整九阶段 S6；因此不能把旧 `74effb685` 的 S6 或已失败 task 当作新修复
+的发布证据。新候选通过门禁、S6、同镜像部署和身份复核后，才可再启动一个新的显式全市场 task ID；随后仍须完成正式
+Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零副作用联合验收。生产 token 鉴权 GET 会更新
+`last_used_at/updated_at`，严格零写与端到端 token-auth 验收目前存在契约冲突，必须作为独立未完成项修复或明确计量，
+不得伪称已证明零副作用。
