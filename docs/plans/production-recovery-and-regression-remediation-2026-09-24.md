@@ -919,3 +919,43 @@ Publication PostgreSQL 五组 CI，也尚未重新执行完整九阶段 S6；因
 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零副作用联合验收。生产 token 鉴权 GET 会更新
 `last_used_at/updated_at`，严格零写与端到端 token-auth 验收目前存在契约冲突，必须作为独立未完成项修复或明确计量，
 不得伪称已证明零副作用。
+
+#### 2026-10-02 全市场 Publication 目标会话绑定切片（`fc6f165e0`）
+
+候选 `4f8a2ee940630fb63c47f02980fce12d52202170` 的五组同 SHA CI 通过后，九阶段 S6 在
+`/opt/agomtradepro/rehearsals/s6-4f8a2ee94-20261001a` 全部通过，绑定预构建镜像
+`sha256:433a0dbc8bcd706f49b86a9cb68f9b6577a2d1d7313fd0e71c82c840564aba2c`、release
+`20261001162320` 和 manifest SHA-256
+`481a4342a675762da52c8c9a644b1cf8e6f27aa1a6c35ac7b4acbfc96aa848b6`。同镜像部署及运行身份复核通过后，只启动了一次
+显式全市场任务 `1120eed9-8d7c-445e-9298-7f3b0230a59a`。该任务完成报价 56/56 批、估值 56/56 批，业务结果为
+`outcome=partial`、`requested/succeeded/failed/stored=5572/5561/11/11125`，但正式发布阶段以
+`MARKET_PUBLICATION_VALIDATION_FAILED` 失败关闭，`publication_updated=false`、`published_members=0`；没有用重试
+覆盖该结果。8 个报价缺口均由本次 Tushare `suspend_d` 证明为目标日全天停牌；11 个估值缺口包含这 8 个证券及另外
+3 个证券，实际覆盖率为 `0.9980258435032304`，达到既有版本化估值 partial 政策门槛。
+
+只读诊断证明失败不是 authority lock、provider 批次或覆盖率门槛：quote preview 正确保留 5,564 个目标日成员和 8 个
+停牌 scope 缺口；valuation candidate repository 的 `latest` 查询却为本次 11 个失败证券补入 2026-09-29 旧事实，使
+preview 错误显示 5,572/5,572 全覆盖。完成会话不变量随后发现估值 `oldest_observed_at` 不属于目标交易日 2026-09-30，
+在发布写入前正确失败关闭。根因是候选选择只有“latest”语义，缺少本次全市场任务的目标交易日绑定；不能通过删除日期
+校验、放宽 coverage 或写死 11 个证券解决。
+
+代码提交 `fc6f165e01ec1d746e3636350d9038c1bb766c36` 为单数据集 rebuild 和 core coordinator 增加可选、按数据集校验的
+`required_observation_date(s)`。全市场完成会话只把本次 `target_date` 绑定到 quote 与 valuation；候选日期不等于目标日
+时不进入本次成员集合，并按完整 5,572 requested 分母形成真实缺口。valuation 只有继续满足活动政策
+`allow_partial=true`、版本化证据、现有 `minimum_coverage_ratio`、非空成员、无 unexpected 和非空 run id 时才能发布
+scope block；quote 仍保留 15:00 收盘与逐证券停牌证据门。price bar、financial 等未参与本次刷新会话的数据集不会被
+隐式过滤，未知数据集绑定在读写前失败关闭。
+
+本地验证：rebuild/orchestration 聚焦契约 `103 passed`；Publication 持久化、查询投影、API 与 readiness 组件/集成回归
+`86 passed`，合计 189 项、0 failure、0 skip。新增反例覆盖旧估值不能补足目标会话、低于政策门槛不写 Publication、
+日期约束只作用于显式数据集、未知数据集失败关闭，以及 preview/execute 使用同一 quote/valuation 目标日映射。两个生产
+文件增量 mypy 0 regression、全仓 mypy debt ceiling 0；Black、isort、Ruff、current-data 72 surfaces、Celery 94 tasks、
+architecture full/delta、module map 44 modules / 210 edges、Data Center entrypoint 1,280 项和 `git diff --check` 均通过；
+architecture inventory 已按生成器刷新行号投影并保持 5,260 个 current-surface references。`run_current_data_contract_tests.py`
+不支持按单个 contract 选择，未把该次参数错误计作检查结果；改由上述 103 项直接契约测试和 72-surface manifest checker
+闭合本切片范围。
+
+剩余停止线：`fc6f165e0` 尚未取得五组同 SHA CI、完整九阶段 S6、同镜像部署与生产身份回执，因此不得直接重跑。
+门禁齐全后才可启动一个新的显式 task ID，并对 business outcome、计数、quote/valuation Publication id/hash/run id、成员
+日期与 scope blocks 逐项对账。只有正式发布通过后才能继续 decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读
+零副作用联合验收；财报 owner approval 与 token-auth GET 写 last-used 的既有停止线不因本片改变。
