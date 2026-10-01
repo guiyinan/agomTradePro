@@ -10261,119 +10261,119 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 244,
+      "line": 247,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Build and atomically publish a complete current member snapshot.\"\"\""
     },
     {
-      "line": 285,
+      "line": 289,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"Current publication is missing active assets or contains unexpected assets: \""
     },
     {
-      "line": 291,
+      "line": 295,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current publication requires payload_hash evidence\")"
     },
     {
-      "line": 300,
+      "line": 304,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Partial current valuation requires publication run id\")"
     },
     {
-      "line": 340,
+      "line": 344,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "current = self._publications.get_current("
     },
     {
-      "line": 344,
+      "line": 348,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "if current is not None and publication_replay_matches("
     },
     {
-      "line": 346,
+      "line": 350,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "current,"
     },
     {
-      "line": 348,
+      "line": 352,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "self._publications.list_members(current.publication_id),"
     },
     {
-      "line": 352,
+      "line": 356,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "return current"
     },
     {
-      "line": 416,
+      "line": 420,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Scope exclusions are unsupported for this current dataset\")"
     },
     {
-      "line": 474,
+      "line": 478,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Scope exclusions are unsupported for this current dataset\")"
     },
     {
-      "line": 477,
+      "line": 481,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current publication scope exclusions must use unique asset codes\")"
     },
     {
-      "line": 587,
+      "line": 594,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "f\"Current publication fact table mismatch for {self.dataset.dataset_key}\""
     },
     {
-      "line": 591,
+      "line": 598,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "f\"Current publication contains a future observation for \""
     },
     {
-      "line": 598,
+      "line": 611,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"Current quote publication contains an observation before the \""
     },
     {
-      "line": 603,
+      "line": 616,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current publication natural key resolves to multiple facts\")"
     },
     {
-      "line": 607,
+      "line": 620,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current publication fact resolves to multiple natural keys\")"
     },
     {
-      "line": 671,
+      "line": 684,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Core current publications do not share one run identity\")"
     },
     {
-      "line": 704,
+      "line": 717,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Preview or atomically publish all configured core current datasets.\"\"\""
     },
     {
-      "line": 714,
+      "line": 727,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"At least one current-publication rebuilder is required\")"
     },
     {
-      "line": 717,
+      "line": 730,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Current-publication rebuilders must have unique datasets\")"
     },
     {
-      "line": 760,
+      "line": 781,
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Publish all datasets in one transaction or leave all current rows intact.\"\"\""
     },
     {
-      "line": 801,
+      "line": 841,
       "path": "apps/data_center/application/current_publication_rebuild.py",
-      "text": "\"Current publication scope exclusions contain unknown datasets: \""
+      "text": "f\"Current publication {label} contain unknown datasets: \""
     },
     {
       "line": 1,
@@ -10501,7 +10501,7 @@
       "text": "\"\"\"Resolve current active A-shares against persisted target-date listing evidence.\"\"\""
     },
     {
-      "line": 930,
+      "line": 936,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "if not authority_latch.current:"
     },

@@ -310,6 +310,98 @@ def test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block() -
     )
 
 
+def test_required_observation_date_excludes_stale_valuation_candidate() -> None:
+    """A prior-session latest row remains a gap in the requested session."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    codes = [f"{index:06d}.SZ" for index in range(100)]
+    target_date = cn_market_date_from_observation(NOW - timedelta(hours=1))
+    references = [
+        _reference(code, str(index), dataset=dataset)
+        for index, code in enumerate(codes[:-1], start=1)
+    ]
+    references.append(
+        _reference(
+            codes[-1],
+            "stale",
+            dataset=dataset,
+            observed_at=NOW - timedelta(days=1),
+        )
+    )
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        references,
+        repository,
+        policy_repository=_PartialPolicyRepository(),
+    )
+
+    preview = use_case.preview(
+        asset_codes=codes,
+        published_at=NOW,
+        required_observation_date=target_date,
+    )
+    publication = use_case.execute(
+        asset_codes=codes,
+        published_at=NOW,
+        run_id="target-date-run-20260830",
+        required_observation_date=target_date,
+    )
+
+    assert preview.ready is False
+    assert preview.covered_asset_count == 99
+    assert preview.member_count == 99
+    assert preview.missing_asset_codes == (codes[-1],)
+    assert publication.coverage.requested_count == 100
+    assert publication.coverage.selected_count == 99
+    assert publication.member_count == 99
+    assert publication.scope_blocks[0].asset_code == codes[-1]
+    assert publication.scope_blocks[0].reason_code == "valuation_source_data_unavailable"
+    assert publication.scope_blocks[0].target_trade_date == target_date
+    assert all(
+        member.fact_pk != "stale" for member in repository.members[publication.publication_id]
+    )
+
+
+def test_required_observation_date_fails_closed_below_valuation_policy_threshold() -> None:
+    """A stale candidate cannot satisfy a policy that requires complete coverage."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [
+            _reference("000001.SZ", "current", dataset=dataset),
+            _reference(
+                "600000.SH",
+                "stale",
+                dataset=dataset,
+                observed_at=NOW - timedelta(days=1),
+            ),
+        ],
+        repository,
+        policy_repository=_PartialPolicyRepository(minimum_coverage_ratio=1.0),
+    )
+
+    with pytest.raises(ValueError, match="missing active assets"):
+        use_case.execute(
+            asset_codes=["000001.SZ", "600000.SH"],
+            published_at=NOW,
+            run_id="blocked-target-date-run",
+            required_observation_date=cn_market_date_from_observation(NOW - timedelta(hours=1)),
+        )
+
+    assert repository.published == []
+
+
 @pytest.mark.parametrize(
     ("minimum_coverage_ratio", "allow_partial"),
     [(1.0, True), (0.5, False)],
@@ -977,6 +1069,88 @@ def test_core_preview_rejects_unknown_exclusion_dataset() -> None:
             asset_codes=["000001.SZ"],
             published_at=NOW,
             scope_exclusions_by_dataset={"equity.unknown": ()},
+        )
+
+
+def test_core_preview_applies_required_observation_date_per_dataset() -> None:
+    """Session binding applies only to the explicitly mapped current datasets."""
+
+    valuation = CurrentPublicationDataset(
+        "equity.valuation.fact",
+        "data_center_valuation_fact",
+        "ops.current_publication_rebuild",
+    )
+    price_bar = CurrentPublicationDataset(
+        "equity.price.bar",
+        "data_center_price_bar",
+        "ops.current_publication_rebuild",
+    )
+    stale_observation = NOW - timedelta(days=1)
+    coordinator = CoreCurrentPublicationRebuildUseCase(
+        rebuilders=(
+            _use_case(
+                valuation,
+                [
+                    _reference(
+                        "000001.SZ",
+                        "valuation-stale",
+                        dataset=valuation,
+                        observed_at=stale_observation,
+                    )
+                ],
+            ),
+            _use_case(
+                price_bar,
+                [
+                    _reference(
+                        "000001.SZ",
+                        "price-stale",
+                        dataset=price_bar,
+                        observed_at=stale_observation,
+                    )
+                ],
+            ),
+        ),
+        transaction=nullcontext,
+        authority_preflight=lambda _as_of: None,
+    )
+
+    result = coordinator.preview(
+        asset_codes=["000001.SZ"],
+        published_at=NOW,
+        required_observation_dates={"equity.valuation.fact": cn_market_date_from_observation(NOW)},
+    )
+    by_dataset = {item.dataset_key: item for item in result.datasets}
+
+    assert by_dataset["equity.valuation.fact"].covered_asset_count == 0
+    assert by_dataset["equity.valuation.fact"].missing_asset_codes == ("000001.SZ",)
+    assert by_dataset["equity.price.bar"].ready is True
+
+
+def test_core_preview_rejects_unknown_required_observation_date_dataset() -> None:
+    """An unknown session binding fails before any coordinated read."""
+
+    dataset = CurrentPublicationDataset(
+        "equity.valuation.fact",
+        "data_center_valuation_fact",
+        "ops.current_publication_rebuild",
+    )
+    coordinator = CoreCurrentPublicationRebuildUseCase(
+        rebuilders=(
+            _use_case(
+                dataset,
+                [_reference("000001.SZ", "1", dataset=dataset)],
+            ),
+        ),
+        transaction=nullcontext,
+        authority_preflight=lambda _as_of: None,
+    )
+
+    with pytest.raises(ValueError, match="required observation dates.*unknown datasets"):
+        coordinator.preview(
+            asset_codes=["000001.SZ"],
+            published_at=NOW,
+            required_observation_dates={"equity.unknown": NOW.date()},
         )
 
 

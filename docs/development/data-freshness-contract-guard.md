@@ -236,6 +236,8 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 
 当前估值的 `requested` 始终是运行时冻结的完整 active universe。缺口由 `requested - target_session_succeeded` 动态计算，禁止把某次故障的证券代码、数量或排除结果写入生产规则。只有活动政策 `allow_partial=true`、实际覆盖率达到 `minimum_coverage_ratio`、逐证券原因均为 `valuation_source_data_unavailable` 且 Publication scope block 与事实集合可对账时，合格成员才可形成 `partial` 发布。报价仍要求完整；政策缺失、低于门槛、来源日期不符或证据链不完整继续全局阻断。
 
+全市场完成会话发布必须把本次目标交易日显式绑定到 quote 与 valuation 的 Publication candidate 选择。候选 repository 的 `latest` 结果属于其他交易日时，只能作为本次会话缺口处理，不能用旧事实补足本次覆盖；完整 active universe 仍作为 requested 分母。目标日筛选后的 valuation 缺口只有在既有版本化 partial 政策和覆盖率门槛同时满足时才能生成 scope block；未声明的额外缺口、低于门槛、未知数据集绑定或保留成员日期不一致均失败关闭并保留旧 Publication。其他未参与本次会话刷新的数据集不得被这个日期绑定隐式过滤。
+
 每个当前估值 scope block 必须保留目标交易日、provider/source、publication run id、policy version 与所属 publication id，并与父 Publication 的日期、来源、运行、政策和确定性 id 一致。内容 hash 纳入 block 的证据字段，但不纳入 publication id（它由内容 hash 确定）；重建、持久化不变性校验和查询 gate 必须按同一规则复算。单证券查询只投影该证券的完整阻断证据，不向用户返回其他证券的 aggregate blocks。
 
 正式估值默认通过 AKShare provider 配置调用 Tencent quote-batch 上游。Provider identity 同时绑定配置行和实际 Tencent 上游，响应 artifact 使用 `tencent_quote_batch.v1`，逐 HTTP 批次记录实际返回证券集合并校验所有批次并集。原始响应字段 30 提供 Asia/Shanghai 来源时间，字段 44/45 的流通/总市值原始单位为亿元，进入 Domain 前按 `100000000` 转换为元；`available_at/fetched_at`、原始 body SHA-256、batch scope 和 source record id 必须保留。S6 离线重放必须从留存 bytes 重新解析这些字段并与在线事实逐项相等，不能套用 Tushare `daily_basic` 的万元单位或交易日收盘替代真实 Tencent 来源时间。

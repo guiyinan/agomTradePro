@@ -830,9 +830,14 @@ def run_full_market_publication_refresh(
                 for code in excluded_non_trading_codes
             ),
         }
+        required_observation_dates = {
+            "equity.quote.snapshot": target_date,
+            "equity.valuation.fact": target_date,
+        }
         preview = publications.preview(
             asset_codes=publication_scope_codes,
             scope_exclusions_by_dataset=publication_scope_exclusions,
+            required_observation_dates=required_observation_dates,
         )
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
@@ -886,6 +891,7 @@ def run_full_market_publication_refresh(
             asset_codes=publication_scope_codes,
             run_id=publication_run_id,
             scope_exclusions_by_dataset=publication_scope_exclusions,
+            required_observation_dates=required_observation_dates,
         )
         publication_evidence.update(publication_result.to_dict())
         publish_progress(

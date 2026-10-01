@@ -213,6 +213,7 @@ class CurrentPublicationRebuildUseCase:
         asset_codes: Sequence[str],
         published_at: datetime,
         scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
+        required_observation_date: date | None = None,
     ) -> CurrentPublicationPreview:
         """Inspect exact coverage without writing publication state."""
 
@@ -226,6 +227,7 @@ class CurrentPublicationRebuildUseCase:
             published_at=published_at,
             excluded_asset_codes=frozenset(item.asset_code for item in exclusions),
             exclusion_target_trade_date=(exclusions[0].target_trade_date if exclusions else None),
+            required_observation_date=required_observation_date,
         )
         self._validate_quote_suspension_candidate_conflicts(
             selection=selection,
@@ -240,6 +242,7 @@ class CurrentPublicationRebuildUseCase:
         published_at: datetime,
         run_id: str = "",
         scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
+        required_observation_date: date | None = None,
     ) -> CanonicalPublication:
         """Build and atomically publish a complete current member snapshot."""
 
@@ -253,6 +256,7 @@ class CurrentPublicationRebuildUseCase:
             published_at=published_at,
             excluded_asset_codes=frozenset(item.asset_code for item in exclusions),
             exclusion_target_trade_date=(exclusions[0].target_trade_date if exclusions else None),
+            required_observation_date=required_observation_date,
         )
         policy = self._policies.get_active(self.dataset.dataset_key)
         if policy is None:
@@ -511,6 +515,7 @@ class CurrentPublicationRebuildUseCase:
         published_at: datetime,
         excluded_asset_codes: frozenset[str] = frozenset(),
         exclusion_target_trade_date: date | None = None,
+        required_observation_date: date | None = None,
     ) -> _CurrentPublicationSelection:
         """Normalize a universe and validate deterministic candidate identities."""
 
@@ -522,6 +527,7 @@ class CurrentPublicationRebuildUseCase:
         references = self._load_references(
             asset_codes=eligible_codes,
             published_at=published_at,
+            required_observation_date=required_observation_date,
         )
         excluded_target_date_codes: tuple[str, ...] = ()
         if excluded_asset_codes:
@@ -574,6 +580,7 @@ class CurrentPublicationRebuildUseCase:
         *,
         asset_codes: tuple[str, ...],
         published_at: datetime,
+        required_observation_date: date | None,
     ) -> tuple[PublicationFactReference, ...]:
         """Load and validate deterministic candidate identities for one scope."""
 
@@ -591,6 +598,12 @@ class CurrentPublicationRebuildUseCase:
                     f"Current publication contains a future observation for "
                     f"{self.dataset.dataset_key}"
                 )
+            if (
+                required_observation_date is not None
+                and cn_market_date_from_observation(reference.observed_at)
+                != required_observation_date
+            ):
+                continue
             if self.dataset.dataset_key == "equity.quote.snapshot":
                 observation_date = cn_market_date_from_observation(reference.observed_at)
                 if reference.observed_at < cn_market_session_close_utc(observation_date):
@@ -727,12 +740,18 @@ class CoreCurrentPublicationRebuildUseCase:
         scope_exclusions_by_dataset: (
             Mapping[str, Sequence[CurrentPublicationScopeExclusion]] | None
         ) = None,
+        required_observation_dates: Mapping[str, date] | None = None,
     ) -> CoreCurrentPublicationPreview:
         """Return one consistent read-only coverage preview."""
 
         observed_at = published_at or datetime.now(UTC)
         exclusions_by_dataset = scope_exclusions_by_dataset or {}
         self._validate_scope_exclusion_dataset_keys(exclusions_by_dataset)
+        observation_dates = required_observation_dates or {}
+        self._validate_dataset_keys(
+            observation_dates,
+            label="required observation dates",
+        )
         with self._transaction():
             previews = tuple(
                 rebuilder.preview(
@@ -742,6 +761,7 @@ class CoreCurrentPublicationRebuildUseCase:
                         rebuilder.dataset.dataset_key,
                         (),
                     ),
+                    required_observation_date=observation_dates.get(rebuilder.dataset.dataset_key),
                 )
                 for rebuilder in self._rebuilders
             )
@@ -756,6 +776,7 @@ class CoreCurrentPublicationRebuildUseCase:
         scope_exclusions_by_dataset: (
             Mapping[str, Sequence[CurrentPublicationScopeExclusion]] | None
         ) = None,
+        required_observation_dates: Mapping[str, date] | None = None,
     ) -> CoreCurrentPublicationRebuildResult:
         """Publish all datasets in one transaction or leave all current rows intact."""
 
@@ -763,6 +784,11 @@ class CoreCurrentPublicationRebuildUseCase:
         self._authority_preflight(observed_at)
         exclusions_by_dataset = scope_exclusions_by_dataset or {}
         self._validate_scope_exclusion_dataset_keys(exclusions_by_dataset)
+        observation_dates = required_observation_dates or {}
+        self._validate_dataset_keys(
+            observation_dates,
+            label="required observation dates",
+        )
         with self._transaction():
             publications = tuple(
                 rebuilder.execute(
@@ -770,6 +796,7 @@ class CoreCurrentPublicationRebuildUseCase:
                     published_at=observed_at,
                     run_id=run_id,
                     scope_exclusions=exclusions_by_dataset.get(rebuilder.dataset.dataset_key, ()),
+                    required_observation_date=observation_dates.get(rebuilder.dataset.dataset_key),
                 )
                 for rebuilder in self._rebuilders
             )
@@ -794,11 +821,24 @@ class CoreCurrentPublicationRebuildUseCase:
     ) -> None:
         """Reject exclusions for datasets outside this coordinated rebuild."""
 
+        self._validate_dataset_keys(
+            exclusions_by_dataset,
+            label="scope exclusions",
+        )
+
+    def _validate_dataset_keys(
+        self,
+        values_by_dataset: Mapping[str, object],
+        *,
+        label: str,
+    ) -> None:
+        """Reject per-dataset controls outside this coordinated rebuild."""
+
         known_dataset_keys = {rebuilder.dataset.dataset_key for rebuilder in self._rebuilders}
-        unknown_dataset_keys = set(exclusions_by_dataset) - known_dataset_keys
+        unknown_dataset_keys = set(values_by_dataset) - known_dataset_keys
         if unknown_dataset_keys:
             raise ValueError(
-                "Current publication scope exclusions contain unknown datasets: "
+                f"Current publication {label} contain unknown datasets: "
                 + ",".join(sorted(unknown_dataset_keys))
             )
 

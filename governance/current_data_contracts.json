@@ -4905,6 +4905,8 @@
           "class CurrentPublicationScopeExclusion:",
           "reason_code != \"quote_full_day_suspension\"",
           "scope_exclusions_by_dataset",
+          "required_observation_date",
+          "required_observation_dates",
           "and policy.allow_partial",
           "and coverage_ratio >= policy.minimum_coverage_ratio",
           "reference.observed_at < cn_market_session_close_utc(observation_date)",
@@ -5127,6 +5129,7 @@
           "verify_quote_suspensions,",
           "reason_code=\"quote_full_day_suspension\"",
           "scope_exclusions_by_dataset=publication_scope_exclusions",
+          "required_observation_dates=required_observation_dates",
           "exc.code.startswith(\"A_SHARE_UNIVERSE_\")",
           "A_SHARE_UNIVERSE_",
           "market_universe_error"
@@ -6253,6 +6256,21 @@
           "case": "policy_allowed_partial_valuation_keeps_full_denominator",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_rebuild_publishes_policy_allowed_partial_valuation_with_scope_block"
+        },
+        {
+          "case": "target_session_binding_excludes_stale_valuation_candidate",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_required_observation_date_excludes_stale_valuation_candidate"
+        },
+        {
+          "case": "target_session_binding_fails_closed_below_policy_threshold",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_required_observation_date_fails_closed_below_valuation_policy_threshold"
+        },
+        {
+          "case": "target_session_binding_is_dataset_scoped",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_core_preview_applies_required_observation_date_per_dataset"
         },
         {
           "case": "verified_quote_suspension_keeps_full_denominator_and_strict_policy",

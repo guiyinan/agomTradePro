@@ -1371,35 +1371,46 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
         newest_observed_at=observed,
     )
     publication_id = "bf8c00f5-59df-42c0-a3cb-44d2e306d668"
+    preview_calls: list[dict[str, object]] = []
+    publication_calls: list[dict[str, object]] = []
+
+    def preview_publication(**kwargs: object) -> SimpleNamespace:
+        preview_calls.append(dict(kwargs))
+        return SimpleNamespace(datasets=[quote_preview, valuation_preview])
+
+    def execute_publication(**kwargs: object) -> SimpleNamespace:
+        publication_calls.append(dict(kwargs))
+        return SimpleNamespace(
+            published_count=299,
+            to_dict=lambda: {
+                "published_count": 299,
+                "publication_ids": [publication_id],
+                "datasets": [
+                    {
+                        "dataset_key": "equity.valuation.fact",
+                        "scope_blocks": [
+                            {
+                                "asset_code": missing_code,
+                                "reason_code": "valuation_source_data_unavailable",
+                                "target_trade_date": "2026-09-18",
+                                "source": "akshare",
+                                "publication_run_id": kwargs["run_id"],
+                                "policy_version": policy.identity,
+                                "publication_id": publication_id,
+                            }
+                        ],
+                    }
+                ],
+                "run_id": kwargs["run_id"],
+            },
+        )
+
     monkeypatch.setattr(
         tasks,
         "make_core_current_publication_rebuild_use_case",
         lambda **_: SimpleNamespace(
-            preview=lambda **_: SimpleNamespace(datasets=[quote_preview, valuation_preview]),
-            execute=lambda **kwargs: SimpleNamespace(
-                published_count=299,
-                to_dict=lambda: {
-                    "published_count": 299,
-                    "publication_ids": [publication_id],
-                    "datasets": [
-                        {
-                            "dataset_key": "equity.valuation.fact",
-                            "scope_blocks": [
-                                {
-                                    "asset_code": missing_code,
-                                    "reason_code": "valuation_source_data_unavailable",
-                                    "target_trade_date": "2026-09-18",
-                                    "source": "akshare",
-                                    "publication_run_id": kwargs["run_id"],
-                                    "policy_version": policy.identity,
-                                    "publication_id": publication_id,
-                                }
-                            ],
-                        }
-                    ],
-                    "run_id": kwargs["run_id"],
-                },
-            ),
+            preview=preview_publication,
+            execute=execute_publication,
         ),
     )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
@@ -1432,6 +1443,12 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     ]
     assert result["excluded_non_trading_codes"] == []
     assert result["publication_run_id"] == result["run_id"]
+    required_observation_dates = {
+        "equity.quote.snapshot": date(2026, 9, 18),
+        "equity.valuation.fact": date(2026, 9, 18),
+    }
+    assert preview_calls[0]["required_observation_dates"] == required_observation_dates
+    assert publication_calls[0]["required_observation_dates"] == required_observation_dates
     assert progress_snapshots[0].phase == "universe"
     assert progress_snapshots[0].requested == 1
     assert progress_snapshots[0].succeeded == 0
@@ -1694,6 +1711,12 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
         preview_calls[0]["scope_exclusions_by_dataset"]
         == publication_calls[0]["scope_exclusions_by_dataset"]
     )
+    required_observation_dates = {
+        "equity.quote.snapshot": target,
+        "equity.valuation.fact": target,
+    }
+    assert preview_calls[0]["required_observation_dates"] == required_observation_dates
+    assert publication_calls[0]["required_observation_dates"] == required_observation_dates
 
 
 def test_task_blocks_when_refreshed_universe_count_differs_from_frozen_codes(monkeypatch):
