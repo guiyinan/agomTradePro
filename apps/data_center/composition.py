@@ -186,6 +186,7 @@ __all__ = [
     "make_core_current_fact_refresh_use_case",
     "make_core_current_publication_rebuild_use_case",
     "make_repair_run_replay_use_case",
+    "make_system_audited_sync_current_valuation_batch_use_case",
     "make_publication_decision_read_recorder",
     "make_reconciliation_evidence_recorder",
     "make_repair_run_audit_dependencies",
@@ -680,12 +681,9 @@ def make_core_current_fact_refresh_use_case(
             provider_registry=provider_registry,
             publish_current=False,
         ),
-        valuation_sync_factory=lambda: SyncCurrentValuationBatchUseCase(
-            provider_repo=provider_repository,
+        valuation_sync_factory=lambda: make_system_audited_sync_current_valuation_batch_use_case(
+            provider_repository=provider_repository,
             provider_registry=provider_registry,
-            fact_repo=ValuationFactRepository(),
-            raw_audit_repo=raw_audit_repository,
-            publication_publisher=None,
         ),
         financial_sync_factory=lambda: SyncFinancialUseCase(
             provider_repo=provider_repository,
@@ -1096,6 +1094,57 @@ def make_system_audited_sync_price_use_case(
         data_publication_audit_writer=publication_audit_writer,
         publication_quality_recorder=quality_recorder,
         clock=sync_clock,
+        data_provider_health_audit_writer=provider_health_audit_writer,
+    )
+
+
+def make_system_audited_sync_current_valuation_batch_use_case(
+    *,
+    provider_repository: ProviderConfigRepositoryProtocol | None = None,
+    provider_registry: ProviderRegistryProtocol | None = None,
+    environment: str = "production",
+) -> SyncCurrentValuationBatchUseCase:
+    """Compose the canonical same-UOW current-valuation fact sync writer."""
+
+    from core.integration.data_center_audit import get_data_reliability_audit_writers
+
+    provider_repo = provider_repository or ProviderConfigRepository()
+    registry = provider_registry or build_provider_registry_for_repo(provider_repo)
+    fact_repo = ValuationFactRepository()
+    raw_audit_repo = RawAuditRepository()
+    identity_repo = SyncExecutionIdentityRepository()
+    (
+        fetch_audit_writer,
+        _publication_audit_writer,
+        _validation_audit_writer,
+        _failover_audit_writer,
+        _decision_read_audit_writer,
+        provider_health_audit_writer,
+        _freshness_audit_writer,
+        _quality_audit_writer,
+    ) = get_data_reliability_audit_writers(environment=environment, using="default")
+    identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repo, using="default")
+    sync_uow = DjangoDataCenterSyncUnitOfWork(
+        (
+            cast(DataCenterSyncUnitOfWorkParticipant, provider_repo),
+            fact_repo,
+            raw_audit_repo,
+            identity_repo,
+        ),
+        fetch_audit_writer,
+        additional_audit_writers=(provider_health_audit_writer,),
+        using="default",
+    )
+    return SyncCurrentValuationBatchUseCase(
+        provider_repo=provider_repo,
+        provider_registry=registry,
+        fact_repo=fact_repo,
+        raw_audit_repo=raw_audit_repo,
+        publication_publisher=None,
+        sync_identity_issuer=identity_issuer,
+        sync_unit_of_work=sync_uow,
+        data_fetch_audit_writer=fetch_audit_writer,
+        clock=DjangoDataCenterSyncClock(),
         data_provider_health_audit_writer=provider_health_audit_writer,
     )
 

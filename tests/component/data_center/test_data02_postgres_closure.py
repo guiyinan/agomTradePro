@@ -600,6 +600,10 @@ def test_postgresql_current_valuation_identity_rejection_leaves_rows_unchanged(
         fact_repo=ValuationFactRepository(),
         raw_audit_repo=_RawAuditRepository(),
         publication_publisher=publisher,  # type: ignore[arg-type]
+        sync_identity_issuer=_IdentityIssuer(),
+        sync_unit_of_work=_TransactionUnitOfWork(),
+        data_fetch_audit_writer=_AuditWriter(),
+        clock=_Clock(),
     )
 
     with pytest.raises(ProviderAssetIdentityError) as caught:

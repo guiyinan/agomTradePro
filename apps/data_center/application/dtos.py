@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
+from apps.data_center.domain.entities import RawAuditReference
 from core.integration.data_center_audit import AuditOutcome
 
 
@@ -757,7 +758,49 @@ class SyncValuationBatchResult:
     stored_count: int
     status: str
     succeeded_asset_codes: list[str]
+    run_id: str
+    ingested_run_id: str
+    raw_audit_reference: RawAuditReference
+    error_message: str = ""
     returned_asset_codes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Require one exact persisted RawAudit reference for every result."""
+
+        for field_name in ("run_id", "ingested_run_id"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"SyncValuationBatchResult.{field_name} must be non-empty")
+        if not isinstance(self.raw_audit_reference, RawAuditReference):
+            raise ValueError("SyncValuationBatchResult.raw_audit_reference must be exact")
+        if self.raw_audit_reference.run_id != self.run_id:
+            raise ValueError("valuation RawAudit reference run_id does not match the result")
+        if self.raw_audit_reference.ingested_run_id != self.ingested_run_id:
+            raise ValueError(
+                "valuation RawAudit reference ingested_run_id does not match the result"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the batch outcome with exact sync and RawAudit lineage."""
+
+        return {
+            "domain": self.domain,
+            "provider_name": self.provider_name,
+            "stored_count": self.stored_count,
+            "status": self.status,
+            "error_message": self.error_message,
+            "succeeded_asset_codes": list(self.succeeded_asset_codes),
+            "returned_asset_codes": list(self.returned_asset_codes),
+            "run_id": self.run_id,
+            "ingested_run_id": self.ingested_run_id,
+            "raw_audit_reference": {
+                "raw_audit_id": self.raw_audit_reference.raw_audit_id,
+                "version": self.raw_audit_reference.version,
+                "content_hash": self.raw_audit_reference.content_hash,
+                "run_id": self.raw_audit_reference.run_id,
+                "ingested_run_id": self.raw_audit_reference.ingested_run_id,
+            },
+        }
 
 
 # ---------------------------------------------------------------------------

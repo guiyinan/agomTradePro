@@ -656,6 +656,7 @@ class ValuationFact:
     observed_at: datetime | None = None
     source_record_id: str = ""
     raw_payload_hash: str = ""
+    ingested_run_id: str = ""
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -687,6 +688,15 @@ class ValuationFact:
             raise ValueError("ValuationFact.fetched_at must be timezone-aware")
         if self.observed_at is not None and self.fetched_at < self.observed_at:
             raise ValueError("ValuationFact.fetched_at cannot precede observed_at")
+        if self.ingested_run_id:
+            try:
+                parsed_run_id = UUID(self.ingested_run_id)
+            except (TypeError, ValueError) as error:
+                raise ValueError(
+                    "ValuationFact.ingested_run_id must be a canonical UUID"
+                ) from error
+            if str(parsed_run_id) != self.ingested_run_id.lower():
+                raise ValueError("ValuationFact.ingested_run_id must be a canonical UUID")
         for field_name, value in (
             ("market_cap", self.market_cap),
             ("float_market_cap", self.float_market_cap),
@@ -714,6 +724,7 @@ class ValuationFact:
             "extra": self.extra,
             "source_record_id": self.source_record_id,
             "raw_payload_hash": self.raw_payload_hash,
+            "ingested_run_id": self.ingested_run_id,
         }
 
 

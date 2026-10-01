@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
@@ -7,8 +9,9 @@ import pytest
 
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.current_valuation_sync import SyncCurrentValuationBatchUseCase
-from apps.data_center.application.dtos import SyncValuationRequest
+from apps.data_center.application.dtos import SyncValuationBatchResult, SyncValuationRequest
 from apps.data_center.application.publication_sync import PublishValuationBatchUseCase
+from apps.data_center.application.sync_identity import build_sync_execution_identity
 from apps.data_center.application.sync_use_cases import SyncValuationUseCase
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
@@ -16,7 +19,13 @@ from apps.data_center.domain.control_plane import (
     PublicationFactReference,
     PublicationMember,
 )
-from apps.data_center.domain.entities import ProviderConfig, ValuationFact
+from apps.data_center.domain.entities import (
+    ProviderConfig,
+    RawAudit,
+    RawAuditReference,
+    ValuationFact,
+    raw_audit_content_hash,
+)
 from apps.data_center.infrastructure.fundamental_fact_repositories import ValuationFactRepository
 from apps.data_center.infrastructure.models import ValuationFactModel
 
@@ -97,6 +106,75 @@ def _fact(asset_code: str = "000001.SZ") -> ValuationFact:
         available_at=AVAILABLE_AT,
         fetched_at=FETCHED_AT,
     )
+
+
+class _SyncUnitOfWork:
+    def __init__(self) -> None:
+        self.active = False
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        assert not self.active
+        self.active = True
+        try:
+            yield
+        finally:
+            self.active = False
+
+
+class _SyncIdentityIssuer:
+    def __init__(self, unit_of_work: _SyncUnitOfWork) -> None:
+        self.unit_of_work = unit_of_work
+
+    def issue(self, *, dataset_key: str, provider_name: str):
+        assert self.unit_of_work.active
+        return build_sync_execution_identity(
+            run_id="11111111-1111-4111-8111-111111111111",
+            ingested_run_id="22222222-2222-4222-8222-222222222222",
+            batch_id="33333333-3333-4333-8333-333333333333",
+            dataset_key=dataset_key,
+            provider_name=provider_name,
+        )
+
+
+class _SyncAuditWriter:
+    def __init__(self, unit_of_work: _SyncUnitOfWork) -> None:
+        self.unit_of_work = unit_of_work
+        self.observations = []
+
+    def write(self, observation) -> None:
+        assert self.unit_of_work.active
+        self.observations.append(observation)
+
+
+class _SyncClock:
+    def now(self) -> datetime:
+        return FETCHED_AT
+
+
+class _PersistedRawAuditRepository:
+    def __init__(self, unit_of_work: _SyncUnitOfWork) -> None:
+        self.unit_of_work = unit_of_work
+        self.rows: list[RawAudit] = []
+
+    def log(self, audit: RawAudit) -> RawAudit:
+        assert self.unit_of_work.active
+        persisted = replace(
+            audit,
+            raw_audit_id=f"raw-valuation-{len(self.rows) + 1}",
+            content_hash=raw_audit_content_hash(audit),
+        )
+        self.rows.append(persisted)
+        return persisted
+
+
+class _SyncLineageDependencies:
+    def __init__(self) -> None:
+        self.unit_of_work = _SyncUnitOfWork()
+        self.identity_issuer = _SyncIdentityIssuer(self.unit_of_work)
+        self.fetch_audit_writer = _SyncAuditWriter(self.unit_of_work)
+        self.raw_audit_repository = _PersistedRawAuditRepository(self.unit_of_work)
+        self.clock = _SyncClock()
 
 
 def _reference(
@@ -481,13 +559,13 @@ def test_sync_valuation_use_case_invokes_publication_after_fact_write() -> None:
     assert publisher.calls == [(facts.saved, "provider-main")]
 
 
-def test_sync_current_valuation_batch_invokes_publication_after_fact_write() -> None:
+def test_sync_current_valuation_batch_audits_allowed_partial_coverage_as_ok() -> None:
     class _Provider:
         def provider_name(self) -> str:
             return "provider-main"
 
-        def fetch_valuations(self, _asset_code, _start, _end) -> list[ValuationFact]:
-            return [_fact()]
+        def fetch_valuations(self, asset_code, _start, _end) -> list[ValuationFact]:
+            return [_fact()] if asset_code == "000001.SZ" else []
 
     class _ProviderRepository:
         def __init__(self) -> None:
@@ -538,20 +616,36 @@ def test_sync_current_valuation_batch_invokes_publication_after_fact_write() -> 
             self.calls.append((list(facts), provider_name))
             return None
 
+    lineage = _SyncLineageDependencies()
+    provider_repository = _ProviderRepository()
     publisher = _Publisher()
     result = SyncCurrentValuationBatchUseCase(
-        provider_repo=_ProviderRepository(),
+        provider_repo=provider_repository,
         provider_registry=_Registry(),
         fact_repo=_Facts(),
-        raw_audit_repo=_RawAudit(),
+        raw_audit_repo=lineage.raw_audit_repository,
         publication_publisher=publisher,
-    ).execute(provider_id=1, asset_codes=["000001.SZ"], as_of_date=VAL_DATE)
+        sync_identity_issuer=lineage.identity_issuer,
+        sync_unit_of_work=lineage.unit_of_work,
+        data_fetch_audit_writer=lineage.fetch_audit_writer,
+        clock=lineage.clock,
+    ).execute(
+        provider_id=1,
+        asset_codes=["000001.SZ", "600000.SH"],
+        as_of_date=VAL_DATE,
+    )
 
-    assert result.status == "success"
+    assert result.status == "partial"
     assert result.returned_asset_codes == ("000001.SZ",)
     assert len(publisher.calls) == 1
     assert publisher.calls[0][0][0].asset_code == "000001.SZ"
     assert publisher.calls[0][1] == "provider-main"
+    assert lineage.raw_audit_repository.rows[0].status == "ok"
+    assert lineage.fetch_audit_writer.observations[0].outcome.value == "success"
+    health_metric = provider_repository.config.extra_config["health_metrics"]["valuation"]
+    assert health_metric["last_status"] == "healthy"
+    assert health_metric["consecutive_failures"] == 0
+    assert health_metric["last_output_count"] == 1
 
 
 def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
@@ -615,14 +709,19 @@ def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
             self.calls.append((list(facts), provider_name))
             return None
 
+    lineage = _SyncLineageDependencies()
     facts = _Facts()
     publisher = _Publisher()
     result = SyncCurrentValuationBatchUseCase(
         provider_repo=_ProviderRepository(),
         provider_registry=_Registry(),
         fact_repo=facts,
-        raw_audit_repo=_RawAudit(),
+        raw_audit_repo=lineage.raw_audit_repository,
         publication_publisher=publisher,
+        sync_identity_issuer=lineage.identity_issuer,
+        sync_unit_of_work=lineage.unit_of_work,
+        data_fetch_audit_writer=lineage.fetch_audit_writer,
+        clock=lineage.clock,
     ).execute(
         provider_id=1,
         asset_codes=["000001.SZ"],
@@ -631,6 +730,11 @@ def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
 
     assert result.status == "success"
     assert len(facts.saved) == 1
+    assert facts.saved[0].ingested_run_id == "22222222-2222-4222-8222-222222222222"
+    assert result.run_id == "11111111-1111-4111-8111-111111111111"
+    assert result.ingested_run_id == facts.saved[0].ingested_run_id
+    assert result.raw_audit_reference == lineage.raw_audit_repository.rows[0].exact_reference()
+    assert result.to_dict()["raw_audit_reference"]["raw_audit_id"] == "raw-valuation-1"
     assert publisher.calls == [(facts.saved, "provider-main")]
 
 
@@ -741,14 +845,19 @@ def test_strict_current_valuation_identity_rejects_substitution_before_fact_writ
             self.calls.append(list(facts))
             return None
 
+    lineage = _SyncLineageDependencies()
     facts = _Facts()
     publisher = _Publisher()
     use_case = SyncCurrentValuationBatchUseCase(
         provider_repo=_ProviderRepository(),
         provider_registry=_Registry(),
         fact_repo=facts,
-        raw_audit_repo=_RawAudit(),
+        raw_audit_repo=lineage.raw_audit_repository,
         publication_publisher=publisher,
+        sync_identity_issuer=lineage.identity_issuer,
+        sync_unit_of_work=lineage.unit_of_work,
+        data_fetch_audit_writer=lineage.fetch_audit_writer,
+        clock=lineage.clock,
     )
 
     with pytest.raises(
@@ -764,3 +873,39 @@ def test_strict_current_valuation_identity_rejects_substitution_before_fact_writ
 
     assert facts.saved == []
     assert publisher.calls == []
+    assert lineage.raw_audit_repository.rows[0].status == "error"
+    assert lineage.fetch_audit_writer.observations[0].outcome.value == "failed"
+
+
+def test_valuation_batch_result_rejects_empty_or_mismatched_lineage() -> None:
+    reference = RawAuditReference(
+        raw_audit_id="raw-valuation-1",
+        version="1",
+        content_hash="a" * 64,
+        run_id="11111111-1111-4111-8111-111111111111",
+        ingested_run_id="22222222-2222-4222-8222-222222222222",
+    )
+
+    with pytest.raises(ValueError, match="run_id must be non-empty"):
+        SyncValuationBatchResult(
+            domain="valuation",
+            provider_name="provider-main",
+            stored_count=1,
+            status="success",
+            succeeded_asset_codes=["000001.SZ"],
+            run_id="",
+            ingested_run_id=reference.ingested_run_id,
+            raw_audit_reference=reference,
+        )
+
+    with pytest.raises(ValueError, match="does not match the result"):
+        SyncValuationBatchResult(
+            domain="valuation",
+            provider_name="provider-main",
+            stored_count=1,
+            status="success",
+            succeeded_asset_codes=["000001.SZ"],
+            run_id="44444444-4444-4444-8444-444444444444",
+            ingested_run_id=reference.ingested_run_id,
+            raw_audit_reference=reference,
+        )

@@ -25,6 +25,12 @@ _NATURAL_KEY = ("asset_code", "val_date", "source")
 class ValuationFactRepository:
     """ORM-backed repository for daily valuation multiples."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Return the fixed transaction identity used by this repository."""
+
+        return "django:default"
+
     @staticmethod
     def _from_model(m: ValuationFactModel) -> ValuationFact:
         return ValuationFact(
@@ -44,6 +50,7 @@ class ValuationFactRepository:
             extra=m.extra or {},
             source_record_id=m.source_record_id,
             raw_payload_hash=m.raw_payload_hash,
+            ingested_run_id=str(m.ingested_run_id) if m.ingested_run_id else "",
         )
 
     def get_series(
@@ -130,6 +137,7 @@ class ValuationFactRepository:
                 extra=fact.extra,
                 source_record_id=fact.source_record_id,
                 raw_payload_hash=fact.raw_payload_hash,
+                ingested_run_id=fact.ingested_run_id or None,
             )
             for fact in facts
         ]
@@ -151,6 +159,7 @@ class ValuationFactRepository:
                 "extra",
                 "source_record_id",
                 "raw_payload_hash",
+                "ingested_run_id",
             ),
         )
 

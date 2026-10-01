@@ -22,6 +22,7 @@ def test_valuation_insert_preserves_distinct_source_fetch_and_availability_times
         observed_at=observed,
         fetched_at=fetched,
         available_at=available,
+        ingested_run_id="22222222-2222-4222-8222-222222222222",
     )
     repository = ValuationFactRepository()
 
@@ -32,7 +33,12 @@ def test_valuation_insert_preserves_distinct_source_fetch_and_availability_times
     assert stored.observed_at == observed
     assert stored.fetched_at == fetched
     assert stored.available_at == available
+    assert stored.ingested_run_id == fact.ingested_run_id
+    assert ValuationFactModel.objects.get(asset_code=fact.asset_code).ingested_run_id.hex == (
+        fact.ingested_run_id.replace("-", "")
+    )
     assert stored.to_dict()["observed_at"] == observed.isoformat()
+    assert stored.to_dict()["ingested_run_id"] == fact.ingested_run_id
     references = repository.list_publication_candidates([stored])
     assert len(references) == 1
     assert references[0].observed_at == observed

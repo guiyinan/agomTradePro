@@ -31,6 +31,7 @@ from apps.data_center.composition import (
     make_macro_failover_policy_provider,
     make_publication_decision_read_recorder,
     make_repair_run_audit_dependencies,
+    make_system_audited_sync_current_valuation_batch_use_case,
     make_system_audited_sync_macro_use_case,
     make_system_audited_sync_price_use_case,
     make_system_audited_sync_quote_use_case,
@@ -507,26 +508,20 @@ def make_sync_valuation_use_case() -> SyncValuationUseCase:
 def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
     """Build a fact-only current valuation batch sync use case."""
 
-    valuation_repository = ValuationFactRepository()
-    return SyncCurrentValuationBatchUseCase(
-        provider_repo=_make_provider_repo(),
-        provider_registry=_get_provider_registry(),
-        fact_repo=valuation_repository,
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=None,
+    provider_repo = _make_provider_repo()
+    return make_system_audited_sync_current_valuation_batch_use_case(
+        provider_repository=provider_repo,
+        provider_registry=build_provider_registry_for_repo(provider_repo),
     )
 
 
 def make_backfill_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUseCase:
     """Build a fact-only current-valuation batch for aggregate publication."""
 
-    valuation_repository = ValuationFactRepository()
-    return SyncCurrentValuationBatchUseCase(
-        provider_repo=_make_provider_repo(),
-        provider_registry=_get_provider_registry(),
-        fact_repo=valuation_repository,
-        raw_audit_repo=_make_raw_audit_repo(),
-        publication_publisher=None,
+    provider_repo = _make_provider_repo()
+    return make_system_audited_sync_current_valuation_batch_use_case(
+        provider_repository=provider_repo,
+        provider_registry=build_provider_registry_for_repo(provider_repo),
     )
 
 
