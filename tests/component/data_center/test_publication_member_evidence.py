@@ -16,9 +16,28 @@ from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
 )
 from apps.data_center.infrastructure.models import ValuationFactModel
+from apps.data_center.infrastructure.publication_models import CanonicalPublicationModel
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 
 pytestmark = pytest.mark.django_db
+
+
+def _persist_candidate_parent(member: PublicationMember, *, member_count: int = 1) -> None:
+    """Create the candidate row whose lock seals this member set."""
+
+    CanonicalPublicationModel.objects.create(
+        publication_id=member.publication_id,
+        dataset_key=member.dataset_key,
+        publication_key=f"member-evidence:{member.publication_id}",
+        policy_version="fixture",
+        selected_source=member.source,
+        publication_hash=hashlib.sha256(member.publication_id.encode()).hexdigest(),
+        member_count=member_count,
+        coverage_requested_count=member_count,
+        coverage_eligible_count=member_count,
+        coverage_selected_count=member_count,
+        as_of=member.observed_at,
+    )
 
 
 def _persist_reference():
@@ -54,6 +73,7 @@ def test_stored_member_roundtrips_full_source_evidence() -> None:
         dataset_key="equity.valuation.fact",
     )
     publications = CanonicalPublicationRepository()
+    _persist_candidate_parent(member)
     assert publications.add_member(member) == member
     assert publications.list_members(member.publication_id) == [member]
     assert member.available_at == reference.available_at != reference.observed_at
@@ -81,6 +101,7 @@ def test_stored_member_replay_cannot_overwrite_any_frozen_evidence(changed) -> N
         dataset_key="equity.valuation.fact",
     )
     publications = CanonicalPublicationRepository()
+    _persist_candidate_parent(member)
     assert publications.add_member(member) == member
     assert publications.add_member(member) == member
     with pytest.raises(ValueError, match="immutable"):
@@ -97,6 +118,7 @@ def test_mutable_fact_value_change_preserves_raw_body_and_invalidates_frozen_fac
         dataset_key="equity.valuation.fact",
     )
     publications = CanonicalPublicationRepository()
+    _persist_candidate_parent(member)
     publications.add_member(member)
     before = publications.get_fact_content_hashes((member,))
     assert before[(member.fact_table, member.fact_pk)] == member.fact_content_hash
@@ -130,6 +152,7 @@ def test_quote_publication_add_member_uses_one_lookup_and_insert_per_member() ->
         for index in range(member_count)
     )
     publications = CanonicalPublicationRepository()
+    _persist_candidate_parent(members[0], member_count=member_count)
 
     with CaptureQueriesContext(connection) as captured:
         for member in members:
@@ -141,11 +164,18 @@ def test_quote_publication_add_member_uses_one_lookup_and_insert_per_member() ->
         if query["sql"].lstrip().upper().startswith("SELECT")
         and "data_center_publication_member" in query["sql"]
     ]
+    parent_selects = [
+        query
+        for query in captured
+        if query["sql"].lstrip().upper().startswith("SELECT")
+        and "data_center_canonical_publication" in query["sql"]
+    ]
     member_inserts = [
         query
         for query in captured
         if query["sql"].lstrip().upper().startswith("INSERT")
         and "data_center_publication_member" in query["sql"]
     ]
+    assert len(parent_selects) == member_count
     assert len(member_selects) == member_count
     assert len(member_inserts) == member_count

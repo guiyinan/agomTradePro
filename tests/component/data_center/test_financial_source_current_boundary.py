@@ -21,6 +21,7 @@ from apps.data_center.infrastructure.publication_member_store import (
     add_immutable_publication_member,
     publication_fact_content_hashes,
 )
+from apps.data_center.infrastructure.publication_models import CanonicalPublicationModel
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
 )
@@ -66,8 +67,8 @@ def _stored_row(**changes: object) -> FinancialFactModel:
     return FinancialFactModel.objects.create(**values)
 
 
-def test_current_financial_source_survives_persisted_member_replay() -> None:
-    """The current candidate and persisted member agree on the actual source row."""
+def test_financial_source_survives_candidate_member_replay() -> None:
+    """The candidate and persisted member agree on the actual source row."""
 
     _activate_policy3()
     row = _stored_row()
@@ -84,6 +85,19 @@ def test_current_financial_source_survives_persisted_member_replay() -> None:
         member_id=str(uuid4()),
         publication_id=str(uuid4()),
         dataset_key="equity.financial.fact",
+    )
+    CanonicalPublicationModel.objects.create(
+        publication_id=member.publication_id,
+        dataset_key=member.dataset_key,
+        publication_key="member-replay",
+        policy_version="fixture",
+        selected_source=member.source,
+        publication_hash=sha256(member.publication_id.encode()).hexdigest(),
+        member_count=1,
+        coverage_requested_count=1,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        as_of=member.observed_at,
     )
     assert add_immutable_publication_member(member) == member
     assert add_immutable_publication_member(member) == member

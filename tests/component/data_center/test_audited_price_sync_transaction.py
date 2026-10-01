@@ -577,9 +577,7 @@ def test_legacy_unreliable_publication_records_warning_and_blocks_current_decisi
         "equity.price.bar",
         "current",
     )
-    assert current_gate is not None
-    assert current_gate["must_not_use_for_decision"] is True
-    assert current_gate["blocked_reason"] == "publication_member_evidence_missing"
+    assert current_gate is None
 
 
 def test_quality_writer_failure_rolls_back_fact_publication_events_and_outboxes() -> None:

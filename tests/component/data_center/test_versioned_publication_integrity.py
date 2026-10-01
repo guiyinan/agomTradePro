@@ -427,13 +427,9 @@ def test_direct_p2_entry_points_apply_coverage_policy(entry_point: str) -> None:
         ),
         conflict_count=1,
     )
-    if entry_point == "publish":
-        repository.save(candidate)
-        repository.add_member(member)
-        target = invalid
-    else:
-        repository.add_member(member)
-        target = invalid
+    repository.save(candidate)
+    repository.add_member(member)
+    target = invalid
 
     with pytest.raises(ValueError, match="coverage|conflict|policy"):
         if entry_point == "publish":

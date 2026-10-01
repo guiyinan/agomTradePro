@@ -101,7 +101,7 @@ def test_publication_coverage_ratio_fails_closed_for_empty_scope() -> None:
 
 
 @pytest.mark.django_db
-def test_control_plane_repositories_are_idempotent_and_current_is_published_only() -> None:
+def test_control_plane_repositories_keep_legacy_publish_out_of_current_pointer() -> None:
     run_id, batch_id, checkpoint_id = _ids()
     run = SyncRun(
         run_id=run_id,
@@ -177,11 +177,14 @@ def test_control_plane_repositories_are_idempotent_and_current_is_published_only
         observed_at=NOW,
     )
     repository = CanonicalPublicationRepository()
+    repository.save(replace(publication, state=PublicationState.CANDIDATE))
     repository.add_member(member)
     repository.publish(publication)
     current = repository.get_current("equity.daily", "20260802")
-    assert current is not None
-    assert current.publication_id == publication_id
+    assert current is None
+    persisted = repository.get_by_id(publication_id)
+    assert persisted is not None
+    assert persisted.state is PublicationState.PUBLISHED
     assert repository.get_oldest_member_observed_at(publication_id) == NOW
 
     blocked = CanonicalPublication(
@@ -313,6 +316,7 @@ def test_publication_as_of_never_returns_a_future_selection() -> None:
         published_at=first_time,
         as_of=first_time,
     )
+    repository.save(replace(first, state=PublicationState.CANDIDATE))
     repository.add_member(
         PublicationMember(
             member_id=str(uuid4()),
@@ -350,6 +354,7 @@ def test_publication_as_of_never_returns_a_future_selection() -> None:
         published_at=second_time,
         as_of=second_time,
     )
+    repository.save(replace(second, state=PublicationState.CANDIDATE))
     repository.add_member(
         PublicationMember(
             member_id=str(uuid4()),
@@ -552,8 +557,7 @@ def test_explicit_publication_rollback_preserves_history_until_observed_boundary
     repository.publish_with_members(second, second_members)
 
     current = repository.get_current(first.dataset_key, first.publication_key)
-    assert current is not None
-    assert current.publication_id == second.publication_id
+    assert current is None
     before_rollback = repository.get_as_of(
         first.dataset_key,
         first.publication_key,
@@ -575,8 +579,7 @@ def test_explicit_publication_rollback_preserves_history_until_observed_boundary
     assert restored.publication_id == first.publication_id
     assert restored.reinstated_at == rollback_at
     current_after = repository.get_current(first.dataset_key, first.publication_key)
-    assert current_after is not None
-    assert current_after.publication_id == first.publication_id
+    assert current_after is None
 
     historical = repository.get_as_of(
         first.dataset_key,
@@ -735,7 +738,7 @@ def test_publication_rollback_audit_writer_failure_rolls_back_all_state() -> Non
 
 @pytest.mark.django_db
 def test_publish_with_members_rejects_out_of_order_snapshot() -> None:
-    """A late provider response must not rewind the current publication."""
+    """A late provider response must not rewind legacy publication history."""
 
     repository = CanonicalPublicationRepository()
     current_id = str(uuid4())
@@ -756,6 +759,8 @@ def test_publish_with_members_rejects_out_of_order_snapshot() -> None:
         repository.publish_with_members(late, late_members)
 
     active = repository.get_current("equity.daily", "current")
-    assert active is not None
-    assert active.publication_id == current_id
+    assert active is None
+    persisted = repository.get_by_id(current_id)
+    assert persisted is not None
+    assert persisted.state is PublicationState.PUBLISHED
     assert not CanonicalPublicationModel._default_manager.filter(publication_id=late_id).exists()
