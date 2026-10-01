@@ -657,6 +657,8 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert report["outcome"] == "success"
     assert receipt["publication_verified"] is True
     assert receipt["readback_verified"] is True
+    assert receipt["exact_member_fact_readback_verified"] is True
+    assert receipt["legacy_current_fail_closed_verified"] is True
     assert receipt["current_time_stale_expected"] is True
     assert receipt["current_time_freshness_guard_verified"] is True
     assert receipt["tamper_guard_verified"] is True
@@ -670,6 +672,7 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert CanonicalPublicationModel.objects.count() == 0
     assert PublicationMemberModel.objects.count() == 0
     assert CoverageSnapshotModel.objects.count() == 0
+    assert CanonicalPublicationPointerModel.objects.count() == 0
 
 
 def test_isolated_write_command_initializes_reviewed_catalog_and_rolls_back_business_rows(

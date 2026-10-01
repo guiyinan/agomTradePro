@@ -10,15 +10,18 @@ import socket
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import cast
 from zoneinfo import ZoneInfo
 
 from django.db import connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
+from apps.data_center.application.current_publication_evidence import (
+    current_publication_evidence_blocked_reason,
+)
+from apps.data_center.application.publication_gate_metadata import publication_gate_metadata
+from apps.data_center.application.publication_query_bounds import publication_freshness_gate
 from apps.data_center.application.query_services import (
-    query_current_valuation_publication_at_cutoff,
     query_published_valuation_facts,
 )
 from apps.data_center.application.valuation_publication import PublishValuationBatchUseCase
@@ -29,8 +32,10 @@ from .catalog_runtime_repositories import DatasetContractRepository
 from .control_plane_repositories import CanonicalPublicationRepository
 from .fact_and_operational_models import ValuationFactModel
 from .market_rehearsal_runner import verify_candidate_release_image
+from .publication_member_store import publication_fact_content_hashes
 from .publication_models import (
     CanonicalPublicationModel,
+    CanonicalPublicationPointerModel,
     CoverageSnapshotModel,
     PublicationMemberModel,
 )
@@ -328,36 +333,57 @@ def collect_isolated_write_rehearsal(
             "000001.SZ",
             publication_key=publication_key,
         )
+        legacy_current_fail_closed_verified = (
+            current_readback.get("must_not_use_for_decision") is True
+            and current_readback.get("blocked_reason") == "canonical_publication_missing"
+            and current_readback.get("rows") == []
+            and publications.get_current("equity.valuation.fact", publication_key) is None
+            and not CanonicalPublicationPointerModel.objects.filter(
+                dataset_key="equity.valuation.fact",
+                publication_key=publication_key,
+            ).exists()
+        )
         current_time_stale_expected = (
             started - observed_at
         ).total_seconds() > contract.freshness_seconds
+        rows = facts.get_series(
+            "000001.SZ",
+            end=target_trade_date,
+            fact_pks=(member.fact_pk,),
+        )
+        fact_hashes = publication_fact_content_hashes((member,))
+        evidence_reason = current_publication_evidence_blocked_reason(
+            publication,
+            policy=policy,
+            members=(member,),
+            fact_content_hashes=fact_hashes,
+            knowledge_cutoff=knowledge_cutoff,
+        )
+        freshness = publication_freshness_gate(
+            publication_gate_metadata(
+                publication,
+                requested_dataset_key="equity.valuation.fact",
+                requested_publication_key=publication_key,
+            ),
+            observed_at=member.observed_at,
+            publication_as_of=publication.as_of,
+            reference=started,
+            max_age_seconds=contract.freshness_seconds,
+        )
         if current_time_stale_expected:
             current_time_freshness_guard_verified = (
-                current_readback.get("must_not_use_for_decision") is True
-                and current_readback.get("blocked_reason") == "canonical_publication_stale"
-                and current_readback.get("rows") == []
+                freshness.get("must_not_use_for_decision") is True
+                and freshness.get("blocked_reason") == "canonical_publication_stale"
             )
         else:
             current_time_freshness_guard_verified = (
-                current_readback.get("must_not_use_for_decision") is False
+                freshness.get("must_not_use_for_decision") is False
             )
-        readback = query_current_valuation_publication_at_cutoff(
-            "000001.SZ",
-            publication_key=publication_key,
-            expected_publication_id=publication_id,
-            knowledge_cutoff=knowledge_cutoff,
-        )
-        rows_value = readback.get("rows")
-        rows = (
-            [cast(dict[str, object], row) for row in rows_value if isinstance(row, dict)]
-            if isinstance(rows_value, list)
-            else []
-        )
         readback_verified = (
-            readback.get("must_not_use_for_decision") is False
-            and readback.get("publication_id") == publication_id
-            and len(rows) == 1
-            and rows[0].get("pe_ttm") == 12.5
+            len(rows) == 1
+            and rows[0].pe_ttm == 12.5
+            and fact_hashes.get((member.fact_table, member.fact_pk)) == member.fact_content_hash
+            and evidence_reason is None
         )
         publication_verified = (
             publication.state.value == "published"
@@ -375,7 +401,8 @@ def collect_isolated_write_rehearsal(
             ).exists()
         )
         if (
-            not current_time_freshness_guard_verified
+            not legacy_current_fail_closed_verified
+            or not current_time_freshness_guard_verified
             or not readback_verified
             or not publication_verified
         ):
@@ -385,25 +412,28 @@ def collect_isolated_write_rehearsal(
             )
         with transaction.atomic():
             ValuationFactModel.objects.filter(pk=member.fact_pk).update(pe_ttm=99)
-            tampered = query_current_valuation_publication_at_cutoff(
-                "000001.SZ",
-                publication_key=publication_key,
-                expected_publication_id=publication_id,
+            tampered_hashes = publication_fact_content_hashes((member,))
+            tamper_reason = current_publication_evidence_blocked_reason(
+                publication,
+                policy=policy,
+                members=(member,),
+                fact_content_hashes=tampered_hashes,
                 knowledge_cutoff=knowledge_cutoff,
             )
-            tamper_blocked = (
-                tampered.get("must_not_use_for_decision") is True
-                and tampered.get("blocked_reason") == "publication_member_fact_changed"
-                and tampered.get("rows") == []
-            )
+            tamper_blocked = tamper_reason in {
+                "publication_member_evidence_missing",
+                "publication_member_fact_changed",
+            }
             transaction.set_rollback(True)
-        restored = query_current_valuation_publication_at_cutoff(
-            "000001.SZ",
-            publication_key=publication_key,
-            expected_publication_id=publication_id,
+        restored_hashes = publication_fact_content_hashes((member,))
+        restored_reason = current_publication_evidence_blocked_reason(
+            publication,
+            policy=policy,
+            members=(member,),
+            fact_content_hashes=restored_hashes,
             knowledge_cutoff=knowledge_cutoff,
         )
-        if not tamper_blocked or restored.get("must_not_use_for_decision") is not False:
+        if not tamper_blocked or restored_reason is not None:
             raise DataFetchError(
                 "Publication tamper guard was not reversible and fail-closed",
                 code="REHEARSAL_WRITE_TAMPER_GUARD_FAILED",
@@ -444,6 +474,8 @@ def collect_isolated_write_rehearsal(
         "written_rows": written_rows,
         "publication_verified": publication_verified,
         "readback_verified": readback_verified,
+        "exact_member_fact_readback_verified": readback_verified,
+        "legacy_current_fail_closed_verified": legacy_current_fail_closed_verified,
         "current_time_stale_expected": current_time_stale_expected,
         "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
@@ -476,6 +508,8 @@ def collect_isolated_write_rehearsal(
         "written_rows": written_rows,
         "publication_verified": publication_verified,
         "readback_verified": readback_verified,
+        "exact_member_fact_readback_verified": readback_verified,
+        "legacy_current_fail_closed_verified": legacy_current_fail_closed_verified,
         "current_time_stale_expected": current_time_stale_expected,
         "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
