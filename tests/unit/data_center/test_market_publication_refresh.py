@@ -1423,7 +1423,7 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     result = tasks.refresh_full_market_publications_task.run(batch_size=100)
 
     assert result["outcome"] == "partial"
-    assert result["success"] is False
+    assert result["success"] is True
     assert result["publication_updated"] is True
     assert result["requested"] == 100
     assert result["succeeded"] == 99

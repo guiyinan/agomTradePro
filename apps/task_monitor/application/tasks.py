@@ -36,14 +36,17 @@ from apps.task_monitor.domain.entities import (
 )
 from apps.task_monitor.domain.interfaces import TaskRecordRepositoryProtocol
 from shared.config.secrets import get_secrets
-from shared.domain.task_outcomes import task_business_failure_message
+from shared.domain.task_outcomes import (
+    TaskBusinessOutcome,
+    resolve_task_business_outcome,
+    task_business_failure_message,
+)
 from shared.infrastructure.alert_service import create_default_alert_service
 
 logger = logging.getLogger(__name__)
 
 # 全局仓储实例
 _repository: TaskRecordRepositoryProtocol | None = None
-_FAILED_BUSINESS_OUTCOMES = {"failed", "partial", "blocked"}
 _TERMINAL_TASK_STATUSES = {
     TaskStatus.SUCCESS,
     TaskStatus.FAILURE,
@@ -146,10 +149,8 @@ def _resolve_terminal_status(*, state: str | None, retval: Any) -> TaskStatus:
         return TaskStatus.REVOKED
     if state == "RETRY":
         return TaskStatus.RETRY
-    if isinstance(retval, dict):
-        outcome = str(retval.get("outcome", "")).strip().lower()
-        if outcome in _FAILED_BUSINESS_OUTCOMES:
-            return TaskStatus.FAILURE
+    if resolve_task_business_outcome(retval) is TaskBusinessOutcome.FAILED:
+        return TaskStatus.FAILURE
     return TaskStatus.SUCCESS
 
 

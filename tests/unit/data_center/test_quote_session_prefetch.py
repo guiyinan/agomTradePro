@@ -10,6 +10,7 @@ import pytest
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
 from apps.data_center.application.full_market_task_support import (
     asset_code_scope_sha256,
+    finalize_full_market_result,
     quote_session_prefetch_failure,
 )
 from apps.data_center.application.quote_session_prefetch import prepare_quote_session
@@ -343,6 +344,7 @@ def test_prefetch_failure_result_preserves_partial_writes_and_stops_publication(
 
     phases = {item["phase"]: item for item in result["phase_results"]}
     assert result["outcome"] == "partial"
+    assert result["success"] is True
     assert result["phase"] == "quote"
     assert result["error_code"] == "TUSHARE_PROVIDER_REJECTED"
     assert (result["requested"], result["succeeded"], result["failed"], result["stored"]) == (
@@ -354,3 +356,30 @@ def test_prefetch_failure_result_preserves_partial_writes_and_stops_publication(
     assert phases["quote"]["stored"] == 0
     assert result["publication_updated"] is False
     assert result["published_members"] == 0
+
+
+@pytest.mark.parametrize("outcome", ["partial", "noop"])
+def test_full_market_result_keeps_compatible_success_for_nonfailure_outcomes(
+    outcome: str,
+) -> None:
+    """The legacy success flag follows the Celery task contract for partial and noop."""
+
+    result = finalize_full_market_result(
+        result={"outcome": outcome},
+        price_evidence={},
+        publication_evidence={},
+        publication_run_id="run-1",
+        quote_source="tushare",
+        valuation_source="akshare",
+        market_universe={},
+        valuation_seed_stored=0,
+        stored_row_count=0,
+        requested_codes=set(),
+        succeeded_codes=set(),
+        missing_codes=(),
+        coverage_ratio=1.0,
+        policy_identity=None,
+    )
+
+    assert result["outcome"] == outcome
+    assert result["success"] is True

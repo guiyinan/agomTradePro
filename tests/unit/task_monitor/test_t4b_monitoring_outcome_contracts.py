@@ -295,12 +295,21 @@ def test_stale_duplicate_postrun_cannot_replace_original_attempt(
     execute.assert_not_called()
 
 
-@pytest.mark.parametrize("outcome", ["failed", "partial", "blocked"])
-def test_postrun_business_outcome_overrides_celery_success(
+@pytest.mark.parametrize(
+    ("outcome", "expected_status"),
+    [
+        ("failed", TaskStatus.FAILURE),
+        ("partial", TaskStatus.SUCCESS),
+        ("blocked", TaskStatus.SUCCESS),
+        ("noop", TaskStatus.SUCCESS),
+    ],
+)
+def test_postrun_business_outcome_uses_normalized_contract(
     monkeypatch: pytest.MonkeyPatch,
     outcome: str,
+    expected_status: TaskStatus,
 ) -> None:
-    """A successful transport cannot hide a failed or incomplete business result."""
+    """Celery success records only normalized business failures as monitor failures."""
 
     repository = _Repository(_record())
     execute = Mock()
@@ -314,12 +323,12 @@ def test_postrun_business_outcome_overrides_celery_success(
     tasks.task_postrun_handler(
         task_id="task-1",
         task=SimpleNamespace(name="demo.task"),
-        retval={"outcome": outcome, "stored": 0},
+        retval={"outcome": outcome, "success": False, "stored": 0},
         state="SUCCESS",
     )
 
     saved = execute.call_args.args[0]
-    assert saved.status is TaskStatus.FAILURE
+    assert saved.status is expected_status
     assert outcome in saved.result
 
 
@@ -349,6 +358,26 @@ def test_postrun_preserves_terminal_technical_states(
     )
 
     assert execute.call_args.args[0].status is expected
+
+
+def test_postrun_technical_failure_overrides_nonfailed_business_outcome(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Celery failure remains authoritative even when the payload is partial."""
+
+    repository = _Repository(_record())
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+
+    tasks.task_postrun_handler(
+        task_id="task-1",
+        task=SimpleNamespace(name="demo.task"),
+        retval={"outcome": "partial", "success": True, "stored": 1},
+        state="FAILURE",
+    )
+
+    assert execute.call_args.args[0].status is TaskStatus.FAILURE
 
 
 def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(

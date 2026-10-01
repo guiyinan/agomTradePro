@@ -177,7 +177,7 @@ def quote_session_prefetch_failure(
     missing_codes = tuple(valuation_missing_codes)
     return {
         "outcome": outcome,
-        "success": False,
+        "success": outcome == TaskBusinessOutcome.PARTIAL.value,
         "must_not_use_for_decision": True,
         "blocked_reason": error_code,
         "error_code": error_code,
@@ -438,7 +438,12 @@ def finalize_full_market_result(
             "目标交易日全天停牌证券无当日行情，其他证券已按有效范围发布。" if excluded else ""
         ),
         "outcome": business_outcome,
-        "success": business_outcome == TaskBusinessOutcome.SUCCESS.value,
+        "success": business_outcome
+        in {
+            TaskBusinessOutcome.SUCCESS.value,
+            TaskBusinessOutcome.PARTIAL.value,
+            TaskBusinessOutcome.NOOP.value,
+        },
         "requested": len(requested_codes),
         "succeeded": len(effective_succeeded),
         "failed": len(combined_missing),
