@@ -158,31 +158,35 @@ class _CurrentPublicationSelection:
     preview: CurrentPublicationPreview
 
 
+def _valuation_reference_trade_date(reference: PublicationFactReference) -> date:
+    """Return the validated trade date encoded by one valuation natural key."""
+
+    parts = reference.natural_key.split(":")
+    if len(parts) < 3:
+        raise ValueError("Current valuation natural key lacks its trade date and source")
+    asset_code, raw_trade_date = parts[0], parts[1]
+    try:
+        target_trade_date = date.fromisoformat(raw_trade_date)
+    except ValueError as exc:
+        raise ValueError("Current valuation natural key has an invalid trade date") from exc
+    natural_key_source = ":".join(parts[2:])
+    if (
+        target_trade_date.isoformat() != raw_trade_date
+        or not asset_code.strip()
+        or natural_key_source != reference.source
+    ):
+        raise ValueError("Current valuation natural key identity is inconsistent")
+    return target_trade_date
+
+
 def _valuation_target_trade_date(
     references: Sequence[PublicationFactReference],
 ) -> date:
     """Return the one trade date shared by selected valuation facts."""
 
-    target_dates: set[date] = set()
     if not references:
         raise ValueError("Partial current valuation requires selected valuation facts")
-    for reference in references:
-        parts = reference.natural_key.split(":")
-        if len(parts) < 3:
-            raise ValueError("Current valuation natural key lacks its trade date and source")
-        asset_code, raw_trade_date = parts[0], parts[1]
-        try:
-            target_trade_date = date.fromisoformat(raw_trade_date)
-        except ValueError as exc:
-            raise ValueError("Current valuation natural key has an invalid trade date") from exc
-        natural_key_source = ":".join(parts[2:])
-        if (
-            target_trade_date.isoformat() != raw_trade_date
-            or not asset_code.strip()
-            or natural_key_source != reference.source
-        ):
-            raise ValueError("Current valuation natural key identity is inconsistent")
-        target_dates.add(target_trade_date)
+    target_dates = {_valuation_reference_trade_date(reference) for reference in references}
     if len(target_dates) != 1:
         raise ValueError("Current valuation candidates must share one target trade date")
     return next(iter(target_dates))
@@ -598,14 +602,20 @@ class CurrentPublicationRebuildUseCase:
                     f"Current publication contains a future observation for "
                     f"{self.dataset.dataset_key}"
                 )
+            observation_date = cn_market_date_from_observation(reference.observed_at)
+            reference_date = observation_date
+            if self.dataset.dataset_key == "equity.valuation.fact":
+                reference_date = _valuation_reference_trade_date(reference)
+                if reference_date != observation_date:
+                    raise ValueError(
+                        "Current valuation trade date differs from its observation date"
+                    )
             if (
                 required_observation_date is not None
-                and cn_market_date_from_observation(reference.observed_at)
-                != required_observation_date
+                and reference_date != required_observation_date
             ):
                 continue
             if self.dataset.dataset_key == "equity.quote.snapshot":
-                observation_date = cn_market_date_from_observation(reference.observed_at)
                 if reference.observed_at < cn_market_session_close_utc(observation_date):
                     raise ValueError(
                         "Current quote publication contains an observation before the "

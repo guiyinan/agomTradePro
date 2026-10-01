@@ -4907,6 +4907,7 @@
           "scope_exclusions_by_dataset",
           "required_observation_date",
           "required_observation_dates",
+          "Current valuation trade date differs from its observation date",
           "and policy.allow_partial",
           "and coverage_ratio >= policy.minimum_coverage_ratio",
           "reference.observed_at < cn_market_session_close_utc(observation_date)",
@@ -6266,6 +6267,11 @@
           "case": "target_session_binding_fails_closed_below_policy_threshold",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_required_observation_date_fails_closed_below_valuation_policy_threshold"
+        },
+        {
+          "case": "valuation_natural_key_and_observation_dates_must_agree",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_required_observation_date_rejects_valuation_identity_date_mismatch"
         },
         {
           "case": "target_session_binding_is_dataset_scoped",

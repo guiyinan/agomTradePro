@@ -330,6 +330,7 @@ def test_required_observation_date_excludes_stale_valuation_candidate() -> None:
             "stale",
             dataset=dataset,
             observed_at=NOW - timedelta(days=1),
+            suffix=(target_date - timedelta(days=1)).isoformat(),
         )
     )
     repository = _PublicationRepository()
@@ -385,6 +386,7 @@ def test_required_observation_date_fails_closed_below_valuation_policy_threshold
                 "stale",
                 dataset=dataset,
                 observed_at=NOW - timedelta(days=1),
+                suffix=(NOW.date() - timedelta(days=1)).isoformat(),
             ),
         ],
         repository,
@@ -400,6 +402,35 @@ def test_required_observation_date_fails_closed_below_valuation_policy_threshold
         )
 
     assert repository.published == []
+
+
+def test_required_observation_date_rejects_valuation_identity_date_mismatch() -> None:
+    """The valuation natural-key date and source observation date must agree."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                "000001.SZ",
+                "mismatched",
+                dataset=dataset,
+                observed_at=NOW - timedelta(days=1),
+                suffix=NOW.date().isoformat(),
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="trade date differs from its observation date"):
+        use_case.preview(
+            asset_codes=["000001.SZ"],
+            published_at=NOW,
+            required_observation_date=NOW.date(),
+        )
 
 
 @pytest.mark.parametrize(
@@ -1096,6 +1127,7 @@ def test_core_preview_applies_required_observation_date_per_dataset() -> None:
                         "valuation-stale",
                         dataset=valuation,
                         observed_at=stale_observation,
+                        suffix=cn_market_date_from_observation(stale_observation).isoformat(),
                     )
                 ],
             ),
