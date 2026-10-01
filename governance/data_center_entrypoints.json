@@ -8502,8 +8502,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:922",
-      "locator": "line:922",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:926",
+      "locator": "line:926",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_full_universe_capacity",
@@ -8512,8 +8512,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:948",
-      "locator": "line:948",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:952",
+      "locator": "line:952",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_isolated_publication_write",
@@ -8522,8 +8522,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:880",
-      "locator": "line:880",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:884",
+      "locator": "line:884",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_market_providers",
@@ -8532,8 +8532,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:904",
-      "locator": "line:904",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:908",
+      "locator": "line:908",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "replay_market_provider_responses",
