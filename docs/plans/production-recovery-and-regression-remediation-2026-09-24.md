@@ -840,3 +840,39 @@ candidate member 的 trigger/constraint；这项 P1 必须与 SQLite loaddata �
 本机 disposable Docker PostgreSQL 端口在一次本地复验中关闭连接，因此该次不计作通过；同 SHA 的原生 Linux PostgreSQL
 零跳过 workflow 是本片数据库证据。SQLite 快照真实 dump/flush/loaddata/计数对账和维护窗口关闭生产 statement logging
 仍未完成；完成切片⑤前继续禁止部署、删除 legacy relation locks、接 production composition 或启动全市场重跑。
+
+#### SQLite 快照迁移与 statement logging 维护窗口切片（`e90419039`）
+
+切片⑤把 SQLite 迁移由脚本内重复的临时计数逻辑收口为一个可执行快照契约：源端与目标端分别记录数据库类型、
+全部 managed model 表和隐式 many-to-many through 表的行数，并单独记录 `dumpdata` 可序列化对象数；fixture 行数、
+源目标逐表计数或证据自校验任一不一致都 fail closed。合法零行业务快照返回 `noop`，不会因没有业务数据阻断初始化；
+CI 证据则强制使用非空历史 publication/member 快照并要求 `success`。该历史快照不创建 current pointer，导入后明确验证
+pointer 为空，`get_current()` 返回 `None`，避免 `loaddata` 冒充 activation。
+
+部署迁移脚本在 PostgreSQL ready 且所有 runtime writer 停止后、第一次 role bootstrap 之前进入全局 logging maintenance
+window。窗口保存并关闭 `log_statement`、duration/sample/transaction sample、error statement 及两项 parameter logging
+配置，从新连接回读确认；退出、HUP/INT/TERM 或命令失败均走恢复，只有恢复回读与对账全部成功后才能写 migration marker。
+恢复状态以 0600 原子文件保留，恢复失败时状态文件不删除。角色密码 DDL 另用 session `PGOPTIONS` 纵深防护，SQL 在任何
+密码变量展开前验证全部八项设置。代码提交为 `e9041903986b8d63f379175c507601c660b9e800`；PostgreSQL 16 暴露出
+`psql \quit` 不接受自定义退出码后，fail-closed 修正提交为 `12dfef2e8140399581ac811b729acbd0a0d0b308`；CI 维护参数
+只绑定管理员连接、禁止最小权限 migrator 继承的修正提交为 `a0526496d9f072e4fddc3c8ff6d8c79acda0bfe8`。三项均只在
+切片⑤范围内，可按提交独立回滚。
+
+本地验证为相关 migration/role/packaging 契约 `49 passed`，后续 guard 精确回归 `11 passed`；Black、isort、Ruff、
+shell syntax、workflow YAML、增量 mypy（1 个生产 Python 文件，0 regression）、全仓 mypy debt ceiling、entrypoint
+inventory 1,280 项、architecture inventory、module map 44 modules / 210 edges 与 `git diff --check` 均通过。精确最终
+SHA `a0526496d9f072e4fddc3c8ff6d8c79acda0bfe8` 的 Publication PostgreSQL contracts `36809279150` 通过：
+authority lock 2、generation 9、shadow 1、finalizer 7、publication 36、backfill 2，共 `57 passed, 0 skipped`；此外真实
+SQLite→PostgreSQL 演练对账 561 张表、291 个源/目标物理行、291 个 fixture 对象，mismatch 为 0。logging 演练从
+`all|500ms|1s|0.5|0.25|error|1kB|2kB` 进入关闭状态，覆盖正常退出与注入失败恢复。相同 SHA 的 Architecture
+`36809279116`、Security `36809279217`、Consistency `36809279122` 和 CI Fast Feedback `36809279102` 全部通过。
+
+两次未计作通过的失败均保留：`36808191279` 证明 PostgreSQL 16 会忽略 `\quit 4` 的参数并返回成功；
+`36808744812` 证明 step 级 `PGOPTIONS` 会被非超级用户 migrator 继承并由数据库拒绝。前者改为在
+`ON_ERROR_STOP` 下执行确定性 guard error，后者把维护参数限定到两次管理员 `psql` 调用；最终 run 已越过两个原失败点。
+
+未验证风险与剩余停止线：逐表计数和 fixture 对象数证明结构化往返没有丢行，但不证明每列内容等价，也不替代完整
+publication/member/fact 语义重算；CI 历史 member 使用有效 manifest hash 并验证无 current pointer，但其 synthetic fact
+reference 不是生产事实。数据库级 member immutability trigger/constraint 仍未实现，完整 compose 部署状态机也未在生产环境
+执行。本片未部署、未接 production composition、未删除 legacy relation locks、未启动全市场重跑；①→⑤代码与证据已齐，
+后续生产部署与正式发布属于⑥，必须等待用户单独授权。
