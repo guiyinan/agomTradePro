@@ -100,6 +100,9 @@ def test_bootstrap_requires_distinct_long_url_safe_role_passwords() -> None:
     assert "current_setting('log_parameter_max_length') = '0'" in bootstrap
     assert "current_setting('log_parameter_max_length_on_error') = '0'" in bootstrap
     assert "maintenance connection statement logging must be disabled" in bootstrap
+    assert "maintenance_statement_logging_guard_failed" in bootstrap
+    assert "role_password_contract_guard_failed" in bootstrap
+    assert r"\quit" not in bootstrap
     assert bootstrap.index("maintenance_statement_logging_disabled") < bootstrap.index(
         "length(:'admin_password')"
     )

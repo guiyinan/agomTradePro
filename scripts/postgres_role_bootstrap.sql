@@ -17,7 +17,7 @@ SELECT current_setting('log_statement') = 'none'
 \if :maintenance_statement_logging_disabled
 \else
   \echo [ERROR] maintenance connection statement logging must be disabled before role password DDL
-  \quit 4
+  SELECT 1 / 0 AS maintenance_statement_logging_guard_failed;
 \endif
 
 SELECT length(:'admin_password') >= 32
@@ -37,7 +37,7 @@ SELECT length(:'admin_password') >= 32
 \if :role_passwords_valid
 \else
   \echo [ERROR] role passwords must be distinct, URL-safe values with at least 32 characters
-  \quit 3
+  SELECT 1 / 0 AS role_password_contract_guard_failed;
 \endif
 
 BEGIN;
