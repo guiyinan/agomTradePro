@@ -5832,8 +5832,8 @@
     {
       "category": "dynamic_import_edge",
       "evidence": "statically resolved dynamic import target",
-      "id": "dynamic_import_edge:apps/data_center/infrastructure/a_share_universe_sync.py:import_module:line:119",
-      "locator": "line:119",
+      "id": "dynamic_import_edge:apps/data_center/infrastructure/a_share_universe_sync.py:import_module:line:137",
+      "locator": "line:137",
       "path": "apps/data_center/infrastructure/a_share_universe_sync.py",
       "status": "adjacent_operational",
       "symbol": "import_module",
