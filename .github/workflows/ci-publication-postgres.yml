@@ -212,16 +212,8 @@ jobs:
           SECRET_KEY: role-contract-ci-secret-key-abcdefghijklmnopqrstuvwxyz-0123456789
           ALLOWED_HOSTS: localhost,127.0.0.1,testserver
           DJANGO_SETTINGS_MODULE: core.settings.production
-          PGOPTIONS: >-
-            -c log_statement=none
-            -c log_min_duration_statement=-1
-            -c log_min_duration_sample=-1
-            -c log_statement_sample_rate=0
-            -c log_transaction_sample_rate=0
-            -c log_min_error_statement=panic
-            -c log_parameter_max_length=0
-            -c log_parameter_max_length_on_error=0
         run: |
+          maintenance_pgoptions="-c log_statement=none -c log_min_duration_statement=-1 -c log_min_duration_sample=-1 -c log_statement_sample_rate=0 -c log_transaction_sample_rate=0 -c log_min_error_statement=panic -c log_parameter_max_length=0 -c log_parameter_max_length_on_error=0"
           createdb -h 127.0.0.1 -U contract_test role_contract_ci
           if PGOPTIONS='' psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
             -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
@@ -231,13 +223,15 @@ jobs:
           fi
           grep -F "maintenance connection statement logging must be disabled" \
             statement-logging-guard.log
-          psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
+          PGOPTIONS="$maintenance_pgoptions" \
+            psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
             -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
             | tee role-bootstrap-postgres.log
           PYTHONPATH=. \
             DATABASE_URL=postgresql://agomtradepro_migrator:${AGOMTRADEPRO_MIGRATOR_PASSWORD}@127.0.0.1:5432/role_contract_ci \
             python scripts/manage_vps_migrations.py migrate --noinput
           PGPASSWORD="${AGOMTRADEPRO_ADMIN_PASSWORD}" \
+            PGOPTIONS="$maintenance_pgoptions" \
             psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
             -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
             | tee -a role-bootstrap-postgres.log
