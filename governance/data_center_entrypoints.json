@@ -27,16 +27,16 @@
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 82,
-      "workflow_step": 11
+      "workflow_step": 12
     },
     "by_status": {
-      "active_public": 807,
+      "active_public": 808,
       "adjacent_operational": 334,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1279
+    "total": 1280
   },
   "entries": [
     {
@@ -12727,6 +12727,16 @@
       "path": ".github/workflows/ci-fast-feedback.yml",
       "status": "active_public",
       "symbol": "Prepare database",
+      "target": "django:migrate"
+    },
+    {
+      "category": "workflow_step",
+      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
+      "id": "workflow_step:.github/workflows/ci-publication-postgres.yml:Exercise SQLite snapshot dump flush loaddata reconciliation:tokens:manage.py migrate",
+      "locator": "tokens:manage.py migrate",
+      "path": ".github/workflows/ci-publication-postgres.yml",
+      "status": "active_public",
+      "symbol": "Exercise SQLite snapshot dump flush loaddata reconciliation",
       "target": "django:migrate"
     },
     {

@@ -9,6 +9,7 @@ MARKER_FILE="$TARGET_DIR/.postgres-migration-complete"
 FIXTURE_DIR="$TARGET_DIR/backups/database"
 COMPOSE_FILE="$RELEASE_DIR/docker/docker-compose.vps.yml"
 ENV_FILE="$RELEASE_DIR/deploy/.env"
+STATEMENT_LOGGING_STATE="$TARGET_DIR/.postgres-statement-logging-state"
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
@@ -22,6 +23,20 @@ fi
 compose() {
   $COMPOSE -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
+
+statement_logging_psql() {
+  mode="$1"
+  if [ "$mode" = "query" ]; then
+    compose exec -T postgres sh -eu -c \
+      'psql -X -A -t -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    return
+  fi
+  [ "$mode" = "execute" ] || return 2
+  compose exec -T postgres sh -eu -c \
+    'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+}
+
+. "$RELEASE_DIR/scripts/postgres_statement_logging_window.sh"
 
 python3 "$RELEASE_DIR/scripts/ensure_vps_postgres_role_env.py" \
   --env-file "$ENV_FILE" \
@@ -56,11 +71,19 @@ if [ "$POSTGRES_READY" != "1" ]; then
   exit 1
 fi
 
+trap cleanup_statement_logging_window EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+enter_statement_logging_window
+
 if [ -f "$MARKER_FILE" ]; then
   echo "[INFO] PostgreSQL migration marker exists; applying schema migrations only"
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
+  restore_statement_logging
+  trap - EXIT HUP INT TERM
   exit 0
 fi
 
@@ -70,6 +93,8 @@ if ! docker run --rm -v "${COMPOSE_PROJECT_NAME}_sqlite_data:/source:ro" alpine:
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
+  restore_statement_logging
+  trap - EXIT HUP INT TERM
   printf 'initialized_without_legacy_sqlite=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_FILE"
   chmod 600 "$MARKER_FILE"
   exit 0
@@ -88,6 +113,7 @@ bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --appl
 SOURCE_COUNTS="$FIXTURE_DIR/sqlite-source-counts.json"
 FIXTURE="$FIXTURE_DIR/sqlite-to-postgres.jsonl"
 TARGET_COUNTS="$FIXTURE_DIR/postgres-target-counts.json"
+RECONCILIATION_REPORT="$FIXTURE_DIR/sqlite-snapshot-reconciliation.json"
 CONTAINER_SOURCE_COUNTS="/app/backups/database/sqlite-source-counts.json"
 CONTAINER_FIXTURE="/app/backups/database/sqlite-to-postgres.jsonl"
 CONTAINER_TARGET_COUNTS="/app/backups/database/postgres-target-counts.json"
@@ -97,38 +123,8 @@ compose run --rm --no-deps \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
   -e AGOMTRADEPRO_DATABASE_ROLE= \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
-  web python - "$CONTAINER_SOURCE_COUNTS" <<'PY'
-import json
-import sys
-
-import django
-
-django.setup()
-from django.apps import apps
-from django.db import connection
-
-excluded_models = {
-    "auth.permission",
-    "contenttypes.contenttype",
-    "sessions.session",
-}
-available = set(connection.introspection.table_names())
-counts = {}
-with connection.cursor() as cursor:
-    for model in apps.get_models():
-        options = model._meta
-        if not options.managed or options.proxy or options.label_lower in excluded_models:
-            continue
-        table = options.db_table
-        if table not in available:
-            continue
-        cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
-        counts[table] = cursor.fetchone()[0]
-
-with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump(counts, handle, sort_keys=True)
-print(json.dumps(counts, sort_keys=True))
-PY
+  web python scripts/sqlite_snapshot_contract.py capture \
+    --output "$CONTAINER_SOURCE_COUNTS"
 
 echo "[INFO] Exporting legacy SQLite data"
 compose run --rm --no-deps \
@@ -154,61 +150,19 @@ compose run --rm --no-deps \
   -e AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
   migrator python scripts/manage_vps_migrations.py loaddata "$CONTAINER_FIXTURE"
 
-compose run --rm --no-deps web python - "$CONTAINER_TARGET_COUNTS" <<'PY'
-import json
-import os
-import sys
+compose run --rm --no-deps web python scripts/sqlite_snapshot_contract.py capture \
+  --output "$CONTAINER_TARGET_COUNTS"
 
-import django
-
-django.setup()
-from django.apps import apps
-from django.db import connection
-
-excluded_models = {
-    "auth.permission",
-    "contenttypes.contenttype",
-    "sessions.session",
-}
-available = set(connection.introspection.table_names())
-counts = {}
-with connection.cursor() as cursor:
-    for model in apps.get_models():
-        options = model._meta
-        if not options.managed or options.proxy or options.label_lower in excluded_models:
-            continue
-        table = options.db_table
-        if table not in available:
-            continue
-        cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
-        counts[table] = cursor.fetchone()[0]
-
-with open(sys.argv[1], "w", encoding="utf-8") as handle:
-    json.dump(counts, handle, sort_keys=True)
-print(json.dumps(counts, sort_keys=True))
-PY
-
-python3 - "$SOURCE_COUNTS" "$TARGET_COUNTS" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as handle:
-    source = json.load(handle)
-with open(sys.argv[2], encoding="utf-8") as handle:
-    target = json.load(handle)
-
-if not source:
-    raise SystemExit("SQLite source verification produced no critical table counts")
-if source != target:
-    raise SystemExit(
-        f"Critical table count mismatch after PostgreSQL migration: "
-        f"source={source}, target={target}"
-    )
-print(f"[INFO] PostgreSQL migration counts verified: {target}")
-PY
+python3 "$RELEASE_DIR/scripts/sqlite_snapshot_contract.py" verify \
+  --source "$SOURCE_COUNTS" \
+  --target "$TARGET_COUNTS" \
+  --fixture "$FIXTURE" \
+  --report "$RECONCILIATION_REPORT"
 
 compose run --rm --no-deps web python manage.py check_encryption_readiness --json
+restore_statement_logging
+trap - EXIT HUP INT TERM
 printf 'migrated_from_sqlite=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER_FILE"
 chmod 600 "$MARKER_FILE"
-rm -f "$FIXTURE" "$SOURCE_COUNTS" "$TARGET_COUNTS"
+rm -f "$FIXTURE" "$SOURCE_COUNTS" "$TARGET_COUNTS" "$RECONCILIATION_REPORT"
 echo "[INFO] SQLite to PostgreSQL migration completed"

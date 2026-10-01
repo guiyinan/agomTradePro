@@ -570,6 +570,8 @@ Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -F
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
 Copy-Item scripts/ensure_vps_postgres_role_env.py (Join-Path $scriptsDir "ensure_vps_postgres_role_env.py") -Force
 Copy-Item scripts/migrate-vps-sqlite-to-postgres.sh (Join-Path $scriptsDir "migrate-vps-sqlite-to-postgres.sh") -Force
+Copy-Item scripts/postgres_statement_logging_window.sh (Join-Path $scriptsDir "postgres_statement_logging_window.sh") -Force
+Copy-Item scripts/sqlite_snapshot_contract.py (Join-Path $scriptsDir "sqlite_snapshot_contract.py") -Force
 Copy-Item scripts/bootstrap_vps_postgres_roles.sh (Join-Path $scriptsDir "bootstrap_vps_postgres_roles.sh") -Force
 Copy-Item scripts/postgres_role_bootstrap.sql (Join-Path $scriptsDir "postgres_role_bootstrap.sql") -Force
 Copy-Item scripts/vps-web-watchdog.sh (Join-Path $scriptsDir "vps-web-watchdog.sh") -Force

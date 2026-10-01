@@ -72,6 +72,8 @@ $requiredFiles = @(
     "scripts/deploy-on-vps.ps1",
     "scripts/ensure_vps_postgres_role_env.py",
     "scripts/migrate-vps-sqlite-to-postgres.sh",
+    "scripts/postgres_statement_logging_window.sh",
+    "scripts/sqlite_snapshot_contract.py",
     "scripts/bootstrap_vps_postgres_roles.sh",
     "scripts/postgres_role_bootstrap.sql",
     "scripts/vps-web-watchdog.sh",

@@ -13,8 +13,11 @@ on:
       - 'tests/settings_data_center_sync_identity.py'
       - 'scripts/check_postgres_role_contract.py'
       - 'scripts/manage_vps_migrations.py'
+      - 'scripts/bootstrap_vps_postgres_roles.sh'
       - 'scripts/migrate-vps-sqlite-to-postgres.sh'
+      - 'scripts/postgres_statement_logging_window.sh'
       - 'scripts/postgres_role_bootstrap.sql'
+      - 'scripts/sqlite_snapshot_contract.py'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/ci-publication-postgres.yml'
@@ -30,8 +33,11 @@ on:
       - 'tests/settings_data_center_sync_identity.py'
       - 'scripts/check_postgres_role_contract.py'
       - 'scripts/manage_vps_migrations.py'
+      - 'scripts/bootstrap_vps_postgres_roles.sh'
       - 'scripts/migrate-vps-sqlite-to-postgres.sh'
+      - 'scripts/postgres_statement_logging_window.sh'
       - 'scripts/postgres_role_bootstrap.sql'
+      - 'scripts/sqlite_snapshot_contract.py'
       - 'pyproject.toml'
       - 'requirements-dev.txt'
       - '.github/workflows/ci-publication-postgres.yml'
@@ -138,6 +144,64 @@ jobs:
           --confcutdir=tests/component/data_center
           --create-db
           -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
+      - name: Exercise statement logging maintenance window and failure recovery
+        env:
+          PGPASSWORD: disposable_ci_only
+          STATEMENT_LOGGING_STATE: /tmp/agom-statement-logging-ci.state
+        run: |
+          statement_logging_psql() {
+            mode="$1"
+            if [ "$mode" = "query" ]; then
+              psql -X -A -t -h 127.0.0.1 -U contract_test \
+                -d agom_release_rehearsal_ci -v ON_ERROR_STOP=1
+              return
+            fi
+            [ "$mode" = "execute" ] || return 2
+            psql -X -h 127.0.0.1 -U contract_test \
+              -d agom_release_rehearsal_ci -v ON_ERROR_STOP=1
+          }
+          . scripts/postgres_statement_logging_window.sh
+          statement_logging_psql execute <<'SQL'
+          ALTER SYSTEM SET log_statement = 'all';
+          ALTER SYSTEM SET log_min_duration_statement = '500ms';
+          ALTER SYSTEM SET log_min_duration_sample = '1s';
+          ALTER SYSTEM SET log_statement_sample_rate = '0.5';
+          ALTER SYSTEM SET log_transaction_sample_rate = '0.25';
+          ALTER SYSTEM SET log_min_error_statement = 'error';
+          ALTER SYSTEM SET log_parameter_max_length = '1kB';
+          ALTER SYSTEM SET log_parameter_max_length_on_error = '2kB';
+          SELECT pg_catalog.pg_reload_conf();
+          SQL
+          configured_values="$(read_statement_logging_settings)"
+          enter_statement_logging_window
+          test "$(read_statement_logging_settings)" = "none|-1|-1|0|0|panic|0|0"
+          restore_statement_logging
+          test "$(read_statement_logging_settings)" = "$configured_values"
+          if (
+            trap cleanup_statement_logging_window EXIT
+            trap 'exit 129' HUP
+            trap 'exit 130' INT
+            trap 'exit 143' TERM
+            enter_statement_logging_window
+            false
+          ); then
+            echo "statement logging failure injection unexpectedly succeeded" >&2
+            exit 1
+          fi
+          test ! -e "$STATEMENT_LOGGING_STATE"
+          test "$(read_statement_logging_settings)" = "$configured_values"
+          statement_logging_psql execute <<'SQL'
+          ALTER SYSTEM RESET log_statement;
+          ALTER SYSTEM RESET log_min_duration_statement;
+          ALTER SYSTEM RESET log_min_duration_sample;
+          ALTER SYSTEM RESET log_statement_sample_rate;
+          ALTER SYSTEM RESET log_transaction_sample_rate;
+          ALTER SYSTEM RESET log_min_error_statement;
+          ALTER SYSTEM RESET log_parameter_max_length;
+          ALTER SYSTEM RESET log_parameter_max_length_on_error;
+          SELECT pg_catalog.pg_reload_conf();
+          SQL
+          printf '%s\n' "$configured_values" > statement-logging-window.log
       - name: Exercise production role bootstrap and migration ordering
         env:
           PGPASSWORD: disposable_ci_only
@@ -148,8 +212,25 @@ jobs:
           SECRET_KEY: role-contract-ci-secret-key-abcdefghijklmnopqrstuvwxyz-0123456789
           ALLOWED_HOSTS: localhost,127.0.0.1,testserver
           DJANGO_SETTINGS_MODULE: core.settings.production
+          PGOPTIONS: >-
+            -c log_statement=none
+            -c log_min_duration_statement=-1
+            -c log_min_duration_sample=-1
+            -c log_statement_sample_rate=0
+            -c log_transaction_sample_rate=0
+            -c log_min_error_statement=panic
+            -c log_parameter_max_length=0
+            -c log_parameter_max_length_on_error=0
         run: |
           createdb -h 127.0.0.1 -U contract_test role_contract_ci
+          if PGOPTIONS='' psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
+            -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
+            > statement-logging-guard.log 2>&1; then
+            echo "role bootstrap unexpectedly accepted statement logging" >&2
+            exit 1
+          fi
+          grep -F "maintenance connection statement logging must be disabled" \
+            statement-logging-guard.log
           psql -X -h 127.0.0.1 -U contract_test -d role_contract_ci \
             -v ON_ERROR_STOP=1 -f scripts/postgres_role_bootstrap.sql \
             | tee role-bootstrap-postgres.log
@@ -162,6 +243,131 @@ jobs:
             | tee -a role-bootstrap-postgres.log
           PYTHONPATH=. \
             DATABASE_URL=postgresql://agomtradepro_runtime:${AGOMTRADEPRO_RUNTIME_PASSWORD}@127.0.0.1:5432/role_contract_ci \
+            AGOMTRADEPRO_DATABASE_ROLE=runtime \
+            python scripts/check_postgres_role_contract.py \
+            | tee -a role-bootstrap-postgres.log
+      - name: Exercise SQLite snapshot dump flush loaddata reconciliation
+        env:
+          AGOMTRADEPRO_MIGRATOR_PASSWORD: MigratorRoleContractCi_20260930_c9Nv3S6p
+          AGOMTRADEPRO_RUNTIME_PASSWORD: RuntimeRoleContractCi_20260930_b8Lm2R5n
+          SECRET_KEY: snapshot-rehearsal-ci-secret-key-abcdefghijklmnopqrstuvwxyz
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+          DJANGO_SETTINGS_MODULE: core.settings.production
+        run: |
+          source_url="sqlite:///$PWD/sqlite-snapshot-rehearsal.sqlite3"
+          migrator_url="postgresql://agomtradepro_migrator:${AGOMTRADEPRO_MIGRATOR_PASSWORD}@127.0.0.1:5432/role_contract_ci"
+          runtime_url="postgresql://agomtradepro_runtime:${AGOMTRADEPRO_RUNTIME_PASSWORD}@127.0.0.1:5432/role_contract_ci"
+          rm -f sqlite-snapshot-rehearsal.sqlite3 sqlite-snapshot-rehearsal.jsonl
+          PYTHONPATH=. DATABASE_URL="$source_url" \
+            AGOMTRADEPRO_DATABASE_ROLE= \
+            AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
+            python manage.py migrate --noinput
+          PYTHONPATH=. DATABASE_URL="$source_url" \
+            AGOMTRADEPRO_DATABASE_ROLE= \
+            AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
+            python manage.py shell <<'PY'
+          from datetime import UTC, datetime
+          from uuid import UUID
+          from apps.data_center.application.publication_utils import (
+              member_reference,
+              publication_hash,
+          )
+          from apps.data_center.domain.control_plane import PublicationMember
+          from apps.data_center.infrastructure.publication_models import (
+              CanonicalPublicationModel,
+              PublicationMemberModel,
+          )
+          publication_id = UUID("00000000-0000-4000-8000-000000000501")
+          member_id = UUID("00000000-0000-4000-8000-000000000502")
+          observed_at = datetime(2026, 9, 30, 7, tzinfo=UTC)
+          member = PublicationMember(
+              member_id=str(member_id),
+              publication_id=str(publication_id),
+              dataset_key="rehearsal.snapshot",
+              natural_key="fixture:1",
+              source="rehearsal",
+              source_record_id="fixture:1",
+              fact_table="rehearsal_snapshot_fact",
+              fact_pk="1",
+              observed_at=observed_at,
+              fact_content_hash="c" * 64,
+          )
+          snapshot_hash = publication_hash((member_reference(member),))
+          CanonicalPublicationModel.objects.create(
+              publication_id=publication_id,
+              dataset_key="rehearsal.snapshot",
+              publication_key="current",
+              policy_version="snapshot-rehearsal-v1",
+              state="published",
+              selected_source="rehearsal",
+              publication_hash=snapshot_hash,
+              member_manifest_hash=snapshot_hash,
+              member_count=1,
+              coverage_requested_count=1,
+              coverage_eligible_count=1,
+              coverage_selected_count=1,
+              as_of=observed_at,
+              published_at=observed_at,
+              members_sealed_at=observed_at,
+          )
+          PublicationMemberModel.objects.create(
+              member_id=member_id,
+              publication_id=publication_id,
+              dataset_key="rehearsal.snapshot",
+              natural_key="fixture:1",
+              source="rehearsal",
+              source_record_id="fixture:1",
+              fact_table="rehearsal_snapshot_fact",
+              fact_pk="1",
+              observed_at=observed_at,
+              fact_content_hash="c" * 64,
+          )
+          PY
+          PYTHONPATH=. DATABASE_URL="$source_url" \
+            AGOMTRADEPRO_DATABASE_ROLE= \
+            AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
+            python scripts/sqlite_snapshot_contract.py capture \
+            --output sqlite-source-counts.json
+          PYTHONPATH=. DATABASE_URL="$source_url" \
+            AGOMTRADEPRO_DATABASE_ROLE= \
+            AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
+            python manage.py dumpdata \
+            --format jsonl \
+            --natural-foreign \
+            --natural-primary \
+            --exclude contenttypes \
+            --exclude auth.permission \
+            --exclude sessions.session \
+            --output sqlite-snapshot-rehearsal.jsonl
+          PYTHONPATH=. DATABASE_URL="$migrator_url" \
+            python scripts/manage_vps_migrations.py flush --noinput
+          PYTHONPATH=. DATABASE_URL="$migrator_url" \
+            AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
+            python scripts/manage_vps_migrations.py loaddata sqlite-snapshot-rehearsal.jsonl
+          PYTHONPATH=. DATABASE_URL="$runtime_url" \
+            AGOMTRADEPRO_DATABASE_ROLE=runtime \
+            python scripts/sqlite_snapshot_contract.py capture \
+            --output postgres-target-counts.json
+          python scripts/sqlite_snapshot_contract.py verify \
+            --source sqlite-source-counts.json \
+            --target postgres-target-counts.json \
+            --fixture sqlite-snapshot-rehearsal.jsonl \
+            --report sqlite-snapshot-rehearsal-report.json
+          PYTHONPATH=. DATABASE_URL="$runtime_url" \
+            AGOMTRADEPRO_DATABASE_ROLE=runtime \
+            python manage.py shell <<'PY'
+          from apps.data_center.infrastructure.control_plane_repositories import (
+              CanonicalPublicationRepository,
+          )
+          from apps.data_center.infrastructure.publication_models import (
+              CanonicalPublicationPointerModel,
+          )
+          assert not CanonicalPublicationPointerModel.objects.exists()
+          assert CanonicalPublicationRepository().get_current(
+              "rehearsal.snapshot", "current"
+          ) is None
+          PY
+          PYTHONPATH=. DATABASE_URL="$runtime_url" \
             AGOMTRADEPRO_DATABASE_ROLE=runtime \
             python scripts/check_postgres_role_contract.py \
             | tee -a role-bootstrap-postgres.log
@@ -183,12 +389,19 @@ jobs:
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
+          import json
+          with open('sqlite-snapshot-rehearsal-report.json', encoding='utf-8') as handle:
+              snapshot_report = json.load(handle)
           assert len(publication_cases) == 36, 'Expected publication PostgreSQL cases were not collected'
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(final_revalidation_cases) == 7, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
+          assert snapshot_report['outcome'] == 'success'
+          assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
+          assert snapshot_report['source_row_count'] > 0
+          assert snapshot_report['mismatches'] == {}
           cases = [
               *publication_cases,
               *authority_cases,
@@ -213,4 +426,9 @@ jobs:
             account-authority-final-revalidation-postgres.xml
             backfill-control-plane-postgres.xml
             role-bootstrap-postgres.log
+            statement-logging-guard.log
+            statement-logging-window.log
+            sqlite-source-counts.json
+            postgres-target-counts.json
+            sqlite-snapshot-rehearsal-report.json
           if-no-files-found: error

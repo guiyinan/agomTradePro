@@ -91,12 +91,33 @@ def test_bootstrap_requires_distinct_long_url_safe_role_passwords() -> None:
     assert "postgresql://" not in bootstrap
     assert r"\getenv admin_password AGOMTRADEPRO_ADMIN_PASSWORD" in bootstrap
     assert "ALTER ROLE %I PASSWORD %L" in bootstrap
+    assert "current_setting('log_statement') = 'none'" in bootstrap
+    assert "current_setting('log_min_duration_statement') = '-1'" in bootstrap
+    assert "current_setting('log_min_duration_sample') = '-1'" in bootstrap
+    assert "current_setting('log_statement_sample_rate') = '0'" in bootstrap
+    assert "current_setting('log_transaction_sample_rate') = '0'" in bootstrap
+    assert "current_setting('log_min_error_statement') = 'panic'" in bootstrap
+    assert "current_setting('log_parameter_max_length') = '0'" in bootstrap
+    assert "current_setting('log_parameter_max_length_on_error') = '0'" in bootstrap
+    assert "maintenance connection statement logging must be disabled" in bootstrap
+    assert bootstrap.index("maintenance_statement_logging_disabled") < bootstrap.index(
+        "length(:'admin_password')"
+    )
     assert bootstrap.index("BEGIN;") < bootstrap.index("ALTER ROLE %I PASSWORD %L")
     assert (
         'AGOMTRADEPRO_ADMIN_PASSWORD="$(get_env_kv POSTGRES_PASSWORD "$ENV_FILE")"'
         in bootstrap_helper
     )
     assert "-e AGOMTRADEPRO_ADMIN_PASSWORD" in bootstrap_helper
+    assert '-e PGOPTIONS="$MAINTENANCE_PGOPTIONS"' in bootstrap_helper
+    assert "log_statement=none" in bootstrap_helper
+    assert "log_min_duration_statement=-1" in bootstrap_helper
+    assert "log_min_duration_sample=-1" in bootstrap_helper
+    assert "log_statement_sample_rate=0" in bootstrap_helper
+    assert "log_transaction_sample_rate=0" in bootstrap_helper
+    assert "log_min_error_statement=panic" in bootstrap_helper
+    assert "log_parameter_max_length=0" in bootstrap_helper
+    assert "log_parameter_max_length_on_error=0" in bootstrap_helper
 
 
 def test_role_env_helper_generates_and_reuses_distinct_runtime_urls(
@@ -243,6 +264,9 @@ def test_runtime_compose_services_do_not_receive_migrator_url() -> None:
 def test_remote_deploy_uses_migration_helper_as_the_only_bootstrap_gate() -> None:
     remote = (ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
     helper = (ROOT / "scripts" / "migrate-vps-sqlite-to-postgres.sh").read_text(encoding="utf-8")
+    logging_window = (ROOT / "scripts" / "postgres_statement_logging_window.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert "compose up -d runtime_ns redis postgres" in remote
     assert (
@@ -267,10 +291,29 @@ def test_remote_deploy_uses_migration_helper_as_the_only_bootstrap_gate() -> Non
         )
         < remote.index("compose up -d $SERVICES")
     )
+    ready_check_position = helper.index('if [ "$POSTGRES_READY" != "1" ]')
+    logging_window_call = helper.index("enter_statement_logging_window\n", ready_check_position)
     assert (
         helper.index("POSTGRES_READY=1")
-        < helper.index('if [ "$POSTGRES_READY" != "1" ]')
+        < ready_check_position
+        < logging_window_call
         < helper.index('bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh"')
+    )
+    assert '. "$RELEASE_DIR/scripts/postgres_statement_logging_window.sh"' in helper
+    assert "ALTER SYSTEM SET log_statement = 'none'" in logging_window
+    assert "ALTER SYSTEM SET log_min_duration_sample = '-1'" in logging_window
+    assert "ALTER SYSTEM SET log_statement_sample_rate = '0'" in logging_window
+    assert "ALTER SYSTEM SET log_transaction_sample_rate = '0'" in logging_window
+    assert "ALTER SYSTEM SET log_parameter_max_length_on_error = '0'" in logging_window
+    assert "ALTER SYSTEM RESET log_statement" in logging_window
+    assert "ALTER SYSTEM RESET log_min_duration_sample" in logging_window
+    assert "PostgreSQL statement logging settings were not restored" in logging_window
+    assert "[0-9]+(us|ms|s|min|h|d)?" in logging_window
+    assert helper.index("restore_statement_logging\n  trap - EXIT") < helper.index(
+        "printf 'initialized_without_legacy_sqlite="
+    )
+    assert helper.index("restore_statement_logging\ntrap - EXIT") < helper.index(
+        "printf 'migrated_from_sqlite="
     )
 
     bootstrap_calls = re.findall(

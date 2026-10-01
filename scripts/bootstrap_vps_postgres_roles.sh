@@ -71,7 +71,14 @@ if [ -z "$AGOMTRADEPRO_RUNTIME_PASSWORD" ] \
 fi
 export AGOMTRADEPRO_RUNTIME_PASSWORD AGOMTRADEPRO_MIGRATOR_PASSWORD AGOMTRADEPRO_ADMIN_PASSWORD
 
+# Password DDL is expanded by psql before it reaches PostgreSQL.  Disable every
+# built-in statement-text path on the maintenance connection before the first
+# SQL statement; postgres_role_bootstrap.sql independently verifies the values
+# and fails before interpolating any password when this contract is missing.
+MAINTENANCE_PGOPTIONS="-c log_statement=none -c log_min_duration_statement=-1 -c log_min_duration_sample=-1 -c log_statement_sample_rate=0 -c log_transaction_sample_rate=0 -c log_min_error_statement=panic -c log_parameter_max_length=0 -c log_parameter_max_length_on_error=0"
+
 compose exec -T \
+  -e PGOPTIONS="$MAINTENANCE_PGOPTIONS" \
   -e AGOMTRADEPRO_ADMIN_PASSWORD \
   -e AGOMTRADEPRO_RUNTIME_PASSWORD \
   -e AGOMTRADEPRO_MIGRATOR_PASSWORD \

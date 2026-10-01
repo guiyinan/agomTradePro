@@ -4,6 +4,22 @@
 \getenv admin_password AGOMTRADEPRO_ADMIN_PASSWORD
 \getenv admin_role POSTGRES_USER
 
+SELECT current_setting('log_statement') = 'none'
+   AND current_setting('log_min_duration_statement') = '-1'
+   AND current_setting('log_min_duration_sample') = '-1'
+   AND current_setting('log_statement_sample_rate') = '0'
+   AND current_setting('log_transaction_sample_rate') = '0'
+   AND current_setting('log_min_error_statement') = 'panic'
+   AND current_setting('log_parameter_max_length') = '0'
+   AND current_setting('log_parameter_max_length_on_error') = '0'
+       AS maintenance_statement_logging_disabled
+\gset
+\if :maintenance_statement_logging_disabled
+\else
+  \echo [ERROR] maintenance connection statement logging must be disabled before role password DDL
+  \quit 4
+\endif
+
 SELECT length(:'admin_password') >= 32
    AND :'admin_password' !~ '[^A-Za-z0-9_-]'
    AND :'admin_password' !~* '^(replace-with|change-this|your-password|password|secret|changeme|example|placeholder)'

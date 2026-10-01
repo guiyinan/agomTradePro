@@ -252,6 +252,8 @@ def test_watchdog_installation_is_explicit_and_packaged_without_docker_sidecar()
     assert "Copy-Item scripts/vps-web-watchdog.sh" in packaging
     assert "Copy-Item scripts/ensure_vps_postgres_role_env.py" in packaging
     assert "Copy-Item scripts/migrate-vps-sqlite-to-postgres.sh" in packaging
+    assert "Copy-Item scripts/postgres_statement_logging_window.sh" in packaging
+    assert "Copy-Item scripts/sqlite_snapshot_contract.py" in packaging
     assert "Copy-Item scripts/bootstrap_vps_postgres_roles.sh" in packaging
     assert "Copy-Item scripts/postgres_role_bootstrap.sql" in packaging
     assert "Copy-Item deploy/agomtradepro-web-watchdog.service" in packaging
@@ -261,5 +263,7 @@ def test_watchdog_installation_is_explicit_and_packaged_without_docker_sidecar()
     assert '"scripts/vps-web-watchdog.sh"' in verifier
     assert '"scripts/ensure_vps_postgres_role_env.py"' in verifier
     assert '"scripts/migrate-vps-sqlite-to-postgres.sh"' in verifier
+    assert '"scripts/postgres_statement_logging_window.sh"' in verifier
+    assert '"scripts/sqlite_snapshot_contract.py"' in verifier
     assert '"scripts/bootstrap_vps_postgres_roles.sh"' in verifier
     assert '"scripts/postgres_role_bootstrap.sql"' in verifier
