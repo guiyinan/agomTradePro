@@ -350,7 +350,7 @@ class StageSpec:
     name: str
     report_name: str
     argv: tuple[str, ...]
-    env_file: Path
+    env_files: tuple[Path, ...]
     image_bound: bool = True
     retain_responses: bool = False
     mounts: tuple[tuple[Path, str, bool], ...] = ()
@@ -806,7 +806,7 @@ def _mount(path: Path, target: str, readonly: bool) -> str:
 def _docker_command(
     identity: Identity,
     network: str,
-    env_file: Path,
+    env_files: Sequence[Path],
     identity_path: Path,
     manifest_path: Path,
     provider_path: Path,
@@ -825,13 +825,17 @@ def _docker_command(
         + hashlib.sha256(str(identity_path.parent.parent.resolve()).encode()).hexdigest(),
         "--network",
         network,
-        "--env-file",
-        str(env_file.resolve()),
-        "--env",
-        f"AGOM_CANDIDATE_IMAGE_ID={identity.candidate_image_id}",
-        "--env",
-        "AGOM_RELEASE_MANIFEST_PATH=/run/agom/candidate-release-manifest.json",
     ]
+    for env_file in env_files:
+        args.extend(("--env-file", str(env_file.resolve())))
+    args.extend(
+        (
+            "--env",
+            f"AGOM_CANDIDATE_IMAGE_ID={identity.candidate_image_id}",
+            "--env",
+            "AGOM_RELEASE_MANIFEST_PATH=/run/agom/candidate-release-manifest.json",
+        )
+    )
     mounts = [
         (identity_path, "/run/agom/candidate-identity.json", True),
         (manifest_path, "/run/agom/candidate-release-manifest.json", True),
@@ -967,14 +971,14 @@ def _stage_specs(
             "provider_probe",
             "probe.json",
             provider,
-            config.provider_env_file,
+            (config.provider_env_file, config.isolated_postgres_env_file),
             retain_responses=True,
         ),
         StageSpec(
             "response_replay",
             "output/real-response-unit-replay.json",
             replay,
-            config.provider_env_file,
+            (config.provider_env_file, config.isolated_postgres_env_file),
             mounts=(
                 (cast(Path, paths["provider_dir"]), "/run/agom/provider-probe", True),
                 (cast(Path, paths["unit_path"]), "/run/agom/unit-contract.json", True),
@@ -984,13 +988,13 @@ def _stage_specs(
             "full_universe_capacity",
             "output/full-universe-capacity.json",
             capacity,
-            config.provider_env_file,
+            (config.provider_env_file, config.isolated_postgres_env_file),
         ),
         StageSpec(
             "isolated_postgresql_write",
             "output/isolated-write-rehearsal.json",
             isolated,
-            config.isolated_postgres_env_file,
+            (config.isolated_postgres_env_file,),
         ),
     )
 
@@ -1162,14 +1166,14 @@ def _preflight_database(
         "preflight_database",
         "",
         ("python", "manage.py", "shell", "-c", code),
-        config.isolated_postgres_env_file,
+        (config.isolated_postgres_env_file,),
     )
     _invoke(
         runner,
         argv=_docker_command(
             identity,
             config.docker_network,
-            spec.env_file,
+            spec.env_files,
             identity_path,
             manifest_path,
             provider_path,
@@ -1306,7 +1310,7 @@ def _run_release_rehearsal(
                 argv = _docker_command(
                     identity,
                     config.docker_network,
-                    spec.env_file,
+                    spec.env_files,
                     identity_path,
                     manifest_path,
                     provider_path,
@@ -1351,7 +1355,7 @@ def _run_release_rehearsal(
                 argv = _docker_command(
                     identity,
                     config.docker_network,
-                    spec.env_file,
+                    spec.env_files,
                     identity_path,
                     manifest_path,
                     provider_path,

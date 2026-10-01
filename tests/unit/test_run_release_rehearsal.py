@@ -469,6 +469,53 @@ def test_database_preflight_precedes_provider_and_is_read_only(tmp_path: Path) -
     assert "isolated_postgresql_write" not in runner.labels
 
 
+def test_provider_stages_override_stale_provider_database_with_isolated_env(
+    tmp_path: Path,
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    config.provider_env_file.write_text(
+        "DATABASE_URL=postgresql://user:secret@old-db/old_rehearsal\n",
+        encoding="utf-8",
+    )
+    config.isolated_postgres_env_file.write_text(
+        "DATABASE_URL=postgresql://user:secret@agom-s6-postgres-abcdefghij/"
+        "agom_release_rehearsal_abcdefghij\n"
+        "AGOM_RELEASE_REHEARSAL_DATABASE=1\n",
+        encoding="utf-8",
+    )
+    runner = FakeRunner()
+
+    run_release_rehearsal(config, runner=runner)
+
+    def env_files(label: str) -> list[Path]:
+        command = next(item for item in runner.commands if item.label == label)
+        return [
+            Path(command.argv[index + 1])
+            for index, value in enumerate(command.argv)
+            if value == "--env-file"
+        ]
+
+    provider_then_isolated = [
+        config.provider_env_file.resolve(),
+        config.isolated_postgres_env_file.resolve(),
+    ]
+    for label in ("provider_probe", "response_replay", "full_universe_capacity"):
+        assert env_files(label) == provider_then_isolated
+    assert env_files("preflight_database") == [config.isolated_postgres_env_file.resolve()]
+    assert env_files("isolated_postgresql_write") == [config.isolated_postgres_env_file.resolve()]
+
+
+def test_missing_isolated_environment_fails_closed_before_build(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    config.isolated_postgres_env_file.unlink()
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_INPUT_OR_ARTIFACT_INVALID"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+
+
 def test_outer_stage_timeout_does_not_expand_provider_probe_budget(tmp_path: Path) -> None:
     config = replace(
         _config(tmp_path, root=_fake_checkout(tmp_path)),
