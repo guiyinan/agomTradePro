@@ -862,3 +862,24 @@ registry 为空；本次未观察到 retained real provider sample 或显式生�
 结构化证据见 [生产 revision 6d9a134e41 只读重验](../deployment/production-closure-revalidation-2026-09-30-6d9a134e41.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v186 → v187；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
+
+## 生产 revision 6d9a134e41 只读重验（2026-10-01）
+
+生产仍运行 `6d9a134e41`，release `20260929110229`；探针采集时 `dev/next-development` HEAD 为
+`d0442dae0b`，生产落后 69 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 为 403。A 股有效分母由 5,571 增至 5,572；quote、price、valuation current
+Publication 仍各为 5,557，覆盖缺口扩大至 15，financial 仍为 80。
+
+生产 profile v19 仍绑定 `release_ref=9c77c51182`，与运行 revision `6d9a134e41` 不一致，exact
+deployment/profile identity binding 继续 P0 阻断。audit mode=`required`、outbox=`true`、selector 有效，
+但 temporally current actor、owner、joined heads 从 2/2/2 回退至 1/1/1。该 authority snapshot regression
+不满足 EVID-01/02 与 AUD-03 所需的精确生产验收。
+
+部署 revision 的 source-time contract 与 numeric tolerance registry 仍为 `awaiting_owner_approval`、零条目，
+approval 缺失，exact matcher registry 为空。两个未传 `--execute` 的 DATA-02 预检均在 financial decision
+evidence guard 结构化失败关闭，并报告 `mutations_performed=false`；该结果没有推进任何生产 gate，也不
+扩大声称 provider 路径是否到达。受保护监控连续两次对凭据和匿名请求均返回 401、`DENY_STOP_LINES`。
+
+结构化证据见 [生产 revision 6d9a134e41 只读重验（2026-10-01）](../deployment/production-closure-revalidation-2026-10-01-6d9a134e41.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v187 → v188；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
