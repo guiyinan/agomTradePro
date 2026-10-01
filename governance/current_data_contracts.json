@@ -5588,7 +5588,7 @@
         {
           "case": "financial_current_persisted_member_replay",
           "test_file": "tests/component/data_center/test_financial_source_current_boundary.py",
-          "test_function": "test_current_financial_source_survives_persisted_member_replay"
+          "test_function": "test_financial_source_survives_candidate_member_replay"
         },
         {
           "case": "financial_current_source_gaps_no_history_dml",
