@@ -300,7 +300,6 @@ class AShareUniverseSyncService:
     def sync(self, *, deactivate_missing: bool = False) -> AShareUniverseSyncReport:
         """Upsert active A-share master rows and optionally deactivate stale rows."""
 
-        preexisting_active_codes = self._asset_repo.list_active_stock_codes()
         primary_source = getattr(self._provider, "source_name", self._provider.__class__.__name__)
         provider, rows, prepared_rows, skipped_count, failover_from, difference_ratio = (
             self._load_current_rows(primary_source)
@@ -336,6 +335,7 @@ class AShareUniverseSyncService:
                     metadata_prepared,
                 )
         observed_codes = {row["code"] for row in prepared_rows}
+        preexisting_active_codes = self._asset_repo.list_active_stock_codes()
         retained_missing_codes, retained_missing_ratio = self._retained_missing_scope(
             observed_codes,
             preexisting_active_codes,
