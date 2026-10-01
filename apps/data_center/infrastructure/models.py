@@ -19,6 +19,12 @@ from apps.data_center.domain.entities import (
 )
 from shared.numeric import safe_float
 
+from .candidate_raw_audit_manifest_models import (
+    CandidateRawAuditManifestMemberModel as CandidateRawAuditManifestMemberModel,
+)
+from .candidate_raw_audit_manifest_models import (
+    CandidateRawAuditManifestModel as CandidateRawAuditManifestModel,
+)
 from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
 from .publication_models import CanonicalPublicationModel as CanonicalPublicationModel
 from .publication_models import CanonicalPublicationPointerModel as CanonicalPublicationPointerModel
