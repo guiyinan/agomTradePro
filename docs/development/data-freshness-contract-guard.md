@@ -204,6 +204,8 @@ Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成
 
 全市场任务在每次发布前刷新 A 股资产主数据，并通过 Tushare `daily_basic(trade_date=...)` 单次交易日批量响应确定当日可交易范围。估值市值仍由万元转换为元；响应只能缩小到已登记资产，重复、越界或空身份必须阻断。停牌等未出现在当日估值响应中的登记股票不得伪造当日估值，也不得阻断其他可交易股票发布；任务结果必须发布 `excluded_non_trading_count/codes`。报价、估值、历史价格和最终 Publication 使用同一可交易范围。自然刷新允许新增资产，不因一次外部名单缺失自动停用既有资产；退市清理由显式资产主数据维护流程执行。
 
+自然刷新须分别发布 provider 本次观测范围与持久化后的有效 active 范围。provider 少量漏项在既有 1% 一致性容差内时，保留这些 active 证券并输出完整 `retained_missing_codes`、数量、比例、容差及两套范围哈希；正式刷新仍以持久化后的有效范围作为分母，缺失事实继续按数据集规则阻断或形成明确 scope block。漏项比例按刷新前 active 范围计算，provider 新增代码不得稀释该比例；超过容差时在资产写入前以 `A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE` 失败关闭。证券代码不得写死，provider 未观测本身也不构成退市证据。
+
 长任务允许审计授权在运行中追加同身份 successor。只有 authority source、actor、user、tenant、owner、认证/职员状态或 role 改变，或起始授权自身无法覆盖下一写边界时才停止；单纯续期产生的新 content hash 不能中断已获授权且仍在有效期内的刷新。
 
 日频估值只提供 `trade_date` 时，将该日期对应的中国大陆市场 15:00 收盘时刻作为 `observed_at`，再转换为 UTC 存储。该时间来自提供方交易日字段与交易所会话边界，不能使用抓取时间替代；Tushare 单股、全市场批量路径以及 AKShare 历史估值路径必须使用同一规则。缺少合法交易日仍失败关闭。

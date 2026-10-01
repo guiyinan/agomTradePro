@@ -1777,6 +1777,81 @@ def test_task_blocks_same_count_universe_identity_substitution(monkeypatch):
     assert result["publication_updated"] is False
 
 
+def test_task_uses_effective_universe_when_provider_omission_is_bounded(monkeypatch) -> None:
+    """A retained provider omission stays in the denominator and reaches valuation checks."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    target = date(2026, 9, 30)
+    active_codes = tuple(f"{index:06d}.SZ" for index in range(1, 201))
+    retained_code = active_codes[-1]
+    observed_codes = active_codes[:-1]
+    valuation_calls: list[tuple[str, ...]] = []
+    universe_report = _universe_report(list(active_codes))
+    universe_report.update(
+        {
+            "observed_count": len(observed_codes),
+            "observed_codes_sha256": hashlib.sha256(
+                json.dumps(
+                    sorted(observed_codes),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+            "retained_missing_count": 1,
+            "retained_missing_codes": [retained_code],
+            "retained_missing_ratio": 1 / len(active_codes),
+            "retained_missing_tolerance": 0.01,
+            "retained_missing_reason_code": "provider_membership_not_observed",
+        }
+    )
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: target)
+    monkeypatch.setattr(tasks, "sync_active_a_share_universe", lambda: universe_report)
+    monkeypatch.setattr(
+        tasks,
+        "build_target_date_a_share_universe_scope",
+        lambda day: _unknown_listing_date_scope(day, list(active_codes)),
+    )
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", SimpleNamespace)
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(
+            execute=lambda **kwargs: (
+                valuation_calls.append(tuple(kwargs["asset_codes"]))
+                or SimpleNamespace(
+                    stored_count=len(observed_codes),
+                    status="partial",
+                    succeeded_asset_codes=observed_codes,
+                    returned_asset_codes=observed_codes,
+                )
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_publication_policy_repository",
+        lambda: SimpleNamespace(get_active=lambda _dataset: None),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_core_current_publication_rebuild_use_case",
+        lambda **_: SimpleNamespace(),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=100)
+
+    assert valuation_calls == [active_codes]
+    assert result["error_code"] != "MARKET_UNIVERSE_SCOPE_INVALID"
+    assert result["requested_asset_count"] == len(active_codes)
+    assert result["missing_asset_codes"] == [retained_code]
+    assert result["market_universe"]["retained_missing_codes"] == [retained_code]
+    assert result["publication_updated"] is False
+
+
 def test_equivalent_authority_successor_does_not_interrupt_active_refresh(
     monkeypatch,
     _patch_current_authority,

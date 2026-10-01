@@ -5139,7 +5139,11 @@
           "cache_clear",
           "_DEFAULT_FAILOVER_TOLERANCE = 0.01",
           "symmetric_difference",
-          "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT"
+          "A_SHARE_UNIVERSE_FAILOVER_INCONSISTENT",
+          "observed_codes_sha256",
+          "retained_missing_codes_sha256",
+          "A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE",
+          "provider_membership_not_observed"
         ],
         "apps/data_center/infrastructure/catalog_repositories.py": [
           "def list_active_stock_codes(self) -> set[str]:"
@@ -5384,6 +5388,26 @@
           "case": "a_share_failover_source_and_provenance_are_reported",
           "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
           "test_function": "test_universe_failover_accepts_consistent_fresh_provider_and_reports_source"
+        },
+        {
+          "case": "a_share_bounded_provider_omission_keeps_effective_scope",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_retains_bounded_missing_members_in_effective_scope"
+        },
+        {
+          "case": "a_share_excessive_provider_omission_blocks_before_write",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_blocks_excessive_retained_scope_before_writes"
+        },
+        {
+          "case": "a_share_effective_hash_matches_persisted_repository_scope",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_report_hash_matches_persisted_effective_scope"
+        },
+        {
+          "case": "market_refresh_keeps_retained_member_in_full_denominator",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_uses_effective_universe_when_provider_omission_is_bounded"
         },
         {
           "case": "scheduled_market_refresh_exposes_classified_universe_provider_failure",
@@ -7081,6 +7105,10 @@
         "apps/data_center/infrastructure/a_share_universe_sync.py": [
           "list_date_metadata_source",
           "list_date_evidence_status",
+          "observed_codes_sha256",
+          "retained_missing_codes_sha256",
+          "A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE",
+          "provider_membership_not_observed",
           "def _merge_listing_date_metadata("
         ],
         "apps/data_center/infrastructure/catalog_repositories.py": [
@@ -7125,6 +7153,31 @@
           "case": "missing_akshare_date_preserves_persisted_metadata",
           "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
           "test_function": "test_universe_sync_preserves_existing_listing_date_when_primary_omits_it"
+        },
+        {
+          "case": "bounded_provider_omission_preserves_effective_active_denominator",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_retains_bounded_missing_members_in_effective_scope"
+        },
+        {
+          "case": "provider_additions_do_not_dilute_missing_ratio_boundary",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_missing_ratio_uses_reference_scope_at_exact_boundary"
+        },
+        {
+          "case": "persisted_effective_scope_is_the_report_hash_authority",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_report_hash_matches_persisted_effective_scope"
+        },
+        {
+          "case": "excessive_provider_omission_fails_closed_before_writes",
+          "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
+          "test_function": "test_universe_sync_blocks_excessive_retained_scope_before_writes"
+        },
+        {
+          "case": "formal_refresh_uses_effective_scope_with_bounded_provider_omission",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_uses_effective_universe_when_provider_omission_is_bounded"
         },
         {
           "case": "formal_refresh_uses_target_date_universe",

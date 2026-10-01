@@ -75,6 +75,15 @@ class AShareUniverseSyncReport:
     skipped_count: int
     sample_codes: list[str]
     active_codes_sha256: str
+    observed_count: int
+    observed_sample_codes: list[str]
+    observed_codes_sha256: str
+    retained_missing_count: int
+    retained_missing_codes: list[str]
+    retained_missing_codes_sha256: str
+    retained_missing_ratio: float
+    retained_missing_tolerance: float
+    retained_missing_reason_code: str | None = None
     list_date_metadata_source: str | None = None
     list_date_metadata_status: str = "not_configured"
     list_date_known_count: int = 0
@@ -96,6 +105,15 @@ class AShareUniverseSyncReport:
             "skipped_count": self.skipped_count,
             "sample_codes": self.sample_codes,
             "active_codes_sha256": self.active_codes_sha256,
+            "observed_count": self.observed_count,
+            "observed_sample_codes": self.observed_sample_codes,
+            "observed_codes_sha256": self.observed_codes_sha256,
+            "retained_missing_count": self.retained_missing_count,
+            "retained_missing_codes": self.retained_missing_codes,
+            "retained_missing_codes_sha256": self.retained_missing_codes_sha256,
+            "retained_missing_ratio": self.retained_missing_ratio,
+            "retained_missing_tolerance": self.retained_missing_tolerance,
+            "retained_missing_reason_code": self.retained_missing_reason_code,
             "list_date_metadata_source": self.list_date_metadata_source,
             "list_date_metadata_status": self.list_date_metadata_status,
             "list_date_known_count": self.list_date_known_count,
@@ -282,6 +300,7 @@ class AShareUniverseSyncService:
     def sync(self, *, deactivate_missing: bool = False) -> AShareUniverseSyncReport:
         """Upsert active A-share master rows and optionally deactivate stale rows."""
 
+        preexisting_active_codes = self._asset_repo.list_active_stock_codes()
         primary_source = getattr(self._provider, "source_name", self._provider.__class__.__name__)
         provider, rows, prepared_rows, skipped_count, failover_from, difference_ratio = (
             self._load_current_rows(primary_source)
@@ -316,6 +335,13 @@ class AShareUniverseSyncService:
                     prepared_rows,
                     metadata_prepared,
                 )
+        observed_codes = {row["code"] for row in prepared_rows}
+        retained_missing_codes, retained_missing_ratio = self._retained_missing_scope(
+            observed_codes,
+            preexisting_active_codes,
+            source=source,
+            retain_missing=not deactivate_missing,
+        )
         touched_codes: set[str] = set()
         persisted_assets: dict[str, AssetMaster] = {}
 
@@ -410,21 +436,51 @@ class AShareUniverseSyncService:
         if deactivate_missing:
             deactivated_count = self._deactivate_missing(touched_codes)
 
+        effective_active_codes = (
+            set(touched_codes) if deactivate_missing else self._asset_repo.list_active_stock_codes()
+        )
+        sorted_effective_codes = sorted(effective_active_codes)
+        sorted_observed_codes = sorted(touched_codes)
+        sorted_retained_missing_codes = sorted(retained_missing_codes)
+
         return AShareUniverseSyncReport(
             source=source,
             fetched_count=len(rows),
-            active_count=len(touched_codes),
+            active_count=len(effective_active_codes),
             touched_count=len(touched_codes),
             deactivated_count=deactivated_count,
             skipped_count=skipped_count,
-            sample_codes=sorted(touched_codes)[:20],
+            sample_codes=sorted_effective_codes[:20],
             active_codes_sha256=hashlib.sha256(
                 json.dumps(
-                    sorted(touched_codes),
+                    sorted_effective_codes,
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ).encode("utf-8")
             ).hexdigest(),
+            observed_count=len(touched_codes),
+            observed_sample_codes=sorted_observed_codes[:20],
+            observed_codes_sha256=hashlib.sha256(
+                json.dumps(
+                    sorted_observed_codes,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+            retained_missing_count=len(sorted_retained_missing_codes),
+            retained_missing_codes=sorted_retained_missing_codes,
+            retained_missing_codes_sha256=hashlib.sha256(
+                json.dumps(
+                    sorted_retained_missing_codes,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+            retained_missing_ratio=retained_missing_ratio,
+            retained_missing_tolerance=self._failover_tolerance,
+            retained_missing_reason_code=(
+                "provider_membership_not_observed" if sorted_retained_missing_codes else None
+            ),
             list_date_metadata_source=metadata_source,
             list_date_metadata_status=metadata_status,
             list_date_known_count=sum(
@@ -448,6 +504,47 @@ class AShareUniverseSyncService:
             failover_difference_ratio=difference_ratio,
             failover_tolerance=(self._failover_tolerance if failover_from is not None else None),
         )
+
+    def _retained_missing_scope(
+        self,
+        observed_codes: set[str],
+        reference_codes: set[str],
+        *,
+        source: str,
+        retain_missing: bool,
+    ) -> tuple[set[str], float]:
+        """Retain a bounded provider omission without shrinking the active denominator."""
+
+        normalized_reference: set[str] = set()
+        for code in reference_codes:
+            normalized_code = self._canonicalize_a_share_code(code)
+            if not normalized_code:
+                raise AShareUniverseSyncError(
+                    "A_SHARE_UNIVERSE_REFERENCE_INVALID",
+                    category="provider_scope",
+                    source=source,
+                    details={"invalid_reference_identity": True},
+                )
+            normalized_reference.add(normalized_code)
+        retained_missing_codes = normalized_reference.difference(observed_codes)
+        denominator = len(normalized_reference)
+        retained_missing_ratio = len(retained_missing_codes) / denominator if denominator else 0.0
+        if retained_missing_ratio > self._failover_tolerance:
+            raise AShareUniverseSyncError(
+                "A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE",
+                category="provider_scope",
+                source=source,
+                details={
+                    "observed_size": len(observed_codes),
+                    "reference_size": len(normalized_reference),
+                    "retained_missing_count": len(retained_missing_codes),
+                    "retained_missing_ratio": retained_missing_ratio,
+                    "tolerance": self._failover_tolerance,
+                },
+            )
+        if not retain_missing:
+            return set(), 0.0
+        return retained_missing_codes, retained_missing_ratio
 
     def _load_current_rows(
         self,

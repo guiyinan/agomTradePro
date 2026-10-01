@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from datetime import date
@@ -245,7 +246,9 @@ class _MemoryAssetRepository:
         self.aliases: list[AssetAlias] = []
 
     def list_active_stock_codes(self) -> set[str]:
-        return self._active_codes
+        return self._active_codes.union(
+            code for code, asset in self.assets.items() if asset.is_active
+        )
 
     def get_by_code(self, code: str) -> AssetMaster | None:
         return self.assets.get(code)
@@ -287,6 +290,159 @@ def test_universe_sync_preserves_existing_listing_date_when_primary_omits_it() -
     assert report.active_count == 1
     assert persisted.list_date == existing.list_date
     assert persisted.extra["list_date_source"] == "historical-provider.list_date"
+
+
+def test_universe_sync_retains_bounded_missing_members_in_effective_scope() -> None:
+    """A transient provider omission must not shrink the persisted active denominator."""
+
+    reference_codes = {f"{index:06d}.SZ" for index in range(1, 201)}
+    missing_code = "000200.SZ"
+
+    class Primary:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            return [
+                {"code": code, "name": f"证券{code}"}
+                for code in sorted(reference_codes - {missing_code})
+            ]
+
+    repository = _MemoryAssetRepository(reference_codes)
+    report = AShareUniverseSyncService(provider=Primary(), asset_repo=repository).sync()
+
+    effective_codes = sorted(reference_codes)
+    observed_codes = sorted(reference_codes - {missing_code})
+    assert report.active_count == 200
+    assert report.touched_count == 199
+    assert report.observed_count == 199
+    assert report.retained_missing_count == 1
+    assert report.retained_missing_codes == [missing_code]
+    assert report.retained_missing_reason_code == "provider_membership_not_observed"
+    assert report.retained_missing_ratio == pytest.approx(1 / 200)
+    assert (
+        report.active_codes_sha256
+        == hashlib.sha256(
+            json.dumps(effective_codes, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    )
+    assert (
+        report.observed_codes_sha256
+        == hashlib.sha256(
+            json.dumps(observed_codes, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    )
+
+
+def test_universe_sync_missing_ratio_uses_reference_scope_at_exact_boundary() -> None:
+    """Provider additions cannot dilute a one-percent omission from the persisted scope."""
+
+    reference_codes = {f"{index:06d}.SZ" for index in range(1, 101)}
+    missing_code = "000100.SZ"
+    added_codes = {f"{index:06d}.SZ" for index in range(101, 202)}
+    observed_codes = reference_codes.difference({missing_code}).union(added_codes)
+
+    class Primary:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            return [{"code": code, "name": f"证券{code}"} for code in sorted(observed_codes)]
+
+    repository = _MemoryAssetRepository(reference_codes)
+    report = AShareUniverseSyncService(provider=Primary(), asset_repo=repository).sync()
+
+    assert report.retained_missing_codes == [missing_code]
+    assert report.retained_missing_ratio == 0.01
+    assert report.active_count == len(reference_codes.union(added_codes))
+
+
+@pytest.mark.django_db
+def test_universe_sync_report_hash_matches_persisted_effective_scope() -> None:
+    """The effective count and hash must come from the persisted repository state."""
+
+    from apps.data_center.infrastructure.models import AssetMasterModel
+    from apps.data_center.infrastructure.repositories import AssetRepository
+
+    reference_codes = tuple(f"{index:06d}.SZ" for index in range(100001, 100102))
+    missing_code = reference_codes[-1]
+    AssetMasterModel.objects.bulk_create(
+        [
+            AssetMasterModel(
+                code=code,
+                name=f"证券{code}",
+                short_name=f"证券{code}",
+                asset_type="stock",
+                exchange="SZSE",
+                is_active=True,
+            )
+            for code in reference_codes
+        ]
+    )
+
+    class Primary:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            return [
+                {"code": code, "name": f"证券{code}"}
+                for code in reference_codes
+                if code != missing_code
+            ]
+
+    report = AShareUniverseSyncService(
+        provider=Primary(),
+        asset_repo=AssetRepository(),
+    ).sync()
+    persisted_codes = list(
+        AssetMasterModel.objects.filter(
+            asset_type="stock",
+            exchange="SZSE",
+            is_active=True,
+        )
+        .order_by("code")
+        .values_list("code", flat=True)
+    )
+
+    assert report.active_count == len(persisted_codes) == len(reference_codes)
+    assert report.retained_missing_codes == [missing_code]
+    assert (
+        report.active_codes_sha256
+        == hashlib.sha256(
+            json.dumps(persisted_codes, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+    )
+    assert report.to_dict()["active_codes_sha256"] == report.active_codes_sha256
+
+
+@pytest.mark.parametrize("deactivate_missing", [False, True])
+def test_universe_sync_blocks_excessive_retained_scope_before_writes(
+    deactivate_missing: bool,
+) -> None:
+    """A materially incomplete primary response must fail closed before asset writes."""
+
+    reference_codes = {f"{index:06d}.SZ" for index in range(1, 101)}
+    observed_codes = reference_codes - {"000099.SZ", "000100.SZ"}
+
+    class Primary:
+        source_name = "akshare.stock_info"
+
+        def load_code_names(self) -> list[dict[str, str]]:
+            return [{"code": code, "name": f"证券{code}"} for code in sorted(observed_codes)]
+
+    repository = _MemoryAssetRepository(reference_codes)
+
+    with pytest.raises(AShareUniverseSyncError) as caught:
+        AShareUniverseSyncService(provider=Primary(), asset_repo=repository).sync(
+            deactivate_missing=deactivate_missing
+        )
+
+    assert caught.value.code == "A_SHARE_UNIVERSE_RETAINED_SCOPE_EXCESSIVE"
+    assert caught.value.details["observed_size"] == 98
+    assert caught.value.details["reference_size"] == 100
+    assert caught.value.details["retained_missing_count"] == 2
+    assert caught.value.details["retained_missing_ratio"] == 0.02
+    assert caught.value.details["tolerance"] == 0.01
+    assert repository.assets == {}
+    assert repository.aliases == []
 
 
 def test_universe_sync_supplements_akshare_membership_with_exact_tushare_metadata_source() -> None:
