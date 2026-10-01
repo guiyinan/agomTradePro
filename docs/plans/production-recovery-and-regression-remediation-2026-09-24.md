@@ -805,3 +805,38 @@ publication 35、backfill 2，共 `56 passed, 0 skipped`。这些 PostgreSQL 负
 publication/pointer/audit/outbox 原子回滚、5,000+ PostgreSQL query count/持锁时间/lock wait 硬阈值尚无证据；SQLite
 快照 dump/flush/loaddata/计数对账与维护窗口关闭生产 statement logging 尚未完成。继续保留 legacy relation locks 与
 production composition；不部署、不启动全市场重跑，也不延长 lock wait、retry 或 timeout。
+
+#### 短 RC/RW Publication activation UOW 切片（`befab299c`）
+
+切片④新增数据库 current pointer 与 feature-off activation UOW。候选 Publication 和 immutable member 可在 fence 外预构建；
+只有 activation 可以推进 pointer。activation 拒绝 ambient transaction，在 caller-owned、同 alias 的短 PostgreSQL
+`READ COMMITTED READ WRITE` 事务中先取得完整 Account generation fence，完成完整 graph final reread 并绑定 audit
+scope lease，再锁定 pointer/candidate，复核 candidate state、成员数量与精确 PK 集、成员内容 hash、事实内容 hash、
+policy 与 frozen evidence。随后 publication、pointer、必需 audit event 和 outbox 在同一事务切换；任一阶段故障、authority
+漂移、成员漂移、事实漂移、重复或冲突 run 均 fail closed 并整体回滚。外部 provider、事实 staging 和 candidate/member
+预构建保持在 fence 外；legacy publish/rollback 只保留历史，不再被 `get_current()` 当成 current。旧 relation locks 与
+production composition 均未删除或接线。
+
+代码提交为 `befab299c7a2e5f0c19e2771b7e8ef9d3b4cd5f8`；隔离写演练兼容提交为
+`f5d808ff8c70fc7ea3d6ddff2e9bb66d81e8c41b`；确定性架构投影为
+`76f736713394ca149b9cc153de1fa0b577c70270`。旧测试夹具按新指针契约迁移的提交为
+`9eb04899ce8d23f6578149298488584bc9ccd5e9`，只补 candidate parent、改为验证 legacy history 且断言 legacy path
+不生成 pointer；current-data 测试引用投影为 `30ab82667829b9470883beaa4a1fa47a30414183`。这些提交各自独立，
+没有夹带 production composition 或部署改动。
+
+验证证据：activation/query/rehearsal 聚焦回归 `77 passed`，隔离写演练单测 `32 passed`，旧夹具迁移的五个文件
+`42 passed in 208.63s`；Black、isort、Ruff、生产文件增量 mypy、全仓 mypy debt ceiling、current-data 72 surfaces、
+architecture delta/full、module map 44 modules / 210 edges 与 `git diff --check` 通过。5,001-member PostgreSQL soak
+把 activation query count 固定为不超过 35、generation fence 持锁时间不超过 2.0 秒、lock wait 不超过 0.25 秒，并覆盖
+精确成员/hash 复核、并发 pointer、audit/outbox 原子回滚与 retry 幂等。精确测试 SHA `9eb04899ce8d23f6578149298488584bc9ccd5e9`
+的 Publication PostgreSQL contracts `36802990529` 全部通过：authority lock 2、generation 9、shadow 1、finalizer 7、
+publication 36、backfill 2，共 `57 passed, 0 skipped`；其中 publication 组包含 soak 和隔离写演练。精确最终治理 SHA
+`30ab82667829b9470883beaa4a1fa47a30414183` 的 Architecture `36803289345`、Security `36803289427`、Consistency
+`36803289409` 与 CI Fast Feedback `36803289349` 全部通过。最初 test commit 的 Consistency 因治理清单仍引用旧测试名
+失败，该失败未被跳过；更新唯一机器真源后，72-surface guard 与 6 项 checker self-test 均通过。
+
+未验证风险与剩余停止线：member seal 当前由 repository 和 activation 复核保证，数据库尚无阻止绕过 repository 修改
+candidate member 的 trigger/constraint；这项 P1 必须与 SQLite loaddata 兼容性一起评估，不能在本片顺手加数据库对象。
+本机 disposable Docker PostgreSQL 端口在一次本地复验中关闭连接，因此该次不计作通过；同 SHA 的原生 Linux PostgreSQL
+零跳过 workflow 是本片数据库证据。SQLite 快照真实 dump/flush/loaddata/计数对账和维护窗口关闭生产 statement logging
+仍未完成；完成切片⑤前继续禁止部署、删除 legacy relation locks、接 production composition 或启动全市场重跑。
