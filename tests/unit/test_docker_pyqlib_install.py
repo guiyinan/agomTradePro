@@ -290,8 +290,9 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "sqlite-to-postgres.jsonl" in migration
     assert "--format jsonl" in migration
     assert "PYTHONUTF8=1" in migration
-    assert "migrator python scripts/manage_vps_migrations.py flush --noinput" in migration
-    assert "migrator python scripts/manage_vps_migrations.py loaddata" in migration
+    assert "migrator python -m scripts.manage_vps_migrations flush --noinput" in migration
+    assert "migrator python -m scripts.manage_vps_migrations loaddata" in migration
+    assert "python scripts/manage_vps_migrations.py" not in migration
     assert "AGOMTRADEPRO_DATABASE_ROLE= " in migration
     assert "AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1" in migration
     assert "pg_isready" in migration

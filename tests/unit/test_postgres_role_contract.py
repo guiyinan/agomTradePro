@@ -255,7 +255,11 @@ def test_runtime_compose_services_do_not_receive_migrator_url() -> None:
     beat = service_block("celery_beat")
     assert len(re.findall(r"\$\{MIGRATOR_DATABASE_URL:", compose)) == 1
     assert "MIGRATOR_DATABASE_URL" in migrator
-    assert '"migrate", "--noinput"' in migrator
+    assert (
+        'command: ["python", "-m", "scripts.manage_vps_migrations", '
+        '"migrate", "--noinput"]' in migrator
+    )
+    assert "python scripts/manage_vps_migrations.py" not in compose
     migration_runner = (ROOT / "scripts" / "manage_vps_migrations.py").read_text(encoding="utf-8")
     assert '_ALLOWED_COMMANDS = frozenset({"migrate", "flush", "loaddata"})' in migration_runner
     for service in (web, worker, beat):
@@ -325,7 +329,7 @@ def test_remote_deploy_uses_migration_helper_as_the_only_bootstrap_gate() -> Non
         flags=re.MULTILINE,
     )
     migrate_calls = re.findall(
-        r"^[ \t]*compose run --rm --no-deps migrator python scripts/manage_vps_migrations\.py migrate --noinput$",
+        r"^[ \t]*compose run --rm --no-deps migrator python -m scripts\.manage_vps_migrations migrate --noinput$",
         helper,
         flags=re.MULTILINE,
     )
@@ -360,7 +364,7 @@ def test_vps_deploy_bootstraps_roles_after_readiness_before_migrator() -> None:
     runtime_stop = "for runtime_service in web celery_worker celery_qlib_worker celery_beat terminal_agent_worker; do"
     runtime_stop_command = 'compose_vps stop "$runtime_service"'
     migrate_helper_call = 'COMPOSE_PROJECT_NAME="$PROJECT_NAME" sh scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR" "$release_dir"'
-    migrate = "compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput"
+    migrate = "compose run --rm --no-deps migrator python -m scripts.manage_vps_migrations migrate --noinput"
 
     assert (
         deploy.index("ensure_database_role_env\n\ncore_services")

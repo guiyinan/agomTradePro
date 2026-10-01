@@ -80,7 +80,7 @@ enter_statement_logging_window
 if [ -f "$MARKER_FILE" ]; then
   echo "[INFO] PostgreSQL migration marker exists; applying schema migrations only"
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
-  compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+  compose run --rm --no-deps migrator python -m scripts.manage_vps_migrations migrate --noinput
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   restore_statement_logging
   trap - EXIT HUP INT TERM
@@ -91,7 +91,7 @@ if ! docker run --rm -v "${COMPOSE_PROJECT_NAME}_sqlite_data:/source:ro" alpine:
   test -s /source/db.sqlite3; then
   echo "[INFO] No legacy SQLite database found; initializing PostgreSQL"
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
-  compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+  compose run --rm --no-deps migrator python -m scripts.manage_vps_migrations migrate --noinput
   bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
   restore_statement_logging
   trap - EXIT HUP INT TERM
@@ -107,7 +107,7 @@ createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
 SH
 
 bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
-compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py migrate --noinput
+compose run --rm --no-deps migrator python -m scripts.manage_vps_migrations migrate --noinput
 bash "$RELEASE_DIR/scripts/bootstrap_vps_postgres_roles.sh" "$TARGET_DIR" --apply "$RELEASE_DIR"
 
 SOURCE_COUNTS="$FIXTURE_DIR/sqlite-source-counts.json"
@@ -142,13 +142,13 @@ compose run --rm --no-deps \
     --output "$CONTAINER_FIXTURE"
 
 echo "[INFO] Clearing migration seed data before importing the SQLite snapshot"
-compose run --rm --no-deps migrator python scripts/manage_vps_migrations.py flush --noinput
+compose run --rm --no-deps migrator python -m scripts.manage_vps_migrations flush --noinput
 
 echo "[INFO] Importing data into PostgreSQL"
 compose run --rm --no-deps \
   -e PYTHONUTF8=1 \
   -e AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
-  migrator python scripts/manage_vps_migrations.py loaddata "$CONTAINER_FIXTURE"
+  migrator python -m scripts.manage_vps_migrations loaddata "$CONTAINER_FIXTURE"
 
 compose run --rm --no-deps web python scripts/sqlite_snapshot_contract.py capture \
   --output "$CONTAINER_TARGET_COUNTS"

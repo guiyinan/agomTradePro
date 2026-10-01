@@ -68,7 +68,7 @@ services:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     profiles: ["ops"]
     restart: "no"
-    command: ["python", "scripts/manage_vps_migrations.py", "migrate", "--noinput"]
+    command: ["python", "-m", "scripts.manage_vps_migrations", "migrate", "--noinput"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
       DATABASE_URL: ${MIGRATOR_DATABASE_URL:?MIGRATOR_DATABASE_URL is required}
