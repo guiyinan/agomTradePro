@@ -939,23 +939,29 @@ preview 错误显示 5,572/5,572 全覆盖。完成会话不变量随后发现�
 在发布写入前正确失败关闭。根因是候选选择只有“latest”语义，缺少本次全市场任务的目标交易日绑定；不能通过删除日期
 校验、放宽 coverage 或写死 11 个证券解决。
 
-代码提交 `fc6f165e01ec1d746e3636350d9038c1bb766c36` 为单数据集 rebuild 和 core coordinator 增加可选、按数据集校验的
+基础代码提交 `fc6f165e01ec1d746e3636350d9038c1bb766c36` 为单数据集 rebuild 和 core coordinator 增加可选、按数据集校验的
 `required_observation_date(s)`。全市场完成会话只把本次 `target_date` 绑定到 quote 与 valuation；候选日期不等于目标日
 时不进入本次成员集合，并按完整 5,572 requested 分母形成真实缺口。valuation 只有继续满足活动政策
 `allow_partial=true`、版本化证据、现有 `minimum_coverage_ratio`、非空成员、无 unexpected 和非空 run id 时才能发布
 scope block；quote 仍保留 15:00 收盘与逐证券停牌证据门。price bar、financial 等未参与本次刷新会话的数据集不会被
 隐式过滤，未知数据集绑定在读写前失败关闭。
 
-本地验证：rebuild/orchestration 聚焦契约 `103 passed`；Publication 持久化、查询投影、API 与 readiness 组件/集成回归
-`86 passed`，合计 189 项、0 failure、0 skip。新增反例覆盖旧估值不能补足目标会话、低于政策门槛不写 Publication、
+Luna max 独立只读审查确认上述生产路径没有放宽 universe、partial policy、quote 15:00、audit 或锁边界，同时指出估值
+自然键 `val_date` 与 `observed_at` 的日期一致性尚未显式验证。加固提交
+`e8de9d96c7a0430e28d67d3ba126c9305fb1ea26` 将两者分别解析后要求同一中国市场日期；自然键和观测日期同时属于旧会话时
+仍作为本次缺口，二者互相矛盾时直接失败关闭，不能任选一个日期通过。对应测试改为使用真实旧 `val_date` 自然键，并新增
+日期身份冲突反例；该提交不改变 full-market 编排、policy、audit、事务或 repository 查询范围。
+
+本地验证：rebuild/orchestration 聚焦契约 `104 passed`；Publication 持久化、查询投影、API 与 readiness 组件/集成回归
+`86 passed`，合计 190 项、0 failure、0 skip。新增反例覆盖旧估值不能补足目标会话、低于政策门槛不写 Publication、
 日期约束只作用于显式数据集、未知数据集失败关闭，以及 preview/execute 使用同一 quote/valuation 目标日映射。两个生产
 文件增量 mypy 0 regression、全仓 mypy debt ceiling 0；Black、isort、Ruff、current-data 72 surfaces、Celery 94 tasks、
 architecture full/delta、module map 44 modules / 210 edges、Data Center entrypoint 1,280 项和 `git diff --check` 均通过；
-architecture inventory 已按生成器刷新行号投影并保持 5,260 个 current-surface references。`run_current_data_contract_tests.py`
+architecture inventory 已按生成器刷新并记录 5,261 个 current-surface references。`run_current_data_contract_tests.py`
 不支持按单个 contract 选择，未把该次参数错误计作检查结果；改由上述 103 项直接契约测试和 72-surface manifest checker
 闭合本切片范围。
 
-剩余停止线：`fc6f165e0` 尚未取得五组同 SHA CI、完整九阶段 S6、同镜像部署与生产身份回执，因此不得直接重跑。
+剩余停止线：`e8de9d96c` 及本节最终证据提交尚未取得五组同 SHA CI、完整九阶段 S6、同镜像部署与生产身份回执，因此不得直接重跑。
 门禁齐全后才可启动一个新的显式 task ID，并对 business outcome、计数、quote/valuation Publication id/hash/run id、成员
 日期与 scope blocks 逐项对账。只有正式发布通过后才能继续 decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读
 零副作用联合验收；财报 owner approval 与 token-auth GET 写 last-used 的既有停止线不因本片改变。
