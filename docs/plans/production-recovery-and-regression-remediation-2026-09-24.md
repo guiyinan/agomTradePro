@@ -961,7 +961,16 @@ architecture inventory 已按生成器刷新并记录 5,261 个 current-surface 
 不支持按单个 contract 选择，未把该次参数错误计作检查结果；改由上述 103 项直接契约测试和 72-surface manifest checker
 闭合本切片范围。
 
-剩余停止线：`e8de9d96c` 及本节最终证据提交尚未取得五组同 SHA CI、完整九阶段 S6、同镜像部署与生产身份回执，因此不得直接重跑。
+中间候选 `0d9022a81` 的 Architecture、Security、Consistency 和 Publication PostgreSQL 均通过；Fast Feedback 在
+Python 3.11 暴露 2 个既有命令边界回归，结果为 `2593 passed, 59 skipped, 2 failed`，没有把该 SHA 计作放行。失败证明
+此前 active-universe 容错在解析 provider 之前先读取数据库 active 范围，使 malformed/invalid JSON 的安全错误路径在
+无数据库测试环境提前触发 ORM。提交 `c2d497c1f8cf9c15227fbe3b4bfe5c9fc14b5f66` 只把该只读范围查询移到 provider
+加载、规范化和身份校验之后，仍位于任何资产写入及 1% 容差判断之前；因此无效输入继续在 provider 边界安全失败，合法
+输入仍按数据库 preexisting 范围计算 retained-missing 比例。management command、universe provider 和 full-market
+orchestration 回归 `98 passed`；该生产文件增量 mypy 0 regression、全仓 mypy debt ceiling 0，格式、72-surface、Celery、
+architecture full/delta 与 module map 检查均通过。
+
+剩余停止线：`c2d497c1f` 及本节最终证据提交尚未取得五组同 SHA CI、完整九阶段 S6、同镜像部署与生产身份回执，因此不得直接重跑。
 门禁齐全后才可启动一个新的显式 task ID，并对 business outcome、计数、quote/valuation Publication id/hash/run id、成员
 日期与 scope blocks 逐项对账。只有正式发布通过后才能继续 decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读
 零副作用联合验收；财报 owner approval 与 token-auth GET 写 last-used 的既有停止线不因本片改变。
