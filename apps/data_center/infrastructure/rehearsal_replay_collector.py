@@ -546,10 +546,8 @@ def collect_response_replay(
             else TUSHARE_PROVIDER_FORMAT
         )
         response_codes = _strings(ref.get("sample_codes"))
-        allowed_codes = universe
         if (
             response_codes != tuple(sorted(set(response_codes)))
-            or not set(response_codes).issubset(set(allowed_codes))
             or ref.get("provider_format") != expected_format
         ):
             raise ValueError("REHEARSAL_REPLAY_CONTEXT_MISMATCH")
@@ -710,6 +708,8 @@ def collect_response_replay(
                 if provider_format == TENCENT_PROVIDER_FORMAT
                 else "full_market_trade_date"
             )
+            target_scope_codes = tuple(sorted(set(response_codes) & set(universe)))
+            out_of_target_codes = tuple(sorted(set(response_codes) - set(universe)))
             (output_dir / name).parent.mkdir(parents=True, exist_ok=True)
             with (output_dir / name).open("xb") as stream:
                 stream.write(body)
@@ -725,6 +725,11 @@ def collect_response_replay(
                     "endpoint_id": identity.endpoint_id,
                     "provider_format": provider_format,
                     "response_asset_codes": list(response_codes),
+                    "response_asset_count": len(response_codes),
+                    "target_scope_asset_codes": list(target_scope_codes),
+                    "target_scope_asset_count": len(target_scope_codes),
+                    "out_of_target_asset_codes": list(out_of_target_codes),
+                    "out_of_target_asset_count": len(out_of_target_codes),
                     "operation": operation,
                     "response_scope": response_scope,
                 }
@@ -732,7 +737,7 @@ def collect_response_replay(
         receipt_report: dict[str, object] = {
             **common,
             **results[dataset],
-            "schema": "release.real-provider-response-replay.v2",
+            "schema": "release.real-provider-response-replay.v3",
             "source_observed_at": _text(
                 cast(dict[str, object], cast(list[object], results[dataset]["observations"])[0]),
                 "source_observed_at",

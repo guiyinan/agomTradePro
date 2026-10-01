@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,19 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from apps.data_center.infrastructure.rehearsal_replay_collector import collect_response_replay
+
+_STABLE_ERROR_CODE = re.compile(r"REHEARSAL_[A-Z0-9_]+")
+
+
+def _stable_failure_code(error: Exception) -> str:
+    """Return only an allow-listed replay code suitable for orchestration evidence."""
+
+    value = str(error)
+    return (
+        value
+        if _STABLE_ERROR_CODE.fullmatch(value) is not None
+        else "REHEARSAL_OFFLINE_REPLAY_FAILED"
+    )
 
 
 class Command(BaseCommand):
@@ -45,9 +59,7 @@ class Command(BaseCommand):
                 json.dumps(
                     {
                         "outcome": "blocked",
-                        "release_ready": False,
-                        "error_code": "REHEARSAL_OFFLINE_REPLAY_FAILED",
-                        "error_type": type(exc).__name__,
+                        "code": _stable_failure_code(exc),
                     }
                 )
             )

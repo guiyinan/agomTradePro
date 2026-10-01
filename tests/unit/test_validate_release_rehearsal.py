@@ -207,7 +207,12 @@ def _common(kind: str, now: datetime) -> dict[str, Any]:
     }
 
 
-def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path]]:
+def _build_evidence(
+    tmp_path: Path,
+    now: datetime,
+    *,
+    out_of_target_response_code: str | None = None,
+) -> tuple[Path, dict[str, Path]]:
     tmp_path.mkdir(parents=True, exist_ok=True)
     unit_contract_path = tmp_path / "unit-contract.json"
     unit_contract_digest = _write_json(
@@ -270,13 +275,17 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             if dataset == "equity.quote.snapshot"
             else [TARGET_DATE.replace("-", ""), 3.0, 2.0]
         )
+        response_asset_codes = [
+            *ASSET_CODES,
+            *([out_of_target_response_code] if out_of_target_response_code is not None else []),
+        ]
         response_path.write_text(
             json.dumps(
                 {
                     "code": 0,
                     "data": {
                         "fields": response_fields,
-                        "items": [[code, *response_values] for code in ASSET_CODES],
+                        "items": [[code, *response_values] for code in response_asset_codes],
                     },
                 }
             ),
@@ -341,13 +350,20 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
             "provider_version": provider["version"],
             "endpoint_id": provider["endpoint_id"],
             "provider_format": "tushare_pro_table.v1",
-            "response_asset_codes": ASSET_CODES,
+            "response_asset_codes": response_asset_codes,
+            "response_asset_count": len(response_asset_codes),
+            "target_scope_asset_codes": ASSET_CODES,
+            "target_scope_asset_count": len(ASSET_CODES),
+            "out_of_target_asset_codes": (
+                [] if out_of_target_response_code is None else [out_of_target_response_code]
+            ),
+            "out_of_target_asset_count": 0 if out_of_target_response_code is None else 1,
             "operation": "daily" if role == "quote" else "daily_basic",
             "response_scope": ("full_market_trade_date"),
         }
         receipt_path = tmp_path / f"{slug}-replay.json"
         receipt = {
-            "schema": "release.real-provider-response-replay.v2",
+            "schema": "release.real-provider-response-replay.v3",
             "candidate_sha": CANDIDATE,
             "target_trade_date": TARGET_DATE,
             "universe_sha256": UNIVERSE,
@@ -419,7 +435,7 @@ def _build_evidence(tmp_path: Path, now: datetime) -> tuple[Path, dict[str, Path
                     "provider_source": provider["source"],
                     "endpoint_id": provider["endpoint_id"],
                     "provider_format": "tushare_pro_table.v1",
-                    "sample_codes": ASSET_CODES,
+                    "sample_codes": response_asset_codes,
                 },
             }
         )
@@ -1222,33 +1238,40 @@ def test_validator_rejects_false_green_evidence(
     assert exc_info.value.code == expected_code
 
 
-def test_retained_full_market_response_scope_can_exceed_probe_sample() -> None:
-    """Raw full-market responses stay valid when every code is in the frozen universe."""
+def test_retained_full_market_response_scope_can_include_provider_extras() -> None:
+    """Raw full-market responses may include canonical codes outside the frozen target scope."""
 
     registered_assets = ["000001.SZ", "600000.SH", "830001.BJ"]
     probe_sample = ["000001.SZ"]
 
     assert not set(registered_assets).issubset(probe_sample)
-    assert validator._response_codes_within_registered_universe(
-        registered_assets,
-        registered_assets=registered_assets,
-    )
-    assert not validator._response_codes_within_registered_universe(
+    assert validator._provider_response_codes_are_well_formed(registered_assets)
+    assert validator._provider_response_codes_are_well_formed(
         ["000001.SZ", "999999.SH"],
-        registered_assets=registered_assets,
     )
-    assert not validator._response_codes_within_registered_universe(
+    assert not validator._provider_response_codes_are_well_formed(
         ["600000.SH", "000001.SZ"],
-        registered_assets=registered_assets,
     )
-    assert not validator._response_codes_within_registered_universe(
+    assert not validator._provider_response_codes_are_well_formed(
         ["000001.SZ", "000001.SZ"],
-        registered_assets=registered_assets,
     )
-    assert not validator._response_codes_within_registered_universe(
+    assert not validator._provider_response_codes_are_well_formed(
         ["000001.SZ", 600000],
-        registered_assets=registered_assets,
     )
+    assert not validator._provider_response_codes_are_well_formed(["NOT_A_SECURITY"])
+
+
+def test_validator_accepts_classified_provider_extras_without_expanding_publication_scope(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, _reports = _build_evidence(
+        tmp_path,
+        now,
+        out_of_target_response_code="999999.SH",
+    )
+
+    _validate(manifest, now)
 
 
 def test_source_observation_uses_per_asset_response_time_before_receipt_fallback() -> None:

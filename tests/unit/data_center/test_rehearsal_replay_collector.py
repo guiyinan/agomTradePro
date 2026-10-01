@@ -96,7 +96,7 @@ def _body(
         )
         for code in selected_codes
     ]
-    if extra_asset and asset_codes is None:
+    if extra_asset:
         rows.append(["600001.SH", *rows[0][1:]])
     return json.dumps({"code": 0, "msg": None, "data": {"fields": fields, "items": rows}}).encode()
 
@@ -294,6 +294,7 @@ def _fixture(
     valuation_source: str = "tushare",
     policy_version: str = "fixture",
     include_missing_old_tencent_row: bool = False,
+    include_out_of_target_asset: bool = False,
 ):
     collector = modules["rehearsal_replay_collector"]
     source = tmp_path / "source"
@@ -353,7 +354,7 @@ def _fixture(
                 if not is_quote and valuation_source == "tencent"
                 else _body(
                     dataset,
-                    extra_asset=False,
+                    extra_asset=include_out_of_target_asset,
                     asset_codes=dataset_sample if not is_quote or missing_asset else None,
                 )
             ),
@@ -588,6 +589,32 @@ def test_collector_preserves_exact_bytes_and_passes_existing_release_receipt_val
     observation = quote_receipt["observations"][0]
     assert observation["transport_received_at"] == FINISHED.isoformat()
     assert observation["normalization_completed_at"] == NORMALIZED.isoformat()
+
+
+def test_collector_classifies_provider_superset_without_expanding_target_scope(
+    modules, tmp_path, monkeypatch
+):
+    collector = modules["rehearsal_replay_collector"]
+    kwargs, _probe = _fixture(
+        modules,
+        tmp_path,
+        monkeypatch,
+        include_out_of_target_asset=True,
+    )
+
+    result = collector.collect_response_replay(**kwargs)
+
+    assert result["outcome"] == "success"
+    for name in ("quote-replay.json", "valuation-replay.json"):
+        receipt = json.loads((kwargs["output_dir"] / name).read_text(encoding="utf-8"))
+        assert receipt["observations"]
+        assert {item["asset_code"] for item in receipt["observations"]} == set(SAMPLE)
+        response = receipt["response_body"]
+        assert response["response_asset_count"] == 3
+        assert response["target_scope_asset_codes"] == list(SAMPLE)
+        assert response["target_scope_asset_count"] == 2
+        assert response["out_of_target_asset_codes"] == ["600001.SH"]
+        assert response["out_of_target_asset_count"] == 1
 
 
 def test_collector_replays_tencent_valuation_bytes_through_release_validator(

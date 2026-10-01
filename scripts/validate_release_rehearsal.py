@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 UUID_PATTERN = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 )
@@ -152,24 +153,20 @@ def _fail(code: str) -> NoReturn:
     raise RehearsalValidationError(code)
 
 
-def _response_codes_within_registered_universe(
-    value: object,
-    *,
-    registered_assets: list[str],
-) -> bool:
-    """Accept one retained response scope only within the frozen universe.
+def _provider_response_codes_are_well_formed(value: object) -> bool:
+    """Accept a bounded provider response scope without treating it as the target universe."""
 
-    A sampled probe may call a provider's full-market endpoint, so the raw
-    response scope can legitimately be larger than the fact sample replayed
-    by the probe. The frozen registered universe remains the outer boundary.
-    """
-
-    if not isinstance(value, list) or any(not isinstance(code, str) for code in value):
+    if (
+        not isinstance(value, list)
+        or not value
+        or any(
+            not isinstance(code, str) or ASSET_CODE_PATTERN.fullmatch(code) is None
+            for code in value
+        )
+    ):
         return False
     response_codes = cast(list[str], value)
-    return response_codes == sorted(set(response_codes)) and set(response_codes).issubset(
-        set(registered_assets)
-    )
+    return response_codes == sorted(set(response_codes))
 
 
 def _source_observation_matches_response(
@@ -924,6 +921,7 @@ def _validate_real_replay(
     # evidence, while replay still retains the registered universe as its
     # denominator and does not inherit those quote-scope exclusions.
     expected_assets = capacity.registered_asset_codes
+    expected_asset_set = set(expected_assets)
     ranked = sorted(expected_assets, key=lambda code: hashlib.sha256(code.encode()).hexdigest())
     groups: dict[str, str] = {}
     for code in ranked:
@@ -1124,10 +1122,7 @@ def _validate_real_replay(
                 or artifact_payload.get("provider_source") != provider_identity.get("source")
                 or artifact_payload.get("endpoint_id") != provider_identity.get("endpoint_id")
                 or artifact_payload.get("provider_format") != expected_format
-                or not _response_codes_within_registered_universe(
-                    artifact_codes,
-                    registered_assets=cast(list[str], registered_assets),
-                )
+                or not _provider_response_codes_are_well_formed(artifact_codes)
                 or receipt_payload.get("body_sha256") != body_sha
                 or body_sha in captured_response_datasets
             ):
@@ -1141,7 +1136,7 @@ def _validate_real_replay(
             base, artifact_payload.get("path"), artifact_payload.get("sha256")
         )
         receipt = _read_json(receipt_path, "REHEARSAL_REPLAY_RECEIPT_INVALID")
-        if receipt.get("schema") != "release.real-provider-response-replay.v2":
+        if receipt.get("schema") != "release.real-provider-response-replay.v3":
             _fail("REHEARSAL_REPLAY_RECEIPT_INVALID")
         _validate_receipt_identity(
             receipt,
@@ -1249,6 +1244,11 @@ def _validate_real_replay(
                 "endpoint_id",
                 "provider_format",
                 "response_asset_codes",
+                "response_asset_count",
+                "target_scope_asset_codes",
+                "target_scope_asset_count",
+                "out_of_target_asset_codes",
+                "out_of_target_asset_count",
                 "operation",
                 "response_scope",
             } or any(
@@ -1272,12 +1272,33 @@ def _validate_real_replay(
             response_paths.add(response_path)
             response_sha = response_payload.get("sha256")
             response_asset_codes = response_payload.get("response_asset_codes")
+            target_scope_asset_codes = response_payload.get("target_scope_asset_codes")
+            out_of_target_asset_codes = response_payload.get("out_of_target_asset_codes")
             if not isinstance(response_sha, str):
                 _fail("REHEARSAL_REPLAY_RESPONSE_SET_INVALID")
+            expected_target_scope_codes = (
+                sorted(set(cast(list[str], response_asset_codes)) & expected_asset_set)
+                if _provider_response_codes_are_well_formed(response_asset_codes)
+                else []
+            )
+            expected_out_of_target_codes = (
+                sorted(set(cast(list[str], response_asset_codes)) - expected_asset_set)
+                if _provider_response_codes_are_well_formed(response_asset_codes)
+                else []
+            )
             if (
-                not isinstance(response_asset_codes, list)
-                or response_asset_codes != sorted(set(response_asset_codes))
-                or not set(cast(list[str], response_asset_codes)).issubset(set(expected_assets))
+                not _provider_response_codes_are_well_formed(response_asset_codes)
+                or type(response_payload.get("response_asset_count")) is not int
+                or response_payload.get("response_asset_count")
+                != len(cast(list[str], response_asset_codes))
+                or target_scope_asset_codes != expected_target_scope_codes
+                or type(response_payload.get("target_scope_asset_count")) is not int
+                or response_payload.get("target_scope_asset_count")
+                != len(expected_target_scope_codes)
+                or out_of_target_asset_codes != expected_out_of_target_codes
+                or type(response_payload.get("out_of_target_asset_count")) is not int
+                or response_payload.get("out_of_target_asset_count")
+                != len(expected_out_of_target_codes)
             ):
                 _fail("REHEARSAL_REPLAY_RESPONSE_BINDING_INVALID")
             if response_sha in response_rows_by_hash:
@@ -1318,7 +1339,7 @@ def _validate_real_replay(
             str(row.get("ts_code"))
             for rows in response_rows_by_hash.values()
             for row in rows
-            if row.get("trade_date") == target_compact
+            if row.get("trade_date") == target_compact and row.get("ts_code") in expected_asset_set
         }
         if (
             role == "quote" and not expected_bound_assets.issubset(bound_target_response_assets)
