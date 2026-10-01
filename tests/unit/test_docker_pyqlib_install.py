@@ -298,7 +298,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "pg_isready" in migration
     assert "PostgreSQL did not become ready within 120 seconds" in migration
     assert "dropdb --force --if-exists" in migration
-    assert "scripts/sqlite_snapshot_contract.py capture" in migration
+    assert "web python -m scripts.sqlite_snapshot_contract capture" in migration
     assert 'scripts/sqlite_snapshot_contract.py" verify' in migration
     assert "sqlite-snapshot-reconciliation.json" in migration
     assert "managed table count mismatch after PostgreSQL snapshot restore" in snapshot_contract

@@ -434,7 +434,13 @@ def test_runtime_role_passwords_are_persisted_as_distinct_split_urls() -> None:
 def test_runtime_entrypoint_runs_role_check_before_startup_commands() -> None:
     entrypoint = (ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
     assert 'if [ "$database_role" = "runtime" ]; then' in entrypoint
-    assert "python scripts/check_postgres_role_contract.py" in entrypoint
-    assert entrypoint.index("python scripts/check_postgres_role_contract.py") < entrypoint.index(
+    assert "python -m scripts.check_postgres_role_contract" in entrypoint
+    assert entrypoint.index("python -m scripts.check_postgres_role_contract") < entrypoint.index(
         'if [ "$is_web_command" = "1" ]'
     )
+    migration_helper = (ROOT / "scripts" / "migrate-vps-sqlite-to-postgres.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "web python -m scripts.sqlite_snapshot_contract capture" in migration_helper
+    assert re.search(r"\bpython scripts/[A-Za-z0-9_./-]+\.py", entrypoint) is None
+    assert re.search(r"\bpython scripts/[A-Za-z0-9_./-]+\.py", migration_helper) is None

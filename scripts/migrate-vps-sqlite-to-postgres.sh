@@ -123,7 +123,7 @@ compose run --rm --no-deps \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
   -e AGOMTRADEPRO_DATABASE_ROLE= \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
-  web python scripts/sqlite_snapshot_contract.py capture \
+  web python -m scripts.sqlite_snapshot_contract capture \
     --output "$CONTAINER_SOURCE_COUNTS"
 
 echo "[INFO] Exporting legacy SQLite data"
@@ -150,7 +150,7 @@ compose run --rm --no-deps \
   -e AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
   migrator python -m scripts.manage_vps_migrations loaddata "$CONTAINER_FIXTURE"
 
-compose run --rm --no-deps web python scripts/sqlite_snapshot_contract.py capture \
+compose run --rm --no-deps web python -m scripts.sqlite_snapshot_contract capture \
   --output "$CONTAINER_TARGET_COUNTS"
 
 python3 "$RELEASE_DIR/scripts/sqlite_snapshot_contract.py" verify \

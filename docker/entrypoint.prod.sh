@@ -146,7 +146,7 @@ run_startup_migrations="${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-0}"
 database_role="${AGOMTRADEPRO_DATABASE_ROLE:-}"
 
 if [ "$database_role" = "runtime" ]; then
-  python scripts/check_postgres_role_contract.py
+  python -m scripts.check_postgres_role_contract
 elif [ -n "$database_role" ] && [ "$database_role" != "migrator" ]; then
   echo "ERROR: unsupported PostgreSQL database role '$database_role'" >&2
   exit 1
