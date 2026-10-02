@@ -5,6 +5,7 @@ from datetime import date, datetime
 from apps.data_center.application import market_calendar
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from core.exceptions import ConfigurationError
+from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
 
 def test_completed_session_skips_weekday_exchange_holiday(monkeypatch) -> None:
@@ -61,6 +62,28 @@ def test_provider_configuration_failure_becomes_calendar_blocker(monkeypatch) ->
         market_calendar,
         "load_open_cn_market_sessions",
         lambda *_args: (_ for _ in ()).throw(ConfigurationError("policy missing")),
+    )
+
+    assert (
+        market_calendar.latest_completed_cn_market_session(
+            datetime(2026, 9, 25, 16, 30, tzinfo=CN_MARKET_TIMEZONE)
+        )
+        is None
+    )
+
+
+def test_audit_composition_failure_becomes_calendar_blocker(monkeypatch) -> None:
+    """A missing audited writer keeps calendar reads fail closed without a 500."""
+
+    monkeypatch.setattr(
+        market_calendar,
+        "load_open_cn_market_sessions",
+        lambda *_args: (_ for _ in ()).throw(
+            SystemAuditCompositionUnavailable(
+                "audit runtime missing",
+                reason_code="runtime_binding_unavailable",
+            )
+        ),
     )
 
     assert (

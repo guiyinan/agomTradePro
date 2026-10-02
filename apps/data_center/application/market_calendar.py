@@ -20,6 +20,7 @@ from apps.data_center.domain.model_market_data import (
     TradingCalendarEvidencePort,
 )
 from core.exceptions import AgomTradeProException, DataFetchError
+from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
 logger = logging.getLogger(__name__)
 CALENDAR_LOOKBACK_DAYS = 45
@@ -77,6 +78,7 @@ def _open_sessions_for(now: datetime) -> tuple[date, ...]:
         sessions = load_open_cn_market_sessions(start_date, local_date)
     except (
         AgomTradeProException,
+        SystemAuditCompositionUnavailable,
         OSError,
         PermissionError,
         RuntimeError,

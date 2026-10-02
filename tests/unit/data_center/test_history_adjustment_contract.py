@@ -221,6 +221,9 @@ def test_model_reference_excludes_forward_adjusted_history():
         def provider_source(self):
             return "tushare"
 
+        def provider_id(self):
+            return 1
+
         def model_market_source(self, **kwargs):
             return self
 
@@ -246,7 +249,10 @@ def test_model_reference_excludes_forward_adjusted_history():
         source="old",
         adjustment=PriceAdjustment.NONE,
     )
-    repository = Mock(get_bars=Mock(return_value=[raw, adjusted]))
+    repository = Mock(
+        get_bars=Mock(return_value=[raw, adjusted]),
+        get_bars_for_assets=Mock(return_value={"600000.SH": (raw, adjusted)}),
+    )
     service = build_model_market_service(
         Mock(get_providers=Mock(return_value=[Provider((bar(), bar(D2)))])),
         repository,
@@ -259,7 +265,7 @@ def test_model_reference_excludes_forward_adjusted_history():
     )
     result = service.stock_history("600000.SH", D1, D2)
     assert result[-1].trade_date == D2
-    repository.bulk_upsert.assert_called_once()
+    repository.bulk_upsert.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -279,6 +285,9 @@ def test_missing_volume_is_not_fabricated_as_zero_reference(volume, reason):
         def provider_source(self):
             return "tushare"
 
+        def provider_id(self):
+            return 1
+
         def model_market_source(self, **kwargs):
             return self
 
@@ -293,7 +302,10 @@ def test_missing_volume_is_not_fabricated_as_zero_reference(volume, reason):
         source="old",
         adjustment=PriceAdjustment.NONE,
     )
-    repository = Mock(get_bars=Mock(return_value=[reference]))
+    repository = Mock(
+        get_bars=Mock(return_value=[reference]),
+        get_bars_for_assets=Mock(return_value={"600000.SH": (reference,)}),
+    )
     service = build_model_market_service(
         Mock(get_providers=Mock(return_value=[Provider((bar(), bar(D2)))])),
         repository,

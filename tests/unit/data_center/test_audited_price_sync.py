@@ -505,6 +505,10 @@ def test_model_history_batch_shares_one_exact_identity_and_raw_audit_in_one_uow(
             return [persisted_row]
 
     class _AuditManager:
+        def using(self, alias: str) -> _AuditManager:
+            assert alias == "default"
+            return self
+
         def filter(self, **criteria: object) -> _AuditQuery:
             assert criteria == {"pk__in": (1,)}
             return _AuditQuery()
