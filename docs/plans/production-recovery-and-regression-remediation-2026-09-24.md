@@ -1205,3 +1205,22 @@ fallback 成为唯一成员 owner、空停牌批次无 member owner，以及 mem
 剩余停止线：full-market 尚未把 member-owning bindings 转成 price stage command，quote/valuation stage、任务 attempt、
 complete authority capture、group audit/activation 仍未统一接线；PostgreSQL 5,001+ soak、exact-SHA CI、S6、同镜像部署和
 单次生产重跑均未完成。本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 Production staging/group activation composition（`70152c1dc`）
+
+Data Center production composition 现在固定组装 quote、price、valuation 三个 `CurrentPublicationStagingUseCase` 与一个
+`ActivateCanonicalPublicationGroupUseCase`。候选构建复用 legacy rebuild 的同一组 dataset/policy/freshness/coverage 规则；
+staging repository、RawAudit resolver、manifest repository、group activation repository、Audit writer 和 complete Account
+authority capture 全部显式绑定 `default` alias，非默认 alias、组件 alias 漂移、Audit writer 缺少 manifest append 或 authority
+capture 返回类型/alias 不符均失败关闭。group use case 改为依赖只含 `activate_candidate_group` 的窄 repository protocol，没有用
+cast 掩盖实现不完整。factory 已经由 `apps.data_center.composition` 的 typed wrapper 暴露，但尚未接入 Celery task。
+
+本地证据：production composition unit `11 passed`，existing staging component `21 passed`；8 个生产文件增量 mypy 零回归，
+全仓 mypy debt ceiling 复跑明确通过 `0 errors in 0 files`；Black、适用文件的 isort、Ruff、Architecture full/delta、
+`git diff --check` 均通过。module map 已由生成器刷新并通过检查，结果为 44 modules / 210 edges。`composition.py` 存在本片前
+已有的混合行尾/全文件 isort 债务，本片只保留新增 import/export/wrapper 的语义行，没有归一化历史内容。没有测试跳过；
+PostgreSQL 端到端未在本片执行。
+
+剩余停止线：full-market 仍使用 legacy `publications.execute`；三组 stage command、pointer CAS、activation request、Audit writer、
+complete authority proof 与 task attempt 尚未在同一编排闭合。必须继续补故障注入和 5,001+ PostgreSQL query/持锁/lock-wait
+硬阈值，再取得 exact-SHA 五组 CI、S6 与同镜像部署；本片未部署、未启动全市场重跑。
