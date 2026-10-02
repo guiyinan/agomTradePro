@@ -1301,6 +1301,14 @@ def build_model_market_data_service() -> ModelMarketDataPort:
     from apps.data_center.application.interface_services import load_provider_settings_payload
     from apps.data_center.infrastructure.model_market_wiring import build_model_market_service
 
+    registry = get_provider_registry()
+    history_fetch_audit = make_system_audited_sync_price_use_case(
+        provider_registry=registry,
+        publish_current=False,
+    )
     return build_model_market_service(
-        get_provider_registry(), get_price_bar_repository(), load_provider_settings_payload()
+        registry,
+        get_price_bar_repository(),
+        load_provider_settings_payload(),
+        history_fetch_audit=history_fetch_audit,
     )

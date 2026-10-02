@@ -390,6 +390,11 @@
       "surface": "Provider-neutral Qlib and Equity historical model inputs",
       "source_files": [
         "apps/data_center/application/model_market_data.py",
+        "apps/data_center/application/model_market_data_state.py",
+        "apps/data_center/application/model_market_data_preparation.py",
+        "apps/data_center/application/model_market_data_reads.py",
+        "apps/data_center/application/model_market_history_lineage.py",
+        "apps/data_center/application/model_history_preparation.py",
         "apps/data_center/infrastructure/market_gateway_entities.py",
         "apps/data_center/infrastructure/alpha_price_coverage_sync.py",
         "apps/data_center/domain/model_market_data.py",
@@ -402,7 +407,7 @@
         "apps/alpha/infrastructure/qlib_scope_evidence.py"
       ],
       "required_markers": {
-        "apps/data_center/application/model_market_data.py": [
+        "apps/data_center/application/model_market_data_reads.py": [
           "MODEL_MARKET_STALE",
           "MODEL_MARKET_UNVERIFIED_FAILOVER",
           "MODEL_MARKET_SOURCE_CONFLICT",
@@ -414,7 +419,7 @@
         {
           "case": "stale_failover",
           "test_file": "tests/unit/data_center/test_model_market_data.py",
-          "test_function": "test_stale_primary_continues_to_consistent_fresh_source_and_stores_raw_values"
+          "test_function": "test_stale_primary_continues_to_consistent_fresh_source_without_read_side_writes"
         },
         {
           "case": "untrusted_source_no_write",
@@ -449,7 +454,7 @@
         {
           "case": "verified_full_day_suspension",
           "test_file": "tests/unit/data_center/test_model_market_data.py",
-          "test_function": "test_verified_full_day_suspension_stores_history_without_advancing_observation"
+          "test_function": "test_verified_full_day_suspension_remains_read_only_without_advancing_observation"
         },
         {
           "case": "suspension_gap_fail_closed",
@@ -504,7 +509,7 @@
         {
           "case": "batch_failover_gate_retained",
           "test_file": "tests/unit/data_center/test_model_history_preparation.py",
-          "test_function": "test_prepared_data_still_runs_cross_source_consistency_before_storage"
+          "test_function": "test_prepared_data_still_runs_cross_source_consistency_and_remains_read_only"
         },
         {
           "case": "batch_row_limit",
@@ -512,9 +517,9 @@
           "test_function": "test_preparation_batches_bound_calendar_day_rows"
         },
         {
-          "case": "missing_batch_member_fallback",
+          "case": "missing_batch_member_verified_empty_cache",
           "test_file": "tests/unit/data_center/test_model_history_preparation.py",
-          "test_function": "test_missing_batch_member_uses_individual_request"
+          "test_function": "test_missing_batch_member_caches_verified_empty_without_second_provider_request"
         },
         {
           "case": "shared_features_lock",

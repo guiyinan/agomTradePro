@@ -12,6 +12,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Protocol, cast
 
+from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
 from apps.data_center.domain.entities import (
     FinancialFact,
     FundNavFact,
@@ -314,11 +315,18 @@ def _financial_artifact_from_frame(frame: object) -> FinancialResponseArtifactRe
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized Tushare provider wrapper."""
 
-    def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
+    def model_market_source(
+        self,
+        *,
+        tolerance: float,
+        history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
+    ) -> ModelMarketDataPort:
         """Expose typed model inputs using only this configured provider's credentials."""
         return TushareModelMarketSource(
             client_factory=lambda: self._create_pro_client(dataset_key="equity.price.bar"),
             source=self.provider_name(),
+            provider_id=self.provider_id(),
+            history_fetch_audit=history_fetch_audit,
         )
 
     def _configured_request_mode(self) -> str | None:

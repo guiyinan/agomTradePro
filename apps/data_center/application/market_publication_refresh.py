@@ -9,7 +9,10 @@ from datetime import date, timedelta
 from functools import partial
 from typing import TypedDict
 
+from apps.data_center.application.model_market_data import ModelHistoryAuditEvidencePort
+from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.model_market_data import (
+    ModelDailyBar,
     ModelHistoryPreparationPort,
     ModelMarketDataPort,
 )
@@ -35,14 +38,50 @@ class _PhaseResult(TypedDict):
     stored: int
 
 
+@dataclass(frozen=True)
+class MarketPricePreparationResult:
+    """Verified target prices and the exact RawAudit references that supplied them."""
+
+    suspended_codes: tuple[str, ...]
+    raw_audit_references: tuple[RawAuditReference, ...]
+
+    def __post_init__(self) -> None:
+        """Keep the returned suspension scope and evidence references deterministic."""
+
+        if tuple(sorted(set(self.suspended_codes))) != self.suspended_codes:
+            raise ValueError("suspended codes must be sorted and unique")
+        reference_ids = tuple(reference.raw_audit_id for reference in self.raw_audit_references)
+        if tuple(sorted(set(reference_ids))) != reference_ids:
+            raise ValueError("price audit references must be sorted and unique")
+
+
 def refresh_market_price_inputs(
     port: ModelMarketDataPort, asset_codes: list[str], target_date: date
-) -> tuple[str, ...]:
+) -> MarketPricePreparationResult:
     """Verify target-session prices, expanding only missing assets for suspension proof."""
     history_start = target_date - timedelta(days=120)
+    audit_evidence = port if isinstance(port, ModelHistoryAuditEvidencePort) else None
+    if audit_evidence is not None:
+        audit_evidence.take_model_history_audit_references()
     if isinstance(port, ModelHistoryPreparationPort):
         port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
+    references: dict[str, RawAuditReference] = {}
+
+    def collect_references(rows: tuple[ModelDailyBar, ...]) -> None:
+        """Collect exact evidence only after the returned rows pass date checks."""
+
+        if not rows:
+            return
+        evidence_port = audit_evidence
+        if evidence_port is None:
+            raise DataFetchError(
+                "Verified model-history rows lack exact RawAudit evidence",
+                code="MODEL_MARKET_AUDIT_EVIDENCE_MISSING",
+            )
+        for reference in evidence_port.model_history_audit_references(rows):
+            references[reference.raw_audit_id] = reference
+
     for code in asset_codes:
         try:
             rows = port.stock_history(code, target_date, target_date)
@@ -50,6 +89,7 @@ def refresh_market_price_inputs(
                 raise DataFetchError(
                     "Current price observations missing", code="MODEL_MARKET_STALE"
                 )
+            collect_references(rows)
         except DataFetchError as exc:
             if (
                 exc.code != "MODEL_MARKET_SUSPENDED"
@@ -59,8 +99,11 @@ def refresh_market_price_inputs(
                 if exc.code not in {"MODEL_MARKET_UNAVAILABLE", "MODEL_MARKET_STALE"}:
                     raise
                 try:
+                    if isinstance(port, ModelHistoryPreparationPort):
+                        port.prepare_stock_history((code,), history_start, target_date)
                     rows = port.stock_history(code, history_start, target_date)
                     if rows and max(row.trade_date for row in rows) == target_date:
+                        collect_references(rows)
                         continue
                     raise DataFetchError(
                         "Current price observations missing", code="MODEL_MARKET_STALE"
@@ -73,7 +116,14 @@ def refresh_market_price_inputs(
                     ):
                         raise
             suspended.append(code)
-    return tuple(suspended)
+    if audit_evidence is not None:
+        for reference in audit_evidence.take_model_history_audit_references():
+            references[reference.raw_audit_id] = reference
+    ordered_references = tuple(references[key] for key in sorted(references))
+    return MarketPricePreparationResult(
+        suspended_codes=tuple(sorted(suspended)),
+        raw_audit_references=ordered_references,
+    )
 
 
 @dataclass(frozen=True)

@@ -53,7 +53,6 @@ def service(primary, backup, *, reference=(), enabled=True, stored=None):
         enable_failover=enabled,
         tolerance=0.01,
         reference_history=lambda *_: reference,
-        store_history=stored.extend if stored is not None else None,
     )
 
 
@@ -88,16 +87,47 @@ def test_calendar_evidence_fails_over_to_akshare_complete_series():
     assert evidence.source == "akshare-calendar"
 
 
-def test_stale_primary_continues_to_consistent_fresh_source_and_stores_raw_values():
+def test_stale_primary_continues_to_consistent_fresh_source_without_read_side_writes():
     first, second = Source((bar(),)), Source((bar(source="backup"), bar(D2, source="backup")))
     stored = []
     port = service(first, second, stored=stored)
     result = port.stock_history("600000.SH", D1, D2)
     assert result[-1].trade_date == D2
     assert all(row.source == "backup" for row in result)
-    assert stored == list(result)
+    assert stored == []
     assert first.calendar_calls == 1
     assert second.calls == 1
+
+
+def test_repeated_stock_history_reads_never_write_facts_or_create_fetch_audits():
+    class AuditWriter:
+        calls = 0
+
+        def record_model_history_fetch_success(self, **kwargs):
+            self.calls += 1
+            raise AssertionError("ordinary history reads must not create audits")
+
+        def record_model_history_fetch_failure(self, **kwargs):
+            self.calls += 1
+            raise AssertionError("ordinary history reads must not create audits")
+
+    source = Source((bar(), bar(D2)))
+    stored = []
+    audit = AuditWriter()
+    port = ModelMarketDataService(
+        (ModelMarketRoute("primary", source),),
+        enable_failover=True,
+        tolerance=0.01,
+        reference_history=lambda *_: (),
+        history_fetch_audit=audit,
+    )
+
+    assert port.stock_history("600000.SH", D1, D2) == (bar(), bar(D2))
+    assert port.stock_history("600000.SH", D1, D2) == (bar(), bar(D2))
+
+    assert source.calls == 2
+    assert audit.calls == 0
+    assert stored == []
 
 
 @pytest.mark.parametrize(
@@ -142,7 +172,7 @@ def test_all_stale_sources_block_without_advancing_source_date():
     assert caught.value.code == "MODEL_MARKET_STALE"
 
 
-def test_verified_full_day_suspension_stores_history_without_advancing_observation():
+def test_verified_full_day_suspension_remains_read_only_without_advancing_observation():
     class Suspended(Source):
         def suspended_days(self, *args):
             return (D2,)
@@ -155,8 +185,7 @@ def test_verified_full_day_suspension_stores_history_without_advancing_observati
     assert caught.value.code == "MODEL_MARKET_SUSPENDED"
     assert caught.value.details["last_observed_date"] == D1.isoformat()
     assert caught.value.details["suspended_through"] == D2.isoformat()
-    assert stored == [bar()]
-    assert stored[0].trade_date == D1
+    assert stored == []
 
 
 def test_empty_target_day_with_complete_suspension_evidence_is_suspended():
@@ -451,6 +480,9 @@ def test_wiring_honors_configured_default_and_disabled_failover():
         def provider_source(self):
             return self.name
 
+        def provider_id(self):
+            return 1 if self.name == "tushare" else 2
+
         def model_market_source(self, **kwargs):
             return self
 
@@ -458,17 +490,32 @@ def test_wiring_honors_configured_default_and_disabled_failover():
     registry = SimpleNamespace(get_providers=lambda _: [first, second])
     stored = []
     repo = SimpleNamespace(get_bars=lambda *a, **k: [], bulk_upsert=stored.extend)
+    audit_calls = []
+
+    class AuditWriter:
+        def record_model_history_fetch_success(self, **kwargs):
+            audit_calls.append("success")
+            raise AssertionError("ordinary history reads must not create audits")
+
+        def record_model_history_fetch_failure(self, **kwargs):
+            audit_calls.append("failure")
+            raise AssertionError("ordinary history reads must not create audits")
+
     config = {
         "status": "active",
         "enable_failover": False,
         "default_source": "akshare",
         "failover_tolerance": 0.01,
     }
-    result = build_model_market_service(registry, repo, config).stock_history("600000.SH", D1, D2)
+    result_port = build_model_market_service(
+        registry, repo, config, history_fetch_audit=AuditWriter()
+    )
+    result = result_port.stock_history("600000.SH", D1, D2)
+    result_port.stock_history("600000.SH", D1, D2)
     assert result[-1].source == "akshare"
     assert first.calls == 0
-    assert stored[-1].source == "akshare"
-    assert stored[-1].close == 10
+    assert stored == []
+    assert audit_calls == []
     registry.get_providers = lambda _: [first]
     with pytest.raises(ConfigurationError, match="No configured"):
         build_model_market_service(registry, repo, config)

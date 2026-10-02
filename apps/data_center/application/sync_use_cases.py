@@ -147,6 +147,7 @@ def _build_sync_audit(
     fetched_at: datetime | None = None,
     run_id: str = "",
     ingested_run_id: str = "",
+    extra: Mapping[str, object] | None = None,
 ) -> RawAudit:
     params_hash = hashlib.sha256(
         json.dumps(dict(request_params), ensure_ascii=False, sort_keys=True, default=str).encode(
@@ -163,6 +164,7 @@ def _build_sync_audit(
         error_message=error_message,
         fetched_at=fetched_at or datetime.now(UTC),
         request_params_hash=params_hash,
+        extra=dict(extra or {}),
         redacted=True,
         payload_size_bytes=0,
         run_id=run_id,

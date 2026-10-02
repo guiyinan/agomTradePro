@@ -5,8 +5,11 @@ from __future__ import annotations
 from datetime import date
 from typing import Protocol, runtime_checkable
 
+from apps.data_center.application.model_history_preparation import (
+    ModelHistoryFetchAuditPort,
+    ModelHistoryReferenceSnapshot,
+)
 from apps.data_center.application.model_market_data import ModelMarketDataService, ModelMarketRoute
-from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import DataCapability, PriceAdjustment
 from apps.data_center.domain.model_market_data import ModelDailyBar, ModelMarketDataPort
 from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
@@ -18,13 +21,20 @@ from core.exceptions import ConfigurationError
 class _ModelProvider(Protocol):
     def provider_name(self) -> str: ...
     def provider_source(self) -> str: ...
-    def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort: ...
+    def provider_id(self) -> int: ...
+    def model_market_source(
+        self,
+        *,
+        tolerance: float,
+        history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
+    ) -> ModelMarketDataPort: ...
 
 
 def build_model_market_service(
     registry: ProviderRegistry,
     repository: PriceBarRepositoryProtocol,
     settings: dict[str, object],
+    history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
 ) -> ModelMarketDataPort:
     """Resolve configured routes; callers never receive provider SDKs."""
     enabled = settings.get("enable_failover")
@@ -58,12 +68,16 @@ def build_model_market_service(
     routes = tuple(
         ModelMarketRoute(
             provider.provider_name(),
-            provider.model_market_source(tolerance=float(tolerance)),
-            requires_reference=(
-                default_source != "failover" and provider.provider_source() != default_source
+            provider.model_market_source(
+                tolerance=float(tolerance), history_fetch_audit=history_fetch_audit
             ),
+            requires_reference=(
+                index > 0
+                or (default_source != "failover" and provider.provider_source() != default_source)
+            ),
+            provider_id=provider.provider_id(),
         )
-        for provider in providers
+        for index, provider in enumerate(providers)
     )
 
     def reference_history(asset_code: str, start: date, end: date) -> tuple[ModelDailyBar, ...]:
@@ -85,23 +99,23 @@ def build_model_market_service(
             if bar.adjustment == PriceAdjustment.NONE and bar.source and bar.volume is not None
         )
 
-    def store_history(rows: tuple[ModelDailyBar, ...]) -> None:
-        repository.bulk_upsert(
-            [
-                PriceBar(
-                    asset_code=row.asset_code,
-                    bar_date=row.trade_date,
-                    open=row.open,
-                    high=row.high,
-                    low=row.low,
-                    close=row.close,
-                    volume=row.volume,
-                    amount=row.amount,
-                    source=row.source,
-                    adjustment=PriceAdjustment.NONE,
-                )
-                for row in rows
-            ]
+    def reference_history_snapshot(
+        asset_codes: tuple[str, ...], start: date, end: date
+    ) -> ModelHistoryReferenceSnapshot:
+        """Capture all source references in one repository read before preparation."""
+
+        bars = repository.get_bars_for_assets(asset_codes, start=start, end=end, limit=5000)
+        return ModelHistoryReferenceSnapshot.from_bars(asset_codes, start, end, bars)
+
+    per_asset_limit = settings.get("max_per_asset_preparation_assets")
+    if per_asset_limit is not None and (
+        isinstance(per_asset_limit, bool)
+        or not isinstance(per_asset_limit, int)
+        or per_asset_limit <= 0
+    ):
+        raise ConfigurationError(
+            "Per-asset preparation limit is invalid",
+            code="MODEL_MARKET_PER_ASSET_LIMIT_INVALID",
         )
 
     return ModelMarketDataService(
@@ -109,5 +123,7 @@ def build_model_market_service(
         enable_failover=enabled,
         tolerance=float(tolerance),
         reference_history=reference_history,
-        store_history=store_history,
+        reference_history_snapshot=reference_history_snapshot,
+        history_fetch_audit=history_fetch_audit,
+        max_per_asset_preparation_assets=per_asset_limit,
     )

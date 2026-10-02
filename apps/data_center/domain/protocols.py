@@ -7,7 +7,7 @@ Domain / application layers depend only on these abstractions.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
 
@@ -365,6 +365,14 @@ class PriceBarRepositoryProtocol(Protocol):
         limit: int = 500,
         fact_pks: Sequence[str] | None = None,
     ) -> list[PriceBar]: ...
+
+    def get_bars_for_assets(
+        self,
+        asset_codes: Sequence[str],
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 5000,
+    ) -> Mapping[str, tuple[PriceBar, ...]]: ...
 
     def get_latest(
         self,

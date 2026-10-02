@@ -10,16 +10,37 @@ import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
 from apps.data_center.application.market_publication_refresh import (
+    MarketPricePreparationResult,
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
     refresh_market_price_inputs,
     refresh_market_publications,
 )
+from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.target_date_universe import (
     NotYetListedAsset,
     TargetDateAssetUniverseScope,
 )
 from core.exceptions import DataFetchError
+
+
+class _PriceAuditEvidence:
+    """Provide one stable exact reference for focused refresh contract fakes."""
+
+    def __init__(self) -> None:
+        self.reference = RawAuditReference(
+            raw_audit_id="price-test-audit",
+            version="raw-audit-v1",
+            content_hash="b" * 64,
+            run_id="price-test-run",
+            ingested_run_id="price-test-ingested",
+        )
+
+    def model_history_audit_references(self, rows):
+        return (self.reference,) if rows else ()
+
+    def take_model_history_audit_references(self):
+        return (self.reference,)
 
 
 def _prefetched_quote_sync(execute: Callable[[object], object]) -> SimpleNamespace:
@@ -1001,7 +1022,7 @@ def test_task_reports_normalized_publication_authority_block(monkeypatch) -> Non
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda *_args: (),
+        lambda *_args: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=2)
@@ -1417,7 +1438,7 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda *_: (),
+        lambda *_: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=100)
@@ -1683,7 +1704,9 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda _port, codes, _target: ((excluded,) if tuple(codes) == (excluded,) else (excluded,)),
+        lambda _port, codes, _target: MarketPricePreparationResult(
+            suspended_codes=(excluded,), raw_audit_references=()
+        ),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=2)
@@ -2081,8 +2104,9 @@ def test_price_stage_prefetches_only_target_session_at_full_market_scale():
     target = date(2026, 9, 18)
     codes = [f"{value:06d}.SZ" for value in range(1, 5570)]
 
-    class PreparedPort:
+    class PreparedPort(_PriceAuditEvidence):
         def __init__(self):
+            super().__init__()
             self.prepare_calls = []
             self.provider_batch_requests = 0
             self.per_asset_provider_requests = []
@@ -2106,7 +2130,7 @@ def test_price_stage_prefetches_only_target_session_at_full_market_scale():
 
     port = PreparedPort()
 
-    assert refresh_market_price_inputs(port, codes, target) == ()
+    assert refresh_market_price_inputs(port, codes, target).suspended_codes == ()
     assert port.prepare_calls == [(tuple(codes), target, target)]
     assert port.provider_batch_requests == 1
     assert port.per_asset_provider_requests == []
@@ -2120,7 +2144,10 @@ def test_price_stage_expands_only_missing_assets_for_native_suspension_evidence(
     missing_code = "000016.SZ"
     calls = []
 
-    class Port:
+    class Port(_PriceAuditEvidence):
+        def __init__(self):
+            super().__init__()
+
         def prepare_stock_history(self, asset_codes, start_date, end_date):
             calls.append(("prepare", asset_codes, start_date, end_date))
 
@@ -2140,8 +2167,17 @@ def test_price_stage_expands_only_missing_assets_for_native_suspension_evidence(
 
     assert refresh_market_price_inputs(
         Port(), ["000001.SZ", missing_code, "000002.SZ"], target
-    ) == (missing_code,)
+    ).suspended_codes == (missing_code,)
     assert calls[0] == ("prepare", ("000001.SZ", missing_code, "000002.SZ"), target, target)
+    assert [call for call in calls if call[0] == "prepare"] == [
+        ("prepare", ("000001.SZ", missing_code, "000002.SZ"), target, target),
+        (
+            "prepare",
+            (missing_code,),
+            target - timedelta(days=120),
+            target,
+        ),
+    ]
     assert [call[1] for call in calls if call[0] == "read" and call[2] != target] == [missing_code]
 
 
@@ -2191,11 +2227,18 @@ def test_price_stage_requires_target_bound_suspension_evidence(evidence_date):
             details={"asset_code": code, "suspended_through": evidence_date},
         )
 
-    port = SimpleNamespace(stock_history=read)
+    class Port(_PriceAuditEvidence):
+        def __init__(self):
+            super().__init__()
+
+        def stock_history(self, code, start, end):
+            return read(code, start, end)
+
+    port = Port()
     if evidence_date == "2026-09-18":
-        assert refresh_market_price_inputs(port, ["000001.SZ", "000016.SZ"], date(2026, 9, 18)) == (
-            "000016.SZ",
-        )
+        assert refresh_market_price_inputs(
+            port, ["000001.SZ", "000016.SZ"], date(2026, 9, 18)
+        ).suspended_codes == ("000016.SZ",)
     else:
         with pytest.raises(DataFetchError):
             refresh_market_price_inputs(port, ["000016.SZ"], date(2026, 9, 18))
@@ -2206,6 +2249,15 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     from types import SimpleNamespace
 
     from apps.data_center.application import market_publication_refresh, public, tasks
+    from apps.data_center.domain.entities import RawAuditReference
+
+    price_reference = RawAuditReference(
+        raw_audit_id="price-raw-1",
+        version="raw-audit-v1",
+        content_hash="a" * 64,
+        run_id="price-run-1",
+        ingested_run_id="price-ingested-1",
+    )
 
     events = []
     provider_ids = {"tushare": 3, "akshare": 7}
@@ -2275,13 +2327,27 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda *_: (events.append("refresh_prices") or ()),
+        lambda *_: (
+            events.append("refresh_prices")
+            or MarketPricePreparationResult(
+                suspended_codes=(), raw_audit_references=(price_reference,)
+            )
+        ),
     )
     result = tasks.refresh_full_market_publications_task.run()
     assert events == ["refresh_prices", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
     assert result["publication_ids"] == [publication_id]
+    assert result["raw_audit_references"] == [
+        {
+            "raw_audit_id": "price-raw-1",
+            "version": "raw-audit-v1",
+            "content_hash": "a" * 64,
+            "run_id": "price-run-1",
+            "ingested_run_id": "price-ingested-1",
+        }
+    ]
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
     assert result["valuation_source"] == "akshare"

@@ -260,6 +260,14 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
         source_type = str(self._config.source_type or "").strip()
         return source_type or self.provider_name()
 
+    def provider_id(self) -> int:
+        """Return the persisted provider ID used by canonical ingestion audit."""
+
+        provider_id = self._config.id
+        if provider_id is None:
+            raise ValueError("Configured provider identity is missing")
+        return provider_id
+
     def _provider_extra(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = dict(extra or {})
         payload.setdefault("provider_name", self.provider_name())

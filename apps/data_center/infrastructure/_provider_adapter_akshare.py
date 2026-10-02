@@ -15,6 +15,7 @@ from typing import Any, cast
 import requests
 
 from apps.data_center.application.egress_service import get_egress_transport
+from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
 from apps.data_center.domain.entities import (
     CapitalFlowFact,
     FinancialFact,
@@ -86,7 +87,12 @@ _A_SHARE_BEHAVIOR_CODES = frozenset(
 class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized AKShare provider wrapper."""
 
-    def model_market_source(self, *, tolerance: float) -> ModelMarketDataPort:
+    def model_market_source(
+        self,
+        *,
+        tolerance: float,
+        history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
+    ) -> ModelMarketDataPort:
         """Expose typed raw-price and corporate-action observations."""
         transport = get_egress_transport()
         history_transport = (

@@ -12,6 +12,7 @@ from uuid import uuid4
 from celery.exceptions import SoftTimeLimitExceeded
 from django.utils import timezone
 
+from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
@@ -31,6 +32,7 @@ from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .data02_task_authority import Data02AuthorityLatch
 from .dtos import SyncQuoteRequest
 from .market_publication_refresh import (
+    MarketPricePreparationResult,
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
 )
@@ -99,7 +101,9 @@ class FullMarketRefreshDependencies:
     publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
     record_progress: Callable[[TaskProgress], bool]
     model_market_data_port: Callable[[], ModelMarketDataPort]
-    refresh_market_price_inputs: Callable[[ModelMarketDataPort, list[str], date], tuple[str, ...]]
+    refresh_market_price_inputs: Callable[
+        [ModelMarketDataPort, list[str], date], MarketPricePreparationResult
+    ]
     refresh_market_publications: _MarketPublicationsRefresh
 
 
@@ -194,6 +198,7 @@ def run_full_market_publication_refresh(
         }
 
     price_evidence: dict[str, object] = {}
+    price_audit_references: dict[str, RawAuditReference] = {}
     publication_evidence: dict[str, object] = {}
     publication_run_id = str(uuid4())
     completed_operation_count = 0
@@ -571,10 +576,15 @@ def run_full_market_publication_refresh(
                 "Quote suspension verification scope is invalid",
                 code="CURRENT_QUOTE_SESSION_SUSPENSION_UNVERIFIED",
             )
-        verified = dependencies.refresh_market_price_inputs(
+        preparation = dependencies.refresh_market_price_inputs(
             dependencies.model_market_data_port(), list(missing), missing_target_date
         )
-        normalized_verified = tuple(sorted(str(code or "").strip().upper() for code in verified))
+        normalized_verified = tuple(
+            sorted(str(code or "").strip().upper() for code in preparation.suspended_codes)
+        )
+        price_audit_references.update(
+            {reference.raw_audit_id: reference for reference in preparation.raw_audit_references}
+        )
         if (
             any(not code for code in normalized_verified)
             or len(normalized_verified) != len(set(normalized_verified))
@@ -878,14 +888,32 @@ def run_full_market_publication_refresh(
             )
         ):
             raise ValueError("Market publication observations do not match the completed session")
-        suspended = dependencies.refresh_market_price_inputs(
+        price_preparation = dependencies.refresh_market_price_inputs(
             dependencies.model_market_data_port(), publication_scope_codes, target_date
         )
-        suspended_codes = tuple(sorted(set(excluded_non_trading_codes).union(suspended)))
+        price_audit_references.update(
+            {
+                reference.raw_audit_id: reference
+                for reference in price_preparation.raw_audit_references
+            }
+        )
+        suspended_codes = tuple(
+            sorted(set(excluded_non_trading_codes).union(price_preparation.suspended_codes))
+        )
         price_evidence.update(
             price_scope_verified=len(publication_scope_codes),
             price_target_date=target_date.isoformat(),
             suspended_codes=list(suspended_codes),
+            raw_audit_references=[
+                {
+                    "raw_audit_id": reference.raw_audit_id,
+                    "version": reference.version,
+                    "content_hash": reference.content_hash,
+                    "run_id": reference.run_id,
+                    "ingested_run_id": reference.ingested_run_id,
+                }
+                for _raw_audit_id, reference in sorted(price_audit_references.items())
+            ],
         )
         publication_result = publications.execute(
             asset_codes=publication_scope_codes,

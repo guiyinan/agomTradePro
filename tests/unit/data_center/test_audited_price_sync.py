@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import dataclasses
+import json
+from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
@@ -12,14 +14,26 @@ import pytest
 from apps.audit.application.data_fetch_audit import DataFetchAuditObservation
 from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
 from apps.audit.domain.system_audit_event import AuditOutcome
+from apps.data_center.application.current_publication_staging import (
+    CurrentPublicationStageRawAuditBinding,
+)
 from apps.data_center.application.dtos import SyncPriceRequest
+from apps.data_center.application.model_history_preparation import ModelHistoryReferenceSnapshot
 from apps.data_center.application.sync_identity import (
     SyncExecutionIdentity,
     build_sync_execution_identity,
 )
 from apps.data_center.application.sync_use_cases import SyncPriceUseCase
-from apps.data_center.domain.entities import PriceBar, ProviderConfig, RawAudit
+from apps.data_center.domain.entities import (
+    PriceBar,
+    ProviderConfig,
+    RawAudit,
+    raw_audit_content_hash,
+)
 from apps.data_center.domain.enums import DataCapability, PriceAdjustment
+from apps.data_center.domain.model_market_data import ModelDailyBar
+from apps.data_center.infrastructure import candidate_raw_audit_metadata_resolver
+from core.exceptions import DataFetchError
 
 NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 
@@ -46,6 +60,32 @@ def _bar() -> PriceBar:
         adjustment=PriceAdjustment.NONE,
         source="provider-main",
         fetched_at=NOW,
+    )
+
+
+def _model_bar(asset_code: str, trade_date: date) -> ModelDailyBar:
+    return ModelDailyBar(
+        asset_code=asset_code,
+        trade_date=trade_date,
+        open=10.0,
+        high=11.0,
+        low=9.5,
+        close=10.5,
+        volume=1200.0,
+        change_percent=0.0,
+        adjustment_factor=2.0,
+        source="tushare",
+        amount=12345.0,
+    )
+
+
+def _empty_reference_snapshot(
+    asset_codes: tuple[str, ...], start: date, end: date
+) -> ModelHistoryReferenceSnapshot:
+    """Build the pre-fetch repository snapshot for an empty test fact store."""
+
+    return ModelHistoryReferenceSnapshot.from_bars(
+        asset_codes, start, end, dict.fromkeys(asset_codes, ())
     )
 
 
@@ -121,6 +161,17 @@ class _Facts:
         self.saved.extend(bars)
         return len(bars)
 
+    def get_bars_for_assets(
+        self,
+        asset_codes: Sequence[str],
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 5000,
+    ) -> dict[str, tuple[PriceBar, ...]]:
+        assert self.active()
+        self.events.append("reference_snapshot")
+        return dict.fromkeys(asset_codes, ())
+
     def list_publication_candidates(self, _bars: list[PriceBar]) -> list[object]:
         assert self.active()
         return []
@@ -144,13 +195,17 @@ class _RawAudit:
             latency_ms=audit.latency_ms,
             error_message=audit.error_message,
             fetched_at=audit.fetched_at,
+            extra=dict(audit.extra),
             request_params_hash=audit.request_params_hash,
             redacted=True,
             payload_size_bytes=0,
-            raw_audit_id="raw-1",
+            raw_audit_id="1",
             run_id=audit.run_id,
             ingested_run_id=audit.ingested_run_id,
-            content_hash="a" * 64,
+        )
+        persisted = dataclasses.replace(
+            persisted,
+            content_hash=raw_audit_content_hash(persisted),
         )
         self.rows.append(persisted)
         return persisted
@@ -379,6 +434,273 @@ def test_provider_failure_commits_sanitized_failed_fetch_then_reraises() -> None
     assert writer.fetch[0].outcome is AuditOutcome.FAILED
     assert "secret-token" not in str(writer.fetch[0])
     assert events[-1] == "commit"
+
+
+def test_model_history_batch_shares_one_exact_identity_and_raw_audit_in_one_uow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_case, uow, writer, facts, raw, _quality = _build([])
+    rows = (
+        _model_bar("000001.SZ", date(2026, 8, 26)),
+        _model_bar("000002.SZ", date(2026, 8, 26)),
+    )
+
+    result = use_case.record_model_history_fetch_success(
+        provider_id=1,
+        asset_codes=("000001.SZ", "000002.SZ"),
+        start_date=date(2026, 8, 26),
+        end_date=date(2026, 8, 26),
+        rows=rows,
+        request_details={"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"},
+        reference_snapshot=_empty_reference_snapshot(
+            ("000001.SZ", "000002.SZ"), date(2026, 8, 26), date(2026, 8, 26)
+        ),
+    )
+
+    assert result.stored_count == 2
+    assert result.stored_asset_codes == ("000001.SZ", "000002.SZ")
+    assert len({bar.ingested_run_id for bar in facts.saved}) == 1
+    assert {bar.source for bar in facts.saved} == {"tushare"}
+    assert facts.saved[0].ingested_run_id == _identity().ingested_run_id
+    assert result.raw_audit_reference.raw_audit_id == raw.rows[0].raw_audit_id
+    assert result.raw_audit_reference.run_id == raw.rows[0].run_id == _identity().run_id
+    assert raw.rows[0].extra == {"source_type": "tushare"}
+    assert raw.rows[0].provider_name == "provider-main"
+    assert facts.saved[0].source == "tushare"
+    assert raw.rows[0].content_hash == result.raw_audit_reference.content_hash
+    assert raw.rows[0].content_hash != raw_audit_content_hash(
+        dataclasses.replace(raw.rows[0], extra={})
+    )
+    assert (
+        result.raw_audit_reference.ingested_run_id
+        == raw.rows[0].ingested_run_id
+        == facts.saved[0].ingested_run_id
+    )
+    assert writer.fetch[0].raw_audit_id == result.raw_audit_reference.raw_audit_id
+    assert writer.fetch[0].outcome is AuditOutcome.SUCCESS
+    assert uow.events == [
+        "begin",
+        "reference_snapshot",
+        "facts",
+        "health",
+        "raw_audit",
+        "fetch_event",
+        "commit",
+    ]
+
+    persisted_row = SimpleNamespace(
+        pk=1,
+        status=raw.rows[0].status,
+        row_count=raw.rows[0].row_count,
+        capability=raw.rows[0].capability,
+        provider_name=raw.rows[0].provider_name,
+        run_id=raw.rows[0].run_id,
+        ingested_run_id=raw.rows[0].ingested_run_id,
+        extra=raw.rows[0].extra,
+    )
+
+    class _AuditQuery:
+        def order_by(self, *_fields: str) -> list[SimpleNamespace]:
+            return [persisted_row]
+
+    class _AuditManager:
+        def filter(self, **criteria: object) -> _AuditQuery:
+            assert criteria == {"pk__in": (1,)}
+            return _AuditQuery()
+
+    monkeypatch.setattr(
+        candidate_raw_audit_metadata_resolver,
+        "RawAuditModel",
+        SimpleNamespace(_default_manager=_AuditManager()),
+    )
+    monkeypatch.setattr(
+        candidate_raw_audit_metadata_resolver,
+        "RawAuditRepository",
+        SimpleNamespace(_from_model=lambda _row: raw.rows[0]),
+    )
+    resolved = (
+        candidate_raw_audit_metadata_resolver.DjangoCandidateRawAuditMetadataResolver().resolve(
+            (
+                CurrentPublicationStageRawAuditBinding(
+                    reference=result.raw_audit_reference,
+                    expected_source_type="tushare",
+                ),
+            ),
+            dataset_key="equity.price.bar",
+        )
+    )
+
+    assert len(resolved) == 1
+    assert resolved[0].raw_audit_id == result.raw_audit_reference.raw_audit_id
+    assert resolved[0].content_hash == result.raw_audit_reference.content_hash
+    assert resolved[0].provider_name == "provider-main"
+    assert resolved[0].capability == "historical_price"
+    assert resolved[0].run_id == result.raw_audit_reference.run_id
+    assert resolved[0].ingested_run_id == result.raw_audit_reference.ingested_run_id
+
+
+def test_model_history_store_count_mismatch_rolls_back_then_records_failure_audit() -> None:
+    use_case, uow, writer, _facts, raw, _quality = _build([])
+
+    class ShortFacts(_Facts):
+        def bulk_upsert(self, bars: list[PriceBar]) -> int:
+            assert self.active()
+            self.events.append("facts")
+            return len(bars) - 1
+
+    events = uow.events
+    short_facts = ShortFacts(events, lambda: uow.active)
+    use_case._facts = short_facts
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.record_model_history_fetch_success(
+            provider_id=1,
+            asset_codes=("000001.SZ", "000002.SZ"),
+            start_date=date(2026, 8, 26),
+            end_date=date(2026, 8, 26),
+            rows=(
+                _model_bar("000001.SZ", date(2026, 8, 26)),
+                _model_bar("000002.SZ", date(2026, 8, 26)),
+            ),
+            request_details={"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"},
+            reference_snapshot=_empty_reference_snapshot(
+                ("000001.SZ", "000002.SZ"), date(2026, 8, 26), date(2026, 8, 26)
+            ),
+        )
+
+    assert getattr(caught.value, "code", None) == "MODEL_MARKET_AUDIT_FACT_COUNT_MISMATCH"
+    assert uow.events == [
+        "begin",
+        "reference_snapshot",
+        "facts",
+        "rollback",
+        "begin",
+        "health",
+        "raw_audit",
+        "fetch_event",
+        "commit",
+    ]
+    assert len(raw.rows) == 1
+    assert writer.fetch[0].outcome is AuditOutcome.FAILED
+
+
+def test_model_history_validation_failure_audit_keeps_known_source_type() -> None:
+    use_case, _uow, writer, facts, raw, _quality = _build([])
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.record_model_history_fetch_success(
+            provider_id=1,
+            asset_codes=("000001.SZ",),
+            start_date=date(2026, 8, 26),
+            end_date=date(2026, 8, 26),
+            rows=(
+                dataclasses.replace(_model_bar("000001.SZ", date(2026, 8, 26)), source="akshare"),
+            ),
+            request_details={"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"},
+            reference_snapshot=_empty_reference_snapshot(
+                ("000001.SZ",), date(2026, 8, 26), date(2026, 8, 26)
+            ),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_INVALID"
+    assert facts.saved == []
+    assert len(raw.rows) == 1
+    assert raw.rows[0].status == "error"
+    assert raw.rows[0].extra == {"source_type": "tushare"}
+    assert writer.fetch[0].outcome is AuditOutcome.FAILED
+
+
+def test_model_history_reference_snapshot_drift_rolls_back_before_identity_or_fact_write() -> None:
+    use_case, uow, writer, _facts, raw, _quality = _build([])
+
+    class DriftingFacts(_Facts):
+        def get_bars_for_assets(
+            self,
+            asset_codes: Sequence[str],
+            start: date | None = None,
+            end: date | None = None,
+            limit: int = 5000,
+        ) -> dict[str, tuple[PriceBar, ...]]:
+            assert self.active()
+            self.events.append("reference_snapshot")
+            return {
+                code: (
+                    PriceBar(
+                        asset_code=code,
+                        bar_date=date(2026, 8, 26),
+                        open=10.0,
+                        high=11.0,
+                        low=9.5,
+                        close=10.5,
+                        source="previous",
+                    ),
+                )
+                for code in asset_codes
+            }
+
+    facts = DriftingFacts(uow.events, lambda: uow.active)
+    use_case._facts = facts
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.record_model_history_fetch_success(
+            provider_id=1,
+            asset_codes=("000001.SZ",),
+            start_date=date(2026, 8, 26),
+            end_date=date(2026, 8, 26),
+            rows=(_model_bar("000001.SZ", date(2026, 8, 26)),),
+            request_details={"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"},
+            reference_snapshot=_empty_reference_snapshot(
+                ("000001.SZ",), date(2026, 8, 26), date(2026, 8, 26)
+            ),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_REFERENCE_SNAPSHOT_CHANGED"
+    assert facts.saved == []
+    assert uow.events == [
+        "begin",
+        "reference_snapshot",
+        "rollback",
+        "begin",
+        "health",
+        "raw_audit",
+        "fetch_event",
+        "commit",
+    ]
+    assert len(raw.rows) == 1
+    assert raw.rows[0].status == "error"
+    assert raw.rows[0].extra == {"source_type": "tushare"}
+    assert writer.fetch[0].outcome is AuditOutcome.FAILED
+
+
+def test_model_history_audit_scope_hash_is_canonical_and_bounded_for_large_batches() -> None:
+    codes = tuple(f"{value:06d}.SZ" for value in range(5000))
+    details = {"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"}
+    build = SyncPriceUseCase._model_history_request_params
+
+    forward = build(
+        asset_codes=codes,
+        start_date=date(2026, 8, 26),
+        end_date=date(2026, 8, 26),
+        request_details=details,
+    )
+    reverse = build(
+        asset_codes=tuple(reversed(codes)),
+        start_date=date(2026, 8, 26),
+        end_date=date(2026, 8, 26),
+        request_details=details,
+    )
+    changed_scope = build(
+        asset_codes=(*codes[:-1], "999999.SZ"),
+        start_date=date(2026, 8, 26),
+        end_date=date(2026, 8, 26),
+        request_details=details,
+    )
+
+    assert forward["asset_count"] == 5000
+    assert forward["asset_codes_sha256"] == reverse["asset_codes_sha256"]
+    assert forward["asset_codes_sha256"] != changed_scope["asset_codes_sha256"]
+    assert "asset_codes" not in forward
+    assert len(json.dumps(forward, separators=(",", ":"))) <= 512
 
 
 def test_audit_writer_failure_rolls_back_and_is_not_hidden() -> None:

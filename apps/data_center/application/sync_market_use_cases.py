@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import dataclasses
+import json
+import math
 from collections.abc import Mapping
 from datetime import date, datetime
 
 from apps.data_center.application.dtos import SyncPriceRequest, SyncQuoteRequest, SyncResult
-from apps.data_center.domain.entities import PriceBar, ProviderConfig, QuoteSnapshot
+from apps.data_center.domain.entities import (
+    PriceBar,
+    ProviderConfig,
+    QuoteSnapshot,
+    RawAuditReference,
+)
+from apps.data_center.domain.model_market_data import ModelDailyBar
 from apps.data_center.domain.protocols import (
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
@@ -25,6 +33,10 @@ from core.integration.data_center_audit import (
 
 from .batch_identity import require_exact_asset_identities
 from .full_market_task_support import asset_code_scope_sha256
+from .model_history_preparation import (
+    ModelHistoryFetchAuditResult,
+    ModelHistoryReferenceSnapshot,
+)
 from .publication_sync import PublishPriceBarBatchUseCase, PublishQuoteSnapshotBatchUseCase
 from .quote_session_prefetch import (
     PreparedQuoteSession,
@@ -125,13 +137,228 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 error=error,
             )
             raise
-        return self._commit_price_fetch_success(
+        result, _reference = self._commit_price_fetch_success(
             config=config,
             provider_name=provider_name,
             request_params=request_params,
             bars=bars,
             started_at=started_at,
         )
+        return result
+
+    def record_model_history_fetch_success(
+        self,
+        *,
+        provider_id: int,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        rows: tuple[ModelDailyBar, ...],
+        request_details: Mapping[str, object],
+        reference_snapshot: ModelHistoryReferenceSnapshot,
+    ) -> ModelHistoryFetchAuditResult:
+        """Commit one already-normalized provider fetch with its exact audit reference."""
+
+        config, provider = self._get_provider(provider_id)
+        provider_name = provider.provider_name()
+        request_params = self._model_history_request_params(
+            asset_codes=asset_codes,
+            start_date=start_date,
+            end_date=end_date,
+            request_details=request_details,
+        )
+        started_at = self._clock.now()
+        try:
+            self._validate_model_history_rows(
+                source_type=config.source_type,
+                asset_codes=asset_codes,
+                start_date=start_date,
+                end_date=end_date,
+                rows=rows,
+            )
+            bars = [
+                PriceBar(
+                    asset_code=row.asset_code,
+                    bar_date=row.trade_date,
+                    open=row.open,
+                    high=row.high,
+                    low=row.low,
+                    close=row.close,
+                    volume=row.volume,
+                    amount=row.amount,
+                    source=config.source_type,
+                )
+                for row in rows
+            ]
+        except (ValueError, TypeError, DataFetchError) as error:
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+                extra={"source_type": config.source_type},
+            )
+            raise
+        if (
+            reference_snapshot.asset_codes != tuple(sorted(set(asset_codes)))
+            or reference_snapshot.start_date != start_date
+            or reference_snapshot.end_date != end_date
+        ):
+            scope_error = DataFetchError(
+                "Model history reference snapshot does not match the fetch scope",
+                code="MODEL_MARKET_REFERENCE_SNAPSHOT_SCOPE_INVALID",
+            )
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=scope_error,
+                extra={"source_type": config.source_type},
+            )
+            raise scope_error
+        try:
+            sync_result, reference = self._commit_price_fetch_success(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                bars=bars,
+                started_at=started_at,
+                expected_count=len(bars),
+                reference_snapshot=reference_snapshot,
+                extra={"source_type": config.source_type},
+            )
+        except DataFetchError as error:
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+                extra={"source_type": config.source_type},
+            )
+            raise
+        stored_asset_codes = tuple(sorted({bar.asset_code for bar in bars}))
+        return ModelHistoryFetchAuditResult(
+            provider_name=provider_name,
+            stored_count=sync_result.stored_count,
+            stored_asset_codes=stored_asset_codes,
+            raw_audit_reference=reference,
+        )
+
+    def record_model_history_fetch_failure(
+        self,
+        *,
+        provider_id: int,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        error: BaseException,
+        request_details: Mapping[str, object],
+    ) -> RawAuditReference:
+        """Commit a sanitized stable RawAudit for one failed provider attempt."""
+
+        config, provider = self._get_provider(provider_id)
+        request_params = self._model_history_request_params(
+            asset_codes=asset_codes,
+            start_date=start_date,
+            end_date=end_date,
+            request_details=request_details,
+        )
+        return self._commit_price_fetch_failure(
+            config=config,
+            provider_name=provider.provider_name(),
+            request_params=request_params,
+            started_at=self._clock.now(),
+            error=error,
+            extra={"source_type": config.source_type},
+        )
+
+    @staticmethod
+    def _model_history_request_params(
+        *,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        request_details: Mapping[str, object],
+    ) -> Mapping[str, object]:
+        """Build bounded, provider-secret-free model-history audit parameters."""
+
+        if (
+            start_date > end_date
+            or not asset_codes
+            or len(set(asset_codes)) != len(asset_codes)
+            or any(not code or code != code.strip().upper() for code in asset_codes)
+        ):
+            raise DataFetchError(
+                "Model history fetch scope is invalid", code="MODEL_MARKET_AUDIT_SCOPE_INVALID"
+            )
+        details = dict(request_details)
+        allowed_detail_keys = {"provider_fetch_kind", "provider_trade_date"}
+        if set(details) - allowed_detail_keys:
+            raise DataFetchError(
+                "Model history audit request details exceed the bounded contract",
+                code="MODEL_MARKET_AUDIT_SCOPE_INVALID",
+            )
+        if any(
+            not isinstance(value, str) or not value or len(value) > 64 for value in details.values()
+        ):
+            raise DataFetchError(
+                "Model history audit request details are invalid",
+                code="MODEL_MARKET_AUDIT_SCOPE_INVALID",
+            )
+        request_params = {
+            **details,
+            "asset_count": len(asset_codes),
+            "asset_codes_sha256": asset_code_scope_sha256(asset_codes),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+        }
+        if len(json.dumps(request_params, ensure_ascii=False, separators=(",", ":"))) > 512:
+            raise DataFetchError(
+                "Model history audit request exceeds its storage bound",
+                code="MODEL_MARKET_AUDIT_SCOPE_INVALID",
+            )
+        return request_params
+
+    @staticmethod
+    def _validate_model_history_rows(
+        *,
+        source_type: str,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        rows: tuple[ModelDailyBar, ...],
+    ) -> None:
+        """Reject mismatched or duplicate observations before assigning lineage."""
+
+        allowed_codes = set(asset_codes)
+        seen: set[tuple[str, date]] = set()
+        for row in rows:
+            identity = (row.asset_code, row.trade_date)
+            prices = (row.open, row.high, row.low, row.close)
+            if (
+                row.asset_code not in allowed_codes
+                or not start_date <= row.trade_date <= end_date
+                or identity in seen
+                or row.source != source_type
+                or any(not math.isfinite(value) or value <= 0 for value in prices)
+                or row.high < max(prices)
+                or row.low > min(prices)
+                or not math.isfinite(row.volume)
+                or row.volume < 0
+                or not math.isfinite(row.change_percent)
+                or row.adjustment_factor is None
+                or not math.isfinite(row.adjustment_factor)
+                or row.adjustment_factor <= 0
+                or (row.amount is not None and (not math.isfinite(row.amount) or row.amount < 0))
+            ):
+                raise DataFetchError(
+                    "Invalid normalized model history batch",
+                    code="MODEL_MARKET_INVALID",
+                )
+            seen.add(identity)
 
     def _issue_identity(self, *, provider_name: str) -> SyncExecutionIdentity:
         """Issue one price-sync identity inside the active transaction."""
@@ -151,17 +378,44 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         request_params: Mapping[str, object],
         bars: list[PriceBar],
         started_at: datetime,
-    ) -> SyncResult:
+        expected_count: int | None = None,
+        reference_snapshot: ModelHistoryReferenceSnapshot | None = None,
+        extra: Mapping[str, object] | None = None,
+    ) -> tuple[SyncResult, RawAuditReference]:
         """Commit price facts, exact evidence, and canonical events in one UOW."""
 
         publication_error: ValueError | None = None
         publication_blocked_reason: str | None = None
         with self._sync_unit_of_work.atomic():
+            if reference_snapshot is not None:
+                current = self._facts.get_bars_for_assets(
+                    reference_snapshot.asset_codes,
+                    start=reference_snapshot.start_date,
+                    end=reference_snapshot.end_date,
+                    limit=5000,
+                )
+                current_snapshot = ModelHistoryReferenceSnapshot.from_bars(
+                    reference_snapshot.asset_codes,
+                    reference_snapshot.start_date,
+                    reference_snapshot.end_date,
+                    current,
+                )
+                if current_snapshot.content_hash != reference_snapshot.content_hash:
+                    raise DataFetchError(
+                        "Model history reference state changed before atomic persistence",
+                        code="MODEL_MARKET_REFERENCE_SNAPSHOT_CHANGED",
+                    )
             identity = self._issue_identity(provider_name=provider_name)
             correlated_bars = [
                 dataclasses.replace(bar, ingested_run_id=identity.ingested_run_id) for bar in bars
             ]
             stored_count = self._facts.bulk_upsert(correlated_bars) if correlated_bars else 0
+            if expected_count is not None and stored_count != expected_count:
+                raise DataFetchError(
+                    "Model history facts were not fully persisted",
+                    code="MODEL_MARKET_AUDIT_FACT_COUNT_MISMATCH",
+                    details={"expected_count": expected_count, "stored_count": stored_count},
+                )
             publication = None
             if self._publication_publisher is not None and correlated_bars:
                 publication_at = self._clock.now()
@@ -203,9 +457,18 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra=extra,
                 )
             )
             reference = persisted_audit.exact_reference()
+            if (
+                reference.run_id != identity.run_id
+                or reference.ingested_run_id != identity.ingested_run_id
+            ):
+                raise DataFetchError(
+                    "Persisted price audit identity does not match the fact batch",
+                    code="MODEL_MARKET_AUDIT_IDENTITY_MISMATCH",
+                )
             self._data_fetch_audit_writer.write(
                 DataFetchAuditObservation(
                     provider_key=provider_name,
@@ -291,16 +554,19 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     )
         if publication_error is not None:
             raise publication_error
-        return SyncResult(
-            self.capability,
-            provider_name,
-            stored_count,
-            result_status,
-            run_id=identity.run_id,
-            ingested_run_id=identity.ingested_run_id,
-            publication_id=publication.publication_id if publication is not None else None,
-            publication_version=publication.policy_version if publication is not None else None,
-            publication_hash=publication.publication_hash if publication is not None else None,
+        return (
+            SyncResult(
+                self.capability,
+                provider_name,
+                stored_count,
+                result_status,
+                run_id=identity.run_id,
+                ingested_run_id=identity.ingested_run_id,
+                publication_id=publication.publication_id if publication is not None else None,
+                publication_version=publication.policy_version if publication is not None else None,
+                publication_hash=publication.publication_hash if publication is not None else None,
+            ),
+            reference,
         )
 
     def _commit_price_fetch_failure(
@@ -311,7 +577,8 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         request_params: Mapping[str, object],
         started_at: datetime,
         error: BaseException,
-    ) -> None:
+        extra: Mapping[str, object] | None = None,
+    ) -> RawAuditReference:
         """Persist one sanitized failed price fetch before reraising its error."""
 
         with self._sync_unit_of_work.atomic():
@@ -342,6 +609,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra=extra,
                 )
             )
             reference = persisted_audit.exact_reference()
@@ -362,6 +630,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     error_class=error_class,
                 )
             )
+            return reference
 
 
 class SyncQuoteUseCase(_BaseSyncUseCase):

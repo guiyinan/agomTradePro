@@ -15,6 +15,10 @@ from typing import Any, Protocol, TypeVar, cast
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
 
+from apps.data_center.application.model_market_data import (
+    ModelHistoryFetchAuditPort,
+    ModelHistoryPreparedFetch,
+)
 from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
 from core.exceptions import DataFetchError, TushareError
 from shared.numeric import safe_float
@@ -47,12 +51,17 @@ class TushareModelMarketSource:
         *,
         source: str = "tushare",
         client_factory: Callable[[], object] | None = None,
+        provider_id: int | None = None,
+        history_fetch_audit: ModelHistoryFetchAuditPort | None = None,
     ) -> None:
         self._client = client
         self._client_factory = client_factory
         self._fetch_workers = 1
         self._source = source
         self._prepared: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
+        self._provider_id = provider_id
+        self._history_fetch_audit = history_fetch_audit
+        self._preparation_fetches: list[ModelHistoryPreparedFetch] = []
 
     @property
     def _pro(self) -> _TushareProClient:
@@ -80,6 +89,20 @@ class TushareModelMarketSource:
         )
         return self._rows(frame, volume_multiplier=100.0)
 
+    def fetch_stock_history(
+        self, asset_code: str, start_date: date, end_date: date
+    ) -> ModelHistoryPreparedFetch:
+        """Fetch one exact asset window as a staged response for bounded audited preparation."""
+
+        rows = self.stock_history(asset_code, start_date, end_date)
+        return ModelHistoryPreparedFetch(
+            asset_codes=(asset_code,),
+            start_date=start_date,
+            end_date=end_date,
+            rows=rows,
+            request_details={"provider_fetch_kind": "tushare_daily_adj_factor_asset_fetch"},
+        )
+
     def prepare_stock_history(
         self, asset_codes: tuple[str, ...], start_date: date, end_date: date
     ) -> None:
@@ -89,12 +112,13 @@ class TushareModelMarketSource:
         ):
             raise ValueError("Invalid history preparation scope")
         self._prepared.clear()
-        if len(asset_codes) > max(200, (end_date - start_date).days):
-            if self._prepare_by_session(asset_codes, start_date, end_date):
+        self._preparation_fetches.clear()
+        codes = tuple(sorted(set(asset_codes)))
+        if len(codes) > max(200, (end_date - start_date).days):
+            if self._prepare_by_session(codes, start_date, end_date):
                 return
         # Calendar days bound trading rows conservatively; retain headroom below 6000 rows.
         batch_size = max(1, min(50, 4800 // ((end_date - start_date).days + 1)))
-        codes = tuple(sorted(set(asset_codes)))
         for offset in range(0, len(codes), batch_size):
             batch = codes[offset : offset + batch_size]
             params = {
@@ -102,32 +126,128 @@ class TushareModelMarketSource:
                 "start_date": start_date.strftime("%Y%m%d"),
                 "end_date": end_date.strftime("%Y%m%d"),
             }
-            daily = self._call_with_retry(
-                self._pro.daily,
-                ts_code=params["ts_code"],
-                start_date=params["start_date"],
-                end_date=params["end_date"],
-            )
-            factors = self._call_with_retry(
-                self._pro.adj_factor,
-                ts_code=params["ts_code"],
-                start_date=params["start_date"],
-                end_date=params["end_date"],
-            )
-            if daily is None or factors is None:
+            request_details: dict[str, object] = {
+                "provider_fetch_kind": "tushare_daily_adj_factor_code_batch",
+            }
+            try:
+                daily = self._call_with_retry(
+                    self._pro.daily,
+                    ts_code=params["ts_code"],
+                    start_date=params["start_date"],
+                    end_date=params["end_date"],
+                )
+                factors = self._call_with_retry(
+                    self._pro.adj_factor,
+                    ts_code=params["ts_code"],
+                    start_date=params["start_date"],
+                    end_date=params["end_date"],
+                )
+            except Exception as error:
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=error,
+                )
+                raise
+            if daily is None and factors is None:
+                self._record_preparation_success(
+                    batch,
+                    start_date,
+                    end_date,
+                    (),
+                    request_details=request_details,
+                )
+                for code in batch:
+                    self._prepared[(code, start_date, end_date)] = ()
                 continue
+            if daily is None or factors is None:
+                preparation_error = DataFetchError(
+                    "Provider price and adjustment responses disagree",
+                    code="MODEL_MARKET_BATCH_FACTORS_MISSING",
+                )
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=preparation_error,
+                )
+                raise preparation_error
+            if daily.empty and factors.empty:
+                self._record_preparation_success(
+                    batch,
+                    start_date,
+                    end_date,
+                    (),
+                    request_details=request_details,
+                )
+                for code in batch:
+                    self._prepared[(code, start_date, end_date)] = ()
+                continue
+            if daily.empty != factors.empty:
+                preparation_error = DataFetchError(
+                    "Provider price and adjustment responses disagree",
+                    code="MODEL_MARKET_BATCH_FACTORS_MISSING",
+                )
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=preparation_error,
+                )
+                raise preparation_error
             if len(daily) >= 4800 or len(factors) >= 4800:
-                continue  # Fall back to per-symbol requests when completeness is uncertain.
+                preparation_error = DataFetchError(
+                    "Provider response may be truncated",
+                    code="MODEL_MARKET_BATCH_TRUNCATED",
+                )
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=preparation_error,
+                )
+                raise preparation_error
             required = {"ts_code", "trade_date", "adj_factor"}
             if not required.issubset(factors.columns) or "ts_code" not in daily.columns:
-                continue
+                preparation_error = DataFetchError(
+                    "Provider response schema is incomplete",
+                    code="MODEL_MARKET_BATCH_SCHEMA_INVALID",
+                )
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=preparation_error,
+                )
+                raise preparation_error
             factor_frame = factors.copy()
             factor_frame["trade_date"] = pd.to_datetime(
                 factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
             )
             factor_frame["adj_factor"] = pd.to_numeric(factor_frame["adj_factor"], errors="coerce")
             if factor_frame.duplicated(["ts_code", "trade_date"]).any():
-                continue
+                preparation_error = DataFetchError(
+                    "Provider response contains duplicate adjustment rows",
+                    code="MODEL_MARKET_BATCH_DUPLICATE_FACTOR",
+                )
+                self._record_preparation_failure(
+                    batch,
+                    start_date,
+                    end_date,
+                    request_details=request_details,
+                    error=preparation_error,
+                )
+                raise preparation_error
+            batch_rows: list[ModelDailyBar] = []
+            prepared_rows: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {
+                (code, start_date, end_date): () for code in batch
+            }
             for code in batch:
                 normalized = self._normalize_daily_frame(
                     daily.loc[daily["ts_code"] == code],
@@ -136,16 +256,24 @@ class TushareModelMarketSource:
                     end_date=end_date,
                 )
                 if normalized.empty:
-                    continue  # Empty batch members need an individual request before failover.
+                    continue
                 joined = normalized.merge(
                     factor_frame.loc[factor_frame["ts_code"] == code, list(required)],
                     on=["ts_code", "trade_date"],
                     how="left",
                     validate="many_to_one",
                 )
-                self._prepared[(code, start_date, end_date)] = self._rows(
-                    joined, volume_multiplier=100.0
-                )
+                normalized_rows = self._rows(joined, volume_multiplier=100.0)
+                prepared_rows[(code, start_date, end_date)] = normalized_rows
+                batch_rows.extend(normalized_rows)
+            self._record_preparation_success(
+                batch,
+                start_date,
+                end_date,
+                tuple(batch_rows),
+                request_details=request_details,
+            )
+            self._prepared.update(prepared_rows)
             logger.info(
                 "Model history prepared: source=%s assets=%d/%d",
                 self._source,
@@ -162,60 +290,235 @@ class TushareModelMarketSource:
             return False
         client = self._pro
 
-        def fetch(day: date) -> tuple[PandasDataFrame, PandasDataFrame]:
-            daily = self._call_with_retry(client.daily, trade_date=day.strftime("%Y%m%d"))
-            factors = self._call_with_retry(client.adj_factor, trade_date=day.strftime("%Y%m%d"))
-            return daily, factors
+        def fetch(
+            day: date,
+        ) -> tuple[date, PandasDataFrame | None, PandasDataFrame | None, BaseException | None]:
+            try:
+                daily = self._call_with_retry(client.daily, trade_date=day.strftime("%Y%m%d"))
+                factors = self._call_with_retry(
+                    client.adj_factor, trade_date=day.strftime("%Y%m%d")
+                )
+                return day, daily, factors, None
+            except Exception as error:
+                return day, None, None, error
 
-        daily_frames: list[PandasDataFrame] = []
-        factor_frames: list[PandasDataFrame] = []
+        session_rows: dict[tuple[str, date, date], list[ModelDailyBar]] = {}
+        successful_sessions = 0
         with ThreadPoolExecutor(max_workers=4) as executor:
-            for day, (daily, factors) in zip(days, executor.map(fetch, days), strict=True):
+            for day, daily, factors, error in executor.map(fetch, days):
+                request_details: dict[str, object] = {
+                    "provider_fetch_kind": "tushare_daily_adj_factor_session_batch",
+                    "provider_trade_date": day.isoformat(),
+                }
+                if error is not None:
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=error,
+                    )
+                    continue
                 if (
                     daily is None
                     or factors is None
-                    or daily.empty
-                    or factors.empty
                     or len(daily) >= 6000
                     or len(factors) >= 6000
-                    or not {"ts_code", "trade_date"}.issubset(daily.columns)
-                    or not {"ts_code", "trade_date", "adj_factor"}.issubset(factors.columns)
+                    or (not daily.empty and not {"ts_code", "trade_date"}.issubset(daily.columns))
+                    or (
+                        not factors.empty
+                        and not {"ts_code", "trade_date", "adj_factor"}.issubset(factors.columns)
+                    )
                 ):
-                    return False
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=DataFetchError(
+                            "Provider session response is incomplete",
+                            code="MODEL_MARKET_SESSION_INVALID",
+                        ),
+                    )
+                    continue
+                if daily.empty and factors.empty:
+                    self._record_preparation_success(
+                        asset_codes,
+                        day,
+                        day,
+                        (),
+                        request_details=request_details,
+                    )
+                    successful_sessions += 1
+                    continue
+                if daily.empty != factors.empty:
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=DataFetchError(
+                            "Provider session price and adjustment responses disagree",
+                            code="MODEL_MARKET_SESSION_FACTORS_MISSING",
+                        ),
+                    )
+                    continue
                 # Reject an endpoint that ignored the single-session parameter.
-                if any(str(value) != day.strftime("%Y%m%d") for value in daily["trade_date"]):
-                    return False
-                if any(str(value) != day.strftime("%Y%m%d") for value in factors["trade_date"]):
-                    return False
-                daily_frames.append(daily.loc[daily["ts_code"].isin(asset_codes)])
-                factor_frames.append(factors.loc[factors["ts_code"].isin(asset_codes)])
+                if (
+                    not daily.empty
+                    and any(str(value) != day.strftime("%Y%m%d") for value in daily["trade_date"])
+                ) or (
+                    not factors.empty
+                    and any(str(value) != day.strftime("%Y%m%d") for value in factors["trade_date"])
+                ):
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=DataFetchError(
+                            "Provider ignored the requested session",
+                            code="MODEL_MARKET_SESSION_SCOPE_INVALID",
+                        ),
+                    )
+                    continue
+                requested_daily = daily.loc[daily["ts_code"].isin(asset_codes)]
+                requested_factors = factors.loc[factors["ts_code"].isin(asset_codes)]
+                daily_frames = [requested_daily] if not requested_daily.empty else []
+                factor_frames = [requested_factors] if not requested_factors.empty else []
+                daily_frame = (
+                    pd.concat(daily_frames, ignore_index=True)
+                    if daily_frames
+                    else pd.DataFrame(columns=["ts_code", "trade_date"])
+                )
+                factor_frame = (
+                    pd.concat(factor_frames, ignore_index=True)
+                    if factor_frames
+                    else pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
+                )
+                if factor_frame.duplicated(["ts_code", "trade_date"]).any():
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=DataFetchError(
+                            "Provider session contains duplicate adjustment rows",
+                            code="MODEL_MARKET_SESSION_DUPLICATE_FACTOR",
+                        ),
+                    )
+                    continue
+                factor_frame["trade_date"] = pd.to_datetime(
+                    factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
+                )
+                factor_frame["adj_factor"] = pd.to_numeric(
+                    factor_frame["adj_factor"], errors="coerce"
+                )
+                factor_groups = dict(iter(factor_frame.groupby("ts_code")))
+                current_rows: list[ModelDailyBar] = []
+                for code, frame in daily_frame.groupby("ts_code"):
+                    normalized = self._normalize_daily_frame(
+                        frame,
+                        requested_code=str(code),
+                        start_date=day,
+                        end_date=day,
+                    )
+                    factors_for_code = factor_groups.get(code)
+                    if normalized.empty or factors_for_code is None:
+                        continue
+                    joined = normalized.merge(
+                        factors_for_code[["ts_code", "trade_date", "adj_factor"]],
+                        on=["ts_code", "trade_date"],
+                        how="left",
+                        validate="many_to_one",
+                    )
+                    current_rows.extend(self._rows(joined, volume_multiplier=100.0))
+                self._record_preparation_success(
+                    asset_codes,
+                    day,
+                    day,
+                    tuple(current_rows),
+                    request_details=request_details,
+                )
+                successful_sessions += 1
+                for row in current_rows:
+                    session_rows.setdefault((row.asset_code, start_date, end_date), []).append(row)
                 logger.info("Model market session prepared: %s %s", self._source, day)
-        daily_frame = pd.concat(daily_frames, ignore_index=True)
-        factor_frame = pd.concat(factor_frames, ignore_index=True)
-        if factor_frame.duplicated(["ts_code", "trade_date"]).any():
-            return False
-        factor_frame["trade_date"] = pd.to_datetime(
-            factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
-        )
-        factor_frame["adj_factor"] = pd.to_numeric(factor_frame["adj_factor"], errors="coerce")
-        factor_groups = dict(iter(factor_frame.groupby("ts_code")))
-        for code, frame in daily_frame.groupby("ts_code"):
-            normalized = self._normalize_daily_frame(
-                frame, requested_code=str(code), start_date=start_date, end_date=end_date
+        if successful_sessions != len(days):
+            raise DataFetchError(
+                "Provider returned an incomplete set of daily preparation sessions",
+                code="MODEL_MARKET_SESSION_INCOMPLETE",
             )
-            factors = factor_groups.get(code)
-            if normalized.empty or factors is None:
-                continue
-            joined = normalized.merge(
-                factors[["ts_code", "trade_date", "adj_factor"]],
-                on=["ts_code", "trade_date"],
-                how="left",
-                validate="many_to_one",
-            )
-            self._prepared[(str(code), start_date, end_date)] = self._rows(
-                joined, volume_multiplier=100.0
+        for asset_code in asset_codes:
+            rows = session_rows.get((asset_code, start_date, end_date), [])
+            self._prepared[(asset_code, start_date, end_date)] = tuple(
+                sorted(rows, key=lambda row: row.trade_date)
             )
         return True
+
+    def has_prepared_model_history(self, asset_code: str, start_date: date, end_date: date) -> bool:
+        """Report whether this exact preparation window is in the private cache."""
+
+        return (asset_code, start_date, end_date) in self._prepared
+
+    def drain_model_history_prepared_fetches(
+        self,
+    ) -> tuple[ModelHistoryPreparedFetch, ...]:
+        """Drain normalized provider responses before service validation and persistence."""
+
+        fetches = tuple(self._preparation_fetches)
+        self._preparation_fetches.clear()
+        return fetches
+
+    def _record_preparation_success(
+        self,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        rows: tuple[ModelDailyBar, ...],
+        *,
+        request_details: dict[str, object],
+    ) -> None:
+        """Stage one normalized provider response for service validation and atomic storage."""
+
+        self._preparation_fetches.append(
+            ModelHistoryPreparedFetch(
+                asset_codes=tuple(sorted(set(asset_codes))),
+                start_date=start_date,
+                end_date=end_date,
+                rows=rows,
+                request_details=request_details,
+            )
+        )
+
+    def _record_preparation_failure(
+        self,
+        asset_codes: tuple[str, ...],
+        start_date: date,
+        end_date: date,
+        *,
+        request_details: dict[str, object],
+        error: BaseException,
+    ) -> None:
+        """Persist one stable failure audit for an actual provider fetch attempt."""
+
+        audit = self._history_fetch_audit
+        if audit is None:
+            return
+        provider_id = self._provider_id
+        if provider_id is None:
+            raise DataFetchError(
+                "Configured model-history provider identity is missing",
+                code="MODEL_MARKET_AUDIT_PROVIDER_ID_MISSING",
+            )
+        audit.record_model_history_fetch_failure(
+            provider_id=provider_id,
+            asset_codes=asset_codes,
+            start_date=start_date,
+            end_date=end_date,
+            error=error,
+            request_details=request_details,
+        )
 
     def index_history(
         self, asset_code: str, start_date: date, end_date: date
@@ -459,7 +762,10 @@ class TushareModelMarketSource:
                     ts_code,
                     type(exc).__name__,
                 )
-                return None
+                raise DataFetchError(
+                    "Provider failed to return daily history",
+                    code="MODEL_MARKET_PROVIDER_FETCH_FAILED",
+                ) from exc
             if df is None or df.empty:
                 return None
             normalized = self._normalize_daily_frame(
@@ -499,7 +805,10 @@ class TushareModelMarketSource:
                     ts_code,
                     type(exc).__name__,
                 )
-                return None
+                raise DataFetchError(
+                    "Provider failed to return adjustment history",
+                    code="MODEL_MARKET_PROVIDER_FETCH_FAILED",
+                ) from exc
             if df is None or df.empty:
                 return None
             if not {"ts_code", "trade_date", "adj_factor"}.issubset(df.columns):

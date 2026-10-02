@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 import pandas as pd  # type: ignore[import-untyped]
 
+from apps.data_center.application.model_history_preparation import ModelHistoryPreparedFetch
 from apps.data_center.domain.model_market_data import ModelDailyBar, TradingCalendarEvidence
 from core.exceptions import DataFetchError
 from shared.numeric import safe_float
@@ -102,6 +103,19 @@ class AkshareModelMarketSource:
                 )
             )
         return tuple(result)
+
+    def fetch_stock_history(
+        self, asset_code: str, start_date: date, end_date: date
+    ) -> ModelHistoryPreparedFetch:
+        """Stage one actual AKShare history fetch for explicitly bounded preparation."""
+
+        return ModelHistoryPreparedFetch(
+            asset_codes=(asset_code,),
+            start_date=start_date,
+            end_date=end_date,
+            rows=self.stock_history(asset_code, start_date, end_date),
+            request_details={"provider_fetch_kind": "akshare_raw_hfq_asset_fetch"},
+        )
 
     def _history_frame(
         self,

@@ -8,8 +8,11 @@ from datetime import date
 from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
-from apps.data_center.infrastructure._repository_helpers import _resolve_asset_code_candidates
-from apps.data_center.infrastructure.models import PriceBarModel
+from apps.data_center.infrastructure._repository_helpers import (
+    _build_asset_code_candidates,
+    _resolve_asset_code_candidates,
+)
+from apps.data_center.infrastructure.models import AssetAliasModel, AssetMasterModel, PriceBarModel
 
 from .publication_fact_evidence import publication_fact_reference_for_dataset
 from .published_fact_versions import (
@@ -71,6 +74,67 @@ class PriceBarRepository:
             if rows:
                 return [self._from_model(m) for m in rows]
         return []
+
+    def get_bars_for_assets(
+        self,
+        asset_codes: Sequence[str],
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 5000,
+    ) -> dict[str, tuple[PriceBar, ...]]:
+        """Read one bounded reference window for many assets with batched ORM lookups."""
+
+        normalized_codes = tuple(sorted(set(asset_codes)))
+        if not normalized_codes:
+            return {}
+        if limit <= 0:
+            return dict.fromkeys(normalized_codes, ())
+        assets_by_candidate: dict[str, set[str]] = {}
+        bare_codes_by_base: dict[str, list[str]] = {}
+        for code in normalized_codes:
+            candidates = _build_asset_code_candidates(code)
+            for candidate in candidates:
+                assets_by_candidate.setdefault(candidate, set()).add(code)
+            normalized_code = code.strip().upper()
+            if normalized_code and "." not in normalized_code:
+                base_code = normalized_code.split(".", 1)[0]
+                bare_codes_by_base.setdefault(base_code, []).append(code)
+        if assets_by_candidate:
+            candidate_codes = tuple(sorted(assets_by_candidate))
+            aliases = AssetAliasModel.objects.filter(alias_code__in=candidate_codes).values_list(
+                "alias_code", "asset__code"
+            )
+            for alias_code, canonical_code in aliases:
+                for asset_code in assets_by_candidate.get(alias_code, ()):
+                    assets_by_candidate.setdefault(canonical_code, set()).add(asset_code)
+        if bare_codes_by_base:
+            matching_codes: dict[str, list[str]] = {
+                base_code: [] for base_code in bare_codes_by_base
+            }
+            for canonical_code in AssetMasterModel.objects.values_list("code", flat=True):
+                if "." not in canonical_code:
+                    continue
+                base_code = canonical_code.split(".", 1)[0]
+                requested_codes = bare_codes_by_base.get(base_code)
+                if requested_codes is None or len(matching_codes[base_code]) >= 5:
+                    continue
+                matching_codes[base_code].append(canonical_code)
+                for asset_code in requested_codes:
+                    assets_by_candidate.setdefault(canonical_code, set()).add(asset_code)
+        queryset = latest_fact_revisions(PriceBarModel, _NATURAL_KEY).filter(
+            asset_code__in=tuple(sorted(assets_by_candidate))
+        )
+        if start is not None:
+            queryset = queryset.filter(bar_date__gte=start)
+        if end is not None:
+            queryset = queryset.filter(bar_date__lte=end)
+        grouped: dict[str, list[PriceBar]] = {code: [] for code in normalized_codes}
+        for model in queryset.order_by("asset_code", "-bar_date", "-revision_number", "-pk"):
+            bar = self._from_model(model)
+            for code in assets_by_candidate.get(model.asset_code, ()):
+                grouped[code].append(bar)
+        # ``limit`` is per requested asset, matching the prior per-code resolver contract.
+        return {code: tuple(bars[:limit]) for code, bars in grouped.items()}
 
     def get_latest(
         self,
