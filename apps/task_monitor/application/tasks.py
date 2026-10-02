@@ -204,7 +204,8 @@ def task_prerun_handler(
             )
             return
 
-        attempt_id = request_attempt_id or uuid4().hex
+        is_retry_attempt = existing is not None and existing.status is TaskStatus.RETRY
+        attempt_id = uuid4().hex if is_retry_attempt else request_attempt_id or uuid4().hex
         _set_task_attempt_id(task, attempt_id)
         queue, worker = _task_queue_and_worker(task)
         started_at = (

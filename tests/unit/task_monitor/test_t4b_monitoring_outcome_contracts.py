@@ -400,6 +400,8 @@ def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(
     )
     assert repository.record is not None
     assert repository.record.status is TaskStatus.STARTED
+    first_attempt_id = repository.record.attempt_id
+    assert first_attempt_id is not None
 
     tasks.task_retry_handler(
         task_id="task-1",
@@ -408,6 +410,19 @@ def test_task_signal_lifecycle_records_start_retry_failure_and_revocation(
     )
     assert repository.record.status is TaskStatus.RETRY
     assert repository.record.retries == 1
+
+    # Celery may reuse a task object/request during retry; the retry must not
+    # inherit the prior Task Monitor attempt marker.
+    tasks.task_prerun_handler(
+        task_id="task-1",
+        task=celery_task,
+        args=(1,),
+        kwargs={"mode": "safe"},
+    )
+    assert repository.record.status is TaskStatus.STARTED
+    assert repository.record.attempt_id is not None
+    assert repository.record.attempt_id != first_attempt_id
+    assert celery_task.request["_task_monitor_attempt_id"] == repository.record.attempt_id
 
     tasks.task_failure_handler(
         task_id="task-1",
