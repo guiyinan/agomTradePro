@@ -29,6 +29,7 @@ from apps.audit.infrastructure.system_audit_outbox_models import (
     _UOW,
     SystemAuditOutboxModel,
     _activate_system_audit_outbox_uow,
+    _claim_system_audit_outbox_batch_insert,
     _claim_system_audit_outbox_insert,
     _claim_system_audit_outbox_state_mutation,
 )
@@ -274,23 +275,175 @@ class DjangoSystemAuditOutboxRepository:
         )
         if len(matches) > 1:
             raise SystemAuditOutboxConflict("outbox identities are bound to different rows")
-        existing = matches[0] if matches else None
-        if existing is not None:
-            restored = self._restore(existing)
-            if restored.event != event:
+        existing = self._restore(matches[0]) if matches else None
+        return self.enqueue_targeted_prefetched(
+            event,
+            existing=existing,
+            available_at=available,
+            created_at=created,
+        )
+
+    def get_identity_winners_targeted(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+    ) -> dict[str, SystemAuditOutboxRecord]:
+        """Lock existing outbox winners for an exact event group in one query."""
+
+        if not events or len({event.event_id for event in events}) != len(events):
+            raise SystemAuditOutboxConflict("outbox event group identities are invalid")
+        selector = Q()
+        for event in events:
+            selector |= Q(event_id=event.event_id) | Q(idempotency_key=event.idempotency_key)
+        rows = tuple(
+            SystemAuditOutboxModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(selector)
+            .order_by("created_at", "outbox_id")
+        )
+        winners: dict[str, SystemAuditOutboxRecord] = {}
+        for row in rows:
+            record = self._restore(row)
+            matching = tuple(
+                event
+                for event in events
+                if record.event.event_id == event.event_id
+                or record.event.idempotency_key == event.idempotency_key
+            )
+            if len(matching) != 1:
+                raise SystemAuditOutboxConflict("outbox group identity is ambiguous")
+            event = matching[0]
+            if event.event_id in winners:
+                raise SystemAuditOutboxConflict("outbox identities are bound to different rows")
+            if record.event != event:
                 raise SystemAuditOutboxConflict("outbox identity already has another payload")
-            return restored
+            winners[event.event_id] = record
+        return winners
+
+    def enqueue_targeted_prefetched(
+        self,
+        event: SystemAuditEvent,
+        *,
+        existing: SystemAuditOutboxRecord | None,
+        available_at: datetime,
+        created_at: datetime,
+    ) -> SystemAuditOutboxRecord:
+        """Insert after a caller-owned exact identity read, or replay its winner."""
+
+        self._validate_targeted_enqueue(
+            event,
+            available_at=available_at,
+            created_at=created_at,
+        )
+        if existing is not None:
+            if existing.event != event:
+                raise SystemAuditOutboxConflict("outbox identity already has another payload")
+            return existing
+        row, values = self._targeted_outbox_row(
+            event,
+            available_at=available_at,
+            created_at=created_at,
+        )
+        try:
+            with _claim_system_audit_outbox_insert(
+                token=self._require_uow_token(),
+                model_type=SystemAuditOutboxModel,
+                expected_values=values,
+            ):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError as error:
+            raise SystemAuditOutboxConflict(
+                "outbox targeted enqueue collided with another identity"
+            ) from error
+        return self._restore(row)
+
+    def enqueue_group_targeted_prefetched(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+        *,
+        existing: Mapping[str, SystemAuditOutboxRecord],
+    ) -> tuple[SystemAuditOutboxRecord, ...]:
+        """Enqueue one exact event group with one privately claimed insert."""
+
+        if not events or len({event.event_id for event in events}) != len(events):
+            raise SystemAuditOutboxConflict("outbox event group identities are invalid")
+        resolved: list[SystemAuditOutboxRecord | None] = []
+        new_rows: list[SystemAuditOutboxModel] = []
+        new_values: list[Mapping[str, object]] = []
+        for event in events:
+            self._validate_targeted_enqueue(
+                event,
+                available_at=event.recorded_at,
+                created_at=event.recorded_at,
+            )
+            winner = existing.get(event.event_id)
+            if winner is not None and winner.event != event:
+                raise SystemAuditOutboxConflict("outbox identity already has another payload")
+            resolved.append(winner)
+            if winner is None:
+                row, values = self._targeted_outbox_row(
+                    event,
+                    available_at=event.recorded_at,
+                    created_at=event.recorded_at,
+                )
+                new_rows.append(row)
+                new_values.append(values)
+        if new_rows:
+            values_tuple = tuple(new_values)
+            try:
+                with _claim_system_audit_outbox_batch_insert(
+                    token=self._require_uow_token(),
+                    model_type=SystemAuditOutboxModel,
+                    expected_values=values_tuple,
+                ):
+                    SystemAuditOutboxModel._default_manager.db_manager(
+                        self._using
+                    )._bulk_create_claimed(tuple(new_rows), values_tuple)
+            except IntegrityError as error:
+                raise SystemAuditOutboxConflict(
+                    "outbox targeted group enqueue collided with another identity"
+                ) from error
+        restored_new = iter(self._restore(row) for row in new_rows)
+        return tuple(item if item is not None else next(restored_new) for item in resolved)
+
+    def _validate_targeted_enqueue(
+        self,
+        event: SystemAuditEvent,
+        *,
+        available_at: datetime,
+        created_at: datetime,
+    ) -> None:
+        """Validate clocks and event hashes for one caller-serialized enqueue."""
+
+        self._require_uow()
+        try:
+            event.validate_hashes()
+        except (TypeError, ValueError) as error:
+            raise SystemAuditOutboxCorruption("outbox event candidate is invalid") from error
+        self._require_aware(created_at, "created_at")
+        self._require_aware(available_at, "available_at")
+        if available_at < created_at:
+            raise SystemAuditOutboxConflict("outbox availability precedes creation")
+
+    @staticmethod
+    def _targeted_outbox_row(
+        event: SystemAuditEvent,
+        *,
+        available_at: datetime,
+        created_at: datetime,
+    ) -> tuple[SystemAuditOutboxModel, Mapping[str, object]]:
+        """Build one exact pending outbox row and its private claim values."""
+
         row = SystemAuditOutboxModel(
             outbox_id=uuid4(),
             event_id=event.event_id,
             idempotency_key=event.idempotency_key,
             payload=dict(encode(event)),
             payload_hash=event.content_hash,
-            available_at=available,
-            created_at=created,
-            updated_at=created,
+            available_at=available_at,
+            created_at=created_at,
+            updated_at=created_at,
         )
-        values = {
+        values: Mapping[str, object] = {
             "outbox_id": row.outbox_id,
             "event_id": row.event_id,
             "idempotency_key": row.idempotency_key,
@@ -308,18 +461,7 @@ class DjangoSystemAuditOutboxRepository:
             "created_at": row.created_at,
             "updated_at": row.updated_at,
         }
-        try:
-            with _claim_system_audit_outbox_insert(
-                token=self._require_uow_token(),
-                model_type=SystemAuditOutboxModel,
-                expected_values=values,
-            ):
-                row.save(force_insert=True, using=self._using)
-        except IntegrityError as error:
-            raise SystemAuditOutboxConflict(
-                "outbox targeted enqueue collided with another identity"
-            ) from error
-        return self._restore(row)
+        return row, values
 
     def get_exact(self, *, outbox_id: UUID) -> SystemAuditOutboxRecord | None:
         """Restore one row after validating the entire outbox table."""

@@ -146,7 +146,7 @@ def build_production_current_market_publication_bundle(
                 "publication activation audit writer uses a different database alias",
                 reason_code="composition_alias_mismatch",
             )
-        if not callable(getattr(writer, "append_manifest_required", None)):
+        if not callable(getattr(writer, "append_manifest_group_required", None)):
             raise SystemAuditCompositionUnavailable(
                 "manifest-bound publication activation audit writer is unavailable",
                 reason_code="composition_not_wired",

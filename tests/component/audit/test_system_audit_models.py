@@ -99,6 +99,10 @@ def test_schema_is_zero_seeded_and_exact_claim_is_required() -> None:
 
 def test_append_only_guards_cover_instance_and_queryset_paths() -> None:
     event = make_event()
+    with pytest.raises(ValidationError, match="append-only"):
+        SystemAuditEventModel._default_manager.bulk_create([_row(event)])
+    with pytest.raises(ValidationError, match="append-only"):
+        SystemAuditEventModel._default_manager.all().bulk_create([_row(event)])
     with _activate_system_audit_uow():
         with _claim_system_audit_insert(event.event_id, event.content_hash):
             row = _row(event)

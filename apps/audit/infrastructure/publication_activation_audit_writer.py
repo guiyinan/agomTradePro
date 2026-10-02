@@ -15,6 +15,7 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationAuditWriter,
     PublicationActivationGroupAuditWriter,
     PublicationActivationGroupRequest,
+    PublicationActivationManifestAuditWrite,
     PublicationActivationRequest,
 )
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationMember
@@ -97,6 +98,31 @@ class DjangoPublicationActivationAuditWriter(
         ):
             raise ValueError("manifest activation audit input differs from the exact candidate")
         return self._use_case.execute_manifest_in_caller_transaction(observation)
+
+    def append_manifest_group_required(
+        self,
+        *,
+        request: PublicationActivationGroupRequest,
+        writes: tuple[PublicationActivationManifestAuditWrite, ...],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Append the exact activation group's manifest events in one caller UOW."""
+
+        candidate_ids = tuple(item.candidate_publication_id for item in request.candidates)
+        if (
+            len(writes) != len(candidate_ids)
+            or tuple(write.publication.publication_id for write in writes) != candidate_ids
+        ):
+            raise ValueError("manifest activation audit group differs from the request")
+        for write in writes:
+            write.__post_init__()
+            if (
+                write.observation.manifest_id != write.manifest.manifest_id
+                or write.observation.manifest_hash != write.manifest.manifest_hash
+            ):
+                raise ValueError("manifest activation audit input differs from the exact candidate")
+        return self._use_case.execute_manifest_group_in_caller_transaction(
+            tuple(write.observation for write in writes)
+        )
 
 
 __all__ = ["DjangoPublicationActivationAuditWriter"]

@@ -496,6 +496,18 @@ class _GroupAuditWriter(_AuditWriter):
             raise RuntimeError(f"required manifest outbox failure after {call_no}")
         return commit
 
+    def append_manifest_group_required(self, *, request, writes):
+        return tuple(
+            self.append_manifest_required(
+                request=request,
+                publication=write.publication,
+                members=write.members,
+                manifest=write.manifest,
+                observation=write.observation,
+            )
+            for write in writes
+        )
+
 
 def _build_group_candidate(
     dataset_key: str,
@@ -1015,26 +1027,22 @@ def test_group_activation_rolls_back_if_last_outbox_fails_after_append() -> None
     assert len(writer.manifest_calls) == 3
 
 
-def test_group_activation_rolls_back_all_switches_if_second_pointer_write_fails(
+def test_group_activation_rolls_back_all_switches_if_batched_pointer_write_fails(
     monkeypatch,
 ) -> None:
     request, _publications = _build_group_request()
-    original_compare_and_swap = PublicationGroupActivationStateWriter._compare_and_swap_pointer
-    calls = 0
+    original_compare_and_swap = PublicationGroupActivationStateWriter._compare_and_swap_pointers
 
-    def fail_second_pointer_save(pointer, **kwargs):
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            raise RuntimeError("second group pointer write failed")
-        return original_compare_and_swap(pointer, **kwargs)
+    def fail_batched_pointer_save(transitions, **kwargs):
+        original_compare_and_swap(transitions, **kwargs)
+        raise RuntimeError("batched group pointer write failed")
 
     monkeypatch.setattr(
         PublicationGroupActivationStateWriter,
-        "_compare_and_swap_pointer",
-        staticmethod(fail_second_pointer_save),
+        "_compare_and_swap_pointers",
+        staticmethod(fail_batched_pointer_save),
     )
-    with pytest.raises(RuntimeError, match="second group pointer write failed"):
+    with pytest.raises(RuntimeError, match="batched group pointer write failed"):
         _activate_group(request, _GroupAuditWriter())
 
     _assert_group_candidates_unpublished(request)

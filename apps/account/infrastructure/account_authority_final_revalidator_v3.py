@@ -40,9 +40,8 @@ from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationUnavailable,
     caller_owned_account_authority_generation_fence,
     capture_account_authority_snapshot_physical_provider_identity,
-    capture_active_account_authority_physical_provider_identity,
     read_account_authority_generation_proof,
-    require_active_account_authority_generation_fence,
+    validate_active_account_authority_physical_provider_identity,
 )
 from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityCurrentGraphReadV3,
@@ -591,13 +590,6 @@ class AccountAuthorityFinalRevalidatorV3:
                 raise AccountAuthorityGenerationChanged(
                     "generation lock differs from the captured complete graph proof"
                 )
-            connection = _connection(self._using)
-            fence_identity = capture_active_account_authority_physical_provider_identity(
-                using=self._using,
-                connection=connection,
-                generation=generation,
-            )
-            _validate_fenced_identity(fence_identity, self._using, generation)
             if graph_reader.selector_for(prepared.command) != prepared.selector:
                 raise AccountAuthorityFinalRevalidationUnavailable(
                     "complete graph selector differs from the captured proof"
@@ -615,13 +607,11 @@ class AccountAuthorityFinalRevalidatorV3:
                     "complete graph reread omitted physical transaction identity"
                 )
             _validate_fenced_identity(graph_identity, self._using, generation)
-            _require_same_physical_identity(fence_identity, graph_identity)
-            after_graph_identity = capture_active_account_authority_physical_provider_identity(
+            validate_active_account_authority_physical_provider_identity(
+                graph_identity,
                 using=self._using,
-                connection=connection,
                 generation=generation,
             )
-            _require_same_physical_identity(fence_identity, after_graph_identity)
 
             fingerprint = graph_read.fingerprint
             valid_until = graph_read.valid_until
@@ -666,29 +656,12 @@ class AccountAuthorityFinalRevalidatorV3:
             )
             yield result
 
-            require_active_account_authority_generation_fence(
-                using=self._using,
-                connection=connection,
-                generation=generation,
-            )
-            before_exit_clock = capture_active_account_authority_physical_provider_identity(
-                using=self._using,
-                connection=connection,
-                generation=generation,
-            )
-            _require_same_physical_identity(fence_identity, before_exit_clock)
             if graph_reader.selector_for(prepared.command) != prepared.selector:
                 raise AccountAuthorityFinalRevalidationUnavailable(
                     "complete graph selector changed during caller work"
                 )
             exit_checked_at = self._repository.database_clock()
             _validate_database_time(exit_checked_at)
-            after_exit_clock = capture_active_account_authority_physical_provider_identity(
-                using=self._using,
-                connection=connection,
-                generation=generation,
-            )
-            _require_same_physical_identity(fence_identity, after_exit_clock)
             if exit_checked_at < result.checked_at:
                 raise AccountAuthorityFinalRevalidationUnavailable(
                     "complete graph final database clock moved backwards"

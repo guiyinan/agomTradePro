@@ -135,7 +135,12 @@ def verify_account_authority_generation_coverage(
             cursor.execute(
                 """
                 SELECT c.relname, t.tgname, t.tgenabled, t.tgtype,
-                       p.proname, p.prosecdef, p.proconfig
+                       p.proname, p.prosecdef, p.proconfig,
+                       (
+                           SELECT generation
+                             FROM public.account_authority_generation
+                            WHERE singleton = 1
+                       )
                 FROM pg_catalog.pg_class AS c
                 JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
                 LEFT JOIN pg_catalog.pg_trigger AS t
@@ -155,23 +160,19 @@ def verify_account_authority_generation_coverage(
                 ],
             )
             rows = cast(list[tuple[object, ...]], cursor.fetchall())
-            _validate_trigger_rows(rows, source_tables)
-            cursor.execute(
-                f"SELECT generation FROM {_GENERATION_TABLE} WHERE singleton = %s",
-                [1],
-            )
-            generation_row = cast(tuple[object, ...] | None, cursor.fetchone())
     except AccountAuthorityGenerationUnavailable:
         raise
     except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
         raise AccountAuthorityGenerationCoverageError(
             "account authority generation coverage query failed"
         ) from error
-    if generation_row is None:
+    _validate_trigger_rows([row[:7] for row in rows], source_tables)
+    generations = {row[7] for row in rows if len(row) == 8}
+    if len(generations) != 1:
         raise AccountAuthorityGenerationCoverageError(
             "account authority generation singleton row is missing"
         )
-    generation = generation_row[0]
+    generation = generations.pop()
     if type(generation) is not int or generation < 0:
         raise AccountAuthorityGenerationCoverageError(
             "account authority generation singleton row is invalid"
@@ -697,7 +698,6 @@ def caller_owned_account_authority_generation_fence(
         raise AccountAuthorityGenerationUnavailable(
             "generation context requires an established physical connection"
         )
-    _require_transaction_mode(connection, isolation="read committed", read_only=False)
     try:
         generation = lock_account_authority_generation_fence(proof, using=using)
         transaction_id, backend_pid = _read_transaction_identity(connection)
@@ -796,13 +796,11 @@ def require_active_account_authority_generation_fence(
         raise AccountAuthorityGenerationUnavailable(
             "active generation fence belongs to another Django connection wrapper"
         )
-    _require_transaction_mode(connection, isolation="read committed", read_only=False)
-    transaction_id, backend_pid = _read_transaction_identity(connection)
+    transaction_id, backend_pid, current_generation = _read_active_fence_state(connection)
     if transaction_id != binding.transaction_id or backend_pid != binding.backend_pid:
         raise AccountAuthorityGenerationUnavailable(
             "active generation fence transaction identity changed"
         )
-    current_generation = _read_generation_value(connection)
     if current_generation != binding.generation:
         raise AccountAuthorityGenerationChanged(
             "account authority generation changed inside the caller fence"
@@ -842,6 +840,35 @@ def capture_active_account_authority_physical_provider_identity(
         task_token=binding.task,
         generation=active_generation,
     )
+
+
+def validate_active_account_authority_physical_provider_identity(
+    identity: PhysicalAccountRowProviderIdentity,
+    *,
+    using: str,
+    generation: int,
+) -> None:
+    """Bind a graph reader's identity to the active fence without another SQL read."""
+
+    binding = _ACTIVE_GENERATION_FENCE.get()
+    if (
+        type(identity) is not PhysicalAccountRowProviderIdentity
+        or binding is None
+        or binding.thread_id != get_ident()
+        or binding.task is not _current_task()
+        or identity.using != using
+        or identity.wrapper_token is not binding.connection_wrapper
+        or identity.dbapi_token is not binding.physical_connection
+        or identity.backend_pid != binding.backend_pid
+        or identity.transaction_xid != binding.transaction_id
+        or identity.thread_id != binding.thread_id
+        or identity.task_token is not binding.task
+        or identity.generation != generation
+        or binding.generation != generation
+    ):
+        raise AccountAuthorityGenerationUnavailable(
+            "graph reader physical identity differs from the active generation fence"
+        )
 
 
 def capture_account_authority_snapshot_physical_provider_identity(
@@ -1039,6 +1066,53 @@ def _read_transaction_identity(connection: BaseDatabaseWrapper) -> tuple[str, in
             "account authority generation transaction identity is invalid"
         )
     return row[0], row[1]
+
+
+def _read_active_fence_state(connection: BaseDatabaseWrapper) -> tuple[str, int, int]:
+    """Read transaction mode, physical identity, and generation in one round trip."""
+
+    if connection.vendor != "postgresql" or not connection.in_atomic_block:
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation requires an active PostgreSQL transaction"
+        )
+    if connection.get_autocommit():
+        raise AccountAuthorityGenerationUnavailable(
+            "account authority generation requires an active transaction"
+        )
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT current_setting('transaction_isolation'),
+                       current_setting('transaction_read_only'),
+                       pg_current_xact_id()::text,
+                       pg_backend_pid(),
+                       generation
+                  FROM {_GENERATION_TABLE}
+                 WHERE singleton = %s
+                """,
+                [1],
+            )
+            row = cast(tuple[object, ...] | None, cursor.fetchone())
+    except (DatabaseError, ConnectionDoesNotExist, KeyError) as error:
+        raise AccountAuthorityGenerationUnavailable(
+            "active account authority fence state is unavailable"
+        ) from error
+    if (
+        row is None
+        or len(row) != 5
+        or row[0:2] != ("read committed", "off")
+        or type(row[2]) is not str
+        or not row[2]
+        or type(row[3]) is not int
+        or row[3] <= 0
+        or type(row[4]) is not int
+        or row[4] < 0
+    ):
+        raise AccountAuthorityGenerationUnavailable(
+            "active account authority fence state is invalid"
+        )
+    return row[2], row[3], row[4]
 
 
 def _current_task() -> object | None:

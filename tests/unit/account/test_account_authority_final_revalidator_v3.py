@@ -287,16 +287,18 @@ def _install_complete_fence_fakes(
         events.append("snapshot_identity")
         return capture_identity
 
-    def active_identity(
+    def validate_active_identity(
+        identity: PhysicalAccountRowProviderIdentity,
         *,
         using: str,
-        connection: object,
-        generation: int | None = None,
-    ) -> PhysicalAccountRowProviderIdentity:
-        del connection
+        generation: int,
+    ) -> None:
         assert using == scan.database_alias
         events.append(f"fence_identity:{generation}")
-        return final_identity
+        if identity != final_identity:
+            raise AccountAuthorityFinalRevalidationUnavailable(
+                "injected graph physical identity mismatch"
+            )
 
     monkeypatch.setattr(module, "_connection", lambda _using: object())
     monkeypatch.setattr(module, "_read_only_repeatable_read_snapshot", rr_snapshot)
@@ -308,11 +310,8 @@ def _install_complete_fence_fakes(
     )
     monkeypatch.setattr(
         module,
-        "capture_active_account_authority_physical_provider_identity",
-        active_identity,
-    )
-    monkeypatch.setattr(
-        module, "require_active_account_authority_generation_fence", lambda **_kwargs: 73
+        "validate_active_account_authority_physical_provider_identity",
+        validate_active_identity,
     )
 
 
@@ -391,14 +390,13 @@ def test_complete_capture_and_fence_bind_ordered_full_graph_and_consume_proof(
         assert result.transaction_xid == final_identity.transaction_xid
         assert events == [
             "generation_for_share",
-            "fence_identity:73",
             "graph_read:73",
             "fence_identity:73",
         ]
     assert events[-3:] == [
+        "graph_read:73",
         "fence_identity:73",
         "database_clock",
-        "fence_identity:73",
     ]
     with pytest.raises(AccountAuthorityFinalRevalidationUnavailable, match="already consumed"):
         with revalidator.fence_complete(proof):

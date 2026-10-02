@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Final
+from datetime import datetime
+from typing import Final, cast
 from uuid import UUID
 
 from django.db import connections
@@ -15,6 +16,7 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationError,
     PublicationActivationGroupAuditWriter,
     PublicationActivationGroupRequest,
+    PublicationActivationManifestAuditWrite,
     publication_activation_lease_from_complete_graph,
 )
 from apps.data_center.application.publication_utils import (
@@ -267,24 +269,43 @@ class DjangoPublicationActivationGroupRepository:
                 )
 
         candidate_uuids = tuple(UUID(item) for item in request_by_id)
-        member_rows = list(
+        locked_member_values = tuple(
             PublicationMemberModel._default_manager.using(self._using)
             .select_for_update()
             .filter(publication_id__in=candidate_uuids)
             .order_by("publication_id", "natural_key", "member_id")
+            .values_list(
+                "member_id",
+                "publication_id",
+                "dataset_key",
+                "natural_key",
+                "source",
+                "source_record_id",
+                "fact_table",
+                "fact_pk",
+                "observed_at",
+                "raw_payload_hash",
+                "quality_status",
+                "revision_number",
+                "available_at",
+                "fetched_at",
+                "source_published_at",
+                "raw_payload_scope",
+                "fact_content_hash",
+            )
         )
         members_by_id_lists: dict[str, list[PublicationMember]] = {
             candidate_id: [] for candidate_id in request_by_id
         }
-        for row in member_rows:
-            candidate_id = str(row.publication_id)
-            members_by_id_lists[candidate_id].append(row.to_domain())
+        for values in locked_member_values:
+            member = _publication_member_from_values(values)
+            members_by_id_lists[member.publication_id].append(member)
         members_by_id = {
             candidate_id: tuple(members) for candidate_id, members in members_by_id_lists.items()
         }
-        member_values = tuple(member for group in members_by_id.values() for member in group)
+        all_members = tuple(member for group in members_by_id.values() for member in group)
         fact_hashes, fact_ingested_runs = publication_fact_content_hashes_and_ingested_runs(
-            member_values,
+            all_members,
             lock_rows=True,
         )
 
@@ -306,10 +327,11 @@ class DjangoPublicationActivationGroupRepository:
             self._validate_candidate_shape(publication, members)
             if candidate.members_sealed_at is None or not candidate.member_manifest_hash:
                 raise PublicationActivationError("group candidate member manifest is not sealed")
-            if candidate.member_manifest_hash != publication_member_manifest_hash(
+            manifest_hash = publication_member_manifest_hash(
                 members,
                 policy_identity=candidate.policy_version,
-            ):
+            )
+            if candidate.member_manifest_hash != manifest_hash:
                 raise PublicationActivationError("group candidate member manifest drifted")
             coverage = coverage_by_id[candidate_id]
             if (
@@ -328,17 +350,21 @@ class DjangoPublicationActivationGroupRepository:
                     raise PublicationActivationError("group candidate fact content hash drifted")
                 if fact_key not in fact_ingested_runs:
                     raise PublicationActivationError("group candidate fact row is missing")
-            expected_hash = publication_hash(
-                [
-                    member_reference(member)
-                    for member in sorted(members, key=lambda value: value.natural_key)
-                ],
-                policy_identity=(
-                    publication.policy_version
-                    if publication.policy_version.startswith("p2:")
-                    else None
-                ),
-                scope_blocks=publication.scope_blocks,
+            expected_hash = (
+                publication_hash(
+                    [
+                        member_reference(member)
+                        for member in sorted(members, key=lambda value: value.natural_key)
+                    ],
+                    policy_identity=(
+                        publication.policy_version
+                        if publication.policy_version.startswith("p2:")
+                        else None
+                    ),
+                    scope_blocks=publication.scope_blocks,
+                )
+                if publication.scope_blocks
+                else manifest_hash
             )
             if expected_hash != publication.publication_hash:
                 raise PublicationActivationError("group candidate publication hash drifted")
@@ -365,19 +391,19 @@ class DjangoPublicationActivationGroupRepository:
             same_current_by_id=same_current_by_id,
             activation_at=activation_at,
         )
-        for item in request.candidates:
-            candidate_id = item.candidate_publication_id
-            publication = validated_publications[candidate_id]
-            manifest = manifests_by_publication[candidate_id]
-            observation = observations_by_id[candidate_id]
-            PublicationGroupActivationStateWriter().append_required_manifest_audit(
-                request=request,
-                audit_writer=audit_writer,
-                publication=publication,
-                members=members_by_id[candidate_id],
-                manifest=manifest,
-                observation=observation,
-            )
+        PublicationGroupActivationStateWriter().append_required_manifest_group_audit(
+            request=request,
+            audit_writer=audit_writer,
+            writes=tuple(
+                PublicationActivationManifestAuditWrite(
+                    publication=validated_publications[item.candidate_publication_id],
+                    members=members_by_id[item.candidate_publication_id],
+                    manifest=manifests_by_publication[item.candidate_publication_id],
+                    observation=observations_by_id[item.candidate_publication_id],
+                )
+                for item in request.candidates
+            ),
+        )
         return tuple(
             candidates_by_id[item.candidate_publication_id].to_domain()
             for item in request.candidates
@@ -411,6 +437,75 @@ class DjangoPublicationActivationGroupRepository:
                 or member.observed_at > publication.as_of
             ):
                 raise PublicationActivationError("candidate member scope is invalid")
+
+
+def _publication_member_from_values(values: tuple[object, ...]) -> PublicationMember:
+    """Narrow one locked values row directly into the immutable domain member."""
+
+    if len(values) != 17:
+        raise PublicationActivationError("candidate member row shape is invalid")
+    (
+        member_id,
+        publication_id,
+        dataset_key,
+        natural_key,
+        source,
+        source_record_id,
+        fact_table,
+        fact_pk,
+        observed_at,
+        raw_payload_hash,
+        quality_status,
+        revision_number,
+        available_at,
+        fetched_at,
+        source_published_at,
+        raw_payload_scope,
+        fact_content_hash,
+    ) = values
+    optional_datetimes = (observed_at, available_at, fetched_at, source_published_at)
+    if (
+        not all(
+            isinstance(value, str)
+            for value in (
+                dataset_key,
+                natural_key,
+                source,
+                source_record_id,
+                fact_table,
+                fact_pk,
+                raw_payload_hash,
+                quality_status,
+                raw_payload_scope,
+                fact_content_hash,
+            )
+        )
+        or not isinstance(revision_number, int)
+        or isinstance(revision_number, bool)
+        or any(
+            value is not None and not isinstance(value, datetime) for value in optional_datetimes
+        )
+    ):
+        raise PublicationActivationError("candidate member row types are invalid")
+    return PublicationMember(
+        member_id=str(member_id),
+        publication_id=str(publication_id),
+        dataset_key=cast(str, dataset_key),
+        natural_key=cast(str, natural_key),
+        source=cast(str, source),
+        source_record_id=cast(str, source_record_id),
+        fact_table=cast(str, fact_table),
+        fact_pk=cast(str, fact_pk),
+        observed_at=cast(datetime | None, observed_at),
+        raw_payload_hash=cast(str, raw_payload_hash),
+        quality_status=cast(str, quality_status),
+        revision_number=revision_number,
+        available_at=cast(datetime | None, available_at),
+        fetched_at=cast(datetime | None, fetched_at),
+        source_published_at=cast(datetime | None, source_published_at),
+        raw_payload_scope=cast(str, raw_payload_scope),
+        fact_content_hash=cast(str, fact_content_hash),
+    )
 
 
 __all__ = ["DjangoPublicationActivationGroupRepository"]

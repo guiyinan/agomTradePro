@@ -79,6 +79,10 @@ def test_payload_identity_delete_and_direct_state_mutation_are_guarded() -> None
     row = _row()
     with pytest.raises(ValidationError, match="exact private claim"):
         row.save()
+    with pytest.raises(ValidationError, match="repository enqueue"):
+        SystemAuditOutboxModel.objects.bulk_create([_row()])
+    with pytest.raises(ValidationError, match="repository enqueue"):
+        SystemAuditOutboxModel.objects.all().bulk_create([_row()])
     _insert(row)
 
     row.payload = {"event_id": "event-1", "content_hash": "b" * 64}

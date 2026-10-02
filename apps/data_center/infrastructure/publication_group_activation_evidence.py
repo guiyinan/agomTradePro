@@ -6,8 +6,6 @@ from datetime import datetime
 from typing import Final
 from uuid import UUID
 
-from django.db import connections
-
 from apps.data_center.application.publication_activation import (
     PublicationActivationAuthorityLease,
     PublicationActivationError,
@@ -35,7 +33,6 @@ from core.integration.data_center_audit import (
 
 from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
-    CandidateRawAuditManifestModel,
 )
 from .catalog_models import DatasetPublicationPolicyModel
 from .fact_and_operational_models import RawAuditModel
@@ -128,29 +125,27 @@ class PublicationGroupActivationEvidenceRepository:
         """Lock complete manifest graphs and close source lineage in both directions."""
 
         publication_ids = tuple(UUID(item.candidate_publication_id) for item in request.candidates)
-        headers = list(
-            CandidateRawAuditManifestModel._default_manager.using(self._using)
-            .select_for_update()
-            .filter(publication_id__in=publication_ids)
-            .order_by("publication_id", "manifest_id")
-        )
-        if len(headers) != len(request.candidates):
-            raise PublicationActivationError("one or more candidate RawAudit manifests are missing")
-        header_by_publication = {
-            str(header_row.publication_id): header_row for header_row in headers
-        }
-        manifest_ids = tuple(header_row.manifest_id for header_row in headers)
         children = list(
             CandidateRawAuditManifestMemberModel._default_manager.using(self._using)
             .select_for_update()
-            .filter(manifest_id__in=manifest_ids)
-            .order_by("manifest_id", "ordinal", "id")
+            .select_related("manifest", "raw_audit")
+            .filter(manifest__publication_id__in=publication_ids)
+            .order_by("manifest__publication_id", "manifest_id", "ordinal", "id")
         )
-        children_by_manifest: dict[str, list[CandidateRawAuditReference]] = {
-            str(row.manifest_id): [] for row in headers
+        headers = {row.manifest_id: row.manifest for row in children}
+        if len(headers) != len(request.candidates):
+            raise PublicationActivationError("one or more candidate RawAudit manifests are missing")
+        header_by_publication = {
+            str(header_row.publication_id): header_row for header_row in headers.values()
         }
-        ordinals_by_manifest: dict[str, list[int]] = {str(row.manifest_id): [] for row in headers}
+        children_by_manifest: dict[str, list[CandidateRawAuditReference]] = {
+            str(manifest_id): [] for manifest_id in headers
+        }
+        ordinals_by_manifest: dict[str, list[int]] = {
+            str(manifest_id): [] for manifest_id in headers
+        }
         references_by_raw_id: dict[int, CandidateRawAuditReference] = {}
+        raw_by_id: dict[int, RawAuditModel] = {}
         for child_row in children:
             manifest_id = str(child_row.manifest_id)
             reference = CandidateRawAuditReference(
@@ -168,6 +163,7 @@ class PublicationGroupActivationEvidenceRepository:
                     "shared RawAudit manifest references disagree on immutable identity"
                 )
             references_by_raw_id[child_row.raw_audit_id] = reference
+            raw_by_id[child_row.raw_audit_id] = child_row.raw_audit
             children_by_manifest[manifest_id].append(reference)
             ordinals_by_manifest[manifest_id].append(child_row.ordinal)
 
@@ -215,18 +211,6 @@ class PublicationGroupActivationEvidenceRepository:
                 )
             manifests[publication_id] = manifest
 
-        raw_audit_ids = tuple(sorted(references_by_raw_id))
-        batch_size = connections[self._using].features.max_query_params or 10_000
-        raw_rows: list[RawAuditModel] = []
-        for start in range(0, len(raw_audit_ids), max(1, batch_size)):
-            batch = raw_audit_ids[start : start + max(1, batch_size)]
-            raw_rows.extend(
-                RawAuditModel._default_manager.using(self._using)
-                .select_for_update()
-                .filter(pk__in=batch)
-                .order_by("pk")
-            )
-        raw_by_id = {int(raw_row.pk): raw_row for raw_row in raw_rows}
         if raw_by_id.keys() != references_by_raw_id.keys():
             raise PublicationActivationError("one or more candidate RawAudit rows are missing")
         source_type_by_raw_id: dict[int, str] = {}

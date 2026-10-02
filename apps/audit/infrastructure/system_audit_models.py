@@ -30,6 +30,11 @@ class _InsertClaim:
     content_hash: str
 
 
+@dataclass(frozen=True, slots=True)
+class _BatchInsertClaim:
+    identities: tuple[tuple[str, str], ...]
+
+
 @contextmanager
 def _activate_system_audit_uow() -> Iterator[object]:
     """Activate the private non-nestable capability used by a future repository."""
@@ -57,7 +62,38 @@ def _claim_system_audit_insert(event_id: str, content_hash: str) -> Iterator[Non
         _CLAIM.reset(token)
 
 
+@contextmanager
+def _claim_system_audit_batch_insert(
+    identities: tuple[tuple[str, str], ...],
+) -> Iterator[None]:
+    """Allow one exact event batch insert inside the private audit UOW."""
+
+    if (
+        _UOW.get() is None
+        or _CLAIM.get() is not None
+        or not identities
+        or len(set(identities)) != len(identities)
+    ):
+        raise ValidationError("system audit batch insert requires exact private identities")
+    token = _CLAIM.set(_BatchInsertClaim(identities=identities))
+    try:
+        yield
+    finally:
+        _CLAIM.reset(token)
+
+
 class _AppendOnlyQuerySet(models.QuerySet[_T]):
+    def bulk_create(
+        self,
+        objs: Iterable[_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
+        raise ValidationError("system audit events are append-only")
+
     def update(self, **kwargs: object) -> NoReturn:
         raise ValidationError("system audit events are append-only")
 
@@ -87,6 +123,23 @@ class _AppendOnlyManager(models.Manager[_T]):
         unique_fields: Collection[str] | None = None,
     ) -> NoReturn:
         raise ValidationError("system audit events are append-only")
+
+    def _bulk_create_claimed(self, objs: tuple[_T, ...]) -> list[_T]:
+        """Insert the exact repository-authorized append-only batch."""
+
+        claim = _CLAIM.get()
+        identities = tuple(
+            (str(getattr(obj, "event_id", "")), str(getattr(obj, "content_hash", "")))
+            for obj in objs
+        )
+        if (
+            _UOW.get() is None
+            or not isinstance(claim, _BatchInsertClaim)
+            or claim.identities != identities
+            or any(not obj._state.adding or obj.pk is not None for obj in objs)
+        ):
+            raise ValidationError("system audit batch insert requires an exact private claim")
+        return models.QuerySet.bulk_create(self.get_queryset(), objs)
 
     def bulk_update(
         self,

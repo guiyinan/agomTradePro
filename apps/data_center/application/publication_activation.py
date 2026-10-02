@@ -311,6 +311,35 @@ class PublicationActivationGroupAuditWriter(Protocol):
     ) -> SystemAuditEventOutboxCommit:
         """Append one required event/outbox pair bound to a full manifest."""
 
+    def append_manifest_group_required(
+        self,
+        *,
+        request: PublicationActivationGroupRequest,
+        writes: tuple[PublicationActivationManifestAuditWrite, ...],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Append the complete activation group's event/outbox pairs in one batch."""
+
+
+@dataclass(frozen=True, slots=True)
+class PublicationActivationManifestAuditWrite:
+    """One validated manifest audit write within an atomic activation group."""
+
+    publication: CanonicalPublication
+    members: tuple[PublicationMember, ...]
+    manifest: CandidateRawAuditManifest
+    observation: DataPublicationManifestAuditObservation
+
+    def __post_init__(self) -> None:
+        """Require every audit input to name the same exact candidate."""
+
+        publication_id = self.publication.publication_id
+        if (
+            self.manifest.publication_id != publication_id
+            or self.observation.publication_id != publication_id
+            or len(self.members) != self.publication.member_count
+        ):
+            raise PublicationActivationError("manifest audit write identity differs")
+
 
 class PublicationActivationGroupRepository(Protocol):
     """Infrastructure port for fixed quote, price, and valuation activation."""
@@ -403,6 +432,7 @@ __all__ = [
     "PublicationActivationGroupCandidate",
     "PublicationActivationGroupRequest",
     "PublicationActivationGroupRepository",
+    "PublicationActivationManifestAuditWrite",
     "PublicationActivationAuthorityFence",
     "PublicationActivationAuthorityLease",
     "PublicationActivationError",

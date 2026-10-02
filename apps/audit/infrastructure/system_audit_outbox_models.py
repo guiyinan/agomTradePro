@@ -22,10 +22,10 @@ from django.db.models.base import ModelBase
 from django.db.models.signals import pre_delete
 
 _UOW: ContextVar[object | None] = ContextVar("system_audit_outbox_uow", default=None)
-_CLAIM: ContextVar["_InsertClaim | None"] = ContextVar(
+_CLAIM: ContextVar[_InsertClaim | _BatchInsertClaim | None] = ContextVar(
     "system_audit_outbox_insert_claim", default=None
 )
-_STATE_MUTATION: ContextVar["_StateMutationClaim | None"] = ContextVar(
+_STATE_MUTATION: ContextVar[_StateMutationClaim | None] = ContextVar(
     "system_audit_outbox_state_mutation", default=None
 )
 
@@ -37,6 +37,15 @@ class _InsertClaim:
     token: object
     model_type: type[models.Model]
     expected_values: tuple[tuple[str, object], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _BatchInsertClaim:
+    """Private capability for one exact outbox row batch."""
+
+    token: object
+    model_type: type[models.Model]
+    expected_values: tuple[tuple[tuple[str, object], ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +83,25 @@ def _claim_system_audit_outbox_insert(
     if _CLAIM.get() is not None:
         raise ValidationError("system audit outbox insert claims may not be nested")
     reset = _CLAIM.set(_InsertClaim(token, model_type, tuple(sorted(expected_values.items()))))
+    try:
+        yield
+    finally:
+        _CLAIM.reset(reset)
+
+
+@contextmanager
+def _claim_system_audit_outbox_batch_insert(
+    *,
+    token: object,
+    model_type: type[models.Model],
+    expected_values: tuple[Mapping[str, object], ...],
+) -> Iterator[None]:
+    """Allow one exact outbox batch insert inside the active private UOW."""
+
+    if _UOW.get() is not token or _CLAIM.get() is not None or not expected_values:
+        raise ValidationError("system audit outbox batch insert requires a private UOW")
+    normalized = tuple(tuple(sorted(values.items())) for values in expected_values)
+    reset = _CLAIM.set(_BatchInsertClaim(token, model_type, normalized))
     try:
         yield
     finally:
@@ -150,6 +178,25 @@ def _reject_immutable_fields(fields: Iterable[str]) -> None:
 class SystemAuditOutboxQuerySet(models.QuerySet["SystemAuditOutboxModel"]):
     """Reject ORM update shortcuts; the repository owns state transitions."""
 
+    def bulk_create(
+        self,
+        objs: Iterable[SystemAuditOutboxModel],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Iterable[str] | None = None,
+        unique_fields: Iterable[str] | None = None,
+    ) -> NoReturn:
+        del (
+            objs,
+            batch_size,
+            ignore_conflicts,
+            update_conflicts,
+            update_fields,
+            unique_fields,
+        )
+        raise ValidationError("system audit outbox inserts require repository enqueue")
+
     def update(self, **kwargs: object) -> int:
         _reject_immutable_fields(kwargs)
         del kwargs
@@ -179,6 +226,50 @@ class SystemAuditOutboxManager(models.Manager["SystemAuditOutboxModel"]):
 
     def get_queryset(self) -> SystemAuditOutboxQuerySet:
         return SystemAuditOutboxQuerySet(self.model, using=self._db)
+
+    def bulk_create(
+        self,
+        objs: Iterable[SystemAuditOutboxModel],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Iterable[str] | None = None,
+        unique_fields: Iterable[str] | None = None,
+    ) -> NoReturn:
+        del (
+            objs,
+            batch_size,
+            ignore_conflicts,
+            update_conflicts,
+            update_fields,
+            unique_fields,
+        )
+        raise ValidationError("system audit outbox inserts require repository enqueue")
+
+    def _bulk_create_claimed(
+        self,
+        objs: tuple[SystemAuditOutboxModel, ...],
+        expected_values: tuple[Mapping[str, object], ...],
+    ) -> list[SystemAuditOutboxModel]:
+        """Insert the exact repository-authorized outbox batch."""
+
+        claim = _CLAIM.get()
+        normalized = tuple(tuple(sorted(values.items())) for values in expected_values)
+        if (
+            not isinstance(claim, _BatchInsertClaim)
+            or claim.token is not _UOW.get()
+            or claim.model_type is not self.model
+            or claim.expected_values != normalized
+            or len(objs) != len(expected_values)
+            or any(
+                not row._state.adding
+                or row.pk is None
+                or any(getattr(row, name) != value for name, value in values.items())
+                for row, values in zip(objs, expected_values, strict=True)
+            )
+        ):
+            raise ValidationError("system audit outbox batch insert requires an exact claim")
+        return models.QuerySet.bulk_create(self.get_queryset(), objs)
 
     def bulk_update(
         self,
@@ -299,7 +390,7 @@ class SystemAuditOutboxModel(models.Model):
 
         claim = _CLAIM.get()
         if (
-            claim is None
+            not isinstance(claim, _InsertClaim)
             or claim.token is not _UOW.get()
             or claim.model_type is not type(self)
             or any(getattr(self, name) != expected for name, expected in claim.expected_values)

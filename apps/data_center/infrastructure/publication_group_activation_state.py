@@ -5,20 +5,17 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from django.db.models import Case, Q, Value, When
+
 from apps.data_center.application.publication_activation import (
     PublicationActivationError,
     PublicationActivationGroupAuditWriter,
     PublicationActivationGroupRequest,
+    PublicationActivationManifestAuditWrite,
 )
-from apps.data_center.domain.control_plane import (
-    CanonicalPublication,
-    PublicationMember,
-    PublicationState,
-)
-from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifest
+from apps.data_center.domain.control_plane import PublicationState
 from core.integration.data_center_audit import (
     AuditOutcome,
-    DataPublicationManifestAuditObservation,
     SystemAuditEventOutboxCommit,
 )
 
@@ -40,6 +37,8 @@ class PublicationGroupActivationStateWriter:
     ) -> None:
         """Apply the complete validated state transition in stable scope order."""
 
+        publication_rows: list[CanonicalPublicationModel] = []
+        pointer_transitions: list[tuple[CanonicalPublicationPointerModel, UUID, str]] = []
         for item in request.candidates:
             candidate_id = item.candidate_publication_id
             if same_current_by_id[candidate_id]:
@@ -49,110 +48,136 @@ class PublicationGroupActivationStateWriter:
                 previous = previous_by_id[str(pointer.publication_id)]
                 previous.state = PublicationState.SUPERSEDED.value
                 previous.superseded_at = activation_at
-                previous.save(update_fields=("state", "superseded_at", "updated_at"))
+                previous.updated_at = activation_at
+                publication_rows.append(previous)
             candidate = candidates_by_id[candidate_id]
             candidate.state = PublicationState.PUBLISHED.value
             candidate.published_at = activation_at
             candidate.superseded_at = None
-            candidate.save(update_fields=("state", "published_at", "superseded_at", "updated_at"))
-            self._compare_and_swap_pointer(
-                pointer,
-                publication_id=candidate.publication_id,
-                publication_hash=candidate.publication_hash,
-                activation_id=request.activation_id,
-                updated_at=activation_at,
+            candidate.updated_at = activation_at
+            publication_rows.append(candidate)
+            pointer_transitions.append(
+                (pointer, candidate.publication_id, candidate.publication_hash)
             )
+        if publication_rows:
+            CanonicalPublicationModel._default_manager.bulk_update(
+                publication_rows,
+                fields=("state", "published_at", "superseded_at", "updated_at"),
+            )
+        self._compare_and_swap_pointers(
+            pointer_transitions,
+            activation_id=request.activation_id,
+            updated_at=activation_at,
+        )
 
     @staticmethod
-    def _compare_and_swap_pointer(
-        pointer: CanonicalPublicationPointerModel,
+    def _compare_and_swap_pointers(
+        transitions: list[tuple[CanonicalPublicationPointerModel, UUID, str]],
         *,
-        publication_id: UUID,
-        publication_hash: str,
         activation_id: str,
         updated_at: datetime,
     ) -> None:
-        """Change a pointer only if all three observed identity fields still match."""
+        """Change all locked pointers in one exact observed-identity CAS statement."""
 
-        updated = CanonicalPublicationPointerModel._default_manager.filter(
-            pointer_id=pointer.pointer_id,
-            publication_id=pointer.publication_id,
-            publication_hash=pointer.publication_hash,
-            activation_id=pointer.activation_id,
-        ).update(
-            publication_id=publication_id,
-            publication_hash=publication_hash,
+        if not transitions:
+            return
+        predicate = Q()
+        publication_cases: list[When] = []
+        hash_cases: list[When] = []
+        for pointer, publication_id, publication_hash in transitions:
+            predicate |= Q(
+                pointer_id=pointer.pointer_id,
+                publication_id=pointer.publication_id,
+                publication_hash=pointer.publication_hash,
+                activation_id=pointer.activation_id,
+            )
+            publication_cases.append(
+                When(pointer_id=pointer.pointer_id, then=Value(publication_id))
+            )
+            hash_cases.append(When(pointer_id=pointer.pointer_id, then=Value(publication_hash)))
+        updated = CanonicalPublicationPointerModel._default_manager.filter(predicate).update(
+            publication_id=Case(
+                *publication_cases,
+                output_field=CanonicalPublicationPointerModel._meta.get_field("publication_id"),
+            ),
+            publication_hash=Case(
+                *hash_cases,
+                output_field=CanonicalPublicationPointerModel._meta.get_field("publication_hash"),
+            ),
             activation_id=activation_id,
             updated_at=updated_at,
         )
-        if updated != 1:
+        if updated != len(transitions):
             raise PublicationActivationError("current publication pointer compare-and-swap failed")
-        pointer.publication_id = publication_id
-        pointer.publication_hash = publication_hash
-        pointer.activation_id = activation_id
+        for pointer, publication_id, publication_hash in transitions:
+            pointer.publication_id = publication_id
+            pointer.publication_hash = publication_hash
+            pointer.activation_id = activation_id
 
     @staticmethod
-    def append_required_manifest_audit(
+    def append_required_manifest_group_audit(
         *,
         request: PublicationActivationGroupRequest,
         audit_writer: PublicationActivationGroupAuditWriter,
-        publication: CanonicalPublication,
-        members: tuple[PublicationMember, ...],
-        manifest: CandidateRawAuditManifest,
-        observation: DataPublicationManifestAuditObservation,
+        writes: tuple[PublicationActivationManifestAuditWrite, ...],
     ) -> None:
-        """Require one audit/outbox commit with the complete candidate manifest refs."""
+        """Require one atomic batch of manifest-bound audit/outbox commits."""
 
-        append_required = getattr(audit_writer, "append_manifest_required", None)
+        append_required = getattr(audit_writer, "append_manifest_group_required", None)
         if not callable(append_required):
             raise PublicationActivationError("required manifest audit/outbox writer is unavailable")
-        commit = append_required(
+        commits = append_required(
             request=request,
-            publication=publication,
-            members=members,
-            manifest=manifest,
-            observation=observation,
+            writes=writes,
         )
-        if not isinstance(commit, SystemAuditEventOutboxCommit):
+        if (
+            not isinstance(commits, tuple)
+            or len(commits) != len(writes)
+            or any(not isinstance(commit, SystemAuditEventOutboxCommit) for commit in commits)
+        ):
             raise PublicationActivationError(
                 "required manifest audit/outbox writer returned an invalid commit"
             )
-        event = commit.event
-        expected_refs = (
-            (
-                "candidate_raw_audit_manifest",
-                manifest.manifest_id,
-                manifest.manifest_version,
-                manifest.manifest_hash,
-            ),
-            *(
-                ("raw_audit", item.raw_audit_id, item.version, item.content_hash)
-                for item in manifest.raw_audits
-            ),
-            (
-                "canonical_publication",
-                publication.publication_id,
-                publication.policy_version,
-                publication.publication_hash,
-            ),
-        )
-        actual_refs = tuple(
-            (item.artifact_type, item.artifact_id, item.artifact_version, item.content_hash)
-            for item in event.evidence_refs
-        )
-        if (
-            event.event_type != "data.publication.published"
-            or event.outcome is not AuditOutcome.PUBLISHED
-            or event.publication_id != publication.publication_id
-            or event.dataset_key != publication.dataset_key
-            or event.recorded_at != observation.recorded_at
-            or event.correlations.run_id != publication.run_id
-            or event.scope != observation.scope
-            or actual_refs != expected_refs
-        ):
-            raise PublicationActivationError(
-                "required manifest audit event does not match the activated candidate"
+        for write, commit in zip(writes, commits, strict=True):
+            publication = write.publication
+            manifest = write.manifest
+            observation = write.observation
+            event = commit.event
+            expected_refs = (
+                (
+                    "candidate_raw_audit_manifest",
+                    manifest.manifest_id,
+                    manifest.manifest_version,
+                    manifest.manifest_hash,
+                ),
+                *(
+                    ("raw_audit", item.raw_audit_id, item.version, item.content_hash)
+                    for item in manifest.raw_audits
+                ),
+                (
+                    "canonical_publication",
+                    publication.publication_id,
+                    publication.policy_version,
+                    publication.publication_hash,
+                ),
             )
+            actual_refs = tuple(
+                (item.artifact_type, item.artifact_id, item.artifact_version, item.content_hash)
+                for item in event.evidence_refs
+            )
+            if (
+                event.event_type != "data.publication.published"
+                or event.outcome is not AuditOutcome.PUBLISHED
+                or event.publication_id != publication.publication_id
+                or event.dataset_key != publication.dataset_key
+                or event.recorded_at != observation.recorded_at
+                or event.correlations.run_id != publication.run_id
+                or event.scope != observation.scope
+                or actual_refs != expected_refs
+            ):
+                raise PublicationActivationError(
+                    "required manifest audit event does not match the activated candidate"
+                )
 
 
 __all__ = ["PublicationGroupActivationStateWriter"]

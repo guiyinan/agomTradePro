@@ -146,6 +146,73 @@ class DjangoSystemAuditEventOutboxCoordinator:
 
         self._event_repository.lock_stream(stream_id)
 
+    def lock_streams(self, stream_ids: tuple[str, ...]) -> None:
+        """Serialize an exact activation stream group in stable order."""
+
+        self._event_repository.lock_streams(stream_ids)
+
+    def get_activation_group_state_targeted(
+        self,
+        *,
+        identities: tuple[tuple[str, str], ...],
+        stream_ids: tuple[str, ...],
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[
+        dict[tuple[str, str], SystemAuditEvent],
+        dict[str, SystemAuditEvent],
+    ]:
+        """Lock grouped event winners and stream heads with one bounded read."""
+
+        return self._event_repository.get_activation_group_state_targeted(
+            identities=identities,
+            stream_ids=stream_ids,
+            as_of=as_of,
+            scope=scope,
+        )
+
+    def append_and_enqueue_group_targeted(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+        *,
+        identity_winners: dict[tuple[str, str], SystemAuditEvent],
+        stream_heads: dict[str, SystemAuditEvent],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Append a serialized event group and enqueue it after one outbox lookup."""
+
+        persisted_events = self._event_repository.append_group_targeted(
+            events,
+            identity_winners=identity_winners,
+            stream_heads=stream_heads,
+        )
+        replay_events = tuple(
+            event
+            for event in persisted_events
+            if (event.event_id, event.event_version) in identity_winners
+        )
+        outbox_winners = (
+            self._outbox_repository.get_identity_winners_targeted(replay_events)
+            if replay_events
+            else {}
+        )
+        outbox_records = self._outbox_repository.enqueue_group_targeted_prefetched(
+            persisted_events,
+            existing=outbox_winners,
+        )
+        commits: list[SystemAuditEventOutboxCommit] = []
+        for event, outbox_record in zip(persisted_events, outbox_records, strict=True):
+            if outbox_record.event != event:
+                raise SystemAuditEventOutboxConflict("outbox payload does not match event winner")
+            commits.append(
+                SystemAuditEventOutboxCommit(
+                    event=event,
+                    outbox_id=outbox_record.outbox_id,
+                    event_id=event.event_id,
+                    idempotency_key=event.idempotency_key,
+                )
+            )
+        return tuple(commits)
+
     def get_winner_targeted(
         self,
         *,

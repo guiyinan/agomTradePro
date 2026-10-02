@@ -24,27 +24,6 @@ _RAW_PAYLOAD_SCOPES: Final[frozenset[str]] = frozenset(
 )
 
 
-class _FactJSONEncoder(json.JSONEncoder):
-    """Preserve full timestamp precision and finite decimal values at the ORM boundary."""
-
-    def default(self, value: object) -> object:
-        """Serialize the supported ORM scalar types without lossy millisecond trimming."""
-
-        if isinstance(value, datetime):
-            if value.tzinfo is None or value.utcoffset() is None:
-                raise ValueError("Canonical fact timestamp must be timezone-aware")
-            return value.astimezone(UTC).isoformat(timespec="microseconds")
-        if isinstance(value, date):
-            return value.isoformat()
-        if isinstance(value, Decimal):
-            if not value.is_finite():
-                raise ValueError("Canonical fact decimal must be finite")
-            return str(value)
-        if isinstance(value, UUID):
-            return str(value)
-        return super().default(value)
-
-
 def canonical_fact_content_hash(row: models.Model) -> str:
     """Bind every persisted concrete field, including values and evidence, to SHA-256.
 
@@ -53,17 +32,39 @@ def canonical_fact_content_hash(row: models.Model) -> str:
     """
 
     payload: dict[str, object] = {
-        field.attname: getattr(row, field.attname) for field in row._meta.concrete_fields
+        field.attname: _canonical_json_value(getattr(row, field.attname))
+        for field in row._meta.concrete_fields
     }
     encoded = json.dumps(
         {"encoding": "canonical-fact-row-v1", "table": row._meta.db_table, "fields": payload},
-        cls=_FactJSONEncoder,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _canonical_json_value(value: object) -> object:
+    """Normalize ORM scalars before the C JSON encoder handles the row payload."""
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("Canonical fact timestamp must be timezone-aware")
+        return value.astimezone(UTC).isoformat(timespec="microseconds")
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError("Canonical fact decimal must be finite")
+        return str(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, Mapping):
+        return {str(key): _canonical_json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_json_value(item) for item in value]
+    return value
 
 
 @dataclass(frozen=True)

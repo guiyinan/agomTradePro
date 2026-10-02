@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Protocol, cast
 
 from django.db import IntegrityError, connections, transaction
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
 from apps.audit.domain.system_audit_event import AuditScopeRef, JSONValue, SystemAuditEvent
@@ -23,6 +24,7 @@ from apps.audit.infrastructure.system_audit_models import (
     _UOW,
     SystemAuditEventModel,
     _activate_system_audit_uow,
+    _claim_system_audit_batch_insert,
     _claim_system_audit_insert,
 )
 
@@ -142,6 +144,86 @@ class DjangoSystemAuditEventRepository:
                 "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
                 [stream_id],
             )
+
+    def lock_streams(self, stream_ids: tuple[str, ...]) -> None:
+        """Serialize a bounded set of streams in stable order with one query."""
+
+        ordered = tuple(sorted(set(stream_ids)))
+        if (
+            len(ordered) != len(stream_ids)
+            or not ordered
+            or any(not stream_id or stream_id.strip() != stream_id for stream_id in ordered)
+        ):
+            raise SystemAuditConflict("audit stream group identities are invalid")
+        connection = connections[self._using]
+        if connection.vendor != "postgresql":
+            for stream_id in ordered:
+                self.lock_stream(stream_id)
+            return
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT pg_advisory_xact_lock(hashtextextended(stream_id, 0))
+                  FROM unnest(%s::text[]) AS stream(stream_id)
+                 ORDER BY stream_id
+                """,
+                [list(ordered)],
+            )
+
+    def get_activation_group_state_targeted(
+        self,
+        *,
+        identities: tuple[tuple[str, str], ...],
+        stream_ids: tuple[str, ...],
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[
+        dict[tuple[str, str], SystemAuditEvent],
+        dict[str, SystemAuditEvent],
+    ]:
+        """Lock exact identity winners and latest stream heads in one bounded query."""
+
+        self._require_cutoff(as_of)
+        if (
+            not identities
+            or len(set(identities)) != len(identities)
+            or not stream_ids
+            or len(set(stream_ids)) != len(stream_ids)
+        ):
+            raise SystemAuditConflict("audit activation group selectors are invalid")
+        identity_filter = Q()
+        for event_id, event_version in identities:
+            identity_filter |= Q(event_id=event_id, event_version=event_version)
+        head_id = (
+            SystemAuditEventModel._default_manager.using(self._using)
+            .filter(stream_id=OuterRef("stream_id"), recorded_at__lte=as_of)
+            .order_by("-sequence_no")
+            .values("id")[:1]
+        )
+        rows = tuple(
+            SystemAuditEventModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(identity_filter | Q(stream_id__in=stream_ids, id=Subquery(head_id)))
+            .order_by("stream_id", "sequence_no", "id")
+        )
+        events = tuple(self._restore(row) for row in rows)
+        winners: dict[tuple[str, str], SystemAuditEvent] = {}
+        heads: dict[str, SystemAuditEvent] = {}
+        identity_set = set(identities)
+        stream_set = set(stream_ids)
+        for event in events:
+            identity = (event.event_id, event.event_version)
+            if identity in identity_set and event.recorded_at <= as_of:
+                if identity in winners:
+                    raise SystemAuditCorruption("system audit event identity is ambiguous")
+                winners[identity] = event
+            if event.stream_id in stream_set:
+                current = heads.get(event.stream_id)
+                if current is None or event.sequence_no > current.sequence_no:
+                    heads[event.stream_id] = event
+        if any(head.scope != scope for head in heads.values()):
+            raise SystemAuditUnavailable("audit stream scope differs from activation scope")
+        return winners, heads
 
     def get_winner_targeted(
         self,
@@ -431,6 +513,80 @@ class DjangoSystemAuditEventRepository:
     ) -> SystemAuditEvent:
         """Append after the caller's serialized exact identity/head reads."""
 
+        winner = self._validate_targeted_append(
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+            scope=scope,
+            identity_winner=identity_winner,
+            stream_head=stream_head,
+        )
+        if winner is not None:
+            return winner
+        values = _model_values(event)
+        row = SystemAuditEventModel(**values)
+        try:
+            with _claim_system_audit_insert(event.event_id, event.content_hash):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError as error:
+            raise SystemAuditConflict(
+                "system audit serialized append collided with another identity"
+            ) from error
+        return self._restore(row)
+
+    def append_group_targeted(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+        *,
+        identity_winners: Mapping[tuple[str, str], SystemAuditEvent],
+        stream_heads: Mapping[str, SystemAuditEvent],
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Append one fully validated stream group with one guarded insert."""
+
+        if not events or len({event.stream_id for event in events}) != len(events):
+            raise SystemAuditConflict("system audit append group streams are invalid")
+        resolved: list[SystemAuditEvent | None] = []
+        new_rows: list[SystemAuditEventModel] = []
+        new_events: list[SystemAuditEvent] = []
+        for event in events:
+            winner = self._validate_targeted_append(
+                event,
+                expected_predecessor_hash=event.predecessor_hash,
+                recorded_at=event.recorded_at,
+                scope=event.scope,
+                identity_winner=identity_winners.get((event.event_id, event.event_version)),
+                stream_head=stream_heads.get(event.stream_id),
+            )
+            resolved.append(winner)
+            if winner is None:
+                new_events.append(event)
+                new_rows.append(SystemAuditEventModel(**_model_values(event)))
+        if new_rows:
+            identities = tuple((event.event_id, event.content_hash) for event in new_events)
+            try:
+                with _claim_system_audit_batch_insert(identities):
+                    SystemAuditEventModel._default_manager.db_manager(
+                        self._using
+                    )._bulk_create_claimed(tuple(new_rows))
+            except IntegrityError as error:
+                raise SystemAuditConflict(
+                    "system audit serialized group append collided with another identity"
+                ) from error
+        restored_new = iter(self._restore(row) for row in new_rows)
+        return tuple(item if item is not None else next(restored_new) for item in resolved)
+
+    def _validate_targeted_append(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        scope: AuditScopeRef | None,
+        identity_winner: SystemAuditEvent | None,
+        stream_head: SystemAuditEvent | None,
+    ) -> SystemAuditEvent | None:
+        """Validate one exact append against its already locked identity and head."""
+
         if _UOW.get() is None:
             raise SystemAuditConflict("system audit append requires repository.atomic()")
         if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
@@ -460,16 +616,7 @@ class DjangoSystemAuditEventRepository:
             raise SystemAuditConflict("system audit sequence is not adjacent to the head")
         if head is not None and event.recorded_at < head.recorded_at:
             raise SystemAuditConflict("system audit recorded clock moved backwards")
-        values = _model_values(event)
-        row = SystemAuditEventModel(**values)
-        try:
-            with _claim_system_audit_insert(event.event_id, event.content_hash):
-                row.save(force_insert=True, using=self._using)
-        except IntegrityError as error:
-            raise SystemAuditConflict(
-                "system audit serialized append collided with another identity"
-            ) from error
-        return self._restore(row)
+        return None
 
     def _require_cutoff(self, as_of: datetime) -> None:
         if as_of.tzinfo is None or as_of.utcoffset() is None:

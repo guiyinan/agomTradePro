@@ -333,6 +333,31 @@ class _TargetedDataPublicationAuditWriter(Protocol):
     ) -> SystemAuditEventOutboxCommit:
         """Append event and outbox rows with bounded selectors."""
 
+    def lock_streams(self, stream_ids: tuple[str, ...]) -> None:
+        """Serialize a bounded stream group in stable order."""
+
+    def get_activation_group_state_targeted(
+        self,
+        *,
+        identities: tuple[tuple[str, str], ...],
+        stream_ids: tuple[str, ...],
+        as_of: datetime,
+        scope: AuditScopeRef,
+    ) -> tuple[
+        dict[tuple[str, str], SystemAuditEvent],
+        dict[str, SystemAuditEvent],
+    ]:
+        """Return exact event winners and stream heads with one bounded lock read."""
+
+    def append_and_enqueue_group_targeted(
+        self,
+        events: tuple[SystemAuditEvent, ...],
+        *,
+        identity_winners: dict[tuple[str, str], SystemAuditEvent],
+        stream_heads: dict[str, SystemAuditEvent],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Append a prevalidated event group and its outbox rows."""
+
 
 def build_data_publication_audit_event(
     observation: DataPublicationAuditObservation,
@@ -646,6 +671,83 @@ class AppendDataPublicationAuditObservationUseCase:
         if commit.event != event:
             raise ValueError("data publication audit writer substituted the manifest event")
         return commit
+
+    def execute_manifest_group_in_caller_transaction(
+        self,
+        observations: tuple[DataPublicationManifestAuditObservation, ...],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Append a fixed manifest group with batched lock and identity reads."""
+
+        if (
+            not observations
+            or any(
+                type(item) is not DataPublicationManifestAuditObservation for item in observations
+            )
+            or len({item.dataset_key for item in observations}) != len(observations)
+        ):
+            raise ValueError("manifest publication audit group is invalid")
+        recorded_at = observations[0].recorded_at
+        scope = observations[0].scope
+        if any(item.recorded_at != recorded_at or item.scope != scope for item in observations):
+            raise ValueError("manifest publication audit group clock or scope differs")
+        caller_owned_atomic = getattr(self._writer, "caller_owned_atomic", None)
+        if not callable(caller_owned_atomic):
+            raise ValueError("writer does not expose caller-owned publication audit UOW")
+        candidate_writer = self._writer
+        required = (
+            "lock_streams",
+            "get_activation_group_state_targeted",
+            "append_and_enqueue_group_targeted",
+        )
+        if not all(callable(getattr(candidate_writer, name, None)) for name in required):
+            raise ValueError("writer does not expose grouped publication audit selectors")
+        targeted_writer = cast(_TargetedDataPublicationAuditWriter, candidate_writer)
+        identities = tuple(
+            (_stable_manifest_event_id(item), _EVENT_VERSION) for item in observations
+        )
+        stream_ids = tuple(f"data.publication:{item.dataset_key}" for item in observations)
+        with caller_owned_atomic():
+            targeted_writer.lock_streams(stream_ids)
+            winners, heads = targeted_writer.get_activation_group_state_targeted(
+                identities=identities,
+                stream_ids=stream_ids,
+                as_of=recorded_at,
+                scope=scope,
+            )
+            events: list[SystemAuditEvent] = []
+            for observation, identity, stream_id in zip(
+                observations,
+                identities,
+                stream_ids,
+                strict=True,
+            ):
+                winner = winners.get(identity)
+                head = None if winner is not None else heads.get(stream_id)
+                events.append(
+                    build_data_publication_manifest_audit_event(
+                        observation,
+                        sequence_no=(
+                            winner.sequence_no
+                            if winner is not None
+                            else (head.sequence_no + 1 if head is not None else 1)
+                        ),
+                        predecessor_hash=(
+                            winner.predecessor_hash
+                            if winner is not None
+                            else (head.content_hash if head is not None else None)
+                        ),
+                    )
+                )
+            commits = targeted_writer.append_and_enqueue_group_targeted(
+                tuple(events),
+                identity_winners=winners,
+                stream_heads=heads,
+            )
+        if len(commits) != len(events) or any(
+            commit.event != event for commit, event in zip(commits, events, strict=True)
+        ):
+            raise ValueError("data publication audit writer substituted the manifest group")
+        return commits
 
     def _append_scoped(
         self,

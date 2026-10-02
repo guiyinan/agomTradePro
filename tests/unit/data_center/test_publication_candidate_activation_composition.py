@@ -93,6 +93,9 @@ def test_audit_writer_factory_uses_canonical_production_runtime_and_checks_alias
         def append_manifest_required(self, **_kwargs: object) -> object:
             return object()
 
+        def append_manifest_group_required(self, **_kwargs: object) -> tuple[object, ...]:
+            return (object(),)
+
     calls: list[tuple[str, str]] = []
 
     def build_writer(*, environment: str, using: str) -> _Writer:

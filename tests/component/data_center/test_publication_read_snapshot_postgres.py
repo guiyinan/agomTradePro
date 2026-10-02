@@ -19,6 +19,7 @@ import psycopg
 import pytest
 from django.apps import apps
 from django.db import IntegrityError, OperationalError, connections, transaction
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
 from django.test.utils import CaptureQueriesContext
@@ -133,9 +134,68 @@ _ACCOUNT_GENERATION_LOCK_MIGRATION = import_module(
 @dataclass(frozen=True)
 class _PGProbeFactory:
     credentials: dict[str, object] = field(repr=False)
+    runtime_settings: dict[str, object] = field(repr=False)
 
     def connect(self):
         return psycopg.connect(**self.credentials)
+
+    def runtime_wrapper(self) -> BaseDatabaseWrapper:
+        """Build an isolated connection using the production-like runtime role."""
+
+        settings = deepcopy(self.runtime_settings)
+        return load_backend(str(settings["ENGINE"])).DatabaseWrapper(settings, alias="default")
+
+
+def _public_schema_had_create(connection: BaseDatabaseWrapper) -> bool:
+    """Return whether PUBLIC currently has CREATE on the public schema."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                  FROM pg_catalog.pg_namespace AS namespace
+                  CROSS JOIN LATERAL pg_catalog.aclexplode(
+                      COALESCE(
+                          namespace.nspacl,
+                          pg_catalog.acldefault('n', namespace.nspowner)
+                      )
+                  ) AS acl
+                 WHERE namespace.nspname = 'public'
+                   AND acl.grantee = 0
+                   AND acl.privilege_type = 'CREATE'
+            )
+            """)
+        row = cursor.fetchone()
+    if row is None or type(row[0]) is not bool:
+        raise AssertionError("public schema ACL catalog row is malformed")
+    return row[0]
+
+
+def _grant_runtime_business_access(
+    connection: BaseDatabaseWrapper,
+    *,
+    quoted_runtime_role: str,
+) -> None:
+    """Grant business DML while keeping generation mutation and bump execution denied."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"GRANT USAGE ON SCHEMA public TO {quoted_runtime_role}")
+        cursor.execute(
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
+            f"TO {quoted_runtime_role}"
+        )
+        cursor.execute(
+            "REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER "
+            "ON TABLE public.account_authority_generation "
+            f"FROM {quoted_runtime_role}"
+        )
+        cursor.execute(
+            "GRANT EXECUTE ON FUNCTION public.account_authority_generation_lock() "
+            f"TO {quoted_runtime_role}"
+        )
+        cursor.execute(
+            f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {quoted_runtime_role}"
+        )
 
 
 @pytest.fixture(scope="module")
@@ -194,11 +254,24 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
     created = []
     source_triggers_installed = False
     generation_lock_installed = False
+    generation_owner = f"publication_authority_owner_{uuid4().hex}"
+    runtime_role = f"publication_runtime_{uuid4().hex}"
+    runtime_password = uuid4().hex
+    quoted_generation_owner = wrapper.ops.quote_name(generation_owner)
+    quoted_runtime_role = wrapper.ops.quote_name(runtime_role)
+    generation_owner_created = False
+    runtime_role_created = False
+    public_create_revoked = False
+    public_had_create = False
     with django_db_blocker.unblock():
         connections["default"] = wrapper
         try:
             assert wrapper.vendor == "postgresql"
             assert wrapper.introspection.table_names() == [], "Refuse any preexisting test tables"
+            public_had_create = _public_schema_had_create(wrapper)
+            with wrapper.cursor() as cursor:
+                cursor.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
+            public_create_revoked = True
             with wrapper.schema_editor() as editor:
                 for model in models:
                     editor.create_model(model)
@@ -206,10 +279,44 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
                 _ACCOUNT_GENERATION_MIGRATION.seed_generation_row(apps, editor)
                 _ACCOUNT_GENERATION_MIGRATION.install_source_triggers(apps, editor)
                 source_triggers_installed = True
+                with wrapper.cursor() as cursor:
+                    cursor.execute(
+                        f"CREATE ROLE {quoted_generation_owner} "
+                        "NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                    )
+                    generation_owner_created = True
+                    cursor.execute(f"GRANT CREATE ON SCHEMA public TO {quoted_generation_owner}")
+                    cursor.execute(
+                        "ALTER TABLE public.account_authority_generation "
+                        f"OWNER TO {quoted_generation_owner}"
+                    )
+                    for model in _ACCOUNT_SCHEMA_MODELS:
+                        table_name = wrapper.ops.quote_name(model._meta.db_table)
+                        cursor.execute(
+                            f"ALTER TABLE public.{table_name} OWNER TO {quoted_generation_owner}"
+                        )
                 _ACCOUNT_GENERATION_LOCK_MIGRATION.install_generation_lock_function(apps, editor)
                 generation_lock_installed = True
-            yield _PGProbeFactory(credentials)
+            with wrapper.cursor() as cursor:
+                cursor.execute(f"REVOKE CREATE ON SCHEMA public FROM {quoted_generation_owner}")
+                cursor.execute(
+                    f"CREATE ROLE {quoted_runtime_role} LOGIN PASSWORD '{runtime_password}' "
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                )
+                runtime_role_created = True
+            _grant_runtime_business_access(
+                wrapper,
+                quoted_runtime_role=quoted_runtime_role,
+            )
+            runtime_settings = deepcopy(settings)
+            runtime_settings["USER"] = runtime_role
+            runtime_settings["PASSWORD"] = runtime_password
+            yield _PGProbeFactory(credentials, runtime_settings)
         finally:
+            if runtime_role_created:
+                with wrapper.cursor() as cursor:
+                    cursor.execute(f"DROP OWNED BY {quoted_runtime_role}")
+                    cursor.execute(f"DROP ROLE {quoted_runtime_role}")
             if created:
                 with wrapper.schema_editor() as editor:
                     if generation_lock_installed:
@@ -222,6 +329,13 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
                     for model in reversed(created):
                         editor.delete_model(model)
                 assert wrapper.introspection.table_names() == []
+            if generation_owner_created:
+                with wrapper.cursor() as cursor:
+                    cursor.execute(f"DROP OWNED BY {quoted_generation_owner}")
+                    cursor.execute(f"DROP ROLE {quoted_generation_owner}")
+            if public_create_revoked and public_had_create:
+                with wrapper.cursor() as cursor:
+                    cursor.execute("GRANT CREATE ON SCHEMA public TO PUBLIC")
             wrapper.close()
             connections["default"] = original
 
@@ -257,15 +371,37 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             SystemAuditEventModel,
             SystemAuditOutboxModel,
         )
-        expected = {model._meta.db_table for model in models}
         full_expected = {
             model._meta.db_table
             for model in (*_ACCOUNT_SCHEMA_MODELS, AccountAuthorityGenerationModel, *models)
         }
+        full_expected.update(
+            field.remote_field.through._meta.db_table
+            for model in _ACCOUNT_SCHEMA_MODELS
+            for field in model._meta.local_many_to_many
+            if field.remote_field.through._meta.auto_created
+        )
         assert set(wrapper.introspection.table_names()) == full_expected
-        names = ", ".join(wrapper.ops.quote_name(name) for name in sorted(expected))
+        names = ", ".join(wrapper.ops.quote_name(name) for name in sorted(full_expected))
         with wrapper.cursor() as cursor:
-            cursor.execute(f"TRUNCATE TABLE {names}")
+            cursor.execute(f"TRUNCATE TABLE {names} RESTART IDENTITY")
+        with wrapper.schema_editor() as editor:
+            _ACCOUNT_GENERATION_MIGRATION.seed_generation_row(apps, editor)
+
+
+@pytest.fixture
+def activation_runtime_pg(actual_publication_pg) -> Iterator[_PGProbeFactory]:
+    """Run activation through a fresh least-privilege runtime connection."""
+
+    admin_wrapper = connections["default"]
+    runtime_wrapper = actual_publication_pg.runtime_wrapper()
+    connections["default"] = runtime_wrapper
+    try:
+        runtime_wrapper.ensure_connection()
+        yield actual_publication_pg
+    finally:
+        runtime_wrapper.close()
+        connections["default"] = admin_wrapper
 
 
 def _probe_update(probe, fact_pk: str) -> None:
@@ -330,6 +466,12 @@ class _PostgresActivationAuditWriter:
             members=members,
             manifest=manifest,
             observation=observation,
+        )
+
+    def append_manifest_group_required(self, *, request, writes):
+        return self._adapter.append_manifest_group_required(
+            request=request,
+            writes=writes,
         )
 
 
@@ -531,7 +673,7 @@ def _build_activation_soak_snapshot(
 
 
 def test_activation_5001_members_has_fixed_queries_locks_and_retry(
-    actual_publication_pg,
+    activation_runtime_pg,
 ) -> None:
     """Exercise one three-dataset RC/RW activation with 5,001 valuation members."""
 
@@ -539,15 +681,23 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
     repository = DjangoPublicationActivationRepository()
     writer = _PostgresActivationAuditWriter()
     authority_fence, authority_proof = _production_activation_fence()
-    started = monotonic()
-    with CaptureQueriesContext(connections["default"]) as captured:
-        activated = ActivateCanonicalPublicationGroupUseCase(repository).execute(
-            request,
-            audit_writer=writer,
-            authority_fence=authority_fence,
-            authority_proof=authority_proof,
-        )
-    held_seconds = monotonic() - started
+    lock_timing: dict[str, float] = {}
+
+    def capture_generation_lock(execute, sql, params, many, context):
+        result = execute(sql, params, many, context)
+        if "account_authority_generation_lock()" in sql:
+            lock_timing["acquired_at"] = monotonic()
+        return result
+
+    with connections["default"].execute_wrapper(capture_generation_lock):
+        with CaptureQueriesContext(connections["default"]) as captured:
+            activated = ActivateCanonicalPublicationGroupUseCase(repository).execute(
+                request,
+                audit_writer=writer,
+                authority_fence=authority_fence,
+                authority_proof=authority_proof,
+            )
+    held_seconds = monotonic() - lock_timing["acquired_at"]
 
     assert {item.publication_id for item in activated} == set(candidate_ids.values())
     query_count = len(captured.captured_queries)
@@ -580,7 +730,7 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
     assert SystemAuditEventModel._default_manager.count() == 3
     assert SystemAuditOutboxModel._default_manager.count() == 3
 
-    probe = actual_publication_pg.connect()
+    probe = activation_runtime_pg.connect()
     try:
         probe.execute("BEGIN")
         pointer_predicates = " OR ".join(
@@ -624,7 +774,7 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
         probe.close()
 
 
-def test_concurrent_group_activations_have_one_cas_winner(actual_publication_pg) -> None:
+def test_concurrent_group_activations_have_one_cas_winner(activation_runtime_pg) -> None:
     """Race two complete groups and require one winner without deadlock or partial state."""
 
     first_request, first_ids, _first_audits = _build_activation_soak_snapshot(
