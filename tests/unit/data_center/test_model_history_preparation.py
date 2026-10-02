@@ -12,6 +12,7 @@ from apps.data_center.application.market_publication_refresh import (
 from apps.data_center.application.model_market_data import (
     ModelHistoryFetchAuditResult,
     ModelHistoryPreparedFetch,
+    ModelHistoryRawAuditBinding,
     ModelHistoryReferenceSnapshot,
     ModelMarketDataService,
     ModelMarketRoute,
@@ -29,10 +30,14 @@ CODES = ("000006.SZ", "000007.SZ")
 class AuditRecorder:
     """Capture the canonical sync-use-case boundary without external services."""
 
-    def __init__(self) -> None:
+    def __init__(self, source_types_by_provider: Mapping[int, str] | None = None) -> None:
         self.successes: list[tuple[int, tuple[str, ...], tuple[ModelDailyBar, ...]]] = []
         self.snapshots: list[ModelHistoryReferenceSnapshot] = []
         self.failures: list[tuple[int, tuple[str, ...], BaseException]] = []
+        self.source_types_by_provider = source_types_by_provider or {
+            17: "configured_vendor",
+            29: "backup",
+        }
 
     def record_model_history_fetch_success(
         self,
@@ -48,6 +53,9 @@ class AuditRecorder:
         self.successes.append((provider_id, asset_codes, rows))
         self.snapshots.append(reference_snapshot)
         sequence = len(self.successes)
+        source_type = self.source_types_by_provider.get(provider_id)
+        if source_type is None:
+            raise AssertionError("audit fixture lacks the configured provider source type")
         reference = RawAuditReference(
             raw_audit_id=f"raw-{sequence}",
             version="raw-audit-v1",
@@ -60,6 +68,7 @@ class AuditRecorder:
             stored_count=len(rows),
             stored_asset_codes=tuple(sorted({row.asset_code for row in rows})),
             raw_audit_reference=reference,
+            source_type=source_type,
         )
 
     def record_model_history_fetch_failure(
@@ -211,7 +220,11 @@ def test_explicit_batch_preparation_reuses_one_audit_and_read_cache_has_no_side_
     assert first[0].asset_code == CODES[0]
     assert second[0].asset_code == CODES[1]
     assert len(client.calls) == 2
+    assert port.model_history_audit_bindings((*first, *second)) == (
+        ModelHistoryRawAuditBinding(reference, "configured_vendor"),
+    )
     assert port.take_model_history_audit_references() == (reference,)
+    assert port.take_model_history_audit_bindings() == ()
     assert audit.failures == []
 
 
@@ -474,7 +487,7 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
 
     asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 202))
     client = EmptySuspendedClient()
-    audit = AuditRecorder()
+    audit = AuditRecorder({17: "tushare"})
     source = TushareModelMarketSource(
         client,
         source="tushare",
@@ -494,6 +507,7 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
 
     assert result.suspended_codes == asset_codes
     assert result.raw_audit_references == (expected_reference,)
+    assert tuple(binding.source_type for binding in result.raw_audit_bindings) == ("tushare",)
     assert len(audit.successes) == 1
     assert audit.successes[0][2] == ()
     assert audit.failures == []

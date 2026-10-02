@@ -8,13 +8,14 @@ from datetime import date
 from apps.data_center.application.model_history_preparation import (
     ModelHistoryPreparationAuditPort,
     ModelHistoryPreparedFetch,
+    ModelHistoryRawAuditBinding,
     ModelHistoryReferenceSnapshot,
 )
 from apps.data_center.application.model_market_data_state import (
     ModelMarketDataServiceState,
     ModelMarketRoute,
 )
-from apps.data_center.domain.entities import PriceBar, RawAuditReference
+from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.model_market_data import ModelDailyBar
 from core.exceptions import DataFetchError
 
@@ -35,7 +36,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
         if cache_port is not None and cache_port.has_prepared_model_history(
             asset_code, start_date, end_date
         ):
-            references: dict[str, RawAuditReference] = {}
+            references: dict[str, ModelHistoryRawAuditBinding] = {}
             for row in rows:
                 reference = self._history_row_references.get(
                     (row.asset_code, row.trade_date, row.source)
@@ -48,7 +49,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
                 self._history_row_references[(row.asset_code, row.trade_date, row.source)] = (
                     reference
                 )
-                references[reference.raw_audit_id] = reference
+                references[reference.reference.raw_audit_id] = reference
             self._extend_history_audit_references(
                 tuple(references[key] for key in sorted(references))
             )
@@ -71,7 +72,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
             reference_snapshot=self._reference_snapshot_for((asset_code,), start_date, end_date),
         )
         if rows:
-            self._bind_history_rows(rows, result.raw_audit_reference)
+            self._bind_history_rows(rows, result.raw_audit_binding)
 
     def _record_history_fetch_failure(
         self,
@@ -109,7 +110,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
         *,
         requested_asset_codes: tuple[str, ...],
         snapshot: ModelHistoryReferenceSnapshot,
-    ) -> RawAuditReference:
+    ) -> ModelHistoryRawAuditBinding:
         """Validate one staged provider response, then atomically persist its exact batch."""
 
         audit_port = self._history_fetch_audit
@@ -166,7 +167,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
             request_details=self._safe_request_details(fetch.request_details),
             reference_snapshot=reference_snapshot,
         )
-        return result.raw_audit_reference
+        return result.raw_audit_binding
 
     def _validate_prepared_fetch(
         self,
@@ -299,7 +300,7 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
         )
 
     def _bind_history_rows(
-        self, rows: tuple[ModelDailyBar, ...], reference: RawAuditReference
+        self, rows: tuple[ModelDailyBar, ...], reference: ModelHistoryRawAuditBinding
     ) -> None:
         """Bind each returned natural key to the RawAudit from its write UOW."""
 
@@ -307,20 +308,50 @@ class ModelMarketHistoryLineage(ModelMarketDataServiceState):
             self._history_row_references[(row.asset_code, row.trade_date, row.source)] = reference
         self._extend_history_audit_references((reference,))
 
-    def _extend_history_audit_references(self, references: tuple[RawAuditReference, ...]) -> None:
-        """Accumulate only exact persisted references without duplicating batch IDs."""
+    def _extend_history_audit_references(
+        self, references: tuple[ModelHistoryRawAuditBinding, ...]
+    ) -> None:
+        """Accumulate exact references and reject conflicting source lineage."""
 
-        existing = {item.raw_audit_id for item in self._history_audit_references}
+        existing = {item.reference.raw_audit_id: item for item in self._history_audit_references}
         for reference in references:
-            if reference.raw_audit_id not in existing:
+            reference_id = reference.reference.raw_audit_id
+            prior = existing.get(reference_id)
+            if prior is not None and prior != reference:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if prior.source_type != reference.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Repeated model-history RawAudit reference has conflicting lineage",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+            if prior is None:
                 self._history_audit_references.append(reference)
-                existing.add(reference.raw_audit_id)
+                existing[reference_id] = reference
 
     @staticmethod
     def _unique_history_audit_references(
-        references: list[RawAuditReference],
-    ) -> tuple[RawAuditReference, ...]:
+        references: list[ModelHistoryRawAuditBinding],
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
         """Return references sorted by their exact persisted audit identity."""
 
-        unique = {item.raw_audit_id: item for item in references}
+        unique: dict[str, ModelHistoryRawAuditBinding] = {}
+        for item in references:
+            reference_id = item.reference.raw_audit_id
+            prior = unique.get(reference_id)
+            if prior is not None and prior != item:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if prior.source_type != item.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Repeated model-history RawAudit reference has conflicting lineage",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+            unique[reference_id] = item
         return tuple(unique[key] for key in sorted(unique))

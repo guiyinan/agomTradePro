@@ -12,6 +12,7 @@ from typing import Protocol, runtime_checkable
 
 from apps.data_center.domain.entities import PriceBar, RawAuditReference
 from apps.data_center.domain.model_market_data import ModelDailyBar
+from apps.data_center.domain.raw_audit_manifest import validate_raw_audit_source_type
 
 
 @dataclass(frozen=True)
@@ -163,6 +164,21 @@ class ModelHistoryPreparedFetch:
 
 
 @dataclass(frozen=True)
+class ModelHistoryRawAuditBinding:
+    """Bind one price-history RawAudit reference to its persisted provider source type."""
+
+    reference: RawAuditReference
+    source_type: str
+
+    def __post_init__(self) -> None:
+        """Require an exact RawAudit and canonical source token for price lineage."""
+
+        if not isinstance(self.reference, RawAuditReference):
+            raise ValueError("model history RawAudit reference is invalid")
+        validate_raw_audit_source_type(self.source_type)
+
+
+@dataclass(frozen=True)
 class ModelHistoryFetchAuditResult:
     """Required lineage returned after one model-history fetch was committed."""
 
@@ -170,6 +186,7 @@ class ModelHistoryFetchAuditResult:
     stored_count: int
     stored_asset_codes: tuple[str, ...]
     raw_audit_reference: RawAuditReference
+    source_type: str
 
     def __post_init__(self) -> None:
         """Reject a result whose fact scope is not bound to its exact RawAudit."""
@@ -186,6 +203,13 @@ class ModelHistoryFetchAuditResult:
             raise ValueError("model history stored asset codes must be sorted and unique")
         if (self.stored_count == 0) != (not self.stored_asset_codes):
             raise ValueError("model history count and stored asset scope disagree")
+        ModelHistoryRawAuditBinding(self.raw_audit_reference, self.source_type)
+
+    @property
+    def raw_audit_binding(self) -> ModelHistoryRawAuditBinding:
+        """Return the price-specific binding made from the persisted write result."""
+
+        return ModelHistoryRawAuditBinding(self.raw_audit_reference, self.source_type)
 
 
 class ModelHistoryFetchAuditPort(Protocol):
@@ -231,6 +255,16 @@ class ModelHistoryAuditEvidencePort(Protocol):
 
     def take_model_history_audit_references(self) -> tuple[RawAuditReference, ...]:
         """Return and clear references accumulated by the current refresh operation."""
+        ...
+
+    def model_history_audit_bindings(
+        self, rows: tuple[ModelDailyBar, ...]
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
+        """Return exact source-bound audit references for the requested rows."""
+        ...
+
+    def take_model_history_audit_bindings(self) -> tuple[ModelHistoryRawAuditBinding, ...]:
+        """Return and clear source-bound references accumulated by this refresh operation."""
         ...
 
 

@@ -13,13 +13,13 @@ from apps.data_center.application.model_history_preparation import (
     ModelHistoryFetchAuditResult,
     ModelHistoryPreparationAuditPort,
     ModelHistoryPreparedFetch,
+    ModelHistoryRawAuditBinding,
     ModelHistoryReferenceSnapshot,
 )
 from apps.data_center.application.model_market_data_preparation import ModelMarketDataPreparation
 from apps.data_center.application.model_market_data_reads import ModelMarketDataReads
 from apps.data_center.application.model_market_data_state import ModelMarketRoute
 from apps.data_center.application.model_market_history_lineage import ModelMarketHistoryLineage
-from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.model_market_data import ModelDailyBar
 from core.exceptions import DataFetchError
 
@@ -28,6 +28,7 @@ __all__ = [
     "ModelHistoryFetchAuditPort",
     "ModelHistoryFetchAuditResult",
     "ModelHistoryPreparedFetch",
+    "ModelHistoryRawAuditBinding",
     "ModelHistoryPreparationAuditPort",
     "ModelHistoryReferenceSnapshot",
     "ModelMarketDataService",
@@ -67,8 +68,8 @@ class ModelMarketDataService(
         self._reference_history_snapshot = reference_history_snapshot
         self._history_fetch_audit = history_fetch_audit
         self._max_per_asset_preparation_assets = max_per_asset_preparation_assets
-        self._history_audit_references: list[RawAuditReference] = []
-        self._history_row_references: dict[tuple[str, date, str], RawAuditReference] = {}
+        self._history_audit_references: list[ModelHistoryRawAuditBinding] = []
+        self._history_row_references: dict[tuple[str, date, str], ModelHistoryRawAuditBinding] = {}
         self._explicit_prepared_rows: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {}
         self._preparation_reference_rows: dict[
             tuple[str, date, date], tuple[ModelDailyBar, ...]

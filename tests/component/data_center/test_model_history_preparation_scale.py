@@ -124,6 +124,7 @@ class _AuditWriter:
             stored_count=len(rows),
             stored_asset_codes=tuple(sorted({row.asset_code for row in rows})),
             raw_audit_reference=reference,
+            source_type="tushare",
         )
 
     def record_model_history_fetch_failure(

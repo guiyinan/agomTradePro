@@ -9,7 +9,10 @@ from datetime import date, timedelta
 from functools import partial
 from typing import TypedDict
 
-from apps.data_center.application.model_market_data import ModelHistoryAuditEvidencePort
+from apps.data_center.application.model_market_data import (
+    ModelHistoryAuditEvidencePort,
+    ModelHistoryRawAuditBinding,
+)
 from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.model_market_data import (
     ModelDailyBar,
@@ -44,6 +47,7 @@ class MarketPricePreparationResult:
 
     suspended_codes: tuple[str, ...]
     raw_audit_references: tuple[RawAuditReference, ...]
+    raw_audit_bindings: tuple[ModelHistoryRawAuditBinding, ...] = ()
 
     def __post_init__(self) -> None:
         """Keep the returned suspension scope and evidence references deterministic."""
@@ -53,6 +57,31 @@ class MarketPricePreparationResult:
         reference_ids = tuple(reference.raw_audit_id for reference in self.raw_audit_references)
         if tuple(sorted(set(reference_ids))) != reference_ids:
             raise ValueError("price audit references must be sorted and unique")
+        bindings_by_id: dict[str, ModelHistoryRawAuditBinding] = {}
+        for binding in self.raw_audit_bindings:
+            reference_id = binding.reference.raw_audit_id
+            prior = bindings_by_id.get(reference_id)
+            if prior is not None and prior != binding:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if prior.source_type != binding.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Repeated price RawAudit reference has conflicting lineage",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+            bindings_by_id[reference_id] = binding
+        binding_ids = tuple(binding.reference.raw_audit_id for binding in self.raw_audit_bindings)
+        if tuple(sorted(set(binding_ids))) != binding_ids:
+            raise ValueError("price audit bindings must be sorted and unique")
+        if (
+            self.raw_audit_bindings
+            and tuple(binding.reference for binding in self.raw_audit_bindings)
+            != self.raw_audit_references
+        ):
+            raise ValueError("price audit references must match their source-bound bindings")
 
 
 def refresh_market_price_inputs(
@@ -62,11 +91,30 @@ def refresh_market_price_inputs(
     history_start = target_date - timedelta(days=120)
     audit_evidence = port if isinstance(port, ModelHistoryAuditEvidencePort) else None
     if audit_evidence is not None:
-        audit_evidence.take_model_history_audit_references()
+        audit_evidence.take_model_history_audit_bindings()
     if isinstance(port, ModelHistoryPreparationPort):
         port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
-    references: dict[str, RawAuditReference] = {}
+    bindings: dict[str, ModelHistoryRawAuditBinding] = {}
+
+    def collect_bindings(new_bindings: tuple[ModelHistoryRawAuditBinding, ...]) -> None:
+        """Deduplicate exact references while rejecting conflicting source metadata."""
+
+        for binding in new_bindings:
+            reference_id = binding.reference.raw_audit_id
+            prior = bindings.get(reference_id)
+            if prior is not None and prior != binding:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if prior.source_type != binding.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Repeated price RawAudit reference has conflicting lineage",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+            bindings[reference_id] = binding
 
     def collect_references(rows: tuple[ModelDailyBar, ...]) -> None:
         """Collect exact evidence only after the returned rows pass date checks."""
@@ -79,8 +127,7 @@ def refresh_market_price_inputs(
                 "Verified model-history rows lack exact RawAudit evidence",
                 code="MODEL_MARKET_AUDIT_EVIDENCE_MISSING",
             )
-        for reference in evidence_port.model_history_audit_references(rows):
-            references[reference.raw_audit_id] = reference
+        collect_bindings(evidence_port.model_history_audit_bindings(rows))
 
     for code in asset_codes:
         try:
@@ -117,12 +164,13 @@ def refresh_market_price_inputs(
                         raise
             suspended.append(code)
     if audit_evidence is not None:
-        for reference in audit_evidence.take_model_history_audit_references():
-            references[reference.raw_audit_id] = reference
-    ordered_references = tuple(references[key] for key in sorted(references))
+        collect_bindings(audit_evidence.take_model_history_audit_bindings())
+    ordered_bindings = tuple(bindings[key] for key in sorted(bindings))
+    ordered_references = tuple(binding.reference for binding in ordered_bindings)
     return MarketPricePreparationResult(
         suspended_codes=tuple(sorted(suspended)),
         raw_audit_references=ordered_references,
+        raw_audit_bindings=ordered_bindings,
     )
 
 

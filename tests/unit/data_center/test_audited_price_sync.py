@@ -464,6 +464,7 @@ def test_model_history_batch_shares_one_exact_identity_and_raw_audit_in_one_uow(
     assert facts.saved[0].ingested_run_id == _identity().ingested_run_id
     assert result.raw_audit_reference.raw_audit_id == raw.rows[0].raw_audit_id
     assert result.raw_audit_reference.run_id == raw.rows[0].run_id == _identity().run_id
+    assert result.source_type == "tushare"
     assert raw.rows[0].extra == {"source_type": "tushare"}
     assert raw.rows[0].provider_name == "provider-main"
     assert facts.saved[0].source == "tushare"
@@ -537,6 +538,36 @@ def test_model_history_batch_shares_one_exact_identity_and_raw_audit_in_one_uow(
     assert resolved[0].capability == "historical_price"
     assert resolved[0].run_id == result.raw_audit_reference.run_id
     assert resolved[0].ingested_run_id == result.raw_audit_reference.ingested_run_id
+
+
+def test_model_history_fails_closed_when_persisted_raw_audit_return_loses_source_type() -> None:
+    use_case, uow, writer, _facts, raw, _quality = _build([])
+    original_log = raw.log
+
+    def strip_success_source_type(audit: RawAudit) -> RawAudit:
+        persisted = original_log(audit)
+        if audit.status == "ok":
+            return dataclasses.replace(persisted, extra={})
+        return persisted
+
+    raw.log = strip_success_source_type
+
+    with pytest.raises(DataFetchError) as caught:
+        use_case.record_model_history_fetch_success(
+            provider_id=1,
+            asset_codes=("000001.SZ",),
+            start_date=date(2026, 8, 26),
+            end_date=date(2026, 8, 26),
+            rows=(_model_bar("000001.SZ", date(2026, 8, 26)),),
+            request_details={"provider_fetch_kind": "tushare_daily_adj_factor_session_batch"},
+            reference_snapshot=_empty_reference_snapshot(
+                ("000001.SZ",), date(2026, 8, 26), date(2026, 8, 26)
+            ),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_AUDIT_SOURCE_TYPE_MISMATCH"
+    assert "rollback" in uow.events
+    assert writer.fetch[-1].outcome is AuditOutcome.FAILED
 
 
 def test_model_history_store_count_mismatch_rolls_back_then_records_failure_audit() -> None:

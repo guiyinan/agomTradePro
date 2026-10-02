@@ -13,6 +13,7 @@ from apps.data_center.application.model_history_preparation import (
     ModelHistoryFetchAuditPort,
     ModelHistoryPreparationAuditPort,
     ModelHistoryPreparedFetch,
+    ModelHistoryRawAuditBinding,
     ModelHistoryReferenceSnapshot,
 )
 from apps.data_center.domain.entities import RawAuditReference
@@ -46,8 +47,8 @@ class ModelMarketDataServiceState(ABC):
     )
     _history_fetch_audit: ModelHistoryFetchAuditPort | None
     _max_per_asset_preparation_assets: int | None
-    _history_audit_references: list[RawAuditReference]
-    _history_row_references: dict[tuple[str, date, str], RawAuditReference]
+    _history_audit_references: list[ModelHistoryRawAuditBinding]
+    _history_row_references: dict[tuple[str, date, str], ModelHistoryRawAuditBinding]
     _explicit_prepared_rows: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]]
     _preparation_reference_rows: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]]
     _preparation_reference_snapshots: dict[tuple[str, date, date], ModelHistoryReferenceSnapshot]
@@ -106,7 +107,7 @@ class ModelMarketDataServiceState(ABC):
         *,
         requested_asset_codes: tuple[str, ...],
         snapshot: ModelHistoryReferenceSnapshot,
-    ) -> RawAuditReference:
+    ) -> ModelHistoryRawAuditBinding:
         raise NotImplementedError
 
     @abstractmethod
@@ -152,19 +153,21 @@ class ModelMarketDataServiceState(ABC):
 
     @abstractmethod
     def _bind_history_rows(
-        self, rows: tuple[ModelDailyBar, ...], reference: RawAuditReference
+        self, rows: tuple[ModelDailyBar, ...], reference: ModelHistoryRawAuditBinding
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def _extend_history_audit_references(self, references: tuple[RawAuditReference, ...]) -> None:
+    def _extend_history_audit_references(
+        self, references: tuple[ModelHistoryRawAuditBinding, ...]
+    ) -> None:
         raise NotImplementedError
 
     @staticmethod
     @abstractmethod
     def _unique_history_audit_references(
-        references: list[RawAuditReference],
-    ) -> tuple[RawAuditReference, ...]:
+        references: list[ModelHistoryRawAuditBinding],
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
         raise NotImplementedError
 
     @staticmethod
@@ -203,6 +206,16 @@ class ModelMarketDataServiceState(ABC):
 
     @abstractmethod
     def take_model_history_audit_references(self) -> tuple[RawAuditReference, ...]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def model_history_audit_bindings(
+        self, rows: tuple[ModelDailyBar, ...]
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def take_model_history_audit_bindings(self) -> tuple[ModelHistoryRawAuditBinding, ...]:
         raise NotImplementedError
 
     @abstractmethod

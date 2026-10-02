@@ -16,6 +16,7 @@ from apps.data_center.application.market_publication_refresh import (
     refresh_market_price_inputs,
     refresh_market_publications,
 )
+from apps.data_center.application.model_history_preparation import ModelHistoryRawAuditBinding
 from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.target_date_universe import (
     NotYetListedAsset,
@@ -35,12 +36,92 @@ class _PriceAuditEvidence:
             run_id="price-test-run",
             ingested_run_id="price-test-ingested",
         )
+        self.binding = ModelHistoryRawAuditBinding(self.reference, "tushare")
 
     def model_history_audit_references(self, rows):
         return (self.reference,) if rows else ()
 
     def take_model_history_audit_references(self):
         return (self.reference,)
+
+    def model_history_audit_bindings(self, rows):
+        return (self.binding,) if rows else ()
+
+    def take_model_history_audit_bindings(self):
+        return (self.binding,)
+
+
+def test_price_preparation_keeps_failover_source_type_per_exact_reference():
+    from types import SimpleNamespace
+
+    target = date(2026, 9, 18)
+    source_types = ("akshare", "tushare")
+
+    def binding(source_type: str) -> ModelHistoryRawAuditBinding:
+        audit_id = f"price-{source_type}"
+        return ModelHistoryRawAuditBinding(
+            RawAuditReference(
+                raw_audit_id=audit_id,
+                version="raw-audit-v1",
+                content_hash=hashlib.sha256(audit_id.encode("utf-8")).hexdigest(),
+                run_id=f"run-{source_type}",
+                ingested_run_id=f"ingested-{source_type}",
+            ),
+            source_type,
+        )
+
+    class FailoverEvidence(_PriceAuditEvidence):
+        def __init__(self):
+            super().__init__()
+            self.by_source = {source: binding(source) for source in source_types}
+
+        def stock_history(self, asset_code, _start_date, _end_date):
+            source_type = "akshare" if asset_code == "000001.SZ" else "tushare"
+            return (SimpleNamespace(trade_date=target, source=source_type),)
+
+        def model_history_audit_bindings(self, rows):
+            return tuple(self.by_source[row.source] for row in rows)
+
+        def take_model_history_audit_bindings(self):
+            return tuple(self.by_source[source] for source in source_types)
+
+    result = refresh_market_price_inputs(FailoverEvidence(), ["000001.SZ", "000002.SZ"], target)
+
+    assert tuple(binding.source_type for binding in result.raw_audit_bindings) == source_types
+    assert result.raw_audit_references == tuple(
+        binding.reference for binding in result.raw_audit_bindings
+    )
+
+
+def test_price_preparation_fails_closed_on_duplicate_reference_source_type_conflict():
+    from types import SimpleNamespace
+
+    target = date(2026, 9, 18)
+    reference = RawAuditReference(
+        raw_audit_id="same-price-audit",
+        version="raw-audit-v1",
+        content_hash="c" * 64,
+        run_id="same-run",
+        ingested_run_id="same-ingested",
+    )
+
+    class ConflictingEvidence(_PriceAuditEvidence):
+        def stock_history(self, _asset_code, _start_date, _end_date):
+            return (SimpleNamespace(trade_date=target, source="tushare"),)
+
+        def model_history_audit_bindings(self, _rows):
+            return (
+                ModelHistoryRawAuditBinding(reference, "tushare"),
+                ModelHistoryRawAuditBinding(reference, "akshare"),
+            )
+
+        def take_model_history_audit_bindings(self):
+            return ()
+
+    with pytest.raises(DataFetchError) as caught:
+        refresh_market_price_inputs(ConflictingEvidence(), ["000001.SZ"], target)
+
+    assert caught.value.code == "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
 
 
 def _prefetched_quote_sync(

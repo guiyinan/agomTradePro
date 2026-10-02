@@ -8,6 +8,7 @@ from datetime import date
 from apps.data_center.application.model_history_preparation import (
     ModelHistoryPreparationAuditPort,
     ModelHistoryPreparedFetch,
+    ModelHistoryRawAuditBinding,
     ModelHistorySingleFetchAuditPort,
 )
 from apps.data_center.application.model_market_data_state import (
@@ -238,6 +239,13 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
     ) -> tuple[RawAuditReference, ...]:
         """Return exact ingestion audits that supplied every requested row."""
 
+        return tuple(binding.reference for binding in self.model_history_audit_bindings(rows))
+
+    def model_history_audit_bindings(
+        self, rows: tuple[ModelDailyBar, ...]
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
+        """Return exact ingestion audits and persisted source types for requested rows."""
+
         if rows and self._history_fetch_audit is None:
             raise DataFetchError(
                 "Model history audit writer is not configured",
@@ -245,7 +253,7 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             )
         if not rows:
             return ()
-        references: dict[str, RawAuditReference] = {}
+        references: dict[str, ModelHistoryRawAuditBinding] = {}
         missing: list[tuple[str, date, str]] = []
         for row in rows:
             key = (row.asset_code, row.trade_date, row.source)
@@ -253,7 +261,7 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             if reference is None:
                 missing.append(key)
             else:
-                references[reference.raw_audit_id] = reference
+                references[reference.reference.raw_audit_id] = reference
         if missing:
             raise DataFetchError(
                 "Model history rows lack exact ingestion audit references",
@@ -268,6 +276,13 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
 
     def take_model_history_audit_references(self) -> tuple[RawAuditReference, ...]:
         """Return and clear exact audits written during the current refresh request."""
+
+        return tuple(binding.reference for binding in self.take_model_history_audit_bindings())
+
+    def take_model_history_audit_bindings(
+        self,
+    ) -> tuple[ModelHistoryRawAuditBinding, ...]:
+        """Return and clear exact source-bound audits from the current refresh request."""
 
         references = self._unique_history_audit_references(self._history_audit_references)
         self._history_audit_references.clear()

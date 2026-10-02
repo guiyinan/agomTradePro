@@ -13,6 +13,7 @@ from apps.data_center.domain.entities import (
     PriceBar,
     ProviderConfig,
     QuoteSnapshot,
+    RawAudit,
     RawAuditReference,
 )
 from apps.data_center.domain.model_market_data import ModelDailyBar
@@ -24,6 +25,7 @@ from apps.data_center.domain.protocols import (
     RawAuditRepositoryProtocol,
     SessionQuoteBatchProviderProtocol,
 )
+from apps.data_center.domain.raw_audit_manifest import validate_raw_audit_source_type
 from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
     AuditOutcome,
@@ -35,6 +37,7 @@ from .batch_identity import require_exact_asset_identities
 from .full_market_task_support import asset_code_scope_sha256
 from .model_history_preparation import (
     ModelHistoryFetchAuditResult,
+    ModelHistoryRawAuditBinding,
     ModelHistoryReferenceSnapshot,
 )
 from .publication_sync import PublishPriceBarBatchUseCase, PublishQuoteSnapshotBatchUseCase
@@ -64,6 +67,55 @@ from .sync_use_cases import (
     _publication_attempt_hash,
     _sync_status,
 )
+
+
+def _validated_price_source_type(value: object) -> str:
+    """Narrow and validate configured price-source metadata at the RawAudit boundary."""
+
+    if not isinstance(value, str):
+        raise DataFetchError(
+            "Price RawAudit source type is missing or invalid",
+            code="MODEL_MARKET_AUDIT_SOURCE_TYPE_MISMATCH",
+        )
+    try:
+        return validate_raw_audit_source_type(value)
+    except ValueError as error:
+        raise DataFetchError(
+            "Price RawAudit source type is missing or invalid",
+            code="MODEL_MARKET_AUDIT_SOURCE_TYPE_MISMATCH",
+        ) from error
+
+
+def _price_audit_extra(
+    config: ProviderConfig, extra: Mapping[str, object] | None
+) -> dict[str, object]:
+    """Bind every price audit to its actual provider configuration source type."""
+
+    source_type = _validated_price_source_type(config.source_type)
+    metadata = dict(extra or {})
+    if "source_type" in metadata:
+        supplied_source_type = _validated_price_source_type(metadata["source_type"])
+        if supplied_source_type != source_type:
+            raise DataFetchError(
+                "Price RawAudit source type differs from provider configuration",
+                code="MODEL_MARKET_AUDIT_SOURCE_TYPE_MISMATCH",
+            )
+    metadata["source_type"] = source_type
+    return metadata
+
+
+def _price_audit_binding_from_persisted_audit(
+    audit: RawAudit, reference: RawAuditReference, expected_source_type: str
+) -> ModelHistoryRawAuditBinding:
+    """Build typed price lineage only from source metadata returned by RawAudit persistence."""
+
+    source_type = _validated_price_source_type(audit.extra.get("source_type"))
+    if source_type != _validated_price_source_type(expected_source_type):
+        raise DataFetchError(
+            "Persisted price RawAudit source type differs from provider configuration",
+            code="MODEL_MARKET_AUDIT_SOURCE_TYPE_MISMATCH",
+        )
+    return ModelHistoryRawAuditBinding(reference=reference, source_type=source_type)
 
 
 class SyncPriceUseCase(_BaseSyncUseCase):
@@ -137,7 +189,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 error=error,
             )
             raise
-        result, _reference = self._commit_price_fetch_success(
+        result, _binding = self._commit_price_fetch_success(
             config=config,
             provider_name=provider_name,
             request_params=request_params,
@@ -219,7 +271,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             )
             raise scope_error
         try:
-            sync_result, reference = self._commit_price_fetch_success(
+            sync_result, binding = self._commit_price_fetch_success(
                 config=config,
                 provider_name=provider_name,
                 request_params=request_params,
@@ -244,7 +296,8 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             provider_name=provider_name,
             stored_count=sync_result.stored_count,
             stored_asset_codes=stored_asset_codes,
-            raw_audit_reference=reference,
+            raw_audit_reference=binding.reference,
+            source_type=binding.source_type,
         )
 
     def record_model_history_fetch_failure(
@@ -381,9 +434,10 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         expected_count: int | None = None,
         reference_snapshot: ModelHistoryReferenceSnapshot | None = None,
         extra: Mapping[str, object] | None = None,
-    ) -> tuple[SyncResult, RawAuditReference]:
+    ) -> tuple[SyncResult, ModelHistoryRawAuditBinding]:
         """Commit price facts, exact evidence, and canonical events in one UOW."""
 
+        audit_extra = _price_audit_extra(config, extra)
         publication_error: ValueError | None = None
         publication_blocked_reason: str | None = None
         with self._sync_unit_of_work.atomic():
@@ -457,7 +511,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
-                    extra=extra,
+                    extra=audit_extra,
                 )
             )
             reference = persisted_audit.exact_reference()
@@ -469,6 +523,9 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     "Persisted price audit identity does not match the fact batch",
                     code="MODEL_MARKET_AUDIT_IDENTITY_MISMATCH",
                 )
+            binding = _price_audit_binding_from_persisted_audit(
+                persisted_audit, reference, config.source_type
+            )
             self._data_fetch_audit_writer.write(
                 DataFetchAuditObservation(
                     provider_key=provider_name,
@@ -566,7 +623,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 publication_version=publication.policy_version if publication is not None else None,
                 publication_hash=publication.publication_hash if publication is not None else None,
             ),
-            reference,
+            binding,
         )
 
     def _commit_price_fetch_failure(
@@ -597,6 +654,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 run_id=identity.run_id,
                 ingested_run_id=identity.ingested_run_id,
             )
+            audit_extra = _price_audit_extra(config, extra)
             persisted_audit = self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider_name,
@@ -609,7 +667,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
-                    extra=extra,
+                    extra=audit_extra,
                 )
             )
             reference = persisted_audit.exact_reference()
