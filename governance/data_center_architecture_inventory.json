@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5361,
+    "current_surface_references": 5360,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -5049,6 +5049,46 @@
       "line": 34,
       "path": "apps/account/policy_publication_binding_composition.py",
       "text": "Permanent binding knowledge does not make the old physical observation current."
+    },
+    {
+      "line": 161,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "bundle, compares the V3 scope with the legacy current observation, runs an"
+    },
+    {
+      "line": 336,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "current: CurrentOwnerTenantAuthorityV3 | None,"
+    },
+    {
+      "line": 342,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "\"\"\"Bind the legacy current observation to the preflight V3 scope.\"\"\""
+    },
+    {
+      "line": 344,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "if type(current) is not CurrentOwnerTenantAuthorityV3:"
+    },
+    {
+      "line": 346,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "line": 347,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "authority = current.authority"
+    },
+    {
+      "line": 370,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "or current.valid_until < context.authority_valid_until"
+    },
+    {
+      "line": 371,
+      "path": "apps/account/production_authority_capture_composition.py",
+      "text": "or current.valid_until <= as_of"
     },
     {
       "line": 43,
@@ -10156,72 +10196,72 @@
       "text": "\"\"\"Application contracts for atomic current-market group activation.\"\"\""
     },
     {
-      "line": 50,
+      "line": 57,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "_FULL_MARKET_PUBLICATION_KEY = \"current\""
     },
     {
-      "line": 79,
+      "line": 86,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"\"\"Resolve current active A-shares against persisted target-date evidence.\"\"\""
     },
     {
-      "line": 124,
+      "line": 131,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"\"\"Build the production-bound fixed current-market staging/activation bundle.\"\"\""
     },
     {
-      "line": 183,
+      "line": 215,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current market publication components do not share the production alias\","
     },
     {
-      "line": 188,
+      "line": 220,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current market staging requires exact bindings for all three datasets\","
     },
     {
-      "line": 197,
+      "line": 229,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current market staging received missing or repeated RawAudit bindings\","
     },
     {
-      "line": 202,
+      "line": 234,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current market staging received a RawAudit bound to multiple datasets\","
     },
     {
-      "line": 214,
+      "line": 246,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "raise PublicationActivationError(\"current pointer reader returned an invalid pair\")"
     },
     {
-      "line": 225,
+      "line": 257,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current publication pointer CAS snapshot could not be validated\","
     },
     {
-      "line": 306,
+      "line": 338,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current publication candidate staging failed closed\","
     },
     {
-      "line": 341,
+      "line": 373,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "activation_id = str(uuid5(NAMESPACE_URL, f\"agomtradepro:current-market-activation:{run_id}\"))"
     },
     {
-      "line": 366,
+      "line": 398,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current publication group request could not be validated\","
     },
     {
-      "line": 400,
+      "line": 432,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Current publication group activation failed closed\","
     },
     {
-      "line": 406,
+      "line": 438,
       "path": "apps/data_center/application/current_market_publication_activation.py",
       "text": "\"Group activation did not return exactly three current publications\","
     },
@@ -10681,22 +10721,22 @@
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
-      "line": 197,
+      "line": 74,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "\"Task Monitor returned an invalid current attempt identity\""
     },
     {
-      "line": 232,
+      "line": 109,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "\"current-market publication bundle uses an unsupported database alias\","
     },
     {
-      "line": 1031,
+      "line": 908,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "\"Current market publication preview failed closed\","
     },
     {
-      "line": 1209,
+      "line": 1088,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "if not authority_latch.current:"
     },
@@ -10796,17 +10836,17 @@
       "text": "return current"
     },
     {
-      "line": 95,
+      "line": 97,
       "path": "apps/data_center/application/market_calendar.py",
       "text": "\"\"\"Resolve the latest completed session from provider calendar evidence.\"\"\""
     },
     {
-      "line": 101,
+      "line": 103,
       "path": "apps/data_center/application/market_calendar.py",
       "text": "\"\"\"Resolve the latest closed session from provider calendar evidence.\"\"\""
     },
     {
-      "line": 107,
+      "line": 109,
       "path": "apps/data_center/application/market_calendar.py",
       "text": "\"\"\"Resolve the latest exchange session whose post-close readiness time passed.\"\"\""
     },
@@ -12036,17 +12076,17 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 403,
+      "line": 405,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 541,
+      "line": 543,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 915,
+      "line": 917,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -12081,22 +12121,17 @@
       "text": "return current"
     },
     {
-      "line": 643,
-      "path": "apps/data_center/composition.py",
-      "text": "\"\"\"Expose fixed current-market staging and group activation components.\"\"\""
-    },
-    {
-      "line": 678,
+      "line": 659,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Require the exact current Audit authority before any provider call.\"\"\""
     },
     {
-      "line": 1126,
+      "line": 1107,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW current-valuation fact sync writer.\"\"\""
     },
     {
-      "line": 1178,
+      "line": 1159,
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW realtime-quote sync writer.\"\"\""
     },
@@ -26411,46 +26446,6 @@
       "text": "publication_key=\"current\","
     },
     {
-      "line": 161,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "bundle, compares the V3 scope with the legacy current observation, runs an"
-    },
-    {
-      "line": 336,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "current: CurrentOwnerTenantAuthorityV3 | None,"
-    },
-    {
-      "line": 342,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "\"\"\"Bind the legacy current observation to the preflight V3 scope.\"\"\""
-    },
-    {
-      "line": 344,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "if type(current) is not CurrentOwnerTenantAuthorityV3:"
-    },
-    {
-      "line": 346,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "current.__post_init__()"
-    },
-    {
-      "line": 347,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "authority = current.authority"
-    },
-    {
-      "line": 370,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "or current.valid_until < context.authority_valid_until"
-    },
-    {
-      "line": 371,
-      "path": "core/integration/production_account_authority_capture.py",
-      "text": "or current.valid_until <= as_of"
-    },
-    {
       "line": 1,
       "path": "core/integration/realtime_sector_performance.py",
       "text": "\"\"\"Composition root for the realtime sector-performance projection.\"\"\""
@@ -27198,27 +27193,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 116,
+      "line": 118,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(name=\"data_center.refresh_full_market_publications\", time_limit=5700, soft_time_limit=5400)  # type: ignore[misc]"
     },
     {
-      "line": 152,
+      "line": 154,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 666,
+      "line": 668,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 698,
+      "line": 700,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 780,
+      "line": 782,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

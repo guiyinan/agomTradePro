@@ -50,6 +50,12 @@
         }
       },
       "depends_on": {
+        "audit": {
+          "imports": 4,
+          "target_layers": [
+            "application"
+          ]
+        },
         "config_center": {
           "imports": 8,
           "target_layers": [
@@ -126,6 +132,12 @@
           "target_layers": [
             "application",
             "infrastructure"
+          ]
+        },
+        "simulated_trading": {
+          "imports": 1,
+          "target_layers": [
+            "account_physical_row_v2_composition"
           ]
         }
       },
@@ -1023,7 +1035,7 @@
         "infrastructure": 138,
         "interface": 24,
         "management": 14,
-        "root": 22
+        "root": 23
       }
     },
     "agent_runtime": {
@@ -2267,6 +2279,9 @@
         ]
       },
       "depended_by": {
+        "account": {
+          "imports": 4
+        },
         "agent_runtime": {
           "imports": 6
         },
@@ -4049,6 +4064,7 @@
           "CurrentMarketPublicationBundleFactory",
           "CurrentTaskAttemptIdentityGetter",
           "FullMarketData02AuthorityPreflight",
+          "FullMarketRefreshDependencies",
           "MarketPublicationsRefresh",
           "TargetDateUniverseScopeResolver",
           "current_market_publication_blocked",
@@ -4299,11 +4315,10 @@
           "FinancialSourceTimeEvidenceVerifier"
         ],
         "application/full_market_refresh_orchestration.py": [
-          "FullMarketRefreshDependencies",
-          "apply_full_market_authority_block",
           "run_full_market_publication_refresh"
         ],
         "application/full_market_task_support.py": [
+          "apply_full_market_authority_block",
           "asset_code_scope_sha256",
           "exact_provider_batch_count",
           "finalize_full_market_result",
@@ -4311,6 +4326,9 @@
           "full_market_soft_timeout_failure",
           "quote_session_prefetch_failure",
           "quote_session_scope_empty_failure",
+          "require_sync_raw_audit_reference",
+          "serialize_raw_audit_references",
+          "task_attempt_identity_failure",
           "valuation_partial_policy_allows",
           "valuation_scope_incomplete_failure"
         ],
@@ -9894,6 +9912,9 @@
     },
     "simulated_trading": {
       "depended_by": {
+        "account": {
+          "imports": 1
+        },
         "agent_runtime": {
           "imports": 1
         },
