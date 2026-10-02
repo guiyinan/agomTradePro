@@ -2299,7 +2299,7 @@
           ]
         },
         "data_center": {
-          "imports": 5,
+          "imports": 6,
           "target_layers": [
             "application",
             "domain"
@@ -2388,7 +2388,10 @@
           "DataPublicationAuditEventOutboxWriter",
           "DataPublicationAuditObservation",
           "DataPublicationAuditScopeProvider",
-          "build_data_publication_audit_event"
+          "DataPublicationManifestAuditObservation",
+          "DataPublicationRawAuditManifestReference",
+          "build_data_publication_audit_event",
+          "build_data_publication_manifest_audit_event"
         ],
         "application/data_publication_rollback_audit.py": [
           "AppendDataPublicationRollbackAuditObservationUseCase",
@@ -3866,7 +3869,7 @@
           "imports": 1
         },
         "audit": {
-          "imports": 5
+          "imports": 6
         },
         "backtest": {
           "imports": 5
@@ -3991,6 +3994,10 @@
           "resolve_portfolio_alpha_scope",
           "run_alpha_score_prediction_now"
         ],
+        "application/candidate_raw_audit_manifest.py": [
+          "CandidateRawAuditManifestRepositoryProtocol",
+          "CandidateRawAuditManifestService"
+        ],
         "application/catalog_use_cases.py": [
           "CatalogSynchronizationResult",
           "SynchronizeDataCenterCatalogUseCase"
@@ -4036,6 +4043,13 @@
           "LatestQuoteRepositoryProtocol",
           "PriceBarWriterProtocol"
         ],
+        "application/current_publication_candidate.py": [
+          "CurrentPublicationCandidateSnapshot",
+          "CurrentPublicationDataset",
+          "CurrentPublicationPreview",
+          "CurrentPublicationScopeExclusion",
+          "build_current_publication_candidate_snapshot"
+        ],
         "application/current_publication_evidence.py": [
           "current_publication_evidence_blocked_reason"
         ],
@@ -4044,11 +4058,18 @@
           "CoreCurrentPublicationRebuildResult",
           "CoreCurrentPublicationRebuildUseCase",
           "CurrentPublicationCandidateRepositoryProtocol",
-          "CurrentPublicationDataset",
-          "CurrentPublicationPreview",
           "CurrentPublicationRebuildUseCase",
-          "CurrentPublicationScopeExclusion",
           "TargetDatePublicationObservationProbeProtocol"
+        ],
+        "application/current_publication_staging.py": [
+          "CandidateRawAuditMetadataResolverProtocol",
+          "CandidateRawAuditSourceType",
+          "CurrentPublicationStageCommand",
+          "CurrentPublicationStageRawAuditBinding",
+          "CurrentPublicationStagedCandidate",
+          "CurrentPublicationStagingError",
+          "CurrentPublicationStagingRepositoryProtocol",
+          "CurrentPublicationStagingUseCase"
         ],
         "application/current_valuation_sync.py": [
           "SyncCurrentValuationBatchUseCase"
@@ -4383,6 +4404,7 @@
           "select_rehearsal_sample"
         ],
         "application/market_publication_refresh.py": [
+          "MarketPricePreparationResult",
           "MarketPublicationRefreshBlocked",
           "MarketPublicationRefreshPorts",
           "refresh_market_price_inputs",
@@ -4415,9 +4437,30 @@
         "application/market_thermometer_sync.py": [
           "SyncMarketThermometerInputsUseCase"
         ],
+        "application/model_history_preparation.py": [
+          "ModelHistoryAuditEvidencePort",
+          "ModelHistoryFetchAuditPort",
+          "ModelHistoryFetchAuditResult",
+          "ModelHistoryPreparationAuditPort",
+          "ModelHistoryPreparedFetch",
+          "ModelHistoryReferenceSnapshot",
+          "ModelHistorySingleFetchAuditPort"
+        ],
         "application/model_market_data.py": [
-          "ModelMarketDataService",
+          "ModelMarketDataService"
+        ],
+        "application/model_market_data_preparation.py": [
+          "ModelMarketDataPreparation"
+        ],
+        "application/model_market_data_reads.py": [
+          "ModelMarketDataReads"
+        ],
+        "application/model_market_data_state.py": [
+          "ModelMarketDataServiceState",
           "ModelMarketRoute"
+        ],
+        "application/model_market_history_lineage.py": [
+          "ModelMarketHistoryLineage"
         ],
         "application/on_demand.py": [
           "DataQualityReport",
@@ -4570,11 +4613,15 @@
           "update_asset_display_name"
         ],
         "application/publication_activation.py": [
+          "ActivateCanonicalPublicationGroupUseCase",
           "ActivateCanonicalPublicationUseCase",
           "PublicationActivationAuditWriter",
           "PublicationActivationAuthorityFence",
           "PublicationActivationAuthorityLease",
           "PublicationActivationError",
+          "PublicationActivationGroupAuditWriter",
+          "PublicationActivationGroupCandidate",
+          "PublicationActivationGroupRequest",
           "PublicationActivationRepository",
           "PublicationActivationRequest",
           "publication_activation_lease_from_complete_graph"
@@ -4639,7 +4686,8 @@
           "current_publication_id_for_hash",
           "member_reference",
           "publication_hash",
-          "publication_member_from_reference"
+          "publication_member_from_reference",
+          "publication_member_manifest_hash"
         ],
         "application/published_equity_context.py": [
           "get_published_equity_context_payloads"
@@ -4911,9 +4959,9 @@
         ]
       },
       "layers": {
-        "application": 108,
-        "domain": 33,
-        "infrastructure": 155,
+        "application": 116,
+        "domain": 34,
+        "infrastructure": 162,
         "interface": 19,
         "management": 29,
         "root": 16
