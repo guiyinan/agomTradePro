@@ -3686,62 +3686,62 @@
       "text": "current_row, current = next_row, successor"
     },
     {
-      "line": 153,
+      "line": 154,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"\"\"In-fence evidence for a complete current Account authority graph.\"\"\""
     },
     {
-      "line": 274,
+      "line": 275,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"\"\"Read the graph using the caller's current transaction and generation.\"\"\""
     },
     {
-      "line": 445,
+      "line": 446,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "current = self._repository.get_selected_root("
     },
     {
-      "line": 451,
+      "line": 452,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "if current != expected:"
     },
     {
-      "line": 455,
+      "line": 456,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "if self._read_revocation(current, now) is not None:"
     },
     {
-      "line": 460,
+      "line": 461,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "authority_content_hash=current.record.authority.content_hash,"
     },
     {
-      "line": 463,
+      "line": 464,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "valid_until=current.record.authority.valid_until,"
     },
     {
-      "line": 614,
+      "line": 620,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph is missing\""
     },
     {
-      "line": 618,
+      "line": 624,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph differs from its captured fingerprint\""
     },
     {
-      "line": 630,
+      "line": 636,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph is expired at final reread\""
     },
     {
-      "line": 665,
+      "line": 671,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph expired during final revalidation\""
     },
     {
-      "line": 719,
+      "line": 725,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"a matched, current complete graph scan is required\""
     },
@@ -3756,12 +3756,12 @@
       "text": "\"current graph generation differs from the active fence\""
     },
     {
-      "line": 997,
+      "line": 1026,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Read the current transaction-visible generation without taking a lock.\"\"\""
     },
     {
-      "line": 1090,
+      "line": 1119,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },
