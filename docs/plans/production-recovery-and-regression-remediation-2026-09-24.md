@@ -1089,3 +1089,22 @@ Black、isort、Ruff、两个生产文件增量 mypy 与全仓 mypy debt ceiling
 剩余停止线：full-market 编排尚未把 `price_full_day_suspension` 和 price 目标日传入正式 staging；quote、valuation、price
 三组 RawAudit manifest、complete Account graph proof/finalizer、短 RC/RW group activation 与 5,001+ PostgreSQL soak
 仍未在生产 composition 闭合。该提交未部署、未启动全市场重跑，legacy relation locks 保留。
+
+#### 2026-10-02 全市场同步 exact RawAudit 引用（`50a0ee349`）
+
+Quote 成功结果现在返回与同一 sync `run_id/ingested_run_id` 绑定的 exact `RawAuditReference`；quote 与 valuation 的成功和
+失败审计都将 provider config 的规范 `source_type` 写入 hash-bound `extra`。valuation provider 抛出的标准
+`DataFetchError` 也进入失败审计事务，不能绕过 RawAudit。full-market 按 quote、valuation、price 数据集分别汇总引用；
+引用缺失、身份不符或重复都会在 Publication 前失败关闭。
+
+引用校验发生在事实持久化之后时，结果保留真实资产 `requested/succeeded/failed`、已写 `stored` 和独立
+`operation_requested/succeeded/failed`；缺引用的 quote 批次不计成功，整体返回 `partial`，不能误报零写入 `blocked`，
+也不能进入正式发布。
+
+本地证据：full-market 75、quote sync 9、valuation lineage 6，共 `90 passed`；changed-production mypy 5 个文件零回归，
+全仓 mypy debt 为 0；Black、isort、Ruff、Celery contract 94 tasks / 21 exemptions / 24 files、current-data 72 surfaces
+与 `git diff --check` 均通过。无测试跳过。
+
+剩余停止线：这些 exact refs 尚未转换为三组 candidate staging binding；price failover 的每条引用仍缺少随返回值传递的
+实际 `source_type`，不能用全局 provider 名猜测。production composition、complete Account graph proof/finalizer、
+group audit/outbox、短 activation 和 PostgreSQL 5,001+ soak 仍未闭合。本片未部署、未启动全市场重跑。
