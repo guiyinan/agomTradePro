@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Protocol, cast
 
 from apps.data_center.application.current_publication_rebuild import (
+    CoreCurrentPublicationRebuildUseCase,
     CurrentPublicationRebuildUseCase,
 )
 from apps.data_center.application.current_publication_staging import (
@@ -14,6 +15,8 @@ from apps.data_center.application.current_publication_staging import (
 )
 from apps.data_center.application.publication_activation import (
     ActivateCanonicalPublicationGroupUseCase,
+    CurrentPublicationPointerSnapshot,
+    PublicationActivationError,
     PublicationActivationGroupAuditWriter,
 )
 from apps.data_center.domain.raw_audit_manifest import CURRENT_MARKET_PUBLICATION_DATASETS
@@ -26,6 +29,7 @@ from apps.data_center.infrastructure.current_publication_staging_repository impo
 from apps.data_center.infrastructure.publication_group_activation_repository import (
     DjangoPublicationActivationGroupRepository,
 )
+from apps.data_center.infrastructure.publication_models import CanonicalPublicationPointerModel
 from apps.data_center.publication_rebuild_composition import build_current_publication_rebuild
 from core.integration.data_center_audit import (
     SystemAuditCompositionUnavailable,
@@ -60,17 +64,30 @@ class ProductionAccountAuthorityCaptureFactory(Protocol):
         """Return an alias-bound complete authority fence and opaque proof."""
 
 
+class CurrentPublicationPointerReader(Protocol):
+    """Read one exact current pointer pair for activation compare-and-swap."""
+
+    def __call__(
+        self,
+        dataset_key: str,
+        publication_key: str,
+    ) -> CurrentPublicationPointerSnapshot:
+        """Return both current id and hash, including the complete empty state."""
+
+
 @dataclass(frozen=True, slots=True)
 class ProductionCurrentMarketPublicationBundle:
     """Fixed quote, price, and valuation staging plus atomic group activation."""
 
     database_alias: str
+    previewer: CoreCurrentPublicationRebuildUseCase
     quote_staging: CurrentPublicationStagingUseCase
     price_staging: CurrentPublicationStagingUseCase
     valuation_staging: CurrentPublicationStagingUseCase
     activate_group: ActivateCanonicalPublicationGroupUseCase
     audit_writer_factory: PublicationActivationAuditWriterFactory
     authority_capture: ProductionAccountAuthorityCaptureFactory
+    current_pointer_reader: CurrentPublicationPointerReader
 
 
 def build_production_current_market_publication_bundle(
@@ -160,14 +177,47 @@ def build_production_current_market_publication_bundle(
             )
         return capture
 
+    def read_current_pointer(
+        dataset_key: str,
+        publication_key: str,
+    ) -> CurrentPublicationPointerSnapshot:
+        """Read the complete pointer state through the selected alias."""
+
+        pointer = (
+            CanonicalPublicationPointerModel._default_manager.using(alias)
+            .filter(dataset_key=dataset_key, publication_key=publication_key)
+            .first()
+        )
+        if pointer is None:
+            return CurrentPublicationPointerSnapshot(None, None)
+        if pointer.publication_id is None:
+            if pointer.publication_hash or pointer.activation_id:
+                raise SystemAuditCompositionUnavailable(
+                    "empty current publication pointer contains stale identity",
+                    reason_code="publication_pointer_empty_identity_invalid",
+                )
+            return CurrentPublicationPointerSnapshot(None, None)
+        try:
+            return CurrentPublicationPointerSnapshot(
+                str(pointer.publication_id),
+                pointer.publication_hash,
+            )
+        except PublicationActivationError as error:
+            raise SystemAuditCompositionUnavailable(
+                "current publication pointer identity is malformed",
+                reason_code="publication_pointer_identity_invalid",
+            ) from error
+
     return ProductionCurrentMarketPublicationBundle(
         database_alias=alias,
+        previewer=rebuild,
         quote_staging=quote_staging,
         price_staging=price_staging,
         valuation_staging=valuation_staging,
         activate_group=ActivateCanonicalPublicationGroupUseCase(activation_repository),
         audit_writer_factory=build_audit_writer,
         authority_capture=capture_authority,
+        current_pointer_reader=read_current_pointer,
     )
 
 
@@ -207,5 +257,6 @@ __all__ = [
     "ProductionAccountAuthorityCaptureFactory",
     "ProductionCurrentMarketPublicationBundle",
     "PublicationActivationAuditWriterFactory",
+    "CurrentPublicationPointerReader",
     "build_production_current_market_publication_bundle",
 ]

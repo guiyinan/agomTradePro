@@ -165,6 +165,26 @@ class PublicationActivationGroupRequest:
         object.__setattr__(self, "candidates", ordered)
 
 
+@dataclass(frozen=True, slots=True)
+class CurrentPublicationPointerSnapshot:
+    """Exact current-pointer CAS state read before candidate staging."""
+
+    publication_id: str | None
+    publication_hash: str | None
+
+    def __post_init__(self) -> None:
+        """Require either a fully empty pointer or one complete publication identity."""
+
+        if (self.publication_id is None) != (self.publication_hash is None):
+            raise PublicationActivationError("current pointer snapshot is incomplete")
+        if self.publication_id is None:
+            return
+        _require_canonical_uuid(self.publication_id, "current_pointer.publication_id")
+        digest = self.publication_hash or ""
+        if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+            raise PublicationActivationError("current pointer snapshot hash is invalid")
+
+
 def _require_canonical_uuid(value: str, field_name: str) -> None:
     """Require one lowercase canonical UUID at the activation request boundary."""
 
@@ -377,6 +397,7 @@ class ActivateCanonicalPublicationGroupUseCase:
 __all__ = [
     "ActivateCanonicalPublicationGroupUseCase",
     "ActivateCanonicalPublicationUseCase",
+    "CurrentPublicationPointerSnapshot",
     "PublicationActivationAuditWriter",
     "PublicationActivationGroupAuditWriter",
     "PublicationActivationGroupCandidate",

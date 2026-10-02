@@ -6,28 +6,41 @@ import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Protocol, cast
+from typing import cast
 from uuid import uuid4
 
 from celery.exceptions import SoftTimeLimitExceeded
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.domain.model_market_data import ModelMarketDataPort
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
-from apps.data_center.domain.target_date_universe import TargetDateAssetUniverseScope
-from core.exceptions import DataFetchError
+from core.exceptions import DataFetchError, DataValidationError
 from core.integration import data_center_audit as audit_integration
 from core.integration.data_center_audit import SystemAuditReaderContext
-from core.integration.task_monitor_runtime import TaskProgress, TaskProgressPhase
+from core.integration.task_monitor_runtime import (
+    CurrentTaskAttemptIdentity,
+    CurrentTaskAttemptIdentityUnavailable,
+    TaskProgress,
+    TaskProgressPhase,
+)
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 from . import full_market_task_support as market_task
-from .current_publication_rebuild import (
-    CoreCurrentPublicationRebuildUseCase,
-    CurrentPublicationScopeExclusion,
+from .current_market_publication_activation import (
+    FULL_MARKET_DATABASE_ALIAS,
+    CurrentMarketPublicationBundleFactory,
+    CurrentTaskAttemptIdentityGetter,
+    FullMarketData02AuthorityPreflight,
+    MarketPublicationsRefresh,
+    TargetDateUniverseScopeResolver,
+    current_market_publication_blocked,
+    stage_and_activate_current_market_group,
 )
+from .current_publication_rebuild import CurrentPublicationScopeExclusion
+from .current_publication_staging import CurrentPublicationStageRawAuditBinding
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .data02_task_authority import Data02AuthorityLatch
 from .dtos import SyncQuoteRequest
@@ -40,47 +53,6 @@ from .quote_session_prefetch import QuoteSessionMissingAssetVerifier
 from .sync_market_use_cases import SyncQuoteUseCase
 
 logger = logging.getLogger(__name__)
-
-
-class _Data02TaskAuthorityPreflight(Protocol):
-    """Type the authority preflight dependency used by the refresh orchestrator."""
-
-    def __call__(
-        self,
-        *,
-        as_of: datetime,
-        minimum_window: timedelta,
-        expected_actor: str = "",
-    ) -> tuple[SystemAuditReaderContext | None, dict[str, object] | None]: ...
-
-
-class _PublicationRebuildFactory(Protocol):
-    """Build a current-publication use case for the fixed refresh datasets."""
-
-    def __call__(
-        self,
-        *,
-        created_by: str,
-        dataset_keys: tuple[str, ...],
-    ) -> CoreCurrentPublicationRebuildUseCase: ...
-
-
-class _MarketPublicationsRefresh(Protocol):
-    """Run the generic coordinator over this refresh's bounded callbacks."""
-
-    def __call__(
-        self,
-        *,
-        as_of_date: date,
-        batch_size: int,
-        ports: MarketPublicationRefreshPorts,
-    ) -> dict[str, object]: ...
-
-
-class _TargetDateUniverseScopeResolver(Protocol):
-    """Resolve current active A-shares against persisted target-date listing evidence."""
-
-    def __call__(self, target_date: date) -> TargetDateAssetUniverseScope: ...
 
 
 def _require_sync_raw_audit_reference(
@@ -126,23 +98,24 @@ class FullMarketRefreshDependencies:
     """Application-owned collaborators used by the Celery task adapter."""
 
     authority_window: timedelta
-    preflight_data02_authority: _Data02TaskAuthorityPreflight
+    preflight_data02_authority: FullMarketData02AuthorityPreflight
+    get_current_task_attempt_identity: CurrentTaskAttemptIdentityGetter
     authority_latch_factory: Callable[[SystemAuditReaderContext], Data02AuthorityLatch]
     data02_authority_failure: Callable[[str], dict[str, object]]
     get_active_provider_id_by_source: Callable[[str], int | None]
     make_quote_sync_use_case: Callable[[], SyncQuoteUseCase]
     make_valuation_sync_use_case: Callable[[], SyncCurrentValuationBatchUseCase]
-    make_publication_rebuild_use_case: _PublicationRebuildFactory
+    make_current_market_publication_bundle: CurrentMarketPublicationBundleFactory
     latest_closed_market_session: Callable[[datetime], date | None]
     sync_active_universe: Callable[[], dict[str, object]]
-    target_date_universe_scope: _TargetDateUniverseScopeResolver
+    target_date_universe_scope: TargetDateUniverseScopeResolver
     publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
     record_progress: Callable[[TaskProgress], bool]
     model_market_data_port: Callable[[], ModelMarketDataPort]
     refresh_market_price_inputs: Callable[
         [ModelMarketDataPort, list[str], date], MarketPricePreparationResult
     ]
-    refresh_market_publications: _MarketPublicationsRefresh
+    refresh_market_publications: MarketPublicationsRefresh
 
 
 def apply_full_market_authority_block(
@@ -167,6 +140,28 @@ def apply_full_market_authority_block(
         "error_code": reason_code,
         "publication_updated": False,
         "published_members": 0,
+    }
+
+
+def _task_attempt_identity_failure() -> dict[str, object]:
+    """Return the stable zero-write outcome when Task Monitor identity is absent."""
+
+    return {
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "success": False,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "count_unit": "sync_operation",
+        "stored_count_unit": "fact_row",
+        "phase": "task_attempt_identity",
+        "blocked_reason": "current_task_attempt_identity_unavailable",
+        "error_code": "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE",
+        "errors": ["CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"],
+        "publication_updated": False,
+        "published_members": 0,
+        "must_not_use_for_decision": True,
     }
 
 
@@ -195,6 +190,14 @@ def run_full_market_publication_refresh(
         or not 1 <= batch_size <= 200
     ):
         return market_task.full_market_input_failure("invalid_batch_size")
+    try:
+        task_attempt_identity = dependencies.get_current_task_attempt_identity()
+        if type(task_attempt_identity) is not CurrentTaskAttemptIdentity:
+            raise CurrentTaskAttemptIdentityUnavailable(
+                "Task Monitor returned an invalid current attempt identity"
+            )
+    except CurrentTaskAttemptIdentityUnavailable:
+        return _task_attempt_identity_failure()
     started_at = datetime.now(UTC)
     authority, authority_failure = dependencies.preflight_data02_authority(
         as_of=started_at,
@@ -219,10 +222,36 @@ def run_full_market_publication_refresh(
             "must_not_use_for_decision": True,
         }
     valuations = dependencies.make_valuation_sync_use_case()
-    publications = dependencies.make_publication_rebuild_use_case(
-        created_by=f"celery.full_market_refresh:{authority.actor_id}",
-        dataset_keys=("equity.quote.snapshot", "equity.valuation.fact", "equity.price.bar"),
-    )
+    try:
+        publication_bundle = dependencies.make_current_market_publication_bundle(
+            using=FULL_MARKET_DATABASE_ALIAS,
+            created_by=f"celery.full_market_refresh:{authority.actor_id}",
+        )
+        if publication_bundle.database_alias != "default":
+            raise audit_integration.SystemAuditCompositionUnavailable(
+                "current-market publication bundle uses an unsupported database alias",
+                reason_code="composition_alias_mismatch",
+            )
+    except audit_integration.SystemAuditCompositionUnavailable as exc:
+        error_code = f"system_audit_{exc.reason_code}"
+        return {
+            **market_task.full_market_input_failure(error_code),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "error_code": error_code,
+            "blocked_reason": error_code,
+            "publication_updated": False,
+        }
+    except DatabaseError:
+        error_code = "CURRENT_PUBLICATION_COMPOSITION_UNAVAILABLE"
+        return {
+            **market_task.full_market_input_failure(error_code),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "must_not_use_for_decision": True,
+            "error_code": error_code,
+            "blocked_reason": error_code,
+            "publication_updated": False,
+        }
     target_date = dependencies.latest_closed_market_session(timezone.now())
     if target_date is None:
         return {
@@ -984,11 +1013,23 @@ def run_full_market_publication_refresh(
             "equity.price.bar": target_date,
             "equity.valuation.fact": target_date,
         }
-        preview = publications.preview(
-            asset_codes=publication_scope_codes,
-            scope_exclusions_by_dataset=publication_scope_exclusions,
-            required_observation_dates=required_observation_dates,
-        )
+        publication_cutoff = datetime.now(UTC)
+        try:
+            preview = publication_bundle.previewer.preview(
+                asset_codes=publication_scope_codes,
+                published_at=publication_cutoff,
+                scope_exclusions_by_dataset=publication_scope_exclusions,
+                required_observation_dates=required_observation_dates,
+            )
+        except (
+            DataValidationError,
+            audit_integration.SystemAuditCompositionUnavailable,
+            DatabaseError,
+        ) as error:
+            raise current_market_publication_blocked(
+                "CURRENT_PUBLICATION_PREVIEW_FAILED",
+                "Current market publication preview failed closed",
+            ) from error
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
         price_preview = snapshots.get("equity.price.bar")
@@ -1086,11 +1127,39 @@ def run_full_market_publication_refresh(
                 for _raw_audit_id, reference in sorted(price_audit_references.items())
             ],
         )
-        publication_result = publications.execute(
+        stage_bindings_by_dataset = {
+            "equity.quote.snapshot": tuple(
+                CurrentPublicationStageRawAuditBinding(
+                    reference=reference,
+                    expected_source_type=selected_quote_source,
+                )
+                for _raw_audit_id, reference in sorted(quote_audit_references.items())
+            ),
+            "equity.price.bar": tuple(
+                CurrentPublicationStageRawAuditBinding(
+                    reference=binding.reference,
+                    expected_source_type=binding.source_type,
+                )
+                for binding in price_preparation.member_owning_raw_audit_bindings
+            ),
+            "equity.valuation.fact": tuple(
+                CurrentPublicationStageRawAuditBinding(
+                    reference=reference,
+                    expected_source_type=selected_valuation_source,
+                )
+                for _raw_audit_id, reference in sorted(valuation_audit_references.items())
+            ),
+        }
+        publication_result = stage_and_activate_current_market_group(
+            bundle=publication_bundle,
             asset_codes=publication_scope_codes,
+            published_at=publication_cutoff,
             run_id=publication_run_id,
+            task_attempt_id=task_attempt_identity.attempt_id,
+            required_observation_date=target_date,
             scope_exclusions_by_dataset=publication_scope_exclusions,
-            required_observation_dates=required_observation_dates,
+            raw_audit_bindings_by_dataset=stage_bindings_by_dataset,
+            preflight_context=authority,
         )
         publication_evidence.update(publication_result.to_dict())
         publish_progress(

@@ -21,6 +21,7 @@ from apps.data_center.composition import (
     get_backfill_item_attempt_store,
     get_publication_policy_repository,
     make_core_current_publication_rebuild_use_case,
+    make_production_current_market_publication_bundle,
     persist_sync_control_plane_snapshot,
     sync_active_a_share_universe,
 )
@@ -36,7 +37,10 @@ from apps.data_center.target_date_universe_composition import (
 )
 from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
 from core.integration import data_center_audit as audit_integration
-from core.integration.task_monitor_runtime import record_current_task_progress
+from core.integration.task_monitor_runtime import (
+    get_current_task_attempt_identity,
+    record_current_task_progress,
+)
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
@@ -51,6 +55,7 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
+from .current_market_publication_activation import CurrentMarketPublicationBundle
 from .data02_task_authority import Data02AuthorityLatch as _Data02AuthorityLatch
 from .data02_task_authority import data02_authority_failure as _data02_authority_failure
 from .data02_task_authority import (
@@ -97,6 +102,17 @@ _FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=6300)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
 
 
+def _make_full_market_publication_bundle(
+    *, using: str = "default", created_by: str
+) -> CurrentMarketPublicationBundle:
+    """Build the market staging bundle explicitly on the production database alias."""
+
+    return make_production_current_market_publication_bundle(
+        using=using,
+        created_by=created_by,
+    )
+
+
 @shared_task(name="data_center.refresh_full_market_publications", time_limit=5700, soft_time_limit=5400)  # type: ignore[misc]
 def refresh_full_market_publications_task(
     source: str | None = None,
@@ -114,12 +130,13 @@ def refresh_full_market_publications_task(
         dependencies=FullMarketRefreshDependencies(
             authority_window=_FULL_MARKET_AUTHORITY_WINDOW,
             preflight_data02_authority=_preflight_data02_task_authority,
+            get_current_task_attempt_identity=get_current_task_attempt_identity,
             authority_latch_factory=_Data02AuthorityLatch,
             data02_authority_failure=_data02_authority_failure,
             get_active_provider_id_by_source=get_active_provider_id_by_source,
             make_quote_sync_use_case=make_backfill_sync_quote_use_case,
             make_valuation_sync_use_case=(make_backfill_sync_current_valuation_batch_use_case),
-            make_publication_rebuild_use_case=make_core_current_publication_rebuild_use_case,
+            make_current_market_publication_bundle=(_make_full_market_publication_bundle),
             latest_closed_market_session=latest_closed_cn_market_session,
             sync_active_universe=sync_active_a_share_universe,
             target_date_universe_scope=build_target_date_a_share_universe_scope,

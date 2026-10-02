@@ -4044,6 +4044,16 @@
           "LatestQuoteRepositoryProtocol",
           "PriceBarWriterProtocol"
         ],
+        "application/current_market_publication_activation.py": [
+          "CurrentMarketPublicationBundle",
+          "CurrentMarketPublicationBundleFactory",
+          "CurrentTaskAttemptIdentityGetter",
+          "FullMarketData02AuthorityPreflight",
+          "MarketPublicationsRefresh",
+          "TargetDateUniverseScopeResolver",
+          "current_market_publication_blocked",
+          "stage_and_activate_current_market_group"
+        ],
         "application/current_publication_candidate.py": [
           "CurrentPublicationCandidateSnapshot",
           "CurrentPublicationDataset",
@@ -4618,6 +4628,7 @@
         "application/publication_activation.py": [
           "ActivateCanonicalPublicationGroupUseCase",
           "ActivateCanonicalPublicationUseCase",
+          "CurrentPublicationPointerSnapshot",
           "PublicationActivationAuditWriter",
           "PublicationActivationAuthorityFence",
           "PublicationActivationAuthorityLease",
@@ -4963,7 +4974,7 @@
         ]
       },
       "layers": {
-        "application": 116,
+        "application": 117,
         "domain": 34,
         "infrastructure": 162,
         "interface": 19,

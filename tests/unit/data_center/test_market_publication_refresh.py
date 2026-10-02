@@ -52,6 +52,29 @@ class _PriceAuditEvidence:
         return (self.binding,)
 
 
+def _market_price_result_with_member_binding(
+    *,
+    raw_audit_id: str = "price-test-audit",
+    source_type: str = "tushare",
+) -> MarketPricePreparationResult:
+    """Provide explicit source-bound member lineage for task publication tests."""
+
+    reference = RawAuditReference(
+        raw_audit_id=raw_audit_id,
+        version="raw-audit-v1",
+        content_hash=hashlib.sha256(raw_audit_id.encode("utf-8")).hexdigest(),
+        run_id=f"{raw_audit_id}-run",
+        ingested_run_id=f"{raw_audit_id}-ingested",
+    )
+    binding = ModelHistoryRawAuditBinding(reference, source_type)
+    return MarketPricePreparationResult(
+        suspended_codes=(),
+        raw_audit_references=(reference,),
+        raw_audit_bindings=(binding,),
+        member_owning_raw_audit_bindings=(binding,),
+    )
+
+
 def test_price_preparation_keeps_failover_source_type_per_exact_reference():
     from types import SimpleNamespace
 
@@ -341,6 +364,326 @@ def _unknown_listing_date_scope(
     )
 
 
+def _fake_market_publication_bundle(coordinator):
+    """Adapt legacy task-test doubles to the staged three-publication contract."""
+
+    from dataclasses import replace
+    from hashlib import sha256
+    from uuid import NAMESPACE_URL, uuid5
+
+    from apps.data_center.application.current_publication_staging import (
+        CurrentPublicationStagedCandidate,
+    )
+    from apps.data_center.application.publication_activation import (
+        CurrentPublicationPointerSnapshot,
+    )
+    from apps.data_center.domain.control_plane import (
+        CanonicalPublication,
+        CoverageSnapshot,
+        PublicationScopeBlock,
+        PublicationState,
+    )
+
+    preview_by_dataset = {}
+    staged_by_dataset = {}
+    commands_by_dataset = {}
+    legacy_payload = {}
+    bundle_events = []
+    activation_requests = []
+    base_preview = getattr(coordinator, "preview", lambda **_: SimpleNamespace(datasets=()))
+
+    def preview(**kwargs):
+        bundle_events.append("preview")
+        result = base_preview(**kwargs)
+        preview_by_dataset.clear()
+        preview_by_dataset.update({item.dataset_key: item for item in result.datasets})
+        return result
+
+    def stage(command):
+        dataset_key = next(
+            key
+            for key in (
+                "equity.quote.snapshot",
+                "equity.price.bar",
+                "equity.valuation.fact",
+            )
+            if key not in commands_by_dataset
+        )
+        commands_by_dataset[dataset_key] = command
+        bundle_events.append(f"stage:{dataset_key}")
+        preview_item = preview_by_dataset.get(dataset_key)
+        requested_count = int(
+            getattr(preview_item, "requested_asset_count", len(command.asset_codes))
+        )
+        covered_count = int(getattr(preview_item, "covered_asset_count", requested_count))
+        member_count = max(1, int(getattr(preview_item, "member_count", covered_count)))
+        eligible_count = max(covered_count, member_count)
+        publication_id = str(
+            uuid5(NAMESPACE_URL, f"test:{command.run_id}:{command.task_attempt_id}:{dataset_key}")
+        )
+        publication_hash = sha256(
+            f"{command.run_id}:{command.task_attempt_id}:{dataset_key}".encode()
+        ).hexdigest()
+        source_type = (
+            command.raw_audit_bindings[0].expected_source_type
+            if command.raw_audit_bindings
+            else "tushare"
+        )
+        coverage = CoverageSnapshot(
+            coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
+            publication_id=publication_id,
+            requested_count=max(requested_count, eligible_count),
+            eligible_count=eligible_count,
+            selected_count=member_count,
+            missing_count=max(0, requested_count - covered_count),
+            generated_at=command.published_at,
+        )
+        publication = CanonicalPublication(
+            publication_id=publication_id,
+            dataset_key=dataset_key,
+            publication_key="current",
+            policy_version="p2:test-current-policy",
+            state=PublicationState.CANDIDATE,
+            selected_source=source_type,
+            publication_hash=publication_hash,
+            coverage=coverage,
+            member_count=member_count,
+            as_of=command.published_at,
+            published_at=None,
+            run_id=command.run_id,
+        )
+        manifest = SimpleNamespace(
+            publication_id=publication_id,
+            publication_hash=publication_hash,
+            dataset_key=dataset_key,
+            publication_key="current",
+            run_id=command.run_id,
+            task_attempt_id=command.task_attempt_id,
+            raw_audits=tuple(item.reference for item in command.raw_audit_bindings),
+        )
+        staged = CurrentPublicationStagedCandidate(publication, manifest)
+        staged_by_dataset[dataset_key] = staged
+        return staged
+
+    def activate(request, **_kwargs):
+        bundle_events.append("activation")
+        activation_requests.append(request)
+        execute = getattr(coordinator, "execute", None)
+        if callable(execute):
+            command = commands_by_dataset["equity.quote.snapshot"]
+            outcome = execute(
+                asset_codes=list(command.asset_codes),
+                published_at=command.published_at,
+                run_id=command.run_id,
+                scope_exclusions_by_dataset={
+                    key: value.scope_exclusions
+                    for key, value in commands_by_dataset.items()
+                    if value.scope_exclusions
+                },
+                required_observation_dates={
+                    key: value.required_observation_date
+                    for key, value in commands_by_dataset.items()
+                    if value.required_observation_date is not None
+                },
+            )
+            to_dict = getattr(outcome, "to_dict", None)
+            if callable(to_dict):
+                legacy_payload.update(to_dict())
+        result = []
+        serialized_by_dataset = {
+            item.get("dataset_key"): item
+            for item in legacy_payload.get("datasets", [])
+            if isinstance(item, dict)
+        }
+        for candidate in request.candidates:
+            staged = staged_by_dataset[candidate.dataset_key]
+            publication = staged.publication
+            serialized = serialized_by_dataset.get(candidate.dataset_key, {})
+            scope_blocks = tuple(
+                PublicationScopeBlock(
+                    asset_code=item["asset_code"],
+                    reason_code=item["reason_code"],
+                    target_trade_date=(
+                        date.fromisoformat(item["target_trade_date"])
+                        if item.get("target_trade_date")
+                        else None
+                    ),
+                    source=item.get("source", ""),
+                    publication_run_id=item.get("publication_run_id", publication.run_id),
+                    policy_version=item.get("policy_version", publication.policy_version),
+                    publication_id=publication.publication_id,
+                    evidence_source=item.get("evidence_source", ""),
+                )
+                for item in serialized.get("scope_blocks", [])
+            )
+            policy_version = (
+                scope_blocks[0].policy_version if scope_blocks else publication.policy_version
+            )
+            selected_source = (
+                scope_blocks[0].source
+                if scope_blocks and scope_blocks[0].source
+                else publication.selected_source
+            )
+            result.append(
+                replace(
+                    publication,
+                    policy_version=policy_version,
+                    state=PublicationState.PUBLISHED,
+                    selected_source=selected_source,
+                    member_count=max(1, publication.member_count),
+                    published_at=datetime.now(UTC),
+                    scope_blocks=scope_blocks,
+                )
+            )
+        return tuple(result)
+
+    def build_audit_writer():
+        bundle_events.append("audit_writer")
+        return SimpleNamespace(database_alias="default")
+
+    def capture_authority(**_kwargs):
+        bundle_events.append("authority_capture")
+        return SimpleNamespace(
+            database_alias="default",
+            authority_fence=object(),
+            authority_proof=object(),
+        )
+
+    def read_pointer(*_args):
+        bundle_events.append("current_pointer")
+        return CurrentPublicationPointerSnapshot(None, None)
+
+    return SimpleNamespace(
+        database_alias="default",
+        previewer=SimpleNamespace(preview=preview),
+        quote_staging=SimpleNamespace(execute=stage),
+        price_staging=SimpleNamespace(execute=stage),
+        valuation_staging=SimpleNamespace(execute=stage),
+        activate_group=SimpleNamespace(execute=activate),
+        audit_writer_factory=build_audit_writer,
+        authority_capture=capture_authority,
+        current_pointer_reader=read_pointer,
+        staged_commands=commands_by_dataset,
+        bundle_events=bundle_events,
+        activation_requests=activation_requests,
+    )
+
+
+def _direct_current_market_staging_bundle():
+    """Build one fully typed in-memory bundle for staging/activation fault tests."""
+
+    from types import SimpleNamespace
+
+    coordinator = SimpleNamespace(
+        preview=lambda **_: SimpleNamespace(datasets=()),
+        execute=lambda **_: None,
+    )
+    bundle = _fake_market_publication_bundle(coordinator)
+    from apps.data_center.application.current_publication_staging import (
+        CurrentPublicationStageRawAuditBinding,
+    )
+
+    bindings = {
+        "equity.quote.snapshot": (
+            CurrentPublicationStageRawAuditBinding(
+                RawAuditReference(
+                    "quote-stage-raw",
+                    "raw-audit-v1",
+                    "a" * 64,
+                    "quote-run",
+                    "quote-ingested",
+                ),
+                "tushare",
+            ),
+        ),
+        "equity.price.bar": (
+            CurrentPublicationStageRawAuditBinding(
+                RawAuditReference(
+                    "price-stage-raw",
+                    "raw-audit-v1",
+                    "b" * 64,
+                    "price-run",
+                    "price-ingested",
+                ),
+                "tushare",
+            ),
+        ),
+        "equity.valuation.fact": (
+            CurrentPublicationStageRawAuditBinding(
+                RawAuditReference(
+                    "valuation-stage-raw",
+                    "raw-audit-v1",
+                    "c" * 64,
+                    "valuation-run",
+                    "valuation-ingested",
+                ),
+                "akshare",
+            ),
+        ),
+    }
+    return bundle, bindings
+
+
+def _run_direct_current_market_staging(bundle, bindings):
+    """Stage a fixed three-dataset request with one deterministic test identity."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application.current_market_publication_activation import (
+        stage_and_activate_current_market_group,
+    )
+
+    return stage_and_activate_current_market_group(
+        bundle=bundle,
+        asset_codes=["000001.SZ"],
+        published_at=datetime(2026, 9, 18, 8, tzinfo=UTC),
+        run_id="00000000-0000-4000-8000-000000000001",
+        task_attempt_id="unit-attempt-1",
+        required_observation_date=date(2026, 9, 18),
+        scope_exclusions_by_dataset={},
+        raw_audit_bindings_by_dataset=bindings,
+        preflight_context=SimpleNamespace(actor_id="service:test"),
+    )
+
+
+def test_group_staging_reads_cas_before_stage_and_captures_authority_last():
+    """One captured fence immediately precedes the exact three-candidate activation."""
+
+    from apps.data_center.domain.control_plane import PublicationState
+
+    bundle, bindings = _direct_current_market_staging_bundle()
+    result = _run_direct_current_market_staging(bundle, bindings)
+
+    assert bundle.bundle_events[:3] == ["current_pointer"] * 3
+    assert bundle.bundle_events[3:6] == [
+        "stage:equity.quote.snapshot",
+        "stage:equity.price.bar",
+        "stage:equity.valuation.fact",
+    ]
+    assert bundle.bundle_events[-3:] == [
+        "audit_writer",
+        "authority_capture",
+        "activation",
+    ]
+    assert len(bundle.activation_requests) == 1
+    candidates = bundle.activation_requests[0].candidates
+    assert len(candidates) == 3
+    assert {item.dataset_key for item in candidates} == {
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    }
+    assert all(item.expected_current_publication_id is None for item in candidates)
+    assert all(item.expected_current_publication_hash is None for item in candidates)
+    assert result.published_count == 3
+    assert result.run_id == "00000000-0000-4000-8000-000000000001"
+    assert len(result.publications) == 3
+    assert all(item.state is PublicationState.PUBLISHED for item in result.publications)
+    assert {item.publication_id for item in result.publications} == {
+        item.candidate_publication_id for item in candidates
+    }
+
+
 @pytest.fixture(autouse=True)
 def _patch_current_authority(monkeypatch):
     """Bind task-path tests to one current server-issued authority."""
@@ -348,6 +691,7 @@ def _patch_current_authority(monkeypatch):
     from types import SimpleNamespace
 
     from apps.data_center.application import tasks
+    from core.integration.task_monitor_runtime import CurrentTaskAttemptIdentity
 
     context = SimpleNamespace(
         authority_source_id="config-center",
@@ -370,6 +714,30 @@ def _patch_current_authority(monkeypatch):
         tasks,
         "sync_active_a_share_universe",
         lambda: _universe_report(tasks.list_active_stock_codes_for_backfill()),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "get_current_task_attempt_identity",
+        lambda: CurrentTaskAttemptIdentity(
+            task_id="test-full-market-task",
+            attempt_id="test-full-market-attempt",
+        ),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_production_current_market_publication_bundle",
+        lambda *, using="default", created_by="ops.current_publication_rebuild": (
+            _fake_market_publication_bundle(
+                tasks.make_core_current_publication_rebuild_use_case(
+                    created_by=created_by,
+                    dataset_keys=(
+                        "equity.price.bar",
+                        "equity.quote.snapshot",
+                        "equity.valuation.fact",
+                    ),
+                )
+            )
+        ),
     )
     monkeypatch.setattr(
         tasks,
@@ -1188,6 +1556,35 @@ def test_task_invalid_input_returns_failure_without_provider_access(monkeypatch,
     assert result["stored"] == 0
 
 
+def test_task_attempt_identity_failure_precedes_authority_progress_and_provider_io(monkeypatch):
+    """An absent monitor attempt blocks before preflight, progress, or provider access."""
+
+    from apps.data_center.application import tasks
+    from core.integration.task_monitor_runtime import CurrentTaskAttemptIdentityUnavailable
+
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("task attempt failure must precede every other collaborator")
+
+    monkeypatch.setattr(
+        tasks,
+        "get_current_task_attempt_identity",
+        lambda: (_ for _ in ()).throw(CurrentTaskAttemptIdentityUnavailable()),
+    )
+    monkeypatch.setattr(tasks, "_preflight_data02_task_authority", unexpected)
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", unexpected)
+    monkeypatch.setattr(tasks, "record_current_task_progress", unexpected)
+    monkeypatch.setattr(tasks, "sync_active_a_share_universe", unexpected)
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["phase"] == "task_attempt_identity"
+    assert result["requested"] == result["succeeded"] == result["failed"] == result["stored"] == 0
+    assert result["error_code"] == "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"
+    assert result["publication_updated"] is False
+    assert result["must_not_use_for_decision"] is True
+
+
 def test_task_calendar_unavailable_is_blocked(monkeypatch):
     from types import SimpleNamespace
 
@@ -1207,10 +1604,35 @@ def test_task_calendar_unavailable_is_blocked(monkeypatch):
     assert result["stored"] == 0
 
 
-def test_task_reports_normalized_publication_authority_block(monkeypatch) -> None:
-    """Publication authority loss remains a serialized partial business result."""
+@pytest.mark.parametrize(
+    ("activation_failure", "expected_code"),
+    [
+        ("validation", "CURRENT_PUBLICATION_GROUP_ACTIVATION_FAILED"),
+        ("composition", "CURRENT_PUBLICATION_GROUP_ACTIVATION_FAILED"),
+        ("preview_database", "CURRENT_PUBLICATION_PREVIEW_FAILED"),
+        ("pointer_database", "CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE"),
+        ("price_stage", "CURRENT_PUBLICATION_STAGING_FAILED"),
+        ("price_stage_database", "CURRENT_PUBLICATION_STAGING_FAILED"),
+        ("audit_writer", "CURRENT_PUBLICATION_AUDIT_UNAVAILABLE"),
+        ("audit_writer_database", "CURRENT_PUBLICATION_AUDIT_UNAVAILABLE"),
+        ("authority_capture_database", "CURRENT_PUBLICATION_AUTHORITY_CAPTURE_FAILED"),
+        ("audit_outbox", "CURRENT_PUBLICATION_AUDIT_WRITE_FAILED"),
+        ("group_activation_database", "CURRENT_PUBLICATION_GROUP_ACTIVATION_FAILED"),
+    ],
+)
+def test_task_maps_known_publication_failures_to_partial_business_outcome(
+    monkeypatch,
+    activation_failure: str,
+    expected_code: str,
+) -> None:
+    """Known stage/group errors do not escape as Celery failures after fact writes."""
 
+    from django.db import DatabaseError
+
+    from apps.audit.application.system_audit_composition import SystemAuditCompositionUnavailable
     from apps.data_center.application import market_publication_refresh, public, tasks
+    from core.exceptions import DataValidationError
+    from core.integration import data_center_audit as audit_integration
 
     provider_ids = {"tushare": 3, "akshare": 7}
     active_codes = ["000001.SZ", "600000.SH"]
@@ -1259,31 +1681,106 @@ def test_task_reports_normalized_publication_authority_block(monkeypatch) -> Non
             "equity.valuation.fact",
         )
     ]
+
+    def fail_activation(**_):
+        if activation_failure == "validation":
+            raise DataValidationError("activation denied", code="PUBLICATION_ACTIVATION_INVALID")
+        raise SystemAuditCompositionUnavailable(
+            "activation runtime unavailable",
+            reason_code="activation_runtime_unavailable",
+        )
+
     monkeypatch.setattr(
         tasks,
         "make_core_current_publication_rebuild_use_case",
         lambda **_: SimpleNamespace(
             preview=lambda **_: SimpleNamespace(datasets=datasets),
-            execute=lambda **_: (_ for _ in ()).throw(
-                MarketPublicationRefreshBlocked(
-                    code="system_audit_authority_unavailable",
-                )
-            ),
+            execute=fail_activation,
         ),
+    )
+    publication_bundles = []
+    original_bundle_factory = tasks.make_production_current_market_publication_bundle
+
+    def capture_publication_bundle(**kwargs):
+        bundle = original_bundle_factory(**kwargs)
+        if activation_failure in {"price_stage", "price_stage_database"}:
+
+            def fail_price_stage(_command):
+                bundle.bundle_events.append("stage:equity.price.bar")
+                if activation_failure == "price_stage_database":
+                    raise DatabaseError("candidate staging repository unavailable")
+                raise DataValidationError("price candidate staging failed")
+
+            bundle.price_staging.execute = fail_price_stage
+        elif activation_failure == "preview_database":
+
+            def fail_preview(**_kwargs):
+                raise DatabaseError("publication preview database unavailable")
+
+            bundle.previewer.preview = fail_preview
+        elif activation_failure == "pointer_database":
+
+            def fail_pointer(*_args):
+                bundle.bundle_events.append("current_pointer")
+                raise DatabaseError("current pointer database unavailable")
+
+            bundle.current_pointer_reader = fail_pointer
+        elif activation_failure in {"audit_writer", "audit_writer_database"}:
+
+            def fail_audit_writer():
+                bundle.bundle_events.append("audit_writer")
+                if activation_failure == "audit_writer_database":
+                    raise DatabaseError("publication writer database unavailable")
+                raise SystemAuditCompositionUnavailable(
+                    "publication audit writer unavailable",
+                    reason_code="publication_writer_unavailable",
+                )
+
+            bundle.audit_writer_factory = fail_audit_writer
+        elif activation_failure == "authority_capture_database":
+
+            def fail_authority_capture(**_kwargs):
+                bundle.bundle_events.append("authority_capture")
+                raise DatabaseError("Account authority capture database unavailable")
+
+            bundle.authority_capture = fail_authority_capture
+        elif activation_failure == "audit_outbox":
+
+            def fail_audit_outbox(*_args, **_kwargs):
+                bundle.bundle_events.append("activation")
+                raise audit_integration.SystemAuditEventOutboxUnavailable(
+                    "publication event outbox unavailable"
+                )
+
+            bundle.activate_group.execute = fail_audit_outbox
+        elif activation_failure == "group_activation_database":
+
+            def fail_group_activation(*_args, **_kwargs):
+                bundle.bundle_events.append("activation")
+                raise DatabaseError("publication activation database unavailable")
+
+            bundle.activate_group.execute = fail_group_activation
+        publication_bundles.append(bundle)
+        return bundle
+
+    monkeypatch.setattr(
+        tasks,
+        "make_production_current_market_publication_bundle",
+        capture_publication_bundle,
     )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda *_args: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
+        lambda *_args: _market_price_result_with_member_binding(),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=2)
 
     assert result["outcome"] == "partial"
     assert result["phase"] == "publication"
-    assert result["error_code"] == "system_audit_authority_unavailable"
-    assert result["blocked_reason"] == "system_audit_authority_unavailable"
+    assert result["error_code"] == expected_code
+    assert result["blocked_reason"] == expected_code
     assert result["publication_updated"] is False
     assert result["requested"] == len(active_codes)
     assert result["succeeded"] == len(active_codes)
@@ -1293,6 +1790,32 @@ def test_task_reports_normalized_publication_authority_block(monkeypatch) -> Non
     assert result["operation_succeeded"] == 2
     assert result["operation_failed"] == 1
     assert result["must_not_use_for_decision"] is True
+    assert len(publication_bundles) == 1
+    bundle_events = publication_bundles[0].bundle_events
+    if activation_failure == "preview_database":
+        assert "current_pointer" not in bundle_events
+        assert "stage:equity.quote.snapshot" not in bundle_events
+        assert "activation" not in bundle_events
+    elif activation_failure == "pointer_database":
+        assert "current_pointer" in bundle_events
+        assert "stage:equity.quote.snapshot" not in bundle_events
+        assert "authority_capture" not in bundle_events
+        assert "activation" not in bundle_events
+    elif activation_failure in {"price_stage", "price_stage_database"}:
+        assert "authority_capture" not in bundle_events
+        assert "activation" not in bundle_events
+        assert "stage:equity.quote.snapshot" in bundle_events
+        assert "stage:equity.price.bar" in bundle_events
+    elif activation_failure in {"audit_writer", "audit_writer_database"}:
+        assert "audit_writer" in bundle_events
+        assert "authority_capture" not in bundle_events
+        assert "activation" not in bundle_events
+    elif activation_failure == "authority_capture_database":
+        assert bundle_events.index("audit_writer") < bundle_events.index("authority_capture")
+        assert "activation" not in bundle_events
+    elif activation_failure in {"audit_outbox", "group_activation_database"}:
+        assert bundle_events.index("audit_writer") < bundle_events.index("authority_capture")
+        assert bundle_events.index("authority_capture") < bundle_events.index("activation")
 
 
 def test_task_blocks_without_current_authority_before_provider_access(monkeypatch):
@@ -1702,7 +2225,7 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda *_: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
+        lambda *_: _market_price_result_with_member_binding(),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=100)
@@ -1723,9 +2246,10 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
             "source": "akshare",
             "publication_run_id": result["publication_run_id"],
             "policy_version": policy.identity,
-            "publication_id": publication_id,
+            "publication_id": result["scope_blocks"][0]["publication_id"],
         }
     ]
+    assert result["scope_blocks"][0]["publication_id"] in result["publication_ids"]
     assert result["excluded_non_trading_codes"] == []
     assert result["publication_run_id"] == result["run_id"]
     required_observation_dates = {
@@ -1983,16 +2507,38 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     monkeypatch.setattr(
         market_publication_refresh,
         "refresh_market_price_inputs",
-        lambda _port, codes, _target: MarketPricePreparationResult(
-            suspended_codes=(excluded if tuple(codes) == (excluded,) else active_codes[0],),
-            raw_audit_references=(),
-            suspension_evidence=(
-                MarketPriceSuspensionEvidence(
-                    asset_code=excluded if tuple(codes) == (excluded,) else active_codes[0],
-                    target_trade_date=target,
-                    evidence_source="akshare",
+        lambda _port, codes, _target: (
+            MarketPricePreparationResult(
+                suspended_codes=(excluded,),
+                raw_audit_references=(),
+                suspension_evidence=(
+                    MarketPriceSuspensionEvidence(
+                        asset_code=excluded,
+                        target_trade_date=target,
+                        evidence_source="akshare",
+                    ),
                 ),
-            ),
+            )
+            if tuple(codes) == (excluded,)
+            else MarketPricePreparationResult(
+                suspended_codes=(active_codes[0],),
+                raw_audit_references=(
+                    _market_price_result_with_member_binding().raw_audit_references[0],
+                ),
+                suspension_evidence=(
+                    MarketPriceSuspensionEvidence(
+                        asset_code=active_codes[0],
+                        target_trade_date=target,
+                        evidence_source="akshare",
+                    ),
+                ),
+                raw_audit_bindings=(
+                    _market_price_result_with_member_binding().raw_audit_bindings[0],
+                ),
+                member_owning_raw_audit_bindings=(
+                    _market_price_result_with_member_binding().member_owning_raw_audit_bindings[0],
+                ),
+            )
         ),
     )
 
@@ -2594,6 +3140,14 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         ingested_run_id="price-ingested-1",
     )
 
+    request_only_price_reference = RawAuditReference(
+        raw_audit_id="price-raw-0",
+        version="raw-audit-v1",
+        content_hash="b" * 64,
+        run_id="price-request-run",
+        ingested_run_id="price-request-ingested",
+    )
+
     events = []
     provider_ids = {"tushare": 3, "akshare": 7}
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda name: provider_ids[name])
@@ -2690,6 +3244,19 @@ def test_task_repairs_missing_price_scope_before_final_publication(
             ),
         ),
     )
+    publication_bundles = []
+    original_bundle_factory = tasks.make_production_current_market_publication_bundle
+
+    def capture_publication_bundle(**kwargs):
+        bundle = original_bundle_factory(**kwargs)
+        publication_bundles.append(bundle)
+        return bundle
+
+    monkeypatch.setattr(
+        tasks,
+        "make_production_current_market_publication_bundle",
+        capture_publication_bundle,
+    )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
     monkeypatch.setattr(
         market_publication_refresh,
@@ -2697,7 +3264,15 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         lambda *_: (
             events.append("refresh_prices")
             or MarketPricePreparationResult(
-                suspended_codes=(), raw_audit_references=(price_reference,)
+                suspended_codes=(),
+                raw_audit_references=(request_only_price_reference, price_reference),
+                raw_audit_bindings=(
+                    ModelHistoryRawAuditBinding(request_only_price_reference, "akshare"),
+                    ModelHistoryRawAuditBinding(price_reference, "tushare"),
+                ),
+                member_owning_raw_audit_bindings=(
+                    ModelHistoryRawAuditBinding(price_reference, "tushare"),
+                ),
             )
         ),
     )
@@ -2758,15 +3333,23 @@ def test_task_repairs_missing_price_scope_before_final_publication(
     assert events == ["refresh_prices", "preview", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
-    assert result["publication_ids"] == [publication_id]
+    assert len(result["publication_ids"]) == 3
+    assert len(set(result["publication_ids"])) == 3
     assert result["raw_audit_references"] == [
+        {
+            "raw_audit_id": "price-raw-0",
+            "version": "raw-audit-v1",
+            "content_hash": "b" * 64,
+            "run_id": "price-request-run",
+            "ingested_run_id": "price-request-ingested",
+        },
         {
             "raw_audit_id": "price-raw-1",
             "version": "raw-audit-v1",
             "content_hash": "a" * 64,
             "run_id": "price-run-1",
             "ingested_run_id": "price-ingested-1",
-        }
+        },
     ]
     assert (
         result["raw_audit_references_by_dataset"]["equity.quote.snapshot"][0]["raw_audit_id"]
@@ -2776,9 +3359,10 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         result["raw_audit_references_by_dataset"]["equity.valuation.fact"][0]["raw_audit_id"]
         == "valuation-test-audit"
     )
-    assert result["raw_audit_references_by_dataset"]["equity.price.bar"] == [
-        result["raw_audit_references"][0]
-    ]
+    assert (
+        result["raw_audit_references_by_dataset"]["equity.price.bar"]
+        == result["raw_audit_references"]
+    )
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
     assert result["valuation_source"] == "akshare"
@@ -2794,6 +3378,34 @@ def test_task_repairs_missing_price_scope_before_final_publication(
     }
     assert quote_provider_ids == [3]
     assert valuation_provider_ids == [7]
+    assert len(publication_bundles) == 1
+    publication_bundle = publication_bundles[0]
+    stage_commands = publication_bundle.staged_commands
+    assert tuple(stage_commands) == (
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    )
+    assert {command.run_id for command in stage_commands.values()} == {result["publication_run_id"]}
+    assert {command.task_attempt_id for command in stage_commands.values()} == {
+        "test-full-market-attempt"
+    }
+    price_stage_bindings = stage_commands["equity.price.bar"].raw_audit_bindings
+    assert tuple(item.reference.raw_audit_id for item in price_stage_bindings) == ("price-raw-1",)
+    assert tuple(item.expected_source_type for item in price_stage_bindings) == ("tushare",)
+    assert len(publication_bundle.activation_requests) == 1
+    assert len(publication_bundle.activation_requests[0].candidates) == 3
+    assert publication_bundle.bundle_events.count("activation") == 1
+    assert publication_bundle.bundle_events.count("current_pointer") == 3
+    capture_index = publication_bundle.bundle_events.index("authority_capture")
+    assert publication_bundle.bundle_events[capture_index + 1 :] == ["activation"]
+    assert len(result["datasets"]) == 3
+    assert {item["dataset_key"] for item in result["datasets"]} == {
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    }
+    assert all(item["publication_hash"] for item in result["datasets"])
 
 
 def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(monkeypatch):

@@ -190,6 +190,7 @@ __all__ = [
     "make_core_current_fact_refresh_use_case",
     "make_core_current_publication_rebuild_use_case",
     "make_production_current_market_publication_bundle",
+    "ProductionCurrentMarketPublicationBundle",
     "make_repair_run_replay_use_case",
     "make_system_audited_sync_current_valuation_batch_use_case",
     "make_publication_decision_read_recorder",
