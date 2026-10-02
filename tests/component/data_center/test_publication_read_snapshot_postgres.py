@@ -274,13 +274,8 @@ def _probe_update(probe, fact_pk: str) -> None:
 
 
 _ACTIVATION_SOAK_MEMBER_COUNT = 5_001
-# Provisional ceiling: the single-candidate 35-query gate plus 15 fixed group costs
-# for two extra candidate/fact/policy/manifest graphs and three required audit/outboxes.
-# Only an opted-in real PostgreSQL run can establish the measured group threshold.
-_ACTIVATION_SOAK_MAX_QUERIES = 50
-# The old 2.0s fence-hold limit gets a 0.5s provisional allowance for the extra two
-# candidate switches and two required outbox appends; confirm with real PG evidence.
-_ACTIVATION_SOAK_MAX_HELD_SECONDS = 2.5
+_ACTIVATION_SOAK_MAX_QUERIES = 35
+_ACTIVATION_SOAK_MAX_HELD_SECONDS = 2.0
 _ACTIVATION_SOAK_MAX_LOCK_WAIT_SECONDS = 0.25
 
 
