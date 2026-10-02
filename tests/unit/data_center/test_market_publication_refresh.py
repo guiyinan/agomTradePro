@@ -43,7 +43,9 @@ class _PriceAuditEvidence:
         return (self.reference,)
 
 
-def _prefetched_quote_sync(execute: Callable[[object], object]) -> SimpleNamespace:
+def _prefetched_quote_sync(
+    execute: Callable[[object], object], *, include_audit_reference: bool = True
+) -> SimpleNamespace:
     """Build a quote-sync test double that exposes the frozen-session contract."""
 
     prepared = object()
@@ -53,14 +55,59 @@ def _prefetched_quote_sync(execute: Callable[[object], object]) -> SimpleNamespa
         prepare_calls.append(dict(kwargs))
         return prepared
 
+    def execute_batch(request: object, session: object) -> object:
+        if session is not prepared:
+            pytest.fail("quote batch used a different prepared session")
+        result = execute(request)
+        if not include_audit_reference:
+            return _with_raw_audit_reference(
+                result, "quote-missing-reference", include_reference=False
+            )
+        return _with_raw_audit_reference(result, "quote-test-audit")
+
     return SimpleNamespace(
         prepare_session=prepare_session,
-        execute_prefetched_session_batch=lambda request, session: (
-            execute(request)
-            if session is prepared
-            else pytest.fail("quote batch used a different prepared session")
-        ),
+        execute_prefetched_session_batch=lambda request, session: execute_batch(request, session),
         prepare_calls=prepare_calls,
+    )
+
+
+def _with_raw_audit_reference(
+    result: object,
+    audit_id: str,
+    *,
+    include_reference: bool = True,
+) -> SimpleNamespace:
+    """Add exact audit lineage to test sync results when the case is not about absence."""
+
+    payload = dict(vars(result))
+    run_id = str(payload.get("run_id") or f"{audit_id}-run")
+    ingested_run_id = str(payload.get("ingested_run_id") or f"{audit_id}-ingested")
+    payload.update(run_id=run_id, ingested_run_id=ingested_run_id)
+    if include_reference:
+        payload["raw_audit_reference"] = RawAuditReference(
+            raw_audit_id=audit_id,
+            version="raw-audit-v1",
+            content_hash=hashlib.sha256(audit_id.encode("utf-8")).hexdigest(),
+            run_id=run_id,
+            ingested_run_id=ingested_run_id,
+        )
+    else:
+        payload["raw_audit_reference"] = None
+    return SimpleNamespace(**payload)
+
+
+def _audited_valuation_sync(
+    execute: Callable[..., object], *, include_audit_reference: bool = True
+) -> SimpleNamespace:
+    """Build a valuation test double with exact seed audit lineage."""
+
+    return SimpleNamespace(
+        execute=lambda **kwargs: _with_raw_audit_reference(
+            execute(**kwargs),
+            "valuation-test-audit",
+            include_reference=include_audit_reference,
+        )
     )
 
 
@@ -989,8 +1036,8 @@ def test_task_reports_normalized_publication_authority_block(monkeypatch) -> Non
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda **_kwargs: SimpleNamespace(
+        lambda: _audited_valuation_sync(
+            lambda **_kwargs: SimpleNamespace(
                 stored_count=len(active_codes),
                 succeeded_asset_codes=tuple(active_codes),
                 returned_asset_codes=tuple(active_codes),
@@ -1277,8 +1324,8 @@ def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(mo
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda **_kwargs: SimpleNamespace(
+        lambda: _audited_valuation_sync(
+            lambda **_kwargs: SimpleNamespace(
                 stored_count=1,
                 status="partial",
                 succeeded_asset_codes=("000001.SZ",),
@@ -1367,8 +1414,8 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda **_: SimpleNamespace(
+        lambda: _audited_valuation_sync(
+            lambda **_: SimpleNamespace(
                 stored_count=len(succeeded_codes),
                 status="partial",
                 succeeded_asset_codes=succeeded_codes,
@@ -1546,8 +1593,8 @@ def test_task_reports_quote_prefetch_failure_before_any_quote_write(monkeypatch)
         prepare_session=fail_prefetch,
         execute_prefetched_session_batch=lambda *_: pytest.fail("quote batch write executed"),
     )
-    valuation = SimpleNamespace(
-        execute=lambda **_: SimpleNamespace(
+    valuation = _audited_valuation_sync(
+        lambda **_: SimpleNamespace(
             stored_count=2,
             status="success",
             succeeded_asset_codes=tuple(active_codes),
@@ -1618,14 +1665,17 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
         prepare_session=prepare_session,
         execute_prefetched_session_batch=lambda request, _session: (
             quote_calls.append(tuple(request.asset_codes))
-            or SimpleNamespace(
-                stored_count=len(request.asset_codes),
-                stored_asset_codes=tuple(request.asset_codes),
+            or _with_raw_audit_reference(
+                SimpleNamespace(
+                    stored_count=len(request.asset_codes),
+                    stored_asset_codes=tuple(request.asset_codes),
+                ),
+                "quote-dynamic-test-audit",
             )
         ),
     )
-    valuation = SimpleNamespace(
-        execute=lambda **_: SimpleNamespace(
+    valuation = _audited_valuation_sync(
+        lambda **_: SimpleNamespace(
             stored_count=len(active_codes),
             succeeded_asset_codes=tuple(active_codes),
             returned_asset_codes=tuple(active_codes),
@@ -1865,8 +1915,8 @@ def test_task_uses_effective_universe_when_provider_omission_is_bounded(monkeypa
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda **kwargs: (
+        lambda: _audited_valuation_sync(
+            lambda **kwargs: (
                 valuation_calls.append(tuple(kwargs["asset_codes"]))
                 or SimpleNamespace(
                     stored_count=len(observed_codes),
@@ -1967,7 +2017,7 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
         )
 
     quote_sync = _prefetched_quote_sync(execute_sync)
-    valuation_sync = SimpleNamespace(execute=execute_sync)
+    valuation_sync = _audited_valuation_sync(execute_sync)
     monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote_sync)
     monkeypatch.setattr(
         tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: valuation_sync
@@ -2037,8 +2087,8 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
             stored_asset_codes=quote_codes,
         )
     )
-    valuation = SimpleNamespace(
-        execute=lambda *_args, **_kwargs: SimpleNamespace(
+    valuation = _audited_valuation_sync(
+        lambda *_args, **_kwargs: SimpleNamespace(
             stored_count=2,
             succeeded_asset_codes=valuation_succeeded_codes,
             returned_asset_codes=("000001.SZ", "000002.SZ"),
@@ -2244,7 +2294,10 @@ def test_price_stage_requires_target_bound_suspension_evidence(evidence_date):
             refresh_market_price_inputs(port, ["000016.SZ"], date(2026, 9, 18))
 
 
-def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
+@pytest.mark.parametrize("missing_reference_stage", [None, "quote", "valuation"])
+def test_task_repairs_missing_price_scope_before_final_publication(
+    monkeypatch, missing_reference_stage
+):
     from datetime import UTC, datetime
     from types import SimpleNamespace
 
@@ -2282,12 +2335,17 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
             returned_asset_codes=("000001.SZ",),
         )
 
-    quote_sync = _prefetched_quote_sync(sync_quote)
+    quote_sync = _prefetched_quote_sync(
+        sync_quote, include_audit_reference=missing_reference_stage != "quote"
+    )
     monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: quote_sync)
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(execute=sync_valuation),
+        lambda: _audited_valuation_sync(
+            sync_valuation,
+            include_audit_reference=missing_reference_stage != "valuation",
+        ),
     )
     observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
     datasets = [
@@ -2335,6 +2393,54 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
         ),
     )
     result = tasks.refresh_full_market_publications_task.run()
+    if missing_reference_stage is not None:
+        assert events == []
+        assert result["outcome"] == "partial"
+        assert result["publication_updated"] is False
+        assert result["published_members"] == 0
+        assert result["error_code"] == "CURRENT_RAW_AUDIT_REFERENCE_MISSING"
+        assert result["requested"] == 1
+        assert result["succeeded"] == 1
+        assert result["failed"] == 0
+        assert result["count_unit"] == "valuation_asset"
+        assert result["requested_asset_count"] == 1
+        assert result["succeeded_asset_count"] == 1
+        assert result["failed_asset_count"] == 0
+        assert result["missing_asset_codes"] == []
+        if missing_reference_stage == "quote":
+            assert result["blocked_reason"] == result["error_code"]
+            assert result["phase"] == "quote"
+            assert result["stored"] == 2
+            assert result["operation_requested"] == 3
+            assert result["operation_succeeded"] == 0
+            assert result["operation_failed"] == 3
+            quote_phase = next(item for item in result["phase_results"] if item["phase"] == "quote")
+            assert quote_phase["succeeded"] == 0
+            assert quote_phase["failed"] == 1
+            assert quote_phase["stored"] == 1
+            assert len(quote_sync.prepare_calls) == 1
+            assert quote_provider_ids == [3]
+            assert valuation_provider_ids == [7]
+        else:
+            assert result["blocked_reason"] == "current_raw_audit_reference_unavailable"
+            assert result["phase"] == "valuation"
+            assert result["stored"] == 1
+            assert result["operation_requested"] == 1
+            assert result["operation_succeeded"] == 0
+            assert result["operation_failed"] == 1
+            assert quote_sync.prepare_calls == []
+            assert quote_provider_ids == []
+            assert valuation_provider_ids == [7]
+        references = result["raw_audit_references_by_dataset"]
+        assert references["equity.quote.snapshot"] == []
+        if missing_reference_stage == "valuation":
+            assert references["equity.valuation.fact"] == []
+        else:
+            assert references["equity.valuation.fact"][0]["raw_audit_id"] == (
+                "valuation-test-audit"
+            )
+        return
+
     assert events == ["refresh_prices", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
@@ -2347,6 +2453,17 @@ def test_task_repairs_missing_price_scope_before_final_publication(monkeypatch):
             "run_id": "price-run-1",
             "ingested_run_id": "price-ingested-1",
         }
+    ]
+    assert (
+        result["raw_audit_references_by_dataset"]["equity.quote.snapshot"][0]["raw_audit_id"]
+        == "quote-test-audit"
+    )
+    assert (
+        result["raw_audit_references_by_dataset"]["equity.valuation.fact"][0]["raw_audit_id"]
+        == "valuation-test-audit"
+    )
+    assert result["raw_audit_references_by_dataset"]["equity.price.bar"] == [
+        result["raw_audit_references"][0]
     ]
     assert result["publication_run_id"] == result["run_id"]
     assert result["quote_source"] == "tushare"
@@ -2398,8 +2515,8 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda *_args, **_kwargs: SimpleNamespace(
+        lambda: _audited_valuation_sync(
+            lambda *_args, **_kwargs: SimpleNamespace(
                 stored_count=2,
                 succeeded_asset_codes=("000001.SZ", "600000.SH"),
                 returned_asset_codes=("000001.SZ", "600000.SH"),
@@ -2483,8 +2600,8 @@ def test_task_uses_verified_target_date_scope_and_keeps_unknown_provider_gap_req
     monkeypatch.setattr(
         tasks,
         "make_backfill_sync_current_valuation_batch_use_case",
-        lambda: SimpleNamespace(
-            execute=lambda **kwargs: (
+        lambda: _audited_valuation_sync(
+            lambda **kwargs: (
                 calls.append(tuple(kwargs["asset_codes"]))
                 or SimpleNamespace(
                     stored_count=1,

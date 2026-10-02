@@ -731,11 +731,25 @@ class SyncResult:
     publication_version: str | None = None
     publication_hash: str | None = None
     stored_asset_codes: tuple[str, ...] = ()
+    raw_audit_reference: RawAuditReference | None = None
+
+    def __post_init__(self) -> None:
+        """Keep an attached raw-audit reference bound to this sync identity."""
+
+        reference = self.raw_audit_reference
+        if reference is None:
+            return
+        if not isinstance(reference, RawAuditReference):
+            raise ValueError("SyncResult.raw_audit_reference must be exact")
+        if reference.run_id != self.run_id:
+            raise ValueError("RawAudit reference run_id does not match the sync result")
+        if reference.ingested_run_id != self.ingested_run_id:
+            raise ValueError("RawAudit reference ingested_run_id does not match the sync result")
 
     def to_dict(self) -> dict[str, Any]:
         """Return the public result payload without dropping replay identities."""
 
-        return {
+        result: dict[str, Any] = {
             "domain": self.domain,
             "provider_name": self.provider_name,
             "stored_count": self.stored_count,
@@ -747,6 +761,15 @@ class SyncResult:
             "publication_version": self.publication_version,
             "publication_hash": self.publication_hash,
         }
+        if self.raw_audit_reference is not None:
+            result["raw_audit_reference"] = {
+                "raw_audit_id": self.raw_audit_reference.raw_audit_id,
+                "version": self.raw_audit_reference.version,
+                "content_hash": self.raw_audit_reference.content_hash,
+                "run_id": self.raw_audit_reference.run_id,
+                "ingested_run_id": self.raw_audit_reference.ingested_run_id,
+            }
+        return result
 
 
 @dataclass

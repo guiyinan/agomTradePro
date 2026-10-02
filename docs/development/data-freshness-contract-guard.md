@@ -208,6 +208,8 @@ Alpha 页面独立读取全市场发布任务的业务 outcome。评分推理成
 
 长任务允许审计授权在运行中追加同身份 successor。只有 authority source、actor、user、tenant、owner、认证/职员状态或 role 改变，或起始授权自身无法覆盖下一写边界时才停止；单纯续期产生的新 content hash 不能中断已获授权且仍在有效期内的刷新。
 
+2026-10-02 全市场同步 RawAudit 血缘：quote sync 成功结果携带精确 RawAudit 身份；quote/valuation 成功与失败审计将 provider config 规范 `source_type` 纳入 `extra` 和内容 hash。full-market publication 只有在 valuation seed 与每个 quote batch 都提供绑定同一 sync identity 的 exact 引用时才能继续，并将引用按 dataset 保留在结果中。引用缺失、身份不符或重复都失败关闭；如同步事实已经持久化，结果仍报告实际 `stored` 行数和资产口径覆盖率，同时单独报告失败的 operation，不能把引用不完整的数据发布为 current。
+
 日频估值只提供 `trade_date` 时，将该日期对应的中国大陆市场 15:00 收盘时刻作为 `observed_at`，再转换为 UTC 存储。该时间来自提供方交易日字段与交易所会话边界，不能使用抓取时间替代；Tushare 单股、全市场批量路径以及 AKShare 历史估值路径必须使用同一规则。缺少合法交易日仍失败关闭。
 
 Tushare `daily_basic` 成功返回后，以响应完成 UTC 同时记录本系统首次取得该响应的

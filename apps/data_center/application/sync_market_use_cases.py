@@ -901,9 +901,18 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra={"source_type": config.source_type},
                 )
             )
             reference = persisted_audit.exact_reference()
+            if (
+                reference.run_id != identity.run_id
+                or reference.ingested_run_id != identity.ingested_run_id
+            ):
+                raise DataFetchError(
+                    "Quote RawAudit reference does not match the sync identity",
+                    code="CURRENT_QUOTE_RAW_AUDIT_IDENTITY_INVALID",
+                )
             self._data_fetch_audit_writer.write(
                 DataFetchAuditObservation(
                     provider_key=provider_name,
@@ -1000,6 +1009,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             publication_version=publication.policy_version if publication is not None else None,
             publication_hash=publication.publication_hash if publication is not None else None,
             stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes),
+            raw_audit_reference=reference,
         )
 
     def _commit_quote_fetch_failure(
@@ -1041,9 +1051,18 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra={"source_type": config.source_type},
                 )
             )
             reference = persisted_audit.exact_reference()
+            if (
+                reference.run_id != identity.run_id
+                or reference.ingested_run_id != identity.ingested_run_id
+            ):
+                raise DataFetchError(
+                    "Quote RawAudit reference does not match the sync identity",
+                    code="CURRENT_QUOTE_RAW_AUDIT_IDENTITY_INVALID",
+                )
             self._data_fetch_audit_writer.write(
                 DataFetchAuditObservation(
                     provider_key=provider_name,

@@ -20,7 +20,12 @@ from apps.data_center.application.sync_identity import (
     build_sync_execution_identity,
 )
 from apps.data_center.application.sync_use_cases import SyncQuoteUseCase
-from apps.data_center.domain.entities import ProviderConfig, QuoteSnapshot, RawAudit
+from apps.data_center.domain.entities import (
+    ProviderConfig,
+    QuoteSnapshot,
+    RawAudit,
+    raw_audit_content_hash,
+)
 from apps.data_center.domain.enums import DataCapability
 from core.exceptions import DataFetchError
 
@@ -149,13 +154,18 @@ class _RawAudit:
             latency_ms=audit.latency_ms,
             error_message=audit.error_message,
             fetched_at=audit.fetched_at,
+            extra=dict(audit.extra),
             request_params_hash=audit.request_params_hash,
+            response_payload_hash=audit.response_payload_hash,
+            schema_fingerprint=audit.schema_fingerprint,
             redacted=True,
+            parser_version=audit.parser_version,
             payload_size_bytes=0,
+            retention_until=audit.retention_until,
             raw_audit_id="raw-1",
             run_id=audit.run_id,
             ingested_run_id=audit.ingested_run_id,
-            content_hash="a" * 64,
+            content_hash=raw_audit_content_hash(audit),
         )
         self.rows.append(persisted)
         return persisted
@@ -439,6 +449,11 @@ def test_success_correlates_quote_identity_raw_audit_and_publication_events() ->
     identity = _identity()
     assert result.run_id == identity.run_id
     assert result.ingested_run_id == identity.ingested_run_id
+    assert result.raw_audit_reference is not None
+    assert result.raw_audit_reference.raw_audit_id == raw.rows[0].raw_audit_id
+    assert result.raw_audit_reference.run_id == identity.run_id
+    assert result.raw_audit_reference.ingested_run_id == identity.ingested_run_id
+    assert result.raw_audit_reference.content_hash == raw.rows[0].content_hash
     assert result.publication_id == publication.publication_id
     assert result.publication_version == publication.publication_version
     assert result.publication_hash == publication.publication_hash
@@ -449,10 +464,22 @@ def test_success_correlates_quote_identity_raw_audit_and_publication_events() ->
     assert result_payload["publication_id"] == publication.publication_id
     assert result_payload["publication_version"] == publication.publication_version
     assert result_payload["publication_hash"] == publication.publication_hash
+    assert result_payload["raw_audit_reference"] == {
+        "raw_audit_id": raw.rows[0].raw_audit_id,
+        "version": result.raw_audit_reference.version,
+        "content_hash": raw.rows[0].content_hash,
+        "run_id": identity.run_id,
+        "ingested_run_id": identity.ingested_run_id,
+    }
     assert uow.active is False
     assert facts.saved[0].ingested_run_id == "22222222-2222-4222-8222-222222222222"
     assert raw.rows[0].run_id == "11111111-1111-4111-8111-111111111111"
     assert raw.rows[0].ingested_run_id == "22222222-2222-4222-8222-222222222222"
+    assert raw.rows[0].extra["source_type"] == "tushare"
+    assert raw.rows[0].content_hash == raw_audit_content_hash(raw.rows[0])
+    assert raw.rows[0].content_hash != raw_audit_content_hash(
+        dataclasses.replace(raw.rows[0], extra={})
+    )
     assert writer.fetch[0].outcome is AuditOutcome.SUCCESS
     assert writer.publication[0].publication_id == "publication-1"
     assert quality_recorder.calls == [
@@ -508,6 +535,11 @@ def test_provider_failure_commits_sanitized_failed_fetch_then_reraises() -> None
 
     assert writer.fetch[0].outcome is AuditOutcome.FAILED
     assert "secret-token" not in str(writer.fetch[0])
+    assert raw.rows[0].extra["source_type"] == "tushare"
+    assert raw.rows[0].content_hash == raw_audit_content_hash(raw.rows[0])
+    assert raw.rows[0].content_hash != raw_audit_content_hash(
+        dataclasses.replace(raw.rows[0], extra={})
+    )
     assert events[-1] == "commit"
 
 

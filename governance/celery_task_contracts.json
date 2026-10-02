@@ -1809,7 +1809,7 @@
         "blocked": {
           "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
           "test_function": "test_task_reports_normalized_publication_authority_block",
-          "coverage_note": "Initial authority denial remains covered by test_task_blocks_without_current_authority_before_provider_access. The task also pins the 5400/5700-second soft/hard limits and fails closed when authority validity is shorter than the 6300-second hard-plus-finalization budget. The publication authority boundary preserves phase=publication, stable error_code/blocked_reason, requested/succeeded/failed/stored, publication_updated=false, and returns partial when fact rows were already stored."
+          "coverage_note": "Initial authority denial remains covered by test_task_blocks_without_current_authority_before_provider_access. The task also pins the 5400/5700-second soft/hard limits and fails closed when authority validity is shorter than the 6300-second hard-plus-finalization budget. The publication authority boundary preserves phase=publication, stable error_code/blocked_reason, requested/succeeded/failed/stored, publication_updated=false, and returns partial when fact rows were already stored. test_task_repairs_missing_price_scope_before_final_publication fault-injects missing quote and valuation RawAudit references and verifies fail-closed publication, asset and operation counts, and persisted-row reporting."
         }
       }
     }

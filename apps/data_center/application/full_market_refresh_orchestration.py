@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Protocol, cast
@@ -81,6 +81,44 @@ class _TargetDateUniverseScopeResolver(Protocol):
     """Resolve current active A-shares against persisted target-date listing evidence."""
 
     def __call__(self, target_date: date) -> TargetDateAssetUniverseScope: ...
+
+
+def _require_sync_raw_audit_reference(
+    reference: RawAuditReference | None,
+    *,
+    run_id: str | None,
+    ingested_run_id: str | None,
+) -> RawAuditReference:
+    """Require an exact raw-audit reference bound to its sync result."""
+
+    if not isinstance(reference, RawAuditReference):
+        raise MarketPublicationRefreshBlocked(
+            "Market sync returned no exact RawAudit reference",
+            code="CURRENT_RAW_AUDIT_REFERENCE_MISSING",
+        )
+    if reference.run_id != run_id or reference.ingested_run_id != ingested_run_id:
+        raise MarketPublicationRefreshBlocked(
+            "Market RawAudit reference does not match its sync result",
+            code="CURRENT_RAW_AUDIT_REFERENCE_IDENTITY_INVALID",
+        )
+    return reference
+
+
+def _serialize_raw_audit_references(
+    references: Mapping[str, RawAuditReference],
+) -> list[dict[str, str]]:
+    """Return deterministic JSON-ready exact RawAudit reference values."""
+
+    return [
+        {
+            "raw_audit_id": reference.raw_audit_id,
+            "version": reference.version,
+            "content_hash": reference.content_hash,
+            "run_id": reference.run_id,
+            "ingested_run_id": reference.ingested_run_id,
+        }
+        for _raw_audit_id, reference in sorted(references.items())
+    ]
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +237,8 @@ def run_full_market_publication_refresh(
 
     price_evidence: dict[str, object] = {}
     price_audit_references: dict[str, RawAuditReference] = {}
+    quote_audit_references: dict[str, RawAuditReference] = {}
+    valuation_audit_references: dict[str, RawAuditReference] = {}
     publication_evidence: dict[str, object] = {}
     publication_run_id = str(uuid4())
     completed_operation_count = 0
@@ -518,6 +558,55 @@ def run_full_market_publication_refresh(
     missing_codes = sorted(requested_codes - succeeded_code_set)
     unexpected_returned_codes = sorted(returned_code_set - requested_codes)
     valuation_coverage_ratio = len(succeeded_code_set) / len(requested_codes)
+    try:
+        valuation_reference = _require_sync_raw_audit_reference(
+            valuation_seed.raw_audit_reference,
+            run_id=valuation_seed.run_id,
+            ingested_run_id=valuation_seed.ingested_run_id,
+        )
+    except MarketPublicationRefreshBlocked as exc:
+        error_code = exc.code
+        return {
+            **market_task.full_market_input_failure("current_raw_audit_reference_unavailable"),
+            "outcome": (
+                TaskBusinessOutcome.PARTIAL.value
+                if valuation_seed.stored_count > 0
+                else TaskBusinessOutcome.BLOCKED.value
+            ),
+            "success": False,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "current_raw_audit_reference_unavailable",
+            "error_code": error_code,
+            "errors": [error_code],
+            "phase": "valuation",
+            "requested": len(requested_codes),
+            "succeeded": len(succeeded_code_set),
+            "failed": len(missing_codes),
+            "stored": valuation_seed.stored_count,
+            "count_unit": "valuation_asset",
+            "stored_count_unit": "fact_row",
+            "operation_requested": 1,
+            "operation_succeeded": 0,
+            "operation_failed": 1,
+            "publication_updated": False,
+            "published_members": 0,
+            "publication_run_id": publication_run_id,
+            "target_trade_date": target_date.isoformat(),
+            "quote_source": selected_quote_source,
+            "valuation_source": selected_valuation_source,
+            "market_universe": universe_report,
+            "valuation_seed_stored": valuation_seed.stored_count,
+            "requested_asset_count": len(requested_codes),
+            "succeeded_asset_count": len(succeeded_code_set),
+            "failed_asset_count": len(missing_codes),
+            "missing_asset_codes": missing_codes,
+            "raw_audit_references_by_dataset": {
+                "equity.quote.snapshot": [],
+                "equity.valuation.fact": [],
+                "equity.price.bar": [],
+            },
+        }
+    valuation_audit_references[valuation_reference.raw_audit_id] = valuation_reference
     publish_progress(
         TaskProgressPhase(
             phase="valuation",
@@ -772,10 +861,21 @@ def run_full_market_publication_refresh(
             stored_count=result.stored_count,
             returned_asset_codes=result.stored_asset_codes,
         )
-        completed_operation_count += 1
-        quote_batches_succeeded += 1
         quote_stored_rows += stored_count
         stored_row_count += stored_count
+        quote_reference = _require_sync_raw_audit_reference(
+            result.raw_audit_reference,
+            run_id=result.run_id,
+            ingested_run_id=result.ingested_run_id,
+        )
+        if quote_reference.raw_audit_id in quote_audit_references:
+            raise MarketPublicationRefreshBlocked(
+                "Market quote batches returned a duplicate RawAudit reference",
+                code="CURRENT_RAW_AUDIT_REFERENCE_DUPLICATE",
+            )
+        quote_audit_references[quote_reference.raw_audit_id] = quote_reference
+        completed_operation_count += 1
+        quote_batches_succeeded += 1
         publish_progress(
             TaskProgressPhase(
                 phase="quote",
@@ -961,6 +1061,11 @@ def run_full_market_publication_refresh(
             valuation_seed_stored=valuation_seed.stored_count,
             excluded_non_trading_codes=excluded_non_trading_codes,
         )
+    price_evidence["raw_audit_references_by_dataset"] = {
+        "equity.quote.snapshot": _serialize_raw_audit_references(quote_audit_references),
+        "equity.valuation.fact": _serialize_raw_audit_references(valuation_audit_references),
+        "equity.price.bar": _serialize_raw_audit_references(price_audit_references),
+    }
     if not authority_latch.current:
         return apply_full_market_authority_block(
             result,
@@ -976,6 +1081,7 @@ def run_full_market_publication_refresh(
         market_universe=universe_report,
         valuation_seed_stored=valuation_seed.stored_count,
         stored_row_count=stored_row_count,
+        quote_stored_rows=quote_stored_rows,
         requested_codes=requested_codes,
         succeeded_codes=succeeded_code_set,
         missing_codes=missing_codes,

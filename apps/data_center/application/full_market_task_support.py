@@ -369,6 +369,7 @@ def finalize_full_market_result(
     missing_codes: Sequence[str],
     coverage_ratio: float,
     policy_identity: str | None,
+    quote_stored_rows: int = 0,
     excluded_codes: Sequence[str] = (),
 ) -> dict[str, object]:
     """Project operation results into the stable asset-denominated task contract."""
@@ -381,6 +382,8 @@ def finalize_full_market_result(
     for phase_result in phase_results:
         if phase_result.get("phase") == "valuation":
             phase_result["stored"] = valuation_seed_stored
+        elif phase_result.get("phase") == "quote":
+            phase_result["stored"] = quote_stored_rows
     datasets = publication_evidence.get("datasets")
     dataset_evidence = (
         [item for item in datasets if isinstance(item, Mapping)]
@@ -414,9 +417,19 @@ def finalize_full_market_result(
     )
     combined_missing = tuple(sorted(set(valuation_missing).union(excluded)))
     effective_succeeded = set(succeeded_codes).difference(excluded)
+    raw_audit_reference_failed_after_write = (
+        result.get("error_code")
+        in {
+            "CURRENT_RAW_AUDIT_REFERENCE_MISSING",
+            "CURRENT_RAW_AUDIT_REFERENCE_IDENTITY_INVALID",
+            "CURRENT_RAW_AUDIT_REFERENCE_DUPLICATE",
+        }
+        and stored_row_count > 0
+    )
     business_outcome = (
         TaskBusinessOutcome.PARTIAL.value
-        if combined_missing and result.get("publication_updated")
+        if raw_audit_reference_failed_after_write
+        or (combined_missing and result.get("publication_updated"))
         else str(result.get("outcome") or TaskBusinessOutcome.FAILED.value)
     )
     return {

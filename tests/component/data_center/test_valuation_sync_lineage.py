@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, date, datetime
 
 import pytest
@@ -12,7 +13,12 @@ from apps.data_center.application.current_valuation_sync import (
     SyncCurrentValuationBatchUseCase,
 )
 from apps.data_center.application.sync_transaction import DataFetchAuditWriter
-from apps.data_center.domain.entities import ProviderConfig, RawAudit, ValuationFact
+from apps.data_center.domain.entities import (
+    ProviderConfig,
+    RawAudit,
+    ValuationFact,
+    raw_audit_content_hash,
+)
 from apps.data_center.infrastructure.audited_sync_runtime import (
     DjangoDataCenterSyncUnitOfWork,
     DjangoSyncExecutionIdentityIssuer,
@@ -27,6 +33,7 @@ from apps.data_center.infrastructure.models import (
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
+from core.exceptions import DataFetchError
 
 _NOW = datetime(2026, 9, 29, 8, 30, tzinfo=UTC)
 _AS_OF = date(2026, 9, 29)
@@ -50,12 +57,17 @@ def _provider_config() -> ProviderConfig:
 
 
 class _Provider:
+    def __init__(self, error: DataFetchError | None = None) -> None:
+        self.error = error
+
     def provider_name(self) -> str:
         return "lineage-provider"
 
     def fetch_current_valuations(
         self, _asset_codes: list[str], _as_of_date: date
     ) -> list[ValuationFact]:
+        if self.error is not None:
+            raise self.error
         return [
             ValuationFact(
                 asset_code=_ASSET,
@@ -82,8 +94,11 @@ class _ProviderConfigRepository:
 
 
 class _ProviderRegistry:
+    def __init__(self, provider: _Provider | None = None) -> None:
+        self.provider = provider or _Provider()
+
     def get_by_id(self, _provider_id: int) -> _Provider:
-        return _Provider()
+        return self.provider
 
     def record_success(self, *_args: object) -> None:
         return None
@@ -150,6 +165,7 @@ def _use_case(
     identity_repository: SyncExecutionIdentityRepository,
     fetch_audit_writer: DataFetchAuditWriter,
     use_case_type: type[SyncCurrentValuationBatchUseCase] = SyncCurrentValuationBatchUseCase,
+    provider: _Provider | None = None,
 ) -> SyncCurrentValuationBatchUseCase:
     identity_issuer = DjangoSyncExecutionIdentityIssuer(identity_repository, using="default")
     unit_of_work = DjangoDataCenterSyncUnitOfWork(
@@ -164,7 +180,7 @@ def _use_case(
     )
     return use_case_type(
         provider_repo=provider_repository,
-        provider_registry=_ProviderRegistry(),
+        provider_registry=_ProviderRegistry(provider),
         fact_repo=fact_repository,  # type: ignore[arg-type]
         raw_audit_repo=raw_audit_repository,  # type: ignore[arg-type]
         sync_identity_issuer=identity_issuer,
@@ -207,6 +223,10 @@ def test_valuation_success_persists_identity_fact_raw_audit_and_event_together()
     assert str(audit.run_id) == result.run_id
     assert str(audit.ingested_run_id) == result.ingested_run_id
     assert audit.content_hash == result.raw_audit_reference.content_hash
+    assert audit.extra["source_type"] == "tushare"
+    audit_entity = RawAuditRepository._from_model(audit)
+    assert audit.content_hash == raw_audit_content_hash(audit_entity)
+    assert audit.content_hash != raw_audit_content_hash(dataclasses.replace(audit_entity, extra={}))
     identity = SyncExecutionIdentityModel.objects.get(run_id=result.run_id)
     assert str(identity.ingested_run_id) == result.ingested_run_id
     assert fetch_audit_writer.observations[0].raw_audit_id == str(audit.pk)
@@ -247,3 +267,30 @@ def test_valuation_write_failure_rolls_back_the_complete_lineage(failed_stage: s
     assert not SyncExecutionIdentityModel.objects.filter(
         dataset_key="equity.valuation.fact"
     ).exists()
+
+
+@pytest.mark.django_db
+def test_valuation_provider_failure_audit_hash_binds_configured_source_type() -> None:
+    provider_repository = _ProviderConfigRepository()
+    fact_repository = ValuationFactRepository()
+    raw_audit_repository = RawAuditRepository()
+    identity_repository = SyncExecutionIdentityRepository()
+    fetch_audit_writer = _FetchAuditWriter()
+    use_case = _use_case(
+        provider_repository=provider_repository,
+        fact_repository=fact_repository,
+        raw_audit_repository=raw_audit_repository,
+        identity_repository=identity_repository,
+        fetch_audit_writer=fetch_audit_writer,
+        provider=_Provider(DataFetchError("provider rejected", code="TUSHARE_PROVIDER_REJECTED")),
+    )
+
+    with pytest.raises(DataFetchError, match="provider rejected"):
+        use_case.execute(provider_id=1, asset_codes=[_ASSET], as_of_date=_AS_OF)
+
+    audit = RawAuditModel.objects.get(capability="valuation")
+    audit_entity = RawAuditRepository._from_model(audit)
+    assert audit.status == "error"
+    assert audit.extra["source_type"] == "tushare"
+    assert audit.content_hash == raw_audit_content_hash(audit_entity)
+    assert audit.content_hash != raw_audit_content_hash(dataclasses.replace(audit_entity, extra={}))

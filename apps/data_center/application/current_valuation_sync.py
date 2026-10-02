@@ -15,6 +15,7 @@ from apps.data_center.domain.protocols import (
     RawAuditRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
+from core.exceptions import DataFetchError
 from core.integration.data_center_audit import AuditOutcome, DataFetchAuditObservation
 
 from .batch_identity import require_exact_asset_identities
@@ -101,7 +102,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                     returned_asset_codes=[fact.asset_code for fact in facts],
                     label="valuation",
                 )
-        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS + (DataFetchError,) as error:
             self._commit_fetch_failure(
                 config=config,
                 provider_name=provider_name,
@@ -202,6 +203,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra={"source_type": config.source_type},
                 )
             )
             reference = persisted_audit.exact_reference()
@@ -281,6 +283,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
+                    extra={"source_type": config.source_type},
                 )
             )
             reference = persisted_audit.exact_reference()
