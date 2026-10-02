@@ -7,13 +7,10 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from typing import Protocol, runtime_checkable
-from uuid import NAMESPACE_URL, uuid5
 
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
-    CoverageSnapshot,
     PublicationFactReference,
-    PublicationScopeBlock,
     PublicationState,
 )
 from apps.data_center.domain.market_time import (
@@ -21,18 +18,17 @@ from apps.data_center.domain.market_time import (
     cn_market_session_close_utc,
 )
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
-from apps.data_center.domain.publication_evidence import validate_publication_evidence
-from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
 
 from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
-from .publication_idempotence import publication_replay_matches
-from .publication_utils import (
-    current_publication_id_for_hash,
-    publication_hash,
-    publication_member_from_reference,
+from .current_publication_candidate import (
+    CurrentPublicationCandidateSnapshot,
+    CurrentPublicationDataset,
+    CurrentPublicationPreview,
+    CurrentPublicationScopeExclusion,
+    _valuation_reference_trade_date,
+    build_current_publication_candidate_snapshot,
 )
-
-_EVIDENCE_ASSET_CODE_LIMIT = 20
+from .publication_idempotence import publication_replay_matches
 
 
 class CurrentPublicationCandidateRepositoryProtocol(Protocol):
@@ -58,97 +54,6 @@ class TargetDatePublicationObservationProbeProtocol(Protocol):
 
 
 @dataclass(frozen=True)
-class CurrentPublicationDataset:
-    """Static identity for one full-universe current publication."""
-
-    dataset_key: str
-    fact_table: str
-    created_by: str
-
-    def __post_init__(self) -> None:
-        for field_name in ("dataset_key", "fact_table", "created_by"):
-            if not getattr(self, field_name).strip():
-                raise ValueError(f"CurrentPublicationDataset.{field_name} cannot be empty")
-
-
-@dataclass(frozen=True)
-class CurrentPublicationScopeExclusion:
-    """One externally verified asset exclusion for a dataset-specific current scope."""
-
-    asset_code: str
-    reason_code: str
-    target_trade_date: date
-    evidence_source: str
-
-    def __post_init__(self) -> None:
-        if not self.asset_code.strip() or self.asset_code != self.asset_code.strip().upper():
-            raise ValueError("Current publication scope exclusion asset code is not canonical")
-        if not self.reason_code.strip() or self.reason_code != self.reason_code.strip():
-            raise ValueError("Current publication scope exclusion reason code is not canonical")
-        if not isinstance(self.target_trade_date, date) or isinstance(
-            self.target_trade_date, datetime
-        ):
-            raise ValueError("Current publication scope exclusion target date is invalid")
-        if not self.evidence_source.strip() or self.evidence_source != self.evidence_source.strip():
-            raise ValueError("Current publication scope exclusion evidence source is required")
-
-
-@dataclass(frozen=True)
-class CurrentPublicationPreview:
-    """Read-only coverage evidence for one proposed current publication."""
-
-    dataset_key: str
-    requested_asset_count: int
-    covered_asset_count: int
-    member_count: int
-    missing_asset_codes: tuple[str, ...]
-    unexpected_asset_codes: tuple[str, ...]
-    oldest_observed_at: datetime | None
-    newest_observed_at: datetime | None
-
-    @property
-    def ready(self) -> bool:
-        """Return whether the selection exactly covers a non-empty universe."""
-
-        return (
-            self.requested_asset_count > 0
-            and self.covered_asset_count == self.requested_asset_count
-            and self.member_count > 0
-            and not self.missing_asset_codes
-            and not self.unexpected_asset_codes
-        )
-
-    def to_dict(self) -> dict[str, object]:
-        """Return stable JSON-safe preview evidence with bounded code samples."""
-
-        return {
-            "dataset_key": self.dataset_key,
-            "ready": self.ready,
-            "requested_asset_count": self.requested_asset_count,
-            "covered_asset_count": self.covered_asset_count,
-            "member_count": self.member_count,
-            "missing_asset_count": len(self.missing_asset_codes),
-            "missing_asset_codes": list(self.missing_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]),
-            "missing_asset_codes_truncated": (
-                len(self.missing_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
-            ),
-            "unexpected_asset_count": len(self.unexpected_asset_codes),
-            "unexpected_asset_codes": list(
-                self.unexpected_asset_codes[:_EVIDENCE_ASSET_CODE_LIMIT]
-            ),
-            "unexpected_asset_codes_truncated": (
-                len(self.unexpected_asset_codes) > _EVIDENCE_ASSET_CODE_LIMIT
-            ),
-            "oldest_observed_at": (
-                self.oldest_observed_at.isoformat() if self.oldest_observed_at is not None else None
-            ),
-            "newest_observed_at": (
-                self.newest_observed_at.isoformat() if self.newest_observed_at is not None else None
-            ),
-        }
-
-
-@dataclass(frozen=True)
 class _CurrentPublicationSelection:
     """Internal exact selection shared by preview and mutation paths."""
 
@@ -156,40 +61,6 @@ class _CurrentPublicationSelection:
     references: tuple[PublicationFactReference, ...]
     excluded_target_date_asset_codes: tuple[str, ...]
     preview: CurrentPublicationPreview
-
-
-def _valuation_reference_trade_date(reference: PublicationFactReference) -> date:
-    """Return the validated trade date encoded by one valuation natural key."""
-
-    parts = reference.natural_key.split(":")
-    if len(parts) < 3:
-        raise ValueError("Current valuation natural key lacks its trade date and source")
-    asset_code, raw_trade_date = parts[0], parts[1]
-    try:
-        target_trade_date = date.fromisoformat(raw_trade_date)
-    except ValueError as exc:
-        raise ValueError("Current valuation natural key has an invalid trade date") from exc
-    natural_key_source = ":".join(parts[2:])
-    if (
-        target_trade_date.isoformat() != raw_trade_date
-        or not asset_code.strip()
-        or natural_key_source != reference.source
-    ):
-        raise ValueError("Current valuation natural key identity is inconsistent")
-    return target_trade_date
-
-
-def _valuation_target_trade_date(
-    references: Sequence[PublicationFactReference],
-) -> date:
-    """Return the one trade date shared by selected valuation facts."""
-
-    if not references:
-        raise ValueError("Partial current valuation requires selected valuation facts")
-    target_dates = {_valuation_reference_trade_date(reference) for reference in references}
-    if len(target_dates) != 1:
-        raise ValueError("Current valuation candidates must share one target trade date")
-    return next(iter(target_dates))
 
 
 class CurrentPublicationRebuildUseCase:
@@ -239,7 +110,7 @@ class CurrentPublicationRebuildUseCase:
         )
         return selection.preview
 
-    def execute(
+    def prepare_candidate(
         self,
         *,
         asset_codes: Sequence[str],
@@ -247,8 +118,8 @@ class CurrentPublicationRebuildUseCase:
         run_id: str = "",
         scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
         required_observation_date: date | None = None,
-    ) -> CanonicalPublication:
-        """Build and atomically publish a complete current member snapshot."""
+    ) -> CurrentPublicationCandidateSnapshot:
+        """Build a validated CANDIDATE snapshot without reading or moving current."""
 
         normalized_codes = self._normalize_asset_codes(asset_codes)
         exclusions = self._normalize_scope_exclusions(
@@ -262,150 +133,71 @@ class CurrentPublicationRebuildUseCase:
             exclusion_target_trade_date=(exclusions[0].target_trade_date if exclusions else None),
             required_observation_date=required_observation_date,
         )
+        self._validate_quote_suspension_candidate_conflicts(
+            selection=selection,
+            exclusions=exclusions,
+        )
         policy = self._policies.get_active(self.dataset.dataset_key)
         if policy is None:
             raise ValueError(f"No active publication policy for {self.dataset.dataset_key}")
-        if policy.dataset.value != self.dataset.dataset_key:
-            raise ValueError("Publication policy dataset mismatch")
-        coverage_ratio = (
-            selection.preview.covered_asset_count / selection.preview.requested_asset_count
-        )
-        partial_valuation_allowed = (
-            self.dataset.dataset_key == "equity.valuation.fact"
-            and policy.allow_partial
-            and policy.uses_versioned_evidence
-            and coverage_ratio >= policy.minimum_coverage_ratio
-            and selection.preview.member_count > 0
-            and not selection.preview.unexpected_asset_codes
-        )
         suspension_scope_allowed = self._validate_quote_suspension_scope(
             selection=selection,
             exclusions=exclusions,
             policy_uses_versioned_evidence=policy.uses_versioned_evidence,
             run_id=run_id,
         )
-        if not selection.preview.ready and not (
-            partial_valuation_allowed or suspension_scope_allowed
-        ):
-            missing = ",".join(selection.preview.missing_asset_codes[:20])
-            unexpected = ",".join(selection.preview.unexpected_asset_codes[:20])
-            raise ValueError(
-                "Current publication is missing active assets or contains unexpected assets: "
-                f"missing=[{missing}] unexpected=[{unexpected}]"
-            )
-        if "payload_hash" in policy.required_evidence and any(
-            not reference.raw_payload_hash.strip() for reference in selection.references
-        ):
-            raise ValueError("Current publication requires payload_hash evidence")
+        return build_current_publication_candidate_snapshot(
+            dataset=self.dataset,
+            publication_key=self.publication_key,
+            asset_codes=selection.asset_codes,
+            references=selection.references,
+            preview=selection.preview,
+            policy=policy,
+            published_at=published_at,
+            run_id=run_id,
+            scope_exclusions=exclusions,
+            suspension_scope_allowed=suspension_scope_allowed,
+        )
 
-        validate_publication_evidence(policy, selection.references, published_at=published_at)
-        is_valuation_partial = bool(selection.preview.missing_asset_codes) and not exclusions
-        source_summary = publication_selected_source_summary(selection.references)
-        block_target_trade_date = (
-            _valuation_target_trade_date(selection.references) if is_valuation_partial else None
-        )
-        if is_valuation_partial and not run_id.strip():
-            raise ValueError("Partial current valuation requires publication run id")
-        block_drafts = (
-            tuple(
-                PublicationScopeBlock(
-                    asset_code=item.asset_code,
-                    reason_code=item.reason_code,
-                    target_trade_date=item.target_trade_date,
-                    source=source_summary,
-                    publication_run_id=run_id,
-                    policy_version=policy.identity,
-                    evidence_source=item.evidence_source,
-                )
-                for item in exclusions
-            )
-            if exclusions
-            else tuple(
-                PublicationScopeBlock(
-                    asset_code=asset_code,
-                    reason_code="valuation_source_data_unavailable",
-                    target_trade_date=block_target_trade_date,
-                    source=source_summary,
-                    publication_run_id=run_id,
-                    policy_version=policy.identity,
-                )
-                for asset_code in selection.preview.missing_asset_codes
-            )
-        )
-        digest = publication_hash(
-            selection.references,
-            policy_identity=policy.identity if policy.uses_versioned_evidence else None,
-            scope_blocks=block_drafts,
-        )
-        publication_id = current_publication_id_for_hash(
-            self.dataset.dataset_key,
-            self.publication_key,
-            digest,
-        )
-        scope_blocks = tuple(
-            replace(block, publication_id=publication_id) for block in block_drafts
+    def execute(
+        self,
+        *,
+        asset_codes: Sequence[str],
+        published_at: datetime,
+        run_id: str = "",
+        scope_exclusions: Sequence[CurrentPublicationScopeExclusion] = (),
+        required_observation_date: date | None = None,
+    ) -> CanonicalPublication:
+        """Build and atomically publish a complete current member snapshot."""
+
+        candidate = self.prepare_candidate(
+            asset_codes=asset_codes,
+            published_at=published_at,
+            run_id=run_id,
+            scope_exclusions=scope_exclusions,
+            required_observation_date=required_observation_date,
         )
         current = self._publications.get_current(
             self.dataset.dataset_key,
             self.publication_key,
         )
         if current is not None and publication_replay_matches(
-            policy,
+            candidate.policy,
             current,
-            selection.references,
+            candidate.references,
             self._publications.list_members(current.publication_id),
             knowledge_cutoff=published_at,
-            scope_blocks=scope_blocks,
+            scope_blocks=candidate.publication.scope_blocks,
         ):
             return current
-
-        members = tuple(
-            publication_member_from_reference(
-                reference,
-                member_id=str(uuid5(uuid5(NAMESPACE_URL, publication_id), reference.natural_key)),
-                publication_id=publication_id,
-                dataset_key=self.dataset.dataset_key,
-            )
-            for reference in selection.references
-        )
-        as_of = max(reference.observed_at for reference in selection.references)
-        has_scope_blocks = bool(scope_blocks)
-        coverage_requested = (
-            len(selection.asset_codes) if has_scope_blocks else len(selection.references)
-        )
-        coverage_eligible = (
-            selection.preview.covered_asset_count if has_scope_blocks else len(selection.references)
-        )
-        publication = CanonicalPublication(
-            publication_id=publication_id,
-            dataset_key=self.dataset.dataset_key,
-            publication_key=self.publication_key,
-            policy_version=policy.identity,
-            state=PublicationState.PUBLISHED,
-            selected_source=source_summary,
-            publication_hash=digest,
-            coverage=CoverageSnapshot(
-                coverage_id=str(uuid5(NAMESPACE_URL, f"coverage:{publication_id}")),
-                publication_id=publication_id,
-                requested_count=coverage_requested,
-                eligible_count=coverage_eligible,
-                selected_count=len(selection.references),
-                missing_count=len(scope_blocks),
-                conflict_count=0,
-                generated_at=published_at,
-            ),
-            member_count=len(members),
-            conflict_count=0,
-            as_of=as_of,
-            published_at=published_at,
-            created_by=self.dataset.created_by,
-            run_id=run_id,
-            scope_blocks=scope_blocks,
-        )
         return self._publisher.execute(
-            policy=policy,
-            publication=publication,
-            members=members,
+            policy=candidate.policy,
+            publication=replace(
+                candidate.publication,
+                state=PublicationState.PUBLISHED,
+                published_at=published_at,
+            ),
+            members=candidate.members,
         )
 
     def _validate_quote_suspension_scope(
@@ -858,6 +650,7 @@ __all__ = [
     "CoreCurrentPublicationRebuildResult",
     "CoreCurrentPublicationRebuildUseCase",
     "CurrentPublicationCandidateRepositoryProtocol",
+    "CurrentPublicationCandidateSnapshot",
     "CurrentPublicationDataset",
     "CurrentPublicationPreview",
     "CurrentPublicationRebuildUseCase",

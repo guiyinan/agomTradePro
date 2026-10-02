@@ -6,14 +6,54 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from uuid import UUID, uuid4
 
 MANIFEST_VERSION = "1"
 RAW_AUDIT_REFERENCE_VERSION = "1"
+_RAW_AUDIT_SOURCE_TYPE_ALPHABET = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_.-")
+_CURRENT_MARKET_DATASET_CAPABILITIES: Mapping[str, str] = MappingProxyType(
+    {
+        "equity.quote.snapshot": "realtime_quote",
+        "equity.price.bar": "historical_price",
+        "equity.valuation.fact": "valuation",
+    }
+)
+CURRENT_MARKET_PUBLICATION_DATASETS: frozenset[str] = frozenset(
+    _CURRENT_MARKET_DATASET_CAPABILITIES
+)
+
+
+def canonical_capability_for_publication_dataset(dataset_key: str) -> str | None:
+    """Return the canonical provider capability required by a publication dataset."""
+
+    return _CURRENT_MARKET_DATASET_CAPABILITIES.get(dataset_key)
+
+
+def requires_group_publication_activation(dataset_key: str) -> bool:
+    """Return whether this current market dataset must activate as one group."""
+
+    return dataset_key in _CURRENT_MARKET_DATASET_CAPABILITIES
 
 
 class CandidateRawAuditManifestError(ValueError):
     """Raised when candidate RawAudit lineage is incomplete or inconsistent."""
+
+
+def validate_raw_audit_source_type(value: str) -> str:
+    """Require a canonical, bounded, single-line RawAudit source-type token."""
+
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 50
+        or not value.isascii()
+        or any(character not in _RAW_AUDIT_SOURCE_TYPE_ALPHABET for character in value)
+    ):
+        raise CandidateRawAuditManifestError(
+            "RawAudit source_type must be a canonical token of at most 50 characters"
+        )
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,6 +296,9 @@ def _sha256_json(payload: Mapping[str, object]) -> str:
 
 
 __all__ = [
+    "CURRENT_MARKET_PUBLICATION_DATASETS",
+    "canonical_capability_for_publication_dataset",
+    "requires_group_publication_activation",
     "CandidateRawAuditManifest",
     "CandidateRawAuditManifestError",
     "CandidateRawAuditReference",
@@ -263,4 +306,5 @@ __all__ = [
     "RAW_AUDIT_REFERENCE_VERSION",
     "candidate_raw_audit_manifest_hash",
     "candidate_raw_audit_references_hash",
+    "validate_raw_audit_source_type",
 ]

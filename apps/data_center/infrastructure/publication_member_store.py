@@ -70,6 +70,20 @@ def publication_fact_content_hashes(
 ) -> dict[tuple[str, str], str]:
     """Bind each frozen member to its exact stored fact, never to claimed provenance."""
 
+    hashes, _ingested_run_ids = publication_fact_content_hashes_and_ingested_runs(
+        members,
+        lock_rows=lock_rows,
+    )
+    return hashes
+
+
+def publication_fact_content_hashes_and_ingested_runs(
+    members: Sequence[PublicationMember],
+    *,
+    lock_rows: bool = False,
+) -> tuple[dict[tuple[str, str], str], dict[tuple[str, str], str | None]]:
+    """Read exact fact hashes and ingestion identities with the same bounded queries."""
+
     dataset_models = publication_fact_model_registry()
     registry: dict[str, type[models.Model]] = {
         model._meta.db_table: model for model in dataset_models.values()
@@ -84,17 +98,24 @@ def publication_fact_content_hashes(
         keys[member.fact_table].add(fact_pk)
         members_by_fact[(member.fact_table, fact_pk)].append(member)
     hashes: dict[tuple[str, str], str] = {}
+    ingested_run_ids: dict[tuple[str, str], str | None] = {}
     for table in sorted(keys):
         query = registry[table]._default_manager.all().order_by("pk")
         if lock_rows:
             query = query.select_for_update()
         rows = query.in_bulk(sorted(keys[table]))
         for pk, row in rows.items():
+            ingested_run_id: object = getattr(row, "ingested_run_id", None)
+            if ingested_run_id is not None and not isinstance(ingested_run_id, UUID):
+                raise ValueError("Publication fact ingested_run_id is not a UUID")
+            ingested_run_ids[(table, str(pk))] = (
+                str(ingested_run_id) if isinstance(ingested_run_id, UUID) else None
+            )
             matching = members_by_fact[(table, pk)]
             digest = _fact_hash_when_provenance_matches(matching, row)
             if digest is not None:
                 hashes[(table, str(pk))] = digest
-    return hashes
+    return hashes, ingested_run_ids
 
 
 def _normalize_fact_pk(fact_pk: str) -> int:

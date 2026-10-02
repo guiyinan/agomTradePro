@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import pytest
+
 from apps.data_center.domain.raw_audit_manifest import (
+    CURRENT_MARKET_PUBLICATION_DATASETS,
     CandidateRawAuditManifest,
     CandidateRawAuditManifestError,
     CandidateRawAuditReference,
+    canonical_capability_for_publication_dataset,
+    requires_group_publication_activation,
+    validate_raw_audit_source_type,
 )
 
 PUBLICATION_ID = "f1e76a4d-b1e3-4cdc-bb12-2129fc3a3f90"
@@ -97,3 +103,30 @@ def test_manifest_requires_explicit_task_attempt_identity() -> None:
         assert "task_attempt_id" in str(exc)
     else:
         raise AssertionError("missing task attempt must be rejected")
+
+
+@pytest.mark.parametrize(
+    "source_type",
+    ["", " ", "tushare\n", "Tushare", "source/type", "源", "x" * 51],
+)
+def test_source_type_validator_rejects_noncanonical_tokens(source_type: str) -> None:
+    with pytest.raises(CandidateRawAuditManifestError, match="canonical token"):
+        validate_raw_audit_source_type(source_type)
+
+
+def test_source_type_validator_accepts_bounded_lowercase_ascii_token() -> None:
+    assert validate_raw_audit_source_type("tushare.price-v2") == "tushare.price-v2"
+
+
+def test_current_market_dataset_capabilities_are_canonical_and_group_bound() -> None:
+    assert CURRENT_MARKET_PUBLICATION_DATASETS == {
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    }
+    assert canonical_capability_for_publication_dataset("equity.quote.snapshot") == "realtime_quote"
+    assert canonical_capability_for_publication_dataset("equity.price.bar") == "historical_price"
+    assert canonical_capability_for_publication_dataset("equity.valuation.fact") == "valuation"
+    assert canonical_capability_for_publication_dataset("market.news") is None
+    assert requires_group_publication_activation("equity.valuation.fact") is True
+    assert requires_group_publication_activation("market.news") is False

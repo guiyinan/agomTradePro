@@ -4729,6 +4729,13 @@
         "apps/data_center/application/quote_session_prefetch.py",
         "apps/data_center/application/sync_market_use_cases.py",
         "apps/data_center/application/current_valuation_sync.py",
+        "apps/data_center/application/current_publication_candidate.py",
+        "apps/data_center/application/current_publication_staging.py",
+        "apps/data_center/domain/raw_audit_manifest.py",
+        "apps/data_center/infrastructure/candidate_raw_audit_metadata_resolver.py",
+        "apps/data_center/infrastructure/candidate_raw_audit_manifest_repository.py",
+        "apps/data_center/infrastructure/candidate_raw_audit_manifest_models.py",
+        "apps/data_center/infrastructure/current_publication_staging_repository.py",
         "apps/data_center/composition.py",
         "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
         "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
@@ -4853,7 +4860,7 @@
           "quote.snapshot_at < session_close"
         ],
         "apps/data_center/application/current_valuation_sync.py": [
-          "returned_asset_codes=tuple(fact.asset_code for fact in facts)",
+          "returned_asset_codes=tuple(fact.asset_code for fact in correlated_facts)",
           "if require_exact_asset_codes:",
           "returned_asset_codes=[fact.asset_code for fact in facts]"
         ],
@@ -4895,23 +4902,53 @@
           "self._authority_preflight(observed_at)",
           "published_at must be timezone-aware",
           "Current publication contains a future observation",
-          "Current publication is missing active assets",
           "oldest_observed_at",
           "newest_observed_at",
           "covered_asset_count: int",
-          "\"covered_asset_count\": self.covered_asset_count",
           "\"policy_identity\": publication.policy_version",
-          "reason_code=\"valuation_source_data_unavailable\"",
-          "class CurrentPublicationScopeExclusion:",
           "reason_code != \"quote_full_day_suspension\"",
           "scope_exclusions_by_dataset",
           "required_observation_date",
           "required_observation_dates",
           "Current valuation trade date differs from its observation date",
-          "and policy.allow_partial",
-          "and coverage_ratio >= policy.minimum_coverage_ratio",
           "reference.observed_at < cn_market_session_close_utc(observation_date)",
           "official China-market close"
+        ],
+        "apps/data_center/application/current_publication_candidate.py": [
+          "class CurrentPublicationScopeExclusion:",
+          "\"covered_asset_count\": self.covered_asset_count",
+          "Current publication is missing active assets",
+          "reason_code=\"valuation_source_data_unavailable\"",
+          "and policy.allow_partial",
+          "and coverage_ratio >= policy.minimum_coverage_ratio"
+        ],
+        "apps/data_center/application/current_publication_staging.py": [
+          "class CurrentPublicationStageCommand:",
+          "Current publication staging requires a canonical run id",
+          "task_attempt_id must be a bounded canonical token",
+          "class CurrentPublicationStagingUseCase:",
+          "CandidateRawAuditManifest.create(",
+          "self._repository.stage(candidate, manifest, source_types)"
+        ],
+        "apps/data_center/domain/raw_audit_manifest.py": [
+          "def validate_raw_audit_source_type(value: str) -> str:",
+          "class CandidateRawAuditManifest:",
+          "class CandidateRawAuditReference:"
+        ],
+        "apps/data_center/infrastructure/candidate_raw_audit_metadata_resolver.py": [
+          "class DjangoCandidateRawAuditMetadataResolver:",
+          "raw_audit_content_hash(audit) != reference.content_hash",
+          "row.status != \"ok\" or row.row_count <= 0",
+          "row.capability != expected_capability",
+          "_require_source_type(row, binding.expected_source_type)"
+        ],
+        "apps/data_center/infrastructure/current_publication_staging_repository.py": [
+          "class DjangoCurrentPublicationStagingRepository(",
+          "@transaction.atomic",
+          "def _ensure_scope_pointer(",
+          "publication_member_manifest_hash(",
+          "self._manifests.stage(manifest)",
+          "self._validate_fact_lineage(candidate, manifest, source_type_map)"
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
@@ -6332,6 +6369,36 @@
           "case": "empty_history_suspension_coverage",
           "test_file": "tests/unit/data_center/test_model_market_data.py",
           "test_function": "test_empty_multi_session_history_requires_suspension_evidence_for_every_open_day"
+        },
+        {
+          "case": "fence_external_candidate_and_legacy_execute_share_one_builder",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_candidate_preparation_and_legacy_execute_share_identical_snapshot_content"
+        },
+        {
+          "case": "quote_candidate_keeps_exact_eight_suspension_scope_without_current_read",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_candidate_preparation_does_not_read_current_and_keeps_eight_quote_suspensions"
+        },
+        {
+          "case": "valuation_candidate_uses_policy_partial_coverage_and_blocks",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_candidate_preparation_uses_partial_valuation_policy_and_block_evidence"
+        },
+        {
+          "case": "staged_candidate_has_manifest_and_lockable_empty_pointer",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_stage_builds_sealed_candidate_and_manifest_with_empty_lockable_pointer"
+        },
+        {
+          "case": "candidate_members_seal_manifest_and_pointer_rollback_as_one_unit",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_any_candidate_bundle_write_failure_rolls_back_every_row"
+        },
+        {
+          "case": "legacy_published_publication_is_not_adopted_as_candidate",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_legacy_published_same_id_is_never_adopted_as_candidate"
         }
       ]
     },

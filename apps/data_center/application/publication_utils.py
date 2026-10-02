@@ -118,6 +118,26 @@ def member_reference(member: PublicationMember) -> PublicationFactReference:
     )
 
 
+def publication_member_manifest_hash(
+    members: Sequence[PublicationMember],
+    *,
+    policy_identity: str,
+) -> str:
+    """Return the canonical ordered seal for one frozen publication member set."""
+
+    if not isinstance(members, Sequence) or isinstance(members, (str, bytes, bytearray)):
+        raise TypeError("publication members must be a sequence")
+    if any(type(member) is not PublicationMember for member in members):
+        raise TypeError("publication member manifest contains an invalid member")
+    references = [
+        member_reference(member) for member in sorted(members, key=lambda item: item.natural_key)
+    ]
+    return publication_hash(
+        references,
+        policy_identity=policy_identity if policy_identity.startswith("p2:") else None,
+    )
+
+
 def publication_member_from_reference(
     reference: PublicationFactReference,
     *,
@@ -186,6 +206,7 @@ def _timestamp(value: datetime | None) -> str | None:
 __all__ = [
     "current_publication_id_for_hash",
     "member_reference",
+    "publication_member_manifest_hash",
     "publication_hash",
     "publication_member_from_reference",
 ]

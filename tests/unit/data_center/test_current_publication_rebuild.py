@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -22,6 +23,7 @@ from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationFactReference,
+    PublicationState,
 )
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 
@@ -189,6 +191,139 @@ def _use_case(
         publication_repository=publications or _PublicationRepository(),
         policy_repository=policy_repository or _PolicyRepository(),
     )
+
+
+def test_candidate_preparation_and_legacy_execute_share_identical_snapshot_content() -> None:
+    """Fence-external preparation and legacy publication use one candidate builder."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        created_by="ops.current_publication_rebuild",
+    )
+    repository = _PublicationRepository()
+    use_case = _use_case(
+        dataset,
+        [
+            _reference("000001.SZ", "1", dataset=dataset),
+            _reference("600000.SH", "2", dataset=dataset),
+        ],
+        repository,
+    )
+
+    candidate = use_case.prepare_candidate(
+        asset_codes=("000001.SZ", "600000.SH"),
+        published_at=NOW,
+        run_id="candidate-run",
+    )
+    published = use_case.execute(
+        asset_codes=("000001.SZ", "600000.SH"),
+        published_at=NOW,
+        run_id="candidate-run",
+    )
+
+    assert candidate.publication.state is PublicationState.CANDIDATE
+    assert candidate.publication.published_at is None
+    assert (
+        replace(
+            candidate.publication,
+            state=PublicationState.PUBLISHED,
+            published_at=NOW,
+        )
+        == published
+    )
+    assert tuple(repository.members[published.publication_id]) == candidate.members
+
+
+def test_candidate_preparation_does_not_read_current_and_keeps_eight_quote_suspensions() -> None:
+    """A complete evidenced suspension partition stages without a current pointer read."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 11))
+    suspended_codes = asset_codes[2:]
+    references = [
+        _reference(code, str(index), dataset=dataset)
+        for index, code in enumerate(asset_codes[:2], start=1)
+    ]
+
+    class _NoCurrentReadRepository(_PublicationRepository):
+        def get_current(
+            self, dataset_key: str, publication_key: str
+        ) -> CanonicalPublication | None:
+            raise AssertionError("candidate preparation must not read the current pointer")
+
+    use_case = _use_case(
+        dataset,
+        references,
+        _NoCurrentReadRepository(),
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+    exclusions = tuple(
+        CurrentPublicationScopeExclusion(
+            asset_code=code,
+            reason_code="quote_full_day_suspension",
+            target_trade_date=date(2026, 8, 28),
+            evidence_source="tushare.suspend_d",
+        )
+        for code in suspended_codes
+    )
+
+    candidate = use_case.prepare_candidate(
+        asset_codes=asset_codes,
+        published_at=NOW,
+        run_id="quote-stage-run",
+        scope_exclusions=exclusions,
+    )
+
+    assert candidate.publication.state is PublicationState.CANDIDATE
+    assert candidate.publication.coverage.requested_count == 10
+    assert candidate.publication.coverage.eligible_count == 2
+    assert candidate.publication.coverage.selected_count == 2
+    assert candidate.publication.coverage.missing_count == 8
+    assert (
+        tuple(block.asset_code for block in candidate.publication.scope_blocks) == suspended_codes
+    )
+
+
+def test_candidate_preparation_uses_partial_valuation_policy_and_block_evidence() -> None:
+    """A policy-valid partial valuation remains a candidate with explicit missing scope."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 11))
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(code, str(index), dataset=dataset)
+            for index, code in enumerate(asset_codes[:9])
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=0.9,
+            allow_partial=True,
+        ),
+    )
+
+    candidate = use_case.prepare_candidate(
+        asset_codes=asset_codes,
+        published_at=NOW,
+        run_id="valuation-stage-run",
+    )
+
+    assert candidate.publication.state is PublicationState.CANDIDATE
+    assert candidate.publication.coverage.coverage_ratio == 0.9
+    assert candidate.publication.coverage.missing_count == 1
+    assert candidate.publication.scope_blocks[0].asset_code == asset_codes[-1]
+    assert candidate.publication.scope_blocks[0].reason_code == "valuation_source_data_unavailable"
 
 
 def test_rebuild_publishes_exact_full_universe_and_is_idempotent() -> None:

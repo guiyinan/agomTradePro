@@ -13,6 +13,7 @@ from apps.data_center.application.publication_utils import (
     member_reference,
     publication_hash,
     publication_member_from_reference,
+    publication_member_manifest_hash,
 )
 from apps.data_center.domain.control_plane import PublicationFactReference
 
@@ -118,3 +119,39 @@ def test_member_reference_roundtrip_preserves_new_metadata() -> None:
         dataset_key="equity.valuation.fact",
     )
     assert member_reference(member) == reference
+
+
+def test_member_manifest_hash_sorts_canonically_and_only_binds_p2_policy() -> None:
+    first = publication_member_from_reference(
+        _reference(),
+        member_id="member-1",
+        publication_id="publication-1",
+        dataset_key="equity.valuation.fact",
+    )
+    second_reference = replace(
+        _reference(),
+        natural_key="asset:2026-09-14:provider",
+        fact_pk="18",
+    )
+    second = publication_member_from_reference(
+        second_reference,
+        member_id="member-2",
+        publication_id="publication-1",
+        dataset_key="equity.valuation.fact",
+    )
+    legacy_first_order = publication_member_manifest_hash(
+        (first, second), policy_identity="legacy:1"
+    )
+    legacy_reverse_order = publication_member_manifest_hash(
+        (second, first), policy_identity="legacy:2"
+    )
+    assert legacy_first_order == legacy_reverse_order
+
+    policy_identity = "p2:2:" + ("c" * 64)
+    versioned = publication_member_manifest_hash((first, second), policy_identity=policy_identity)
+    assert versioned == publication_member_manifest_hash(
+        (second, first), policy_identity=policy_identity
+    )
+    assert versioned != publication_member_manifest_hash(
+        (first, second), policy_identity="p2:3:" + ("c" * 64)
+    )
