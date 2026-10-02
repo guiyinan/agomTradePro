@@ -12,7 +12,7 @@
       "current_data_surface": 72,
       "dynamic_import_edge": 13,
       "management_command": 36,
-      "management_command_edge": 60,
+      "management_command_edge": 61,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 66,
@@ -23,20 +23,20 @@
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 11,
+      "script": 12,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 82,
+      "test_evidence": 83,
       "workflow_step": 12
     },
     "by_status": {
       "active_public": 808,
-      "adjacent_operational": 334,
-      "candidate-review": 0,
+      "adjacent_operational": 335,
+      "candidate-review": 2,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1280
+    "total": 1283
   },
   "entries": [
     {
@@ -2792,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:424",
-      "locator": "line:424",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:443",
+      "locator": "line:443",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -5271,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=80",
+      "evidence": "governed current-data contract; source_files=87",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5371,7 +5371,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=11",
+      "evidence": "governed current-data contract; source_files=16",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.model_market_history:Provider-neutral Qlib and Equity historical model inputs",
       "locator": "Provider-neutral Qlib and Equity historical model inputs",
       "path": "governance/current_data_contracts.json",
@@ -6892,8 +6892,18 @@
     {
       "category": "management_command_edge",
       "evidence": "execute_from_command_line target is external or runtime-selected",
-      "id": "management_command_edge:scripts/manage_vps_migrations.py:dynamic-command:line:56",
-      "locator": "line:56",
+      "id": "management_command_edge:scripts/manage_vps_migrations.py:dynamic-command:line:63",
+      "locator": "line:63",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "adjacent_operational",
+      "symbol": "dynamic-command",
+      "target": "dynamic-command"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "execute_from_command_line target is external or runtime-selected",
+      "id": "management_command_edge:scripts/manage_vps_migrations.py:dynamic-command:line:65",
+      "locator": "line:65",
       "path": "scripts/manage_vps_migrations.py",
       "status": "adjacent_operational",
       "symbol": "dynamic-command",
@@ -10961,6 +10971,16 @@
     },
     {
       "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/manage_vps_migrations.py:__main__:",
+      "locator": "",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/measure_data_center_query_ports.py:__main__:",
       "locator": "",
@@ -12157,6 +12177,16 @@
       "path": "tests/component/data_center/test_archive_repository.py",
       "status": "active_public",
       "symbol": "test_archive_repository",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_candidate_raw_audit_manifest.py:test_candidate_raw_audit_manifest:",
+      "locator": "",
+      "path": "tests/component/data_center/test_candidate_raw_audit_manifest.py",
+      "status": "candidate-review",
+      "symbol": "test_candidate_raw_audit_manifest",
       "target": ""
     },
     {

@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5360,
+    "current_surface_references": 5363,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3686,62 +3686,62 @@
       "text": "current_row, current = next_row, successor"
     },
     {
-      "line": 155,
+      "line": 153,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"\"\"In-fence evidence for a complete current Account authority graph.\"\"\""
     },
     {
-      "line": 276,
+      "line": 274,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"\"\"Read the graph using the caller's current transaction and generation.\"\"\""
     },
     {
-      "line": 447,
+      "line": 445,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "current = self._repository.get_selected_root("
     },
     {
-      "line": 453,
+      "line": 451,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "if current != expected:"
     },
     {
-      "line": 457,
+      "line": 455,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "if self._read_revocation(current, now) is not None:"
     },
     {
-      "line": 462,
+      "line": 460,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "authority_content_hash=current.record.authority.content_hash,"
     },
     {
-      "line": 465,
+      "line": 463,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "valid_until=current.record.authority.valid_until,"
     },
     {
-      "line": 630,
+      "line": 614,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph is missing\""
     },
     {
-      "line": 634,
+      "line": 618,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph differs from its captured fingerprint\""
     },
     {
-      "line": 646,
+      "line": 630,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph is expired at final reread\""
     },
     {
-      "line": 698,
+      "line": 665,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"complete current authority graph expired during final revalidation\""
     },
     {
-      "line": 752,
+      "line": 719,
       "path": "apps/account/infrastructure/account_authority_final_revalidator_v3.py",
       "text": "\"a matched, current complete graph scan is required\""
     },
@@ -3751,17 +3751,17 @@
       "text": "\"current graph read requires an active generation fence context\""
     },
     {
-      "line": 812,
+      "line": 810,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph generation differs from the active fence\""
     },
     {
-      "line": 999,
+      "line": 997,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Read the current transaction-visible generation without taking a lock.\"\"\""
     },
     {
-      "line": 1045,
+      "line": 1090,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },
@@ -5049,46 +5049,6 @@
       "line": 34,
       "path": "apps/account/policy_publication_binding_composition.py",
       "text": "Permanent binding knowledge does not make the old physical observation current."
-    },
-    {
-      "line": 161,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "bundle, compares the V3 scope with the legacy current observation, runs an"
-    },
-    {
-      "line": 336,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "current: CurrentOwnerTenantAuthorityV3 | None,"
-    },
-    {
-      "line": 342,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "\"\"\"Bind the legacy current observation to the preflight V3 scope.\"\"\""
-    },
-    {
-      "line": 344,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "if type(current) is not CurrentOwnerTenantAuthorityV3:"
-    },
-    {
-      "line": 346,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "current.__post_init__()"
-    },
-    {
-      "line": 347,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "authority = current.authority"
-    },
-    {
-      "line": 370,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "or current.valid_until < context.authority_valid_until"
-    },
-    {
-      "line": 371,
-      "path": "apps/account/production_authority_capture_composition.py",
-      "text": "or current.valid_until <= as_of"
     },
     {
       "line": 43,
@@ -7226,12 +7186,12 @@
       "text": "\"\"\"Resolve the exact current scope for one publication audit write.\"\"\""
     },
     {
-      "line": 560,
+      "line": 585,
       "path": "apps/audit/application/data_publication_audit.py",
       "text": "\"\"\"Bind current authority, preserve first-winner replay, and append.\"\"\""
     },
     {
-      "line": 568,
+      "line": 593,
       "path": "apps/audit/application/data_publication_audit.py",
       "text": "raise ValueError(\"observation scope differs from current authority\")"
     },
@@ -7776,12 +7736,12 @@
       "text": "\"\"\"Return the current aware timestamp.\"\"\""
     },
     {
-      "line": 205,
+      "line": 272,
       "path": "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py",
       "text": "\"\"\"Return the scoped current head through the coordinator alias.\"\"\""
     },
     {
-      "line": 60,
+      "line": 61,
       "path": "apps/audit/infrastructure/system_audit_outbox_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
@@ -7811,12 +7771,27 @@
       "text": "missing current authority.  It does not enable a profile or create an"
     },
     {
-      "line": 53,
+      "line": 55,
       "path": "apps/audit/infrastructure/system_audit_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
     },
     {
-      "line": 179,
+      "line": 184,
+      "path": "apps/audit/infrastructure/system_audit_repository.py",
+      "text": "\"\"\"Lock exact identity winners and latest stream heads in one bounded query.\"\"\""
+    },
+    {
+      "line": 221,
+      "path": "apps/audit/infrastructure/system_audit_repository.py",
+      "text": "current = heads.get(event.stream_id)"
+    },
+    {
+      "line": 222,
+      "path": "apps/audit/infrastructure/system_audit_repository.py",
+      "text": "if current is None or event.sequence_no > current.sequence_no:"
+    },
+    {
+      "line": 261,
       "path": "apps/audit/infrastructure/system_audit_repository.py",
       "text": "\"\"\"Read and optionally lock only the latest row of one stream.\"\"\""
     },
@@ -11361,17 +11336,17 @@
       "text": "raise PublicationActivationError(\"current pointer snapshot hash is invalid\")"
     },
     {
-      "line": 340,
+      "line": 369,
       "path": "apps/data_center/application/publication_activation.py",
       "text": "\"\"\"Revalidate and atomically switch the current pointer.\"\"\""
     },
     {
-      "line": 361,
+      "line": 390,
       "path": "apps/data_center/application/publication_activation.py",
       "text": "\"current market publication requires atomic group activation\""
     },
     {
-      "line": 372,
+      "line": 401,
       "path": "apps/data_center/application/publication_activation.py",
       "text": "\"\"\"Activate the three current market publications in one complete-fence UOW.\"\"\""
     },
@@ -13601,67 +13576,67 @@
       "text": "\"summary\": summary,"
     },
     {
-      "line": 51,
+      "line": 53,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"\"\"Validate and switch all three current market publications atomically.\"\"\""
     },
     {
-      "line": 112,
+      "line": 114,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"\"\"Lock and validate the full group before writing any current state.\"\"\""
     },
     {
-      "line": 138,
+      "line": 140,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"one or more current publication pointers are missing\")"
     },
     {
-      "line": 179,
+      "line": 181,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group candidate identity differs\")"
     },
     {
-      "line": 183,
+      "line": 185,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"published group candidate is not its current pointer target\""
     },
     {
-      "line": 188,
+      "line": 190,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer contains stale activation identity\""
     },
     {
-      "line": 198,
+      "line": 200,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer compare-and-swap failed\""
     },
     {
-      "line": 205,
+      "line": 207,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer compare-and-swap failed\""
     },
     {
-      "line": 210,
+      "line": 212,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"group activation contains a partially current set\")"
     },
     {
-      "line": 217,
+      "line": 219,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clocks differ\")"
     },
     {
-      "line": 220,
+      "line": 222,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clock is missing\")"
     },
     {
-      "line": 262,
+      "line": 264,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer target is missing or drifted\""
     },
     {
-      "line": 89,
+      "line": 111,
       "path": "apps/data_center/infrastructure/publication_group_activation_state.py",
       "text": "raise PublicationActivationError(\"current publication pointer compare-and-swap failed\")"
     },
@@ -26444,6 +26419,46 @@
       "line": 76,
       "path": "core/integration/price_history.py",
       "text": "publication_key=\"current\","
+    },
+    {
+      "line": 157,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "bundle, compares the V3 scope with the legacy current observation, runs an"
+    },
+    {
+      "line": 332,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "current: CurrentOwnerTenantAuthorityV3 | None,"
+    },
+    {
+      "line": 338,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "\"\"\"Bind the legacy current observation to the preflight V3 scope.\"\"\""
+    },
+    {
+      "line": 340,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "if type(current) is not CurrentOwnerTenantAuthorityV3:"
+    },
+    {
+      "line": 342,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "current.__post_init__()"
+    },
+    {
+      "line": 343,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "authority = current.authority"
+    },
+    {
+      "line": 366,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "or current.valid_until < context.authority_valid_until"
+    },
+    {
+      "line": 367,
+      "path": "core/integration/production_account_authority_capture.py",
+      "text": "or current.valid_until <= as_of"
     },
     {
       "line": 1,

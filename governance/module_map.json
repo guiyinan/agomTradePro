@@ -50,12 +50,6 @@
         }
       },
       "depends_on": {
-        "audit": {
-          "imports": 4,
-          "target_layers": [
-            "application"
-          ]
-        },
         "config_center": {
           "imports": 8,
           "target_layers": [
@@ -132,12 +126,6 @@
           "target_layers": [
             "application",
             "infrastructure"
-          ]
-        },
-        "simulated_trading": {
-          "imports": 1,
-          "target_layers": [
-            "account_physical_row_v2_composition"
           ]
         }
       },
@@ -2279,9 +2267,6 @@
         ]
       },
       "depended_by": {
-        "account": {
-          "imports": 4
-        },
         "agent_runtime": {
           "imports": 6
         },
@@ -4655,6 +4640,7 @@
           "PublicationActivationGroupCandidate",
           "PublicationActivationGroupRepository",
           "PublicationActivationGroupRequest",
+          "PublicationActivationManifestAuditWrite",
           "PublicationActivationRepository",
           "PublicationActivationRequest",
           "publication_activation_lease_from_complete_graph"
@@ -9912,9 +9898,6 @@
     },
     "simulated_trading": {
       "depended_by": {
-        "account": {
-          "imports": 1
-        },
         "agent_runtime": {
           "imports": 1
         },
