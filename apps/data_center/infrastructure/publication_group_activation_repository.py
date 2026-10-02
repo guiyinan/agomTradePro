@@ -57,6 +57,12 @@ class DjangoPublicationActivationGroupRepository:
             raise ValueError("publication activation currently requires the default database alias")
         self._using = using
 
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias shared by the complete activation UOW."""
+
+        return self._using
+
     def activate_candidate_group(
         self,
         request: PublicationActivationGroupRequest,

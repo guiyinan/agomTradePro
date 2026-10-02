@@ -292,18 +292,8 @@ class PublicationActivationGroupAuditWriter(Protocol):
         """Append one required event/outbox pair bound to a full manifest."""
 
 
-class PublicationActivationRepository(Protocol):
-    """Infrastructure port for one short candidate activation transaction."""
-
-    def activate_candidate(
-        self,
-        request: PublicationActivationRequest,
-        *,
-        audit_writer: PublicationActivationAuditWriter,
-        authority_fence: PublicationActivationAuthorityFence,
-        authority_proof: object,
-    ) -> CanonicalPublication:
-        """Revalidate and atomically switch the current pointer."""
+class PublicationActivationGroupRepository(Protocol):
+    """Infrastructure port for fixed quote, price, and valuation activation."""
 
     def activate_candidate_group(
         self,
@@ -314,6 +304,20 @@ class PublicationActivationRepository(Protocol):
         authority_proof: object,
     ) -> tuple[CanonicalPublication, ...]:
         """Validate and switch price, quote, and valuation as one fenced unit."""
+
+
+class PublicationActivationRepository(PublicationActivationGroupRepository, Protocol):
+    """Infrastructure port for both single-publication and group activation."""
+
+    def activate_candidate(
+        self,
+        request: PublicationActivationRequest,
+        *,
+        audit_writer: PublicationActivationAuditWriter,
+        authority_fence: PublicationActivationAuthorityFence,
+        authority_proof: object,
+    ) -> CanonicalPublication:
+        """Revalidate and atomically switch the current pointer."""
 
 
 class ActivateCanonicalPublicationUseCase:
@@ -347,7 +351,7 @@ class ActivateCanonicalPublicationUseCase:
 class ActivateCanonicalPublicationGroupUseCase:
     """Activate the three current market publications in one complete-fence UOW."""
 
-    def __init__(self, repository: PublicationActivationRepository) -> None:
+    def __init__(self, repository: PublicationActivationGroupRepository) -> None:
         """Bind the use case to a group-capable publication repository."""
 
         self._repository = repository
@@ -377,6 +381,7 @@ __all__ = [
     "PublicationActivationGroupAuditWriter",
     "PublicationActivationGroupCandidate",
     "PublicationActivationGroupRequest",
+    "PublicationActivationGroupRepository",
     "PublicationActivationAuthorityFence",
     "PublicationActivationAuthorityLease",
     "PublicationActivationError",

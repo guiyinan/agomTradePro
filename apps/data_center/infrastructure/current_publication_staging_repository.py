@@ -36,6 +36,7 @@ from .publication_models import (
 )
 
 _MEMBER_INSERT_BATCH_SIZE = 500
+_DEFAULT_ALIAS = "default"
 
 
 class DjangoCurrentPublicationStagingRepository(CurrentPublicationStagingRepositoryProtocol):
@@ -44,13 +45,30 @@ class DjangoCurrentPublicationStagingRepository(CurrentPublicationStagingReposit
     def __init__(
         self,
         *,
+        using: str = _DEFAULT_ALIAS,
         publication_repository: CanonicalPublicationRepositoryPort | None = None,
         manifest_repository: CandidateRawAuditManifestRepositoryProtocol | None = None,
     ) -> None:
         """Bind all stage writes to the same default database transaction."""
 
+        if using != _DEFAULT_ALIAS:
+            raise ValueError("current publication staging currently requires the default database")
+        self._using = using
         self._publications = publication_repository or CanonicalPublicationRepository()
-        self._manifests = manifest_repository or DjangoCandidateRawAuditManifestRepository()
+        self._manifests = manifest_repository or DjangoCandidateRawAuditManifestRepository(
+            using=using
+        )
+        if self._publications.unit_of_work_key != f"django:{using}":
+            raise ValueError("current publication staging repository database alias differs")
+        manifest_alias = getattr(self._manifests, "database_alias", using)
+        if manifest_alias != using:
+            raise ValueError("current publication staging manifest database alias differs")
+
+    @property
+    def database_alias(self) -> str:
+        """Return the fixed alias shared by all staging persistence ports."""
+
+        return self._using
 
     @transaction.atomic
     def stage(

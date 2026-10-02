@@ -40,6 +40,12 @@ class DjangoCandidateRawAuditManifestRepository(CandidateRawAuditManifestReposit
             raise ValueError("candidate RawAudit manifests currently require the default database")
         self._using = using
 
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared by manifest and RawAudit persistence."""
+
+        return self._using
+
     @transaction.atomic
     def stage(self, manifest: CandidateRawAuditManifest) -> CandidateRawAuditManifest:
         """Atomically persist one complete header and its sorted RawAudit children."""

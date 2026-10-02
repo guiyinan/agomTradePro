@@ -2516,6 +2516,7 @@
           "get_data_quality_audit_writer",
           "get_data_reliability_audit_writers",
           "get_data_repair_audit_writer",
+          "get_publication_activation_audit_writer",
           "get_system_audit_authority_renewal_guard_dependencies",
           "get_system_audit_event_repository",
           "get_system_audit_outbox_dispatcher",
@@ -4405,6 +4406,7 @@
         ],
         "application/market_publication_refresh.py": [
           "MarketPricePreparationResult",
+          "MarketPriceSuspensionEvidence",
           "MarketPublicationRefreshBlocked",
           "MarketPublicationRefreshPorts",
           "refresh_market_price_inputs",
@@ -4443,6 +4445,7 @@
           "ModelHistoryFetchAuditResult",
           "ModelHistoryPreparationAuditPort",
           "ModelHistoryPreparedFetch",
+          "ModelHistoryRawAuditBinding",
           "ModelHistoryReferenceSnapshot",
           "ModelHistorySingleFetchAuditPort"
         ],
@@ -4621,6 +4624,7 @@
           "PublicationActivationError",
           "PublicationActivationGroupAuditWriter",
           "PublicationActivationGroupCandidate",
+          "PublicationActivationGroupRepository",
           "PublicationActivationGroupRequest",
           "PublicationActivationRepository",
           "PublicationActivationRequest",
@@ -4964,7 +4968,7 @@
         "infrastructure": 162,
         "interface": 19,
         "management": 29,
-        "root": 16
+        "root": 17
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10606,6 +10610,11 @@
           "backup_database_task",
           "verify_backup_task"
         ],
+        "application/current_task_attempt_identity.py": [
+          "CurrentTaskAttemptIdentity",
+          "CurrentTaskAttemptIdentityUnavailable",
+          "get_current_task_attempt_identity"
+        ],
         "application/dtos.py": [
           "HealthCheckResponse",
           "ReadinessScheduleResponse",
@@ -10696,7 +10705,7 @@
         ]
       },
       "layers": {
-        "application": 14,
+        "application": 15,
         "domain": 3,
         "infrastructure": 7,
         "interface": 7,

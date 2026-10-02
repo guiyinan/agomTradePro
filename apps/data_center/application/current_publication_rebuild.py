@@ -552,6 +552,12 @@ class CoreCurrentPublicationRebuildUseCase:
         self._transaction = transaction
         self._authority_preflight = authority_preflight
 
+    @property
+    def rebuilders(self) -> tuple[CurrentPublicationRebuildUseCase, ...]:
+        """Return the immutable configured rebuilders for composition reuse."""
+
+        return self._rebuilders
+
     def preview(
         self,
         *,

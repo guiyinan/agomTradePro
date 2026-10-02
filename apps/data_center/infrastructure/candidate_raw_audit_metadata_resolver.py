@@ -20,6 +20,19 @@ from .provider_state_repositories import RawAuditRepository
 class DjangoCandidateRawAuditMetadataResolver:
     """Resolve a complete, exact RawAudit set with one bounded ORM query."""
 
+    def __init__(self, *, using: str = "default") -> None:
+        """Bind the resolver to the supported default database alias."""
+
+        if using != "default":
+            raise ValueError("candidate RawAudit metadata currently requires the default database")
+        self._using = using
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias used for RawAudit identity queries."""
+
+        return self._using
+
     def resolve(
         self,
         bindings: tuple[CurrentPublicationStageRawAuditBinding, ...],
@@ -40,7 +53,11 @@ class DjangoCandidateRawAuditMetadataResolver:
         )
         if len(requested_ids) != len(set(requested_ids)):
             raise CandidateRawAuditManifestError("candidate RawAudit identities must be unique")
-        rows = list(RawAuditModel._default_manager.filter(pk__in=requested_ids).order_by("pk"))
+        rows = list(
+            RawAuditModel._default_manager.using(self._using)
+            .filter(pk__in=requested_ids)
+            .order_by("pk")
+        )
         if len(rows) != len(requested_ids):
             raise CandidateRawAuditManifestError("one or more candidate RawAudit rows are missing")
         rows_by_id = {int(row.pk): row for row in rows}
