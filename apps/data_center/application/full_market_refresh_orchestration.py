@@ -671,6 +671,7 @@ def run_full_market_publication_refresh(
         normalized_verified = tuple(
             sorted(str(code or "").strip().upper() for code in preparation.suspended_codes)
         )
+        evidence_codes = tuple(item.asset_code for item in preparation.suspension_evidence)
         price_audit_references.update(
             {reference.raw_audit_id: reference for reference in preparation.raw_audit_references}
         )
@@ -678,6 +679,12 @@ def run_full_market_publication_refresh(
             any(not code for code in normalized_verified)
             or len(normalized_verified) != len(set(normalized_verified))
             or set(normalized_verified) != set(missing)
+            or evidence_codes != tuple(sorted(set(evidence_codes)))
+            or set(evidence_codes) != set(missing)
+            or any(
+                item.target_trade_date != missing_target_date
+                for item in preparation.suspension_evidence
+            )
         ):
             raise DataFetchError(
                 "Quote suspension evidence does not cover every provider-missing asset",
@@ -929,6 +936,29 @@ def run_full_market_publication_refresh(
         if not authority_latch.allows_next_write(as_of=datetime.now(UTC)):
             raise MarketPublicationRefreshBlocked(code=authority_latch.reason_code)
         publication_scope_codes = list(full_scope_codes)
+        price_preparation = dependencies.refresh_market_price_inputs(
+            dependencies.model_market_data_port(), publication_scope_codes, target_date
+        )
+        price_suspension_codes = tuple(price_preparation.suspended_codes)
+        price_suspension_evidence = tuple(price_preparation.suspension_evidence)
+        price_evidence_codes = tuple(item.asset_code for item in price_suspension_evidence)
+        if (
+            price_evidence_codes != price_suspension_codes
+            or price_evidence_codes != tuple(sorted(set(price_evidence_codes)))
+            or not set(price_evidence_codes).issubset(publication_scope_codes)
+            or any(item.target_trade_date != target_date for item in price_suspension_evidence)
+        ):
+            raise DataFetchError(
+                "Target-session price suspension evidence does not match its frozen scope",
+                code="CURRENT_PRICE_SUSPENSION_SCOPE_INVALID",
+                details={"target_trade_date": target_date.isoformat()},
+            )
+        price_audit_references.update(
+            {
+                reference.raw_audit_id: reference
+                for reference in price_preparation.raw_audit_references
+            }
+        )
         publication_scope_exclusions = {
             "equity.quote.snapshot": tuple(
                 CurrentPublicationScopeExclusion(
@@ -939,9 +969,19 @@ def run_full_market_publication_refresh(
                 )
                 for code in excluded_non_trading_codes
             ),
+            "equity.price.bar": tuple(
+                CurrentPublicationScopeExclusion(
+                    asset_code=evidence.asset_code,
+                    reason_code="price_full_day_suspension",
+                    target_trade_date=evidence.target_trade_date,
+                    evidence_source=evidence.evidence_source,
+                )
+                for evidence in price_suspension_evidence
+            ),
         }
         required_observation_dates = {
             "equity.quote.snapshot": target_date,
+            "equity.price.bar": target_date,
             "equity.valuation.fact": target_date,
         }
         preview = publications.preview(
@@ -951,6 +991,7 @@ def run_full_market_publication_refresh(
         )
         snapshots = {dataset.dataset_key: dataset for dataset in preview.datasets}
         quote_preview = snapshots.get("equity.quote.snapshot")
+        price_preview = snapshots.get("equity.price.bar")
         valuation_preview = snapshots.get("equity.valuation.fact")
         quote_preview_allowed = quote_preview is not None and (
             quote_preview.ready
@@ -971,13 +1012,47 @@ def run_full_market_publication_refresh(
                 and valuation_preview.covered_asset_count == len(succeeded_code_set)
             )
         )
-        current_snapshots = tuple(
-            item for item in (quote_preview, valuation_preview) if item is not None
+        price_preview_allowed = price_preview is not None and (
+            getattr(price_preview, "requested_asset_count", -1) == len(publication_scope_codes)
+            and (
+                (not price_suspension_codes and price_preview.ready)
+                or (
+                    bool(price_suspension_codes)
+                    and set(getattr(price_preview, "missing_asset_codes", ()))
+                    == set(price_suspension_codes)
+                    and not getattr(price_preview, "unexpected_asset_codes", ())
+                    and getattr(price_preview, "covered_asset_count", -1)
+                    == len(publication_scope_codes) - len(price_suspension_codes)
+                    and getattr(price_preview, "member_count", 0) > 0
+                )
+            )
+            and (
+                bool(price_suspension_codes)
+                or (
+                    getattr(price_preview, "covered_asset_count", -1)
+                    == len(publication_scope_codes)
+                    and not getattr(price_preview, "missing_asset_codes", ())
+                    and not getattr(price_preview, "unexpected_asset_codes", ())
+                    and getattr(price_preview, "member_count", 0) > 0
+                )
+            )
         )
+        current_snapshots = tuple(
+            item for item in (quote_preview, price_preview, valuation_preview) if item is not None
+        )
+        expected_snapshot_keys = {
+            "equity.quote.snapshot",
+            "equity.price.bar",
+            "equity.valuation.fact",
+        }
         if (
-            len(current_snapshots) != 2
+            len(preview.datasets) != len(expected_snapshot_keys)
+            or {item.dataset_key for item in preview.datasets} != expected_snapshot_keys
+            or len(current_snapshots) != len(expected_snapshot_keys)
             or quote_preview is None
+            or price_preview is None
             or not quote_preview_allowed
+            or not price_preview_allowed
             or not valuation_preview_allowed
             or any(
                 dataset.oldest_observed_at is None
@@ -988,22 +1063,18 @@ def run_full_market_publication_refresh(
             )
         ):
             raise ValueError("Market publication observations do not match the completed session")
-        price_preparation = dependencies.refresh_market_price_inputs(
-            dependencies.model_market_data_port(), publication_scope_codes, target_date
-        )
-        price_audit_references.update(
-            {
-                reference.raw_audit_id: reference
-                for reference in price_preparation.raw_audit_references
-            }
-        )
-        suspended_codes = tuple(
-            sorted(set(excluded_non_trading_codes).union(price_preparation.suspended_codes))
-        )
         price_evidence.update(
             price_scope_verified=len(publication_scope_codes),
             price_target_date=target_date.isoformat(),
-            suspended_codes=list(suspended_codes),
+            suspended_codes=list(price_suspension_codes),
+            price_suspension_evidence=[
+                {
+                    "asset_code": evidence.asset_code,
+                    "target_trade_date": evidence.target_trade_date.isoformat(),
+                    "evidence_source": evidence.evidence_source,
+                }
+                for evidence in price_suspension_evidence
+            ],
             raw_audit_references=[
                 {
                     "raw_audit_id": reference.raw_audit_id,

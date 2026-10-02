@@ -11,6 +11,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from apps.data_center.application.market_publication_refresh import (
     MarketPricePreparationResult,
+    MarketPriceSuspensionEvidence,
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
     refresh_market_price_inputs,
@@ -122,6 +123,45 @@ def test_price_preparation_fails_closed_on_duplicate_reference_source_type_confl
         refresh_market_price_inputs(ConflictingEvidence(), ["000001.SZ"], target)
 
     assert caught.value.code == "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+
+
+def test_price_suspension_evidence_requires_exact_sorted_unique_asset_scope():
+    target = date(2026, 9, 18)
+    evidence = MarketPriceSuspensionEvidence(
+        asset_code="000016.SZ",
+        target_trade_date=target,
+        evidence_source="akshare",
+    )
+
+    with pytest.raises(ValueError, match="suspension evidence must exactly match"):
+        MarketPricePreparationResult(
+            suspended_codes=("000016.SZ",),
+            raw_audit_references=(),
+        )
+
+    with pytest.raises(ValueError, match="suspension evidence must be sorted and unique"):
+        MarketPricePreparationResult(
+            suspended_codes=("000016.SZ",),
+            raw_audit_references=(),
+            suspension_evidence=(evidence, evidence),
+        )
+
+
+def test_price_stage_rejects_target_suspension_without_canonical_source():
+    target = date(2026, 9, 18)
+
+    class Port:
+        def stock_history(self, asset_code, _start_date, _end_date):
+            raise DataFetchError(
+                "suspended",
+                code="MODEL_MARKET_SUSPENDED",
+                details={"asset_code": asset_code, "suspended_through": target.isoformat()},
+            )
+
+    with pytest.raises(DataFetchError) as caught:
+        refresh_market_price_inputs(Port(), ["000016.SZ"], target)
+
+    assert caught.value.code == "MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID"
 
 
 def _prefetched_quote_sync(
@@ -1129,10 +1169,19 @@ def test_task_reports_normalized_publication_authority_block(monkeypatch) -> Non
         SimpleNamespace(
             dataset_key=key,
             ready=True,
+            requested_asset_count=len(active_codes),
+            covered_asset_count=len(active_codes),
+            member_count=len(active_codes),
+            missing_asset_codes=(),
+            unexpected_asset_codes=(),
             oldest_observed_at=observed,
             newest_observed_at=observed,
         )
-        for key in ("equity.quote.snapshot", "equity.valuation.fact")
+        for key in (
+            "equity.quote.snapshot",
+            "equity.price.bar",
+            "equity.valuation.fact",
+        )
     ]
     monkeypatch.setattr(
         tasks,
@@ -1510,6 +1559,17 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
         oldest_observed_at=observed,
         newest_observed_at=observed,
     )
+    price_preview = SimpleNamespace(
+        dataset_key="equity.price.bar",
+        ready=True,
+        requested_asset_count=len(active_codes),
+        covered_asset_count=len(active_codes),
+        member_count=len(active_codes),
+        missing_asset_codes=(),
+        unexpected_asset_codes=(),
+        oldest_observed_at=observed,
+        newest_observed_at=observed,
+    )
     valuation_preview = SimpleNamespace(
         dataset_key="equity.valuation.fact",
         ready=False,
@@ -1525,7 +1585,7 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
 
     def preview_publication(**kwargs: object) -> SimpleNamespace:
         preview_calls.append(dict(kwargs))
-        return SimpleNamespace(datasets=[quote_preview, valuation_preview])
+        return SimpleNamespace(datasets=[quote_preview, price_preview, valuation_preview])
 
     def execute_publication(**kwargs: object) -> SimpleNamespace:
         publication_calls.append(dict(kwargs))
@@ -1594,6 +1654,7 @@ def test_task_publishes_policy_allowed_partial_valuation_and_reports_asset_count
     assert result["publication_run_id"] == result["run_id"]
     required_observation_dates = {
         "equity.quote.snapshot": date(2026, 9, 18),
+        "equity.price.bar": date(2026, 9, 18),
         "equity.valuation.fact": date(2026, 9, 18),
     }
     assert preview_calls[0]["required_observation_dates"] == required_observation_dates
@@ -1788,6 +1849,17 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
             oldest_observed_at=observed,
             newest_observed_at=observed,
         ),
+        SimpleNamespace(
+            dataset_key="equity.price.bar",
+            ready=False,
+            requested_asset_count=len(active_codes),
+            covered_asset_count=1,
+            member_count=1,
+            missing_asset_codes=(active_codes[0],),
+            unexpected_asset_codes=(),
+            oldest_observed_at=observed,
+            newest_observed_at=observed,
+        ),
     ]
     publication_calls: list[dict[str, object]] = []
 
@@ -1836,7 +1908,15 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
         market_publication_refresh,
         "refresh_market_price_inputs",
         lambda _port, codes, _target: MarketPricePreparationResult(
-            suspended_codes=(excluded,), raw_audit_references=()
+            suspended_codes=(excluded if tuple(codes) == (excluded,) else active_codes[0],),
+            raw_audit_references=(),
+            suspension_evidence=(
+                MarketPriceSuspensionEvidence(
+                    asset_code=excluded if tuple(codes) == (excluded,) else active_codes[0],
+                    target_trade_date=target,
+                    evidence_source="akshare",
+                ),
+            ),
         ),
     )
 
@@ -1860,6 +1940,12 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     exclusions = publication_calls[0]["scope_exclusions_by_dataset"]["equity.quote.snapshot"]
     assert exclusions[0].asset_code == excluded
     assert exclusions[0].reason_code == "quote_full_day_suspension"
+    price_exclusions = publication_calls[0]["scope_exclusions_by_dataset"]["equity.price.bar"]
+    assert price_exclusions[0].asset_code == active_codes[0]
+    assert price_exclusions[0].reason_code == "price_full_day_suspension"
+    assert price_exclusions[0].target_trade_date == target
+    assert price_exclusions[0].evidence_source == "akshare"
+    assert excluded not in {item.asset_code for item in price_exclusions}
     assert preview_calls[0]["asset_codes"] == active_codes
     assert (
         preview_calls[0]["scope_exclusions_by_dataset"]
@@ -1867,6 +1953,7 @@ def test_task_verifies_dynamic_quote_gap_and_publishes_full_scope_with_exclusion
     )
     required_observation_dates = {
         "equity.quote.snapshot": target,
+        "equity.price.bar": target,
         "equity.valuation.fact": target,
     }
     assert preview_calls[0]["required_observation_dates"] == required_observation_dates
@@ -2083,7 +2170,7 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
     from datetime import UTC, datetime
     from types import SimpleNamespace
 
-    from apps.data_center.application import tasks
+    from apps.data_center.application import market_publication_refresh, public, tasks
 
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
     monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
@@ -2103,15 +2190,33 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
     monkeypatch.setattr(
         tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: valuation_sync
     )
+    current_observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
     preview = SimpleNamespace(
-        ready=True,
+        ready=False,
         datasets=[
             SimpleNamespace(
                 dataset_key="equity.quote.snapshot",
                 ready=True,
                 oldest_observed_at=datetime(2026, 9, 17, 7, tzinfo=UTC),
                 newest_observed_at=datetime(2026, 9, 17, 7, tzinfo=UTC),
-            )
+            ),
+            SimpleNamespace(
+                dataset_key="equity.price.bar",
+                ready=True,
+                requested_asset_count=1,
+                covered_asset_count=1,
+                member_count=1,
+                missing_asset_codes=(),
+                unexpected_asset_codes=(),
+                oldest_observed_at=current_observed,
+                newest_observed_at=current_observed,
+            ),
+            SimpleNamespace(
+                dataset_key="equity.valuation.fact",
+                ready=True,
+                oldest_observed_at=current_observed,
+                newest_observed_at=current_observed,
+            ),
         ],
     )
     composition_calls = []
@@ -2123,6 +2228,12 @@ def test_task_does_not_publish_stale_quotes_even_when_all_rows_were_stored(monke
         )
 
     monkeypatch.setattr(tasks, "make_core_current_publication_rebuild_use_case", build_publications)
+    monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
+    monkeypatch.setattr(
+        market_publication_refresh,
+        "refresh_market_price_inputs",
+        lambda *_: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
+    )
     result = tasks.refresh_full_market_publications_task.run()
     assert result["outcome"] == "partial"
     assert result["published_members"] == 0
@@ -2293,12 +2404,22 @@ def test_price_stage_expands_only_missing_assets_for_native_suspension_evidence(
             raise DataFetchError(
                 "verified suspension",
                 code="MODEL_MARKET_SUSPENDED",
-                details={"asset_code": missing_code, "suspended_through": target.isoformat()},
+                details={
+                    "asset_code": missing_code,
+                    "suspended_through": target.isoformat(),
+                    "source": "akshare",
+                },
             )
 
-    assert refresh_market_price_inputs(
-        Port(), ["000001.SZ", missing_code, "000002.SZ"], target
-    ).suspended_codes == (missing_code,)
+    result = refresh_market_price_inputs(Port(), ["000001.SZ", missing_code, "000002.SZ"], target)
+    assert result.suspended_codes == (missing_code,)
+    assert result.suspension_evidence == (
+        MarketPriceSuspensionEvidence(
+            asset_code=missing_code,
+            target_trade_date=target,
+            evidence_source="akshare",
+        ),
+    )
     assert calls[0] == ("prepare", ("000001.SZ", missing_code, "000002.SZ"), target, target)
     assert [call for call in calls if call[0] == "prepare"] == [
         ("prepare", ("000001.SZ", missing_code, "000002.SZ"), target, target),
@@ -2355,7 +2476,11 @@ def test_price_stage_requires_target_bound_suspension_evidence(evidence_date):
         raise DataFetchError(
             "suspended",
             code="MODEL_MARKET_SUSPENDED",
-            details={"asset_code": code, "suspended_through": evidence_date},
+            details={
+                "asset_code": code,
+                "suspended_through": evidence_date,
+                "source": "tushare",
+            },
         )
 
     class Port(_PriceAuditEvidence):
@@ -2367,15 +2492,15 @@ def test_price_stage_requires_target_bound_suspension_evidence(evidence_date):
 
     port = Port()
     if evidence_date == "2026-09-18":
-        assert refresh_market_price_inputs(
-            port, ["000001.SZ", "000016.SZ"], date(2026, 9, 18)
-        ).suspended_codes == ("000016.SZ",)
+        result = refresh_market_price_inputs(port, ["000001.SZ", "000016.SZ"], date(2026, 9, 18))
+        assert result.suspended_codes == ("000016.SZ",)
+        assert result.suspension_evidence[0].evidence_source == "tushare"
     else:
         with pytest.raises(DataFetchError):
             refresh_market_price_inputs(port, ["000016.SZ"], date(2026, 9, 18))
 
 
-@pytest.mark.parametrize("missing_reference_stage", [None, "quote", "valuation"])
+@pytest.mark.parametrize("missing_reference_stage", [None, "quote", "valuation", "stale_price"])
 def test_task_repairs_missing_price_scope_before_final_publication(
     monkeypatch, missing_reference_stage
 ):
@@ -2429,19 +2554,46 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         ),
     )
     observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
+    price_observed = (
+        datetime(2026, 9, 17, 7, tzinfo=UTC)
+        if missing_reference_stage == "stale_price"
+        else observed
+    )
     datasets = [
         SimpleNamespace(
-            dataset_key=key, ready=True, oldest_observed_at=observed, newest_observed_at=observed
+            dataset_key=key,
+            ready=True,
+            requested_asset_count=1,
+            covered_asset_count=1,
+            member_count=1,
+            missing_asset_codes=(),
+            unexpected_asset_codes=(),
+            oldest_observed_at=observed,
+            newest_observed_at=observed,
         )
         for key in ("equity.quote.snapshot", "equity.valuation.fact")
     ]
-    datasets.append(SimpleNamespace(dataset_key="equity.price.bar", ready=False))
+    datasets.append(
+        SimpleNamespace(
+            dataset_key="equity.price.bar",
+            ready=True,
+            requested_asset_count=1,
+            covered_asset_count=1,
+            member_count=1,
+            missing_asset_codes=(),
+            unexpected_asset_codes=(),
+            oldest_observed_at=price_observed,
+            newest_observed_at=price_observed,
+        )
+    )
     publication_id = "bf8c00f5-59df-42c0-a3cb-44d2e306d668"
     monkeypatch.setattr(
         tasks,
         "make_core_current_publication_rebuild_use_case",
         lambda **_: SimpleNamespace(
-            preview=lambda **_: SimpleNamespace(ready=False, datasets=datasets),
+            preview=lambda **_: (
+                events.append("preview") or SimpleNamespace(ready=False, datasets=datasets)
+            ),
             execute=lambda **kwargs: (
                 events.append("publish")
                 or SimpleNamespace(
@@ -2475,6 +2627,11 @@ def test_task_repairs_missing_price_scope_before_final_publication(
     )
     result = tasks.refresh_full_market_publications_task.run()
     if missing_reference_stage is not None:
+        if missing_reference_stage == "stale_price":
+            assert events == ["refresh_prices", "preview"]
+            assert result["publication_updated"] is False
+            assert result["published_members"] == 0
+            return
         assert events == []
         assert result["outcome"] == "partial"
         assert result["publication_updated"] is False
@@ -2522,7 +2679,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(
             )
         return
 
-    assert events == ["refresh_prices", "publish"]
+    assert events == ["refresh_prices", "preview", "publish"]
     assert result["outcome"] == "success"
     assert result["price_scope_verified"] == 1
     assert result["publication_ids"] == [publication_id]
@@ -2568,7 +2725,7 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
 
     from types import SimpleNamespace
 
-    from apps.data_center.application import tasks
+    from apps.data_center.application import market_publication_refresh, public, tasks
 
     provider_ids = {"tushare": 3, "akshare": 7}
     monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda name: provider_ids[name])
@@ -2611,6 +2768,12 @@ def test_task_reports_business_outcome_when_publication_hits_soft_time_limit(mon
             preview=lambda **_: (_ for _ in ()).throw(SoftTimeLimitExceeded()),
             execute=lambda **_: pytest.fail("timed-out preview reached publication"),
         ),
+    )
+    monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
+    monkeypatch.setattr(
+        market_publication_refresh,
+        "refresh_market_price_inputs",
+        lambda *_: MarketPricePreparationResult(suspended_codes=(), raw_audit_references=()),
     )
 
     result = tasks.refresh_full_market_publications_task.run(batch_size=2)

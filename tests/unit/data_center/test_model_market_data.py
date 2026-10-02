@@ -47,9 +47,21 @@ class Source:
         return ("600000.SH",)
 
 
-def service(primary, backup, *, reference=(), enabled=True, stored=None):
+def service(
+    primary,
+    backup,
+    *,
+    reference=(),
+    enabled=True,
+    stored=None,
+    primary_source_type="tushare",
+    backup_source_type="akshare",
+):
     return ModelMarketDataService(
-        (ModelMarketRoute("primary", primary), ModelMarketRoute("backup", backup)),
+        (
+            ModelMarketRoute("primary display label", primary, source_type=primary_source_type),
+            ModelMarketRoute("backup display label", backup, source_type=backup_source_type),
+        ),
         enable_failover=enabled,
         tolerance=0.01,
         reference_history=lambda *_: reference,
@@ -115,7 +127,7 @@ def test_repeated_stock_history_reads_never_write_facts_or_create_fetch_audits()
     stored = []
     audit = AuditWriter()
     port = ModelMarketDataService(
-        (ModelMarketRoute("primary", source),),
+        (ModelMarketRoute("primary", source, source_type="tushare"),),
         enable_failover=True,
         tolerance=0.01,
         reference_history=lambda *_: (),
@@ -185,6 +197,7 @@ def test_verified_full_day_suspension_remains_read_only_without_advancing_observ
     assert caught.value.code == "MODEL_MARKET_SUSPENDED"
     assert caught.value.details["last_observed_date"] == D1.isoformat()
     assert caught.value.details["suspended_through"] == D2.isoformat()
+    assert caught.value.details["source"] == "akshare"
     assert stored == []
 
 
@@ -201,6 +214,7 @@ def test_empty_target_day_with_complete_suspension_evidence_is_suspended():
     assert caught.value.code == "MODEL_MARKET_SUSPENDED"
     assert caught.value.details["asset_code"] == "600000.SH"
     assert caught.value.details["suspended_through"] == D2.isoformat()
+    assert caught.value.details["source"] == "tushare"
 
 
 def test_empty_multi_session_history_requires_suspension_evidence_for_every_open_day():
@@ -250,7 +264,7 @@ def test_empty_target_day_suspension_lookup_failure_remains_fail_closed():
             )
 
     port = ModelMarketDataService(
-        (ModelMarketRoute("primary", FailedSuspensionLookup()),),
+        (ModelMarketRoute("primary", FailedSuspensionLookup(), source_type="tushare"),),
         enable_failover=True,
         tolerance=0.01,
         reference_history=lambda *_: (),
@@ -546,7 +560,14 @@ def test_akshare_rejects_nonmultiplicative_adjusted_ohlc():
 
 def test_circuit_filtered_backup_still_requires_consistency_evidence():
     port = ModelMarketDataService(
-        (ModelMarketRoute("backup", Source((bar(), bar(D2))), requires_reference=True),),
+        (
+            ModelMarketRoute(
+                "backup",
+                Source((bar(), bar(D2))),
+                source_type="akshare",
+                requires_reference=True,
+            ),
+        ),
         enable_failover=True,
         tolerance=0.01,
         reference_history=lambda *_: (),

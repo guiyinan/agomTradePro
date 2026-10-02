@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import partial
 from typing import TypedDict
 
@@ -42,11 +42,41 @@ class _PhaseResult(TypedDict):
 
 
 @dataclass(frozen=True)
+class MarketPriceSuspensionEvidence:
+    """Bind one asset's price omission to target-session provider evidence."""
+
+    asset_code: str
+    target_trade_date: date
+    evidence_source: str
+
+    def __post_init__(self) -> None:
+        """Reject incomplete or non-canonical target-date suspension evidence."""
+
+        if (
+            not isinstance(self.asset_code, str)
+            or not self.asset_code
+            or self.asset_code != self.asset_code.strip().upper()
+        ):
+            raise ValueError("price suspension asset code must be canonical")
+        if not isinstance(self.target_trade_date, date) or isinstance(
+            self.target_trade_date, datetime
+        ):
+            raise ValueError("price suspension target date must be a date")
+        if (
+            not isinstance(self.evidence_source, str)
+            or not self.evidence_source
+            or self.evidence_source != self.evidence_source.strip()
+        ):
+            raise ValueError("price suspension evidence source must be canonical")
+
+
+@dataclass(frozen=True)
 class MarketPricePreparationResult:
     """Verified target prices and the exact RawAudit references that supplied them."""
 
     suspended_codes: tuple[str, ...]
     raw_audit_references: tuple[RawAuditReference, ...]
+    suspension_evidence: tuple[MarketPriceSuspensionEvidence, ...] = ()
     raw_audit_bindings: tuple[ModelHistoryRawAuditBinding, ...] = ()
 
     def __post_init__(self) -> None:
@@ -54,6 +84,13 @@ class MarketPricePreparationResult:
 
         if tuple(sorted(set(self.suspended_codes))) != self.suspended_codes:
             raise ValueError("suspended codes must be sorted and unique")
+        evidence_codes = tuple(item.asset_code for item in self.suspension_evidence)
+        if tuple(sorted(set(evidence_codes))) != evidence_codes:
+            raise ValueError("suspension evidence must be sorted and unique")
+        if evidence_codes != self.suspended_codes:
+            raise ValueError("suspension evidence must exactly match suspended codes")
+        if len({item.target_trade_date for item in self.suspension_evidence}) > 1:
+            raise ValueError("price suspension evidence must bind one target date")
         reference_ids = tuple(reference.raw_audit_id for reference in self.raw_audit_references)
         if tuple(sorted(set(reference_ids))) != reference_ids:
             raise ValueError("price audit references must be sorted and unique")
@@ -95,6 +132,7 @@ def refresh_market_price_inputs(
     if isinstance(port, ModelHistoryPreparationPort):
         port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
+    suspension_evidence: dict[str, MarketPriceSuspensionEvidence] = {}
     bindings: dict[str, ModelHistoryRawAuditBinding] = {}
 
     def collect_bindings(new_bindings: tuple[ModelHistoryRawAuditBinding, ...]) -> None:
@@ -138,11 +176,15 @@ def refresh_market_price_inputs(
                 )
             collect_references(rows)
         except DataFetchError as exc:
-            if (
-                exc.code != "MODEL_MARKET_SUSPENDED"
-                or exc.details.get("asset_code") != code
-                or exc.details.get("suspended_through") != target_date.isoformat()
-            ):
+            suspension_error: DataFetchError | None = None
+            if exc.code == "MODEL_MARKET_SUSPENDED":
+                if (
+                    exc.details.get("asset_code") != code
+                    or exc.details.get("suspended_through") != target_date.isoformat()
+                ):
+                    raise
+                suspension_error = exc
+            else:
                 if exc.code not in {"MODEL_MARKET_UNAVAILABLE", "MODEL_MARKET_STALE"}:
                     raise
                 try:
@@ -162,7 +204,30 @@ def refresh_market_price_inputs(
                         or history_error.details.get("suspended_through") != target_date.isoformat()
                     ):
                         raise
+                    suspension_error = history_error
+            if suspension_error is None:
+                raise DataFetchError(
+                    "Target-session suspension evidence is unavailable",
+                    code="MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID",
+                    details={"asset_code": code, "target_trade_date": target_date.isoformat()},
+                ) from exc
+            evidence_source = suspension_error.details.get("source")
+            if (
+                not isinstance(evidence_source, str)
+                or not evidence_source
+                or evidence_source != evidence_source.strip()
+            ):
+                raise DataFetchError(
+                    "Target-session suspension evidence lacks a canonical provider source",
+                    code="MODEL_MARKET_SUSPENSION_EVIDENCE_INVALID",
+                    details={"asset_code": code, "target_trade_date": target_date.isoformat()},
+                ) from exc
             suspended.append(code)
+            suspension_evidence[code] = MarketPriceSuspensionEvidence(
+                asset_code=code,
+                target_trade_date=target_date,
+                evidence_source=evidence_source,
+            )
     if audit_evidence is not None:
         collect_bindings(audit_evidence.take_model_history_audit_bindings())
     ordered_bindings = tuple(bindings[key] for key in sorted(bindings))
@@ -170,6 +235,9 @@ def refresh_market_price_inputs(
     return MarketPricePreparationResult(
         suspended_codes=tuple(sorted(suspended)),
         raw_audit_references=ordered_references,
+        suspension_evidence=tuple(
+            suspension_evidence[code] for code in sorted(suspension_evidence)
+        ),
         raw_audit_bindings=ordered_bindings,
     )
 

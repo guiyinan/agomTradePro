@@ -205,7 +205,14 @@ def test_explicit_batch_preparation_reuses_one_audit_and_read_cache_has_no_side_
         provider_id=17,
         history_fetch_audit=audit,
     )
-    port = _service((ModelMarketRoute("configured_vendor", source, provider_id=17),), audit)
+    port = _service(
+        (
+            ModelMarketRoute(
+                "configured_vendor", source, source_type="configured_vendor", provider_id=17
+            ),
+        ),
+        audit,
+    )
 
     port.prepare_stock_history(CODES, DAY, DAY)
     first = port.stock_history(CODES[0], DAY, DAY)
@@ -242,7 +249,11 @@ def test_partial_batch_audits_only_returned_members_and_caches_the_exact_empty_m
         history_fetch_audit=audit,
     )
     port = _service(
-        (ModelMarketRoute("configured_vendor", source, provider_id=17),),
+        (
+            ModelMarketRoute(
+                "configured_vendor", source, source_type="configured_vendor", provider_id=17
+            ),
+        ),
         audit,
         per_asset_limit=2,
     )
@@ -356,8 +367,10 @@ def test_failed_primary_batch_fails_over_with_separate_audits_and_success_refs_o
     }
     port = _service(
         (
-            ModelMarketRoute("primary", primary, provider_id=17),
-            ModelMarketRoute("backup", Backup(), requires_reference=True, provider_id=29),
+            ModelMarketRoute("primary", primary, source_type="tushare", provider_id=17),
+            ModelMarketRoute(
+                "backup", Backup(), source_type="akshare", requires_reference=True, provider_id=29
+            ),
         ),
         audit,
         references=previous_rows,
@@ -494,7 +507,9 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
         provider_id=17,
         history_fetch_audit=audit,
     )
-    service = _service((ModelMarketRoute("tushare", source, provider_id=17),), audit)
+    service = _service(
+        (ModelMarketRoute("tushare", source, source_type="tushare", provider_id=17),), audit
+    )
     expected_reference = RawAuditReference(
         raw_audit_id="raw-1",
         version="raw-audit-v1",
@@ -558,7 +573,10 @@ def test_unadvertised_cache_route_fails_closed_without_fabricating_lineage():
             return ()
 
     audit = AuditRecorder()
-    port = _service((ModelMarketRoute("cache", UnboundCache(), provider_id=17),), audit)
+    port = _service(
+        (ModelMarketRoute("cache", UnboundCache(), source_type="tushare", provider_id=17),),
+        audit,
+    )
 
     with pytest.raises(DataFetchError) as caught:
         port.prepare_stock_history((CODES[0],), DAY, DAY)
@@ -586,7 +604,15 @@ def test_prepared_data_still_runs_cross_source_consistency_and_remains_read_only
         history_fetch_audit=audit,
     )
     port = _service(
-        (ModelMarketRoute("vendor", source, requires_reference=True, provider_id=17),),
+        (
+            ModelMarketRoute(
+                "vendor",
+                source,
+                source_type="configured_vendor",
+                requires_reference=True,
+                provider_id=17,
+            ),
+        ),
         audit,
     )
     port.prepare_stock_history(CODES, DAY, DAY)
@@ -702,8 +728,8 @@ def test_default_large_scope_with_akshare_primary_fails_closed_before_any_provid
 
     service = ModelMarketDataService(
         (
-            ModelMarketRoute("akshare-primary", akshare, provider_id=17),
-            ModelMarketRoute("tushare-secondary", tushare, provider_id=29),
+            ModelMarketRoute("akshare-primary", akshare, source_type="akshare", provider_id=17),
+            ModelMarketRoute("tushare-secondary", tushare, source_type="tushare", provider_id=29),
         ),
         enable_failover=True,
         tolerance=0.01,
@@ -767,7 +793,7 @@ def test_explicit_small_scope_uses_the_route_audited_per_asset_fetch_contract():
     audit = AuditRecorder()
     provider = PerAssetOnly()
     service = _service(
-        (ModelMarketRoute("akshare", provider, provider_id=17),),
+        (ModelMarketRoute("akshare", provider, source_type="akshare", provider_id=17),),
         audit,
         per_asset_limit=2,
     )
@@ -836,7 +862,9 @@ def test_empty_provider_batch_is_audited_once_and_suspension_error_is_reused():
         provider_id=17,
         history_fetch_audit=audit,
     )
-    service = _service((ModelMarketRoute("tushare", source, provider_id=17),), audit)
+    service = _service(
+        (ModelMarketRoute("tushare", source, source_type="tushare", provider_id=17),), audit
+    )
 
     service.prepare_stock_history((CODES[0],), DAY, DAY)
     with pytest.raises(DataFetchError) as first:
@@ -871,7 +899,9 @@ def test_generic_stock_history_read_never_writes_audit_even_when_provider_is_con
         provider_id=17,
         history_fetch_audit=audit,
     )
-    service = _service((ModelMarketRoute("tushare", source, provider_id=17),), audit)
+    service = _service(
+        (ModelMarketRoute("tushare", source, source_type="tushare", provider_id=17),), audit
+    )
 
     assert service.stock_history(CODES[0], DAY, DAY)
     assert service.stock_history(CODES[0], DAY, DAY)

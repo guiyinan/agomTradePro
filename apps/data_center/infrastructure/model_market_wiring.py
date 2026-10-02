@@ -71,6 +71,7 @@ def build_model_market_service(
             provider.model_market_source(
                 tolerance=float(tolerance), history_fetch_audit=history_fetch_audit
             ),
+            source_type=provider.provider_source(),
             requires_reference=(
                 index > 0
                 or (default_source != "failover" and provider.provider_source() != default_source)

@@ -32,8 +32,19 @@ class ModelMarketRoute:
 
     name: str
     port: ModelMarketDataPort
+    source_type: str
     requires_reference: bool = False
     provider_id: int | None = None
+
+    def __post_init__(self) -> None:
+        """Require the provider configuration's canonical source identity."""
+
+        if (
+            not isinstance(self.source_type, str)
+            or not self.source_type
+            or self.source_type != self.source_type.strip()
+        ):
+            raise ValueError("model-market route source_type must be canonical")
 
 
 class ModelMarketDataServiceState(ABC):

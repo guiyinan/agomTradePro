@@ -167,7 +167,7 @@ def test_5001_asset_preparation_and_prepared_cache_reads_use_bounded_sql_queries
         )
 
     service = ModelMarketDataService(
-        (ModelMarketRoute("tushare", source, provider_id=17),),
+        (ModelMarketRoute("tushare", source, source_type="tushare", provider_id=17),),
         enable_failover=True,
         tolerance=0.01,
         reference_history=lambda *_args: (),

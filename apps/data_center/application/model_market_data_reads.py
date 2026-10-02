@@ -224,7 +224,7 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                                     suspended = {
                                         "asset_code": asset_code,
                                         "suspended_through": max(calendar).isoformat(),
-                                        "source": route.name,
+                                        "source": route.source_type,
                                     }
                                     full_interval_suspension = True
                     continue
@@ -260,7 +260,7 @@ class ModelMarketDataReads(ModelMarketDataServiceState):
                                 "asset_code": asset_code,
                                 "last_observed_date": latest.isoformat(),
                                 "suspended_through": max(calendar).isoformat(),
-                                "source": rows[0].source,
+                                "source": route.source_type,
                             }
                             suspension_proven = True
                     if not is_index and audit_fetch:
