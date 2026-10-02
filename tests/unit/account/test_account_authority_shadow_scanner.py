@@ -69,6 +69,14 @@ class _Cursor:
         statement = self.connection.cursor_value.statements[-1].lower()
         if "clock_timestamp()" in statement:
             return (self.connection.database_clock_timestamp,)
+        if "current_setting" in statement and "pg_current_xact_id" in statement:
+            return (
+                self.connection.isolation,
+                self.connection.read_only,
+                self.connection.transaction_id,
+                self.connection.backend_pid,
+                self.connection.generation,
+            )
         if "current_setting" in statement:
             return (self.connection.isolation, self.connection.read_only)
         if "pg_current_xact_id" in statement:
@@ -648,7 +656,7 @@ def test_generation_fence_context_marks_rollback_when_exit_recheck_fails(
         lambda rollback, *, using: setattr(connection, "rollback_only", rollback),
     )
 
-    with pytest.raises(AccountAuthorityGenerationUnavailable, match="mode is invalid"):
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="fence state is invalid"):
         with caller_owned_account_authority_generation_fence(proof, using="default"):
             connection.read_only = "on"
 

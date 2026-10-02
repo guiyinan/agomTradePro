@@ -3746,22 +3746,22 @@
       "text": "\"a matched, current complete graph scan is required\""
     },
     {
-      "line": 768,
+      "line": 380,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph read requires an active generation fence context\""
     },
     {
-      "line": 810,
+      "line": 422,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"current graph generation differs from the active fence\""
     },
     {
-      "line": 1026,
+      "line": 638,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Read the current transaction-visible generation without taking a lock.\"\"\""
     },
     {
-      "line": 1119,
+      "line": 731,
       "path": "apps/account/infrastructure/account_authority_generation.py",
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },

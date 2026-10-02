@@ -30,6 +30,7 @@ from apps.account.application.owner_tenant_authority_v3 import (
 )
 from apps.account.infrastructure.account_authority_final_revalidator_v3 import (
     AccountAuthorityCompleteGraphFinalRevalidationProofV3,
+    AccountAuthorityFinalRevalidationUnavailable,
     AccountAuthorityFinalRevalidatorV3,
 )
 from apps.account.infrastructure.account_authority_generation_models import (
@@ -755,13 +756,14 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
             cursor.execute("SET lock_timeout = '150ms'")
         blocked_fence, blocked_proof = _production_activation_fence()
         blocked_started = monotonic()
-        with pytest.raises(OperationalError):
+        with pytest.raises(AccountAuthorityFinalRevalidationUnavailable) as blocked_error:
             ActivateCanonicalPublicationGroupUseCase(repository).execute(
                 request,
                 audit_writer=_PostgresActivationAuditWriter(),
                 authority_fence=blocked_fence,
                 authority_proof=blocked_proof,
             )
+        assert isinstance(blocked_error.value.__cause__, OperationalError)
         lock_wait_seconds = monotonic() - blocked_started
         assert lock_wait_seconds <= _ACTIVATION_SOAK_MAX_LOCK_WAIT_SECONDS, (
             f"group pointer lock wait {lock_wait_seconds:.6f}s exceeds "
