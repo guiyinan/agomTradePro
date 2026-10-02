@@ -72,12 +72,15 @@ class MarketPriceSuspensionEvidence:
 
 @dataclass(frozen=True)
 class MarketPricePreparationResult:
-    """Verified target prices and the exact RawAudit references that supplied them."""
+    """Verified target prices and complete request plus selected-member audit evidence."""
 
     suspended_codes: tuple[str, ...]
     raw_audit_references: tuple[RawAuditReference, ...]
     suspension_evidence: tuple[MarketPriceSuspensionEvidence, ...] = ()
+    # Complete request-level diagnostics, including successful empty batches.
     raw_audit_bindings: tuple[ModelHistoryRawAuditBinding, ...] = ()
+    # Exact source bindings returned for rows that satisfied the target-session check.
+    member_owning_raw_audit_bindings: tuple[ModelHistoryRawAuditBinding, ...] = ()
 
     def __post_init__(self) -> None:
         """Keep the returned suspension scope and evidence references deterministic."""
@@ -120,6 +123,51 @@ class MarketPricePreparationResult:
         ):
             raise ValueError("price audit references must match their source-bound bindings")
 
+        member_bindings_by_id: dict[str, ModelHistoryRawAuditBinding] = {}
+        for binding in self.member_owning_raw_audit_bindings:
+            reference_id = binding.reference.raw_audit_id
+            prior = member_bindings_by_id.get(reference_id)
+            if prior is not None and prior != binding:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if prior.source_type != binding.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Repeated member-owning price RawAudit has conflicting lineage",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+            member_bindings_by_id[reference_id] = binding
+        member_binding_ids = tuple(
+            binding.reference.raw_audit_id for binding in self.member_owning_raw_audit_bindings
+        )
+        if tuple(sorted(set(member_binding_ids))) != member_binding_ids:
+            raise ValueError("member-owning price audit bindings must be sorted and unique")
+        missing_member_ids: list[str] = []
+        for reference_id, member_binding in member_bindings_by_id.items():
+            diagnostic_binding = bindings_by_id.get(reference_id)
+            if diagnostic_binding is None:
+                missing_member_ids.append(reference_id)
+                continue
+            if diagnostic_binding != member_binding:
+                code = (
+                    "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+                    if diagnostic_binding.source_type != member_binding.source_type
+                    else "MODEL_MARKET_AUDIT_REFERENCE_CONFLICT"
+                )
+                raise DataFetchError(
+                    "Member-owning price RawAudit conflicts with request diagnostics",
+                    code=code,
+                    details={"raw_audit_id": reference_id},
+                )
+        if missing_member_ids:
+            raise DataFetchError(
+                "Member-owning price RawAudit is absent from request diagnostics",
+                code="MODEL_MARKET_AUDIT_EVIDENCE_MISSING",
+                details={"raw_audit_ids": sorted(missing_member_ids)},
+            )
+
 
 def refresh_market_price_inputs(
     port: ModelMarketDataPort, asset_codes: list[str], target_date: date
@@ -133,14 +181,18 @@ def refresh_market_price_inputs(
         port.prepare_stock_history(tuple(asset_codes), target_date, target_date)
     suspended: list[str] = []
     suspension_evidence: dict[str, MarketPriceSuspensionEvidence] = {}
-    bindings: dict[str, ModelHistoryRawAuditBinding] = {}
+    member_bindings: dict[str, ModelHistoryRawAuditBinding] = {}
+    diagnostic_bindings: dict[str, ModelHistoryRawAuditBinding] = {}
 
-    def collect_bindings(new_bindings: tuple[ModelHistoryRawAuditBinding, ...]) -> None:
+    def collect_bindings(
+        destination: dict[str, ModelHistoryRawAuditBinding],
+        new_bindings: tuple[ModelHistoryRawAuditBinding, ...],
+    ) -> None:
         """Deduplicate exact references while rejecting conflicting source metadata."""
 
         for binding in new_bindings:
             reference_id = binding.reference.raw_audit_id
-            prior = bindings.get(reference_id)
+            prior = destination.get(reference_id)
             if prior is not None and prior != binding:
                 code = (
                     "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
@@ -152,7 +204,7 @@ def refresh_market_price_inputs(
                     code=code,
                     details={"raw_audit_id": reference_id},
                 )
-            bindings[reference_id] = binding
+            destination[reference_id] = binding
 
     def collect_references(rows: tuple[ModelDailyBar, ...]) -> None:
         """Collect exact evidence only after the returned rows pass date checks."""
@@ -165,7 +217,7 @@ def refresh_market_price_inputs(
                 "Verified model-history rows lack exact RawAudit evidence",
                 code="MODEL_MARKET_AUDIT_EVIDENCE_MISSING",
             )
-        collect_bindings(evidence_port.model_history_audit_bindings(rows))
+        collect_bindings(member_bindings, evidence_port.model_history_audit_bindings(rows))
 
     for code in asset_codes:
         try:
@@ -229,16 +281,23 @@ def refresh_market_price_inputs(
                 evidence_source=evidence_source,
             )
     if audit_evidence is not None:
-        collect_bindings(audit_evidence.take_model_history_audit_bindings())
-    ordered_bindings = tuple(bindings[key] for key in sorted(bindings))
-    ordered_references = tuple(binding.reference for binding in ordered_bindings)
+        collect_bindings(
+            diagnostic_bindings,
+            audit_evidence.take_model_history_audit_bindings(),
+        )
+    ordered_diagnostic_bindings = tuple(
+        diagnostic_bindings[key] for key in sorted(diagnostic_bindings)
+    )
+    ordered_member_bindings = tuple(member_bindings[key] for key in sorted(member_bindings))
+    ordered_references = tuple(binding.reference for binding in ordered_diagnostic_bindings)
     return MarketPricePreparationResult(
         suspended_codes=tuple(sorted(suspended)),
         raw_audit_references=ordered_references,
         suspension_evidence=tuple(
             suspension_evidence[code] for code in sorted(suspension_evidence)
         ),
-        raw_audit_bindings=ordered_bindings,
+        raw_audit_bindings=ordered_diagnostic_bindings,
+        member_owning_raw_audit_bindings=ordered_member_bindings,
     )
 
 

@@ -92,6 +92,54 @@ def test_price_preparation_keeps_failover_source_type_per_exact_reference():
     assert result.raw_audit_references == tuple(
         binding.reference for binding in result.raw_audit_bindings
     )
+    assert result.member_owning_raw_audit_bindings == result.raw_audit_bindings
+
+
+def test_price_preparation_keeps_stale_primary_diagnostic_out_of_member_lineage():
+    target = date(2026, 9, 18)
+    primary = ModelHistoryRawAuditBinding(
+        RawAuditReference(
+            raw_audit_id="price-primary-stale",
+            version="raw-audit-v1",
+            content_hash="d" * 64,
+            run_id="primary-run",
+            ingested_run_id="primary-ingested",
+        ),
+        "akshare",
+    )
+    fallback = ModelHistoryRawAuditBinding(
+        RawAuditReference(
+            raw_audit_id="price-fallback-current",
+            version="raw-audit-v1",
+            content_hash="e" * 64,
+            run_id="fallback-run",
+            ingested_run_id="fallback-ingested",
+        ),
+        "tushare",
+    )
+
+    class StalePrimaryThenFallback(_PriceAuditEvidence):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def stock_history(self, _asset_code, _start_date, _end_date):
+            self.calls += 1
+            if self.calls == 1:
+                return (SimpleNamespace(trade_date=target - timedelta(days=1), source="akshare"),)
+            return (SimpleNamespace(trade_date=target, source="tushare"),)
+
+        def model_history_audit_bindings(self, rows):
+            return (fallback,) if rows and rows[0].source == "tushare" else (primary,)
+
+        def take_model_history_audit_bindings(self):
+            return (primary, fallback)
+
+    result = refresh_market_price_inputs(StalePrimaryThenFallback(), ["000001.SZ"], target)
+
+    assert result.raw_audit_bindings == (fallback, primary)
+    assert result.raw_audit_references == (fallback.reference, primary.reference)
+    assert result.member_owning_raw_audit_bindings == (fallback,)
 
 
 def test_price_preparation_fails_closed_on_duplicate_reference_source_type_conflict():
@@ -121,6 +169,34 @@ def test_price_preparation_fails_closed_on_duplicate_reference_source_type_confl
 
     with pytest.raises(DataFetchError) as caught:
         refresh_market_price_inputs(ConflictingEvidence(), ["000001.SZ"], target)
+
+    assert caught.value.code == "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
+
+
+def test_price_result_fails_closed_when_member_binding_is_absent_from_diagnostics():
+    evidence = _PriceAuditEvidence()
+
+    with pytest.raises(DataFetchError) as caught:
+        MarketPricePreparationResult(
+            suspended_codes=(),
+            raw_audit_references=(),
+            member_owning_raw_audit_bindings=(evidence.binding,),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_AUDIT_EVIDENCE_MISSING"
+
+
+def test_price_result_fails_closed_when_member_source_conflicts_with_diagnostics():
+    evidence = _PriceAuditEvidence()
+    conflicting_member_binding = ModelHistoryRawAuditBinding(evidence.reference, "akshare")
+
+    with pytest.raises(DataFetchError) as caught:
+        MarketPricePreparationResult(
+            suspended_codes=(),
+            raw_audit_references=(evidence.reference,),
+            raw_audit_bindings=(evidence.binding,),
+            member_owning_raw_audit_bindings=(conflicting_member_binding,),
+        )
 
     assert caught.value.code == "MODEL_MARKET_AUDIT_SOURCE_TYPE_CONFLICT"
 

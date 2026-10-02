@@ -523,6 +523,7 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
     assert result.suspended_codes == asset_codes
     assert result.raw_audit_references == (expected_reference,)
     assert tuple(binding.source_type for binding in result.raw_audit_bindings) == ("tushare",)
+    assert result.member_owning_raw_audit_bindings == ()
     assert len(audit.successes) == 1
     assert audit.successes[0][2] == ()
     assert audit.failures == []
