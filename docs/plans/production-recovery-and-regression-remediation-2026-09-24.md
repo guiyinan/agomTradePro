@@ -1172,3 +1172,19 @@ Celery 94 tasks 与 `git diff --check` 通过。无测试跳过。
 剩余停止线：尚未连接真实 provider 或执行 PostgreSQL 端到端 staging/activation；quote、price、valuation 的 stage
 bindings、group request、Audit writer 与 complete authority proof 仍需在 production composition 统一接线。本片未部署、
 未启动全市场重跑。
+
+#### 2026-10-02 Task attempt 身份门禁（`49b200764`）
+
+生产任务现在只能取得同时匹配当前 Celery request 与 Task Monitor `STARTED` 记录的 `task_id/attempt_id`；缺少 request、
+attempt marker、记录不存在、终态/RETRY 状态、重复投递 marker 不一致或 repository 读取失败，均以稳定业务码
+`CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE` 失败关闭，不生成生产 fallback。Celery retry 重新进入 `task_prerun` 时会
+强制签发新的 attempt marker，不能沿用上一次 request 中的旧 marker；旧 attempt 因此不能成为新 candidate manifest 的
+幂等身份。
+
+本地证据：Task Monitor identity 与 signal lifecycle 聚焦测试 `45 passed`；3 个生产文件增量 mypy 零回归；Black、isort、
+Ruff 与 `git diff --check` 通过。全仓 mypy debt 本轮被共享工作树中尚未提交的 production publication composition 一条
+`arg-type` 阻断，非本提交文件；该 composition 切片必须修复并重新取得全仓 debt=0，不能把本轮记作通过。
+
+剩余停止线：full-market 尚未在 provider 写入前调用该 getter，也未把 attempt identity 写入三组 stage command；production
+composition、整组 staging/activation、5,001+ PostgreSQL soak、exact-SHA 五组 CI、S6、同镜像部署及单次生产重跑均未完成。
+本片未部署、未启动全市场重跑。
