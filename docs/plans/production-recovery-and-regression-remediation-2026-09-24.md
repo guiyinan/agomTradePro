@@ -1138,3 +1138,19 @@ changed-production mypy 7 文件零回归，全仓 debt 0；Black、isort、Ruff
 剩余停止线：full-market 结果和 staging command 尚未消费 price binding；`MODEL_MARKET_SUSPENDED.details.source` 在空行情
 分支仍是 route name、末段停牌分支是 fact source，语义尚未统一，不能写死成 `tushare.suspend_d`。必须先统一逐证券
 停牌 evidence source，再接入 `price_full_day_suspension` scope block。本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 Production complete authority capture factory（`af6cb1e35`）
+
+新增未接线的 production authority capture factory。它只接受 production V3 runtime selector，以 `scope_*` 构造
+`GetCurrentOwnerTenantAuthorityV3Command`，actor reader 继续固定 `actor_*`；重新读取 actor/scope bundle 并要求与调用方
+preflight `SystemAuditReaderContext` 精确一致。factory 使用同一 alias 的 physical provider 运行 RR/RO complete shadow scan，
+再由 `AccountAuthorityFinalRevalidatorV3.capture_complete` 生成 opaque proof；返回的 fence 只接受同一 proof，并在 RC/RW
+complete reread 后再次绑定 alias、tenant、owner 与不晚于 preflight 的 `valid_until`。
+
+本地证据：聚焦故障注入 `6 passed`；changed-production mypy 1 文件零回归、全仓 debt 0；Black、isort、Ruff、
+Architecture full/delta 与 `git diff --check` 通过。selector 缺失/V1 schema、preflight 漂移、alias 不同、legacy identity、
+expiry/scan 漂移和 proof capture failure 均未返回可用 fence。无测试跳过。
+
+剩余停止线：尚未在 disposable PostgreSQL 上执行真实 RR/RO capture + RC/RW fence，也未接 Data Center production
+composition。`governance/module_map.json` 因新增 core integration entrypoint 及并行 Audit/Data Center 改动产生 drift，须在
+所有接线文件稳定后统一生成并检查。本片未部署、未启动全市场重跑。
