@@ -55,6 +55,9 @@ if TYPE_CHECKING:
         SystemAuditReaderContext,
     )
     from apps.audit.infrastructure.failure_counter import AuditFailureCounter
+    from apps.audit.infrastructure.publication_activation_audit_writer import (
+        DjangoPublicationActivationAuditWriter,
+    )
     from apps.audit.infrastructure.system_audit_outbox_repository import (
         DjangoSystemAuditOutboxRepository,
     )
@@ -248,6 +251,21 @@ def get_data_publication_rollback_audit_writer(
     )
 
     return build_data_publication_rollback_audit_writer(
+        environment=environment,
+        using=using,
+    )
+
+
+def get_publication_activation_audit_writer(
+    *, environment: str = "production", using: str = "default"
+) -> DjangoPublicationActivationAuditWriter:
+    """Return the activation audit writer bound to the configured runtime alias."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_publication_activation_audit_writer,
+    )
+
+    return build_publication_activation_audit_writer(
         environment=environment,
         using=using,
     )

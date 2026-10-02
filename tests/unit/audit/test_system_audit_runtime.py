@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -472,6 +473,102 @@ def test_freshness_writer_uses_the_inspected_alias_and_authority_bundle(
     assert scope.tenant_id == "tenant:primary"
     assert scope.owner_id == "owner:audit"
     assert order == ["publisher_preflight", "authority_actor", "authority_scope"]
+
+
+def test_publication_activation_writer_is_exposed_through_data_center_integration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    binding = _binding()
+    order: list[str] = []
+    repository = _Repository("audit", order)
+    publisher = _Publisher("audit", order)
+    readers = _readers("audit", order)
+
+    monkeypatch.setattr(runtime, "load_system_audit_runtime_config", lambda **kwargs: binding)
+    monkeypatch.setattr(
+        runtime,
+        "DjangoSystemAuditOutboxRepository",
+        lambda *, using: repository if using == "audit" else AssertionError(using),
+    )
+    monkeypatch.setattr(
+        runtime,
+        "DjangoSystemAuditDeliveryReceiptPublisher",
+        lambda *, using: publisher if using == "audit" else AssertionError(using),
+    )
+    monkeypatch.setattr(
+        runtime,
+        "build_system_audit_authority_readers",
+        lambda *, using, selector: (
+            readers
+            if using == "audit" and selector is binding.authority_selector
+            else AssertionError((using, selector))
+        ),
+    )
+
+    from core.integration.data_center_audit import (
+        get_data_publication_activation_audit_writer,
+    )
+
+    writer = get_data_publication_activation_audit_writer(
+        environment="production",
+        using="audit",
+    )
+
+    assert writer.database_alias == "audit"
+    assert callable(writer.append_manifest_required)
+    assert order == ["publisher_preflight"]
+
+
+def test_publication_activation_writer_rejects_missing_coordinator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runtime,
+        "_build_system_audit_runtime_composition",
+        lambda **kwargs: SimpleNamespace(
+            database_alias="audit",
+            event_outbox_coordinator=None,
+        ),
+    )
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        runtime.build_publication_activation_audit_writer(using="audit")
+
+    assert exc_info.value.reason_code == "composition_not_wired"
+
+
+def test_publication_activation_writer_rejects_coordinator_alias_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    coordinator = runtime.DjangoSystemAuditEventOutboxCoordinator(using="other")
+    monkeypatch.setattr(
+        runtime,
+        "_build_system_audit_runtime_composition",
+        lambda **kwargs: SimpleNamespace(
+            database_alias="audit",
+            event_outbox_coordinator=coordinator,
+        ),
+    )
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        runtime.build_publication_activation_audit_writer(using="audit")
+
+    assert exc_info.value.reason_code == "composition_alias_mismatch"
+
+
+def test_publication_activation_writer_propagates_runtime_configuration_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable(*, environment: str) -> SystemAuditRuntimeConfigBinding:
+        del environment
+        raise SystemAuditRuntimeConfigurationUnavailable("snapshot_unavailable")
+
+    monkeypatch.setattr(runtime, "load_system_audit_runtime_config", unavailable)
+
+    with pytest.raises(SystemAuditCompositionUnavailable) as exc_info:
+        runtime.build_publication_activation_audit_writer(using="audit")
+
+    assert exc_info.value.reason_code == "snapshot_unavailable"
 
 
 def test_quality_writer_uses_the_inspected_alias_and_authority_bundle(

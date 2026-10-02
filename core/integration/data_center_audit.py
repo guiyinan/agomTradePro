@@ -85,6 +85,16 @@ def get_data_publication_rollback_audit_writer(*, environment: str, using: str) 
     return build_writer(environment=environment, using=using)
 
 
+def get_data_publication_activation_audit_writer(*, environment: str, using: str) -> Any:
+    """Build the canonical same-alias activation audit adapter."""
+
+    from apps.audit.application.repository_provider import (
+        get_publication_activation_audit_writer as build_writer,
+    )
+
+    return build_writer(environment=environment, using=using)
+
+
 def get_data_reliability_audit_writers(*, environment: str, using: str) -> Any:
     """Build the canonical Audit writer bundle at the composition boundary."""
 
@@ -167,6 +177,7 @@ __all__ = [
     "SystemAuditQueryUnavailable",
     "SystemAuditReaderContext",
     "get_data_conflict_audit_writer",
+    "get_data_publication_activation_audit_writer",
     "get_data_publication_rollback_audit_writer",
     "get_data_reliability_audit_writers",
     "get_data_repair_audit_writer",
