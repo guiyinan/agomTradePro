@@ -1224,3 +1224,37 @@ PostgreSQL 端到端未在本片执行。
 剩余停止线：full-market 仍使用 legacy `publications.execute`；三组 stage command、pointer CAS、activation request、Audit writer、
 complete authority proof 与 task attempt 尚未在同一编排闭合。必须继续补故障注入和 5,001+ PostgreSQL query/持锁/lock-wait
 硬阈值，再取得 exact-SHA 五组 CI、S6 与同镜像部署；本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 Full-market candidate staging 与整组 activation 接线（`5c2a8b098`）
+
+full-market 生产任务现在在任何 DATA-02 preflight、provider 读取、进度写入和市场写入之前，先从当前 Celery request 与
+Task Monitor `STARTED` 记录取得不可由调用参数伪造的 task attempt identity；身份缺失以
+`CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE` 返回零写入 `blocked` 结果。完成事实写入和三数据集 preview 后，编排先读取
+quote、price、valuation 三条 current pointer 的完整 CAS 快照，再在 fence 外按固定顺序 staging 三组 candidate/member/
+seal/RawAudit manifest。price manifest 只接收最终成员事实的 `member_owning_raw_audit_bindings`，请求级空批次、停牌或未选中
+provider 审计继续保留为诊断证据，不进入成员 manifest。
+
+三组 staging 全部成功后先构造同 alias 的必需 Audit writer，再捕获完整 Account graph authority；capture 之后只做纯内存
+activation request 构造，并立即进入一次 group activation。结果只有在精确返回 quote、price、valuation 三组 `PUBLISHED`
+publication，且 publication ID/hash/run 与 staged candidate 全部一致时才设置 `publication_updated=true`。preview、pointer、
+任一 staging、Audit writer、authority capture、audit/outbox 或 activation 的已知校验、composition 与数据库失败均映射为稳定
+业务码，保留已完成事实写入的 `requested/succeeded/failed/stored`，不会把 CANDIDATE 数量或 Celery 技术状态误报为正式发布。
+
+本地证据：full-market orchestration 与 production bundle 聚焦回归 `106 passed`；staging/activation component 回归
+`74 passed in 315.74s`，两组均无跳过。故障注入覆盖 identity-before-I/O、preview/pointer/staging/Audit writer/authority
+capture/group activation 的 `DatabaseError`、第二阶段 staging 失败后不 capture/activate、audit/outbox 失败不更新 pointer，
+以及成功路径同一 run/task attempt、member-only price lineage、三个 CAS 先读和 capture 后仅一次 activation。7 个生产文件
+增量 mypy 零回归，全仓 debt `0 errors in 0 files`；Black、适用文件 isort、Ruff、Celery 94 tasks、current-data 72 surfaces、
+Architecture full 3,303 files / delta 6 files、module map 44 modules / 210 edges 与 `git diff --check` 通过。新增协调器拆到独立
+Application 模块后，主编排为 1,194 个非空行，large-file 治理违规为 0。
+
+跳过与未验证风险：`apps/data_center/composition.py` 的全文件 isort 仍受本片前已有混合 CRLF/LF import 行影响，本片只新增
+一个显式 facade export，没有进行无关全文件行尾改写；其余相关文件 isort 通过。完整 governance consistency 唯一失败为
+本片前已由 `af6cb1e35` 引入并已提交的 `core/integration/production_account_authority_capture.py` 三条 Account infrastructure
+直接 import（`core_integration_infrastructure_import_growth` 0→3）；本片没有抬高 baseline，也未顺手改动该边界，必须列入
+“未完成工作”单独整改。
+
+剩余停止线：尚未在本提交 exact SHA 上完成 5,001+ PostgreSQL staging/activation soak，并重新证明 query count ≤35、
+generation fence 持锁时间 ≤2.0 秒、pointer lock wait ≤0.25 秒及真实 RR/RO capture + RC/RW fence；五组同 SHA CI、完整 S6、
+同镜像部署、正式 Publication 和联合验收均未执行。本片未删除 legacy relation locks、未部署、未启动全市场重跑；这些证据
+未齐前不得进入用户授权的生产重跑。
