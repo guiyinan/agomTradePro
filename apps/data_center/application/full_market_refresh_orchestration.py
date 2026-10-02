@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import cast
 from uuid import uuid4
 
@@ -15,11 +13,8 @@ from django.utils import timezone
 
 from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.market_time import cn_market_date_from_observation
-from apps.data_center.domain.model_market_data import ModelMarketDataPort
-from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 from core.exceptions import DataFetchError, DataValidationError
 from core.integration import data_center_audit as audit_integration
-from core.integration.data_center_audit import SystemAuditReaderContext
 from core.integration.task_monitor_runtime import (
     CurrentTaskAttemptIdentity,
     CurrentTaskAttemptIdentityUnavailable,
@@ -31,138 +26,20 @@ from shared.domain.task_outcomes import TaskBusinessOutcome
 from . import full_market_task_support as market_task
 from .current_market_publication_activation import (
     FULL_MARKET_DATABASE_ALIAS,
-    CurrentMarketPublicationBundleFactory,
-    CurrentTaskAttemptIdentityGetter,
-    FullMarketData02AuthorityPreflight,
-    MarketPublicationsRefresh,
-    TargetDateUniverseScopeResolver,
+    FullMarketRefreshDependencies,
     current_market_publication_blocked,
     stage_and_activate_current_market_group,
 )
 from .current_publication_rebuild import CurrentPublicationScopeExclusion
 from .current_publication_staging import CurrentPublicationStageRawAuditBinding
-from .current_valuation_sync import SyncCurrentValuationBatchUseCase
-from .data02_task_authority import Data02AuthorityLatch
 from .dtos import SyncQuoteRequest
 from .market_publication_refresh import (
-    MarketPricePreparationResult,
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
 )
 from .quote_session_prefetch import QuoteSessionMissingAssetVerifier
-from .sync_market_use_cases import SyncQuoteUseCase
 
 logger = logging.getLogger(__name__)
-
-
-def _require_sync_raw_audit_reference(
-    reference: RawAuditReference | None,
-    *,
-    run_id: str | None,
-    ingested_run_id: str | None,
-) -> RawAuditReference:
-    """Require an exact raw-audit reference bound to its sync result."""
-
-    if not isinstance(reference, RawAuditReference):
-        raise MarketPublicationRefreshBlocked(
-            "Market sync returned no exact RawAudit reference",
-            code="CURRENT_RAW_AUDIT_REFERENCE_MISSING",
-        )
-    if reference.run_id != run_id or reference.ingested_run_id != ingested_run_id:
-        raise MarketPublicationRefreshBlocked(
-            "Market RawAudit reference does not match its sync result",
-            code="CURRENT_RAW_AUDIT_REFERENCE_IDENTITY_INVALID",
-        )
-    return reference
-
-
-def _serialize_raw_audit_references(
-    references: Mapping[str, RawAuditReference],
-) -> list[dict[str, str]]:
-    """Return deterministic JSON-ready exact RawAudit reference values."""
-
-    return [
-        {
-            "raw_audit_id": reference.raw_audit_id,
-            "version": reference.version,
-            "content_hash": reference.content_hash,
-            "run_id": reference.run_id,
-            "ingested_run_id": reference.ingested_run_id,
-        }
-        for _raw_audit_id, reference in sorted(references.items())
-    ]
-
-
-@dataclass(frozen=True, slots=True)
-class FullMarketRefreshDependencies:
-    """Application-owned collaborators used by the Celery task adapter."""
-
-    authority_window: timedelta
-    preflight_data02_authority: FullMarketData02AuthorityPreflight
-    get_current_task_attempt_identity: CurrentTaskAttemptIdentityGetter
-    authority_latch_factory: Callable[[SystemAuditReaderContext], Data02AuthorityLatch]
-    data02_authority_failure: Callable[[str], dict[str, object]]
-    get_active_provider_id_by_source: Callable[[str], int | None]
-    make_quote_sync_use_case: Callable[[], SyncQuoteUseCase]
-    make_valuation_sync_use_case: Callable[[], SyncCurrentValuationBatchUseCase]
-    make_current_market_publication_bundle: CurrentMarketPublicationBundleFactory
-    latest_closed_market_session: Callable[[datetime], date | None]
-    sync_active_universe: Callable[[], dict[str, object]]
-    target_date_universe_scope: TargetDateUniverseScopeResolver
-    publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
-    record_progress: Callable[[TaskProgress], bool]
-    model_market_data_port: Callable[[], ModelMarketDataPort]
-    refresh_market_price_inputs: Callable[
-        [ModelMarketDataPort, list[str], date], MarketPricePreparationResult
-    ]
-    refresh_market_publications: MarketPublicationsRefresh
-
-
-def apply_full_market_authority_block(
-    result: dict[str, object],
-    *,
-    reason_code: str,
-) -> dict[str, object]:
-    """Preserve completed writes when late authority loss blocks publication."""
-
-    stored = result.get("stored")
-    has_stored_facts = isinstance(stored, int) and not isinstance(stored, bool) and stored > 0
-    return {
-        **result,
-        "outcome": (
-            TaskBusinessOutcome.PARTIAL.value
-            if has_stored_facts
-            else TaskBusinessOutcome.BLOCKED.value
-        ),
-        "success": False,
-        "must_not_use_for_decision": True,
-        "blocked_reason": reason_code,
-        "error_code": reason_code,
-        "publication_updated": False,
-        "published_members": 0,
-    }
-
-
-def _task_attempt_identity_failure() -> dict[str, object]:
-    """Return the stable zero-write outcome when Task Monitor identity is absent."""
-
-    return {
-        "outcome": TaskBusinessOutcome.BLOCKED.value,
-        "success": False,
-        "requested": 0,
-        "succeeded": 0,
-        "failed": 0,
-        "stored": 0,
-        "count_unit": "sync_operation",
-        "stored_count_unit": "fact_row",
-        "phase": "task_attempt_identity",
-        "blocked_reason": "current_task_attempt_identity_unavailable",
-        "error_code": "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE",
-        "errors": ["CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"],
-        "publication_updated": False,
-        "published_members": 0,
-        "must_not_use_for_decision": True,
-    }
 
 
 def run_full_market_publication_refresh(
@@ -197,7 +74,7 @@ def run_full_market_publication_refresh(
                 "Task Monitor returned an invalid current attempt identity"
             )
     except CurrentTaskAttemptIdentityUnavailable:
-        return _task_attempt_identity_failure()
+        return market_task.task_attempt_identity_failure()
     started_at = datetime.now(UTC)
     authority, authority_failure = dependencies.preflight_data02_authority(
         as_of=started_at,
@@ -588,7 +465,7 @@ def run_full_market_publication_refresh(
     unexpected_returned_codes = sorted(returned_code_set - requested_codes)
     valuation_coverage_ratio = len(succeeded_code_set) / len(requested_codes)
     try:
-        valuation_reference = _require_sync_raw_audit_reference(
+        valuation_reference = market_task.require_sync_raw_audit_reference(
             valuation_seed.raw_audit_reference,
             run_id=valuation_seed.run_id,
             ingested_run_id=valuation_seed.ingested_run_id,
@@ -899,7 +776,7 @@ def run_full_market_publication_refresh(
         )
         quote_stored_rows += stored_count
         stored_row_count += stored_count
-        quote_reference = _require_sync_raw_audit_reference(
+        quote_reference = market_task.require_sync_raw_audit_reference(
             result.raw_audit_reference,
             run_id=result.run_id,
             ingested_run_id=result.ingested_run_id,
@@ -1202,12 +1079,14 @@ def run_full_market_publication_refresh(
             excluded_non_trading_codes=excluded_non_trading_codes,
         )
     price_evidence["raw_audit_references_by_dataset"] = {
-        "equity.quote.snapshot": _serialize_raw_audit_references(quote_audit_references),
-        "equity.valuation.fact": _serialize_raw_audit_references(valuation_audit_references),
-        "equity.price.bar": _serialize_raw_audit_references(price_audit_references),
+        "equity.quote.snapshot": market_task.serialize_raw_audit_references(quote_audit_references),
+        "equity.valuation.fact": market_task.serialize_raw_audit_references(
+            valuation_audit_references
+        ),
+        "equity.price.bar": market_task.serialize_raw_audit_references(price_audit_references),
     }
     if not authority_latch.current:
-        return apply_full_market_authority_block(
+        return market_task.apply_full_market_authority_block(
             result,
             reason_code=authority_latch.reason_code,
         )

@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 
 import pytest
 
-from apps.data_center.composition import make_production_current_market_publication_bundle
 from apps.data_center.infrastructure.candidate_raw_audit_metadata_resolver import (
     DjangoCandidateRawAuditMetadataResolver,
 )
@@ -47,8 +46,8 @@ def test_production_bundle_reuses_fixed_rebuilders_and_binds_all_components_to_d
     assert activation_repository.database_alias == "default"
 
 
-def test_data_center_composition_exposes_a_typed_production_bundle() -> None:
-    bundle = make_production_current_market_publication_bundle(using="default")
+def test_dedicated_composition_exposes_a_typed_production_bundle() -> None:
+    bundle = build_production_current_market_publication_bundle(using="default")
 
     assert isinstance(bundle, ProductionCurrentMarketPublicationBundle)
     assert bundle.database_alias == "default"

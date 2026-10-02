@@ -6,7 +6,10 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence, Set
 
+from apps.data_center.domain.entities import RawAuditReference
 from shared.domain.task_outcomes import TaskBusinessOutcome
+
+from .market_publication_refresh import MarketPublicationRefreshBlocked
 
 
 def asset_code_scope_sha256(asset_codes: Sequence[str]) -> str:
@@ -76,6 +79,91 @@ def exact_provider_batch_count(
     ):
         raise ValueError("provider batch asset identities are incomplete")
     return stored_count
+
+
+def require_sync_raw_audit_reference(
+    reference: RawAuditReference | None,
+    *,
+    run_id: str | None,
+    ingested_run_id: str | None,
+) -> RawAuditReference:
+    """Require an exact raw-audit reference bound to its sync result."""
+
+    if not isinstance(reference, RawAuditReference):
+        raise MarketPublicationRefreshBlocked(
+            "Market sync returned no exact RawAudit reference",
+            code="CURRENT_RAW_AUDIT_REFERENCE_MISSING",
+        )
+    if reference.run_id != run_id or reference.ingested_run_id != ingested_run_id:
+        raise MarketPublicationRefreshBlocked(
+            "Market RawAudit reference does not match its sync result",
+            code="CURRENT_RAW_AUDIT_REFERENCE_IDENTITY_INVALID",
+        )
+    return reference
+
+
+def serialize_raw_audit_references(
+    references: Mapping[str, RawAuditReference],
+) -> list[dict[str, str]]:
+    """Return deterministic JSON-ready exact RawAudit reference values."""
+
+    return [
+        {
+            "raw_audit_id": reference.raw_audit_id,
+            "version": reference.version,
+            "content_hash": reference.content_hash,
+            "run_id": reference.run_id,
+            "ingested_run_id": reference.ingested_run_id,
+        }
+        for _raw_audit_id, reference in sorted(references.items())
+    ]
+
+
+def apply_full_market_authority_block(
+    result: dict[str, object],
+    *,
+    reason_code: str,
+) -> dict[str, object]:
+    """Preserve completed writes when late authority loss blocks publication."""
+
+    stored = result.get("stored")
+    has_stored_facts = isinstance(stored, int) and not isinstance(stored, bool) and stored > 0
+    return {
+        **result,
+        "outcome": (
+            TaskBusinessOutcome.PARTIAL.value
+            if has_stored_facts
+            else TaskBusinessOutcome.BLOCKED.value
+        ),
+        "success": False,
+        "must_not_use_for_decision": True,
+        "blocked_reason": reason_code,
+        "error_code": reason_code,
+        "publication_updated": False,
+        "published_members": 0,
+    }
+
+
+def task_attempt_identity_failure() -> dict[str, object]:
+    """Return the stable zero-write outcome when Task Monitor identity is absent."""
+
+    return {
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "success": False,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "count_unit": "sync_operation",
+        "stored_count_unit": "fact_row",
+        "phase": "task_attempt_identity",
+        "blocked_reason": "current_task_attempt_identity_unavailable",
+        "error_code": "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE",
+        "errors": ["CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"],
+        "publication_updated": False,
+        "published_members": 0,
+        "must_not_use_for_decision": True,
+    }
 
 
 def full_market_input_failure(reason: str) -> dict[str, object]:

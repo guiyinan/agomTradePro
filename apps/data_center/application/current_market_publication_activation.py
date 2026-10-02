@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 from uuid import NAMESPACE_URL, uuid5
@@ -10,12 +11,14 @@ from uuid import NAMESPACE_URL, uuid5
 from django.db import DatabaseError
 
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationState
+from apps.data_center.domain.model_market_data import ModelMarketDataPort
+from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 from apps.data_center.domain.raw_audit_manifest import CURRENT_MARKET_PUBLICATION_DATASETS
 from apps.data_center.domain.target_date_universe import TargetDateAssetUniverseScope
 from core.exceptions import DataValidationError
 from core.integration import data_center_audit as audit_integration
 from core.integration.data_center_audit import SystemAuditReaderContext
-from core.integration.task_monitor_runtime import CurrentTaskAttemptIdentity
+from core.integration.task_monitor_runtime import CurrentTaskAttemptIdentity, TaskProgress
 
 from .current_publication_rebuild import (
     CoreCurrentPublicationRebuildResult,
@@ -28,7 +31,10 @@ from .current_publication_staging import (
     CurrentPublicationStageRawAuditBinding,
     CurrentPublicationStagingUseCase,
 )
+from .current_valuation_sync import SyncCurrentValuationBatchUseCase
+from .data02_task_authority import Data02AuthorityLatch
 from .market_publication_refresh import (
+    MarketPricePreparationResult,
     MarketPublicationRefreshBlocked,
     MarketPublicationRefreshPorts,
 )
@@ -41,6 +47,7 @@ from .publication_activation import (
     PublicationActivationGroupCandidate,
     PublicationActivationGroupRequest,
 )
+from .sync_market_use_cases import SyncQuoteUseCase
 
 _FULL_MARKET_STAGE_ORDER = (
     "equity.quote.snapshot",
@@ -129,6 +136,31 @@ class CurrentMarketPublicationBundleFactory(Protocol):
         using: str = "default",
         created_by: str,
     ) -> CurrentMarketPublicationBundle: ...
+
+
+@dataclass(frozen=True, slots=True)
+class FullMarketRefreshDependencies:
+    """Application-owned collaborators used by the Celery task adapter."""
+
+    authority_window: timedelta
+    preflight_data02_authority: FullMarketData02AuthorityPreflight
+    get_current_task_attempt_identity: CurrentTaskAttemptIdentityGetter
+    authority_latch_factory: Callable[[SystemAuditReaderContext], Data02AuthorityLatch]
+    data02_authority_failure: Callable[[str], dict[str, object]]
+    get_active_provider_id_by_source: Callable[[str], int | None]
+    make_quote_sync_use_case: Callable[[], SyncQuoteUseCase]
+    make_valuation_sync_use_case: Callable[[], SyncCurrentValuationBatchUseCase]
+    make_current_market_publication_bundle: CurrentMarketPublicationBundleFactory
+    latest_closed_market_session: Callable[[datetime], date | None]
+    sync_active_universe: Callable[[], dict[str, object]]
+    target_date_universe_scope: TargetDateUniverseScopeResolver
+    publication_policy_repository: Callable[[], PublicationPolicyRepositoryProtocol]
+    record_progress: Callable[[TaskProgress], bool]
+    model_market_data_port: Callable[[], ModelMarketDataPort]
+    refresh_market_price_inputs: Callable[
+        [ModelMarketDataPort, list[str], date], MarketPricePreparationResult
+    ]
+    refresh_market_publications: MarketPublicationsRefresh
 
 
 class _AuthorityCaptureResult(Protocol):

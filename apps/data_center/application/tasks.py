@@ -21,7 +21,6 @@ from apps.data_center.composition import (
     get_backfill_item_attempt_store,
     get_publication_policy_repository,
     make_core_current_publication_rebuild_use_case,
-    make_production_current_market_publication_bundle,
     persist_sync_control_plane_snapshot,
     sync_active_a_share_universe,
 )
@@ -31,6 +30,9 @@ from apps.data_center.domain.control_plane import (
     SyncItemState,
     SyncRun,
     SyncRunStatus,
+)
+from apps.data_center.publication_candidate_activation_composition import (
+    build_production_current_market_publication_bundle,
 )
 from apps.data_center.target_date_universe_composition import (
     build_target_date_a_share_universe_scope,
@@ -55,7 +57,10 @@ from .core_data_backfill import (
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
-from .current_market_publication_activation import CurrentMarketPublicationBundle
+from .current_market_publication_activation import (
+    CurrentMarketPublicationBundle,
+    FullMarketRefreshDependencies,
+)
 from .data02_task_authority import Data02AuthorityLatch as _Data02AuthorityLatch
 from .data02_task_authority import data02_authority_failure as _data02_authority_failure
 from .data02_task_authority import (
@@ -64,10 +69,7 @@ from .data02_task_authority import (
 from .data02_task_authority import (
     same_data02_task_authority_is_current as _same_data02_task_authority_is_current,
 )
-from .full_market_refresh_orchestration import (
-    FullMarketRefreshDependencies,
-    run_full_market_publication_refresh,
-)
+from .full_market_refresh_orchestration import run_full_market_publication_refresh
 from .interface_services import (
     make_backfill_sync_current_valuation_batch_use_case,
     make_backfill_sync_financial_use_case,
@@ -107,7 +109,7 @@ def _make_full_market_publication_bundle(
 ) -> CurrentMarketPublicationBundle:
     """Build the market staging bundle explicitly on the production database alias."""
 
-    return make_production_current_market_publication_bundle(
+    return build_production_current_market_publication_bundle(
         using=using,
         created_by=created_by,
     )

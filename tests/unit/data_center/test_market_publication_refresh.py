@@ -725,7 +725,7 @@ def _patch_current_authority(monkeypatch):
     )
     monkeypatch.setattr(
         tasks,
-        "make_production_current_market_publication_bundle",
+        "build_production_current_market_publication_bundle",
         lambda *, using="default", created_by="ops.current_publication_rebuild": (
             _fake_market_publication_bundle(
                 tasks.make_core_current_publication_rebuild_use_case(
@@ -867,7 +867,7 @@ def test_late_authority_latch_preserves_completed_fact_writes(
 ) -> None:
     """A late authority failure cannot erase completed write evidence."""
 
-    from apps.data_center.application.full_market_refresh_orchestration import (
+    from apps.data_center.application.full_market_task_support import (
         apply_full_market_authority_block,
     )
 
@@ -1699,7 +1699,7 @@ def test_task_maps_known_publication_failures_to_partial_business_outcome(
         ),
     )
     publication_bundles = []
-    original_bundle_factory = tasks.make_production_current_market_publication_bundle
+    original_bundle_factory = tasks.build_production_current_market_publication_bundle
 
     def capture_publication_bundle(**kwargs):
         bundle = original_bundle_factory(**kwargs)
@@ -1765,7 +1765,7 @@ def test_task_maps_known_publication_failures_to_partial_business_outcome(
 
     monkeypatch.setattr(
         tasks,
-        "make_production_current_market_publication_bundle",
+        "build_production_current_market_publication_bundle",
         capture_publication_bundle,
     )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())
@@ -3245,7 +3245,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         ),
     )
     publication_bundles = []
-    original_bundle_factory = tasks.make_production_current_market_publication_bundle
+    original_bundle_factory = tasks.build_production_current_market_publication_bundle
 
     def capture_publication_bundle(**kwargs):
         bundle = original_bundle_factory(**kwargs)
@@ -3254,7 +3254,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(
 
     monkeypatch.setattr(
         tasks,
-        "make_production_current_market_publication_bundle",
+        "build_production_current_market_publication_bundle",
         capture_publication_bundle,
     )
     monkeypatch.setattr(public, "get_model_market_data_port", lambda: object())

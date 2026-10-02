@@ -157,10 +157,6 @@ from apps.data_center.infrastructure.rss_gateway import (
     fetch_rss_feed,
     probe_rss_feed,
 )
-from apps.data_center.publication_candidate_activation_composition import (
-    ProductionCurrentMarketPublicationBundle,
-    build_production_current_market_publication_bundle,
-)
 
 __all__ = [
     "build_model_market_data_service",
@@ -189,8 +185,6 @@ __all__ = [
     "make_data_chain_replay_use_case",
     "make_core_current_fact_refresh_use_case",
     "make_core_current_publication_rebuild_use_case",
-    "make_production_current_market_publication_bundle",
-    "ProductionCurrentMarketPublicationBundle",
     "make_repair_run_replay_use_case",
     "make_system_audited_sync_current_valuation_batch_use_case",
     "make_publication_decision_read_recorder",
@@ -633,19 +627,6 @@ def make_core_current_publication_rebuild_use_case(
     from apps.data_center.publication_rebuild_composition import build_current_publication_rebuild
 
     return build_current_publication_rebuild(created_by=created_by, dataset_keys=dataset_keys)
-
-
-def make_production_current_market_publication_bundle(
-    *,
-    using: str = "default",
-    created_by: str = "ops.current_publication_rebuild",
-) -> ProductionCurrentMarketPublicationBundle:
-    """Expose fixed current-market staging and group activation components."""
-
-    return build_production_current_market_publication_bundle(
-        using=using,
-        created_by=created_by,
-    )
 
 
 def make_core_current_fact_refresh_use_case(
