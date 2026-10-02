@@ -1033,3 +1033,43 @@ manifest/policy/freshness 后原子切换，并逐 publication 写 required audi
 RawAudit 可完整重建、当前 policy/freshness/coverage 全过且记录“当前发生的 adoption”事件时才允许；本次日线/估值不满足，
 保持 fail closed。上述生产 composition 与 lineage 修复通过同 SHA CI、S6 和同镜像部署前，禁止再次启动全市场刷新，
 也不能继续宣称 decision runtime、Alpha、API/SDK/MCP 或普通用户主流程已恢复。
+
+#### 2026-10-02 Candidate staging、价格 lineage 与整组 activation 本地收口
+
+提交 `b89006fa0` 把 current rebuild 的纯候选构建逻辑抽为单一实现，并新增 fence 外
+`CANDIDATE/member/seal/RawAudit manifest/空 pointer` 原子 staging。候选在 activation 前保持
+`published_at=NULL`；legacy `PUBLISHED` 同 ID 不会被 adoption；RawAudit 必须同时通过内容 hash、规范
+capability、hash-bound `extra.source_type` 与 fact ingestion identity 复核。任一成员、seal、manifest 或 pointer
+写入失败均整体回滚。原 staging/domain 聚焦结果为 46 个 unit/domain 和 21 个 component 用例通过；复核后又补充
+`CURRENT_PUBLICATION_STAGING_INVALID` 稳定 Application 错误码、三组 dataset 的统一 capability 映射及反例。
+
+提交 `08b80ff02` 使显式 `prepare_stock_history` 成为行情历史写入和 RawAudit 的唯一入口；普通 GET/read path 保持
+零写副作用。reference snapshot 在 provider 请求前批量捕获，写入 UOW 在 identity/fact 前复核 snapshot hash；
+`default_source=failover` 的后续 route 也必须存在可比较 overlap，否则以
+`MODEL_MARKET_UNVERIFIED_FAILOVER` 失败关闭。空批次/停牌窗口的成功 RawAudit 作为 request-level exact reference
+进入 `MarketPricePreparationResult` 和 full-market 结果，重复读取不新增请求或审计。5,001 资产组件测试首次暴露
+逐证券解析 `AssetMaster/AssetAlias` 的确定性 N+1，SQL 超过 9,000 条；批量解析后，真实 SQLite ORM reference
+snapshot 加 5,001 次 prepared-cache read 固定不超过 2 条 SQL，canonical/alias 去重和多日 per-asset limit 反例通过。
+该规模证据只覆盖只读 reference lookup，不替代 PostgreSQL 查询计划或锁证据。
+
+提交 `e5e658f1b` 新增固定 quote/price/valuation 三候选的整组 activation：只接受一个 complete Account graph fence
+和一个最外层 RC/RW 事务，稳定锁定 pointer/candidate/member/fact/coverage/manifest/RawAudit/policy，所有复核完成后
+原子切换三组 publication/pointer，并逐组写 required audit/outbox。单候选 Application 与 Repository 双入口均拒绝
+这三个 dataset；空 pointer 要求 `publication_id/hash/activation_id` 三字段完整空态；低层构造的错误 capability 候选、
+残留 pointer identity、manifest/fact drift、任一 audit/outbox 或第二 pointer 写失败均失败关闭并整体回滚。保留的非
+bundle 单候选 `market.news` 成功、幂等与回滚契约继续通过。提交 `5f32569d9` 重新生成 module map，结果为 44 modules、
+210 edges。
+
+本地合并复核为 248 passed；activation 聚焦组合为 76 passed、29 skipped。增量 mypy 35 个生产文件零回归、全仓
+mypy debt 为 0，Architecture 扫描 3,299 files / 0 violations，current-data 72 surfaces、Celery 94 tasks、data-center
+catalog 10 datasets、Black 与 Ruff 通过。`composition.py` 的历史混合 CRLF/LF import block 在本次语义修改前即不能通过
+全文件 isort；本片只保留 14 行语义 diff，没有借机格式化整文件，其他改动文件 isort 通过。该历史格式债务不影响运行，
+但必须在独立格式治理项处理，不能混入本恢复提交。
+
+剩余停止线：本机未设置 `AGOM_EVID06_POSTGRES_TEST=1`，因此 5,001 成员 PostgreSQL soak、query count、持锁时间和
+lock wait 的硬阈值尚无通过证据；测试已接入生产 complete finalizer 的 `capture_complete/fence_complete` 与真实 generation
+锁，但阈值仍为 provisional，必须由 exact-SHA PostgreSQL workflow 证明。activation 当前显式只支持 `default` alias，
+现有部署没有 `DATABASE_ROUTERS`，因此同事务成立；若未来支持其他 alias，StateWriter 与 staging 注入协议必须显式携带
+alias/UOW identity。生产 composition 仍未把 full-market 协调器接到 staging + group activation；price target-session
+选择及基于真实停牌证据的 scope block 仍需完成。完成 composition、exact-SHA 五组 CI、全新 S6 和同镜像部署前，继续
+禁止再次启动全市场刷新，也不得解除 decision runtime 阻断。
