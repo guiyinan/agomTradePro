@@ -1123,3 +1123,18 @@ Black、isort、Ruff 和 `git diff --check` 通过。无测试跳过。
 剩余停止线：组件测试使用 SQLite，只证明 event/outbox 同成同败和 alias/config fail-closed；尚未在 PostgreSQL activation
 事务内验证。Account complete proof/finalizer factory、Data Center staging/group composition、5,001+ soak、exact-SHA CI、
 S6 与同镜像部署仍未完成。本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 日线逐引用 source binding（`9233156fc`）
+
+价格历史链路新增专用 `ModelHistoryRawAuditBinding`，将 exact RawAudit reference 与持久 RawAudit `extra.source_type`
+绑定；写入返回后重新读取该 hash-bound 元数据并与 ProviderConfig 核对。binding 随 prepared-cache、逐行 evidence、
+ModelMarketData 聚合和 `MarketPricePreparationResult` 传播，同时保留原 reference 投影。failover 可让不同引用携带不同
+source type；同一 raw audit id 出现不同 source type 或不同 reference identity 时失败关闭，不能静默覆盖。
+
+本地证据：相关 unit `106 passed`；5,001 资产 ORM scale `2 passed in 292.69s`，继续覆盖 prepared-cache read 查询数；
+changed-production mypy 7 文件零回归，全仓 debt 0；Black、isort、Ruff、current-data 72 surfaces 和 `git diff --check`
+通过。无测试跳过。
+
+剩余停止线：full-market 结果和 staging command 尚未消费 price binding；`MODEL_MARKET_SUSPENDED.details.source` 在空行情
+分支仍是 route name、末段停牌分支是 fact source，语义尚未统一，不能写死成 `tushare.suspend_d`。必须先统一逐证券
+停牌 evidence source，再接入 `price_full_day_suspension` scope block。本片未部署、未启动全市场重跑。
