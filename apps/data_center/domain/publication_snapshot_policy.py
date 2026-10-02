@@ -71,14 +71,14 @@ def validate_publication_snapshot_policy(
         raise ValueError("Publication policy dataset mismatch")
     if publication.policy_version != policy.identity:
         raise ValueError("Publication policy identity mismatch")
-    quote_suspension_scope = is_policy_authorized_quote_suspension_scope(policy, publication)
+    market_suspension_scope = is_policy_authorized_market_suspension_scope(policy, publication)
     effective_coverage_ratio = publication_policy_coverage_ratio(policy, publication)
     if effective_coverage_ratio < policy.minimum_coverage_ratio:
         raise ValueError("Publication coverage is below policy threshold")
     if (
         publication.coverage.coverage_ratio < 1.0
         and not policy.allow_partial
-        and not quote_suspension_scope
+        and not market_suspension_scope
     ):
         raise ValueError("Publication policy does not allow partial coverage")
     if publication.scope_blocks and (
@@ -98,8 +98,8 @@ def validate_publication_snapshot_policy(
         and publication.coverage.missing_count > 0
     ):
         _validate_current_valuation_scope_blocks(publication, members)
-    if quote_suspension_scope:
-        _validate_current_quote_suspension_scope_blocks(publication, members)
+    if market_suspension_scope:
+        _validate_current_market_suspension_scope_blocks(publication, members)
     if publication.conflict_count > 0 and policy.conflict_action == "block":
         raise ValueError("Publication contains conflicts blocked by policy")
     if not policy.uses_versioned_evidence or members is None:
@@ -121,9 +121,34 @@ def publication_policy_coverage_ratio(
         raise TypeError("policy must be a PublicationPolicy")
     if not isinstance(publication, CanonicalPublication):
         raise TypeError("publication must be a CanonicalPublication")
-    if is_policy_authorized_quote_suspension_scope(policy, publication):
+    if is_policy_authorized_market_suspension_scope(policy, publication):
         return publication.coverage.eligible_coverage_ratio
     return publication.coverage.coverage_ratio
+
+
+def is_policy_authorized_market_suspension_scope(
+    policy: PublicationPolicy,
+    publication: CanonicalPublication,
+) -> bool:
+    """Return whether policy permits an evidenced quote or price suspension partition."""
+
+    if not isinstance(policy, PublicationPolicy):
+        raise TypeError("policy must be a PublicationPolicy")
+    if not isinstance(publication, CanonicalPublication):
+        raise TypeError("publication must be a CanonicalPublication")
+    supported_reasons = {
+        "equity.quote.snapshot": "quote_full_day_suspension",
+        "equity.price.bar": "price_full_day_suspension",
+    }
+    expected_reason = supported_reasons.get(publication.dataset_key)
+    return (
+        policy.uses_versioned_evidence
+        and expected_reason is not None
+        and publication.publication_key == "current"
+        and publication.coverage.missing_count > 0
+        and bool(publication.scope_blocks)
+        and all(block.reason_code == expected_reason for block in publication.scope_blocks)
+    )
 
 
 def is_policy_authorized_quote_suspension_scope(
@@ -137,34 +162,28 @@ def is_policy_authorized_quote_suspension_scope(
     if not isinstance(publication, CanonicalPublication):
         raise TypeError("publication must be a CanonicalPublication")
     return (
-        policy.uses_versioned_evidence
-        and publication.dataset_key == "equity.quote.snapshot"
-        and publication.publication_key == "current"
-        and publication.coverage.missing_count > 0
-        and bool(publication.scope_blocks)
-        and all(
-            block.reason_code == "quote_full_day_suspension" for block in publication.scope_blocks
-        )
+        publication.dataset_key == "equity.quote.snapshot"
+        and is_policy_authorized_market_suspension_scope(policy, publication)
     )
 
 
-def _validate_current_quote_suspension_scope_blocks(
+def _validate_current_market_suspension_scope_blocks(
     publication: CanonicalPublication,
     members: Sequence[PublicationMember] | None,
 ) -> None:
-    """Require a complete target-day evidence chain for each excluded quote asset."""
+    """Require a complete target-day evidence chain for each suspended market asset."""
 
     if members is None or not members:
-        raise ValueError("Quote suspension scope requires selected members")
+        raise ValueError("Market suspension scope requires selected members")
     if not publication.run_id.strip():
-        raise ValueError("Quote suspension scope requires publication run id")
+        raise ValueError("Market suspension scope requires publication run id")
     coverage = publication.coverage
     if (
         coverage.selected_count != coverage.eligible_count
         or coverage.requested_count - coverage.eligible_count != coverage.missing_count
         or coverage.selected_count + coverage.missing_count != coverage.requested_count
     ):
-        raise ValueError("Quote suspension coverage does not partition requested scope")
+        raise ValueError("Market suspension coverage does not partition requested scope")
     target_trade_dates: set[date] = set()
     blocked_codes = {block.asset_code.strip().upper() for block in publication.scope_blocks}
     for block in publication.scope_blocks:
@@ -176,31 +195,31 @@ def _validate_current_quote_suspension_scope_blocks(
             or not block.publication_id
             or not block.evidence_source
         ):
-            raise ValueError("Quote suspension scope block evidence is incomplete")
+            raise ValueError("Market suspension scope block evidence is incomplete")
         if (
             block.source != publication.selected_source
             or block.publication_run_id != publication.run_id
             or block.policy_version != publication.policy_version
             or block.publication_id != publication.publication_id
         ):
-            raise ValueError("Quote suspension scope block identity differs")
+            raise ValueError("Market suspension scope block identity differs")
         target_trade_dates.add(block.target_trade_date)
     if len(target_trade_dates) != 1:
-        raise ValueError("Quote suspension scope blocks must share one target trade date")
+        raise ValueError("Market suspension scope blocks must share one target trade date")
     target_trade_date = next(iter(target_trade_dates))
     member_codes: set[str] = set()
     for member in members:
         if member.observed_at is None:
-            raise ValueError("Quote suspension scope members require observed_at")
+            raise ValueError("Market suspension scope members require observed_at")
         if cn_market_date_from_observation(
             member.observed_at
         ) != target_trade_date or member.observed_at < cn_market_session_close_utc(
             target_trade_date
         ):
-            raise ValueError("Quote suspension scope member differs from target trade date")
+            raise ValueError("Market suspension scope member differs from target trade date")
         member_codes.add(member.natural_key.split(":", 1)[0].strip().upper())
     if blocked_codes & member_codes:
-        raise ValueError("Quote suspension scope block overlaps selected members")
+        raise ValueError("Market suspension scope block overlaps selected members")
 
 
 def _validate_current_valuation_scope_blocks(
@@ -259,6 +278,7 @@ def _validate_current_valuation_scope_blocks(
 
 
 __all__ = [
+    "is_policy_authorized_market_suspension_scope",
     "is_policy_authorized_quote_suspension_scope",
     "publication_policy_coverage_ratio",
     "publication_selected_source_summary",

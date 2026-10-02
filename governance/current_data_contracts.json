@@ -4911,7 +4911,8 @@
           "newest_observed_at",
           "covered_asset_count: int",
           "\"policy_identity\": publication.policy_version",
-          "reason_code != \"quote_full_day_suspension\"",
+          "\"equity.quote.snapshot\": \"quote_full_day_suspension\"",
+          "\"equity.price.bar\": \"price_full_day_suspension\"",
           "scope_exclusions_by_dataset",
           "required_observation_date",
           "required_observation_dates",
@@ -5388,7 +5389,8 @@
           "Partial current valuation scope block evidence is incomplete",
           "Partial current valuation scope block identity differs",
           "def publication_policy_coverage_ratio(",
-          "Quote suspension scope block evidence is incomplete",
+          "Market suspension scope block evidence is incomplete",
+          "\"equity.price.bar\": \"price_full_day_suspension\"",
           "quote_full_day_suspension",
           "cn_market_session_close_utc("
         ],
@@ -6324,6 +6326,26 @@
           "case": "verified_quote_suspension_keeps_full_denominator_and_strict_policy",
           "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
           "test_function": "test_rebuild_publishes_verified_target_session_suspension_scope"
+        },
+        {
+          "case": "price_target_session_keeps_only_evidenced_suspension_scope",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_price_candidate_binds_target_session_and_keeps_evidenced_suspension"
+        },
+        {
+          "case": "price_target_session_does_not_reuse_old_non_suspended_bar",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_price_target_session_does_not_use_old_bar_for_non_suspended_asset"
+        },
+        {
+          "case": "price_target_session_rejects_1455_as_close",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_price_target_session_rejects_1455_observation_as_official_close"
+        },
+        {
+          "case": "price_suspension_rejects_quote_reason_substitution",
+          "test_file": "tests/unit/data_center/test_current_publication_rebuild.py",
+          "test_function": "test_price_suspension_scope_rejects_quote_reason_substitution"
         },
         {
           "case": "unverified_quote_scope_exclusion_fails_closed",

@@ -208,28 +208,33 @@ class CurrentPublicationRebuildUseCase:
         policy_uses_versioned_evidence: bool,
         run_id: str,
     ) -> bool:
-        """Accept only an exact, fully evidenced quote suspension partition."""
+        """Accept only an exact, fully evidenced market suspension partition."""
 
         if not exclusions:
             return False
-        if self.dataset.dataset_key != "equity.quote.snapshot":
+        supported_reasons = {
+            "equity.quote.snapshot": "quote_full_day_suspension",
+            "equity.price.bar": "price_full_day_suspension",
+        }
+        expected_reason = supported_reasons.get(self.dataset.dataset_key)
+        if expected_reason is None:
             raise ValueError("Scope exclusions are unsupported for this current dataset")
         if not policy_uses_versioned_evidence:
-            raise ValueError("Quote suspension scope requires a versioned publication policy")
+            raise ValueError("Market suspension scope requires a versioned publication policy")
         if not run_id.strip():
-            raise ValueError("Quote suspension scope requires publication run id")
+            raise ValueError("Market suspension scope requires publication run id")
         exclusion_codes = {item.asset_code for item in exclusions}
         if exclusion_codes != set(selection.preview.missing_asset_codes):
-            raise ValueError("Quote suspension scope exclusions must match publication gaps")
+            raise ValueError("Market suspension scope exclusions must match publication gaps")
         if selection.preview.unexpected_asset_codes:
-            raise ValueError("Quote suspension scope contains unexpected assets")
+            raise ValueError("Market suspension scope contains unexpected assets")
         if not selection.references:
-            raise ValueError("Quote suspension scope cannot exclude the full requested universe")
-        if any(item.reason_code != "quote_full_day_suspension" for item in exclusions):
-            raise ValueError("Quote suspension scope has an unsupported scope exclusion")
+            raise ValueError("Market suspension scope cannot exclude the full requested universe")
+        if any(item.reason_code != expected_reason for item in exclusions):
+            raise ValueError("Market suspension scope has an unsupported scope exclusion")
         target_dates = {item.target_trade_date for item in exclusions}
         if len(target_dates) != 1:
-            raise ValueError("Quote suspension scope must share one target trade date")
+            raise ValueError("Market suspension scope must share one target trade date")
         target_trade_date = next(iter(target_dates))
         self._validate_quote_suspension_candidate_conflicts(
             selection=selection,
@@ -239,24 +244,28 @@ class CurrentPublicationRebuildUseCase:
             cn_market_date_from_observation(reference.observed_at) != target_trade_date
             for reference in selection.references
         ):
-            raise ValueError("Quote suspension scope target trade date differs from members")
+            raise ValueError("Market suspension scope target trade date differs from members")
         return selection.preview.covered_asset_count == (
             selection.preview.requested_asset_count - len(exclusions)
         )
 
-    @staticmethod
     def _validate_quote_suspension_candidate_conflicts(
+        self,
         *,
         selection: _CurrentPublicationSelection,
         exclusions: tuple[CurrentPublicationScopeExclusion, ...],
     ) -> None:
-        """Reject a full-day suspension claim contradicted by persisted target-day quotes."""
+        """Reject a suspension claim contradicted by persisted target-day market facts."""
 
         if not exclusions:
             return
         if selection.excluded_target_date_asset_codes:
+            observation_label = (
+                "quote" if self.dataset.dataset_key == "equity.quote.snapshot" else "price"
+            )
             raise ValueError(
-                "Quote suspension scope conflicts with a target-session quote observation"
+                "Market suspension scope conflicts with a target-session "
+                f"{observation_label} observation"
             )
 
     def _normalize_scope_exclusions(
@@ -270,21 +279,26 @@ class CurrentPublicationRebuildUseCase:
         exclusions = tuple(sorted(scope_exclusions, key=lambda item: item.asset_code))
         if not exclusions:
             return ()
-        if self.dataset.dataset_key != "equity.quote.snapshot":
+        supported_reasons = {
+            "equity.quote.snapshot": "quote_full_day_suspension",
+            "equity.price.bar": "price_full_day_suspension",
+        }
+        expected_reason = supported_reasons.get(self.dataset.dataset_key)
+        if expected_reason is None:
             raise ValueError("Scope exclusions are unsupported for this current dataset")
         exclusion_codes = {item.asset_code for item in exclusions}
         if len(exclusion_codes) != len(exclusions):
             raise ValueError("Current publication scope exclusions must use unique asset codes")
         requested_codes = set(asset_codes)
         if not exclusion_codes.issubset(requested_codes):
-            raise ValueError("Quote suspension scope exclusions must match publication gaps")
+            raise ValueError("Market suspension scope exclusions must match publication gaps")
         if exclusion_codes == requested_codes:
-            raise ValueError("Quote suspension scope cannot exclude the full requested universe")
-        if any(item.reason_code != "quote_full_day_suspension" for item in exclusions):
-            raise ValueError("Quote suspension scope has an unsupported scope exclusion")
+            raise ValueError("Market suspension scope cannot exclude the full requested universe")
+        if any(item.reason_code != expected_reason for item in exclusions):
+            raise ValueError("Market suspension scope has an unsupported scope exclusion")
         target_dates = {item.target_trade_date for item in exclusions}
         if len(target_dates) != 1:
-            raise ValueError("Quote suspension scope must share one target trade date")
+            raise ValueError("Market suspension scope must share one target trade date")
         return exclusions
 
     @staticmethod
@@ -328,12 +342,12 @@ class CurrentPublicationRebuildUseCase:
         excluded_target_date_codes: tuple[str, ...] = ()
         if excluded_asset_codes:
             if exclusion_target_trade_date is None:
-                raise ValueError("Quote suspension scope requires a target trade date")
+                raise ValueError("Market suspension scope requires a target trade date")
             if not isinstance(
                 self._candidates,
                 TargetDatePublicationObservationProbeProtocol,
             ):
-                raise ValueError("Quote suspension scope requires a target-date observation probe")
+                raise ValueError("Market suspension scope requires a target-date observation probe")
             probed_codes = self._candidates.list_asset_codes_with_observation_on_date(
                 tuple(sorted(excluded_asset_codes)),
                 exclusion_target_trade_date,
@@ -346,7 +360,7 @@ class CurrentPublicationRebuildUseCase:
             or len(excluded_target_date_codes) != len(set(excluded_target_date_codes))
             or not set(excluded_target_date_codes).issubset(excluded_asset_codes)
         ):
-            raise ValueError("Quote suspension candidate probe contains unexpected assets")
+            raise ValueError("Market suspension candidate probe contains unexpected assets")
 
         covered = {
             reference.natural_key.split(":", 1)[0].strip().upper() for reference in references
@@ -407,10 +421,14 @@ class CurrentPublicationRebuildUseCase:
                 and reference_date != required_observation_date
             ):
                 continue
-            if self.dataset.dataset_key == "equity.quote.snapshot":
+            requires_official_close = self.dataset.dataset_key == "equity.quote.snapshot" or (
+                self.dataset.dataset_key == "equity.price.bar"
+                and required_observation_date is not None
+            )
+            if requires_official_close:
                 if reference.observed_at < cn_market_session_close_utc(observation_date):
                     raise ValueError(
-                        "Current quote publication contains an observation before the "
+                        "Current market publication contains an observation before the "
                         "official China-market close"
                     )
             prior = by_natural_key.get(reference.natural_key)

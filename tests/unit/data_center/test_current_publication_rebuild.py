@@ -292,6 +292,170 @@ def test_candidate_preparation_does_not_read_current_and_keeps_eight_quote_suspe
     )
 
 
+def test_price_candidate_binds_target_session_and_keeps_evidenced_suspension() -> None:
+    """A suspended price scope omits old bars and keeps an explicit target-day block."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        created_by="ops.current_publication_rebuild",
+    )
+    active_code = "000001.SZ"
+    suspended_code = "000016.SZ"
+    target_date = date(2026, 8, 28)
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                active_code,
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            ),
+            _reference(
+                suspended_code,
+                "2",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 27, 7, 0, tzinfo=UTC),
+            ),
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+
+    candidate = use_case.prepare_candidate(
+        asset_codes=(active_code, suspended_code),
+        published_at=datetime(2026, 8, 28, 8, 0, tzinfo=UTC),
+        run_id="price-target-session-run",
+        required_observation_date=target_date,
+        scope_exclusions=(
+            CurrentPublicationScopeExclusion(
+                asset_code=suspended_code,
+                reason_code="price_full_day_suspension",
+                target_trade_date=target_date,
+                evidence_source="tushare.suspend_d",
+            ),
+        ),
+    )
+
+    assert candidate.publication.coverage.requested_count == 2
+    assert candidate.publication.coverage.eligible_count == 1
+    assert candidate.publication.coverage.selected_count == 1
+    assert candidate.publication.coverage.missing_count == 1
+    assert candidate.publication.scope_blocks[0].asset_code == suspended_code
+    assert candidate.publication.scope_blocks[0].reason_code == "price_full_day_suspension"
+    assert candidate.members[0].observed_at == datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+
+
+def test_price_target_session_does_not_use_old_bar_for_non_suspended_asset() -> None:
+    """An old bar remains a gap unless the asset has explicit suspension evidence."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        created_by="ops.current_publication_rebuild",
+    )
+    target_date = date(2026, 8, 28)
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                "000001.SZ",
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 27, 7, 0, tzinfo=UTC),
+            )
+        ],
+    )
+
+    preview = use_case.preview(
+        asset_codes=("000001.SZ",),
+        published_at=datetime(2026, 8, 28, 8, 0, tzinfo=UTC),
+        required_observation_date=target_date,
+    )
+
+    assert preview.member_count == 0
+    assert preview.missing_asset_codes == ("000001.SZ",)
+    with pytest.raises(ValueError, match="missing active assets"):
+        use_case.prepare_candidate(
+            asset_codes=("000001.SZ",),
+            published_at=datetime(2026, 8, 28, 8, 0, tzinfo=UTC),
+            run_id="price-target-session-run",
+            required_observation_date=target_date,
+        )
+
+
+def test_price_target_session_rejects_1455_observation_as_official_close() -> None:
+    """A 14:55 China-time bar cannot stand in for the official 15:00 close."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        created_by="ops.current_publication_rebuild",
+    )
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                "000001.SZ",
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 6, 55, tzinfo=UTC),
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="official China-market close"):
+        use_case.preview(
+            asset_codes=("000001.SZ",),
+            published_at=datetime(2026, 8, 28, 8, 0, tzinfo=UTC),
+            required_observation_date=date(2026, 8, 28),
+        )
+
+
+def test_price_suspension_scope_rejects_quote_reason_substitution() -> None:
+    """Price scope evidence cannot be relabelled as a quote-only suspension."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.price.bar",
+        fact_table="data_center_price_bar",
+        created_by="ops.current_publication_rebuild",
+    )
+    use_case = _use_case(
+        dataset,
+        [
+            _reference(
+                "000001.SZ",
+                "1",
+                dataset=dataset,
+                observed_at=datetime(2026, 8, 28, 7, 0, tzinfo=UTC),
+            )
+        ],
+        policy_repository=_PartialPolicyRepository(
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="unsupported scope exclusion"):
+        use_case.prepare_candidate(
+            asset_codes=("000001.SZ", "000016.SZ"),
+            published_at=datetime(2026, 8, 28, 8, 0, tzinfo=UTC),
+            run_id="price-target-session-run",
+            required_observation_date=date(2026, 8, 28),
+            scope_exclusions=(
+                CurrentPublicationScopeExclusion(
+                    asset_code="000016.SZ",
+                    reason_code="quote_full_day_suspension",
+                    target_trade_date=date(2026, 8, 28),
+                    evidence_source="tushare.suspend_d",
+                ),
+            ),
+        )
+
+
 def test_candidate_preparation_uses_partial_valuation_policy_and_block_evidence() -> None:
     """A policy-valid partial valuation remains a candidate with explicit missing scope."""
 
