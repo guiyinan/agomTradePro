@@ -4,12 +4,13 @@ import ipaddress
 import json
 import os
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from importlib import import_module
 from pathlib import Path
+from threading import Barrier
 from time import monotonic
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
@@ -23,7 +24,16 @@ from django.db.utils import load_backend
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from apps.audit.domain.system_audit_event import AuditOutcome, AuditScopeRef
+from apps.account.application.owner_tenant_authority_v3 import (
+    GetCurrentOwnerTenantAuthorityV3Command,
+)
+from apps.account.infrastructure.account_authority_final_revalidator_v3 import (
+    AccountAuthorityCompleteGraphFinalRevalidationProofV3,
+    AccountAuthorityFinalRevalidatorV3,
+)
+from apps.account.infrastructure.account_authority_generation_models import (
+    AccountAuthorityGenerationModel,
+)
 from apps.audit.infrastructure.publication_activation_audit_writer import (
     DjangoPublicationActivationAuditWriter,
 )
@@ -33,7 +43,10 @@ from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
 from apps.data_center.application.publication_activation import (
-    PublicationActivationRequest,
+    ActivateCanonicalPublicationGroupUseCase,
+    PublicationActivationError,
+    PublicationActivationGroupCandidate,
+    PublicationActivationGroupRequest,
 )
 from apps.data_center.application.publication_utils import (
     member_reference,
@@ -45,9 +58,22 @@ from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
+    PublicationMember,
     PublicationState,
 )
 from apps.data_center.domain.entities import RawAudit
+from apps.data_center.domain.raw_audit_manifest import (
+    CandidateRawAuditManifest,
+    CandidateRawAuditReference,
+    canonical_capability_for_publication_dataset,
+)
+from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
+    CandidateRawAuditManifestMemberModel,
+    CandidateRawAuditManifestModel,
+)
+from apps.data_center.infrastructure.candidate_raw_audit_manifest_repository import (
+    DjangoCandidateRawAuditManifestRepository,
+)
 from apps.data_center.infrastructure.catalog_models import (
     DataOwnerRegistrationModel,
     DatasetContractModel,
@@ -87,8 +113,21 @@ from apps.data_center.infrastructure.publication_read_snapshot import (
     consistent_publication_read,
 )
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
-from core.integration.data_center_audit import DataPublicationAuditObservation
+from core.integration.data_center_audit import (
+    DataPublicationManifestAuditObservation,
+    SystemAuditEventOutboxCommit,
+)
+from tests.component.account.test_owner_tenant_authority_v3_fresh_v5_parents_postgres import (
+    _SCHEMA_MODELS as _ACCOUNT_SCHEMA_MODELS,
+)
 from tests.component.data_center.test_current_publication_evidence_gate import _published_snapshot
+
+_ACCOUNT_GENERATION_MIGRATION = import_module(
+    "apps.account.migrations.0065_account_authority_generation"
+)
+_ACCOUNT_GENERATION_LOCK_MIGRATION = import_module(
+    "apps.account.migrations.0066_account_authority_generation_lock"
+)
 
 
 @dataclass(frozen=True)
@@ -130,7 +169,7 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         OPTIONS={"connect_timeout": 10},
     )
     wrapper = load_backend(settings["ENGINE"]).DatabaseWrapper(settings, alias="default")
-    models = (
+    publication_models = (
         DatasetContractModel,
         DatasetProviderBindingModel,
         DatasetPublicationPolicyModel,
@@ -143,13 +182,18 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         ValuationFactModel,
         RawAuditModel,
         CanonicalPublicationModel,
+        CandidateRawAuditManifestModel,
+        CandidateRawAuditManifestMemberModel,
         CanonicalPublicationPointerModel,
         CoverageSnapshotModel,
         PublicationMemberModel,
         SystemAuditEventModel,
         SystemAuditOutboxModel,
     )
+    models = (*_ACCOUNT_SCHEMA_MODELS, AccountAuthorityGenerationModel, *publication_models)
     created = []
+    source_triggers_installed = False
+    generation_lock_installed = False
     with django_db_blocker.unblock():
         connections["default"] = wrapper
         try:
@@ -159,10 +203,22 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
                 for model in models:
                     editor.create_model(model)
                     created.append(model)
+                _ACCOUNT_GENERATION_MIGRATION.seed_generation_row(apps, editor)
+                _ACCOUNT_GENERATION_MIGRATION.install_source_triggers(apps, editor)
+                source_triggers_installed = True
+                _ACCOUNT_GENERATION_LOCK_MIGRATION.install_generation_lock_function(apps, editor)
+                generation_lock_installed = True
             yield _PGProbeFactory(credentials)
         finally:
             if created:
                 with wrapper.schema_editor() as editor:
+                    if generation_lock_installed:
+                        _ACCOUNT_GENERATION_LOCK_MIGRATION.remove_generation_lock_function(
+                            apps,
+                            editor,
+                        )
+                    if source_triggers_installed:
+                        _ACCOUNT_GENERATION_MIGRATION.remove_source_triggers(apps, editor)
                     for model in reversed(created):
                         editor.delete_model(model)
                 assert wrapper.introspection.table_names() == []
@@ -193,6 +249,8 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             ValuationFactModel,
             RawAuditModel,
             CanonicalPublicationModel,
+            CandidateRawAuditManifestModel,
+            CandidateRawAuditManifestMemberModel,
             CanonicalPublicationPointerModel,
             CoverageSnapshotModel,
             PublicationMemberModel,
@@ -200,7 +258,11 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             SystemAuditOutboxModel,
         )
         expected = {model._meta.db_table for model in models}
-        assert set(wrapper.introspection.table_names()) == expected
+        full_expected = {
+            model._meta.db_table
+            for model in (*_ACCOUNT_SCHEMA_MODELS, AccountAuthorityGenerationModel, *models)
+        }
+        assert set(wrapper.introspection.table_names()) == full_expected
         names = ", ".join(wrapper.ops.quote_name(name) for name in sorted(expected))
         with wrapper.cursor() as cursor:
             cursor.execute(f"TRUNCATE TABLE {names}")
@@ -212,43 +274,31 @@ def _probe_update(probe, fact_pk: str) -> None:
 
 
 _ACTIVATION_SOAK_MEMBER_COUNT = 5_001
-_ACTIVATION_SOAK_MAX_QUERIES = 35
-_ACTIVATION_SOAK_MAX_HELD_SECONDS = 2.0
+# Provisional ceiling: the single-candidate 35-query gate plus 15 fixed group costs
+# for two extra candidate/fact/policy/manifest graphs and three required audit/outboxes.
+# Only an opted-in real PostgreSQL run can establish the measured group threshold.
+_ACTIVATION_SOAK_MAX_QUERIES = 50
+# The old 2.0s fence-hold limit gets a 0.5s provisional allowance for the extra two
+# candidate switches and two required outbox appends; confirm with real PG evidence.
+_ACTIVATION_SOAK_MAX_HELD_SECONDS = 2.5
 _ACTIVATION_SOAK_MAX_LOCK_WAIT_SECONDS = 0.25
 
 
-@dataclass(frozen=True)
-class _ActivationFenceFingerprint:
-    complete_graph_hash: str = "f" * 64
+def _production_activation_fence() -> tuple[
+    AccountAuthorityFinalRevalidatorV3,
+    AccountAuthorityCompleteGraphFinalRevalidationProofV3,
+]:
+    """Capture a proof for the production Account complete RC/RW fence implementation."""
 
+    from tests.component.account.test_account_authority_final_revalidator_v3_postgres import (
+        _complete_finalizer,
+    )
 
-@dataclass(frozen=True)
-class _ActivationFenceResult:
-    database_alias: str = "default"
-    tenant_id: str = "tenant-soak"
-    owner_id: str = "owner-soak"
-    generation: int = 1
-    fingerprint: _ActivationFenceFingerprint = _ActivationFenceFingerprint()
-    checked_at: datetime = datetime.now(UTC)
-    valid_until: datetime = datetime.now(UTC) + timedelta(hours=1)
-    scope: str = "account_authority_complete_graph"
-
-
-class _PostgresActivationFence:
-    """Feature-off test fence with the same caller-owned RC/RW shape."""
-
-    @contextmanager
-    def fence_complete(self, proof: object) -> Iterator[_ActivationFenceResult]:
-        assert proof == "soak-proof"
-        with transaction.atomic():
-            with connections["default"].cursor() as cursor:
-                cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ WRITE")
-                cursor.execute("SELECT CURRENT_TIMESTAMP")
-                checked_at = cursor.fetchone()[0]
-            yield _ActivationFenceResult(
-                checked_at=checked_at,
-                valid_until=checked_at + timedelta(hours=1),
-            )
+    finalizer, command, scan, _reader = _complete_finalizer("default")
+    if not isinstance(command, GetCurrentOwnerTenantAuthorityV3Command):
+        raise AssertionError("Account complete-fence command has an invalid type")
+    proof = finalizer.capture_complete(command, scan)
+    return finalizer, proof
 
 
 class _PostgresActivationAuditWriter:
@@ -270,162 +320,241 @@ class _PostgresActivationAuditWriter:
             observation=observation,
         )
 
+    def append_manifest_required(
+        self,
+        *,
+        request: PublicationActivationGroupRequest,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+        manifest: CandidateRawAuditManifest,
+        observation: DataPublicationManifestAuditObservation,
+    ) -> SystemAuditEventOutboxCommit:
+        return self._adapter.append_manifest_required(
+            request=request,
+            publication=publication,
+            members=members,
+            manifest=manifest,
+            observation=observation,
+        )
 
-def _build_activation_soak_snapshot() -> tuple[PublicationActivationRequest, str, str]:
-    """Build one 5,001-member candidate with exact persisted facts and raw evidence."""
 
-    dataset_key = "equity.valuation.fact"
-    now = timezone.now() - timedelta(minutes=5)
-    policy = PublicationPolicy(
-        dataset=DatasetKey(dataset_key, "1.0", "1.0"),
-        minimum_coverage_ratio=1.0,
-        allow_partial=False,
-        conflict_action="block",
-        required_evidence=(
-            "source",
-            "observed_at",
-            "available_at",
-            "fetched_at",
-            "source_record_id",
-            "raw_payload_hash",
-            "raw_payload_scope",
-            "fact_content_hash",
-        ),
-        retention_days=3650,
-        policy_version="activation-soak",
+def _build_activation_soak_snapshot(
+    *,
+    valuation_member_count: int = _ACTIVATION_SOAK_MEMBER_COUNT,
+    activation_id: str = "activation-group-soak-1",
+) -> tuple[
+    PublicationActivationGroupRequest,
+    dict[str, str],
+    dict[str, str],
+]:
+    """Build one 5,001-member valuation plus quote and price group candidates."""
+
+    datasets = (
+        "equity.price.bar",
+        "equity.quote.snapshot",
+        "equity.valuation.fact",
     )
-    PublicationPolicyRepository().save(policy)
-    run_id = uuid4()
-    ingested_run_id = uuid4()
-    ValuationFactModel.objects.bulk_create(
-        [
-            ValuationFactModel(
-                asset_code=f"SOAK{i:06d}.SZ",
-                val_date=now.date(),
-                pe_ttm=12 + (i % 100) / 10,
+    repository = DjangoPublicationActivationRepository()
+    manifest_repository = DjangoCandidateRawAuditManifestRepository()
+    candidate_ids: dict[str, str] = {}
+    raw_audit_ids: dict[str, str] = {}
+    group_candidates: list[PublicationActivationGroupCandidate] = []
+    for dataset_key in datasets:
+        valuation_count = valuation_member_count
+        member_count = valuation_count if dataset_key == "equity.valuation.fact" else 1
+        observed_at = timezone.now() - timedelta(minutes=5)
+        policy = PublicationPolicy(
+            dataset=DatasetKey(dataset_key, "1.0", "1.0"),
+            minimum_coverage_ratio=1.0,
+            allow_partial=False,
+            conflict_action="block",
+            required_evidence=(
+                "source",
+                "observed_at",
+                "fetched_at",
+                "source_record_id",
+                "fact_content_hash",
+            ),
+            retention_days=3650,
+            policy_version="activation-soak",
+        )
+        PublicationPolicyRepository().save(policy)
+        run_id = uuid4()
+        ingested_run_id = uuid4()
+        batch_token = uuid4().hex[:6].upper()
+        if dataset_key == "equity.valuation.fact":
+            ValuationFactModel.objects.bulk_create(
+                [
+                    ValuationFactModel(
+                        asset_code=f"SOAKV{batch_token}{i:06d}.SZ",
+                        val_date=observed_at.date(),
+                        pe_ttm=12 + (i % 100) / 10,
+                        source="soak",
+                        observed_at=observed_at,
+                        available_at=observed_at,
+                        fetched_at=observed_at,
+                        extra={"raw_payload_scope": "batch_response_body"},
+                        source_record_id=f"soak-record-{i}",
+                        raw_payload_hash="a" * 64,
+                        quality_status="accepted",
+                        revision_number=1,
+                        ingested_run_id=ingested_run_id,
+                    )
+                    for i in range(member_count)
+                ],
+                batch_size=1000,
+            )
+            fact_model = ValuationFactModel
+        elif dataset_key == "equity.quote.snapshot":
+            QuoteSnapshotModel.objects.create(
+                asset_code=f"SOAKQ{uuid4().hex[:8].upper()}.SZ",
+                snapshot_at=observed_at,
+                fetched_at=observed_at,
+                current_price=1,
                 source="soak",
-                observed_at=now,
-                available_at=now,
-                fetched_at=now,
-                extra={"raw_payload_scope": "batch_response_body"},
-                source_record_id=f"soak-record-{i}",
+                source_record_id="soak-quote-record",
                 raw_payload_hash="a" * 64,
                 quality_status="accepted",
                 revision_number=1,
                 ingested_run_id=ingested_run_id,
             )
-            for i in range(_ACTIVATION_SOAK_MEMBER_COUNT)
-        ],
-        batch_size=1000,
-    )
-    facts = list(ValuationFactModel.objects.filter(source="soak").order_by("pk"))
-    references = [
-        publication_fact_reference_for_dataset(row, dataset_key=dataset_key) for row in facts
-    ]
-    publication_id = str(uuid4())
-    members = tuple(
-        publication_member_from_reference(
-            reference,
-            member_id=str(uuid4()),
+            fact_model = QuoteSnapshotModel
+        else:
+            PriceBarModel.objects.create(
+                asset_code=f"SOAKP{uuid4().hex[:8].upper()}.SZ",
+                bar_date=(observed_at - timedelta(days=1)).date(),
+                freq="1d",
+                adjustment="none",
+                open=1,
+                high=1,
+                low=1,
+                close=1,
+                source="soak",
+                source_record_id="soak-price-record",
+                raw_payload_hash="a" * 64,
+                quality_status="accepted",
+                revision_number=1,
+                ingested_run_id=ingested_run_id,
+            )
+            fact_model = PriceBarModel
+        fact_rows = list(fact_model.objects.filter(ingested_run_id=ingested_run_id).order_by("pk"))
+        assert len(fact_rows) == member_count
+        references = [
+            publication_fact_reference_for_dataset(row, dataset_key=dataset_key)
+            for row in fact_rows
+        ]
+        publication_id = str(uuid4())
+        members = tuple(
+            publication_member_from_reference(
+                reference,
+                member_id=str(uuid4()),
+                publication_id=publication_id,
+                dataset_key=dataset_key,
+            )
+            for reference in references
+        )
+        capability = canonical_capability_for_publication_dataset(dataset_key)
+        assert capability is not None
+        raw = RawAuditRepository().log(
+            RawAudit(
+                provider_name="soak-provider-adapter",
+                capability=capability,
+                request_params={"dataset_key": dataset_key, "member_count": member_count},
+                status="ok",
+                row_count=member_count,
+                fetched_at=timezone.now(),
+                run_id=str(run_id),
+                ingested_run_id=str(ingested_run_id),
+                response_payload_hash="b" * 64,
+                schema_fingerprint="c" * 64,
+                parser_version="activation-soak",
+                extra={"source_type": "soak"},
+            )
+        )
+        publication_as_of = timezone.now()
+        publication = CanonicalPublication(
             publication_id=publication_id,
             dataset_key=dataset_key,
-        )
-        for reference in references
-    )
-    raw = RawAuditRepository().log(
-        RawAudit(
-            provider_name="soak",
-            capability="valuation",
-            request_params={"member_count": _ACTIVATION_SOAK_MEMBER_COUNT},
-            status="ok",
-            row_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-            fetched_at=now,
+            publication_key="current",
+            policy_version=policy.identity,
+            state=PublicationState.CANDIDATE,
+            selected_source="soak",
+            publication_hash=publication_hash(references, policy_identity=policy.identity),
+            coverage=CoverageSnapshot(
+                coverage_id=str(uuid4()),
+                publication_id=publication_id,
+                requested_count=member_count,
+                eligible_count=member_count,
+                selected_count=member_count,
+                missing_count=0,
+                conflict_count=0,
+                generated_at=publication_as_of,
+            ),
+            member_count=member_count,
+            as_of=publication_as_of,
+            created_by="test.activation.group-soak",
             run_id=str(run_id),
-            ingested_run_id=str(ingested_run_id),
-            response_payload_hash="b" * 64,
-            schema_fingerprint="c" * 64,
-            parser_version="activation-soak",
         )
-    )
-    publication = CanonicalPublication(
-        publication_id=publication_id,
-        dataset_key=dataset_key,
-        publication_key="current",
-        policy_version=policy.identity,
-        state=PublicationState.CANDIDATE,
-        selected_source="soak",
-        publication_hash=publication_hash(
-            references,
-            policy_identity=policy.identity,
+        repository.stage_candidate_with_members(publication, members)
+        raw_reference = CandidateRawAuditReference(
+            raw_audit_id=raw.raw_audit_id,
+            version="1",
+            content_hash=raw.content_hash,
+            provider_name=raw.provider_name,
+            capability=raw.capability,
+            run_id=raw.run_id,
+            ingested_run_id=raw.ingested_run_id,
+        )
+        manifest = CandidateRawAuditManifest.create(
+            publication_id=publication.publication_id,
+            publication_hash=publication.publication_hash,
+            run_id=publication.run_id,
+            dataset_key=publication.dataset_key,
+            publication_key=publication.publication_key,
+            task_attempt_id="activation-soak-" + uuid4().hex,
+            raw_audits=(raw_reference,),
+        )
+        manifest_repository.stage(manifest)
+        candidate_ids[dataset_key] = publication_id
+        raw_audit_ids[dataset_key] = raw.raw_audit_id
+        group_candidates.append(
+            PublicationActivationGroupCandidate(
+                dataset_key=dataset_key,
+                publication_key="current",
+                candidate_publication_id=publication_id,
+                candidate_publication_hash=publication.publication_hash,
+            )
+        )
+    return (
+        PublicationActivationGroupRequest(
+            activation_id=activation_id,
+            candidates=tuple(group_candidates),
         ),
-        coverage=CoverageSnapshot(
-            coverage_id=str(uuid4()),
-            publication_id=publication_id,
-            requested_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-            eligible_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-            selected_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-            missing_count=0,
-            conflict_count=0,
-            generated_at=now,
-        ),
-        member_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-        as_of=now,
-        created_by="test.activation.soak",
-        run_id=str(run_id),
+        candidate_ids,
+        raw_audit_ids,
     )
-    DjangoPublicationActivationRepository().stage_candidate_with_members(publication, members)
-    raw_reference = raw.exact_reference()
-    observation = DataPublicationAuditObservation(
-        dataset_key=dataset_key,
-        publication_key="current",
-        publication_id=publication_id,
-        publication_version=policy.identity,
-        publication_hash=publication.publication_hash,
-        provider_key="soak",
-        run_id=str(run_id),
-        ingested_run_id=str(ingested_run_id),
-        member_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-        coverage_requested_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-        coverage_eligible_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-        coverage_selected_count=_ACTIVATION_SOAK_MEMBER_COUNT,
-        outcome=AuditOutcome.PUBLISHED,
-        raw_audit_id=raw_reference.raw_audit_id,
-        raw_audit_version=raw_reference.version,
-        raw_audit_content_hash=raw_reference.content_hash,
-        occurred_at=now,
-        recorded_at=raw.fetched_at,
-        scope=AuditScopeRef(tenant_id="tenant-soak", owner_id="owner-soak"),
-    )
-    request = PublicationActivationRequest(
-        dataset_key=dataset_key,
-        publication_key="current",
-        candidate_publication_id=publication_id,
-        candidate_publication_hash=publication.publication_hash,
-        activation_id="activation-soak-1",
-        audit_observation=observation,
-    )
-    return request, publication_id, raw.raw_audit_id
 
 
 def test_activation_5001_members_has_fixed_queries_locks_and_retry(
     actual_publication_pg,
 ) -> None:
-    """Exercise the short RC/RW activation with a real 5,001-member graph."""
+    """Exercise one three-dataset RC/RW activation with 5,001 valuation members."""
 
-    request, publication_id, raw_audit_id = _build_activation_soak_snapshot()
+    request, candidate_ids, raw_audit_ids = _build_activation_soak_snapshot()
     repository = DjangoPublicationActivationRepository()
     writer = _PostgresActivationAuditWriter()
+    authority_fence, authority_proof = _production_activation_fence()
     started = monotonic()
     with CaptureQueriesContext(connections["default"]) as captured:
-        activated = repository.activate_candidate(
+        activated = ActivateCanonicalPublicationGroupUseCase(repository).execute(
             request,
             audit_writer=writer,
-            authority_fence=_PostgresActivationFence(),
-            authority_proof="soak-proof",
+            authority_fence=authority_fence,
+            authority_proof=authority_proof,
         )
     held_seconds = monotonic() - started
 
-    assert activated.publication_id == publication_id
+    assert {item.publication_id for item in activated} == set(candidate_ids.values())
     query_count = len(captured.captured_queries)
     assert query_count <= _ACTIVATION_SOAK_MAX_QUERIES, (
         f"activation query count {query_count} exceeds " f"{_ACTIVATION_SOAK_MAX_QUERIES}"
@@ -434,54 +563,63 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
         f"activation held locks for {held_seconds:.6f}s across {query_count} queries; "
         f"limit is {_ACTIVATION_SOAK_MAX_HELD_SECONDS:.6f}s"
     )
-    assert (
-        PublicationMemberModel._default_manager.filter(publication_id=publication_id).count()
-        == _ACTIVATION_SOAK_MEMBER_COUNT
-    )
-    pointer = CanonicalPublicationPointerModel._default_manager.get(
-        dataset_key=request.dataset_key,
-        publication_key=request.publication_key,
-    )
-    assert str(pointer.publication_id) == publication_id
-    assert pointer.activation_id == request.activation_id
-    assert RawAuditModel._default_manager.filter(pk=raw_audit_id).exists()
-    assert SystemAuditEventModel._default_manager.count() == 1
-    assert SystemAuditOutboxModel._default_manager.count() == 1
+    assert PublicationMemberModel._default_manager.count() == _ACTIVATION_SOAK_MEMBER_COUNT + 2
+    for dataset_key, publication_id in candidate_ids.items():
+        pointer = CanonicalPublicationPointerModel._default_manager.get(
+            dataset_key=dataset_key,
+            publication_key="current",
+        )
+        assert str(pointer.publication_id) == publication_id
+        assert pointer.activation_id == request.activation_id
+        assert RawAuditModel._default_manager.filter(pk=raw_audit_ids[dataset_key]).exists()
+    assert SystemAuditEventModel._default_manager.count() == 3
+    assert SystemAuditOutboxModel._default_manager.count() == 3
 
-    repository.activate_candidate(
+    retry_fence, retry_proof = _production_activation_fence()
+    ActivateCanonicalPublicationGroupUseCase(repository).execute(
         request,
         audit_writer=_PostgresActivationAuditWriter(),
-        authority_fence=_PostgresActivationFence(),
-        authority_proof="soak-proof",
+        authority_fence=retry_fence,
+        authority_proof=retry_proof,
     )
-    assert SystemAuditEventModel._default_manager.count() == 1
-    assert SystemAuditOutboxModel._default_manager.count() == 1
+    assert SystemAuditEventModel._default_manager.count() == 3
+    assert SystemAuditOutboxModel._default_manager.count() == 3
 
     probe = actual_publication_pg.connect()
     try:
         probe.execute("BEGIN")
+        pointer_predicates = " OR ".join(
+            "(dataset_key=%s AND publication_key=%s)" for _item in request.candidates
+        )
+        pointer_parameters = tuple(
+            value
+            for item in request.candidates
+            for value in (item.dataset_key, item.publication_key)
+        )
         probe.execute(
-            """
+            f"""
             SELECT pointer_id
             FROM data_center_canonical_publication_pointer
-            WHERE dataset_key=%s AND publication_key=%s
+            WHERE {pointer_predicates}
+            ORDER BY dataset_key, publication_key
             FOR UPDATE
             """,
-            [request.dataset_key, request.publication_key],
+            pointer_parameters,
         )
         with connections["default"].cursor() as cursor:
             cursor.execute("SET lock_timeout = '150ms'")
+        blocked_fence, blocked_proof = _production_activation_fence()
         blocked_started = monotonic()
         with pytest.raises(OperationalError):
-            repository.activate_candidate(
+            ActivateCanonicalPublicationGroupUseCase(repository).execute(
                 request,
                 audit_writer=_PostgresActivationAuditWriter(),
-                authority_fence=_PostgresActivationFence(),
-                authority_proof="soak-proof",
+                authority_fence=blocked_fence,
+                authority_proof=blocked_proof,
             )
         lock_wait_seconds = monotonic() - blocked_started
         assert lock_wait_seconds <= _ACTIVATION_SOAK_MAX_LOCK_WAIT_SECONDS, (
-            f"pointer lock wait {lock_wait_seconds:.6f}s exceeds "
+            f"group pointer lock wait {lock_wait_seconds:.6f}s exceeds "
             f"{_ACTIVATION_SOAK_MAX_LOCK_WAIT_SECONDS:.6f}s"
         )
     finally:
@@ -489,6 +627,81 @@ def test_activation_5001_members_has_fixed_queries_locks_and_retry(
             cursor.execute("SET lock_timeout = '0'")
         probe.rollback()
         probe.close()
+
+
+def test_concurrent_group_activations_have_one_cas_winner(actual_publication_pg) -> None:
+    """Race two complete groups and require one winner without deadlock or partial state."""
+
+    first_request, first_ids, _first_audits = _build_activation_soak_snapshot(
+        valuation_member_count=1,
+        activation_id="activation-group-race-a",
+    )
+    second_request, second_ids, _second_audits = _build_activation_soak_snapshot(
+        valuation_member_count=1,
+        activation_id="activation-group-race-b",
+    )
+    settings = deepcopy(connections["default"].settings_dict)
+    barrier = Barrier(2)
+
+    def activate(request: PublicationActivationGroupRequest) -> tuple[str, str]:
+        previous_connection = connections["default"]
+        worker_connection = load_backend(settings["ENGINE"]).DatabaseWrapper(
+            deepcopy(settings), alias="default"
+        )
+        connections["default"] = worker_connection
+        try:
+            barrier.wait(timeout=10)
+            authority_fence, authority_proof = _production_activation_fence()
+            result = ActivateCanonicalPublicationGroupUseCase(
+                DjangoPublicationActivationRepository()
+            ).execute(
+                request,
+                audit_writer=_PostgresActivationAuditWriter(),
+                authority_fence=authority_fence,
+                authority_proof=authority_proof,
+            )
+            return "published", ",".join(item.publication_id for item in result)
+        except PublicationActivationError as error:
+            return "rejected", str(error)
+        finally:
+            worker_connection.close()
+            connections["default"] = previous_connection
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = tuple(
+            future.result(timeout=45)
+            for future in (
+                executor.submit(activate, first_request),
+                executor.submit(activate, second_request),
+            )
+        )
+    winners = [result for outcome, result in outcomes if outcome == "published"]
+    rejected = [result for outcome, result in outcomes if outcome == "rejected"]
+    assert len(winners) == 1
+    assert len(rejected) == 1
+    assert "compare-and-swap" in rejected[0]
+    winner_ids = set(winners[0].split(","))
+    assert winner_ids in (set(first_ids.values()), set(second_ids.values()))
+    for request in (first_request, second_request):
+        current_ids = {
+            str(
+                CanonicalPublicationPointerModel._default_manager.get(
+                    dataset_key=item.dataset_key,
+                    publication_key=item.publication_key,
+                ).publication_id
+            )
+            for item in request.candidates
+        }
+        assert current_ids == winner_ids
+    assert (
+        CanonicalPublicationModel._default_manager.filter(
+            publication_id__in=winner_ids,
+            state=PublicationState.PUBLISHED.value,
+        ).count()
+        == 3
+    )
+    assert SystemAuditEventModel._default_manager.count() == 3
+    assert SystemAuditOutboxModel._default_manager.count() == 3
 
 
 def test_connected_database_identity_returns_real_postgres_address_without_cidr(

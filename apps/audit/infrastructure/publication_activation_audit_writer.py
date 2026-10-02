@@ -13,11 +13,15 @@ from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
 )
 from apps.data_center.application.publication_activation import (
     PublicationActivationAuditWriter,
+    PublicationActivationGroupAuditWriter,
+    PublicationActivationGroupRequest,
     PublicationActivationRequest,
 )
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationMember
+from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifest
 from core.integration.data_center_audit import (
     DataPublicationAuditObservation,
+    DataPublicationManifestAuditObservation,
     SystemAuditEventOutboxCommit,
 )
 
@@ -32,7 +36,10 @@ class _CallerOwnedScopeProvider:
         raise RuntimeError("publication activation audit requires the caller-owned path")
 
 
-class DjangoPublicationActivationAuditWriter(PublicationActivationAuditWriter):
+class DjangoPublicationActivationAuditWriter(
+    PublicationActivationAuditWriter,
+    PublicationActivationGroupAuditWriter,
+):
     """Write the required event and outbox row in activation's outer UOW."""
 
     def __init__(
@@ -65,6 +72,31 @@ class DjangoPublicationActivationAuditWriter(PublicationActivationAuditWriter):
 
         del request, publication, members
         return self._use_case.execute_in_caller_transaction(observation)
+
+    def append_manifest_required(
+        self,
+        *,
+        request: PublicationActivationGroupRequest,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+        manifest: CandidateRawAuditManifest,
+        observation: DataPublicationManifestAuditObservation,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append one exact manifest-bound activation event in the outer UOW."""
+
+        if (
+            manifest.publication_id != publication.publication_id
+            or observation.publication_id != publication.publication_id
+            or observation.manifest_id != manifest.manifest_id
+            or observation.manifest_hash != manifest.manifest_hash
+            or len(members) != publication.member_count
+            or not any(
+                candidate.candidate_publication_id == publication.publication_id
+                for candidate in request.candidates
+            )
+        ):
+            raise ValueError("manifest activation audit input differs from the exact candidate")
+        return self._use_case.execute_manifest_in_caller_transaction(observation)
 
 
 __all__ = ["DjangoPublicationActivationAuditWriter"]

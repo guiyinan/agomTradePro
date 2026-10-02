@@ -22,7 +22,11 @@ from apps.audit.application.data_freshness_audit import DataFreshnessAuditObserv
 from apps.audit.application.data_provider_health_audit import (
     DataProviderHealthAuditObservation,
 )
-from apps.audit.application.data_publication_audit import DataPublicationAuditObservation
+from apps.audit.application.data_publication_audit import (
+    DataPublicationAuditObservation,
+    DataPublicationManifestAuditObservation,
+    DataPublicationRawAuditManifestReference,
+)
 from apps.audit.application.data_publication_rollback_audit import (
     DataPublicationRollbackAuditObservation,
 )
@@ -54,6 +58,7 @@ from apps.audit.domain.system_audit_event import (
     AuditCategory,
     AuditEvidenceRef,
     AuditOutcome,
+    AuditScopeRef,
     AuditSeverity,
     AuditWritePolicy,
     SystemAuditEvent,
@@ -130,6 +135,7 @@ __all__ = [
     "AuditCategory",
     "AuditEvidenceRef",
     "AuditOutcome",
+    "AuditScopeRef",
     "AuditSeverity",
     "AuditWritePolicy",
     "DataConflictAuditObservation",
@@ -140,6 +146,8 @@ __all__ = [
     "DataFreshnessAuditObservation",
     "DataProviderHealthAuditObservation",
     "DataPublicationAuditObservation",
+    "DataPublicationManifestAuditObservation",
+    "DataPublicationRawAuditManifestReference",
     "SystemAuditEventOutboxCommit",
     "DataPublicationRollbackAuditObservation",
     "DataQualityAuditObservation",

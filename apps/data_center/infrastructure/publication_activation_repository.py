@@ -16,10 +16,16 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationAuthorityFence,
     PublicationActivationAuthorityLease,
     PublicationActivationError,
+    PublicationActivationGroupAuditWriter,
+    PublicationActivationGroupRequest,
     PublicationActivationRequest,
     publication_activation_lease_from_complete_graph,
 )
-from apps.data_center.application.publication_utils import member_reference, publication_hash
+from apps.data_center.application.publication_utils import (
+    member_reference,
+    publication_hash,
+    publication_member_manifest_hash,
+)
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     PublicationMember,
@@ -29,6 +35,7 @@ from apps.data_center.domain.publication_evidence import validate_publication_ev
 from apps.data_center.domain.publication_snapshot_policy import (
     validate_publication_snapshot_policy,
 )
+from apps.data_center.domain.raw_audit_manifest import requires_group_publication_activation
 from core.integration.data_center_audit import (
     AuditOutcome,
     DataPublicationAuditObservation,
@@ -36,6 +43,9 @@ from core.integration.data_center_audit import (
 )
 
 from .fact_and_operational_models import RawAuditModel
+from .publication_group_activation_repository import (
+    DjangoPublicationActivationGroupRepository,
+)
 from .publication_member_store import publication_fact_content_hashes
 from .publication_models import (
     CanonicalPublicationModel,
@@ -77,7 +87,7 @@ class DjangoPublicationActivationRepository:
         if existing is not None:
             if (
                 existing.member_manifest_hash
-                != self._member_manifest_hash(
+                != publication_member_manifest_hash(
                     tuple(members), policy_identity=publication.policy_version
                 )
                 or existing.members_sealed_at is None
@@ -124,7 +134,7 @@ class DjangoPublicationActivationRepository:
                 )
             return publication
 
-        manifest_hash = self._member_manifest_hash(
+        manifest_hash = publication_member_manifest_hash(
             tuple(members), policy_identity=publication.policy_version
         )
         CanonicalPublicationModel._default_manager.create(
@@ -186,6 +196,10 @@ class DjangoPublicationActivationRepository:
     ) -> CanonicalPublication:
         """Run activation only while the caller's complete authority fence is open."""
 
+        if requires_group_publication_activation(request.dataset_key):
+            raise PublicationActivationError(
+                "current market publication requires atomic group activation"
+            )
         connection = connections[self._using]
         if connection.in_atomic_block:
             raise PublicationActivationError("activation cannot join an ambient transaction")
@@ -207,6 +221,25 @@ class DjangoPublicationActivationRepository:
             raise PublicationActivationError(
                 "complete authority fence rejected activation"
             ) from error
+
+    def activate_candidate_group(
+        self,
+        request: PublicationActivationGroupRequest,
+        *,
+        audit_writer: PublicationActivationGroupAuditWriter,
+        authority_fence: PublicationActivationAuthorityFence,
+        authority_proof: object,
+    ) -> tuple[CanonicalPublication, ...]:
+        """Activate the fixed quote/price/valuation group under one Account fence."""
+
+        return DjangoPublicationActivationGroupRepository(
+            using=self._using
+        ).activate_candidate_group(
+            request,
+            audit_writer=audit_writer,
+            authority_fence=authority_fence,
+            authority_proof=authority_proof,
+        )
 
     def _activate_in_transaction(
         self,
@@ -269,6 +302,14 @@ class DjangoPublicationActivationRepository:
         if (
             not same_current
             and pointer.publication_id is None
+            and (pointer.publication_hash or pointer.activation_id)
+        ):
+            raise PublicationActivationError(
+                "empty current pointer contains stale activation identity"
+            )
+        if (
+            not same_current
+            and pointer.publication_id is None
             and any(
                 value is not None
                 for value in (
@@ -315,7 +356,7 @@ class DjangoPublicationActivationRepository:
         self._validate_candidate_shape(candidate.to_domain(), members)
         if candidate.members_sealed_at is None or not candidate.member_manifest_hash:
             raise PublicationActivationError("candidate member manifest is not sealed")
-        if candidate.member_manifest_hash != self._member_manifest_hash(
+        if candidate.member_manifest_hash != publication_member_manifest_hash(
             members, policy_identity=candidate.policy_version
         ):
             raise PublicationActivationError("candidate member manifest drifted")
@@ -366,11 +407,12 @@ class DjangoPublicationActivationRepository:
         candidate.published_at = activation_at
         candidate.superseded_at = None
         candidate.save(update_fields=("state", "published_at", "superseded_at", "updated_at"))
-        pointer.publication_id = candidate.publication_id
-        pointer.publication_hash = candidate.publication_hash
-        pointer.activation_id = request.activation_id
-        pointer.save(
-            update_fields=("publication_id", "publication_hash", "activation_id", "updated_at")
+        self._compare_and_swap_pointer(
+            pointer,
+            publication_id=candidate.publication_id,
+            publication_hash=candidate.publication_hash,
+            activation_id=request.activation_id,
+            updated_at=activation_at,
         )
         self._append_required_audit(
             request=request,
@@ -380,6 +422,34 @@ class DjangoPublicationActivationRepository:
             observation=effective_observation,
         )
         return candidate.to_domain()
+
+    @staticmethod
+    def _compare_and_swap_pointer(
+        pointer: CanonicalPublicationPointerModel,
+        *,
+        publication_id: UUID,
+        publication_hash: str,
+        activation_id: str,
+        updated_at: datetime,
+    ) -> None:
+        """Compare all observed pointer identity fields before changing the target."""
+
+        updated = CanonicalPublicationPointerModel._default_manager.filter(
+            pointer_id=pointer.pointer_id,
+            publication_id=pointer.publication_id,
+            publication_hash=pointer.publication_hash,
+            activation_id=pointer.activation_id,
+        ).update(
+            publication_id=publication_id,
+            publication_hash=publication_hash,
+            activation_id=activation_id,
+            updated_at=updated_at,
+        )
+        if updated != 1:
+            raise PublicationActivationError("current publication pointer compare-and-swap failed")
+        pointer.publication_id = publication_id
+        pointer.publication_hash = publication_hash
+        pointer.activation_id = activation_id
 
     @staticmethod
     def _append_required_audit(
@@ -550,21 +620,6 @@ class DjangoPublicationActivationRepository:
         )
         if expected_hash != publication.publication_hash:
             raise PublicationActivationError("candidate publication hash drifted")
-
-    @staticmethod
-    def _member_manifest_hash(
-        members: tuple[PublicationMember, ...], *, policy_identity: str
-    ) -> str:
-        """Hash only the ordered immutable member references."""
-
-        references = [
-            member_reference(member)
-            for member in sorted(members, key=lambda item: item.natural_key)
-        ]
-        return publication_hash(
-            references,
-            policy_identity=policy_identity if policy_identity.startswith("p2:") else None,
-        )
 
     @staticmethod
     def _validate_policy_snapshot(

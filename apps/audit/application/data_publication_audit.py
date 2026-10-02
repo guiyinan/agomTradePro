@@ -135,6 +135,103 @@ class DataPublicationAuditObservation:
             raise TypeError("scope must be an AuditScopeRef")
 
 
+@dataclass(frozen=True, slots=True)
+class DataPublicationRawAuditManifestReference:
+    """One immutable RawAudit child reference carried by a manifest event."""
+
+    raw_audit_id: str
+    version: str
+    content_hash: str
+
+    def __post_init__(self) -> None:
+        """Reject incomplete evidence before it is serialized into an audit event."""
+
+        if (
+            not self.raw_audit_id.isascii()
+            or not self.raw_audit_id.isdecimal()
+            or int(self.raw_audit_id) <= 0
+            or str(int(self.raw_audit_id)) != self.raw_audit_id
+        ):
+            raise ValueError("raw_audit_id must be a canonical positive decimal identity")
+        _require_identifier(self.version, "raw_audit_version")
+        _require_digest(self.content_hash, "raw_audit_content_hash")
+
+
+@dataclass(frozen=True, slots=True)
+class DataPublicationManifestAuditObservation:
+    """Published candidate evidence bound to its complete RawAudit manifest."""
+
+    dataset_key: str
+    publication_key: str
+    publication_id: str
+    publication_version: str
+    publication_hash: str
+    provider_key: str
+    run_id: str
+    member_count: int
+    coverage_requested_count: int
+    coverage_eligible_count: int
+    coverage_selected_count: int
+    manifest_id: str
+    manifest_version: str
+    manifest_hash: str
+    raw_audit_count: int
+    raw_audit_hash: str
+    raw_audits: tuple[DataPublicationRawAuditManifestReference, ...]
+    occurred_at: datetime
+    recorded_at: datetime
+    scope: AuditScopeRef
+
+    def __post_init__(self) -> None:
+        """Require exact, stably ordered manifest-bound publication evidence."""
+
+        for field_name in (
+            "dataset_key",
+            "publication_key",
+            "publication_id",
+            "publication_version",
+            "provider_key",
+            "run_id",
+            "manifest_id",
+            "manifest_version",
+        ):
+            _require_identifier(getattr(self, field_name), field_name)
+        for field_name in ("publication_hash", "manifest_hash", "raw_audit_hash"):
+            _require_digest(getattr(self, field_name), field_name)
+        for field_name in (
+            "member_count",
+            "coverage_requested_count",
+            "coverage_eligible_count",
+            "coverage_selected_count",
+            "raw_audit_count",
+        ):
+            _require_count(getattr(self, field_name), field_name)
+        if (
+            self.member_count == 0
+            or self.member_count != self.coverage_selected_count
+            or self.coverage_selected_count > self.coverage_eligible_count
+            or self.coverage_eligible_count > self.coverage_requested_count
+        ):
+            raise ValueError("manifest publication coverage is inconsistent")
+        if not isinstance(self.raw_audits, tuple) or not self.raw_audits:
+            raise ValueError("manifest publication audit requires RawAudit references")
+        if any(
+            type(item) is not DataPublicationRawAuditManifestReference for item in self.raw_audits
+        ):
+            raise TypeError("raw_audits must contain manifest RawAudit references")
+        identifiers = tuple(int(item.raw_audit_id) for item in self.raw_audits)
+        if identifiers != tuple(sorted(set(identifiers))):
+            raise ValueError("manifest RawAudit references must be unique and stably ordered")
+        if self.raw_audit_count != len(self.raw_audits):
+            raise ValueError("manifest RawAudit reference count differs")
+        _require_aware(self.occurred_at, "occurred_at")
+        _require_aware(self.recorded_at, "recorded_at")
+        if self.occurred_at > self.recorded_at:
+            raise ValueError("occurred_at cannot be after recorded_at")
+        if type(self.scope) is not AuditScopeRef:
+            raise TypeError("manifest publication audit requires an exact AuditScopeRef")
+
+
 def _stable_event_id(observation: DataPublicationAuditObservation) -> str:
     material = "|".join(
         (
@@ -147,6 +244,22 @@ def _stable_event_id(observation: DataPublicationAuditObservation) -> str:
     )
     digest = hashlib.sha256(material.encode("utf-8")).hexdigest()[:48]
     return f"data-publication-{digest}"
+
+
+def _stable_manifest_event_id(observation: DataPublicationManifestAuditObservation) -> str:
+    """Return the deterministic event identity for one exact manifest activation."""
+
+    material = "|".join(
+        (
+            observation.run_id,
+            observation.dataset_key,
+            observation.publication_id,
+            observation.manifest_id,
+            observation.manifest_hash,
+        )
+    )
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()[:48]
+    return f"data-publication-manifest-{digest}"
 
 
 class DataPublicationAuditScopeProvider(Protocol):
@@ -319,6 +432,108 @@ def build_data_publication_audit_event(
     )
 
 
+def build_data_publication_manifest_audit_event(
+    observation: DataPublicationManifestAuditObservation,
+    *,
+    sequence_no: int,
+    predecessor_hash: str | None,
+) -> SystemAuditEvent:
+    """Build a publication event whose evidence is the complete manifest graph."""
+
+    if type(observation) is not DataPublicationManifestAuditObservation:
+        raise TypeError("observation must be manifest-bound publication evidence")
+    if not isinstance(sequence_no, int) or isinstance(sequence_no, bool) or sequence_no < 1:
+        raise ValueError("sequence_no must be a positive integer")
+    if predecessor_hash is not None:
+        _require_digest(predecessor_hash, "predecessor_hash")
+    detail: dict[str, JSONValue] = {
+        "publication_key": observation.publication_key,
+        "publication_hash": observation.publication_hash,
+        "member_count": observation.member_count,
+        "coverage_requested_count": observation.coverage_requested_count,
+        "coverage_eligible_count": observation.coverage_eligible_count,
+        "coverage_selected_count": observation.coverage_selected_count,
+        "raw_audit_manifest": {
+            "manifest_id": observation.manifest_id,
+            "manifest_version": observation.manifest_version,
+            "manifest_hash": observation.manifest_hash,
+            "raw_audit_count": observation.raw_audit_count,
+            "raw_audit_hash": observation.raw_audit_hash,
+        },
+    }
+    evidence_refs = [
+        AuditEvidenceRef(
+            "data_center",
+            "candidate_raw_audit_manifest",
+            observation.manifest_id,
+            observation.manifest_version,
+            observation.manifest_hash,
+        ),
+        *(
+            AuditEvidenceRef(
+                "data_center",
+                "raw_audit",
+                item.raw_audit_id,
+                item.version,
+                item.content_hash,
+            )
+            for item in observation.raw_audits
+        ),
+        AuditEvidenceRef(
+            "data_center",
+            "canonical_publication",
+            observation.publication_id,
+            observation.publication_version,
+            observation.publication_hash,
+        ),
+    ]
+    return SystemAuditEvent.create(
+        event_id=_stable_manifest_event_id(observation),
+        event_version=_EVENT_VERSION,
+        schema_version="system-audit-event.v1",
+        category=AuditCategory.DATA_RELIABILITY,
+        event_type="data.publication.published",
+        owner="data_center",
+        write_policy=AuditWritePolicy.REQUIRED,
+        outcome=AuditOutcome.PUBLISHED,
+        severity=AuditSeverity.INFO,
+        reason_codes=("publication_published",),
+        occurred_at=observation.occurred_at,
+        recorded_at=observation.recorded_at,
+        observed_at=None,
+        actor=AuditActorRef("service", "data-center", "data-center"),
+        source_app="data_center",
+        source_component="publication",
+        source_surface="application",
+        correlations=AuditCorrelations(
+            run_id=observation.run_id,
+            dataset_key=observation.dataset_key,
+            provider_key=observation.provider_key,
+            publication_id=observation.publication_id,
+        ),
+        resource=AuditResourceRef(
+            "canonical_publication",
+            observation.publication_id,
+            observation.publication_version,
+        ),
+        dataset_key=observation.dataset_key,
+        provider_key=observation.provider_key,
+        capability="publication",
+        publication_id=observation.publication_id,
+        evidence_refs=tuple(evidence_refs),
+        detail_schema="data.publication.published.v1",
+        detail=detail,
+        stream_id=f"data.publication:{observation.dataset_key}",
+        sequence_no=sequence_no,
+        predecessor_hash=predecessor_hash,
+        idempotency_key=(
+            f"data-publication-manifest:{observation.run_id}:{observation.publication_id}:"
+            f"{observation.manifest_id}:{observation.manifest_hash}"
+        ),
+        scope=observation.scope,
+    )
+
+
 class AppendDataPublicationAuditObservationUseCase:
     """Append one scoped publication observation and its outbox record."""
 
@@ -368,6 +583,69 @@ class AppendDataPublicationAuditObservationUseCase:
         if not callable(caller_owned_atomic):
             raise ValueError("writer does not expose caller-owned publication audit UOW")
         return self._append_scoped(observation, caller_owned_atomic, targeted=True)
+
+    def execute_manifest_in_caller_transaction(
+        self,
+        observation: DataPublicationManifestAuditObservation,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append one complete-manifest publication event inside the caller's UOW."""
+
+        if type(observation) is not DataPublicationManifestAuditObservation:
+            raise TypeError("observation must be manifest-bound publication evidence")
+        caller_owned_atomic = getattr(self._writer, "caller_owned_atomic", None)
+        if not callable(caller_owned_atomic):
+            raise ValueError("writer does not expose caller-owned publication audit UOW")
+        candidate_writer = self._writer
+        if not all(
+            callable(getattr(candidate_writer, name, None))
+            for name in (
+                "append_and_enqueue_targeted",
+                "lock_stream",
+                "get_winner_targeted",
+                "get_current_head_targeted",
+            )
+        ):
+            raise ValueError("writer does not expose bounded publication audit selectors")
+        targeted_writer = cast(_TargetedDataPublicationAuditWriter, candidate_writer)
+        event_id = _stable_manifest_event_id(observation)
+        stream_id = f"data.publication:{observation.dataset_key}"
+        with caller_owned_atomic():
+            targeted_writer.lock_stream(stream_id)
+            winner = targeted_writer.get_winner_targeted(
+                event_id=event_id,
+                event_version=_EVENT_VERSION,
+                as_of=observation.recorded_at,
+                lock=True,
+            )
+            head: SystemAuditEvent | None = None
+            if winner is not None:
+                sequence_no = winner.sequence_no
+                predecessor_hash = winner.predecessor_hash
+            else:
+                head = targeted_writer.get_current_head_targeted(
+                    stream_id=stream_id,
+                    as_of=observation.recorded_at,
+                    scope=observation.scope,
+                    lock=True,
+                )
+                sequence_no = head.sequence_no + 1 if head is not None else 1
+                predecessor_hash = head.content_hash if head is not None else None
+            event = build_data_publication_manifest_audit_event(
+                observation,
+                sequence_no=sequence_no,
+                predecessor_hash=predecessor_hash,
+            )
+            commit = targeted_writer.append_and_enqueue_targeted(
+                event,
+                expected_predecessor_hash=event.predecessor_hash,
+                recorded_at=event.recorded_at,
+                scope=observation.scope,
+                identity_winner=winner,
+                stream_head=head,
+            )
+        if commit.event != event:
+            raise ValueError("data publication audit writer substituted the manifest event")
+        return commit
 
     def _append_scoped(
         self,
@@ -481,6 +759,9 @@ __all__ = [
     "AppendDataPublicationAuditObservationUseCase",
     "DataPublicationAuditEventOutboxWriter",
     "DataPublicationAuditObservation",
+    "DataPublicationManifestAuditObservation",
+    "DataPublicationRawAuditManifestReference",
     "DataPublicationAuditScopeProvider",
+    "build_data_publication_manifest_audit_event",
     "build_data_publication_audit_event",
 ]
