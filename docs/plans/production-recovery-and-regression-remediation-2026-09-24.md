@@ -1188,3 +1188,20 @@ Ruff 与 `git diff --check` 通过。全仓 mypy debt 本轮被共享工作树�
 剩余停止线：full-market 尚未在 provider 写入前调用该 getter，也未把 attempt identity 写入三组 stage command；production
 composition、整组 staging/activation、5,001+ PostgreSQL soak、exact-SHA 五组 CI、S6、同镜像部署及单次生产重跑均未完成。
 本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 日线成员 lineage 与请求级证据分离（`6ca3f259e`）
+
+`MarketPricePreparationResult` 现在分别保留完整请求级诊断 binding 与只属于最终目标会话成员事实的
+`member_owning_raw_audit_bindings`。空批次、全天停牌和未被最终选择的 provider 尝试继续出现在诊断证据中，但不能进入
+Publication candidate manifest；成员 binding 必须是完整诊断集合中 identity/source 完全一致的有序子集，缺失、重复或来源
+冲突均失败关闭。成员归属仍由 staging repository 按最终 fact ingestion identity 复核，没有按证券数量、provider 名称或
+`stored_count` 猜测来源。
+
+本地证据：price preparation 与 model-history 两个相关 unit 模块 `101 passed`；1 个生产文件增量 mypy 零回归；
+current-data 72 surfaces、Black、isort、Ruff 与 `git diff --check` 通过。新增反例覆盖 stale primary 仅保留为诊断证据、
+fallback 成为唯一成员 owner、空停牌批次无 member owner，以及 member/diagnostic 缺失和来源冲突。全仓 mypy debt 本轮仍被
+共享工作树中未提交的 publication composition 一条 `arg-type` 阻断，必须在其独立切片修复并重跑，不能计作通过。
+
+剩余停止线：full-market 尚未把 member-owning bindings 转成 price stage command，quote/valuation stage、任务 attempt、
+complete authority capture、group audit/activation 仍未统一接线；PostgreSQL 5,001+ soak、exact-SHA CI、S6、同镜像部署和
+单次生产重跑均未完成。本片未部署、未启动全市场重跑。
