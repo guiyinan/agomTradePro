@@ -1154,3 +1154,21 @@ expiry/scan 漂移和 proof capture failure 均未返回可用 fence。无测试
 剩余停止线：尚未在 disposable PostgreSQL 上执行真实 RR/RO capture + RC/RW fence，也未接 Data Center production
 composition。`governance/module_map.json` 因新增 core integration entrypoint 及并行 Audit/Data Center 改动产生 drift，须在
 所有接线文件稳定后统一生成并检查。本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 日线动态停牌 evidence 与三数据集 preview（`76ce8d98c`）
+
+`ModelMarketRoute` 现在显式携带 provider config 的 canonical `source_type`；空行情全天停牌和有旧行情的末段停牌两条
+路径都把同一 source type 写入 `MODEL_MARKET_SUSPENDED.details.source`，不再混用 provider display name 与 fact source。
+价格准备结果按证券绑定 asset、目标交易日和 evidence source，缺失、重复或冲突证据失败关闭。
+
+full-market 在正式 preview 前完成 price preparation；quote、price、valuation 三组同时绑定本次 target date。price 的
+`price_full_day_suspension` scope 只来自本次逐证券 price evidence，与 quote suspension scope 分离；非停牌证券的旧 bar
+不能补本次目标会话，14:55 仍不能冒充 15:00 官方收盘。
+
+本地证据：model-market、price preparation、full-market orchestration 与 5,001 资产 component 共 `135 passed`，最终核心
+复验 `13 passed`；changed-production mypy 5 文件零回归、全仓 debt 0；Black、isort、Ruff、current-data 72 surfaces、
+Celery 94 tasks 与 `git diff --check` 通过。无测试跳过。
+
+剩余停止线：尚未连接真实 provider 或执行 PostgreSQL 端到端 staging/activation；quote、price、valuation 的 stage
+bindings、group request、Audit writer 与 complete authority proof 仍需在 production composition 统一接线。本片未部署、
+未启动全市场重跑。
