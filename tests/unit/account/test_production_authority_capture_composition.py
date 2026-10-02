@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from apps.account import production_authority_capture_composition as capture_module
 from apps.account.application.owner_tenant_authority_v3 import (
     GetCurrentOwnerTenantAuthorityV3Command,
 )
@@ -27,6 +28,9 @@ from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityShadowScannerV3,
     AccountAuthorityShadowScanResultV3,
 )
+from apps.account.production_authority_capture_composition import (
+    capture_production_account_authority,
+)
 from apps.account.system_audit_authority_v3_composition import (
     AccountSystemAuditOwnerTenantAuthorityV3Reader,
 )
@@ -39,10 +43,7 @@ from apps.audit.application.system_audit_authority_schema import (
     SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
 )
 from apps.audit.application.system_audit_query import SystemAuditReaderContext
-from core.integration import production_account_authority_capture as capture_module
-from core.integration.production_account_authority_capture import (
-    capture_production_account_authority,
-)
+from core.integration import production_account_authority_capture as core_facade
 from core.integration.system_audit_authority import (
     AccountSystemAuditScopeAuthorityV3Adapter,
     SystemAuditAuthorityReaders,
@@ -52,6 +53,25 @@ from tests.unit.account.test_owner_tenant_authority_v3 import _authority
 from tests.unit.account.test_owner_tenant_authority_v3_application import (
     _authority_source,
 )
+
+
+def test_core_facade_reexports_account_capture_contract() -> None:
+    assert (
+        core_facade.capture_production_account_authority
+        is capture_module.capture_production_account_authority
+    )
+    assert (
+        core_facade.ProductionAccountAuthorityCapture
+        is capture_module.ProductionAccountAuthorityCapture
+    )
+    assert (
+        core_facade.ProductionAccountAuthorityFence
+        is capture_module.ProductionAccountAuthorityFence
+    )
+    assert (
+        core_facade.SystemAuditCompositionUnavailable
+        is capture_module.SystemAuditCompositionUnavailable
+    )
 
 
 class _PhysicalProvider:
