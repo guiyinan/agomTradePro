@@ -1258,3 +1258,32 @@ Application 模块后，主编排为 1,194 个非空行，large-file 治理违�
 generation fence 持锁时间 ≤2.0 秒、pointer lock wait ≤0.25 秒及真实 RR/RO capture + RC/RW fence；五组同 SHA CI、完整 S6、
 同镜像部署、正式 Publication 和联合验收均未执行。本片未删除 legacy relation locks、未部署、未启动全市场重跑；这些证据
 未齐前不得进入用户授权的生产重跑。
+
+#### 2026-10-03 Audit authority activation 硬门槛复验（`f5e59d119`，证据计数 `405538d00`）
+
+完成项：切片④的 Account generation 文件规模门禁已按职责拆分。运行角色 ACL 与 role-closure SQL 移入独立
+Infrastructure 模块，稳定异常移入无反向依赖的 errors 模块；原模块继续导出旧异常身份和
+`verify_account_authority_generation_runtime_acl` wrapper，调用方契约不变。PostgreSQL pointer lock timeout 反例现在断言
+`AccountAuthorityFinalRevalidationUnavailable` 及底层 `OperationalError` cause，保留稳定业务异常而不延长 lock timeout。
+合并 fence SQL 后的模拟游标同步为五列状态，新增无 PostgreSQL 依赖的 wrapper 参数透传和异常身份兼容测试。CI JUnit
+证据守卫依据保留的 XML 从 36 更新为实际 37 个 publication 用例，没有删除、跳过或放宽任何测试。
+
+测试计数：本地 Account generation/finalizer/shadow/role contract 共 `71 passed`；activation/Audit 回归
+`75 passed`；disposable PostgreSQL ACL、role-closure 和 generation fence `9 passed`；生产文件增量 mypy 3 文件零回归，
+全仓 mypy debt `0 errors in 0 files`；Black、isort、Ruff、文件规模、Architecture full/delta、module map 44 modules /
+210 edges 及治理一致性通过。精确 SHA `405538d00d0f46a598ba1ee9f46629471b33784e` 的 Publication PostgreSQL contracts
+`37056214885` 通过：authority lock 2、generation 9、shadow 1、finalizer 7、publication 37、backfill 2，共
+`58 passed, 0 skipped`。publication 组包含 5,001-member soak，因此 query count ≤35、generation fence 持锁时间
+≤2.0 秒、pointer lock wait ≤0.25 秒三项硬断言均通过。相同 workflow 的 statement logging 正常/故障恢复、production
+role bootstrap/migration ordering 和 SQLite dump/flush/loaddata 对账也通过；SQLite 证据为 563 张表、源/目标 291 行、
+fixture 291 个对象、mismatch 0。相同 SHA 的 Architecture `37056214859` 与 Security `37056214750` 通过。
+
+未验证风险：相同 SHA 的 Consistency `37056214883` 与 CI Fast Feedback `37056214838` 被本片前已存在的
+`unregistered_script_entrypoint:scripts/manage_vps_migrations.py` 阻断；该脚本来自早期提交 `31cfbfad5` / `e1f632dbc`，
+不属于用户限定的①→⑤剩余切片。本轮按“发现新问题只记录未完成工作、不得顺手修”保留失败，没有登记该入口或改写治理
+真源。因此五组 exact-SHA CI 仍不是全绿，候选不得进入 S6、部署或生产全市场重跑。数据库级 candidate member
+immutability trigger/constraint 仍是既有 P1 风险，本片未扩边处理。
+
+下一片是否可开始：①→⑤实现与 PostgreSQL/SQLite 核心证据已完成复验，没有新的顺序切片可开始。必须先在独立授权范围
+处理 legacy entrypoint 治理阻断并取得 exact-SHA 五组 CI 全绿；随后仍须由用户单独授权⑥。当前继续保留 legacy relation
+locks，不部署、不接新的 production composition、不启动全市场重跑。
