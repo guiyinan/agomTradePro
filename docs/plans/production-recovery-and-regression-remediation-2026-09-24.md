@@ -1073,3 +1073,19 @@ lock wait 的硬阈值尚无通过证据；测试已接入生产 complete finali
 alias/UOW identity。生产 composition 仍未把 full-market 协调器接到 staging + group activation；price target-session
 选择及基于真实停牌证据的 scope block 仍需完成。完成 composition、exact-SHA 五组 CI、全新 S6 和同镜像部署前，继续
 禁止再次启动全市场刷新，也不得解除 decision runtime 阻断。
+
+#### 2026-10-02 日线目标会话与动态停牌容错（`e37474a7f`）
+
+`equity.price.bar` 候选现在显式绑定本次 `required_observation_date`。目标交易日之前的旧 bar 不能补足本次正式分母；
+目标日 observation 必须达到中国市场官方 15:00 收盘，14:55 observation 会失败关闭。缺口只有同时具备目标日、逐证券、
+来源明确的 `price_full_day_suspension` 证据时才进入动态 scope block；代码不包含固定证券列表或固定数量，且 quote 的
+`quote_full_day_suspension` reason 不能替代 price reason。版本化 policy 仍保持原 coverage 和 `allow_partial` 配置，
+没有降低门槛。
+
+本地证据：current rebuild、policy、staging 和版本完整性共 `76 passed`；current-data manifest 为 72 surfaces；
+Black、isort、Ruff、两个生产文件增量 mypy 与全仓 mypy debt ceiling 均通过。没有测试跳过。全仓 debt 首轮曾在并行中的
+审计引用切片捕获 `full_market_refresh_orchestration.py` 缺少 `Mapping` 导入；修正后重跑为 0 errors，不把首轮失败计作通过。
+
+剩余停止线：full-market 编排尚未把 `price_full_day_suspension` 和 price 目标日传入正式 staging；quote、valuation、price
+三组 RawAudit manifest、complete Account graph proof/finalizer、短 RC/RW group activation 与 5,001+ PostgreSQL soak
+仍未在生产 composition 闭合。该提交未部署、未启动全市场重跑，legacy relation locks 保留。
