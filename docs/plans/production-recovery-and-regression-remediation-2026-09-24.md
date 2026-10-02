@@ -1108,3 +1108,18 @@ Quote 成功结果现在返回与同一 sync `run_id/ingested_run_id` 绑定的 
 剩余停止线：这些 exact refs 尚未转换为三组 candidate staging binding；price failover 的每条引用仍缺少随返回值传递的
 实际 `source_type`，不能用全局 provider 名猜测。production composition、complete Account graph proof/finalizer、
 group audit/outbox、短 activation 和 PostgreSQL 5,001+ soak 仍未闭合。本片未部署、未启动全市场重跑。
+
+#### 2026-10-02 Group activation Audit writer 工厂（`bc43e0288`）
+
+Audit composition 新增显式 database alias 的 publication activation writer factory，并经 Audit repository provider 与
+`core.integration.data_center_audit` 跨 App facade 暴露。Factory 复用现有 runtime/outbox composition 校验；composition、
+coordinator、所需 caller-owned atomic/targeted append/stream lock 接口缺失，或 writer/coordinator alias 与调用方不一致时
+均失败关闭。该切片只提供 factory，没有把 full-market 接入 activation。
+
+本地证据：Audit runtime 与真实 Django event/outbox coordinator 共 `33 passed`；changed-production mypy 3 文件零回归，
+全仓 mypy debt 为 0；Architecture full 3,299 files 与 delta 10 files / 335 added lines 均为 0 boundary、0 audit violations；
+Black、isort、Ruff 和 `git diff --check` 通过。无测试跳过。
+
+剩余停止线：组件测试使用 SQLite，只证明 event/outbox 同成同败和 alias/config fail-closed；尚未在 PostgreSQL activation
+事务内验证。Account complete proof/finalizer factory、Data Center staging/group composition、5,001+ soak、exact-SHA CI、
+S6 与同镜像部署仍未完成。本片未部署、未启动全市场重跑。
