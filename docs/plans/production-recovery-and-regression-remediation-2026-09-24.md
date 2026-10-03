@@ -1287,3 +1287,25 @@ immutability trigger/constraint 仍是既有 P1 风险，本片未扩边处理�
 下一片是否可开始：①→⑤实现与 PostgreSQL/SQLite 核心证据已完成复验，没有新的顺序切片可开始。必须先在独立授权范围
 处理 legacy entrypoint 治理阻断并取得 exact-SHA 五组 CI 全绿；随后仍须由用户单独授权⑥。当前继续保留 legacy relation
 locks，不部署、不接新的 production composition、不启动全市场重跑。
+
+#### 2026-10-03 Migration runner 入口治理阻断整改（`cc9a39b44`）
+
+完成项：`manage_vps_migrations.py` 是部署和 PostgreSQL/SQLite 演练共用的正式 runner，并非待退役 legacy 入口；阻断根因是
+入口投影只看到两个运行时选择的 `dynamic-command`，同时缺少该脚本的运维生命周期和受控 Data Center 私有能力审计。
+runner 现在把既有 allowlist 显式展开为 `migrate`、`flush`、`loaddata` 三条静态命令边，仍由同一 allowlist 拒绝其他命令；
+只有 `loaddata` 分支取得 candidate-manifest fixture restore capability。入口扫描器新增通用的
+`execute_from_command_line(["manage.py", ...])` 静态模式，治理真源分别把 runner 记为 `active_public` 运维入口、把唯一私有
+导入记为 `adjacent_operational`，并登记现有恢复契约测试；生成投影从 `candidate-review=2` 收敛为 0。测试固定三条命令边、
+脚本双重生命周期和唯一允许的 Data Center 私有导入，后续增加命令或私有依赖会失败关闭。
+
+测试计数：角色隔离、snapshot restore、入口治理和 legacy 扫描联合回归 `44 passed`；最终入口/legacy 契约复验
+`27 passed`，额外私有导入聚焦反例 `1 passed`。两份改动脚本增量 mypy 零回归，全仓 mypy debt
+`0 errors in 0 files`；Black、isort、Ruff、治理一致性、entrypoint stale-check、Architecture full 3,306 files / delta、
+module map 44 modules / 210 edges、module cycle 与 `git diff --check` 全部通过。无测试跳过。
+
+未验证风险：本地证据尚未替代 exact-SHA 五组 CI；该提交没有重新执行 5,001-member PostgreSQL soak，因为没有修改
+publication/authority 数据库路径，既有同候选核心证据仍来自 `405538d00`。生产 runner 的真实 PostgreSQL migrate 与
+SQLite dump/flush/loaddata 将由 Publication PostgreSQL workflow 再次执行。本片未部署、未启动 S6 或全市场重跑。
+
+下一片是否可开始：可以开始 `cc9a39b44` 的 exact-SHA CI 复验；只有五组全部通过后才可把候选交给 S6。部署与生产
+全市场重跑仍属于⑥，继续等待用户单独授权。
