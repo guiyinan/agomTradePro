@@ -66,6 +66,7 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_fact_refresh_honors_stricter_lock_timeout_and_rolls_back",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_isolated_write_rehearsal_uses_production_publication_and_rolls_back",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_activation_5001_members_has_fixed_queries_locks_and_retry",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_financial_repository_round_trip_and_replay_count_on_postgresql",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_repository_float_ties_match_direct_postgresql_writer[positive_12_03125]",
