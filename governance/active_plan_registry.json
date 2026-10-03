@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-03.v189",
+  "version": "2026-10-03.v190",
   "updated_at": "2026-10-03",
   "execution_focus": {
     "unit_id": "DATA-18",
@@ -330,7 +330,15 @@
       ]
     }
   ],
-  "review_queue": [],
+  "review_queue": [
+    {
+      "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
+      "owner": "research+fund+data_center",
+      "status": "review_required",
+      "review_by": "2026-10-10",
+      "disposition": "Review the plan before separately approving any data feasibility probe or MVP implementation."
+    }
+  ],
   "closure_backlog": {
     "version": "2026-09-29.v61",
     "legacy_unchecked_count": 136,
