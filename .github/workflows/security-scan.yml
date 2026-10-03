@@ -19,6 +19,10 @@ on:
     # Run daily at 2:00 AM UTC
     - cron: '0 2 * * *'
 
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   bandit-scan:
     name: Bandit Code Scan

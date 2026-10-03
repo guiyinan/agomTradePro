@@ -5,10 +5,16 @@ on:
     branches:
       - main
       - 'dev/**'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   push:
     branches:
       - main
       - 'dev/**'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
     inputs:
       base_ref:
@@ -200,12 +206,14 @@ jobs:
           cache: 'pip'
 
       - name: Setup Node.js
+        if: needs.detect-tests.outputs.tui-changed == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Verify TUI Runtime bundles
+        if: needs.detect-tests.outputs.tui-changed == 'true'
         run: |
           npm ci
           # GitHub-hosted Ubuntu images already carry the Chromium system
@@ -320,6 +328,14 @@ jobs:
         run: |
           python scripts/check_mypy_regression.py \
             ${{ steps.targets.outputs.typecheck-targets }}
+
+      - name: Restore mypy cache
+        uses: actions/cache@v4
+        with:
+          path: .mypy_cache
+          key: mypy-debt-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-dev.txt') }}
+          restore-keys: |
+            mypy-debt-${{ runner.os }}-
 
       - name: Enforce full-production mypy debt ceiling
         run: |

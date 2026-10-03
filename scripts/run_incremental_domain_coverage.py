@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import argparse
 import ast
+import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INCREMENTAL_COVERAGE_CONFIG = "config/coverage/incremental-domain.coveragerc"
+MAX_PARALLEL_COVERAGE_WORKERS = 4
 
 
 def _imports_domain_module(test_path: Path, domain_module: str) -> bool:
@@ -125,21 +128,73 @@ def build_pytest_commands(
     ]
 
 
+def _coverage_env_for_command(command: list[str]) -> dict[str, str]:
+    """Isolate each app's coverage data file so parallel runs cannot clobber it."""
+
+    cov_flag = command[-1]
+    if not cov_flag.startswith("--cov="):
+        raise ValueError(f"coverage command must end with --cov=<module>, got: {cov_flag}")
+    module = cov_flag.removeprefix("--cov=")
+    env = dict(os.environ)
+    env["COVERAGE_FILE"] = str(ROOT / f".coverage.domain-{module}")
+    return env
+
+
+def run_pytest_commands(
+    commands: list[list[str]],
+    *,
+    max_workers: int = MAX_PARALLEL_COVERAGE_WORKERS,
+) -> int:
+    """Run per-app Domain coverage gates concurrently.
+
+    Every app runs even when another app fails so the CI log carries the full
+    failure set; the first non-zero exit code is returned after all runs.
+    """
+
+    def _run(command: list[str]) -> tuple[list[str], subprocess.CompletedProcess[str]]:
+        result = subprocess.run(
+            command,
+            cwd=ROOT,
+            env=_coverage_env_for_command(command),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return command, result
+
+    first_failure = 0
+    workers = max(1, min(max_workers, len(commands)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for command, result in pool.map(_run, commands):
+            print("Running incremental Domain coverage gate:", flush=True)
+            print(" ".join(command), flush=True)
+            if result.stdout:
+                print(result.stdout, end="", flush=True)
+            if result.stderr:
+                print(result.stderr, end="", file=sys.stderr, flush=True)
+            if result.returncode and not first_failure:
+                first_failure = result.returncode
+    return first_failure
+
+
 def main() -> int:
     """Parse changed modules and run the incremental Domain coverage gate."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("modules", nargs="+", help="Changed Domain module import paths.")
     parser.add_argument("--fail-under", type=int, default=90)
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=MAX_PARALLEL_COVERAGE_WORKERS,
+        help="Maximum number of per-app pytest processes run concurrently.",
+    )
     args = parser.parse_args()
 
-    for command in build_pytest_commands(args.modules, fail_under=args.fail_under):
-        print("Running incremental Domain coverage gate:", flush=True)
-        print(" ".join(command), flush=True)
-        result = subprocess.run(command, cwd=ROOT, check=False)
-        if result.returncode:
-            return result.returncode
-    return 0
+    return run_pytest_commands(
+        build_pytest_commands(args.modules, fail_under=args.fail_under),
+        max_workers=args.max_workers,
+    )
 
 
 if __name__ == "__main__":

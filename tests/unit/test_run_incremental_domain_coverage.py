@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from configparser import ConfigParser
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "run_incremental_domain_coverage.py"
@@ -122,3 +125,49 @@ def test_incremental_config_does_not_inherit_repository_wide_sources() -> None:
     assert config.read(COVERAGE_CONFIG, encoding="utf-8") == [str(COVERAGE_CONFIG)]
     assert not config.has_option("run", "source")
     assert not config.getboolean("run", "branch", fallback=False)
+
+
+def test_run_pytest_commands_isolates_coverage_files_and_returns_first_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parallel gates must not share one .coverage file and must run every app."""
+
+    runner = _load_script()
+    calls: list[tuple[list[str], str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path,
+        env: dict[str, str],
+        check: bool,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append((list(command), env["COVERAGE_FILE"]))
+        module = command[-1].removeprefix("--cov=")
+        returncode = 3 if module == "apps.alpha.domain" else 0
+        return subprocess.CompletedProcess(command, returncode, stdout="", stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    commands = [
+        ["pytest", "--cov=apps.alpha.domain"],
+        ["pytest", "--cov=apps.beta.domain"],
+    ]
+
+    returncode = runner.run_pytest_commands(commands, max_workers=2)
+
+    assert returncode == 3
+    assert len(calls) == 2
+    assert {env for _, env in calls} == {
+        str(runner.ROOT / ".coverage.domain-apps.alpha.domain"),
+        str(runner.ROOT / ".coverage.domain-apps.beta.domain"),
+    }
+
+
+def test_run_pytest_commands_rejects_command_without_cov_target() -> None:
+    """The per-command coverage-file isolation requires a trailing --cov flag."""
+
+    runner = _load_script()
+    with pytest.raises(ValueError, match="--cov="):
+        runner.run_pytest_commands([["pytest", "tests/"]])
