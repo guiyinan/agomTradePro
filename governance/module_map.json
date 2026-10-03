@@ -2273,6 +2273,9 @@
         "dashboard": {
           "imports": 1
         },
+        "data_center": {
+          "imports": 2
+        },
         "terminal": {
           "imports": 1
         }
@@ -3948,6 +3951,20 @@
           "imports": 2
         }
       },
+      "depends_on": {
+        "audit": {
+          "imports": 2,
+          "target_layers": [
+            "application"
+          ]
+        },
+        "task_monitor": {
+          "imports": 1,
+          "target_layers": [
+            "application"
+          ]
+        }
+      },
       "entrypoints": {
         "application/_market_thermometer_runtime.py": [
           "provider_timeout_overrides",
@@ -4299,6 +4316,14 @@
           "FinancialSourceTimeContractReader",
           "FinancialSourceTimeEvidenceVerifier"
         ],
+        "application/full_market_publication_preflight.py": [
+          "AuthorityCaptureProbeEvidence",
+          "FullMarketPublicationPreflightPorts",
+          "FullMarketPublicationPreflightReport",
+          "PreflightCheckOutcome",
+          "RunFullMarketPublicationPreflightUseCase",
+          "TaskAttemptIdentityProbeEvidence"
+        ],
         "application/full_market_refresh_orchestration.py": [
           "run_full_market_publication_refresh"
         ],
@@ -4466,7 +4491,10 @@
           "ModelMarketDataService"
         ],
         "application/model_market_data_preparation.py": [
-          "ModelMarketDataPreparation"
+          "ModelMarketBulkPreparationGate",
+          "ModelMarketDataPreparation",
+          "ModelMarketRouteCapability",
+          "evaluate_model_market_bulk_preparation"
         ],
         "application/model_market_data_reads.py": [
           "ModelMarketDataReads"
@@ -4978,12 +5006,12 @@
         ]
       },
       "layers": {
-        "application": 117,
+        "application": 118,
         "domain": 34,
         "infrastructure": 162,
         "interface": 19,
-        "management": 29,
-        "root": 17
+        "management": 30,
+        "root": 18
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -10596,6 +10624,9 @@
         },
         "dashboard": {
           "imports": 4
+        },
+        "data_center": {
+          "imports": 1
         },
         "decision_rhythm": {
           "imports": 1

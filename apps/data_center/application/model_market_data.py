@@ -83,3 +83,15 @@ class ModelMarketDataService(
         self._calendar_lock = Lock()
         self._disabled: dict[str, DataFetchError] = {}
         self._lock = Lock()
+
+    @property
+    def configured_routes(self) -> tuple[ModelMarketRoute, ...]:
+        """Return the effective configured routes for read-only capability checks."""
+
+        return self._routes
+
+    @property
+    def max_per_asset_preparation_assets(self) -> int | None:
+        """Return the configured bounded per-asset preparation limit, if any."""
+
+        return self._max_per_asset_preparation_assets

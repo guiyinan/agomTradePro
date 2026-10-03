@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import date
 
 from apps.data_center.application.model_history_preparation import (
@@ -13,6 +14,7 @@ from apps.data_center.application.model_history_preparation import (
 )
 from apps.data_center.application.model_market_data_state import (
     ModelMarketDataServiceState,
+    ModelMarketRoute,
 )
 from apps.data_center.domain.entities import RawAuditReference
 from apps.data_center.domain.model_market_data import (
@@ -22,6 +24,113 @@ from apps.data_center.domain.model_market_data import (
 from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelMarketRouteCapability:
+    """Read-only audited capability view of one configured model-market route."""
+
+    route: str
+    batch_preparation: bool
+    audited_per_asset_fetch: bool
+    provider_identity: bool
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the stable JSON-safe capability payload used in error details."""
+
+        return {
+            "route": self.route,
+            "batch_preparation": self.batch_preparation,
+            "audited_per_asset_fetch": self.audited_per_asset_fetch,
+            "provider_identity": self.provider_identity,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ModelMarketBulkPreparationGate:
+    """Fail-closed capability verdict for one explicit preparation scope."""
+
+    requested_count: int
+    per_asset_preparation_limit: int | None
+    per_asset_scope_allowed: bool
+    preferred_route: str | None
+    preferred_route_is_batch: bool
+    route_capabilities: tuple[ModelMarketRouteCapability, ...]
+    non_auditable_routes: tuple[str, ...]
+
+    @property
+    def allows_requested_scope(self) -> bool:
+        """Return whether the requested scope can be prepared without fallback loss."""
+
+        return self.preferred_route_is_batch or self.per_asset_scope_allowed
+
+
+def evaluate_model_market_bulk_preparation(
+    *,
+    routes: tuple[ModelMarketRoute, ...],
+    requested_count: int,
+    max_per_asset_preparation_assets: int | None,
+) -> ModelMarketBulkPreparationGate:
+    """Evaluate the audited bulk-preparation gate without any provider I/O.
+
+    This pure capability check is shared by the explicit preparation
+    orchestration and the read-only full-market publication preflight so both
+    enforce exactly one rule with the same stable error codes.
+    """
+
+    route_capabilities: list[ModelMarketRouteCapability] = []
+    non_auditable_routes: list[str] = []
+    for route in routes:
+        batch_capable = isinstance(route.port, ModelHistoryPreparationPort) and isinstance(
+            route.port, ModelHistoryPreparationAuditPort
+        )
+        single_fetch_capable = isinstance(route.port, ModelHistorySingleFetchAuditPort)
+        route_capabilities.append(
+            ModelMarketRouteCapability(
+                route=route.name,
+                batch_preparation=batch_capable,
+                audited_per_asset_fetch=single_fetch_capable,
+                provider_identity=route.provider_id is not None,
+            )
+        )
+        if not batch_capable and not single_fetch_capable:
+            non_auditable_routes.append(route.name)
+        if (batch_capable or single_fetch_capable) and route.provider_id is None:
+            raise DataFetchError(
+                "Audited model-history route lacks configured provider identity",
+                code="MODEL_MARKET_AUDIT_PROVIDER_ID_MISSING",
+                details={"available_routes": [item.to_dict() for item in route_capabilities]},
+            )
+    per_asset_scope_allowed = (
+        max_per_asset_preparation_assets is not None
+        and requested_count <= max_per_asset_preparation_assets
+    )
+    preferred_route = routes[0] if routes else None
+    preferred_route_is_batch = preferred_route is not None and (
+        isinstance(preferred_route.port, ModelHistoryPreparationPort)
+        and isinstance(preferred_route.port, ModelHistoryPreparationAuditPort)
+    )
+    gate = ModelMarketBulkPreparationGate(
+        requested_count=requested_count,
+        per_asset_preparation_limit=max_per_asset_preparation_assets,
+        per_asset_scope_allowed=per_asset_scope_allowed,
+        preferred_route=(preferred_route.name if preferred_route is not None else None),
+        preferred_route_is_batch=preferred_route_is_batch,
+        route_capabilities=tuple(route_capabilities),
+        non_auditable_routes=tuple(sorted(non_auditable_routes)),
+    )
+    if not gate.allows_requested_scope:
+        raise DataFetchError(
+            "The preferred route must support audited batch preparation for this scope",
+            code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
+            details={
+                "requested_count": requested_count,
+                "available_routes": [item.to_dict() for item in route_capabilities],
+                "non_auditable_routes": gate.non_auditable_routes,
+                "per_asset_preparation_limit": max_per_asset_preparation_assets,
+            },
+        )
+    return gate
 
 
 class ModelMarketDataPreparation(ModelMarketDataServiceState):
@@ -59,49 +168,13 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
                 code="MODEL_MARKET_REFERENCE_SNAPSHOT_REQUIRED",
             )
 
-        route_capabilities: list[dict[str, object]] = []
-        non_auditable_routes: list[str] = []
-        for route in self._routes:
-            batch_capable = isinstance(route.port, ModelHistoryPreparationPort) and isinstance(
-                route.port, ModelHistoryPreparationAuditPort
-            )
-            single_fetch_capable = isinstance(route.port, ModelHistorySingleFetchAuditPort)
-            route_capabilities.append(
-                {
-                    "route": route.name,
-                    "batch_preparation": batch_capable,
-                    "audited_per_asset_fetch": single_fetch_capable,
-                    "provider_identity": route.provider_id is not None,
-                }
-            )
-            if not batch_capable and not single_fetch_capable:
-                non_auditable_routes.append(route.name)
-            if (batch_capable or single_fetch_capable) and route.provider_id is None:
-                raise DataFetchError(
-                    "Audited model-history route lacks configured provider identity",
-                    code="MODEL_MARKET_AUDIT_PROVIDER_ID_MISSING",
-                    details={"available_routes": route_capabilities},
-                )
-        per_asset_scope_allowed = (
-            self._max_per_asset_preparation_assets is not None
-            and len(normalized_asset_codes) <= self._max_per_asset_preparation_assets
+        gate = evaluate_model_market_bulk_preparation(
+            routes=self._routes,
+            requested_count=len(normalized_asset_codes),
+            max_per_asset_preparation_assets=self._max_per_asset_preparation_assets,
         )
-        preferred_route = self._routes[0] if self._routes else None
-        preferred_route_is_batch = preferred_route is not None and (
-            isinstance(preferred_route.port, ModelHistoryPreparationPort)
-            and isinstance(preferred_route.port, ModelHistoryPreparationAuditPort)
-        )
-        if not preferred_route_is_batch and not per_asset_scope_allowed:
-            raise DataFetchError(
-                "The preferred route must support audited batch preparation for this scope",
-                code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
-                details={
-                    "requested_count": len(normalized_asset_codes),
-                    "available_routes": route_capabilities,
-                    "non_auditable_routes": tuple(sorted(non_auditable_routes)),
-                    "per_asset_preparation_limit": self._max_per_asset_preparation_assets,
-                },
-            )
+        per_asset_scope_allowed = gate.per_asset_scope_allowed
+        preferred_route_is_batch = gate.preferred_route_is_batch
 
         if not self._preparation_active:
             self._explicit_prepared_rows.clear()
