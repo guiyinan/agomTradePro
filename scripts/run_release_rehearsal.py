@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
@@ -1186,6 +1187,101 @@ def _preflight_database(
     )
 
 
+def _run_parallel_stage_member(
+    runner: CommandRunner,
+    *,
+    config: RehearsalConfig,
+    identity: Identity,
+    spec: StageSpec,
+    folder: Path,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    container_gid: int,
+    checkpoint: _Checkpoint,
+) -> None:
+    """Execute one independent container stage and validate its report.
+
+    Checkpoint completion is deferred to the caller so journal records always
+    remain an ordered prefix of the fixed stage order.
+    """
+    if not checkpoint.done(spec.name):
+        checkpoint.prepare(spec.name, (folder,), resume=config.resume)
+        folder.mkdir(exist_ok=True)
+        argv = _docker_command(
+            identity,
+            config.docker_network,
+            spec.env_files,
+            identity_path,
+            manifest_path,
+            provider_path,
+            folder,
+            spec,
+        )
+        _invoke_container_stage(
+            runner,
+            argv=argv,
+            root=config.root,
+            label=spec.name,
+            timeout=config.stage_timeout_seconds,
+            env={
+                "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+            },
+            artifact_dir=folder,
+            container_gid=container_gid,
+        )
+    _report(folder / spec.report_name, identity, image_bound=True)
+
+
+def _run_parallel_container_group(
+    runner: CommandRunner,
+    *,
+    config: RehearsalConfig,
+    identity: Identity,
+    specs: Sequence[StageSpec],
+    folders: Sequence[Path],
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    container_gid: int,
+    checkpoint: _Checkpoint,
+) -> dict[str, Exception | None]:
+    """Run the independent container stages concurrently and collect per-stage outcomes.
+
+    Every member runs to completion; a failure never cancels its siblings. The
+    returned mapping is keyed by stage name so the caller can complete checkpoint
+    records as an ordered prefix of the fixed stage order and re-raise the first
+    failure with its original stage and error code.
+    """
+    outcomes: dict[str, Exception | None] = {}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {
+            pool.submit(
+                _run_parallel_stage_member,
+                runner,
+                config=config,
+                identity=identity,
+                spec=spec,
+                folder=folder,
+                identity_path=identity_path,
+                manifest_path=manifest_path,
+                provider_path=provider_path,
+                container_gid=container_gid,
+                checkpoint=checkpoint,
+            ): spec.name
+            for spec, folder in zip(specs, folders, strict=True)
+        }
+        for future, name in futures.items():
+            try:
+                future.result()
+            except Exception as exc:
+                outcomes[name] = exc
+            else:
+                outcomes[name] = None
+    return outcomes
+
+
 def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | None = None) -> Path:
     """Run or resume a locked same-candidate rehearsal without weakening final validation."""
     try:
@@ -1339,45 +1435,36 @@ def _run_release_rehearsal(
             completed.append(stage)
 
         specs = _stage_specs(config, identity, path_values)
-        for spec, folder in zip(specs[1:], (replay_dir, capacity_dir, isolated_dir), strict=True):
+        parallel_specs = specs[1:]
+        parallel_folders = (replay_dir, capacity_dir, isolated_dir)
+        pending = [spec.name for spec in parallel_specs if not checkpoint.done(spec.name)]
+        stage = pending[0] if pending else parallel_specs[0].name
+        _status(status_path, "running", completed, stage, None)
+        _assert_candidate(active, config.root, candidate)
+        if _preflight_isolated_database_container(config, active) != isolated_database_container_id:
+            raise RehearsalBlocked(
+                "isolated_postgresql_write", "S6_ISOLATED_DATABASE_CONTAINER_CHANGED"
+            )
+        outcomes = _run_parallel_container_group(
+            active,
+            config=config,
+            identity=identity,
+            specs=parallel_specs,
+            folders=parallel_folders,
+            identity_path=identity_path,
+            manifest_path=manifest_path,
+            provider_path=provider_path,
+            container_gid=container_gid,
+            checkpoint=checkpoint,
+        )
+        _assert_candidate(active, config.root, candidate)
+        for spec, folder in zip(parallel_specs, parallel_folders, strict=True):
             stage = spec.name
-            _status(status_path, "running", completed, stage, None)
-            _assert_candidate(active, config.root, candidate)
-            if (
-                stage == "isolated_postgresql_write"
-                and _preflight_isolated_database_container(config, active)
-                != isolated_database_container_id
-            ):
-                raise RehearsalBlocked(stage, "S6_ISOLATED_DATABASE_CONTAINER_CHANGED")
-            if not checkpoint.done(stage):
-                checkpoint.prepare(stage, (folder,), resume=config.resume)
-                folder.mkdir(exist_ok=True)
-                argv = _docker_command(
-                    identity,
-                    config.docker_network,
-                    spec.env_files,
-                    identity_path,
-                    manifest_path,
-                    provider_path,
-                    folder,
-                    spec,
-                )
-                _invoke_container_stage(
-                    active,
-                    argv=argv,
-                    root=config.root,
-                    label=stage,
-                    timeout=config.stage_timeout_seconds,
-                    env={
-                        "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
-                        "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
-                    },
-                    artifact_dir=folder,
-                    container_gid=container_gid,
-                )
-            _report(folder / spec.report_name, identity, image_bound=True)
-            checkpoint.complete(stage, (folder,))
-            completed.append(stage)
+            failure = outcomes[spec.name]
+            if failure is not None:
+                raise failure
+            checkpoint.complete(spec.name, (folder,))
+            completed.append(spec.name)
 
         stage = "github_ci_evidence"
         _status(status_path, "running", completed, stage, None)

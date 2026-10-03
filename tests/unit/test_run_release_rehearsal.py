@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import sys
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -457,6 +458,9 @@ def test_database_container_replacement_blocks_isolated_write(tmp_path: Path) ->
     with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_DATABASE_CONTAINER_CHANGED"):
         run_release_rehearsal(config, runner=runner)
 
+    # The container identity recheck runs before the parallel group starts.
+    assert "response_replay" not in runner.labels
+    assert "full_universe_capacity" not in runner.labels
     assert "isolated_postgresql_write" not in runner.labels
 
 
@@ -689,7 +693,18 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         "release_validator",
     ]
     observed_stages = [label for label in runner.labels if label in expected_stages]
-    assert observed_stages == expected_stages
+    assert observed_stages[0] == "provider_probe"
+    # The parallel group members run concurrently, so only their set is stable.
+    assert set(observed_stages[1:4]) == {
+        "response_replay",
+        "full_universe_capacity",
+        "isolated_postgresql_write",
+    }
+    assert observed_stages[4:] == [
+        "github_ci_evidence",
+        "bundle_build",
+        "release_validator",
+    ]
     assert "deploy" not in runner.labels
     provider_command = next(item for item in runner.commands if item.label == "provider_probe")
     target_index = provider_command.argv.index("--target-trade-date")
@@ -734,6 +749,60 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     ):
         writable_mode = 0o2770 if os.name == "posix" else 0o770
         assert chmod_calls[directory] == [writable_mode, 0o750]
+
+
+def test_parallel_group_members_run_concurrently(tmp_path: Path) -> None:
+    """The three independent stages must overlap; a serial run breaks the barrier."""
+    barrier = threading.Barrier(3)
+
+    class BarrierRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label in {
+                "response_replay",
+                "full_universe_capacity",
+                "isolated_postgresql_write",
+            }:
+                barrier.wait(timeout=30)
+            return super().run(command)
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = BarrierRunner()
+
+    receipt_path = run_release_rehearsal(config, runner=runner)
+
+    assert verify_evidence_handoff_receipt(receipt_path)["candidate_sha"] == CANDIDATE_SHA
+
+
+def test_parallel_group_failure_records_only_completed_prefix(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(fail_label="full_universe_capacity")
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(config, runner=runner)
+
+    assert exc_info.value.stage == "full_universe_capacity"
+    assert exc_info.value.code == "S6_STAGE_COMMAND_FAILED"
+    # All three group members started; the failure never cancels siblings.
+    for label in (
+        "response_replay",
+        "full_universe_capacity",
+        "isolated_postgresql_write",
+    ):
+        assert label in runner.labels
+    records = json.loads((config.output_dir / "checkpoint.json").read_text(encoding="utf-8"))[
+        "stages"
+    ]
+    assert "response_replay" in records
+    assert "full_universe_capacity" not in records
+    assert "isolated_postgresql_write" not in records
+    assert not (config.output_dir / "s6-handoff-receipt.json").exists()
+
+    resumed = FakeRunner()
+    receipt = run_release_rehearsal(replace(config, resume=True), runner=resumed)
+    assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
+    assert "response_replay" not in resumed.labels
+    assert "full_universe_capacity" in resumed.labels
+    assert "isolated_postgresql_write" in resumed.labels
 
 
 def test_output_inside_checkout_is_rejected_before_build(tmp_path: Path) -> None:
@@ -1087,9 +1156,16 @@ def test_identity_mismatch_stops_before_later_business_stages(tmp_path: Path) ->
         run_release_rehearsal(config, runner=runner)
 
     assert "full_universe_capacity" in runner.labels
-    assert "isolated_postgresql_write" not in runner.labels
     assert "github_ci_evidence" not in runner.labels
+    assert "bundle_build" not in runner.labels
     assert not (config.output_dir / "s6-handoff-receipt.json").exists()
+    # Only the ordered prefix before the failing group member is recorded.
+    records = json.loads((config.output_dir / "checkpoint.json").read_text(encoding="utf-8"))[
+        "stages"
+    ]
+    assert "response_replay" in records
+    assert "full_universe_capacity" not in records
+    assert "isolated_postgresql_write" not in records
 
 
 def test_dirty_worktree_fails_before_build_or_remote_command(tmp_path: Path) -> None:
