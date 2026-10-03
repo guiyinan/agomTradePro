@@ -1303,9 +1303,14 @@ runner 现在把既有 allowlist 显式展开为 `migrate`、`flush`、`loaddata
 `0 errors in 0 files`；Black、isort、Ruff、治理一致性、entrypoint stale-check、Architecture full 3,306 files / delta、
 module map 44 modules / 210 edges、module cycle 与 `git diff --check` 全部通过。无测试跳过。
 
-未验证风险：本地证据尚未替代 exact-SHA 五组 CI；该提交没有重新执行 5,001-member PostgreSQL soak，因为没有修改
-publication/authority 数据库路径，既有同候选核心证据仍来自 `405538d00`。生产 runner 的真实 PostgreSQL migrate 与
-SQLite dump/flush/loaddata 将由 Publication PostgreSQL workflow 再次执行。本片未部署、未启动 S6 或全市场重跑。
+exact-SHA 证据：包含上述实现和本节台账的 `8f21c897398999eb903fd4c471e714b04d8423ae` 五组 CI 全绿：CI Fast
+Feedback `37088698350`、Publication PostgreSQL contracts `37088698321`、Architecture `37088698284`、Consistency
+`37088698282`、Security `37088698283`。Publication workflow 再次通过 5,001-member publication/authority soak、生产角色
+bootstrap/migration ordering、statement logging 正常与失败恢复，以及真实 runner 的 SQLite dump/flush/loaddata；快照为
+563 张表、源/目标 291 行、fixture 291 行、mismatch `{}`、`outcome=success`。
 
-下一片是否可开始：可以开始 `cc9a39b44` 的 exact-SHA CI 复验；只有五组全部通过后才可把候选交给 S6。部署与生产
-全市场重跑仍属于⑥，继续等待用户单独授权。
+未验证风险：本片仍未执行 S6、部署或生产全市场重跑；数据库级 candidate member immutability trigger/constraint 仍是既有
+P1 风险，本片未扩边处理。
+
+下一片是否可开始：①→⑤和入口治理阻断的本地及 exact-SHA CI 门槛已齐，可以在用户单独授权⑥后开始 S6。当前继续保留
+legacy relation locks，不部署、不启动生产全市场重跑。
