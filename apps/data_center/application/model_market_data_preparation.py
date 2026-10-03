@@ -60,7 +60,6 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             )
 
         route_capabilities: list[dict[str, object]] = []
-        non_batch_routes: list[str] = []
         non_auditable_routes: list[str] = []
         for route in self._routes:
             batch_capable = isinstance(route.port, ModelHistoryPreparationPort) and isinstance(
@@ -75,8 +74,6 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
                     "provider_identity": route.provider_id is not None,
                 }
             )
-            if not batch_capable:
-                non_batch_routes.append(route.name)
             if not batch_capable and not single_fetch_capable:
                 non_auditable_routes.append(route.name)
             if (batch_capable or single_fetch_capable) and route.provider_id is None:
@@ -89,9 +86,14 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
             self._max_per_asset_preparation_assets is not None
             and len(normalized_asset_codes) <= self._max_per_asset_preparation_assets
         )
-        if non_batch_routes and (not per_asset_scope_allowed or non_auditable_routes):
+        preferred_route = self._routes[0] if self._routes else None
+        preferred_route_is_batch = preferred_route is not None and (
+            isinstance(preferred_route.port, ModelHistoryPreparationPort)
+            and isinstance(preferred_route.port, ModelHistoryPreparationAuditPort)
+        )
+        if not preferred_route_is_batch and not per_asset_scope_allowed:
             raise DataFetchError(
-                "Every enabled route must support audited batch preparation for this scope",
+                "The preferred route must support audited batch preparation for this scope",
                 code="MODEL_MARKET_BULK_PREPARATION_REQUIRED",
                 details={
                     "requested_count": len(normalized_asset_codes),
@@ -131,11 +133,6 @@ class ModelMarketDataPreparation(ModelMarketDataServiceState):
         failed_preparation_routes: set[str] = set()
         preparation_failures: list[DataFetchError] = []
         unresolved_codes = set(normalized_asset_codes)
-        preferred_route = self._routes[0] if self._routes else None
-        preferred_route_is_batch = preferred_route is not None and (
-            isinstance(preferred_route.port, ModelHistoryPreparationPort)
-            and isinstance(preferred_route.port, ModelHistoryPreparationAuditPort)
-        )
         for route in self._routes:
             if route.name in self._disabled or not unresolved_codes or not preferred_route_is_batch:
                 continue

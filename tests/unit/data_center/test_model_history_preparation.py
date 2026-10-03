@@ -752,6 +752,54 @@ def test_default_large_scope_with_akshare_primary_fails_closed_before_any_provid
     assert "000001.SZ" not in str(caught.value.details)
 
 
+def test_batch_primary_is_not_blocked_by_audited_per_asset_failover_route():
+    class PerAssetFailover:
+        def __init__(self) -> None:
+            self.fetches: list[str] = []
+
+        def fetch_stock_history(self, asset_code, start_date, end_date):
+            self.fetches.append(asset_code)
+            raise AssertionError("complete batch primary must not invoke per-asset failover")
+
+        def stock_history(self, asset_code, start_date, end_date):
+            raise AssertionError("complete batch primary must not invoke failover reads")
+
+        def index_history(self, asset_code, start_date, end_date):
+            return ()
+
+        def trade_days(self, start_date, end_date):
+            return (DAY,)
+
+        def index_members(self, index_code, target_date):
+            return ()
+
+    audit = AuditRecorder({17: "tushare", 29: "akshare"})
+    primary_client = Client()
+    primary = TushareModelMarketSource(
+        primary_client,
+        source="tushare",
+        provider_id=17,
+        history_fetch_audit=audit,
+    )
+    failover = PerAssetFailover()
+    service = _service(
+        (
+            ModelMarketRoute("tushare", primary, source_type="tushare", provider_id=17),
+            ModelMarketRoute("akshare", failover, source_type="akshare", provider_id=29),
+        ),
+        audit,
+    )
+
+    service.prepare_stock_history(CODES, DAY, DAY)
+    rows = tuple(row for code in CODES for row in service.stock_history(code, DAY, DAY))
+
+    assert {row.asset_code for row in rows} == set(CODES)
+    assert failover.fetches == []
+    assert len(primary_client.calls) == 2
+    assert len(audit.successes) == 1
+    assert audit.failures == []
+
+
 def test_explicit_small_scope_uses_the_route_audited_per_asset_fetch_contract():
     class PerAssetOnly:
         def __init__(self) -> None:
