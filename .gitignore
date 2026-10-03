@@ -146,3 +146,5 @@ docs/xiaohongshu-draft-2026-04-24.md
 /backups
 # Local deployment output belongs in artifacts/deployment/; retain deployment docs and evidence.
 /artifacts
+/pytest-tmp-s6-recovery
+/.codex-*
