@@ -53,16 +53,17 @@ def main(argv: list[str] | None = None) -> int:
 
     connection_created.connect(_set_owner_role, weak=False)
     connections["default"].ensure_connection()
-    command = ["manage.py", *arguments]
     if arguments[0] == "loaddata":
         from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
             _allow_candidate_manifest_fixture_restore,
         )
 
         with _allow_candidate_manifest_fixture_restore():
-            execute_from_command_line(command)
+            execute_from_command_line(["manage.py", "loaddata", *arguments[1:]])
+    elif arguments[0] == "migrate":
+        execute_from_command_line(["manage.py", "migrate", *arguments[1:]])
     else:
-        execute_from_command_line(command)
+        execute_from_command_line(["manage.py", "flush", *arguments[1:]])
     return 0
 
 

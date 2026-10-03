@@ -96,6 +96,30 @@ OPERATIONAL_TOKEN_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         "django:migrate",
     ),
     (
+        "execute_from_command_line migrate",
+        re.compile(
+            r"execute_from_command_line\(\s*\[\s*[\"']manage\.py[\"']\s*,\s*[\"']migrate[\"']",
+            re.IGNORECASE,
+        ),
+        "django:migrate",
+    ),
+    (
+        "execute_from_command_line flush",
+        re.compile(
+            r"execute_from_command_line\(\s*\[\s*[\"']manage\.py[\"']\s*,\s*[\"']flush[\"']",
+            re.IGNORECASE,
+        ),
+        "django:flush",
+    ),
+    (
+        "execute_from_command_line loaddata",
+        re.compile(
+            r"execute_from_command_line\(\s*\[\s*[\"']manage\.py[\"']\s*,\s*[\"']loaddata[\"']",
+            re.IGNORECASE,
+        ),
+        "django:loaddata",
+    ),
+    (
         "manage.py backup_database",
         re.compile(r"manage\.py[\s\"'`]+backup_database\b", re.IGNORECASE),
         "django:backup_database",

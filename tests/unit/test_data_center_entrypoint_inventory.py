@@ -9,6 +9,8 @@ from types import ModuleType
 
 import pytest
 
+from scripts.check_data_center_legacy_entrypoints import _script_imports
+
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "data_center_entrypoint_inventory.py"
 
@@ -206,6 +208,16 @@ def test_inventory_classifies_known_operational_surfaces(
             "scripts/check_migration_graph.py",
             "active_public",
         ),
+        (
+            "operational_script",
+            "scripts/manage_vps_migrations.py",
+            "active_public",
+        ),
+        (
+            "script",
+            "scripts/manage_vps_migrations.py",
+            "adjacent_operational",
+        ),
         ("operational_script", "scripts/vps-backup.sh", "adjacent_operational"),
         (
             "migration_evidence",
@@ -227,6 +239,14 @@ def test_inventory_classifies_known_operational_surfaces(
         and entry["status"] == "active_public"
         for entry in entries
     )
+
+
+def test_migration_runner_private_import_is_exact() -> None:
+    """Keep the canonical runner's scoped Data Center capability exact."""
+
+    assert _script_imports(ROOT / "scripts" / "manage_vps_migrations.py") == [
+        "apps.data_center.infrastructure.candidate_raw_audit_manifest_models"
+    ]
 
 
 def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
@@ -402,6 +422,13 @@ def test_inventory_expands_command_edges_and_publishes_full_task_targets(
         for entry in entries
         if entry["category"] == "management_command_edge"
     )
+    migration_runner_edges = {
+        entry["symbol"]
+        for entry in entries
+        if entry["category"] == "management_command_edge"
+        and entry["path"] == "scripts/manage_vps_migrations.py"
+    }
+    assert migration_runner_edges == {"flush", "loaddata", "migrate"}
     bootstrap_edges = {
         entry["symbol"]
         for entry in entries

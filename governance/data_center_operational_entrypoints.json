@@ -37,6 +37,21 @@
         "operational_script",
         "operational_dispatch_edge"
       ],
+      "evidence": "canonical allow-listed migrate, flush, and loaddata runner; validates the migrator-to-owner role and scopes candidate-manifest fixture restore capability to loaddata",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "active_public"
+    },
+    {
+      "category": "script",
+      "evidence": "reviewed deployment runner with one scoped Data Center candidate-manifest fixture restore capability import",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
       "evidence": "explicitly owned adjacent deployment, backup, restore, development, or scheduler operation",
       "path": [
         "apps/config_center/management/commands/collect_storage_capacity_profile.py",
@@ -118,6 +133,7 @@
         "tests/component/config_center/test_backup_delivery_secret_cutover.py",
         "tests/component/config_center/test_backup_delivery_state.py",
         "tests/component/data_center/test_archive_repository.py",
+        "tests/component/data_center/test_candidate_raw_audit_manifest.py",
         "tests/component/data_center/test_retention_postgres_concurrency.py",
         "tests/component/test_macro_periodic_tasks.py",
         "tests/component/test_task_monitor.py",
