@@ -1314,3 +1314,33 @@ P1 风险，本片未扩边处理。
 
 下一片是否可开始：①→⑤和入口治理阻断的本地及 exact-SHA CI 门槛已齐，可以在用户单独授权⑥后开始 S6。当前继续保留
 legacy relation locks，不部署、不启动生产全市场重跑。
+
+#### 2026-10-03 ⑥首次生产重跑阻断与模型行情路由能力整改（`6299ae299`）
+
+完成项：精确候选 `2eb462b29708e3136123feb060f5716d90c257e7` 已通过五组 CI、九阶段 S6、同 SHA
+预构建镜像与 handoff receipt 部署；部署后独立校验通过 HTTPS/health、PostgreSQL runtime role、ASGI 连接策略、
+migration、Data Center schema、TUI metadata、Qlib identity、Celery worker/beat 及运行镜像身份。唯一一次生产全市场任务
+`e14eed07-0f03-402c-968c-3a62b4177e3d` 返回规范业务结果 `partial`：`requested=5572`、
+`succeeded=5561`、`failed=11`、`stored=11133`；quote 56/56、5,572 行，valuation 56/56、5,561 行，
+publication 0/1，`publication_updated=false`，稳定阻断码为 `MODEL_MARKET_BULK_PREPARATION_REQUIRED`。
+
+根因不是 audit authority 锁竞争：生产策略以 Tushare 为主源并启用 AKShare failover；Tushare 实现审计批量准备，AKShare
+实现审计逐证券准备。原预检在 provider I/O 前要求每条启用 route 都具备批量能力，导致完整覆盖范围的合格主批量源也被
+备用源的能力形态提前否决。`6299ae299` 将大范围预检绑定到实际首选 route；首选 route 仍必须具备批量审计能力，完整批量
+结果不会再因未使用的逐证券备用源被拒绝。批量主源失败、无 provider identity、截断批次、缺审计、超出显式逐证券预算等
+路径继续 fail closed；未放宽 freshness、coverage、audit 或策略阈值，也未写死 11/12 只证券。
+
+测试计数：model-history 聚焦测试 `19 passed`；market publication 与 5,001 证券规模组件回归 `97 passed`，合计
+`116 passed`。新增契约证明“批量主源 + 审计逐证券备用源”在主源完整覆盖时只调用主源，不产生备用源请求；既有反例继续
+证明逐证券主源面对 5,001 范围在零 provider/audit I/O 前失败关闭。生产文件增量 mypy 零回归，全仓 mypy debt
+`0 errors in 0 files`；Black、isort、Ruff、current-data 72 surfaces 与 `git diff --check` 通过。仓库约定的
+`agomtradepro` Conda 环境在当前主机不存在，因此测试使用当前 Python 3.13.5 / Django 5.2.12 环境；这是本地环境差异，
+exact-SHA CI/S6 仍须用规定运行时复验。
+
+未验证风险：`6299ae299` 尚未取得 exact-SHA 五组 CI、九阶段 S6、同镜像部署和第二次生产重跑证据；第一次任务已完成的
+事实写入不等于正式 Publication，current pointer 仍未更新。逐证券备用源的动态缺口预算目前没有生产 Config Center 真源，
+因此本片没有擅自设置固定数量或扩大逐证券调用；主批量结果中无法证明为停牌的剩余缺口仍会明确失败关闭。该配置能力列入
+未完成工作，不作为本次正式发布门槛的旁路。
+
+下一片是否可开始：可以开始 `6299ae299` 的 exact-SHA CI 与 S6；只有全部门槛通过后才能用其同 SHA 预构建镜像部署，
+再启动一次显式全市场重跑。任何失败先诊断，禁止复用旧镜像、盲目重跑或扩大 timeout/retry。
