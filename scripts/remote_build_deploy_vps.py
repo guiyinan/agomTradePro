@@ -25,6 +25,7 @@ import tempfile
 import time
 import zipfile
 from collections.abc import Callable, Iterable
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, NoReturn, cast
 
@@ -1261,6 +1262,51 @@ def _create_local_runtime_bundle(
     return bundle_zip_path
 
 
+def _download_and_package_built_image(
+    *,
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    timeout: int,
+    remote_image_tar: str,
+    local_image_path: Path,
+    project_root: Path,
+    tag: str,
+    include_sqlite: bool,
+    sqlite_file: Path | None,
+) -> Path:
+    """Download the built image tar over a dedicated SSH connection and package it.
+
+    Runs on a worker thread so the download overlaps the remote deploy;
+    paramiko clients are not shared across threads, so this worker opens
+    its own connection.
+    """
+
+    download_ssh = _ssh_connect(
+        host=host, port=port, username=username, password=password, timeout=timeout
+    )
+    try:
+        local_image_path.parent.mkdir(parents=True, exist_ok=True)
+        _info(f"Downloading built image tar: {local_image_path}")
+        sftp = download_ssh.open_sftp()
+        try:
+            sftp.get(remote_image_tar, str(local_image_path))
+        finally:
+            sftp.close()
+    finally:
+        download_ssh.close()
+    return _create_local_runtime_bundle(
+        project_root=project_root,
+        dist_dir=local_image_path.parent,
+        tag=tag,
+        image_tag=f"agomtradepro-web:{tag}",
+        local_image_path=local_image_path,
+        include_sqlite=include_sqlite,
+        sqlite_file=sqlite_file,
+    )
+
+
 def _build_remote_active_build_marker_shell_command(operation: str) -> str:
     """Build a fixed claim/release command for the active build marker."""
     if operation not in {"claim", "release"}:
@@ -1286,6 +1332,7 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+PREDEPLOY_BACKUP="${PREDEPLOY_BACKUP:-0}"
 SOURCE_COMMIT="${SOURCE_COMMIT:?missing SOURCE_COMMIT}"
 export SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -1335,6 +1382,23 @@ __NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__
 
 if [ ! -f deploy/.env ]; then
   cp deploy/.env.vps.example deploy/.env
+fi
+
+PREDEPLOY_BACKUP_PID=""
+if [ "$PREDEPLOY_BACKUP" = "1" ] && [ -L "$TARGET_DIR/current" ]; then
+  PREDEPLOY_BACKUP_SOURCE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
+  case "$PREDEPLOY_BACKUP_SOURCE" in
+    "$TARGET_DIR"/releases/source-*)
+      if [ -d "$PREDEPLOY_BACKUP_SOURCE" ]; then
+        echo "[INFO] Starting verified pre-deploy backup in the background while the image builds"
+        bash "$RELEASE_DIR/scripts/vps-backup.sh" \
+          --target-dir "$PREDEPLOY_BACKUP_SOURCE" \
+          --backup-dir "$TARGET_DIR/backups" \
+          --keep-days 1 &
+        PREDEPLOY_BACKUP_PID=$!
+      fi
+      ;;
+  esac
 fi
 
 AVAILABLE_CPUS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)"
@@ -1452,6 +1516,17 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
 fi
 
+if [ -n "$PREDEPLOY_BACKUP_PID" ]; then
+  if wait "$PREDEPLOY_BACKUP_PID"; then
+    echo "[INFO] Pre-deploy backup completed during the image build"
+    echo "PREDEPLOY_BACKUP_DONE=1"
+    echo "PREDEPLOY_BACKUP_OF=$PREDEPLOY_BACKUP_SOURCE"
+  else
+    echo "[ERROR] Pre-deploy backup failed during the image build" >&2
+    exit 1
+  fi
+fi
+
 python3 - <<'PY'
 import json
 import os
@@ -1536,6 +1611,7 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+PREDEPLOY_BACKUP="${PREDEPLOY_BACKUP:-0}"
 EXPECTED_SOURCE_COMMIT="${SOURCE_COMMIT:?missing SOURCE_COMMIT}"
 export EXPECTED_SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -1584,6 +1660,23 @@ if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example
 
 if [ ! -f deploy/.env ]; then
   cp deploy/.env.vps.example deploy/.env
+fi
+
+PREDEPLOY_BACKUP_PID=""
+if [ "$PREDEPLOY_BACKUP" = "1" ] && [ -L "$TARGET_DIR/current" ]; then
+  PREDEPLOY_BACKUP_SOURCE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
+  case "$PREDEPLOY_BACKUP_SOURCE" in
+    "$TARGET_DIR"/releases/source-*)
+      if [ -d "$PREDEPLOY_BACKUP_SOURCE" ]; then
+        echo "[INFO] Starting verified pre-deploy backup in the background while the image builds"
+        bash "$RELEASE_DIR/scripts/vps-backup.sh" \
+          --target-dir "$PREDEPLOY_BACKUP_SOURCE" \
+          --backup-dir "$TARGET_DIR/backups" \
+          --keep-days 1 &
+        PREDEPLOY_BACKUP_PID=$!
+      fi
+      ;;
+  esac
 fi
 
 AVAILABLE_CPUS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)"
@@ -1702,6 +1795,17 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
 fi
 
+if [ -n "$PREDEPLOY_BACKUP_PID" ]; then
+  if wait "$PREDEPLOY_BACKUP_PID"; then
+    echo "[INFO] Pre-deploy backup completed during the image build"
+    echo "PREDEPLOY_BACKUP_DONE=1"
+    echo "PREDEPLOY_BACKUP_OF=$PREDEPLOY_BACKUP_SOURCE"
+  else
+    echo "[ERROR] Pre-deploy backup failed during the image build" >&2
+    exit 1
+  fi
+fi
+
 python3 - <<'PY'
 import json
 import os
@@ -1746,6 +1850,8 @@ INCLUDE_SQLITE="${INCLUDE_SQLITE:-0}"
 ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
 ENABLE_CELERY="${ENABLE_CELERY:-0}"
 SKIP_PREDEPLOY_BACKUP="${SKIP_PREDEPLOY_BACKUP:-0}"
+PREDEPLOY_BACKUP_DONE="${PREDEPLOY_BACKUP_DONE:-0}"
+PREDEPLOY_BACKUP_OF="${PREDEPLOY_BACKUP_OF:-}"
 AUTO_ROLLBACK="${AUTO_ROLLBACK:-1}"
 PRESERVE_DATA_CENTER_CATALOG="${PRESERVE_DATA_CENTER_CATALOG:-0}"
 RELEASE_REHEARSAL_SHA256="${RELEASE_REHEARSAL_SHA256:?missing RELEASE_REHEARSAL_SHA256}"
@@ -2135,6 +2241,8 @@ if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
   mv -T "$TARGET_DIR/.previous-next" "$TARGET_DIR/previous"
   if [ "$SKIP_PREDEPLOY_BACKUP" = "1" ]; then
     echo "[WARN] Pre-deploy backup skipped by explicit emergency option" >&2
+  elif [ "$PREDEPLOY_BACKUP_DONE" = "1" ] && [ "$PREDEPLOY_BACKUP_OF" = "$PREVIOUS_RELEASE" ]; then
+    echo "[INFO] Pre-deploy backup was already completed during the image build"
   else
     echo "[INFO] Creating verified pre-deploy backup"
     bash "$RELEASE_DIR/scripts/vps-backup.sh" \
@@ -2588,18 +2696,28 @@ else
   fi
 fi
 
-if ! compose run --rm --no-deps web python manage.py check --deploy; then
-  echo "[ERROR] Django production deployment checks failed" >&2
-  exit 1
-fi
-
-if ! compose run --rm --no-deps web python manage.py collectstatic --noinput; then
-  echo "[ERROR] static asset collection failed" >&2
-  exit 1
-fi
+# Django deployment checks and collectstatic never touch the database, so
+# they run in the background while the MCP capability catalog syncs.
+(
+  if ! compose run --rm --no-deps web python manage.py check --deploy; then
+    echo "[ERROR] Django production deployment checks failed" >&2
+    exit 1
+  fi
+  if ! compose run --rm --no-deps web python manage.py collectstatic --noinput; then
+    echo "[ERROR] static asset collection failed" >&2
+    exit 1
+  fi
+) &
+STATIC_CHECKS_PID=$!
 
 if ! compose run --rm --no-deps web python manage.py sync_ai_capability_catalog --type incremental --source mcp_tool --fail-on-error; then
   echo "[ERROR] MCP capability catalog synchronization failed" >&2
+  wait "$STATIC_CHECKS_PID" || true
+  exit 1
+fi
+
+if ! wait "$STATIC_CHECKS_PID"; then
+  echo "[ERROR] Django deployment checks or static asset collection failed" >&2
   exit 1
 fi
 
@@ -3153,6 +3271,8 @@ def main() -> int:
         remote_image_tar = posixpath.join(remote_dir, f"agomtradepro-web-{tag}.tar")
         build_report_path = None
         report_path = None
+        predeploy_backup_done = False
+        predeploy_backup_of = ""
 
         if prebuilt:
             _info(f"Reusing rehearsed image agomtradepro-web:{tag}")
@@ -3186,6 +3306,9 @@ def main() -> int:
                 "GIT_BRANCH": args.git_branch,
                 "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
                 "EXPORT_IMAGE_TAR": _bool_env(False),
+                "PREDEPLOY_BACKUP": _bool_env(
+                    deploy_after_build and not args.skip_predeploy_backup
+                ),
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
                 "SOURCE_COMMIT": source_commit,
@@ -3247,6 +3370,9 @@ def main() -> int:
                 "RELEASE_TAG": tag,
                 "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
                 "EXPORT_IMAGE_TAR": _bool_env(True),
+                "PREDEPLOY_BACKUP": _bool_env(
+                    deploy_after_build and not args.skip_predeploy_backup
+                ),
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
                 "SOURCE_COMMIT": source_commit,
@@ -3268,29 +3394,31 @@ def main() -> int:
                 report_path = line.split("=", 1)[1].strip()
             if line.startswith("REMOTE_IMAGE_TAR="):
                 remote_image_tar = line.split("=", 1)[1].strip()
+            if line.startswith("PREDEPLOY_BACKUP_DONE="):
+                predeploy_backup_done = line.split("=", 1)[1].strip() == "1"
+            if line.startswith("PREDEPLOY_BACKUP_OF="):
+                predeploy_backup_of = line.split("=", 1)[1].strip()
 
+        download_pool: ThreadPoolExecutor | None = None
+        download_future: Future[Path] | None = None
         if args.download_built_image and remote_image_tar:
-            local_image_path.parent.mkdir(parents=True, exist_ok=True)
-            _info(f"Downloading built image tar: {local_image_path}")
-            sftp = ssh.open_sftp()
-            try:
-                sftp.get(remote_image_tar, str(local_image_path))
-            finally:
-                sftp.close()
-            runtime_bundle_path = _create_local_runtime_bundle(
-                project_root=project_root,
-                dist_dir=local_image_path.parent,
-                tag=tag,
-                image_tag=f"agomtradepro-web:{tag}",
+            # The built-image download only reads remote state, so it overlaps
+            # the remote deploy on its own dedicated SSH connection.
+            download_pool = ThreadPoolExecutor(max_workers=1)
+            download_future = download_pool.submit(
+                _download_and_package_built_image,
+                host=host,
+                port=args.port,
+                username=user,
+                password=password,
+                timeout=args.timeout,
+                remote_image_tar=remote_image_tar,
                 local_image_path=local_image_path,
+                project_root=project_root,
+                tag=tag,
                 include_sqlite=include_sqlite,
                 sqlite_file=sqlite_file,
             )
-            _info(f"Created local runtime bundle: {runtime_bundle_path}")
-            if (not deploy_after_build) and (not args.keep_remote_temp):
-                cleanup_build_only_after_download = True
-            elif not args.keep_remote_temp:
-                _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
         if args.prompt_before_deploy:
             deploy_after_build = _prompt_bool("Remote build completed. Deploy to VPS now?", False)
@@ -3312,6 +3440,8 @@ def main() -> int:
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
                 "SKIP_PREDEPLOY_BACKUP": _bool_env(args.skip_predeploy_backup),
+                "PREDEPLOY_BACKUP_DONE": _bool_env(predeploy_backup_done),
+                "PREDEPLOY_BACKUP_OF": predeploy_backup_of,
                 "AUTO_ROLLBACK": _bool_env(not args.disable_auto_rollback),
                 "PRESERVE_DATA_CENTER_CATALOG": _bool_env(args.preserve_data_center_catalog),
                 "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(
@@ -3346,6 +3476,17 @@ def main() -> int:
             for line in deploy_out.splitlines():
                 if line.startswith("REPORT_PATH="):
                     report_path = line.split("=", 1)[1].strip()
+
+        if download_pool is not None and download_future is not None:
+            try:
+                runtime_bundle_path = download_future.result()
+            finally:
+                download_pool.shutdown(wait=True)
+            _info(f"Created local runtime bundle: {runtime_bundle_path}")
+            if (not deploy_after_build) and (not args.keep_remote_temp):
+                cleanup_build_only_after_download = True
+            elif not args.keep_remote_temp:
+                _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
         if args.download_report and report_path:
             report_dir = (project_root / args.report_dir).resolve()

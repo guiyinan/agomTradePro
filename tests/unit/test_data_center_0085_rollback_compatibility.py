@@ -448,8 +448,13 @@ def test_remote_deploy_reads_db_and_gates_before_all_mutations() -> None:
     assert source.index(previous_release_assignment) < source.index(migration_probe)
     assert source.index(postgres_container_lookup) < source.index(migration_probe)
     assert source.index(migration_probe) < source.index(gate_call)
-    assert source.index(gate_call) < source.index('bash "$RELEASE_DIR/scripts/vps-backup.sh"')
-    assert source.index(gate_call) < source.index("bash scripts/migrate-vps-sqlite-to-postgres.sh")
+    # The deploy phase still gates before its own fallback backup invocation; the
+    # build phase may additionally run a read-only pg_dump/BGSAVE backup earlier.
+    deploy_section = source[source.index("def _build_remote_deploy_script()") :]
+    assert deploy_section.index(gate_call) < deploy_section.index(
+        'bash "$RELEASE_DIR/scripts/vps-backup.sh"'
+    )
+    assert source.index(gate_call) < source.index("sh scripts/migrate-vps-sqlite-to-postgres.sh")
     assert source.index(gate_call) < source.index(
         'ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.previous-next"'
     )

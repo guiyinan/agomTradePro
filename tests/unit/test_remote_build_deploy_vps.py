@@ -1370,3 +1370,170 @@ def test_one_click_post_deploy_verification_is_fail_closed(
         f"got {completed.returncode}; stdout={completed.stdout!r}; "
         f"stderr={completed.stderr!r}"
     )
+
+
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
+def test_remote_builds_overlap_predeploy_backup_with_image_build(builder_name: str) -> None:
+    """The verified pre-deploy backup runs in the background during the image build."""
+
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    launch = "PREDEPLOY_BACKUP_PID=$!"
+    wait_gate = 'if wait "$PREDEPLOY_BACKUP_PID"; then'
+    marker = 'echo "PREDEPLOY_BACKUP_DONE=1"'
+    marker_of = 'echo "PREDEPLOY_BACKUP_OF=$PREDEPLOY_BACKUP_SOURCE"'
+
+    assert 'PREDEPLOY_BACKUP="${PREDEPLOY_BACKUP:-0}"' in script
+    assert 'if [ "$PREDEPLOY_BACKUP" = "1" ] && [ -L "$TARGET_DIR/current" ]; then' in script
+    assert "--keep-days 1 &" in script
+    assert launch in script
+    assert wait_gate in script
+    assert marker in script
+    assert marker_of in script
+    assert script.index(marker) < script.index(marker_of)
+    assert "Pre-deploy backup failed during the image build" in script
+    # The backup is launched before the image build and only awaited afterwards,
+    # so the backup still precedes any writer stop or migration in the deploy phase.
+    assert script.index(launch) < script.index("docker build")
+    assert script.index("docker build") < script.index(wait_gate)
+    # The completion marker is emitted only after a successful wait, before the
+    # build report is written.
+    assert script.index(wait_gate) < script.index(marker)
+    assert script.index(marker) < script.index("/tmp/agomtradepro-build-report.json")
+
+
+def test_remote_deploy_reuses_build_phase_backup_without_repeating_it() -> None:
+    """A backup completed during the build phase is not repeated in the deploy phase."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    skip = 'echo "[WARN] Pre-deploy backup skipped by explicit emergency option" >&2'
+    reuse = 'elif [ "$PREDEPLOY_BACKUP_DONE" = "1" ] && [ "$PREDEPLOY_BACKUP_OF" = "$PREVIOUS_RELEASE" ]; then'
+    fallback = 'bash "$RELEASE_DIR/scripts/vps-backup.sh"'
+
+    assert 'PREDEPLOY_BACKUP_DONE="${PREDEPLOY_BACKUP_DONE:-0}"' in script
+    assert 'PREDEPLOY_BACKUP_OF="${PREDEPLOY_BACKUP_OF:-}"' in script
+    assert reuse in script
+    assert fallback in script
+    assert script.index(skip) < script.index(reuse) < script.index(fallback)
+    # Rollback readiness is still armed only after the backup gate.
+    assert script.index(fallback) < script.index("ROLLBACK_READY=1")
+
+
+def test_remote_deploy_runs_static_checks_in_background_with_explicit_wait() -> None:
+    """check --deploy and collectstatic overlap the MCP catalog sync and gate publish."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    launch = "STATIC_CHECKS_PID=$!"
+    gate = 'if ! wait "$STATIC_CHECKS_PID"; then'
+    publish = 'sh scripts/publish-tui-release.sh "$RELEASE_TAG"'
+    sync = "python manage.py sync_ai_capability_catalog --type incremental --source mcp_tool --fail-on-error"
+    catalog = "python manage.py initialize_data_center_catalog"
+
+    assert ") &" in script
+    assert launch in script
+    assert gate in script
+    assert 'wait "$STATIC_CHECKS_PID" || true' in script
+    # The background block starts only after the catalog sync point, runs while
+    # the MCP capability catalog syncs, and is awaited before the TUI publish.
+    assert script.index(catalog) < script.index(launch)
+    assert script.index(launch) < script.index(sync)
+    assert script.index(sync) < script.index(gate)
+    assert script.index(gate) < script.index(publish)
+
+
+def test_built_image_download_overlaps_deploy_and_is_joined_before_cleanup() -> None:
+    """The image tar download runs on a thread during the deploy and joins before cleanup."""
+
+    source = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert "from concurrent.futures import Future, ThreadPoolExecutor" in source
+    assert "download_pool.submit(" in source
+    assert '"PREDEPLOY_BACKUP": _bool_env(' in source
+    assert '"PREDEPLOY_BACKUP_DONE": _bool_env(predeploy_backup_done)' in source
+    assert '"PREDEPLOY_BACKUP_OF": predeploy_backup_of,' in source
+    assert source.index('if line.startswith("PREDEPLOY_BACKUP_OF="):') < source.index(
+        '"PREDEPLOY_BACKUP_OF": predeploy_backup_of,'
+    )
+    assert source.index('if line.startswith("PREDEPLOY_BACKUP_DONE="):') < source.index(
+        '"PREDEPLOY_BACKUP_DONE": _bool_env(predeploy_backup_done)'
+    )
+    deploy_phase = 'deploy_cmd = f"{deploy_exports} bash -lc'
+    join = "download_future.result()"
+    report_download = "if args.download_report and report_path:"
+    cleanup_call = "            _cleanup_remote_build_artifacts("
+    assert source.index("download_pool.submit(") < source.index(deploy_phase)
+    assert source.index(deploy_phase) < source.index(join) < source.index(report_download)
+    assert source.index(join) < source.index(cleanup_call)
+
+
+def test_download_and_package_built_image_uses_dedicated_ssh_connection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The worker downloads over its own SSH connection and always closes it."""
+
+    calls: dict[str, Any] = {}
+
+    class FakeSFTP:
+        closed = False
+
+        def get(self, remote: str, local: str) -> None:
+            calls["get"] = (remote, local)
+
+        def close(self) -> None:
+            self.closed = True
+
+    class FakeSSH:
+        def __init__(self) -> None:
+            self.sftp = FakeSFTP()
+            self.closed = False
+
+        def open_sftp(self) -> FakeSFTP:
+            return self.sftp
+
+        def close(self) -> None:
+            self.closed = True
+
+    fake_ssh = FakeSSH()
+
+    def fake_connect(
+        *, host: str, port: int, username: str, password: str, timeout: int
+    ) -> FakeSSH:
+        calls["connect"] = (host, port, username, password, timeout)
+        return fake_ssh
+
+    def fake_bundle(**kwargs: Any) -> Path:
+        calls["bundle"] = kwargs
+        return tmp_path / "bundle.zip"
+
+    monkeypatch.setattr(remote_build_deploy_vps, "_ssh_connect", fake_connect)
+    monkeypatch.setattr(remote_build_deploy_vps, "_create_local_runtime_bundle", fake_bundle)
+
+    image_path = tmp_path / "dist" / "agomtradepro-web-20240101000000.tar"
+    result = remote_build_deploy_vps._download_and_package_built_image(
+        host="vps.example",
+        port=22,
+        username="root",
+        password="secret",
+        timeout=60,
+        remote_image_tar="/tmp/agomtradepro-web-20240101000000.tar",
+        local_image_path=image_path,
+        project_root=tmp_path,
+        tag="20240101000000",
+        include_sqlite=False,
+        sqlite_file=None,
+    )
+
+    assert result == tmp_path / "bundle.zip"
+    assert calls["connect"] == ("vps.example", 22, "root", "secret", 60)
+    assert calls["get"] == ("/tmp/agomtradepro-web-20240101000000.tar", str(image_path))
+    assert calls["bundle"]["local_image_path"] == image_path
+    assert fake_ssh.closed
+    assert fake_ssh.sftp.closed
+    assert image_path.parent.is_dir()
