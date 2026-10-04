@@ -386,7 +386,7 @@ jobs:
           import json
           with open('sqlite-snapshot-rehearsal-report.json', encoding='utf-8') as handle:
               snapshot_report = json.load(handle)
-          assert len(publication_cases) == 38, 'Expected publication PostgreSQL cases were not collected'
+          assert len(publication_cases) == 39, 'Expected publication PostgreSQL cases were not collected'
           assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
           assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
