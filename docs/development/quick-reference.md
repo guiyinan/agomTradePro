@@ -420,6 +420,31 @@ ruff check .
 mypy apps/ --strict
 ```
 
+### CI 流水线与手动触发
+
+| Workflow | 自动触发 | 说明 |
+| --- | --- | --- |
+| CI Fast Feedback | push / PR（main、dev/**） | 快速反馈门禁；docs-only 改动经 paths-ignore 跳过 |
+| Architecture Layer Guard | push / PR（main、dev/**） | 四层架构边界；docs-only 改动同样跳过 |
+| Consistency Check | push / PR（main、dev/**） | 治理/契约一致性，docs 变更也会跑（不加 paths-ignore） |
+| Security Scan | push / PR（main、dev/**）+ 每周一 02:00 UTC | 依赖与密钥扫描；定时仅为兜底，随提交扫描不变 |
+| Nightly Tests | 每日 02:00 UTC（北京 10:00） | 全量测试与覆盖率 |
+| CI Publication Postgres | push / PR 且命中 data_center/account 等路径 | PostgreSQL 发布链路契约 |
+| RC Gate | 推送 v*.*.*-rc* 标签 | 发布候选门禁 |
+
+所有 workflow 均支持 `workflow_dispatch` 手动触发，需要时不必等定时：
+
+```bash
+# 命令行（任选其一）
+gh workflow run security-scan.yml --ref dev/next-development
+gh workflow run nightly-tests.yml --ref dev/next-development
+
+# ci-fast-feedback 可选传 base_ref（完整祖先 SHA）做累计候选验证
+gh workflow run ci-fast-feedback.yml --ref dev/next-development -f base_ref=<full-sha>
+
+# 网页：仓库 → Actions → 左侧选 workflow → 右上 "Run workflow" → 选分支
+```
+
 ### 架构治理命令
 
 ```bash
