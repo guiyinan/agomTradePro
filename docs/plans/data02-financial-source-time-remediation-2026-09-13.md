@@ -860,3 +860,14 @@ synthetic regression 覆盖两个 contract 复用同一 parser 标签、未登�
 截至候选 `67cfef48f0` 的生产只读重验，以上三项均未部署；生产仍缺 financial `announced_at`、current
 authority、owner-approved contract/receipt、provider matcher/producer、明确写授权和真实四 Publication
 reconciliation。DATA-02 保持 `awaiting_production`，不得从仓库绿灯推导生产放行。
+
+## 34. 2026-10-04 owner 拍板 date-only 精度
+
+Owner 正式接受 date-only 精度：`announced_at` 为公告日 T 00:00 Asia/Shanghai（日历日
+起点，精度 date），`available_at` 为 T+1 00:00 Asia/Shanghai；该推导与日级盘前决策
+cutoff 语义对齐，等价 T+1 交易日生效且不需交易日历。CNINFO 精确时刻增强推迟到盘中
+决策端口出现时再评估；备选增强路线记录为 Tushare `anns_d`。历史合成午夜值保持
+degraded，不得洗白。完整决策、理由与边界见
+[date-only 精度决策记录](data02-date-only-precision-decision-2026-10-04.md)；该文件同时
+作为 contract registry owner approval 的审批 receipt 原件。DATA-02 继续保持
+`awaiting_production`。
