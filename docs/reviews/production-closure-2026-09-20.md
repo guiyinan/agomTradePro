@@ -904,3 +904,24 @@ evidence guard 结构化失败关闭，并报告 `mutations_performed=false`；�
 结构化证据见 [生产 revision 946ea48106 只读重验](../deployment/production-closure-revalidation-2026-10-03-946ea48106.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v188 → v189；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
+
+## 生产 revision 2eb462b297 只读重验（2026-10-04）
+
+生产已推进到 `2eb462b297`，release `20261003124733`；探针采集时 `dev/next-development` HEAD 为
+`d9a5db1c2`，生产落后 15 个提交。公网 health、db health、ready 为 200，decision-ready 按设计为
+503，release-identity 为 403。有效分母为 5,572；price current Publication 仍为 5,572，`as_of` 为
+2026-09-29；quote 仍为 5,564、缺 8，valuation 仍为 5,561、缺 11，两者 `as_of` 均为 2026-09-30；
+financial 仍为 80。本轮没有新的 Publication coverage 或 freshness gate 推进。
+
+生产 profile v19 仍绑定 `release_ref=9c77c51182`，与运行 revision `2eb462b297` 不一致，exact
+deployment/profile identity binding 继续 P0 阻断。audit mode=`required`、outbox=`true`、selector 有效，
+temporally current actor、owner、joined heads 仍为 1/1/1，不能替代 EVID/AUD 精确生产验收。
+
+部署 revision 的 source-time contract 与 numeric tolerance registry 仍为 `awaiting_owner_approval`、零条目，
+approval 缺失，exact matcher registry 为空。两个未传 `--execute` 的 DATA-02 预检仍在 financial decision
+evidence guard 结构化失败关闭，并报告 `mutations_performed=false`；不得据此声称 provider/write 路径未到达。
+受保护监控连续两次对凭据和匿名请求均返回 401、`DENY_STOP_LINES`。
+
+结构化证据见 [生产 revision 2eb462b297 只读重验](../deployment/production-closure-revalidation-2026-10-04-2eb462b297.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v190 → v191；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、profile 激活、生产写入或 Publication 切换。
