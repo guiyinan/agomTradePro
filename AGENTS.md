@@ -91,6 +91,7 @@ apps/*/interface/   import apps.*.infrastructure
 | Celery 批量写入/新鲜度任务 | `docs/development/celery-task-contract-guard.md` | 更新 `governance/celery_task_contracts.json`；运行 `python scripts/check_celery_task_contracts.py` |
 | 模块结构/依赖/入口/路由变化 | `docs/architecture/MODULE_MAP.md` | 运行 `python scripts/build_module_map.py` 并通过 `python scripts/check_module_map.py` |
 | `current/latest/realtime/summary` 决策数据 | `docs/development/data-freshness-contract-guard.md` | 更新 `governance/current_data_contracts.json`；运行 `python scripts/check_current_data_contracts.py` |
+| 发布预检/S6 证据段或策略快照 | `governance/release_rehearsal_policy.json`；`docs/development/quick-reference.md` 发布预检节 | 新增必需报告须同步 `required_reports`、`build_release_rehearsal_manifest.py` 与 `validate_release_rehearsal.py`；S6 携带 `export_provider_settings_snapshot` 产出的快照 |
 | TUI metadata/runtime/promotion | `docs/development/tui-user-facing-design-standard.md` | 同步 schema、metadata、compiler/runtime 与测试 |
 | Classic Web 模板或 Web→TUI 迁移 | `docs/plans/web-to-tui-migration-plan-2026-07-25.md` | 同步迁移矩阵/配置；运行 `python scripts/web_template_migration_inventory.py --check` |
 | Git 分支、提交和合并 | `docs/GIT_WORKFLOW.md` | 遵循下节的最小 Git 规则 |

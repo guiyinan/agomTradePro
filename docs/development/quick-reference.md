@@ -40,6 +40,30 @@ agomtradepro/Scripts/python manage.py inspect_personal_readiness_evidence --targ
 agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 ```
 
+### 发布预检与 S6 策略快照
+
+```bash
+# 1. 从生产（或目标环境）只读导出 provider 策略快照；stdout 即快照文件内容，
+#    digest 摘要走 stderr，可直接重定向
+python manage.py export_provider_settings_snapshot > provider-settings.json
+
+# 2. 启动全市场任务前的分钟级只读预检（零数据库写入、零 provider 抓取；
+#    任一阻断 exit 1 并输出稳定阻断码清单）
+python manage.py preflight_full_market_publication
+# 用显式快照校验（不读 Config Center），或只跑路由批量能力检查
+python manage.py preflight_full_market_publication \
+  --provider-settings-json provider-settings.json \
+  --checks provider_policy_and_routes
+
+# 3. S6 发布预演必须携带同一快照；缺 production_policy_parity 证据的
+#    receipt 会被 validate_release_rehearsal.py 拒绝
+python scripts/run_release_rehearsal.py ... --provider-settings-json provider-settings.json
+```
+
+- 快照必须与生产 Config Center 运行时策略一致：导出和 S6 之间策略被修改时，
+  parity 段会把 digest 漂移作为失败暴露，不要复用旧快照。
+- 治理真源：`governance/release_rehearsal_policy.json` 的 `required_reports`。
+
 - 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。
 
 ### Django 命令

@@ -1404,3 +1404,11 @@ modules / 212 edges；architecture inventory 与 current-data 72 surfaces 通过
 下一片是否可开始：本组不改变 `6299ae299` 候选的业务语义，其 exact-SHA CI 与 S6 可以继续；
 但下一次 S6 必须携带 `--provider-settings-json` 快照并包含 parity 段证据，旧格式 receipt 不再被
 validator 接受。继续不部署、不启动全市场重跑，等待用户授权。
+
+补充（`9ec4e7635`）：上节遗留的"生产策略快照导出尚未脚本化"已关闭。新增只读
+`export_provider_settings_snapshot` command，与预检/S6 共用同一 `load_provider_settings_payload`
+真源：stdout 即快照文件（digest 摘要走 stderr，可直接重定向），`--output` 排他创建；
+blocked payload 原样导出以复现生产阻断而非隐藏。单测 `3 passed`，entrypoint inventory 1,292 项
+`candidate-review=0`，增量 mypy 零回归。操作路径已写入 `docs/development/quick-reference.md`
+"发布预检与 S6 策略快照"节；`AGENTS.md` §6 表格新增"发布预检/S6 证据段或策略快照"行，
+把 `required_reports` 三方同步（policy、manifest builder、validator）固化为改动类型契约。
