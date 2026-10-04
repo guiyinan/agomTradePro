@@ -313,6 +313,7 @@ def test_collector_report_satisfies_bundle_identity_contract(
     for kind in (
         "real_response_unit_replay",
         "full_universe_capacity",
+        "production_policy_parity",
         "isolated_write_rehearsal",
     ):
         report_dir = tmp_path / kind
