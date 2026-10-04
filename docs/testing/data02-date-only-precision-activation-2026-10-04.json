@@ -1,0 +1,105 @@
+{
+  "schema_version": "data02-date-only-precision-activation.v1",
+  "recorded_at_utc": "2026-10-04T15:56:49.727584Z",
+  "repository_branch": "dev/next-development",
+  "closure_unit": "DATA-02",
+  "owner_decision": {
+    "decision": "accept_date_only_precision",
+    "decision_record": "docs/plans/data02-date-only-precision-decision-2026-10-04.md",
+    "decision_record_commit": "29262a34706db26dff6fd0010009063c24615f8f",
+    "receipt_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69",
+    "receipt_hash_scope": "SHA-256 of the decision record git blob bytes committed in 29262a34706db26dff6fd0010009063c24615f8f",
+    "announced_at_rule": "announcement day T 00:00 Asia/Shanghai (calendar-day start, precision date)",
+    "available_at_rule": "T+1 00:00 Asia/Shanghai (= T 16:00 UTC); first visible to the T+1 pre-open decision cutoff",
+    "historical_rows": "existing synthetic-midnight values in the 441,944 historical rows stay degraded and are not rewritten",
+    "cninfo_exact_time": "deferred until an intraday decision port exists; the shared verifier same-provider invariants block a cross-provider CNINFO evidence chain",
+    "alternative_route_recorded": "tushare anns_d (same provider, native rec_time) pending its own field mapping, uniqueness, timezone and availability contract"
+  },
+  "domain_extension": {
+    "new_availability_basis": "provider_date_next_session",
+    "new_precision_enum": "FinancialSourceTimePrecision(exact|date)",
+    "witness_invariants": "basis and precision must match; date-only witnesses must encode canonical Asia/Shanghai day starts for announced_at and next-day starts for available_at",
+    "codec": "financial-fact-decision-evidence.v2 witness projections now require source_time_precision; no production row has ever persisted a witness, so the strict key-set change has no historical payload"
+  },
+  "registered_contract": {
+    "provider_name": "akshare",
+    "contract_id": "akshare.financial-main-data.notice-date",
+    "contract_version": "2026-10-04.v1",
+    "parser_version": "akshare-eastmoney-main-financial-data.v1",
+    "endpoint": "datacenter.eastmoney.com/securities/api/data/get?type=RPT_F10_FINANCE_MAINFINADATA",
+    "source_timezone": "Asia/Shanghai",
+    "join_fields": "SECUCODE (asset_code), REPORT_DATE (period_end), NOTICE_DATE (announcement_date) on both bodies",
+    "source_row_id_field": "composite:SECUCODE+REPORT_DATE+NOTICE_DATE (explicitly declared derivation; the provider payload has no row-level id)",
+    "announced_at_field": "derived:NOTICE_DATE@day_start",
+    "available_at_field": "derived:NOTICE_DATE@next_day_start",
+    "contract_sha256": "a3b0057315a41f0b8df514fc7aaf5030916927a0cf3f39358a20d39b669eeaf1",
+    "contract_set_sha256": "20b528b7221a9b309cc14712631458cef1f9765d8df0bd3317311f1b8492ea66",
+    "approval": {
+      "approved_at": "2026-10-04T15:31:50Z",
+      "approved_by": "guiyinan",
+      "receipt_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69"
+    }
+  },
+  "real_sample_reverification": {
+    "sample": "docs/deployment/data02-financial-single-source-raw-sample-2026-09-13.json",
+    "body_bytes": 388061,
+    "body_sha256": "6a56f4ccbaa203e689f62a1f14033ed8a61a0c0a842afda03a6c27e5b1054578",
+    "body_location": "private var artifact, read-only, never written to the repository",
+    "composite_key_uniqueness": "SECUCODE+REPORT_DATE+NOTICE_DATE unique across all 122 rows",
+    "matcher_recomputed_witness": {
+      "native_row_id": "akshare:000001.SZ:2026-06-30:2026-08-15",
+      "announced_at": "2026-08-14T16:00:00+00:00",
+      "available_at": "2026-08-15T16:00:00+00:00",
+      "row_projection_sha256": "e7bf07ef226e5380e8c2ccdae7620a189a06e9d37e06adff26e2690ebb2036a5"
+    },
+    "null_notice_date_rows_fail_closed": "1990-1992 period rows with NOTICE_DATE=null produce no match",
+    "verify_while_registry_pending_was_false": true
+  },
+  "tushare_contract": {
+    "registered": false,
+    "reason": "no immutable retained raw fina_indicator payload exists (the only production fetch was rejected with provider code 2003); official documentation proves date granularity of ann_date but not the payload shape, so a parser and contract fields cannot be filled honestly"
+  },
+  "validation": {
+    "tdd_red": "witness precision tests and matcher tests failed before implementation (ImportError/collection error and 5 failed)",
+    "domain_and_codec_tests": "77 passed (test_financial_source_time_evidence, codec, verifier, write counts, probe, publication sync)",
+    "matcher_tests": "22 passed, then 24 passed after the active-registry fail-closed case",
+    "registry_and_composition_tests": "53 passed (registry, matcher, composition)",
+    "source_time_unit_batch": "177 passed across 14 source-time/evidence/codec test files",
+    "component_and_publication_batch": "64 passed across financial provenance, bulk upsert, publication evidence and decision query files",
+    "incremental_mypy": "0 regressions on all 4 changed production files across two runs",
+    "full_mypy_debt": "passed: 0 errors in 0 files",
+    "current_data_contracts": "72 surfaces, passed",
+    "module_map": "regenerated; modules=44 edges=210, check passed",
+    "architecture_delta": "3315 files, 7 boundary rules, 0 violations",
+    "governance_consistency": "0 violations",
+    "active_plan_registry": "version 2026-10-04.v192, 56 units, 0 violations",
+    "format_and_lint": "black, isort and ruff passed on all changed files"
+  },
+  "semantic_limits": [
+    "receipt_sha256 is a content anchor for the owner decision record; it does not prove signer identity or current authority",
+    "the AKShare matcher and contract authorize witness recomputation only; no production producer, retained artifact or RawAudit chain exists yet, so all real write and publication paths remain fail closed",
+    "date-only announced_at is a calendar-day normalization, not a provider-disclosed instant; historical degraded rows are unchanged",
+    "no provider call, deployment, database write, publication switch or historical backfill occurred in this work line"
+  ],
+  "remaining_production_gates": [
+    "Production producer constructing FinancialFactDecisionEvidence with real retained dual artifacts and canonical RawAudit for the AKShare endpoint.",
+    "Current authority, owner-approved tolerances and explicit production-write authorization.",
+    "Real four-Publication reconciliation under the approved tolerances.",
+    "Optional Tushare contract only after an immutable retained raw fina_indicator sample exists."
+  ],
+  "production_effects": {
+    "provider_calls": 0,
+    "vps_or_production_database_access": 0,
+    "database_writes": 0,
+    "deployments": 0,
+    "publication_switches": 0,
+    "historical_row_changes": 0
+  },
+  "commits": [
+    "29262a34706db26dff6fd0010009063c24615f8f",
+    "90ea3ade0bf2992836cc03bbc31595065864e963",
+    "aed9c5e46c4745312f72d0e10f1f63e491fc576e",
+    "001b6ad1e53826e644dae9d10ad3c91a9f24778c"
+  ],
+  "decision": "repository_date_only_contract_activated_production_acceptance_pending"
+}
