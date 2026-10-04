@@ -13,14 +13,15 @@ import signal
 import stat
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Protocol, cast, runtime_checkable
 from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -125,6 +126,14 @@ class CommandRunner(Protocol):
         """Execute a command without a shell."""
 
 
+@runtime_checkable
+class CancellableCommandRunner(CommandRunner, Protocol):
+    """Command runner that can stop every subprocess owned by this run."""
+
+    def cancel(self) -> None:
+        """Stop all active commands after an operator interruption."""
+
+
 class _Chown(Protocol):
     """Portable callable shape for POSIX ownership changes."""
 
@@ -137,6 +146,25 @@ class SubprocessRunner:
 
     def __init__(self, progress_dir: Path | None = None) -> None:
         self.progress_dir = progress_dir
+        self._cancelled = threading.Event()
+        self._active_lock = threading.Lock()
+        self._active_processes: dict[int, subprocess.Popen[str]] = {}
+
+    def cancel(self) -> None:
+        """Stop all active process groups launched by this runner."""
+
+        self._cancelled.set()
+        with self._active_lock:
+            processes = tuple(self._active_processes.values())
+        for process in processes:
+            try:
+                self._stop_process(process)
+            except (OSError, subprocess.SubprocessError):
+                if process.poll() is None:
+                    try:
+                        process.kill()
+                    except OSError:
+                        pass
 
     def _progress(
         self,
@@ -201,6 +229,9 @@ class SubprocessRunner:
         environment.update(command.env)
         started = time.monotonic()
         self._progress(command, started, outcome="running")
+        if self._cancelled.is_set():
+            self._progress(command, started, outcome="interrupted", returncode=130)
+            return CommandResult(130)
         try:
             process = subprocess.Popen(
                 command.argv,
@@ -218,38 +249,70 @@ class SubprocessRunner:
                     else 0
                 ),
             )
-            with process:
-                while True:
-                    remaining = command.timeout_seconds - (time.monotonic() - started)
-                    try:
-                        stdout, stderr = process.communicate(timeout=max(0.001, min(5, remaining)))
-                        break
-                    except subprocess.TimeoutExpired as exc:
-                        self._progress(
-                            command,
-                            started,
-                            outcome="running",
-                            stdout=exc.output or b"",
-                            stderr=exc.stderr or b"",
-                        )
-                        if time.monotonic() - started >= command.timeout_seconds:
+            with self._active_lock:
+                self._active_processes[process.pid] = process
+            try:
+                with process:
+                    while True:
+                        if self._cancelled.is_set():
                             self._stop_process(process)
                             stdout, stderr = process.communicate(timeout=10)
                             self._progress(
                                 command,
                                 started,
-                                outcome="timed_out",
+                                outcome="interrupted",
                                 stdout=stdout,
-                                stderr=stderr + "\nTimeoutExpired",
-                                returncode=124,
+                                stderr=stderr,
+                                returncode=130,
                             )
-                            self._remove_timed_out_container(command)
-                            return CommandResult(124, stdout, stderr)
-                    except KeyboardInterrupt:
-                        self._stop_process(process)
-                        self._remove_timed_out_container(command)
-                        self._progress(command, started, outcome="interrupted")
-                        raise
+                            self._remove_stage_container(command)
+                            return CommandResult(130, stdout, stderr)
+                        remaining = command.timeout_seconds - (time.monotonic() - started)
+                        try:
+                            stdout, stderr = process.communicate(
+                                timeout=max(0.001, min(5, remaining))
+                            )
+                            break
+                        except subprocess.TimeoutExpired as exc:
+                            self._progress(
+                                command,
+                                started,
+                                outcome="running",
+                                stdout=exc.output or b"",
+                                stderr=exc.stderr or b"",
+                            )
+                            if time.monotonic() - started >= command.timeout_seconds:
+                                self._stop_process(process)
+                                stdout, stderr = process.communicate(timeout=10)
+                                self._progress(
+                                    command,
+                                    started,
+                                    outcome="timed_out",
+                                    stdout=stdout,
+                                    stderr=stderr + "\nTimeoutExpired",
+                                    returncode=124,
+                                )
+                                self._remove_stage_container(command)
+                                return CommandResult(124, stdout, stderr)
+                        except KeyboardInterrupt:
+                            self._stop_process(process)
+                            self._remove_stage_container(command)
+                            self._progress(command, started, outcome="interrupted", returncode=130)
+                            raise
+            finally:
+                with self._active_lock:
+                    self._active_processes.pop(process.pid, None)
+            if self._cancelled.is_set():
+                self._progress(
+                    command,
+                    started,
+                    outcome="interrupted",
+                    stdout=stdout,
+                    stderr=stderr,
+                    returncode=130,
+                )
+                self._remove_stage_container(command)
+                return CommandResult(130, stdout, stderr)
             self._progress(
                 command,
                 started,
@@ -283,7 +346,7 @@ class SubprocessRunner:
             except ProcessLookupError:
                 pass
 
-    def _remove_timed_out_container(self, command: Command) -> None:
+    def _remove_stage_container(self, command: Command) -> None:
         """Remove only the uniquely named container launched by this command."""
         if command.argv[:2] != ("docker", "run") or "--name" not in command.argv:
             return
@@ -1382,13 +1445,16 @@ def _run_parallel_container_group(
 ) -> dict[str, Exception | None]:
     """Run the independent container stages concurrently and collect per-stage outcomes.
 
-    Every member runs to completion; a failure never cancels its siblings. The
+    Every member runs to completion unless the operator interrupts the run; a
+    stage failure never cancels its siblings. The
     returned mapping is keyed by stage name so the caller can complete checkpoint
     records as an ordered prefix of the fixed stage order and re-raise the first
     failure with its original stage and error code.
     """
     outcomes: dict[str, Exception | None] = {}
-    with ThreadPoolExecutor(max_workers=min(4, len(specs))) as pool:
+    pool = ThreadPoolExecutor(max_workers=min(4, len(specs)))
+    futures: dict[Future[None], str] = {}
+    try:
         futures = {
             pool.submit(
                 _run_parallel_stage_member,
@@ -1412,6 +1478,15 @@ def _run_parallel_container_group(
                 outcomes[name] = exc
             else:
                 outcomes[name] = None
+    except KeyboardInterrupt:
+        if isinstance(runner, CancellableCommandRunner):
+            runner.cancel()
+        for future in futures:
+            future.cancel()
+        pool.shutdown(wait=True, cancel_futures=True)
+        raise
+    else:
+        pool.shutdown(wait=True)
     return outcomes
 
 
@@ -1455,6 +1530,17 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     tuple(checkpoint.records),
                     exc.stage,
                     exc.code,
+                )
+                raise
+            except KeyboardInterrupt:
+                if isinstance(active, CancellableCommandRunner):
+                    active.cancel()
+                _status(
+                    config.output_dir / "run-status.json",
+                    "interrupted",
+                    tuple(checkpoint.records),
+                    "preflight",
+                    "S6_RUN_INTERRUPTED",
                 )
                 raise
             return _run_release_rehearsal(config, checkpoint, inputs, runner=active)
@@ -1824,6 +1910,12 @@ def _run_release_rehearsal(
         if status_path is not None:
             _status(status_path, "blocked", completed, exc.stage, exc.code)
         raise
+    except KeyboardInterrupt:
+        if isinstance(active, CancellableCommandRunner):
+            active.cancel()
+        if status_path is not None:
+            _status(status_path, "interrupted", completed, stage, "S6_RUN_INTERRUPTED")
+        raise
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
         if status_path is not None:
             _status(status_path, "blocked", completed, stage, "S6_INPUT_OR_ARTIFACT_INVALID")
@@ -1942,6 +2034,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     try:
         receipt = run_release_rehearsal(config)
+    except KeyboardInterrupt:
+        print(
+            json.dumps(
+                {
+                    "outcome": "interrupted",
+                    "error_code": "S6_RUN_INTERRUPTED",
+                    "deployable": False,
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return 130
     except RehearsalBlocked as exc:
         print(
             json.dumps(

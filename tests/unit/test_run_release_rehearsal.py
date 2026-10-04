@@ -8,6 +8,7 @@ import os
 import shutil
 import sys
 import threading
+import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -749,6 +750,109 @@ def test_process_timeout_is_distinct_and_has_terminal_progress(tmp_path: Path) -
     )
     assert progress["outcome"] == "timed_out"
     assert progress["returncode"] == 124
+
+
+def test_subprocess_runner_cancel_stops_active_process_group(tmp_path: Path) -> None:
+    marker = tmp_path / "started.txt"
+    runner = SubprocessRunner(tmp_path / "diagnostics")
+    results: list[CommandResult] = []
+
+    def execute() -> None:
+        results.append(
+            runner.run(
+                Command(
+                    (
+                        sys.executable,
+                        "-c",
+                        (
+                            "from pathlib import Path; import time; "
+                            f"Path({str(marker)!r}).write_text('started'); time.sleep(60)"
+                        ),
+                    ),
+                    tmp_path,
+                    {},
+                    120,
+                    "probe",
+                )
+            )
+        )
+
+    worker = threading.Thread(target=execute)
+    worker.start()
+    deadline = time.monotonic() + 10
+    while not marker.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert marker.exists()
+
+    runner.cancel()
+    worker.join(timeout=10)
+
+    assert not worker.is_alive()
+    assert [result.returncode for result in results] == [130]
+    reports = list((tmp_path / "diagnostics").glob("probe-*.json"))
+    assert reports
+    assert json.loads(reports[-1].read_text(encoding="utf-8"))["outcome"] == "interrupted"
+
+
+def test_parallel_operator_interrupt_cancels_runner_and_updates_status(tmp_path: Path) -> None:
+    class InterruptingRunner(FakeRunner):
+        def __init__(self) -> None:
+            super().__init__()
+            self.cancel_called = False
+
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "response_replay":
+                self.commands.append(command)
+                raise KeyboardInterrupt
+            return super().run(command)
+
+        def cancel(self) -> None:
+            self.cancel_called = True
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = InterruptingRunner()
+
+    with pytest.raises(KeyboardInterrupt):
+        run_release_rehearsal(config, runner=runner)
+
+    assert runner.cancel_called is True
+    status = json.loads((config.output_dir / "run-status.json").read_text(encoding="utf-8"))
+    assert status["outcome"] == "interrupted"
+    assert status["error_code"] == "S6_RUN_INTERRUPTED"
+    assert status["current_stage"] == "response_replay"
+    assert not (config.output_dir / "s6-handoff-receipt.json").exists()
+
+
+def test_preflight_operator_interrupt_updates_status(tmp_path: Path) -> None:
+    class InterruptingRunner(FakeRunner):
+        def __init__(self) -> None:
+            super().__init__()
+            self.cancel_called = False
+
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "preflight_docker":
+                raise KeyboardInterrupt
+            return super().run(command)
+
+        def cancel(self) -> None:
+            self.cancel_called = True
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = InterruptingRunner()
+
+    with pytest.raises(KeyboardInterrupt):
+        run_release_rehearsal(config, runner=runner)
+
+    assert runner.cancel_called is True
+    status = json.loads((config.output_dir / "run-status.json").read_text(encoding="utf-8"))
+    assert status == {
+        "schema": "release.rehearsal-launch-status.v1",
+        "outcome": "interrupted",
+        "completed_stages": [],
+        "current_stage": "preflight",
+        "error_code": "S6_RUN_INTERRUPTED",
+        "updated_at": status["updated_at"],
+    }
 
 
 def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handoff(
