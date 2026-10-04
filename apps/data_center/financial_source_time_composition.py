@@ -33,10 +33,18 @@ from apps.data_center.infrastructure.financial_source_time_body_store import (
 from apps.data_center.infrastructure.financial_source_time_contract_registry import (
     load_financial_source_time_contract_registry,
 )
+from apps.data_center.infrastructure.financial_source_time_matchers import (
+    AkshareNoticeDateSourceTimeMatcher,
+    akshare_notice_date_match_contract,
+)
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from core.exceptions import DataFetchError
 
-_MATCHERS: dict[FinancialSourceTimeContractIdentity, FinancialSourceTimeContractMatcher] = {}
+_AKSHARE_NOTICE_DATE_CONTRACT = akshare_notice_date_match_contract()
+
+_MATCHERS: dict[FinancialSourceTimeContractIdentity, FinancialSourceTimeContractMatcher] = {
+    _AKSHARE_NOTICE_DATE_CONTRACT.identity: AkshareNoticeDateSourceTimeMatcher(),
+}
 
 
 def _resolve_contract_matcher(
@@ -52,10 +60,10 @@ def verify_retained_financial_source_time_evidence(
 ) -> bool:
     """Verify both encrypted artifacts and audits under an active parser contract.
 
-    The checked-in registry and matcher table are intentionally empty. The
-    function is still injected into every canonical write/publication path so
-    those paths share one fail-closed boundary before the first real provider
-    contract is approved.
+    The matcher table carries only the AKShare date-only matcher bound to its
+    exact governed contract identity, and the checked-in registry still
+    requires owner approval. The function is injected into every canonical
+    write/publication path so those paths share one fail-closed boundary.
     """
 
     return _verify_source_time_evidence(
