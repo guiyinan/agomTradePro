@@ -1525,3 +1525,47 @@ current Publication 的 PostgreSQL 故障注入已加入 S6 candidate regression
 下一片是否可开始：先等待或独立提交测试团队 current-data 投影收口，并在包含本节文档的最终 SHA 上取得五组 CI 全绿；随后
 必须从最新生产只读快照创建新的 disposable 数据库、重新导出冻结输入并启动全新 S6。只有九阶段 S6 和 handoff 完整通过后，
 才可使用其同 SHA 预构建镜像部署；任何失败继续读取稳定业务码和安全诊断，不续跑旧证据、不延长 timeout/retry。
+
+#### 2026-10-05 ⑥正式发布失败的模型行情来源身份整改（`df214f445`）
+
+完成项：测试团队收口后的候选 `dbfd098ea6e02048e0961b219ab2180e5f4883a8` 已取得五组 exact-SHA CI
+全绿：Consistency `37215872580`、Publication PostgreSQL `37215872577`（39 个 publication tests）、
+Security `37215872579`、Architecture `37215872599`、Fast Feedback `37215872637`。VPS 全新 S6 根目录
+`/opt/agomtradepro/rehearsals/s6-dbfd098ea-20261005a` 使用最新生产快照、5,572 只动态 universe、三条真实
+provider identity 和冻结 settings 通过九阶段，生成 candidate SHA、镜像
+`sha256:0f3b2c106198bdb79cf8e0b7f05daa098ccde23d2d43f4ec4f960dbde6b5a413` 与 handoff receipt 三方一致的
+部署凭证。部署第一次在任何生产切换前以 `REHEARSAL_GITHUB_TOKEN_UNAVAILABLE` 失败关闭；根因是受保护 runner 环境未进入
+部署 validator 进程。加载同一 S6 的受保护 `runner.env` 后独立 validator 通过，随后复用同一预构建镜像完成部署；未重建镜像、
+未清空 volume，web/worker/beat/qlib worker、PostgreSQL runtime role、migration、TUI metadata 和 pyqlib 0.9.7 均通过。
+
+本次授权范围内只投递了一次正式全市场刷新：task ID `e19c871a-d0d7-45c1-b3e8-a1e57c09f3e9`，attempt ID
+`6d87b312504b4b5b92424a98368a2fad`。Celery 技术状态为 success、retry 0，但规范业务结果为 `partial`：
+`requested=5572`、`succeeded=5572`、`failed=0`、`stored=11144`，quote 与 valuation 均为 5,572/5,572；
+operation 112/113，publication 0/1，`publication_updated=false`，稳定错误码 `MODEL_MARKET_INVALID`，publication run ID
+`254df965-6f2c-4368-83d9-9e8c0449a032`。因此事实完整写入不等于正式 Publication，current pointer 未切换；没有把 HTTP/Celery
+成功误报为恢复，也没有盲目投递第二次任务。
+
+生产安全诊断把失败定位到 `prepare_stock_history` 的审计写入校验。真实 provider route 的稳定 `source_type` 分别为
+`tushare`、`akshare`，但两个适配器给 `ModelDailyBar.source` 传入了可变展示名称 `Tushare Pro`、`AKShare Public`；
+`record_model_history_fetch_success` 按 provider 配置要求每行来源严格等于稳定 source type，因而整批规范化历史行以
+`MODEL_MARKET_INVALID` 正确失败关闭。日志末尾集中出现北交所代码只是处理顺序的表象；只读 Tushare 截面复核为 daily 5,572
+唯一证券、adj_factor 5,572 唯一证券、无缺失/重复/非法 factor。根因属于 provider 身份维度混用，不是 11/12 只证券特例、
+audit lock、行情覆盖、超时或 retry 预算。
+
+`df214f445` 将 Tushare/AKShare 两个 model-market 装配点统一绑定 `provider_source()`；展示名继续用于人类可读 provider 名称，
+事实、路由和审计使用规范 source type。新增真实适配器行为契约先在旧实现上稳定红测，分别观察到 `Tushare Pro` 与
+`AKShare Public`，修复后两者分别输出 `tushare` 与 `akshare`。既有审计正例继续证明规范来源可写入，反例继续证明来源类型
+不匹配以 `MODEL_MARKET_INVALID` 失败关闭；没有降低校验或增加展示名白名单。
+
+测试计数：适配器、model-market、历史准备和价格审计联合回归 `108 passed`；Celery 治理脚本通过（94 个登记任务、21 个
+exemption、24 个 governed file），对应 guardrail 测试 `13 passed`；current-data 72 surfaces 通过。两个生产文件增量 mypy
+零回归，全仓 mypy debt `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过，无跳过项。
+
+未验证风险与停止线：`df214f445` 及本节文档后的最终 SHA 尚未 push，也尚无五组 exact-SHA CI；旧
+`s6-dbfd098ea-20261005a` 的 receipt、镜像和已部署 release 不包含本修复，不能复用为下一次部署凭证。正式 Publication、
+decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读零副作用联合验收仍未通过。不得在这些证据前重跑生产任务，
+也不得放宽 freshness、coverage、audit、来源一致性、锁等待、timeout/retry 或 `SIGNAL_WEAK`。
+
+下一片是否可开始：可以提交本节台账并 push 最终 SHA，取得五组 exact-SHA CI；全绿后必须用新 SHA、最新生产只读快照和
+重新导出的 provider/settings/unit-contract 输入运行全新九阶段 S6。只有新 handoff receipt 完整通过后才能部署其同 SHA
+预构建镜像，再投递一轮显式全市场刷新并执行联合验收；任何失败先保留稳定业务码和证据再修根因。
