@@ -1017,6 +1017,52 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
         ],
         retention_days=30,
     )
+    prior_published_at = timezone.now() - timedelta(minutes=1)
+    prior_publication = CanonicalPublicationModel.objects.create(
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+        policy_version="component-production",
+        state=PublicationState.PUBLISHED.value,
+        selected_source="component-existing",
+        publication_hash="e" * 64,
+        member_count=1,
+        coverage_requested_count=1,
+        coverage_eligible_count=1,
+        coverage_selected_count=1,
+        as_of=prior_published_at,
+        published_at=prior_published_at,
+    )
+    PublicationMemberModel.objects.create(
+        publication_id=prior_publication.publication_id,
+        dataset_key="equity.valuation.fact",
+        natural_key="component-existing",
+        source="component-existing",
+        source_record_id="component-existing",
+        fact_table=ValuationFactModel._meta.db_table,
+        fact_pk="component-existing",
+        observed_at=prior_published_at,
+        raw_payload_hash="c" * 64,
+        available_at=prior_published_at,
+        fetched_at=prior_published_at,
+        raw_payload_scope="record",
+        fact_content_hash="b" * 64,
+    )
+    CoverageSnapshotModel.objects.create(
+        publication_id=prior_publication.publication_id,
+        requested_count=1,
+        eligible_count=1,
+        selected_count=1,
+        missing_count=0,
+        conflict_count=0,
+        generated_at=prior_published_at,
+    )
+    prior_pointer = CanonicalPublicationPointerModel.objects.create(
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+        publication_id=prior_publication.publication_id,
+        publication_hash=prior_publication.publication_hash,
+        activation_id="component-existing",
+    )
 
     class MigrationExecutor:
         loader = type(
@@ -1060,6 +1106,12 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert receipt["readback_verified"] is True
     assert receipt["exact_member_fact_readback_verified"] is True
     assert receipt["legacy_current_fail_closed_verified"] is True
+    assert receipt["current_pointer_preserved_verified"] is True
+    assert receipt["current_pointer_rollback_verified"] is True
+    assert receipt["publication_graph_rollback_verified"] is True
+    assert receipt["publication_clock_source"] == "database_clock_timestamp"
+    assert receipt["publication_clock_cutoff"] == receipt["publication_published_at"]
+    assert receipt["prior_current_published_at"] == prior_published_at.isoformat()
     assert receipt["current_time_stale_expected"] is True
     assert receipt["current_time_freshness_guard_verified"] is True
     assert receipt["tamper_guard_verified"] is True
@@ -1069,10 +1121,48 @@ def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     assert receipt["publication_id"] == report["publication_id"]
     assert len(receipt["member_fact_content_hash"]) == 64
     assert len(receipt["catalog_seed_sha256"]) == 64
+    prior_publication.refresh_from_db()
+    prior_pointer.refresh_from_db()
+    assert prior_publication.state == PublicationState.PUBLISHED.value
+    assert prior_publication.superseded_at is None
+    assert prior_pointer.publication_id == prior_publication.publication_id
+    assert prior_pointer.publication_hash == prior_publication.publication_hash
+    assert prior_pointer.activation_id == "component-existing"
     assert ValuationFactModel.objects.count() == 0
-    assert CanonicalPublicationModel.objects.count() == 0
-    assert PublicationMemberModel.objects.count() == 0
-    assert CoverageSnapshotModel.objects.count() == 0
+    assert CanonicalPublicationModel.objects.count() == 1
+    assert PublicationMemberModel.objects.count() == 1
+    assert CoverageSnapshotModel.objects.count() == 1
+    assert CanonicalPublicationPointerModel.objects.count() == 1
+
+
+def test_isolated_write_publication_clock_rejects_future_current_publication(
+    actual_publication_pg,
+) -> None:
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from core.exceptions import DataFetchError
+
+    del actual_publication_pg
+    future_published_at = timezone.now() + timedelta(days=1)
+    CanonicalPublicationModel.objects.create(
+        dataset_key="equity.valuation.fact",
+        publication_key="current",
+        policy_version="component-production",
+        state=PublicationState.PUBLISHED.value,
+        selected_source="component-future",
+        publication_hash="d" * 64,
+        member_count=0,
+        as_of=future_published_at,
+        published_at=future_published_at,
+    )
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner._publication_clock_cutoff(
+            dataset_key="equity.valuation.fact",
+            publication_key="current",
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID"
+    assert CanonicalPublicationModel.objects.count() == 1
     assert CanonicalPublicationPointerModel.objects.count() == 0
 
 

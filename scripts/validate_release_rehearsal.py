@@ -77,6 +77,7 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_fact_refresh_honors_stricter_lock_timeout_and_rolls_back",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_postgres_revision_migration_preserves_rows_and_refuses_lossy_downgrade",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_isolated_write_rehearsal_uses_production_publication_and_rolls_back",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_isolated_write_publication_clock_rejects_future_current_publication",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_activation_5001_members_has_fixed_queries_locks_and_retry",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_financial_repository_round_trip_and_replay_count_on_postgresql",
@@ -2031,8 +2032,43 @@ def _validate_isolated_write(
         _fail("REHEARSAL_WRITE_COUNT_INVALID")
     _require_true(report, "publication_verified", "REHEARSAL_WRITE_INCOMPLETE")
     _require_true(report, "readback_verified", "REHEARSAL_WRITE_INCOMPLETE")
+    _require_true(
+        report,
+        "current_pointer_preserved_verified",
+        "REHEARSAL_WRITE_POINTER_NOT_PRESERVED",
+    )
+    _require_true(
+        report,
+        "current_pointer_rollback_verified",
+        "REHEARSAL_WRITE_POINTER_ROLLBACK_INCOMPLETE",
+    )
+    _require_true(
+        report,
+        "publication_graph_rollback_verified",
+        "REHEARSAL_WRITE_PUBLICATION_ROLLBACK_INCOMPLETE",
+    )
     _require_true(report, "tamper_guard_verified", "REHEARSAL_WRITE_INCOMPLETE")
     _require_true(report, "rollback_verified", "REHEARSAL_ROLLBACK_INCOMPLETE")
+    if report.get("publication_clock_source") != "database_clock_timestamp":
+        _fail("REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID")
+    publication_clock_cutoff = _parse_datetime(
+        report.get("publication_clock_cutoff"),
+        "REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID",
+    )
+    publication_published_at = _parse_datetime(
+        report.get("publication_published_at"),
+        "REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID",
+    )
+    if publication_published_at != publication_clock_cutoff:
+        _fail("REHEARSAL_WRITE_PUBLICATION_CLOCK_MISMATCH")
+    prior_current_published_at_raw = report.get("prior_current_published_at")
+    if prior_current_published_at_raw is not None:
+        prior_current_published_at = _parse_datetime(
+            prior_current_published_at_raw,
+            "REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID",
+        )
+        if prior_current_published_at >= publication_clock_cutoff:
+            _fail("REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID")
     residual = report.get("residual_rows")
     if type(residual) is not int or residual != 0:
         _fail("REHEARSAL_ROLLBACK_RESIDUAL")
@@ -2102,11 +2138,22 @@ def _validate_isolated_write(
         for key in (
             "publication_verified",
             "readback_verified",
+            "current_pointer_preserved_verified",
+            "current_pointer_rollback_verified",
+            "publication_graph_rollback_verified",
             "tamper_guard_verified",
             "rollback_verified",
         ):
             _require_true(receipt, key, "REHEARSAL_WRITE_RECEIPT_INCOMPLETE")
             if receipt.get(key) is not report.get(key):
+                _fail("REHEARSAL_WRITE_RECEIPT_MISMATCH")
+        for key in (
+            "publication_clock_source",
+            "publication_clock_cutoff",
+            "prior_current_published_at",
+            "publication_published_at",
+        ):
+            if receipt.get(key) != report.get(key):
                 _fail("REHEARSAL_WRITE_RECEIPT_MISMATCH")
 
 

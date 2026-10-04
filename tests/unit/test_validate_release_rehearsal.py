@@ -687,6 +687,17 @@ def _build_evidence(
         "payload_evidence_mode": "synthetic_isolated_writer_path",
         "synthetic_payload_sha256": "5" * 64,
     }
+    publication_clock = (now - timedelta(seconds=30)).isoformat()
+    prior_publication_clock = (now - timedelta(minutes=1)).isoformat()
+    publication_clock_evidence = {
+        "current_pointer_preserved_verified": True,
+        "current_pointer_rollback_verified": True,
+        "publication_graph_rollback_verified": True,
+        "publication_clock_source": "database_clock_timestamp",
+        "publication_clock_cutoff": publication_clock,
+        "prior_current_published_at": prior_publication_clock,
+        "publication_published_at": publication_clock,
+    }
     _write_json(
         write_receipt,
         {
@@ -704,6 +715,7 @@ def _build_evidence(
             "tamper_guard_verified": True,
             "rollback_verified": True,
             "residual_rows": 0,
+            **publication_clock_evidence,
             **write_identity,
         },
     )
@@ -716,6 +728,7 @@ def _build_evidence(
             "tamper_guard_verified": True,
             "rollback_verified": True,
             "residual_rows": 0,
+            **publication_clock_evidence,
             **write_identity,
             "write_artifacts": [
                 {
@@ -1290,6 +1303,16 @@ def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) ->
             "isolated_write_rehearsal",
             {"readback_verified": False},
             "REHEARSAL_WRITE_INCOMPLETE",
+        ),
+        (
+            "isolated_write_rehearsal",
+            {"current_pointer_preserved_verified": False},
+            "REHEARSAL_WRITE_POINTER_NOT_PRESERVED",
+        ),
+        (
+            "isolated_write_rehearsal",
+            {"publication_published_at": "2026-09-24T23:59:00+00:00"},
+            "REHEARSAL_WRITE_PUBLICATION_CLOCK_MISMATCH",
         ),
         ("isolated_write_rehearsal", {"residual_rows": 0.0}, "REHEARSAL_ROLLBACK_RESIDUAL"),
         ("isolated_write_rehearsal", {"write_artifacts": []}, "REHEARSAL_WRITE_ARTIFACT_MISSING"),

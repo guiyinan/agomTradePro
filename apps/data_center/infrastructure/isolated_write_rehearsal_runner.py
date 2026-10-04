@@ -27,6 +27,7 @@ from apps.data_center.application.query_services import (
     query_published_valuation_facts,
 )
 from apps.data_center.application.valuation_publication import PublishValuationBatchUseCase
+from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import ValuationFact
 from core.exceptions import DataFetchError
 
@@ -191,6 +192,52 @@ def _database_identity() -> str:
     )
 
 
+def _publication_clock_cutoff(
+    *,
+    dataset_key: str,
+    publication_key: str,
+) -> tuple[datetime, datetime | None]:
+    """Read one database clock cutoff and the latest active publication time."""
+
+    table = connection.ops.quote_name(CanonicalPublicationModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT
+                clock_timestamp(),
+                MAX(published_at),
+                BOOL_OR(published_at IS NULL)
+            FROM {table}
+            WHERE dataset_key = %s
+              AND publication_key = %s
+              AND state = %s
+            """,
+            [dataset_key, publication_key, PublicationState.PUBLISHED.value],
+        )
+        row = cursor.fetchone()
+    if row is None or not isinstance(row[0], datetime) or row[0].tzinfo is None:
+        raise DataFetchError(
+            "Database publication clock cutoff is unavailable",
+            code="REHEARSAL_WRITE_PUBLICATION_CLOCK_UNAVAILABLE",
+        )
+    cutoff = row[0].astimezone(UTC)
+    latest = row[1]
+    if row[2] is True or (
+        latest is not None and (not isinstance(latest, datetime) or latest.tzinfo is None)
+    ):
+        raise DataFetchError(
+            "Current publication clock evidence is invalid",
+            code="REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID",
+        )
+    normalized_latest = latest.astimezone(UTC) if latest is not None else None
+    if normalized_latest is not None and normalized_latest >= cutoff:
+        raise DataFetchError(
+            "Current publication time is later than the database clock cutoff",
+            code="REHEARSAL_WRITE_PUBLICATION_CLOCK_INVALID",
+        )
+    return cutoff, normalized_latest
+
+
 @contextmanager
 def _read_only_preflight_transaction() -> Iterator[None]:
     """Enforce a repeatable-read, read-only PostgreSQL snapshot for preflight queries."""
@@ -287,7 +334,6 @@ def collect_isolated_write_rehearsal(
     ):
         raise ValueError("REHEARSAL_WRITE_IDENTITY_INVALID")
 
-    started = datetime.now(UTC)
     publication_id = ""
     source = f"release-rehearsal-{candidate_sha[:12]}"
     publication_key = "current"
@@ -299,8 +345,6 @@ def collect_isolated_write_rehearsal(
         tzinfo=ZoneInfo("Asia/Shanghai"),
     ).astimezone(UTC)
     available_at = observed_at + timedelta(minutes=1)
-    published_at = available_at + timedelta(minutes=1)
-    knowledge_cutoff = published_at + timedelta(seconds=1)
     identity = {
         "candidate_sha": candidate_sha,
         "candidate_image_id": candidate_image_id,
@@ -314,6 +358,13 @@ def collect_isolated_write_rehearsal(
     written_rows = 0
     tamper_blocked = False
     with transaction.atomic():
+        database_clock_cutoff, prior_current_published_at = _publication_clock_cutoff(
+            dataset_key="equity.valuation.fact",
+            publication_key=publication_key,
+        )
+        started = database_clock_cutoff
+        published_at = database_clock_cutoff
+        knowledge_cutoff = database_clock_cutoff
         contract = DatasetContractRepository().get_active("equity.valuation.fact")
         policies = PublicationPolicyRepository()
         policy = policies.get_active("equity.valuation.fact")
@@ -361,6 +412,48 @@ def collect_isolated_write_rehearsal(
                 code="REHEARSAL_WRITE_FACT_FAILED",
             )
         publications = CanonicalPublicationRepository()
+        baseline_scope_publications = tuple(
+            CanonicalPublicationModel.objects.filter(
+                dataset_key="equity.valuation.fact",
+                publication_key=publication_key,
+            )
+            .order_by("publication_id")
+            .values_list(
+                "publication_id",
+                "state",
+                "publication_hash",
+                "published_at",
+                "superseded_at",
+            )
+        )
+        pointer_before = (
+            CanonicalPublicationPointerModel.objects.filter(
+                dataset_key="equity.valuation.fact",
+                publication_key=publication_key,
+            )
+            .values_list(
+                "publication_id",
+                "publication_hash",
+                "activation_id",
+            )
+            .first()
+        )
+        baseline_graph_publication_ids = tuple(
+            row[0]
+            for row in baseline_scope_publications
+            if row[1] == PublicationState.PUBLISHED.value
+            or (pointer_before is not None and row[0] == pointer_before[0])
+        )
+        baseline_graph_members = tuple(
+            PublicationMemberModel.objects.filter(publication_id__in=baseline_graph_publication_ids)
+            .order_by("member_id")
+            .values_list()
+        )
+        baseline_graph_coverage = tuple(
+            CoverageSnapshotModel.objects.filter(publication_id__in=baseline_graph_publication_ids)
+            .order_by("coverage_id")
+            .values_list()
+        )
         publication = PublishValuationBatchUseCase(
             fact_repository=facts,
             publication_repository=publications,
@@ -382,15 +475,25 @@ def collect_isolated_write_rehearsal(
             "000001.SZ",
             publication_key=publication_key,
         )
+        pointer_after = (
+            CanonicalPublicationPointerModel.objects.filter(
+                dataset_key="equity.valuation.fact",
+                publication_key=publication_key,
+            )
+            .values_list(
+                "publication_id",
+                "publication_hash",
+                "activation_id",
+            )
+            .first()
+        )
+        current_pointer_preserved_verified = pointer_after == pointer_before
         legacy_current_fail_closed_verified = (
             current_readback.get("must_not_use_for_decision") is True
             and current_readback.get("blocked_reason") == "canonical_publication_missing"
             and current_readback.get("rows") == []
             and publications.get_current("equity.valuation.fact", publication_key) is None
-            and not CanonicalPublicationPointerModel.objects.filter(
-                dataset_key="equity.valuation.fact",
-                publication_key=publication_key,
-            ).exists()
+            and current_pointer_preserved_verified
         )
         current_time_stale_expected = (
             started - observed_at
@@ -489,7 +592,7 @@ def collect_isolated_write_rehearsal(
             )
         written_rows = (
             ValuationFactModel.objects.filter(source=source).count()
-            + CanonicalPublicationModel.objects.filter(publication_key=publication_key).count()
+            + CanonicalPublicationModel.objects.filter(publication_id=publication_id).count()
             + PublicationMemberModel.objects.filter(publication_id=publication_id).count()
             + CoverageSnapshotModel.objects.filter(publication_id=publication_id).count()
         )
@@ -506,7 +609,53 @@ def collect_isolated_write_rehearsal(
         + PublicationMemberModel.objects.filter(publication_id=publication_id).count()
         + CoverageSnapshotModel.objects.filter(publication_id=publication_id).count()
     )
-    rollback_verified = residual_rows == 0
+    pointer_after_rollback = (
+        CanonicalPublicationPointerModel.objects.filter(
+            dataset_key="equity.valuation.fact",
+            publication_key=publication_key,
+        )
+        .values_list(
+            "publication_id",
+            "publication_hash",
+            "activation_id",
+        )
+        .first()
+    )
+    scope_publications_after_rollback = tuple(
+        CanonicalPublicationModel.objects.filter(
+            dataset_key="equity.valuation.fact",
+            publication_key=publication_key,
+        )
+        .order_by("publication_id")
+        .values_list(
+            "publication_id",
+            "state",
+            "publication_hash",
+            "published_at",
+            "superseded_at",
+        )
+    )
+    graph_members_after_rollback = tuple(
+        PublicationMemberModel.objects.filter(publication_id__in=baseline_graph_publication_ids)
+        .order_by("member_id")
+        .values_list()
+    )
+    graph_coverage_after_rollback = tuple(
+        CoverageSnapshotModel.objects.filter(publication_id__in=baseline_graph_publication_ids)
+        .order_by("coverage_id")
+        .values_list()
+    )
+    current_pointer_rollback_verified = pointer_after_rollback == pointer_before
+    publication_graph_rollback_verified = (
+        scope_publications_after_rollback == baseline_scope_publications
+        and graph_members_after_rollback == baseline_graph_members
+        and graph_coverage_after_rollback == baseline_graph_coverage
+    )
+    rollback_verified = (
+        residual_rows == 0
+        and current_pointer_rollback_verified
+        and publication_graph_rollback_verified
+    )
     if not rollback_verified:
         raise DataFetchError(
             "Isolated write rollback left residual rows",
@@ -525,6 +674,17 @@ def collect_isolated_write_rehearsal(
         "readback_verified": readback_verified,
         "exact_member_fact_readback_verified": readback_verified,
         "legacy_current_fail_closed_verified": legacy_current_fail_closed_verified,
+        "current_pointer_preserved_verified": current_pointer_preserved_verified,
+        "current_pointer_rollback_verified": current_pointer_rollback_verified,
+        "publication_graph_rollback_verified": publication_graph_rollback_verified,
+        "publication_clock_source": "database_clock_timestamp",
+        "publication_clock_cutoff": database_clock_cutoff.isoformat(),
+        "prior_current_published_at": (
+            prior_current_published_at.isoformat()
+            if prior_current_published_at is not None
+            else None
+        ),
+        "publication_published_at": published_at.isoformat(),
         "current_time_stale_expected": current_time_stale_expected,
         "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
@@ -559,6 +719,17 @@ def collect_isolated_write_rehearsal(
         "readback_verified": readback_verified,
         "exact_member_fact_readback_verified": readback_verified,
         "legacy_current_fail_closed_verified": legacy_current_fail_closed_verified,
+        "current_pointer_preserved_verified": current_pointer_preserved_verified,
+        "current_pointer_rollback_verified": current_pointer_rollback_verified,
+        "publication_graph_rollback_verified": publication_graph_rollback_verified,
+        "publication_clock_source": "database_clock_timestamp",
+        "publication_clock_cutoff": database_clock_cutoff.isoformat(),
+        "prior_current_published_at": (
+            prior_current_published_at.isoformat()
+            if prior_current_published_at is not None
+            else None
+        ),
+        "publication_published_at": published_at.isoformat(),
         "current_time_stale_expected": current_time_stale_expected,
         "current_time_freshness_guard_verified": current_time_freshness_guard_verified,
         "tamper_guard_verified": tamper_blocked,
