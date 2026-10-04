@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5363,
+    "current_surface_references": 5367,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10696,6 +10696,11 @@
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
     {
+      "line": 7,
+      "path": "apps/data_center/application/full_market_publication_preflight.py",
+      "text": "moves any current publication pointer. Every check runs to completion and"
+    },
+    {
       "line": 74,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "\"Task Monitor returned an invalid current attempt identity\""
@@ -10956,12 +10961,12 @@
       "text": "\"\"\"Return and clear references accumulated by the current refresh operation.\"\"\""
     },
     {
-      "line": 275,
+      "line": 348,
       "path": "apps/data_center/application/model_market_data_preparation.py",
       "text": "\"\"\"Return and clear exact audits written during the current refresh request.\"\"\""
     },
     {
-      "line": 282,
+      "line": 355,
       "path": "apps/data_center/application/model_market_data_preparation.py",
       "text": "\"\"\"Return and clear exact source-bound audits from the current refresh request.\"\"\""
     },
@@ -12274,6 +12279,16 @@
       "line": 26,
       "path": "apps/data_center/domain/target_date_universe.py",
       "text": "\"\"\"Current active A-share candidates partitioned by target-date listing evidence.\"\"\""
+    },
+    {
+      "line": 5,
+      "path": "apps/data_center/full_market_publication_preflight_composition.py",
+      "text": "provider I/O, the current-market publication bundle is only composed (never"
+    },
+    {
+      "line": 110,
+      "path": "apps/data_center/full_market_publication_preflight_composition.py",
+      "text": "\"\"\"Compose the production current-market bundle without staging anything.\"\"\""
     },
     {
       "line": 360,
@@ -14179,6 +14194,11 @@
       "line": 82,
       "path": "apps/data_center/management/commands/normalize_macro_fact_units.py",
       "text": "self.stdout.write(self.style.SUCCESS(summary))"
+    },
+    {
+      "line": 20,
+      "path": "apps/data_center/management/commands/preflight_full_market_publication.py",
+      "text": "\"routes, current publication gates, Account authority capture, Task \""
     },
     {
       "line": 1,
