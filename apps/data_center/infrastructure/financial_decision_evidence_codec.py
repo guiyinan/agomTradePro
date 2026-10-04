@@ -18,6 +18,7 @@ from apps.data_center.domain.financial_source_evidence import FinancialFactDecis
 from apps.data_center.domain.financial_source_time_evidence import (
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 from core.exceptions import DataValidationError
@@ -65,6 +66,7 @@ _SOURCE_TIME_WITNESS_KEYS = frozenset(
         "governed_match_contract_sha256",
         "matched_row_count",
         "availability_basis",
+        "source_time_precision",
     }
 )
 _SOURCE_TIME_REFERENCE_KEYS = frozenset(
@@ -239,6 +241,9 @@ def _decode_source_time_witness(raw: object) -> FinancialSourceTimeWitness:
             ),
             availability_basis=FinancialAvailabilityBasis(
                 _text(witness["availability_basis"], "source_time.availability_basis")
+            ),
+            source_time_precision=FinancialSourceTimePrecision(
+                _text(witness["source_time_precision"], "source_time.source_time_precision")
             ),
         )
     except (TypeError, ValueError) as exc:

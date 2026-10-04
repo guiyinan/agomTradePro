@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -15,6 +15,20 @@ class FinancialAvailabilityBasis(StrEnum):
     """The conservative basis used for a fact's first verified availability."""
 
     PROVIDER_NATIVE_EXACT = "provider_native_exact"
+    PROVIDER_DATE_NEXT_SESSION = "provider_date_next_session"
+
+
+class FinancialSourceTimePrecision(StrEnum):
+    """The declared precision of witness announcement and availability values."""
+
+    EXACT = "exact"
+    DATE = "date"
+
+
+_BASIS_PRECISION = {
+    FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT: FinancialSourceTimePrecision.EXACT,
+    FinancialAvailabilityBasis.PROVIDER_DATE_NEXT_SESSION: FinancialSourceTimePrecision.DATE,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +128,7 @@ class FinancialSourceTimeWitness:
     governed_match_contract_sha256: str
     matched_row_count: int
     availability_basis: FinancialAvailabilityBasis
+    source_time_precision: FinancialSourceTimePrecision
 
     def __post_init__(self) -> None:
         """Require an exact row relationship and conservative availability time."""
@@ -147,6 +162,10 @@ class FinancialSourceTimeWitness:
             raise ValueError("financial source-time match must resolve exactly one row")
         if not isinstance(self.availability_basis, FinancialAvailabilityBasis):
             raise ValueError("FinancialSourceTimeWitness.availability_basis must be typed")
+        if not isinstance(self.source_time_precision, FinancialSourceTimePrecision):
+            raise ValueError("FinancialSourceTimeWitness.source_time_precision must be typed")
+        if self.source_time_precision is not _BASIS_PRECISION[self.availability_basis]:
+            raise ValueError("financial source-time precision does not match availability basis")
         reference = self.artifact_reference
         if reference.requested_asset_code != self.native_asset_code:
             raise ValueError("financial source-time requested asset mismatch")
@@ -154,6 +173,17 @@ class FinancialSourceTimeWitness:
             source_zone = ZoneInfo(self.source_timezone)
         except ZoneInfoNotFoundError as exc:
             raise ValueError("financial source-time timezone is unknown") from exc
+        if self.availability_basis is FinancialAvailabilityBasis.PROVIDER_DATE_NEXT_SESSION:
+            day_start = datetime.combine(
+                self.financial_announced_date, time.min, tzinfo=source_zone
+            ).astimezone(UTC)
+            next_day_start = datetime.combine(
+                self.financial_announced_date + timedelta(days=1), time.min, tzinfo=source_zone
+            ).astimezone(UTC)
+            if self.announced_at != day_start or self.available_at != next_day_start:
+                raise ValueError(
+                    "financial source-time date-only values must be canonical day starts"
+                )
         if (
             self.announced_at.astimezone(source_zone).date()
             != reference.requested_announcement_date
@@ -183,6 +213,7 @@ class FinancialSourceTimeWitness:
             "governed_match_contract_sha256": self.governed_match_contract_sha256,
             "matched_row_count": self.matched_row_count,
             "availability_basis": self.availability_basis.value,
+            "source_time_precision": self.source_time_precision.value,
         }
 
 
@@ -216,5 +247,6 @@ __all__ = [
     "FINANCIAL_SOURCE_TIME_DATASET_KEY",
     "FinancialAvailabilityBasis",
     "FinancialSourceTimeArtifactRef",
+    "FinancialSourceTimePrecision",
     "FinancialSourceTimeWitness",
 ]

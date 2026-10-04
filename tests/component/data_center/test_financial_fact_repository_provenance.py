@@ -28,6 +28,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
@@ -252,6 +253,7 @@ def _decision_evidence(
             governed_match_contract_sha256="e" * 64,
             matched_row_count=1,
             availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+            source_time_precision=FinancialSourceTimePrecision.EXACT,
         ),
     )
 

@@ -36,6 +36,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure import financial_fact_write_guard as guard
@@ -256,6 +257,7 @@ def _fact(metric_code: str) -> FinancialFact:
                 governed_match_contract_sha256="b" * 64,
                 matched_row_count=1,
                 availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+                source_time_precision=FinancialSourceTimePrecision.EXACT,
             ),
         ),
     )

@@ -12,11 +12,16 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 
 ANNOUNCED_AT = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
 AVAILABLE_AT = datetime(2026, 9, 1, 8, 5, tzinfo=UTC)
+# 2026-09-01 00:00 Asia/Shanghai and the next calendar day start, in UTC.
+DATE_ONLY_ANNOUNCED_AT = datetime(2026, 8, 31, 16, 0, tzinfo=UTC)
+DATE_ONLY_AVAILABLE_AT = datetime(2026, 9, 1, 16, 0, tzinfo=UTC)
+DATE_ONLY_COMPLETED_AT = datetime(2026, 9, 5, 2, 0, tzinfo=UTC)
 
 
 def _artifact() -> FinancialSourceTimeArtifactRef:
@@ -55,6 +60,7 @@ def _witness() -> FinancialSourceTimeWitness:
         governed_match_contract_sha256="c" * 64,
         matched_row_count=1,
         availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+        source_time_precision=FinancialSourceTimePrecision.EXACT,
     )
 
 
@@ -64,8 +70,67 @@ def test_source_time_witness_projects_exact_artifact_and_row_identity() -> None:
     projection = witness.to_dict()
 
     assert projection["availability_basis"] == "provider_native_exact"
+    assert projection["source_time_precision"] == "exact"
     assert projection["row_projection_sha256"] == "b" * 64
     assert projection["artifact_reference"] == _artifact().to_dict()
+
+
+def _date_only_witness() -> FinancialSourceTimeWitness:
+    artifact = replace(
+        _artifact(),
+        response_completed_at=DATE_ONLY_COMPLETED_AT,
+    )
+    return FinancialSourceTimeWitness(
+        artifact_reference=artifact,
+        native_asset_code="000001.SZ",
+        native_period_end=date(2026, 6, 30),
+        financial_native_row_id="akshare:000001.SZ:2026-06-30:2026-09-01",
+        financial_announced_date=date(2026, 9, 1),
+        source_native_row_id="akshare:000001.SZ:2026-06-30:2026-09-01",
+        source_timezone="Asia/Shanghai",
+        announced_at=DATE_ONLY_ANNOUNCED_AT,
+        available_at=DATE_ONLY_AVAILABLE_AT,
+        row_projection_sha256="b" * 64,
+        governed_match_contract_id="akshare.financial-main-data.notice-date",
+        governed_match_contract_version="2026-10-04.v1",
+        governed_match_contract_sha256="c" * 64,
+        matched_row_count=1,
+        availability_basis=FinancialAvailabilityBasis.PROVIDER_DATE_NEXT_SESSION,
+        source_time_precision=FinancialSourceTimePrecision.DATE,
+    )
+
+
+def test_date_only_witness_records_calendar_day_precision() -> None:
+    """Date-only availability uses canonical Asia/Shanghai day starts."""
+
+    witness = _date_only_witness()
+
+    projection = witness.to_dict()
+
+    assert projection["availability_basis"] == "provider_date_next_session"
+    assert projection["source_time_precision"] == "date"
+    assert projection["announced_at"] == "2026-08-31T16:00:00+00:00"
+    assert projection["available_at"] == "2026-09-01T16:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"source_time_precision": FinancialSourceTimePrecision.EXACT},
+        {"availability_basis": FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT},
+        {"announced_at": DATE_ONLY_ANNOUNCED_AT + timedelta(seconds=1)},
+        {"announced_at": DATE_ONLY_ANNOUNCED_AT - timedelta(days=1)},
+        {"available_at": DATE_ONLY_AVAILABLE_AT + timedelta(seconds=1)},
+        {"available_at": DATE_ONLY_ANNOUNCED_AT},
+        {"available_at": DATE_ONLY_COMPLETED_AT + timedelta(seconds=1)},
+        {"source_time_precision": "date"},
+    ],
+)
+def test_date_only_witness_rejects_noncanonical_or_inconsistent_values(
+    changes: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError):
+        replace(_date_only_witness(), **changes)
 
 
 @pytest.mark.parametrize(
@@ -107,6 +172,9 @@ def test_source_time_artifact_rejects_ambiguous_identity(
         {"matched_row_count": 0},
         {"matched_row_count": 2},
         {"availability_basis": "provider_native_exact"},
+        {"availability_basis": FinancialAvailabilityBasis.PROVIDER_DATE_NEXT_SESSION},
+        {"source_time_precision": FinancialSourceTimePrecision.DATE},
+        {"source_time_precision": "exact"},
     ],
 )
 def test_source_time_witness_rejects_unbound_or_nonconservative_values(

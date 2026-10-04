@@ -23,6 +23,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
@@ -119,6 +120,7 @@ def _financial_fact(
             governed_match_contract_sha256="6" * 64,
             matched_row_count=1,
             availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+            source_time_precision=FinancialSourceTimePrecision.EXACT,
         ),
     )
     return FinancialFact(

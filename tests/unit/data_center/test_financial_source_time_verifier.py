@@ -31,6 +31,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 
@@ -182,6 +183,7 @@ def _decision() -> FinancialFactDecisionEvidence:
         governed_match_contract_sha256=contract.contract_sha256,
         matched_row_count=1,
         availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+        source_time_precision=FinancialSourceTimePrecision.EXACT,
     )
     return FinancialFactDecisionEvidence(
         artifact_reference=financial_ref,

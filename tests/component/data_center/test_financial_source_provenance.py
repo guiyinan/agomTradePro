@@ -23,6 +23,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
     FinancialAvailabilityBasis,
     FinancialSourceTimeArtifactRef,
+    FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure.catalog_models import DatasetPublicationPolicyModel
@@ -125,6 +126,7 @@ def _decision_projection(
             governed_match_contract_sha256="d" * 64,
             matched_row_count=1,
             availability_basis=FinancialAvailabilityBasis.PROVIDER_NATIVE_EXACT,
+            source_time_precision=FinancialSourceTimePrecision.EXACT,
         ),
     )
     return encode_financial_decision_evidence(decision)
