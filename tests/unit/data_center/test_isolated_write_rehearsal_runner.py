@@ -337,6 +337,20 @@ def test_preflight_verifies_scope_candidate_then_migrations(
         lambda: events.append("migrations") or "d" * 64,
     )
 
+    class ReadOnlyTransaction:
+        def __enter__(self) -> None:
+            events.append("read_only_enter")
+
+        def __exit__(self, *args: object) -> None:
+            del args
+            events.append("read_only_exit")
+
+    monkeypatch.setattr(
+        runner,
+        "_read_only_preflight_transaction",
+        lambda: ReadOnlyTransaction(),
+    )
+
     result = runner.preflight_isolated_write_rehearsal(
         candidate_sha="a" * 40,
         source_root=tmp_path,
@@ -345,8 +359,58 @@ def test_preflight_verifies_scope_candidate_then_migrations(
         require_ephemeral_host=True,
     )
 
-    assert events == ["scope", "candidate", "migrations"]
+    assert events == [
+        "scope",
+        "candidate",
+        "read_only_enter",
+        "migrations",
+        "read_only_exit",
+    ]
     assert result == ("attestation", "sha256:" + "f" * 64, "d" * 64)
+
+
+def test_preflight_maps_read_only_write_violation_to_stable_code(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class ReadOnlyViolation(Exception):
+        sqlstate = "25006"
+
+    monkeypatch.setattr(runner, "assert_isolated_rehearsal_database", lambda **kwargs: None)
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("attestation", "sha256:" + "f" * 64),
+    )
+
+    class ReadOnlyTransaction:
+        def __enter__(self) -> None:
+            return None
+
+        def __exit__(self, *args: object) -> None:
+            del args
+
+    monkeypatch.setattr(
+        runner,
+        "_read_only_preflight_transaction",
+        lambda: ReadOnlyTransaction(),
+    )
+
+    def reject_write() -> str:
+        raise runner.DatabaseError("blocked") from ReadOnlyViolation()
+
+    monkeypatch.setattr(runner, "_database_identity", reject_write)
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner.preflight_isolated_write_rehearsal(
+            candidate_sha="a" * 40,
+            source_root=tmp_path,
+            expected_database_name=EXPECTED_NAME,
+            expected_database_host=EXPECTED_HOST,
+            require_ephemeral_host=True,
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION"
 
 
 def test_collector_requires_ephemeral_host_in_second_preflight(

@@ -7,12 +7,14 @@ import json
 import os
 import re
 import socket
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from django.db import connection, transaction
+from django.db import DatabaseError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
@@ -189,6 +191,43 @@ def _database_identity() -> str:
     )
 
 
+@contextmanager
+def _read_only_preflight_transaction() -> Iterator[None]:
+    """Enforce a repeatable-read, read-only PostgreSQL snapshot for preflight queries."""
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            cursor.execute("SELECT current_setting('transaction_read_only')")
+            row = cursor.fetchone()
+        if not row or row[0] != "on":
+            raise DataFetchError(
+                "Rehearsal preflight read-only transaction is unavailable",
+                code="REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_UNAVAILABLE",
+            )
+        yield
+
+
+def _is_read_only_violation(exception: BaseException) -> bool:
+    """Return whether a wrapped PostgreSQL error is SQLSTATE 25006."""
+
+    current: BaseException | None = exception
+    visited: set[int] = set()
+    for _ in range(5):
+        if current is None or id(current) in visited:
+            break
+        visited.add(id(current))
+        for attribute_name in ("sqlstate", "pgcode"):
+            try:
+                sqlstate = getattr(current, attribute_name, None)
+            except Exception:
+                sqlstate = None
+            if sqlstate == "25006":
+                return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def preflight_isolated_write_rehearsal(
     *,
     candidate_sha: str,
@@ -206,7 +245,17 @@ def preflight_isolated_write_rehearsal(
     source_attestation, candidate_image_id = verify_candidate_release_image(
         source_root, candidate_sha
     )
-    return source_attestation, candidate_image_id, _database_identity()
+    try:
+        with _read_only_preflight_transaction():
+            database_identity = _database_identity()
+    except DatabaseError as exc:
+        code = (
+            "REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION"
+            if _is_read_only_violation(exc)
+            else "REHEARSAL_WRITE_PREFLIGHT_DATABASE_UNAVAILABLE"
+        )
+        raise DataFetchError("Rehearsal database preflight failed", code=code) from exc
+    return source_attestation, candidate_image_id, database_identity
 
 
 def collect_isolated_write_rehearsal(

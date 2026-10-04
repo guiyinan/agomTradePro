@@ -923,6 +923,47 @@ def test_market_rehearsal_database_enforces_read_only_on_provider_write(
         assert cursor.fetchone()[0] == "off"
 
 
+def test_isolated_write_preflight_database_enforces_read_only(
+    actual_publication_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from core.exceptions import DataFetchError
+
+    del actual_publication_pg
+    _allow_component_loopback_scope(monkeypatch, runner)
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setattr(
+        runner,
+        "verify_candidate_release_image",
+        lambda _root, _sha: ("image_release_manifest", "sha256:" + "f" * 64),
+    )
+
+    def attempted_write() -> str:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("UPDATE data_center_valuation_fact SET pe_ttm = 99")
+        pytest.fail("PostgreSQL must reject a preflight write even with no matching rows")
+
+    monkeypatch.setattr(runner, "_database_identity", attempted_write)
+    before = _isolated_write_table_counts()
+
+    with pytest.raises(DataFetchError) as exc_info:
+        runner.preflight_isolated_write_rehearsal(
+            candidate_sha="a" * 40,
+            source_root=tmp_path,
+            expected_database_name="agom_release_rehearsal_ci",
+            expected_database_host=str(connections["default"].settings_dict["HOST"]),
+            require_ephemeral_host=False,
+        )
+
+    assert exc_info.value.code == "REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION"
+    assert _isolated_write_table_counts() == before
+    with connections["default"].cursor() as cursor:
+        cursor.execute("SHOW transaction_read_only")
+        assert cursor.fetchone()[0] == "off"
+
+
 def test_isolated_write_rehearsal_uses_production_publication_and_rolls_back(
     actual_publication_pg,
     monkeypatch,
