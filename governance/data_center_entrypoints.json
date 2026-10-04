@@ -11,7 +11,7 @@
       "compatibility_facade": 95,
       "current_data_surface": 72,
       "dynamic_import_edge": 13,
-      "management_command": 38,
+      "management_command": 39,
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -30,13 +30,13 @@
       "workflow_step": 12
     },
     "by_status": {
-      "active_public": 816,
+      "active_public": 817,
       "adjacent_operational": 337,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1291
+    "total": 1292
   },
   "entries": [
     {
@@ -6057,6 +6057,16 @@
       "path": "apps/data_center/management/commands/configure_tencent_history_units.py",
       "status": "active_public",
       "symbol": "configure_tencent_history_units",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/export_provider_settings_snapshot.py:export_provider_settings_snapshot:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/export_provider_settings_snapshot.py",
+      "status": "active_public",
+      "symbol": "export_provider_settings_snapshot",
       "target": ""
     },
     {
