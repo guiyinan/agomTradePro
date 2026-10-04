@@ -1412,3 +1412,51 @@ blocked payload 原样导出以复现生产阻断而非隐藏。单测 `3 passed
 `candidate-review=0`，增量 mypy 零回归。操作路径已写入 `docs/development/quick-reference.md`
 "发布预检与 S6 策略快照"节；`AGENTS.md` §6 表格新增"发布预检/S6 证据段或策略快照"行，
 把 `required_reports` 三方同步（policy、manifest builder、validator）固化为改动类型契约。
+
+#### 2026-10-04 过去 18 小时 CI/S6 审计与开发收口（`c5e24857f` 至 `3d295ac45`）
+
+完成项：对测试团队在过去 18 小时提交的 CI、full-market preflight 与 S6 变更逐提交复核，并按根因拆成九个
+独立可回滚 commit。`c5e24857f` 把 publication preflight 的 Audit/Task Monitor 跨 App 读取移到
+`core/integration` composition，恢复 Data Center 单向依赖和 0 module cycle；`10d1b00e2` 补齐 release bundle
+collector 的必需 `production_policy_parity` fixture；`f097169cc` 将 full-universe capacity 独占执行，再并行
+response replay、policy parity 与 isolated write，避免写入流量污染 query count、持锁时间和 elapsed 证据；
+`f4b496e10` 删除 required workflow 的 docs-only `paths-ignore`，避免 GitHub 把未创建的必需检查永久留在 pending，
+并把手工 dispatch 与 push 的 concurrency identity 分离；`3043beb08` 在任何 provider/policy preview 前读取并校验
+quote、price、valuation 三条 current publication pointer，无 current pointer 或坏指针以
+`CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE` 失败关闭。
+
+`55a077bdc` 在 S6 启动时冻结只读 provider settings 副本，并把 raw-file digest 与 canonical-payload digest 分别绑定到
+candidate identity、manifest、parity report、bundle、validator、handoff 和 deploy 再验证；外部文件在 build 后替换、
+仅空白变化以及自洽伪造 parity 报告均被拒绝。`efc6bd9eb` 进一步把实际 model-market route 的
+`provider_id/source_type` 写入 capability evidence，要求每条路由匹配同一冻结 provider identity；只比较 identities digest
+而路由实际指向其他 provider 的自洽报告不再通过。`d80b71ee4` 修复 Ctrl-C 时线程池等待兄弟任务、Docker 子进程残留且
+run status 长期显示 running 的问题：活动进程组统一取消、阶段容器定向清理、CLI 返回 130、状态写入
+`S6_RUN_INTERRUPTED`，不生成 handoff。`3d295ac45` 把 isolated database preflight 的迁移图/身份查询放入
+PostgreSQL `REPEATABLE READ, READ ONLY` 事务；SQLSTATE `25006` 映射为稳定码
+`REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION`，使“零写入”由数据库约束而非代码约定保证。
+
+回归证据：跨 App preflight `32 passed`；bundle fixture `4 passed, 1 skipped`；capacity 隔离后的 S6 编排
+`70 passed, 1 skipped`；CI workflow 治理 `9 passed`；current pointer preflight `30 passed`；settings identity
+绑定组合回归 `261 passed, 3 skipped`；route identity 绑定组合回归 `208 passed, 1 skipped`；中断语义
+`74 passed, 1 skipped`；只读 database preflight 单元/编排回归 `107 passed, 1 skipped`。跳过项均为本机 Windows
+symlink 能力或显式未启用的 disposable PostgreSQL；新增 PostgreSQL 写入反例已进入 Publication PostgreSQL workflow，
+本机运行明确显示“Enable the disposable loopback PostgreSQL test explicitly”，不能计作本地通过。各生产切片增量 mypy
+均为 0 回归，全仓 debt ceiling 均为 `0 errors in 0 files`；Black、isort、Ruff、current-data 72 surfaces、module map/
+architecture 及 `git diff --check` 按各切片通过。`actionlint` 在本机不可用，因此 workflow YAML 仍须以远端 GitHub Actions
+执行结果为准。
+
+根因结论：本轮不是 freshness、coverage、audit 或超时阈值不足，而是五类证据边界缺口：composition 跨 App 反向依赖、
+required-check 触发器与 fixture 不完整、性能测量和写入并发污染、快照/实际路由身份未端到端绑定，以及中断/只读语义只靠
+约定。所有修复均保持现有业务阈值、provider 配额、lock wait、stage timeout 和 retry 不变，也没有按 11/12 只证券写死
+分支。
+
+未验证风险与停止线：上述本地提交尚未 push，因此最终 exact SHA 的 Fast Feedback、Architecture、Consistency、Security、
+Publication PostgreSQL 五组 CI 尚无结果；新增 SQLSTATE `25006` 反例必须在 Publication PostgreSQL workflow 真正执行。
+S6 parity 证明的是启动时冻结的导出快照，不能感知导出后的实时 Config Center 修改；运维必须在每次 S6 前重新导出，任何
+后续策略变更都废弃该次输入并重新开始。最终候选尚未执行 VPS 九阶段 S6、同镜像部署、正式 Publication、decision runtime、
+Alpha、API/SDK/MCP、普通用户页面和只读零副作用联合验收；candidate member 数据库级 immutable trigger/constraint 仍是既有
+P1 未完成项。本节未部署、未启动全市场重跑。
+
+下一片是否可开始：可以 push 当前最终 SHA 并取得五组 exact-SHA CI；只有五组全绿且 PostgreSQL 反例实际通过后，才可用
+该 SHA 的全新 provider settings 导出启动九阶段 S6。CI 或 S6 任一失败先读取安全诊断并修复根因，不复用旧 receipt、
+不盲目重跑、不扩大 timeout/retry，也不放宽 freshness、coverage、audit 或 `SIGNAL_WEAK`。

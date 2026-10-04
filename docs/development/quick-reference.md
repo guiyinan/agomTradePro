@@ -60,8 +60,9 @@ python manage.py preflight_full_market_publication \
 python scripts/run_release_rehearsal.py ... --provider-settings-json provider-settings.json
 ```
 
-- 快照必须与生产 Config Center 运行时策略一致：导出和 S6 之间策略被修改时，
-  parity 段会把 digest 漂移作为失败暴露，不要复用旧快照。
+- 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
+  canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
+  必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
 - 治理真源：`governance/release_rehearsal_policy.json` 的 `required_reports`。
 
 - 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。
