@@ -14,7 +14,10 @@ from apps.data_center.application.data02_isolated_simulation import (
     Data02HistoricalFactReference,
     Data02HistoricalPublicationSnapshot,
 )
-from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.market_time import (
+    cn_market_date_start_utc,
+    cn_market_session_close_utc,
+)
 
 _CORE_DATASET_TABLES: Final[tuple[tuple[str, str], ...]] = (
     ("equity.quote.snapshot", "data_center_quote_snapshot"),
@@ -371,7 +374,7 @@ class PostgresData02HistoricalSnapshotAdapter:
         references: list[Data02HistoricalFactReference] = []
         for row in cursor.fetchall():
             bar_date = _date(row[3], "price.bar_date")
-            observed_at = _market_date(bar_date, "price.bar_date")
+            observed_at = cn_market_session_close_utc(bar_date)
             natural_key = f"{row[1]}:{bar_date.isoformat()}:{row[5]}:{row[6]}:{row[2]}"
             references.append(
                 _reference(

@@ -4104,7 +4104,7 @@
           "available_at_unverified",
           "observed_at=cn_market_date_start_utc(row.published_at)",
           "row.raw_payload_hash or macro_payload_hash(row)",
-          "observed_at=cn_market_date_start_utc(row.bar_date)",
+          "observed_at=cn_market_session_close_utc(row.bar_date)",
           "row.raw_payload_hash or price_bar_payload_hash(row)",
           "observed_at=row.snapshot_at",
           "row.raw_payload_hash or quote_snapshot_payload_hash(row)"
@@ -5107,7 +5107,7 @@
           "revision_number=row.revision_number + 1",
           "observed_at=row.available_at",
           "observed_at=row.observed_at",
-          "cn_market_date_start_utc(row.bar_date)",
+          "cn_market_session_close_utc(row.bar_date)",
           "observed_at=row.snapshot_at"
         ],
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [

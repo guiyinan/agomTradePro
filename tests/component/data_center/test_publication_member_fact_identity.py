@@ -400,7 +400,7 @@ def test_legacy_fallback_payload_hashes_are_byte_compatible() -> None:
             PublicationFactIdentity(
                 natural_key="000001.SZ:2026-09-11:1d:none:bars",
                 source="bars",
-                observed_at=datetime(2026, 9, 10, 16, tzinfo=UTC),
+                observed_at=datetime(2026, 9, 11, 7, tzinfo=UTC),
                 source_record_id="000001.SZ:2026-09-11:1d:none:bars",
                 raw_payload_hash="518330846cef9e7dc2ecc20f94e20b8007897aa620d33d799fb9ce795ee25c4b",
                 quality_status="accepted",

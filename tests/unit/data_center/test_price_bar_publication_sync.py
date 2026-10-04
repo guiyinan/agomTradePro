@@ -25,7 +25,7 @@ from tests.unit.data_center.audited_sync_test_support import (
 
 PUBLISHED_AT = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
 BAR_DATE = date(2026, 8, 3)
-OBSERVED_AT = datetime(2026, 8, 2, 16, tzinfo=UTC)
+OBSERVED_AT = datetime(2026, 8, 3, 7, tzinfo=UTC)
 
 
 class _CandidateRepository:

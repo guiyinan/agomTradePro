@@ -9,7 +9,10 @@ from types import MappingProxyType
 
 from django.db import models
 
-from apps.data_center.domain.market_time import cn_market_date_start_utc
+from apps.data_center.domain.market_time import (
+    cn_market_date_start_utc,
+    cn_market_session_close_utc,
+)
 
 from .models import (
     CapitalFlowFactModel,
@@ -241,7 +244,7 @@ def _news_identity(row: NewsFactModel) -> PublicationFactIdentity:
 
 
 def _price_bar_identity(row: PriceBarModel) -> PublicationFactIdentity:
-    """Build the price-bar repository identity."""
+    """Build a daily price identity at the official China-market close."""
 
     natural_key = (
         f"{row.asset_code}:{row.bar_date.isoformat()}:{row.freq}:" f"{row.adjustment}:{row.source}"
@@ -249,7 +252,7 @@ def _price_bar_identity(row: PriceBarModel) -> PublicationFactIdentity:
     return _identity(
         natural_key=natural_key,
         source=row.source,
-        observed_at=cn_market_date_start_utc(row.bar_date),
+        observed_at=cn_market_session_close_utc(row.bar_date),
         source_record_id=row.source_record_id or natural_key,
         raw_payload_hash=row.raw_payload_hash or price_bar_payload_hash(row),
         quality_status=row.quality_status,
