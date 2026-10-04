@@ -102,7 +102,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
         return AkshareModelMarketSource(
             get_akshare_module(),
-            source=self.provider_name(),
+            source=self.provider_source(),
             tolerance=tolerance,
             transport=history_transport,
             provider_id=self._config.id,

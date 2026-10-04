@@ -84,6 +84,90 @@ def test_tushare_unified_provider_uses_its_own_transport_configuration(monkeypat
     }
 
 
+def test_tushare_model_market_rows_use_canonical_source_type(monkeypatch):
+    """A display name must not replace the stable source type on model rows."""
+
+    class _FakePro:
+        def daily(self, **_kwargs: object) -> pd.DataFrame:
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260930",
+                        "open": 10.0,
+                        "high": 11.0,
+                        "low": 9.0,
+                        "close": 10.5,
+                        "vol": 100.0,
+                        "pct_chg": 0.5,
+                        "amount": 50.0,
+                    }
+                ]
+            )
+
+        def adj_factor(self, **_kwargs: object) -> pd.DataFrame:
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260930",
+                        "adj_factor": 2.0,
+                    }
+                ]
+            )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
+    monkeypatch.setattr(adapter, "_create_pro_client", lambda **_kwargs: _FakePro())
+
+    rows = adapter.model_market_source(tolerance=0.01).stock_history(
+        "000001.SZ", date(2026, 9, 30), date(2026, 9, 30)
+    )
+
+    assert adapter.provider_name() == "Tushare Pro"
+    assert adapter.provider_source() == "tushare"
+    assert {row.source for row in rows} == {"tushare"}
+
+
+def test_akshare_model_market_rows_use_canonical_source_type(monkeypatch):
+    """AKShare display labels must remain separate from the routed source type."""
+
+    class _FakeAkshare:
+        def stock_zh_a_hist(self, *, adjust: str, **_kwargs: object) -> pd.DataFrame:
+            scale = 2.0 if adjust == "hfq" else 1.0
+            return pd.DataFrame(
+                [
+                    {
+                        "日期": date(2026, 9, 30),
+                        "开盘": 10.0 * scale,
+                        "最高": 11.0 * scale,
+                        "最低": 9.0 * scale,
+                        "收盘": 10.5 * scale,
+                        "成交量": 100.0,
+                        "涨跌幅": 0.5,
+                        "成交额": 50_000.0,
+                    }
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_akshare.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_akshare.get_egress_transport",
+        lambda: object(),
+    )
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+
+    rows = adapter.model_market_source(tolerance=0.01).stock_history(
+        "000001.SZ", date(2026, 9, 30), date(2026, 9, 30)
+    )
+
+    assert adapter.provider_name() == "AKShare Public"
+    assert adapter.provider_source() == "akshare"
+    assert {row.source for row in rows} == {"akshare"}
+
+
 def test_tushare_current_valuations_use_one_session_batch(monkeypatch):
     """The full-market path must not make one Tushare request per stock."""
 

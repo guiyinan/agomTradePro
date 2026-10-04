@@ -324,7 +324,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         """Expose typed model inputs using only this configured provider's credentials."""
         return TushareModelMarketSource(
             client_factory=lambda: self._create_pro_client(dataset_key="equity.price.bar"),
-            source=self.provider_name(),
+            source=self.provider_source(),
             provider_id=self.provider_id(),
             history_fetch_audit=history_fetch_audit,
         )
