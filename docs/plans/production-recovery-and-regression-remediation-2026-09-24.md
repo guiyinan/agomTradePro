@@ -1460,3 +1460,35 @@ P1 未完成项。本节未部署、未启动全市场重跑。
 下一片是否可开始：可以 push 当前最终 SHA 并取得五组 exact-SHA CI；只有五组全绿且 PostgreSQL 反例实际通过后，才可用
 该 SHA 的全新 provider settings 导出启动九阶段 S6。CI 或 S6 任一失败先读取安全诊断并修复根因，不复用旧 receipt、
 不盲目重跑、不扩大 timeout/retry，也不放宽 freshness、coverage、audit 或 `SIGNAL_WEAK`。
+
+#### 2026-10-04 S6 真实 failover 路由身份契约整改（`f49f02634`）
+
+完成项：候选 `6933d8fe160144e8444e0d6a64fc738e9d5bc6d9` 的五组 exact-SHA CI 全绿后，VPS S6 已通过
+build、provider probe、response replay 与 5,572 只全量 capacity。首次 policy parity 以
+`PREFLIGHT_MODEL_MARKET_ROUTES_UNAVAILABLE / SystemAuditCompositionUnavailable` 阻断；同候选镜像逐层诊断取得稳定根因为
+隔离库复用了旧 rehearsal 数据库，缺当前生产 Config Center active runtime profile（`profile_unavailable`）。已把当前生产
+PostgreSQL 3.26 GB 一致性快照经 234,622,886-byte 临时 custom archive 恢复到专属 disposable 数据库，临时归档完成即删除；
+候选正式 migrator 入口确认 526 条迁移、无待迁移项，角色 bootstrap 前后均通过。随后 runtime config 读取为 production v19、
+Audit writer composition 为 8 个 writer、Account authority preflight 返回当前 v2 bundle，同一冻结 settings 的手工 policy
+preflight 通过。
+
+恢复原检查点后，S6 进一步以 `REHEARSAL_PROVIDER_IDENTITY_MISMATCH` 正确失败关闭。根因是既有 identity schema 硬限制为
+quote/valuation 两条（生产均为 provider 2），而真实 model-market policy 同时启用 provider 3 AKShare failover；上一轮新增的
+“每条 route 必须匹配冻结 identity”校验没有同步扩展 identity 集合，单路由 fixture 因此漏检。`f49f02634` 将契约改为必含
+quote/valuation，并按实际 route evidence 自动追加有界 `model_market_route:<provider_id>` 身份（最多 32 条）；新增只读
+`export_rehearsal_provider_identities`，从同一 provider settings 快照生成完整集合。S6 输入、parity、response replay、validator、
+manifest 与 handoff 继续绑定整个有序集合的同一 digest；伪造 route role、缺 route identity、来源不匹配及输出覆盖均失败关闭。
+该实现不写死 provider 2/3 或证券数量，后续 provider 增减和 failover 切换按实际路由自适应。
+
+测试计数：identity/parity/export/S6 launcher/release validator 组合 `198 passed, 1 skipped`，跳过项为 Windows symlink 能力；
+entrypoint inventory 与 architecture tooling `38 passed`；增量 mypy 4 个生产文件 0 回归，全仓 debt ceiling `0 errors in 0 files`；
+Black、isort、Ruff、module map（44 modules / 210 edges）、Data Center entrypoint inventory（1,293 entries，
+`candidate-review=0`）及 `git diff --check` 通过。仓库不存在 `scripts/check_architecture_boundaries.py`，该命令无法运行；已由上述
+architecture tooling tests 覆盖现有治理入口。
+
+未验证风险与停止线：`6933d8fe1` 的失败 S6 不可转成部署凭证；`f49f02634` 及本节后续文档提交尚未取得 exact-SHA 五组 CI、
+全新 provider settings/完整 provider identities/unit contract、九阶段 S6、同镜像部署和生产联合验收。当前未部署、未启动全市场
+重跑，也未调整 freshness、coverage、audit、锁等待、stage timeout、retry 或 `SIGNAL_WEAK`。
+
+下一片是否可开始：可以提交并 push 本节最终 SHA，取得五组 exact-SHA CI；全绿后必须重新导出同一时点的 provider settings
+和完整 route identities，重建 unit contract 并启动全新 S6。旧 `evidence-20261004b` 只保留为根因证据，不续接新 SHA。
