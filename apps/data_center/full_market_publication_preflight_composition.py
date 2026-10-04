@@ -59,12 +59,26 @@ _PRODUCTION_ENVIRONMENT = "production"
 def build_full_market_publication_preflight_use_case(
     *,
     using: str = "default",
+    provider_settings_override: Mapping[str, object] | None = None,
 ) -> RunFullMarketPublicationPreflightUseCase:
-    """Compose the read-only full-market publication preflight use case."""
+    """Compose the read-only full-market publication preflight use case.
+
+    When ``provider_settings_override`` is given, the provider policy check
+    evaluates that explicit snapshot instead of the live Config Center payload
+    so rehearsals can bind the exact production policy bytes into evidence.
+    """
+
+    if provider_settings_override is None:
+        load_settings = _load_provider_settings
+    else:
+        snapshot = dict(provider_settings_override)
+
+        def load_settings() -> Mapping[str, object]:
+            return dict(snapshot)
 
     return RunFullMarketPublicationPreflightUseCase(
         FullMarketPublicationPreflightPorts(
-            load_provider_settings=_load_provider_settings,
+            load_provider_settings=load_settings,
             build_model_market_service=_build_model_market_service,
             build_publication_bundle=lambda: _build_publication_bundle(using=using),
             publication_policies=get_publication_policy_repository(),

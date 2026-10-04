@@ -10,6 +10,8 @@ reports stable blocked codes so operators see the full failure set at once.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -32,6 +34,13 @@ CHECK_PROVIDER_POLICY_AND_ROUTES = "provider_policy_and_routes"
 CHECK_CURRENT_PUBLICATION_GATES = "current_publication_gates"
 CHECK_ACCOUNT_AUTHORITY_CAPTURE = "account_authority_capture"
 CHECK_TASK_ATTEMPT_IDENTITY = "task_attempt_identity"
+
+CANONICAL_CHECK_NAMES: tuple[str, ...] = (
+    CHECK_PROVIDER_POLICY_AND_ROUTES,
+    CHECK_CURRENT_PUBLICATION_GATES,
+    CHECK_ACCOUNT_AUTHORITY_CAPTURE,
+    CHECK_TASK_ATTEMPT_IDENTITY,
+)
 
 PREFLIGHT_PROVIDER_SETTINGS_BLOCKED = "PREFLIGHT_PROVIDER_SETTINGS_BLOCKED"
 PREFLIGHT_MODEL_MARKET_ROUTES_UNAVAILABLE = "PREFLIGHT_MODEL_MARKET_ROUTES_UNAVAILABLE"
@@ -131,16 +140,14 @@ class FullMarketPublicationPreflightReport:
     checks: tuple[PreflightCheckOutcome, ...]
 
     def __post_init__(self) -> None:
-        """Require the complete fixed check set exactly once."""
+        """Require a non-empty selection of known checks in canonical order."""
 
-        expected = (
-            CHECK_PROVIDER_POLICY_AND_ROUTES,
-            CHECK_CURRENT_PUBLICATION_GATES,
-            CHECK_ACCOUNT_AUTHORITY_CAPTURE,
-            CHECK_TASK_ATTEMPT_IDENTITY,
-        )
-        if tuple(check.name for check in self.checks) != expected:
-            raise ValueError("preflight report must contain each fixed check exactly once")
+        names = tuple(check.name for check in self.checks)
+        if not names:
+            raise ValueError("preflight report must contain at least one check")
+        expected = tuple(name for name in CANONICAL_CHECK_NAMES if name in names)
+        if names != expected:
+            raise ValueError("preflight report checks must be known and in canonical order")
 
     @property
     def outcome(self) -> Literal["pass", "blocked"]:
@@ -200,23 +207,47 @@ def _code_of(error: BaseException, fallback: str) -> str:
     return fallback
 
 
+def _payload_sha256(payload: Mapping[str, object]) -> str:
+    """Hash the canonical JSON form of one settings payload deterministically."""
+
+    canonical = json.dumps(
+        dict(payload),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 class RunFullMarketPublicationPreflightUseCase:
     """Run every read-only full-market publication gate and aggregate codes."""
 
     def __init__(self, ports: FullMarketPublicationPreflightPorts) -> None:
         self._ports = ports
 
-    def execute(self) -> FullMarketPublicationPreflightReport:
-        """Run all checks to completion; never short-circuit on a block."""
+    def execute(
+        self,
+        checks: tuple[str, ...] | None = None,
+    ) -> FullMarketPublicationPreflightReport:
+        """Run the selected checks to completion; never short-circuit on a block."""
 
+        selected = CANONICAL_CHECK_NAMES if checks is None else tuple(dict.fromkeys(checks))
+        unknown = [name for name in selected if name not in CANONICAL_CHECK_NAMES]
+        if unknown:
+            raise ValueError(f"unknown preflight checks: {','.join(unknown)}")
+        if not selected:
+            raise ValueError("at least one preflight check must be selected")
+        runners = {
+            CHECK_PROVIDER_POLICY_AND_ROUTES: self._check_provider_policy_and_routes,
+            CHECK_CURRENT_PUBLICATION_GATES: self._check_current_publication_gates,
+            CHECK_ACCOUNT_AUTHORITY_CAPTURE: self._check_account_authority_capture,
+            CHECK_TASK_ATTEMPT_IDENTITY: self._check_task_attempt_identity,
+        }
         return FullMarketPublicationPreflightReport(
             evaluated_at=self._ports.clock(),
-            checks=(
-                self._check_provider_policy_and_routes(),
-                self._check_current_publication_gates(),
-                self._check_account_authority_capture(),
-                self._check_task_attempt_identity(),
-            ),
+            checks=tuple(runners[name]() for name in CANONICAL_CHECK_NAMES if name in selected),
         )
 
     def _check_provider_policy_and_routes(self) -> PreflightCheckOutcome:
@@ -255,6 +286,7 @@ class RunFullMarketPublicationPreflightUseCase:
                 "default_source": settings_payload.get("default_source"),
                 "enable_failover": settings_payload.get("enable_failover"),
                 "failover_tolerance": settings_payload.get("failover_tolerance"),
+                "provider_settings_sha256": _payload_sha256(settings_payload),
                 "preferred_route": gate.preferred_route,
                 "probe_asset_count": gate.requested_count,
                 "route_capabilities": [item.to_dict() for item in gate.route_capabilities],
@@ -439,6 +471,7 @@ __all__ = [
     "ATTEMPT_RESOLUTION_BOUND",
     "ATTEMPT_RESOLUTION_OUTSIDE_TASK",
     "AuthorityCaptureProbeEvidence",
+    "CANONICAL_CHECK_NAMES",
     "CHECK_ACCOUNT_AUTHORITY_CAPTURE",
     "CHECK_CURRENT_PUBLICATION_GATES",
     "CHECK_PROVIDER_POLICY_AND_ROUTES",

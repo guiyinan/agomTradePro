@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 from dataclasses import dataclass
@@ -40,6 +41,9 @@ from apps.data_center.application.model_market_data_preparation import (
     evaluate_model_market_bulk_preparation,
 )
 from apps.data_center.domain.raw_audit_manifest import CURRENT_MARKET_PUBLICATION_DATASETS
+from apps.data_center.full_market_publication_preflight_composition import (
+    build_full_market_publication_preflight_use_case,
+)
 from core.exceptions import ConfigurationError
 from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
@@ -507,7 +511,8 @@ def test_all_checks_run_and_aggregate_blocked_codes():
 
 def _stub_use_case(report):
     class _UseCase:
-        def execute(self):
+        def execute(self, checks=None):
+            del checks
             return report
 
     return _UseCase()
@@ -518,7 +523,7 @@ def test_command_prints_json_and_exits_zero_on_pass(monkeypatch):
     monkeypatch.setattr(
         "apps.data_center.management.commands.preflight_full_market_publication"
         ".build_full_market_publication_preflight_use_case",
-        lambda: _stub_use_case(report),
+        lambda **_kwargs: _stub_use_case(report),
     )
     stdout = io.StringIO()
 
@@ -535,7 +540,7 @@ def test_command_prints_json_and_fails_on_blocked(monkeypatch):
     monkeypatch.setattr(
         "apps.data_center.management.commands.preflight_full_market_publication"
         ".build_full_market_publication_preflight_use_case",
-        lambda: _stub_use_case(report),
+        lambda **_kwargs: _stub_use_case(report),
     )
     stdout = io.StringIO()
 
@@ -545,3 +550,127 @@ def test_command_prints_json_and_fails_on_blocked(monkeypatch):
     payload = json.loads(stdout.getvalue())
     assert payload["outcome"] == "blocked"
     assert payload["blocked_codes"] == [PREFLIGHT_PROVIDER_SETTINGS_BLOCKED]
+
+
+def test_provider_settings_snapshot_hash_is_recorded():
+    report = _run(_ports())
+
+    provider_check = _check(report, "provider_policy_and_routes")
+    digest = provider_check.evidence["provider_settings_sha256"]
+    expected = hashlib.sha256(
+        json.dumps(
+            {
+                "status": "active",
+                "default_source": "tushare",
+                "enable_failover": True,
+                "failover_tolerance": 0.01,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+            default=str,
+        ).encode("utf-8")
+    ).hexdigest()
+    assert digest == expected
+
+
+def test_execute_runs_only_selected_checks_in_canonical_order():
+    report = RunFullMarketPublicationPreflightUseCase(_ports()).execute(
+        checks=("task_attempt_identity", "provider_policy_and_routes"),
+    )
+
+    assert [check.name for check in report.checks] == [
+        "provider_policy_and_routes",
+        "task_attempt_identity",
+    ]
+    assert report.outcome == "pass"
+
+
+def test_execute_rejects_unknown_or_empty_check_selection():
+    use_case = RunFullMarketPublicationPreflightUseCase(_ports())
+
+    with pytest.raises(ValueError, match="unknown preflight checks"):
+        use_case.execute(checks=("not_a_check",))
+    with pytest.raises(ValueError, match="at least one"):
+        use_case.execute(checks=())
+
+
+def test_composition_override_binds_snapshot_bytes():
+    snapshot = {
+        "status": "active",
+        "default_source": "snapshot-vendor",
+        "enable_failover": False,
+        "failover_tolerance": 0.01,
+    }
+    use_case = build_full_market_publication_preflight_use_case(
+        provider_settings_override=snapshot,
+    )
+
+    ports = use_case._ports
+    assert ports.load_provider_settings()["default_source"] == "snapshot-vendor"
+    snapshot["default_source"] = "mutated"
+    assert ports.load_provider_settings()["default_source"] == "snapshot-vendor"
+
+
+def test_command_passes_snapshot_file_and_check_subset(monkeypatch, tmp_path):
+    report = _run(_ports())
+    captured: dict[str, Any] = {}
+
+    def fake_build(**kwargs):
+        captured.update(kwargs)
+        return _stub_use_case(report)
+
+    monkeypatch.setattr(
+        "apps.data_center.management.commands.preflight_full_market_publication"
+        ".build_full_market_publication_preflight_use_case",
+        fake_build,
+    )
+    snapshot_path = tmp_path / "provider-settings.json"
+    snapshot_path.write_text(
+        json.dumps({"status": "active", "default_source": "tushare"}),
+        encoding="utf-8",
+    )
+    stdout = io.StringIO()
+
+    call_command(
+        "preflight_full_market_publication",
+        f"--provider-settings-json={snapshot_path}",
+        "--checks",
+        "provider_policy_and_routes",
+        stdout=stdout,
+    )
+
+    assert captured["provider_settings_override"] == {
+        "status": "active",
+        "default_source": "tushare",
+    }
+    assert json.loads(stdout.getvalue())["outcome"] == "pass"
+
+
+def test_command_rejects_invalid_snapshot_file(tmp_path):
+    broken = tmp_path / "broken.json"
+    broken.write_text("[1, 2]", encoding="utf-8")
+
+    with pytest.raises(CommandError, match="must be a JSON object"):
+        call_command(
+            "preflight_full_market_publication",
+            f"--provider-settings-json={broken}",
+            stdout=io.StringIO(),
+        )
+    with pytest.raises(CommandError, match="not a regular file"):
+        call_command(
+            "preflight_full_market_publication",
+            f"--provider-settings-json={tmp_path / 'missing.json'}",
+            stdout=io.StringIO(),
+        )
+
+
+def test_command_rejects_unknown_check_selection():
+    with pytest.raises(CommandError, match="unknown preflight checks"):
+        call_command(
+            "preflight_full_market_publication",
+            "--checks",
+            "not_a_check",
+            stdout=io.StringIO(),
+        )
