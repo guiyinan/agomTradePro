@@ -13,12 +13,6 @@ from collections.abc import Mapping
 
 from django.utils import timezone
 
-from apps.audit.application.system_audit_authority_provider import (
-    SystemAuditAuthorityBundleSelector,
-)
-from apps.audit.application.system_audit_authority_schema import (
-    SYSTEM_AUDIT_SCOPE_SCHEMA_V3,
-)
 from apps.data_center.application.current_market_publication_activation import (
     CurrentMarketPublicationBundle,
 )
@@ -40,20 +34,11 @@ from apps.data_center.composition import (
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
 )
-from apps.task_monitor.application.repository_provider import get_task_record_repository
 from core.exceptions import ConfigurationError
-from core.integration.data_center_audit import SystemAuditCompositionUnavailable
-from core.integration.system_audit_runtime_config import (
-    SystemAuditRuntimeConfigBinding,
-    SystemAuditRuntimeConfigurationUnavailable,
-    load_system_audit_runtime_config,
+from core.integration.publication_preflight_runtime import (
+    probe_current_task_attempt_runtime,
+    probe_production_audit_runtime,
 )
-from core.integration.task_monitor_runtime import (
-    CurrentTaskAttemptIdentityUnavailable,
-    get_current_task_attempt_identity,
-)
-
-_PRODUCTION_ENVIRONMENT = "production"
 
 
 def build_full_market_publication_preflight_use_case(
@@ -138,58 +123,22 @@ def _load_active_universe() -> tuple[str, ...]:
 def _probe_authority_capture() -> AuthorityCaptureProbeEvidence:
     """Validate the production authority binding without capturing a fence."""
 
-    try:
-        binding = load_system_audit_runtime_config(environment=_PRODUCTION_ENVIRONMENT)
-    except SystemAuditRuntimeConfigurationUnavailable as exc:
-        raise SystemAuditCompositionUnavailable(
-            "production Account authority capture is unavailable",
-            reason_code=exc.reason_code,
-        ) from exc
-    if type(binding) is not SystemAuditRuntimeConfigBinding:
-        raise SystemAuditCompositionUnavailable(
-            "production Account authority capture is unavailable",
-            reason_code="runtime_binding_invalid",
-        )
-    if binding.environment != _PRODUCTION_ENVIRONMENT or binding.mode == "off":
-        raise SystemAuditCompositionUnavailable(
-            "production Account authority capture is unavailable",
-            reason_code="runtime_binding_unavailable",
-        )
-    selector = binding.authority_selector
-    if type(selector) is not SystemAuditAuthorityBundleSelector:
-        raise SystemAuditCompositionUnavailable(
-            "production Account authority capture is unavailable",
-            reason_code="authority_selector_missing",
-        )
-    if selector.scope_schema != SYSTEM_AUDIT_SCOPE_SCHEMA_V3:
-        raise SystemAuditCompositionUnavailable(
-            "production Account authority capture is unavailable",
-            reason_code="authority_scope_schema_unsupported",
-        )
+    probe = probe_production_audit_runtime()
     return AuthorityCaptureProbeEvidence(
-        environment=binding.environment,
-        mode=binding.mode,
-        scope_schema=selector.scope_schema,
-        snapshot_id=binding.snapshot_id,
+        environment=probe.environment,
+        mode=probe.mode,
+        scope_schema=probe.scope_schema,
+        snapshot_id=probe.snapshot_id,
     )
 
 
 def _probe_task_attempt_identity() -> TaskAttemptIdentityProbeEvidence:
     """Assemble the monitor reader and prove the identity path fails closed."""
 
-    repository = get_task_record_repository()
-    if repository is None:
-        raise CurrentTaskAttemptIdentityUnavailable("Task Monitor record repository is unavailable")
-    try:
-        get_current_task_attempt_identity()
-    except CurrentTaskAttemptIdentityUnavailable:
-        return TaskAttemptIdentityProbeEvidence(
-            repository=type(repository).__name__,
-            resolution="expected_unavailable_outside_task",
-        )
+    probe = probe_current_task_attempt_runtime()
     return TaskAttemptIdentityProbeEvidence(
-        repository=type(repository).__name__,
-        resolution="bound_to_active_attempt",
+        repository=probe.repository,
+        resolution=probe.resolution,
     )
 
 

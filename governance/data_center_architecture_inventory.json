@@ -12286,7 +12286,7 @@
       "text": "provider I/O, the current-market publication bundle is only composed (never"
     },
     {
-      "line": 124,
+      "line": 109,
       "path": "apps/data_center/full_market_publication_preflight_composition.py",
       "text": "\"\"\"Compose the production current-market bundle without staging anything.\"\"\""
     },
