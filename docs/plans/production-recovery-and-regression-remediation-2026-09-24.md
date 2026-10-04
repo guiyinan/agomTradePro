@@ -1344,3 +1344,63 @@ exact-SHA CI/S6 仍须用规定运行时复验。
 
 下一片是否可开始：可以开始 `6299ae299` 的 exact-SHA CI 与 S6；只有全部门槛通过后才能用其同 SHA 预构建镜像部署，
 再启动一次显式全市场重跑。任何失败先诊断，禁止复用旧镜像、盲目重跑或扩大 timeout/retry。
+
+#### 2026-10-03 发布验证流水线提速与生产策略一致性左移（`7615d44c5`、`b8e523fca`、`01839c967`、`cea02c7ee`、`8df1b1b66`、`23d575a03`、`d2d805bdd`）
+
+背景：用户指出单轮"CI → S6 → 部署 → 全市场重跑"约 8-10 小时太慢。本组改动只做并行化、缓存、
+条件化与缺陷左移，不降低任何门禁强度、不删测试、不放宽阈值；六个 commit 组均可独立回滚。
+
+完成项：
+
+1. **CI 提速（`7615d44c5`）**：Architecture/Consistency/Security 三个 workflow 补 concurrency 组
+   （cancel-in-progress）；`incremental-quality` 的 npm/playwright 改为仅在 TUI 范围变更时执行，
+   mypy 增加 `.mypy_cache` 缓存；`run_incremental_domain_coverage.py` 的逐包串行 pytest-cov 子进程
+   改为 ThreadPoolExecutor 并行（每包独立 `COVERAGE_FILE`，全部跑完再汇总失败）；ci-fast-feedback 与
+   architecture 增加 docs-only paths-ignore。Consistency/Security 保持全量触发（治理/密钥检查不随
+   docs 变更跳过）。fast-feedback 未启用 pytest-xdist：干净树验证（17,463 passed / 44 failed in
+   14:37）后串行复验确认约 8 例失败属于测试间顺序/全局状态依赖（如 risk_center scenario_models、
+   event_bus 全局单例）， blanket 并行会引入假红，维持单进程；该项留作测试卫生专项，不抢跑。
+2. **S6 后三段并行（`b8e523fca`）**：provider_probe 之后的 response_replay /
+   full_universe_capacity / isolated_postgresql_write 改为 ThreadPoolExecutor 并行；
+   checkpoint.complete 严格按 stage_order 顺序在主线程执行，前缀有序不变量保持；隔离库容器身份
+   复核前移到组启动前。失败语义不变，兄弟段跑到自然结束。
+3. **部署链路重叠（`01839c967`）**：预部署备份（只读 pg_dump/BGSAVE，对旧 release）提前到远端
+   `docker build` 期间执行，部署段仅在备份身份与 PREVIOUS_RELEASE 匹配时跳过重复备份；镜像 tar
+   回传与远端部署以独立 SSH 连接并行；`check --deploy`+`collectstatic` 与 AI capability catalog
+   同步并行。回滚 trap、身份复核、健康轮询逐字未动。明确否决了"构建期间提前启动 postgres/redis"
+   （会替换正在服务旧栈的数据库容器）。顺带修正 `test_data_center_0085_rollback_compatibility.py`
+   一处 HEAD 上就失败的断言（脚本实际为 `sh` 而非 `bash` 调用）。
+4. **生产发布前分钟级预检（`cea02c7ee`）**：新增只读 `preflight_full_market_publication`
+   command + Application 用例：provider 策略/路由批量能力（复用 `6299ae299` 修复的
+   `evaluate_model_market_bulk_preparation` 纯函数，与生产 preparation 共用同一实现）、三组 dataset
+   发布门（policy/freshness/preview dry-run）、authority capture 装配、task attempt 链路；全部检查
+   执行完再汇总，输出稳定阻断码 JSON。零数据库写入、零 provider I/O。
+5. **预检快照绑定（`23d575a03`）**：`--provider-settings-json` 显式快照覆盖 Config Center 读取，
+   `provider_settings_sha256` 写入证据；`--checks` 支持子集执行（canonical 顺序校验）。
+6. **S6 生产策略一致性段（`d2d805bdd`）**：新增 `production_policy_parity` 段（加入并行组，第
+   四成员）：候选容器内以显式生产策略快照执行预检 bulk 门，报告携带快照内容与 sha256；
+   `build_release_rehearsal_manifest.py` 与 `validate_release_rehearsal.py` 将
+   `release.production-policy-parity.v1` 纳入必需报告集（image-bound + digest-only），validator
+   重算快照 hash、要求 route gate 通过；`governance/release_rehearsal_policy.json` 登记
+   `required_reports` 并由 validator 比对防漂移。旧 receipt（缺 parity 报告）一律拒绝。
+
+测试计数：S6 编排 `70 passed, 1 skipped`；validator + manifest `94 passed, 1 skipped`；预检
+`27 passed`；parity runner `8 passed`；domain coverage 并行 `7 passed`；部署脚本相关
+`87 passed, 1 skipped`。全部改动文件 ruff/black/isort 通过；生产文件增量 mypy 零回归；全仓 mypy
+debt ceiling `0 errors`；entrypoint inventory 1,291 项 `candidate-review=0`；module map 44
+modules / 212 edges；architecture inventory 与 current-data 72 surfaces 通过。
+
+未验证风险：
+
+- **本组改动自身尚未取得 exact-SHA 五组 CI**，CI workflow 变更（concurrency、paths-ignore、
+  条件化）只能在真实 push 后验证；paths-ignore 对必需检查的影响需要在下一次 docs-only 提交时
+  复核（GitHub 对 path 过滤跳过的必需检查有特定的 pending 语义）。
+- S6 并行组、parity 段与部署重叠未在 VPS 真实执行；parity 段需要运维在每次 S6 前准备
+  `--provider-settings-json` 生产策略快照（只读导出），该导出步骤尚未脚本化，列入未完成工作。
+- `provider_state_repositories.py` 274/250 行超限（`test_data_center_repositories_structure`）、
+  `test_tui_action_copy_and_density` 889/871、`test_web_to_tui_candidate_consistency` 与
+  evid09 共 4 项失败在本组改动前已存在，按硬边界只记录不顺手修。
+
+下一片是否可开始：本组不改变 `6299ae299` 候选的业务语义，其 exact-SHA CI 与 S6 可以继续；
+但下一次 S6 必须携带 `--provider-settings-json` 快照并包含 parity 段证据，旧格式 receipt 不再被
+validator 接受。继续不部署、不启动全市场重跑，等待用户授权。
