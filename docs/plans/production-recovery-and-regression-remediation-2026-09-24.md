@@ -1492,3 +1492,36 @@ architecture tooling tests 覆盖现有治理入口。
 
 下一片是否可开始：可以提交并 push 本节最终 SHA，取得五组 exact-SHA CI；全绿后必须重新导出同一时点的 provider settings
 和完整 route identities，重建 unit contract 并启动全新 S6。旧 `evidence-20261004b` 只保留为根因证据，不续接新 SHA。
+
+#### 2026-10-04 S6 正式发布时钟与已有 current graph 整改（`288bf4828`）
+
+完成项：候选 `258531188d03b82728579858a8a87db3a523b7f7` 的五组 exact-SHA CI 全绿，VPS 全新 S6 使用同一
+生产只读快照通过 build、镜像身份、provider probe、response replay、5,572 只全量 capacity 与 production policy parity，
+随后在 isolated PostgreSQL write 以 `REHEARSAL_WRITE_COLLECTION_FAILED` 失败关闭，未生成 handoff、未部署。绕过管理命令的
+泛化包装后取得底层异常 `Publication published_at must be later than current publication`：演练错误地以目标交易日的
+`observed_at + 2 minutes` 作为 `published_at`，而真实生产快照已有更晚的 current Publication，严格单调发布不变量正确拒绝
+时间倒退。根因属于演练发布时钟与真实快照契约缺口，不是 audit lock、锁等待或 timeout。
+
+`288bf4828` 保留目标交易日作为 fact 的 `observed_at/available_at`，在写事务内用一条 PostgreSQL 查询取得同一个
+`clock_timestamp()` cutoff 和当前最大 `published_at`，把 synthetic Publication、knowledge cutoff 与新鲜度判定统一绑定该
+数据库时钟；已有 current 时间为空、类型非法或不早于 cutoff 时分别以稳定业务码失败关闭，未放宽 repository 的严格单调
+发布保护。演练不再假设空库：写入前保存已有 scope、current pointer 以及 active/pointer-bound publication 的 member 与
+coverage graph，synthetic 发布期间 pointer 必须保持不变，外层回滚后 pointer、Publication、member、coverage 必须逐项恢复。
+写入计数只统计本次 publication ID，避免把真实快照已有行误算为演练写入。receipt、report 与 validator 新增数据库时钟、
+pointer 保留和完整 graph 回滚证据；旧报告或 receipt 缺任一证据、时钟不一致或 receipt/report 不一致均失败关闭。未来
+current Publication 的 PostgreSQL 故障注入已加入 S6 candidate regression 必跑集合。
+
+测试计数：release validator/collector/isolated writer 单元回归 `148 passed`；显式空库 disposable PostgreSQL 组件回归
+`2 passed in 163.09s`，覆盖完整已有 current Publication/member/coverage/pointer 正例和未来发布时间稳定码反例。生产文件
+增量 mypy 2 文件零回归，全仓 debt ceiling `0 errors in 0 files`；Black、isort、Ruff、governance consistency、module map
+44 modules / 210 edges 与 `git diff --check` 通过。无测试跳过。current-data 专项检查被并行测试团队提交的来源时间 matcher
+投影暂时阻断：治理仍要求已移除的 `_MATCHERS` marker；该问题不由本片引入，本片未混入或覆盖并行改动。
+
+未验证风险：本提交及本节文档后的最终 SHA 尚未取得五组 exact-SHA CI；修复后的全新 S6 尚未执行，旧失败 evidence 和镜像
+不可复用。真实快照 graph 可能显著大于组件夹具，仍须由 S6 isolated PostgreSQL write 证明查询规模与回滚证据可接受。
+测试团队的 current-data marker 投影必须先独立收口，否则 exact-SHA CI 会失败。本片未部署、未生成 handoff、未启动生产全市场
+重跑，也未调整 freshness、coverage、audit、lock wait、stage timeout、retry 或 `SIGNAL_WEAK`。
+
+下一片是否可开始：先等待或独立提交测试团队 current-data 投影收口，并在包含本节文档的最终 SHA 上取得五组 CI 全绿；随后
+必须从最新生产只读快照创建新的 disposable 数据库、重新导出冻结输入并启动全新 S6。只有九阶段 S6 和 handoff 完整通过后，
+才可使用其同 SHA 预构建镜像部署；任何失败继续读取稳定业务码和安全诊断，不续跑旧证据、不延长 timeout/retry。
