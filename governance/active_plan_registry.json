@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-04.v191",
+  "version": "2026-10-04.v192",
   "updated_at": "2026-10-04",
   "execution_focus": {
     "unit_id": "DATA-18",
@@ -157,6 +157,10 @@
         {
           "path": "docs/plans/data02-financial-source-time-remediation-2026-09-13.md",
           "role": "supporting"
+        },
+        {
+          "path": "docs/plans/data02-date-only-precision-decision-2026-10-04.md",
+          "role": "evidence"
         },
         {
           "path": "docs/plans/production-recovery-and-regression-remediation-2026-09-24.md",
