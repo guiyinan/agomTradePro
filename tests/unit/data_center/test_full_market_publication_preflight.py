@@ -12,11 +12,13 @@ from typing import Any
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import DatabaseError
 
 from apps.data_center.application.current_publication_candidate import (
     CurrentPublicationPreview,
 )
 from apps.data_center.application.full_market_publication_preflight import (
+    CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE,
     CURRENT_PUBLICATION_PREVIEW_FAILED,
     PREFLIGHT_AUTHORITY_CAPTURE_UNAVAILABLE,
     PREFLIGHT_MODEL_MARKET_ROUTES_UNAVAILABLE,
@@ -39,6 +41,9 @@ from apps.data_center.application.model_market_data import (
 )
 from apps.data_center.application.model_market_data_preparation import (
     evaluate_model_market_bulk_preparation,
+)
+from apps.data_center.application.publication_activation import (
+    CurrentPublicationPointerSnapshot,
 )
 from apps.data_center.domain.raw_audit_manifest import CURRENT_MARKET_PUBLICATION_DATASETS
 from apps.data_center.full_market_publication_preflight_composition import (
@@ -177,9 +182,22 @@ class _FakeBundle:
         previewer: _FakePreviewer | None = None,
         *,
         database_alias: str = "default",
+        pointer_error: Exception | None = None,
+        pointer_value: object | None = None,
     ) -> None:
         self.database_alias = database_alias
         self.previewer = previewer or _FakePreviewer()
+        self.pointer_error = pointer_error
+        self.pointer_value = pointer_value
+        self.pointer_reads: list[tuple[str, str]] = []
+
+    def current_pointer_reader(self, dataset_key: str, publication_key: str):
+        self.pointer_reads.append((dataset_key, publication_key))
+        if self.pointer_error is not None:
+            raise self.pointer_error
+        if self.pointer_value is not None:
+            return self.pointer_value
+        return CurrentPublicationPointerSnapshot(None, None)
 
     def authority_capture(self, *, as_of, preflight_context):
         raise AssertionError("preflight must never capture an authority fence")
@@ -267,6 +285,14 @@ def test_all_checks_pass():
     assert gates_check.status == "pass"
     assert gates_check.evidence["universe_asset_count"] == 2
     assert set(gates_check.evidence["preview"]) == set(DATASETS)
+    assert gates_check.evidence["current_pointers"] == {
+        key: {
+            "state": "empty",
+            "publication_id": None,
+            "publication_hash": None,
+        }
+        for key in DATASETS
+    }
     assert _check(report, "account_authority_capture").status == "pass"
     assert _check(report, "task_attempt_identity").status == "pass"
     payload = report.to_dict()
@@ -401,6 +427,36 @@ def test_publication_rebuilders_incomplete():
 
     check = _check(report, "current_publication_gates")
     assert check.blocked_codes == (PREFLIGHT_PUBLICATION_REBUILDERS_INCOMPLETE,)
+
+
+def test_publication_current_pointers_are_read_for_every_dataset():
+    snapshot = CurrentPublicationPointerSnapshot(
+        publication_id="12345678-1234-5678-1234-567812345678",
+        publication_hash="a" * 64,
+    )
+    bundle = _FakeBundle(pointer_value=snapshot)
+
+    report = _run(_ports(bundle=bundle))
+
+    check = _check(report, "current_publication_gates")
+    assert check.status == "pass"
+    assert bundle.pointer_reads == [(key, "current") for key in DATASETS]
+    assert all(item["state"] == "bound" for item in check.evidence["current_pointers"].values())
+
+
+@pytest.mark.parametrize("pointer_failure", [DatabaseError("db unavailable"), object()])
+def test_publication_current_pointer_failure_blocks_before_preview(pointer_failure):
+    previewer = _FakePreviewer(preview_error=AssertionError("preview must not run"))
+    bundle = (
+        _FakeBundle(previewer, pointer_error=pointer_failure)
+        if isinstance(pointer_failure, Exception)
+        else _FakeBundle(previewer, pointer_value=pointer_failure)
+    )
+
+    report = _run(_ports(bundle=bundle))
+
+    check = _check(report, "current_publication_gates")
+    assert check.blocked_codes == (CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE,)
 
 
 def test_publication_policy_missing():

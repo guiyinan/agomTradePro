@@ -27,6 +27,10 @@ from core.integration import data_center_audit as audit_integration
 from .current_market_publication_activation import CurrentMarketPublicationBundle
 from .model_market_data import ModelMarketDataService
 from .model_market_data_preparation import evaluate_model_market_bulk_preparation
+from .publication_activation import (
+    CurrentPublicationPointerSnapshot,
+    PublicationActivationError,
+)
 
 PREFLIGHT_REPORT_SCHEMA = "data_center.full_market_publication_preflight.v1"
 
@@ -56,6 +60,7 @@ PREFLIGHT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE = "PREFLIGHT_TASK_ATTEMPT_IDENTITY_U
 # Codes reused verbatim from the production publication path so a preflight
 # block predicts the exact production failure identity.
 CURRENT_PUBLICATION_COMPOSITION_UNAVAILABLE = "CURRENT_PUBLICATION_COMPOSITION_UNAVAILABLE"
+CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE = "CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE"
 CURRENT_PUBLICATION_PREVIEW_FAILED = "CURRENT_PUBLICATION_PREVIEW_FAILED"
 
 ATTEMPT_RESOLUTION_BOUND = "bound_to_active_attempt"
@@ -311,6 +316,14 @@ class RunFullMarketPublicationPreflightUseCase:
                 (PREFLIGHT_PUBLICATION_REBUILDERS_INCOMPLETE,),
                 ",".join(rebuilder_datasets),
             )
+        pointer_outcome = self._read_current_pointers(
+            name=name,
+            bundle=bundle,
+            dataset_keys=expected_datasets,
+        )
+        if isinstance(pointer_outcome, PreflightCheckOutcome):
+            return pointer_outcome
+        pointer_evidence = pointer_outcome
         policy_codes: list[str] = []
         policy_evidence: dict[str, object] = {}
         for dataset_key in expected_datasets:
@@ -381,6 +394,7 @@ class RunFullMarketPublicationPreflightUseCase:
             name,
             {
                 "universe_asset_count": len(universe),
+                "current_pointers": pointer_evidence,
                 "policies": policy_evidence,
                 "preview": {
                     dataset_key: preview_by_dataset[dataset_key].to_dict()
@@ -388,6 +402,43 @@ class RunFullMarketPublicationPreflightUseCase:
                 },
             },
         )
+
+    @staticmethod
+    def _read_current_pointers(
+        *,
+        name: str,
+        bundle: CurrentMarketPublicationBundle,
+        dataset_keys: tuple[str, ...],
+    ) -> dict[str, object] | PreflightCheckOutcome:
+        """Read and validate every current-pointer CAS pair without mutation."""
+
+        evidence: dict[str, object] = {}
+        try:
+            for dataset_key in dataset_keys:
+                snapshot = bundle.current_pointer_reader(dataset_key, "current")
+                if type(snapshot) is not CurrentPublicationPointerSnapshot:
+                    raise PublicationActivationError(
+                        "current pointer reader returned an invalid pair"
+                    )
+                snapshot.__post_init__()
+                evidence[dataset_key] = {
+                    "state": "empty" if snapshot.publication_id is None else "bound",
+                    "publication_id": snapshot.publication_id,
+                    "publication_hash": snapshot.publication_hash,
+                }
+        except (
+            PublicationActivationError,
+            audit_integration.SystemAuditCompositionUnavailable,
+            DatabaseError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            return _blocked(
+                name,
+                (CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE,),
+                type(exc).__name__,
+            )
+        return evidence
 
     def _check_account_authority_capture(self) -> PreflightCheckOutcome:
         """Verify complete Account authority capture wiring without fencing."""
@@ -477,6 +528,7 @@ __all__ = [
     "CHECK_PROVIDER_POLICY_AND_ROUTES",
     "CHECK_TASK_ATTEMPT_IDENTITY",
     "CURRENT_PUBLICATION_COMPOSITION_UNAVAILABLE",
+    "CURRENT_PUBLICATION_CURRENT_POINTER_UNAVAILABLE",
     "CURRENT_PUBLICATION_PREVIEW_FAILED",
     "FullMarketPublicationPreflightPorts",
     "FullMarketPublicationPreflightReport",
