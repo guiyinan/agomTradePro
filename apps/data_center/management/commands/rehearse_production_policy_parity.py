@@ -33,6 +33,7 @@ class Command(BaseCommand):
         parser.add_argument("--provider-identities-sha256", required=True)
         parser.add_argument("--expected-provider-settings-raw-file-sha256", required=True)
         parser.add_argument("--expected-provider-settings-canonical-payload-sha256", required=True)
+        parser.add_argument("--provider-identities", required=True, type=Path)
         parser.add_argument("--provider-settings-json", required=True, type=Path)
         parser.add_argument("--output-dir", required=True, type=Path)
 
@@ -52,6 +53,7 @@ class Command(BaseCommand):
                 expected_provider_settings_canonical_payload_sha256=(
                     options["expected_provider_settings_canonical_payload_sha256"]
                 ),
+                provider_identities_path=options["provider_identities"],
                 provider_settings_path=options["provider_settings_json"],
                 output_dir=options["output_dir"],
             )

@@ -53,7 +53,7 @@ IMAGE_BOUND_REPORTS = frozenset(
     }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
-    {"full_universe_capacity", "production_policy_parity", "isolated_write_rehearsal"}
+    {"full_universe_capacity", "isolated_write_rehearsal"}
 )
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
@@ -958,6 +958,10 @@ def _validate_policy_parity(
         _fail("REHEARSAL_POLICY_PARITY_INVALID")
     if evidence.get("provider_settings_sha256") != canonical_digest:
         _fail("REHEARSAL_POLICY_SETTINGS_MISMATCH")
+    provider_identities = report.get("provider_identities")
+    if not isinstance(provider_identities, list):
+        _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    identity_rows = cast(list[object], provider_identities)
     if not isinstance(evidence.get("preferred_route"), str) or not evidence["preferred_route"]:
         _fail("REHEARSAL_POLICY_PARITY_INVALID")
     probe_count = evidence.get("probe_asset_count")
@@ -970,11 +974,39 @@ def _validate_policy_parity(
         if not isinstance(capability, dict):
             _fail("REHEARSAL_POLICY_PARITY_INVALID")
         capability_payload = cast(dict[str, Any], capability)
-        if not isinstance(capability_payload.get("route"), str) or any(
-            not isinstance(capability_payload.get(key), bool)
-            for key in ("batch_preparation", "audited_per_asset_fetch", "provider_identity")
+        provider_id = capability_payload.get("provider_id")
+        source_type = capability_payload.get("source_type")
+        if (
+            not isinstance(capability_payload.get("route"), str)
+            or isinstance(provider_id, bool)
+            or not isinstance(provider_id, int)
+            or provider_id <= 0
+            or not isinstance(source_type, str)
+            or not source_type
+            or any(
+                not isinstance(capability_payload.get(key), bool)
+                for key in (
+                    "batch_preparation",
+                    "audited_per_asset_fetch",
+                    "provider_identity",
+                )
+            )
         ):
             _fail("REHEARSAL_POLICY_PARITY_INVALID")
+        if not any(
+            isinstance(identity, dict)
+            and identity.get("provider_id") == provider_id
+            and (
+                identity.get("source") == source_type
+                or (
+                    identity.get("role") == "valuation"
+                    and identity.get("source") == "tencent"
+                    and source_type == "akshare"
+                )
+            )
+            for identity in identity_rows
+        ):
+            _fail("REHEARSAL_PROVIDER_MISMATCH")
 
 
 def _validate_real_replay(

@@ -210,6 +210,12 @@ class FakeRunner:
             "provider_identities_sha256": _provider_digest(),
         }
         if command.label == "production_policy_parity":
+            payload["provider_identities"] = json.loads(
+                self._mounted_path(
+                    command.argv,
+                    target="/run/agom/provider-identities.json",
+                ).read_text(encoding="utf-8")
+            )
             payload["provider_settings"] = json.loads(
                 self._provider_settings_path(command.argv).read_text(encoding="utf-8")
             )
@@ -220,11 +226,27 @@ class FakeRunner:
                 command.argv.index("--expected-provider-settings-canonical-payload-sha256") + 1
             ]
             payload["preflight"] = {
+                "name": "provider_policy_and_routes",
+                "status": "pass",
+                "blocked_codes": [],
+                "detail": "",
                 "evidence": {
                     "provider_settings_sha256": payload[
                         "provider_settings_canonical_payload_sha256"
-                    ]
-                }
+                    ],
+                    "preferred_route": "tushare",
+                    "probe_asset_count": 2,
+                    "route_capabilities": [
+                        {
+                            "route": "tushare",
+                            "source_type": "tushare",
+                            "provider_id": 11,
+                            "batch_preparation": True,
+                            "audited_per_asset_fetch": False,
+                            "provider_identity": True,
+                        }
+                    ],
+                },
             }
         if command.label != "github_ci_evidence":
             payload["candidate_image_id"] = image_value
@@ -277,11 +299,15 @@ class FakeRunner:
 
     @staticmethod
     def _provider_settings_path(argv: tuple[str, ...]) -> Path:
-        suffix = ":/run/agom/provider-settings.json:ro"
+        return FakeRunner._mounted_path(argv, target="/run/agom/provider-settings.json")
+
+    @staticmethod
+    def _mounted_path(argv: tuple[str, ...], *, target: str) -> Path:
+        suffix = f":{target}:ro"
         for index, value in enumerate(argv):
             if value == "--volume" and argv[index + 1].endswith(suffix):
                 return Path(argv[index + 1][: -len(suffix)])
-        raise AssertionError("provider settings snapshot mount is missing")
+        raise AssertionError(f"snapshot mount is missing: {target}")
 
 
 def _provider_digest() -> str:
@@ -790,6 +816,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         item for item in runner.commands if item.label == "production_policy_parity"
     )
     assert "/run/agom/provider-settings.json" in parity_command.argv
+    assert "/run/agom/provider-identities.json" in parity_command.argv
     receipt = verify_evidence_handoff_receipt(receipt_path)
     assert receipt["candidate_sha"] == CANDIDATE_SHA
     assert receipt["candidate_image_id"] == IMAGE_ID

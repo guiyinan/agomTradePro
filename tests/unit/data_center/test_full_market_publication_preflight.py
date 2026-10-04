@@ -276,6 +276,8 @@ def test_all_checks_pass():
     assert capabilities == [
         {
             "route": "vendor",
+            "source_type": "tushare",
+            "provider_id": 17,
             "batch_preparation": True,
             "audited_per_asset_fetch": False,
             "provider_identity": True,

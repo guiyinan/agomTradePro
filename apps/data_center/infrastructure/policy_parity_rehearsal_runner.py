@@ -15,6 +15,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
+from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -23,6 +24,12 @@ from apps.data_center.application.full_market_publication_preflight import (
 )
 from apps.data_center.full_market_publication_preflight_composition import (
     build_full_market_publication_preflight_use_case,
+)
+from apps.data_center.infrastructure.rehearsal_identity import (
+    RehearsalProviderIdentity,
+    load_rehearsal_identities,
+    rehearsal_identities_digest,
+    rehearsal_identity_matches_adapter_source,
 )
 
 POLICY_PARITY_REPORT_SCHEMA = "release.production-policy-parity.v1"
@@ -81,6 +88,7 @@ def collect_production_policy_parity(
     provider_identities_sha256: str,
     expected_provider_settings_raw_file_sha256: str,
     expected_provider_settings_canonical_payload_sha256: str,
+    provider_identities_path: Path,
     provider_settings_path: Path,
     output_dir: Path,
 ) -> dict[str, object]:
@@ -106,6 +114,12 @@ def collect_production_policy_parity(
     candidate_image_id = os.environ.get("AGOM_CANDIDATE_IMAGE_ID", "")
     if _IMAGE_ID.fullmatch(candidate_image_id) is None:
         raise ValueError("REHEARSAL_POLICY_PARITY_IMAGE_IDENTITY_UNAVAILABLE")
+    try:
+        provider_identities = load_rehearsal_identities(provider_identities_path)
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH") from exc
+    if rehearsal_identities_digest(provider_identities) != provider_identities_sha256:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
     (
         settings_payload,
         settings_raw_file_digest,
@@ -125,6 +139,7 @@ def collect_production_policy_parity(
     provider_check = report.checks[0]
     if provider_check.status != "pass":
         raise ValueError("REHEARSAL_POLICY_PARITY_BLOCKED")
+    _validate_route_provider_identities(provider_check.evidence, provider_identities)
 
     payload: dict[str, object] = {
         "schema": POLICY_PARITY_REPORT_SCHEMA,
@@ -135,6 +150,7 @@ def collect_production_policy_parity(
         "target_trade_date": target_trade_date.isoformat(),
         "universe_sha256": universe_sha256,
         "provider_identities_sha256": provider_identities_sha256,
+        "provider_identities": [asdict(identity) for identity in provider_identities],
         "outcome": "success",
         "evidence_mode": POLICY_PARITY_EVIDENCE_MODE,
         "started_at": started.isoformat(),
@@ -151,6 +167,38 @@ def collect_production_policy_parity(
         encoding="utf-8",
     )
     return payload
+
+
+def _validate_route_provider_identities(
+    evidence: Mapping[str, object],
+    provider_identities: tuple[RehearsalProviderIdentity, ...],
+) -> None:
+    """Require every configured route to match a frozen provider identity."""
+
+    capabilities = evidence.get("route_capabilities")
+    if not isinstance(capabilities, list) or not capabilities:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+    for capability in capabilities:
+        if not isinstance(capability, dict):
+            raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+        provider_id = capability.get("provider_id")
+        source_type = capability.get("source_type")
+        if (
+            isinstance(provider_id, bool)
+            or not isinstance(provider_id, int)
+            or provider_id <= 0
+            or not isinstance(source_type, str)
+            or not source_type
+            or not any(
+                identity.provider_id == provider_id
+                and rehearsal_identity_matches_adapter_source(
+                    identity,
+                    adapter_source=source_type,
+                )
+                for identity in provider_identities
+            )
+        ):
+            raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
 
 
 __all__ = [

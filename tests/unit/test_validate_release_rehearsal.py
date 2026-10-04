@@ -734,7 +734,6 @@ def _build_evidence(
     settings_digest = validator._provider_settings_digest(policy_settings)
     settings_canonical_digest = settings_digest
     parity = _common("production_policy_parity", now)
-    parity.pop("provider_identities")
     parity.update(
         {
             "provider_settings": policy_settings,
@@ -755,6 +754,8 @@ def _build_evidence(
                     "route_capabilities": [
                         {
                             "route": "tushare",
+                            "source_type": "tushare",
+                            "provider_id": 1,
                             "batch_preparation": True,
                             "audited_per_asset_fetch": False,
                             "provider_identity": True,
@@ -1107,7 +1108,11 @@ def test_validator_requires_declared_provider_digest_on_every_report(
 
 @pytest.mark.parametrize(
     "kind",
-    ("real_response_unit_replay", "candidate_regression_evidence"),
+    (
+        "real_response_unit_replay",
+        "production_policy_parity",
+        "candidate_regression_evidence",
+    ),
 )
 def test_validator_requires_full_provider_identities_for_source_evidence(
     tmp_path: Path,
@@ -1922,3 +1927,30 @@ def test_self_consistent_policy_report_must_match_external_expected_hashes(
         _validate(manifest, now)
 
     assert mismatch.value.code == "REHEARSAL_POLICY_SETTINGS_MISMATCH"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_code"),
+    (
+        ("provider_id", 999, "REHEARSAL_PROVIDER_MISMATCH"),
+        ("source_type", "unknown", "REHEARSAL_PROVIDER_MISMATCH"),
+        ("provider_id", None, "REHEARSAL_POLICY_PARITY_INVALID"),
+    ),
+)
+def test_policy_route_must_match_frozen_provider_identity(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    expected_code: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    parity_path = reports["production_policy_parity"]
+    parity = json.loads(parity_path.read_text(encoding="utf-8"))
+    parity["preflight"]["evidence"]["route_capabilities"][0][field] = value
+    _replace_report(manifest, parity_path, parity)
+
+    with pytest.raises(validator.RehearsalValidationError) as mismatch:
+        _validate(manifest, now)
+
+    assert mismatch.value.code == expected_code

@@ -20,7 +20,25 @@ from apps.data_center.infrastructure import policy_parity_rehearsal_runner as ru
 
 CANDIDATE = "a" * 40
 UNIVERSE = "b" * 64
-PROVIDER_DIGEST = "c" * 64
+PROVIDER_IDENTITIES = [
+    {
+        "role": "quote",
+        "provider_id": 17,
+        "source": "tushare",
+        "version": "tushare-test",
+        "endpoint_id": "provider-config-quote",
+    },
+    {
+        "role": "valuation",
+        "provider_id": 23,
+        "source": "tencent",
+        "version": "tencent-test",
+        "endpoint_id": "provider-config-valuation",
+    },
+]
+PROVIDER_DIGEST = hashlib.sha256(
+    json.dumps(PROVIDER_IDENTITIES, sort_keys=True, separators=(",", ":")).encode()
+).hexdigest()
 IMAGE_ID = f"sha256:{'d' * 64}"
 TRADE_DATE = date(2026, 10, 9)
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
@@ -50,7 +68,18 @@ def _write_settings(tmp_path, payload: object = SETTINGS):
     return path
 
 
-def _report(status: str = "pass") -> FullMarketPublicationPreflightReport:
+def _write_identities(tmp_path, payload: object = PROVIDER_IDENTITIES):
+    path = tmp_path / "provider-identities.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def _report(
+    status: str = "pass",
+    *,
+    route_provider_id: int = 17,
+    route_source_type: str = "tushare",
+) -> FullMarketPublicationPreflightReport:
     return FullMarketPublicationPreflightReport(
         evaluated_at=NOW,
         checks=(
@@ -70,6 +99,8 @@ def _report(status: str = "pass") -> FullMarketPublicationPreflightReport:
                         "route_capabilities": [
                             {
                                 "route": "tushare",
+                                "source_type": route_source_type,
+                                "provider_id": route_provider_id,
                                 "batch_preparation": True,
                                 "audited_per_asset_fetch": False,
                                 "provider_identity": True,
@@ -103,14 +134,21 @@ def fake_use_case(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
     def factory(**kwargs: Any) -> _UseCase:
         captured.update(kwargs)
-        return _UseCase(_report(captured.get("status", "pass")))
+        return _UseCase(
+            _report(
+                captured.get("status", "pass"),
+                route_provider_id=captured.get("route_provider_id", 17),
+                route_source_type=captured.get("route_source_type", "tushare"),
+            )
+        )
 
     monkeypatch.setattr(runner, "build_full_market_publication_preflight_use_case", factory)
     return captured
 
 
-def _collect(tmp_path, settings_path=None):
+def _collect(tmp_path, settings_path=None, identities_path=None):
     selected_path = settings_path or _write_settings(tmp_path)
+    selected_identities_path = identities_path or _write_identities(tmp_path)
     raw = selected_path.read_bytes()
     payload = json.loads(raw)
     return runner.collect_production_policy_parity(
@@ -120,6 +158,7 @@ def _collect(tmp_path, settings_path=None):
         provider_identities_sha256=PROVIDER_DIGEST,
         expected_provider_settings_raw_file_sha256=hashlib.sha256(raw).hexdigest(),
         expected_provider_settings_canonical_payload_sha256=_settings_digest(payload),
+        provider_identities_path=selected_identities_path,
         provider_settings_path=selected_path,
         output_dir=tmp_path / "output",
     )
@@ -136,6 +175,7 @@ def test_parity_report_binds_snapshot_and_gate_evidence(tmp_path, fake_use_case)
     assert payload["evidence_mode"] == "production_policy_snapshot"
     assert payload["candidate_image_id"] == IMAGE_ID
     assert payload["candidate_source_attestation"] == "image_release_manifest"
+    assert payload["provider_identities"] == PROVIDER_IDENTITIES
     raw = (tmp_path / "provider-settings.json").read_bytes()
     assert payload["provider_settings_raw_file_sha256"] == hashlib.sha256(raw).hexdigest()
     assert payload["provider_settings_canonical_payload_sha256"] == _settings_digest(SETTINGS)
@@ -170,6 +210,7 @@ def test_invalid_identity_is_rejected(tmp_path, fake_use_case) -> None:
             provider_identities_sha256=PROVIDER_DIGEST,
             expected_provider_settings_raw_file_sha256="1" * 64,
             expected_provider_settings_canonical_payload_sha256="2" * 64,
+            provider_identities_path=_write_identities(tmp_path),
             provider_settings_path=settings_path,
             output_dir=tmp_path / "output",
         )
@@ -210,6 +251,7 @@ def test_raw_whitespace_change_preserves_canonical_hash_but_fails_expected_raw_h
             provider_identities_sha256=PROVIDER_DIGEST,
             expected_provider_settings_raw_file_sha256=expected_raw_digest,
             expected_provider_settings_canonical_payload_sha256=expected_canonical_digest,
+            provider_identities_path=_write_identities(tmp_path),
             provider_settings_path=settings_path,
             output_dir=tmp_path / "output",
         )
@@ -218,6 +260,7 @@ def test_raw_whitespace_change_preserves_canonical_hash_but_fails_expected_raw_h
 
 def test_command_writes_report_and_prints_digest(tmp_path, fake_use_case) -> None:
     settings_path = _write_settings(tmp_path)
+    identities_path = _write_identities(tmp_path)
 
     call_command(
         "rehearse_production_policy_parity",
@@ -227,6 +270,7 @@ def test_command_writes_report_and_prints_digest(tmp_path, fake_use_case) -> Non
         f"--provider-identities-sha256={PROVIDER_DIGEST}",
         f"--expected-provider-settings-raw-file-sha256={hashlib.sha256(settings_path.read_bytes()).hexdigest()}",
         f"--expected-provider-settings-canonical-payload-sha256={_settings_digest(SETTINGS)}",
+        f"--provider-identities={identities_path}",
         f"--provider-settings-json={settings_path}",
         f"--output-dir={tmp_path / 'output'}",
     )
@@ -236,6 +280,7 @@ def test_command_writes_report_and_prints_digest(tmp_path, fake_use_case) -> Non
 
 def test_command_fails_closed_on_invalid_snapshot(tmp_path, fake_use_case) -> None:
     settings_path = _write_settings(tmp_path, payload=["not", "an", "object"])
+    identities_path = _write_identities(tmp_path)
 
     with pytest.raises(CommandError, match="REHEARSAL_POLICY_SETTINGS_INVALID"):
         call_command(
@@ -246,6 +291,21 @@ def test_command_fails_closed_on_invalid_snapshot(tmp_path, fake_use_case) -> No
             f"--provider-identities-sha256={PROVIDER_DIGEST}",
             f"--expected-provider-settings-raw-file-sha256={hashlib.sha256(settings_path.read_bytes()).hexdigest()}",
             f"--expected-provider-settings-canonical-payload-sha256={_settings_digest(['not', 'an', 'object'])}",
+            f"--provider-identities={identities_path}",
             f"--provider-settings-json={settings_path}",
             f"--output-dir={tmp_path / 'output'}",
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("route_provider_id", 999), ("route_source_type", "unknown")),
+)
+def test_route_must_match_frozen_provider_identity(
+    tmp_path, fake_use_case, field: str, value: object
+) -> None:
+    fake_use_case[field] = value
+
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_MISMATCH"):
+        _collect(tmp_path)
+    assert not (tmp_path / "output").exists()

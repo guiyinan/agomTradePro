@@ -1053,6 +1053,8 @@ def _stage_specs(
         identity.provider_settings_raw_file_sha256,
         "--expected-provider-settings-canonical-payload-sha256",
         identity.provider_settings_canonical_payload_sha256,
+        "--provider-identities",
+        "/run/agom/provider-identities.json",
         "--provider-settings-json",
         "/run/agom/provider-settings.json",
         "--output-dir",

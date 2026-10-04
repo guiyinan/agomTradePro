@@ -31,6 +31,8 @@ class ModelMarketRouteCapability:
     """Read-only audited capability view of one configured model-market route."""
 
     route: str
+    source_type: str
+    provider_id: int | None
     batch_preparation: bool
     audited_per_asset_fetch: bool
     provider_identity: bool
@@ -40,6 +42,8 @@ class ModelMarketRouteCapability:
 
         return {
             "route": self.route,
+            "source_type": self.source_type,
+            "provider_id": self.provider_id,
             "batch_preparation": self.batch_preparation,
             "audited_per_asset_fetch": self.audited_per_asset_fetch,
             "provider_identity": self.provider_identity,
@@ -88,6 +92,8 @@ def evaluate_model_market_bulk_preparation(
         route_capabilities.append(
             ModelMarketRouteCapability(
                 route=route.name,
+                source_type=route.source_type,
+                provider_id=route.provider_id,
                 batch_preparation=batch_capable,
                 audited_per_asset_fetch=single_fetch_capable,
                 provider_identity=route.provider_id is not None,
