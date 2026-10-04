@@ -5020,6 +5020,10 @@
         "apps/data_center/domain/financial_source_time_evidence.py": [
           "FINANCIAL_SOURCE_TIME_DATASET_KEY = \"equity.financial.source-time\"",
           "PROVIDER_NATIVE_EXACT = \"provider_native_exact\"",
+          "PROVIDER_DATE_NEXT_SESSION = \"provider_date_next_session\"",
+          "class FinancialSourceTimePrecision(StrEnum):",
+          "financial source-time precision does not match availability basis",
+          "financial source-time date-only values must be canonical day starts",
           "financial source-time match must resolve exactly one row",
           "governed_match_contract_sha256",
           "matched_row_count"
@@ -5047,6 +5051,7 @@
           "financial-fact-decision-evidence.v2",
           "def encode_financial_decision_evidence(",
           "def decode_financial_decision_evidence(",
+          "source_time_precision",
           "FinancialDecisionEvidenceCodecError"
         ],
         "apps/data_center/infrastructure/models.py": [
@@ -6821,16 +6826,19 @@
         ],
         "governance/financial_source_time_match_contracts.json": [
           "\"schema_version\": \"financial-source-time-match-contract-registry.v2\"",
-          "\"status\": \"awaiting_owner_approval\"",
-          "\"contracts\": []",
-          "\"approval\": null"
+          "\"status\": \"active\"",
+          "\"provider_name\": \"akshare\"",
+          "\"contract_id\": \"akshare.financial-main-data.notice-date\"",
+          "\"source_row_id_field\": \"composite:SECUCODE+REPORT_DATE+NOTICE_DATE\"",
+          "\"approved_by\": \"guiyinan\"",
+          "\"receipt_sha256\": \"ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69\""
         ]
       },
       "required_tests": [
         {
-          "case": "financial_source_time_registry_default_denial",
+          "case": "financial_source_time_registry_owner_approved_activation",
           "test_file": "tests/unit/data_center/test_financial_source_time_contract_registry.py",
-          "test_function": "test_repository_registry_is_awaiting_owner_approval_and_denies_lookup"
+          "test_function": "test_repository_registry_activates_only_the_owner_approved_akshare_contract"
         },
         {
           "case": "financial_source_time_registry_exact_identity",
@@ -6871,6 +6879,7 @@
         "apps/data_center/application/financial_source_time_verifier.py",
         "apps/data_center/infrastructure/financial_source_time_audit.py",
         "apps/data_center/infrastructure/financial_source_time_body_store.py",
+        "apps/data_center/infrastructure/financial_source_time_matchers.py",
         "apps/data_center/financial_source_time_composition.py",
         "apps/data_center/publication_rebuild_composition.py"
       ],
@@ -6893,12 +6902,20 @@
           "hashlib.sha256(body).hexdigest() != reference.body_sha256"
         ],
         "apps/data_center/financial_source_time_composition.py": [
-          "_MATCHERS: dict[FinancialSourceTimeContractIdentity, FinancialSourceTimeContractMatcher] = {}",
+          "_AKSHARE_NOTICE_DATE_CONTRACT = akshare_notice_date_match_contract()",
           "def _resolve_contract_matcher(",
           "return _MATCHERS.get(contract.identity)",
           "load_financial_source_time_contract_registry(",
           "verify_provider_financial_source_time_evidence",
           "verify_retained_financial_source_time_evidence"
+        ],
+        "apps/data_center/infrastructure/financial_source_time_matchers.py": [
+          "class AkshareNoticeDateSourceTimeMatcher:",
+          "AKSHARE_SOURCE_ROW_ID_FIELD = \"composite:SECUCODE+REPORT_DATE+NOTICE_DATE\"",
+          "AKSHARE_ANNOUNCED_AT_FIELD = \"derived:NOTICE_DATE@day_start\"",
+          "AKSHARE_AVAILABLE_AT_FIELD = \"derived:NOTICE_DATE@next_day_start\"",
+          "decode_json_bytes(body)",
+          "matched_row_count=1"
         ],
         "apps/data_center/publication_rebuild_composition.py": [
           "source_time_evidence_verifier=verify_retained_financial_source_time_evidence"
@@ -6929,6 +6946,21 @@
           "case": "financial_source_time_matcher_exact_contract_identity",
           "test_file": "tests/unit/data_center/test_financial_source_time_composition.py",
           "test_function": "test_matcher_registry_uses_exact_contract_identity_not_parser_name"
+        },
+        {
+          "case": "akshare_date_only_witness_recomputation",
+          "test_file": "tests/unit/data_center/test_financial_source_time_akshare_matcher.py",
+          "test_function": "test_matcher_recomputes_the_date_only_witness"
+        },
+        {
+          "case": "akshare_date_only_match_fail_closed",
+          "test_file": "tests/unit/data_center/test_financial_source_time_akshare_matcher.py",
+          "test_function": "test_matcher_fails_closed_without_exactly_one_valid_source_row"
+        },
+        {
+          "case": "akshare_active_registry_still_requires_retained_artifacts",
+          "test_file": "tests/unit/data_center/test_financial_source_time_akshare_matcher.py",
+          "test_function": "test_active_registry_still_fails_closed_without_retained_artifacts"
         }
       ]
     },

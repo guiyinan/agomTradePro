@@ -1,6 +1,51 @@
 {
   "schema_version": "financial-source-time-match-contract-registry.v2",
-  "status": "awaiting_owner_approval",
-  "contracts": [],
-  "approval": null
+  "status": "active",
+  "contracts": [
+    {
+      "provider_name": "akshare",
+      "financial_dataset_key": "equity.financial.fact",
+      "source_time_dataset_key": "equity.financial.source-time",
+      "endpoint": "datacenter.eastmoney.com/securities/api/data/get?type=RPT_F10_FINANCE_MAINFINADATA",
+      "contract_id": "akshare.financial-main-data.notice-date",
+      "contract_version": "2026-10-04.v1",
+      "parser_version": "akshare-eastmoney-main-financial-data.v1",
+      "source_timezone": "Asia/Shanghai",
+      "join_fields": [
+        {
+          "semantic": "asset_code",
+          "financial_field": "SECUCODE",
+          "source_field": "SECUCODE"
+        },
+        {
+          "semantic": "period_end",
+          "financial_field": "REPORT_DATE",
+          "source_field": "REPORT_DATE"
+        },
+        {
+          "semantic": "announcement_date",
+          "financial_field": "NOTICE_DATE",
+          "source_field": "NOTICE_DATE"
+        }
+      ],
+      "source_row_id_field": "composite:SECUCODE+REPORT_DATE+NOTICE_DATE",
+      "announced_at_field": "derived:NOTICE_DATE@day_start",
+      "available_at_field": "derived:NOTICE_DATE@next_day_start",
+      "projection_fields": [
+        "SECUCODE",
+        "REPORT_DATE",
+        "NOTICE_DATE",
+        "composite:SECUCODE+REPORT_DATE+NOTICE_DATE",
+        "derived:NOTICE_DATE@day_start",
+        "derived:NOTICE_DATE@next_day_start"
+      ],
+      "contract_sha256": "a3b0057315a41f0b8df514fc7aaf5030916927a0cf3f39358a20d39b669eeaf1"
+    }
+  ],
+  "approval": {
+    "approved_at": "2026-10-04T15:31:50Z",
+    "approved_by": "guiyinan",
+    "receipt_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69",
+    "contract_set_sha256": "20b528b7221a9b309cc14712631458cef1f9765d8df0bd3317311f1b8492ea66"
+  }
 }

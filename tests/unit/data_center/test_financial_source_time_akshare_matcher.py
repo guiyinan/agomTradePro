@@ -35,7 +35,10 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
-from apps.data_center.financial_source_time_composition import _resolve_contract_matcher
+from apps.data_center.financial_source_time_composition import (
+    _resolve_contract_matcher,
+    verify_retained_financial_source_time_evidence,
+)
 from apps.data_center.infrastructure.financial_source_time_matchers import (
     AkshareNoticeDateSourceTimeMatcher,
     akshare_notice_date_match_contract,
@@ -414,3 +417,15 @@ def test_verifier_accepts_a_witness_recomputed_by_the_real_matcher() -> None:
         source_time_witness=replace(recomputed, row_projection_sha256="f" * 64),
     )
     assert _verifier(tampered).verify(tampered) is False
+
+
+@pytest.mark.django_db
+def test_active_registry_still_fails_closed_without_retained_artifacts() -> None:
+    """Activation unlocks contract lookup, not artifact or audit acceptance."""
+
+    decision = _decision()
+    recomputed = _match(decision=decision)
+    assert recomputed is not None
+    decision = replace(decision, source_time_witness=recomputed)
+
+    assert verify_retained_financial_source_time_evidence(decision) is False

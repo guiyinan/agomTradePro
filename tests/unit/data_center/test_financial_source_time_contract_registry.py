@@ -23,6 +23,9 @@ from apps.data_center.infrastructure.financial_source_time_contract_registry imp
     financial_source_time_contract_set_sha256,
     load_financial_source_time_contract_registry,
 )
+from apps.data_center.infrastructure.financial_source_time_matchers import (
+    akshare_notice_date_match_contract,
+)
 
 _MISSING = object()
 
@@ -128,22 +131,49 @@ def _write_registry(
     return path
 
 
-def test_repository_registry_is_awaiting_owner_approval_and_denies_lookup() -> None:
-    """The committed registry cannot authorize a source-time match."""
+def test_repository_registry_activates_only_the_owner_approved_akshare_contract() -> None:
+    """The committed registry exposes only the approved AKShare date-only contract."""
 
     registry = load_financial_source_time_contract_registry(
         Path("governance/financial_source_time_match_contracts.json")
     )
 
-    assert registry.status == "awaiting_owner_approval"
-    assert registry.contracts == ()
-    assert registry.approval is None
+    expected = akshare_notice_date_match_contract()
+    assert registry.status == "active"
+    assert registry.contracts == (expected,)
+    assert registry.approval is not None
+    assert registry.approval.approved_by == "guiyinan"
+    assert (
+        registry.approval.receipt_sha256
+        == "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69"
+    )
+    assert registry.approval.contract_set_sha256 == financial_source_time_contract_set_sha256(
+        [expected.contract_sha256]
+    )
+    assert (
+        registry.get(
+            provider_name="akshare",
+            contract_id=expected.contract_id,
+            contract_version=expected.contract_version,
+            contract_sha256=expected.contract_sha256,
+        )
+        == expected
+    )
+    assert (
+        registry.get(
+            provider_name="akshare",
+            contract_id=expected.contract_id,
+            contract_version=expected.contract_version,
+            contract_sha256="a" * 64,
+        )
+        is None
+    )
     assert (
         registry.get(
             provider_name="tushare",
-            contract_id="tushare.financial-announcement.exact",
-            contract_version="v1",
-            contract_sha256="a" * 64,
+            contract_id=expected.contract_id,
+            contract_version=expected.contract_version,
+            contract_sha256=expected.contract_sha256,
         )
         is None
     )
@@ -293,8 +323,8 @@ def test_direct_registry_construction_cannot_bypass_approval(tmp_path: Path) -> 
     """The public frozen registry type enforces approval even without JSON loading."""
 
     path = Path("governance/financial_source_time_match_contracts.json")
-    pending = load_financial_source_time_contract_registry(path)
-    assert pending.approval is None
+    committed = load_financial_source_time_contract_registry(path)
+    assert committed.approval is not None
 
     with pytest.raises(FinancialSourceTimeContractRegistryError, match="immutable tuple"):
         FinancialSourceTimeContractRegistry(
