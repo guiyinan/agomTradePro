@@ -47,7 +47,15 @@ agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 #    digest 摘要走 stderr，可直接重定向
 python manage.py export_provider_settings_snapshot > provider-settings.json
 
-# 2. 启动全市场任务前的分钟级只读预检（零数据库写入、零 provider 抓取；
+# 2. 用同一策略快照冻结核心 provider 和全部实际 model-market 路由身份；
+#    provider 数量随路由变化，不得只保留 quote/valuation 两条
+python manage.py export_rehearsal_provider_identities \
+  --quote-provider-id <id> \
+  --valuation-provider-id <id> \
+  --provider-settings-json provider-settings.json \
+  --output provider-identities.json
+
+# 3. 启动全市场任务前的分钟级只读预检（零数据库写入、零 provider 抓取；
 #    任一阻断 exit 1 并输出稳定阻断码清单）
 python manage.py preflight_full_market_publication
 # 用显式快照校验（不读 Config Center），或只跑路由批量能力检查

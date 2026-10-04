@@ -18,6 +18,10 @@ IDENTITY_ERROR_CODES = frozenset(
     }
 )
 
+_CORE_ROLES = frozenset({"quote", "valuation"})
+_ROUTE_ROLE_PREFIX = "model_market_route:"
+_MAX_IDENTITIES = 32
+
 
 @dataclass(frozen=True)
 class RehearsalProviderIdentity:
@@ -31,10 +35,11 @@ class RehearsalProviderIdentity:
 
 
 def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity, ...]:
-    """Accept exactly the two bounded public identities, with no secret extras."""
-    if not isinstance(value, list) or len(value) != 2:
+    """Accept core provider identities plus bounded model-market route identities."""
+    if not isinstance(value, list) or not 2 <= len(value) <= _MAX_IDENTITIES:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     identities: list[RehearsalProviderIdentity] = []
+    roles: set[str] = set()
     keys = {"role", "provider_id", "source", "version", "endpoint_id"}
     for item in cast(list[object], value):
         if not isinstance(item, dict) or set(item) != keys:
@@ -49,11 +54,25 @@ def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity
             if not isinstance(raw, str) or re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", raw) is None:
                 raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
             strings[key] = raw
+        role = strings["role"]
+        if role in roles or (
+            role not in _CORE_ROLES and role != model_market_route_role(provider_id)
+        ):
+            raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        roles.add(role)
         identities.append(RehearsalProviderIdentity(provider_id=provider_id, **strings))
-    if {identity.role for identity in identities} != {"quote", "valuation"}:
+    if not _CORE_ROLES.issubset(roles):
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     # Preserve frozen input order: the release validator hashes this same ordered list.
     return tuple(identities)
+
+
+def model_market_route_role(provider_id: int) -> str:
+    """Return the canonical frozen-identity role for one model-market route."""
+
+    if isinstance(provider_id, bool) or not isinstance(provider_id, int) or provider_id <= 0:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    return f"{_ROUTE_ROLE_PREFIX}{provider_id}"
 
 
 def load_rehearsal_identities(path: Path) -> tuple[RehearsalProviderIdentity, ...]:
@@ -98,7 +117,10 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
     source_type = str(provider.source_type or "").strip().lower()
     if not provider.is_active or source_type not in {"tushare", "akshare"}:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
-    if source_type == "akshare" and role != "valuation":
+    is_route_role = role == model_market_route_role(provider_id)
+    if role not in _CORE_ROLES and not is_route_role:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+    if source_type == "akshare" and role != "valuation" and not is_route_role:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
     extra = provider.extra_config if isinstance(provider.extra_config, Mapping) else {}
     request_mode = (
@@ -155,14 +177,7 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
         ),
         endpoint_id=f"provider-config-{hashlib.sha256(endpoint_material).hexdigest()}",
     )
-    companion = RehearsalProviderIdentity(
-        role="valuation" if role == "quote" else "quote",
-        provider_id=provider_id,
-        source=identity.source,
-        version=identity.version,
-        endpoint_id=identity.endpoint_id,
-    )
-    return parse_rehearsal_identities([asdict(identity), asdict(companion)])[0]
+    return identity
 
 
 def rehearsal_identity_matches_adapter_source(
@@ -174,7 +189,12 @@ def rehearsal_identity_matches_adapter_source(
 
     normalized = str(adapter_source or "").strip().lower()
     return normalized == identity.source or (
-        identity.role == "valuation" and normalized == "akshare" and identity.source == "tencent"
+        (
+            identity.role == "valuation"
+            or identity.role == model_market_route_role(identity.provider_id)
+        )
+        and normalized == "akshare"
+        and identity.source == "tencent"
     )
 
 

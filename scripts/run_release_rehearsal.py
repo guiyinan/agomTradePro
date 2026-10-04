@@ -711,7 +711,10 @@ def _validate_inputs(
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError("S6_PROVIDER_IDENTITY_INVALID") from exc
     by_role = {item.role: item.provider_id for item in identities}
-    if by_role != {"quote": config.quote_provider_id, "valuation": config.valuation_provider_id}:
+    if (
+        by_role.get("quote") != config.quote_provider_id
+        or by_role.get("valuation") != config.valuation_provider_id
+    ):
         raise ValueError("S6_PROVIDER_IDENTITY_MISMATCH")
     provider_digest = rehearsal_identities_digest(identities)
     settings_raw = _read_file(config.provider_settings_json, 65_536)

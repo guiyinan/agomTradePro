@@ -56,6 +56,49 @@ def test_akshare_valuation_identity_binds_actual_tencent_transport(
 
 
 @pytest.mark.django_db
+def test_frozen_identities_include_adaptive_model_market_failover_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary = ProviderConfigModel.objects.create(
+        name="primary-tushare",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+    )
+    failover = ProviderConfigModel.objects.create(
+        name="failover-akshare",
+        source_type="akshare",
+        is_active=True,
+        priority=10,
+    )
+    monkeypatch.setattr(identity.importlib.metadata, "version", lambda name: f"{name}-test")
+    route_role = identity.model_market_route_role(failover.pk)
+    frozen = (
+        identity.configured_rehearsal_identity(provider_id=primary.pk, role="quote"),
+        identity.configured_rehearsal_identity(provider_id=primary.pk, role="valuation"),
+        identity.configured_rehearsal_identity(provider_id=failover.pk, role=route_role),
+    )
+
+    assert identity.parse_rehearsal_identities([item.__dict__ for item in frozen]) == frozen
+    assert frozen[2].source == "tencent"
+    assert identity.rehearsal_identity_matches_adapter_source(frozen[2], adapter_source="akshare")
+    assert identity.verify_configured_rehearsal_identities(frozen) == frozen
+
+
+def test_route_identity_role_must_bind_its_provider_id() -> None:
+    values = [
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity("valuation", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity(
+            "model_market_route:99", 3, "tencent", "v1", "endpoint-v2"
+        ).__dict__,
+    ]
+
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_INVALID"):
+        identity.parse_rehearsal_identities(values)
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("field", "value"),
     [

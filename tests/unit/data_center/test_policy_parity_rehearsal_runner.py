@@ -79,6 +79,7 @@ def _report(
     *,
     route_provider_id: int = 17,
     route_source_type: str = "tushare",
+    route_capabilities: list[dict[str, object]] | None = None,
 ) -> FullMarketPublicationPreflightReport:
     return FullMarketPublicationPreflightReport(
         evaluated_at=NOW,
@@ -96,7 +97,8 @@ def _report(
                         "provider_settings_sha256": _settings_digest(SETTINGS),
                         "preferred_route": "tushare",
                         "probe_asset_count": 2,
-                        "route_capabilities": [
+                        "route_capabilities": route_capabilities
+                        or [
                             {
                                 "route": "tushare",
                                 "source_type": route_source_type,
@@ -139,6 +141,7 @@ def fake_use_case(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
                 captured.get("status", "pass"),
                 route_provider_id=captured.get("route_provider_id", 17),
                 route_source_type=captured.get("route_source_type", "tushare"),
+                route_capabilities=captured.get("route_capabilities"),
             )
         )
 
@@ -149,13 +152,17 @@ def fake_use_case(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 def _collect(tmp_path, settings_path=None, identities_path=None):
     selected_path = settings_path or _write_settings(tmp_path)
     selected_identities_path = identities_path or _write_identities(tmp_path)
+    identities = json.loads(selected_identities_path.read_bytes())
+    provider_digest = hashlib.sha256(
+        json.dumps(identities, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     raw = selected_path.read_bytes()
     payload = json.loads(raw)
     return runner.collect_production_policy_parity(
         candidate_sha=CANDIDATE,
         target_trade_date=TRADE_DATE,
         universe_sha256=UNIVERSE,
-        provider_identities_sha256=PROVIDER_DIGEST,
+        provider_identities_sha256=provider_digest,
         expected_provider_settings_raw_file_sha256=hashlib.sha256(raw).hexdigest(),
         expected_provider_settings_canonical_payload_sha256=_settings_digest(payload),
         provider_identities_path=selected_identities_path,
@@ -309,3 +316,41 @@ def test_route_must_match_frozen_provider_identity(
     with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_MISMATCH"):
         _collect(tmp_path)
     assert not (tmp_path / "output").exists()
+
+
+def test_all_real_policy_routes_can_be_frozen_without_hardcoded_provider_count(
+    tmp_path, fake_use_case
+) -> None:
+    identities = [
+        *PROVIDER_IDENTITIES,
+        {
+            "role": "model_market_route:31",
+            "provider_id": 31,
+            "source": "tencent",
+            "version": "tencent-failover-test",
+            "endpoint_id": "provider-config-failover",
+        },
+    ]
+    identities_path = _write_identities(tmp_path, identities)
+    fake_use_case["route_capabilities"] = [
+        {
+            "route": "Tushare Pro",
+            "source_type": "tushare",
+            "provider_id": 17,
+            "batch_preparation": True,
+            "audited_per_asset_fetch": True,
+            "provider_identity": True,
+        },
+        {
+            "route": "AKShare Public",
+            "source_type": "akshare",
+            "provider_id": 31,
+            "batch_preparation": False,
+            "audited_per_asset_fetch": True,
+            "provider_identity": True,
+        },
+    ]
+
+    payload = _collect(tmp_path, identities_path=identities_path)
+
+    assert payload["provider_identities"] == identities

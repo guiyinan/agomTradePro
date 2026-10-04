@@ -27,6 +27,10 @@ SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
+PROVIDER_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+PROVIDER_CORE_ROLES = frozenset({"quote", "valuation"})
+PROVIDER_ROUTE_ROLE_PREFIX = "model_market_route:"
+MAX_PROVIDER_IDENTITIES = 32
 UUID_PATTERN = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 )
@@ -417,13 +421,19 @@ def _parse_datetime(value: object, code: str) -> datetime:
 
 
 def _validate_provider_identities(value: object) -> str:
-    if not isinstance(value, list) or not value:
+    if not isinstance(value, list) or not 2 <= len(value) <= MAX_PROVIDER_IDENTITIES:
         _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     normalized: list[dict[str, object]] = []
     roles: set[str] = set()
     identities: set[tuple[object, ...]] = set()
     for item in cast(list[object], value):
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or set(item) != {
+            "role",
+            "provider_id",
+            "source",
+            "version",
+            "endpoint_id",
+        }:
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         identity_item = cast(dict[str, object], item)
         role = identity_item.get("role")
@@ -433,17 +443,20 @@ def _validate_provider_identities(value: object) -> str:
         endpoint_id = identity_item.get("endpoint_id")
         if (
             not isinstance(role, str)
-            or not role.strip()
+            or PROVIDER_IDENTITY_TOKEN_PATTERN.fullmatch(role) is None
             or isinstance(provider_id, bool)
             or not isinstance(provider_id, int)
             or provider_id <= 0
             or not isinstance(source, str)
-            or not source.strip()
+            or PROVIDER_IDENTITY_TOKEN_PATTERN.fullmatch(source) is None
             or not isinstance(version, str)
-            or not version.strip()
+            or PROVIDER_IDENTITY_TOKEN_PATTERN.fullmatch(version) is None
             or not isinstance(endpoint_id, str)
-            or not endpoint_id.strip()
+            or PROVIDER_IDENTITY_TOKEN_PATTERN.fullmatch(endpoint_id) is None
         ):
+            _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        expected_route_role = f"{PROVIDER_ROUTE_ROLE_PREFIX}{provider_id}"
+        if role not in PROVIDER_CORE_ROLES and role != expected_route_role:
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         identity = (role, provider_id, source, version, endpoint_id)
         if role in roles or identity in identities:
@@ -459,6 +472,8 @@ def _validate_provider_identities(value: object) -> str:
                 "version": version,
             }
         )
+    if not PROVIDER_CORE_ROLES.issubset(roles):
+        _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
 
@@ -999,7 +1014,8 @@ def _validate_policy_parity(
             and (
                 identity.get("source") == source_type
                 or (
-                    identity.get("role") == "valuation"
+                    identity.get("role")
+                    in {"valuation", f"{PROVIDER_ROUTE_ROLE_PREFIX}{provider_id}"}
                     and identity.get("source") == "tencent"
                     and source_type == "akshare"
                 )
@@ -1041,7 +1057,7 @@ def _validate_real_replay(
         if not isinstance(role, str) or role in provider_identities:
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         provider_identities[role] = identity
-    if set(provider_identities) != {"quote", "valuation"}:
+    if not PROVIDER_CORE_ROLES.issubset(provider_identities):
         _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     expected_contracts = (
         TENCENT_REPLAY_UNIT_CONTRACTS

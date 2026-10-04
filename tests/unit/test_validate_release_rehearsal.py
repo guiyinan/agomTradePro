@@ -1954,3 +1954,43 @@ def test_policy_route_must_match_frozen_provider_identity(
         _validate(manifest, now)
 
     assert mismatch.value.code == expected_code
+
+
+def test_provider_identity_validator_accepts_bounded_failover_routes() -> None:
+    identities = [
+        *PROVIDERS,
+        {
+            "role": "model_market_route:31",
+            "provider_id": 31,
+            "source": "tencent",
+            "version": "requests-test",
+            "endpoint_id": "provider-config-failover",
+        },
+    ]
+
+    digest = validator._validate_provider_identities(identities)
+
+    assert (
+        digest
+        == hashlib.sha256(
+            json.dumps(identities, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+    )
+
+
+def test_provider_identity_validator_rejects_unbound_route_role() -> None:
+    identities = [
+        *PROVIDERS,
+        {
+            "role": "model_market_route:99",
+            "provider_id": 31,
+            "source": "tencent",
+            "version": "requests-test",
+            "endpoint_id": "provider-config-failover",
+        },
+    ]
+
+    with pytest.raises(validator.RehearsalValidationError) as invalid:
+        validator._validate_provider_identities(identities)
+
+    assert invalid.value.code == "REHEARSAL_PROVIDER_IDENTITY_INVALID"

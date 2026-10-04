@@ -186,6 +186,30 @@ class FakeRunner:
     def _create_stage_report(self, command: Command) -> None:
         assert command.artifact_dir is not None
         image_value = command.env.get("AGOM_CANDIDATE_IMAGE_ID", IMAGE_ID)
+        if "--provider-identities-sha256" in command.argv:
+            provider_digest = command.argv[command.argv.index("--provider-identities-sha256") + 1]
+        elif "--provider-identities-json" in command.argv:
+            provider_values = json.loads(
+                Path(command.argv[command.argv.index("--provider-identities-json") + 1]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            provider_digest = rehearsal_identities_digest(
+                parse_rehearsal_identities(provider_values)
+            )
+        else:
+            try:
+                provider_values = json.loads(
+                    self._mounted_path(
+                        command.argv,
+                        target="/run/agom/provider-identities.json",
+                    ).read_text(encoding="utf-8")
+                )
+                provider_digest = rehearsal_identities_digest(
+                    parse_rehearsal_identities(provider_values)
+                )
+            except AssertionError:
+                provider_digest = _provider_digest()
         if command.label == self.wrong_identity_label:
             image_value = f"sha256:{'d' * 64}"
         filenames = {
@@ -208,7 +232,7 @@ class FakeRunner:
             "candidate_sha": CANDIDATE_SHA,
             "target_trade_date": TRADE_DATE,
             "universe_sha256": UNIVERSE_SHA256,
-            "provider_identities_sha256": _provider_digest(),
+            "provider_identities_sha256": provider_digest,
         }
         if command.label == "production_policy_parity":
             payload["provider_identities"] = json.loads(
@@ -383,6 +407,29 @@ def _fake_checkout(tmp_path: Path) -> Path:
     root = tmp_path / "checkout"
     root.mkdir()
     return root
+
+
+def test_rehearsal_accepts_frozen_failover_route_identities(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    identities = [
+        *PROVIDER_IDENTITIES,
+        {
+            "role": "model_market_route:31",
+            "provider_id": 31,
+            "source": "tencent",
+            "version": "requests-test",
+            "endpoint_id": "provider-config-failover",
+        },
+    ]
+    config.provider_identities_path.write_text(json.dumps(identities), encoding="utf-8")
+    digest = rehearsal_identities_digest(parse_rehearsal_identities(identities))
+    unit = json.loads(config.unit_contract_path.read_text(encoding="utf-8"))
+    unit["provider_identities_sha256"] = digest
+    config.unit_contract_path.write_text(json.dumps(unit), encoding="utf-8")
+
+    receipt = run_release_rehearsal(config, runner=FakeRunner())
+
+    assert verify_evidence_handoff_receipt(receipt)["provider_identities_sha256"] == digest
 
 
 @pytest.mark.parametrize(
