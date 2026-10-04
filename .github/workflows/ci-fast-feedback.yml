@@ -5,16 +5,10 @@ on:
     branches:
       - main
       - 'dev/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   push:
     branches:
       - main
       - 'dev/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   workflow_dispatch:
     inputs:
       base_ref:
@@ -23,7 +17,7 @@ on:
         type: string
 
 concurrency:
-  group: ci-fast-feedback-${{ github.workflow }}-${{ github.ref }}
+  group: ci-fast-feedback-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

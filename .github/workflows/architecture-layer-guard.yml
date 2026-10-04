@@ -5,20 +5,14 @@ on:
     branches:
       - main
       - 'dev/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   push:
     branches:
       - main
       - 'dev/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
   workflow_dispatch:
 
 concurrency:
-  group: architecture-layer-guard-${{ github.workflow }}-${{ github.ref }}
+  group: architecture-layer-guard-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

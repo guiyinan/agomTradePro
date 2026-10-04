@@ -152,3 +152,14 @@ def test_fast_feedback_manual_cumulative_scope_requires_a_valid_ancestor_sha() -
     assert '[[ ! "${REQUESTED_BASE}" =~ ^[0-9a-f]{40}$ ]]' in workflow_text
     assert 'git cat-file -e "${REQUESTED_BASE}^{commit}"' in workflow_text
     assert 'git merge-base --is-ancestor "${REQUESTED_BASE}" "${HEAD_REF}"' in workflow_text
+
+
+def test_required_workflows_emit_checks_for_docs_only_changes() -> None:
+    """Required checks must exist even when a candidate changes only documentation."""
+
+    for workflow_name in ("ci-fast-feedback.yml", "architecture-layer-guard.yml"):
+        workflow_text = (REPO_ROOT / ".github" / "workflows" / workflow_name).read_text(
+            encoding="utf-8"
+        )
+        assert "paths-ignore:" not in workflow_text
+        assert "${{ github.event_name }}-${{ github.ref }}" in workflow_text
