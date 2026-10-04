@@ -33,20 +33,27 @@ UUID_PATTERN = re.compile(
 REQUIRED_REPORT_SCHEMAS = {
     "real_response_unit_replay": "release.real-response-unit-replay.v1",
     "full_universe_capacity": "release.full-universe-capacity.v2",
+    "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 REQUIRED_EVIDENCE_MODES = {
     "real_response_unit_replay": "real_provider",
     "full_universe_capacity": "measured_full_universe",
+    "production_policy_parity": "production_policy_snapshot",
     "isolated_write_rehearsal": "isolated_postgresql",
     "candidate_regression_evidence": "candidate_ci",
 }
 IMAGE_BOUND_REPORTS = frozenset(
-    {"real_response_unit_replay", "full_universe_capacity", "isolated_write_rehearsal"}
+    {
+        "real_response_unit_replay",
+        "full_universe_capacity",
+        "production_policy_parity",
+        "isolated_write_rehearsal",
+    }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
-    {"full_universe_capacity", "isolated_write_rehearsal"}
+    {"full_universe_capacity", "production_policy_parity", "isolated_write_rehearsal"}
 )
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
@@ -207,8 +214,12 @@ def _read_json(path: Path, code: str) -> dict[str, Any]:
     return cast(dict[str, Any], payload)
 
 
+def _release_policy() -> dict[str, Any]:
+    return _read_json(RELEASE_POLICY_PATH, "REHEARSAL_CAPACITY_POLICY_INVALID")
+
+
 def _minimum_capacity_margin() -> float:
-    payload = _read_json(RELEASE_POLICY_PATH, "REHEARSAL_CAPACITY_POLICY_INVALID")
+    payload = _release_policy()
     value = payload.get("minimum_capacity_margin_ratio")
     if (
         payload.get("schema") != "release.rehearsal-policy.v1"
@@ -219,6 +230,20 @@ def _minimum_capacity_margin() -> float:
     ):
         _fail("REHEARSAL_CAPACITY_POLICY_INVALID")
     return float(value)
+
+
+def _validate_required_reports_policy() -> None:
+    """Pin the governed required-report set to the validator's hard contract."""
+
+    payload = _release_policy()
+    required = payload.get("required_reports")
+    if (
+        payload.get("schema") != "release.rehearsal-policy.v1"
+        or not isinstance(required, list)
+        or any(not isinstance(item, str) for item in required)
+        or set(cast(list[object], required)) != set(REQUIRED_REPORT_SCHEMAS)
+    ):
+        _fail("REHEARSAL_REQUIRED_REPORTS_POLICY_INVALID")
 
 
 def _sha256(path: Path) -> str:
@@ -875,6 +900,65 @@ def _validate_unit_observations(
                 _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
     if observed_assets != set(expected_sample):
         _fail("REHEARSAL_REPLAY_UNIT_OBSERVATION_INVALID")
+
+
+def _provider_settings_digest(payload: dict[str, Any]) -> str:
+    """Recompute the producer's canonical provider settings digest."""
+
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _validate_policy_parity(report: dict[str, Any], report_dir: Path) -> None:
+    """Bind the production policy snapshot and require a passing route gate."""
+
+    del report_dir
+    settings = report.get("provider_settings")
+    if not isinstance(settings, dict) or any(not isinstance(key, str) for key in settings):
+        _fail("REHEARSAL_POLICY_SETTINGS_INVALID")
+    settings_digest = report.get("provider_settings_sha256")
+    if not isinstance(settings_digest, str) or SHA256_PATTERN.fullmatch(settings_digest) is None:
+        _fail("REHEARSAL_POLICY_SETTINGS_INVALID")
+    if _provider_settings_digest(settings) != settings_digest:
+        _fail("REHEARSAL_POLICY_SETTINGS_MISMATCH")
+    preflight = report.get("preflight")
+    if not isinstance(preflight, dict):
+        _fail("REHEARSAL_POLICY_PARITY_INVALID")
+    if (
+        preflight.get("name") != "provider_policy_and_routes"
+        or preflight.get("status") != "pass"
+        or preflight.get("blocked_codes") not in ([], ())
+    ):
+        _fail("REHEARSAL_POLICY_PARITY_NOT_PASS")
+    evidence = preflight.get("evidence")
+    if not isinstance(evidence, dict):
+        _fail("REHEARSAL_POLICY_PARITY_INVALID")
+    if evidence.get("provider_settings_sha256") != settings_digest:
+        _fail("REHEARSAL_POLICY_SETTINGS_MISMATCH")
+    if not isinstance(evidence.get("preferred_route"), str) or not evidence["preferred_route"]:
+        _fail("REHEARSAL_POLICY_PARITY_INVALID")
+    probe_count = evidence.get("probe_asset_count")
+    if isinstance(probe_count, bool) or not isinstance(probe_count, int) or probe_count <= 0:
+        _fail("REHEARSAL_POLICY_PARITY_INVALID")
+    capabilities = evidence.get("route_capabilities")
+    if not isinstance(capabilities, list) or not capabilities:
+        _fail("REHEARSAL_POLICY_PARITY_INVALID")
+    for capability in cast(list[object], capabilities):
+        if not isinstance(capability, dict):
+            _fail("REHEARSAL_POLICY_PARITY_INVALID")
+        capability_payload = cast(dict[str, Any], capability)
+        if not isinstance(capability_payload.get("route"), str) or any(
+            not isinstance(capability_payload.get(key), bool)
+            for key in ("batch_preparation", "audited_per_asset_fetch", "provider_identity")
+        ):
+            _fail("REHEARSAL_POLICY_PARITY_INVALID")
 
 
 def _validate_real_replay(
@@ -1832,6 +1916,7 @@ def _validate_capacity(
         if report.get(key) is not derived:
             _fail("REHEARSAL_CAPACITY_DERIVATION_MISMATCH")
     derived_margin = min(1.0 - ratio for ratio in ratios.values())
+    _validate_required_reports_policy()
     governed_margin = _minimum_capacity_margin()
     receipt_margin = _require_finite_number(
         receipt,
@@ -2168,6 +2253,10 @@ def validate_release_rehearsal(
         expected_date=expected_target_date,
         expected_universe=expected_universe_sha256,
         expected_provider_digest=expected_provider_identities_sha256,
+    )
+    _validate_policy_parity(
+        loaded_reports["production_policy_parity"],
+        report_paths["production_policy_parity"].parent,
     )
     _validate_regression(
         loaded_reports["candidate_regression_evidence"],

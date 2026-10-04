@@ -89,6 +89,7 @@ STAGES = (
     "provider_probe",
     "response_replay",
     "full_universe_capacity",
+    "production_policy_parity",
     "isolated_postgresql_write",
     "github_ci_evidence",
     "bundle_build",
@@ -314,6 +315,7 @@ class RehearsalConfig:
     target_trade_date: str
     universe_sha256: str
     provider_identities_path: Path
+    provider_settings_json: Path
     unit_contract_path: Path
     quote_provider_id: int
     valuation_provider_id: int
@@ -595,6 +597,13 @@ def _validate_inputs(
     if by_role != {"quote": config.quote_provider_id, "valuation": config.valuation_provider_id}:
         raise ValueError("S6_PROVIDER_IDENTITY_MISMATCH")
     provider_digest = rehearsal_identities_digest(identities)
+    settings_raw = _read_file(config.provider_settings_json, 65_536)
+    try:
+        settings_payload = _object(json.loads(settings_raw), "S6_PROVIDER_SETTINGS_INVALID")
+        if any(key != str(key).strip() for key in settings_payload):
+            raise ValueError("S6_PROVIDER_SETTINGS_INVALID")
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("S6_PROVIDER_SETTINGS_INVALID") from exc
     unit_raw = _read_file(config.unit_contract_path, 64_000)
     try:
         unit = _object(json.loads(unit_raw), "S6_UNIT_CONTRACT_INVALID")
@@ -948,6 +957,22 @@ def _stage_specs(
         "--output-dir",
         "/run/agom/stage/output",
     )
+    parity = (
+        "python",
+        "manage.py",
+        "rehearse_production_policy_parity",
+        *common,
+        "--target-trade-date",
+        identity.target_trade_date,
+        "--universe-sha256",
+        identity.universe_sha256,
+        "--provider-identities-sha256",
+        identity.provider_identities_sha256,
+        "--provider-settings-json",
+        "/run/agom/provider-settings.json",
+        "--output-dir",
+        "/run/agom/stage/output",
+    )
     isolated = (
         "python",
         "manage.py",
@@ -990,6 +1015,13 @@ def _stage_specs(
             "output/full-universe-capacity.json",
             capacity,
             (config.provider_env_file, config.isolated_postgres_env_file),
+        ),
+        StageSpec(
+            "production_policy_parity",
+            "output/production-policy-parity.json",
+            parity,
+            (config.provider_env_file, config.isolated_postgres_env_file),
+            mounts=((config.provider_settings_json, "/run/agom/provider-settings.json", True),),
         ),
         StageSpec(
             "isolated_postgresql_write",
@@ -1255,7 +1287,7 @@ def _run_parallel_container_group(
     failure with its original stage and error code.
     """
     outcomes: dict[str, Exception | None] = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=min(4, len(specs))) as pool:
         futures = {
             pool.submit(
                 _run_parallel_stage_member,
@@ -1374,12 +1406,13 @@ def _run_release_rehearsal(
         checkpoint.complete("docker_identity", (run_dir / "inputs",))
         container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
         unit_path = run_dir / "inputs" / "provider-unit-contract.json"
-        provider_dir, replay_dir, capacity_dir, isolated_dir, ci_dir = (
+        provider_dir, replay_dir, capacity_dir, parity_dir, isolated_dir, ci_dir = (
             run_dir / name
             for name in (
                 "provider-probe",
                 "response-replay",
                 "full-universe-capacity",
+                "production-policy-parity",
                 "isolated-postgresql",
                 "github-ci-evidence",
             )
@@ -1436,7 +1469,7 @@ def _run_release_rehearsal(
 
         specs = _stage_specs(config, identity, path_values)
         parallel_specs = specs[1:]
-        parallel_folders = (replay_dir, capacity_dir, isolated_dir)
+        parallel_folders = (replay_dir, capacity_dir, parity_dir, isolated_dir)
         pending = [spec.name for spec in parallel_specs if not checkpoint.done(spec.name)]
         stage = pending[0] if pending else parallel_specs[0].name
         _status(status_path, "running", completed, stage, None)
@@ -1519,6 +1552,8 @@ def _run_release_rehearsal(
             str(replay_dir / "output" / "real-response-unit-replay.json"),
             "--full-universe-capacity",
             str(capacity_dir / "output" / "full-universe-capacity.json"),
+            "--production-policy-parity",
+            str(parity_dir / "output" / "production-policy-parity.json"),
             "--isolated-write-rehearsal",
             str(isolated_dir / "output" / "isolated-write-rehearsal.json"),
             "--candidate-regression-evidence",
@@ -1684,6 +1719,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--target-trade-date", required=True)
     parser.add_argument("--universe-sha256", required=True)
     parser.add_argument("--provider-identities", type=Path, required=True)
+    parser.add_argument("--provider-settings-json", type=Path, required=True)
     parser.add_argument("--unit-contract", type=Path, required=True)
     parser.add_argument("--quote-provider-id", type=int, required=True)
     parser.add_argument("--valuation-provider-id", type=int, required=True)
@@ -1719,6 +1755,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         target_trade_date=args.target_trade_date,
         universe_sha256=args.universe_sha256,
         provider_identities_path=args.provider_identities.resolve(),
+        provider_settings_json=args.provider_settings_json.resolve(),
         unit_contract_path=args.unit_contract.resolve(),
         quote_provider_id=args.quote_provider_id,
         valuation_provider_id=args.valuation_provider_id,

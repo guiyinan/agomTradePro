@@ -1,4 +1,11 @@
 {
   "schema": "release.rehearsal-policy.v1",
-  "minimum_capacity_margin_ratio": 0.15
+  "minimum_capacity_margin_ratio": 0.15,
+  "required_reports": [
+    "real_response_unit_replay",
+    "full_universe_capacity",
+    "production_policy_parity",
+    "isolated_write_rehearsal",
+    "candidate_regression_evidence"
+  ]
 }

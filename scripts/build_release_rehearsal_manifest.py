@@ -15,6 +15,7 @@ from typing import cast
 REQUIRED_SCHEMAS = {
     "real_response_unit_replay": "release.real-response-unit-replay.v1",
     "full_universe_capacity": "release.full-universe-capacity.v2",
+    "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
@@ -206,6 +207,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--real-response-unit-replay", required=True, type=Path)
     parser.add_argument("--full-universe-capacity", required=True, type=Path)
+    parser.add_argument("--production-policy-parity", required=True, type=Path)
     parser.add_argument("--isolated-write-rehearsal", required=True, type=Path)
     parser.add_argument("--candidate-regression-evidence", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)

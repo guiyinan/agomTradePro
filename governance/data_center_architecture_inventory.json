@@ -12286,7 +12286,7 @@
       "text": "provider I/O, the current-market publication bundle is only composed (never"
     },
     {
-      "line": 110,
+      "line": 124,
       "path": "apps/data_center/full_market_publication_preflight_composition.py",
       "text": "\"\"\"Compose the production current-market bundle without staging anything.\"\"\""
     },
@@ -14196,7 +14196,7 @@
       "text": "self.stdout.write(self.style.SUCCESS(summary))"
     },
     {
-      "line": 20,
+      "line": 21,
       "path": "apps/data_center/management/commands/preflight_full_market_publication.py",
       "text": "\"routes, current publication gates, Account authority capture, Task \""
     },

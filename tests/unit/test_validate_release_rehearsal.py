@@ -724,6 +724,43 @@ def _build_evidence(
             ],
         }
     )
+    policy_settings = {
+        "status": "active",
+        "default_source": "tushare",
+        "enable_failover": True,
+        "failover_tolerance": 0.01,
+    }
+    settings_digest = validator._provider_settings_digest(policy_settings)
+    parity = _common("production_policy_parity", now)
+    parity.pop("provider_identities")
+    parity.update(
+        {
+            "provider_settings": policy_settings,
+            "provider_settings_sha256": settings_digest,
+            "preflight": {
+                "name": "provider_policy_and_routes",
+                "status": "pass",
+                "blocked_codes": [],
+                "detail": "",
+                "evidence": {
+                    "default_source": "tushare",
+                    "enable_failover": True,
+                    "failover_tolerance": 0.01,
+                    "provider_settings_sha256": settings_digest,
+                    "preferred_route": "tushare",
+                    "probe_asset_count": 2,
+                    "route_capabilities": [
+                        {
+                            "route": "tushare",
+                            "batch_preparation": True,
+                            "audited_per_asset_fetch": False,
+                            "provider_identity": True,
+                        }
+                    ],
+                },
+            },
+        }
+    )
     junit_artifacts: list[dict[str, str]] = []
     OFFICIAL_JUNIT_FILES.clear()
     for filename, selected_tests in (
@@ -772,6 +809,7 @@ def _build_evidence(
     for kind, payload in (
         ("real_response_unit_replay", replay),
         ("full_universe_capacity", capacity),
+        ("production_policy_parity", parity),
         ("isolated_write_rehearsal", staging),
         ("candidate_regression_evidence", regression),
     ):
@@ -888,7 +926,7 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 4
+    assert len(result["validated_reports"]) == 5
 
 
 def test_validator_recomputes_candidate_universe_digest_from_target_partition(
@@ -1192,6 +1230,29 @@ def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) ->
             "full_universe_capacity",
             {"capacity_margin_ratio": 0.000001},
             "REHEARSAL_CAPACITY_MARGIN_MISMATCH",
+        ),
+        (
+            "production_policy_parity",
+            {"provider_settings": None},
+            "REHEARSAL_POLICY_SETTINGS_INVALID",
+        ),
+        (
+            "production_policy_parity",
+            {"provider_settings_sha256": "0" * 64},
+            "REHEARSAL_POLICY_SETTINGS_MISMATCH",
+        ),
+        (
+            "production_policy_parity",
+            {
+                "preflight": {
+                    "name": "provider_policy_and_routes",
+                    "status": "blocked",
+                    "blocked_codes": ["MODEL_MARKET_BULK_PREPARATION_REQUIRED"],
+                    "detail": "x",
+                    "evidence": {},
+                }
+            },
+            "REHEARSAL_POLICY_PARITY_NOT_PASS",
         ),
         ("isolated_write_rehearsal", {"residual_rows": 1}, "REHEARSAL_ROLLBACK_RESIDUAL"),
         (
