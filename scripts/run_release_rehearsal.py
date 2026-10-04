@@ -1468,30 +1468,56 @@ def _run_release_rehearsal(
             completed.append(stage)
 
         specs = _stage_specs(config, identity, path_values)
-        parallel_specs = specs[1:]
-        parallel_folders = (replay_dir, capacity_dir, parity_dir, isolated_dir)
-        pending = [spec.name for spec in parallel_specs if not checkpoint.done(spec.name)]
-        stage = pending[0] if pending else parallel_specs[0].name
+        evidence_specs = specs[1:]
+        evidence_folders = (replay_dir, capacity_dir, parity_dir, isolated_dir)
+        pending = [spec.name for spec in evidence_specs if not checkpoint.done(spec.name)]
+        stage = pending[0] if pending else evidence_specs[0].name
         _status(status_path, "running", completed, stage, None)
         _assert_candidate(active, config.root, candidate)
         if _preflight_isolated_database_container(config, active) != isolated_database_container_id:
             raise RehearsalBlocked(
                 "isolated_postgresql_write", "S6_ISOLATED_DATABASE_CONTAINER_CHANGED"
             )
+        stage_pairs = tuple(zip(evidence_specs, evidence_folders, strict=True))
+        capacity_spec, capacity_folder = next(
+            pair for pair in stage_pairs if pair[0].name == "full_universe_capacity"
+        )
+        try:
+            _run_parallel_stage_member(
+                active,
+                config=config,
+                identity=identity,
+                spec=capacity_spec,
+                folder=capacity_folder,
+                identity_path=identity_path,
+                manifest_path=manifest_path,
+                provider_path=provider_path,
+                container_gid=container_gid,
+                checkpoint=checkpoint,
+            )
+        except Exception as exc:
+            capacity_failure: Exception | None = exc
+        else:
+            capacity_failure = None
+
+        concurrent_pairs = tuple(
+            pair for pair in stage_pairs if pair[0].name != "full_universe_capacity"
+        )
         outcomes = _run_parallel_container_group(
             active,
             config=config,
             identity=identity,
-            specs=parallel_specs,
-            folders=parallel_folders,
+            specs=tuple(pair[0] for pair in concurrent_pairs),
+            folders=tuple(pair[1] for pair in concurrent_pairs),
             identity_path=identity_path,
             manifest_path=manifest_path,
             provider_path=provider_path,
             container_gid=container_gid,
             checkpoint=checkpoint,
         )
+        outcomes[capacity_spec.name] = capacity_failure
         _assert_candidate(active, config.root, candidate)
-        for spec, folder in zip(parallel_specs, parallel_folders, strict=True):
+        for spec, folder in stage_pairs:
             stage = spec.name
             failure = outcomes[spec.name]
             if failure is not None:

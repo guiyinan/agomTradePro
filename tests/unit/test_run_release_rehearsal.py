@@ -721,10 +721,10 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     ]
     observed_stages = [label for label in runner.labels if label in expected_stages]
     assert observed_stages[0] == "provider_probe"
-    # The parallel group members run concurrently, so only their set is stable.
-    assert set(observed_stages[1:5]) == {
+    assert observed_stages[1] == "full_universe_capacity"
+    # The remaining group members run concurrently after capacity measurement.
+    assert set(observed_stages[2:5]) == {
         "response_replay",
-        "full_universe_capacity",
         "production_policy_parity",
         "isolated_postgresql_write",
     }
@@ -784,18 +784,28 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         assert chmod_calls[directory] == [writable_mode, 0o750]
 
 
-def test_parallel_group_members_run_concurrently(tmp_path: Path) -> None:
-    """The four independent stages must overlap; a serial run breaks the barrier."""
-    barrier = threading.Barrier(4)
+def test_capacity_measurement_isolated_before_remaining_parallel_group(tmp_path: Path) -> None:
+    """Capacity runs alone while the three compatible stages still overlap."""
+    barrier = threading.Barrier(3)
+    capacity_started = threading.Event()
+    capacity_finished = threading.Event()
+    capacity_overlap = threading.Event()
 
     class BarrierRunner(FakeRunner):
         def run(self, command: Command) -> CommandResult:
+            if command.label == "full_universe_capacity":
+                capacity_started.set()
+                capacity_finished.wait(timeout=0.2)
+                result = super().run(command)
+                capacity_finished.set()
+                return result
             if command.label in {
                 "response_replay",
-                "full_universe_capacity",
                 "production_policy_parity",
                 "isolated_postgresql_write",
             }:
+                if capacity_started.is_set() and not capacity_finished.is_set():
+                    capacity_overlap.set()
                 barrier.wait(timeout=30)
             return super().run(command)
 
@@ -805,6 +815,9 @@ def test_parallel_group_members_run_concurrently(tmp_path: Path) -> None:
     receipt_path = run_release_rehearsal(config, runner=runner)
 
     assert verify_evidence_handoff_receipt(receipt_path)["candidate_sha"] == CANDIDATE_SHA
+    assert capacity_started.is_set()
+    assert capacity_finished.is_set()
+    assert not capacity_overlap.is_set()
 
 
 def test_parallel_group_failure_records_only_completed_prefix(tmp_path: Path) -> None:
