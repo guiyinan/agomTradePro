@@ -344,6 +344,22 @@ class Identity:
     target_trade_date: str
     universe_sha256: str
     provider_identities_sha256: str
+    provider_settings_raw_file_sha256: str
+    provider_settings_canonical_payload_sha256: str
+
+
+@dataclass(frozen=True)
+class RehearsalInputs:
+    """Validated input bytes and identities captured once at rehearsal startup."""
+
+    target_date: date
+    provider_identities: tuple[RehearsalProviderIdentity, ...]
+    provider_identities_sha256: str
+    provider_identities_raw: bytes
+    provider_settings_raw: bytes
+    provider_settings_raw_file_sha256: str
+    provider_settings_canonical_payload_sha256: str
+    unit_contract_raw: bytes
 
 
 @dataclass(frozen=True)
@@ -394,6 +410,44 @@ def _write_json(path: Path, payload: Mapping[str, object], *, read_only: bool = 
         os.fsync(stream.fileno())
     if read_only:
         path.chmod(0o444)
+
+
+def _canonical_provider_settings_digest(payload: Mapping[str, object]) -> str:
+    """Hash the canonical JSON form of a provider settings payload."""
+    canonical = json.dumps(
+        dict(payload),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _freeze_provider_settings_snapshot(run_dir: Path, inputs: RehearsalInputs) -> Path:
+    """Create or verify the read-only settings copy captured at startup."""
+    input_dir = run_dir / "inputs"
+    if input_dir.is_symlink():
+        raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_INVALID")
+    input_dir.mkdir(exist_ok=True)
+    path = input_dir / "provider-settings.json"
+    if path.is_symlink():
+        raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_INVALID")
+    if path.exists():
+        if not path.is_file() or path.read_bytes() != inputs.provider_settings_raw:
+            raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_MISMATCH")
+    else:
+        with path.open("xb") as stream:
+            stream.write(inputs.provider_settings_raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+    if hashlib.sha256(_read_file(path, 65_536)).hexdigest() != (
+        inputs.provider_settings_raw_file_sha256
+    ):
+        raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_MISMATCH")
+    path.chmod(0o444)
+    return path
 
 
 def _invoke(
@@ -547,7 +601,7 @@ def _assert_candidate(runner: CommandRunner, root: Path, expected: str) -> None:
 
 def _validate_inputs(
     config: RehearsalConfig,
-) -> tuple[date, tuple[RehearsalProviderIdentity, ...], str, bytes, bytes]:
+) -> RehearsalInputs:
     """Validate dates, budgets, provider IDs and all input file identities."""
     root = config.root.resolve()
     output = config.output_dir.resolve()
@@ -602,6 +656,7 @@ def _validate_inputs(
         settings_payload = _object(json.loads(settings_raw), "S6_PROVIDER_SETTINGS_INVALID")
         if any(key != str(key).strip() for key in settings_payload):
             raise ValueError("S6_PROVIDER_SETTINGS_INVALID")
+        settings_canonical_digest = _canonical_provider_settings_digest(settings_payload)
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError("S6_PROVIDER_SETTINGS_INVALID") from exc
     unit_raw = _read_file(config.unit_contract_path, 64_000)
@@ -614,7 +669,16 @@ def _validate_inputs(
         or unit.get("provider_identities_sha256") != provider_digest
     ):
         raise ValueError("S6_UNIT_CONTRACT_INVALID")
-    return target_date, identities, provider_digest, provider_raw, unit_raw
+    return RehearsalInputs(
+        target_date=target_date,
+        provider_identities=identities,
+        provider_identities_sha256=provider_digest,
+        provider_identities_raw=provider_raw,
+        provider_settings_raw=settings_raw,
+        provider_settings_raw_file_sha256=hashlib.sha256(settings_raw).hexdigest(),
+        provider_settings_canonical_payload_sha256=settings_canonical_digest,
+        unit_contract_raw=unit_raw,
+    )
 
 
 def _build_image(
@@ -738,6 +802,8 @@ def _write_identity(
     provider_digest: str,
     identities: tuple[RehearsalProviderIdentity, ...],
     provider_raw: bytes,
+    provider_settings_raw_file_sha256: str,
+    provider_settings_canonical_payload_sha256: str,
     unit_raw: bytes,
     *,
     reuse: bool = False,
@@ -752,6 +818,8 @@ def _write_identity(
         target_date.isoformat(),
         universe_sha,
         provider_digest,
+        provider_settings_raw_file_sha256,
+        provider_settings_canonical_payload_sha256,
     )
     input_dir = run_dir / "inputs"
     if reuse:
@@ -761,7 +829,7 @@ def _write_identity(
             input_dir / "candidate-release-manifest.json",
             input_dir / "provider-identities.json",
         )
-    input_dir.mkdir()
+    input_dir.mkdir(exist_ok=True)
     identity_path = input_dir / "candidate-identity.json"
     manifest_path = input_dir / "candidate-release-manifest.json"
     provider_path = input_dir / "provider-identities.json"
@@ -785,6 +853,10 @@ def _write_identity(
             "target_trade_date": identity.target_trade_date,
             "universe_sha256": identity.universe_sha256,
             "provider_identities_sha256": identity.provider_identities_sha256,
+            "provider_settings_raw_file_sha256": identity.provider_settings_raw_file_sha256,
+            "provider_settings_canonical_payload_sha256": (
+                identity.provider_settings_canonical_payload_sha256
+            ),
             "build_started_at": build_report.get("build_started_at"),
             "build_finished_at": build_report.get("build_finished_at"),
             "source_mode": build_report.get("source_mode"),
@@ -879,6 +951,15 @@ def _report(path: Path, identity: Identity, *, image_bound: bool) -> dict[str, o
         or value.get("universe_sha256") != identity.universe_sha256
         or provider_digest != identity.provider_identities_sha256
         or (image_bound and value.get("candidate_image_id") != identity.candidate_image_id)
+        or (
+            value.get("kind") == "production_policy_parity"
+            and (
+                value.get("provider_settings_raw_file_sha256")
+                != identity.provider_settings_raw_file_sha256
+                or value.get("provider_settings_canonical_payload_sha256")
+                != identity.provider_settings_canonical_payload_sha256
+            )
+        )
     ):
         raise RehearsalBlocked(path.parent.name, "S6_STAGE_IDENTITY_MISMATCH")
     return value
@@ -968,6 +1049,10 @@ def _stage_specs(
         identity.universe_sha256,
         "--provider-identities-sha256",
         identity.provider_identities_sha256,
+        "--expected-provider-settings-raw-file-sha256",
+        identity.provider_settings_raw_file_sha256,
+        "--expected-provider-settings-canonical-payload-sha256",
+        identity.provider_settings_canonical_payload_sha256,
         "--provider-settings-json",
         "/run/agom/provider-settings.json",
         "--output-dir",
@@ -1021,7 +1106,13 @@ def _stage_specs(
             "output/production-policy-parity.json",
             parity,
             (config.provider_env_file, config.isolated_postgres_env_file),
-            mounts=((config.provider_settings_json, "/run/agom/provider-settings.json", True),),
+            mounts=(
+                (
+                    cast(Path, paths["provider_settings_path"]),
+                    "/run/agom/provider-settings.json",
+                    True,
+                ),
+            ),
         ),
         StageSpec(
             "isolated_postgresql_write",
@@ -1082,18 +1173,26 @@ def _status(
     atomic_json(path, _write)
 
 
-def _checkpoint_binding(config: RehearsalConfig, candidate: str) -> dict[str, object]:
+def _checkpoint_binding(
+    config: RehearsalConfig, candidate: str, inputs: RehearsalInputs
+) -> dict[str, object]:
     """Bind all semantic inputs without storing environment secrets in the journal."""
     values: dict[str, object] = {"candidate_sha": candidate}
     for key, value in asdict(config).items():
         if key in {"resume", "password_file", "build_timeout_seconds"}:
             continue
         if isinstance(value, Path):
-            values[key] = (
-                str(value.resolve()) if key in {"root", "output_dir"} else file_digest(value)
-            )
+            if key in {"root", "output_dir"}:
+                values[key] = str(value.resolve())
+            elif key == "provider_settings_json":
+                values[key] = inputs.provider_settings_raw_file_sha256
+            else:
+                values[key] = file_digest(value)
         else:
             values[key] = value
+    values["provider_settings_canonical_payload_sha256"] = (
+        inputs.provider_settings_canonical_payload_sha256
+    )
     return values
 
 
@@ -1317,7 +1416,7 @@ def _run_parallel_container_group(
 def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | None = None) -> Path:
     """Run or resume a locked same-candidate rehearsal without weakening final validation."""
     try:
-        _validate_inputs(config)
+        inputs = _validate_inputs(config)
         if config.output_dir.is_symlink():
             raise ValueError("S6_CHECKPOINT_INVALID")
         if config.output_dir.exists() and not config.resume:
@@ -1330,13 +1429,14 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
         with run_lock(config.output_dir):
             checkpoint = Checkpoint(
                 config.output_dir.resolve(),
-                _checkpoint_binding(config, candidate),
+                _checkpoint_binding(config, candidate, inputs),
                 resume=config.resume,
                 max_age_hours=config.max_age_hours,
                 stage_order=("build_artifacts", "build_only", "docker_identity", *STAGES[:-1]),
             )
             if (config.output_dir / "s6-handoff-receipt.json").exists():
                 raise RehearsalBlocked("handoff", "S6_RUN_ALREADY_COMPLETE")
+            _freeze_provider_settings_snapshot(config.output_dir.resolve(), inputs)
             try:
                 _status(
                     config.output_dir / "run-status.json",
@@ -1355,7 +1455,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     exc.code,
                 )
                 raise
-            return _run_release_rehearsal(config, checkpoint, runner=active)
+            return _run_release_rehearsal(config, checkpoint, inputs, runner=active)
     except ValueError as exc:
         code = str(exc)
         if not re.fullmatch(r"S6_(?:CHECKPOINT|RUN)_[A-Z_]+", code):
@@ -1366,7 +1466,11 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
 
 
 def _run_release_rehearsal(
-    config: RehearsalConfig, checkpoint: _Checkpoint, *, runner: CommandRunner
+    config: RehearsalConfig,
+    checkpoint: _Checkpoint,
+    inputs: RehearsalInputs,
+    *,
+    runner: CommandRunner,
 ) -> Path:
     """Execute S6 in fixed order and emit a non-authorizing evidence handoff receipt."""
     active = runner or SubprocessRunner()
@@ -1375,7 +1479,11 @@ def _run_release_rehearsal(
     run_dir: Path | None = None
     status_path: Path | None = None
     try:
-        target_date, identities, provider_digest, provider_raw, unit_raw = _validate_inputs(config)
+        target_date = inputs.target_date
+        identities = inputs.provider_identities
+        provider_digest = inputs.provider_identities_sha256
+        provider_raw = inputs.provider_identities_raw
+        unit_raw = inputs.unit_contract_raw
         candidate = _candidate_sha(active, config.root)
         unit = _object(json.loads(unit_raw), "S6_UNIT_CONTRACT_INVALID")
         if unit.get("candidate_sha") != candidate:
@@ -1391,6 +1499,7 @@ def _run_release_rehearsal(
         completed.append(stage)
         stage = "docker_identity"
         checkpoint.prepare("docker_identity", (run_dir / "inputs",), resume=config.resume)
+        _freeze_provider_settings_snapshot(run_dir, inputs)
         identity, identity_path, manifest_path, provider_path = _write_identity(
             run_dir,
             build_report,
@@ -1400,6 +1509,8 @@ def _run_release_rehearsal(
             provider_digest,
             identities,
             provider_raw,
+            inputs.provider_settings_raw_file_sha256,
+            inputs.provider_settings_canonical_payload_sha256,
             unit_raw,
             reuse=checkpoint.done("docker_identity"),
         )
@@ -1426,6 +1537,7 @@ def _run_release_rehearsal(
         path_values: dict[str, Path] = {
             "provider_dir": provider_dir,
             "unit_path": unit_path,
+            "provider_settings_path": run_dir / "inputs" / "provider-settings.json",
             "probe_sha": Path(hashlib.sha256(b"").hexdigest()),
             "unit_sha": Path(hashlib.sha256(unit_raw).hexdigest()),
         }
@@ -1594,6 +1706,10 @@ def _run_release_rehearsal(
             identity.universe_sha256,
             "--provider-identities-sha256",
             provider_digest,
+            "--provider-settings-raw-file-sha256",
+            identity.provider_settings_raw_file_sha256,
+            "--provider-settings-canonical-payload-sha256",
+            identity.provider_settings_canonical_payload_sha256,
             "--candidate-image-id",
             identity.candidate_image_id,
         )
@@ -1619,6 +1735,14 @@ def _run_release_rehearsal(
             ("target_trade_date", target_date.isoformat()),
             ("universe_sha256", identity.universe_sha256),
             ("provider_identities_sha256", provider_digest),
+            (
+                "provider_settings_raw_file_sha256",
+                identity.provider_settings_raw_file_sha256,
+            ),
+            (
+                "provider_settings_canonical_payload_sha256",
+                identity.provider_settings_canonical_payload_sha256,
+            ),
         ):
             if manifest_payload.get(key) != expected:
                 raise RehearsalBlocked(stage, "S6_MANIFEST_IDENTITY_MISMATCH")
@@ -1643,6 +1767,10 @@ def _run_release_rehearsal(
             identity.universe_sha256,
             "--expected-provider-identities-sha256",
             provider_digest,
+            "--expected-provider-settings-raw-file-sha256",
+            identity.provider_settings_raw_file_sha256,
+            "--expected-provider-settings-canonical-payload-sha256",
+            identity.provider_settings_canonical_payload_sha256,
             "--expected-candidate-image-id",
             identity.candidate_image_id,
             "--expected-github-repository",
@@ -1716,6 +1844,18 @@ def verify_evidence_handoff_receipt(receipt_path: Path) -> dict[str, object]:
             and receipt.get("bundle_tree_sha256") == bundle_tree_digest(bundle)
             and receipt.get("manifest_sha256") == hashlib.sha256(_read_file(manifest)).hexdigest()
         )
+        manifest_payload = _object(json.loads(_read_file(manifest)), "S6_MANIFEST_INVALID")
+        for key in (
+            "provider_settings_raw_file_sha256",
+            "provider_settings_canonical_payload_sha256",
+        ):
+            digest = receipt.get(key)
+            if (
+                not isinstance(digest, str)
+                or SHA.fullmatch(digest) is None
+                or manifest_payload.get(key) != digest
+            ):
+                valid = False
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
         raise RehearsalBlocked("handoff", "S6_RECEIPT_INVALID") from exc
     if not valid:

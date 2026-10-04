@@ -13,6 +13,21 @@ DATE = "2026-09-24"
 UNIVERSE = "a" * 64
 PROVIDERS = "b" * 64
 IMAGE_ID = "sha256:" + "d" * 64
+POLICY_SETTINGS = {"status": "active", "default_source": "tushare"}
+POLICY_SETTINGS_RAW = (
+    json.dumps(POLICY_SETTINGS, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+).encode("utf-8")
+POLICY_SETTINGS_RAW_SHA256 = hashlib.sha256(POLICY_SETTINGS_RAW).hexdigest()
+POLICY_SETTINGS_CANONICAL_SHA256 = hashlib.sha256(
+    json.dumps(
+        POLICY_SETTINGS,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    ).encode("utf-8")
+).hexdigest()
 
 
 def _write(path: Path, value: object) -> str:
@@ -29,20 +44,28 @@ def _reports(tmp_path: Path) -> dict[str, Path]:
         receipt = root / "receipt.json"
         receipt_digest = _write(receipt, {"kind": kind, "evidence": "fixture"})
         report = root / "report.json"
-        _write(
-            report,
-            {
-                "schema": schema,
-                "kind": kind,
-                "outcome": "success",
-                "candidate_sha": CANDIDATE,
-                "candidate_image_id": IMAGE_ID,
-                "target_trade_date": DATE,
-                "universe_sha256": UNIVERSE,
-                "provider_identities_sha256": PROVIDERS,
-                "artifact": {"path": receipt.name, "sha256": receipt_digest},
-            },
-        )
+        report_payload: dict[str, object] = {
+            "schema": schema,
+            "kind": kind,
+            "outcome": "success",
+            "candidate_sha": CANDIDATE,
+            "candidate_image_id": IMAGE_ID,
+            "target_trade_date": DATE,
+            "universe_sha256": UNIVERSE,
+            "provider_identities_sha256": PROVIDERS,
+            "artifact": {"path": receipt.name, "sha256": receipt_digest},
+        }
+        if kind == "production_policy_parity":
+            report_payload.update(
+                {
+                    "provider_settings": POLICY_SETTINGS,
+                    "provider_settings_raw_file_sha256": POLICY_SETTINGS_RAW_SHA256,
+                    "provider_settings_canonical_payload_sha256": (
+                        POLICY_SETTINGS_CANONICAL_SHA256
+                    ),
+                }
+            )
+        _write(report, report_payload)
         reports[kind] = report
     return reports
 
@@ -56,10 +79,16 @@ def test_builder_copies_hash_linked_graph_and_refuses_overwrite(tmp_path: Path) 
         target_trade_date=DATE,
         universe_sha256=UNIVERSE,
         provider_identities_sha256=PROVIDERS,
+        provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+        provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
         candidate_image_id=IMAGE_ID,
     )
-
     manifest = json.loads(path.read_text(encoding="utf-8"))
+    assert manifest["provider_settings_raw_file_sha256"] == POLICY_SETTINGS_RAW_SHA256
+    assert (
+        manifest["provider_settings_canonical_payload_sha256"] == POLICY_SETTINGS_CANONICAL_SHA256
+    )
+
     assert [item["kind"] for item in manifest["reports"]] == list(REQUIRED_SCHEMAS)
     assert all((output / kind / "receipt.json").is_file() for kind in REQUIRED_SCHEMAS)
     with pytest.raises(ValueError, match="OUTPUT_EXISTS"):
@@ -70,6 +99,8 @@ def test_builder_copies_hash_linked_graph_and_refuses_overwrite(tmp_path: Path) 
             target_trade_date=DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
         )
 
@@ -88,6 +119,8 @@ def test_builder_rejects_tampered_child_and_removes_partial_bundle(tmp_path: Pat
             target_trade_date=DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
         )
 
@@ -109,6 +142,8 @@ def test_builder_rejects_runtime_report_from_another_image(tmp_path: Path) -> No
             target_trade_date=DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
         )
 
@@ -130,6 +165,8 @@ def test_builder_rejects_parent_traversal_and_symlink_artifacts(tmp_path: Path) 
             target_trade_date=DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
         )
 
@@ -148,5 +185,7 @@ def test_builder_rejects_parent_traversal_and_symlink_artifacts(tmp_path: Path) 
             target_trade_date=DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
         )

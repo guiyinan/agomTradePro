@@ -40,14 +40,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: object, **options: Any) -> None:
-        """Export the snapshot and report its sha256 digest."""
+        """Export the snapshot and report raw and canonical sha256 digests."""
 
         del args
         payload = load_provider_settings_payload()
         raw = (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
             "utf-8"
         )
-        digest = hashlib.sha256(raw).hexdigest()
+        raw_digest = hashlib.sha256(raw).hexdigest()
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+            default=str,
+        ).encode("utf-8")
+        canonical_digest = hashlib.sha256(canonical).hexdigest()
         output = options.get("output")
         if output is not None:
             path = Path(output)
@@ -64,7 +73,8 @@ class Command(BaseCommand):
             json.dumps(
                 {
                     "outcome": "exported",
-                    "provider_settings_sha256": digest,
+                    "provider_settings_raw_file_sha256": raw_digest,
+                    "provider_settings_canonical_payload_sha256": canonical_digest,
                     "status": payload.get("status"),
                     **({"output": str(output)} if output is not None else {}),
                 },

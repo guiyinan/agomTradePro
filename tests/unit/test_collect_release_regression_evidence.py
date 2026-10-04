@@ -53,6 +53,18 @@ IDENTITIES = [
 PROVIDER_DIGEST = hashlib.sha256(
     json.dumps(IDENTITIES, sort_keys=True, separators=(",", ":")).encode()
 ).hexdigest()
+POLICY_SETTINGS = {"status": "active", "default_source": "tushare"}
+POLICY_SETTINGS_RAW_SHA256 = hashlib.sha256(b"fixture-provider-settings-file").hexdigest()
+POLICY_SETTINGS_CANONICAL_SHA256 = hashlib.sha256(
+    json.dumps(
+        POLICY_SETTINGS,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    ).encode("utf-8")
+).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -322,26 +334,31 @@ def test_collector_report_satisfies_bundle_identity_contract(
         artifact.write_text(json.dumps({"kind": kind}), encoding="utf-8")
         artifact_digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
         report_path = report_dir / "report.json"
-        report_path.write_text(
-            json.dumps(
+        report_payload: dict[str, object] = {
+            "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
+            "kind": kind,
+            "outcome": "success",
+            "candidate_sha": CANDIDATE_SHA,
+            "candidate_image_id": IMAGE_ID,
+            "target_trade_date": "2026-09-25",
+            "universe_sha256": UNIVERSE_SHA,
+            "provider_identities_sha256": PROVIDER_DIGEST,
+            "artifact": {
+                "path": artifact.name,
+                "sha256": artifact_digest,
+            },
+        }
+        if kind == "production_policy_parity":
+            report_payload.update(
                 {
-                    "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
-                    "kind": kind,
-                    "outcome": "success",
-                    "candidate_sha": CANDIDATE_SHA,
-                    "candidate_image_id": IMAGE_ID,
-                    "target_trade_date": "2026-09-25",
-                    "universe_sha256": UNIVERSE_SHA,
-                    "provider_identities_sha256": PROVIDER_DIGEST,
-                    "artifact": {
-                        "path": artifact.name,
-                        "sha256": artifact_digest,
-                    },
-                },
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
+                    "provider_settings": POLICY_SETTINGS,
+                    "provider_settings_raw_file_sha256": POLICY_SETTINGS_RAW_SHA256,
+                    "provider_settings_canonical_payload_sha256": (
+                        POLICY_SETTINGS_CANONICAL_SHA256
+                    ),
+                }
+            )
+        report_path.write_text(json.dumps(report_payload, sort_keys=True), encoding="utf-8")
         reports[kind] = report_path
 
     manifest_path = build_manifest(
@@ -351,6 +368,8 @@ def test_collector_report_satisfies_bundle_identity_contract(
         target_trade_date="2026-09-25",
         universe_sha256=UNIVERSE_SHA,
         provider_identities_sha256=PROVIDER_DIGEST,
+        provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+        provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
         candidate_image_id=IMAGE_ID,
     )
 

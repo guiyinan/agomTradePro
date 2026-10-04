@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -67,11 +68,13 @@ class FakeRunner:
         wrong_identity_label: str | None = None,
         mutate_bundle_on_validation: bool = False,
         dirty_worktree: bool = False,
+        mutate_settings_on_build: Path | None = None,
     ) -> None:
         self.fail_label = fail_label
         self.wrong_identity_label = wrong_identity_label
         self.mutate_bundle_on_validation = mutate_bundle_on_validation
         self.dirty_worktree = dirty_worktree
+        self.mutate_settings_on_build = mutate_settings_on_build
         self.commands: list[Command] = []
 
     def run(self, command: Command) -> CommandResult:
@@ -86,6 +89,8 @@ class FakeRunner:
             return CommandResult(returncode=0, stdout=" M changed.py\n" if dirty else "")
         if command.label == "build_only":
             self._create_build_artifacts(command)
+            if self.mutate_settings_on_build is not None:
+                self.mutate_settings_on_build.write_text('{"status":"replaced"}\n')
         elif command.label == "docker_inspect":
             return CommandResult(
                 returncode=0,
@@ -204,6 +209,23 @@ class FakeRunner:
             "universe_sha256": UNIVERSE_SHA256,
             "provider_identities_sha256": _provider_digest(),
         }
+        if command.label == "production_policy_parity":
+            payload["provider_settings"] = json.loads(
+                self._provider_settings_path(command.argv).read_text(encoding="utf-8")
+            )
+            payload["provider_settings_raw_file_sha256"] = command.argv[
+                command.argv.index("--expected-provider-settings-raw-file-sha256") + 1
+            ]
+            payload["provider_settings_canonical_payload_sha256"] = command.argv[
+                command.argv.index("--expected-provider-settings-canonical-payload-sha256") + 1
+            ]
+            payload["preflight"] = {
+                "evidence": {
+                    "provider_settings_sha256": payload[
+                        "provider_settings_canonical_payload_sha256"
+                    ]
+                }
+            }
         if command.label != "github_ci_evidence":
             payload["candidate_image_id"] = image_value
         if command.label == "provider_probe":
@@ -244,8 +266,22 @@ class FakeRunner:
             target_trade_date=args[args.index("--target-trade-date") + 1],
             universe_sha256=args[args.index("--universe-sha256") + 1],
             provider_identities_sha256=args[args.index("--provider-identities-sha256") + 1],
+            provider_settings_raw_file_sha256=(
+                args[args.index("--provider-settings-raw-file-sha256") + 1]
+            ),
+            provider_settings_canonical_payload_sha256=(
+                args[args.index("--provider-settings-canonical-payload-sha256") + 1]
+            ),
             candidate_image_id=args[args.index("--candidate-image-id") + 1],
         )
+
+    @staticmethod
+    def _provider_settings_path(argv: tuple[str, ...]) -> Path:
+        suffix = ":/run/agom/provider-settings.json:ro"
+        for index, value in enumerate(argv):
+            if value == "--volume" and argv[index + 1].endswith(suffix):
+                return Path(argv[index + 1][: -len(suffix)])
+        raise AssertionError("provider settings snapshot mount is missing")
 
 
 def _provider_digest() -> str:
@@ -773,6 +809,37 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     assert manifest["candidate_image_id"] == IMAGE_ID
     assert manifest["target_trade_date"] == TRADE_DATE
     assert manifest["universe_sha256"] == UNIVERSE_SHA256
+    raw_settings = config.provider_settings_json.read_bytes()
+    canonical_settings = json.dumps(
+        json.loads(raw_settings), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    settings_identity = json.loads(identity_path.read_text(encoding="utf-8"))
+    assert (
+        settings_identity["provider_settings_raw_file_sha256"]
+        == hashlib.sha256(raw_settings).hexdigest()
+    )
+    assert (
+        settings_identity["provider_settings_canonical_payload_sha256"]
+        == hashlib.sha256(canonical_settings).hexdigest()
+    )
+    assert (
+        manifest["provider_settings_raw_file_sha256"]
+        == settings_identity["provider_settings_raw_file_sha256"]
+    )
+    assert (
+        manifest["provider_settings_canonical_payload_sha256"]
+        == settings_identity["provider_settings_canonical_payload_sha256"]
+    )
+    frozen_settings = config.output_dir / "inputs" / "provider-settings.json"
+    assert frozen_settings.stat().st_mode & 0o222 == 0
+    assert (
+        receipt["provider_settings_raw_file_sha256"]
+        == settings_identity["provider_settings_raw_file_sha256"]
+    )
+    assert (
+        receipt["provider_settings_canonical_payload_sha256"]
+        == settings_identity["provider_settings_canonical_payload_sha256"]
+    )
     for directory in (
         "provider-probe",
         "response-replay",
@@ -782,6 +849,26 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     ):
         writable_mode = 0o2770 if os.name == "posix" else 0o770
         assert chmod_calls[directory] == [writable_mode, 0o750]
+
+
+def test_parity_mount_uses_startup_copy_after_external_snapshot_changes(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    startup_bytes = config.provider_settings_json.read_bytes()
+    runner = FakeRunner(mutate_settings_on_build=config.provider_settings_json)
+
+    run_release_rehearsal(config, runner=runner)
+
+    parity_command = next(
+        item for item in runner.commands if item.label == "production_policy_parity"
+    )
+    mounted_snapshot = runner._provider_settings_path(parity_command.argv)
+    assert mounted_snapshot == config.output_dir / "inputs" / "provider-settings.json"
+    assert mounted_snapshot.read_bytes() == startup_bytes
+    assert config.provider_settings_json.read_bytes() != startup_bytes
+    expected_raw = parity_command.argv[
+        parity_command.argv.index("--expected-provider-settings-raw-file-sha256") + 1
+    ]
+    assert expected_raw == hashlib.sha256(startup_bytes).hexdigest()
 
 
 def test_capacity_measurement_isolated_before_remaining_parallel_group(tmp_path: Path) -> None:

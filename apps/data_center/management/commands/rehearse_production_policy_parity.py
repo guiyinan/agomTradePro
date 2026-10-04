@@ -31,6 +31,8 @@ class Command(BaseCommand):
         parser.add_argument("--target-trade-date", required=True, type=date.fromisoformat)
         parser.add_argument("--universe-sha256", required=True)
         parser.add_argument("--provider-identities-sha256", required=True)
+        parser.add_argument("--expected-provider-settings-raw-file-sha256", required=True)
+        parser.add_argument("--expected-provider-settings-canonical-payload-sha256", required=True)
         parser.add_argument("--provider-settings-json", required=True, type=Path)
         parser.add_argument("--output-dir", required=True, type=Path)
 
@@ -44,6 +46,12 @@ class Command(BaseCommand):
                 target_trade_date=options["target_trade_date"],
                 universe_sha256=options["universe_sha256"],
                 provider_identities_sha256=options["provider_identities_sha256"],
+                expected_provider_settings_raw_file_sha256=(
+                    options["expected_provider_settings_raw_file_sha256"]
+                ),
+                expected_provider_settings_canonical_payload_sha256=(
+                    options["expected_provider_settings_canonical_payload_sha256"]
+                ),
                 provider_settings_path=options["provider_settings_json"],
                 output_dir=options["output_dir"],
             )
@@ -54,7 +62,12 @@ class Command(BaseCommand):
             json.dumps(
                 {
                     "outcome": report["outcome"],
-                    "provider_settings_sha256": report["provider_settings_sha256"],
+                    "provider_settings_raw_file_sha256": (
+                        report["provider_settings_raw_file_sha256"]
+                    ),
+                    "provider_settings_canonical_payload_sha256": (
+                        report["provider_settings_canonical_payload_sha256"]
+                    ),
                 },
                 ensure_ascii=False,
             )

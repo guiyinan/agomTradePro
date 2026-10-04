@@ -73,6 +73,7 @@ PROVIDERS = [
 PROVIDER_DIGEST = hashlib.sha256(
     json.dumps(PROVIDERS, sort_keys=True, separators=(",", ":")).encode()
 ).hexdigest()
+POLICY_SETTINGS_RAW_SHA256 = hashlib.sha256(b"provider-settings-snapshot-test-bytes").hexdigest()
 POLICY_CONTENT = {
     "encoding": "publication-policy-v1",
     "dataset_key": "equity.valuation.fact",
@@ -731,12 +732,14 @@ def _build_evidence(
         "failover_tolerance": 0.01,
     }
     settings_digest = validator._provider_settings_digest(policy_settings)
+    settings_canonical_digest = settings_digest
     parity = _common("production_policy_parity", now)
     parity.pop("provider_identities")
     parity.update(
         {
             "provider_settings": policy_settings,
-            "provider_settings_sha256": settings_digest,
+            "provider_settings_raw_file_sha256": POLICY_SETTINGS_RAW_SHA256,
+            "provider_settings_canonical_payload_sha256": settings_canonical_digest,
             "preflight": {
                 "name": "provider_policy_and_routes",
                 "status": "pass",
@@ -826,6 +829,8 @@ def _build_evidence(
             "target_trade_date": TARGET_DATE,
             "universe_sha256": UNIVERSE,
             "provider_identities_sha256": PROVIDER_DIGEST,
+            "provider_settings_raw_file_sha256": POLICY_SETTINGS_RAW_SHA256,
+            "provider_settings_canonical_payload_sha256": settings_canonical_digest,
             "candidate_image_id": IMAGE_ID,
             "reports": references,
         },
@@ -840,6 +845,17 @@ def _validate(manifest: Path, now: datetime) -> dict[str, object]:
         expected_target_date=TARGET_DATE,
         expected_universe_sha256=UNIVERSE,
         expected_provider_identities_sha256=PROVIDER_DIGEST,
+        expected_provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+        expected_provider_settings_canonical_payload_sha256=(
+            validator._provider_settings_digest(
+                {
+                    "status": "active",
+                    "default_source": "tushare",
+                    "enable_failover": True,
+                    "failover_tolerance": 0.01,
+                }
+            )
+        ),
         expected_candidate_image_id=IMAGE_ID,
         expected_github_repository=GITHUB_REPOSITORY,
         expected_github_run_id=GITHUB_RUN_ID,
@@ -1238,7 +1254,7 @@ def test_validator_rejects_absolute_bundle_artifact_reference(tmp_path: Path) ->
         ),
         (
             "production_policy_parity",
-            {"provider_settings_sha256": "0" * 64},
+            {"provider_settings_canonical_payload_sha256": "0" * 64},
             "REHEARSAL_POLICY_SETTINGS_MISMATCH",
         ),
         (
@@ -1860,6 +1876,17 @@ def test_validator_rejects_stale_and_candidate_mismatch(tmp_path: Path) -> None:
             expected_target_date=TARGET_DATE,
             expected_universe_sha256=UNIVERSE,
             expected_provider_identities_sha256=PROVIDER_DIGEST,
+            expected_provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            expected_provider_settings_canonical_payload_sha256=(
+                validator._provider_settings_digest(
+                    {
+                        "status": "active",
+                        "default_source": "tushare",
+                        "enable_failover": True,
+                        "failover_tolerance": 0.01,
+                    }
+                )
+            ),
             expected_candidate_image_id=IMAGE_ID,
             expected_github_repository=GITHUB_REPOSITORY,
             expected_github_run_id=GITHUB_RUN_ID,
@@ -1867,3 +1894,31 @@ def test_validator_rejects_stale_and_candidate_mismatch(tmp_path: Path) -> None:
             now=now,
         )
     assert mismatch.value.code == "REHEARSAL_MANIFEST_IDENTITY_MISMATCH"
+
+
+def test_self_consistent_policy_report_must_match_external_expected_hashes(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    parity_path = reports["production_policy_parity"]
+    parity = json.loads(parity_path.read_text(encoding="utf-8"))
+    replacement_settings = {
+        "status": "active",
+        "default_source": "tushare",
+        "enable_failover": False,
+        "failover_tolerance": 0.01,
+    }
+    replacement_canonical = validator._provider_settings_digest(replacement_settings)
+    parity["provider_settings"] = replacement_settings
+    parity["provider_settings_raw_file_sha256"] = hashlib.sha256(
+        b"different-but-valid-settings-snapshot"
+    ).hexdigest()
+    parity["provider_settings_canonical_payload_sha256"] = replacement_canonical
+    parity["preflight"]["evidence"]["provider_settings_sha256"] = replacement_canonical
+    _replace_report(manifest, parity_path, parity)
+
+    with pytest.raises(validator.RehearsalValidationError) as mismatch:
+        _validate(manifest, now)
+
+    assert mismatch.value.code == "REHEARSAL_POLICY_SETTINGS_MISMATCH"

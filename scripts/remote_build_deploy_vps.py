@@ -548,6 +548,15 @@ def _validate_prebuilt_rehearsal_receipt(
         or receipt.get("manifest_sha256") != rehearsal_sha256
     ):
         raise ValueError("Release rehearsal receipt identity does not match deployment inputs")
+    settings_raw_digest = receipt.get("provider_settings_raw_file_sha256")
+    settings_canonical_digest = receipt.get("provider_settings_canonical_payload_sha256")
+    if (
+        not isinstance(settings_raw_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", settings_raw_digest) is None
+        or not isinstance(settings_canonical_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", settings_canonical_digest) is None
+    ):
+        raise ValueError("Release rehearsal receipt policy settings identity is invalid")
     try:
         bundle_dir = Path(cast(str, receipt["bundle_dir"]))
         result = validate_release_rehearsal(
@@ -556,6 +565,8 @@ def _validate_prebuilt_rehearsal_receipt(
             expected_target_date=cast(str, receipt["target_trade_date"]),
             expected_universe_sha256=cast(str, receipt["universe_sha256"]),
             expected_provider_identities_sha256=cast(str, receipt["provider_identities_sha256"]),
+            expected_provider_settings_raw_file_sha256=settings_raw_digest,
+            expected_provider_settings_canonical_payload_sha256=settings_canonical_digest,
             expected_candidate_image_id=image_id,
             expected_github_repository=cast(str, receipt["github_repository"]),
             expected_github_run_id=cast(int, receipt["github_run_id"]),

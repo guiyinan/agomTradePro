@@ -48,6 +48,19 @@ def _digest(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _canonical_provider_settings_digest(payload: dict[str, object]) -> str:
+    """Hash the canonical JSON representation used by the parity collector."""
+    canonical = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    )
+    return _digest(canonical.encode("utf-8"))
+
+
 def _artifact_refs(value: object) -> list[tuple[str, str]]:
     refs: list[tuple[str, str]] = []
     if isinstance(value, dict):
@@ -133,6 +146,8 @@ def build_manifest(
     target_trade_date: str,
     universe_sha256: str,
     provider_identities_sha256: str,
+    provider_settings_raw_file_sha256: str,
+    provider_settings_canonical_payload_sha256: str,
     candidate_image_id: str,
 ) -> Path:
     """Copy each hash-linked report graph and create one exclusive manifest."""
@@ -142,6 +157,8 @@ def build_manifest(
         COMMIT_RE.fullmatch(candidate_sha) is None
         or SHA256_RE.fullmatch(universe_sha256) is None
         or SHA256_RE.fullmatch(provider_identities_sha256) is None
+        or SHA256_RE.fullmatch(provider_settings_raw_file_sha256) is None
+        or SHA256_RE.fullmatch(provider_settings_canonical_payload_sha256) is None
         or IMAGE_ID_RE.fullmatch(candidate_image_id) is None
         or set(reports) != set(REQUIRED_SCHEMAS)
     ):
@@ -162,6 +179,18 @@ def build_manifest(
             )
         ):
             raise ValueError("REHEARSAL_BUNDLE_REPORT_MISMATCH")
+    parity = loaded["production_policy_parity"]
+    settings = parity.get("provider_settings")
+    if not isinstance(settings, dict) or any(not isinstance(key, str) for key in settings):
+        raise ValueError("REHEARSAL_BUNDLE_POLICY_SETTINGS_INVALID")
+    if (
+        parity.get("provider_settings_raw_file_sha256") != provider_settings_raw_file_sha256
+        or parity.get("provider_settings_canonical_payload_sha256")
+        != provider_settings_canonical_payload_sha256
+        or _canonical_provider_settings_digest(cast(dict[str, object], settings))
+        != provider_settings_canonical_payload_sha256
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_POLICY_SETTINGS_MISMATCH")
     output_dir.mkdir(parents=True, exist_ok=False)
     references: list[dict[str, str]] = []
     total = 0
@@ -187,6 +216,10 @@ def build_manifest(
             "target_trade_date": target_trade_date,
             "universe_sha256": universe_sha256,
             "provider_identities_sha256": provider_identities_sha256,
+            "provider_settings_raw_file_sha256": provider_settings_raw_file_sha256,
+            "provider_settings_canonical_payload_sha256": (
+                provider_settings_canonical_payload_sha256
+            ),
             "candidate_image_id": candidate_image_id,
             "reports": references,
         }
@@ -215,6 +248,8 @@ def main() -> int:
     parser.add_argument("--target-trade-date", required=True)
     parser.add_argument("--universe-sha256", required=True)
     parser.add_argument("--provider-identities-sha256", required=True)
+    parser.add_argument("--provider-settings-raw-file-sha256", required=True)
+    parser.add_argument("--provider-settings-canonical-payload-sha256", required=True)
     parser.add_argument("--candidate-image-id", required=True)
     args = parser.parse_args()
     path = build_manifest(
@@ -224,6 +259,10 @@ def main() -> int:
         target_trade_date=args.target_trade_date,
         universe_sha256=args.universe_sha256,
         provider_identities_sha256=args.provider_identities_sha256,
+        provider_settings_raw_file_sha256=args.provider_settings_raw_file_sha256,
+        provider_settings_canonical_payload_sha256=(
+            args.provider_settings_canonical_payload_sha256
+        ),
         candidate_image_id=args.candidate_image_id,
     )
     print(json.dumps({"outcome": "success", "manifest": str(path)}, sort_keys=True))

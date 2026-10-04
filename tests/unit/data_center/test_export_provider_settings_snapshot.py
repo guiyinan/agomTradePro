@@ -36,7 +36,21 @@ def test_stdout_is_the_exact_snapshot_file(monkeypatch: pytest.MonkeyPatch) -> N
     assert json.loads(stdout) == PAYLOAD
     summary = json.loads(stderr)
     assert summary["outcome"] == "exported"
-    assert summary["provider_settings_sha256"] == hashlib.sha256(stdout.encode()).hexdigest()
+    assert (
+        summary["provider_settings_raw_file_sha256"] == hashlib.sha256(stdout.encode()).hexdigest()
+    )
+    canonical = json.dumps(
+        PAYLOAD,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=str,
+    ).encode("utf-8")
+    assert (
+        summary["provider_settings_canonical_payload_sha256"]
+        == hashlib.sha256(canonical).hexdigest()
+    )
 
 
 def test_blocked_payload_is_exported_verbatim(monkeypatch: pytest.MonkeyPatch) -> None:

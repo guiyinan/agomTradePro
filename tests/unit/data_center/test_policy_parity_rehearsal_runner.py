@@ -32,7 +32,7 @@ SETTINGS = {
 }
 
 
-def _settings_digest(payload: dict[str, Any]) -> str:
+def _settings_digest(payload: Any) -> str:
     canonical = json.dumps(
         payload,
         ensure_ascii=False,
@@ -110,12 +110,17 @@ def fake_use_case(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
 
 def _collect(tmp_path, settings_path=None):
+    selected_path = settings_path or _write_settings(tmp_path)
+    raw = selected_path.read_bytes()
+    payload = json.loads(raw)
     return runner.collect_production_policy_parity(
         candidate_sha=CANDIDATE,
         target_trade_date=TRADE_DATE,
         universe_sha256=UNIVERSE,
         provider_identities_sha256=PROVIDER_DIGEST,
-        provider_settings_path=settings_path or _write_settings(tmp_path),
+        expected_provider_settings_raw_file_sha256=hashlib.sha256(raw).hexdigest(),
+        expected_provider_settings_canonical_payload_sha256=_settings_digest(payload),
+        provider_settings_path=selected_path,
         output_dir=tmp_path / "output",
     )
 
@@ -131,7 +136,9 @@ def test_parity_report_binds_snapshot_and_gate_evidence(tmp_path, fake_use_case)
     assert payload["evidence_mode"] == "production_policy_snapshot"
     assert payload["candidate_image_id"] == IMAGE_ID
     assert payload["candidate_source_attestation"] == "image_release_manifest"
-    assert payload["provider_settings_sha256"] == _settings_digest(SETTINGS)
+    raw = (tmp_path / "provider-settings.json").read_bytes()
+    assert payload["provider_settings_raw_file_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert payload["provider_settings_canonical_payload_sha256"] == _settings_digest(SETTINGS)
     assert payload["preflight"]["status"] == "pass"
     artifact = tmp_path / "output" / runner.POLICY_PARITY_REPORT_NAME
     assert json.loads(artifact.read_text(encoding="utf-8"))["provider_settings"] == SETTINGS
@@ -161,6 +168,8 @@ def test_invalid_identity_is_rejected(tmp_path, fake_use_case) -> None:
             target_trade_date=TRADE_DATE,
             universe_sha256=UNIVERSE,
             provider_identities_sha256=PROVIDER_DIGEST,
+            expected_provider_settings_raw_file_sha256="1" * 64,
+            expected_provider_settings_canonical_payload_sha256="2" * 64,
             provider_settings_path=settings_path,
             output_dir=tmp_path / "output",
         )
@@ -180,6 +189,33 @@ def test_invalid_settings_snapshot_is_rejected(tmp_path, fake_use_case) -> None:
         _collect(tmp_path, settings_path=settings_path)
 
 
+def test_raw_whitespace_change_preserves_canonical_hash_but_fails_expected_raw_hash(
+    tmp_path, fake_use_case
+) -> None:
+    settings_path = _write_settings(tmp_path)
+    startup_raw = settings_path.read_bytes()
+    startup_payload = json.loads(startup_raw)
+    expected_raw_digest = hashlib.sha256(startup_raw).hexdigest()
+    expected_canonical_digest = _settings_digest(startup_payload)
+    replacement_raw = (json.dumps(startup_payload, sort_keys=True, indent=2) + "\n").encode()
+    assert replacement_raw != startup_raw
+    assert _settings_digest(json.loads(replacement_raw)) == expected_canonical_digest
+    settings_path.write_bytes(replacement_raw)
+
+    with pytest.raises(ValueError, match="REHEARSAL_POLICY_SETTINGS_MISMATCH"):
+        runner.collect_production_policy_parity(
+            candidate_sha=CANDIDATE,
+            target_trade_date=TRADE_DATE,
+            universe_sha256=UNIVERSE,
+            provider_identities_sha256=PROVIDER_DIGEST,
+            expected_provider_settings_raw_file_sha256=expected_raw_digest,
+            expected_provider_settings_canonical_payload_sha256=expected_canonical_digest,
+            provider_settings_path=settings_path,
+            output_dir=tmp_path / "output",
+        )
+    assert not (tmp_path / "output").exists()
+
+
 def test_command_writes_report_and_prints_digest(tmp_path, fake_use_case) -> None:
     settings_path = _write_settings(tmp_path)
 
@@ -189,6 +225,8 @@ def test_command_writes_report_and_prints_digest(tmp_path, fake_use_case) -> Non
         f"--target-trade-date={TRADE_DATE.isoformat()}",
         f"--universe-sha256={UNIVERSE}",
         f"--provider-identities-sha256={PROVIDER_DIGEST}",
+        f"--expected-provider-settings-raw-file-sha256={hashlib.sha256(settings_path.read_bytes()).hexdigest()}",
+        f"--expected-provider-settings-canonical-payload-sha256={_settings_digest(SETTINGS)}",
         f"--provider-settings-json={settings_path}",
         f"--output-dir={tmp_path / 'output'}",
     )
@@ -206,6 +244,8 @@ def test_command_fails_closed_on_invalid_snapshot(tmp_path, fake_use_case) -> No
             f"--target-trade-date={TRADE_DATE.isoformat()}",
             f"--universe-sha256={UNIVERSE}",
             f"--provider-identities-sha256={PROVIDER_DIGEST}",
+            f"--expected-provider-settings-raw-file-sha256={hashlib.sha256(settings_path.read_bytes()).hexdigest()}",
+            f"--expected-provider-settings-canonical-payload-sha256={_settings_digest(['not', 'an', 'object'])}",
             f"--provider-settings-json={settings_path}",
             f"--output-dir={tmp_path / 'output'}",
         )

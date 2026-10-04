@@ -916,17 +916,33 @@ def _provider_settings_digest(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _validate_policy_parity(report: dict[str, Any], report_dir: Path) -> None:
-    """Bind the production policy snapshot and require a passing route gate."""
+def _validate_policy_parity(
+    report: dict[str, Any],
+    report_dir: Path,
+    *,
+    expected_raw_file_sha256: str,
+    expected_canonical_payload_sha256: str,
+) -> None:
+    """Bind both snapshot hashes and require a passing route gate."""
 
     del report_dir
     settings = report.get("provider_settings")
     if not isinstance(settings, dict) or any(not isinstance(key, str) for key in settings):
         _fail("REHEARSAL_POLICY_SETTINGS_INVALID")
-    settings_digest = report.get("provider_settings_sha256")
-    if not isinstance(settings_digest, str) or SHA256_PATTERN.fullmatch(settings_digest) is None:
+    raw_digest = report.get("provider_settings_raw_file_sha256")
+    canonical_digest = report.get("provider_settings_canonical_payload_sha256")
+    if (
+        not isinstance(raw_digest, str)
+        or SHA256_PATTERN.fullmatch(raw_digest) is None
+        or not isinstance(canonical_digest, str)
+        or SHA256_PATTERN.fullmatch(canonical_digest) is None
+    ):
         _fail("REHEARSAL_POLICY_SETTINGS_INVALID")
-    if _provider_settings_digest(settings) != settings_digest:
+    if (
+        raw_digest != expected_raw_file_sha256
+        or canonical_digest != expected_canonical_payload_sha256
+        or _provider_settings_digest(cast(dict[str, Any], settings)) != canonical_digest
+    ):
         _fail("REHEARSAL_POLICY_SETTINGS_MISMATCH")
     preflight = report.get("preflight")
     if not isinstance(preflight, dict):
@@ -940,7 +956,7 @@ def _validate_policy_parity(report: dict[str, Any], report_dir: Path) -> None:
     evidence = preflight.get("evidence")
     if not isinstance(evidence, dict):
         _fail("REHEARSAL_POLICY_PARITY_INVALID")
-    if evidence.get("provider_settings_sha256") != settings_digest:
+    if evidence.get("provider_settings_sha256") != canonical_digest:
         _fail("REHEARSAL_POLICY_SETTINGS_MISMATCH")
     if not isinstance(evidence.get("preferred_route"), str) or not evidence["preferred_route"]:
         _fail("REHEARSAL_POLICY_PARITY_INVALID")
@@ -2150,6 +2166,8 @@ def validate_release_rehearsal(
     expected_target_date: str,
     expected_universe_sha256: str,
     expected_provider_identities_sha256: str,
+    expected_provider_settings_raw_file_sha256: str,
+    expected_provider_settings_canonical_payload_sha256: str,
     expected_candidate_image_id: str,
     expected_github_repository: str,
     expected_github_run_id: int,
@@ -2167,6 +2185,12 @@ def validate_release_rehearsal(
         _fail("REHEARSAL_EXPECTED_UNIVERSE_INVALID")
     if SHA256_PATTERN.fullmatch(expected_provider_identities_sha256) is None:
         _fail("REHEARSAL_EXPECTED_PROVIDER_INVALID")
+    for digest in (
+        expected_provider_settings_raw_file_sha256,
+        expected_provider_settings_canonical_payload_sha256,
+    ):
+        if SHA256_PATTERN.fullmatch(digest) is None:
+            _fail("REHEARSAL_EXPECTED_POLICY_SETTINGS_INVALID")
     if IMAGE_ID_PATTERN.fullmatch(expected_candidate_image_id) is None:
         _fail("REHEARSAL_EXPECTED_IMAGE_INVALID")
     if (
@@ -2192,6 +2216,20 @@ def validate_release_rehearsal(
         or manifest.get("candidate_image_id") != expected_candidate_image_id
     ):
         _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
+    manifest_raw_settings_digest = manifest.get("provider_settings_raw_file_sha256")
+    manifest_canonical_settings_digest = manifest.get("provider_settings_canonical_payload_sha256")
+    if (
+        not isinstance(manifest_raw_settings_digest, str)
+        or SHA256_PATTERN.fullmatch(manifest_raw_settings_digest) is None
+        or not isinstance(manifest_canonical_settings_digest, str)
+        or SHA256_PATTERN.fullmatch(manifest_canonical_settings_digest) is None
+    ):
+        _fail("REHEARSAL_MANIFEST_POLICY_SETTINGS_INVALID")
+    if (
+        manifest_raw_settings_digest != expected_provider_settings_raw_file_sha256
+        or manifest_canonical_settings_digest != expected_provider_settings_canonical_payload_sha256
+    ):
+        _fail("REHEARSAL_MANIFEST_POLICY_SETTINGS_MISMATCH")
     reports = manifest.get("reports")
     if not isinstance(reports, list) or len(reports) != len(REQUIRED_REPORT_SCHEMAS):
         _fail("REHEARSAL_REPORT_SET_INCOMPLETE")
@@ -2257,6 +2295,8 @@ def validate_release_rehearsal(
     _validate_policy_parity(
         loaded_reports["production_policy_parity"],
         report_paths["production_policy_parity"].parent,
+        expected_raw_file_sha256=manifest_raw_settings_digest,
+        expected_canonical_payload_sha256=manifest_canonical_settings_digest,
     )
     _validate_regression(
         loaded_reports["candidate_regression_evidence"],
@@ -2273,6 +2313,8 @@ def validate_release_rehearsal(
         "candidate_image_id": expected_candidate_image_id,
         "target_trade_date": expected_target_date,
         "universe_sha256": expected_universe_sha256,
+        "provider_settings_raw_file_sha256": manifest_raw_settings_digest,
+        "provider_settings_canonical_payload_sha256": manifest_canonical_settings_digest,
         "validated_reports": sorted(REQUIRED_REPORT_SCHEMAS),
     }
 
@@ -2285,6 +2327,8 @@ def main() -> int:
     parser.add_argument("--expected-target-date", required=True)
     parser.add_argument("--expected-universe-sha256", required=True)
     parser.add_argument("--expected-provider-identities-sha256", required=True)
+    parser.add_argument("--expected-provider-settings-raw-file-sha256", required=True)
+    parser.add_argument("--expected-provider-settings-canonical-payload-sha256", required=True)
     parser.add_argument("--expected-candidate-image-id", required=True)
     parser.add_argument("--expected-github-repository", required=True)
     parser.add_argument("--expected-github-run-id", required=True, type=int)
@@ -2297,6 +2341,12 @@ def main() -> int:
             expected_target_date=args.expected_target_date,
             expected_universe_sha256=args.expected_universe_sha256,
             expected_provider_identities_sha256=args.expected_provider_identities_sha256,
+            expected_provider_settings_raw_file_sha256=(
+                args.expected_provider_settings_raw_file_sha256
+            ),
+            expected_provider_settings_canonical_payload_sha256=(
+                args.expected_provider_settings_canonical_payload_sha256
+            ),
             expected_candidate_image_id=args.expected_candidate_image_id,
             expected_github_repository=args.expected_github_repository,
             expected_github_run_id=args.expected_github_run_id,

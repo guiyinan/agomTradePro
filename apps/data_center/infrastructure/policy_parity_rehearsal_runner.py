@@ -49,18 +49,28 @@ def _canonical_json_digest(payload: Mapping[str, object]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _read_provider_settings(path: Path) -> dict[str, object]:
-    """Read the explicit production provider settings snapshot."""
+def _read_provider_settings(path: Path) -> tuple[dict[str, object], str, str]:
+    """Read settings plus raw-file and canonical-payload identities."""
 
     if path.is_symlink() or not path.is_file():
         raise ValueError("REHEARSAL_POLICY_SETTINGS_INVALID")
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        payload = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("REHEARSAL_POLICY_SETTINGS_INVALID") from exc
     if not isinstance(payload, dict) or any(not isinstance(key, str) for key in payload):
         raise ValueError("REHEARSAL_POLICY_SETTINGS_INVALID")
-    return dict(payload)
+    settings_payload = dict(payload)
+    try:
+        canonical_digest = _canonical_json_digest(settings_payload)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("REHEARSAL_POLICY_SETTINGS_INVALID") from exc
+    return (
+        settings_payload,
+        hashlib.sha256(raw).hexdigest(),
+        canonical_digest,
+    )
 
 
 def collect_production_policy_parity(
@@ -69,6 +79,8 @@ def collect_production_policy_parity(
     target_trade_date: date,
     universe_sha256: str,
     provider_identities_sha256: str,
+    expected_provider_settings_raw_file_sha256: str,
+    expected_provider_settings_canonical_payload_sha256: str,
     provider_settings_path: Path,
     output_dir: Path,
 ) -> dict[str, object]:
@@ -82,14 +94,28 @@ def collect_production_policy_parity(
     if output_dir.exists():
         raise ValueError("REHEARSAL_POLICY_PARITY_OUTPUT_EXISTS")
     if _COMMIT.fullmatch(candidate_sha) is None or any(
-        _SHA256.fullmatch(value) is None for value in (universe_sha256, provider_identities_sha256)
+        _SHA256.fullmatch(value) is None
+        for value in (
+            universe_sha256,
+            provider_identities_sha256,
+            expected_provider_settings_raw_file_sha256,
+            expected_provider_settings_canonical_payload_sha256,
+        )
     ):
         raise ValueError("REHEARSAL_POLICY_PARITY_IDENTITY_INVALID")
     candidate_image_id = os.environ.get("AGOM_CANDIDATE_IMAGE_ID", "")
     if _IMAGE_ID.fullmatch(candidate_image_id) is None:
         raise ValueError("REHEARSAL_POLICY_PARITY_IMAGE_IDENTITY_UNAVAILABLE")
-    settings_payload = _read_provider_settings(provider_settings_path)
-    settings_digest = _canonical_json_digest(settings_payload)
+    (
+        settings_payload,
+        settings_raw_file_digest,
+        settings_canonical_payload_digest,
+    ) = _read_provider_settings(provider_settings_path)
+    if (
+        settings_raw_file_digest != expected_provider_settings_raw_file_sha256
+        or settings_canonical_payload_digest != expected_provider_settings_canonical_payload_sha256
+    ):
+        raise ValueError("REHEARSAL_POLICY_SETTINGS_MISMATCH")
 
     started = datetime.now(UTC)
     report = build_full_market_publication_preflight_use_case(
@@ -114,7 +140,8 @@ def collect_production_policy_parity(
         "started_at": started.isoformat(),
         "finished_at": finished.isoformat(),
         "provider_settings": settings_payload,
-        "provider_settings_sha256": settings_digest,
+        "provider_settings_raw_file_sha256": settings_raw_file_digest,
+        "provider_settings_canonical_payload_sha256": settings_canonical_payload_digest,
         "preflight": provider_check.to_dict(),
     }
     output_dir.mkdir(parents=True)
