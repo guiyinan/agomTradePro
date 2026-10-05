@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5384,
+    "current_surface_references": 5387,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10591,9 +10591,19 @@
       "text": "\"\"\"Current valuation batch synchronization.\"\"\""
     },
     {
-      "line": 39,
+      "line": 43,
       "path": "apps/data_center/application/current_valuation_sync.py",
       "text": "\"\"\"Persist current valuation coverage with exact same-UOW lineage.\"\"\""
+    },
+    {
+      "line": 343,
+      "path": "apps/data_center/application/current_valuation_sync.py",
+      "text": "\"Current valuation fact source is missing or non-canonical\","
+    },
+    {
+      "line": 348,
+      "path": "apps/data_center/application/current_valuation_sync.py",
+      "text": "\"Current valuation batch contains multiple fact source types\","
     },
     {
       "line": 149,
@@ -10686,12 +10696,12 @@
       "text": "if latest is None or publication.reinstated_at != latest.observed_at:"
     },
     {
-      "line": 513,
+      "line": 514,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Input DTO for fetching the latest quote snapshot.\"\"\""
     },
     {
-      "line": 777,
+      "line": 778,
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
     },
@@ -10731,12 +10741,17 @@
       "text": "\"current-market publication bundle uses an unsupported database alias\","
     },
     {
-      "line": 908,
+      "line": 911,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "\"Current market publication preview failed closed\","
     },
     {
-      "line": 1088,
+      "line": 1013,
+      "path": "apps/data_center/application/full_market_refresh_orchestration.py",
+      "text": "\"Current valuation sync did not return its actual fact source type\","
+    },
+    {
+      "line": 1097,
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "if not authority_latch.current:"
     },
