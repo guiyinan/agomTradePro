@@ -10653,6 +10653,7 @@
           "TaskBusinessProjection",
           "TaskListResponse",
           "TaskPhaseResultResponse",
+          "TaskPublicationDatasetResponse",
           "TaskStatisticsResponse",
           "TaskStatusResponse",
           "project_task_business_result",

@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5381,
+    "current_surface_references": 5383,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -13566,17 +13566,17 @@
       "text": "\"\"\"Return one latest knowable version per business key.\"\"\""
     },
     {
-      "line": 62,
+      "line": 70,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Return latest revisions or the exact rows pinned by a publication.\"\"\""
     },
     {
-      "line": 144,
+      "line": 152,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Return the latest source bar within the optional frozen member scope.\"\"\""
     },
     {
-      "line": 228,
+      "line": 236,
       "path": "apps/data_center/infrastructure/price_bar_repository.py",
       "text": "\"\"\"Select the latest daily unadjusted fact for every requested asset.\"\"\""
     },
@@ -24596,7 +24596,12 @@
       "text": "\"Task Monitor could not verify the current task attempt\""
     },
     {
-      "line": 467,
+      "line": 56,
+      "path": "apps/task_monitor/application/dtos.py",
+      "text": "\"\"\"Bounded publication identity and member summary for one dataset.\"\"\""
+    },
+    {
+      "line": 577,
       "path": "apps/task_monitor/application/dtos.py",
       "text": "summary: SchedulerSummaryResponse"
     },
@@ -24609,6 +24614,11 @@
       "line": 63,
       "path": "apps/task_monitor/application/interface_services.py",
       "text": "\"summary\": asdict(response.summary),"
+    },
+    {
+      "line": 206,
+      "path": "apps/task_monitor/application/tasks.py",
+      "text": "\"\"\"Retain publication identity and summary scalars without nested evidence.\"\"\""
     },
     {
       "line": 112,
@@ -24696,7 +24706,7 @@
       "text": "last_execution_at=latest.created_at if latest else None,"
     },
     {
-      "line": 32,
+      "line": 48,
       "path": "apps/task_monitor/interface/serializers.py",
       "text": "\"\"\"Safe business summary for one task attempt.\"\"\""
     },
@@ -27503,12 +27513,12 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 583,
+      "line": 836,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]"
     },
     {
-      "line": 631,
+      "line": 884,
       "path": "apps/task_monitor/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
