@@ -190,3 +190,12 @@ UTC 时刻重新计算完整任务授权窗口。配置缺失、identity/actor/r
 2026-09-24 财报证据自动恢复：`data_center.refresh_financial_publications_batch` 按冻结的有效 A 股全集分批拉取财报及原始响应、披露时间证据，用 Redis 锁和可恢复游标串行续跑；单批失败或证据不足不得推进游标。只有全集完成后才重建 `equity.financial.fact/current`，禁止把中间批次发布成 current。`setup_full_market_publications` 同时配置每日财报恢复任务，并由 `init_scheduler_defaults` 纳入冷启动默认调度，避免新版本只创建行情任务而遗漏财报任务。
 
 2026-09-29 全市场 point-in-time universe：`refresh_full_market_publications_task` 保留本次同步的当前 active 候选 count/hash，并将目标交易日 eligible universe 作为独立 requested scope；只有带 `list_date_evidence_status=verified` 与非空来源、且 `list_date > target_trade_date` 的资产才可排除，目标日当天上市资产应纳入。未知、冲突或无来源日期继续计入 requested，普通 provider 缺行仍按未解决缺口阻断。目标日 scope 的候选、requested、排除证据和未知日期证据分别进入结果审计字段；`full_universe_capacity_runner` 与 `market_rehearsal_runner` 使用相同 Application resolver 和同一证据口径，release validator 校验两份容量 receipt 一致。
+
+2026-10-05 全市场 task-wide fail-fast lease：所有人工和 Beat 调用共用
+`data_center.refresh_full_market_publications` task 入口。入口在任何 provider、fact 写入或 Publication
+动作前，以 cache 原子 `add` 争取唯一 owner lease；已持有时立即返回 `outcome=noop`、四项零计数和稳定
+`FULL_MARKET_REFRESH_ALREADY_RUNNING`，cache 不可用时返回 `blocked`、零写入和稳定
+`FULL_MARKET_REFRESH_LEASE_UNAVAILABLE`。正常、异常和 `SoftTimeLimitExceeded` 均在 `finally` 尝试仅释放本 owner
+的 lease；worker 崩溃时由有限 TTL 回收。hard time limit 保持 5,700 秒、authority window 保持 6,300 秒，
+lease TTL 为 hard limit 加 300 秒收尾余量（6,000 秒），并以不变量测试约束其严格长于 hard limit 且短于
+authority window。此互斥只覆盖该 full-market task 的人工与周期入口，不声称串行化独立行情写入者。

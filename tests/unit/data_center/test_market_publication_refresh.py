@@ -3,11 +3,16 @@
 import hashlib
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
+from threading import Event, Lock
+from time import sleep
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
+from django.core.cache.backends.locmem import LocMemCache
 
 from apps.data_center.application.market_publication_refresh import (
     MarketPricePreparationResult,
@@ -24,6 +29,17 @@ from apps.data_center.domain.target_date_universe import (
     TargetDateAssetUniverseScope,
 )
 from core.exceptions import DataFetchError
+
+
+@pytest.fixture(autouse=True)
+def _isolate_full_market_refresh_cache(monkeypatch) -> None:
+    """Keep full-market task lease tests away from the configured Redis cache."""
+
+    from apps.data_center.application import tasks
+
+    isolated_cache = LocMemCache(f"full-market-refresh-tests:{uuid4().hex}", {})
+    isolated_cache.clear()
+    monkeypatch.setattr(tasks, "cache", isolated_cache)
 
 
 class _PriceAuditEvidence:
@@ -1873,6 +1889,191 @@ def test_task_blocks_authority_window_shorter_than_task_budget(
     assert result["outcome"] == "blocked"
     assert result["blocked_reason"] == "authority_window_too_short"
     assert result["stored"] == 0
+
+
+def test_full_market_task_mutex_fails_fast_before_refresh(monkeypatch) -> None:
+    """Overlapping manual and scheduled invocations stop before refresh side effects."""
+
+    from apps.data_center.application import tasks
+
+    refresh_started = Event()
+    release_refresh = Event()
+    refresh_calls: list[object] = []
+    refresh_calls_lock = Lock()
+
+    def hold_first_refresh(**_kwargs):
+        with refresh_calls_lock:
+            refresh_calls.append(object())
+            call_number = len(refresh_calls)
+        if call_number == 1:
+            refresh_started.set()
+            if not release_refresh.wait(timeout=5):
+                raise TimeoutError("first refresh test barrier was not released")
+        return {
+            "outcome": "success",
+            "success": True,
+            "requested": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "stored": 2,
+        }
+
+    monkeypatch.setattr(tasks, "run_full_market_publication_refresh", hold_first_refresh)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first_run = executor.submit(tasks.refresh_full_market_publications_task.run)
+        assert refresh_started.wait(timeout=5)
+        try:
+            second_result = tasks.refresh_full_market_publications_task.run()
+        finally:
+            release_refresh.set()
+        first_result = first_run.result(timeout=5)
+
+    assert first_result["outcome"] == "success"
+    assert second_result["outcome"] == "noop"
+    assert second_result["requested"] == 0
+    assert second_result["succeeded"] == 0
+    assert second_result["failed"] == 0
+    assert second_result["stored"] == 0
+    assert second_result["error_code"] == "FULL_MARKET_REFRESH_ALREADY_RUNNING"
+    assert second_result["noop_reason"] == "full_market_refresh_already_running"
+    assert len(refresh_calls) == 1
+    assert second_result["published_members"] == 0
+    assert second_result["must_not_use_for_decision"] is True
+
+
+def test_full_market_task_blocks_before_refresh_when_lease_cache_is_unavailable(
+    monkeypatch,
+) -> None:
+    """An unavailable cache cannot silently disable full-market exclusion."""
+
+    from redis.exceptions import RedisError
+
+    from apps.data_center.application import tasks
+
+    class UnavailableCache:
+        def add(self, *_args, **_kwargs):
+            raise RedisError("cache unavailable")
+
+    monkeypatch.setattr(tasks, "cache", UnavailableCache())
+    monkeypatch.setattr(
+        tasks,
+        "run_full_market_publication_refresh",
+        lambda **_: pytest.fail("refresh started without an acquired lease"),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "blocked"
+    assert result["requested"] == 0
+    assert result["succeeded"] == 0
+    assert result["failed"] == 0
+    assert result["stored"] == 0
+    assert result["error_code"] == "FULL_MARKET_REFRESH_LEASE_UNAVAILABLE"
+    assert result["blocked_reason"] == "full_market_refresh_lease_unavailable"
+    assert result["publication_updated"] is False
+    assert result["published_members"] == 0
+    assert result["must_not_use_for_decision"] is True
+
+
+def test_full_market_task_releases_lease_after_soft_time_limit(monkeypatch) -> None:
+    """A soft time limit still releases this invocation's lease in finally."""
+
+    from apps.data_center.application import full_market_refresh_lease, tasks
+
+    monkeypatch.setattr(
+        tasks,
+        "run_full_market_publication_refresh",
+        lambda **_: (_ for _ in ()).throw(SoftTimeLimitExceeded()),
+    )
+
+    with pytest.raises(SoftTimeLimitExceeded):
+        tasks.refresh_full_market_publications_task.run()
+
+    assert tasks.cache.get(full_market_refresh_lease.FULL_MARKET_REFRESH_LOCK_KEY) is None
+
+    monkeypatch.setattr(
+        tasks,
+        "run_full_market_publication_refresh",
+        lambda **_: {
+            "outcome": "success",
+            "success": True,
+            "requested": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "stored": 2,
+        },
+    )
+    retry_result = tasks.refresh_full_market_publications_task.run()
+
+    assert retry_result["outcome"] == "success"
+    assert tasks.cache.get(full_market_refresh_lease.FULL_MARKET_REFRESH_LOCK_KEY) is None
+
+
+def test_full_market_task_release_does_not_delete_a_replacement_owner(monkeypatch) -> None:
+    """Lease cleanup never deletes a value that no longer belongs to this run."""
+
+    from apps.data_center.application import full_market_refresh_lease, tasks
+
+    replacement_owner = "replacement-full-market-refresh-owner"
+
+    def replace_owner(**_kwargs):
+        tasks.cache.set(
+            full_market_refresh_lease.FULL_MARKET_REFRESH_LOCK_KEY,
+            replacement_owner,
+            timeout=60,
+        )
+        return {
+            "outcome": "success",
+            "success": True,
+            "requested": 1,
+            "succeeded": 1,
+            "failed": 0,
+            "stored": 2,
+        }
+
+    monkeypatch.setattr(tasks, "run_full_market_publication_refresh", replace_owner)
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result["outcome"] == "success"
+    assert tasks.cache.get(full_market_refresh_lease.FULL_MARKET_REFRESH_LOCK_KEY) == (
+        replacement_owner
+    )
+
+
+def test_full_market_refresh_lease_ttl_is_bounded_by_task_and_authority_budgets() -> None:
+    """Lease expiry outlives the hard limit and stays inside the authority window."""
+
+    from apps.data_center.application import full_market_refresh_lease, tasks
+
+    lease = full_market_refresh_lease
+    task = tasks.refresh_full_market_publications_task
+    assert task.soft_time_limit == lease.FULL_MARKET_REFRESH_SOFT_TIME_LIMIT_SECONDS == 5400
+    assert task.time_limit == lease.FULL_MARKET_REFRESH_HARD_TIME_LIMIT_SECONDS == 5700
+    assert lease.FULL_MARKET_REFRESH_LOCK_LEASE_TTL_SECONDS == (
+        task.time_limit + lease.FULL_MARKET_REFRESH_FINALIZATION_MARGIN_SECONDS
+    )
+    assert task.time_limit < lease.FULL_MARKET_REFRESH_LOCK_LEASE_TTL_SECONDS
+    assert lease.FULL_MARKET_REFRESH_LOCK_LEASE_TTL_SECONDS < (
+        lease.FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS
+    )
+    assert lease.FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS == 6300
+    assert tasks._FULL_MARKET_AUTHORITY_WINDOW.total_seconds() == (
+        lease.FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS
+    )
+
+
+def test_full_market_refresh_lease_expires_after_a_worker_crash(monkeypatch) -> None:
+    """A crashed owner is replaced after the finite lease TTL expires."""
+
+    from apps.data_center.application import full_market_refresh_lease, tasks
+
+    monkeypatch.setattr(full_market_refresh_lease, "FULL_MARKET_REFRESH_LOCK_LEASE_TTL_SECONDS", 1)
+    assert full_market_refresh_lease.claim_full_market_refresh_lease(tasks.cache, "crashed-owner")
+    sleep(1.1)
+    assert full_market_refresh_lease.claim_full_market_refresh_lease(tasks.cache, "next-owner")
+
+    assert full_market_refresh_lease.release_full_market_refresh_lease(tasks.cache, "next-owner")
 
 
 def test_task_stops_before_provider_when_authority_identity_changes(monkeypatch):

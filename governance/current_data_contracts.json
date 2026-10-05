@@ -4776,6 +4776,7 @@
         "apps/data_center/application/full_market_refresh_orchestration.py",
         "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/financial_refresh_lease.py",
+        "apps/data_center/application/full_market_refresh_lease.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/application/market_publication_refresh.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
@@ -5149,11 +5150,25 @@
           "def restore_financial_refresh_offset(",
           "def save_financial_refresh_progress("
         ],
+        "apps/data_center/application/full_market_refresh_lease.py": [
+          "FULL_MARKET_REFRESH_LOCK_KEY = ",
+          "FULL_MARKET_REFRESH_HARD_TIME_LIMIT_SECONDS = 5700",
+          "FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS = 6300",
+          "FULL_MARKET_REFRESH_LOCK_LEASE_TTL_SECONDS = (",
+          "cache_backend.add(",
+          "current_owner != owner_id",
+          "def full_market_refresh_lease_busy_result(",
+          "def full_market_refresh_lease_unavailable_result("
+        ],
         "apps/data_center/application/tasks.py": [
           "_BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)",
           "_BACKFILL_CURSOR_MAX_LENGTH = 500",
           "universe_hash is required when offset is nonzero",
-          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=6300)",
+          "_FULL_MARKET_AUTHORITY_WINDOW = timedelta(",
+          "claim_full_market_refresh_lease(",
+          "full_market_refresh_lease_busy_result()",
+          "full_market_refresh_lease_unavailable_result()",
+          "release_full_market_refresh_lease(cache, owner_id)",
           "authority_binding=authority_binding",
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
@@ -6196,6 +6211,36 @@
           "case": "akshare_valuation_requires_exact_observation_date_and_preserves_evidence",
           "test_file": "tests/unit/data_center/test_phase3_provider_adapters.py",
           "test_function": "test_akshare_current_valuation_batch_rejects_old_and_future_observations"
+        },
+        {
+          "case": "full_market_refresh_task_wide_fail_fast_mutex",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_task_mutex_fails_fast_before_refresh"
+        },
+        {
+          "case": "full_market_refresh_lease_unavailable_fails_closed",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_task_blocks_before_refresh_when_lease_cache_is_unavailable"
+        },
+        {
+          "case": "full_market_refresh_lease_releases_after_soft_timeout",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_task_releases_lease_after_soft_time_limit"
+        },
+        {
+          "case": "full_market_refresh_lease_ttl_is_bounded_by_task_and_authority_budgets",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_refresh_lease_ttl_is_bounded_by_task_and_authority_budgets"
+        },
+        {
+          "case": "full_market_refresh_lease_release_preserves_replacement_owner",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_task_release_does_not_delete_a_replacement_owner"
+        },
+        {
+          "case": "full_market_refresh_lease_recovers_after_owner_expiry",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_full_market_refresh_lease_expires_after_a_worker_crash"
         },
         {
           "case": "scheduled_market_refresh_uses_tushare_quote_and_tencent_valuation",

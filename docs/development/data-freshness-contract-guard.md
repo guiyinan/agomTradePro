@@ -268,3 +268,10 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 两条路径具有不同的发布语义。
 
 2026-09-29 全市场 point-in-time universe 契约：active universe 同步报告保留当前候选全集的原始 count/hash；正式全市场刷新和 S6 容量预演按同一目标日解析器派生 requested scope，并分别记录候选全集、目标日 requested、明确排除及未知上市日期的 count/hash。只有 `AssetMaster.list_date` 带有 `list_date_evidence_status=verified` 和非空 `list_date_source`，且日期晚于目标日时，才可作为 `not_yet_listed` 排除；等于目标日应纳入。无来源的历史日期、冲突/未知元数据以及普通 provider 缺行均继续留在 requested scope，provider 缺行不能充当未上市证据。Tushare `stock_basic.list_date` 为主证据；明显无效的 `19700101` 由 `new_share.issue_date` 交叉补正，其中 `issue_date` 表示上市日，`ipo_date` 表示申购日。AKShare 未提供日期时必须保留 AssetMaster 已有日期和来源元数据；元数据补充失败不得破坏当前 active membership 同步，但没有可验证排除证据的目标日缺口仍应阻断。
+
+2026-10-05 全市场刷新互斥：人工和 Beat 入口共用同一个
+`data_center.refresh_full_market_publications` task-wide fail-fast lease。重复运行在 provider、事实写入和
+Publication 之前返回带稳定业务码的零写入 `noop`；cache lease 不可用时 fail closed 为零写入 `blocked`。
+正常及异常结束释放匹配 owner 的 lease，进程崩溃由 6,000 秒有界 TTL 自动恢复。现有 5,700 秒 task hard
+limit 与 6,300 秒 authority window 保持原值；TTL 必须严格大于 hard limit 且小于 authority window。
+该 lease 只协调这一全市场 task 的多个入口，不改变 freshness、coverage、audit、lineage 或 publication 门槛。

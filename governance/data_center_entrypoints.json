@@ -2792,8 +2792,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:443",
-      "locator": "line:443",
+      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:line:476",
+      "locator": "line:476",
       "path": "apps/data_center/application/tasks.py",
       "status": "adjacent_operational",
       "symbol": "apply_async",
@@ -5271,7 +5271,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=87",
+      "evidence": "governed current-data contract; source_files=88",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",

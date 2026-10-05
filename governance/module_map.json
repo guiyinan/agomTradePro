@@ -4307,6 +4307,13 @@
           "RunFullMarketPublicationPreflightUseCase",
           "TaskAttemptIdentityProbeEvidence"
         ],
+        "application/full_market_refresh_lease.py": [
+          "FullMarketRefreshLeaseUnavailable",
+          "claim_full_market_refresh_lease",
+          "full_market_refresh_lease_busy_result",
+          "full_market_refresh_lease_unavailable_result",
+          "release_full_market_refresh_lease"
+        ],
         "application/full_market_refresh_orchestration.py": [
           "run_full_market_publication_refresh"
         ],
@@ -4989,7 +4996,7 @@
         ]
       },
       "layers": {
-        "application": 118,
+        "application": 119,
         "domain": 34,
         "infrastructure": 164,
         "interface": 19,

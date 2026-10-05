@@ -46,7 +46,7 @@ from core.integration.task_monitor_runtime import (
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
-from . import financial_refresh_lease
+from . import financial_refresh_lease, full_market_refresh_lease
 from . import full_market_task_support as market_task
 from . import market_publication_refresh as market_publication_services
 from . import public as public_services
@@ -100,7 +100,9 @@ BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
 _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
-_FULL_MARKET_AUTHORITY_WINDOW = timedelta(seconds=6300)
+_FULL_MARKET_AUTHORITY_WINDOW = timedelta(
+    seconds=full_market_refresh_lease.FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS
+)
 _BACKFILL_CURSOR_MAX_LENGTH = 500
 
 
@@ -115,40 +117,70 @@ def _make_full_market_publication_bundle(
     )
 
 
-@shared_task(name="data_center.refresh_full_market_publications", time_limit=5700, soft_time_limit=5400)  # type: ignore[misc]
+@shared_task(
+    name="data_center.refresh_full_market_publications",
+    time_limit=full_market_refresh_lease.FULL_MARKET_REFRESH_HARD_TIME_LIMIT_SECONDS,
+    soft_time_limit=full_market_refresh_lease.FULL_MARKET_REFRESH_SOFT_TIME_LIMIT_SECONDS,
+)  # type: ignore[misc]
 def refresh_full_market_publications_task(
     source: str | None = None,
     batch_size: int = 100,
     quote_source: str = "tushare",
     valuation_source: str = "akshare",
 ) -> dict[str, object]:
-    """Refresh all active market quotes and valuations without waiting for financial filings."""
+    """Refresh all active market quotes and valuations under a task-wide lease."""
 
-    return run_full_market_publication_refresh(
-        source=source,
-        batch_size=batch_size,
-        quote_source=quote_source,
-        valuation_source=valuation_source,
-        dependencies=FullMarketRefreshDependencies(
-            authority_window=_FULL_MARKET_AUTHORITY_WINDOW,
-            preflight_data02_authority=_preflight_data02_task_authority,
-            get_current_task_attempt_identity=get_current_task_attempt_identity,
-            authority_latch_factory=_Data02AuthorityLatch,
-            data02_authority_failure=_data02_authority_failure,
-            get_active_provider_id_by_source=get_active_provider_id_by_source,
-            make_quote_sync_use_case=make_backfill_sync_quote_use_case,
-            make_valuation_sync_use_case=(make_backfill_sync_current_valuation_batch_use_case),
-            make_current_market_publication_bundle=(_make_full_market_publication_bundle),
-            latest_closed_market_session=latest_closed_cn_market_session,
-            sync_active_universe=sync_active_a_share_universe,
-            target_date_universe_scope=build_target_date_a_share_universe_scope,
-            publication_policy_repository=get_publication_policy_repository,
-            record_progress=record_current_task_progress,
-            model_market_data_port=public_services.get_model_market_data_port,
-            refresh_market_price_inputs=market_publication_services.refresh_market_price_inputs,
-            refresh_market_publications=market_publication_services.refresh_market_publications,
-        ),
-    )
+    owner_id = uuid4().hex
+    try:
+        lease_acquired = full_market_refresh_lease.claim_full_market_refresh_lease(
+            cache,
+            owner_id,
+        )
+    except full_market_refresh_lease.FullMarketRefreshLeaseUnavailable as exc:
+        logger.warning(
+            "Full-market refresh stopped before side effects because its lease is unavailable "
+            "(operation=%s)",
+            exc.operation,
+        )
+        return full_market_refresh_lease.full_market_refresh_lease_unavailable_result()
+    if not lease_acquired:
+        return full_market_refresh_lease.full_market_refresh_lease_busy_result()
+
+    try:
+        return run_full_market_publication_refresh(
+            source=source,
+            batch_size=batch_size,
+            quote_source=quote_source,
+            valuation_source=valuation_source,
+            dependencies=FullMarketRefreshDependencies(
+                authority_window=_FULL_MARKET_AUTHORITY_WINDOW,
+                preflight_data02_authority=_preflight_data02_task_authority,
+                get_current_task_attempt_identity=get_current_task_attempt_identity,
+                authority_latch_factory=_Data02AuthorityLatch,
+                data02_authority_failure=_data02_authority_failure,
+                get_active_provider_id_by_source=get_active_provider_id_by_source,
+                make_quote_sync_use_case=make_backfill_sync_quote_use_case,
+                make_valuation_sync_use_case=(make_backfill_sync_current_valuation_batch_use_case),
+                make_current_market_publication_bundle=(_make_full_market_publication_bundle),
+                latest_closed_market_session=latest_closed_cn_market_session,
+                sync_active_universe=sync_active_a_share_universe,
+                target_date_universe_scope=build_target_date_a_share_universe_scope,
+                publication_policy_repository=get_publication_policy_repository,
+                record_progress=record_current_task_progress,
+                model_market_data_port=public_services.get_model_market_data_port,
+                refresh_market_price_inputs=market_publication_services.refresh_market_price_inputs,
+                refresh_market_publications=market_publication_services.refresh_market_publications,
+            ),
+        )
+    finally:
+        try:
+            full_market_refresh_lease.release_full_market_refresh_lease(cache, owner_id)
+        except full_market_refresh_lease.FullMarketRefreshLeaseUnavailable as exc:
+            logger.warning(
+                "Full-market refresh lease release failed; bounded TTL recovery remains "
+                "available (operation=%s)",
+                exc.operation,
+            )
 
 
 @shared_task(  # type: ignore[misc]
