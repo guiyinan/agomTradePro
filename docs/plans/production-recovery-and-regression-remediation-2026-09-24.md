@@ -1959,3 +1959,10 @@ PostgreSQL CI 证明真实 PostgreSQL 行为。生产现有 valuation facts 与 
 Publication PostgreSQL 五组 CI。只有全部通过且 PostgreSQL artifact 包含新增固定 node id 后，才能从最新生产只读快照执行全新
 S6；S6 与同镜像部署通过后，才可投递一次新的显式全市场刷新并继续正式 Publication、decision runtime、Alpha、
 API/SDK/MCP、普通用户页面和只读零副作用联合验收。
+
+CI 补充证据：`92f07f06d` 的 Consistency run `37372855981` 在 current-data 等前置门禁通过后，由
+`data_center_architecture_inventory.py` 以 stale projection 失败。根因是本片新增三个 current-surface 文本引用后漏跑生成器，
+不是运行时、来源契约或 PostgreSQL 行为失败。`2ffc3dc37` 已用唯一生成器刷新
+`governance/data_center_architecture_inventory.json`，references 从 5,384 变为 5,387，cross-app ORM 48、外部直连 0 等其余
+计数不变；本地重新执行生成器 check 通过。该遗漏说明“生产代码门禁通过”仍不足以替代受影响治理投影检查；最终 SHA 必须重新
+取得五组 CI，旧 run 中已通过的部分 job 不能单独拼成发布凭证。
