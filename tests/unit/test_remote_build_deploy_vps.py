@@ -29,6 +29,68 @@ def _load_module() -> ModuleType:
 remote_build_deploy_vps = _load_module()
 
 
+def test_remote_build_report_paths_are_isolated_by_tag_and_attempt() -> None:
+    """Concurrent releases and retries must not share one remote /tmp report."""
+    first_tag = remote_build_deploy_vps._remote_build_report_path("20261006120001", "a" * 32)
+    second_tag = remote_build_deploy_vps._remote_build_report_path("20261006120002", "a" * 32)
+    retry = remote_build_deploy_vps._remote_build_report_path("20261006120001", "b" * 32)
+
+    assert first_tag == "/tmp/agomtradepro-build-report-20261006120001-" + "a" * 32 + ".json"
+    assert len({first_tag, second_tag, retry}) == 3
+
+
+def test_local_build_report_paths_are_isolated_and_keep_release_glob_prefix(
+    tmp_path: Path,
+) -> None:
+    """Downloaded reports must not overwrite a concurrent release or retry."""
+    report_dir = tmp_path / "reports"
+    first_tag = remote_build_deploy_vps._local_build_report_path(
+        report_dir, "20261006120001", "a" * 32
+    )
+    second_tag = remote_build_deploy_vps._local_build_report_path(
+        report_dir, "20261006120002", "a" * 32
+    )
+    retry = remote_build_deploy_vps._local_build_report_path(report_dir, "20261006120001", "b" * 32)
+
+    assert len({first_tag, second_tag, retry}) == 3
+    assert all(
+        path.name.startswith("remote-build-report-") for path in (first_tag, second_tag, retry)
+    )
+    assert all(path.match("remote-build-report-*.json") for path in (first_tag, second_tag, retry))
+
+
+@pytest.mark.parametrize(
+    ("release_tag", "attempt_id"),
+    [("20261006120001/../other", "a" * 32), ("20261006120001", "../" + "a" * 29)],
+)
+def test_remote_build_report_path_rejects_untrusted_components(
+    release_tag: str, attempt_id: str
+) -> None:
+    with pytest.raises(ValueError):
+        remote_build_deploy_vps._remote_build_report_path(release_tag, attempt_id)
+
+
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
+def test_remote_build_scripts_use_the_invocation_report_path(builder_name: str) -> None:
+    """Both build modes must write and return the caller's isolated report path."""
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    assert 'BUILD_REPORT_PATH="${BUILD_REPORT_PATH:?missing BUILD_REPORT_PATH}"' in script
+    assert 'Path(os.environ["BUILD_REPORT_PATH"])' in script
+    assert 'echo "BUILD_REPORT_PATH=$BUILD_REPORT_PATH"' in script
+    assert "/tmp/agomtradepro-build-report.json" not in script
+
+    source = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+    assert source.count('"BUILD_REPORT_PATH": expected_build_report_path') == 2
+    assert "if reported_path != expected_build_report_path:" in source
+    assert "shlex.quote(expected_build_report_path)" in source
+
+
 def test_run_drains_stdout_and_stderr_without_sequential_read_deadlock() -> None:
     class FakeChannel:
         def __init__(self) -> None:
@@ -1056,8 +1118,10 @@ def test_prebuilt_verification_script_executes_with_exact_docker_label_and_write
     source_commit = "c" * 40
     image_id = "sha256:" + "a" * 64
     rehearsal_sha256 = "b" * 64
+    attempt_id = "c" * 32
     manifest_path = tmp_path / ".agom-release-manifest.json"
-    report_path = tmp_path / "agomtradepro-build-report.json"
+    report_path = remote_build_deploy_vps._remote_build_report_path(release_tag, attempt_id)
+    local_report_path = tmp_path / Path(report_path).name
     manifest_path.write_text(
         json.dumps(
             {
@@ -1070,7 +1134,8 @@ def test_prebuilt_verification_script_executes_with_exact_docker_label_and_write
         encoding="utf-8",
     )
     script = remote_build_deploy_vps._build_prebuilt_verification_script().replace(
-        'Path("/tmp/agomtradepro-build-report.json")', f"Path({str(report_path)!r})"
+        "Path(report_path).write_text(",
+        f"(Path({str(tmp_path)!r}) / Path(report_path).name).write_text(",
     )
     commands: list[list[str]] = []
 
@@ -1094,12 +1159,13 @@ def test_prebuilt_verification_script_executes_with_exact_docker_label_and_write
             source_commit,
             image_id,
             rehearsal_sha256,
+            report_path,
         ],
     )
 
     exec(compile(script, "<prebuilt-verification>", "exec"), {})
 
-    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report = json.loads(local_report_path.read_text(encoding="utf-8"))
     assert [command[-1] for command in commands] == [
         "{{.Id}}",
         '{{index .Config.Labels "org.opencontainers.image.revision"}}',
@@ -1114,6 +1180,65 @@ def test_prebuilt_verification_script_executes_with_exact_docker_label_and_write
         "deploy_after_build": True,
         "source_mode": "prebuilt-rehearsed-image",
     }
+
+
+def test_prebuilt_verification_keeps_reports_for_two_release_tags_separate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A later tag must not overwrite the earlier invocation's remote report."""
+    source_commit = "c" * 40
+    image_id = "sha256:" + "a" * 64
+    verifier = remote_build_deploy_vps._build_prebuilt_verification_script().replace(
+        "Path(report_path).write_text(",
+        f"(Path({str(tmp_path)!r}) / Path(report_path).name).write_text(",
+    )
+    report_paths: list[Path] = []
+
+    def fake_check_output(command: list[str], *, text: bool) -> str:
+        assert text is True
+        return image_id if command[-1] == "{{.Id}}" else source_commit
+
+    monkeypatch.setattr(subprocess, "check_output", fake_check_output)
+    for release_tag, attempt_id, digest in (
+        ("20261006120001", "a" * 32, "b" * 64),
+        ("20261006120002", "d" * 32, "e" * 64),
+    ):
+        manifest_path = tmp_path / f"manifest-{release_tag}.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "release_tag": release_tag,
+                    "source_commit": source_commit,
+                    "image_tag": f"agomtradepro-web:{release_tag}",
+                    "image_id": image_id,
+                }
+            ),
+            encoding="utf-8",
+        )
+        report_path = remote_build_deploy_vps._remote_build_report_path(release_tag, attempt_id)
+        report_paths.append(tmp_path / Path(report_path).name)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "-c",
+                str(manifest_path),
+                release_tag,
+                source_commit,
+                image_id,
+                digest,
+                report_path,
+            ],
+        )
+        exec(compile(verifier, "<prebuilt-verification>", "exec"), {})
+
+    assert report_paths[0] != report_paths[1]
+    assert [
+        json.loads(path.read_text(encoding="utf-8"))["release_tag"] for path in report_paths
+    ] == [
+        "20261006120001",
+        "20261006120002",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -1167,6 +1292,7 @@ def test_prebuilt_verification_script_rejects_image_manifest_or_digest_drift(
             source_commit,
             expected_image_id,
             rehearsal_sha256,
+            remote_build_deploy_vps._remote_build_report_path(release_tag, "f" * 32),
         ],
     )
 
@@ -1408,7 +1534,35 @@ def test_remote_builds_overlap_predeploy_backup_with_image_build(builder_name: s
     # The completion marker is emitted only after a successful wait, before the
     # build report is written.
     assert script.index(wait_gate) < script.index(marker)
-    assert script.index(marker) < script.index("/tmp/agomtradepro-build-report.json")
+    assert script.index(marker) < script.index('Path(os.environ["BUILD_REPORT_PATH"]).write_text(')
+
+
+def test_remote_build_cleanup_removes_only_the_current_attempt_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cleaning one build must not delete another attempt's report."""
+    report_path = remote_build_deploy_vps._remote_build_report_path("20261006120001", "a" * 32)
+    commands: list[str] = []
+
+    def fake_run(_ssh: object, command: str, *, timeout: int) -> tuple[int, str, str]:
+        assert timeout == 10
+        commands.append(command)
+        return 0, "", ""
+
+    monkeypatch.setattr(remote_build_deploy_vps, "_run", fake_run)
+    remote_build_deploy_vps._cleanup_remote_build_artifacts(
+        object(),
+        tag="20261006120001",
+        build_report_path=report_path,
+        remote_image_tar=None,
+        remote_dir="/tmp/build-remote",
+        target_dir="/opt/agomtradepro",
+        timeout=10,
+    )
+
+    assert len(commands) == 1
+    assert report_path in commands[0]
+    assert "/tmp/agomtradepro-build-report.json" not in commands[0]
 
 
 def test_remote_deploy_reuses_build_phase_backup_without_repeating_it() -> None:

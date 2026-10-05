@@ -62,6 +62,23 @@ _RUNTIME_SOURCE_PERMISSION_NORMALIZER = r"""normalize_runtime_source_permissions
 }
 normalize_runtime_source_permissions
 """
+
+
+def _remote_build_report_path(release_tag: str, attempt_id: str) -> str:
+    """Return a unique, path-safe temporary report name for one build attempt."""
+    if re.fullmatch(r"[0-9]{14}", release_tag) is None:
+        raise ValueError("release tag is invalid")
+    if re.fullmatch(r"[0-9a-f]{32}", attempt_id) is None:
+        raise ValueError("build attempt identity is invalid")
+    return f"/tmp/agomtradepro-build-report-{release_tag}-{attempt_id}.json"
+
+
+def _local_build_report_path(report_dir: Path, release_tag: str, attempt_id: str) -> Path:
+    """Return a unique, path-safe local report name for one build attempt."""
+    _remote_build_report_path(release_tag, attempt_id)
+    return report_dir / f"remote-build-report-{release_tag}-{attempt_id}.json"
+
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -587,7 +604,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-manifest_path, release_tag, source_commit, expected_image_id, rehearsal_sha256 = sys.argv[1:]
+manifest_path, release_tag, source_commit, expected_image_id, rehearsal_sha256, report_path = sys.argv[1:]
 manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
 image_tag = f"agomtradepro-web:{release_tag}"
 actual_image_id = subprocess.check_output(
@@ -605,13 +622,19 @@ actual_revision = subprocess.check_output(
     text=True,
 ).strip()
 if (
-    re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
+    re.fullmatch(r"[0-9]{14}", release_tag) is None
+    or re.fullmatch(r"[0-9a-f]{64}", rehearsal_sha256) is None
     or manifest.get("release_tag") != release_tag
     or manifest.get("source_commit") != source_commit
     or manifest.get("image_tag") != image_tag
     or manifest.get("image_id") != expected_image_id
     or actual_image_id != expected_image_id
     or actual_revision != source_commit
+    or re.fullmatch(
+        rf"/tmp/agomtradepro-build-report-{release_tag}-[0-9a-f]{{32}}\\.json",
+        report_path,
+    )
+    is None
 ):
     raise SystemExit("prebuilt candidate identity mismatch")
 report = {
@@ -624,10 +647,8 @@ report = {
     "deploy_after_build": True,
     "source_mode": "prebuilt-rehearsed-image",
 }
-Path("/tmp/agomtradepro-build-report.json").write_text(
-    json.dumps(report, sort_keys=True, indent=2), encoding="utf-8"
-)
-print("BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json")
+Path(report_path).write_text(json.dumps(report, sort_keys=True, indent=2), encoding="utf-8")
+print(f"BUILD_REPORT_PATH={report_path}")
 """
 
 
@@ -1339,6 +1360,7 @@ def _build_remote_build_script() -> str:
 TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 REMOTE_TARBALL="${REMOTE_TARBALL:?missing REMOTE_TARBALL}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
+BUILD_REPORT_PATH="${BUILD_REPORT_PATH:?missing BUILD_REPORT_PATH}"
 KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
@@ -1553,7 +1575,9 @@ report = {
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
 }
-Path("/tmp/agomtradepro-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+Path(os.environ["BUILD_REPORT_PATH"]).write_text(
+    json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8"
+)
 PY
 
 if [ "$DEPLOY_AFTER_BUILD" != "1" ] && [ "$KEEP_REMOTE_TEMP" != "1" ]; then
@@ -1564,7 +1588,7 @@ if [ "$KEEP_REMOTE_TEMP" != "1" ]; then
   rm -rf "$WORK_ROOT" "$REMOTE_TARBALL"
 fi
 
-echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
+echo "BUILD_REPORT_PATH=$BUILD_REPORT_PATH"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """.replace(
             "__CLAIM_ACTIVE_BUILD_MARKER__",
@@ -1585,6 +1609,7 @@ def _cleanup_remote_build_artifacts(
     ssh: Any,
     *,
     tag: str,
+    build_report_path: str,
     remote_image_tar: str | None,
     remote_dir: str,
     target_dir: str,
@@ -1599,7 +1624,9 @@ def _cleanup_remote_build_artifacts(
 
     cleanup_lines.extend(
         [
-            "rm -f /tmp/agomtradepro-build-report.json /tmp/agomtradepro-deploy-report.json /tmp/agomtradepro-health.json /tmp/agomtradepro-compose-ps.txt 2>/dev/null || true",
+            "rm -f "
+            + shlex.quote(build_report_path)
+            + " /tmp/agomtradepro-deploy-report.json /tmp/agomtradepro-health.json /tmp/agomtradepro-compose-ps.txt 2>/dev/null || true",
             f"docker image rm -f {shlex.quote(f'agomtradepro-web:{tag}')} 2>/dev/null || true",
             "dangling=$(docker images -f dangling=true -q 2>/dev/null || true)",
             'if [ -n "$dangling" ]; then docker rmi -f $dangling 2>/dev/null || true; fi',
@@ -1616,6 +1643,7 @@ def _build_remote_git_clone_build_script() -> str:
 
 TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
+BUILD_REPORT_PATH="${BUILD_REPORT_PATH:?missing BUILD_REPORT_PATH}"
 GIT_REPO="${GIT_REPO:?missing GIT_REPO}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
@@ -1834,10 +1862,12 @@ report = {
     "git_repo": os.environ.get("GIT_REPO", ""),
     "git_branch": os.environ.get("GIT_BRANCH", "main"),
 }
-Path("/tmp/agomtradepro-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+Path(os.environ["BUILD_REPORT_PATH"]).write_text(
+    json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8"
+)
 PY
 
-echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
+echo "BUILD_REPORT_PATH=$BUILD_REPORT_PATH"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """.replace(
         "__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__",
@@ -3244,6 +3274,8 @@ def main() -> int:
     enable_celery = False if args.disable_celery else True
 
     tag = args.prebuilt_release_tag if prebuilt else time.strftime("%Y%m%d%H%M%S")
+    report_attempt_id = secrets.token_hex(16)
+    expected_build_report_path = _remote_build_report_path(tag, report_attempt_id)
     bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
     local_image_path = (
@@ -3301,6 +3333,7 @@ def main() -> int:
                     shlex.quote(source_commit),
                     shlex.quote(args.prebuilt_image_id),
                     shlex.quote(args.release_rehearsal_sha256),
+                    shlex.quote(expected_build_report_path),
                 ]
             )
             code, out, err = _run(ssh, remote_cmd, timeout=min(args.timeout, 120))
@@ -3313,6 +3346,7 @@ def main() -> int:
             build_env = {
                 "TARGET_DIR": args.target_dir,
                 "RELEASE_TAG": tag,
+                "BUILD_REPORT_PATH": expected_build_report_path,
                 "GIT_REPO": args.git_repo,
                 "GIT_BRANCH": args.git_branch,
                 "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
@@ -3379,6 +3413,7 @@ def main() -> int:
                 "TARGET_DIR": args.target_dir,
                 "REMOTE_TARBALL": remote_bundle,
                 "RELEASE_TAG": tag,
+                "BUILD_REPORT_PATH": expected_build_report_path,
                 "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
                 "EXPORT_IMAGE_TAR": _bool_env(True),
                 "PREDEPLOY_BACKUP": _bool_env(
@@ -3400,7 +3435,10 @@ def main() -> int:
 
         for line in out.splitlines():
             if line.startswith("BUILD_REPORT_PATH="):
-                build_report_path = line.split("=", 1)[1].strip()
+                reported_path = line.split("=", 1)[1].strip()
+                if reported_path != expected_build_report_path:
+                    _die("Remote build report path does not match this invocation")
+                build_report_path = reported_path
             if line.startswith("REPORT_PATH="):
                 report_path = line.split("=", 1)[1].strip()
             if line.startswith("REMOTE_IMAGE_TAR="):
@@ -3409,6 +3447,9 @@ def main() -> int:
                 predeploy_backup_done = line.split("=", 1)[1].strip() == "1"
             if line.startswith("PREDEPLOY_BACKUP_OF="):
                 predeploy_backup_of = line.split("=", 1)[1].strip()
+
+        if build_report_path is None:
+            _die("Remote operation did not return its build report path")
 
         download_pool: ThreadPoolExecutor | None = None
         download_future: Future[Path] | None = None
@@ -3502,7 +3543,7 @@ def main() -> int:
         if args.download_report and report_path:
             report_dir = (project_root / args.report_dir).resolve()
             report_dir.mkdir(parents=True, exist_ok=True)
-            local_report = report_dir / f"remote-build-report-{tag}.json"
+            local_report = _local_build_report_path(report_dir, tag, report_attempt_id)
             _info(f"Downloading deployment report: {local_report}")
             sftp = ssh.open_sftp()
             try:
@@ -3512,7 +3553,7 @@ def main() -> int:
         elif args.download_report and build_report_path:
             report_dir = (project_root / args.report_dir).resolve()
             report_dir.mkdir(parents=True, exist_ok=True)
-            local_report = report_dir / f"remote-build-report-{tag}.json"
+            local_report = _local_build_report_path(report_dir, tag, report_attempt_id)
             _info(f"Downloading build-only report: {local_report}")
             sftp = ssh.open_sftp()
             try:
@@ -3528,9 +3569,16 @@ def main() -> int:
             _cleanup_remote_build_artifacts(
                 ssh,
                 tag=tag,
+                build_report_path=build_report_path,
                 remote_image_tar=remote_image_tar,
                 remote_dir=remote_dir,
                 target_dir=args.target_dir,
+                timeout=args.timeout,
+            )
+        elif not args.keep_remote_temp:
+            _run(
+                ssh,
+                "rm -f " + shlex.quote(build_report_path),
                 timeout=args.timeout,
             )
 
