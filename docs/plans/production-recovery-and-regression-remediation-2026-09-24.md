@@ -1697,3 +1697,55 @@ entrypoint/architecture 生成后 check 与 `git diff --check` 通过。无测�
 下一片是否可开始：可以提交本节台账并 push 最终 SHA，等待五组 exact-SHA CI。只有五组全绿后才能用最新生产只读
 快照和重新导出的 provider/settings/unit-contract 启动全新九阶段 S6；S6 与同镜像部署通过后才允许投递一次新的显式
 全市场刷新并继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读零副作用联合验收。
+
+#### 2026-10-05 ⑥价格停牌探针与最终业务结果投影整改（`e5c09bfc5` / `3d0ea139c`）
+
+完成项：最终候选 `1f696704b3fe7e6b85b1f2fae877c770305fc653` 已取得五组 exact-SHA CI 全绿：
+Consistency `37259308415`、Architecture `37259308359`、Publication PostgreSQL `37259308399`、
+Fast Feedback `37259308379`、Security `37259308389`；PostgreSQL workflow 实际执行锁故障注入、5,001-member
+query count/持锁时间/lock wait 硬门槛及 SQLite 快照演练。VPS 全新 S6 根目录
+`/opt/agomtradepro/rehearsals/s6-1f696704b-20261005a` 使用最新生产只读快照、5,572 只动态 universe、完整真实
+provider identities 和冻结 settings 通过九阶段，handoff receipt SHA-256 为
+`c29dab7f31e12ffb969d181608fbd10b5bd0ebad526622c7e1c3c936c758177d`，同 SHA 预构建镜像
+`sha256:4758948766beb1b644aea0d4aab91344e72fbaef05868ab0af6b02ad1c615015` 完成部署；运行 source/image、
+PostgreSQL role、526 条迁移、TUI metadata、provider token readiness 和 production statement logging 逐项复核通过。
+
+本次授权范围内只投递一次全市场刷新：task ID `9af9deaa-148b-4df1-96b6-866f6a659ead`、attempt ID
+`ef451a53c1784b66ab78e702f5bd5921`、publication run ID `44d9c519-f178-48a3-a89d-bd9f1c658f7b`。任务历时
+3,259.208 秒，quote 56/56、valuation 56/56，规范业务结果为 `partial`，
+`requested/succeeded/failed/stored=5572/5572/0/11144`；publication 0/1、`published_members=0`、
+`publication_updated=false`，稳定错误码 `MARKET_PUBLICATION_VALIDATION_FAILED`。Celery 技术状态虽为 SUCCESS，未被
+视为恢复；三条 current pointer 仍为空，没有部分 activation。安全证据保存在
+`/opt/agomtradepro/rehearsals/production-refresh-9af9deaa-148b-4df1-96b6-866f6a659ead/final-business-result.json`，
+SHA-256 为 `180d967ad7d6fbd89048cb76f0aeb03ec30724a93313e588345d63c4d98709b5`。
+
+底层 traceback 精确落在 `CurrentPublicationRebuildUseCase._select`，异常为
+`Market suspension scope requires a target-date observation probe`。全市场编排会把目标日价格停牌排除传给
+`equity.price.bar`，重建器按既有 fail-closed 规则要求 candidate repository 证明被排除证券没有目标日价格事实；生产
+`PriceBarRepository` 没有实现该 Protocol，而 quote repository 已实现。S6/replay 只覆盖 quote suspension，单元 fake
+repository 又普遍自带 probe，导致真实 price composition 缺口未被发现。`e5c09bfc5e15ba14ff5c0392f60ee9808629b4d3`
+为价格仓储补充精确 `bar_date` 的日线/分钟线探针，周线/月线不作为当日成交证明；生产 bundle 组合测试同时证明无目标日事实
+时可预览、发现冲突时继续失败关闭。实现按请求证券和日期查询，不包含固定证券名单，也未调整 freshness、coverage、audit、
+15:00 收盘、锁等待、timeout/retry 或 `SIGNAL_WEAK`。
+
+同一次运行还暴露 Task Monitor 的独立系统性缺陷：Celery backend 保留完整业务 dict，但 postrun 使用
+`str(retval)[:10000]`，截断点落在大型 raw-audit 数组中，持久结果长度恰为 10,000 且 JSON/repr 均不可解析，页面/API
+最终只剩技术 `success`。`3d0ea139c319347f0cd8b0e570f03ab869f91221` 将超长结果改为确定性有界业务投影，保留 outcome、
+四项计数、phase/phase_results、稳定错误码、阻断原因、publication_updated/run ID、最多三组 publication ID 与每数据集
+ID/hash/member count/policy/source time 摘要；raw audit、scope blocks 和证券清单不进入 Task Monitor。普通小结果仍保留既有
+表示，未通过扩大字段或隐藏截断来规避问题。
+
+测试计数：价格 repository/current-publication 回归 `46 passed`，生产 composition 回归 `12 passed`；Task Monitor
+unit/API 回归 `65 passed`。价格生产文件及 Task Monitor 三个生产文件的增量 mypy 均为 0 regression，全仓 mypy debt
+ceiling 为 `0 errors in 0 files`；Celery 治理检查 94 个登记任务通过；Black、isort、Ruff 与 `git diff --check` 通过。
+新价格探针反例和超长 partial 结果反例均先在旧实现稳定失败后转绿，无跳过项。
+
+未验证风险与停止线：上述两个生产修复提交及本节文档后的最终 SHA 尚未取得五组 exact-SHA CI；旧
+`s6-1f696704b-20261005a` receipt、镜像和当前部署不包含这些修复，禁止复用。必须以最终 SHA、最新生产只读快照和新导出的
+provider/settings/unit-contract 重新执行完整九阶段 S6，随后只部署其同 SHA 预构建镜像。全绿和部署身份复核完成前不得再次
+启动生产全市场任务。正式 quote/price/valuation Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读
+零副作用联合验收仍未完成；financial source-time owner approval 仍须独立取得，不得伪造或自动放行。
+
+下一片是否可开始：可以提交本节台账并 push 最终 SHA，等待五组 CI；全部通过后启动全新 S6。S6 与同镜像部署通过后，
+才允许投递一次新的显式全市场任务，并同时从 Task Monitor API 与 Celery backend 对账业务 outcome、四项计数、阶段、
+Publication IDs/hash/run ID。任何失败继续先保存稳定业务码和安全诊断，不盲目重跑、不扩大 timeout/retry、不放宽业务门槛。
