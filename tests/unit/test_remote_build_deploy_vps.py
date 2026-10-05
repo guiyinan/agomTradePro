@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import os
@@ -27,6 +28,32 @@ def _load_module() -> ModuleType:
 
 
 remote_build_deploy_vps = _load_module()
+
+
+def _required_cli_options(source: str) -> set[str]:
+    """Return literal argparse options declared with ``required=True``."""
+    tree = ast.parse(source)
+    required: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "add_argument" or not node.args:
+            continue
+        is_required = any(
+            keyword.arg == "required"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value is True
+            for keyword in node.keywords
+        )
+        option = node.args[0]
+        if is_required and isinstance(option, ast.Constant) and isinstance(option.value, str):
+            required.add(option.value)
+    return required
+
+
+def _missing_cli_options(required: set[str], argument_block: str, quote: str) -> list[str]:
+    """Return required CLI options absent from one concrete argument block."""
+    return sorted(option for option in required if f"{quote}{option}{quote}" not in argument_block)
 
 
 def test_remote_build_report_paths_are_isolated_by_tag_and_attempt() -> None:
@@ -1092,6 +1119,36 @@ def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
     assert "'--expected-candidate-image-id', $PrebuiltImageId" in wrapper
     assert "'--prebuilt-image-id', $PrebuiltImageId" in wrapper
     assert "'--release-rehearsal-sha256', $rehearsalManifestHash" in wrapper
+
+
+def test_release_validator_required_options_reach_every_cli_consumer() -> None:
+    """A new required validator option must update every cross-language caller."""
+    repository_root = Path(__file__).resolve().parents[2]
+    validator_source = (repository_root / "scripts" / "validate_release_rehearsal.py").read_text(
+        encoding="utf-8"
+    )
+    required_options = _required_cli_options(validator_source)
+    assert required_options
+
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+    wrapper_end = wrapper.index('Write-Info "Validating candidate-bound')
+    rehearsal = (repository_root / "scripts" / "run_release_rehearsal.py").read_text(
+        encoding="utf-8"
+    )
+    rehearsal_start = rehearsal.index("validator_argv = (")
+    rehearsal_end = rehearsal.index("_invoke(", rehearsal_start)
+    consumers = {
+        "one-click-deploy": (wrapper[:wrapper_end], "'"),
+        "release-rehearsal": (rehearsal[rehearsal_start:rehearsal_end], '"'),
+    }
+    for consumer, (argument_block, quote) in consumers.items():
+        missing = _missing_cli_options(required_options, argument_block, quote)
+        assert not missing, f"{consumer} does not forward required validator options: {missing}"
+
+    omitted = sorted(required_options)[0]
+    wrapper_block, quote = consumers["one-click-deploy"]
+    mutated_block = wrapper_block.replace(f"{quote}{omitted}{quote}", "'--omitted-by-fixture'")
+    assert omitted in _missing_cli_options(required_options, mutated_block, quote)
 
 
 def test_remote_builder_reuses_only_the_rehearsed_prebuilt_image() -> None:
