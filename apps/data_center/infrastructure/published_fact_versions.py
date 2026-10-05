@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime
 from decimal import Decimal
 from typing import TypeVar
 
@@ -12,7 +14,6 @@ from django.db.models import OuterRef, QuerySet, Subquery
 from core.exceptions import DataFetchError
 
 from .models import FinancialFactModel, PriceBarModel, QuoteSnapshotModel, ValuationFactModel
-from .publication_fact_identity import build_publication_fact_identity
 from .publication_fact_write_lock import publication_fact_write_lock
 from .publication_models import PublicationMemberModel
 
@@ -170,16 +171,8 @@ def upsert_publication_safe_facts(
     """
     if not rows:
         return 0
-    dataset_key_by_model: dict[type[models.Model], str] = {
-        PriceBarModel: "equity.price.bar",
-        QuoteSnapshotModel: "equity.quote.snapshot",
-        ValuationFactModel: "equity.valuation.fact",
-    }
-    dataset_key = dataset_key_by_model.get(model)
-    if dataset_key is None:
-        raise ValueError("Publication-safe fact model is not registered")
     natural_key_tokens = tuple(
-        build_publication_fact_identity(dataset_key, row).natural_key for row in rows
+        _publication_fact_lock_token(row, natural_key=natural_key) for row in rows
     )
     with publication_fact_write_lock(model, natural_key_tokens=natural_key_tokens):
         return _upsert_locked_facts(
@@ -247,3 +240,26 @@ def _upsert_locked_facts(
             update_fields=list(update_fields),
         )
     return len(rows)
+
+
+def _publication_fact_lock_token(
+    row: models.Model,
+    *,
+    natural_key: tuple[str, ...],
+) -> str:
+    """Encode an existing repository natural key without adding fact validation."""
+
+    components: list[tuple[str, str]] = []
+    for field_name in natural_key:
+        value: object = getattr(row, field_name)
+        if isinstance(value, datetime):
+            components.append(("datetime", value.isoformat()))
+        elif isinstance(value, date):
+            components.append(("date", value.isoformat()))
+        elif type(value) is str:
+            components.append(("str", value))
+        elif type(value) is int:
+            components.append(("int", str(value)))
+        else:
+            raise ValueError("Publication fact natural-key field type is unsupported")
+    return json.dumps(components, ensure_ascii=False, separators=(",", ":"))

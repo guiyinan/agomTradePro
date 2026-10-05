@@ -13766,7 +13766,7 @@
       "text": "\"\"\"One lockable current-publication scope row.\"\"\""
     },
     {
-      "line": 46,
+      "line": 47,
       "path": "apps/data_center/infrastructure/published_fact_versions.py",
       "text": "\"\"\"Return one current row per asset without a historical correlated scan."
     },
