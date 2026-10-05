@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Protocol, cast, runtime_checkable
+from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -375,6 +376,8 @@ class RehearsalConfig:
     isolated_database_name: str
     isolated_database_host: str
     isolated_database_container: str
+    isolated_redis_host: str
+    isolated_redis_container: str
     target_trade_date: str
     universe_sha256: str
     provider_identities_path: Path
@@ -656,6 +659,87 @@ def _candidate_sha(runner: CommandRunner, root: Path) -> str:
     return head
 
 
+def _assert_launcher_provenance(root: Path, *, launcher_path: Path | None = None) -> None:
+    """Require the CLI launcher to come from the selected checkout."""
+    selected = (root / "scripts" / "run_release_rehearsal.py").resolve()
+    actual = (launcher_path or Path(__file__)).resolve()
+    if actual != selected or not selected.is_file():
+        raise RehearsalBlocked("inputs", "S6_LAUNCHER_PROVENANCE_INVALID")
+
+
+def _parse_env_file(path: Path) -> dict[str, str]:
+    """Parse a Docker env file without ever exposing its values in failures."""
+    try:
+        text = _read_file(path).decode("utf-8")
+    except UnicodeError as exc:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
+    values: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if (
+            not separator
+            or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) is None
+            or key in values
+            or "\x00" in value
+        ):
+            raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID")
+        values[key] = value
+    return values
+
+
+def _url_identity(value: str, *, schemes: frozenset[str]) -> tuple[str, str]:
+    """Return a URL host and decoded path or a stable, secret-free failure."""
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
+    if parsed.scheme not in schemes or host is None or port is not None and port <= 0:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID")
+    return host, unquote(parsed.path.removeprefix("/"))
+
+
+def _validate_isolated_environment_identity(config: RehearsalConfig) -> None:
+    """Bind effective database and Redis endpoints before any remote build."""
+    values = _parse_env_file(config.isolated_postgres_env_file)
+    required = {
+        "POSTGRES_HOST",
+        "POSTGRES_DB",
+        "DATABASE_URL",
+        "MIGRATOR_DATABASE_URL",
+        "REDIS_HOST",
+        "REDIS_URL",
+        "AGOM_RELEASE_REHEARSAL_DATABASE",
+    }
+    if not required.issubset(values):
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_IDENTITY_MISMATCH")
+    database_host, database_name = _url_identity(
+        values["DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
+    )
+    migrator_host, migrator_name = _url_identity(
+        values["MIGRATOR_DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
+    )
+    redis_host, _redis_database = _url_identity(
+        values["REDIS_URL"], schemes=frozenset({"redis", "rediss"})
+    )
+    if (
+        values["AGOM_RELEASE_REHEARSAL_DATABASE"] != "1"
+        or values["POSTGRES_HOST"] != config.isolated_database_host
+        or values["POSTGRES_DB"] != config.isolated_database_name
+        or database_host != config.isolated_database_host
+        or database_name != config.isolated_database_name
+        or migrator_host != config.isolated_database_host
+        or migrator_name != config.isolated_database_name
+        or values["REDIS_HOST"] != config.isolated_redis_host
+        or redis_host != config.isolated_redis_host
+    ):
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_IDENTITY_MISMATCH")
+
+
 def _assert_candidate(runner: CommandRunner, root: Path, expected: str) -> None:
     """Ensure the frozen checkout is unchanged before each evidence stage."""
     if _candidate_sha(runner, root) != expected:
@@ -685,6 +769,8 @@ def _validate_inputs(
         or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", config.isolated_database_host) is None
         or re.fullmatch(r"agom-s6-(?:pg|postgres)-[a-z0-9-]+", config.isolated_database_container)
         is None
+        or re.fullmatch(r"agom-s6-redis-[a-z0-9-]+", config.isolated_redis_host) is None
+        or re.fullmatch(r"agom-s6-redis-[a-z0-9-]+", config.isolated_redis_container) is None
         or config.quote_provider_id <= 0
         or config.valuation_provider_id <= 0
         or config.github_run_id <= 0
@@ -705,6 +791,7 @@ def _validate_inputs(
         config.isolated_postgres_env_file,
     ):
         _read_file(path)
+    _validate_isolated_environment_identity(config)
     provider_raw = _read_file(config.provider_identities_path, 16_384)
     try:
         identities = parse_rehearsal_identities(json.loads(provider_raw))
@@ -1264,8 +1351,16 @@ def _checkpoint_binding(
     return values
 
 
-def _preflight_isolated_database_container(config: RehearsalConfig, runner: CommandRunner) -> str:
-    """Bind the configured isolated database host to a running container on the S6 network."""
+def _preflight_isolated_container(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    *,
+    label: str,
+    container: str,
+    host: str,
+    invalid_code: str,
+) -> str:
+    """Bind an isolated service host to its running container and network."""
     template = (
         '{"id":{{json .Id}},"name":{{json .Name}},'
         '"running":{{json .State.Running}},'
@@ -1277,24 +1372,22 @@ def _preflight_isolated_database_container(config: RehearsalConfig, runner: Comm
             "docker",
             "container",
             "inspect",
-            config.isolated_database_container,
+            container,
             "--format",
             template,
         ),
         root=config.root,
-        label="preflight_isolated_database_container",
+        label=label,
         timeout=30,
     )
     try:
-        payload = _object(json.loads(result.stdout), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
-        networks = _object(payload.get("networks"), "S6_ISOLATED_DATABASE_CONTAINER_INVALID")
-        network = _object(
-            networks.get(config.docker_network), "S6_ISOLATED_DATABASE_CONTAINER_INVALID"
-        )
+        payload = _object(json.loads(result.stdout), invalid_code)
+        networks = _object(payload.get("networks"), invalid_code)
+        network = _object(networks.get(config.docker_network), invalid_code)
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RehearsalBlocked(
-            "preflight_isolated_database_container",
-            "S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+            label,
+            invalid_code,
         ) from exc
     container_id = payload.get("id")
     network_names: set[str] = set()
@@ -1305,15 +1398,27 @@ def _preflight_isolated_database_container(config: RehearsalConfig, runner: Comm
     if (
         not isinstance(container_id, str)
         or re.fullmatch(r"[0-9a-f]{64}", container_id) is None
-        or payload.get("name") != f"/{config.isolated_database_container}"
+        or payload.get("name") != f"/{container}"
         or payload.get("running") is not True
-        or config.isolated_database_host not in network_names
+        or host not in network_names
     ):
         raise RehearsalBlocked(
-            "preflight_isolated_database_container",
-            "S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+            label,
+            invalid_code,
         )
     return container_id
+
+
+def _preflight_isolated_database_container(config: RehearsalConfig, runner: CommandRunner) -> str:
+    """Bind the configured isolated database host to its running container."""
+    return _preflight_isolated_container(
+        config,
+        runner,
+        label="preflight_isolated_database_container",
+        container=config.isolated_database_container,
+        host=config.isolated_database_host,
+        invalid_code="S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+    )
 
 
 def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> None:
@@ -1324,6 +1429,14 @@ def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> No
     ):
         _invoke(runner, argv=argv, root=config.root, label=label, timeout=30)
     _preflight_isolated_database_container(config, runner)
+    _preflight_isolated_container(
+        config,
+        runner,
+        label="preflight_isolated_redis_container",
+        container=config.isolated_redis_container,
+        host=config.isolated_redis_host,
+        invalid_code="S6_ISOLATED_REDIS_CONTAINER_INVALID",
+    )
     run_id = hashlib.sha256(str(config.output_dir.resolve()).encode()).hexdigest()
     containers = _invoke(
         runner,
@@ -1979,6 +2092,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--isolated-database-name", required=True)
     parser.add_argument("--isolated-database-host", required=True)
     parser.add_argument("--isolated-database-container", required=True)
+    parser.add_argument("--isolated-redis-host", required=True)
+    parser.add_argument("--isolated-redis-container", required=True)
     parser.add_argument("--target-trade-date", required=True)
     parser.add_argument("--universe-sha256", required=True)
     parser.add_argument("--provider-identities", type=Path, required=True)
@@ -2015,6 +2130,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         isolated_database_name=args.isolated_database_name,
         isolated_database_host=args.isolated_database_host,
         isolated_database_container=args.isolated_database_container,
+        isolated_redis_host=args.isolated_redis_host,
+        isolated_redis_container=args.isolated_redis_container,
         target_trade_date=args.target_trade_date,
         universe_sha256=args.universe_sha256,
         provider_identities_path=args.provider_identities.resolve(),
@@ -2036,6 +2153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         resume=args.resume,
     )
     try:
+        _assert_launcher_provenance(config.root)
         receipt = run_release_rehearsal(config)
     except KeyboardInterrupt:
         print(

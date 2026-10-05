@@ -28,6 +28,7 @@ from scripts.run_release_rehearsal import (
     RehearsalBlocked,
     RehearsalConfig,
     SubprocessRunner,
+    _assert_launcher_provenance,
     _invoke,
     _invoke_container_stage,
     bundle_tree_digest,
@@ -120,6 +121,23 @@ class FakeRunner:
                                     "agom-s6-pg-abcdefghij",
                                     "agom-s6-postgres-abcdefghij",
                                 ],
+                            }
+                        },
+                    }
+                ),
+            )
+        elif command.label == "preflight_isolated_redis_container":
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "id": "e" * 64,
+                        "name": "/agom-s6-redis-abcdefghij",
+                        "running": True,
+                        "networks": {
+                            "agomtradepro_rehearsal": {
+                                "Aliases": ["agom-s6-redis-abcdefghij"],
+                                "DNSNames": ["agom-s6-redis-abcdefghij"],
                             }
                         },
                     }
@@ -374,7 +392,18 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
     provider_env = tmp_path / "provider.env"
     provider_env.write_text("DJANGO_SETTINGS_MODULE=config.settings\n", encoding="utf-8")
     isolated_env = tmp_path / "isolated.env"
-    isolated_env.write_text("AGOM_RELEASE_REHEARSAL_DATABASE=1\n", encoding="utf-8")
+    isolated_env.write_text(
+        "POSTGRES_HOST=agom-s6-postgres-abcdefghij\n"
+        "POSTGRES_DB=agom_release_rehearsal_abcdefghij\n"
+        "DATABASE_URL=postgresql://user:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij\n"
+        "MIGRATOR_DATABASE_URL=postgresql://migrator:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij\n"
+        "REDIS_HOST=agom-s6-redis-abcdefghij\n"
+        "REDIS_URL=redis://:not-a-real-secret@agom-s6-redis-abcdefghij:6379/0\n"
+        "AGOM_RELEASE_REHEARSAL_DATABASE=1\n",
+        encoding="utf-8",
+    )
     return RehearsalConfig(
         root=root,
         output_dir=tmp_path / "rehearsal-run",
@@ -394,6 +423,8 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         isolated_database_name="agom_release_rehearsal_abcdefghij",
         isolated_database_host="agom-s6-postgres-abcdefghij",
         isolated_database_container="agom-s6-pg-abcdefghij",
+        isolated_redis_host="agom-s6-redis-abcdefghij",
+        isolated_redis_container="agom-s6-redis-abcdefghij",
         provider_request_limit=100,
         provider_window_seconds=60.0,
         task_deadline_seconds=900.0,
@@ -401,6 +432,63 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         github_repository=GITHUB_REPOSITORY,
         github_run_id=GITHUB_RUN_ID,
     )
+
+
+def test_launcher_must_come_from_selected_checkout(tmp_path: Path) -> None:
+    root = _fake_checkout(tmp_path)
+    selected = root / "scripts" / "run_release_rehearsal.py"
+    selected.parent.mkdir()
+    selected.write_text("# selected launcher\n", encoding="utf-8")
+    copied = tmp_path / "copied-old-launcher.py"
+    copied.write_text("# stale launcher\n", encoding="utf-8")
+
+    _assert_launcher_provenance(root, launcher_path=selected)
+    with pytest.raises(RehearsalBlocked, match="S6_LAUNCHER_PROVENANCE_INVALID"):
+        _assert_launcher_provenance(root, launcher_path=copied)
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("POSTGRES_HOST=agom-s6-postgres-abcdefghij", "POSTGRES_HOST=old-postgres"),
+        (
+            "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij",
+            "old-postgres/old_database",
+        ),
+        ("POSTGRES_DB=agom_release_rehearsal_abcdefghij", "POSTGRES_DB=old_database"),
+        ("REDIS_HOST=agom-s6-redis-abcdefghij", "REDIS_HOST=old-redis"),
+        ("agom-s6-redis-abcdefghij:6379/0", "old-redis:6379/0"),
+        ("AGOM_RELEASE_REHEARSAL_DATABASE=1", "AGOM_RELEASE_REHEARSAL_DATABASE=0"),
+    ],
+)
+def test_isolated_environment_identity_mismatch_blocks_before_build(
+    tmp_path: Path, old: str, new: str
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    raw = config.isolated_postgres_env_file.read_text(encoding="utf-8")
+    config.isolated_postgres_env_file.write_text(raw.replace(old, new), encoding="utf-8")
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_ENV_IDENTITY_MISMATCH") as error:
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    assert "not-a-real-secret" not in str(error.value)
+
+
+def test_duplicate_isolated_environment_key_fails_closed_without_secret_leak(
+    tmp_path: Path,
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with config.isolated_postgres_env_file.open("a", encoding="utf-8") as stream:
+        stream.write("REDIS_HOST=redis://duplicate:private-secret@old-redis\n")
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_ENV_INVALID") as error:
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    assert "private-secret" not in str(error.value)
 
 
 def _fake_checkout(tmp_path: Path) -> Path:
@@ -529,6 +617,7 @@ def test_resume_rejects_input_drift(tmp_path: Path, change: str) -> None:
         "preflight_docker",
         "preflight_network",
         "preflight_isolated_database_container",
+        "preflight_isolated_redis_container",
     ],
 )
 def test_environment_failure_precedes_expensive_build(tmp_path: Path, label: str) -> None:
@@ -610,12 +699,6 @@ def test_provider_stages_override_stale_provider_database_with_isolated_env(
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     config.provider_env_file.write_text(
         "DATABASE_URL=postgresql://user:secret@old-db/old_rehearsal\n",
-        encoding="utf-8",
-    )
-    config.isolated_postgres_env_file.write_text(
-        "DATABASE_URL=postgresql://user:secret@agom-s6-postgres-abcdefghij/"
-        "agom_release_rehearsal_abcdefghij\n"
-        "AGOM_RELEASE_REHEARSAL_DATABASE=1\n",
         encoding="utf-8",
     )
     runner = FakeRunner()

@@ -4,7 +4,8 @@
 
 ## 操作方式
 
-首次运行使用原有参数。失败后先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
+首次运行必须从候选 checkout 内直接执行 `scripts/run_release_rehearsal.py`。复制到仓库外的 launcher 会以
+`S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。失败后先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
 
 ```text
 python scripts/run_release_rehearsal.py <原有完整参数> --resume
@@ -25,7 +26,13 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 
 ## 阶段与环境
 
-1. 构建前验证执行端 Docker daemon、指定网络、隔离 PostgreSQL 容器及同一运行遗留的活动容器。`--isolated-database-container` 必须是正在运行且加入指定网络的容器，其网络 aliases/DNSNames 必须包含 `--isolated-database-host`；写入前再次核对容器 ID。检测到活动容器或数据库容器被替换时停止，不自动杀掉身份未确认的旧工作。
+1. 构建前验证执行端 Docker daemon、指定网络、隔离 PostgreSQL/Redis 容器及同一运行遗留的活动容器。
+   `--isolated-database-container` 和 `--isolated-redis-container` 必须正在运行并加入指定网络；各自网络
+   aliases/DNSNames 必须包含 `--isolated-database-host` 和 `--isolated-redis-host`。隔离 env 必须显式声明并一致绑定
+   `POSTGRES_HOST`、`POSTGRES_DB`、`DATABASE_URL`、`MIGRATOR_DATABASE_URL`、`REDIS_HOST`、`REDIS_URL` 和
+   `AGOM_RELEASE_REHEARSAL_DATABASE=1`；缺失、重复、旧 namespace 或 URL/独立字段不一致均在远端构建前失败关闭，
+   且诊断只返回稳定码，不写出 DSN 或凭据。写入前再次核对数据库容器 ID。检测到活动容器或数据库容器被替换时停止，
+   不自动杀掉身份未确认的旧工作。
 2. 构建报告和镜像归档独立落检查点；镜像装载失败也不需要重新构建。
 3. 使用候选镜像验证隔离 PostgreSQL 实际连接身份及迁移图，在 provider 请求之前阻断未迁移数据库。数据库查询运行在 PostgreSQL `REPEATABLE READ, READ ONLY` 事务中；任何写入尝试由数据库以 SQLSTATE `25006` 拒绝并映射为 `REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION`。此检查不执行 migrate、不初始化 catalog、不写入业务数据。第一次运行需要先取得候选镜像才能做该精确检查。
 4. 真实 provider probe 仍是权威链路验证，沿用真实 payload 和预算；不新增简化 smoke 请求冒充真实请求，也不为预检重复消耗一轮 provider 配额。
