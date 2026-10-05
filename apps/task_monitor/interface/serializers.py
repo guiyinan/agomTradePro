@@ -11,6 +11,7 @@ from apps.task_monitor.application.dtos import (
     TaskAttemptResponse,
     TaskListResponse,
     TaskPhaseResultResponse,
+    TaskPublicationDatasetResponse,
     TaskStatisticsResponse,
     TaskStatusResponse,
 )
@@ -26,6 +27,21 @@ class TaskPhaseResultSerializer(serializers.Serializer[TaskPhaseResultResponse])
     stored = serializers.IntegerField(read_only=True, allow_null=True)
     count_unit = serializers.CharField(read_only=True, allow_null=True)
     stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
+
+
+class TaskPublicationDatasetSerializer(serializers.Serializer[TaskPublicationDatasetResponse]):
+    """Safe publication identities and member counts without nested scope evidence."""
+
+    dataset_key = serializers.CharField(read_only=True, allow_null=True)
+    publication_id = serializers.CharField(read_only=True, allow_null=True)
+    publication_hash = serializers.CharField(read_only=True, allow_null=True)
+    member_count = serializers.IntegerField(read_only=True, allow_null=True)
+    policy_identity = serializers.CharField(read_only=True, allow_null=True)
+    policy_version = serializers.CharField(read_only=True, allow_null=True)
+    as_of = serializers.CharField(read_only=True, allow_null=True)
+    published_at = serializers.CharField(read_only=True, allow_null=True)
+    run_id = serializers.CharField(read_only=True, allow_null=True)
+    publication_run_id = serializers.CharField(read_only=True, allow_null=True)
 
 
 class TaskAttemptSerializer(serializers.Serializer[TaskAttemptResponse]):
@@ -44,11 +60,18 @@ class TaskAttemptSerializer(serializers.Serializer[TaskAttemptResponse]):
     failed = serializers.IntegerField(read_only=True, allow_null=True)
     stored = serializers.IntegerField(read_only=True, allow_null=True)
     error_code = serializers.CharField(read_only=True, allow_null=True)
+    blocked_reason = serializers.CharField(read_only=True, allow_null=True)
     stable_error_code = serializers.CharField(read_only=True, allow_null=True)
     trace_id = serializers.CharField(read_only=True, allow_null=True)
     stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
     target_trade_date = serializers.CharField(read_only=True, allow_null=True)
     phase_results = TaskPhaseResultSerializer(many=True, read_only=True, allow_null=True)
+    publication_updated = serializers.BooleanField(read_only=True, allow_null=True)
+    publication_run_id = serializers.CharField(read_only=True, allow_null=True)
+    publication_ids = serializers.ListField(
+        child=serializers.CharField(), read_only=True, allow_null=True
+    )
+    datasets = TaskPublicationDatasetSerializer(many=True, read_only=True, allow_null=True)
     business_success = serializers.BooleanField(read_only=True, allow_null=True)
 
 
@@ -72,11 +95,18 @@ class TaskStatusSerializer(serializers.Serializer[TaskStatusResponse]):
     failed = serializers.IntegerField(read_only=True, allow_null=True)
     stored = serializers.IntegerField(read_only=True, allow_null=True)
     error_code = serializers.CharField(read_only=True, allow_null=True)
+    blocked_reason = serializers.CharField(read_only=True, allow_null=True)
     stable_error_code = serializers.CharField(read_only=True, allow_null=True)
     trace_id = serializers.CharField(read_only=True, allow_null=True)
     stored_count_unit = serializers.CharField(read_only=True, allow_null=True)
     target_trade_date = serializers.CharField(read_only=True, allow_null=True)
     phase_results = TaskPhaseResultSerializer(many=True, read_only=True, allow_null=True)
+    publication_updated = serializers.BooleanField(read_only=True, allow_null=True)
+    publication_run_id = serializers.CharField(read_only=True, allow_null=True)
+    publication_ids = serializers.ListField(
+        child=serializers.CharField(), read_only=True, allow_null=True
+    )
+    datasets = TaskPublicationDatasetSerializer(many=True, read_only=True, allow_null=True)
     business_success = serializers.BooleanField(read_only=True, allow_null=True)
     current_attempt = TaskAttemptSerializer(read_only=True, allow_null=True)
     last_completed = TaskAttemptSerializer(read_only=True, allow_null=True)

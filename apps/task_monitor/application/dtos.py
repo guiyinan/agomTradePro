@@ -21,6 +21,7 @@ _ALLOWED_OUTCOMES = frozenset({"success", "partial", "noop", "blocked", "failed"
 _SAFE_TOKEN = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
 _SAFE_TRACE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SAFE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_SAFE_DIAGNOSTIC_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$")
 _SAFE_ERROR_CODE = re.compile(
     r"^(?:[A-Z][A-Z0-9]*(?:[_.:-][A-Z0-9]+)*|[a-z][a-z0-9]*(?:_[a-z0-9]+)+)$"
 )
@@ -51,6 +52,22 @@ class TaskPhaseResultResponse:
 
 
 @dataclass(frozen=True)
+class TaskPublicationDatasetResponse:
+    """Bounded publication identity and member summary for one dataset."""
+
+    dataset_key: str | None
+    publication_id: str | None
+    publication_hash: str | None
+    member_count: int | None
+    policy_identity: str | None
+    policy_version: str | None
+    as_of: str | None
+    published_at: str | None
+    run_id: str | None
+    publication_run_id: str | None
+
+
+@dataclass(frozen=True)
 class TaskAttemptResponse:
     """Safe public projection of one task attempt's business result."""
 
@@ -67,11 +84,16 @@ class TaskAttemptResponse:
     failed: int | None = None
     stored: int | None = None
     error_code: str | None = None
+    blocked_reason: str | None = None
     stable_error_code: str | None = None
     trace_id: str | None = None
     stored_count_unit: str | None = None
     target_trade_date: str | None = None
     phase_results: tuple[TaskPhaseResultResponse, ...] | None = None
+    publication_updated: bool | None = None
+    publication_run_id: str | None = None
+    publication_ids: tuple[str, ...] | None = None
+    datasets: tuple[TaskPublicationDatasetResponse, ...] | None = None
     business_success: bool | None = None
 
 
@@ -87,11 +109,16 @@ class TaskBusinessProjection:
     failed: int | None
     stored: int | None
     error_code: str | None
+    blocked_reason: str | None
     stable_error_code: str | None
     trace_id: str | None
     stored_count_unit: str | None
     target_trade_date: str | None
     phase_results: tuple[TaskPhaseResultResponse, ...] | None
+    publication_updated: bool | None
+    publication_run_id: str | None
+    publication_ids: tuple[str, ...] | None
+    datasets: tuple[TaskPublicationDatasetResponse, ...] | None
     business_success: bool | None
 
 
@@ -192,6 +219,65 @@ def _phase_results(payload: Mapping[str, object]) -> tuple[TaskPhaseResultRespon
     return normalized
 
 
+def _safe_diagnostic_token(value: object, *, limit: int = 128) -> str | None:
+    """Return a bounded machine-readable publication or run identity."""
+
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if len(normalized) > limit or not _SAFE_DIAGNOSTIC_TOKEN.fullmatch(normalized):
+        return None
+    return normalized
+
+
+def _publication_ids(payload: Mapping[str, object]) -> tuple[str, ...] | None:
+    """Return at most three publication identities without member-level evidence."""
+
+    raw = payload.get("publication_ids")
+    if not isinstance(raw, (list, tuple)):
+        return None
+    return tuple(
+        publication_id
+        for item in raw[:3]
+        if (publication_id := _safe_diagnostic_token(item)) is not None
+    )
+
+
+def _publication_datasets(
+    payload: Mapping[str, object],
+) -> tuple[TaskPublicationDatasetResponse, ...] | None:
+    """Return bounded publication summaries while excluding nested scope evidence."""
+
+    raw = payload.get("datasets")
+    if not isinstance(raw, (list, tuple)):
+        return None
+    datasets: list[TaskPublicationDatasetResponse] = []
+    for item in raw[:3]:
+        if not isinstance(item, Mapping):
+            continue
+        policy_identity = _safe_diagnostic_token(item.get("policy_identity"), limit=64)
+        policy_version = _safe_diagnostic_token(item.get("policy_version"), limit=64)
+        if policy_identity is None:
+            policy_identity = policy_version
+        if policy_version is None:
+            policy_version = policy_identity
+        datasets.append(
+            TaskPublicationDatasetResponse(
+                dataset_key=_safe_diagnostic_token(item.get("dataset_key"), limit=32),
+                publication_id=_safe_diagnostic_token(item.get("publication_id"), limit=64),
+                publication_hash=_safe_diagnostic_token(item.get("publication_hash"), limit=64),
+                member_count=_count_value(item, "member_count"),
+                policy_identity=policy_identity,
+                policy_version=policy_version,
+                as_of=_safe_diagnostic_token(item.get("as_of"), limit=32),
+                published_at=_safe_diagnostic_token(item.get("published_at"), limit=32),
+                run_id=_safe_diagnostic_token(item.get("run_id"), limit=64),
+                publication_run_id=_safe_diagnostic_token(item.get("publication_run_id"), limit=64),
+            )
+        )
+    return tuple(datasets)
+
+
 def project_task_business_result(result: str | None) -> TaskBusinessProjection:
     """Project persisted result fields while preserving missing-count semantics."""
 
@@ -222,6 +308,10 @@ def project_task_business_result(result: str | None) -> TaskBusinessProjection:
     target_trade_date = payload.get("target_trade_date")
     if not isinstance(target_trade_date, str) or not _SAFE_DATE.fullmatch(target_trade_date):
         target_trade_date = None
+    raw_publication_updated = payload.get("publication_updated")
+    publication_updated = (
+        raw_publication_updated if isinstance(raw_publication_updated, bool) else None
+    )
     business_success = (
         True
         if outcome in {"success", "noop"}
@@ -236,11 +326,16 @@ def project_task_business_result(result: str | None) -> TaskBusinessProjection:
         failed=_count_value(payload, "failed"),
         stored=_count_value(payload, "stored"),
         error_code=error_code,
+        blocked_reason=_safe_error_code(payload.get("blocked_reason")),
         stable_error_code=stable_error_code,
         trace_id=trace_id,
         stored_count_unit=stored_count_unit,
         target_trade_date=target_trade_date,
         phase_results=_phase_results(payload),
+        publication_updated=publication_updated,
+        publication_run_id=_safe_diagnostic_token(payload.get("publication_run_id")),
+        publication_ids=_publication_ids(payload),
+        datasets=_publication_datasets(payload),
         business_success=business_success,
     )
 
@@ -265,11 +360,16 @@ def task_attempt_response(
         failed=projection.failed,
         stored=projection.stored,
         error_code=projection.error_code,
+        blocked_reason=projection.blocked_reason,
         stable_error_code=projection.stable_error_code,
         trace_id=projection.trace_id,
         stored_count_unit=projection.stored_count_unit,
         target_trade_date=projection.target_trade_date,
         phase_results=projection.phase_results,
+        publication_updated=projection.publication_updated,
+        publication_run_id=projection.publication_run_id,
+        publication_ids=projection.publication_ids,
+        datasets=projection.datasets,
         business_success=projection.business_success,
     )
 
@@ -309,11 +409,16 @@ def task_status_response(
         failed=projection.failed,
         stored=projection.stored,
         error_code=projection.error_code,
+        blocked_reason=projection.blocked_reason,
         stable_error_code=projection.stable_error_code,
         trace_id=projection.trace_id,
         stored_count_unit=projection.stored_count_unit,
         target_trade_date=projection.target_trade_date,
         phase_results=projection.phase_results,
+        publication_updated=projection.publication_updated,
+        publication_run_id=projection.publication_run_id,
+        publication_ids=projection.publication_ids,
+        datasets=projection.datasets,
         business_success=projection.business_success,
         current_attempt=current_attempt,
         last_completed=last_completed,
@@ -343,11 +448,16 @@ class TaskStatusResponse:
     failed: int | None = None
     stored: int | None = None
     error_code: str | None = None
+    blocked_reason: str | None = None
     stable_error_code: str | None = None
     trace_id: str | None = None
     stored_count_unit: str | None = None
     target_trade_date: str | None = None
     phase_results: tuple[TaskPhaseResultResponse, ...] | None = None
+    publication_updated: bool | None = None
+    publication_run_id: str | None = None
+    publication_ids: tuple[str, ...] | None = None
+    datasets: tuple[TaskPublicationDatasetResponse, ...] | None = None
     business_success: bool | None = None
     current_attempt: TaskAttemptResponse | None = None
     last_completed: TaskAttemptResponse | None = None

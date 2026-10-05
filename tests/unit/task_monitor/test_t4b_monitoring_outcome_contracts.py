@@ -27,6 +27,7 @@ from apps.task_monitor.infrastructure.repositories import (
     CeleryHealthChecker,
     DjangoTaskRecordRepository,
 )
+from apps.task_monitor.interface.serializers import TaskStatusSerializer
 
 
 def _record(
@@ -330,6 +331,232 @@ def test_postrun_business_outcome_uses_normalized_contract(
     saved = execute.call_args.args[0]
     assert saved.status is expected_status
     assert outcome in saved.result
+
+
+def test_postrun_projects_required_business_fields_from_oversized_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Large audit payloads cannot truncate the final business result."""
+
+    repository = _Repository(_record())
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+    audit_rows = [
+        {"raw_audit_id": f"audit-{index}", "security_code": f"{index:06d}.SZ"}
+        for index in range(1_000)
+    ]
+    retval = {
+        "outcome": "partial",
+        "success": True,
+        "requested": 5_572,
+        "succeeded": 5_572,
+        "failed": 0,
+        "stored": 11_144,
+        "phase": "publication",
+        "phase_results": [
+            {
+                "phase": "quote",
+                "requested": 5_572,
+                "succeeded": 5_572,
+                "failed": 0,
+                "stored": 5_572,
+            },
+            {"phase": "publication", "requested": 1, "succeeded": 0, "failed": 1, "stored": 0},
+        ],
+        "error_code": "MARKET_PUBLICATION_VALIDATION_FAILED",
+        "blocked_reason": "MARKET_PUBLICATION_VALIDATION_FAILED",
+        "publication_updated": False,
+        "publication_run_id": "run-20261005-abc123",
+        "raw_audit_references": audit_rows,
+        "suspended_codes": [f"{index:06d}.SZ" for index in range(1_000)],
+    }
+
+    tasks.task_postrun_handler(
+        task_id="task-1",
+        task=SimpleNamespace(name="demo.task"),
+        retval=retval,
+        state="SUCCESS",
+    )
+
+    saved = execute.call_args.args[0]
+    assert saved.result is not None
+    assert len(saved.result) <= 10_000
+    payload = json.loads(saved.result)
+    assert payload["outcome"] == "partial"
+    assert (payload["requested"], payload["succeeded"], payload["failed"], payload["stored"]) == (
+        5_572,
+        5_572,
+        0,
+        11_144,
+    )
+    assert payload["phase"] == "publication"
+    assert payload["phase_results"] == retval["phase_results"]
+    assert payload["error_code"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert payload["blocked_reason"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert payload["publication_updated"] is False
+    assert payload["publication_run_id"] == "run-20261005-abc123"
+    assert "raw_audit_references" not in payload
+    assert "suspended_codes" not in payload
+    assert "audit-0" not in saved.result
+    assert "000000.SZ" not in saved.result
+    response = TaskStatusSerializer(task_status_response(saved)).data
+    assert response["status"] == TaskStatus.SUCCESS.value
+    assert response["outcome"] == "partial"
+    assert (
+        response["requested"],
+        response["succeeded"],
+        response["failed"],
+        response["stored"],
+    ) == (
+        5_572,
+        5_572,
+        0,
+        11_144,
+    )
+    assert response["phase"] == "publication"
+    assert [
+        (phase["phase"], phase["requested"], phase["succeeded"], phase["failed"], phase["stored"])
+        for phase in response["phase_results"]
+    ] == [
+        (phase["phase"], phase["requested"], phase["succeeded"], phase["failed"], phase["stored"])
+        for phase in retval["phase_results"]
+    ]
+    assert response["error_code"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert response["blocked_reason"] == "MARKET_PUBLICATION_VALIDATION_FAILED"
+    assert response["publication_updated"] is False
+    assert response["publication_run_id"] == "run-20261005-abc123"
+
+
+def test_postrun_preserves_small_result_repr_for_compatibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ordinary small task results keep their prior persisted representation."""
+
+    repository = _Repository(_record())
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+    retval = {"outcome": "success", "stored": 2, "detail": "small result"}
+
+    tasks.task_postrun_handler(
+        task_id="task-1",
+        task=SimpleNamespace(name="demo.task"),
+        retval=retval,
+        state="SUCCESS",
+    )
+
+    assert execute.call_args.args[0].result == str(retval)
+
+
+def test_postrun_preserves_bounded_publication_evidence_from_oversized_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Large full-market success results retain publication identities in the API."""
+
+    repository = _Repository(_record())
+    execute = Mock()
+    monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(tasks, "get_use_case", lambda: SimpleNamespace(execute=execute))
+    publication_ids = (
+        "bf8c00f5-59df-42c0-a3cb-44d2e306d668",
+        "20d9591d-d4ed-46b4-bb24-f49338e3be3d",
+        "82a45361-7c5d-4b22-b303-7fb24488ec1c",
+    )
+    datasets = [
+        {
+            "dataset_key": dataset_key,
+            "publication_id": publication_id,
+            "publication_hash": f"{index:064x}",
+            "member_count": 5_572,
+            "requested_asset_count": 5_572,
+            "covered_asset_count": 5_572,
+            "missing_asset_count": 0,
+            "policy_identity": "market-policy-v1",
+            "as_of": "2026-10-05",
+            "published_at": "2026-10-05T09:00:00+08:00",
+            "run_id": "market-run-20261005",
+            "scope_blocks": [{"asset_code": f"{code:06d}.SZ"} for code in range(1_000)],
+        }
+        for index, (dataset_key, publication_id) in enumerate(
+            zip(
+                (
+                    "equity.quote.snapshot",
+                    "equity.price.bar",
+                    "equity.valuation.fact",
+                ),
+                publication_ids,
+                strict=True,
+            )
+        )
+    ]
+    retval = {
+        "outcome": "success",
+        "success": True,
+        "requested": 5_572,
+        "succeeded": 5_572,
+        "failed": 0,
+        "stored": 11_144,
+        "phase": "publication",
+        "phase_results": [
+            {
+                "phase": "quote",
+                "requested": 5_572,
+                "succeeded": 5_572,
+                "failed": 0,
+                "stored": 5_572,
+            },
+            {"phase": "publication", "requested": 3, "succeeded": 3, "failed": 0, "stored": 3},
+        ],
+        "publication_updated": True,
+        "publication_run_id": "market-run-20261005",
+        "publication_ids": list(publication_ids),
+        "datasets": datasets,
+        "raw_audit_references": [
+            {"raw_audit_id": f"raw-audit-{index}", "security_code": f"{index:06d}.SZ"}
+            for index in range(1_000)
+        ],
+        "security_codes": [f"{index:06d}.SZ" for index in range(1_000)],
+    }
+
+    tasks.task_postrun_handler(
+        task_id="task-1",
+        task=SimpleNamespace(name="demo.task"),
+        retval=retval,
+        state="SUCCESS",
+    )
+
+    saved = execute.call_args.args[0]
+    assert saved.result is not None
+    assert len(saved.result) <= 10_000
+    assert "raw_audit_references" not in saved.result
+    assert "scope_blocks" not in saved.result
+    assert "security_codes" not in saved.result
+    assert "000000.SZ" not in saved.result
+    status = task_status_response(saved)
+    response = TaskStatusSerializer(status).data
+    assert response["outcome"] == "success"
+    assert response["publication_updated"] is True
+    assert response["publication_run_id"] == "market-run-20261005"
+    assert tuple(response["publication_ids"]) == publication_ids
+    assert len(response["datasets"]) == 3
+    assert {item["dataset_key"]: item["publication_id"] for item in response["datasets"]} == dict(
+        zip(
+            (
+                "equity.quote.snapshot",
+                "equity.price.bar",
+                "equity.valuation.fact",
+            ),
+            publication_ids,
+            strict=True,
+        )
+    )
+    assert all(item["publication_hash"] for item in response["datasets"])
+    assert all(item["member_count"] == 5_572 for item in response["datasets"])
+    assert all(item["policy_identity"] == "market-policy-v1" for item in response["datasets"])
+    assert all(item["policy_version"] == "market-policy-v1" for item in response["datasets"])
+    assert all(item["as_of"] == "2026-10-05" for item in response["datasets"])
+    assert all(item["run_id"] == "market-run-20261005" for item in response["datasets"])
 
 
 @pytest.mark.parametrize(

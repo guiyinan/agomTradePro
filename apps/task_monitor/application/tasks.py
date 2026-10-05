@@ -4,7 +4,9 @@ Task Monitor Application Tasks
 Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 """
 
+import json
 import logging
+import re
 from collections.abc import Mapping, MutableMapping
 from typing import Any
 from uuid import uuid4
@@ -54,6 +56,11 @@ _TERMINAL_TASK_STATUSES = {
     TaskStatus.TIMEOUT,
 }
 _DUPLICATE_DELIVERY_CODE = "TASK_DUPLICATE_DELIVERY"
+_MAX_TASK_RESULT_LENGTH = 10_000
+_MAX_PROJECTED_PHASE_RESULTS = 20
+_MAX_PROJECTED_PUBLICATION_ITEMS = 3
+_RESULT_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$")
+_RESULT_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _request_value(request: Any, key: str, default: Any = None) -> Any:
@@ -152,6 +159,255 @@ def _resolve_terminal_status(*, state: str | None, retval: Any) -> TaskStatus:
     if resolve_task_business_outcome(retval) is TaskBusinessOutcome.FAILED:
         return TaskStatus.FAILURE
     return TaskStatus.SUCCESS
+
+
+def _safe_result_text(value: Any, *, limit: int = 128) -> str | None:
+    """Keep only short machine-readable tokens from a task result."""
+
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if len(normalized) > limit or not _RESULT_TOKEN.fullmatch(normalized):
+        return None
+    return normalized
+
+
+def _safe_result_count(value: Any) -> int | None:
+    """Keep non-negative integral result counts with a bounded representation."""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    if len(str(value)) > 20:
+        return None
+    return int(value)
+
+
+def _project_phase_result(value: Any) -> dict[str, object] | None:
+    """Retain the bounded counters used by Task Monitor's phase projection."""
+
+    if not isinstance(value, Mapping):
+        return None
+    projected: dict[str, object] = {}
+    phase = _safe_result_text(value.get("phase"), limit=24)
+    if phase is not None:
+        projected["phase"] = phase
+    for key in ("requested", "succeeded", "failed", "stored"):
+        count = _safe_result_count(value.get(key))
+        if count is not None:
+            projected[key] = count
+    for key in ("count_unit", "stored_count_unit"):
+        unit = _safe_result_text(value.get(key), limit=24)
+        if unit is not None:
+            projected[key] = unit
+    return projected or None
+
+
+def _project_publication_dataset(value: Any) -> dict[str, object] | None:
+    """Retain publication identity and summary scalars without nested evidence."""
+
+    if not isinstance(value, Mapping):
+        return None
+    projected: dict[str, object] = {}
+    text_limits = {
+        "dataset_key": 32,
+        "publication_id": 64,
+        "publication_hash": 64,
+        "outcome": 16,
+        "as_of": 32,
+        "published_at": 32,
+        "run_id": 64,
+        "publication_run_id": 64,
+    }
+    for key, limit in text_limits.items():
+        text_value = _safe_result_text(value.get(key), limit=limit)
+        if text_value is not None:
+            projected[key] = text_value
+    policy_identity = _safe_result_text(
+        value.get("policy_identity") or value.get("policy_version"), limit=64
+    )
+    policy_version = _safe_result_text(
+        value.get("policy_version") or value.get("policy_identity"), limit=64
+    )
+    if policy_identity is not None:
+        projected["policy_identity"] = policy_identity
+    if policy_version is not None:
+        projected["policy_version"] = policy_version
+    for key in (
+        "member_count",
+        "requested_asset_count",
+        "covered_asset_count",
+        "missing_asset_count",
+    ):
+        count = _safe_result_count(value.get(key))
+        if count is not None:
+            projected[key] = count
+    return projected or None
+
+
+def _bounded_business_result(retval: Mapping[str, Any]) -> str:
+    """Serialize a canonical bounded business projection of a large mapping."""
+
+    projected: dict[str, object] = {"result_projection": "bounded_business_fields"}
+    outcome = _safe_result_text(retval.get("outcome"), limit=16)
+    if outcome in {"success", "partial", "noop", "blocked", "failed"}:
+        projected["outcome"] = outcome
+    for key in ("success", "partial_success", "publication_updated", "must_not_use_for_decision"):
+        value = retval.get(key)
+        if isinstance(value, bool):
+            projected[key] = value
+    for key in (
+        "requested",
+        "succeeded",
+        "failed",
+        "stored",
+        "published",
+        "published_members",
+        "publication_members",
+        "operation_requested",
+        "operation_succeeded",
+        "operation_failed",
+    ):
+        count = _safe_result_count(retval.get(key))
+        if count is not None:
+            projected[key] = count
+    for key in (
+        "phase",
+        "current_phase",
+        "count_unit",
+        "stored_count_unit",
+        "error_code",
+        "stable_error_code",
+        "blocked_reason",
+        "trace_id",
+        "publication_run_id",
+        "run_id",
+        "quote_source",
+        "valuation_source",
+        "valuation_policy_identity",
+    ):
+        value = _safe_result_text(retval.get(key))
+        if value is not None:
+            projected[key] = value
+    trade_date = retval.get("target_trade_date")
+    if isinstance(trade_date, str) and _RESULT_DATE.fullmatch(trade_date):
+        projected["target_trade_date"] = trade_date
+    raw_phase_results = retval.get("phase_results")
+    if isinstance(raw_phase_results, (list, tuple)):
+        phase_results = [
+            normalized
+            for item in raw_phase_results[:_MAX_PROJECTED_PHASE_RESULTS]
+            if (normalized := _project_phase_result(item)) is not None
+        ]
+        projected["phase_results"] = phase_results
+    raw_publication_ids = retval.get("publication_ids")
+    if isinstance(raw_publication_ids, (list, tuple)):
+        publication_ids = [
+            publication_id
+            for item in raw_publication_ids[:_MAX_PROJECTED_PUBLICATION_ITEMS]
+            if (publication_id := _safe_result_text(item, limit=128)) is not None
+        ]
+        projected["publication_ids"] = publication_ids
+    raw_datasets = retval.get("datasets")
+    if isinstance(raw_datasets, (list, tuple)):
+        datasets = [
+            dataset
+            for item in raw_datasets[:_MAX_PROJECTED_PUBLICATION_ITEMS]
+            if (dataset := _project_publication_dataset(item)) is not None
+        ]
+        projected["datasets"] = datasets
+    serialized = json.dumps(projected, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    if len(serialized) <= _MAX_TASK_RESULT_LENGTH:
+        return serialized
+
+    essential_keys = (
+        "result_projection",
+        "outcome",
+        "success",
+        "requested",
+        "succeeded",
+        "failed",
+        "stored",
+        "phase",
+        "current_phase",
+        "count_unit",
+        "stored_count_unit",
+        "target_trade_date",
+        "error_code",
+        "stable_error_code",
+        "blocked_reason",
+        "publication_updated",
+        "publication_run_id",
+        "phase_results",
+        "publication_ids",
+        "datasets",
+    )
+    essential = {key: projected[key] for key in essential_keys if key in projected}
+    raw_essential_datasets = essential.get("datasets")
+    if isinstance(raw_essential_datasets, list):
+        essential["datasets"] = [
+            {
+                key: dataset[key]
+                for key in (
+                    "dataset_key",
+                    "publication_id",
+                    "publication_hash",
+                    "member_count",
+                    "policy_identity",
+                    "policy_version",
+                    "as_of",
+                    "published_at",
+                    "run_id",
+                    "publication_run_id",
+                )
+                if key in dataset
+            }
+            for dataset in raw_essential_datasets
+            if isinstance(dataset, dict)
+        ]
+    serialized = json.dumps(essential, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    if len(serialized) > _MAX_TASK_RESULT_LENGTH:
+        # The fixed caps above make this unreachable; keep the monitor signal bounded if the
+        # projection contract is extended without updating those caps.
+        return json.dumps(
+            {
+                key: projected[key]
+                for key in (
+                    "outcome",
+                    "requested",
+                    "succeeded",
+                    "failed",
+                    "stored",
+                    "phase",
+                    "error_code",
+                    "blocked_reason",
+                    "publication_updated",
+                    "publication_run_id",
+                )
+                if key in projected
+            },
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    return serialized
+
+
+def _serialize_task_result(retval: Any) -> str:
+    """Keep ordinary results intact and safely project results above the storage bound."""
+
+    try:
+        rendered = str(retval)
+    except Exception:
+        return "<unserializable result>"
+    if len(rendered) <= _MAX_TASK_RESULT_LENGTH:
+        return rendered
+    if isinstance(retval, Mapping):
+        return _bounded_business_result(retval)
+    return json.dumps(
+        {"result_projection": "oversized_non_mapping_omitted"},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 # ========== Celery 信号处理 ==========
@@ -288,10 +544,7 @@ def task_postrun_handler(
         # 序列化结果
         result = None
         if retval is not None:
-            try:
-                result = str(retval)[:10000]  # 限制长度
-            except Exception:
-                result = "<unserializable result>"
+            result = _serialize_task_result(retval)
 
         record = TaskExecutionRecord(
             task_id=task_id,
