@@ -10091,17 +10091,17 @@
       "text": "raise RuntimeError(\"Data-center config summary repository is not configured\")"
     },
     {
-      "line": 89,
+      "line": 96,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Return exact normalized hashes for the referenced current fact rows.\"\"\""
     },
     {
-      "line": 184,
+      "line": 191,
       "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Apply a publication policy before exposing selected facts as current.\"\"\""
     },
     {
-      "line": 221,
+      "line": 228,
       "path": "apps/data_center/application/control_plane.py",
       "text": "and publication.publication_key == \"current\""
     },
@@ -10716,7 +10716,7 @@
       "text": "\"current pointer reader returned an invalid pair\""
     },
     {
-      "line": 42,
+      "line": 41,
       "path": "apps/data_center/application/full_market_refresh_lease.py",
       "text": "\"\"\"Delete the lease only when its current owner matches this invocation.\"\"\""
     },
@@ -12076,17 +12076,17 @@
       "text": "publication_key = \"current\""
     },
     {
-      "line": 438,
+      "line": 437,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"Financial current publication rebuild failed: %s\","
     },
     {
-      "line": 576,
+      "line": 575,
       "path": "apps/data_center/application/tasks.py",
       "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
-      "line": 950,
+      "line": 949,
       "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
@@ -12481,112 +12481,112 @@
       "text": "summary=f\"Connection test failed ({error_type})\","
     },
     {
-      "line": 739,
+      "line": 776,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Reject a late publication that would rewind the current scope."
     },
     {
-      "line": 742,
+      "line": 779,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "intervals.  Superseding an already-current row with an earlier (or"
     },
     {
-      "line": 744,
+      "line": 781,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and could expose an out-of-order snapshot as current.  Keep this"
     },
     {
-      "line": 759,
+      "line": 796,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Cannot publish while current publication has no published_at\")"
     },
     {
-      "line": 760,
+      "line": 797,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest = active.order_by(\"-published_at\").first()"
     },
     {
-      "line": 762,
+      "line": 799,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "latest is not None"
     },
     {
-      "line": 763,
+      "line": 800,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and latest.published_at is not None"
     },
     {
-      "line": 764,
+      "line": 801,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "and published_at <= latest.published_at"
     },
     {
-      "line": 766,
+      "line": 803,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Publication published_at must be later than current publication\")"
     },
     {
-      "line": 814,
+      "line": 851,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback requires exactly one current published publication\")"
     },
     {
-      "line": 815,
+      "line": 852,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "current = current_rows[0]"
     },
     {
-      "line": 816,
+      "line": 853,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.published_at is None or current.as_of is None:"
     },
     {
-      "line": 817,
+      "line": 854,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication is missing publication time evidence\")"
     },
     {
-      "line": 818,
+      "line": 855,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if current.as_of > current.published_at:"
     },
     {
-      "line": 819,
+      "line": 856,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Current publication has inconsistent publication time evidence\")"
     },
     {
-      "line": 820,
+      "line": 857,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "if rollback.observed_at <= current.published_at:"
     },
     {
-      "line": 821,
+      "line": 858,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"Rollback observed_at must be later than current published_at\")"
     },
     {
-      "line": 826,
+      "line": 863,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "publication_id=current.publication_id,"
     },
     {
-      "line": 840,
+      "line": 877,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "previous_publication_id=current.publication_id,"
     },
     {
-      "line": 855,
+      "line": 892,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Replay only an exact rollback whose resulting state is still current.\"\"\""
     },
     {
-      "line": 886,
+      "line": 923,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "raise ValueError(\"publication rollback replay no longer matches current state\")"
     },
     {
-      "line": 967,
+      "line": 1004,
       "path": "apps/data_center/infrastructure/control_plane_repositories.py",
       "text": "\"\"\"Return the latest publication visible at an historical boundary.\"\"\""
     },
@@ -27313,27 +27313,27 @@
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 121,
+      "line": 120,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task("
     },
     {
-      "line": 187,
+      "line": 186,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 701,
+      "line": 700,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 733,
+      "line": 732,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
-      "line": 815,
+      "line": 814,
       "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },

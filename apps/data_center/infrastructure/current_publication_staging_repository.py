@@ -103,7 +103,7 @@ class DjangoCurrentPublicationStagingRepository(CurrentPublicationStagingReposit
                 "orphan candidate members prevent safe publication staging"
             )
         self._ensure_scope_pointer(candidate)
-        self._publications.save(publication)
+        self._publications.save_candidate_with_members(publication, candidate.members)
         self._persist_members(candidate.members)
         persisted_members = tuple(self._publications.list_members(publication.publication_id))
         if persisted_members != candidate.members:

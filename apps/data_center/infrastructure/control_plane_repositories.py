@@ -404,10 +404,7 @@ class CanonicalPublicationRepository:
                 self._validate_publish_batch(publication, members)
                 self._validate_versioned_publication(publication, members, lock_rows=True)
             else:
-                policy = PublicationPolicyRepository().get_locked_active(publication.dataset_key)
-                if policy is None or policy.identity != publication.policy_version:
-                    raise ValueError("Publication active policy changed before publication commit")
-                validate_publication_snapshot_policy(policy, publication)
+                self._validate_versioned_candidate_metadata(publication, members=None)
             self._assert_versioned_publication_identity(publication)
         elif publication.state is PublicationState.PUBLISHED:
             persisted_count = PublicationMemberModel._default_manager.filter(
@@ -416,6 +413,35 @@ class CanonicalPublicationRepository:
             if persisted_count != publication.member_count:
                 raise ValueError("Published publication requires a complete persisted member set")
         return self._save_unchecked(publication)
+
+    @transaction.atomic
+    def save_candidate_with_members(
+        self,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> CanonicalPublication:
+        """Save candidate metadata using its selected members for policy checks."""
+
+        if publication.state is not PublicationState.CANDIDATE:
+            raise ValueError("save_candidate_with_members() requires a CANDIDATE publication")
+        self._validate_member_snapshot(publication, members)
+        if publication.policy_version.startswith("p2:"):
+            self._validate_versioned_candidate_metadata(publication, members=members)
+            self._assert_versioned_publication_identity(publication)
+        return self._save_unchecked(publication)
+
+    @staticmethod
+    def _validate_versioned_candidate_metadata(
+        publication: CanonicalPublication,
+        *,
+        members: tuple[PublicationMember, ...] | None,
+    ) -> None:
+        """Validate active policy and snapshot metadata before candidate persistence."""
+
+        policy = PublicationPolicyRepository().get_locked_active(publication.dataset_key)
+        if policy is None or policy.identity != publication.policy_version:
+            raise ValueError("Publication active policy changed before publication commit")
+        validate_publication_snapshot_policy(policy, publication, members=members)
 
     @transaction.atomic
     def _save_unchecked(self, publication: CanonicalPublication) -> CanonicalPublication:
@@ -705,6 +731,15 @@ class CanonicalPublicationRepository:
             raise ValueError("Published publication requires published_at")
         if publication.as_of > publication.published_at:
             raise ValueError("Publication as_of cannot be later than published_at")
+        CanonicalPublicationRepository._validate_member_snapshot(publication, members)
+
+    @staticmethod
+    def _validate_member_snapshot(
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> None:
+        """Validate immutable member identities shared by staging and publishing."""
+
         if publication.coverage.publication_id != publication.publication_id:
             raise ValueError("Publication coverage must reference the same publication")
         if publication.coverage.selected_count != publication.member_count:
@@ -724,13 +759,15 @@ class CanonicalPublicationRepository:
         fact_refs = [(member.fact_table, member.fact_pk) for member in members]
         if len(set(fact_refs)) != len(fact_refs):
             raise ValueError("Publication members must reference unique canonical facts")
+        if publication.as_of is None:
+            raise ValueError("Publication member snapshot requires an as_of boundary")
         for member in members:
             if member.dataset_key != publication.dataset_key:
                 raise ValueError("Publication member dataset_key mismatch")
             if member.publication_id != publication.publication_id:
                 raise ValueError("Publication member publication_id mismatch")
             if member.observed_at is None:
-                raise ValueError("Published publication members require observed_at")
+                raise ValueError("Publication members require observed_at")
             if member.observed_at > publication.as_of:
                 raise ValueError("Publication member observed_at exceeds publication as_of")
 

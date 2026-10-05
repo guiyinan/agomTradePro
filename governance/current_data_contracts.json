@@ -4937,6 +4937,10 @@
           "CandidateRawAuditManifest.create(",
           "self._repository.stage(candidate, manifest, source_types)"
         ],
+        "apps/data_center/application/control_plane.py": [
+          "class CanonicalPublicationRepositoryPort(Protocol):",
+          "def save_candidate_with_members("
+        ],
         "apps/data_center/domain/raw_audit_manifest.py": [
           "def validate_raw_audit_source_type(value: str) -> str:",
           "class CandidateRawAuditManifest:",
@@ -4953,9 +4957,15 @@
           "class DjangoCurrentPublicationStagingRepository(",
           "@transaction.atomic",
           "def _ensure_scope_pointer(",
+          "self._publications.save_candidate_with_members(publication, candidate.members)",
           "publication_member_manifest_hash(",
           "self._manifests.stage(manifest)",
           "self._validate_fact_lineage(candidate, manifest, source_type_map)"
+        ],
+        "apps/data_center/infrastructure/control_plane_repositories.py": [
+          "def save_candidate_with_members(",
+          "validate_publication_snapshot_policy(policy, publication, members=members)",
+          "Publication member snapshot requires an as_of boundary"
         ],
         "apps/data_center/domain/market_time.py": [
           "def latest_closed_cn_market_session(",
@@ -6466,6 +6476,11 @@
           "case": "staged_candidate_has_manifest_and_lockable_empty_pointer",
           "test_file": "tests/component/data_center/test_current_publication_staging.py",
           "test_function": "test_stage_builds_sealed_candidate_and_manifest_with_empty_lockable_pointer"
+        },
+        {
+          "case": "production_suspension_candidates_stage_with_selected_members_and_fail_closed_metadata",
+          "test_file": "tests/component/data_center/test_current_publication_staging.py",
+          "test_function": "test_production_bundle_stages_suspension_scope_with_selected_members"
         },
         {
           "case": "candidate_members_seal_manifest_and_pointer_rollback_as_one_unit",

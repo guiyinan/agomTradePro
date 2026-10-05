@@ -71,6 +71,13 @@ class CanonicalPublicationRepositoryPort(Protocol):
 
     def save(self, publication: CanonicalPublication) -> CanonicalPublication: ...
 
+    def save_candidate_with_members(
+        self,
+        publication: CanonicalPublication,
+        members: tuple[PublicationMember, ...],
+    ) -> CanonicalPublication:
+        """Save candidate metadata after validating policy against selected members."""
+
     def publish(self, publication: CanonicalPublication) -> CanonicalPublication: ...
 
     def publish_with_members(

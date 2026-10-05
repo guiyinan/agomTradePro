@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -11,6 +11,7 @@ import pytest
 from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
     CurrentPublicationRebuildUseCase,
+    CurrentPublicationScopeExclusion,
 )
 from apps.data_center.application.current_publication_staging import (
     CurrentPublicationStageCommand,
@@ -21,6 +22,7 @@ from apps.data_center.application.current_publication_staging import (
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import PublicationState
 from apps.data_center.domain.entities import RawAudit
+from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifestError
 from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
@@ -40,10 +42,17 @@ from apps.data_center.infrastructure.models import (
     CanonicalPublicationPointerModel,
     PriceBarModel,
     PublicationMemberModel,
+    QuoteSnapshotModel,
     RawAuditModel,
 )
 from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
+from apps.data_center.infrastructure.publication_policy_repository import (
+    PublicationPolicyRepository,
+)
+from apps.data_center.publication_candidate_activation_composition import (
+    build_production_current_market_publication_bundle,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -182,6 +191,196 @@ def test_stage_builds_sealed_candidate_and_manifest_with_empty_lockable_pointer(
     assert pointer.publication_id is None
     assert pointer.publication_hash == ""
     assert pointer.activation_id == ""
+
+
+@pytest.mark.parametrize(
+    ("dataset_key", "stage_attribute", "capability"),
+    [
+        ("equity.quote.snapshot", "quote_staging", "realtime_quote"),
+        ("equity.price.bar", "price_staging", "historical_price"),
+    ],
+)
+def test_production_bundle_stages_suspension_scope_with_selected_members(
+    dataset_key: str,
+    stage_attribute: str,
+    capability: str,
+) -> None:
+    """Production quote and price staging validate suspensions with frozen members."""
+
+    active_codes = ("000001.SZ", "000003.SZ")
+    suspended_code = "000002.SZ"
+    target_date = date(2026, 9, 30)
+    target_close = cn_market_session_close_utc(target_date)
+    published_at = target_close + timedelta(minutes=5)
+    ingested_run_id = str(uuid4())
+    policy = PublicationPolicy(
+        dataset=DatasetKey(dataset_key, "1.0", "1.0"),
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=(
+            "source",
+            "observed_at",
+            "fetched_at",
+            "payload_hash",
+            "fact_content_hash",
+        ),
+        retention_days=3650,
+        policy_version="candidate-stage-test-v1",
+    )
+    PublicationPolicyRepository().save(policy)
+
+    if dataset_key == "equity.price.bar":
+        for active_code in active_codes:
+            fact = PriceBarModel._default_manager.create(
+                asset_code=active_code,
+                bar_date=target_date,
+                freq="1d",
+                adjustment="none",
+                open=10.0,
+                high=11.0,
+                low=9.5,
+                close=10.5,
+                source=SOURCE_TYPE,
+                source_record_id=f"price-row-suspension-stage-{active_code}",
+                raw_payload_hash="a" * 64,
+                quality_status="accepted",
+                revision_number=1,
+                ingested_run_id=ingested_run_id,
+            )
+            assert fact.pk is not None
+            PriceBarModel._default_manager.filter(pk=fact.pk).update(fetched_at=published_at)
+    else:
+        for active_code in active_codes:
+            QuoteSnapshotModel._default_manager.create(
+                asset_code=active_code,
+                snapshot_at=target_close,
+                fetched_at=published_at,
+                current_price=10.5,
+                source=SOURCE_TYPE,
+                source_record_id=f"quote-row-suspension-stage-{active_code}",
+                raw_payload_hash="a" * 64,
+                quality_status="accepted",
+                revision_number=1,
+                ingested_run_id=ingested_run_id,
+            )
+
+    raw = RawAuditRepository().log(
+        RawAudit(
+            provider_name="tushare-provider",
+            capability=capability,
+            request_params={"asset_codes": [*active_codes, suspended_code]},
+            status="ok",
+            row_count=len(active_codes),
+            fetched_at=published_at,
+            extra={"source_type": SOURCE_TYPE},
+            run_id=str(uuid4()),
+            ingested_run_id=ingested_run_id,
+        )
+    )
+    command = CurrentPublicationStageCommand(
+        asset_codes=(*active_codes, suspended_code),
+        published_at=published_at,
+        run_id=str(uuid4()),
+        task_attempt_id="market-suspension-stage-1",
+        raw_audit_bindings=(
+            CurrentPublicationStageRawAuditBinding(
+                reference=raw.exact_reference(),
+                expected_source_type=SOURCE_TYPE,
+            ),
+        ),
+        scope_exclusions=(
+            CurrentPublicationScopeExclusion(
+                asset_code=suspended_code,
+                reason_code=(
+                    "quote_full_day_suspension"
+                    if dataset_key == "equity.quote.snapshot"
+                    else "price_full_day_suspension"
+                ),
+                target_trade_date=target_date,
+                evidence_source="tushare.suspend_d",
+            ),
+        ),
+        required_observation_date=target_date,
+    )
+    bundle = build_production_current_market_publication_bundle()
+    staging = getattr(bundle, stage_attribute)
+    candidate = staging._rebuilder.prepare_candidate(
+        asset_codes=command.asset_codes,
+        published_at=command.published_at,
+        run_id=command.run_id,
+        scope_exclusions=command.scope_exclusions,
+        required_observation_date=command.required_observation_date,
+    )
+
+    # A metadata-only save still fails closed when its selected member evidence is absent.
+    with pytest.raises(ValueError, match="Market suspension scope requires selected members"):
+        CanonicalPublicationRepository().save(candidate.publication)
+
+    member_repository = CanonicalPublicationRepository()
+    mismatched_members = (
+        (candidate.members[0],),
+        (
+            replace(candidate.members[0], publication_id=str(uuid4())),
+            candidate.members[1],
+        ),
+        (
+            candidate.members[0],
+            replace(
+                candidate.members[1],
+                member_id=str(uuid4()),
+                natural_key=candidate.members[0].natural_key,
+            ),
+        ),
+    )
+    expected_errors = (
+        "Publication member_count does not match supplied members",
+        "Publication member publication_id mismatch",
+        "Publication members must have unique natural_key values",
+    )
+    for members, message in zip(mismatched_members, expected_errors, strict=True):
+        with pytest.raises(ValueError, match=message):
+            member_repository.save_candidate_with_members(candidate.publication, members)
+
+    invalid_coverage = replace(
+        candidate.publication,
+        coverage=replace(candidate.publication.coverage, selected_count=1),
+    )
+    with pytest.raises(
+        ValueError, match="Publication member_count must match selected coverage count"
+    ):
+        member_repository.save_candidate_with_members(invalid_coverage, candidate.members)
+
+    without_as_of = replace(candidate.publication, as_of=None)
+    with pytest.raises(ValueError, match="Publication member snapshot requires an as_of boundary"):
+        member_repository.save_candidate_with_members(without_as_of, candidate.members)
+
+    incomplete_block = replace(candidate.publication.scope_blocks[0], evidence_source="")
+    invalid_publication = replace(
+        candidate.publication,
+        scope_blocks=(incomplete_block,),
+    )
+    with pytest.raises(ValueError, match="Market suspension scope block evidence is incomplete"):
+        member_repository.save_candidate_with_members(
+            invalid_publication,
+            candidate.members,
+        )
+    assert not CanonicalPublicationModel._default_manager.filter(
+        publication_id=candidate.publication.publication_id
+    ).exists()
+
+    staged = staging.execute(command)
+    persisted_members = CanonicalPublicationRepository().list_members(
+        staged.publication.publication_id
+    )
+    assert staged.publication.state is PublicationState.CANDIDATE
+    assert staged.publication.coverage.requested_count == 3
+    assert staged.publication.coverage.eligible_count == 2
+    assert staged.publication.coverage.selected_count == 2
+    assert staged.publication.coverage.missing_count == 1
+    assert tuple(persisted_members) == candidate.members
+    assert staged.publication.scope_blocks[0].asset_code == suspended_code
+    assert staged.publication.scope_blocks[0].evidence_source == "tushare.suspend_d"
 
 
 def test_exact_attempt_retry_is_idempotent_and_changed_manifest_fails_closed() -> None:
@@ -356,13 +555,17 @@ def test_any_candidate_bundle_write_failure_rolls_back_every_row(
     injected = CandidateRawAuditManifestError(f"injected {failure_stage} write failure")
 
     if failure_stage == "candidate":
-        original = repository._publications.save
+        original = repository._publications.save_candidate_with_members
 
-        def fail_after_candidate_write(publication):
-            original(publication)
+        def fail_after_candidate_write(publication, members):
+            original(publication, members)
             raise injected
 
-        monkeypatch.setattr(repository._publications, "save", fail_after_candidate_write)
+        monkeypatch.setattr(
+            repository._publications,
+            "save_candidate_with_members",
+            fail_after_candidate_write,
+        )
     elif failure_stage == "members":
         original = repository._persist_members
 
