@@ -131,7 +131,7 @@ jobs:
           --ds=tests.settings_data_center_sync_identity
           --confcutdir=tests/component/data_center
           -q -o addopts='' --junitxml=publication-postgres.xml
-      - name: Exercise PostgreSQL backfill control plane
+      - name: Exercise PostgreSQL control plane and valuation lineage staging
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
           DJANGO_SETTINGS_MODULE: core.settings.development
@@ -141,6 +141,7 @@ jobs:
           python -m pytest
           tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent
           tests/component/data_center/test_core_data_backfill_control_plane.py::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome
+          tests/component/data_center/test_current_publication_staging.py::test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql
           --ds=core.settings.development
           --confcutdir=tests/component/data_center
           --create-db
@@ -392,7 +393,7 @@ jobs:
           assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(final_revalidation_cases) == 7, 'Expected authority final-revalidation PostgreSQL cases were not collected'
-          assert len(control_plane_cases) == 2, 'Expected backfill control-plane cases were not collected'
+          assert len(control_plane_cases) == 3, 'Expected control-plane and lineage cases were not collected'
           assert snapshot_report['outcome'] == 'success'
           assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
           assert snapshot_report['source_row_count'] > 0

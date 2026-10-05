@@ -15,6 +15,7 @@ from datetime import date, datetime
 from typing import Any
 
 from apps.data_center.domain.entities import RawAuditReference
+from apps.data_center.domain.raw_audit_manifest import validate_raw_audit_source_type
 from core.integration.data_center_audit import AuditOutcome
 
 
@@ -786,6 +787,7 @@ class SyncValuationBatchResult:
     raw_audit_reference: RawAuditReference
     error_message: str = ""
     returned_asset_codes: tuple[str, ...] = ()
+    fact_source_type: str | None = None
 
     def __post_init__(self) -> None:
         """Require one exact persisted RawAudit reference for every result."""
@@ -802,6 +804,12 @@ class SyncValuationBatchResult:
             raise ValueError(
                 "valuation RawAudit reference ingested_run_id does not match the result"
             )
+        if self.stored_count > 0:
+            if not isinstance(self.fact_source_type, str) or not self.fact_source_type:
+                raise ValueError("valuation batch result requires its actual fact source type")
+            validate_raw_audit_source_type(self.fact_source_type)
+        elif self.fact_source_type is not None:
+            validate_raw_audit_source_type(self.fact_source_type)
 
     def to_dict(self) -> dict[str, Any]:
         """Return the batch outcome with exact sync and RawAudit lineage."""
@@ -812,6 +820,7 @@ class SyncValuationBatchResult:
             "stored_count": self.stored_count,
             "status": self.status,
             "error_message": self.error_message,
+            "fact_source_type": self.fact_source_type,
             "succeeded_asset_codes": list(self.succeeded_asset_codes),
             "returned_asset_codes": list(self.returned_asset_codes),
             "run_id": self.run_id,

@@ -15,6 +15,10 @@ from apps.data_center.domain.protocols import (
     RawAuditRepositoryProtocol,
     ValuationFactRepositoryProtocol,
 )
+from apps.data_center.domain.raw_audit_manifest import (
+    CandidateRawAuditManifestError,
+    validate_raw_audit_source_type,
+)
 from core.exceptions import DataFetchError
 from core.integration.data_center_audit import AuditOutcome, DataFetchAuditObservation
 
@@ -92,10 +96,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                 facts = []
                 for asset_code in asset_codes:
                     facts.extend(provider.fetch_valuations(asset_code, as_of_date, as_of_date))
-            facts = [
-                dataclasses.replace(fact, source=str(fact.source or config.source_type).strip())
-                for fact in facts
-            ]
+            fact_source_type = _require_single_fact_source_type(facts)
             if require_exact_asset_codes:
                 require_exact_asset_identities(
                     requested_asset_codes=asset_codes,
@@ -116,6 +117,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
             provider_name=provider_name,
             request_params=request_params,
             facts=facts,
+            fact_source_type=fact_source_type,
             requested_asset_codes=asset_codes,
             started_at=started_at,
         )
@@ -137,6 +139,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
         provider_name: str,
         request_params: Mapping[str, object],
         facts: list[ValuationFact],
+        fact_source_type: str | None,
         requested_asset_codes: list[str],
         started_at: datetime,
     ) -> SyncValuationBatchResult:
@@ -203,7 +206,10 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
-                    extra={"source_type": config.source_type},
+                    extra={
+                        "source_type": fact_source_type or config.source_type,
+                        "provider_source_type": config.source_type,
+                    },
                 )
             )
             reference = persisted_audit.exact_reference()
@@ -242,6 +248,7 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
             ingested_run_id=identity.ingested_run_id,
             raw_audit_reference=reference,
             error_message=error_message,
+            fact_source_type=fact_source_type,
         )
 
     def _commit_fetch_failure(
@@ -283,7 +290,10 @@ class SyncCurrentValuationBatchUseCase(_BaseSyncUseCase):
                     fetched_at=recorded_at,
                     run_id=identity.run_id,
                     ingested_run_id=identity.ingested_run_id,
-                    extra={"source_type": config.source_type},
+                    extra={
+                        "source_type": config.source_type,
+                        "provider_source_type": config.source_type,
+                    },
                 )
             )
             reference = persisted_audit.exact_reference()
@@ -317,6 +327,28 @@ def _require_reference_identity(actual: str, expected: str, field_name: str) -> 
 
     if actual != expected:
         raise ValueError(f"RawAudit {field_name} does not match the issued sync identity")
+
+
+def _require_single_fact_source_type(facts: list[ValuationFact]) -> str | None:
+    """Require one canonical actual source for every non-empty valuation batch."""
+
+    if not facts:
+        return None
+    source_types: set[str] = set()
+    for fact in facts:
+        try:
+            source_types.add(validate_raw_audit_source_type(fact.source))
+        except CandidateRawAuditManifestError as error:
+            raise DataFetchError(
+                "Current valuation fact source is missing or non-canonical",
+                code="CURRENT_VALUATION_SOURCE_TYPE_INVALID",
+            ) from error
+    if len(source_types) != 1:
+        raise DataFetchError(
+            "Current valuation batch contains multiple fact source types",
+            code="CURRENT_VALUATION_SOURCE_TYPE_CONFLICT",
+        )
+    return next(iter(source_types))
 
 
 __all__ = ["SyncCurrentValuationBatchUseCase"]

@@ -62,6 +62,7 @@ PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome",
+    "tests.component.data_center.test_current_publication_staging::test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_connected_database_identity_returns_real_postgres_address_without_cidr",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_market_rehearsal_database_enforces_read_only_on_provider_write",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_outer_read_only_snapshot_keeps_gate_and_rows_consistent_after_concurrent_commit",

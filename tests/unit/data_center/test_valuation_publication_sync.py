@@ -565,7 +565,7 @@ def test_sync_current_valuation_batch_audits_allowed_partial_coverage_as_ok() ->
             return "provider-main"
 
         def fetch_valuations(self, asset_code, _start, _end) -> list[ValuationFact]:
-            return [_fact()] if asset_code == "000001.SZ" else []
+            return [replace(_fact(), source="tushare")] if asset_code == "000001.SZ" else []
 
     class _ProviderRepository:
         def __init__(self) -> None:
@@ -654,7 +654,7 @@ def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
             return "provider-main"
 
         def fetch_current_valuations(self, _asset_codes, _as_of_date) -> list[ValuationFact]:
-            return [_fact()]
+            return [replace(_fact(), source="tushare")]
 
     class _ProviderRepository:
         def __init__(self) -> None:
@@ -735,6 +735,11 @@ def test_current_valuation_batch_invokes_publication_after_fact_write() -> None:
     assert result.ingested_run_id == facts.saved[0].ingested_run_id
     assert result.raw_audit_reference == lineage.raw_audit_repository.rows[0].exact_reference()
     assert result.to_dict()["raw_audit_reference"]["raw_audit_id"] == "raw-valuation-1"
+    assert result.fact_source_type == "tushare"
+    assert lineage.raw_audit_repository.rows[0].extra == {
+        "source_type": "tushare",
+        "provider_source_type": "tushare",
+    }
     assert publisher.calls == [(facts.saved, "provider-main")]
 
 
@@ -790,7 +795,7 @@ def test_strict_current_valuation_identity_rejects_substitution_before_fact_writ
             return "provider-main"
 
         def fetch_current_valuations(self, _asset_codes, _as_of_date) -> list[ValuationFact]:
-            return [_fact(asset_code="600000.SH")]
+            return [replace(_fact(asset_code="600000.SH"), source="tushare")]
 
     class _ProviderRepository:
         def __init__(self) -> None:
@@ -906,6 +911,18 @@ def test_valuation_batch_result_rejects_empty_or_mismatched_lineage() -> None:
             status="success",
             succeeded_asset_codes=["000001.SZ"],
             run_id="44444444-4444-4444-8444-444444444444",
+            ingested_run_id=reference.ingested_run_id,
+            raw_audit_reference=reference,
+        )
+
+    with pytest.raises(ValueError, match="actual fact source type"):
+        SyncValuationBatchResult(
+            domain="valuation",
+            provider_name="provider-main",
+            stored_count=1,
+            status="success",
+            succeeded_asset_codes=["000001.SZ"],
+            run_id=reference.run_id,
             ingested_run_id=reference.ingested_run_id,
             raw_audit_reference=reference,
         )

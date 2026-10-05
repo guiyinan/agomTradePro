@@ -40,11 +40,11 @@ _AS_OF = date(2026, 9, 29)
 _ASSET = "009991.SZ"
 
 
-def _provider_config() -> ProviderConfig:
+def _provider_config(source_type: str = "tushare") -> ProviderConfig:
     return ProviderConfig(
         id=1,
         name="lineage-provider",
-        source_type="tushare",
+        source_type=source_type,
         is_active=True,
         priority=1,
         api_key="",
@@ -57,8 +57,16 @@ def _provider_config() -> ProviderConfig:
 
 
 class _Provider:
-    def __init__(self, error: DataFetchError | None = None) -> None:
+    def __init__(
+        self,
+        error: DataFetchError | None = None,
+        *,
+        source: str = "tushare",
+        facts: list[ValuationFact] | None = None,
+    ) -> None:
         self.error = error
+        self.source = source
+        self.facts = facts
 
     def provider_name(self) -> str:
         return "lineage-provider"
@@ -68,11 +76,13 @@ class _Provider:
     ) -> list[ValuationFact]:
         if self.error is not None:
             raise self.error
+        if self.facts is not None:
+            return self.facts
         return [
             ValuationFact(
                 asset_code=_ASSET,
                 val_date=_AS_OF,
-                source="provider-source",
+                source=self.source,
                 observed_at=_NOW,
                 fetched_at=_NOW,
             )
@@ -227,10 +237,84 @@ def test_valuation_success_persists_identity_fact_raw_audit_and_event_together()
     audit_entity = RawAuditRepository._from_model(audit)
     assert audit.content_hash == raw_audit_content_hash(audit_entity)
     assert audit.content_hash != raw_audit_content_hash(dataclasses.replace(audit_entity, extra={}))
+    assert audit.extra["source_type"] == "tushare"
+    assert audit.extra["provider_source_type"] == "tushare"
     identity = SyncExecutionIdentityModel.objects.get(run_id=result.run_id)
     assert str(identity.ingested_run_id) == result.ingested_run_id
     assert fetch_audit_writer.observations[0].raw_audit_id == str(audit.pk)
     assert fetch_audit_writer.observations[0].raw_audit_content_hash == audit.content_hash
+
+
+@pytest.mark.django_db
+def test_valuation_sync_records_actual_fact_source_separately_from_provider_route() -> None:
+    provider_repository = _ProviderConfigRepository()
+    provider_repository.config = _provider_config(source_type="akshare")
+    fact_repository = ValuationFactRepository()
+    raw_audit_repository = RawAuditRepository()
+    identity_repository = SyncExecutionIdentityRepository()
+    fetch_audit_writer = _FetchAuditWriter()
+    use_case = _use_case(
+        provider_repository=provider_repository,
+        fact_repository=fact_repository,
+        raw_audit_repository=raw_audit_repository,
+        identity_repository=identity_repository,
+        fetch_audit_writer=fetch_audit_writer,
+        provider=_Provider(source="tencent"),
+    )
+
+    result = use_case.execute(
+        provider_id=1,
+        asset_codes=[_ASSET],
+        as_of_date=_AS_OF,
+        require_exact_asset_codes=True,
+    )
+
+    fact = fact_repository.get_latest(_ASSET)
+    assert fact is not None
+    assert fact.source == "tencent"
+    assert result.fact_source_type == "tencent"
+    assert result.to_dict()["fact_source_type"] == "tencent"
+    audit = RawAuditModel.objects.get(pk=result.raw_audit_reference.raw_audit_id)
+    assert audit.extra["source_type"] == "tencent"
+    assert audit.extra["provider_source_type"] == "akshare"
+    assert audit.content_hash == result.raw_audit_reference.content_hash
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "provider_facts",
+    [
+        [
+            ValuationFact(asset_code=_ASSET, val_date=_AS_OF, source="tushare"),
+            ValuationFact(asset_code="600000.SH", val_date=_AS_OF, source="tencent"),
+        ],
+        [ValuationFact(asset_code=_ASSET, val_date=_AS_OF, source="")],
+    ],
+)
+def test_valuation_source_conflict_or_missing_source_fails_before_fact_write(
+    provider_facts: list[ValuationFact],
+) -> None:
+    provider_repository = _ProviderConfigRepository()
+    fact_repository = ValuationFactRepository()
+    raw_audit_repository = RawAuditRepository()
+    identity_repository = SyncExecutionIdentityRepository()
+    fetch_audit_writer = _FetchAuditWriter()
+    use_case = _use_case(
+        provider_repository=provider_repository,
+        fact_repository=fact_repository,
+        raw_audit_repository=raw_audit_repository,
+        identity_repository=identity_repository,
+        fetch_audit_writer=fetch_audit_writer,
+        provider=_Provider(facts=provider_facts),
+    )
+
+    with pytest.raises(DataFetchError, match="Current valuation"):
+        use_case.execute(provider_id=1, asset_codes=[_ASSET], as_of_date=_AS_OF)
+
+    assert ValuationFactModel.objects.count() == 0
+    audit = RawAuditModel.objects.get(capability="valuation")
+    assert audit.status == "error"
+    assert audit.extra == {"source_type": "tushare", "provider_source_type": "tushare"}
 
 
 @pytest.mark.parametrize("failed_stage", ["fact", "raw_audit", "fetch_audit", "health"])

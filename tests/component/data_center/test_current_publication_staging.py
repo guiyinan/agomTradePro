@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from django.db import connection
 
 from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationDataset,
@@ -19,11 +20,17 @@ from apps.data_center.application.current_publication_staging import (
     CurrentPublicationStagingError,
     CurrentPublicationStagingUseCase,
 )
+from apps.data_center.application.current_valuation_sync import SyncCurrentValuationBatchUseCase
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import PublicationState
-from apps.data_center.domain.entities import RawAudit
+from apps.data_center.domain.entities import ProviderConfig, RawAudit
 from apps.data_center.domain.market_time import cn_market_session_close_utc
 from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifestError
+from apps.data_center.infrastructure._provider_adapter_akshare import AkshareUnifiedProviderAdapter
+from apps.data_center.infrastructure.audited_sync_runtime import (
+    DjangoDataCenterSyncUnitOfWork,
+    DjangoSyncExecutionIdentityIssuer,
+)
 from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
     CandidateRawAuditManifestModel,
@@ -33,10 +40,13 @@ from apps.data_center.infrastructure.candidate_raw_audit_metadata_resolver impor
 )
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
+    SyncExecutionIdentityRepository,
 )
 from apps.data_center.infrastructure.current_publication_staging_repository import (
     DjangoCurrentPublicationStagingRepository,
 )
+from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+from apps.data_center.infrastructure.market_gateway_entities import ValuationSnapshot
 from apps.data_center.infrastructure.models import (
     CanonicalPublicationModel,
     CanonicalPublicationPointerModel,
@@ -50,6 +60,7 @@ from apps.data_center.infrastructure.provider_state_repositories import RawAudit
 from apps.data_center.infrastructure.publication_policy_repository import (
     PublicationPolicyRepository,
 )
+from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
 )
@@ -161,6 +172,178 @@ def _assert_no_partial_stage() -> None:
     assert CandidateRawAuditManifestModel._default_manager.count() == 0
     assert CandidateRawAuditManifestMemberModel._default_manager.count() == 0
     assert CanonicalPublicationPointerModel._default_manager.count() == 0
+
+
+def test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bind a real AKShare valuation adapter's Tencent facts through exact audit staging."""
+
+    asset_code = "000001.SZ"
+    target_date = date(2026, 9, 30)
+    observed_at = cn_market_session_close_utc(target_date)
+    fetched_at = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+    config = ProviderConfig(
+        id=71,
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    monkeypatch.setattr(
+        TencentGateway,
+        "get_valuation_snapshots",
+        lambda _gateway, codes: [
+            ValuationSnapshot(
+                stock_code=asset_code,
+                observed_at=observed_at,
+                pe_ttm=12.5,
+                pb=1.5,
+                source="tencent",
+                available_at=fetched_at,
+                fetched_at=fetched_at,
+                raw_payload_hash="a" * 64,
+                source_record_id="tencent:valuation:000001.SZ",
+                raw_payload_scope="batch_response_body",
+            )
+            for code in codes
+            if code == asset_code
+        ],
+    )
+    adapter = AkshareUnifiedProviderAdapter(config)
+
+    class ProviderConfigRepository:
+        unit_of_work_key = "django:default"
+
+        def get_by_id(self, provider_id: int) -> ProviderConfig:
+            assert provider_id == config.id
+            return config
+
+        def save(self, value: ProviderConfig) -> ProviderConfig:
+            return value
+
+    class ProviderRegistry:
+        def get_by_id(self, provider_id: int) -> AkshareUnifiedProviderAdapter:
+            assert provider_id == config.id
+            return adapter
+
+        def record_success(self, *_args: object) -> None:
+            return None
+
+        def record_failure(self, *_args: object) -> None:
+            return None
+
+        def get_all_statuses(self) -> list[object]:
+            return []
+
+    class FetchAuditWriter:
+        database_alias = "default"
+
+        def write(self, _observation: object) -> object:
+            assert connection.in_atomic_block
+            return object()
+
+    class Clock:
+        def now(self) -> datetime:
+            return fetched_at
+
+    provider_repository = ProviderConfigRepository()
+    fact_repository = ValuationFactRepository()
+    raw_audit_repository = RawAuditRepository()
+    identity_repository = SyncExecutionIdentityRepository()
+    fetch_audit_writer = FetchAuditWriter()
+    sync = SyncCurrentValuationBatchUseCase(
+        provider_repo=provider_repository,
+        provider_registry=ProviderRegistry(),
+        fact_repo=fact_repository,
+        raw_audit_repo=raw_audit_repository,
+        sync_identity_issuer=DjangoSyncExecutionIdentityIssuer(identity_repository),
+        sync_unit_of_work=DjangoDataCenterSyncUnitOfWork(
+            (
+                provider_repository,
+                fact_repository,
+                raw_audit_repository,
+                identity_repository,
+            ),
+            fetch_audit_writer,
+        ),
+        data_fetch_audit_writer=fetch_audit_writer,
+        clock=Clock(),
+    )
+
+    result = sync.execute(
+        provider_id=config.id or 0,
+        asset_codes=[asset_code],
+        as_of_date=target_date,
+        require_exact_asset_codes=True,
+    )
+
+    fact = fact_repository.get_latest(asset_code)
+    assert fact is not None
+    assert fact.source == "tencent"
+    assert result.fact_source_type == "tencent"
+    raw_audit = RawAuditModel._default_manager.get(pk=result.raw_audit_reference.raw_audit_id)
+    assert raw_audit.extra == {
+        "source_type": "tencent",
+        "provider_source_type": "akshare",
+    }
+    assert raw_audit.content_hash == result.raw_audit_reference.content_hash
+
+    valuation_dataset = CurrentPublicationDataset(
+        dataset_key="equity.valuation.fact",
+        fact_table="data_center_valuation_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    rebuilder = CurrentPublicationRebuildUseCase(
+        dataset=valuation_dataset,
+        candidate_repository=fact_repository,
+        publication_repository=CanonicalPublicationRepository(),
+        policy_repository=_PolicyRepository(),
+    )
+    staging = CurrentPublicationStagingUseCase(
+        rebuilder=rebuilder,
+        raw_audit_resolver=DjangoCandidateRawAuditMetadataResolver(),
+        repository=DjangoCurrentPublicationStagingRepository(),
+    )
+    binding = CurrentPublicationStageRawAuditBinding(
+        reference=result.raw_audit_reference,
+        expected_source_type=result.fact_source_type or "",
+    )
+    command = CurrentPublicationStageCommand(
+        asset_codes=(asset_code,),
+        published_at=PUBLISHED_AT,
+        run_id=str(uuid4()),
+        task_attempt_id="valuation-source-stage-actual",
+        raw_audit_bindings=(binding,),
+        required_observation_date=target_date,
+    )
+
+    staged = staging.execute(command)
+
+    assert staged.publication.state is PublicationState.CANDIDATE
+    assert staged.manifest.raw_audits[0].raw_audit_id == result.raw_audit_reference.raw_audit_id
+    pointer = CanonicalPublicationPointerModel._default_manager.get(
+        dataset_key=valuation_dataset.dataset_key,
+        publication_key="current",
+    )
+    assert pointer.publication_id is None
+
+    forged_route_command = replace(
+        command,
+        task_attempt_id="valuation-source-stage-forged-route",
+        raw_audit_bindings=(replace(binding, expected_source_type="akshare"),),
+    )
+    with pytest.raises(CurrentPublicationStagingError, match="source_type does not match"):
+        staging.execute(forged_route_command)
+
+    pointer.refresh_from_db()
+    assert pointer.publication_id is None
 
 
 def test_stage_builds_sealed_candidate_and_manifest_with_empty_lockable_pointer() -> None:

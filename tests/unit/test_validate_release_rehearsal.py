@@ -783,11 +783,11 @@ def _build_evidence(
     for filename, selected_tests in (
         (
             "publication-postgres.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[2:],
+            validator.REQUIRED_POSTGRESQL_TESTS[3:],
         ),
         (
             "backfill-control-plane-postgres.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[:2],
+            validator.REQUIRED_POSTGRESQL_TESTS[:3],
         ),
     ):
         junit_path = tmp_path / filename

@@ -334,17 +334,24 @@ def _with_raw_audit_reference(
 
 
 def _audited_valuation_sync(
-    execute: Callable[..., object], *, include_audit_reference: bool = True
+    execute: Callable[..., object],
+    *,
+    include_audit_reference: bool = True,
+    fact_source_type: str = "akshare",
 ) -> SimpleNamespace:
     """Build a valuation test double with exact seed audit lineage."""
 
-    return SimpleNamespace(
-        execute=lambda **kwargs: _with_raw_audit_reference(
+    def execute_with_lineage(**kwargs: object) -> SimpleNamespace:
+        result = _with_raw_audit_reference(
             execute(**kwargs),
             "valuation-test-audit",
             include_reference=include_audit_reference,
         )
-    )
+        payload = dict(vars(result))
+        payload.setdefault("fact_source_type", fact_source_type)
+        return SimpleNamespace(**payload)
+
+    return SimpleNamespace(execute=execute_with_lineage)
 
 
 def _universe_report(codes: list[str], *, active_count: int | None = None) -> dict[str, object]:
@@ -2210,6 +2217,53 @@ def test_task_exposes_stable_universe_refresh_error(
     assert "secret" not in str(result)
 
 
+@pytest.mark.parametrize(
+    "error_code",
+    [
+        "CURRENT_VALUATION_SOURCE_TYPE_CONFLICT",
+        "CURRENT_VALUATION_SOURCE_TYPE_INVALID",
+    ],
+)
+def test_task_preserves_stable_valuation_source_error_code(
+    monkeypatch,
+    error_code: str,
+) -> None:
+    """Keep source-lineage rejection codes visible in blocked task results."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+
+    active_codes = ["000001.SZ"]
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", lambda _: date(2026, 9, 18))
+    monkeypatch.setattr(tasks, "list_active_stock_codes_for_backfill", lambda: active_codes)
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: SimpleNamespace())
+
+    def reject_source(**_kwargs: object) -> object:
+        raise DataFetchError("valuation source lineage rejected", code=error_code)
+
+    monkeypatch.setattr(
+        tasks,
+        "make_backfill_sync_current_valuation_batch_use_case",
+        lambda: SimpleNamespace(execute=reject_source),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "build_production_current_market_publication_bundle",
+        lambda **_: SimpleNamespace(database_alias="default"),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run(batch_size=1)
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "current_valuation_scope_unavailable"
+    assert result["error_code"] == error_code
+    assert result["errors"] == [error_code]
+    assert result["must_not_use_for_decision"] is True
+    assert result["stored"] == 0
+
+
 def test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions(monkeypatch):
     """A provider omission cannot silently reduce the active publication denominator."""
 
@@ -3382,6 +3436,7 @@ def test_task_repairs_missing_price_scope_before_final_publication(
         lambda: _audited_valuation_sync(
             sync_valuation,
             include_audit_reference=missing_reference_stage != "valuation",
+            fact_source_type="tencent",
         ),
     )
     observed = datetime(2026, 9, 18, 7, tzinfo=UTC)
@@ -3594,6 +3649,8 @@ def test_task_repairs_missing_price_scope_before_final_publication(
     price_stage_bindings = stage_commands["equity.price.bar"].raw_audit_bindings
     assert tuple(item.reference.raw_audit_id for item in price_stage_bindings) == ("price-raw-1",)
     assert tuple(item.expected_source_type for item in price_stage_bindings) == ("tushare",)
+    valuation_stage_bindings = stage_commands["equity.valuation.fact"].raw_audit_bindings
+    assert tuple(item.expected_source_type for item in valuation_stage_bindings) == ("tencent",)
     assert len(publication_bundle.activation_requests) == 1
     assert len(publication_bundle.activation_requests[0].candidates) == 3
     assert publication_bundle.bundle_events.count("activation") == 1

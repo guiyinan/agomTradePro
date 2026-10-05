@@ -426,13 +426,16 @@ def run_full_market_publication_refresh(
             "Full-market valuation scope refresh failed: %s",
             type(exc).__name__,
         )
+        error_code = (
+            exc.code if isinstance(exc, DataFetchError) else "CURRENT_VALUATION_SCOPE_UNAVAILABLE"
+        )
         return {
             **market_task.full_market_input_failure(type(exc).__name__),
             "outcome": TaskBusinessOutcome.BLOCKED.value,
             "must_not_use_for_decision": True,
             "blocked_reason": "current_valuation_scope_unavailable",
-            "error_code": "CURRENT_VALUATION_SCOPE_UNAVAILABLE",
-            "errors": ["CURRENT_VALUATION_SCOPE_UNAVAILABLE"],
+            "error_code": error_code,
+            "errors": [error_code],
         }
     requested_codes = set(normalized_requested_codes)
     returned_codes = tuple(
@@ -1004,6 +1007,12 @@ def run_full_market_publication_refresh(
                 for _raw_audit_id, reference in sorted(price_audit_references.items())
             ],
         )
+        valuation_fact_source_type = valuation_seed.fact_source_type
+        if not valuation_fact_source_type:
+            raise DataFetchError(
+                "Current valuation sync did not return its actual fact source type",
+                code="CURRENT_VALUATION_SOURCE_TYPE_MISSING",
+            )
         stage_bindings_by_dataset = {
             "equity.quote.snapshot": tuple(
                 CurrentPublicationStageRawAuditBinding(
@@ -1022,7 +1031,7 @@ def run_full_market_publication_refresh(
             "equity.valuation.fact": tuple(
                 CurrentPublicationStageRawAuditBinding(
                     reference=reference,
-                    expected_source_type=selected_valuation_source,
+                    expected_source_type=valuation_fact_source_type,
                 )
                 for _raw_audit_id, reference in sorted(valuation_audit_references.items())
             ),
