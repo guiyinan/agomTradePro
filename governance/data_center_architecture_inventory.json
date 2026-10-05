@@ -13591,57 +13591,57 @@
       "text": "\"current market publication requires atomic group activation\""
     },
     {
-      "line": 276,
+      "line": 281,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer is missing\")"
     },
     {
-      "line": 308,
+      "line": 313,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer compare-and-swap failed\")"
     },
     {
-      "line": 315,
+      "line": 320,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"empty current pointer contains stale activation identity\""
     },
     {
-      "line": 328,
+      "line": 333,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"empty current pointer compare-and-swap failed\")"
     },
     {
-      "line": 332,
+      "line": 337,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"published candidate is not the current pointer target\""
     },
     {
-      "line": 338,
+      "line": 343,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"current pointer references a non-published candidate\""
     },
     {
-      "line": 341,
+      "line": 346,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current pointer activation identity differs\")"
     },
     {
-      "line": 343,
+      "line": 348,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication cutoff is invalid\")"
     },
     {
-      "line": 405,
+      "line": 410,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current pointer target is missing or drifted\")"
     },
     {
-      "line": 456,
+      "line": 461,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer compare-and-swap failed\")"
     },
     {
-      "line": 637,
+      "line": 642,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"\"\"Revalidate current policy and evidence immediately before switching.\"\"\""
     },
@@ -13671,52 +13671,52 @@
       "text": "\"\"\"Lock and validate the full group before writing any current state.\"\"\""
     },
     {
-      "line": 156,
+      "line": 161,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"one or more current publication pointers are missing\")"
     },
     {
-      "line": 197,
+      "line": 202,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group candidate identity differs\")"
     },
     {
-      "line": 201,
+      "line": 206,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"published group candidate is not its current pointer target\""
     },
     {
-      "line": 206,
+      "line": 211,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer contains stale activation identity\""
     },
     {
-      "line": 216,
+      "line": 221,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer compare-and-swap failed\""
     },
     {
-      "line": 223,
+      "line": 228,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer compare-and-swap failed\""
     },
     {
-      "line": 228,
+      "line": 233,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"group activation contains a partially current set\")"
     },
     {
-      "line": 235,
+      "line": 240,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clocks differ\")"
     },
     {
-      "line": 238,
+      "line": 243,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clock is missing\")"
     },
     {
-      "line": 280,
+      "line": 285,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer target is missing or drifted\""
     },

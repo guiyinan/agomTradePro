@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Final, cast
 from uuid import UUID
 
-from django.db import connections
+from django.db import DatabaseError, connections
 from django.db.models import Q
 from django.utils import timezone
 
@@ -138,10 +138,15 @@ class DjangoPublicationActivationGroupRepository:
             raise PublicationActivationError(
                 "group activation fact model is not registered"
             ) from error
-        acquire_publication_fact_activation_locks(
-            activation_fact_models,
-            using=self._using,
-        )
+        try:
+            acquire_publication_fact_activation_locks(
+                activation_fact_models,
+                using=self._using,
+            )
+        except DatabaseError as error:
+            raise PublicationActivationError(
+                "group publication fact activation fence is unavailable"
+            ) from error
 
         scope_filter = Q()
         for item in request.candidates:

@@ -7053,7 +7053,7 @@
           "def publication_fact_write_lock(",
           "def acquire_publication_fact_activation_locks(",
           "pg_advisory_xact_lock_shared",
-          "pg_try_advisory_xact_lock"
+          "pg_advisory_xact_lock(lock_id)"
         ]
       },
       "required_tests": [

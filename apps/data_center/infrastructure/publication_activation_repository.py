@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Final
 from uuid import UUID
 
-from django.db import connections, transaction
+from django.db import DatabaseError, connections, transaction
 from django.utils import timezone
 
 from apps.data_center.application.publication_activation import (
@@ -265,7 +265,12 @@ class DjangoPublicationActivationRepository:
         fact_model = publication_fact_model_registry().get(request.dataset_key)
         if fact_model is None:
             raise PublicationActivationError("activation fact model is not registered")
-        acquire_publication_fact_activation_locks((fact_model,), using=self._using)
+        try:
+            acquire_publication_fact_activation_locks((fact_model,), using=self._using)
+        except DatabaseError as error:
+            raise PublicationActivationError(
+                "publication fact activation fence is unavailable"
+            ) from error
 
         pointer = (
             CanonicalPublicationPointerModel._default_manager.select_for_update()

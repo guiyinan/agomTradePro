@@ -7,7 +7,7 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from typing import Final
 
-from django.db import OperationalError, connections, models
+from django.db import connections, models
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.backends.utils import CursorWrapper
 from django.db.transaction import TransactionManagementError
@@ -81,24 +81,10 @@ def acquire_publication_fact_activation_locks(
     plan = canonicalize_scoped_advisory_lock_keys(
         _table_lock_key(model_by_table[table_name]) for table_name in table_names
     )
+    previous_timeout = _bounded_lock_timeout(connection)
     with connection.cursor() as cursor:
-        lock_ids = [derive_scoped_advisory_lock_id(key) for key in plan]
-        cursor.execute(
-            """
-            WITH lock_plan AS MATERIALIZED (
-                SELECT unnest(%s::bigint[]) AS lock_id
-                ORDER BY lock_id
-            )
-            SELECT lock_id, pg_try_advisory_xact_lock(lock_id)
-            FROM lock_plan
-            """,
-            [lock_ids],
-        )
-        rows = cursor.fetchall()
-    if len(rows) != len(lock_ids) or any(len(row) != 2 or type(row[1]) is not bool for row in rows):
-        raise OperationalError("PostgreSQL returned an invalid publication activation lock result")
-    if any(row[1] is not True for row in rows):
-        raise OperationalError("publication fact activation lock is unavailable")
+        _acquire_exclusive_plan(cursor, plan)
+    _restore_lock_timeout(connection, previous_timeout)
     return table_names
 
 
