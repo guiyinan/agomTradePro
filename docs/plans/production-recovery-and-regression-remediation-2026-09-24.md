@@ -1906,3 +1906,56 @@ receipt-only 单一入口尚未实现。该风险只影响下一次候选部署�
 
 下一片是否可开始：当前生产全市场任务和联合验收可继续；receipt-only 收敛须在本轮生产恢复验收后独立开始，且不得借此
 重跑 S6、重新部署或再次投递全市场任务。
+
+#### 2026-10-06 生产刷新终态与估值实际来源血缘整改
+
+生产终态：候选 `294ee8354265c84e49f9fd32978f99f738198e15` 已通过五组同 SHA CI；S6 attempt
+`eb57a2f97f3947309438fa7625a61a56` 的十阶段全部通过，handoff receipt SHA-256 为
+`5d50e1094fb4c5584b60605e0cbfbdb8ca17b08241f18c016857f122813b834a`，预构建镜像为
+`sha256:256c35640243b90ce932e7ff050cb326f2740e6fc822de4ad42d89fc15b0da37`。生产使用该同 SHA、同镜像部署并通过
+身份复核后，只投递了一次显式全市场任务 `719e7f38-6d42-46c3-b2e2-f58e5739b808`，attempt 为
+`e98e2a94637e44c58d0f0392538dcf5c`。Celery 与 Task Monitor 的技术状态均为成功，但规范业务结果为 `partial`：
+`requested/succeeded/failed/stored=5572/5572/0/11144`；quote 与 valuation 各完成 5,572 条事实，publication
+为 `0/1`、`published_members=0`、`publication_updated=false`，稳定码为
+`CURRENT_PUBLICATION_STAGING_FAILED`。quote/price pointer 仍为空，valuation/financial pointer 不存在，未发生部分 activation。
+终态安全证据位于
+`/opt/agomtradepro/rehearsals/production-refresh-719e7f38-6d42-46c3-b2e2-f58e5739b808/terminal-evidence.json`，
+SHA-256 为 `e55396bf107dda8ce1d54f77700ad5831e976b60d929de7fec5840cca7468c35`。
+
+根因：本次动态停牌集合的 11 只证券已经由真实目标日证据隔离，不是发布失败原因；Audit authority 也仍有效。唯一失败血缘为
+valuation ingestion run `2ed452d4-f073-4a7c-a3a4-951f8328fa3f`：5,572 条 `ValuationFact.source` 都是实际上游
+`tencent`，但 RawAudit `53055` 的 hash-bound `extra.source_type` 写成 provider 配置路由 `akshare`。full-market 又用
+`selected_valuation_source=akshare` 构造 staging binding，metadata resolver 因请求和 RawAudit 同为 `akshare` 而通过，最终
+repository 将 ingestion→`akshare` 与 candidate member→`tencent` 严格比较后正确失败关闭。既有 S6 分别验证真实 fetch、
+response replay、provider identity 与 PostgreSQL publication，却没有贯通真实 adapter→sync→RawAudit→staging，因此没有提前
+暴露两个来源维度被混用。
+
+完成项（`db093a293`）：成功 valuation batch 在任何 fact 写入前动态归一并要求唯一实际来源；缺失或混合来源分别返回
+`CURRENT_VALUATION_SOURCE_TYPE_INVALID`、`CURRENT_VALUATION_SOURCE_TYPE_CONFLICT`，不维护 provider 对应白名单，也不写死
+证券。成功 RawAudit 的 `extra.source_type` 记录实际 fact 来源，`extra.provider_source_type` 单独记录配置路由且一同进入内容
+hash；空批次或失败 audit 仍不可进入 Publication。`SyncValuationBatchResult` 显式携带 `fact_source_type`，full-market staging
+只用该实际来源建立严格 binding，并在任务业务结果中保留上述稳定码。现有 staging/activation 的 fact-source 严格相等校验未
+放宽。
+
+新增 PostgreSQL 固定 node id
+`tests/component/data_center/test_current_publication_staging.py::test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql`
+使用真实 `AkshareUnifiedProviderAdapter` 与确定性 Tencent gateway response，贯通真实 sync UOW、exact RawAudit reference、
+production resolver/repository staging；正例证明 route=`akshare`、actual=`tencent` 分列后可以生成 candidate，反例把 route
+冒充 actual 时失败且 current pointer 保持空。该 node 已同时加入 Publication PostgreSQL workflow、S6 release validator 必需
+清单及证据计数断言；不新增演练阶段。
+
+测试计数：全市场刷新单测 `103 passed`；估值同步单测 `22 passed`；估值 lineage component `9 passed`；新增端到端节点
+`1 passed`；release validator 单测 `100 passed`。任务稳定来源码参数化反例 `2 passed`，已包含在上述 103 个用例中。
+增量 mypy 覆盖 3 个生产文件且 0 regression；全仓 debt ceiling `0 errors in 0 files`。Black、isort、Ruff、
+`git diff --check`、Celery 94 个任务合同与 current-data 72 个 surface 均通过。
+
+未验证风险与停止线：新增端到端节点本地只在隔离 SQLite 下通过，必须由 `db093a293` 后最终文档 SHA 的 Publication
+PostgreSQL CI 证明真实 PostgreSQL 行为。生产现有 valuation facts 与 RawAudit 是不可改写的历史证据，不能原地修补；必须在
+修复候选通过五组 exact-SHA CI、全新生产快照 S6、同一预构建镜像部署后重新取得一批正确 lineage，再启动新的正式发布流程。
+旧 `294ee8354` receipt、镜像与失败任务均不得复用为新代码证据。禁止再次盲目投递全市场任务、改写 append-only RawAudit、
+扩大 timeout/retry、放宽 freshness/coverage/audit/source 校验、降低 `SIGNAL_WEAK` 或写死停牌/缺失证券集合。
+
+下一片是否可开始：可以提交并 push 本节台账，取得最终 SHA 的 Architecture、Security、Consistency、Fast Feedback、
+Publication PostgreSQL 五组 CI。只有全部通过且 PostgreSQL artifact 包含新增固定 node id 后，才能从最新生产只读快照执行全新
+S6；S6 与同镜像部署通过后，才可投递一次新的显式全市场刷新并继续正式 Publication、decision runtime、Alpha、
+API/SDK/MCP、普通用户页面和只读零副作用联合验收。
