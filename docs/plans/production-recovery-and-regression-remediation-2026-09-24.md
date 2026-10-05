@@ -1876,3 +1876,33 @@ CI；旧 `s6-61f53246d-20261005a/b/c` 不作为新 SHA 证据，且在新 S6 前
 
 下一片是否可开始：可以执行组合门禁、提交台账并 push；在 exact-SHA CI 和新 S6 成功之前，
 不得部署或投递生产全市场刷新。不得以删除旧证据、复用固定 `/tmp` 文件、延长 timeout/retry 或人工放宽身份校验解冲突。
+
+#### 2026-10-06 部署入口契约漂移根因与永久门禁
+
+根因不是 CI 选测漏跑。`55a077bdc` 将 provider settings 的 raw-file 与 canonical-payload 两个摘要加入
+S6 runner、manifest、handoff receipt、Python validator 和 Python 部署器，但 PowerShell 一键部署入口仍手工维护一份
+validator 参数表，未同步两个新增的 `required=True` 选项。Fast Feedback 已会为 validator 或部署入口变更选中 deployment
+测试；原测试只分别验证 validator 核心、Python receipt 绑定和 PowerShell 的旧参数字符串，没有比较 validator 的全部必填
+CLI 与每个真实消费者实际组装的参数块。S6 自身不调用 `deploy-vps.ps1`，所以十阶段预演通过也不能覆盖这条调用边。
+
+该故障在 push、凭据临时文件、SSH 与生产变更之前由 argparse 失败关闭；生产部署最终通过已完整校验 receipt 的 Python
+部署入口完成，同一预构建镜像与候选身份没有变化。修复提交 `75a258d80` 已为 PowerShell 增加两个摘要输入、格式校验和精确
+转发。`e94353fc7` 进一步从 validator 源码自动提取所有 literal `required=True` CLI 选项，并要求 PowerShell 一键部署与 S6
+release-validator 的实际参数块全部覆盖；故障注入删除任一必填选项后，门禁必须报告该缺项。该测试位于已有 deployment
+selector 的固定测试文件内，因此以后新增 validator 必填项而遗漏任一跨语言消费者时，PR Fast Feedback 直接失败。
+
+这类缺陷的最终收敛方向是版本化 handoff receipt 成为部署证据的单一结构真源：PowerShell 只传 receipt、候选 SHA、镜像 ID
+和 manifest digest 等外部期望值，由一个 Python preflight 完成 schema、时效、摘要和消费者绑定并输出安全的规范化结果。
+该收敛必须作为生产联合验收后的独立可回滚切片，保留当前两次本地 fail-closed 校验及 Python 部署器的独立复核；迁移完成前
+不得删除本次消费者自动对齐门禁。这样既先阻断现有参数漂移家族，也避免在本次全市场任务运行期间改动刚验证过的部署路径。
+
+完成项：部署包装器摘要漏传已修复；新增 validator 必填 CLI 到 PowerShell/S6 消费者的自动对齐门禁与缺项故障注入。
+
+测试计数：`tests/unit/test_remote_build_deploy_vps.py` 为 `83 passed, 1 skipped`，跳过项为 Windows symlink 平台分支；
+`tests/unit/ci/test_select_tests.py` 为 `62 passed`。Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险：当前仍有跨语言手工参数组装，自动门禁能阻断必填选项缺失，但不能证明任意未来参数的业务值来源正确；
+receipt-only 单一入口尚未实现。该风险只影响下一次候选部署，不改变正在运行的生产刷新或其 Publication 原子性。
+
+下一片是否可开始：当前生产全市场任务和联合验收可继续；receipt-only 收敛须在本轮生产恢复验收后独立开始，且不得借此
+重跑 S6、重新部署或再次投递全市场任务。
