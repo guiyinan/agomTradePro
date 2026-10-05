@@ -26,17 +26,17 @@
       "script": 12,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 83,
+      "test_evidence": 84,
       "workflow_step": 12
     },
     "by_status": {
       "active_public": 818,
       "adjacent_operational": 337,
-      "candidate-review": 0,
+      "candidate-review": 1,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1293
+    "total": 1294
   },
   "entries": [
     {
@@ -12317,6 +12317,16 @@
       "path": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
       "status": "active_public",
       "symbol": "test_financial_fact_repository_postgres_provenance",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_publication_fact_lock_postgres.py:test_publication_fact_lock_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_publication_fact_lock_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_publication_fact_lock_postgres",
       "target": ""
     },
     {
