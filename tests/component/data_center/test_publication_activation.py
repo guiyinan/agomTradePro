@@ -567,7 +567,7 @@ def _build_group_candidate(
     elif dataset_key == "equity.price.bar":
         fact_row = PriceBarModel.objects.create(
             asset_code=asset_code,
-            bar_date=observed_at.date(),
+            bar_date=(observed_at - timedelta(days=1)).date(),
             freq="1d",
             adjustment="none",
             open=Decimal("10.0000"),
@@ -634,7 +634,7 @@ def _build_group_candidate(
             generated_at=fetched_at,
         ),
         member_count=1,
-        as_of=fetched_at,
+        as_of=max(fetched_at, fact_reference.observed_at),
         created_by="test.activation.group",
         run_id=str(run_id),
     )
