@@ -12621,37 +12621,37 @@
       "text": "\"candidate staging cannot make its publication the current pointer target\""
     },
     {
-      "line": 242,
+      "line": 245,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Collect selected latest facts and current publication members.\"\"\""
     },
     {
-      "line": 310,
+      "line": 313,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Select the latest immutable quote per asset.\"\"\""
     },
     {
-      "line": 349,
+      "line": 352,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Select the latest daily unadjusted price per asset.\"\"\""
     },
     {
-      "line": 391,
+      "line": 394,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Select the deterministic latest valuation per asset.\"\"\""
     },
     {
-      "line": 436,
+      "line": 439,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Select every metric from each asset's latest evidence-safe period.\"\"\""
     },
     {
-      "line": 490,
+      "line": 493,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "\"\"\"Load the latest published current identity and its exact members.\"\"\""
     },
     {
-      "line": 498,
+      "line": 501,
       "path": "apps/data_center/infrastructure/data02_isolated_snapshot.py",
       "text": "AND publication_key = 'current'"
     },
@@ -13646,7 +13646,7 @@
       "text": "\"\"\"Revalidate current policy and evidence immediately before switching.\"\"\""
     },
     {
-      "line": 232,
+      "line": 235,
       "path": "apps/data_center/infrastructure/publication_fact_identity.py",
       "text": "summary=row.summary,"
     },

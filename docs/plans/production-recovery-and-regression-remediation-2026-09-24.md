@@ -1598,6 +1598,11 @@ raw payload hash 与 revision identity 也不变。current-data 两条治理 mar
 回归 `5 passed`。current-data 治理检查为 72 surfaces；两个生产文件增量 mypy 零回归，全仓 debt ceiling
 `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过，无跳过项。
 
+首次推送后的 Consistency `37245827307` 中，业务、current-data 与 MCP 治理步骤全部通过，唯一失败为 deterministic Data
+Center architecture inventory 过期。生成器复核显示只因两个生产文件新增 import 行导致既有命中行号平移，计数保持
+`current_surface_references=5381`、`cross_app_orm_imports=48`、`direct_data_center_imports_outside_data_center=0`；已使用
+`python scripts/data_center_architecture_inventory.py --write` 重新生成，并以无参数 check 通过，没有手工改写投影内容。
+
 未验证风险与停止线：`d967c6efc` 及本节文档后的最终 SHA 尚未取得五组 exact-SHA CI；旧 S6 receipt、镜像和当前已部署
 release 不包含本修复，不能作为新部署凭证。必须以最终 SHA、最新生产只读快照和重新导出的 provider/settings/unit-contract
 启动全新九阶段 S6；全绿并同镜像部署前不得再次启动生产全市场刷新。正式 Publication、decision runtime、Alpha、
