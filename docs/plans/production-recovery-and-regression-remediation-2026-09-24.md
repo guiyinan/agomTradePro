@@ -1749,3 +1749,80 @@ provider/settings/unit-contract 重新执行完整九阶段 S6，随后只部署
 下一片是否可开始：可以提交本节台账并 push 最终 SHA，等待五组 CI；全部通过后启动全新 S6。S6 与同镜像部署通过后，
 才允许投递一次新的显式全市场任务，并同时从 Task Monitor API 与 Celery backend 对账业务 outcome、四项计数、阶段、
 Publication IDs/hash/run ID。任何失败继续先保存稳定业务码和安全诊断，不盲目重跑、不扩大 timeout/retry、不放宽业务门槛。
+
+#### 2026-10-05 ⑥全市场重复投递与停牌候选保存根因整改（`9528afcbe` / `4eddb2242`）
+
+完成项：最终候选 `0539318e00aa493603f525da637098061a02680e` 已取得五组 exact-SHA CI 全绿：
+Consistency `37273700340`、Publication PostgreSQL `37273700129`、Architecture `37273700189`、Security
+`37273700178`、Fast Feedback `37273700200`。全新 S6 根目录
+`/opt/agomtradepro/rehearsals/s6-0539318e0-20261005a` 使用最新生产只读快照、5,572 只动态 universe 和冻结 provider
+identity 通过十阶段，handoff receipt SHA-256 为
+`a5f55eec06c74328a44fc5cd81454dcfe3d576903e0c187d7a432646c128e41e`，同 SHA 预构建镜像
+`sha256:db96f5bd0136d2a80d45e5e7f02c91c5bedbf70c1557c9c35a607d50ce611921` 完成部署。运行 revision、image、
+526 条迁移、服务健康、provider readiness、TUI metadata 与生产 statement logging 恢复均通过。部署后 preflight 对
+quote/price/valuation 的 5,572/5,572 预览、完整 Account authority capture 与 task attempt identity 均通过。
+
+授权范围内只显式投递一次全市场刷新：task ID `7c54f6d8-a93f-43c3-9a68-a610bcacca8e`、attempt ID
+`d153af49544b458299eed0d8271c3993`。任务历时 5,202 秒，quote 56/56、valuation 5,572/5,572，规范业务结果为
+`partial`，`requested/succeeded/failed/stored=5572/5572/0/11144`；publication 0/1、`published_members=0`、
+`publication_updated=false`，稳定码 `CURRENT_PUBLICATION_STAGING_FAILED`，publication run ID
+`5785ca78-ce82-4bcc-9a0b-60df8844d5f5`。Task Monitor 保存了 875 字节可解析的有界业务投影，完整保留 outcome、四项计数、
+phase、错误码与 run ID，证明本候选的结果投影修复有效；Celery 技术 success 没有被视为正式恢复。
+
+生产 traceback 将首次失败精确定位到 candidate RawAudit lineage：`candidate fact belongs to a foreign or missing ingestion run`。
+根因是 Beat 的同名任务 `1b9b6a55-9e7c-406d-a779-3372d581b6a8` 在显式任务尚未结束时开始执行；其 attempt ID 为
+`be0c8a4d19f34bdeb4909a237c102a2b`，配置仍是工作日 17:05 Asia/Shanghai，实际因队列延迟于 17:10:39 开始。
+全市场事实写入只有单批事务和 natural-key fence，没有覆盖 provider 读取、56 个批次、candidate staging 与 activation 的
+任务级所有权。后启动任务因此在相同 natural key 上替换 `ingested_run_id`；首次任务的 lineage 门禁正确失败关闭，candidate、
+pointer 与正式 Publication 均未部分切换。这里没有固定证券数量，也不是延长 lock wait、timeout 或 retry 可以修复的问题。
+
+后启动的 Beat 任务在首次任务结束后继续完成 quote 56/56 与 valuation 5,572/5,572，历时 4,701 秒，最终也返回
+`partial`、`requested/succeeded/failed/stored=5572/5572/0/11144`、publication 0/1、稳定码
+`CURRENT_PUBLICATION_STAGING_FAILED`。它的底层异常与 lineage 不同：
+`Market suspension scope requires selected members`。生产 staging repository 先调用
+`CanonicalPublicationRepository.save(publication)` 保存带 quote/price 全天停牌 scope block 的 p2 candidate；该方法在成员尚未
+写入且调用方未提供 candidate members 时执行必须依赖成员的 snapshot policy 校验，因而合法的动态停牌分区必然失败。
+根因是 candidate 保存契约缺少同一 UOW 的 member evidence，不是 11 只停牌证券特例；整改必须让 candidate metadata 在保存前
+使用其完整成员校验，同时保留 scope block、policy、lineage、identity 和原子回滚反例，禁止跳过或放宽停牌政策。
+
+过去 18 小时 CI/S6 改动复核确认，PostgreSQL workflow 已实际运行三个 publication fact writer lock 用例和 concurrent group
+activation CAS 用例，但 `scripts/validate_release_rehearsal.py::REQUIRED_POSTGRESQL_TESTS` 尚未列入这四个既有 node id。
+因此 CI 能执行它们，S6 candidate regression validator 却不能证明 evidence artifact 必含这些用例；本轮须补齐固定清单并以
+validator/collector 缺失与 skipped 反例证明 fail closed。新增全市场任务级 mutex 还须覆盖 manual/Beat 共用入口、竞争者在任何
+provider/数据库写入前规范 `noop`、cache 不可用时规范 `blocked`、正常/异常/soft-timeout owner release，以及 lease TTL 严格大于
+5,700 秒 hard limit 且严格小于 6,300 秒 authority window 的不变量。不得延长现有任务时间或等待竞争者。
+
+`9528afcbef39adc267f0963c8031920309fda1cc` 在 manual/Beat 共用的 Celery 入口增加 task-wide fail-fast lease。
+竞争者在 provider、事实写入和 Publication 前返回规范 `noop`，四项计数均为零，稳定码为
+`FULL_MARKET_REFRESH_ALREADY_RUNNING`；lease cache 不可用时返回规范 `blocked` 和
+`FULL_MARKET_REFRESH_LEASE_UNAVAILABLE`，不降级为无锁执行。正常、异常和 soft-timeout 路径按 owner identity 释放；进程崩溃
+依靠 6,000 秒 TTL 回收。该 TTL 严格大于 5,700 秒 hard limit、严格小于 6,300 秒 authority window，没有延长任务时间、
+锁等待或 retry。S6 固定 PostgreSQL 证据清单同时补入三个 publication fact writer lock 用例和 concurrent group activation
+CAS 用例，candidate validator/collector 缺少或 skipped 任一必需用例时继续失败关闭。
+
+`4eddb2242795b24ef2b38eadad912bff76558038` 为 candidate repository 增加带完整冻结成员的保存契约；staging 在同一事务内先用
+成员验证 policy、coverage、publication/dataset identity、natural key/member/fact 唯一性、`as_of`/observation 边界和停牌
+scope block，再保存 metadata 和 members。元数据单独保存、成员缺失、coverage 数量不一致、publication ID 错配、重复自然键、
+缺失 `as_of` 或停牌证据不完整均在首行写入前失败关闭；既有 lineage、candidate identity、manifest seal、pointer 与原子回滚
+门禁保持不变。实现按候选成员与 scope blocks 动态处理，不包含证券数量或代码白名单。
+
+测试计数：task-wide lease 新增 6 个契约反例；完整全市场刷新单测 `101 passed`；release validator/manifest 单测
+`103 passed, 1 skipped`，跳过项为本机 Windows 不支持目录 symlink 的平台分支，不是固定 PostgreSQL 证据。候选保存旧实现红测为 quote/price
+`2 failed, 21 deselected`，均稳定复现 `Market suspension scope requires selected members`；修复后 staging component
+`23 passed`，版本化 Publication integrity component `11 passed`。current-data 72 surfaces、对应 guard 单测 `6 passed`、module map
+44 modules/210 edges、governance 0 violations、architecture delta 0 violations、Data Center architecture inventory
+（5,384 current references、48 cross-app ORM imports、0 外部直连）和 entrypoint inventory 1,294 条均通过。两个切片涉及的生产
+文件增量 mypy 均为 0 regression，全仓 debt ceiling `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+本地未执行 disposable PostgreSQL 用例，必须由 exact-SHA Publication PostgreSQL CI 补齐。
+
+未验证风险与停止线：task-wide lease 先覆盖 manual/Beat 的同一 full-market 入口；决策行情最近只写 `510300.SH` 与
+`000300.SH`，不在本次 5,572 只 A 股 Publication scope，但其他 API、回填、按需修复或维护 writer 若在全市场运行期间写入
+相同自然键，仍可能触发 lineage fail closed，须作为后续共同 writer-fence 风险记录，不能用本次 mutex 证据宣称全部 writer
+已隔离。两个修复已经独立 commit 并完成本地门禁，但尚未取得最终文档提交后的五组 exact-SHA CI，也未运行全新 S6、同镜像
+部署或第三次生产重跑；旧 S6 receipt、镜像和当前部署均不包含本轮修复，禁止复用。在这些证据齐备前禁止再次投递生产全市场
+任务，禁止放宽 freshness、coverage、audit、15:00 收盘、停牌证据、来源一致性或 `SIGNAL_WEAK`。
+
+下一片是否可开始：可以提交本节台账、push 最终 SHA 并等待五组 CI。只有 exact-SHA 全绿且 Publication PostgreSQL artifact
+包含新增固定 node id 后，才能从最新生产快照启动全新 S6，S6 与
+同镜像部署通过后才允许投递一次新的显式全市场任务，再继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、
+普通用户页面与只读零副作用联合验收。
