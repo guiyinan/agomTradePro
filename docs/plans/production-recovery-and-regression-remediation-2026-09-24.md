@@ -1569,3 +1569,39 @@ decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读零副作用
 下一片是否可开始：可以提交本节台账并 push 最终 SHA，取得五组 exact-SHA CI；全绿后必须用新 SHA、最新生产只读快照和
 重新导出的 provider/settings/unit-contract 输入运行全新九阶段 S6。只有新 handoff receipt 完整通过后才能部署其同 SHA
 预构建镜像，再投递一轮显式全市场刷新并执行联合验收；任何失败先保留稳定业务码和证据再修根因。
+
+#### 2026-10-05 正式发布日线收盘时间投影整改（`d967c6efc`）
+
+完成项：候选 `8558cbd6a0d9736b8882654c08dd796be1dde504` 已取得五组 exact-SHA CI 全绿，并以最新生产快照完成
+九阶段 S6；同 SHA 预构建镜像、handoff receipt 与部署运行镜像一致。部署后 preflight 的 provider route、current
+publication gate、完整 Account authority capture、5,572 只 quote/price/valuation preview 均通过。授权范围内只投递一次
+正式全市场刷新，task ID `2df6470b-60c2-4557-9731-321ff7eb6171`，远端 dispatch receipt SHA-256 为
+`cf58197085a72c38b6e17062faa649f5c182742620a40f60e56195c6ff69b0be`。任务返回规范业务结果 `partial`：
+`requested=5572`、`succeeded=5572`、`failed=0`、`stored=11144`；quote 与 valuation 均为 5,572/5,572，
+publication 0/1，`publication_updated=false`，稳定码 `MARKET_PUBLICATION_VALIDATION_FAILED`。技术状态 success 未被当作恢复。
+
+底层安全诊断为 `Current market publication contains an observation before the official China-market close`。本次新写入的
+5,572 条 quote 全部精确为 `2026-09-30 07:00:00+00:00`（北京时间 15:00），无 14:55 或更早记录；失败也不是 audit
+lock 或少数证券缺口。根因是日线 `PriceBarModel.bar_date` 的 canonical publication identity 仍使用
+`cn_market_date_start_utc()`，把一个已完成交易日投影为北京时间 00:00，而 target-session publication 门禁已正确要求官方
+15:00 收盘。S6 的 PostgreSQL historical snapshot 仍使用同一旧投影，导致演练与生产共享该盲区。发布前 pointer 基线为空，
+失败后 quote、price、valuation pointer 仍为空，没有部分 activation。
+
+`d967c6efc` 将 canonical daily-price identity 与 S6 historical snapshot 的 price 投影统一为
+`cn_market_session_close_utc(bar_date)`；quote、valuation、fund NAV、capital flow 等其他时间语义不变，price natural key、
+raw payload hash 与 revision identity 也不变。current-data 两条治理 marker 同步到官方收盘函数。红测先稳定观察到两条旧值
+均为 `2026-09-10 16:00:00+00:00`，期望 `2026-09-11 07:00:00+00:00`；修复后 canonical identity 和 isolated snapshot
+均通过。15:00 门槛、freshness、coverage、audit、锁等待、timeout/retry 与 `SIGNAL_WEAK` 均未放宽。
+
+测试计数：current-publication/Data02 单元 `45 passed`；完整 fact identity 组件 `19 passed`；full-market、preflight、capacity
+与 isolated-write 回归 `165 passed`；repository 组件 `34 passed`；current-data runner/guard `10 passed`；price publication
+回归 `5 passed`。current-data 治理检查为 72 surfaces；两个生产文件增量 mypy 零回归，全仓 debt ceiling
+`0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过，无跳过项。
+
+未验证风险与停止线：`d967c6efc` 及本节文档后的最终 SHA 尚未取得五组 exact-SHA CI；旧 S6 receipt、镜像和当前已部署
+release 不包含本修复，不能作为新部署凭证。必须以最终 SHA、最新生产只读快照和重新导出的 provider/settings/unit-contract
+启动全新九阶段 S6；全绿并同镜像部署前不得再次启动生产全市场刷新。正式 Publication、decision runtime、Alpha、
+API/SDK/MCP、用户页面和只读零副作用联合验收仍未完成；生产没有普通角色测试账户，普通用户权限隔离继续作为补充验收项。
+
+下一片是否可开始：可以提交并 push 本节最终 SHA，取得五组 exact-SHA CI；全绿后执行全新 S6、同镜像部署，再投递一轮
+显式全市场刷新。任何失败继续先读取稳定业务码和安全诊断，禁止盲目重跑、复用旧证据或扩大 timeout/retry。
