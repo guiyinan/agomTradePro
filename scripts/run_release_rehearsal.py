@@ -150,6 +150,8 @@ class SubprocessRunner:
         self._cancelled = threading.Event()
         self._active_lock = threading.Lock()
         self._active_processes: dict[int, subprocess.Popen[str]] = {}
+        self._progress_lock = threading.Lock()
+        self._active_progress: dict[str, dict[str, object]] = {}
 
     def cancel(self) -> None:
         """Stop all active process groups launched by this runner."""
@@ -170,6 +172,7 @@ class SubprocessRunner:
     def _progress(
         self,
         command: Command,
+        invocation_id: str,
         started: float,
         *,
         outcome: str,
@@ -208,6 +211,7 @@ class SubprocessRunner:
         ]
         payload: dict[str, object] = {
             "schema": "release.rehearsal-command-progress.v1",
+            "invocation_id": invocation_id,
             "command": command.label,
             "outcome": outcome,
             "elapsed_seconds": round(time.monotonic() - started, 3),
@@ -220,18 +224,42 @@ class SubprocessRunner:
             "stable_error_codes": sorted(set(STABLE_REHEARSAL_CODE.findall(diagnostic_text))),
             "updated_at": datetime.now(UTC).isoformat(),
         }
-        atomic_json(self.progress_dir / "current-command.json", payload)
-        if outcome != "running":
-            atomic_json(self.progress_dir / f"{command.label}-{uuid4().hex}.json", payload)
+        with self._progress_lock:
+            atomic_json(self.progress_dir / "current-command.json", payload)
+            active_dir = self.progress_dir / "active-commands"
+            active_dir.mkdir(mode=0o700, exist_ok=True)
+            active_path = active_dir / f"{invocation_id}.json"
+            if outcome == "running":
+                self._active_progress[invocation_id] = payload
+                atomic_json(active_path, payload)
+            else:
+                self._active_progress.pop(invocation_id, None)
+                active_path.unlink(missing_ok=True)
+            active_commands = sorted(
+                self._active_progress.values(),
+                key=lambda item: (str(item["command"]), str(item["invocation_id"])),
+            )
+            atomic_json(
+                self.progress_dir / "active-commands.json",
+                {
+                    "schema": "release.rehearsal-active-commands.v1",
+                    "active_count": len(active_commands),
+                    "active_commands": active_commands,
+                    "updated_at": datetime.now(UTC).isoformat(),
+                },
+            )
+            if outcome != "running":
+                atomic_json(self.progress_dir / f"{command.label}-{invocation_id}.json", payload)
 
     def run(self, command: Command) -> CommandResult:
         """Run one command and convert launch errors to a failed result."""
         environment = os.environ.copy()
         environment.update(command.env)
         started = time.monotonic()
-        self._progress(command, started, outcome="running")
+        invocation_id = uuid4().hex
+        self._progress(command, invocation_id, started, outcome="running")
         if self._cancelled.is_set():
-            self._progress(command, started, outcome="interrupted", returncode=130)
+            self._progress(command, invocation_id, started, outcome="interrupted", returncode=130)
             return CommandResult(130)
         try:
             process = subprocess.Popen(
@@ -260,6 +288,7 @@ class SubprocessRunner:
                             stdout, stderr = process.communicate(timeout=10)
                             self._progress(
                                 command,
+                                invocation_id,
                                 started,
                                 outcome="interrupted",
                                 stdout=stdout,
@@ -277,6 +306,7 @@ class SubprocessRunner:
                         except subprocess.TimeoutExpired as exc:
                             self._progress(
                                 command,
+                                invocation_id,
                                 started,
                                 outcome="running",
                                 stdout=exc.output or b"",
@@ -287,6 +317,7 @@ class SubprocessRunner:
                                 stdout, stderr = process.communicate(timeout=10)
                                 self._progress(
                                     command,
+                                    invocation_id,
                                     started,
                                     outcome="timed_out",
                                     stdout=stdout,
@@ -298,7 +329,13 @@ class SubprocessRunner:
                         except KeyboardInterrupt:
                             self._stop_process(process)
                             self._remove_stage_container(command)
-                            self._progress(command, started, outcome="interrupted", returncode=130)
+                            self._progress(
+                                command,
+                                invocation_id,
+                                started,
+                                outcome="interrupted",
+                                returncode=130,
+                            )
                             raise
             finally:
                 with self._active_lock:
@@ -306,6 +343,7 @@ class SubprocessRunner:
             if self._cancelled.is_set():
                 self._progress(
                     command,
+                    invocation_id,
                     started,
                     outcome="interrupted",
                     stdout=stdout,
@@ -316,6 +354,7 @@ class SubprocessRunner:
                 return CommandResult(130, stdout, stderr)
             self._progress(
                 command,
+                invocation_id,
                 started,
                 outcome="success" if process.returncode == 0 else "failed",
                 stdout=stdout,
@@ -325,7 +364,12 @@ class SubprocessRunner:
             return CommandResult(process.returncode, stdout, stderr)
         except (OSError, subprocess.SubprocessError) as exc:
             self._progress(
-                command, started, outcome="launch_failed", stderr=type(exc).__name__, returncode=127
+                command,
+                invocation_id,
+                started,
+                outcome="launch_failed",
+                stderr=type(exc).__name__,
+                returncode=127,
             )
             return CommandResult(127, stderr=type(exc).__name__)
 

@@ -9,6 +9,7 @@ import shutil
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -857,12 +858,182 @@ def test_process_diagnostics_keep_categories_without_private_output(tmp_path: Pa
         )
     )
     assert result.returncode != 0
-    reports = list((tmp_path / "diagnostics").glob("*.json"))
+    reports = [
+        path
+        for path in (tmp_path / "diagnostics").glob("*.json")
+        if path.name != "active-commands.json"
+    ]
     assert len(reports) == 2
     for path in reports:
         text = path.read_text(encoding="utf-8")
         assert "secret-token-123" not in text
         assert json.loads(text)["diagnostic_categories"] == ["permission"]
+    active = json.loads(
+        (tmp_path / "diagnostics" / "active-commands.json").read_text(encoding="utf-8")
+    )
+    assert active["active_count"] == 0
+    assert active["active_commands"] == []
+
+
+def test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats(
+    tmp_path: Path,
+) -> None:
+    progress_dir = tmp_path / "diagnostics"
+    runner = SubprocessRunner(progress_dir)
+    results: dict[str, CommandResult] = {}
+
+    def execute(label: str, delay: float) -> None:
+        results[label] = runner.run(
+            Command(
+                (sys.executable, "-c", f"import time; time.sleep({delay})"),
+                tmp_path,
+                {},
+                15,
+                label,
+            )
+        )
+
+    slow = threading.Thread(target=execute, args=("slow", 6.5))
+    quick = threading.Thread(target=execute, args=("quick", 0.5))
+    slow.start()
+    quick.start()
+
+    summary_path = progress_dir / "active-commands.json"
+    deadline = time.monotonic() + 5
+    summary: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        if summary_path.exists():
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            if summary.get("active_count") == 2:
+                break
+        time.sleep(0.02)
+    assert summary["active_count"] == 2
+    active_commands = cast(list[dict[str, object]], summary["active_commands"])
+    assert {item["command"] for item in active_commands} == {"quick", "slow"}
+    slow_first_update = next(
+        item["updated_at"] for item in active_commands if item["command"] == "slow"
+    )
+
+    quick.join(timeout=3)
+    assert not quick.is_alive()
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["active_count"] == 1
+    assert [item["command"] for item in summary["active_commands"]] == ["slow"]
+
+    deadline = time.monotonic() + 7
+    while time.monotonic() < deadline:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        active_commands = cast(list[dict[str, object]], summary["active_commands"])
+        if active_commands and active_commands[0]["updated_at"] != slow_first_update:
+            break
+        time.sleep(0.05)
+    assert active_commands[0]["updated_at"] != slow_first_update
+
+    slow.join(timeout=4)
+    assert not slow.is_alive()
+    assert results["quick"].returncode == 0
+    assert results["slow"].returncode == 0
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["active_count"] == 0
+    assert summary["active_commands"] == []
+    histories = list(progress_dir.glob("quick-*.json")) + list(progress_dir.glob("slow-*.json"))
+    assert len(histories) == 2
+
+
+def test_parallel_subprocess_progress_keeps_each_active_command_until_it_finishes(
+    tmp_path: Path,
+) -> None:
+    runner = SubprocessRunner(tmp_path / "diagnostics")
+    start_barrier = threading.Barrier(3)
+    releases = {name: tmp_path / f"release-{name}" for name in ("first", "second")}
+    ready = {name: tmp_path / f"ready-{name}" for name in ("first", "second")}
+    completed = {name: threading.Event() for name in ("first", "second")}
+    results: dict[str, CommandResult] = {}
+    secret = "progress-secret-sentinel"
+
+    def command_for(name: str) -> Command:
+        source = (
+            "from pathlib import Path\n"
+            "import time\n"
+            f"Path({str(ready[name])!r}).write_text('ready')\n"
+            f"release = Path({str(releases[name])!r})\n"
+            "deadline = time.monotonic() + 8\n"
+            "while not release.exists() and time.monotonic() < deadline:\n"
+            "    time.sleep(0.01)\n"
+            f"print({secret!r})\n"
+        )
+        return Command(
+            (sys.executable, "-c", source, "private-argv-sentinel"),
+            tmp_path,
+            {"PRIVATE_ENV_SENTINEL": "private-env-sentinel"},
+            12,
+            "parallel",
+        )
+
+    def execute(name: str) -> None:
+        start_barrier.wait(timeout=5)
+        results[name] = runner.run(command_for(name))
+        completed[name].set()
+
+    workers = [threading.Thread(target=execute, args=(name,)) for name in releases]
+    for worker in workers:
+        worker.start()
+    start_barrier.wait(timeout=5)
+
+    active_dir = tmp_path / "diagnostics" / "active-commands"
+
+    def wait_until(predicate: Callable[[], bool]) -> None:
+        deadline = time.monotonic() + 5
+        while not predicate() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert predicate()
+
+    try:
+        wait_until(lambda: all(path.exists() for path in ready.values()))
+        wait_until(lambda: len(list(active_dir.glob("*.json"))) == 2)
+        initial_active_paths = set(active_dir.glob("*.json"))
+        active_payloads = [
+            json.loads(path.read_text(encoding="utf-8")) for path in initial_active_paths
+        ]
+        assert {payload["outcome"] for payload in active_payloads} == {"running"}
+        assert {payload["command"] for payload in active_payloads} == {"parallel"}
+
+        releases["first"].touch()
+        assert completed["first"].wait(timeout=5)
+        remaining_active_paths = set(active_dir.glob("*.json"))
+        assert len(remaining_active_paths) == 1
+        assert remaining_active_paths.issubset(initial_active_paths)
+        assert (
+            json.loads(next(iter(remaining_active_paths)).read_text(encoding="utf-8"))["outcome"]
+            == "running"
+        )
+
+        releases["second"].touch()
+        assert completed["second"].wait(timeout=5)
+    finally:
+        for release_path in releases.values():
+            release_path.touch()
+        for worker in workers:
+            worker.join(timeout=5)
+
+    assert all(not worker.is_alive() for worker in workers)
+    assert all(result.returncode == 0 for result in results.values())
+    assert list(active_dir.glob("*.json")) == []
+    history_paths = list((tmp_path / "diagnostics").glob("parallel-*.json"))
+    assert len(history_paths) == 2
+    assert {json.loads(path.read_text(encoding="utf-8"))["outcome"] for path in history_paths} == {
+        "success"
+    }
+    persisted = "\n".join(
+        path.read_text(encoding="utf-8") for path in (tmp_path / "diagnostics").glob("*.json")
+    )
+    assert secret not in persisted
+    assert "private-argv-sentinel" not in persisted
+    assert "private-env-sentinel" not in persisted
+    current = json.loads(
+        (tmp_path / "diagnostics" / "current-command.json").read_text(encoding="utf-8")
+    )
+    assert current["outcome"] == "success"
 
 
 def test_process_timeout_is_distinct_and_has_terminal_progress(tmp_path: Path) -> None:
