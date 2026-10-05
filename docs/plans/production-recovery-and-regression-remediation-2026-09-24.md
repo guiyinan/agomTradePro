@@ -1666,3 +1666,34 @@ provider/settings/unit-contract 启动全新 S6。S6 与同镜像部署通过后
 CAS 返回稳定业务拒绝。writer 超过预算时仍失败关闭，不增加 timeout/retry。真实 PostgreSQL 聚焦复验为 `4 passed`，覆盖
 concurrent group CAS winner/loser 与三条 writer/activation fence 故障注入。该补丁尚未取得最终 exact-SHA 五组 CI，继续
 禁止 S6、部署和生产重跑。
+
+补充（`18e020de3` / `ae775aa2d` / `96c82b6fe`）：候选
+`fc4234454dd2300ddca335a85c97f8ca16602c7d` 的 Security `37257345168`、Architecture
+`37257345174` 和 Publication PostgreSQL `37257345101` 已通过；后者确认并发 activation 的 winner/loser
+仍按 pointer CAS 返回稳定业务拒绝。Consistency `37257345132` 与 Fast Feedback `37257345165` 失败。
+安全日志把失败限定为三个独立问题：新增 PostgreSQL 故障注入文件尚未进入 Data Center entrypoint 投影；日线官方
+15:00 收盘投影生效后，group activation fixture 仍用当天日期并在收盘前构造未来 observation；writer lock token
+错误复用 publication identity builder，使原本允许缺少 `observed_at` 的估值 repository fixture 被额外发布校验拒绝。
+
+`18e020de305b75d49f82256179924b984795a675` 将 writer fence token 改为直接编码各 repository 已声明的
+natural key，按类型和 JSON 边界生成确定性、无拼接碰撞的输入；它不增加发布资格校验，也不改变自然键或事实写入语义。
+`ae775aa2d1ce881bf06649b97f523fe6adfd42e1` 把 price fixture 固定为前一完整日，并令 publication `as_of`
+覆盖最晚 member observation；生产侧“未来 observation 失败关闭”和官方 15:00 收盘门槛未修改。
+`96c82b6feca239a995e77595ef893a8361ae308a` 仅重新生成 Data Center entrypoint 投影，登记新增真实 PostgreSQL
+故障注入证据；architecture 投影随生产 import 行号变化同步生成，计数仍为 5,381 current references、48 cross-app ORM
+imports、0 外部直连。
+
+测试计数：估值天然键聚焦回归 `1 passed`；publication activation 与 published-fact refresh 合并回归
+`51 passed`，最终三文件合并回归 `52 passed in 70.21s`。本轮使用 `--nomigrations` 避免 Windows 本地完整迁移图的
+启动开销；迁移本身未修改，完整迁移与 PostgreSQL 行为由 exact-SHA CI 继续验证。增量 mypy 生产文件 0 回归，
+全仓 debt ceiling `0 errors in 0 files`；Black、isort、Ruff、current-data 72 surfaces、governance 0 violations、
+entrypoint/architecture 生成后 check 与 `git diff --check` 通过。无测试跳过。
+
+未验证风险与停止线：上述三个提交及本节文档后的最终 SHA 尚未取得五组 exact-SHA CI；尤其 Publication PostgreSQL
+必须继续执行 42 个用例并满足 5,001-member query count、持锁时间和 lock wait 既有硬阈值。未运行新 S6、未部署、
+未再次投递生产全市场任务。旧 S6 receipt、镜像和当前生产 release 均不包含这些修复，禁止复用；不得扩大 timeout/retry、
+延长锁等待或放宽 freshness、coverage、audit、来源一致性、15:00 收盘和 `SIGNAL_WEAK`。
+
+下一片是否可开始：可以提交本节台账并 push 最终 SHA，等待五组 exact-SHA CI。只有五组全绿后才能用最新生产只读
+快照和重新导出的 provider/settings/unit-contract 启动全新九阶段 S6；S6 与同镜像部署通过后才允许投递一次新的显式
+全市场刷新并继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读零副作用联合验收。
