@@ -1610,3 +1610,48 @@ API/SDK/MCP、用户页面和只读零副作用联合验收仍未完成；生产
 
 下一片是否可开始：可以提交并 push 本节最终 SHA，取得五组 exact-SHA CI；全绿后执行全新 S6、同镜像部署，再投递一轮
 显式全市场刷新。任何失败继续先读取稳定业务码和安全诊断，禁止盲目重跑、复用旧证据或扩大 timeout/retry。
+
+#### 2026-10-05 ⑥全市场刷新事实写入锁竞争根因整改（`ab1ffc4b7`）
+
+完成项：候选 `e8ab5dc6373f00626432b2832710121840c87110` 的五组 exact-SHA CI 和全新九阶段 S6 已通过，
+并以 handoff receipt 绑定的同 SHA 预构建镜像完成部署。部署后 preflight 的 provider route、三组 current publication
+preview、5,572 只 quote/price/valuation 覆盖、完整 Account authority capture 和 task attempt identity 均通过。授权范围内
+只投递一次正式全市场刷新，task ID `689775f6-66d9-47a2-8c3e-b86f5748e382`、attempt ID
+`cb2e5720bc8e4fd7afff8fd93876971b`。任务先完成 valuation 5,572/5,572，再在 quote 第 6/56 批后以 PostgreSQL
+`canceling statement due to lock timeout` 失败；quote 已写 600 行，没有执行 Publication activation，三条 current pointer
+仍未切换。该技术失败没有被误报成业务恢复，也没有盲目投递第二次任务。
+
+生产 traceback 精确落在 `QuoteSnapshotRepository.bulk_upsert` → `upsert_publication_safe_facts` →
+`publication_fact_write_lock` 的 `LOCK TABLE data_center_quote_snapshot IN SHARE ROW EXCLUSIVE MODE`。同一窗口内例行
+`refresh_decision_quote_snapshots_task`（task ID `bc85858a-e2e9-4129-bfae-384b280f1023`）正在写入 2 条决策行情；两个
+事务即使证券自然键不相交，也会被同一个表级排他写锁串行。后者总运行约 47 秒，其中大部分时间处于前序表锁队列，取得锁后
+又让全市场下一批超过既有 5 秒 lock timeout。根因是事实写入锁粒度过大并把整段同步 UOW 纳入表锁生命周期，不是 Audit
+authority、freshness、coverage、provider 缺口、12 只证券、15:00 收盘规则或 timeout/retry 预算不足。
+
+`ab1ffc4b7` 将 publication-safe 写入改为两级 PostgreSQL 事务 advisory fence：同事实表的写入者取得共享表 fence，
+因此不相交的决策行情与全市场批次可以并行；每个规范 source natural key 另取独占 fence，继续序列化同键缺失插入和更新。
+单条及三组 Publication activation 在锁 pointer、candidate、member 和 fact row 之前，以规范表顺序非阻塞取得同表独占
+fence；任一 writer 未结束即失败关闭并回滚，不会等待扩大后的预算。现有 fact row locks、Account fence 和所有 legacy
+relation locks 原样保留。writer 的 5 秒 lock timeout 上限、freshness、coverage、audit、来源一致性和 `SIGNAL_WEAK`
+均未修改；实现按模型表和真实 natural key 自适应，不包含证券数量或代码白名单。
+
+测试计数：新增真实 PostgreSQL 故障注入 `3 passed in 2.80s`，证明不相交 writers 在 1 秒硬阈值内并发完成且 fast path
+固定 5 条查询、activation 在 writer 占用时 2 秒内失败关闭并在释放后恢复、同 natural key writers 仍互斥；相关发布事实、
+仓储、单条激活与 composition 回归分别 `36 passed, 3 skipped` 和 `38 passed`，跳过项仅为未显式启用 disposable PostgreSQL，
+随后已由上述真实 PostgreSQL 运行补齐。5,001-member activation 查询数为 29，低于 35 硬阈值；本机 Windows/Python 3.13
+冷容器两次持锁时间分别为 3.665353 秒和 2.634640 秒，均未满足既有 2 秒停止线，因此明确记为本地未通过，未提高阈值，
+必须由 exact-SHA Linux Publication PostgreSQL CI 复验。5 个生产文件增量 mypy 零回归，全仓 mypy debt `0 errors in
+0 files`；Black、isort、Ruff、current-data 72 surfaces、governance 0 violations、Data Center architecture inventory
+（5,381 current references、48 cross-app ORM imports、0 外部直连）与 `git diff --check` 通过。CI workflow 将新增 3 个
+PostgreSQL 用例纳入必跑集合并把不可跳过计数从 39 更新为 42。
+
+未验证风险与停止线：`ab1ffc4b7` 及本节文档后的最终 SHA 尚未 push，五组 exact-SHA CI 未执行；尤其 5,001-member
+Linux 持锁时间必须小于等于 2 秒，否则继续优化临界区，禁止放宽门槛。`test_publication_activation.py` 整文件本地回归另有
+24 个既有 group fixture 在候选 staging 阶段失败：日线成员已按官方 15:00 收盘投影，但 fixture 的 publication `as_of`
+仍早于成员 observation；失败发生在新增锁代码之前，作为测试夹具未完成工作单独保留，不在本片顺手修改。新 SHA 尚未执行
+全新 S6、同镜像部署、生产重跑或正式 Publication/decision runtime/Alpha/API/SDK/MCP/普通用户页面联合验收。
+
+下一片是否可开始：可以提交本节台账并 push 最终 SHA；只有五组 CI 全绿且 Publication PostgreSQL 的 42 个用例全部执行、
+5,001-member query count/持锁时间/lock wait 三条硬阈值均通过，才能以新 SHA、最新生产只读快照和重新导出的
+provider/settings/unit-contract 启动全新 S6。S6 与同镜像部署通过后才允许再投递一次显式全市场刷新；任何失败继续先保存
+稳定业务码和安全诊断，禁止盲目重跑、延长锁等待、扩大 timeout/retry 或降低业务门槛。
