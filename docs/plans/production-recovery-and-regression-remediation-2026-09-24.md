@@ -1630,8 +1630,8 @@ authority、freshness、coverage、provider 缺口、12 只证券、15:00 收盘
 
 `ab1ffc4b7` 将 publication-safe 写入改为两级 PostgreSQL 事务 advisory fence：同事实表的写入者取得共享表 fence，
 因此不相交的决策行情与全市场批次可以并行；每个规范 source natural key 另取独占 fence，继续序列化同键缺失插入和更新。
-单条及三组 Publication activation 在锁 pointer、candidate、member 和 fact row 之前，以规范表顺序非阻塞取得同表独占
-fence；任一 writer 未结束即失败关闭并回滚，不会等待扩大后的预算。现有 fact row locks、Account fence 和所有 legacy
+单条及三组 Publication activation 在锁 pointer、candidate、member 和 fact row 之前，以规范表顺序取得同表独占
+fence；等待受调用方既有 lock timeout 与 5 秒上限的更严格者约束，超限即失败关闭并回滚。现有 fact row locks、Account fence 和所有 legacy
 relation locks 原样保留。writer 的 5 秒 lock timeout 上限、freshness、coverage、audit、来源一致性和 `SIGNAL_WEAK`
 均未修改；实现按模型表和真实 natural key 自适应，不包含证券数量或代码白名单。
 
@@ -1655,3 +1655,14 @@ Linux 持锁时间必须小于等于 2 秒，否则继续优化临界区，禁�
 5,001-member query count/持锁时间/lock wait 三条硬阈值均通过，才能以新 SHA、最新生产只读快照和重新导出的
 provider/settings/unit-contract 启动全新 S6。S6 与同镜像部署通过后才允许再投递一次显式全市场刷新；任何失败继续先保存
 稳定业务码和安全诊断，禁止盲目重跑、延长锁等待、扩大 timeout/retry 或降低业务门槛。
+
+补充（`5f20ef1eb`）：候选 `9c4826e61b0d0ab099d92bf288f6fbf1d14ed11d` 的 Security
+`37256299254` 与 Architecture `37256299319` 通过，Publication PostgreSQL `37256299219` 为 `41 passed / 1 failed`。
+唯一失败是既有 concurrent group activation 契约：新增独占 fact fence 正确选出一个 winner，但 loser 的底层
+`OperationalError` 越过 repository，被 Account fence 包装为 `AccountAuthorityFinalRevalidationUnavailable`；首次归一化为
+`PublicationActivationError` 后，立即拒绝语义仍早于 pointer CAS，测试要求的稳定 `compare-and-swap` 业务拒绝丢失。
+`5f20ef1eb` 将单条和组激活的 fence 异常统一映射到 `PublicationActivationError`，并把 activation 独占 fence 改为受调用方
+既有 lock timeout 与 5 秒上限更严格者约束的等待；并发 activation 因而先由 winner 完成原子切换，loser 随后在既有 pointer
+CAS 返回稳定业务拒绝。writer 超过预算时仍失败关闭，不增加 timeout/retry。真实 PostgreSQL 聚焦复验为 `4 passed`，覆盖
+concurrent group CAS winner/loser 与三条 writer/activation fence 故障注入。该补丁尚未取得最终 exact-SHA 五组 CI，继续
+禁止 S6、部署和生产重跑。
