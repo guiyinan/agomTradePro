@@ -1826,3 +1826,53 @@ scope block，再保存 metadata 和 members。元数据单独保存、成员缺
 包含新增固定 node id 后，才能从最新生产快照启动全新 S6，S6 与
 同镜像部署通过后才允许投递一次新的显式全市场任务，再继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、
 普通用户页面与只读零副作用联合验收。
+
+#### 2026-10-06 S6 启动身份与重试隔离整改
+
+根因：候选 `61f53246dc0289268203f471b337b29ca1891d9e` 的首次新 S6 在镜像构建完成后才以
+`Timeout waiting for redis at agom-s6-redis-0539318e0:6379` 失败。远端 prepare 脚本由前次脚本复制并以字符串替换旧
+namespace；当实际前次候选由 `1f696704b` 变为 `0539318e0` 时，隔离 env 仍指向旧 Redis。第二次同 SHA 尝试又在导出阶段
+以 `snapshot output already exists: /tmp/agom-s6-61f53246d-provider-settings.json` 失败，因为临时路径只含 SHA short，
+没有一次尝试的独立身份。第三次 prepare 使用新 namespace 后完成，但在本整改完成前停止，没有启动 S6 runner。
+这两次失败均发生在生产写入和部署之前，失败证据保留；旧成功 receipt 和镜像继续禁止复用。
+
+完成项（`025417721`）：S6 CLI 现在拒绝仓库外复制的 launcher；隔离 env 必须在任何远端构建前完整、一致地绑定
+PostgreSQL host/DB、runtime/migrator URL、Redis host/URL 和显式隔离标记。PostgreSQL 与 Redis 容器必须均为指定网络中
+与 host alias 对应的运行实例。旧 namespace、缺失/重复 env key、独立字段与 URL 不一致或关闭隔离标记均返回稳定
+`S6_ISOLATED_ENV_*` 业务码，不回显 DSN、密码或原始 env。新增 Redis CLI 参数及恢复文档已同步。
+
+`453d3f8bedc5c6a1b93d168420b2b0e093a631e5` 将远端 build report 从固定共享文件改为 release tag 与随机 128-bit build attempt
+共同命名；prebuilt verifier、source upload 和 git clone 三条路径都只接受本次预分配路径，远端回报不一致即失败关闭。下载到
+本地的报告使用同一 attempt ID，清理也只删除本次远端报告，因此同 tag 重试或并行构建不再互相覆盖报告或误删证据。
+`641bdfd652587edb8b35a1fa40b1bbc1c4b6a9ce` 新增仓库内 attempt 规划器：每次新 S6 使用 UUID4，与候选 SHA 共同派生
+root/evidence、PostgreSQL/Redis/network/volume/database 及两个 provider export `/tmp` 路径；`--reserve` 原子创建 root 和只读
+计划，既存目录或 symlink 失败关闭；同 attempt 只有显式 `--resume` 且计划逐字节一致时可复用。规划器及其测试已纳入
+deployment CI 选测映射。
+
+`17a3415e217844426a7abeda2ca13e7c8bb28ecb` 为每个子命令生成独立 invocation ID；兼容的
+`current-command.json` 之外，同时维护活动命令汇总和每 invocation 活动文件。并行成员结束时只移除自身，其他成员继续按约
+5 秒心跳；最终各自保存历史。诊断仍只含 label、耗时、预算、字节计数、白名单类别、稳定码与 traceback 位置，不持久化 argv、
+env、原始 stdout/stderr 或秘密。
+
+测试计数：`tests/unit/test_run_release_rehearsal.py` 为 `84 passed, 1 skipped`；跳过项是 Windows 不允许创建测试所需
+symlink。新增故障注入覆盖旧 PostgreSQL/Redis host、URL、数据库名、隔离标记、重复 key、Redis 容器预检失败和 launcher
+来源不一致。`scripts/run_release_rehearsal.py` 增量 mypy 为 0 regression，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+
+远端报告隔离回归为 `76 passed, 1 skipped`，attempt 规划器与 CI 选测回归为 `71 passed, 1 skipped`；两处跳过均为
+Windows symlink 平台分支。两个生产脚本的增量 mypy 均为 0 regression，Black、isort、Ruff 通过。新增反例证明两个 tag、
+同 tag 两次 build、同 SHA 两次 S6、路径注入、既存目录、symlink、计划篡改和错误清理均失败关闭或保持资源互不相交。
+命令心跳切片回归为 `86 passed, 1 skipped`，新增真实子进程 barrier 与 6.5 秒阻塞反例，证明两个并行 invocation 同时可见、
+一个完成后另一个仍保留且心跳推进、最终活动集合归零，并确认 argv/env/stdout 中的 sentinel 没有进入诊断文件；增量 mypy
+为 0 regression，Black、isort、Ruff 通过。
+
+最终组合 deployment 回归为 `336 passed, 4 skipped`，覆盖 launcher、attempt 规划器、远端构建/部署、manifest、validator 与
+CI 选测；四个跳过项均为 Windows symlink 平台分支。全仓 mypy debt ceiling 为 `0 errors in 0 files`；module map
+44 modules/210 edges、governance 0 violations、Data Center entrypoint inventory 1,294 条和 `git diff --check` 通过。入口投影已由
+生成器同步远端构建与 launcher 行号，未手工编辑。
+
+未完成工作与停止线：工具链代码片与本地组合门禁已完成，仍须取得最终 SHA 的五组
+CI；旧 `s6-61f53246d-20261005a/b/c` 不作为新 SHA 证据，且在新 S6 前只能按精确 manifest 清理其 disposable 资源。
+
+下一片是否可开始：可以执行组合门禁、提交台账并 push；在 exact-SHA CI 和新 S6 成功之前，
+不得部署或投递生产全市场刷新。不得以删除旧证据、复用固定 `/tmp` 文件、延长 timeout/retry 或人工放宽身份校验解冲突。

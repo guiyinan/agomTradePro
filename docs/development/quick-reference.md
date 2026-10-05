@@ -43,6 +43,12 @@ agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 ### 发布预检与 S6 策略快照
 
 ```bash
+# 0. 为每次全新 S6 原子预留独立 attempt；同 SHA 重试也必须使用新的 attempt ID
+python scripts/plan_release_rehearsal_attempt.py \
+  --candidate-sha <40位候选SHA> \
+  --attempts-dir /opt/agomtradepro/rehearsals \
+  --reserve
+
 # 1. 从生产（或目标环境）只读导出 provider 策略快照；stdout 即快照文件内容，
 #    digest 摘要走 stderr，可直接重定向
 python manage.py export_provider_settings_snapshot > provider-settings.json

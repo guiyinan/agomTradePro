@@ -4,6 +4,21 @@
 
 ## 操作方式
 
+每次全新 S6 先由仓库内规划器分配独立 attempt。省略 `--attempt-id` 时生成 UUID4；输出的 root、evidence、
+PostgreSQL/Redis/network/volume/database 和 provider export 临时路径必须作为本次 prepare 与 launcher 的唯一输入，
+不得从上一轮脚本做字符串替换：
+
+```text
+python scripts/plan_release_rehearsal_attempt.py \
+  --candidate-sha <40位候选SHA> \
+  --attempts-dir /opt/agomtradepro/rehearsals \
+  --reserve
+```
+
+`--reserve` 原子创建 attempt root 和只读 `attempt-plan.json`；已存在目录、symlink 或碰撞均失败关闭，不删除旧证据。
+同一 attempt 续跑必须显式传入原 `--attempt-id --resume`，并要求计划逐字节一致。相同 SHA 的新尝试使用新 attempt ID，
+因此资源和 `/tmp` export 路径互不覆盖。
+
 首次运行必须从候选 checkout 内直接执行 `scripts/run_release_rehearsal.py`。复制到仓库外的 launcher 会以
 `S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。失败后先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
 
@@ -33,7 +48,9 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
    `AGOM_RELEASE_REHEARSAL_DATABASE=1`；缺失、重复、旧 namespace 或 URL/独立字段不一致均在远端构建前失败关闭，
    且诊断只返回稳定码，不写出 DSN 或凭据。写入前再次核对数据库容器 ID。检测到活动容器或数据库容器被替换时停止，
    不自动杀掉身份未确认的旧工作。
-2. 构建报告和镜像归档独立落检查点；镜像装载失败也不需要重新构建。
+2. 构建报告和镜像归档独立落检查点；镜像装载失败也不需要重新构建。远端和下载到本机的 build report 文件名均包含
+   release tag 与随机 attempt ID；远端返回路径必须与本次调用预分配路径完全一致，清理也只删除该路径，避免同 tag 重试或
+   并行构建互相覆盖。
 3. 使用候选镜像验证隔离 PostgreSQL 实际连接身份及迁移图，在 provider 请求之前阻断未迁移数据库。数据库查询运行在 PostgreSQL `REPEATABLE READ, READ ONLY` 事务中；任何写入尝试由数据库以 SQLSTATE `25006` 拒绝并映射为 `REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION`。此检查不执行 migrate、不初始化 catalog、不写入业务数据。第一次运行需要先取得候选镜像才能做该精确检查。
 4. 真实 provider probe 仍是权威链路验证，沿用真实 payload 和预算；不新增简化 smoke 请求冒充真实请求，也不为预检重复消耗一轮 provider 配额。
 
@@ -44,7 +61,10 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 ## 运维观察与停止条件
 
 - `run-status.json`：业务阶段、已完成阶段和稳定阻断码。
-- `diagnostics/current-command.json`：正在执行的具体子命令、耗时、超时预算、输出字节数、更新时间及结果；长命令每约 5 秒更新。
+- `diagnostics/current-command.json`：兼容入口，保存最近一次命令心跳或终态。
+- `diagnostics/active-commands.json` 与 `diagnostics/active-commands/<invocation-id>.json`：同时列出所有仍运行的并行命令；
+  一个命令结束只移除自己的 invocation，不会覆盖仍运行命令。长命令每约 5 秒刷新；结束后活动集合归零，并在 diagnostics
+  根目录按 command 与 invocation ID 保留独立终态。
 - `diagnostics` 中每个完成命令保存独立 JSON：保留数据库、权限、网络、超时、语法等白名单诊断分类、稳定业务码及最多八个 traceback 文件名/行号/函数名；不保存原始 stdout/stderr、异常消息、命令参数、token 或 provider 响应。原始响应只留在原有受控证据目录。
 - 心跳代表 launcher 有响应，输出字节增长才表示新增输出；两者都不代表业务成功。
 - 超时返回 `S6_STAGE_TIMEOUT`。执行器终止自己启动的本地进程树，并尝试移除该命令唯一命名的候选容器。远端构建由原有构建器管理；launcher 被强杀或 SSH 中断时，重试构建前仍需确认远端任务已退出，不能假定远端自动取消。
