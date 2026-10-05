@@ -1067,9 +1067,15 @@ def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
         "$RehearsalTargetDate",
         "$RehearsalUniverseSha256",
         "$RehearsalProviderIdentitiesSha256",
+        "$RehearsalProviderSettingsRawFileSha256",
+        "$RehearsalProviderSettingsCanonicalPayloadSha256",
         "$GitHubRepository",
         "$GitHubRunId",
     )
+    assert "[string]$RehearsalProviderSettingsRawFileSha256," in wrapper
+    assert "[string]$RehearsalProviderSettingsCanonicalPayloadSha256," in wrapper
+    assert "-RawFileSha256 $RehearsalProviderSettingsRawFileSha256" in wrapper
+    assert "-CanonicalPayloadSha256 $RehearsalProviderSettingsCanonicalPayloadSha256" in wrapper
     validation = "& $PythonExe @rehearsalArgs"
     password_creation = "Set-Content -Path $passFile -Value $VpsPass -NoNewline"
 
@@ -1079,6 +1085,10 @@ def test_one_click_deploy_requires_explicit_release_rehearsal_inputs() -> None:
     assert wrapper.index(validation) < wrapper.index("npm ci")
     assert wrapper.index(validation) < wrapper.index(password_creation)
     assert "Release rehearsal validation failed." in wrapper
+    assert wrapper.index("$providerSettingsDigestValidatorArgs = @(") < wrapper.index(
+        "$VpsHost = $env:AGOM_VPS_HOST"
+    )
+    assert "$rehearsalArgs += $providerSettingsDigestValidatorArgs" in wrapper
     assert "'--expected-candidate-image-id', $PrebuiltImageId" in wrapper
     assert "'--prebuilt-image-id', $PrebuiltImageId" in wrapper
     assert "'--release-rehearsal-sha256', $rehearsalManifestHash" in wrapper
@@ -1438,9 +1448,9 @@ def test_remote_deploy_removes_duplicate_backup_cron_and_keeps_beat_as_owner() -
     assert "--keep-days 1" in script
 
 
-def _extract_post_deploy_verification_function(script: str) -> str:
-    """Extract only the pure post-deploy result boundary, not the deploy script."""
-    signature = "function Invoke-PostDeployVerification {"
+def _extract_powershell_function(script: str, function_name: str) -> str:
+    """Extract one balanced PowerShell function for isolated contract testing."""
+    signature = f"function {function_name} {{"
     start = script.index(signature)
     opening_brace = script.index("{", start)
     depth = 0
@@ -1451,7 +1461,109 @@ def _extract_post_deploy_verification_function(script: str) -> str:
             depth -= 1
             if depth == 0:
                 return script[start : index + 1]
-    raise AssertionError("unterminated Invoke-PostDeployVerification function")
+    raise AssertionError(f"unterminated {function_name} function")
+
+
+def _extract_post_deploy_verification_function(script: str) -> str:
+    """Extract only the pure post-deploy result boundary, not the deploy script."""
+    return _extract_powershell_function(script, "Invoke-PostDeployVerification")
+
+
+@pytest.mark.parametrize(
+    ("raw_digest", "canonical_digest", "error_message"),
+    [
+        (None, "b" * 64, "raw-file SHA-256 is required"),
+        ("a" * 64, "", "canonical-payload SHA-256 is required"),
+        ("a" * 63, "b" * 64, "raw-file SHA-256 must be lowercase 64-hex"),
+        ("A" * 64, "b" * 64, "raw-file SHA-256 must be lowercase 64-hex"),
+        ("a" * 64, "g" * 64, "canonical-payload SHA-256 must be lowercase 64-hex"),
+    ],
+    ids=[
+        "missing-raw",
+        "missing-canonical",
+        "invalid-raw",
+        "uppercase-raw",
+        "invalid-canonical",
+    ],
+)
+def test_provider_settings_digest_validator_arguments_fail_closed(
+    raw_digest: str | None,
+    canonical_digest: str,
+    error_message: str,
+) -> None:
+    """Missing or malformed policy digests must fail before deployment can start."""
+    repository_root = Path(__file__).resolve().parents[2]
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+    helper = _extract_powershell_function(wrapper, "Get-ProviderSettingsDigestValidatorArguments")
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None, "pwsh is required for this deployment-wrapper contract gate"
+
+    def quote(value: str | None) -> str:
+        if value is None:
+            return "$null"
+        return "'" + value.replace("'", "''") + "'"
+
+    command = "\n".join(
+        [
+            "$ErrorActionPreference = 'Stop'",
+            helper,
+            "try {",
+            "    Get-ProviderSettingsDigestValidatorArguments "
+            f"-RawFileSha256 {quote(raw_digest)} "
+            f"-CanonicalPayloadSha256 {quote(canonical_digest)} | Out-Null",
+            "    exit 0",
+            "} catch {",
+            "    Write-Output $_.Exception.Message",
+            "    exit 23",
+            "}",
+        ]
+    )
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=15,
+    )
+
+    assert completed.returncode == 23
+    assert error_message in completed.stdout
+
+
+def test_provider_settings_digest_validator_arguments_forward_exact_values() -> None:
+    """The exact supplied hashes and validator option names must be preserved."""
+    repository_root = Path(__file__).resolve().parents[2]
+    wrapper = (repository_root / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+    helper = _extract_powershell_function(wrapper, "Get-ProviderSettingsDigestValidatorArguments")
+    pwsh = shutil.which("pwsh")
+    assert pwsh is not None, "pwsh is required for this deployment-wrapper contract gate"
+    raw_digest = "a" * 64
+    canonical_digest = "b" * 64
+    command = "\n".join(
+        [
+            "$ErrorActionPreference = 'Stop'",
+            helper,
+            "$result = @(Get-ProviderSettingsDigestValidatorArguments "
+            f"-RawFileSha256 '{raw_digest}' "
+            f"-CanonicalPayloadSha256 '{canonical_digest}')",
+            "ConvertTo-Json -InputObject $result -Compress",
+        ]
+    )
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-NonInteractive", "-Command", command],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=15,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == [
+        "--expected-provider-settings-raw-file-sha256",
+        raw_digest,
+        "--expected-provider-settings-canonical-payload-sha256",
+        canonical_digest,
+    ]
 
 
 @pytest.mark.parametrize(

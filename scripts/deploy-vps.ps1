@@ -39,6 +39,8 @@ param(
     [string]$RehearsalTargetDate,
     [string]$RehearsalUniverseSha256,
     [string]$RehearsalProviderIdentitiesSha256,
+    [string]$RehearsalProviderSettingsRawFileSha256,
+    [string]$RehearsalProviderSettingsCanonicalPayloadSha256,
     [string]$GitHubRepository,
     [long]$GitHubRunId,
     [ValidateRange(0.25, 168.0)]
@@ -49,6 +51,33 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . "$PSScriptRoot\shared\common.ps1"
+
+function Get-ProviderSettingsDigestValidatorArguments {
+    param(
+        [AllowNull()]
+        [string]$RawFileSha256,
+        [AllowNull()]
+        [string]$CanonicalPayloadSha256
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RawFileSha256)) {
+        throw [System.ArgumentException]::new("Provider settings raw-file SHA-256 is required.")
+    }
+    if ($RawFileSha256 -cnotmatch '^[0-9a-f]{64}$') {
+        throw [System.ArgumentException]::new("Provider settings raw-file SHA-256 must be lowercase 64-hex.")
+    }
+    if ([string]::IsNullOrWhiteSpace($CanonicalPayloadSha256)) {
+        throw [System.ArgumentException]::new("Provider settings canonical-payload SHA-256 is required.")
+    }
+    if ($CanonicalPayloadSha256 -cnotmatch '^[0-9a-f]{64}$') {
+        throw [System.ArgumentException]::new("Provider settings canonical-payload SHA-256 must be lowercase 64-hex.")
+    }
+
+    return @(
+        '--expected-provider-settings-raw-file-sha256', $RawFileSha256,
+        '--expected-provider-settings-canonical-payload-sha256', $CanonicalPayloadSha256
+    )
+}
 
 function Invoke-PostDeployVerification {
     param(
@@ -72,6 +101,11 @@ function Invoke-PostDeployVerification {
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
+$providerSettingsDigestValidatorArgs = @(
+    Get-ProviderSettingsDigestValidatorArguments `
+        -RawFileSha256 $RehearsalProviderSettingsRawFileSha256 `
+        -CanonicalPayloadSha256 $RehearsalProviderSettingsCanonicalPayloadSha256
+)
 
 $VpsHost = $env:AGOM_VPS_HOST
 $VpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
@@ -137,6 +171,7 @@ $rehearsalArgs = @(
     '--expected-github-run-id', "$GitHubRunId",
     '--max-age-hours', "$RehearsalMaxAgeHours"
 )
+$rehearsalArgs += $providerSettingsDigestValidatorArgs
 Write-Info "Validating candidate-bound release rehearsal evidence..."
 & $PythonExe @rehearsalArgs
 if ($LASTEXITCODE -ne 0) {
