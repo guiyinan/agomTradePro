@@ -2,20 +2,29 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
+from apps.data_center.application.current_publication_rebuild import (
+    CurrentPublicationScopeExclusion,
+    TargetDatePublicationObservationProbeProtocol,
+)
+from apps.data_center.domain.control_plane import PublicationFactReference
 from apps.data_center.infrastructure.candidate_raw_audit_metadata_resolver import (
     DjangoCandidateRawAuditMetadataResolver,
 )
 from apps.data_center.infrastructure.current_publication_staging_repository import (
     DjangoCurrentPublicationStagingRepository,
 )
+from apps.data_center.infrastructure.price_bar_repository import PriceBarRepository
 from apps.data_center.infrastructure.publication_group_activation_repository import (
     DjangoPublicationActivationGroupRepository,
 )
+from apps.data_center.infrastructure.quote_snapshot_repository import QuoteSnapshotRepository
+from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
 from apps.data_center.publication_candidate_activation_composition import (
     ProductionCurrentMarketPublicationBundle,
     build_production_current_market_publication_bundle,
@@ -51,6 +60,104 @@ def test_dedicated_composition_exposes_a_typed_production_bundle() -> None:
 
     assert isinstance(bundle, ProductionCurrentMarketPublicationBundle)
     assert bundle.database_alias == "default"
+
+
+def test_market_bundle_previewer_probes_price_suspensions_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The production bundle previews price exclusions only with target-date proof."""
+
+    bundle = build_production_current_market_publication_bundle()
+    monkeypatch.setattr(bundle.previewer, "_transaction", lambda: nullcontext())
+    rebuilders = {item.dataset.dataset_key: item for item in bundle.previewer.rebuilders}
+    quote_rebuilder = rebuilders["equity.quote.snapshot"]
+    price_rebuilder = rebuilders["equity.price.bar"]
+    assert isinstance(
+        quote_rebuilder._candidates,
+        TargetDatePublicationObservationProbeProtocol,
+    )
+    assert isinstance(
+        price_rebuilder._candidates,
+        TargetDatePublicationObservationProbeProtocol,
+    )
+
+    active_code = "000001.SZ"
+    suspended_code = "000016.SZ"
+    target_date = date(2026, 8, 28)
+    target_close = datetime(2026, 8, 28, 7, 0, tzinfo=UTC)
+    price_reference = PublicationFactReference(
+        natural_key=f"{active_code}:{target_date.isoformat()}:1d:none:fixture",
+        source="fixture",
+        source_record_id="price-target-date",
+        fact_table="data_center_price_bar",
+        fact_pk="price-target-date",
+        observed_at=target_close,
+        raw_payload_hash="target-date-price-hash",
+    )
+    target_observation_codes: set[str] = set()
+
+    monkeypatch.setattr(
+        QuoteSnapshotRepository,
+        "list_current_publication_candidates",
+        lambda _self, _asset_codes: [],
+    )
+    monkeypatch.setattr(
+        PriceBarRepository,
+        "list_current_publication_candidates",
+        lambda _self, asset_codes: ([price_reference] if active_code in asset_codes else []),
+    )
+    monkeypatch.setattr(
+        ValuationFactRepository,
+        "list_current_publication_candidates",
+        lambda _self, _asset_codes: [],
+    )
+
+    def probe_price_observations(
+        _self: PriceBarRepository,
+        asset_codes: tuple[str, ...],
+        observation_date: date,
+    ) -> tuple[str, ...]:
+        if observation_date != target_date:
+            return ()
+        return tuple(sorted(set(asset_codes) & target_observation_codes))
+
+    monkeypatch.setattr(
+        PriceBarRepository,
+        "list_asset_codes_with_observation_on_date",
+        probe_price_observations,
+    )
+    exclusions = {
+        "equity.price.bar": (
+            CurrentPublicationScopeExclusion(
+                asset_code=suspended_code,
+                reason_code="price_full_day_suspension",
+                target_trade_date=target_date,
+                evidence_source="tushare.suspend_d",
+            ),
+        )
+    }
+    required_dates = {"equity.price.bar": target_date}
+
+    preview = bundle.previewer.preview(
+        asset_codes=(active_code, suspended_code),
+        published_at=target_close,
+        scope_exclusions_by_dataset=exclusions,
+        required_observation_dates=required_dates,
+    )
+    price_preview = next(
+        item for item in preview.datasets if item.dataset_key == "equity.price.bar"
+    )
+    assert price_preview.member_count == 1
+    assert price_preview.missing_asset_codes == (suspended_code,)
+
+    target_observation_codes.add(suspended_code)
+    with pytest.raises(ValueError, match="conflicts with a target-session price observation"):
+        bundle.previewer.preview(
+            asset_codes=(active_code, suspended_code),
+            published_at=target_close,
+            scope_exclusions_by_dataset=exclusions,
+            required_observation_dates=required_dates,
+        )
 
 
 @pytest.mark.parametrize("using", ["replica", "", " default", None])

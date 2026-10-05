@@ -22,6 +22,14 @@ from .published_fact_versions import (
 )
 
 _NATURAL_KEY = ("asset_code", "bar_date", "freq", "adjustment", "source")
+_TARGET_SESSION_PRICE_FREQUENCIES: tuple[str, ...] = (
+    "1d",
+    "60m",
+    "30m",
+    "15m",
+    "5m",
+    "1m",
+)
 
 
 class PriceBarRepository:
@@ -240,6 +248,22 @@ class PriceBarRepository:
             filters=publication_filters,
         )
         return [_price_bar_publication_reference(row) for row in rows]
+
+    def list_asset_codes_with_observation_on_date(
+        self,
+        asset_codes: tuple[str, ...],
+        observation_date: date,
+    ) -> tuple[str, ...]:
+        """Return requested assets with any persisted price bar on one date."""
+
+        if not asset_codes:
+            return ()
+        rows = PriceBarModel._default_manager.filter(
+            asset_code__in=asset_codes,
+            bar_date=observation_date,
+            freq__in=_TARGET_SESSION_PRICE_FREQUENCIES,
+        ).values_list("asset_code", flat=True)
+        return tuple(sorted({str(asset_code) for asset_code in rows}))
 
 
 def _price_bar_publication_reference(row: PriceBarModel) -> PublicationFactReference:

@@ -227,6 +227,39 @@ def test_price_selector_returns_latest_daily_unadjusted_fact_per_asset() -> None
 
 
 @pytest.mark.django_db
+def test_price_target_date_probe_finds_exact_session_bars() -> None:
+    """A later bar must not hide a target-day observation contradicting suspension."""
+
+    target_date = date(2026, 8, 28)
+    for asset_code, bar_date, frequency in (
+        ("000001.SZ", target_date, "1d"),
+        ("000001.SZ", date(2026, 8, 29), "1d"),
+        ("000002.SZ", date(2026, 8, 29), "1d"),
+        ("000003.SZ", target_date, "1w"),
+        ("000004.SZ", target_date, "15m"),
+        ("830001.BJ", target_date, "1d"),
+    ):
+        PriceBarModel.objects.create(
+            asset_code=asset_code,
+            bar_date=bar_date,
+            freq=frequency,
+            adjustment="none",
+            open=10,
+            high=11,
+            low=9,
+            close=10,
+            source=f"source-{bar_date.isoformat()}",
+        )
+
+    observed_codes = PriceBarRepository().list_asset_codes_with_observation_on_date(
+        ("000001.SZ", "000002.SZ", "000003.SZ", "000004.SZ"),
+        target_date,
+    )
+
+    assert observed_codes == ("000001.SZ", "000004.SZ")
+
+
+@pytest.mark.django_db
 def test_valuation_selector_returns_latest_fact_per_asset() -> None:
     for asset_code in ("000001.SZ", "600000.SH"):
         ValuationFactModel.objects.create(
