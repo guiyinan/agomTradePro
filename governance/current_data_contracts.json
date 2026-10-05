@@ -7048,6 +7048,12 @@
           "def upsert_publication_safe_facts(",
           "def latest_fact_revisions(",
           "DUPLICATE_FACT_IDENTITY"
+        ],
+        "apps/data_center/infrastructure/publication_fact_write_lock.py": [
+          "def publication_fact_write_lock(",
+          "def acquire_publication_fact_activation_locks(",
+          "pg_advisory_xact_lock_shared",
+          "pg_try_advisory_xact_lock"
         ]
       },
       "required_tests": [
@@ -7090,6 +7096,21 @@
           "case": "postgres_financial_source_proof_and_revisions",
           "test_file": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
           "test_function": "test_postgres_financial_revision_preserves_frozen_rows_and_past_knowledge"
+        },
+        {
+          "case": "postgres_disjoint_fact_writers_are_concurrent",
+          "test_file": "tests/component/data_center/test_publication_fact_lock_postgres.py",
+          "test_function": "test_disjoint_fact_writers_share_table_fence_with_bounded_query_count"
+        },
+        {
+          "case": "postgres_activation_excludes_fact_writer",
+          "test_file": "tests/component/data_center/test_publication_fact_lock_postgres.py",
+          "test_function": "test_activation_excludes_writer_and_then_recovers_after_release"
+        },
+        {
+          "case": "postgres_matching_fact_writers_are_serialized",
+          "test_file": "tests/component/data_center/test_publication_fact_lock_postgres.py",
+          "test_function": "test_matching_natural_key_writers_remain_serialized"
         }
       ]
     },

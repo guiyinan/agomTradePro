@@ -43,6 +43,8 @@ from core.integration.data_center_audit import (
 )
 
 from .fact_and_operational_models import RawAuditModel
+from .publication_fact_identity import publication_fact_model_registry
+from .publication_fact_write_lock import acquire_publication_fact_activation_locks
 from .publication_group_activation_repository import (
     DjangoPublicationActivationGroupRepository,
 )
@@ -259,6 +261,11 @@ class DjangoPublicationActivationRepository:
             raise PublicationActivationError(
                 "activation requires the complete fence's outermost transaction"
             )
+
+        fact_model = publication_fact_model_registry().get(request.dataset_key)
+        if fact_model is None:
+            raise PublicationActivationError("activation fact model is not registered")
+        acquire_publication_fact_activation_locks((fact_model,), using=self._using)
 
         pointer = (
             CanonicalPublicationPointerModel._default_manager.select_for_update()

@@ -12,6 +12,7 @@ from django.db.models import OuterRef, QuerySet, Subquery
 from core.exceptions import DataFetchError
 
 from .models import FinancialFactModel, PriceBarModel, QuoteSnapshotModel, ValuationFactModel
+from .publication_fact_identity import build_publication_fact_identity
 from .publication_fact_write_lock import publication_fact_write_lock
 from .publication_models import PublicationMemberModel
 
@@ -161,14 +162,26 @@ def upsert_publication_safe_facts(
 ) -> int:
     """Update unpublished rows, but append a successor for every frozen fact.
 
-    The PostgreSQL table lock also serializes absent-key inserts. Existing
-    publication activation locks fact rows, so it cannot publish a row in the
-    middle of this check-and-write transaction. Frozen hashes are never edited.
-    The return count follows the existing repository contract: processed facts.
+    PostgreSQL writers share the table activation fence while matching natural
+    keys remain serialized. Existing publication activation locks fact rows,
+    so it cannot publish a row in the middle of this check-and-write
+    transaction. Frozen hashes are never edited. The return count follows the
+    existing repository contract: processed facts.
     """
     if not rows:
         return 0
-    with publication_fact_write_lock(model):
+    dataset_key_by_model: dict[type[models.Model], str] = {
+        PriceBarModel: "equity.price.bar",
+        QuoteSnapshotModel: "equity.quote.snapshot",
+        ValuationFactModel: "equity.valuation.fact",
+    }
+    dataset_key = dataset_key_by_model.get(model)
+    if dataset_key is None:
+        raise ValueError("Publication-safe fact model is not registered")
+    natural_key_tokens = tuple(
+        build_publication_fact_identity(dataset_key, row).natural_key for row in rows
+    )
+    with publication_fact_write_lock(model, natural_key_tokens=natural_key_tokens):
         return _upsert_locked_facts(
             model, rows, natural_key=natural_key, update_fields=update_fields
         )

@@ -13586,62 +13586,62 @@
       "text": "\"\"\"Infrastructure for candidate staging and the short current activation UOW.\"\"\""
     },
     {
-      "line": 201,
+      "line": 203,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"current market publication requires atomic group activation\""
     },
     {
-      "line": 269,
+      "line": 276,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer is missing\")"
     },
     {
-      "line": 301,
+      "line": 308,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer compare-and-swap failed\")"
     },
     {
-      "line": 308,
+      "line": 315,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"empty current pointer contains stale activation identity\""
     },
     {
-      "line": 321,
+      "line": 328,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"empty current pointer compare-and-swap failed\")"
     },
     {
-      "line": 325,
+      "line": 332,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"published candidate is not the current pointer target\""
     },
     {
-      "line": 331,
+      "line": 338,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"current pointer references a non-published candidate\""
     },
     {
-      "line": 334,
+      "line": 341,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current pointer activation identity differs\")"
     },
     {
-      "line": 336,
+      "line": 343,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication cutoff is invalid\")"
     },
     {
-      "line": 398,
+      "line": 405,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current pointer target is missing or drifted\")"
     },
     {
-      "line": 449,
+      "line": 456,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "raise PublicationActivationError(\"current publication pointer compare-and-swap failed\")"
     },
     {
-      "line": 630,
+      "line": 637,
       "path": "apps/data_center/infrastructure/publication_activation_repository.py",
       "text": "\"\"\"Revalidate current policy and evidence immediately before switching.\"\"\""
     },
@@ -13661,62 +13661,62 @@
       "text": "\"summary\": summary,"
     },
     {
-      "line": 53,
+      "line": 55,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"\"\"Validate and switch all three current market publications atomically.\"\"\""
     },
     {
-      "line": 114,
+      "line": 116,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"\"\"Lock and validate the full group before writing any current state.\"\"\""
     },
     {
-      "line": 140,
+      "line": 156,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"one or more current publication pointers are missing\")"
     },
     {
-      "line": 181,
+      "line": 197,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group candidate identity differs\")"
     },
     {
-      "line": 185,
+      "line": 201,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"published group candidate is not its current pointer target\""
     },
     {
-      "line": 190,
+      "line": 206,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer contains stale activation identity\""
     },
     {
-      "line": 200,
+      "line": 216,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"empty current pointer compare-and-swap failed\""
     },
     {
-      "line": 207,
+      "line": 223,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer compare-and-swap failed\""
     },
     {
-      "line": 212,
+      "line": 228,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"group activation contains a partially current set\")"
     },
     {
-      "line": 219,
+      "line": 235,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clocks differ\")"
     },
     {
-      "line": 222,
+      "line": 238,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "raise PublicationActivationError(\"current group activation clock is missing\")"
     },
     {
-      "line": 264,
+      "line": 280,
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"current publication pointer target is missing or drifted\""
     },
@@ -13766,7 +13766,7 @@
       "text": "\"\"\"One lockable current-publication scope row.\"\"\""
     },
     {
-      "line": 45,
+      "line": 46,
       "path": "apps/data_center/infrastructure/published_fact_versions.py",
       "text": "\"\"\"Return one current row per asset without a historical correlated scan."
     },

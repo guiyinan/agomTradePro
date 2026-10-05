@@ -31,6 +31,8 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifestError
 
+from .publication_fact_identity import publication_fact_model_registry
+from .publication_fact_write_lock import acquire_publication_fact_activation_locks
 from .publication_group_activation_evidence import (
     PublicationGroupActivationEvidenceRepository,
 )
@@ -126,6 +128,20 @@ class DjangoPublicationActivationGroupRepository:
             )
         if lease.checked_at >= lease.valid_until or timezone.now() >= lease.valid_until:
             raise PublicationActivationError("complete authority lease expired")
+
+        fact_registry = publication_fact_model_registry()
+        try:
+            activation_fact_models = tuple(
+                fact_registry[item.dataset_key] for item in request.candidates
+            )
+        except KeyError as error:
+            raise PublicationActivationError(
+                "group activation fact model is not registered"
+            ) from error
+        acquire_publication_fact_activation_locks(
+            activation_fact_models,
+            using=self._using,
+        )
 
         scope_filter = Q()
         for item in request.candidates:

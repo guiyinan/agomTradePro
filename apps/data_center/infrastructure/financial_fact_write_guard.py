@@ -70,7 +70,25 @@ def bulk_upsert_financial_facts(
             raise FinancialFactProvenanceConflictError(
                 "financial source-time witness must be independently verified before write"
             )
-    with transaction.atomic(), publication_fact_write_lock(FinancialFactModel):
+    natural_key_tokens = tuple(
+        ":".join(
+            (
+                fact.asset_code,
+                fact.period_end.isoformat(),
+                fact.period_type.value,
+                fact.metric_code,
+                fact.source,
+            )
+        )
+        for fact in facts
+    )
+    with (
+        transaction.atomic(),
+        publication_fact_write_lock(
+            FinancialFactModel,
+            natural_key_tokens=natural_key_tokens,
+        ),
+    ):
         locked_before = _lock_rows_by_natural_key(facts)
         for fact in facts:
             row = locked_before[_financial_natural_key(fact)]
