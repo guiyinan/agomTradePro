@@ -1119,16 +1119,46 @@ function reloadAlphaStocksTable(topN = 10) {
         query.set('pool_mode', poolMode);
     }
     if (window.htmx && target) {
-        window.htmx.ajax('GET', `${API_URLS.alphaStocks}?${query.toString()}`, {
+        return window.htmx.ajax('GET', `${API_URLS.alphaStocks}?${query.toString()}`, {
             target: '#alphaStocksTable',
             swap: 'innerHTML',
         });
-        return;
     }
     refreshAlphaHomepageFallback();
 }
 
+const ALPHA_REFRESH_FEEDBACK_BUDGET_MS = 15000;
+let alphaRefreshRequestInFlight = false;
 let alphaAutoRefreshTimer = null;
+
+function retryAlphaRefreshStatus(topN = 10) {
+    const statusNode = document.getElementById('alphaRefreshStatus');
+    const retryButton = document.getElementById('alphaRefreshStatusRetry');
+    if (retryButton) {
+        retryButton.hidden = true;
+    }
+    if (statusNode) {
+        statusNode.textContent = '正在重新读取 Alpha 状态...';
+        statusNode.classList.remove('is-error');
+    }
+    const readRequest = reloadAlphaStocksTable(topN);
+    if (!readRequest || typeof readRequest.then !== 'function') {
+        return;
+    }
+    readRequest.then(() => {
+        if (statusNode && statusNode.textContent === '正在重新读取 Alpha 状态...') {
+            statusNode.textContent = 'Alpha 状态已重新读取。';
+        }
+    }).catch(() => {
+        if (statusNode) {
+            statusNode.textContent = '暂时未能读取 Alpha 状态，请稍后重试。';
+            statusNode.classList.add('is-error');
+        }
+        if (retryButton) {
+            retryButton.hidden = false;
+        }
+    });
+}
 
 function scheduleAlphaAutoRefreshFromPanel() {
     const panel = document.querySelector('#alphaStocksTable .alpha-homepage-panel');
@@ -1159,25 +1189,44 @@ function scheduleAlphaAutoRefreshFromPanel() {
 async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
     const refreshBtn = triggerButton || document.getElementById('alphaRealtimeRefreshBtn');
     const statusNode = document.getElementById('alphaRefreshStatus');
+    const retryButton = document.getElementById('alphaRefreshStatusRetry');
     const originalLabel = refreshBtn ? refreshBtn.innerHTML : '';
     const alphaScope = getAlphaScopeMode();
+    if (alphaRefreshRequestInFlight) {
+        return;
+    }
+    alphaRefreshRequestInFlight = true;
 
     if (refreshBtn) {
         refreshBtn.disabled = true;
+        refreshBtn.setAttribute('aria-busy', 'true');
         refreshBtn.innerHTML = '<span>⏳ 刷新中</span>';
+    }
+    if (retryButton) {
+        retryButton.hidden = true;
     }
     if (statusNode) {
         statusNode.textContent = alphaScope === 'portfolio'
             ? '正在触发 Alpha 同步推理，请稍候...'
             : '正在触发 Alpha 刷新任务，请稍候...';
+        statusNode.setAttribute('aria-busy', 'true');
         statusNode.classList.remove('is-error');
     }
+    const feedbackTimer = window.setTimeout(() => {
+        if (statusNode) {
+            statusNode.textContent = '等待超过 15 秒，后台是否已接收仍未确认。可重新读取状态；请勿再次触发。';
+            statusNode.setAttribute('aria-busy', 'false');
+        }
+        if (retryButton) {
+            retryButton.hidden = false;
+        }
+    }, ALPHA_REFRESH_FEEDBACK_BUDGET_MS);
 
     try {
         const portfolioId = getAlphaPortfolioId();
         const poolMode = getAlphaPoolMode();
         if (alphaScope === 'portfolio' && !portfolioId) {
-            throw new Error('账户专属 Alpha 推理必须先选择组合。');
+            throw new Error('portfolio_required');
         }
         const body = new URLSearchParams({
             top_n: String(topN),
@@ -1198,11 +1247,15 @@ async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
         });
         const data = await response.json();
         if (!response.ok || !data.success) {
-            throw new Error(data.error || '触发 Alpha 实时刷新失败');
+            throw new Error('alpha_refresh_failed');
         }
 
         if (statusNode) {
             statusNode.textContent = data.message || 'Alpha 刷新完成。';
+            statusNode.setAttribute('aria-busy', 'false');
+        }
+        if (retryButton) {
+            retryButton.hidden = true;
         }
         if (!hasInlineAlphaStocksTarget()) {
             refreshAlphaHomepageFallback(data.sync ? 0 : (data.poll_after_ms || 5000));
@@ -1214,13 +1267,25 @@ async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
         }
     } catch (error) {
         if (statusNode) {
-            statusNode.textContent = error.message;
+            statusNode.textContent = error instanceof Error && error.message === 'portfolio_required'
+                ? '请先选择组合，再刷新账户专属 Alpha。'
+                : '未能确认刷新状态。请重新读取 Alpha 状态，确认没有正在运行的任务后再试。';
+            statusNode.setAttribute('aria-busy', 'false');
             statusNode.classList.add('is-error');
         }
+        if (retryButton && !(error instanceof Error && error.message === 'portfolio_required')) {
+            retryButton.hidden = false;
+        }
     } finally {
+        window.clearTimeout(feedbackTimer);
+        alphaRefreshRequestInFlight = false;
         if (refreshBtn) {
             refreshBtn.disabled = false;
+            refreshBtn.removeAttribute('aria-busy');
             refreshBtn.innerHTML = originalLabel;
+        }
+        if (statusNode) {
+            statusNode.setAttribute('aria-busy', 'false');
         }
     }
 }

@@ -72,7 +72,7 @@ def test_queued_parent_does_not_hide_last_failure():
 def test_running_attempt_is_visible_alongside_last_completed_failure():
     failed = replace(
         record(
-            "{'outcome': 'partial', 'phase': 'publication', 'requested': 57, 'succeeded': 56, 'stored': 11114, 'count_unit': 'sync_operation', 'error_code': 'PUBLICATION_FAILED'}"
+            "{'outcome': 'partial', 'phase': 'publication', 'requested': 57, 'succeeded': 56, 'failed': 1, 'stored': 11114, 'count_unit': 'sync_operation', 'error_code': 'PUBLICATION_FAILED', 'trace_id': 'trace-failed-1'}"
         ),
         status=TaskStatus.FAILURE,
         finished_at=datetime(2026, 9, 24, 9, 48, tzinfo=UTC),
@@ -80,7 +80,9 @@ def test_running_attempt_is_visible_alongside_last_completed_failure():
     running = replace(
         record(
             "{'outcome': 'partial', 'phase': 'publication', 'count_unit': 'sync_operation', "
-            "'requested': 57, 'succeeded': 56, 'phase_results': "
+            "'requested': 57, 'succeeded': 56, 'failed': 0, 'stored': 0, "
+            "'stored_count_unit': 'fact_row', "
+            "'trace_id': 'trace-current-1', 'phase_results': "
             "[{'phase': 'publication', 'requested': 1, 'succeeded': 0, 'failed': 1}]}"
         ),
         task_id="current-task",
@@ -97,9 +99,22 @@ def test_running_attempt_is_visible_alongside_last_completed_failure():
 
     assert notice["code"] == "inference_in_progress"
     assert notice["current_attempt"]["phase"] == "publication"
+    assert notice["current_attempt"]["phase_label"] == "正式发布"
+    assert notice["current_attempt"]["status_label"] == "运行中"
+    assert notice["current_attempt"]["outcome_label"] == "部分完成"
+    assert notice["current_attempt"]["count_unit_label"] == "同步步骤"
+    assert notice["current_attempt"]["stored_count_unit_label"] == "数据记录"
+    assert notice["current_attempt"]["started_at_local"] == "2026-09-24 18:00:00"
+    assert notice["current_attempt"]["finished_at_local"] is None
     assert notice["current_attempt"]["requested"] == 57
-    assert notice["current_attempt"]["stored"] is None
+    assert notice["current_attempt"]["stored"] == 0
+    assert notice["current_attempt"]["trace_id"] == "trace-current-1"
     assert notice["last_completed"]["error_code"] == "PUBLICATION_FAILED"
+    assert notice["last_completed"]["stable_error_code"] == "PUBLICATION_FAILED"
+    assert notice["last_completed"]["started_at_local"] == "2026-09-19 08:00:00"
+    assert notice["last_completed"]["finished_at_local"] == "2026-09-24 17:48:00"
+    assert notice["last_completed"]["trace_id"] == "trace-failed-1"
+    assert notice["last_completed"]["failed"] == 1
     assert notice["current_attempt"]["phase_results"][0]["failed"] == 1
     assert "current-task" not in str(notice)
     assert __import__("json").dumps(notice)
@@ -203,6 +218,25 @@ def test_tui_notice_survives_empty_and_cached_results(items):
 def test_classic_notice_renders_even_without_candidates():
     from django.template.loader import render_to_string
 
+    failed = replace(
+        record(
+            "{'outcome': 'partial', 'phase': 'publication', 'requested': 2, "
+            "'succeeded': 1, 'failed': 1, 'stored': 0, 'error_code': "
+            "'PUBLICATION_FAILED', 'trace_id': 'trace-ui-1', 'error': 'password=private'}"
+        ),
+        status=TaskStatus.FAILURE,
+        finished_at=datetime(2026, 9, 24, 9, 48, tzinfo=UTC),
+    )
+    running = replace(
+        record(
+            "{'phase': 'publication', 'requested': 0, 'succeeded': 0, "
+            "'failed': 0, 'stored': 0, 'count_unit': 'sync_operation'}"
+        ),
+        status=TaskStatus.STARTED,
+        started_at=datetime(2026, 9, 24, 10, 0, tzinfo=UTC),
+        finished_at=None,
+    )
+    notice = build_refresh_notice([running, failed], portfolio_id=None, universe_id="csi300")
     html = render_to_string(
         "dashboard/partials/alpha_stocks_table.html",
         {
@@ -210,12 +244,22 @@ def test_classic_notice_renders_even_without_candidates():
             "alpha_meta": {
                 "effective_asof_date": "2026-09-04",
                 "requested_trade_date": "2026-09-18",
-                "refresh_notice": {"title": "Alpha 自动更新异常", "message": "行情口径不一致"},
+                "refresh_notice": notice,
             },
         },
     )
     assert 'role="alert"' in html
-    assert "行情口径不一致" in html
+    assert "本次运行：运行中" in html
+    assert "最近完成：部分完成" in html
+    assert "2026-09-24 18:00:00" in html
+    assert "2026-09-24 17:48:00" in html
+    assert "Asia/Shanghai" in html
+    assert "请求 0；成功 0；失败 0；已存储 0" in html
+    assert "统计口径 同步步骤" in html
+    assert "sync_operation" not in html
+    assert "稳定错误码 PUBLICATION_FAILED" in html
+    assert "追踪编号 trace-ui-1" in html
+    assert "private" not in html
     assert "2026-09-04" in html
 
 

@@ -14,12 +14,25 @@
     <div class="alpha-banner alpha-banner-{{ alpha_meta.refresh_notice.level|default:'warning' }}" role="alert">
         <strong>{{ alpha_meta.refresh_notice.title }}</strong>
         <span>{{ alpha_meta.refresh_notice.message }}</span>
-        <span>最近尝试 {{ alpha_meta.refresh_notice.attempted_at|default:"未知" }}</span>
         {% if alpha_meta.refresh_notice.current_attempt %}
-        <span>当前阶段 {{ alpha_meta.refresh_notice.current_attempt.phase|default:"处理中" }}；统计口径 {{ alpha_meta.refresh_notice.current_attempt.count_unit|default:"未知" }}；已完成 {{ alpha_meta.refresh_notice.current_attempt.succeeded|default:"未知" }} / {{ alpha_meta.refresh_notice.current_attempt.requested|default:"未知" }}；已存储 {{ alpha_meta.refresh_notice.current_attempt.stored|default_if_none:"未知" }} {{ alpha_meta.refresh_notice.current_attempt.stored_count_unit|default:"记录" }}</span>
+        <section class="alpha-refresh-attempt" aria-label="本次运行进度">
+            <strong>本次运行：{{ alpha_meta.refresh_notice.current_attempt.status_label|default:"运行中" }}</strong>
+            <span>开始 {{ alpha_meta.refresh_notice.current_attempt.started_at_local|default:"未知" }}；结束 {% if alpha_meta.refresh_notice.current_attempt.finished_at_local %}{{ alpha_meta.refresh_notice.current_attempt.finished_at_local }}{% else %}仍在运行{% endif %}（Asia/Shanghai）</span>
+            <span>阶段 {{ alpha_meta.refresh_notice.current_attempt.phase_label|default:"处理中" }}；结果 {{ alpha_meta.refresh_notice.current_attempt.outcome_label|default:"结果待确认" }}；统计口径 {{ alpha_meta.refresh_notice.current_attempt.count_unit_label|default:"记录" }}</span>
+            <span>请求 {{ alpha_meta.refresh_notice.current_attempt.requested|default_if_none:"未知" }}；成功 {{ alpha_meta.refresh_notice.current_attempt.succeeded|default_if_none:"未知" }}；失败 {{ alpha_meta.refresh_notice.current_attempt.failed|default_if_none:"未知" }}；已存储 {{ alpha_meta.refresh_notice.current_attempt.stored|default_if_none:"未知" }} {{ alpha_meta.refresh_notice.current_attempt.stored_count_unit_label|default:"记录" }}</span>
+            {% if alpha_meta.refresh_notice.current_attempt.stable_error_code %}<span>稳定错误码 {{ alpha_meta.refresh_notice.current_attempt.stable_error_code }}</span>{% elif alpha_meta.refresh_notice.current_attempt.error_code %}<span>稳定错误码 {{ alpha_meta.refresh_notice.current_attempt.error_code }}</span>{% endif %}
+            {% if alpha_meta.refresh_notice.current_attempt.trace_id %}<span>追踪编号 {{ alpha_meta.refresh_notice.current_attempt.trace_id }}</span>{% endif %}
+        </section>
         {% endif %}
         {% if alpha_meta.refresh_notice.last_completed %}
-        <span>最近完成状态 {% if alpha_meta.refresh_notice.last_completed.outcome %}{{ alpha_meta.refresh_notice.last_completed.outcome }}{% elif alpha_meta.refresh_notice.last_completed.status %}{{ alpha_meta.refresh_notice.last_completed.status }}{% else %}未知{% endif %}{% if alpha_meta.refresh_notice.last_completed.error_code %}（{{ alpha_meta.refresh_notice.last_completed.error_code }}）{% elif alpha_meta.refresh_notice.last_completed.stable_error_code %}（{{ alpha_meta.refresh_notice.last_completed.stable_error_code }}）{% endif %}</span>
+        <section class="alpha-refresh-attempt" aria-label="最近完成结果">
+            <strong>最近完成：{{ alpha_meta.refresh_notice.last_completed.outcome_label|default:alpha_meta.refresh_notice.last_completed.status_label|default:"结果待确认" }}</strong>
+            <span>开始 {{ alpha_meta.refresh_notice.last_completed.started_at_local|default:"未知" }}；结束 {{ alpha_meta.refresh_notice.last_completed.finished_at_local|default:"未知" }}（Asia/Shanghai）</span>
+            <span>阶段 {{ alpha_meta.refresh_notice.last_completed.phase_label|default:"未知" }}；任务状态 {{ alpha_meta.refresh_notice.last_completed.status_label|default:"未知" }}；统计口径 {{ alpha_meta.refresh_notice.last_completed.count_unit_label|default:"记录" }}</span>
+            <span>请求 {{ alpha_meta.refresh_notice.last_completed.requested|default_if_none:"未知" }}；成功 {{ alpha_meta.refresh_notice.last_completed.succeeded|default_if_none:"未知" }}；失败 {{ alpha_meta.refresh_notice.last_completed.failed|default_if_none:"未知" }}；已存储 {{ alpha_meta.refresh_notice.last_completed.stored|default_if_none:"未知" }} {{ alpha_meta.refresh_notice.last_completed.stored_count_unit_label|default:"记录" }}</span>
+            {% if alpha_meta.refresh_notice.last_completed.stable_error_code %}<span>稳定错误码 {{ alpha_meta.refresh_notice.last_completed.stable_error_code }}</span>{% elif alpha_meta.refresh_notice.last_completed.error_code %}<span>稳定错误码 {{ alpha_meta.refresh_notice.last_completed.error_code }}</span>{% endif %}
+            {% if alpha_meta.refresh_notice.last_completed.trace_id %}<span>追踪编号 {{ alpha_meta.refresh_notice.last_completed.trace_id }}</span>{% endif %}
+        </section>
         {% endif %}
         <span>当前评分日期 {% firstof alpha_meta.effective_asof_date alpha_meta.cache_date "暂无可用评分" %}；目标日期 {{ alpha_meta.requested_trade_date|default:"未知" }}。旧评分不会作为本次更新成功的结果。</span>
     </div>
@@ -544,6 +557,15 @@
     background: #fff8e8;
     border-color: #f2d08a;
     color: #7a5418;
+}
+
+.alpha-refresh-attempt {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-top: 1px solid currentColor;
+    padding-top: 6px;
+    line-height: 1.5;
 }
 
 .alpha-banner-error {

@@ -196,7 +196,14 @@
             </div>
         </div>
         <div style="margin-top: 8px;">
-            <span id="alphaRefreshStatus" class="alpha-refresh-status"></span>
+            <span id="alphaRefreshStatus" class="alpha-refresh-status" role="status" aria-live="polite"></span>
+            <button type="button"
+                    id="alphaRefreshStatusRetry"
+                    class="btn-precheck"
+                    onclick="retryAlphaRefreshStatus(10)"
+                    hidden>
+                重新读取 Alpha 状态
+            </button>
         </div>
         {% if alpha_stock_scores %}
             {% for stock in alpha_stock_scores|slice:":5" %}

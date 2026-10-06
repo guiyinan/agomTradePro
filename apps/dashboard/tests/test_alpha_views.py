@@ -1063,6 +1063,77 @@ def test_alpha_stocks_htmx_general_scope_keeps_research_rankings_visible(monkeyp
     assert "平安银行" in content
 
 
+def test_repeated_alpha_list_gets_remain_passive(monkeypatch):
+    request_calls: list[dict[str, object]] = []
+
+    class FakeQuery:
+        def execute(
+            self,
+            top_n: int,
+            user=None,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=None,
+            allow_refresh=False,
+            persist_history=False,
+        ):
+            request_calls.append(
+                {
+                    "allow_refresh": allow_refresh,
+                    "persist_history": persist_history,
+                    "top_n": top_n,
+                }
+            )
+            return SimpleNamespace(
+                top_candidates=[],
+                meta={
+                    "alpha_scope": "general",
+                    "recommendation_ready": False,
+                    "must_not_use_for_decision": True,
+                    "readiness_status": "research_only",
+                },
+                pool={"alpha_scope": "general", "label": "通用 Alpha 研究池", "pool_size": 0},
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=None,
+            )
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+    responses = []
+    for _ in range(2):
+        request = RequestFactory().get(
+            "/api/dashboard/alpha/stocks/",
+            {"top_n": 10, "alpha_scope": "general", "format": "json"},
+        )
+        request.user = SimpleNamespace(
+            pk=1, is_authenticated=True, is_active=True, username="ordinary-user"
+        )
+        responses.append(views.alpha_stocks_htmx(request))
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert request_calls == [
+        {"allow_refresh": False, "persist_history": False, "top_n": 10},
+        {"allow_refresh": False, "persist_history": False, "top_n": 10},
+    ]
+
+
+def test_alpha_refresh_endpoint_does_not_accept_get(monkeypatch):
+    request = RequestFactory().get("/api/dashboard/alpha/refresh/")
+    request.user = SimpleNamespace(
+        pk=1, is_authenticated=True, is_active=True, username="ordinary-user"
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.interface.alpha_stock_views._dashboard_views",
+        lambda: pytest.fail("a GET must not reach the refresh use case"),
+    )
+
+    response = views.alpha_refresh_htmx(request)
+
+    assert response.status_code == 405
+    assert "POST" in response["Allow"].split(", ")
+
+
 def test_alpha_stocks_empty_state_renders_refresh_cta():
     content = render_to_string(
         "dashboard/partials/alpha_stocks_table.html",
@@ -2921,6 +2992,7 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
     content = render_to_string(
         "decision/workspace.html",
         {
+            "workspace_exit_watch_available": True,
             "workspace_exit_watch_summary": {
                 "total": 1,
                 "urgent_count": 1,

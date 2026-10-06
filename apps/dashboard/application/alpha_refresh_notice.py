@@ -7,6 +7,7 @@ import json
 import logging
 from collections.abc import Sequence
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from django.db import DatabaseError
 
@@ -19,6 +20,50 @@ from core.integration.task_monitor_runtime import (
 
 _PREDICT = "apps.alpha.application.tasks.qlib_predict_scores"
 _MARKET_REFRESH = "data_center.refresh_full_market_publications"
+_DISPLAY_TIMEZONE = ZoneInfo("Asia/Shanghai")
+_OUTCOME_LABELS = {
+    "success": "成功",
+    "partial": "部分完成",
+    "noop": "未执行",
+    "blocked": "已阻断",
+    "failed": "失败",
+}
+_STATUS_LABELS = {
+    "pending": "排队中",
+    "started": "运行中",
+    "success": "已完成",
+    "failure": "失败",
+    "retry": "等待重试",
+    "revoked": "已取消",
+    "timeout": "超时",
+}
+_PHASE_LABELS = {
+    "alpha_cache": "Alpha 缓存",
+    "publication": "正式发布",
+    "quote_prefetch": "行情预载",
+    "quote": "行情更新",
+    "valuation": "估值更新",
+    "scope": "范围确认",
+    "universe": "股票池确认",
+    "pending": "排队中",
+    "completed": "已完成",
+    "sync": "同步推理",
+    "async": "后台推理",
+}
+_COUNT_UNIT_LABELS = {
+    "sync_operation": "同步步骤",
+    "scope_validation": "范围校验",
+    "valuation_asset": "估值证券",
+    "provider_request": "数据请求",
+    "quote_asset": "行情证券",
+    "sampled_asset": "抽样证券",
+    "registered_asset": "登记资产",
+}
+_STORED_COUNT_UNIT_LABELS = {
+    "fact_row": "数据记录",
+    "universe_asset": "股票池证券",
+    "publication_member": "发布证券",
+}
 logger = logging.getLogger(__name__)
 _TASK_NAMES = (
     _PREDICT,
@@ -30,10 +75,10 @@ _TASK_NAMES = (
 )
 _MESSAGES = {
     "system_audit_unavailable": "全市场行情自动发布被审计配置或服务身份阻断。请修复审计配置并绑定有效的任务身份；现有行情日期仍以页面标注为准。",
-    "market_publication_failed": "全市场行情更新或发布未完成。请在任务监控中检查原因；现有行情不能视为已更新。",
+    "market_publication_failed": "全市场行情更新或正式发布未完成。现有已发布行情仍为上一版本；请重新读取状态后再试。",
     "market_publication_validation_failed": "全市场数据已经抓取，但发布证据未通过校验。系统已保留旧版本，请检查数据可用时间、质量状态和发布策略后重试。",
     "model_market_refresh_busy": "模型特征正在更新或被其他推理任务读取，本次更新已暂缓。后续定时任务会重试。",
-    "inference_queue_failed": "自动推理未能提交到后台。请检查任务服务连接后重试；当前展示的仍是原有评分。",
+    "inference_queue_failed": "后台暂时无法接收 Alpha 更新请求，请稍后重试；当前展示的仍是原有评分。",
     "model_market_unverified_failover": "备用行情缺少同口径原始数据用于校验，更新已阻断。请补齐可信原始行情后重试。",
     "model_market_unavailable": "行情数据源暂不可用，未能更新评分。请检查数据源连接后重试。",
     "model_market_stale": "行情数据仍未更新到目标交易日，暂不能生成当期评分。请补齐行情后重试。",
@@ -45,8 +90,8 @@ _MESSAGES = {
     "market_calendar_unavailable": "交易日历暂不可用，Alpha 自动更新或账户推荐同步未能完整完成。评分日期仍以页面标注为准，请修复交易日历数据后重试。",
     "tushare_daily_quota_exhausted": "行情数据源的日额度已用尽，更新已阻断。额度恢复后会在后续定时任务中重试。",
     "tushare_quota_exhausted": "行情数据源额度不足，更新已阻断。请检查额度后重新推理。",
-    "inference_timeout": "推理任务执行超时。请检查任务记录并重试。",
-    "inference_failed": "推理未完成，未生成新的完整评分。请在任务监控中检查原因后重试。",
+    "inference_timeout": "推理等待超过系统限制，未能确认本次完整结果。请重新读取状态，确认后再试。",
+    "inference_failed": "本次推理未完成，未生成新的完整评分。请重新读取状态后再试。",
     "market_publication_in_progress": "全市场行情正在更新或发布，当前评分仍以页面标注的已完成日期为准。",
     "inference_in_progress": "Alpha 推理正在运行，当前评分仍以页面标注的已完成日期为准。",
     "diagnostics_unavailable": "暂时无法读取推理任务状态，请稍后刷新；当前评分日期仍以下方标注为准。",
@@ -64,6 +109,14 @@ def _payload(value: str | None) -> dict[str, object]:
         except (ValueError, SyntaxError, RecursionError):
             return {}
     return {str(key): item for key, item in parsed.items()} if isinstance(parsed, dict) else {}
+
+
+def _localized_timestamp(value: datetime | None) -> str | None:
+    """Return an aware timestamp in the user-facing Asia/Shanghai timezone."""
+
+    if value is None or value.tzinfo is None or value.utcoffset() is None:
+        return None
+    return value.astimezone(_DISPLAY_TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _safe_attempt_summary(record: TaskExecutionRecord) -> dict[str, object]:
@@ -84,14 +137,25 @@ def _safe_attempt_summary(record: TaskExecutionRecord) -> dict[str, object]:
         if projection.phase_results is not None
         else None
     )
+    outcome = projection.outcome
+    status = record.status.value
     return {
-        "status": record.status.value,
+        "status": status,
+        "status_label": _STATUS_LABELS.get(status, "状态待确认"),
         "started_at": record.started_at.isoformat() if record.started_at else None,
+        "started_at_local": _localized_timestamp(record.started_at),
         "finished_at": record.finished_at.isoformat() if record.finished_at else None,
+        "finished_at_local": _localized_timestamp(record.finished_at),
         "retries": record.retries,
-        "outcome": projection.outcome,
+        "outcome": outcome,
+        "outcome_label": _OUTCOME_LABELS.get(
+            outcome or "",
+            "进行中" if status in {"pending", "started", "retry"} else "结果待确认",
+        ),
         "phase": projection.phase,
+        "phase_label": _PHASE_LABELS.get(projection.phase or "", "处理中"),
         "count_unit": projection.count_unit,
+        "count_unit_label": _COUNT_UNIT_LABELS.get(projection.count_unit or "", "记录"),
         "requested": projection.requested,
         "succeeded": projection.succeeded,
         "failed": projection.failed,
@@ -100,6 +164,9 @@ def _safe_attempt_summary(record: TaskExecutionRecord) -> dict[str, object]:
         "stable_error_code": projection.stable_error_code,
         "trace_id": projection.trace_id,
         "stored_count_unit": projection.stored_count_unit,
+        "stored_count_unit_label": _STORED_COUNT_UNIT_LABELS.get(
+            projection.stored_count_unit or "", "记录"
+        ),
         "target_trade_date": projection.target_trade_date,
         "phase_results": phase_results,
         "business_success": projection.business_success,
