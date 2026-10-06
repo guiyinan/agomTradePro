@@ -2159,3 +2159,30 @@ provider 验证本切片，不得部署或投递 financial refresh；旧 financi
 故障注入证明任何不完整证据都零事实写入。完成后再独立把 typed witness 接入 adapter facts，最后收紧 task/schedule 的显式 source、
 精确 provider identity 与 active contract/capture capability preflight。四片全部通过本地门禁、exact-SHA CI、fresh S6 和同镜像部署前，
 不得请求或投递 financial refresh；即使部署完成，生产财报刷新仍需用户新的明确授权。
+
+##### 财报整改第②片：AKShare 双原件捕获与留存组合
+
+完成项（`3f01a2a1f`）：新增 AKShare financial capture gateway，由内部按已批准合同生成固定 EastMoney endpoint 和有界请求参数，
+在 egress 前校验 logical source type、active provider row ID、精确 owner-approved contract identity 与 1～200 行上限。每个单证券、
+单公告日请求使用两个不同 capture UUID，分别以 financial/source-time dataset scope 获取 transport 原始 bytes；只有两份响应均通过
+body hash/size、provider success、asset/date、row count 与 provider-derived scope 校验后才开始加密留存。financial 与 source-time
+body 使用不同 envelope/location namespace，RawAudit 均绑定同一真实 provider ID；没有把 DataFrame 或重新序列化 JSON 冒充原件。
+本片不调用 AKShare DataFrame adapter、不构造 witness、不写 FinancialFact，也不改 task/schedule。
+
+测试计数：新增 capture 故障注入 `13 passed`；matcher/egress/source-time retention 组合回归 `43 passed`；另行执行包含 capture、
+retention 与两个 body store 的组合回归 `58 passed`。反例覆盖空 body、provider rejection、重复 capture UUID、超 200 行、provider
+source/active/ID 无效、registry mismatch、source-time audit 重复，以及 financial/source-time 两侧 audit append 失败后的 orphan
+可检查性。Black、isort、Ruff、生产文件增量 mypy、debt ceiling、current-data 72 surfaces、module map 44 modules/210 edges、Data
+Center architecture inventory 与 `git diff --check` 均通过；三个治理投影均由生成器或其契约更新，没有手工伪造生成结果。
+
+未验证风险与停止线：全部 provider 行为使用 fake egress；真实 EastMoney 对组合 `SECUCODE+NOTICE_DATE` filter 的接受性尚未通过
+受控 dry-run 证明。`FinancialSourceTimeArtifactRef` 绑定单一公告日，所以当前 primitive 每证券/每公告日需要一对响应；禁止把一份
+body 复制为多个 capture 或跨日期共享 reference。全市场接入前必须先完成真实小规模 provider contract test、1+N 或 2N 请求模型的
+规模/配额/耗时测算，并在不放宽 timeout/retry 的前提下形成硬门禁。文件留存与数据库 RawAudit 不能跨介质原子提交；append 失败
+会留下显式 orphan，现有检查可识别但自动对账/清理尚未实现。现有 verifier 仍错误地把 ProviderConfig.name 展示名与 logical
+provider name 比较，必须在下一片独立修复并保留 provider ID 审计绑定。提交尚未 push、取得 exact-SHA CI 或进入 S6；不得部署、
+启用周期入口或投递 financial refresh。
+
+下一片是否可开始：可以修复 verifier 的 logical source/provider-row 身份契约，并将 capture pair、首次 witness 构造和 typed
+FinancialFact evidence 接入 AKShare adapter；必须先补真实格式 fake-transport 组件测试和任何失败零事实写入反例。请求规模、真实
+provider dry-run、task/source preflight 与周期配置继续作为后续独立停止线，不能在 adapter 接线时顺手放宽或启用。
