@@ -2267,3 +2267,11 @@ import；boundary 为 0，但 audit rule `apps_application_no_same_app_infrastru
 `80c3cfc8e9941b1a1705edf0f1272c91b37e1ee8` 复跑 architecture delta：9 个变更文件、1851 新增行、7 条 boundary 和
 20 条 audit 规则均为 0 violation；相关 capture/composition 与 architecture inventory 回归 `33 passed`，增量 mypy、Black、isort、
 Ruff、module map、current-data 和 architecture inventory 无写检查通过。原失败 run 不重跑，后续只接受新 exact-SHA CI 证据。
+
+第二轮候选 `c06f373f8ec568f26d25119420ff242ef0bd3b2d` 的 Architecture、Security 与 Publication PostgreSQL 已通过，
+Consistency `37495542861` 和 Fast Feedback `37495542870` 暴露两个治理遗漏。其一是新增 current-data source file 后
+`governance/data_center_entrypoints.json` 未由唯一生成器刷新；其二是把 sibling helper 加入 `sync_use_cases.__all__`，触发 legacy
+export 结构测试要求 `application.use_cases` 同名重导出。修复 `ec0b7ce90` 重新生成 entrypoint inventory，并把 helper 保持为模块内
+显式 import 能力而不扩张 legacy public export。根代理复跑 no-database fast suite为 `4045 passed`、61.62s（120s 预算），
+entrypoint inventory 无写核对通过；Black、isort、Ruff、增量 mypy 与 `git diff --check` 通过。两个旧失败 run 均不得重跑，后续仍只
+接受包含这些修复的新 exact-SHA 五组 CI。
