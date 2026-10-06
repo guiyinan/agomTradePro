@@ -1966,3 +1966,51 @@ CI 补充证据：`92f07f06d` 的 Consistency run `37372855981` 在 current-data
 `governance/data_center_architecture_inventory.json`，references 从 5,384 变为 5,387，cross-app ORM 48、外部直连 0 等其余
 计数不变；本地重新执行生成器 check 通过。该遗漏说明“生产代码门禁通过”仍不足以替代受影响治理投影检查；最终 SHA 必须重新
 取得五组 CI，旧 run 中已通过的部分 job 不能单独拼成发布凭证。
+
+#### 2026-10-06 生产 Publication authority outer-fence 根因整改
+
+生产终态：候选 `0fc273d790c7a39addd61be2f733e66a83c12c74` 的五组 exact-SHA CI、S6 attempt
+`2057ca35f2d4416e8f3d5b02cfffb2b4` 十阶段和同镜像生产部署均通过。部署后唯一一次显式全市场刷新 task
+`4e80d16a-391a-472e-9374-f91146a179aa`、attempt `cb730e492a4e472d8e47e6633d689cb4` 已业务终态
+`partial`：`requested/succeeded/failed/stored=5572/5572/0/11144`，quote 与 valuation 均 5,572 条成功，
+publication 为 `0/1`、`published_members=0`、`publication_updated=false`，稳定码
+`MARKET_PUBLICATION_VALIDATION_FAILED`，run ID `17425453-20eb-4dbd-a0ed-5e287f44ee74`。Celery 与 Task Monitor
+技术状态虽为 success，未被视为恢复；lease 已释放，price/quote/valuation 三个 current pointer 仍为空，没有部分 activation。
+终态、traceback 与根因摘要保存在
+`/opt/agomtradepro/rehearsals/production-refresh-4e80d16a-391a-472e-9374-f91146a179aa/evidence/terminal`；
+三个文件 SHA-256 分别为 `cacbfbbddb5adfc12cfbb5094127a9a943799e162d1e901660f974f5861c049b`、
+`496d50365707af7bc8161284a36f8b49331670e6978b571a5955b2d084917d6e`、
+`2470f2bcdd305b3d5ba1adb0f9095db589801edf85c457127dc6cb734382f642`。
+
+根因：publication group repository 在没有 ambient transaction 时正确进入 finalizer；finalizer 建立唯一最外层 READ COMMITTED
+generation fence，并绑定 alias、Django wrapper、物理连接、backend PID、transaction xid 与 generation。随后真实 complete
+Account graph 的 `OwnerTenantAuthorityV3Service.get_current()` 调用普通
+`DjangoOwnerTenantAuthorityV3Repository.atomic()`，该 repository 即使已有外层事务仍无条件创建 savepoint。actor raw-source
+bundle 在该 savepoint 内执行 generation-fence 校验时观察到 `atomic_blocks=2`，按既有 fail-closed 规则抛出
+`AccountAuthorityGenerationUnavailable: active generation fence requires the outermost transaction`。因此故障是 production
+composition 的 UOW 时序冲突，不是 12/11 只证券、provider 数据、锁等待或 authority 失效；不得通过允许嵌套 fence、延长等待或
+放宽校验规避。
+
+完成项（`3c75e9677`）：只为 generation-fenced complete graph 当前读取注入专用 Authority repository UOW。该 UOW 不再创建
+savepoint，而是在进入和退出时分别复核 caller-owned fence 的 alias、连接、xid 与 exact generation，并继续激活原有 repository
+UOW token；缺少 fence、代际不一致或重入仍失败关闭。普通 Authority 服务、shadow RR/RO 读取及写入路径继续使用原有独立
+`transaction.atomic()`，未扩大调用边界。既有 PostgreSQL finalizer 组件节点现会在真实 generation fence 内执行这一专用 UOW，
+并硬断言 `atomic_blocks==1`；该准确 node id 同时加入 S6 `REQUIRED_POSTGRESQL_TESTS`，其 JUnit 文件成为 release validator 的
+必需官方 artifact，缺失、跳过或失败都会阻断候选。
+
+测试计数：Account graph/fence 单元回归 `62 passed`；Account graph 单文件 `41 passed`；release validator 与 evidence collector
+回归 `156 passed`。增量 mypy 覆盖两个生产文件且 0 regression；全仓 debt ceiling `0 errors in 0 files`；Black、isort、Ruff
+与 `git diff --check` 通过。新增反例覆盖禁止 savepoint、缺少 active generation fence、exact generation 传递和 production
+composition 选用专用 UOW。PostgreSQL finalizer 节点在本机因未启用专用 disposable PostgreSQL 环境而 `1 skipped`，不计为通过，
+必须由提交后的 exact-SHA Publication PostgreSQL workflow 实际执行。
+
+未验证风险与停止线：`3c75e9677` 后本节文档提交形成的最终 SHA 尚未取得五组 exact-SHA CI；真实 PostgreSQL 节点、全新 S6、
+同镜像部署均未执行。旧 `0fc273d790` receipt、镜像与失败任务只能作为根因证据，禁止复用为新候选放行。生产第二次全市场
+刷新没有现存授权；即使修复候选完成 CI、S6 与部署，也必须等待用户新的明确授权后才能投递。不得重跑 task
+`4e80d16a-391a-472e-9374-f91146a179aa`，不得扩大 timeout/retry、放宽 freshness/coverage/audit/source/15:00 close 或
+`SIGNAL_WEAK`，不得写死证券或伪造 financial owner approval。
+
+下一片是否可开始：可以提交本节台账、push 最终 SHA 并启动五组 exact-SHA CI。五组全绿后才可从最新生产只读快照创建全新
+S6；S6 十阶段通过后只部署其 receipt 绑定的同 SHA 预构建镜像并复核运行身份。部署完成后停止在生产刷新授权门前，等待新的
+显式授权；获得授权后才能执行一次新任务并继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读
+零副作用联合验收。
