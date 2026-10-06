@@ -2109,3 +2109,53 @@ receipt-only 单一部署入口继续作为生产联合验收后的独立整改�
 授权后先重新执行只读 preflight、lease/队列/authority/目标交易日复核，只允许一次新 task，终态必须按业务 outcome 而非 Celery
 状态验收。成功后继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零副作用联合验收；任何失败
 先保存安全诊断并修根因，不盲目重跑或放宽 freshness、coverage、audit、source、15:00 close、`SIGNAL_WEAK` 及既有规模/锁阈值。
+
+#### 2026-10-06 正式全市场发布恢复与财报双原件生产链路根因
+
+用户授权后只投递了一次新的显式全市场刷新：task `bcb3e00f-538e-420d-b179-428c40082f43`、attempt
+`709a571d92f7474f8bc001268bd59050`。该任务已取得规范业务成功终态：
+`outcome=success`、`requested/succeeded/failed/stored=5572/5572/0/11144`，publication 为 `1/1`，
+`published_members=16705`，run ID 为 `aebb0da7-5336-4460-8fff-e4aa0f0317a7`。price、quote、valuation 三个
+current pointer 由同一 activation `19d9a93e-55b6-5b8e-882d-8f3160f560dc` 原子切换；没有局部 pointer 或旧候选
+混入。终态业务证据位于
+`/opt/agomtradepro/rehearsals/production-refresh-bcb3e00f-538e-420d-b179-428c40082f43/evidence/terminal/business-result.json`，
+SHA-256 为 `9436a5dc3469c9fde12457425af05033ad32359083bac90ca469cc789154a719`。该任务禁止再次投递或重跑；
+`full-market-current-publications` 与 `financial-current-publication-refresh` 继续保持 disabled。
+
+decision runtime guarded activation dry-run 没有写状态并继续失败关闭。`core_coverage` 与 `provider_capabilities` 的共同阻断来自
+financial：旧 current publication `c8741812-cf01-512f-8d1c-91c0e6549f42` 使用 legacy `1.0:1.0` policy identity，
+当前 active policy 为 version 3，报告 `canonical_publication_policy_version_mismatch` 且 `member_bound_count=0`。生产只读盘点
+确认 487,624 条既有 AKShare 财务事实没有 decision evidence、source record、raw payload hash 或 announced_at；105,606 条仅有
+available_at。source-time audit claim、source-time RawAudit 和 retained body 均为 0。旧事实不能用 report date、抓取时间或当前
+审批洗白，也不能原地补造 provenance。
+
+owner approval 本身有效：活动 registry 精确绑定 AKShare contract
+`akshare.financial-main-data.notice-date@2026-10-04.v1`、parser
+`akshare-eastmoney-main-financial-data.v1`、contract SHA-256
+`a3b0057315a41f0b8df514fc7aaf5030916927a0cf3f39358a20d39b669eeaf1`，审批人为 `guiyinan`，审批时间
+`2026-10-04T15:31:50Z`，receipt SHA-256 为
+`ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69`。真正缺口是生产者：AKShare adapter
+仍通过 SDK 取得 DataFrame，未保留供应商原始 bytes，未生成 financial/source-time 两个独立 capture、RawAudit claim 与
+`FinancialFactDecisionEvidence`；既有 matcher 只能复核已经携带 witness 的 evidence。另一方面，disabled 周期任务仍配置
+`source=tushare`，而当前唯一 owner-approved source-time contract 是 AKShare。直接刷新会在 provider/evidence 门失败，不能作为
+恢复手段。
+
+完成项（`645bc5b7b8e343de2525cea3c5b6de0550b60fc3`）：为
+`AkshareNoticeDateSourceTimeMatcher` 增加首次 witness 构造入口。producer 可以在尚无 claimed witness 时，以精确合同、财务响应
+artifact、独立 source-time artifact 和两份哈希匹配的真实 body 构造确定性 witness；read-only verifier 仍通过原 `match()` 路径
+从 claimed artifact reference 独立重算并要求完全相等。构造入口拒绝复用 capture identity、body hash/size 漂移、provider/dataset/
+asset/announcement-date 不一致和任何 contract drift；没有修改 owner approval、contract digest、日期精度或 availability 规则。
+
+测试计数：提交前 matcher 单文件回归为 `24 passed`；随后新增首次构造、body 漂移/capture 复用故障注入与 verifier 重算三个
+定点节点为 `3 passed`。生产文件增量 mypy 为 0 regression，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、
+Ruff 与 `git diff --check` 通过。该切片只建立 witness 构造能力，不声称双原件 producer 已完成。
+
+未验证风险与停止线：AKShare 两次独立真实 response capture、加密留存、RawAudit/claim、orphan 协调和 adapter fact evidence 尚未
+接通；周期 task/source/provider capability preflight 尚未收紧。提交 `645bc5b7b` 尚未 push 或取得 exact-SHA CI。不得调用
+provider 验证本切片，不得部署或投递 financial refresh；旧 financial publication 保持阻断。普通用户角色没有现成 active token，
+因此外部 API/SDK/MCP 与普通页面验收仍缺合法只读会话，不能创建持久 token 或把匿名/管理员结果当作普通用户证据。
+
+下一片是否可开始：可以独立实现 AKShare 双 raw-body capture 与 retention composition，并用 fake transport、append 失败和 orphan
+故障注入证明任何不完整证据都零事实写入。完成后再独立把 typed witness 接入 adapter facts，最后收紧 task/schedule 的显式 source、
+精确 provider identity 与 active contract/capture capability preflight。四片全部通过本地门禁、exact-SHA CI、fresh S6 和同镜像部署前，
+不得请求或投递 financial refresh；即使部署完成，生产财报刷新仍需用户新的明确授权。
