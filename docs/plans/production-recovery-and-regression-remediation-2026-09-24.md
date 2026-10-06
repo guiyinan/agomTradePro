@@ -2019,3 +2019,38 @@ composition 选用专用 UOW。PostgreSQL finalizer 节点在本机因未启用�
 S6；S6 十阶段通过后只部署其 receipt 绑定的同 SHA 预构建镜像并复核运行身份。部署完成后停止在生产刷新授权门前，等待新的
 显式授权；获得授权后才能执行一次新任务并继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面与只读
 零副作用联合验收。
+
+#### 2026-10-06 outer-fence CI 门禁反馈与测试隔离
+
+`7dbcdac1545f716d2c0eb08c871d5c179aa25e40` 的 Architecture run `37395053012` 与 Security run
+`37395052936` 通过；其余三组门禁暴露出三个独立问题，未执行盲目重跑。Consistency run `37395053059` 因
+`governance/data_center_architecture_inventory.json` 未随 current surface 变化重新生成而失败。Fast Feedback run
+`37395053482` 因 `account_authority_shadow_scanner.py` 从 957 增长到 1,034 个非空行、超过 1,000 行硬阈值而失败。
+Publication PostgreSQL run `37395053097` 的 Account final-revalidation job 本身通过，但把 production checkpoint 探针加入
+共用 `_PostgresCompleteGraphReader` 后，使 5,001 member activation soak 的查询数从硬上限 35 增为 36，publication suite
+以 1 failed、41 passed 失败。文件阈值和查询阈值均未提高。
+
+完成项（`aea21b0a6`）：generation-fenced Authority repository 已拆为独立 Infrastructure 模块，scanner 降至 980 个非空行；
+module map 由生成器更新为 Account Infrastructure 141 个模块。Data Center architecture inventory 同样由唯一生成器更新，
+current references 为 5,389、cross-app ORM imports 48、外部直连 0。共用 complete-graph reader 恢复为原有查询形状，避免测试
+探针污染 publication soak 的生产查询预算；新增独立 PostgreSQL node
+`tests/component/account/test_account_authority_final_revalidator_v3_postgres.py::test_postgres_generation_fenced_graph_uow_reuses_outer_transaction`
+直接在 finalizer 的真实 outer fence 内进入生产用 generation-fenced repository 与 actor bundle `_snapshot()`，硬断言
+`atomic_blocks==1`、read scope 不具备 private append UOW、退出后 repository 与 transaction 均清理。该 node 取代旧泛化节点
+进入 S6 `REQUIRED_POSTGRESQL_TESTS`，workflow 对 Account final-revalidation JUnit 的期望计数由 7 增为 8；缺失、跳过或失败仍
+必须阻断。
+
+测试计数：Account graph/finalizer 单元回归 `62 passed`；Account、release validator 与 evidence collector 组合回归
+`177 passed`。新增 PostgreSQL node、既有 complete-fence node 与 5,001 member soak 在本机均因未启用 disposable PostgreSQL
+而 `3 skipped`，不计为通过，必须由新 SHA 的 Publication PostgreSQL CI 补齐。两个生产文件的文件规模门禁通过；current-data
+72 surfaces、module map 44 modules/210 edges、Data Center architecture inventory、增量 mypy 3 个生产文件 0 regression、
+全仓 debt ceiling `0 errors in 0 files`、Black、isort、Ruff 与 `git diff --check` 均通过。
+
+未验证风险与停止线：`aea21b0a6` 及本节文档提交形成的新最终 SHA 尚未取得五组 exact-SHA CI。必须确认新的
+Publication PostgreSQL artifact 含上述独立 node 且该节点无 skipped/failure/error，同时 5,001 member soak 保持查询数不超过
+35。CI 全绿前不得启动新 S6；S6、同镜像部署完成后仍须停在第二次生产全市场刷新授权门前。旧失败任务、receipt 与镜像禁止
+复用；不得扩大 timeout/retry、文件或查询阈值，不得放宽 freshness/coverage/audit/source/15:00 close/`SIGNAL_WEAK`，不得
+写死证券或伪造 financial owner approval。
+
+下一片是否可开始：可以提交本节台账并 push 新最终 SHA，启动五组 exact-SHA CI；只有五组全绿后才可从最新生产只读快照创建
+全新 S6 attempt。
