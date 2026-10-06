@@ -6,6 +6,7 @@
     "full_universe_capacity",
     "production_policy_parity",
     "isolated_write_rehearsal",
+    "akshare_financial_slice",
     "candidate_regression_evidence"
   ]
 }

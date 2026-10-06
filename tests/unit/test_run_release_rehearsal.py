@@ -160,6 +160,7 @@ class FakeRunner:
             "full_universe_capacity",
             "production_policy_parity",
             "isolated_postgresql_write",
+            "akshare_financial_slice",
         }:
             self._create_stage_report(command)
         elif command.label == "bundle_build":
@@ -238,6 +239,7 @@ class FakeRunner:
             "production_policy_parity": "output/production-policy-parity.json",
             "isolated_postgresql_write": "output/isolated-write-rehearsal.json",
             "github_ci_evidence": "candidate-regression-evidence.json",
+            "akshare_financial_slice": "output/akshare-financial-slice.json",
         }
         kinds = {
             "response_replay": "real_response_unit_replay",
@@ -245,6 +247,7 @@ class FakeRunner:
             "production_policy_parity": "production_policy_parity",
             "isolated_postgresql_write": "isolated_write_rehearsal",
             "github_ci_evidence": "candidate_regression_evidence",
+            "akshare_financial_slice": "akshare_financial_slice",
         }
         payload: dict[str, object] = {
             "outcome": "success",
@@ -307,6 +310,7 @@ class FakeRunner:
                 "production_policy_parity": "production_policy_snapshot",
                 "isolated_postgresql_write": "isolated_postgresql",
                 "github_ci_evidence": "candidate_ci",
+                "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
             }[command.label]
         report_path = command.artifact_dir / filenames[command.label]
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -321,6 +325,7 @@ class FakeRunner:
                 "full_universe_capacity": "--full-universe-capacity",
                 "production_policy_parity": "--production-policy-parity",
                 "isolated_write_rehearsal": "--isolated-write-rehearsal",
+                "akshare_financial_slice": "--akshare-financial-slice",
                 "candidate_regression_evidence": "--candidate-regression-evidence",
             }.items()
         }
@@ -531,6 +536,7 @@ def test_rehearsal_accepts_frozen_failover_route_identities(tmp_path: Path) -> N
         "production_policy_parity",
         "isolated_postgresql_write",
         "github_ci_evidence",
+        "akshare_financial_slice",
         "bundle_build",
         "release_validator",
     ],
@@ -554,6 +560,7 @@ def test_resume_reuses_verified_prefix_without_rebuilding(
         "production_policy_parity",
         "isolated_postgresql_write",
         "github_ci_evidence",
+        "akshare_financial_slice",
         "bundle_build",
         "release_validator",
     ]
@@ -1183,6 +1190,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         "production_policy_parity",
         "isolated_postgresql_write",
         "github_ci_evidence",
+        "akshare_financial_slice",
         "bundle_build",
         "release_validator",
     ]
@@ -1197,6 +1205,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     }
     assert observed_stages[5:] == [
         "github_ci_evidence",
+        "akshare_financial_slice",
         "bundle_build",
         "release_validator",
     ]

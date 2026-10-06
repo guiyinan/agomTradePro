@@ -39,6 +39,7 @@ REQUIRED_REPORT_SCHEMAS = {
     "full_universe_capacity": "release.full-universe-capacity.v2",
     "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
+    "akshare_financial_slice": "release.akshare-financial-slice.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 REQUIRED_EVIDENCE_MODES = {
@@ -46,6 +47,7 @@ REQUIRED_EVIDENCE_MODES = {
     "full_universe_capacity": "measured_full_universe",
     "production_policy_parity": "production_policy_snapshot",
     "isolated_write_rehearsal": "isolated_postgresql",
+    "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
     "candidate_regression_evidence": "candidate_ci",
 }
 IMAGE_BOUND_REPORTS = frozenset(
@@ -54,10 +56,16 @@ IMAGE_BOUND_REPORTS = frozenset(
         "full_universe_capacity",
         "production_policy_parity",
         "isolated_write_rehearsal",
+        "akshare_financial_slice",
     }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
     {"full_universe_capacity", "isolated_write_rehearsal"}
+)
+FINANCIAL_ZERO_WRITE_PROOF_CASES = (
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts",
 )
 REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
@@ -2270,6 +2278,193 @@ def _validate_regression(
         _fail("REHEARSAL_REQUIRED_TEST_MISSING")
 
 
+def _validate_akshare_financial_slice(
+    report: dict[str, Any],
+    *,
+    regression_report: dict[str, Any],
+    expected_date: str,
+) -> None:
+    """Require one isolated N=1 sync, two exact audit links, and CI zero-write proofs."""
+
+    _require_candidate_attestation(report)
+    database = report.get("database")
+    redis = report.get("redis")
+    provider = report.get("selected_provider")
+    seed = report.get("request_seed")
+    sync = report.get("sync")
+    captures = report.get("captures")
+    if not all(isinstance(value, dict) for value in (database, redis, provider, seed, sync)):
+        _fail("REHEARSAL_FINANCIAL_SLICE_REPORT_INVALID")
+    database_value = cast(dict[str, Any], database)
+    redis_value = cast(dict[str, Any], redis)
+    provider_value = cast(dict[str, Any], provider)
+    seed_value = cast(dict[str, Any], seed)
+    sync_value = cast(dict[str, Any], sync)
+    if (
+        database_value.get("vendor") != "postgresql"
+        or database_value.get("scope") != "disposable"
+        or database_value.get("release_rehearsal_guard") is not True
+        or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", str(database_value.get("host") or ""))
+        is None
+        or re.fullmatch(
+            r"agom_release_rehearsal_[a-z0-9_]+", str(database_value.get("name") or "")
+        )
+        is None
+        or SHA256_PATTERN.fullmatch(str(database_value.get("identity_sha256") or "")) is None
+        or redis_value.get("scope") != "disposable"
+        or redis_value.get("ping_verified") is not True
+        or redis_value.get("host") != redis_value.get("expected_host")
+        or re.fullmatch(r"agom-s6-redis-[a-z0-9-]+", str(redis_value.get("host") or "")) is None
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_ISOLATION_INVALID")
+    provider_id = provider_value.get("provider_id")
+    role = provider_value.get("frozen_identity_role")
+    route_digest = provider_value.get("frozen_route_identity_sha256")
+    identities = report.get("provider_identities")
+    if (
+        isinstance(provider_id, bool)
+        or not isinstance(provider_id, int)
+        or provider_id <= 0
+        or provider_value.get("source_type") != "akshare"
+        or not isinstance(role, str)
+        or role not in {"valuation", f"model_market_route:{provider_id}"}
+        or not isinstance(identities, list)
+        or SHA256_PATTERN.fullmatch(str(route_digest or "")) is None
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_PROVIDER_INVALID")
+    matching_identities = [
+        item
+        for item in cast(list[object], identities)
+        if isinstance(item, dict)
+        and item.get("provider_id") == provider_id
+        and item.get("role") == role
+        and item.get("source") == "tencent"
+    ]
+    if (
+        len(matching_identities) != 1
+        or hashlib.sha256(
+            json.dumps(
+                matching_identities[0],
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        != route_digest
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_PROVIDER_INVALID")
+    asset_code = seed_value.get("asset_code")
+    announcement_date = seed_value.get("announcement_date")
+    seed_basis = seed_value.get("basis")
+    try:
+        parsed_seed_date = date.fromisoformat(cast(str, announcement_date))
+        parsed_target_date = date.fromisoformat(expected_date)
+    except (TypeError, ValueError):
+        _fail("REHEARSAL_FINANCIAL_SLICE_SEED_INVALID")
+    if (
+        not isinstance(asset_code, str)
+        or ASSET_CODE_PATTERN.fullmatch(asset_code) is None
+        or parsed_seed_date > parsed_target_date
+        or seed_value.get("source") != "akshare"
+        or seed_value.get("provenance_is_seed_only") is not True
+        or seed_basis
+        not in {
+            "typed_source_time_announcement_date_untrusted",
+            "legacy_announced_at_date_untrusted",
+            "legacy_available_at_date_untrusted",
+        }
+        or SHA256_PATTERN.fullmatch(str(seed_value.get("legacy_fact_id_sha256") or "")) is None
+        or SHA256_PATTERN.fullmatch(str(seed_value.get("selection_sha256") or "")) is None
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_SEED_INVALID")
+    counts = {
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "planned_provider_requests": 2,
+        "provider_request_count": 2,
+        "atomic_fact_write_count": 1,
+    }
+    for key, expected in counts.items():
+        if type(sync_value.get(key)) is not int or sync_value.get(key) != expected:
+            _fail("REHEARSAL_FINANCIAL_SLICE_COUNT_INVALID")
+    stored = sync_value.get("stored")
+    if type(stored) is not int or stored <= 0:
+        _fail("REHEARSAL_FINANCIAL_SLICE_NOT_STORED")
+    for key in ("typed_fact_evidence_count", "source_time_witness_count"):
+        if type(sync_value.get(key)) is not int or sync_value.get(key) != stored:
+            _fail("REHEARSAL_FINANCIAL_SLICE_TYPED_EVIDENCE_INVALID")
+    if not isinstance(captures, list) or len(captures) != 2:
+        _fail("REHEARSAL_FINANCIAL_SLICE_CAPTURE_INVALID")
+    expected_datasets = {"equity.financial.fact", "equity.financial.source-time"}
+    observed_datasets: set[str] = set()
+    capture_ids: set[str] = set()
+    audit_ids: set[str] = set()
+    for raw_capture in cast(list[object], captures):
+        if not isinstance(raw_capture, dict):
+            _fail("REHEARSAL_FINANCIAL_SLICE_CAPTURE_INVALID")
+        capture = cast(dict[str, Any], raw_capture)
+        dataset = capture.get("dataset_key")
+        capture_id = capture.get("capture_id")
+        raw_audit_id = capture.get("raw_audit_id")
+        if (
+            not isinstance(dataset, str)
+            or dataset not in expected_datasets
+            or dataset in observed_datasets
+            or not isinstance(capture_id, str)
+            or UUID_PATTERN.fullmatch(capture_id) is None
+            or capture_id in capture_ids
+            or not isinstance(raw_audit_id, str)
+            or not raw_audit_id.isdecimal()
+            or int(raw_audit_id) <= 0
+            or raw_audit_id in audit_ids
+            or capture.get("raw_audit_count") != 1
+            or capture.get("raw_audit_status") != "ok"
+            or capture.get("raw_audit_provider_id") != provider_id
+            or SHA256_PATTERN.fullmatch(str(capture.get("body_sha256") or "")) is None
+            or capture.get("raw_audit_body_sha256") != capture.get("body_sha256")
+            or type(capture.get("body_size_bytes")) is not int
+            or capture.get("body_size_bytes", 0) <= 0
+            or capture.get("typed_evidence_count") != stored
+            or capture.get("witness_coverage_count") != stored
+        ):
+            _fail("REHEARSAL_FINANCIAL_SLICE_CAPTURE_INVALID")
+        observed_datasets.add(dataset)
+        capture_ids.add(capture_id)
+        audit_ids.add(raw_audit_id)
+    if observed_datasets != expected_datasets:
+        _fail("REHEARSAL_FINANCIAL_SLICE_CAPTURE_INVALID")
+    failure_evidence = report.get("failure_evidence")
+    if not isinstance(failure_evidence, dict):
+        _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_MISSING")
+    failure_payload = cast(dict[str, Any], failure_evidence)
+    proof_cases = failure_payload.get("zero_fact_write_test_cases")
+    if (
+        failure_payload.get("source") != "candidate_regression_evidence"
+        or failure_payload.get("failure_isolated_before_real_provider_egress") is not True
+        or not isinstance(proof_cases, list)
+        or tuple(proof_cases) != FINANCIAL_ZERO_WRITE_PROOF_CASES
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
+    regression_required = regression_report.get("required_tests")
+    if not isinstance(regression_required, list) or not set(FINANCIAL_ZERO_WRITE_PROOF_CASES).issubset(
+        set(regression_required)
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
+    expected_junit_digest = failure_payload.get("junit_sha256")
+    if not isinstance(expected_junit_digest, str) or SHA256_PATTERN.fullmatch(
+        expected_junit_digest
+    ) is None:
+        _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
+    junit_artifacts = regression_report.get("junit_artifacts")
+    if not isinstance(junit_artifacts, list) or not any(
+        isinstance(item, dict)
+        and Path(str(item.get("path") or "")).name == "financial-slice-sync-contracts.xml"
+        and item.get("sha256") == expected_junit_digest
+        for item in cast(list[object], junit_artifacts)
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
+
+
 def validate_release_rehearsal(
     *,
     manifest_path: Path,
@@ -2417,6 +2612,11 @@ def validate_release_rehearsal(
         expected_github_run_id,
         observed_now,
         timedelta(hours=max_age_hours),
+    )
+    _validate_akshare_financial_slice(
+        loaded_reports["akshare_financial_slice"],
+        regression_report=loaded_reports["candidate_regression_evidence"],
+        expected_date=expected_target_date,
     )
     return {
         "outcome": "success",
