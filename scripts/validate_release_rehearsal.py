@@ -63,6 +63,7 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_first_run_and_same_parameter_retry_are_idempotent",
     "tests.component.data_center.test_core_data_backfill_control_plane::test_postgresql_backfill_provider_domain_failure_persists_partial_outcome",
     "tests.component.data_center.test_current_publication_staging::test_valuation_sync_reference_stages_actual_source_and_rejects_route_binding_postgresql",
+    "tests.component.account.test_account_authority_final_revalidator_v3_postgres::test_postgres_complete_fence_locks_generation_before_same_transaction_graph_reread",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_connected_database_identity_returns_real_postgres_address_without_cidr",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_market_rehearsal_database_enforces_read_only_on_provider_write",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_outer_read_only_snapshot_keeps_gate_and_rows_consistent_after_concurrent_commit",
@@ -126,6 +127,7 @@ QUOTE_FULL_DAY_SUSPENSION_REASON = "quote_full_day_suspension"
 REQUIRED_GITHUB_WORKFLOW = "Publication PostgreSQL contracts"
 REQUIRED_GITHUB_ARTIFACT = "publication-postgres-evidence"
 REQUIRED_JUNIT_FILES = {
+    "account-authority-final-revalidation-postgres.xml",
     "publication-postgres.xml",
     "backfill-control-plane-postgres.xml",
 }

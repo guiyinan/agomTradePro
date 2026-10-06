@@ -182,6 +182,127 @@ def test_no_lock_actor_snapshot_requires_one_active_rr_read_only_alias() -> None
     assert "pg_advisory" not in statement
 
 
+def test_generation_fenced_authority_repository_joins_outer_uow_without_savepoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep the complete graph read in the finalizer's single outer transaction."""
+
+    connection = _Connection(isolation="read committed", read_only="off")
+    checks: list[tuple[str, int, int]] = []
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        shadow_module,
+        "require_active_account_authority_generation_fence",
+        lambda *, using, connection, generation: checks.append(
+            (using, generation, len(connection.atomic_blocks))
+        ),
+    )
+    monkeypatch.setattr(
+        shadow_module.transaction,
+        "atomic",
+        lambda **_kwargs: pytest.fail("generation-fenced current read created a savepoint"),
+    )
+    repository = shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository(
+        expected_generation=41,
+        using="default",
+        clock=shadow_module._AuthorityGraphFrozenClock(_legacy_current().observed_at),
+        assignments=shadow_module.DjangoAccountOwnerAssignmentEvidenceV5Repository(),
+        policies=shadow_module.DjangoSingleOwnerAuthorityPolicyV1Repository(),
+        actors=shadow_module.DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(),
+    )
+    monkeypatch.setattr(repository, "_postgresql", lambda: None)
+
+    with repository.atomic():
+        assert repository._active is True
+        assert repository._uow is repository._token
+
+    assert checks == [("default", 41, 1), ("default", 41, 1)]
+    assert repository._active is False
+    assert repository._uow is None
+
+
+def test_generation_fenced_authority_repository_fails_closed_without_fence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject caller-owned UOW use unless the exact generation fence is active."""
+
+    connection = _Connection(isolation="read committed", read_only="off")
+    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
+    monkeypatch.setattr(
+        shadow_module,
+        "require_active_account_authority_generation_fence",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            AccountAuthorityGenerationUnavailable("active generation fence is unavailable")
+        ),
+    )
+    repository = shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository(
+        expected_generation=41,
+        using="default",
+        clock=shadow_module._AuthorityGraphFrozenClock(_legacy_current().observed_at),
+        assignments=shadow_module.DjangoAccountOwnerAssignmentEvidenceV5Repository(),
+        policies=shadow_module.DjangoSingleOwnerAuthorityPolicyV1Repository(),
+        actors=shadow_module.DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(),
+    )
+    monkeypatch.setattr(repository, "_postgresql", lambda: None)
+
+    with pytest.raises(AccountAuthorityGenerationUnavailable, match="active generation fence"):
+        with repository.atomic():
+            pytest.fail("unfenced caller-owned UOW must not execute")
+
+    assert repository._active is False
+    assert repository._uow is None
+
+
+def test_generation_fenced_graph_composes_caller_owned_authority_repository(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Wire only the final generation-fenced graph to the caller-owned UOW."""
+
+    current = _legacy_current()
+    command = GetCurrentOwnerTenantAuthorityV3Command(
+        current.authority.authority_id,
+        current.authority.authority_version,
+        current.authority.content_hash,
+    )
+    observed_generations: list[int] = []
+
+    def no_winner(
+        repository: shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        **_kwargs: object,
+    ) -> None:
+        observed_generations.append(repository._expected_generation)
+        return None
+
+    monkeypatch.setattr(
+        shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        "get_winner",
+        no_winner,
+    )
+    monkeypatch.setattr(
+        shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        "now",
+        lambda _repository: current.observed_at,
+    )
+    reader = AccountAuthorityCurrentGraphReaderV3(
+        actor_source_id="audit-actor-v3",
+        actor_source_version="v1",
+        actor_content_hash="c" * 64,
+        physical_row_provider=_PhysicalProvider(),
+        using="default",
+        transaction_mode="generation_fenced_read_committed_read_write",
+    )
+
+    assert (
+        reader._read_application_graph(
+            command,
+            clock=shadow_module._AuthorityGraphFrozenClock(current.observed_at),
+            generation=41,
+        )
+        is None
+    )
+    assert observed_generations == [41]
+
+
 def test_generation_fence_uses_share_row_lock_for_compatible_final_readers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -237,14 +358,17 @@ def test_current_graph_reader_accepts_only_its_caller_owned_transaction_mode(
         current.authority.content_hash,
     )
     reads: list[GetCurrentOwnerTenantAuthorityV3Command] = []
+    expected_generation = 41 if mode == "generation_fenced_read_committed_read_write" else None
 
     def graph_read(
         _self: AccountAuthorityCurrentGraphReaderV3,
         received: GetCurrentOwnerTenantAuthorityV3Command,
         *,
         clock: _Clock,
+        generation: int | None,
     ) -> CurrentOwnerTenantAuthorityV3:
         assert clock.now() is current.observed_at
+        assert generation == expected_generation
         reads.append(received)
         return current
 
@@ -313,7 +437,9 @@ def test_current_graph_reader_applies_one_database_cutoff_at_valid_until_boundar
         _command: GetCurrentOwnerTenantAuthorityV3Command,
         *,
         clock: _Clock,
+        generation: int | None,
     ) -> CurrentOwnerTenantAuthorityV3 | None:
+        assert generation is None
         cutoff = clock.now()
         cutoffs.append(cutoff)
         if cutoff >= current.valid_until:
@@ -364,7 +490,9 @@ def test_current_graph_reader_keeps_one_cutoff_while_application_clock_moves(
         _command: GetCurrentOwnerTenantAuthorityV3Command,
         *,
         clock: _Clock,
+        generation: int | None,
     ) -> CurrentOwnerTenantAuthorityV3:
+        assert generation is None
         before = timezone.now()
         repository_cutoffs.extend(clock.now() for _ in range(8))
         after = timezone.now()
@@ -752,7 +880,9 @@ def test_current_graph_reader_rejects_non_exact_projection(
     monkeypatch.setattr(
         AccountAuthorityCurrentGraphReaderV3,
         "_read_application_graph",
-        lambda self, value, *, clock: cast(CurrentOwnerTenantAuthorityV3 | None, object()),
+        lambda self, value, *, clock, generation: cast(
+            CurrentOwnerTenantAuthorityV3 | None, object()
+        ),
     )
     reader = AccountAuthorityCurrentGraphReaderV3(
         actor_source_id="audit-actor-v3",

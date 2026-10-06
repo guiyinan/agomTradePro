@@ -115,13 +115,25 @@ class GithubStub:
         backfill = [
             identity for identity in required if "test_core_data_backfill_control_plane" in identity
         ]
-        publication = [identity for identity in required if identity not in backfill]
+        account_final = [
+            identity
+            for identity in required
+            if "test_account_authority_final_revalidator_v3_postgres" in identity
+        ]
+        publication = [
+            identity
+            for identity in required
+            if identity not in backfill and identity not in account_final
+        ]
         self.junit_files = {
             "publication-postgres.xml": _junit_bytes(
                 publication, timestamp, self.skip_required_test
             ),
             "backfill-control-plane-postgres.xml": _junit_bytes(
                 backfill, timestamp, self.skip_required_test
+            ),
+            "account-authority-final-revalidation-postgres.xml": _junit_bytes(
+                account_final, timestamp, self.skip_required_test
             ),
         }
         self.archive = _zip_bytes(self.junit_files)

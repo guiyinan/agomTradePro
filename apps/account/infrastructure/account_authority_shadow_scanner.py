@@ -54,6 +54,8 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerAssignmentEvidenceV5Reader,
     CurrentOwnerTenantAuthorityV3,
     HistoricalOwnerAssignmentEvidenceV5Reader,
+    OwnerTenantAuthorityV3Conflict,
+    OwnerTenantAuthorityV3Unavailable,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
@@ -98,11 +100,15 @@ from apps.account.infrastructure.canonical_account_creation_consumption_reposito
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
+from apps.account.infrastructure.owner_tenant_authority_v3_models import (
+    _activate_owner_tenant_authority_v3_uow,
+)
 from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
     OwnerTenantAuthorityV3OperationReadContext,
 )
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
+    OwnerTenantAuthorityV3Clock,
 )
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
@@ -146,6 +152,69 @@ class DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
                 connection=connection,
             )
         return nullcontext()
+
+
+class _GenerationFencedOwnerTenantAuthorityV3Repository(DjangoOwnerTenantAuthorityV3Repository):
+    """Join the finalizer-owned generation fence for one current graph read."""
+
+    def __init__(
+        self,
+        *,
+        expected_generation: int,
+        using: str,
+        clock: OwnerTenantAuthorityV3Clock,
+        assignments: DjangoAccountOwnerAssignmentEvidenceV5Repository,
+        policies: DjangoSingleOwnerAuthorityPolicyV1Repository,
+        actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
+    ) -> None:
+        """Bind the read-only repository UOW to one locked generation."""
+
+        if type(expected_generation) is not int or expected_generation < 0:
+            raise ValueError("expected_generation must be one non-negative integer")
+        super().__init__(
+            using=using,
+            clock=clock,
+            assignments=assignments,
+            policies=policies,
+            actors=actors,
+        )
+        self._expected_generation = expected_generation
+
+    @contextmanager
+    def atomic(self) -> Iterator[None]:
+        """Reuse the caller's outer transaction without creating a savepoint."""
+
+        self._postgresql()
+        connection = _connection(self._using)
+        require_active_account_authority_generation_fence(
+            using=self._using,
+            connection=connection,
+            generation=self._expected_generation,
+        )
+        if self._active:
+            raise OwnerTenantAuthorityV3Conflict(
+                "owner tenant authority v3 UOW cannot be re-entered"
+            )
+        token = self._token
+        self._active = True
+        self._uow = token
+        try:
+            with _activate_owner_tenant_authority_v3_uow(token):
+                yield
+            require_active_account_authority_generation_fence(
+                using=self._using,
+                connection=connection,
+                generation=self._expected_generation,
+            )
+        except AccountAuthorityGenerationUnavailable:
+            raise
+        except DatabaseError as error:
+            raise OwnerTenantAuthorityV3Unavailable(
+                "owner tenant authority v3 caller-owned transaction is unavailable"
+            ) from error
+        finally:
+            self._uow = None
+            self._active = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,7 +440,11 @@ class AccountAuthorityCurrentGraphReaderV3:
         with identity_scope_provider.bind_physical_identity(identity):
             with clock_scope_provider.bind_read_clock(clock):
                 with suspend_immutable_read_reuse():
-                    result = self._read_application_graph(command, clock=clock)
+                    result = self._read_application_graph(
+                        command,
+                        clock=clock,
+                        generation=generation,
+                    )
         if self._transaction_mode != "repeatable_read_read_only":
             require_active_account_authority_generation_fence(
                 using=self._using,
@@ -452,6 +525,7 @@ class AccountAuthorityCurrentGraphReaderV3:
         command: GetCurrentOwnerTenantAuthorityV3Command,
         *,
         clock: _AuthorityGraphFrozenClock,
+        generation: int | None,
     ) -> CurrentOwnerTenantAuthorityV3 | None:
         """Compose the existing Authority V3 Application graph and Evidence V5 readers."""
 
@@ -472,13 +546,28 @@ class AccountAuthorityCurrentGraphReaderV3:
             actors=actor_repository,
             read_context=read_context,
         )
-        authority_repository = DjangoOwnerTenantAuthorityV3Repository(
-            using=self._using,
-            clock=clock,
-            assignments=evidence_repository,
-            policies=policies,
-            actors=actor_repository,
-        )
+        authority_repository: DjangoOwnerTenantAuthorityV3Repository
+        if self._transaction_mode == "generation_fenced_read_committed_read_write":
+            if type(generation) is not int:
+                raise AccountAuthorityGenerationUnavailable(
+                    "generation-fenced current graph repository requires the locked generation"
+                )
+            authority_repository = _GenerationFencedOwnerTenantAuthorityV3Repository(
+                expected_generation=generation,
+                using=self._using,
+                clock=clock,
+                assignments=evidence_repository,
+                policies=policies,
+                actors=actor_repository,
+            )
+        else:
+            authority_repository = DjangoOwnerTenantAuthorityV3Repository(
+                using=self._using,
+                clock=clock,
+                assignments=evidence_repository,
+                policies=policies,
+                actors=actor_repository,
+            )
         provisional = authority_repository.get_winner(
             authority_id=command.authority_id,
             authority_version=command.authority_version,
