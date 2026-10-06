@@ -3,19 +3,19 @@
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from agomtradepro.modules.dashboard import DashboardModule
 
 
 class _FakeClient:
-    def __init__(
-        self, get_payload: dict[str, Any] | None = None, post_payload: dict[str, Any] | None = None
-    ) -> None:
-        self.get_payload = get_payload or {}
+    def __init__(self, get_payload: Any = None, post_payload: dict[str, Any] | None = None) -> None:
+        self.get_payload = {} if get_payload is None else get_payload
         self.post_payload = post_payload or {}
         self.last_get: tuple[str, dict[str, Any] | None] | None = None
         self.last_post: tuple[str, dict[str, Any] | None] | None = None
 
-    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
         self.last_get = (path, params)
         return self.get_payload
 
@@ -300,6 +300,36 @@ def test_alpha_history_payload_uses_canonical_endpoint_and_stable_envelope() -> 
     assert result["runs"][0]["id"] == 7
     assert result["total_count"] == 1
     assert result["query"]["portfolio_id"] == 135
+
+
+def test_alpha_history_payload_normalizes_unwrapped_empty_list_with_default_query() -> None:
+    fake_client = _FakeClient(get_payload=[])
+    module = DashboardModule(fake_client)
+
+    result = module.alpha_history_payload()
+
+    assert fake_client.last_get == ("/api/dashboard/alpha/history/", {})
+    assert result == {
+        "runs": [],
+        "total_count": 0,
+        "query": {
+            "portfolio_id": None,
+            "trade_date": None,
+            "stock_code": None,
+            "stage": None,
+            "source": None,
+        },
+    }
+
+
+def test_alpha_history_payload_fails_closed_on_malformed_unwrapped_list() -> None:
+    module = DashboardModule(_FakeClient(get_payload=[None]))
+
+    with pytest.raises(
+        ValueError,
+        match="dashboard Alpha history returned an invalid list payload",
+    ):
+        module.alpha_history_payload()
 
 
 def test_alpha_history_detail_payload_uses_canonical_endpoint_and_stable_envelope() -> None:

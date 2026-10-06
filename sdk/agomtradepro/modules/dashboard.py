@@ -140,7 +140,8 @@ class DashboardModule(BaseModule):
         if not isinstance(data, dict):
             return payload
 
-        meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+        meta_value = data.get("meta")
+        meta: dict[str, Any] = meta_value if isinstance(meta_value, dict) else {}
         top_candidates = data.get("top_candidates") or data.get("items") or []
         pending_requests = data.get("pending_requests") or []
         actionable_candidates = data.get("actionable_candidates") or []
@@ -173,7 +174,9 @@ class DashboardModule(BaseModule):
         if alpha_scope == "general":
             recommendation_ready = False
             if not no_recommendation_reason:
-                no_recommendation_reason = "General Alpha is research-only and must not be used for decisions."
+                no_recommendation_reason = (
+                    "General Alpha is research-only and must not be used for decisions."
+                )
         async_refresh_queued = DashboardModule._is_async_refresh_active(
             refresh_status=refresh_status,
             async_task_id=async_task_id,
@@ -238,7 +241,14 @@ class DashboardModule(BaseModule):
             params["stage"] = stage
         if source:
             params["source"] = source
-        return self._get("alpha/history/", params=params)
+        response: object = self._get("alpha/history/", params=params)
+        if isinstance(response, list):
+            if not all(isinstance(run, dict) for run in response):
+                raise ValueError("dashboard Alpha history returned an invalid list payload")
+            return {"success": True, "data": response}
+        if not isinstance(response, dict):
+            raise ValueError("dashboard Alpha history returned an invalid response payload")
+        return response
 
     def alpha_history_payload(
         self,
@@ -260,7 +270,7 @@ class DashboardModule(BaseModule):
         if response.get("success") is not True:
             raise ValueError(str(response.get("error") or "dashboard Alpha history failed"))
         runs = response.get("data", [])
-        if not isinstance(runs, list):
+        if not isinstance(runs, list) or not all(isinstance(run, dict) for run in runs):
             raise ValueError("dashboard Alpha history returned an invalid data payload")
         return {
             "runs": runs,

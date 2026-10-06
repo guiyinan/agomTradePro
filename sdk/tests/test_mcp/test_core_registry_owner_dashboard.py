@@ -182,6 +182,32 @@ def test_agom_capability_call_reads_dashboard_alpha_history_in_core_only_mode(
     assert "135" in rendered
 
 
+def test_agom_capability_call_maps_sdk_unwrapped_alpha_history_list(
+    monkeypatch: pytest.MonkeyPatch,
+    core_only_mcp_server,
+):
+    import agomtradepro
+    from agomtradepro.modules.dashboard import DashboardModule
+
+    sdk_client = SimpleNamespace(
+        dashboard=DashboardModule(SimpleNamespace(get=lambda _path, params=None: []))
+    )
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: sdk_client)
+
+    result = asyncio.run(
+        core_only_mcp_server.call_tool(
+            "agom_capability_call",
+            {"capability_key": "dashboard.read.alpha_history", "arguments": {}},
+        )
+    )
+
+    rendered = str(result)
+    assert "capability_execution_failed" not in rendered
+    assert '"runs": []' in rendered
+    assert '"total_count": 0' in rendered
+    assert "dashboard.read.alpha_history" in rendered
+
+
 def test_agom_capability_call_reads_dashboard_alpha_history_detail_in_core_only_mode(
     monkeypatch: pytest.MonkeyPatch,
     core_only_mcp_server,
