@@ -605,6 +605,12 @@ def _with_verified_financial_transport_metadata(fact: FinancialFact) -> Financia
     )
 
 
+def with_verified_financial_transport_metadata(fact: FinancialFact) -> FinancialFact:
+    """Expose the verified transport metadata projection to sibling use cases."""
+
+    return _with_verified_financial_transport_metadata(fact)
+
+
 class SyncFinancialUseCase(_BaseSyncUseCase):
     def __init__(
         self,
@@ -858,4 +864,5 @@ __all__ = [
     "SyncQuoteUseCase",
     "SyncSectorMembershipUseCase",
     "SyncValuationUseCase",
+    "with_verified_financial_transport_metadata",
 ]

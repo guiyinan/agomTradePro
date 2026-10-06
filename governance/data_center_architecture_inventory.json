@@ -10796,42 +10796,42 @@
       "text": "\"\"\"Return the latest market-thermometer payload for UI/API consumers.\"\"\""
     },
     {
-      "line": 107,
+      "line": 114,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "return {\"status\": \"skipped\", \"message\": \"No realtime quote provider is available.\"}"
     },
     {
-      "line": 253,
+      "line": 260,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest = MarketThermometerSnapshotRepository().get_latest()"
     },
     {
-      "line": 254,
+      "line": 261,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "if latest is None:"
     },
     {
-      "line": 258,
+      "line": 265,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_observed_at = latest.observed_at.isoformat()"
     },
     {
-      "line": 260,
+      "line": 267,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "latest_is_blocked = latest.must_not_use_for_decision"
     },
     {
-      "line": 264,
+      "line": 271,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "skipped_payload = latest.to_dict()"
     },
     {
-      "line": 509,
+      "line": 516,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current valuation batch sync use case.\"\"\""
     },
     {
-      "line": 519,
+      "line": 543,
       "path": "apps/data_center/application/interface_services_decision_sync.py",
       "text": "\"\"\"Build a fact-only current-valuation batch for aggregate publication.\"\"\""
     },

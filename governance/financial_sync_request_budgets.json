@@ -1,0 +1,14 @@
+{
+  "schema_version": "akshare-financial-sync-request-budget.v1",
+  "status": "enforced",
+  "provider_name": "akshare",
+  "contract_id": "akshare.financial-main-data.notice-date",
+  "contract_version": "2026-10-04.v1",
+  "contract_sha256": "a3b0057315a41f0b8df514fc7aaf5030916927a0cf3f39358a20d39b669eeaf1",
+  "provider_requests_per_asset_announcement_slice": 2,
+  "max_asset_announcement_slices_per_invocation": 1,
+  "max_provider_requests_per_invocation": 2,
+  "max_period_rows_per_capture": 200,
+  "basis": "single explicit asset and announcement date only; expand only after measured provider capacity evidence and a reviewed governance change",
+  "does_not_authorize_provider_access": true
+}

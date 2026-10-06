@@ -4282,6 +4282,16 @@
           "RetainFinancialResponseFailureUseCase",
           "RetainedFinancialResponsePayload"
         ],
+        "application/financial_slice_sync.py": [
+          "FinancialAnnouncementSlice",
+          "FinancialSliceEvidenceVerifier",
+          "FinancialSliceFetcherFactory",
+          "FinancialSliceFetcherProtocol",
+          "FinancialSliceSyncBudget",
+          "FinancialSliceSyncRequest",
+          "FinancialSliceSyncResult",
+          "SyncAkshareFinancialSlicesUseCase"
+        ],
         "application/financial_source_time_artifact.py": [
           "FinancialSourceTimeArtifactAuditError",
           "FinancialSourceTimeArtifactAuditLookupError",
@@ -4381,6 +4391,7 @@
           "make_backfill_sync_quote_use_case",
           "make_decision_repair_use_case",
           "make_on_demand_data_center_service",
+          "make_sync_akshare_financial_slices_use_case",
           "make_sync_capital_flow_use_case",
           "make_sync_current_valuation_batch_use_case",
           "make_sync_financial_use_case",
@@ -4910,7 +4921,8 @@
           "FinancialSourceTimeArtifactVerifier",
           "PreparedFinancialSync",
           "SyncFinancialUseCase",
-          "SyncFundNavUseCase"
+          "SyncFundNavUseCase",
+          "with_verified_financial_transport_metadata"
         ],
         "application/sync_valuation_sector_use_cases.py": [
           "SyncSectorMembershipUseCase",
@@ -4996,9 +5008,9 @@
         ]
       },
       "layers": {
-        "application": 119,
+        "application": 120,
         "domain": 34,
-        "infrastructure": 164,
+        "infrastructure": 165,
         "interface": 19,
         "management": 33,
         "root": 19

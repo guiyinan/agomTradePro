@@ -20,15 +20,28 @@ from apps.data_center.akshare_financial_capture_composition import (
     AkshareFinancialCaptureError,
     AkshareFinancialCaptureGateway,
 )
+from apps.data_center.application import interface_services, interface_services_decision_sync
 from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
+from apps.data_center.application.financial_slice_sync import (
+    FinancialAnnouncementSlice,
+    FinancialSliceSyncBudget,
+    FinancialSliceSyncRequest,
+    SyncAkshareFinancialSlicesUseCase,
+)
 from apps.data_center.domain.egress_routing import EgressRequestContext
-from apps.data_center.domain.entities import ProviderConfig, RawAudit, raw_audit_content_hash
+from apps.data_center.domain.entities import (
+    FinancialFact,
+    ProviderConfig,
+    RawAudit,
+    raw_audit_content_hash,
+)
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
     FinancialResponseEvidence,
     FinancialResponseScope,
     raw_body_sha256,
 )
+from apps.data_center.infrastructure import akshare_financial_slice_sync
 from apps.data_center.infrastructure._provider_adapter_akshare import (
     AkshareUnifiedProviderAdapter,
 )
@@ -149,6 +162,75 @@ class _Runner:
             response_scope=response_scope,
         )
         return _Capture(payload={}, evidence=evidence, raw_body=body)
+
+
+class _ProviderConfigs:
+    """Return one exact provider row while recording application lookups."""
+
+    def __init__(self, config: ProviderConfig | None = None) -> None:
+        self.config = config or _provider()
+        self.lookups: list[int] = []
+
+    def get_by_id(self, provider_id: int) -> ProviderConfig | None:
+        """Return the configured row only for its exact ID."""
+
+        self.lookups.append(provider_id)
+        return self.config if self.config.id == provider_id else None
+
+
+class _Registry:
+    """Expose one row-bound provider object without any fallback lookup."""
+
+    def __init__(self, provider: AkshareUnifiedProviderAdapter | None) -> None:
+        self.provider = provider
+        self.lookups: list[int] = []
+
+    def get_by_id(self, provider_id: int) -> AkshareUnifiedProviderAdapter | None:
+        """Return the provider only when its row identity is requested."""
+
+        self.lookups.append(provider_id)
+        if self.provider is None:
+            return None
+        try:
+            return self.provider if self.provider.provider_id() == provider_id else None
+        except ValueError:
+            return None
+
+
+class _FactWriter:
+    """Count financial batch writes and retain the exact submitted facts."""
+
+    def __init__(self, stored_count: int | None = None) -> None:
+        self.calls: list[list[object]] = []
+        self.stored_count = stored_count
+
+    def bulk_upsert(self, facts) -> int:
+        """Record one atomic-batch call and report all rows as stored."""
+
+        self.calls.append(list(facts))
+        return len(facts) if self.stored_count is None else self.stored_count
+
+
+class _SequenceFetcher:
+    """Return one successful slice and then synthesize a provider outage."""
+
+    def __init__(self, facts: list[FinancialFact]) -> None:
+        self.facts = facts
+        self.calls = 0
+
+    def fetch_financials_for_announcement_date(
+        self,
+        asset_code: str,
+        announcement_date: date,
+        periods: int,
+    ) -> list[FinancialFact]:
+        """Return the first slice and fail the next provider request group."""
+
+        del asset_code, announcement_date, periods
+        self.calls += 1
+        if self.calls == 1:
+            return self.facts
+        raise DataFetchError("synthetic second-slice provider outage")
 
 
 class _Audits:
@@ -735,3 +817,478 @@ def test_akshare_financial_capture_registry_mismatch_blocks_before_egress(
     assert runner.calls == []
     assert audits.financial_rows == []
     assert audits.source_time_rows == []
+
+
+def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The controlled entrypoint reaches only the retained-body AKShare adapter."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+    provider = AkshareUnifiedProviderAdapter(_provider())
+    writer = _FactWriter()
+    configs = _ProviderConfigs()
+    registry = _Registry(provider)
+    gateway_builds: list[tuple[int | None, str]] = []
+
+    def _build_gateway(config: ProviderConfig, *, deployment_region: str):
+        gateway_builds.append((config.id, deployment_region))
+        return gateway
+
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        _build_gateway,
+    )
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=configs,
+        provider_registry=registry,
+        fact_repo=writer,
+        fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.to_dict() == {
+        "outcome": "success",
+        "source": "akshare",
+        "provider_id": 17,
+        "provider_name": "AKShare Public",
+        "requested": 1,
+        "succeeded": 1,
+        "failed": 0,
+        "stored": len(writer.calls[0]),
+        "planned_provider_requests": 2,
+        "failure_reason": None,
+    }
+    assert gateway_builds == [(17, "unknown")]
+    assert configs.lookups == [17]
+    assert registry.lookups == [17]
+    assert len(runner.calls) == 2
+    assert len(audits.financial_rows) == 1
+    assert len(audits.source_time_rows) == 1
+    assert len(writer.calls) == 1
+    assert all(fact.decision_evidence is not None for fact in writer.calls[0])
+    assert all(
+        fact.extra["financial_response_capture_id"]
+        == str(fact.decision_evidence.artifact_reference.capture_id)
+        for fact in writer.calls[0]
+    )
+    assert all(
+        fact.extra["financial_source_time_capture_id"]
+        == str(fact.decision_evidence.source_time_witness.artifact_reference.capture_id)
+        for fact in writer.calls[0]
+    )
+
+
+def test_akshare_financial_slice_sync_default_source_blocks_without_fallback(
+    tmp_path: Path,
+) -> None:
+    """An omitted source never selects the default provider or performs egress."""
+
+    configs = _ProviderConfigs()
+    registry = _Registry(AkshareUnifiedProviderAdapter(_provider()))
+    writer = _FactWriter()
+    fetcher_calls: list[int] = []
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=configs,
+        provider_registry=registry,
+        fact_repo=writer,
+        fetcher_factory=lambda _config, _provider: fetcher_calls.append(1),
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.outcome == "blocked"
+    assert result.failure_reason == "explicit_source_akshare_required"
+    assert result.requested == 1
+    assert result.failed == 1
+    assert result.planned_provider_requests == 2
+    assert configs.lookups == []
+    assert registry.lookups == []
+    assert fetcher_calls == []
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_sync_zero_store_explains_noop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid idempotent batch reports why no fact row was stored."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+    provider = AkshareUnifiedProviderAdapter(_provider())
+    writer = _FactWriter(stored_count=0)
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        lambda _config, *, deployment_region: gateway,
+    )
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(provider),
+        fact_repo=writer,
+        fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.outcome == "noop"
+    assert result.requested == result.succeeded == 1
+    assert result.failed == result.stored == 0
+    assert result.failure_reason == "financial_facts_already_current"
+    assert len(writer.calls) == 1
+
+
+def test_akshare_financial_slice_sync_rejects_wrong_source_and_provider_row(
+    tmp_path: Path,
+) -> None:
+    """Wrong explicit source and non-AKShare provider rows fail before routing."""
+
+    config = replace(_provider(), source_type="tushare")
+    configs = _ProviderConfigs(config)
+    registry = _Registry(AkshareUnifiedProviderAdapter(_provider()))
+    writer = _FactWriter()
+    fetcher_calls: list[int] = []
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=configs,
+        provider_registry=registry,
+        fact_repo=writer,
+        fetcher_factory=lambda _config, _provider: fetcher_calls.append(1),
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+    item = FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE)
+
+    wrong_source = use_case.execute(
+        FinancialSliceSyncRequest(provider_id=17, source="tushare", slices=(item,))
+    )
+    wrong_provider = use_case.execute(
+        FinancialSliceSyncRequest(provider_id=17, source="akshare", slices=(item,))
+    )
+    wrong_provider_id = use_case.execute(
+        FinancialSliceSyncRequest(provider_id=18, source="akshare", slices=(item,))
+    )
+
+    assert wrong_source.outcome == "blocked"
+    assert wrong_source.failure_reason == "explicit_source_akshare_required"
+    assert wrong_provider.outcome == "blocked"
+    assert wrong_provider.failure_reason == "exact_active_akshare_provider_required"
+    assert wrong_provider_id.outcome == "blocked"
+    assert wrong_provider_id.failure_reason == "exact_active_akshare_provider_required"
+    assert configs.lookups == [17, 18]
+    assert registry.lookups == []
+    assert fetcher_calls == []
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_sync_blocks_when_approval_or_capture_capability_is_missing(
+    tmp_path: Path,
+) -> None:
+    """Approval/capture preflight failure blocks before fetch or fact write."""
+
+    provider = AkshareUnifiedProviderAdapter(_provider())
+    writer = _FactWriter()
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    fetcher_calls: list[int] = []
+
+    def _reject_preflight(_config: ProviderConfig, _provider: object) -> object:
+        raise FinancialResponseArtifactConfigurationError(
+            "synthetic missing approved capture capability"
+        )
+
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(provider),
+        fact_repo=writer,
+        fetcher_factory=_reject_preflight,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.outcome == "blocked"
+    assert result.failure_reason == "owner_approved_capture_capability_unavailable"
+    assert result.succeeded == 0
+    assert result.failed == 1
+    assert runner.calls == []
+    assert fetcher_calls == []
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_fetcher_rejects_adapter_row_drift_before_gateway_build(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A registry adapter with a different persisted row cannot reach capture setup."""
+
+    gateway_builds: list[int] = []
+
+    def _gateway_builder(config: ProviderConfig, *, deployment_region: str) -> object:
+        del deployment_region
+        gateway_builds.append(config.id or 0)
+        raise AssertionError("row drift must stop before gateway creation")
+
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        _gateway_builder,
+    )
+
+    with pytest.raises(DataFetchError):
+        akshare_financial_slice_sync.build_akshare_financial_slice_fetcher(
+            _provider(),
+            AkshareUnifiedProviderAdapter(replace(_provider(), id=18)),
+        )
+
+    assert gateway_builds == []
+
+
+def test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A retained-body verifier rejection blocks the whole financial batch."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        lambda _config, **_kwargs: gateway,
+    )
+    writer = _FactWriter()
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(AkshareUnifiedProviderAdapter(_provider())),
+        fact_repo=writer,
+        fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
+        evidence_verifier=lambda _config, _evidence: False,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.outcome == "blocked"
+    assert result.requested == 1
+    assert result.succeeded == 0
+    assert result.failed == 1
+    assert result.stored == 0
+    assert len(runner.calls) == 2
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair(
+    tmp_path: Path,
+) -> None:
+    """The hard cap uses 2N logical provider requests before any route is built."""
+
+    configs = _ProviderConfigs()
+    registry = _Registry(AkshareUnifiedProviderAdapter(_provider()))
+    writer = _FactWriter()
+    fetcher_calls: list[int] = []
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=configs,
+        provider_registry=registry,
+        fact_repo=writer,
+        fetcher_factory=lambda _config, _provider: fetcher_calls.append(1),
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(
+                FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),
+                FinancialAnnouncementSlice("600000.SH", ANNOUNCEMENT_DATE),
+            ),
+        )
+    )
+
+    assert result.outcome == "blocked"
+    assert result.failure_reason == "financial_provider_request_scale_exceeds_governed_bound"
+    assert result.requested == 2
+    assert result.succeeded == 0
+    assert result.failed == 2
+    assert result.stored == 0
+    assert result.planned_provider_requests == 4
+    assert configs.lookups == []
+    assert registry.lookups == []
+    assert fetcher_calls == []
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts(
+    tmp_path: Path,
+) -> None:
+    """A failed later slice is partial and the earlier prepared facts stay unwritten."""
+
+    transport = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(tmp_path, transport)
+    facts = AkshareUnifiedProviderAdapter(_provider()).fetch_financials_for_announcement_date(
+        ASSET_CODE,
+        ANNOUNCEMENT_DATE,
+        capture_gateway=gateway,
+    )
+    fetcher = _SequenceFetcher(facts)
+    writer = _FactWriter()
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(AkshareUnifiedProviderAdapter(_provider())),
+        fact_repo=writer,
+        fetcher_factory=lambda _config, _provider: fetcher,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(2, 2, 4, 200),
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(
+                FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),
+                FinancialAnnouncementSlice(ASSET_CODE, date(2026, 8, 16)),
+            ),
+        )
+    )
+
+    assert result.outcome == "partial"
+    assert result.requested == 2
+    assert result.succeeded == 1
+    assert result.failed == 1
+    assert result.stored == 0
+    assert result.planned_provider_requests == 4
+    assert fetcher.calls == 2
+    assert writer.calls == []
+
+
+def test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    """Only the reviewed one-pair, two-request budget loads as executable policy."""
+
+    import json
+
+    source_path = Path(__file__).parents[3] / "governance" / "financial_sync_request_budgets.json"
+    budget = akshare_financial_slice_sync.load_akshare_financial_slice_sync_budget(source_path)
+    assert budget == FinancialSliceSyncBudget(1, 2, 2, 200)
+
+    malformed_path = tmp_path / "budget.json"
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    payload["contract_sha256"] = "0" * 64
+    malformed_path.write_text(json.dumps(payload), encoding="utf-8")
+    assert (
+        akshare_financial_slice_sync.load_akshare_financial_slice_sync_budget(malformed_path)
+        is None
+    )
+
+
+def test_akshare_financial_slice_composition_builds_explicit_fact_only_use_case(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The composition builder injects exact routing, evidence, and budget ports."""
+
+    configs = _ProviderConfigs()
+    registry = _Registry(AkshareUnifiedProviderAdapter(_provider()))
+    writer = _FactWriter()
+    budget = FinancialSliceSyncBudget(1, 2, 2, 200)
+
+    def fetcher_factory(_config: ProviderConfig, _provider: object) -> None:
+        return None
+
+    monkeypatch.setattr(interface_services_decision_sync, "_make_provider_repo", lambda: configs)
+    monkeypatch.setattr(
+        interface_services_decision_sync,
+        "build_provider_registry_for_repo",
+        lambda repository: registry if repository is configs else None,
+    )
+    monkeypatch.setattr(
+        interface_services_decision_sync,
+        "FinancialFactRepository",
+        lambda **_kwargs: writer,
+    )
+    monkeypatch.setattr(
+        interface_services_decision_sync,
+        "build_akshare_financial_slice_fetcher",
+        fetcher_factory,
+    )
+    monkeypatch.setattr(
+        interface_services_decision_sync,
+        "load_akshare_financial_slice_sync_budget",
+        lambda: budget,
+    )
+
+    use_case = interface_services_decision_sync.make_sync_akshare_financial_slices_use_case()
+
+    assert callable(interface_services.make_sync_akshare_financial_slices_use_case)
+    assert isinstance(use_case, SyncAkshareFinancialSlicesUseCase)
+    assert use_case._provider_repo is configs
+    assert use_case._provider_registry is registry
+    assert use_case._fact_repo is writer
+    assert use_case._fetcher_factory is fetcher_factory
+    assert use_case._request_budget == budget
