@@ -61,6 +61,18 @@ def test_export_includes_each_real_failover_route_once(monkeypatch: pytest.Monke
         lambda **_kwargs: _UseCase(capabilities),
     )
     monkeypatch.setattr(command, "configured_rehearsal_identity", _identity)
+    monkeypatch.setattr(command, "active_akshare_financial_provider_ids", lambda: (4,))
+    monkeypatch.setattr(
+        command,
+        "configured_akshare_financial_identity",
+        lambda *, provider_id: RehearsalProviderIdentity(
+            role=f"akshare_financial_route:{provider_id}",
+            provider_id=provider_id,
+            source="akshare_financial",
+            version="akshare-financial-v1-requests-2.32.5",
+            endpoint_id=f"akshare-financial-{provider_id}",
+        ),
+    )
 
     identities = command.build_rehearsal_provider_identity_snapshot(
         quote_provider_id=2,
@@ -72,8 +84,10 @@ def test_export_includes_each_real_failover_route_once(monkeypatch: pytest.Monke
         "quote",
         "valuation",
         "model_market_route:3",
+        "akshare_financial_route:4",
     ]
     assert identities[2].source == "tencent"
+    assert identities[3].source == "akshare_financial"
 
 
 def test_command_writes_bounded_snapshot_and_refuses_overwrite(
@@ -86,6 +100,13 @@ def test_command_writes_bounded_snapshot_and_refuses_overwrite(
         _identity(provider_id=2, role="quote"),
         _identity(provider_id=2, role="valuation"),
         _identity(provider_id=3, role="model_market_route:3"),
+        RehearsalProviderIdentity(
+            "akshare_financial_route:4",
+            4,
+            "akshare_financial",
+            "akshare-financial-v1-requests-2.32.5",
+            "akshare-financial-4",
+        ),
     )
     monkeypatch.setattr(
         command,
@@ -101,7 +122,7 @@ def test_command_writes_bounded_snapshot_and_refuses_overwrite(
         f"--output={output}",
     )
 
-    assert len(json.loads(output.read_text(encoding="utf-8"))) == 3
+    assert len(json.loads(output.read_text(encoding="utf-8"))) == 4
     with pytest.raises(CommandError, match="identity output already exists"):
         call_command(
             "export_rehearsal_provider_identities",

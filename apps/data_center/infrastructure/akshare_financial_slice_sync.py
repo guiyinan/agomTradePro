@@ -65,6 +65,8 @@ class _BoundAkshareFinancialSliceFetcher:
 def build_akshare_financial_slice_fetcher(
     config: ProviderConfig,
     provider: UnifiedDataProviderProtocol,
+    *,
+    artifact_storage_root: Path | None = None,
 ) -> FinancialSliceFetcherProtocol:
     """Preflight the exact adapter row and approved dual-capture capability."""
 
@@ -83,10 +85,17 @@ def build_akshare_financial_slice_fetcher(
             "AKShare financial slice route does not match the exact active provider row",
             code="AKSHARE_FINANCIAL_PROVIDER_IDENTITY_INVALID",
         )
-    gateway = build_akshare_financial_capture_gateway(
-        config,
-        deployment_region=_deployment_region(),
-    )
+    if artifact_storage_root is None:
+        gateway = build_akshare_financial_capture_gateway(
+            config,
+            deployment_region=_deployment_region(),
+        )
+    else:
+        gateway = build_akshare_financial_capture_gateway(
+            config,
+            deployment_region=_deployment_region(),
+            artifact_storage_root=artifact_storage_root,
+        )
     return _BoundAkshareFinancialSliceFetcher(provider, gateway)
 
 

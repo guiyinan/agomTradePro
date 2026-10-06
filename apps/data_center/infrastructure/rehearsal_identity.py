@@ -20,6 +20,8 @@ IDENTITY_ERROR_CODES = frozenset(
 
 _CORE_ROLES = frozenset({"quote", "valuation"})
 _ROUTE_ROLE_PREFIX = "model_market_route:"
+_AKSHARE_FINANCIAL_ROUTE_ROLE_PREFIX = "akshare_financial_route:"
+_AKSHARE_FINANCIAL_IDENTITY_SOURCE = "akshare_financial"
 _MAX_IDENTITIES = 32
 
 
@@ -56,7 +58,14 @@ def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity
             strings[key] = raw
         role = strings["role"]
         if role in roles or (
-            role not in _CORE_ROLES and role != model_market_route_role(provider_id)
+            role not in _CORE_ROLES
+            and role != model_market_route_role(provider_id)
+            and role != akshare_financial_route_role(provider_id)
+        ):
+            raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        if (
+            role == akshare_financial_route_role(provider_id)
+            and strings["source"] != _AKSHARE_FINANCIAL_IDENTITY_SOURCE
         ):
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         roles.add(role)
@@ -73,6 +82,14 @@ def model_market_route_role(provider_id: int) -> str:
     if isinstance(provider_id, bool) or not isinstance(provider_id, int) or provider_id <= 0:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     return f"{_ROUTE_ROLE_PREFIX}{provider_id}"
+
+
+def akshare_financial_route_role(provider_id: int) -> str:
+    """Return the canonical frozen-identity role for one financial data route."""
+
+    if isinstance(provider_id, bool) or not isinstance(provider_id, int) or provider_id <= 0:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    return f"{_AKSHARE_FINANCIAL_ROUTE_ROLE_PREFIX}{provider_id}"
 
 
 def load_rehearsal_identities(path: Path) -> tuple[RehearsalProviderIdentity, ...]:
@@ -98,6 +115,9 @@ def rehearsal_identities_digest(identities: tuple[RehearsalProviderIdentity, ...
 
 def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalProviderIdentity:
     """Derive one non-secret identity from active config and installed provider code."""
+
+    if role == akshare_financial_route_role(provider_id):
+        return configured_akshare_financial_identity(provider_id=provider_id)
 
     from .models import ProviderConfigModel
 
@@ -180,6 +200,87 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
     return identity
 
 
+def configured_akshare_financial_identity(*, provider_id: int) -> RehearsalProviderIdentity:
+    """Bind the active provider row to the governed AKShare announcement-date route."""
+
+    from .financial_source_time_matchers import (
+        AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
+        akshare_notice_date_match_contract,
+    )
+    from .models import ProviderConfigModel
+
+    try:
+        provider = ProviderConfigModel._default_manager.only(
+            "id",
+            "name",
+            "source_type",
+            "is_active",
+            "priority",
+            "api_endpoint",
+        ).get(pk=provider_id)
+    except ProviderConfigModel.DoesNotExist as exc:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH") from exc
+    if not provider.is_active or str(provider.source_type or "").strip().lower() != "akshare":
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
+    contract = akshare_notice_date_match_contract()
+    try:
+        requests_version = importlib.metadata.version("requests")
+    except importlib.metadata.PackageNotFoundError as exc:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_UNAVAILABLE") from exc
+    config_material = json.dumps(
+        {
+            "api_endpoint": str(provider.api_endpoint or "").strip().rstrip("/"),
+            "is_active": provider.is_active,
+            "name": provider.name,
+            "priority": provider.priority,
+            "provider_id": provider_id,
+            "source_type": "akshare",
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    config_digest = hashlib.sha256(config_material).hexdigest()
+    endpoint_material = json.dumps(
+        {
+            "contract_id": contract.contract_id,
+            "contract_sha256": contract.contract_sha256,
+            "contract_version": contract.contract_version,
+            "endpoint": AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
+            "provider_config_sha256": config_digest,
+            "provider_id": provider_id,
+            "route": _AKSHARE_FINANCIAL_IDENTITY_SOURCE,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return RehearsalProviderIdentity(
+        role=akshare_financial_route_role(provider_id),
+        provider_id=provider_id,
+        source=_AKSHARE_FINANCIAL_IDENTITY_SOURCE,
+        version=(
+            f"akshare-financial-v1-requests-{requests_version}-"
+            f"contract-{contract.contract_sha256[:12]}"
+        ),
+        endpoint_id=f"akshare-financial-{hashlib.sha256(endpoint_material).hexdigest()}",
+    )
+
+
+def active_akshare_financial_provider_ids() -> tuple[int, ...]:
+    """Return sorted active AKShare rows eligible for the explicit financial route."""
+
+    from .models import ProviderConfigModel
+
+    return tuple(
+        int(provider_id)
+        for provider_id in ProviderConfigModel._default_manager.filter(
+            source_type="akshare",
+            is_active=True,
+        )
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
 def rehearsal_identity_matches_adapter_source(
     identity: RehearsalProviderIdentity,
     *,
@@ -188,6 +289,8 @@ def rehearsal_identity_matches_adapter_source(
     """Match a configured adapter to the upstream source it actually exercises."""
 
     normalized = str(adapter_source or "").strip().lower()
+    if identity.role == akshare_financial_route_role(identity.provider_id):
+        return normalized == _AKSHARE_FINANCIAL_IDENTITY_SOURCE and identity.source == normalized
     return normalized == identity.source or (
         (
             identity.role == "valuation"

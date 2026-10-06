@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Protocol, cast
@@ -70,6 +70,9 @@ from apps.data_center.infrastructure.financial_source_time_matchers import (
     akshare_notice_date_match_contract,
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
+from apps.data_center.infrastructure.s6_rehearsal_artifact_root import (
+    validate_s6_rehearsal_artifact_root,
+)
 from core.exceptions import DataFetchError
 
 AKSHARE_FINANCIAL_DATASET_KEY = "equity.financial.fact"
@@ -390,6 +393,7 @@ def build_akshare_financial_capture_gateway(
     *,
     deployment_region: str,
     environment: str | None = None,
+    artifact_storage_root: Path | None = None,
 ) -> AkshareFinancialCaptureGateway:
     """Build the AKShare pair producer from approved policy and explicit runtime config.
 
@@ -407,6 +411,14 @@ def build_akshare_financial_capture_gateway(
         raise FinancialResponseArtifactConfigurationError(
             "AKShare 财务原件保留配置未启用。",
             code="FINANCIAL_RESPONSE_ARTIFACT_CONFIG_INVALID",
+        )
+    if artifact_storage_root is not None:
+        runtime = replace(
+            runtime,
+            root=validate_s6_rehearsal_artifact_root(
+                artifact_storage_root,
+                protected_root=runtime.root,
+            ),
         )
     raw_audits = RawAuditRepository()
     financial_store, source_time_store = _build_dual_stores(runtime)

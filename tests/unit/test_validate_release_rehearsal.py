@@ -54,6 +54,13 @@ SAMPLE_CODES = _deterministic_sample(ASSET_CODES)
 TARGET_DATE = "2026-09-24"
 GITHUB_REPOSITORY = "guiyinan/agomTradePro"
 GITHUB_RUN_ID = 123456
+FINANCIAL_SOURCE_TIME_CONTRACT = json.loads(
+    (
+        Path(__file__).resolve().parents[2]
+        / "governance"
+        / "financial_source_time_match_contracts.json"
+    ).read_text(encoding="utf-8")
+)["contracts"][0]
 PROVIDERS = [
     {
         "role": "quote",
@@ -68,6 +75,16 @@ PROVIDERS = [
         "source": "tushare",
         "version": "v1",
         "endpoint_id": "primary",
+    },
+    {
+        "role": "akshare_financial_route:3",
+        "provider_id": 3,
+        "source": "akshare_financial",
+        "version": (
+            "akshare-financial-v1-requests-2.32.5-contract-"
+            f"{FINANCIAL_SOURCE_TIME_CONTRACT['contract_sha256'][:12]}"
+        ),
+        "endpoint_id": "akshare-financial-test-route",
     },
 ]
 PROVIDER_DIGEST = hashlib.sha256(
@@ -829,6 +846,96 @@ def _build_evidence(
             "junit_artifacts": junit_artifacts,
         }
     )
+    financial_route_identity = PROVIDERS[2]
+    financial_route_digest = hashlib.sha256(
+        json.dumps(
+            financial_route_identity,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    financial_junit_digest = next(
+        item["sha256"]
+        for item in junit_artifacts
+        if item["path"] == "financial-slice-sync-contracts.xml"
+    )
+    financial_slice = _common("akshare_financial_slice", now)
+    financial_slice.update(
+        {
+            "database": {
+                "vendor": "postgresql",
+                "scope": "disposable",
+                "release_rehearsal_guard": True,
+                "host": "agom-s6-postgres-run-01",
+                "name": "agom_release_rehearsal_run01",
+                "identity_sha256": hashlib.sha256(b"financial-database").hexdigest(),
+            },
+            "redis": {
+                "scope": "disposable",
+                "host": "agom-s6-redis-run-01",
+                "expected_host": "agom-s6-redis-run-01",
+                "ping_verified": True,
+            },
+            "selected_provider": {
+                "provider_id": 3,
+                "source_type": "akshare",
+                "frozen_identity_role": financial_route_identity["role"],
+                "frozen_identity_source": financial_route_identity["source"],
+                "frozen_route_identity_sha256": financial_route_digest,
+            },
+            "financial_route": {
+                "provider_route_identity": financial_route_identity,
+                "provider_route_identity_sha256": financial_route_digest,
+                "endpoint": FINANCIAL_SOURCE_TIME_CONTRACT["endpoint"],
+                "source_time_contract": FINANCIAL_SOURCE_TIME_CONTRACT,
+            },
+            "request_seed": {
+                "asset_code": ASSET_CODES[0],
+                "announcement_date": "2026-09-23",
+                "basis": "legacy_available_at_date_untrusted",
+                "source": "akshare",
+                "provenance_is_seed_only": True,
+                "legacy_fact_id_sha256": hashlib.sha256(b"legacy-fact").hexdigest(),
+                "selection_sha256": hashlib.sha256(b"selection").hexdigest(),
+            },
+            "sync": {
+                "requested": 1,
+                "succeeded": 1,
+                "failed": 0,
+                "stored": 3,
+                "planned_provider_requests": 2,
+                "provider_request_count": 2,
+                "atomic_fact_write_count": 1,
+                "typed_fact_evidence_count": 3,
+                "source_time_witness_count": 3,
+            },
+            "captures": [
+                {
+                    "dataset_key": dataset,
+                    "capture_id": f"00000000-0000-4000-8000-{index:012d}",
+                    "raw_audit_id": str(index),
+                    "raw_audit_count": 1,
+                    "raw_audit_status": "ok",
+                    "raw_audit_provider_id": 3,
+                    "body_sha256": body_digest,
+                    "raw_audit_body_sha256": body_digest,
+                    "body_size_bytes": 100 + index,
+                    "typed_evidence_count": 3,
+                    "witness_coverage_count": 3,
+                }
+                for index, dataset, body_digest in (
+                    (1, "equity.financial.fact", hashlib.sha256(b"financial").hexdigest()),
+                    (2, "equity.financial.source-time", hashlib.sha256(b"source-time").hexdigest()),
+                )
+            ],
+            "failure_evidence": {
+                "source": "candidate_regression_evidence",
+                "failure_isolated_before_real_provider_egress": True,
+                "zero_fact_write_test_cases": list(validator.FINANCIAL_ZERO_WRITE_PROOF_CASES),
+                "junit_sha256": financial_junit_digest,
+            },
+        }
+    )
     reports: dict[str, Path] = {}
     references: list[dict[str, str]] = []
     for kind, payload in (
@@ -836,6 +943,7 @@ def _build_evidence(
         ("full_universe_capacity", capacity),
         ("production_policy_parity", parity),
         ("isolated_write_rehearsal", staging),
+        ("akshare_financial_slice", financial_slice),
         ("candidate_regression_evidence", regression),
     ):
         path = tmp_path / f"{kind}.json"
@@ -964,7 +1072,7 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 5
+    assert len(result["validated_reports"]) == 6
 
 
 def test_validator_recomputes_candidate_universe_digest_from_target_partition(

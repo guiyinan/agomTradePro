@@ -9,15 +9,15 @@
       "celery_dispatch_edge": 19,
       "celery_task": 129,
       "compatibility_facade": 95,
-      "current_data_surface": 72,
+      "current_data_surface": 73,
       "dynamic_import_edge": 13,
-      "management_command": 40,
+      "management_command": 41,
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 69,
       "operational_script": 32,
-      "orchestration_entry": 14,
+      "orchestration_entry": 15,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
@@ -30,13 +30,13 @@
       "workflow_step": 12
     },
     "by_status": {
-      "active_public": 818,
+      "active_public": 821,
       "adjacent_operational": 337,
       "candidate-review": 1,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1294
+    "total": 1297
   },
   "entries": [
     {
@@ -2742,8 +2742,8 @@
     {
       "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
-      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:580",
-      "locator": "line:580",
+      "id": "celery_dispatch_edge:apps/alpha/infrastructure/adapters/qlib_adapter.py:apply_async:line:610",
+      "locator": "line:610",
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "status": "active_public",
       "symbol": "apply_async",
@@ -5181,6 +5181,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:alpha.qlib_provider_readiness:GET /api/ready/ Alpha workspace provider freshness diagnostics",
+      "locator": "GET /api/ready/ Alpha workspace provider freshness diagnostics",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "alpha.qlib_provider_readiness",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=9",
       "id": "current_data_surface:governance/current_data_contracts.json:broker_execution.connection_status:Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
       "locator": "Agent heartbeat -> GET /api/broker-execution/connections/ -> SDK connection status",
@@ -6167,6 +6177,16 @@
       "path": "apps/data_center/management/commands/record_data_center_reconciliation.py",
       "status": "active_public",
       "symbol": "record_data_center_reconciliation",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/rehearse_akshare_financial_slice.py:rehearse_akshare_financial_slice:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/rehearse_akshare_financial_slice.py",
+      "status": "active_public",
+      "symbol": "rehearse_akshare_financial_slice",
       "target": ""
     },
     {
@@ -8602,8 +8622,18 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:1214",
-      "locator": "line:1214",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_akshare_financial_slice:line:1282",
+      "locator": "line:1282",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "rehearse_akshare_financial_slice",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:1215",
+      "locator": "line:1215",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_full_universe_capacity",
@@ -8612,8 +8642,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:1262",
-      "locator": "line:1262",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:1263",
+      "locator": "line:1263",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_isolated_publication_write",
@@ -8622,8 +8652,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:1172",
-      "locator": "line:1172",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:1173",
+      "locator": "line:1173",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_market_providers",
@@ -8632,8 +8662,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_production_policy_parity:line:1240",
-      "locator": "line:1240",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_production_policy_parity:line:1241",
+      "locator": "line:1241",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_production_policy_parity",
@@ -8642,8 +8672,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:1196",
-      "locator": "line:1196",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:1197",
+      "locator": "line:1197",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "replay_market_provider_responses",
@@ -12991,7 +13021,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 94,
-    "current_data_contracts": 72,
+    "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 32,
     "runtime_config_keys": 45

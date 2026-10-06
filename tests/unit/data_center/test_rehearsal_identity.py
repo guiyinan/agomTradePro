@@ -3,6 +3,9 @@
 import pytest
 
 from apps.data_center.infrastructure import rehearsal_identity as identity
+from apps.data_center.infrastructure.financial_source_time_matchers import (
+    akshare_notice_date_match_contract,
+)
 from apps.data_center.infrastructure.models import ProviderConfigModel
 from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
 
@@ -56,6 +59,66 @@ def test_akshare_valuation_identity_binds_actual_tencent_transport(
 
 
 @pytest.mark.django_db
+def test_akshare_financial_route_identity_binds_provider_and_notice_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The financial API route has its own frozen identity, separate from Tencent."""
+
+    core_provider = ProviderConfigModel.objects.create(
+        name="rehearsal-core-tushare",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+    )
+    provider = ProviderConfigModel.objects.create(
+        name="rehearsal-akshare-financial",
+        source_type="akshare",
+        is_active=True,
+        priority=2,
+        api_endpoint="https://financial.example/v1",
+    )
+    monkeypatch.setattr(identity.importlib.metadata, "version", lambda _name: "2.32.5")
+    role = identity.akshare_financial_route_role(provider.pk)
+
+    actual = identity.configured_akshare_financial_identity(provider_id=provider.pk)
+    parsed = identity.parse_rehearsal_identities(
+        [
+            identity.configured_rehearsal_identity(
+                provider_id=core_provider.pk,
+                role="quote",
+            ).__dict__,
+            identity.configured_rehearsal_identity(
+                provider_id=core_provider.pk,
+                role="valuation",
+            ).__dict__,
+            actual.__dict__,
+        ]
+    )
+
+    assert actual.role == role
+    assert actual.source == "akshare_financial"
+    contract = akshare_notice_date_match_contract()
+    assert actual.version == (
+        "akshare-financial-v1-requests-2.32.5-contract-" f"{contract.contract_sha256[:12]}"
+    )
+    assert actual.endpoint_id.startswith("akshare-financial-")
+    assert identity.rehearsal_identity_matches_adapter_source(
+        actual,
+        adapter_source="akshare_financial",
+    )
+    assert not identity.rehearsal_identity_matches_adapter_source(
+        actual,
+        adapter_source="akshare",
+    )
+    assert identity.verify_configured_rehearsal_identities(parsed) == parsed
+
+    provider.priority = 7
+    provider.save(update_fields=["priority"])
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_MISMATCH"):
+        identity.verify_configured_rehearsal_identities(parsed)
+
+
+@pytest.mark.django_db
 def test_frozen_identities_include_adaptive_model_market_failover_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -96,6 +159,21 @@ def test_route_identity_role_must_bind_its_provider_id() -> None:
 
     with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_INVALID"):
         identity.parse_rehearsal_identities(values)
+
+    financial_values = [
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity("valuation", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity(
+            "akshare_financial_route:99",
+            3,
+            "akshare_financial",
+            "v1",
+            "endpoint-v2",
+        ).__dict__,
+    ]
+
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_INVALID"):
+        identity.parse_rehearsal_identities(financial_values)
 
 
 @pytest.mark.django_db

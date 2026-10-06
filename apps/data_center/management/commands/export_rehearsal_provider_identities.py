@@ -17,6 +17,9 @@ from apps.data_center.full_market_publication_preflight_composition import (
 )
 from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
+    active_akshare_financial_provider_ids,
+    akshare_financial_route_role,
+    configured_akshare_financial_identity,
     configured_rehearsal_identity,
     model_market_route_role,
     parse_rehearsal_identities,
@@ -84,8 +87,23 @@ def build_rehearsal_provider_identity_snapshot(
         if previous is not None and previous != route_identity:
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_MISMATCH")
         routes[provider_id] = route_identity
+    financial_provider_ids = active_akshare_financial_provider_ids()
+    if len(financial_provider_ids) != 1:
+        raise ValueError("REHEARSAL_AKSHARE_FINANCIAL_PROVIDER_AMBIGUOUS")
+    financial_identity = configured_akshare_financial_identity(
+        provider_id=financial_provider_ids[0]
+    )
+    if financial_identity.role != akshare_financial_route_role(financial_provider_ids[0]):
+        raise ValueError("REHEARSAL_AKSHARE_FINANCIAL_PROVIDER_INVALID")
     return parse_rehearsal_identities(
-        [asdict(identity) for identity in (*core, *(routes[key] for key in sorted(routes)))]
+        [
+            asdict(identity)
+            for identity in (
+                *core,
+                *(routes[key] for key in sorted(routes)),
+                financial_identity,
+            )
+        ]
     )
 
 
@@ -93,8 +111,8 @@ class Command(BaseCommand):
     """Export bounded, non-secret identities for core and policy route providers."""
 
     help = (
-        "Export quote, valuation and all model-market route provider identities "
-        "for an exact provider settings snapshot; strictly read-only."
+        "Export quote, valuation, model-market and one explicit AKShare financial route "
+        "identity for an exact provider settings snapshot; strictly read-only."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:

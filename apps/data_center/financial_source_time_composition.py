@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from django.conf import settings
@@ -38,6 +39,9 @@ from apps.data_center.infrastructure.financial_source_time_matchers import (
     akshare_notice_date_match_contract,
 )
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
+from apps.data_center.infrastructure.s6_rehearsal_artifact_root import (
+    validate_s6_rehearsal_artifact_root,
+)
 from core.exceptions import DataFetchError
 
 _AKSHARE_NOTICE_DATE_CONTRACT = akshare_notice_date_match_contract()
@@ -57,6 +61,8 @@ def _resolve_contract_matcher(
 
 def verify_retained_financial_source_time_evidence(
     decision_evidence: FinancialFactDecisionEvidence,
+    *,
+    artifact_storage_root: Path | None = None,
 ) -> bool:
     """Verify both encrypted artifacts and audits under an active parser contract.
 
@@ -70,12 +76,15 @@ def verify_retained_financial_source_time_evidence(
         decision_evidence,
         environment=None,
         expected_provider_id=None,
+        artifact_storage_root=artifact_storage_root,
     )
 
 
 def verify_provider_financial_source_time_evidence(
     provider: ProviderConfig,
     evidence: FinancialFactDecisionEvidence,
+    *,
+    artifact_storage_root: Path | None = None,
 ) -> bool:
     """Bind logical source identity and both audits to one active provider row."""
 
@@ -93,6 +102,7 @@ def verify_provider_financial_source_time_evidence(
         evidence,
         environment=None,
         expected_provider_id=int(provider.id),
+        artifact_storage_root=artifact_storage_root,
     )
 
 
@@ -101,6 +111,7 @@ def _verify_source_time_evidence(
     *,
     environment: str | None,
     expected_provider_id: int | None,
+    artifact_storage_root: Path | None,
 ) -> bool:
     """Build and execute the shared read-only verifier implementation."""
 
@@ -126,6 +137,14 @@ def _verify_source_time_evidence(
         runtime = resolve_financial_response_artifact_config(environment=environment)
         if runtime is None:
             return False
+        if artifact_storage_root is not None:
+            runtime = replace(
+                runtime,
+                root=validate_s6_rehearsal_artifact_root(
+                    artifact_storage_root,
+                    protected_root=runtime.root,
+                ),
+            )
         financial_store = FinancialResponseBodyStore(
             runtime.root,
             encryption_key=runtime.encryption_key,

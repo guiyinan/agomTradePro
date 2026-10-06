@@ -30,6 +30,7 @@ ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 PROVIDER_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 PROVIDER_CORE_ROLES = frozenset({"quote", "valuation"})
 PROVIDER_ROUTE_ROLE_PREFIX = "model_market_route:"
+PROVIDER_FINANCIAL_ROUTE_ROLE_PREFIX = "akshare_financial_route:"
 MAX_PROVIDER_IDENTITIES = 32
 UUID_PATTERN = re.compile(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
@@ -481,7 +482,14 @@ def _validate_provider_identities(value: object) -> str:
         ):
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         expected_route_role = f"{PROVIDER_ROUTE_ROLE_PREFIX}{provider_id}"
-        if role not in PROVIDER_CORE_ROLES and role != expected_route_role:
+        expected_financial_route_role = f"{PROVIDER_FINANCIAL_ROUTE_ROLE_PREFIX}{provider_id}"
+        if (
+            role not in PROVIDER_CORE_ROLES
+            and role != expected_route_role
+            and role != expected_financial_route_role
+        ):
+            _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        if role == expected_financial_route_role and source != "akshare_financial":
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         identity = (role, provider_id, source, version, endpoint_id)
         if role in roles or identity in identities:
@@ -2306,9 +2314,7 @@ def _validate_akshare_financial_slice(
         or database_value.get("release_rehearsal_guard") is not True
         or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", str(database_value.get("host") or ""))
         is None
-        or re.fullmatch(
-            r"agom_release_rehearsal_[a-z0-9_]+", str(database_value.get("name") or "")
-        )
+        or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", str(database_value.get("name") or ""))
         is None
         or SHA256_PATTERN.fullmatch(str(database_value.get("identity_sha256") or "")) is None
         or redis_value.get("scope") != "disposable"
@@ -2319,6 +2325,7 @@ def _validate_akshare_financial_slice(
         _fail("REHEARSAL_FINANCIAL_SLICE_ISOLATION_INVALID")
     provider_id = provider_value.get("provider_id")
     role = provider_value.get("frozen_identity_role")
+    source = provider_value.get("frozen_identity_source")
     route_digest = provider_value.get("frozen_route_identity_sha256")
     identities = report.get("provider_identities")
     if (
@@ -2327,7 +2334,8 @@ def _validate_akshare_financial_slice(
         or provider_id <= 0
         or provider_value.get("source_type") != "akshare"
         or not isinstance(role, str)
-        or role not in {"valuation", f"model_market_route:{provider_id}"}
+        or role != f"{PROVIDER_FINANCIAL_ROUTE_ROLE_PREFIX}{provider_id}"
+        or source != "akshare_financial"
         or not isinstance(identities, list)
         or SHA256_PATTERN.fullmatch(str(route_digest or "")) is None
     ):
@@ -2338,7 +2346,7 @@ def _validate_akshare_financial_slice(
         if isinstance(item, dict)
         and item.get("provider_id") == provider_id
         and item.get("role") == role
-        and item.get("source") == "tencent"
+        and item.get("source") == "akshare_financial"
     ]
     if (
         len(matching_identities) != 1
@@ -2352,6 +2360,25 @@ def _validate_akshare_financial_slice(
         != route_digest
     ):
         _fail("REHEARSAL_FINANCIAL_SLICE_PROVIDER_INVALID")
+    financial_route = report.get("financial_route")
+    if not isinstance(financial_route, dict):
+        _fail("REHEARSAL_FINANCIAL_SLICE_ROUTE_INVALID")
+    financial_route_value = cast(dict[str, Any], financial_route)
+    frozen_route_identity = financial_route_value.get("provider_route_identity")
+    source_time_contract = financial_route_value.get("source_time_contract")
+    expected_contract = _akshare_financial_source_time_contract()
+    if (
+        not isinstance(frozen_route_identity, dict)
+        or frozen_route_identity != matching_identities[0]
+        or financial_route_value.get("provider_route_identity_sha256") != route_digest
+        or financial_route_value.get("endpoint") != expected_contract.get("endpoint")
+        or source_time_contract != expected_contract
+        or not str(frozen_route_identity.get("endpoint_id") or "").startswith("akshare-financial-")
+        or not str(frozen_route_identity.get("version") or "").endswith(
+            f"-contract-{str(expected_contract.get('contract_sha256') or '')[:12]}"
+        )
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_ROUTE_INVALID")
     asset_code = seed_value.get("asset_code")
     announcement_date = seed_value.get("announcement_date")
     seed_basis = seed_value.get("basis")
@@ -2417,14 +2444,18 @@ def _validate_akshare_financial_slice(
             or not raw_audit_id.isdecimal()
             or int(raw_audit_id) <= 0
             or raw_audit_id in audit_ids
+            or type(capture.get("raw_audit_count")) is not int
             or capture.get("raw_audit_count") != 1
             or capture.get("raw_audit_status") != "ok"
+            or type(capture.get("raw_audit_provider_id")) is not int
             or capture.get("raw_audit_provider_id") != provider_id
             or SHA256_PATTERN.fullmatch(str(capture.get("body_sha256") or "")) is None
             or capture.get("raw_audit_body_sha256") != capture.get("body_sha256")
             or type(capture.get("body_size_bytes")) is not int
             or capture.get("body_size_bytes", 0) <= 0
+            or type(capture.get("typed_evidence_count")) is not int
             or capture.get("typed_evidence_count") != stored
+            or type(capture.get("witness_coverage_count")) is not int
             or capture.get("witness_coverage_count") != stored
         ):
             _fail("REHEARSAL_FINANCIAL_SLICE_CAPTURE_INVALID")
@@ -2446,14 +2477,15 @@ def _validate_akshare_financial_slice(
     ):
         _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
     regression_required = regression_report.get("required_tests")
-    if not isinstance(regression_required, list) or not set(FINANCIAL_ZERO_WRITE_PROOF_CASES).issubset(
-        set(regression_required)
-    ):
+    if not isinstance(regression_required, list) or not set(
+        FINANCIAL_ZERO_WRITE_PROOF_CASES
+    ).issubset(set(regression_required)):
         _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
     expected_junit_digest = failure_payload.get("junit_sha256")
-    if not isinstance(expected_junit_digest, str) or SHA256_PATTERN.fullmatch(
-        expected_junit_digest
-    ) is None:
+    if (
+        not isinstance(expected_junit_digest, str)
+        or SHA256_PATTERN.fullmatch(expected_junit_digest) is None
+    ):
         _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
     junit_artifacts = regression_report.get("junit_artifacts")
     if not isinstance(junit_artifacts, list) or not any(
@@ -2463,6 +2495,45 @@ def _validate_akshare_financial_slice(
         for item in cast(list[object], junit_artifacts)
     ):
         _fail("REHEARSAL_FINANCIAL_SLICE_FAILURE_PROOF_INVALID")
+
+
+def _akshare_financial_source_time_contract() -> dict[str, Any]:
+    """Read the one active AKShare time contract from its governed registry."""
+
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "governance"
+        / "financial_source_time_match_contracts.json"
+    )
+    try:
+        payload: object = json.loads(path.read_bytes())
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
+    if not isinstance(payload, dict) or payload.get("status") != "active":
+        _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
+    contracts = payload.get("contracts")
+    if not isinstance(contracts, list):
+        _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
+    matches = [
+        item
+        for item in cast(list[object], contracts)
+        if isinstance(item, dict) and item.get("provider_name") == "akshare"
+    ]
+    if len(matches) != 1:
+        _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
+    contract = cast(dict[str, Any], matches[0])
+    if (
+        contract.get("financial_dataset_key") != "equity.financial.fact"
+        or contract.get("source_time_dataset_key") != "equity.financial.source-time"
+        or not isinstance(contract.get("endpoint"), str)
+        or not isinstance(contract.get("contract_id"), str)
+        or not isinstance(contract.get("contract_version"), str)
+        or not isinstance(contract.get("parser_version"), str)
+        or not isinstance(contract.get("source_timezone"), str)
+        or SHA256_PATTERN.fullmatch(str(contract.get("contract_sha256") or "")) is None
+    ):
+        _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
+    return contract
 
 
 def validate_release_rehearsal(

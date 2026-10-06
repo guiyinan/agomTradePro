@@ -77,6 +77,12 @@ python scripts/run_release_rehearsal.py ... --provider-settings-json provider-se
 - 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
   必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
+- 全新 S6 还会执行 `akshare_financial_slice`：它要求隔离 PostgreSQL/Redis 和 provider identities
+  快照中的唯一 `akshare_financial_route`，从隔离快照的 AKShare `announced_at` 或 `available_at`
+  动态选取一个请求 asset/date。旧日期只是不可信请求种子；只有这次精确 asset/date 的双原件、
+  两个同 provider RawAudit、typed source-time contract 和单次 atomic fact write 才构成新证据。
+  该 stage 的逻辑 provider 请求固定为 `N=1, 2N=2`；零写故障反例绑定到候选 CI 的 JUnit SHA，
+  不会额外产生真实 provider 请求。
 - 治理真源：`governance/release_rehearsal_policy.json` 的 `required_reports`。
 
 - 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。

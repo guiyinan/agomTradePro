@@ -26,6 +26,7 @@ from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
     FinancialSliceSyncBudget,
     FinancialSliceSyncRequest,
+    FinancialSliceSyncResult,
     SyncAkshareFinancialSlicesUseCase,
 )
 from apps.data_center.domain.egress_routing import EgressRequestContext
@@ -874,8 +875,10 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
         "failed": 0,
         "stored": len(writer.calls[0]),
         "planned_provider_requests": 2,
+        "atomic_fact_write_count": 1,
         "failure_reason": None,
     }
+    assert result.atomic_fact_write_count == 1
     assert gateway_builds == [(17, "unknown")]
     assert configs.lookups == [17]
     assert registry.lookups == [17]
@@ -1132,6 +1135,7 @@ def test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts(
     assert result.succeeded == 0
     assert result.failed == 1
     assert result.stored == 0
+    assert result.atomic_fact_write_count == 0
     assert len(runner.calls) == 2
     assert writer.calls == []
 
@@ -1222,9 +1226,31 @@ def test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts
     assert result.succeeded == 1
     assert result.failed == 1
     assert result.stored == 0
+    assert result.atomic_fact_write_count == 0
     assert result.planned_provider_requests == 4
     assert fetcher.calls == 2
     assert writer.calls == []
+
+
+@pytest.mark.parametrize("atomic_fact_write_count", (True, -1, 2))
+def test_financial_slice_sync_result_rejects_invalid_atomic_write_count(
+    atomic_fact_write_count: int,
+) -> None:
+    """The count contract accepts only zero writes or one batch-write invocation."""
+
+    with pytest.raises(ValueError):
+        FinancialSliceSyncResult(
+            outcome="blocked",
+            source="akshare",
+            provider_id=17,
+            provider_name="AKShare Public",
+            requested=1,
+            succeeded=0,
+            failed=1,
+            stored=0,
+            planned_provider_requests=2,
+            atomic_fact_write_count=atomic_fact_write_count,
+        )
 
 
 def test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed(

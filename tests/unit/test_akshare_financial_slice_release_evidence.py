@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 
@@ -16,12 +17,22 @@ def _sha256(value: str) -> str:
 
 def _valid_report() -> tuple[dict[str, object], dict[str, object]]:
     identity: dict[str, object] = {
-        "role": "valuation",
+        "role": "akshare_financial_route:19",
         "provider_id": 19,
-        "source": "tencent",
-        "version": "tencent-quote-batch-v1-requests-1-cfg-test",
-        "endpoint_id": "provider-config-test",
+        "source": "akshare_financial",
+        "version": "akshare-financial-v1-requests-2.32.5-contract-",
+        "endpoint_id": "akshare-financial-test-route",
     }
+    contract: dict[str, object] = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "governance"
+            / "financial_source_time_match_contracts.json"
+        ).read_text(encoding="utf-8")
+    )["contracts"][0]
+    identity["version"] = (
+        f"akshare-financial-v1-requests-2.32.5-contract-" f"{contract['contract_sha256'][:12]}"
+    )
     route_sha = hashlib.sha256(
         json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -65,8 +76,15 @@ def _valid_report() -> tuple[dict[str, object], dict[str, object]]:
         "selected_provider": {
             "provider_id": 19,
             "source_type": "akshare",
-            "frozen_identity_role": "valuation",
+            "frozen_identity_role": "akshare_financial_route:19",
+            "frozen_identity_source": "akshare_financial",
             "frozen_route_identity_sha256": route_sha,
+        },
+        "financial_route": {
+            "provider_route_identity": identity,
+            "provider_route_identity_sha256": route_sha,
+            "endpoint": contract["endpoint"],
+            "source_time_contract": contract,
         },
         "request_seed": {
             "asset_code": "600000.SH",
@@ -121,6 +139,8 @@ def test_valid_financial_slice_release_evidence_requires_isolation_and_two_audit
         (("sync", "planned_provider_requests"), 4),
         (("sync", "atomic_fact_write_count"), 2),
         (("selected_provider", "provider_id"), 20),
+        (("financial_route", "provider_route_identity_sha256"), _sha256("wrong route")),
+        (("financial_route", "source_time_contract", "contract_sha256"), _sha256("wrong contract")),
         (("database", "vendor"), "sqlite"),
         (("redis", "ping_verified"), False),
         (("request_seed", "basis"), "period_end"),
@@ -148,6 +168,20 @@ def test_financial_slice_release_evidence_fails_closed(
 def test_financial_slice_release_evidence_requires_failure_cases_in_official_ci() -> None:
     report, regression_report = _valid_report()
     regression_report["required_tests"] = []
+
+    with pytest.raises(validator.RehearsalValidationError):
+        validator._validate_akshare_financial_slice(
+            report,
+            regression_report=regression_report,
+            expected_date="2025-04-01",
+        )
+
+
+def test_financial_slice_release_evidence_binds_junit_sha256() -> None:
+    report, regression_report = _valid_report()
+    regression_report["junit_artifacts"] = [
+        {"path": "financial-slice-sync-contracts.xml", "sha256": _sha256("wrong junit")}
+    ]
 
     with pytest.raises(validator.RehearsalValidationError):
         validator._validate_akshare_financial_slice(

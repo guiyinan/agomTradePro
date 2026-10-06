@@ -125,6 +125,7 @@ class FinancialSliceSyncResult:
     failed: int
     stored: int
     planned_provider_requests: int
+    atomic_fact_write_count: int = 0
     failure_reason: str | None = None
 
     def __post_init__(self) -> None:
@@ -134,8 +135,15 @@ class FinancialSliceSyncResult:
             raise ValueError("financial slice sync counters cannot be negative")
         if self.requested != self.succeeded + self.failed:
             raise ValueError("financial slice sync requested count must equal success plus failure")
-        if self.planned_provider_requests < 0:
-            raise ValueError("planned provider request count cannot be negative")
+        if (
+            isinstance(self.planned_provider_requests, bool)
+            or not isinstance(self.planned_provider_requests, int)
+            or self.planned_provider_requests < 0
+            or isinstance(self.atomic_fact_write_count, bool)
+            or not isinstance(self.atomic_fact_write_count, int)
+            or self.atomic_fact_write_count not in {0, 1}
+        ):
+            raise ValueError("financial slice provider request or atomic write count is invalid")
 
     def to_dict(self) -> dict[str, object]:
         """Return the stable business outcome contract."""
@@ -150,6 +158,7 @@ class FinancialSliceSyncResult:
             "failed": self.failed,
             "stored": self.stored,
             "planned_provider_requests": self.planned_provider_requests,
+            "atomic_fact_write_count": self.atomic_fact_write_count,
             "failure_reason": self.failure_reason,
         }
 
@@ -361,10 +370,12 @@ class SyncAkshareFinancialSlicesUseCase:
                 failure_reason="financial_slice_batch_empty_or_ambiguous",
             )
 
+        atomic_fact_write_count = 0
         try:
             facts_with_transport_metadata = [
                 with_verified_financial_transport_metadata(fact) for fact in all_facts
             ]
+            atomic_fact_write_count = 1
             stored = self._fact_repo.bulk_upsert(facts_with_transport_metadata)
         except (
             DataValidationError,
@@ -384,6 +395,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 planned_requests=planned_requests,
                 provider_id=provider_id,
                 provider_name=config.name,
+                atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_atomic_batch_write_failed",
             )
         if isinstance(stored, bool) or not isinstance(stored, int) or stored < 0:
@@ -397,6 +409,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 planned_requests=planned_requests,
                 provider_id=provider_id,
                 provider_name=config.name,
+                atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_repository_count_invalid",
             )
         if stored > len(facts_with_transport_metadata):
@@ -409,6 +422,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 planned_requests=planned_requests,
                 provider_id=provider_id,
                 provider_name=config.name,
+                atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_repository_count_invalid",
             )
         return self._result(
@@ -420,6 +434,7 @@ class SyncAkshareFinancialSlicesUseCase:
             planned_requests=planned_requests,
             provider_id=provider_id,
             provider_name=config.name,
+            atomic_fact_write_count=atomic_fact_write_count,
             failure_reason=None if stored > 0 else "financial_facts_already_current",
         )
 
@@ -567,6 +582,7 @@ class SyncAkshareFinancialSlicesUseCase:
         provider_id: int | None = None,
         provider_name: str | None = None,
         failed: int | None = None,
+        atomic_fact_write_count: int = 0,
     ) -> FinancialSliceSyncResult:
         """Build one immutable count contract from an execution decision."""
 
@@ -581,6 +597,7 @@ class SyncAkshareFinancialSlicesUseCase:
             failed=final_failed,
             stored=stored,
             planned_provider_requests=planned_requests,
+            atomic_fact_write_count=atomic_fact_write_count,
             failure_reason=failure_reason,
         )
 
