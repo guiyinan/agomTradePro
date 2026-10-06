@@ -2209,3 +2209,34 @@ EastMoney 受控验证；当前路径每证券/公告日两次请求，仍须在
 body store 与数据库 RawAudit 不是原子提交；失败 orphan 可检查但尚无自动对账/清理流程。新 adapter 方法目前只是显式的单证券/单公告日
 入口，通用任务仍走原路径；不得将其接入生产 schedule、启动 financial refresh、扩大 timeout/retry 或放宽 evidence/freshness
 约束。需要先由根代理审阅本地 diff，再独立处理受控 sync/provider source 路由和规模硬门禁。
+
+##### 财报整改第④片：显式 AKShare 切片 sync 与请求规模硬门禁
+
+完成项（`fdbc52919`）：基于 clean HEAD `820bdc73c` 新增一个受控 Application UseCase 和公开 composition builder。请求必须显式携带
+`source="akshare"`、正数 `provider_id`、规范资产代码、单一公告日的 tuple 切片和有限 `period_limit`；缺少 source/ID、错误
+source、错误/停用 provider row、adapter row ID 漂移、财务能力不存在、owner-approved contract 或 retained-body capability
+不可用时均在 provider egress 前 `blocked`，不回退默认 provider、不经过旧 DataFrame 财报入口。gateway 组合继续复用已批准合同、
+现有 Data Center egress、双体留存和 RawAudit verifier。
+
+新增 `governance/financial_sync_request_budgets.json` 作为 fail-closed 执行 ceiling，并由严格 loader 同时绑定 AKShare matcher
+contract id/version/SHA、每切片两次独立 logical capture 和既有 200 行上限。当前 ceiling 为一次最多 1 个资产/公告日切片，
+`N` 个切片先按 `2N` 计算 logical provider request 数并在读取 provider row 或创建 gateway 前拒绝超限；当前 policy 因而允许最多
+2 次 logical request。egress 的现有单请求最多两次 transport attempt 没有改动，所以最坏网络 attempt 上界为 `4N`；该上界不代表
+真实 provider 配额或生产 refresh 授权。任何扩大 ceiling 都需要独立的容量证据与 governance review。
+
+UseCase 会检查返回事实的 typed source/decision evidence、精确资产/公告日/page scope、body hash/native row identity、保留的双
+capture 引用及 owner contract/audit verifier。只在请求切片全部通过后，附加现有 publication transport metadata，并将完整 facts
+以单次 `FinancialFactRepository.bulk_upsert` 写入；repository 对 FinancialFact 数据库批次使用 `transaction.atomic`。任一 provider、
+解析、evidence 或审计失败都不调用事实 writer；多切片部分失败返回 `partial` 且 `stored=0`。body store 与数据库 RawAudit 仍不是
+跨介质原子事务，失败时可留下既有可识别 orphan。
+
+验证：根代理补充零写入 `noop` 原因契约后，17 个 AKShare/source-time/evidence/financial write/publication 回归文件为 `224 passed`；
+受控 sync 单文件为 `29 passed`，组件覆盖缺省/错误 source、
+错误 provider row/ID、审批或 capture capability 缺失、超过上限 `2N=4`、fake-transport 正常双体路径、evidence rejection 和后续
+provider 失败时零 FinancialFact 写入。Data Center architecture inventory/guard `10 passed`；Black、isort、Ruff、增量 mypy、debt
+ceiling、current-data `72 surfaces`、module map `44 modules / 210 edges` 与 architecture inventory projection 生成核对通过。
+本片没有触碰 Celery task/schedule，也没有 provider 调用、生产写入、deploy 或 refresh。
+
+未验证风险与停止线：EastMoney `SECUCODE+NOTICE_DATE` 真实 filter 合法性、provider 的 2N/4N 配额/频率/耗时、生产文件留存
+目录权限与 RawAudit orphan 自动修复均未验证。当前一对 capture 仍只适用于单个证券/公告日；owner contract 与 ceiling 不授权生产
+刷新。不得连接周期入口、扩展 timeout/retry、放宽 source-time/freshness/evidence 检查，或把旧 financial facts 补成有 provenance。
