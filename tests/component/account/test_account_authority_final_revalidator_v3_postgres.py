@@ -54,6 +54,7 @@ from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityCurrentGraphSelectorV3,
     AccountAuthorityShadowScanResultV3,
     AccountAuthorityV3CallerTransactionMode,
+    DjangoAccountAuthorityNoLockSnapshotBundleProviderV3,
     _AuthorityGraphFrozenClock,
     _compare_current_observations,
     _GenerationFencedOwnerTenantAuthorityV3Repository,
@@ -283,8 +284,13 @@ class _PostgresCompleteGraphReader:
             policies=DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using),
             actors=DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=self._using),
         )
+        actor_inputs = DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
+            using=self._using,
+            transaction_mode="generation_fenced_read_committed_read_write",
+        )
         with repository.atomic():
-            self.outer_uow_depths.append(len(connection.atomic_blocks))
+            with actor_inputs._snapshot(connection):
+                self.outer_uow_depths.append(len(connection.atomic_blocks))
         with connection.cursor() as cursor:
             cursor.execute("SELECT clock_timestamp()")
             row = cast(tuple[object, ...] | None, cursor.fetchone())

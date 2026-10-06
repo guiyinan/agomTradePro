@@ -17,6 +17,7 @@ from apps.account.application.owner_tenant_authority_v3 import (
 )
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerTenantAuthorityV3,
+    OwnerTenantAuthorityV3Conflict,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
     PhysicalAccountRowProviderIdentity,
@@ -214,7 +215,9 @@ def test_generation_fenced_authority_repository_joins_outer_uow_without_savepoin
 
     with repository.atomic():
         assert repository._active is True
-        assert repository._uow is repository._token
+        assert repository._uow is None
+        with pytest.raises(OwnerTenantAuthorityV3Conflict, match="private UOW"):
+            repository._require_uow()
 
     assert checks == [("default", 41, 1), ("default", 41, 1)]
     assert repository._active is False

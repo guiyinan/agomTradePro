@@ -100,9 +100,6 @@ from apps.account.infrastructure.canonical_account_creation_consumption_reposito
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
-from apps.account.infrastructure.owner_tenant_authority_v3_models import (
-    _activate_owner_tenant_authority_v3_uow,
-)
 from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
     OwnerTenantAuthorityV3OperationReadContext,
 )
@@ -195,12 +192,9 @@ class _GenerationFencedOwnerTenantAuthorityV3Repository(DjangoOwnerTenantAuthori
             raise OwnerTenantAuthorityV3Conflict(
                 "owner tenant authority v3 UOW cannot be re-entered"
             )
-        token = self._token
         self._active = True
-        self._uow = token
         try:
-            with _activate_owner_tenant_authority_v3_uow(token):
-                yield
+            yield
             require_active_account_authority_generation_fence(
                 using=self._using,
                 connection=connection,
