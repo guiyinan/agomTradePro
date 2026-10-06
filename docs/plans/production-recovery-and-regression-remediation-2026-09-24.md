@@ -2054,3 +2054,58 @@ Publication PostgreSQL artifact 含上述独立 node 且该节点无 skipped/fai
 
 下一片是否可开始：可以提交本节台账并 push 新最终 SHA，启动五组 exact-SHA CI；只有五组全绿后才可从最新生产只读快照创建
 全新 S6 attempt。
+
+#### 2026-10-06 outer-fence 最终候选 S6、同镜像部署与刷新授权停止线
+
+最终候选 `66f7d37077b239bd96cdd0aba1d185dcbc60cc5f` 的五组 exact-SHA CI 已全部通过：Architecture
+`37397578370`、Security `37397578910`、Consistency `37397578591`、Fast Feedback `37397579029`、
+Publication PostgreSQL `37397578493`。PostgreSQL artifact 中 Account final-revalidation JUnit 为
+`8 tests / 0 skipped / 0 failure / 0 error`，包含
+`test_postgres_generation_fenced_graph_uow_reuses_outer_transaction`；Publication JUnit 为
+`42 tests / 0 skipped / 0 failure / 0 error`，5,001-member activation soak 通过且查询硬上限仍为 35。
+
+第一次 fresh S6 attempt `5087833f22cc410eabd7be3dbfaa510d` 在 `build_only` 前由
+`REHEARSAL_BUILD_DISK_HEADROOM_INSUFFICIENT` 正确失败关闭：`/var/lib/docker` 可用 4.4 GiB，低于 12 GiB
+硬门槛，没有构建、部署或生产写。保留该 attempt 根目录与诊断后，只清理已确认无活动构建的 Docker build cache，以及已完成或
+失败 attempt 的 disposable PostgreSQL、Redis、network 和 volume；没有提高磁盘门槛。随后由 planner 原子预留 fresh attempt
+`cb86c74e64c14b06b5e8b47985e2b575`，从当时生产重新导出 provider settings、3 个完整 identities、5,572 个动态 universe
+成员与最新只读 PostgreSQL 快照，冻结策略的 `provider_policy_and_routes` preflight 为 pass、无 blocked codes。该 attempt
+禁止 `--resume` 执行完整十阶段，最终 outcome 为 `success_evidence`、runner exit 0。handoff receipt SHA-256 为
+`cb5d4c36809e4ebc051bd75ab3cd147f9d778ead7711aad145bfc078deb75b60`，manifest SHA-256 为
+`f09431cb7cb639825976ee80850e9295c5dce48e37595de57a68afaceb3be34a`，release tag 为 `20261006041252`，
+预构建镜像为 `sha256:1e10ffd7972bc5559a60741f47ae96852776054b022d06b199a7041330aa76c9`，OCI revision 精确等于
+候选 SHA。
+
+用户授权部署后，生产严格复用上述 receipt 绑定的同一预构建镜像，没有重建或替换镜像。部署进程 exit 0，`current` 为
+`/opt/agomtradepro/releases/source-20261006041252`；部署报告位于
+`/opt/agomtradepro/rehearsals/s6-66f7d37077-cb86c74e64c14b06b5e8b47985e2b575/deploy-report/remote-build-report-20261006041252-6e9892f7c78cd57f173f58793d6da395.json`，
+SHA-256 为 `8bb8201b5a04470aeff2348b34f6d5ea6f9ef795ea965ca3afa0d150990911a7`。Web 与三个 Celery 容器的
+image ID 和 OCI revision 均与 receipt 一致；526 条 migration 已应用、0 条未应用；Web、PostgreSQL、Redis、Prometheus、
+RSSHub 健康，`/api/health/` 为 200，服务 `/api/ready/` 为 200。生产 provider 路由预检仍为 pass、无 blocked codes；
+PostgreSQL `log_statement/log_min_duration_statement/log_min_duration_sample` 为 `none/-1/-1`。部署后清理本次 S6 disposable
+资源与 6.082 GB build cache，保留 receipt、manifest、报告和运行镜像，磁盘可用空间恢复到约 13 GiB。
+
+部署未隐式投递全市场刷新：复核时 full-market lease 为 false，Task Monitor 没有部署后新记录，Celery
+active/reserved/scheduled 均为 0。完成度审计进一步发现 `full-market-current-publications` 仍启用并计划在工作日
+17:05 Asia/Shanghai 自动触发，这会绕过“第二次刷新须单独授权”的停止线；因此在无任务、无 lease、无队列项的前提下，使用既有
+管理命令原子禁用 `full-market-current-publications` 与 `financial-current-publication-refresh`，复核两者均为
+`enabled=false`。该操作只关闭自动入口，没有创建业务任务或改写正式 Publication。
+
+完成项：outer-fence 最终候选的五组 CI、真实 PostgreSQL node、5,001-member soak、fresh S6、receipt 绑定同镜像部署、生产
+身份/迁移/健康/provider/statement logging 复核以及部署后只读零副作用检查全部完成；自动周期入口已在授权门前失败关闭。
+
+测试计数：本节代码候选证据为 Account final-revalidation `8 passed`、Publication PostgreSQL `42 passed`，均零跳过/失败/错误；
+S6 十阶段全部通过，release validator exit 0；生产 migration 为 `526 applied / 0 unapplied`。本节后续仅追加运行证据文档，
+提交前运行 `git diff --check`，不以文档提交替代已部署候选的 exact-SHA 证据。
+
+未验证风险与剩余停止线：正式 Publication 仍未恢复，`/api/decision-ready/` 继续以稳定码
+`decision_runtime_blocked` 返回 503；这是安全保护的预期状态，禁止直接关闭。旧失败 task
+`4e80d16a-391a-472e-9374-f91146a179aa` 禁止重跑。第二次生产全市场刷新尚无用户明确授权，因此尚无新任务的规范业务
+`outcome` 与 `requested/succeeded/failed/stored`，也尚未完成 Publication ID/hash/source time、decision runtime、Alpha、
+API/SDK/MCP、普通用户页面和只读零副作用联合验收。生产仍缺普通角色测试账户；财报 source-time owner approval 仍不得伪造；
+receipt-only 单一部署入口继续作为生产联合验收后的独立整改项。
+
+下一片是否可开始：只能等待用户对“一次新的显式生产全市场刷新”的明确授权。授权前保持两个周期入口禁用，不得投递或重跑；
+授权后先重新执行只读 preflight、lease/队列/authority/目标交易日复核，只允许一次新 task，终态必须按业务 outcome 而非 Celery
+状态验收。成功后继续正式 Publication、decision runtime、Alpha、API/SDK/MCP、普通用户页面和只读零副作用联合验收；任何失败
+先保存安全诊断并修根因，不盲目重跑或放宽 freshness、coverage、audit、source、15:00 close、`SIGNAL_WEAK` 及既有规模/锁阈值。
