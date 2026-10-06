@@ -496,7 +496,7 @@ def _akshare_request_params(
         "type": _AKSHARE_QUERY_TYPE,
         "sty": "APP_F10_MAINFINADATA",
         "quoteColumns": "",
-        "filter": (f'(SECUCODE="{asset_code}")' f'(NOTICE_DATE="{announcement_date.isoformat()}")'),
+        "filter": (f'(SECUCODE="{asset_code}")' f"(NOTICE_DATE='{announcement_date.isoformat()}')"),
         "p": "1",
         "ps": str(period_limit),
         "sr": "-1",

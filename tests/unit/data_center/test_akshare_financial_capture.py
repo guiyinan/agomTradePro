@@ -426,7 +426,7 @@ def test_akshare_financial_capture_retains_independent_exact_body_pair(tmp_path:
         "type": "RPT_F10_FINANCE_MAINFINADATA",
         "sty": "APP_F10_MAINFINADATA",
         "quoteColumns": "",
-        "filter": '(SECUCODE="000001.SZ")(NOTICE_DATE="2026-08-15")',
+        "filter": "(SECUCODE=\"000001.SZ\")(NOTICE_DATE='2026-08-15')",
         "p": "1",
         "ps": "8",
         "sr": "-1",
