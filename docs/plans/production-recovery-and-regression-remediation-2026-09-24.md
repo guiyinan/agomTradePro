@@ -2240,3 +2240,21 @@ ceiling、current-data `72 surfaces`、module map `44 modules / 210 edges` 与 a
 未验证风险与停止线：EastMoney `SECUCODE+NOTICE_DATE` 真实 filter 合法性、provider 的 2N/4N 配额/频率/耗时、生产文件留存
 目录权限与 RawAudit orphan 自动修复均未验证。当前一对 capture 仍只适用于单个证券/公告日；owner contract 与 ceiling 不授权生产
 刷新。不得连接周期入口、扩展 timeout/retry、放宽 source-time/freshness/evidence 检查，或把旧 financial facts 补成有 provenance。
+
+##### 财报整改第④片补充：真实 provider 组合 filter dry-run
+
+2026-10-07 00:10（Asia/Shanghai）对 EastMoney 公开只读 endpoint 做了单证券、小规模契约验证，没有经过生产数据库、留存目录、
+task 或 schedule。先以 `000001.SZ` 的资产过滤读取 5 行，provider 返回 HTTP 200、业务 `success=true/code=0`，发现真实
+`NOTICE_DATE=2026-08-15`。随后按原实现的双引号日期组合 filter 请求，HTTP 虽为 200，但 provider 业务返回
+`success=false/code=9501`、`filter字段中日期参数格式错误`、0 行；这证明 HTTP 200 不能替代 provider 业务契约验收。
+
+根因是 EastMoney 日期 filter 值要求 SQL 风格单引号；证券代码字符串仍接受双引号。将日期序列化修为
+`(SECUCODE="000001.SZ")(NOTICE_DATE='2026-08-15')` 后，单引号日期与单引号 midnight timestamp 两个有限探针均返回
+`success=true/code=0`、1 行，资产与公告日全部精确匹配。修复提交为 `a50c444ec`。随后通过 Django 初始化直接调用生产
+`_akshare_request_params` 再验：HTTP 200、业务 code 0、1 行、349.2ms、body SHA256
+`f788505c39fbbccfc7406cb0ab8ef43438a22757433a2e8afa1f4f4120cd5a2b`；修改后的 capture/sync 单文件回归
+`29 passed`，Black、Ruff 与增量 mypy 通过。
+
+本次仅证明真实 provider 接受修正后的单资产/单公告日请求格式。两个成功有限探针分别约 358.0ms 与 349.2ms，不能外推为
+全市场容量、频率或 SLA 结论，也没有验证生产 egress、加密留存、RawAudit、orphan 对账和事实写入。`N<=1/2N<=2` ceiling
+继续保持；在 exact-SHA CI、fresh S6 隔离存储与同镜像部署证据完成前，不得扩大 ceiling、接 task/schedule 或请求 financial refresh。
