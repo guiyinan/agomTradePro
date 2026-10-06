@@ -2186,3 +2186,26 @@ provider name 比较，必须在下一片独立修复并保留 provider ID 审�
 下一片是否可开始：可以修复 verifier 的 logical source/provider-row 身份契约，并将 capture pair、首次 witness 构造和 typed
 FinancialFact evidence 接入 AKShare adapter；必须先补真实格式 fake-transport 组件测试和任何失败零事实写入反例。请求规模、真实
 provider dry-run、task/source preflight 与周期配置继续作为后续独立停止线，不能在 adapter 接线时顺手放宽或启用。
+
+##### 财报整改第③片：provider 身份、AKShare 单公告日事实证据接线
+
+完成项（`dde104918`）：`verify_provider_financial_source_time_evidence` 现在用 `ProviderConfig.source_type` 校验 logical
+provider，并将 active provider row 的 ID 继续交给 financial/source-time 两份 RawAudit link verifier 精确比较。展示名
+`AKShare Public` 被正向覆盖；错误 source type、停用 row 与错误 provider ID 均失败关闭。AKShare capture gateway 新增 retained
+双 body 精确回读与两份 RawAudit provider ID 复核，并要求每个响应行都满足单证券、单公告日期范围。adapter 增加显式
+`fetch_financials_for_announcement_date` 路径：只从双份保留的原始 EastMoney bytes 解析指标，逐行先构造首次 witness，再生成
+typed `FinancialFactSourceEvidence` / `FinancialFactDecisionEvidence`；只有整批所有解析与证据均通过后才返回 facts。旧 DataFrame
+入口、通用 sync 用例、task/schedule 和 provider routing 均未改动，因此这个新路径尚未接入任何生产任务。
+
+验证：fake-transport adapter/capture、matcher、verifier、financial write-count/probe 与 publication sync 合并回归
+`81 passed`，另有 Data Center architecture guard `5 passed`。Black、isort、Ruff、`git diff --check` 通过；生产文件增量 mypy
+为 `0 regression`，债务上限为 `0 errors in 0 files`；
+current-data 为 `72 surfaces`，module map 为 `44 modules / 210 edges`，Data Center architecture inventory 已由唯一生成器
+`--write` 刷新并通过无写入核对。故障注入验证来源行不匹配时 adapter 不返回任何 fact，调用方的假写入集合保持为空；现有测试还覆盖
+provider rejection、空 body、重复 capture/audit claim 及 financial/source-time audit append 失败和 orphan 可识别性。
+
+未验证风险与停止线：没有调用真实 provider、生产数据库或生产写路径。组合 filter `SECUCODE+NOTICE_DATE` 尚未通过真实
+EastMoney 受控验证；当前路径每证券/公告日两次请求，仍须在任何广泛接入前完成 1+N / 2N 容量、频率、耗时与配额测算。跨文件系统
+body store 与数据库 RawAudit 不是原子提交；失败 orphan 可检查但尚无自动对账/清理流程。新 adapter 方法目前只是显式的单证券/单公告日
+入口，通用任务仍走原路径；不得将其接入生产 schedule、启动 financial refresh、扩大 timeout/retry 或放宽 evidence/freshness
+约束。需要先由根代理审阅本地 diff，再独立处理受控 sync/provider source 路由和规模硬门禁。
