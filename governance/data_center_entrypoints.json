@@ -5311,9 +5311,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=7",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_source_time_artifact_retention:Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
-      "locator": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
+      "evidence": "governed current-data contract; source_files=8",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_source_time_artifact_retention:Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation; the AKShare capture primitive is one asset and one announcement date per pair, and broader adapters require request-volume and provider-capacity gates",
+      "locator": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation; the AKShare capture primitive is one asset and one announcement date per pair, and broader adapters require request-volume and provider-capacity gates",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.financial_source_time_artifact_retention",

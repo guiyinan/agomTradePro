@@ -864,5 +864,4 @@ __all__ = [
     "SyncQuoteUseCase",
     "SyncSectorMembershipUseCase",
     "SyncValuationUseCase",
-    "with_verified_financial_transport_metadata",
 ]
