@@ -342,12 +342,9 @@ def test_collector_report_satisfies_bundle_identity_contract(
 
     assert collector_sandbox.collector.main(_arguments(tmp_path, output_dir)) == 0
     reports = {"candidate_regression_evidence": output_dir / "candidate-regression-evidence.json"}
-    for kind in (
-        "real_response_unit_replay",
-        "full_universe_capacity",
-        "production_policy_parity",
-        "isolated_write_rehearsal",
-    ):
+    for kind in BUNDLE_REQUIRED_SCHEMAS:
+        if kind == "candidate_regression_evidence":
+            continue
         report_dir = tmp_path / kind
         report_dir.mkdir()
         artifact = report_dir / "receipt.json"

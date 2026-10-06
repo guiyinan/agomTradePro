@@ -98,6 +98,12 @@ def verify_provider_financial_source_time_evidence(
         or provider.source_type != request_provider
     ):
         return False
+    if artifact_storage_root is None:
+        return _verify_source_time_evidence(
+            evidence,
+            environment=None,
+            expected_provider_id=int(provider.id),
+        )
     return _verify_source_time_evidence(
         evidence,
         environment=None,
@@ -111,7 +117,7 @@ def _verify_source_time_evidence(
     *,
     environment: str | None,
     expected_provider_id: int | None,
-    artifact_storage_root: Path | None,
+    artifact_storage_root: Path | None = None,
 ) -> bool:
     """Build and execute the shared read-only verifier implementation."""
 

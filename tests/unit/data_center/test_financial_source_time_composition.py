@@ -1,6 +1,7 @@
 """Composition keeps one source-time verifier across write and publication paths."""
 
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
@@ -161,3 +162,57 @@ def test_provider_verifier_uses_logical_source_and_binds_the_exact_provider_row(
         verify_provider_financial_source_time_evidence(replace(provider, id=18), evidence) is False
     )
     assert expected_ids == [17, 18]
+
+
+def test_provider_verifier_passes_explicit_s6_artifact_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An explicit S6 root reaches the shared verifier for isolated evidence reads."""
+
+    evidence = cast(
+        FinancialFactDecisionEvidence,
+        SimpleNamespace(
+            artifact_reference=SimpleNamespace(
+                evidence=SimpleNamespace(request_scope=SimpleNamespace(provider_name="akshare"))
+            )
+        ),
+    )
+    artifact_root = tmp_path / "s6-artifacts"
+    observed: list[tuple[int | None, Path | None]] = []
+
+    def verify(
+        _decision_evidence: FinancialFactDecisionEvidence,
+        *,
+        environment: str | None,
+        expected_provider_id: int | None,
+        artifact_storage_root: Path | None,
+    ) -> bool:
+        assert environment is None
+        observed.append((expected_provider_id, artifact_storage_root))
+        return True
+
+    monkeypatch.setattr(composition, "_verify_source_time_evidence", verify)
+    provider = ProviderConfig(
+        id=17,
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="test provider",
+    )
+
+    assert (
+        verify_provider_financial_source_time_evidence(
+            provider,
+            evidence,
+            artifact_storage_root=artifact_root,
+        )
+        is True
+    )
+    assert observed == [(17, artifact_root)]
