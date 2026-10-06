@@ -2275,3 +2275,64 @@ export 结构测试要求 `application.use_cases` 同名重导出。修复 `ec0b
 显式 import 能力而不扩张 legacy public export。根代理复跑 no-database fast suite为 `4045 passed`、61.62s（120s 预算），
 entrypoint inventory 无写核对通过；Black、isort、Ruff、增量 mypy 与 `git diff --check` 通过。两个旧失败 run 均不得重跑，后续仍只
 接受包含这些修复的新 exact-SHA 五组 CI。
+
+#### 2026-10-07 全面 E2E UAT 复验、用户反馈与最终候选门禁
+
+本轮 UAT 以业务结果为准，没有把 HTTP 200、Celery `SUCCESS` 或服务健康等同于业务恢复。生产正式全市场任务
+`bcb3e00f-538e-420d-b179-428c40082f43` 的既有终态证据继续有效：`outcome=success`，
+`requested/succeeded/failed/stored=5572/5572/0/11144`，publication `1/1`，price、quote、valuation 三个 current pointer
+由同一 activation 原子切换；该任务禁止再次投递或重跑。两个周期入口 `full-market-current-publications` 与
+`financial-current-publication-refresh` 继续作为部署后必须实时复核的 disabled 停止线。
+
+全面只读复验确认 signal API 的默认查询、`offset=0`、分页、状态、证券过滤及空列表契约均正常；SDK 与 MCP 对空结果不再按
+执行失败处理。Regime、估值、财报和政策读取保留稳定业务码、中文原因、数据时间与 `must_not_use_for_decision`，PX 待分类与人工
+复核要求没有被压成无条件 `neutral`。生产 `dashboard.read.alpha_history` 暴露 SDK 把已解包 list 当作 dict 的错误，提交
+`dfedaad3b` 统一 list response；对应生产部署后仍须复验。Task Monitor 的业务 outcome、四项统计和 API/MCP owner 契约回归为
+`72 passed`；signal/SDK 定向回归为 `44 passed`，SDK/MCP policy/signal 回归为 `43 passed`，TUI/workbench/terminal/SSL 组合
+回归为 `379 passed`。只读生产对账没有新增 refresh、建议或业务任务；观测到的 TaskExecution 增量来自既有周期任务，MCP READ
+只增加读取审计。部署后仍须以同一时间窗再次对账，不能以本轮旧生产结果替代新候选证据。
+
+生产 `/api/ready/` 的 8 秒超时被分解到旧 Qlib freshness probe 与市场日历冷启动。提交 `c9509c930` 改为读取同一
+`provider_uri/calendars/day.txt`，对文件行数和字节数设置硬上限并严格校验递增日期；缺失或损坏继续 fail closed，不缓存、不删除
+任何 readiness 检查。生产只读模拟中 database 约 0.8ms、critical data 约 22.1ms、decision data 约 3.78s、decision runtime
+约 6.3ms、Alpha cold/warm 约 358/203ms；它只证明新算法的量级，不能代替部署后真实 `/api/ready/` 复验。相关回归
+`46 passed`，增量 mypy、debt ceiling、current-data、Black、isort、Ruff 通过。
+
+Classic Alpha 页面提交 `be8e367f0` 将“本次运行”和“最近完成结果”分开显示，使用 Asia/Shanghai 时间，呈现阶段、业务 outcome、
+`requested/succeeded/failed/stored`、中文统计口径、稳定错误码与安全 trace；原始 UTC 和机器字段仍保留在数据契约中。显式刷新
+在 15 秒反馈预算后提示状态未确认，重复点击被抑制，重试按钮只做 GET 状态读取，不再次 POST。重复 Alpha GET 保持
+`allow_refresh=false/persist_history=false`，刷新端点拒绝 GET；候选研究详情在决策阻断下仍可读，Workspace 深链携带证券、账户、
+动作和来源。Classic pytest `21 passed`、Node 浏览器 harness `2 passed`，增量 mypy、debt ceiling、Black、isort、Ruff 与
+Web migration inventory 均通过。当前没有合法普通用户生产会话，生产普通角色的权限隔离、账户切换、候选深链和响应时间仍是
+明确未完成项；不得用匿名重定向或管理员会话冒充普通用户证据。
+
+财报链路提交 `4748d4940` 把受控 AKShare `N=1`、精确 `2N=2` logical request、双 raw body、两份 RawAudit、真实 provider row、
+owner-approved contract、typed evidence、单批 atomic fact write 与零写失败反例接入 S6，仍保持请求 ceiling，不连接周期任务。
+本地目标回归为 `254 passed / 2 skipped`；两个 skip 仅为 Windows 目录符号链接能力，必须由 Linux fresh S6 补齐。旧候选
+`4748d49405d75143f31a69546cf2a61dc19cee58` 的 Architecture `37520075048`、Security `37520075039` 和 Publication
+PostgreSQL `37520075062` 通过；Consistency `37520075097` 因 architecture inventory 未生成而失败，Fast Feedback
+`37520075294` 暴露 verifier 默认调用兼容和 release evidence fixture 没有包含第六 required report。没有重跑旧 run。
+
+提交 `f5c271f65` 仅在显式 S6 artifact root 时向 verifier 传递该参数，并让 collector 测试从治理定义读取完整 required schemas；
+validator、报告身份和 S6 证据要求均未放宽。相关回归 `39 passed / 1 skipped`，增量 mypy、debt ceiling、Black、isort、Ruff
+通过。提交 `32b708dda` 随后用唯一生成器重建 `governance/data_center_architecture_inventory.json`；inventory 单测
+`4 passed`，生成后 current surface 为 5,390、cross-app ORM imports 为 48、所有 Data Center 外部直连计数保持 0。
+
+完成项：行情/估值正式发布与全市场业务 outcome 已有生产证据；API/SDK/MCP 契约、只读零副作用、任务业务统计、Alpha 页面反馈、
+readiness 有界探针和 S6 财报 N=1 生产预演代码均已完成本地/历史生产分层验收。`SIGNAL_WEAK=0.6000` 没有降低，空信号与零候选
+没有造数；15:00 close、freshness、coverage、audit、source、请求/查询/文件阈值均未放宽。
+
+未验证风险与停止线：`32b708dda` 之后还须追加本节台账提交，只有该最终 exact SHA 的 Architecture、Security、Consistency、Fast
+Feedback、Publication PostgreSQL 五组 CI 全绿，且 PostgreSQL artifact 精确包含 financial slice sync 与 account outer-fence/5,001
+member soak 节点并零跳过/失败，才能从最新生产只读快照创建 fresh S6。S6 必须禁止 `--resume`，重新导出 provider settings、完整
+identities、动态 universe 与 unit contract，在隔离 PostgreSQL/Redis 和真实 provider 下完成十阶段、财报 N=1 双原件/审计/零写反例及
+release validator；随后只部署 receipt 绑定的同 SHA 预构建镜像。部署后必须复核 revision/image/receipt、migration、健康/readiness
+耗时、provider route、statement logging、两个周期入口 disabled、API/SDK/MCP 与只读零副作用。
+
+Financial current publication 仍为 legacy policy identity 且无 member-bound provenance，decision runtime 继续正确 fail closed；不能把三类
+行情/估值发布写成四类发布全部恢复。生产 financial refresh 仍需要用户新的明确授权，且当前 ceiling 只授权受控 `N<=1/2N<=2`，
+不能外推为全市场容量。普通用户生产 UAT 需要已有合法普通角色会话；不得创建持久 token、复用已暴露凭据或以管理员替代。上述任一
+停止线未满足时，E2E 总结必须标为“部分通过/仍有阻断”，不能宣称全面恢复。
+
+下一片是否可开始：可以提交本节台账并把新 HEAD 作为唯一最终候选，启动五组 exact-SHA CI；CI 全绿后执行 fresh S6 与 receipt-only
+同镜像部署。部署完成后继续只读联合 UAT并停在 financial refresh 与普通用户生产身份两个授权/输入门前。
