@@ -6801,27 +6801,27 @@
       "text": "\"\"\"Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract.\"\"\""
     },
     {
-      "line": 507,
+      "line": 549,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "\"\"\"Return the latest trading date available in the local qlib dataset.\"\"\""
     },
     {
-      "line": 715,
+      "line": 745,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary: dict[str, object] = {}"
     },
     {
-      "line": 718,
+      "line": 748,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[\"status\"] = status"
     },
     {
-      "line": 722,
+      "line": 752,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "summary[key] = value"
     },
     {
-      "line": 723,
+      "line": 753,
       "path": "apps/alpha/infrastructure/adapters/qlib_adapter.py",
       "text": "return summary or None"
     },
@@ -9616,12 +9616,12 @@
       "text": "getattr(current, \"updated_at\", None) or getattr(current, \"created_at\", None)"
     },
     {
-      "line": 70,
+      "line": 123,
       "path": "apps/dashboard/application/alpha_refresh_notice.py",
       "text": "\"\"\"Return the non-sensitive attempt fields used by the Alpha summary.\"\"\""
     },
     {
-      "line": 170,
+      "line": 237,
       "path": "apps/dashboard/application/alpha_refresh_notice.py",
       "text": "\"\"\"Describe current and completed attempts without exposing raw exceptions.\"\"\""
     },
@@ -10046,7 +10046,7 @@
       "text": "\"alpha_exit_entry_watch_summary\": alpha_exit_entry_panel[\"summary\"],"
     },
     {
-      "line": 2492,
+      "line": 2563,
       "path": "apps/dashboard/tests/test_alpha_views.py",
       "text": "assert context[\"summary\"] == {"
     },
@@ -10056,7 +10056,7 @@
       "text": "\"\"\"Current resolver errors expose only a stable availability warning.\"\"\""
     },
     {
-      "line": 451,
+      "line": 463,
       "path": "apps/data_center/akshare_financial_capture_composition.py",
       "text": "\"\"\"Refuse capture unless the current owner-approved registry matches code.\"\"\""
     },
