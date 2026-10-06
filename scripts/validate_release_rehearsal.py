@@ -93,6 +93,14 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_repository_float_ties_match_direct_postgresql_writer[positive_12_34525]",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_repository_float_ties_match_direct_postgresql_writer[positive_12_34535]",
     "tests.component.data_center.test_financial_fact_repository_postgres_provenance::test_financial_repository_stale_witness_rolls_back_postgresql_batch",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_retains_independent_exact_body_pair",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_adapter_builds_typed_facts_from_two_retained_raw_bodies",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts",
+    "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed",
 )
 REQUIRED_REPLAY_CASES = {
     "valid",
@@ -130,6 +138,7 @@ REQUIRED_JUNIT_FILES = {
     "account-authority-final-revalidation-postgres.xml",
     "publication-postgres.xml",
     "backfill-control-plane-postgres.xml",
+    "financial-slice-sync-contracts.xml",
 }
 RELEASE_POLICY_PATH = (
     Path(__file__).resolve().parents[1] / "governance" / "release_rehearsal_policy.json"

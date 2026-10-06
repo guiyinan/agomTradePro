@@ -120,10 +120,15 @@ class GithubStub:
             for identity in required
             if "test_account_authority_final_revalidator_v3_postgres" in identity
         ]
+        financial_slice = [
+            identity for identity in required if "test_akshare_financial_capture" in identity
+        ]
         publication = [
             identity
             for identity in required
-            if identity not in backfill and identity not in account_final
+            if identity not in backfill
+            and identity not in account_final
+            and identity not in financial_slice
         ]
         self.junit_files = {
             "publication-postgres.xml": _junit_bytes(
@@ -134,6 +139,9 @@ class GithubStub:
             ),
             "account-authority-final-revalidation-postgres.xml": _junit_bytes(
                 account_final, timestamp, self.skip_required_test
+            ),
+            "financial-slice-sync-contracts.xml": _junit_bytes(
+                financial_slice, timestamp, self.skip_required_test
             ),
         }
         self.archive = _zip_bytes(self.junit_files)

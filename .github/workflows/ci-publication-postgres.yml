@@ -146,6 +146,19 @@ jobs:
           --confcutdir=tests/component/data_center
           --create-db
           -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
+      - name: Exercise governed AKShare financial capture and slice sync
+        run: >-
+          python -m pytest
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_capture_retains_independent_exact_body_pair
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_adapter_builds_typed_facts_from_two_retained_raw_bodies
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts
+          tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed
+          --ds=core.settings.development_sqlite
+          -q -o addopts='' --junitxml=financial-slice-sync-contracts.xml
       - name: Exercise statement logging maintenance window and failure recovery
         env:
           PGPASSWORD: disposable_ci_only
@@ -385,6 +398,9 @@ jobs:
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
+          financial_slice_cases = ElementTree.parse(
+              'financial-slice-sync-contracts.xml'
+          ).findall('.//testcase')
           import json
           with open('sqlite-snapshot-rehearsal-report.json', encoding='utf-8') as handle:
               snapshot_report = json.load(handle)
@@ -394,6 +410,7 @@ jobs:
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(final_revalidation_cases) == 8, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 3, 'Expected control-plane and lineage cases were not collected'
+          assert len(financial_slice_cases) == 8, 'Expected financial slice cases were not collected'
           assert snapshot_report['outcome'] == 'success'
           assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
           assert snapshot_report['source_row_count'] > 0
@@ -405,6 +422,7 @@ jobs:
               *shadow_cases,
               *final_revalidation_cases,
               *control_plane_cases,
+              *financial_slice_cases,
           ]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
           assert all(case.find('failure') is None and case.find('error') is None for case in cases)
@@ -421,6 +439,7 @@ jobs:
             account-authority-shadow-postgres.xml
             account-authority-final-revalidation-postgres.xml
             backfill-control-plane-postgres.xml
+            financial-slice-sync-contracts.xml
             role-bootstrap-postgres.log
             statement-logging-guard.log
             statement-logging-window.log
