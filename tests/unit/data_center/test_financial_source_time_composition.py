@@ -1,10 +1,12 @@
 """Composition keeps one source-time verifier across write and publication paths."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
+from apps.data_center import financial_source_time_composition as composition
 from apps.data_center.application.financial_source_time_verifier import (
     FinancialSourceTimeContractMatcher,
 )
@@ -12,6 +14,8 @@ from apps.data_center.application.interface_services import (
     make_backfill_sync_financial_use_case,
     make_sync_financial_use_case,
 )
+from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.financial_source_evidence import FinancialFactDecisionEvidence
 from apps.data_center.domain.financial_source_time_contract import (
     FinancialSourceTimeMatchContract,
 )
@@ -97,3 +101,63 @@ def test_matcher_registry_uses_exact_contract_identity_not_parser_name(
     assert _resolve_contract_matcher(second) is second_matcher
     assert _resolve_contract_matcher(unregistered) is None
     assert _resolve_contract_matcher(digest_substitution) is None
+
+
+def test_provider_verifier_uses_logical_source_and_binds_the_exact_provider_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Display names may vary while active source type and audit row ID remain exact."""
+
+    evidence = cast(
+        FinancialFactDecisionEvidence,
+        SimpleNamespace(
+            artifact_reference=SimpleNamespace(
+                evidence=SimpleNamespace(request_scope=SimpleNamespace(provider_name="akshare"))
+            )
+        ),
+    )
+    expected_ids: list[int | None] = []
+
+    def verify(
+        _decision_evidence: FinancialFactDecisionEvidence,
+        *,
+        environment: str | None,
+        expected_provider_id: int | None,
+    ) -> bool:
+        assert environment is None
+        expected_ids.append(expected_provider_id)
+        return expected_provider_id == 17
+
+    monkeypatch.setattr(composition, "_verify_source_time_evidence", verify)
+    provider = ProviderConfig(
+        id=17,
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="test provider",
+    )
+
+    assert verify_provider_financial_source_time_evidence(provider, evidence) is True
+    assert expected_ids == [17]
+    assert (
+        verify_provider_financial_source_time_evidence(
+            replace(provider, source_type="tushare"), evidence
+        )
+        is False
+    )
+    assert expected_ids == [17]
+    assert (
+        verify_provider_financial_source_time_evidence(replace(provider, is_active=False), evidence)
+        is False
+    )
+    assert expected_ids == [17]
+    assert (
+        verify_provider_financial_source_time_evidence(replace(provider, id=18), evidence) is False
+    )
+    assert expected_ids == [17, 18]

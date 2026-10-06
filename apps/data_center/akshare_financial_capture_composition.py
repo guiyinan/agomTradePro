@@ -48,6 +48,9 @@ from apps.data_center.infrastructure.financial_response_capture import decode_js
 from apps.data_center.infrastructure.financial_source_time_artifact_repository import (
     FinancialSourceTimeArtifactRepository,
 )
+from apps.data_center.infrastructure.financial_source_time_audit import (
+    StrictFinancialSourceTimeAuditLinkVerifier,
+)
 from apps.data_center.infrastructure.financial_source_time_audit_repository import (
     DjangoFinancialSourceTimeArtifactAuditRepository,
 )
@@ -75,7 +78,7 @@ AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL = (
     "https://" + AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT.split("?", maxsplit=1)[0]
 )
 _AKSHARE_QUERY_TYPE = "RPT_F10_FINANCE_MAINFINADATA"
-_MAX_AKSHARE_FINANCIAL_PAGE_SIZE = 200
+MAX_AKSHARE_FINANCIAL_PAGE_SIZE = 200
 _AKSHARE_ASSET_FIELD = "SECUCODE"
 _AKSHARE_PERIOD_END_FIELD = "REPORT_DATE"
 _AKSHARE_ANNOUNCEMENT_DATE_FIELD = "NOTICE_DATE"
@@ -178,7 +181,7 @@ class AkshareFinancialCaptureGateway:
         if (
             isinstance(period_limit, bool)
             or not isinstance(period_limit, int)
-            or not 1 <= period_limit <= _MAX_AKSHARE_FINANCIAL_PAGE_SIZE
+            or not 1 <= period_limit <= MAX_AKSHARE_FINANCIAL_PAGE_SIZE
         ):
             raise AkshareFinancialCaptureError("AKShare 财报周期上限无效。")
         if isinstance(announcement_date, datetime) or not isinstance(announcement_date, date):
@@ -246,6 +249,55 @@ class AkshareFinancialCaptureGateway:
             source_time=source_time_retention,
         )
 
+    def read_retained_bodies(
+        self,
+        pair: AkshareFinancialArtifactPair,
+    ) -> tuple[bytes, bytes]:
+        """Read both retained bodies and recheck their exact provider-row bindings."""
+
+        if not isinstance(pair, AkshareFinancialArtifactPair):
+            raise AkshareFinancialCaptureError("AKShare 财报原件对无效。")
+        financial_reference = pair.financial.reference
+        source_time_reference = pair.source_time.reference
+        financial_evidence = financial_reference.evidence
+        request_scope = financial_evidence.request_scope
+        verifier = StrictFinancialSourceTimeAuditLinkVerifier(
+            expected_provider_id=self._provider_id
+        )
+        try:
+            financial_provider_id = verifier.verify_financial(
+                pair.financial.audit, financial_reference
+            )
+            source_time_provider_id = verifier.verify_source_time(
+                pair.source_time.audit, source_time_reference
+            )
+        except (KeyError, TypeError, ValueError):
+            raise AkshareFinancialCaptureError("AKShare 财报 RawAudit 身份绑定无效。") from None
+        if (
+            financial_provider_id != self._provider_id
+            or source_time_provider_id != self._provider_id
+            or financial_reference.capture_id == source_time_reference.capture_id
+            or request_scope.provider_name != AKSHARE_PROVIDER_NAME
+            or request_scope.dataset_key != AKSHARE_FINANCIAL_DATASET_KEY
+            or request_scope.asset_code != source_time_reference.requested_asset_code
+            or source_time_reference.provider_name != AKSHARE_PROVIDER_NAME
+            or source_time_reference.dataset_key != AKSHARE_SOURCE_TIME_DATASET_KEY
+        ):
+            raise AkshareFinancialCaptureError("AKShare 财报原件对范围或 provider 身份不匹配。")
+
+        financial_body = self._financial_repository.read(financial_reference)
+        source_time_body = self._source_time_repository.read(source_time_reference)
+        if (
+            type(financial_body) is not bytes
+            or len(financial_body) != financial_reference.body_size_bytes
+            or raw_body_sha256(financial_body) != financial_reference.body_sha256
+            or type(source_time_body) is not bytes
+            or len(source_time_body) != source_time_reference.body_size_bytes
+            or raw_body_sha256(source_time_body) != source_time_reference.body_sha256
+        ):
+            raise AkshareFinancialCaptureError("AKShare 财报 retained body 无法精确回读。")
+        return financial_body, source_time_body
+
     def _capture_one(
         self,
         *,
@@ -301,7 +353,6 @@ class AkshareFinancialCaptureGateway:
             raise AkshareFinancialCaptureError("AKShare 响应缺少有效的原始字节证据。")
         rows = _main_financial_rows(body)
         periods: set[date] = set()
-        contains_requested_announcement = False
         for row in rows:
             if row.get(_AKSHARE_ASSET_FIELD) != asset_code:
                 raise AkshareFinancialCaptureError("AKShare 返回了请求范围之外的证券。")
@@ -309,12 +360,9 @@ class AkshareFinancialCaptureGateway:
             row_announcement = _strict_provider_date(row.get(_AKSHARE_ANNOUNCEMENT_DATE_FIELD))
             if period_end is None or row_announcement is None:
                 raise AkshareFinancialCaptureError("AKShare 财报日期字段无效。")
+            if row_announcement != announcement_date:
+                raise AkshareFinancialCaptureError("AKShare 响应超出单公告日请求范围。")
             periods.add(period_end)
-            contains_requested_announcement = (
-                contains_requested_announcement or row_announcement == announcement_date
-            )
-        if not contains_requested_announcement:
-            raise AkshareFinancialCaptureError("AKShare 响应未包含请求的公告日期。")
         verified_scope = FinancialResponseScope(
             asset_codes=(asset_code,),
             period_ends=tuple(sorted(periods)),
@@ -439,7 +487,7 @@ def _akshare_request_params(
     if (
         isinstance(period_limit, bool)
         or not isinstance(period_limit, int)
-        or not 1 <= period_limit <= _MAX_AKSHARE_FINANCIAL_PAGE_SIZE
+        or not 1 <= period_limit <= MAX_AKSHARE_FINANCIAL_PAGE_SIZE
     ):
         raise AkshareFinancialCaptureError("AKShare 财报周期上限无效。")
     if isinstance(announcement_date, datetime) or not isinstance(announcement_date, date):
@@ -547,6 +595,7 @@ __all__ = [
     "AKSHARE_FINANCIAL_DATASET_KEY",
     "AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL",
     "AKSHARE_SOURCE_TIME_DATASET_KEY",
+    "MAX_AKSHARE_FINANCIAL_PAGE_SIZE",
     "AkshareFinancialArtifactPair",
     "AkshareFinancialCaptureError",
     "AkshareFinancialCaptureGateway",

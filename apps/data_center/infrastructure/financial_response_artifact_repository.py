@@ -131,6 +131,11 @@ class FinancialResponseArtifactRepository:
             provider_id=provider_id,
         )
 
+    def read(self, reference: FinancialResponseArtifactRef) -> bytes:
+        """Read and verify the exact bytes represented by a retained reference."""
+
+        return self._body_store.read(reference)
+
     def retain_rejected(
         self,
         *,

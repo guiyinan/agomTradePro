@@ -29,6 +29,9 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseScope,
     raw_body_sha256,
 )
+from apps.data_center.infrastructure._provider_adapter_akshare import (
+    AkshareUnifiedProviderAdapter,
+)
 from apps.data_center.infrastructure.financial_response_artifact_config import (
     FinancialResponseArtifactRuntimeConfig,
 )
@@ -42,6 +45,9 @@ from apps.data_center.infrastructure.financial_response_body_store import (
 )
 from apps.data_center.infrastructure.financial_source_time_artifact_repository import (
     FinancialSourceTimeArtifactRepository,
+)
+from apps.data_center.infrastructure.financial_source_time_audit import (
+    StrictFinancialSourceTimeAuditLinkVerifier,
 )
 from apps.data_center.infrastructure.financial_source_time_audit_repository import (
     DjangoFinancialSourceTimeArtifactAuditRepository,
@@ -60,14 +66,28 @@ CAPTURE_IDS = (
 FINANCIAL_BODY = (
     b'{"success":true,"code":0,"result":{"count":1,"data":'
     b'[{"SECUCODE":"000001.SZ","REPORT_DATE":"2026-06-30 00:00:00",'
-    b'"NOTICE_DATE":"2026-08-15 00:00:00"}]}}'
+    b'"NOTICE_DATE":"2026-08-15 00:00:00","TOTALOPERATEREVE":1000000,'
+    b'"PARENTNETPROFIT":250000,"TOTALOPERATEREVETZ":8.5,'
+    b'"PARENTNETPROFITTZ":12.0,"ROEJQ":7.5,"ZCFZL":50,'
+    b'"LIABILITY":500000,"TOTAL_ASSETS":1000000,"TOTAL_EQUITY":500000,'
+    b'"JROA":3.8}]}}'
 )
 SOURCE_TIME_BODY = (
     b'{\n  "success": true,\n  "code": 0,\n  "result": {\n'
     b'    "count": 1,\n    "data": [{\n'
     b'      "SECUCODE": "000001.SZ",\n'
     b'      "REPORT_DATE": "2026-06-30 00:00:00",\n'
-    b'      "NOTICE_DATE": "2026-08-15 00:00:00"\n'
+    b'      "NOTICE_DATE": "2026-08-15 00:00:00",\n'
+    b'      "TOTALOPERATEREVE": 1000000,\n'
+    b'      "PARENTNETPROFIT": 250000,\n'
+    b'      "TOTALOPERATEREVETZ": 8.5,\n'
+    b'      "PARENTNETPROFITTZ": 12.0,\n'
+    b'      "ROEJQ": 7.5,\n'
+    b'      "ZCFZL": 50,\n'
+    b'      "LIABILITY": 500000,\n'
+    b'      "TOTAL_ASSETS": 1000000,\n'
+    b'      "TOTAL_EQUITY": 500000,\n'
+    b'      "JROA": 3.8\n'
     b"    }]\n  }\n}"
 )
 COMPLETED_AT = datetime(2026, 8, 28, 7, 32, tzinfo=UTC)
@@ -344,6 +364,129 @@ def test_akshare_financial_capture_retains_independent_exact_body_pair(tmp_path:
     assert len(audits.source_time_rows) == 1
     assert retained.financial.audit.capability == "financial"
     assert retained.source_time.audit.capability == "financial_source_time"
+    links = StrictFinancialSourceTimeAuditLinkVerifier(expected_provider_id=17)
+    assert links.verify_financial(retained.financial.audit, retained.financial.reference) == 17
+    assert (
+        links.verify_source_time(retained.source_time.audit, retained.source_time.reference) == 17
+    )
+    wrong_row = StrictFinancialSourceTimeAuditLinkVerifier(expected_provider_id=18)
+    assert (
+        wrong_row.verify_financial(retained.financial.audit, retained.financial.reference) is None
+    )
+    assert (
+        wrong_row.verify_source_time(retained.source_time.audit, retained.source_time.reference)
+        is None
+    )
+
+
+def test_akshare_adapter_builds_typed_facts_from_two_retained_raw_bodies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one-date adapter path binds raw EastMoney metrics to its first witness."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, financial_store, source_time_store = _gateway(tmp_path, runner)
+    adapter = AkshareUnifiedProviderAdapter(_provider())
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_akshare.get_akshare_module",
+        lambda: pytest.fail("source-time path must not use a normalized DataFrame"),
+    )
+
+    facts = adapter.fetch_financials_for_announcement_date(
+        ASSET_CODE,
+        ANNOUNCEMENT_DATE,
+        capture_gateway=gateway,
+    )
+
+    assert len(facts) == 10
+    assert {fact.metric_code for fact in facts} == {
+        "revenue",
+        "net_profit",
+        "revenue_growth",
+        "net_profit_growth",
+        "total_assets",
+        "total_liabilities",
+        "equity",
+        "roe",
+        "roa",
+        "debt_ratio",
+    }
+    assert len(audits.financial_rows) == len(audits.source_time_rows) == 1
+    for fact in facts:
+        source_evidence = fact.source_evidence
+        decision_evidence = fact.decision_evidence
+        assert source_evidence is not None and source_evidence.is_complete
+        assert decision_evidence is not None
+        witness = decision_evidence.source_time_witness
+        assert witness is not None
+        assert decision_evidence.native_row_id == source_evidence.source_record_id
+        assert source_evidence.raw_payload_hash == hashlib.sha256(FINANCIAL_BODY).hexdigest()
+        assert source_evidence.announced_at == datetime(2026, 8, 14, 16, tzinfo=UTC)
+        assert fact.available_at == datetime(2026, 8, 15, 16, tzinfo=UTC)
+        assert (
+            witness.artifact_reference.capture_id != decision_evidence.artifact_reference.capture_id
+        )
+        assert financial_store.read(decision_evidence.artifact_reference) == FINANCIAL_BODY
+        assert source_time_store.read(witness.artifact_reference) == SOURCE_TIME_BODY
+
+
+@pytest.mark.parametrize(
+    "failure_stage",
+    ["provider", "capture_parse", "witness", "source_time_audit"],
+)
+def test_akshare_adapter_failures_before_fact_return_leave_zero_persisted_facts(
+    tmp_path: Path,
+    failure_stage: str,
+) -> None:
+    """Provider, parsing, witness, and audit failures expose no facts to a writer."""
+
+    rejected_provider_body = b'{"success":false,"code":500,"result":{"count":0,"data":[]}}'
+    mismatched_source_body = SOURCE_TIME_BODY.replace(b"2026-06-30", b"2026-03-31", 1)
+    financial_body = b"not-json" if failure_stage == "capture_parse" else FINANCIAL_BODY
+    source_time_body = (
+        rejected_provider_body
+        if failure_stage == "provider"
+        else mismatched_source_body if failure_stage == "witness" else SOURCE_TIME_BODY
+    )
+    audits = _Audits(fail_source_time=failure_stage == "source_time_audit")
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: financial_body,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: source_time_body,
+        }
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(
+        tmp_path,
+        runner,
+        audits,
+    )
+    adapter = AkshareUnifiedProviderAdapter(_provider())
+    writes: list[object] = []
+
+    def fetch_then_write() -> None:
+        candidate_facts = adapter.fetch_financials_for_announcement_date(
+            ASSET_CODE,
+            ANNOUNCEMENT_DATE,
+            capture_gateway=gateway,
+        )
+        writes.extend(candidate_facts)
+
+    with pytest.raises(DataFetchError) as caught:
+        fetch_then_write()
+
+    if failure_stage == "provider":
+        assert caught.value.code == "AKSHARE_FINANCIAL_PROVIDER_REJECTED"
+    elif failure_stage == "capture_parse":
+        assert caught.value.code == "AKSHARE_FINANCIAL_CAPTURE_INVALID"
+    elif failure_stage == "witness":
+        assert caught.value.code == "AKSHARE_FINANCIAL_FACT_EVIDENCE_INVALID"
+    assert writes == []
 
 
 def test_akshare_financial_capture_rejects_missing_raw_body_before_retention(

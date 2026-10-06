@@ -8,12 +8,21 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from time import sleep
 from typing import Any, cast
 
 import requests
 
+from apps.data_center.akshare_financial_capture_composition import (
+    AKSHARE_FINANCIAL_DATASET_KEY,
+    MAX_AKSHARE_FINANCIAL_PAGE_SIZE,
+    AkshareFinancialArtifactPair,
+    AkshareFinancialCaptureGateway,
+    build_akshare_financial_capture_gateway,
+)
 from apps.data_center.application.egress_service import get_egress_transport
 from apps.data_center.application.model_market_data import ModelHistoryFetchAuditPort
 from apps.data_center.domain.entities import (
@@ -29,6 +38,10 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import (
     DataQualityStatus,
+)
+from apps.data_center.domain.financial_source_evidence import (
+    FinancialFactDecisionEvidence,
+    FinancialFactSourceEvidence,
 )
 from apps.data_center.domain.market_time import (
     cn_market_date_from_observation,
@@ -51,9 +64,16 @@ from apps.data_center.infrastructure.akshare_model_market_source import (
     AkshareModelMarketSource,
     _EgressHistoryTransport,
 )
+from apps.data_center.infrastructure.financial_response_capture import decode_json_bytes
+from apps.data_center.infrastructure.financial_source_time_matchers import (
+    AKSHARE_PROVIDER_NAME,
+    AkshareNoticeDateSourceTimeMatcher,
+    akshare_notice_date_match_contract,
+)
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.macro_sources import AKShareAdapter
 from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor_account_facts
+from core.exceptions import DataFetchError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -646,6 +666,255 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
         return facts
 
+    def fetch_financials_for_announcement_date(
+        self,
+        asset_code: str,
+        announcement_date: date,
+        periods: int = 8,
+        *,
+        capture_gateway: AkshareFinancialCaptureGateway | None = None,
+    ) -> list[FinancialFact]:
+        """Return one asset/date slice only after dual-body evidence is complete.
+
+        This explicit path captures and retains exact provider bytes twice,
+        reads both retained bodies back, and constructs a date-only witness for
+        every returned financial row before exposing any facts to a caller.
+        It is intentionally not a fallback to the legacy DataFrame endpoint.
+        """
+
+        if (
+            self._config.source_type != AKSHARE_PROVIDER_NAME
+            or self._config.is_active is not True
+            or self._config.id is None
+            or isinstance(self._config.id, bool)
+            or self._config.id <= 0
+        ):
+            raise DataFetchError(
+                "AKShare financial provider row is not active or correctly identified",
+                code="AKSHARE_FINANCIAL_PROVIDER_IDENTITY_INVALID",
+            )
+        if (
+            isinstance(periods, bool)
+            or not isinstance(periods, int)
+            or not 1 <= periods <= MAX_AKSHARE_FINANCIAL_PAGE_SIZE
+        ):
+            raise DataFetchError(
+                "AKShare financial page size is outside the governed bound",
+                code="AKSHARE_FINANCIAL_CAPTURE_INVALID",
+            )
+        if isinstance(announcement_date, datetime) or not isinstance(announcement_date, date):
+            raise DataFetchError(
+                "AKShare announcement date must be a calendar date",
+                code="AKSHARE_FINANCIAL_CAPTURE_INVALID",
+            )
+
+        canonical_asset_code = normalize_asset_code(asset_code, AKSHARE_PROVIDER_NAME)
+        gateway = capture_gateway or build_akshare_financial_capture_gateway(
+            self._config,
+            deployment_region=_deployment_region(),
+        )
+        pair = gateway.capture_and_retain(
+            asset_code=canonical_asset_code,
+            period_limit=periods,
+            announcement_date=announcement_date,
+        )
+        self._require_pair_provider_identity(pair)
+        financial_body, source_time_body = gateway.read_retained_bodies(pair)
+        return self._facts_from_retained_pair(
+            pair=pair,
+            financial_body=financial_body,
+            source_time_body=source_time_body,
+            asset_code=canonical_asset_code,
+            announcement_date=announcement_date,
+        )
+
+    def _require_pair_provider_identity(self, pair: AkshareFinancialArtifactPair) -> None:
+        """Require both retained audits to name this configured provider row."""
+
+        financial_link = pair.financial.audit.extra.get("financial_response_artifact")
+        source_time_link = pair.source_time.audit.extra.get("financial_source_time_artifact")
+        provider_id = self._config.id
+        if (
+            not isinstance(financial_link, Mapping)
+            or not isinstance(source_time_link, Mapping)
+            or isinstance(provider_id, bool)
+            or not isinstance(provider_id, int)
+            or financial_link.get("provider_id") != provider_id
+            or source_time_link.get("provider_id") != provider_id
+        ):
+            raise DataFetchError(
+                "AKShare retained artifacts are not bound to the configured provider row",
+                code="AKSHARE_FINANCIAL_PROVIDER_IDENTITY_INVALID",
+            )
+
+    def _facts_from_retained_pair(
+        self,
+        *,
+        pair: AkshareFinancialArtifactPair,
+        financial_body: bytes,
+        source_time_body: bytes,
+        asset_code: str,
+        announcement_date: date,
+    ) -> list[FinancialFact]:
+        """Parse one retained EastMoney response and bind each fact to a witness."""
+
+        financial_reference = pair.financial.reference
+        request_scope = financial_reference.evidence.request_scope
+        source_time_reference = pair.source_time.reference
+        if (
+            request_scope.provider_name != AKSHARE_PROVIDER_NAME
+            or request_scope.dataset_key != AKSHARE_FINANCIAL_DATASET_KEY
+            or request_scope.asset_code != asset_code
+            or source_time_reference.requested_asset_code != asset_code
+            or source_time_reference.requested_announcement_date != announcement_date
+            or source_time_reference.provider_name != AKSHARE_PROVIDER_NAME
+        ):
+            raise DataFetchError(
+                "AKShare retained financial evidence does not match the requested dimensions",
+                code="AKSHARE_FINANCIAL_FACT_EVIDENCE_INVALID",
+            )
+        try:
+            rows = _akshare_main_financial_rows(financial_body)
+            matcher = AkshareNoticeDateSourceTimeMatcher()
+            contract = akshare_notice_date_match_contract()
+            facts: list[FinancialFact] = []
+            seen_row_ids: set[str] = set()
+            for row in rows:
+                row_asset_code = row.get("SECUCODE")
+                period_end = _strict_akshare_calendar_date(row.get("REPORT_DATE"))
+                row_announcement_date = _strict_akshare_calendar_date(row.get("NOTICE_DATE"))
+                if (
+                    row_asset_code != asset_code
+                    or period_end is None
+                    or row_announcement_date != announcement_date
+                ):
+                    raise ValueError("AKShare returned a row outside the requested asset/date")
+                native_row_id = _akshare_financial_native_row_id(
+                    asset_code=asset_code,
+                    period_end=period_end,
+                    announcement_date=row_announcement_date,
+                )
+                if native_row_id in seen_row_ids:
+                    raise ValueError("AKShare financial response contains duplicate native rows")
+                seen_row_ids.add(native_row_id)
+                unwitnessed = FinancialFactDecisionEvidence(
+                    artifact_reference=financial_reference,
+                    native_asset_code=asset_code,
+                    native_period_end=period_end,
+                    native_row_id=native_row_id,
+                )
+                witness = matcher.build_witness(
+                    contract=contract,
+                    financial_body=financial_body,
+                    source_time_body=source_time_body,
+                    decision_evidence=unwitnessed,
+                    source_time_reference=source_time_reference,
+                )
+                if witness is None:
+                    raise ValueError("AKShare source-time witness could not be constructed")
+                decision_evidence = replace(unwitnessed, source_time_witness=witness)
+                source_evidence = FinancialFactSourceEvidence(
+                    announced_at=witness.announced_at,
+                    source_record_id=native_row_id,
+                    raw_payload_hash=financial_reference.body_sha256,
+                )
+                facts.extend(
+                    self._facts_from_akshare_row(
+                        row=row,
+                        asset_code=asset_code,
+                        period_end=period_end,
+                        announcement_date=row_announcement_date,
+                        source_evidence=source_evidence,
+                        decision_evidence=decision_evidence,
+                    )
+                )
+            return facts
+        except (TypeError, ValueError) as exc:
+            raise DataFetchError(
+                "AKShare financial parsing or source-time evidence failed closed",
+                code="AKSHARE_FINANCIAL_FACT_EVIDENCE_INVALID",
+            ) from exc
+
+    def _facts_from_akshare_row(
+        self,
+        *,
+        row: Mapping[str, object],
+        asset_code: str,
+        period_end: date,
+        announcement_date: date,
+        source_evidence: FinancialFactSourceEvidence,
+        decision_evidence: FinancialFactDecisionEvidence,
+    ) -> list[FinancialFact]:
+        """Normalize provider metric values while preserving shared row evidence."""
+
+        row_values = cast(dict[str, Any], dict(row))
+        revenue = safe_float(_first_present(row_values, "TOTALOPERATEREVE", "营业总收入"))
+        net_profit = safe_float(_first_present(row_values, "PARENTNETPROFIT", "归母净利润"))
+        roe = safe_float(_first_present(row_values, "ROEJQ", "ROE_DILUTED", "净资产收益率"))
+        debt_ratio = safe_float(_first_present(row_values, "ZCFZL", "资产负债率"))
+        total_liabilities = safe_float(_first_present(row_values, "LIABILITY", "负债合计"))
+        total_assets = safe_float(_first_present(row_values, "TOTAL_ASSETS", "总资产"))
+        derived_metrics: dict[str, str] = {}
+        if (
+            total_assets is None
+            and total_liabilities is not None
+            and debt_ratio is not None
+            and debt_ratio != 0.0
+        ):
+            total_assets = total_liabilities / (debt_ratio / 100)
+            derived_metrics["total_assets"] = "total_liabilities_divided_by_debt_ratio"
+        if total_liabilities is None and total_assets is not None and debt_ratio is not None:
+            total_liabilities = total_assets * debt_ratio / 100
+            derived_metrics["total_liabilities"] = "total_assets_multiplied_by_debt_ratio"
+        equity = safe_float(_first_present(row_values, "TOTAL_EQUITY", "股东权益合计"))
+        if equity is None and total_assets is not None and total_liabilities is not None:
+            equity = total_assets - total_liabilities
+            derived_metrics["equity"] = "total_assets_minus_total_liabilities"
+
+        metric_values: dict[str, tuple[float | None, str]] = {
+            "revenue": (revenue, "元"),
+            "net_profit": (net_profit, "元"),
+            "revenue_growth": (
+                safe_float(_first_present(row_values, "TOTALOPERATEREVETZ", "营收同比")),
+                "%",
+            ),
+            "net_profit_growth": (
+                safe_float(_first_present(row_values, "PARENTNETPROFITTZ", "归母净利润同比")),
+                "%",
+            ),
+            "total_assets": (total_assets, "元"),
+            "total_liabilities": (total_liabilities, "元"),
+            "equity": (equity, "元"),
+            "roe": (roe, "%"),
+            "roa": (safe_float(_first_present(row_values, "JROA", "ZZCJLL", "总资产收益率")), "%"),
+            "debt_ratio": (debt_ratio, "%"),
+        }
+        witness = decision_evidence.source_time_witness
+        if witness is None:
+            raise ValueError("AKShare FinancialFact requires a source-time witness")
+        return [
+            FinancialFact(
+                asset_code=asset_code,
+                period_end=period_end,
+                period_type=_period_type_from_period_end(period_end),
+                metric_code=metric_code,
+                value=value,
+                unit=unit,
+                source=self.provider_source(),
+                report_date=announcement_date,
+                available_at=witness.available_at,
+                extra=self._provider_extra(
+                    {"derived_from": derived_metrics[metric_code]}
+                    if metric_code in derived_metrics
+                    else None
+                ),
+                source_evidence=source_evidence,
+                decision_evidence=decision_evidence,
+            )
+            for metric_code, (value, unit) in metric_values.items()
+            if value is not None
+        ]
+
     def fetch_financials(self, asset_code: str, periods: int = 8) -> list[FinancialFact]:
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
@@ -931,3 +1200,78 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             for flow in flows
         ]
+
+
+def _akshare_main_financial_rows(body: bytes) -> tuple[Mapping[str, object], ...]:
+    """Decode the captured EastMoney success envelope without reserializing it."""
+
+    if type(body) is not bytes or not body:
+        raise ValueError("AKShare financial response body is missing")
+    try:
+        payload = decode_json_bytes(body)
+    except ValueError as exc:
+        raise ValueError("AKShare financial response is not valid JSON") from exc
+    if not isinstance(payload, Mapping):
+        raise ValueError("AKShare financial response envelope is invalid")
+    code = payload.get("code")
+    if (
+        payload.get("success") is not True
+        or isinstance(code, bool)
+        or not isinstance(code, int)
+        or code != 0
+    ):
+        raise DataFetchError(
+            "AKShare provider rejected the financial read",
+            code="AKSHARE_FINANCIAL_PROVIDER_REJECTED",
+        )
+    result = payload.get("result")
+    if not isinstance(result, Mapping):
+        raise ValueError("AKShare financial response result is invalid")
+    rows = result.get("data")
+    count = result.get("count")
+    if (
+        not isinstance(rows, list)
+        or not rows
+        or not all(isinstance(row, Mapping) for row in rows)
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+        or count != len(rows)
+    ):
+        raise ValueError("AKShare financial response row count is invalid")
+    return tuple(cast(Mapping[str, object], row) for row in rows)
+
+
+def _strict_akshare_calendar_date(value: object) -> date | None:
+    """Parse only the date and midnight timestamp forms in the AKShare contract."""
+
+    if not isinstance(value, str) or value != value.strip():
+        return None
+    if len(value) == 10:
+        date_text = value
+    elif len(value) == 19 and value.endswith(" 00:00:00"):
+        date_text = value[:10]
+    else:
+        return None
+    if date_text[4] != "-" or date_text[7] != "-":
+        return None
+    try:
+        return date.fromisoformat(date_text)
+    except ValueError:
+        return None
+
+
+def _akshare_financial_native_row_id(
+    *,
+    asset_code: str,
+    period_end: date,
+    announcement_date: date,
+) -> str:
+    """Build the exact composite row identity declared by the matcher contract."""
+
+    row_id = (
+        f"{AKSHARE_PROVIDER_NAME}:{asset_code}:"
+        f"{period_end.isoformat()}:{announcement_date.isoformat()}"
+    )
+    if len(row_id) > 200:
+        raise ValueError("AKShare financial native row identity exceeds storage limit")
+    return row_id

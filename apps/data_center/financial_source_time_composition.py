@@ -77,7 +77,7 @@ def verify_provider_financial_source_time_evidence(
     provider: ProviderConfig,
     evidence: FinancialFactDecisionEvidence,
 ) -> bool:
-    """Bind source-time verification to the active provider configuration row."""
+    """Bind logical source identity and both audits to one active provider row."""
 
     request_provider = evidence.artifact_reference.evidence.request_scope.provider_name
     if (
@@ -85,7 +85,8 @@ def verify_provider_financial_source_time_evidence(
         or provider.id is None
         or isinstance(provider.id, bool)
         or provider.id <= 0
-        or provider.name != request_provider
+        or provider.is_active is not True
+        or provider.source_type != request_provider
     ):
         return False
     return _verify_source_time_evidence(
