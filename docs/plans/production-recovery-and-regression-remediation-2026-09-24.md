@@ -1992,11 +1992,16 @@ composition 的 UOW 时序冲突，不是 12/11 只证券、provider 数据、�
 放宽校验规避。
 
 完成项（`3c75e9677`）：只为 generation-fenced complete graph 当前读取注入专用 Authority repository UOW。该 UOW 不再创建
-savepoint，而是在进入和退出时分别复核 caller-owned fence 的 alias、连接、xid 与 exact generation，并继续激活原有 repository
-UOW token；缺少 fence、代际不一致或重入仍失败关闭。普通 Authority 服务、shadow RR/RO 读取及写入路径继续使用原有独立
+savepoint，而是在进入和退出时分别复核 caller-owned fence 的 alias、连接、xid 与 exact generation，并维持不授予写能力的
+只读 scope；缺少 fence、代际不一致或重入仍失败关闭。普通 Authority 服务、shadow RR/RO 读取及写入路径继续使用原有独立
 `transaction.atomic()`，未扩大调用边界。既有 PostgreSQL finalizer 组件节点现会在真实 generation fence 内执行这一专用 UOW，
 并硬断言 `atomic_blocks==1`；该准确 node id 同时加入 S6 `REQUIRED_POSTGRESQL_TESTS`，其 JUnit 文件成为 release validator 的
 必需官方 artifact，缺失、跳过或失败都会阻断候选。
+
+复核收紧项（`511b8277d`）：专用 caller-owned read scope 不再激活 Authority repository 的写入 UOW token；任何未来误用
+`append`/`append_revocation` 都会因缺少 private UOW 失败关闭，避免在外层 publication 事务内获得无 savepoint 的写能力。
+PostgreSQL finalizer 节点同时在该 scope 内实际调用 generation-fenced actor bundle `_snapshot()`，证明原生产失败检查点看到的
+事务深度仍为 1，而不是只检查专用 repository 自身。
 
 测试计数：Account graph/fence 单元回归 `62 passed`；Account graph 单文件 `41 passed`；release validator 与 evidence collector
 回归 `156 passed`。增量 mypy 覆盖两个生产文件且 0 regression；全仓 debt ceiling `0 errors in 0 files`；Black、isort、Ruff
