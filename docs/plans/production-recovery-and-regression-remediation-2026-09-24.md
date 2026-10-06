@@ -2258,3 +2258,12 @@ task 或 schedule。先以 `000001.SZ` 的资产过滤读取 5 行，provider �
 本次仅证明真实 provider 接受修正后的单资产/单公告日请求格式。两个成功有限探针分别约 358.0ms 与 349.2ms，不能外推为
 全市场容量、频率或 SLA 结论，也没有验证生产 egress、加密留存、RawAudit、orphan 对账和事实写入。`N<=1/2N<=2` ceiling
 继续保持；在 exact-SHA CI、fresh S6 隔离存储与同镜像部署证据完成前，不得扩大 ceiling、接 task/schedule 或请求 financial refresh。
+
+首次推送候选 `bcd9732d4fa4a1d844bc110eb49c7e3dc8b0c8af` 后，Architecture Layer Guard
+`37493723256` 正确阻断了 `application/interface_services_decision_sync.py` 对同 App infrastructure fetcher/budget loader 的直接
+import；boundary 为 0，但 audit rule `apps_application_no_same_app_infrastructure_imports_except_repository_provider` 报 1。修复
+`13d7be3bf` 删除 Application 层组装和 facade 暴露，将 provider repository、registry、fact repository、fetcher 与 budget 的装配移到
+`apps/data_center/akshare_financial_slice_sync_composition.py` composition root。根代理按同一 base
+`80c3cfc8e9941b1a1705edf0f1272c91b37e1ee8` 复跑 architecture delta：9 个变更文件、1851 新增行、7 条 boundary 和
+20 条 audit 规则均为 0 violation；相关 capture/composition 与 architecture inventory 回归 `33 passed`，增量 mypy、Black、isort、
+Ruff、module map、current-data 和 architecture inventory 无写检查通过。原失败 run 不重跑，后续只接受新 exact-SHA CI 证据。
