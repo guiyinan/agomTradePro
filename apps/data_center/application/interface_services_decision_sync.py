@@ -12,9 +12,6 @@ from apps.data_center.application.dtos import (
     SyncQuoteRequest,
     SyncResult,
 )
-from apps.data_center.application.financial_slice_sync import (
-    SyncAkshareFinancialSlicesUseCase,
-)
 from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
 from apps.data_center.composition import (
@@ -46,10 +43,6 @@ from apps.data_center.financial_response_artifact_composition import (
 from apps.data_center.financial_source_time_composition import (
     verify_provider_financial_source_time_evidence,
     verify_retained_financial_source_time_evidence,
-)
-from apps.data_center.infrastructure.akshare_financial_slice_sync import (
-    build_akshare_financial_slice_fetcher,
-    load_akshare_financial_slice_sync_budget,
 )
 from core.exceptions import DataFetchError
 
@@ -519,23 +512,6 @@ def make_sync_current_valuation_batch_use_case() -> SyncCurrentValuationBatchUse
     return make_system_audited_sync_current_valuation_batch_use_case(
         provider_repository=provider_repo,
         provider_registry=build_provider_registry_for_repo(provider_repo),
-    )
-
-
-def make_sync_akshare_financial_slices_use_case() -> SyncAkshareFinancialSlicesUseCase:
-    """Build the explicit, one-provider AKShare financial slice sync entrypoint."""
-
-    provider_repo = _make_provider_repo()
-    financial_repository = FinancialFactRepository(
-        source_time_evidence_verifier=verify_retained_financial_source_time_evidence
-    )
-    return SyncAkshareFinancialSlicesUseCase(
-        provider_repo=provider_repo,
-        provider_registry=build_provider_registry_for_repo(provider_repo),
-        fact_repo=financial_repository,
-        fetcher_factory=build_akshare_financial_slice_fetcher,
-        evidence_verifier=verify_provider_financial_source_time_evidence,
-        request_budget=load_akshare_financial_slice_sync_budget(),
     )
 
 

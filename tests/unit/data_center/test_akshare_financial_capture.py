@@ -13,6 +13,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from apps.data_center import akshare_financial_capture_composition as composition
+from apps.data_center import akshare_financial_slice_sync_composition as financial_slice_composition
 from apps.data_center.akshare_financial_capture_composition import (
     AKSHARE_FINANCIAL_DATASET_KEY,
     AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
@@ -20,7 +21,6 @@ from apps.data_center.akshare_financial_capture_composition import (
     AkshareFinancialCaptureError,
     AkshareFinancialCaptureGateway,
 )
-from apps.data_center.application import interface_services, interface_services_decision_sync
 from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
 from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
@@ -1261,31 +1261,34 @@ def test_akshare_financial_slice_composition_builds_explicit_fact_only_use_case(
     def fetcher_factory(_config: ProviderConfig, _provider: object) -> None:
         return None
 
-    monkeypatch.setattr(interface_services_decision_sync, "_make_provider_repo", lambda: configs)
     monkeypatch.setattr(
-        interface_services_decision_sync,
+        financial_slice_composition,
+        "get_provider_config_repository",
+        lambda: configs,
+    )
+    monkeypatch.setattr(
+        financial_slice_composition,
         "build_provider_registry_for_repo",
         lambda repository: registry if repository is configs else None,
     )
     monkeypatch.setattr(
-        interface_services_decision_sync,
+        financial_slice_composition,
         "FinancialFactRepository",
         lambda **_kwargs: writer,
     )
     monkeypatch.setattr(
-        interface_services_decision_sync,
+        financial_slice_composition,
         "build_akshare_financial_slice_fetcher",
         fetcher_factory,
     )
     monkeypatch.setattr(
-        interface_services_decision_sync,
+        financial_slice_composition,
         "load_akshare_financial_slice_sync_budget",
         lambda: budget,
     )
 
-    use_case = interface_services_decision_sync.make_sync_akshare_financial_slices_use_case()
+    use_case = financial_slice_composition.make_sync_akshare_financial_slices_use_case()
 
-    assert callable(interface_services.make_sync_akshare_financial_slices_use_case)
     assert isinstance(use_case, SyncAkshareFinancialSlicesUseCase)
     assert use_case._provider_repo is configs
     assert use_case._provider_registry is registry

@@ -815,10 +815,6 @@ make_sync_fund_nav_use_case = _bind_decision_sync(
 make_sync_financial_use_case = _bind_decision_sync(
     "make_sync_financial_use_case", _decision_sync.make_sync_financial_use_case
 )
-make_sync_akshare_financial_slices_use_case = _bind_decision_sync(
-    "make_sync_akshare_financial_slices_use_case",
-    _decision_sync.make_sync_akshare_financial_slices_use_case,
-)
 make_backfill_sync_financial_use_case = _bind_decision_sync(
     "make_backfill_sync_financial_use_case",
     _decision_sync.make_backfill_sync_financial_use_case,
