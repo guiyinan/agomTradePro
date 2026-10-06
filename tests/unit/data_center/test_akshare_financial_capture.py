@@ -1,0 +1,594 @@
+"""Fake-egress contracts for retained AKShare financial response pairs."""
+
+from __future__ import annotations
+
+import hashlib
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime
+from pathlib import Path
+from uuid import UUID
+
+import pytest
+from cryptography.fernet import Fernet
+
+from apps.data_center import akshare_financial_capture_composition as composition
+from apps.data_center.akshare_financial_capture_composition import (
+    AKSHARE_FINANCIAL_DATASET_KEY,
+    AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+    AKSHARE_SOURCE_TIME_DATASET_KEY,
+    AkshareFinancialCaptureError,
+    AkshareFinancialCaptureGateway,
+)
+from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
+from apps.data_center.domain.egress_routing import EgressRequestContext
+from apps.data_center.domain.entities import ProviderConfig, RawAudit, raw_audit_content_hash
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    raw_body_sha256,
+)
+from apps.data_center.infrastructure.financial_response_artifact_config import (
+    FinancialResponseArtifactRuntimeConfig,
+)
+from apps.data_center.infrastructure.financial_response_artifact_repository import (
+    FinancialResponseArtifactRepository,
+    reference_from_audit,
+)
+from apps.data_center.infrastructure.financial_response_body_store import (
+    FinancialResponseArtifactConfigurationError,
+    FinancialResponseBodyStore,
+)
+from apps.data_center.infrastructure.financial_source_time_artifact_repository import (
+    FinancialSourceTimeArtifactRepository,
+)
+from apps.data_center.infrastructure.financial_source_time_audit_repository import (
+    DjangoFinancialSourceTimeArtifactAuditRepository,
+)
+from apps.data_center.infrastructure.financial_source_time_body_store import (
+    FinancialSourceTimeBodyStore,
+)
+from core.exceptions import DataFetchError
+
+ASSET_CODE = "000001.SZ"
+ANNOUNCEMENT_DATE = date(2026, 8, 15)
+CAPTURE_IDS = (
+    UUID("a1cbffca-a92b-42ab-ae10-0604e034db90"),
+    UUID("73cc8be5-2825-4cb5-aa63-36518b1080e7"),
+)
+FINANCIAL_BODY = (
+    b'{"success":true,"code":0,"result":{"count":1,"data":'
+    b'[{"SECUCODE":"000001.SZ","REPORT_DATE":"2026-06-30 00:00:00",'
+    b'"NOTICE_DATE":"2026-08-15 00:00:00"}]}}'
+)
+SOURCE_TIME_BODY = (
+    b'{\n  "success": true,\n  "code": 0,\n  "result": {\n'
+    b'    "count": 1,\n    "data": [{\n'
+    b'      "SECUCODE": "000001.SZ",\n'
+    b'      "REPORT_DATE": "2026-06-30 00:00:00",\n'
+    b'      "NOTICE_DATE": "2026-08-15 00:00:00"\n'
+    b"    }]\n  }\n}"
+)
+COMPLETED_AT = datetime(2026, 8, 28, 7, 32, tzinfo=UTC)
+
+
+@dataclass(frozen=True, slots=True)
+class _Capture:
+    """Structural exact-byte response returned by the fake egress runner."""
+
+    payload: object
+    evidence: FinancialResponseEvidence
+    raw_body: bytes
+
+
+class _CaptureIdFactory:
+    """Yield deterministic request identities for independent captures."""
+
+    def __init__(self, values: tuple[UUID, ...] = CAPTURE_IDS) -> None:
+        self._values = iter(values)
+
+    def __call__(self) -> UUID:
+        return next(self._values)
+
+
+class _Runner:
+    """Return queued provider bytes while recording both egress requests."""
+
+    def __init__(self, bodies: Mapping[str, bytes]) -> None:
+        self._bodies = dict(bodies)
+        self.calls: list[tuple[EgressRequestContext, UUID, Mapping[str, object]]] = []
+
+    def __call__(
+        self,
+        context: EgressRequestContext,
+        *,
+        request_id: UUID,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        request_scope: FinancialRequestScope,
+        response_scope: FinancialResponseScope,
+        max_attempts: int = 2,
+    ) -> FinancialResponseCaptureProtocol:
+        """Synthesize the transport's immutable capture projection."""
+
+        assert method == "GET"
+        assert json_body is None
+        assert headers is None
+        assert max_attempts == 2
+        assert params is not None
+        body = self._bodies[context.dataset_key]
+        self.calls.append((context, request_id, dict(params)))
+        evidence = FinancialResponseEvidence(
+            body_sha256=raw_body_sha256(body),
+            body_size_bytes=len(body),
+            response_completed_at=COMPLETED_AT,
+            request_scope=request_scope,
+            response_scope=response_scope,
+        )
+        return _Capture(payload={}, evidence=evidence, raw_body=body)
+
+
+class _Audits:
+    """Append-only in-memory RawAudit port with selective failure injection."""
+
+    def __init__(
+        self,
+        *,
+        fail_financial: bool = False,
+        fail_source_time: bool = False,
+        duplicate_source_capture_id: UUID | None = None,
+    ) -> None:
+        self.financial_rows: list[RawAudit] = []
+        self.source_time_rows: list[RawAudit] = []
+        self.fail_financial = fail_financial
+        self.fail_source_time = fail_source_time
+        self.duplicate_source_capture_id = duplicate_source_capture_id
+        self.financial_log_calls = 0
+        self.source_time_log_calls = 0
+
+    def log(self, audit: RawAudit) -> RawAudit:
+        """Append a financial artifact audit or simulate a storage failure."""
+
+        self.financial_log_calls += 1
+        if self.fail_financial:
+            raise OSError("synthetic financial audit failure")
+        persisted = replace(audit, raw_audit_id=str(self.financial_log_calls))
+        self.financial_rows.append(persisted)
+        return persisted
+
+    def find_by_artifact_capture_id(self, capture_id: UUID) -> RawAudit | None:
+        """Return the financial audit bound to the requested capture UUID."""
+
+        expected = str(capture_id)
+        for row in self.financial_rows:
+            link = row.extra.get("financial_response_artifact")
+            if isinstance(link, Mapping) and link.get("capture_id") == expected:
+                return row
+        return None
+
+    def log_failure(self, audit: RawAudit) -> RawAudit:
+        """Keep the fake complete for the financial repository port."""
+
+        return self.log(audit)
+
+    def find_by_failure_capture_id(self, capture_id: UUID) -> RawAudit | None:
+        """There are no rejected-body audit rows in these success-path tests."""
+
+        del capture_id
+        return None
+
+    def list_by_source_time_artifact_capture_id(self, capture_id: UUID) -> list[RawAudit]:
+        """Return every existing source-time claim without truncating cardinality."""
+
+        if capture_id == self.duplicate_source_capture_id:
+            first = _duplicate_source_audit(capture_id)
+            return [first, replace(first, raw_audit_id="duplicate")]
+        expected = str(capture_id)
+        return [
+            row
+            for row in self.source_time_rows
+            if row.extra["financial_source_time_artifact"]["capture_id"] == expected
+        ]
+
+    def log_source_time(self, audit: RawAudit) -> RawAudit:
+        """Append one canonical source-time audit or inject failure."""
+
+        self.source_time_log_calls += 1
+        if self.fail_source_time:
+            raise OSError("synthetic source-time audit failure")
+        persisted = replace(
+            audit,
+            raw_audit_id=str(self.source_time_log_calls),
+            content_hash=raw_audit_content_hash(audit),
+        )
+        self.source_time_rows.append(persisted)
+        return persisted
+
+
+def _duplicate_source_audit(capture_id: UUID) -> RawAudit:
+    """Build a minimally valid audit-shaped duplicate for cardinality checks."""
+
+    return RawAudit(
+        provider_name="akshare",
+        capability="financial_source_time",
+        request_params={},
+        status="ok",
+        extra={"financial_source_time_artifact": {"capture_id": str(capture_id)}},
+    )
+
+
+def _provider() -> ProviderConfig:
+    """Return an active row whose display name differs from its logical source."""
+
+    return ProviderConfig(
+        id=17,
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="test provider",
+    )
+
+
+def _gateway(
+    tmp_path: Path,
+    runner: _Runner,
+    audits: _Audits | None = None,
+    *,
+    capture_ids: tuple[UUID, ...] = CAPTURE_IDS,
+    provider: ProviderConfig | None = None,
+) -> tuple[
+    AkshareFinancialCaptureGateway,
+    _Audits,
+    FinancialResponseBodyStore,
+    FinancialSourceTimeBodyStore,
+]:
+    """Build real encrypted stores and repository adapters around fake ports."""
+
+    audit_port = audits or _Audits()
+    key = Fernet.generate_key()
+    financial_store = FinancialResponseBodyStore(
+        tmp_path / "financial",
+        encryption_key=key,
+        encryption_key_ref="test/financial-body-key",
+        encryption_key_version="test-v1",
+        max_body_bytes=1024 * 1024,
+    )
+    source_time_store = FinancialSourceTimeBodyStore(
+        tmp_path / "source-time",
+        encryption_key=key,
+        encryption_key_ref="test/financial-body-key",
+        encryption_key_version="test-v1",
+        max_body_bytes=1024 * 1024,
+    )
+    gateway = AkshareFinancialCaptureGateway(
+        provider or _provider(),
+        deployment_region="test-region",
+        financial_repository=FinancialResponseArtifactRepository(
+            financial_store,
+            audit_port,
+            failure_audit_repository=audit_port,
+        ),
+        source_time_repository=FinancialSourceTimeArtifactRepository(
+            source_time_store,
+            audit_port,
+        ),
+        capture_runner=runner,
+        capture_id_factory=_CaptureIdFactory(capture_ids),
+    )
+    return gateway, audit_port, financial_store, source_time_store
+
+
+def _capture_pair(gateway: AkshareFinancialCaptureGateway, *, period_limit: int = 8):
+    """Retain one pair from gateway-built, asset/date-bound request parameters."""
+
+    return gateway.capture_and_retain(
+        asset_code=ASSET_CODE,
+        period_limit=period_limit,
+        announcement_date=ANNOUNCEMENT_DATE,
+    )
+
+
+def test_akshare_financial_capture_retains_independent_exact_body_pair(tmp_path: Path) -> None:
+    """Capture IDs and exact response bytes stay independent across both artifacts."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, financial_store, source_time_store = _gateway(tmp_path, runner)
+
+    retained = _capture_pair(gateway)
+
+    assert [call[0].dataset_key for call in runner.calls] == [
+        AKSHARE_FINANCIAL_DATASET_KEY,
+        AKSHARE_SOURCE_TIME_DATASET_KEY,
+    ]
+    assert [call[0].target_url for call in runner.calls] == [
+        AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+        AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+    ]
+    assert [call[1] for call in runner.calls] == list(CAPTURE_IDS)
+    assert runner.calls[0][2] == runner.calls[1][2]
+    assert runner.calls[0][2] == {
+        "type": "RPT_F10_FINANCE_MAINFINADATA",
+        "sty": "APP_F10_MAINFINADATA",
+        "quoteColumns": "",
+        "filter": '(SECUCODE="000001.SZ")(NOTICE_DATE="2026-08-15")',
+        "p": "1",
+        "ps": "8",
+        "sr": "-1",
+        "st": "REPORT_DATE",
+        "source": "HSF10",
+        "client": "PC",
+    }
+    assert retained.financial.reference.capture_id != retained.source_time.reference.capture_id
+    assert financial_store.read(retained.financial.reference) == FINANCIAL_BODY
+    assert source_time_store.read(retained.source_time.reference) == SOURCE_TIME_BODY
+    assert FINANCIAL_BODY != SOURCE_TIME_BODY
+    assert retained.financial.reference.body_sha256 == hashlib.sha256(FINANCIAL_BODY).hexdigest()
+    assert (
+        retained.source_time.reference.body_sha256 == hashlib.sha256(SOURCE_TIME_BODY).hexdigest()
+    )
+    assert len(audits.financial_rows) == 1
+    assert len(audits.source_time_rows) == 1
+    assert retained.financial.audit.capability == "financial"
+    assert retained.source_time.audit.capability == "financial_source_time"
+
+
+def test_akshare_financial_capture_rejects_missing_raw_body_before_retention(
+    tmp_path: Path,
+) -> None:
+    """An empty raw buffer cannot be replaced by a decoded or normalized payload."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: b"",
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+
+    with pytest.raises(AkshareFinancialCaptureError):
+        _capture_pair(gateway)
+
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
+    assert list((tmp_path / "financial").rglob("*.bin")) == []
+    assert list((tmp_path / "source-time").rglob("*.bin")) == []
+
+
+def test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact(
+    tmp_path: Path,
+) -> None:
+    """A provider business rejection on the second call writes neither artifact."""
+
+    rejected_body = b'{"success":false,"code":500,"result":{"count":0,"data":[]}}'
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: rejected_body,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+
+    with pytest.raises(DataFetchError) as caught:
+        _capture_pair(gateway)
+
+    assert caught.value.code == "AKSHARE_FINANCIAL_PROVIDER_REJECTED"
+    assert len(runner.calls) == 2
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
+    assert list((tmp_path / "financial").rglob("*.bin")) == []
+    assert list((tmp_path / "source-time").rglob("*.bin")) == []
+
+
+def test_akshare_financial_capture_rejects_duplicate_capture_ids_before_egress(
+    tmp_path: Path,
+) -> None:
+    """The two request identities must differ before either egress call starts."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(
+        tmp_path,
+        runner,
+        capture_ids=(CAPTURE_IDS[0], CAPTURE_IDS[0]),
+    )
+
+    with pytest.raises(AkshareFinancialCaptureError):
+        _capture_pair(gateway)
+
+    assert runner.calls == []
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
+
+
+def test_akshare_financial_capture_rejects_page_size_above_provider_limit_before_egress(
+    tmp_path: Path,
+) -> None:
+    """The caller cannot expand an EastMoney read beyond its 200-row page cap."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+
+    with pytest.raises(AkshareFinancialCaptureError):
+        _capture_pair(gateway, period_limit=201)
+
+    assert runner.calls == []
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
+
+
+@pytest.mark.parametrize(
+    "provider",
+    [
+        replace(_provider(), source_type="tushare"),
+        replace(_provider(), is_active=False),
+        replace(_provider(), id=None),
+    ],
+)
+def test_akshare_financial_capture_requires_active_source_row_identity_before_egress(
+    tmp_path: Path,
+    provider: ProviderConfig,
+) -> None:
+    """Display names are allowed, but source type, active flag, and ID are strict."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+
+    with pytest.raises(AkshareFinancialCaptureError):
+        _gateway(tmp_path, runner, provider=provider)
+
+    assert runner.calls == []
+
+
+def test_akshare_financial_capture_duplicate_source_audits_block_source_body_write(
+    tmp_path: Path,
+) -> None:
+    """Ambiguous source-time audit cardinality fails before source body storage."""
+
+    audits = _Audits(duplicate_source_capture_id=CAPTURE_IDS[1])
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(tmp_path, runner, audits)
+
+    with pytest.raises(DataFetchError) as caught:
+        _capture_pair(gateway)
+
+    assert caught.value.code == "FINANCIAL_SOURCE_TIME_ARTIFACT_REPLAY_CONFLICT"
+    assert len(audits.financial_rows) == 1
+    assert audits.source_time_log_calls == 0
+    assert list((tmp_path / "source-time").rglob("*.bin")) == []
+
+
+@pytest.mark.parametrize("failed_side", ["financial", "source_time"])
+def test_akshare_financial_capture_audit_append_failure_exposes_orphan(
+    tmp_path: Path,
+    failed_side: str,
+) -> None:
+    """A body published before audit failure remains inspectable as an orphan."""
+
+    audits = _Audits(
+        fail_financial=failed_side == "financial",
+        fail_source_time=failed_side == "source_time",
+    )
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, _audits, financial_store, source_time_store = _gateway(tmp_path, runner, audits)
+
+    with pytest.raises(DataFetchError) as caught:
+        _capture_pair(gateway)
+
+    if failed_side == "financial":
+        orphan = gateway._financial_repository.inspect_orphan(caught.value.reference)
+        assert orphan.is_orphan is True
+        assert financial_store.read(orphan.reference) == FINANCIAL_BODY
+        assert audits.source_time_log_calls == 0
+    else:
+        orphan = gateway._source_time_repository.inspect_orphan(caught.value.reference)
+        assert orphan.is_orphan is True
+        assert source_time_store.read(orphan.reference) == SOURCE_TIME_BODY
+        assert len(audits.financial_rows) == 1
+        financial_reference = reference_from_audit(audits.financial_rows[0])
+        assert financial_store.read(financial_reference) == FINANCIAL_BODY
+
+
+def test_akshare_financial_capture_composition_uses_approved_registry_and_dual_repositories(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production composition wires the shared RawAudit owner and both stores."""
+
+    key = Fernet.generate_key()
+    runtime = FinancialResponseArtifactRuntimeConfig(
+        root=tmp_path / "composed",
+        encryption_key=key,
+        encryption_key_ref="test/composed-financial-key",
+        encryption_key_version="test-v1",
+        max_body_bytes=1024 * 1024,
+    )
+    monkeypatch.setattr(
+        composition, "resolve_financial_response_artifact_config", lambda **_: runtime
+    )
+    monkeypatch.setattr(composition, "RawAuditRepository", _Audits)
+    monkeypatch.setattr(composition.settings, "BASE_DIR", Path(__file__).parents[3])
+
+    gateway = composition.build_akshare_financial_capture_gateway(
+        _provider(),
+        deployment_region="test-region",
+        environment="test",
+    )
+
+    assert gateway._capture_runner is composition.execute_financial_response_request
+    assert isinstance(
+        gateway._source_time_repository._retainer._audit_repository,
+        DjangoFinancialSourceTimeArtifactAuditRepository,
+    )
+    assert gateway._financial_repository._body_store._root == (tmp_path / "composed").resolve()
+    assert gateway._source_time_repository._body_store._root == (tmp_path / "composed").resolve()
+    assert (
+        gateway._financial_repository._body_store is not gateway._source_time_repository._body_store
+    )
+
+
+def test_akshare_financial_capture_registry_mismatch_blocks_before_egress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Runtime capture rechecks the exact approved registry identity before transport."""
+
+    class _NoContractRegistry:
+        def get(self, **_kwargs: object) -> None:
+            return None
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        }
+    )
+    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+    monkeypatch.setattr(
+        composition,
+        "load_financial_source_time_contract_registry",
+        lambda _path: _NoContractRegistry(),
+    )
+
+    with pytest.raises(FinancialResponseArtifactConfigurationError):
+        _capture_pair(gateway)
+
+    assert runner.calls == []
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []

@@ -7026,9 +7026,10 @@
     },
     {
       "id": "data_center.financial_source_time_artifact_retention",
-      "surface": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation",
+      "surface": "Provider-native financial source-time bodies are retained exactly with one canonical RawAudit before any governed timestamp interpretation; the AKShare capture primitive is one asset and one announcement date per pair, and broader adapters require request-volume and provider-capacity gates",
       "source_files": [
         "apps/data_center/application/financial_source_time_artifact.py",
+        "apps/data_center/akshare_financial_capture_composition.py",
         "apps/data_center/infrastructure/fact_and_operational_models.py",
         "apps/data_center/infrastructure/financial_source_time_artifact_repository.py",
         "apps/data_center/infrastructure/financial_source_time_audit.py",
@@ -7037,6 +7038,13 @@
         "apps/data_center/infrastructure/models.py"
       ],
       "required_markers": {
+        "apps/data_center/akshare_financial_capture_composition.py": [
+          "class AkshareFinancialCaptureGateway:",
+          "def capture_and_retain(",
+          "_require_active_akshare_contract()",
+          "_akshare_request_params(",
+          "DjangoFinancialSourceTimeArtifactAuditRepository(raw_audits)"
+        ],
         "apps/data_center/application/financial_source_time_artifact.py": [
           "class RetainFinancialSourceTimeArtifactUseCase:",
           "len(existing) > 1",
@@ -7063,6 +7071,21 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "akshare_dual_independent_exact_body_retention",
+          "test_file": "tests/unit/data_center/test_akshare_financial_capture.py",
+          "test_function": "test_akshare_financial_capture_retains_independent_exact_body_pair"
+        },
+        {
+          "case": "akshare_pair_provider_failure_no_retention",
+          "test_file": "tests/unit/data_center/test_akshare_financial_capture.py",
+          "test_function": "test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact"
+        },
+        {
+          "case": "akshare_dual_retention_orphan_reconciliation",
+          "test_file": "tests/unit/data_center/test_akshare_financial_capture.py",
+          "test_function": "test_akshare_financial_capture_audit_append_failure_exposes_orphan"
+        },
         {
           "case": "exact_encrypted_source_time_body_and_canonical_audit",
           "test_file": "tests/unit/data_center/test_financial_source_time_retention.py",

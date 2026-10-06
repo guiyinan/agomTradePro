@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5389,
+    "current_surface_references": 5390,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -10054,6 +10054,11 @@
       "line": 97,
       "path": "apps/dashboard/tests/test_query_safety.py",
       "text": "\"\"\"Current resolver errors expose only a stable availability warning.\"\"\""
+    },
+    {
+      "line": 403,
+      "path": "apps/data_center/akshare_financial_capture_composition.py",
+      "text": "\"\"\"Refuse capture unless the current owner-approved registry matches code.\"\"\""
     },
     {
       "line": 27,
