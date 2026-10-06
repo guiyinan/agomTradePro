@@ -17,6 +17,7 @@ from apps.data_center.domain.financial_source_time_contract import (
 )
 from apps.data_center.domain.financial_source_time_evidence import (
     FinancialAvailabilityBasis,
+    FinancialSourceTimeArtifactRef,
     FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
@@ -129,6 +130,57 @@ class AkshareNoticeDateSourceTimeMatcher:
         claimed = decision_evidence.source_time_witness
         if claimed is None:
             return None
+        return self.build_witness(
+            contract=contract,
+            financial_body=financial_body,
+            source_time_body=source_time_body,
+            decision_evidence=decision_evidence,
+            source_time_reference=claimed.artifact_reference,
+        )
+
+    def build_witness(
+        self,
+        *,
+        contract: FinancialSourceTimeMatchContract,
+        financial_body: bytes,
+        source_time_body: bytes,
+        decision_evidence: FinancialFactDecisionEvidence,
+        source_time_reference: FinancialSourceTimeArtifactRef,
+    ) -> FinancialSourceTimeWitness | None:
+        """Construct one witness from two exact retained response bodies.
+
+        Producers call this method before a witness exists. Verifiers continue
+        to call :meth:`match`, which obtains the claimed artifact reference and
+        independently rebuilds the same value for exact equality comparison.
+        """
+
+        if contract != akshare_notice_date_match_contract():
+            return None
+        if not isinstance(decision_evidence, FinancialFactDecisionEvidence) or not isinstance(
+            source_time_reference, FinancialSourceTimeArtifactRef
+        ):
+            return None
+        financial_reference = decision_evidence.artifact_reference
+        financial_evidence = financial_reference.evidence
+        if (
+            financial_reference.capture_id == source_time_reference.capture_id
+            or financial_evidence.request_scope.provider_name != contract.provider_name
+            or financial_evidence.request_scope.dataset_key != contract.financial_dataset_key
+            or source_time_reference.provider_name != contract.provider_name
+            or source_time_reference.dataset_key != contract.source_time_dataset_key
+            or source_time_reference.requested_asset_code != decision_evidence.native_asset_code
+            or not _body_matches_reference(
+                financial_body,
+                expected_sha256=financial_reference.body_sha256,
+                expected_size=financial_reference.body_size_bytes,
+            )
+            or not _body_matches_reference(
+                source_time_body,
+                expected_sha256=source_time_reference.body_sha256,
+                expected_size=source_time_reference.body_size_bytes,
+            )
+        ):
+            return None
         financial_rows = _main_financial_data_rows(financial_body)
         source_rows = _main_financial_data_rows(source_time_body)
         if financial_rows is None or source_rows is None:
@@ -149,7 +201,10 @@ class AkshareNoticeDateSourceTimeMatcher:
             return None
         source_row = source_matches[0]
         announcement_date = _row_announcement_date(source_row)
-        if announcement_date is None:
+        if (
+            announcement_date is None
+            or source_time_reference.requested_announcement_date != announcement_date
+        ):
             return None
         source_zone = ZoneInfo(AKSHARE_SOURCE_TIMEZONE)
         announced_at = datetime.combine(announcement_date, time.min, tzinfo=source_zone).astimezone(
@@ -167,7 +222,7 @@ class AkshareNoticeDateSourceTimeMatcher:
             return None
         try:
             return FinancialSourceTimeWitness(
-                artifact_reference=claimed.artifact_reference,
+                artifact_reference=source_time_reference,
                 native_asset_code=decision_evidence.native_asset_code,
                 native_period_end=decision_evidence.native_period_end,
                 financial_native_row_id=decision_evidence.native_row_id,
@@ -186,6 +241,21 @@ class AkshareNoticeDateSourceTimeMatcher:
             )
         except (TypeError, ValueError):
             return None
+
+
+def _body_matches_reference(
+    body: bytes,
+    *,
+    expected_sha256: str,
+    expected_size: int,
+) -> bool:
+    """Return whether exact provider bytes match one retained reference."""
+
+    return (
+        type(body) is bytes
+        and len(body) == expected_size
+        and hashlib.sha256(body).hexdigest() == expected_sha256
+    )
 
 
 def _main_financial_data_rows(body: bytes) -> tuple[Mapping[str, object], ...] | None:

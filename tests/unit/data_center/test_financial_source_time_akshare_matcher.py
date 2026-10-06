@@ -94,13 +94,17 @@ def _decision(
     *,
     completed_at: datetime = COMPLETED_AT,
     native_row_id: str = ROW_ID,
+    financial_body: bytes = FINANCIAL_BODY,
+    financial_row_count: int = 1,
+    source_time_body: bytes = SOURCE_TIME_BODY,
+    source_time_row_count: int = 1,
 ) -> FinancialFactDecisionEvidence:
     financial_ref = FinancialResponseArtifactRef(
         capture_id=UUID("10000000-0000-4000-8000-000000000001"),
         location="financial-response/10/10000000-0000-4000-8000-000000000001.bin",
         evidence=FinancialResponseEvidence(
-            body_sha256=_sha(FINANCIAL_BODY),
-            body_size_bytes=len(FINANCIAL_BODY),
+            body_sha256=_sha(financial_body),
+            body_size_bytes=len(financial_body),
             response_completed_at=completed_at,
             request_scope=FinancialRequestScope(
                 provider_name="akshare",
@@ -111,7 +115,7 @@ def _decision(
             response_scope=FinancialResponseScope(
                 asset_codes=(ASSET,),
                 period_ends=(PERIOD_END,),
-                row_count=1,
+                row_count=financial_row_count,
             ),
             response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
         ),
@@ -127,10 +131,10 @@ def _decision(
         dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
         requested_asset_code=ASSET,
         requested_announcement_date=ANNOUNCEMENT,
-        body_sha256=_sha(SOURCE_TIME_BODY),
-        body_size_bytes=len(SOURCE_TIME_BODY),
+        body_sha256=_sha(source_time_body),
+        body_size_bytes=len(source_time_body),
         response_completed_at=completed_at,
-        response_row_count=1,
+        response_row_count=source_time_row_count,
         format_version="financial-source-time-artifact.v1",
         encryption_algorithm="fernet-aes128cbc-hmacsha256",
         encryption_key_ref="config/financial-key",
@@ -194,6 +198,61 @@ def test_matcher_recomputes_the_date_only_witness() -> None:
     assert recomputed.matched_row_count == 1
 
 
+def test_matcher_builds_initial_witness_without_a_preexisting_claim() -> None:
+    decision = _decision()
+    source_time_witness = decision.source_time_witness
+    assert source_time_witness is not None
+    seed = replace(decision, source_time_witness=None)
+
+    produced = AkshareNoticeDateSourceTimeMatcher().build_witness(
+        contract=akshare_notice_date_match_contract(),
+        financial_body=FINANCIAL_BODY,
+        source_time_body=SOURCE_TIME_BODY,
+        decision_evidence=seed,
+        source_time_reference=source_time_witness.artifact_reference,
+    )
+
+    assert produced is not None
+    assert produced.announced_at == ANNOUNCED_AT
+    assert produced.available_at == AVAILABLE_AT
+    assert produced.financial_native_row_id == ROW_ID
+    assert produced.artifact_reference == source_time_witness.artifact_reference
+
+
+def test_matcher_builder_rejects_body_drift_and_reused_capture_identity() -> None:
+    decision = _decision()
+    source_time_witness = decision.source_time_witness
+    assert source_time_witness is not None
+    seed = replace(decision, source_time_witness=None)
+    matcher = AkshareNoticeDateSourceTimeMatcher()
+    contract = akshare_notice_date_match_contract()
+
+    assert (
+        matcher.build_witness(
+            contract=contract,
+            financial_body=FINANCIAL_BODY,
+            source_time_body=_body([_row(), _row(notice_date="2026-08-20 00:00:00")]),
+            decision_evidence=seed,
+            source_time_reference=source_time_witness.artifact_reference,
+        )
+        is None
+    )
+    reused_reference = replace(
+        source_time_witness.artifact_reference,
+        capture_id=decision.artifact_reference.capture_id,
+    )
+    assert (
+        matcher.build_witness(
+            contract=contract,
+            financial_body=FINANCIAL_BODY,
+            source_time_body=SOURCE_TIME_BODY,
+            decision_evidence=seed,
+            source_time_reference=reused_reference,
+        )
+        is None
+    )
+
+
 def test_matcher_is_deterministic_for_identical_bodies() -> None:
     first = _match()
     second = _match()
@@ -229,8 +288,18 @@ def test_matcher_selects_the_financial_row_named_by_decision_evidence() -> None:
     other = _row(notice_date="2026-08-20 00:00:00")
     body = _body([other, _row()])
     source_body = _body([_row(), other])
+    decision = _decision(
+        financial_body=body,
+        financial_row_count=2,
+        source_time_body=source_body,
+        source_time_row_count=2,
+    )
 
-    recomputed = _match(financial_body=body, source_time_body=source_body)
+    recomputed = _match(
+        financial_body=body,
+        source_time_body=source_body,
+        decision=decision,
+    )
 
     assert recomputed is not None
     assert recomputed.financial_announced_date == ANNOUNCEMENT
