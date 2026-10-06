@@ -44,7 +44,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5387,
+    "current_surface_references": 5389,
     "data_write_task_decorators": 65,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3766,147 +3766,152 @@
       "text": "\"\"\"Return the current asyncio task when this synchronous call has one.\"\"\""
     },
     {
-      "line": 153,
+      "line": 156,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Identity-safe comparison fields for one current authority observation.\"\"\""
     },
     {
-      "line": 169,
+      "line": 172,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Redacted selector binding for one complete current authority graph.\"\"\""
     },
     {
-      "line": 219,
+      "line": 222,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "a promise that the projection remains current after this read completes."
     },
     {
-      "line": 227,
+      "line": 230,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Reject naive cutoffs and malformed current projections.\"\"\""
     },
     {
-      "line": 237,
+      "line": 240,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise TypeError(\"authority must be an exact current Authority V3 projection\")"
     },
     {
-      "line": 258,
+      "line": 261,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Return the earliest validity boundary sealed by the current graph.\"\"\""
     },
     {
-      "line": 276,
+      "line": 279,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Read the complete current Authority V3 graph in a caller-owned transaction."
     },
     {
-      "line": 299,
+      "line": 302,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Bind current graph source selectors, provider, alias, and transaction mode.\"\"\""
     },
     {
-      "line": 310,
+      "line": 313,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise ValueError(\"physical row provider must use the current graph database alias\")"
     },
     {
-      "line": 344,
+      "line": 347,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"read-only current graph mode does not accept a generation fence\""
     },
     {
-      "line": 349,
+      "line": 352,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"generation-fenced current graph mode requires the locked generation\""
     },
     {
-      "line": 360,
+      "line": 363,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph transaction identity changed while reading its cutoff\""
     },
     {
-      "line": 384,
+      "line": 391,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph reader returned an invalid Authority V3 projection\""
     },
     {
-      "line": 389,
+      "line": 396,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph projection does not use its database cutoff\""
     },
     {
-      "line": 615,
+      "line": 487,
+      "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
+      "text": "\"generation-fenced current graph repository requires the locked generation\""
+    },
+    {
+      "line": 638,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise TypeError(\"legacy_current must be an exact current authority observation\")"
     },
     {
-      "line": 682,
+      "line": 705,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Bind one Application current-read use case.\"\"\""
     },
     {
-      "line": 690,
+      "line": 713,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Execute current Evidence V5 validation without adding persistence rules.\"\"\""
     },
     {
-      "line": 780,
+      "line": 803,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph cutoff requires its caller-owned PostgreSQL alias\""
     },
     {
-      "line": 784,
+      "line": 807,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph cutoff requires an active caller-owned transaction\""
     },
     {
-      "line": 792,
+      "line": 815,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph database cutoff is unavailable\""
     },
     {
-      "line": 796,
+      "line": 819,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph database cutoff is not one aware timestamp\""
     },
     {
-      "line": 884,
+      "line": 907,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph connection belongs to another database alias\""
     },
     {
-      "line": 887,
+      "line": 910,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "raise AccountAuthorityGenerationUnavailable(\"current graph reader requires PostgreSQL\")"
     },
     {
-      "line": 890,
+      "line": 913,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph reader requires an active caller-owned transaction\""
     },
     {
-      "line": 905,
+      "line": 928,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph transaction mode is unavailable\""
     },
     {
-      "line": 909,
+      "line": 932,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"current graph transaction mode differs from the requested mode\""
     },
     {
-      "line": 970,
+      "line": 993,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Project one checked current result without exposing actor or account IDs.\"\"\""
     },
     {
-      "line": 1004,
+      "line": 1027,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "\"\"\"Hash every stable dataclass field in a current graph without exposing it.\"\"\""
     },
     {
-      "line": 1027,
+      "line": 1050,
       "path": "apps/account/infrastructure/account_authority_shadow_scanner.py",
       "text": "b\"account-authority-current-graph-v3\\x00\" + payload.encode(\"utf-8\")"
     },
@@ -4559,6 +4564,11 @@
       "line": 148,
       "path": "apps/account/infrastructure/documentation_repository.py",
       "text": "summary=model.summary,"
+    },
+    {
+      "line": 34,
+      "path": "apps/account/infrastructure/generation_fenced_owner_tenant_authority_v3_repository.py",
+      "text": "\"\"\"Join the finalizer-owned generation fence for one current graph read.\"\"\""
     },
     {
       "line": 183,

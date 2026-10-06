@@ -22,6 +22,7 @@ from apps.account.application.owner_tenant_authority_v3 import (
 )
 from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerTenantAuthorityV3,
+    OwnerTenantAuthorityV3Conflict,
     PersistedOwnerTenantAuthorityV3,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
@@ -57,13 +58,15 @@ from apps.account.infrastructure.account_authority_shadow_scanner import (
     DjangoAccountAuthorityNoLockSnapshotBundleProviderV3,
     _AuthorityGraphFrozenClock,
     _compare_current_observations,
-    _GenerationFencedOwnerTenantAuthorityV3Repository,
 )
 from apps.account.infrastructure.account_owner_assignment_actor_authority_source_v3_repository import (
     DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
 )
 from apps.account.infrastructure.account_owner_assignment_evidence_v5_repository import (
     DjangoAccountOwnerAssignmentEvidenceV5Repository,
+)
+from apps.account.infrastructure.generation_fenced_owner_tenant_authority_v3_repository import (
+    GenerationFencedOwnerTenantAuthorityV3Repository,
 )
 from apps.account.infrastructure.single_owner_authority_policy_v1_repository import (
     DjangoSingleOwnerAuthorityPolicyV1Repository,
@@ -241,7 +244,6 @@ class _PostgresCompleteGraphReader:
         self._current = current
         self._selector = selector
         self.read_identities: list[PhysicalAccountRowProviderIdentity] = []
-        self.outer_uow_depths: list[int] = []
 
     @property
     def database_alias(self) -> str:
@@ -276,21 +278,6 @@ class _PostgresCompleteGraphReader:
         assert type(generation) is int
         connection = connections[self._using]
         assert connection.in_atomic_block
-        repository = _GenerationFencedOwnerTenantAuthorityV3Repository(
-            expected_generation=generation,
-            using=self._using,
-            clock=_AuthorityGraphFrozenClock(self._current.observed_at),
-            assignments=DjangoAccountOwnerAssignmentEvidenceV5Repository(using=self._using),
-            policies=DjangoSingleOwnerAuthorityPolicyV1Repository(using=self._using),
-            actors=DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=self._using),
-        )
-        actor_inputs = DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
-            using=self._using,
-            transaction_mode="generation_fenced_read_committed_read_write",
-        )
-        with repository.atomic():
-            with actor_inputs._snapshot(connection):
-                self.outer_uow_depths.append(len(connection.atomic_blocks))
         with connection.cursor() as cursor:
             cursor.execute("SELECT clock_timestamp()")
             row = cast(tuple[object, ...] | None, cursor.fetchone())
@@ -560,8 +547,6 @@ def test_postgres_complete_fence_locks_generation_before_same_transaction_graph_
             assert result.transaction_xid == graph_reader.read_identities[-1].transaction_xid
             assert result.backend_pid == graph_reader.read_identities[-1].backend_pid
 
-    assert graph_reader.outer_uow_depths == [1]
-
     lowered = [statement.lower() for statement in statements]
     lock_indices = [
         index
@@ -578,6 +563,42 @@ def test_postgres_complete_fence_locks_generation_before_same_transaction_graph_
         token in "\n".join(lowered)
         for token in ("lock table", "pg_advisory", "insert ", "update ", "delete ", "outbox")
     )
+
+
+def test_postgres_generation_fenced_graph_uow_reuses_outer_transaction(
+    runtime_alias: str,
+) -> None:
+    """Exercise the production graph repository and actor snapshot at depth one."""
+
+    finalizer, command, scan, _graph_reader = _complete_finalizer(runtime_alias)
+    proof = finalizer.capture_complete(command, scan)
+    current = _legacy_current()
+    repository = GenerationFencedOwnerTenantAuthorityV3Repository(
+        expected_generation=scan.proof_generation,
+        using=runtime_alias,
+        clock=_AuthorityGraphFrozenClock(current.observed_at),
+        assignments=DjangoAccountOwnerAssignmentEvidenceV5Repository(using=runtime_alias),
+        policies=DjangoSingleOwnerAuthorityPolicyV1Repository(using=runtime_alias),
+        actors=DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository(using=runtime_alias),
+    )
+    actor_inputs = DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
+        using=runtime_alias,
+        transaction_mode="generation_fenced_read_committed_read_write",
+    )
+    connection = connections[runtime_alias]
+
+    with finalizer.fence_complete(proof):
+        with repository.atomic():
+            with actor_inputs._snapshot(connection):
+                assert len(connection.atomic_blocks) == 1
+                assert repository._active is True
+                assert repository._uow is None
+                with pytest.raises(OwnerTenantAuthorityV3Conflict, match="private UOW"):
+                    repository._require_uow()
+
+    assert repository._active is False
+    assert repository._uow is None
+    assert connection.in_atomic_block is False
 
 
 def test_postgres_complete_graph_mismatch_fails_closed_and_consumes_proof(

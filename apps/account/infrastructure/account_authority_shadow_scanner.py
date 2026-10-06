@@ -54,8 +54,6 @@ from apps.account.application.owner_tenant_authority_v3_contracts import (
     CurrentOwnerAssignmentEvidenceV5Reader,
     CurrentOwnerTenantAuthorityV3,
     HistoricalOwnerAssignmentEvidenceV5Reader,
-    OwnerTenantAuthorityV3Conflict,
-    OwnerTenantAuthorityV3Unavailable,
 )
 from apps.account.application.physical_account_row_observation_v2 import (
     ExactPhysicalSimulatedAccountRowV2Provider,
@@ -100,12 +98,14 @@ from apps.account.infrastructure.canonical_account_creation_consumption_reposito
 from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_repository import (
     DjangoCanonicalAccountOwnershipReobservationV1Repository,
 )
+from apps.account.infrastructure.generation_fenced_owner_tenant_authority_v3_repository import (
+    GenerationFencedOwnerTenantAuthorityV3Repository,
+)
 from apps.account.infrastructure.owner_tenant_authority_v3_read_context import (
     OwnerTenantAuthorityV3OperationReadContext,
 )
 from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
     DjangoOwnerTenantAuthorityV3Repository,
-    OwnerTenantAuthorityV3Clock,
 )
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
@@ -149,66 +149,6 @@ class DjangoAccountAuthorityNoLockSnapshotBundleProviderV3(
                 connection=connection,
             )
         return nullcontext()
-
-
-class _GenerationFencedOwnerTenantAuthorityV3Repository(DjangoOwnerTenantAuthorityV3Repository):
-    """Join the finalizer-owned generation fence for one current graph read."""
-
-    def __init__(
-        self,
-        *,
-        expected_generation: int,
-        using: str,
-        clock: OwnerTenantAuthorityV3Clock,
-        assignments: DjangoAccountOwnerAssignmentEvidenceV5Repository,
-        policies: DjangoSingleOwnerAuthorityPolicyV1Repository,
-        actors: DjangoAccountOwnerAssignmentActorAuthoritySourceV3Repository,
-    ) -> None:
-        """Bind the read-only repository UOW to one locked generation."""
-
-        if type(expected_generation) is not int or expected_generation < 0:
-            raise ValueError("expected_generation must be one non-negative integer")
-        super().__init__(
-            using=using,
-            clock=clock,
-            assignments=assignments,
-            policies=policies,
-            actors=actors,
-        )
-        self._expected_generation = expected_generation
-
-    @contextmanager
-    def atomic(self) -> Iterator[None]:
-        """Reuse the caller's outer transaction without creating a savepoint."""
-
-        self._postgresql()
-        connection = _connection(self._using)
-        require_active_account_authority_generation_fence(
-            using=self._using,
-            connection=connection,
-            generation=self._expected_generation,
-        )
-        if self._active:
-            raise OwnerTenantAuthorityV3Conflict(
-                "owner tenant authority v3 UOW cannot be re-entered"
-            )
-        self._active = True
-        try:
-            yield
-            require_active_account_authority_generation_fence(
-                using=self._using,
-                connection=connection,
-                generation=self._expected_generation,
-            )
-        except AccountAuthorityGenerationUnavailable:
-            raise
-        except DatabaseError as error:
-            raise OwnerTenantAuthorityV3Unavailable(
-                "owner tenant authority v3 caller-owned transaction is unavailable"
-            ) from error
-        finally:
-            self._uow = None
-            self._active = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -546,7 +486,7 @@ class AccountAuthorityCurrentGraphReaderV3:
                 raise AccountAuthorityGenerationUnavailable(
                     "generation-fenced current graph repository requires the locked generation"
                 )
-            authority_repository = _GenerationFencedOwnerTenantAuthorityV3Repository(
+            authority_repository = GenerationFencedOwnerTenantAuthorityV3Repository(
                 expected_generation=generation,
                 using=self._using,
                 clock=clock,

@@ -24,6 +24,9 @@ from apps.account.application.physical_account_row_observation_v2 import (
 )
 from apps.account.infrastructure import account_authority_generation as generation_module
 from apps.account.infrastructure import account_authority_shadow_scanner as shadow_module
+from apps.account.infrastructure import (
+    generation_fenced_owner_tenant_authority_v3_repository as generation_fenced_repository_module,
+)
 from apps.account.infrastructure.account_authority_generation import (
     AccountAuthorityGenerationProof,
     AccountAuthorityGenerationUnavailable,
@@ -35,6 +38,9 @@ from apps.account.infrastructure.account_authority_shadow_scanner import (
     AccountAuthorityCurrentGraphReadV3,
     AccountAuthorityShadowScannerV3,
     DjangoAccountAuthorityNoLockSnapshotBundleProviderV3,
+)
+from apps.account.infrastructure.generation_fenced_owner_tenant_authority_v3_repository import (
+    GenerationFencedOwnerTenantAuthorityV3Repository,
 )
 from tests.unit.audit.test_system_audit_authority_v3_reader import (
     _authority,
@@ -190,20 +196,19 @@ def test_generation_fenced_authority_repository_joins_outer_uow_without_savepoin
 
     connection = _Connection(isolation="read committed", read_only="off")
     checks: list[tuple[str, int, int]] = []
-    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
     monkeypatch.setattr(
-        shadow_module,
+        generation_fenced_repository_module,
+        "connections",
+        {"default": connection},
+    )
+    monkeypatch.setattr(
+        generation_fenced_repository_module,
         "require_active_account_authority_generation_fence",
         lambda *, using, connection, generation: checks.append(
             (using, generation, len(connection.atomic_blocks))
         ),
     )
-    monkeypatch.setattr(
-        shadow_module.transaction,
-        "atomic",
-        lambda **_kwargs: pytest.fail("generation-fenced current read created a savepoint"),
-    )
-    repository = shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository(
+    repository = GenerationFencedOwnerTenantAuthorityV3Repository(
         expected_generation=41,
         using="default",
         clock=shadow_module._AuthorityGraphFrozenClock(_legacy_current().observed_at),
@@ -230,15 +235,19 @@ def test_generation_fenced_authority_repository_fails_closed_without_fence(
     """Reject caller-owned UOW use unless the exact generation fence is active."""
 
     connection = _Connection(isolation="read committed", read_only="off")
-    monkeypatch.setattr(shadow_module, "_connection", lambda using: connection)
     monkeypatch.setattr(
-        shadow_module,
+        generation_fenced_repository_module,
+        "connections",
+        {"default": connection},
+    )
+    monkeypatch.setattr(
+        generation_fenced_repository_module,
         "require_active_account_authority_generation_fence",
         lambda **_kwargs: (_ for _ in ()).throw(
             AccountAuthorityGenerationUnavailable("active generation fence is unavailable")
         ),
     )
-    repository = shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository(
+    repository = GenerationFencedOwnerTenantAuthorityV3Repository(
         expected_generation=41,
         using="default",
         clock=shadow_module._AuthorityGraphFrozenClock(_legacy_current().observed_at),
@@ -270,19 +279,19 @@ def test_generation_fenced_graph_composes_caller_owned_authority_repository(
     observed_generations: list[int] = []
 
     def no_winner(
-        repository: shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        repository: GenerationFencedOwnerTenantAuthorityV3Repository,
         **_kwargs: object,
     ) -> None:
         observed_generations.append(repository._expected_generation)
         return None
 
     monkeypatch.setattr(
-        shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        GenerationFencedOwnerTenantAuthorityV3Repository,
         "get_winner",
         no_winner,
     )
     monkeypatch.setattr(
-        shadow_module._GenerationFencedOwnerTenantAuthorityV3Repository,
+        GenerationFencedOwnerTenantAuthorityV3Repository,
         "now",
         lambda _repository: current.observed_at,
     )
