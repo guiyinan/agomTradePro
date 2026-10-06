@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from time import perf_counter
 from types import ModuleType, SimpleNamespace
 
 import pandas as pd
@@ -422,8 +423,9 @@ def test_qlib_alert_and_universe_lookup_fail_closed(
 
 def test_qlib_cache_and_local_calendar_freshness_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """Cache and local-calendar probes return evidence without propagating storage failures."""
+    """Use bounded local calendar metadata instead of initializing Qlib in readiness."""
     from apps.alpha.infrastructure import models as alpha_models
     from core.integration import runtime_settings
 
@@ -450,45 +452,73 @@ def test_qlib_cache_and_local_calendar_freshness_fail_closed(
     )
     assert provider._has_recent_cache() is False
 
-    init_calls: list[dict[str, object]] = []
-    qlib_module = ModuleType("qlib")
-    qlib_module.init = lambda **kwargs: init_calls.append(kwargs)
-    data_module = ModuleType("qlib.data")
-    data_module.D = SimpleNamespace(calendar=lambda **kwargs: [pd.Timestamp("2026-07-24")])
-    monkeypatch.setitem(sys.modules, "qlib", qlib_module)
-    monkeypatch.setitem(sys.modules, "qlib.data", data_module)
+    calendar_path = tmp_path / "calendars" / "day.txt"
+    calendar_path.parent.mkdir()
+    calendar_start_date = date(2000, 1, 1)
+    calendar_dates = [
+        (calendar_start_date + timedelta(days=index * 2)).isoformat() for index in range(50_000)
+    ]
+    calendar_path.write_text("\n".join(calendar_dates) + "\n", encoding="utf-8")
+    latest_calendar_offset = (qlib_adapter.QLIB_CALENDAR_END_DATE - calendar_start_date).days
+    expected_latest_date = calendar_start_date + timedelta(
+        days=latest_calendar_offset - latest_calendar_offset % 2
+    )
+    runtime_config: dict[str, object] = {
+        "enabled": True,
+        "must_not_use_for_decision": False,
+        "provider_uri": str(tmp_path),
+        "region": "CN",
+    }
     monkeypatch.setattr(
         runtime_settings,
         "get_runtime_qlib_config",
-        lambda: {
-            "enabled": True,
-            "must_not_use_for_decision": False,
-            "provider_uri": "local-data",
-            "region": "CN",
-        },
+        lambda: runtime_config,
     )
-    assert provider._get_latest_data_date() == TARGET_DATE
-    assert init_calls == [{"provider_uri": "local-data", "region": "cn"}]
+    original_import_module = qlib_adapter.import_module
 
-    monkeypatch.setattr(
-        runtime_settings,
-        "get_runtime_qlib_config",
-        lambda: {
-            "enabled": False,
-            "must_not_use_for_decision": True,
-            "blocked_reason": "runtime_config_snapshot_unavailable",
-        },
-    )
-    init_calls.clear()
-    assert provider._get_latest_data_date() is None
-    assert init_calls == []
+    def reject_qlib_import(module_name: str) -> ModuleType:
+        if module_name.startswith("qlib"):
+            pytest.fail("readiness must not import or initialize Qlib")
+        return original_import_module(module_name)
 
-    data_module.D = SimpleNamespace(calendar=lambda **kwargs: [])
+    monkeypatch.setattr(qlib_adapter, "import_module", reject_qlib_import)
+    started = perf_counter()
+    assert provider._get_latest_data_date() == expected_latest_date
+    elapsed_ms = (perf_counter() - started) * 1000
+    assert elapsed_ms < 250
+
+    runtime_config.update(enabled=False, must_not_use_for_decision=True)
     assert provider._get_latest_data_date() is None
-    data_module.D = SimpleNamespace(
-        calendar=lambda **kwargs: (_ for _ in ()).throw(OSError("calendar corrupt"))
-    )
+
+    runtime_config.update(enabled=True, must_not_use_for_decision=False)
+    runtime_config["provider_uri"] = str(tmp_path / "missing")
     assert provider._get_latest_data_date() is None
+
+    runtime_config["provider_uri"] = str(tmp_path)
+    over_budget_dates = [
+        (date(2000, 1, 1) + timedelta(days=index * 2)).isoformat()
+        for index in range(qlib_adapter.MAX_QLIB_CALENDAR_ROWS + 1)
+    ]
+    calendar_path.write_text("\n".join(over_budget_dates), encoding="utf-8")
+    assert provider._get_latest_data_date() is None
+
+    calendar_path.write_text("2026-07-24\n2026-07-23\n", encoding="utf-8")
+    assert provider._get_latest_data_date() is None
+
+    with monkeypatch.context() as context:
+        original_open = Path.open
+
+        def fail_calendar_open(
+            path: Path,
+            *args: object,
+            **kwargs: object,
+        ) -> object:
+            if path == calendar_path:
+                raise OSError("calendar unavailable")
+            return original_open(path, *args, **kwargs)
+
+        context.setattr(Path, "open", fail_calendar_open)
+        assert provider._get_latest_data_date() is None
 
 
 def test_qlib_factor_exposure_handles_empty_and_malformed_feature_results(

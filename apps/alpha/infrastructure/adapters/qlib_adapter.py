@@ -58,6 +58,45 @@ def _normalize_calendar_date(value: object) -> date | None:
         return None
 
 
+MAX_QLIB_CALENDAR_ROWS = 100_000
+MAX_QLIB_CALENDAR_BYTES = 8 * 1024 * 1024
+QLIB_CALENDAR_START_DATE = date(2000, 1, 1)
+QLIB_CALENDAR_END_DATE = date(2100, 12, 31)
+
+
+def _read_qlib_calendar_latest_date(calendar_path: Path) -> date | None:
+    """Read the last date from a bounded, ordered Qlib calendar metadata file."""
+
+    try:
+        if not calendar_path.is_file():
+            return None
+        if calendar_path.stat().st_size > MAX_QLIB_CALENDAR_BYTES:
+            return None
+
+        latest_date: date | None = None
+        previous_date: date | None = None
+        row_count = 0
+        with calendar_path.open("r", encoding="utf-8") as calendar_file:
+            for line in calendar_file:
+                normalized = line.strip()
+                if not normalized:
+                    continue
+                parsed_date = _normalize_calendar_date(normalized)
+                if parsed_date is None or (
+                    previous_date is not None and parsed_date <= previous_date
+                ):
+                    return None
+                previous_date = parsed_date
+                if QLIB_CALENDAR_START_DATE <= parsed_date <= QLIB_CALENDAR_END_DATE:
+                    latest_date = parsed_date
+                row_count += 1
+                if row_count > MAX_QLIB_CALENDAR_ROWS:
+                    return None
+        return latest_date
+    except (OSError, UnicodeError):
+        return None
+
+
 def _normalize_universe_id(value: object) -> str | None:
     normalized = str(value or "").strip().lower()
     if re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,63}", normalized) is None:
@@ -169,7 +208,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return AlphaProviderStatus.UNAVAILABLE
 
         latest_data_date = self._get_latest_data_date()
-        if latest_data_date and latest_data_date < date.today() - timedelta(days=10):
+        if latest_data_date is None:
+            self._last_health_message = "Qlib 本地交易日历不可用，无法验证数据新鲜度。"
+            return AlphaProviderStatus.UNAVAILABLE
+        if latest_data_date < date.today() - timedelta(days=10):
             self._last_health_message = (
                 f"Qlib 本地数据最新交易日为 {latest_data_date.isoformat()}，"
                 "无法生成当天新鲜推理，将回退到缓存/降级结果。"
@@ -506,11 +548,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
     def _get_latest_data_date(self) -> date | None:
         """Return the latest trading date available in the local qlib dataset."""
         try:
-            from apps.alpha.infrastructure.qlib_runtime_init import initialize_qlib_runtime
             from core.integration.runtime_settings import get_runtime_qlib_config
 
-            qlib = import_module("qlib")
-            data_api = import_module("qlib.data").D
             qlib_config = get_runtime_qlib_config()
             if qlib_config.get("enabled") is not True or qlib_config.get(
                 "must_not_use_for_decision",
@@ -518,20 +557,11 @@ class QlibAlphaProvider(BaseAlphaProvider):
             ):
                 return None
             provider_uri = str(qlib_config.get("provider_uri") or "").strip()
-            region = str(qlib_config.get("region") or "CN")
             if not provider_uri:
                 return None
 
-            initialize_qlib_runtime(
-                provider_uri=provider_uri,
-                region=region,
-                qlib_module=qlib,
-            )
-
-            calendar = data_api.calendar(start_time="2000-01-01", end_time="2100-12-31")
-            if len(calendar) == 0:
-                return None
-            return _normalize_calendar_date(calendar[-1])
+            calendar_path = Path(provider_uri).expanduser() / "calendars" / "day.txt"
+            return _read_qlib_calendar_latest_date(calendar_path)
         except Exception as exc:
             logger.debug("读取本地 Qlib 数据最新日期失败: %s", type(exc).__name__)
             return None

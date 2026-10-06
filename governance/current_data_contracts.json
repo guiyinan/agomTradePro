@@ -588,6 +588,47 @@
       ]
     },
     {
+      "id": "alpha.qlib_provider_readiness",
+      "surface": "GET /api/ready/ Alpha workspace provider freshness diagnostics",
+      "source_files": [
+        "apps/alpha/infrastructure/adapters/qlib_adapter.py",
+        "apps/data_center/application/market_calendar.py",
+        "core/health_checks.py"
+      ],
+      "required_markers": {
+        "apps/alpha/infrastructure/adapters/qlib_adapter.py": [
+          "def _read_qlib_calendar_latest_date(",
+          "MAX_QLIB_CALENDAR_ROWS",
+          "latest_data_date is None",
+          "无法验证数据新鲜度"
+        ],
+        "apps/data_center/application/market_calendar.py": [
+          "@lru_cache(maxsize=32)",
+          "def load_cn_market_calendar_evidence("
+        ],
+        "core/health_checks.py": [
+          "def check_alpha_workspace_consistency("
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "cold_qlib_freshness_uses_bounded_calendar_metadata",
+          "test_file": "tests/unit/alpha/test_t3b_provider_contracts.py",
+          "test_function": "test_qlib_cache_and_local_calendar_freshness_fail_closed"
+        },
+        {
+          "case": "missing_calendar_cannot_report_provider_available",
+          "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
+          "test_function": "test_qlib_adapter_health_queue_inline_factors_and_prediction"
+        },
+        {
+          "case": "provider_route_reused_for_exact_calendar_window",
+          "test_file": "tests/unit/data_center/test_market_calendar.py",
+          "test_function": "test_source_bound_calendar_evidence_reuses_exact_coverage_window"
+        }
+      ]
+    },
+    {
       "id": "strategy.execution_preview",
       "surface": "POST /api/strategy/execution/evaluate/ display-only preview",
       "source_files": [

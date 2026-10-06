@@ -626,6 +626,11 @@ def test_qlib_adapter_health_queue_inline_factors_and_prediction(monkeypatch, tm
         lambda: date.today().replace(year=date.today().year - 1),
     )
     assert provider.health_check().value == "degraded"
+    monkeypatch.setattr(provider, "_get_latest_data_date", lambda: None)
+    monkeypatch.setattr(provider, "_has_recent_cache", lambda: True)
+    assert provider.health_check().value == "unavailable"
+    assert provider._last_health_message == "Qlib 本地交易日历不可用，无法验证数据新鲜度。"
+
     monkeypatch.setattr(provider, "_get_active_model", lambda: None)
     assert provider.health_check().value == "unavailable"
 

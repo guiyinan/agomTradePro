@@ -1,9 +1,12 @@
 """Provider-backed market-calendar application contracts."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
+
+import pytest
 
 from apps.data_center.application import market_calendar
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
+from apps.data_center.domain.model_market_data import TradingCalendarEvidence
 from core.exceptions import ConfigurationError
 from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
@@ -92,3 +95,49 @@ def test_audit_composition_failure_becomes_calendar_blocker(monkeypatch) -> None
         )
         is None
     )
+
+
+def test_source_bound_calendar_evidence_reuses_exact_coverage_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Warm readiness reads reuse validated provider evidence without rebuilding its route."""
+
+    from apps.data_center import composition
+
+    start_date = date(2026, 9, 1)
+    end_date = date(2026, 9, 30)
+    evidence = TradingCalendarEvidence(
+        coverage_start=start_date,
+        coverage_end=end_date,
+        open_sessions=(date(2026, 9, 1),),
+        source="fixture-provider",
+        observed_at=datetime(2026, 9, 30, tzinfo=UTC),
+    )
+    route_calls: list[tuple[date, date]] = []
+    build_calls: list[bool] = []
+
+    class _CalendarPort:
+        def trading_calendar_evidence(
+            self,
+            requested_start: date,
+            requested_end: date,
+        ) -> TradingCalendarEvidence:
+            route_calls.append((requested_start, requested_end))
+            return evidence
+
+    def build_calendar_port() -> _CalendarPort:
+        build_calls.append(True)
+        return _CalendarPort()
+
+    monkeypatch.setattr(composition, "build_model_market_data_service", build_calendar_port)
+    market_calendar.load_cn_market_calendar_evidence.cache_clear()
+    try:
+        first = market_calendar.load_cn_market_calendar_evidence(start_date, end_date)
+        second = market_calendar.load_cn_market_calendar_evidence(start_date, end_date)
+    finally:
+        market_calendar.load_cn_market_calendar_evidence.cache_clear()
+
+    assert first is evidence
+    assert second is evidence
+    assert route_calls == [(start_date, end_date)]
+    assert build_calls == [True]
