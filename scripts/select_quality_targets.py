@@ -17,29 +17,38 @@ TYPECHECK_PREFIXES = ("apps/", "core/", "shared/")
 def normalize_path(path_text: str) -> str:
     """Normalize a repository-relative path to POSIX form."""
 
-    return Path(path_text.strip()).as_posix().lstrip("./")
+    return Path(path_text).as_posix().removeprefix("./")
 
 
-def get_changed_files(base: str, head: str) -> list[str]:
-    """Return changed files between two refs, or an empty list on git failure."""
+def get_changed_files(base: str, head: str, *, include_deleted: bool = False) -> list[str]:
+    """Read a diff, failing closed; runtime scope includes both sides of renames."""
 
-    try:
-        result = subprocess.run(
-            [
-                "git",
-                "diff",
-                "--name-only",
-                "--diff-filter=ACMRT",
-                f"{base}...{head}",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        return []
+    options = (
+        ["--diff-filter=ACMRTD", "--no-renames", "-z"]
+        if include_deleted
+        else ["--diff-filter=ACMRT"]
+    )
+    result = subprocess.run(
+        ["git", "diff", "--name-only", *options, f"{base}...{head}"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    paths = result.stdout.split("\0") if include_deleted else result.stdout.splitlines()
+    return [normalize_path(path) for path in paths if path]
 
-    return [normalize_path(line) for line in result.stdout.splitlines() if line.strip()]
+
+def select_runtime_inputs(changed_files: list[str]) -> list[str]:
+    """Keep full runtime validation unless every changed path is known prose."""
+
+    if not changed_files:
+        return ["<unknown-change-scope>"]
+    return sorted(
+        path
+        for path in changed_files
+        if not (path == "README.md" or (path.startswith("docs/") and path.endswith(".md")))
+    )
 
 
 def _is_python_file(path: str) -> bool:
@@ -95,17 +104,19 @@ def select_targets(changed_files: list[str], profile: str) -> list[str]:
         "lint": select_lint_targets,
         "typecheck": select_typecheck_targets,
         "domain-coverage": select_domain_coverage_targets,
+        "runtime-inputs": select_runtime_inputs,
     }
     return selectors[profile](changed_files)
 
 
 def main() -> int:
+    """Print selected targets for local checks or CI scope detection."""
     parser = argparse.ArgumentParser(description="Select incremental quality-check targets.")
     parser.add_argument("--base", default="origin/main", help="Base git ref.")
     parser.add_argument("--head", default="HEAD", help="Head git ref.")
     parser.add_argument(
         "--profile",
-        choices=("lint", "typecheck", "domain-coverage"),
+        choices=("lint", "typecheck", "domain-coverage", "runtime-inputs"),
         required=True,
         help="Target selection profile.",
     )
@@ -123,7 +134,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    changed_files = get_changed_files(args.base, args.head)
+    changed_files = get_changed_files(
+        args.base, args.head, include_deleted=args.profile == "runtime-inputs"
+    )
     targets = select_targets(changed_files, args.profile)
 
     if args.verbose:

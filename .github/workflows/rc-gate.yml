@@ -28,6 +28,7 @@ jobs:
     uses: ./.github/workflows/ci-fast-feedback.yml
     with:
       base_ref: ${{ inputs.base_ref || '' }}
+      full_validation: true
   regression:
     uses: ./.github/workflows/nightly-tests.yml
   publication:

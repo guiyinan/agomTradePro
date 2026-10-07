@@ -6,6 +6,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -163,3 +165,37 @@ def test_required_workflows_emit_checks_for_docs_only_changes() -> None:
         )
         assert "paths-ignore:" not in workflow_text
         assert "${{ github.event_name }}-${{ github.ref }}" in workflow_text
+
+
+def test_prose_fast_path_preserves_governance_and_full_release_validation() -> None:
+    """Only runtime suites may be omitted; release callers must force them back on."""
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/ci-fast-feedback.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    jobs = workflow["jobs"]
+    condition = "needs.detect-tests.outputs.runtime-required == 'true'"
+    for key in ("fast-tdd", "fast-feedback"):
+        assert jobs[key]["needs"] == "detect-tests"
+        assert jobs[key]["if"] == condition
+    quality = jobs["incremental-quality"]
+    assert "if" not in quality
+    for step in quality["steps"]:
+        if step.get("name") == "Enforce full-production mypy debt ceiling":
+            assert step["if"] == condition
+        elif "inventory" in step.get("name", ""):
+            assert "if" not in step
+    scope = next(
+        step for step in jobs["detect-tests"]["steps"] if step.get("id") == "runtime-scope"
+    )
+    assert "set -euo pipefail" in scope["run"]
+    assert "--profile runtime-inputs" in scope["run"]
+    assert '"$EVENT_NAME" != "push" && "$EVENT_NAME" != "pull_request"' in scope["run"]
+    assert '"$FULL_VALIDATION" == "true"' in scope["run"]
+    assert workflow["on"]["workflow_call"]["inputs"]["full_validation"]["default"] == "true"
+    rc = yaml.load(
+        (REPO_ROOT / ".github/workflows/rc-gate.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    assert rc["jobs"]["fast"]["with"]["full_validation"] == "true"

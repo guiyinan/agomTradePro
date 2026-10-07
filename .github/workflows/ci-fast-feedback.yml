@@ -6,6 +6,11 @@ on:
       base_ref:
         required: false
         type: string
+      full_validation:
+        description: 'Reusable release gates always run runtime validation'
+        required: false
+        type: boolean
+        default: true
   pull_request:
     branches:
       - main
@@ -28,6 +33,8 @@ concurrency:
 jobs:
   fast-tdd:
     name: No-database TDD suite
+    needs: detect-tests
+    if: needs.detect-tests.outputs.runtime-required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -78,6 +85,7 @@ jobs:
       tui-changed: ${{ steps.tui-scope.outputs.changed }}
       test-paths: ${{ steps.tests.outputs.test-paths }}
       test-count: ${{ steps.tests.outputs.test-count }}
+      runtime-required: ${{ steps.runtime-scope.outputs.required }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -129,6 +137,27 @@ jobs:
 
           echo "base-ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "head-ref=${HEAD_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect runtime validation scope
+        id: runtime-scope
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.refs.outputs.base-ref }}
+          HEAD_REF: ${{ steps.refs.outputs.head-ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          FULL_VALIDATION: ${{ inputs.full_validation }}
+        run: |
+          set -euo pipefail
+          RUNTIME_INPUTS="$(python scripts/select_quality_targets.py \
+            --base "$BASE_REF" --head "$HEAD_REF" --profile runtime-inputs)"
+          if [[ "$EVENT_NAME" != "push" && "$EVENT_NAME" != "pull_request" ]] \
+            || [[ "$FULL_VALIDATION" == "true" ]] || [[ -n "$RUNTIME_INPUTS" ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "Runtime validation: full (code, unknown scope, or release invocation)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            echo "Runtime validation: omitted for README/docs Markdown only. Governance and security checks still run; this is not a full release validation." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Detect changed modules
         id: modules
@@ -329,6 +358,7 @@ jobs:
             ${{ steps.targets.outputs.typecheck-targets }}
 
       - name: Restore mypy cache
+        if: needs.detect-tests.outputs.runtime-required == 'true'
         uses: actions/cache@v4
         with:
           path: .mypy_cache
@@ -337,6 +367,7 @@ jobs:
             mypy-debt-${{ runner.os }}-
 
       - name: Enforce full-production mypy debt ceiling
+        if: needs.detect-tests.outputs.runtime-required == 'true'
         run: |
           python scripts/check_mypy_debt_ceiling.py \
             --reference-ref "${{ needs.detect-tests.outputs.base-ref }}"
@@ -358,6 +389,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: detect-tests
+    if: needs.detect-tests.outputs.runtime-required == 'true'
     strategy:
       matrix:
         python-version: ['3.11', '3.13']
