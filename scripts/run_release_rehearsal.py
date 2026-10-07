@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib
+import importlib.util
 import json
 import os
 import re
@@ -1593,6 +1594,9 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             | ({"DJANGO_SETTINGS_MODULE"} - provider_values.keys())
         )
     )
+    missing_runtime_dependencies = (
+        ("paramiko",) if importlib.util.find_spec("paramiko") is None else ()
+    )
     files = (
         config.root,
         config.output_dir,
@@ -1625,6 +1629,7 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             provider_timeout_seconds=config.provider_probe_timeout_seconds,
             task_deadline_seconds=config.task_deadline_seconds,
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
+            missing_runtime_dependencies=missing_runtime_dependencies,
         )
     )
     preflight_dir = config.output_dir / "stage-environment-preflight"
@@ -1751,6 +1756,9 @@ def _run_stage_environment_preflight(
             | (required_provider - provider_values.keys())
         )
     )
+    missing_runtime_dependencies = (
+        ("paramiko",) if importlib.util.find_spec("paramiko") is None else ()
+    )
     frozen_settings = run_dir / "inputs" / "provider-settings.json"
     frozen_unit = run_dir / "inputs" / "provider-unit-contract.json"
     files = (
@@ -1790,6 +1798,7 @@ def _run_stage_environment_preflight(
             provider_timeout_seconds=config.provider_probe_timeout_seconds,
             task_deadline_seconds=config.task_deadline_seconds,
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
+            missing_runtime_dependencies=missing_runtime_dependencies,
             dynamic_issues=dynamic_issues,
         )
     )

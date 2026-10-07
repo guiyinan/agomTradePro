@@ -36,6 +36,7 @@ ALLOWED_ISSUE_CODES = frozenset(
         "REHEARSAL_STAGE_FILESYSTEM_ENTRY_INVALID",
         "REHEARSAL_STAGE_TRANSFER_ENCODING_INVALID",
         "REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID",
+        "REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING",
         "REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT",
         "REHEARSAL_STAGE_MEMORY_HEADROOM_INSUFFICIENT",
         "REHEARSAL_STAGE_CLOCK_INVALID",
@@ -91,6 +92,7 @@ class StageEnvironmentInputs:
     provider_timeout_seconds: float
     task_deadline_seconds: float
     lock_wait_limit_seconds: float
+    missing_runtime_dependencies: tuple[str, ...] = ()
     dynamic_issues: tuple[StageEnvironmentIssue, ...] = ()
 
 
@@ -140,15 +142,24 @@ def _encoding_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIss
 
 
 def _identity_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIssue]:
-    if not inputs.missing_identity_keys:
-        return []
-    return [
-        _all(
-            inputs.stages,
-            "identity_and_secrets",
-            "REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID",
+    issues: list[StageEnvironmentIssue] = []
+    if inputs.missing_identity_keys:
+        issues.append(
+            _all(
+                inputs.stages,
+                "identity_and_secrets",
+                "REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID",
+            )
         )
-    ]
+    if inputs.missing_runtime_dependencies and "build_only" in inputs.stages:
+        issues.append(
+            StageEnvironmentIssue(
+                category="identity_and_secrets",
+                code="REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING",
+                stages=("build_only",),
+            )
+        )
+    return issues
 
 
 def _resource_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIssue]:

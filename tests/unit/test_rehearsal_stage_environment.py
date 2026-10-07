@@ -74,6 +74,26 @@ def test_each_registered_category_has_a_passing_cell(tmp_path: Path, category: s
     }
 
 
+def test_missing_runner_dependency_fails_build_only_without_leaking_name(tmp_path: Path) -> None:
+    inputs = replace(
+        _inputs(tmp_path),
+        stages=("build_only", "docker_identity"),
+        missing_runtime_dependencies=("paramiko",),
+    )
+
+    report = evaluate_stage_environment(inputs)
+
+    assert report["outcome"] == "blocked"
+    assert report["issues"] == [
+        {
+            "category": "identity_and_secrets",
+            "code": "REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING",
+            "stages": ["build_only"],
+        }
+    ]
+    assert "paramiko" not in json.dumps(report)
+
+
 @pytest.mark.parametrize(
     ("category", "mutator", "expected_code"),
     [

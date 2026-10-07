@@ -17,12 +17,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_requirements_files_are_exact_pyproject_projections() -> None:
     """Prevent manual requirements edits from creating a second dependency truth."""
 
-    assert (REPO_ROOT / "requirements-prod.txt").read_text(
-        encoding="utf-8"
-    ) == render_projection()
-    assert (REPO_ROOT / "requirements-dev.txt").read_text(
-        encoding="utf-8"
-    ) == render_projection("dev")
+    assert (REPO_ROOT / "requirements-prod.txt").read_text(encoding="utf-8") == render_projection()
+    assert (REPO_ROOT / "requirements-dev.txt").read_text(encoding="utf-8") == render_projection(
+        "dev"
+    )
+    assert (REPO_ROOT / "requirements-ops.txt").read_text(encoding="utf-8") == render_projection(
+        "ops"
+    )
+    assert "-r requirements-prod.txt" not in render_projection("ops")
 
 
 def test_production_lock_covers_every_canonical_runtime_dependency() -> None:

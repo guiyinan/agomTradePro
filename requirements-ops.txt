@@ -1,0 +1,3 @@
+# Generated from pyproject.toml [project.optional-dependencies].ops; do not edit manually.
+# Regenerate with: python scripts/sync_dependency_projections.py
+paramiko==4.0.0

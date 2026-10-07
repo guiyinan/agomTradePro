@@ -71,7 +71,10 @@ python manage.py preflight_full_market_publication \
 
 # 3. S6 发布预演必须携带同一快照；缺 production_policy_parity 证据的
 #    receipt 会被 validate_release_rehearsal.py 拒绝
-python scripts/run_release_rehearsal.py ... --provider-settings-json provider-settings.json \
+python3 -m venv <attempt-root>/runner-venv
+<attempt-root>/runner-venv/bin/python -m pip install -r requirements-ops.txt
+<attempt-root>/runner-venv/bin/python scripts/run_release_rehearsal.py ... \
+  --provider-settings-json provider-settings.json \
   --transport-input prepare-wrapper.sh --transport-input provider.env
 ```
 

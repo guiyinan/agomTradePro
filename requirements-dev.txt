@@ -1,6 +1,7 @@
 # Generated from pyproject.toml [project.optional-dependencies].dev; do not edit manually.
 # Regenerate with: python scripts/sync_dependency_projections.py
 -r requirements-prod.txt
+paramiko==4.0.0
 pytest
 pytest-django
 pytest-cov

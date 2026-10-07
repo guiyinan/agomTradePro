@@ -32,7 +32,9 @@ def _dependency_group(extra: str | None) -> list[str]:
     if not isinstance(raw_dependencies, list) or not all(
         isinstance(value, str) and value.strip() for value in raw_dependencies
     ):
-        label = "project.dependencies" if extra is None else f"project.optional-dependencies.{extra}"
+        label = (
+            "project.dependencies" if extra is None else f"project.optional-dependencies.{extra}"
+        )
         raise ValueError(f"pyproject.toml {label} must be a non-empty string list")
     return list(raw_dependencies)
 
@@ -45,7 +47,7 @@ def render_projection(extra: str | None = None) -> str:
         prefix: list[str] = []
     else:
         source = f"[project.optional-dependencies].{extra}"
-        prefix = ["-r requirements-prod.txt"]
+        prefix = [] if extra == "ops" else ["-r requirements-prod.txt"]
     lines = [
         f"# Generated from pyproject.toml {source}; do not edit manually.",
         "# Regenerate with: python scripts/sync_dependency_projections.py",
@@ -61,6 +63,7 @@ def synchronize(*, check: bool) -> list[str]:
     projections = {
         REPO_ROOT / "requirements-prod.txt": render_projection(),
         REPO_ROOT / "requirements-dev.txt": render_projection("dev"),
+        REPO_ROOT / "requirements-ops.txt": render_projection("ops"),
     }
     stale: list[str] = []
     for path, expected in projections.items():

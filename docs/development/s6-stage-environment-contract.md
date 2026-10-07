@@ -45,7 +45,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 
 | 阶段 | 文件系统 | 传输编码 | 网络出口 | 身份与密钥 | 资源与时间 | 外部状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；remote builder 独立读取，不进报告。 | 已有：remote build 的 12 GiB `/var/lib/docker` 硬门槛、显式 build timeout；统一门禁复核证据盘/内存。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
+| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断；依赖由 `pyproject.toml` 的 `ops` 组和生成的 `requirements-ops.txt` 提供。 | 已有：remote build 的 12 GiB `/var/lib/docker` 硬门槛、显式 build timeout；统一门禁复核证据盘/内存。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
 | `docker_identity` | 已有：`_freeze_provider_settings_snapshot`、`_write_identity` 以排他写/哈希/只读 mode 冻结输入。 | 已有：统一门禁检查冻结 env/JSON/unit/identity 与登记传输文件。 | 无资源：仅检查本地候选镜像，不出网。 | 已有：`_candidate_container_gid`、OCI revision/image ID/release tag 精确绑定。 | 已有：命令 60 秒上限；统一门禁检查预算关系。 | 已有：checkpoint binding 绑定候选、输入摘要和隔离环境身份。 |
 | `provider_probe` | 已有：`_invoke_container_stage` 校验目录 inode、group write 窗口并在退出时密封。 | 已有：统一门禁在阶段前检查 env/冻结输入/transport bytes。 | 已有：候选动态探针复用 `provider_policy_and_routes`；stage 自身继续保留 response evidence。 | 已有：完整 identities digest、quote/valuation provider ID 与候选镜像绑定；Config Center provider policy 只读解析。 | 已有：sample 50、max dispatch、provider timeout 与外层 stage timeout 层级。 | 已有：冻结 provider settings，禁止从 live 设置静默漂移。 |
 | `response_replay` | 已有：provider probe 与 unit contract 只读 mount；报告/identity/hash 复核。 | 已有：统一门禁。 | 无资源：只重放已留存响应，不出网。 | 已有：probe SHA、unit contract SHA、candidate/provider digest。 | 已有：stage timeout；内存/磁盘由统一门禁覆盖。 | 已有：只消费同 attempt 前缀，checkpoint 防跨候选复用。 |
@@ -62,6 +62,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 - 宿主静态问题：`REHEARSAL_STAGE_FILESYSTEM_ENTRY_INVALID`、
   `REHEARSAL_STAGE_TRANSFER_ENCODING_INVALID`、
   `REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID`、
+  `REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING`、
   `REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT`、
   `REHEARSAL_STAGE_MEMORY_HEADROOM_INSUFFICIENT`、`REHEARSAL_STAGE_CLOCK_INVALID`、
   `REHEARSAL_STAGE_TIME_BUDGET_INVALID`。
@@ -81,7 +82,8 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 - Windows 本地不能证明 POSIX symlink race、descriptor ownership、非 root 容器读取和实际 mode；相关正反例必须由 Linux CI 执行，
   下一轮 fresh S6 再提供真实容器证据，不能把 Windows skip 计作通过。
 - runner 无法在自身启动前检查启动它的 wrapper；上传/执行链必须在发送端复用同一 UTF-8/LF 规则，并把每个实际输入通过
-  `--transport-input` 交给 runner 复核。未登记即输入校验失败。
+  `--transport-input` 交给 runner 复核。未登记即输入校验失败。宿主应先用 `requirements-ops.txt` 创建 attempt 私有虚拟环境；
+  runner 起动后还会独立复核 `paramiko`，因此错误解释器或漏装依赖会在远端构建前失败关闭。
 - build host 的 SSH/DNS/host-key 路径和 GitHub artifact host 仍缺独立的无副作用 allowlist preview；当前由实际阶段失败关闭，
   不能宣称这些外部依赖已被统一门禁完全覆盖。
 - 本门禁在本地与 CI 通过后仍不得称为 S6 实证；必须等待下一轮新候选，从 fresh production snapshot、fresh inputs、fresh attempt
