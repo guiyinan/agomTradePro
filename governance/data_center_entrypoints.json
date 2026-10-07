@@ -31,8 +31,8 @@
     },
     "by_status": {
       "active_public": 821,
-      "adjacent_operational": 337,
-      "candidate-review": 1,
+      "adjacent_operational": 338,
+      "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
@@ -482,8 +482,8 @@
     {
       "category": "application_consumer",
       "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/dashboard/application/alpha_refresh_notice.py:get_decision_publication_gate:line:320",
-      "locator": "line:320",
+      "id": "application_consumer:apps/dashboard/application/alpha_refresh_notice.py:get_decision_publication_gate:line:387",
+      "locator": "line:387",
       "path": "apps/dashboard/application/alpha_refresh_notice.py",
       "status": "active_public",
       "symbol": "get_decision_publication_gate",
@@ -12351,11 +12351,11 @@
     },
     {
       "category": "test_evidence",
-      "evidence": "executable operational test/migration evidence; governance review required",
+      "evidence": "reviewed PostgreSQL publication fact-lock serialization, recovery, and bounded-query evidence",
       "id": "test_evidence:tests/component/data_center/test_publication_fact_lock_postgres.py:test_publication_fact_lock_postgres:",
       "locator": "",
       "path": "tests/component/data_center/test_publication_fact_lock_postgres.py",
-      "status": "candidate-review",
+      "status": "adjacent_operational",
       "symbol": "test_publication_fact_lock_postgres",
       "target": ""
     },
@@ -13023,7 +13023,7 @@
     "celery_tasks": 94,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 32,
+    "operational_governance_rules": 33,
     "runtime_config_keys": 45
   },
   "source_contracts": [

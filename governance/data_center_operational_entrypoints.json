@@ -246,6 +246,13 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed PostgreSQL publication fact-lock serialization, recovery, and bounded-query evidence",
+      "path": "tests/component/data_center/test_publication_fact_lock_postgres.py",
+      "symbol": "test_publication_fact_lock_postgres",
+      "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
       "evidence": "reviewed deterministic contract evidence for shared transaction-scoped advisory locks",
       "path": "tests/unit/shared/infrastructure/test_postgres_advisory_lock.py",
       "symbol": "test_postgres_advisory_lock",
