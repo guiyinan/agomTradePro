@@ -2546,18 +2546,29 @@ refresh 未获授权，两个周期入口保持 disabled；普通用户生产会
 resume。
 
 根因不是单次 VPS 漏装包，而是 operational entrypoint 的运行时依赖没有进入 `pyproject.toml` 真源，既有统一 preflight 也没有在
-远端构建前检查它。提交 `3c2576949` 新增精确 `paramiko==4.0.0` 的 `ops/dev/all` 依赖，唯一生成器新增最小
+远端构建前检查它。提交 `3c2576949` 最初新增精确 `paramiko==4.0.0` 的 `ops/dev/all` 依赖，唯一生成器新增最小
 `requirements-ops.txt` 投影；S6 prebuild 和最终环境报告都检查 remote builder 依赖可导入，缺失时仅在 `build_only` 单元格以
 `REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING` fail closed，不泄露模块名或解释器路径。quick reference 统一要求 attempt 私有 venv
 从 `requirements-ops.txt` 安装，避免修改系统 Python 或依赖人工遗留环境。
 
-测试计数：runner、六类环境矩阵与依赖真源组合为 `111 passed / 3 skipped`；加入 release validator 的组合为
-`215 passed / 3 skipped`。3 个 skip 均为 Windows 无法提供的 POSIX symlink/ownership 边界，未计作通过。三个生产/运维 Python
+exact-SHA Security `37619267722` 随即正确阻断 Paramiko 4.0.0 的 `CVE-2026-44405 / PYSEC-2026-2858`；Safety 与
+pip-audit 均各报告 1 个漏洞，其他 npm、Bandit 与 gitleaks 节点通过。整改没有新增 ignore 或放宽扫描门槛：`ops/dev/all`
+经提交 `e8e90db0f` 统一改为上游已删除 RSA/SHA-1 支持的不可变提交
+`a4489456b6f65281e172380cc4826cee5e851dbb`，其构建元数据版本为
+`5.0.0`；投影仍只由 `sync_dependency_projections.py` 生成。runner 现在同时验证模块存在和版本精确为 `5.0.0`，错误版本与
+缺失模块使用同一不泄露依赖细节的稳定业务码失败关闭；guardrail 固定上游 commit，防止回退到已知脆弱 release。
+
+测试计数：runner、六类环境矩阵、远端构建器、planner、manifest、validator 与依赖投影组合更新为
+`314 passed / 6 skipped`；全新私有 venv 已从上游固定 commit 构建
+`paramiko 5.0.0`，运行时 `RSAKey.HASHES` 仅保留 `rsa-sha2-256/512` 及证书变体，Safety 为 `0`、pip-audit 为 `0`。
+此前 runner、六类环境矩阵与依赖真源组合为 `111 passed / 3 skipped`；加入 release validator 的组合为
+`215 passed / 3 skipped`。本次 6 个 skip 均为 Windows 无法提供的 POSIX symlink/ownership、descriptor 或非 root 容器边界，
+未计作通过。三个生产/运维 Python
 文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、依赖投影
 check、Data Center entrypoint inventory `1,298` 条、module map `44 modules / 210 edges` 和 governance consistency `0 violation`
 均通过。
 
-未验证风险与停止线：`3c2576949` 与本节台账尚未 push，也未绑定新的五组 exact-SHA CI；attempt 私有 ops venv 尚未在 fresh S6
+未验证风险与停止线：`e8e90db0f` 与本节更新尚未 push，也未绑定新的五组 exact-SHA CI；attempt 私有 ops venv 尚未在 fresh S6
 实证。宿主 shell/SSH/DNS/host-key 仍位于 runner 自检之前，未知环境类别风险继续保留。生产 full-market task
 `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，生产 financial refresh 未获授权，两个周期入口保持 disabled；普通用户生产
 会话仍未提供。

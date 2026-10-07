@@ -83,7 +83,9 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
   下一轮 fresh S6 再提供真实容器证据，不能把 Windows skip 计作通过。
 - runner 无法在自身启动前检查启动它的 wrapper；上传/执行链必须在发送端复用同一 UTF-8/LF 规则，并把每个实际输入通过
   `--transport-input` 交给 runner 复核。未登记即输入校验失败。宿主应先用 `requirements-ops.txt` 创建 attempt 私有虚拟环境；
-  runner 起动后还会独立复核 `paramiko`，因此错误解释器或漏装依赖会在远端构建前失败关闭。
+  `paramiko` 固定到上游删除 RSA/SHA-1 支持的不可变提交 `a4489456b6f65281e172380cc4826cee5e851dbb`
+  （包版本 `5.0.0`）；runner 起动后还会独立复核该版本，因此错误解释器、漏装依赖或旧版依赖会在远端构建前失败关闭。
+  私有 venv 的源码获取仍依赖 GitHub 可达性，该 launcher 前置边界须由 prepare/bootstrap receipt 记录，不能记作 runner 自证。
 - build host 的 SSH/DNS/host-key 路径和 GitHub artifact host 仍缺独立的无副作用 allowlist preview；当前由实际阶段失败关闭，
   不能宣称这些外部依赖已被统一门禁完全覆盖。
 - 本门禁在本地与 CI 通过后仍不得称为 S6 实证；必须等待下一轮新候选，从 fresh production snapshot、fresh inputs、fresh attempt
