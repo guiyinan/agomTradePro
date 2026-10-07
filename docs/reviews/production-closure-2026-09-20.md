@@ -948,3 +948,25 @@ evidence guard 结构化失败关闭，并报告 `mutations_performed=false`。�
 结构化证据见 [生产 revision 66f7d37077 只读重验](../deployment/production-closure-revalidation-2026-10-06-66f7d37077.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v192 → v193；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、profile 激活、provider 调用、生产写入或 Publication 切换。
+
+
+## 生产 revision 66f7d37077 指针级只读重验（2026-10-07）
+
+生产仍运行 `66f7d37077` / `20261006041252`；探针采集时 `dev/next-development` HEAD 为 `7191ddcf29`，生产落后
+33 个提交。公网 health、db health、ready 为 200，decision-ready 为 503，release-identity 为 403。
+profile v19 仍绑定 `9c77c51182`，exact deployment/profile identity binding 继续 P0 阻断；authority 仍为 1/1/1。
+
+本轮新增精确 current-pointer 只读联查。quote 与 valuation 的活动指针均已达到 5,572/5,572；price 活动
+指针为 5,561/5,572、缺 11，较上一份封存证据中的满覆盖 price Publication 回退；financial 没有 current
+pointer，历史 published row 仍为 80。三个市场指针共享 activation `19d9a93e`，更新时间均为
+2026-10-06T10:34:29.820133Z。表内保留的旧 published current-key 记录是历史版本，本轮不把它们误报为
+多个活动指针。四 Publication reconciliation 因 price 回退及 financial pointer 缺失仍未完成。
+
+两个未传 `--execute` 的预检仍在 financial decision evidence guard 失败关闭并报告
+`mutations_performed=false`。受保护监控首轮与重试均从此前 401 变为 `TimeoutError`；这不代表认证改善，
+仍不能建立 TUI-02 首样本或观察时钟。部署源码的 source-time contract/matcher 未变；本地新增的 producer、
+retained artifact 与 S6 代码尚未部署，不能替代生产证据。
+
+结构化证据见 [生产 revision 66f7d37077 指针级只读重验](../deployment/production-closure-revalidation-2026-10-07-66f7d37077.json)，原始探针、输出和哈希
+清单见同名 `-raw.zip`。registry v193 → v194；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、provider 调用、生产写入、profile 激活或 Publication 切换。
