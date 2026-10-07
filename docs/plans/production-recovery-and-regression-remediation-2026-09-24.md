@@ -51,6 +51,17 @@
 
 ### R1.2 / P0 正式发布不可用（用户 2）
 
+**2026-10-07 授权更新（Asia/Shanghai）**：用户在 chat `01a1166e-ec55-7fd1-a552-83dce4620f21`
+明确回复“R1.2 的第四类：financial 正式发布 │ 需要用户新的明确授权（当前 ceiling 仅 N≤1 预演）；能力本身已在 S6 #4 被真实 provider 双原件证明，卡点纯粹是授权——授权”。
+据此，financial 正式发布及其必要的受控生产刷新已获用户授权；下文历史台账中的“financial refresh 未获授权／仍需新的明确授权”
+仅描述当时状态，后续不得据此重复索要同一授权。授权不等于已经执行或验收成功：执行前仍须核验候选绑定的 CI、完整 fresh S6、
+handoff receipt 与同镜像部署证据，并冻结 provider、资产/公告日范围和请求预算。现有
+`governance/financial_sync_request_budgets.json` 的单次 `N<=1 / 2N<=2` 执行上限保持有效；扩大规模须先形成容量证据并完成治理变更，
+不得通过循环小批次规避总量评估。用户引用的 S6 #4 双原件证明不能替代本次正式发布的 publication/current identity、来源时间、
+完整性与 requested/succeeded/failed/stored 对账。此次授权不改变既有全市场任务禁止重跑、两个周期入口 disabled 的边界。
+登记时主发布 chat `01a0d39f-13d8-7990-a75b-baf6f8182e31` 正为候选 `c3e1527bd31d7067c732cdcc9ae395cf9c5ce80a`
+准备 fresh S6 attempt `98c8bcbe3bb34f2e9c6c56fb68504bf0`；本次仅登记授权，没有启动第二条部署链或执行生产写入。
+
 - 优先复现 `publication_member_fact_changed`：记录失配 dataset/member/fact 字段和写入来源；排查同一自然键更新、重复抓取、财报后台补录与发布验证窗口竞态。
 - 修复必须保持 immutable publication 身份及事实证据约束；选择满足现有模型的事务隔离、版本化事实或受控发布方案，不能跳过完整 hash 验证、更新旧 member hash 或只缩减校验范围。
 - 报价/日线/估值和财报独立记录 raw refresh、validated candidate、published 三阶段；收盘日期、knowledge time、规则版本及适用资产范围一致。
