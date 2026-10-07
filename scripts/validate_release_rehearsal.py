@@ -2379,6 +2379,42 @@ def _validate_akshare_financial_slice(
         )
     ):
         _fail("REHEARSAL_FINANCIAL_SLICE_ROUTE_INVALID")
+    egress_routes = report.get("egress_routes")
+    if not isinstance(egress_routes, list) or len(egress_routes) != 2:
+        _fail("REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_INVALID")
+    expected_egress_datasets = {
+        "equity.financial.fact",
+        "equity.financial.source-time",
+    }
+    observed_egress_datasets: set[str] = set()
+    expected_egress_host = str(expected_contract.get("endpoint") or "").split("/", maxsplit=1)[0]
+    for raw_route in cast(list[object], egress_routes):
+        if not isinstance(raw_route, dict):
+            _fail("REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_INVALID")
+        route = cast(dict[str, Any], raw_route)
+        dataset_key = route.get("dataset_key")
+        rule_id = route.get("rule_id")
+        deployment_region = route.get("deployment_region")
+        if (
+            not isinstance(dataset_key, str)
+            or dataset_key not in expected_egress_datasets
+            or dataset_key in observed_egress_datasets
+            or isinstance(rule_id, bool)
+            or not isinstance(rule_id, int)
+            or rule_id <= 0
+            or route.get("strategy") not in {"direct", "fixed", "direct_fallback"}
+            or route.get("matched_domain") != expected_egress_host
+            or isinstance(route.get("candidate_count"), bool)
+            or not isinstance(route.get("candidate_count"), int)
+            or not 1 <= route["candidate_count"] <= 2
+            or not isinstance(deployment_region, str)
+            or not deployment_region.strip()
+            or deployment_region != deployment_region.strip().lower()
+        ):
+            _fail("REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_INVALID")
+        observed_egress_datasets.add(dataset_key)
+    if observed_egress_datasets != expected_egress_datasets:
+        _fail("REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_INVALID")
     asset_code = seed_value.get("asset_code")
     announcement_date = seed_value.get("announcement_date")
     seed_basis = seed_value.get("basis")

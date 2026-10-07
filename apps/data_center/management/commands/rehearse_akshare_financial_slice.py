@@ -55,7 +55,15 @@ class Command(BaseCommand):
                 candidate_regression_evidence_path=Path(options["candidate_regression_evidence"]),
                 output_dir=Path(options["output_dir"]),
             )
-        except (DatabaseError, DataFetchError, OSError, TypeError, ValueError, RuntimeError) as exc:
+        except DataFetchError as exc:
+            code = str(exc.code or "")
+            safe_code = (
+                code
+                if code.startswith("REHEARSAL_FINANCIAL_SLICE_")
+                else "REHEARSAL_FINANCIAL_SLICE_FAILED"
+            )
+            raise CommandError(safe_code) from exc
+        except (DatabaseError, OSError, TypeError, ValueError, RuntimeError) as exc:
             raise CommandError("REHEARSAL_FINANCIAL_SLICE_FAILED") from exc
         self.stdout.write(json.dumps(report, ensure_ascii=False, sort_keys=True))
         return None

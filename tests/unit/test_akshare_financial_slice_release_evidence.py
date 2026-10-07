@@ -86,6 +86,20 @@ def _valid_report() -> tuple[dict[str, object], dict[str, object]]:
             "endpoint": contract["endpoint"],
             "source_time_contract": contract,
         },
+        "egress_routes": [
+            {
+                "dataset_key": dataset,
+                "rule_id": 100 + index,
+                "strategy": "direct",
+                "matched_domain": "datacenter.eastmoney.com",
+                "candidate_count": 1,
+                "deployment_region": "unknown",
+            }
+            for index, dataset in enumerate(
+                ("equity.financial.fact", "equity.financial.source-time"),
+                start=1,
+            )
+        ],
         "request_seed": {
             "asset_code": "600000.SH",
             "announcement_date": "2025-03-28",
@@ -141,6 +155,8 @@ def test_valid_financial_slice_release_evidence_requires_isolation_and_two_audit
         (("selected_provider", "provider_id"), 20),
         (("financial_route", "provider_route_identity_sha256"), _sha256("wrong route")),
         (("financial_route", "source_time_contract", "contract_sha256"), _sha256("wrong contract")),
+        (("egress_routes", 0, "rule_id"), None),
+        (("egress_routes", 1, "matched_domain"), "example.invalid"),
         (("database", "vendor"), "sqlite"),
         (("redis", "ping_verified"), False),
         (("request_seed", "basis"), "period_end"),

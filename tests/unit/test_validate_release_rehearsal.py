@@ -889,6 +889,20 @@ def _build_evidence(
                 "endpoint": FINANCIAL_SOURCE_TIME_CONTRACT["endpoint"],
                 "source_time_contract": FINANCIAL_SOURCE_TIME_CONTRACT,
             },
+            "egress_routes": [
+                {
+                    "dataset_key": dataset,
+                    "rule_id": 100 + index,
+                    "strategy": "direct",
+                    "matched_domain": "datacenter.eastmoney.com",
+                    "candidate_count": 1,
+                    "deployment_region": "unknown",
+                }
+                for index, dataset in enumerate(
+                    ("equity.financial.fact", "equity.financial.source-time"),
+                    start=1,
+                )
+            ],
             "request_seed": {
                 "asset_code": ASSET_CODES[0],
                 "announcement_date": "2026-09-23",

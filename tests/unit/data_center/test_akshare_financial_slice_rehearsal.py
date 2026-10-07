@@ -17,6 +17,11 @@ from apps.data_center.application.financial_slice_sync import (
     FinancialSliceSyncBudget,
     FinancialSliceSyncResult,
 )
+from apps.data_center.domain.egress_routing import (
+    EgressRequestContext,
+    EgressRouteDecision,
+    EgressStrategy,
+)
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.domain.financial_source_time_contract import (
     FINANCIAL_FACT_DATASET_KEY,
@@ -30,6 +35,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     rehearsal_identities_digest,
 )
+from core.exceptions import DataFetchError
 from scripts import validate_release_rehearsal as release_validator
 
 
@@ -212,6 +218,28 @@ def test_financial_report_producer_emits_validator_compatible_fake_stage_evidenc
     )
     monkeypatch.setattr(
         rehearsal,
+        "_require_akshare_financial_egress_routes",
+        lambda _provider: (
+            {
+                "dataset_key": FINANCIAL_FACT_DATASET_KEY,
+                "rule_id": 10,
+                "strategy": "direct",
+                "matched_domain": "datacenter.eastmoney.com",
+                "candidate_count": 1,
+                "deployment_region": "unknown",
+            },
+            {
+                "dataset_key": FINANCIAL_SOURCE_TIME_DATASET_KEY,
+                "rule_id": 11,
+                "strategy": "direct",
+                "matched_domain": "datacenter.eastmoney.com",
+                "candidate_count": 1,
+                "deployment_region": "unknown",
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        rehearsal,
         "load_akshare_financial_slice_sync_budget",
         lambda: FinancialSliceSyncBudget(1, 2, 2, 200),
     )
@@ -266,3 +294,88 @@ def test_financial_report_producer_emits_validator_compatible_fake_stage_evidenc
     )
     saved_report = json.loads((output_dir / "akshare-financial-slice.json").read_text())
     assert saved_report == report
+
+
+def test_financial_route_preflight_requires_both_registered_datasets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real-provider stage stops before egress when either exact route is absent."""
+
+    provider = ProviderConfig(
+        id=19,
+        name="AKShare Financial",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    seen: list[str] = []
+
+    def preview(context: EgressRequestContext) -> EgressRouteDecision:
+        dataset_key = context.dataset_key
+        seen.append(dataset_key)
+        return EgressRouteDecision(
+            rule_id=91 if dataset_key == FINANCIAL_FACT_DATASET_KEY else None,
+            strategy=EgressStrategy.DIRECT,
+            candidates=(None,),
+            reason=(
+                "matched_rule" if dataset_key == FINANCIAL_FACT_DATASET_KEY else "no_matching_rule"
+            ),
+            matched_domain=(
+                "datacenter.eastmoney.com" if dataset_key == FINANCIAL_FACT_DATASET_KEY else None
+            ),
+        )
+
+    monkeypatch.setattr(rehearsal, "preview_route", preview)
+    monkeypatch.setattr(rehearsal, "akshare_financial_deployment_region", lambda: "unknown")
+
+    with pytest.raises(DataFetchError) as caught:
+        rehearsal._require_akshare_financial_egress_routes(provider)
+
+    assert caught.value.code == "REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED"
+    assert seen == [FINANCIAL_FACT_DATASET_KEY, FINANCIAL_SOURCE_TIME_DATASET_KEY]
+
+
+@pytest.mark.parametrize(
+    ("failure_reason", "expected_code"),
+    (
+        (
+            "owner_approved_capture_capability_unavailable",
+            "REHEARSAL_FINANCIAL_SLICE_CAPTURE_UNAVAILABLE",
+        ),
+        (
+            "akshare_provider_or_capture_failed",
+            "REHEARSAL_FINANCIAL_SLICE_PROVIDER_OR_CAPTURE_FAILED",
+        ),
+        ("unknown_failure", "REHEARSAL_FINANCIAL_SLICE_SYNC_INVALID"),
+    ),
+)
+def test_financial_sync_failure_keeps_a_stable_rehearsal_code(
+    failure_reason: str,
+    expected_code: str,
+) -> None:
+    """Safe business failures remain distinguishable at the S6 command boundary."""
+
+    result = FinancialSliceSyncResult(
+        outcome="blocked",
+        source="akshare",
+        provider_id=19,
+        provider_name="AKShare Financial",
+        requested=1,
+        succeeded=0,
+        failed=1,
+        stored=0,
+        planned_provider_requests=2,
+        atomic_fact_write_count=0,
+        failure_reason=failure_reason,
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        rehearsal._require_successful_sync(result, 19)
+
+    assert caught.value.code == expected_code

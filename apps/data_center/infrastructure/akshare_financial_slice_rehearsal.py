@@ -18,14 +18,19 @@ from zoneinfo import ZoneInfo
 import redis
 from django.conf import settings
 
+from apps.data_center.akshare_financial_capture_composition import (
+    AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+)
 from apps.data_center.akshare_financial_slice_sync_composition import (
     make_sync_akshare_financial_slices_use_case,
 )
+from apps.data_center.application.egress_service import preview_route
 from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
     FinancialSliceSyncRequest,
     FinancialSliceSyncResult,
 )
+from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_source_evidence import (
@@ -39,6 +44,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure.akshare_financial_slice_sync import (
+    akshare_financial_deployment_region,
     load_akshare_financial_slice_sync_budget,
 )
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
@@ -91,6 +97,17 @@ _PROOF_CASES = (
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts",
 )
 _SOURCE_EVIDENCE_TEST = "candidate_regression_evidence"
+_SYNC_FAILURE_CODES = {
+    "owner_approved_capture_capability_unavailable": (
+        "REHEARSAL_FINANCIAL_SLICE_CAPTURE_UNAVAILABLE"
+    ),
+    "akshare_provider_or_capture_failed": ("REHEARSAL_FINANCIAL_SLICE_PROVIDER_OR_CAPTURE_FAILED"),
+    "financial_source_evidence_incomplete_or_mismatched": (
+        "REHEARSAL_FINANCIAL_SLICE_SOURCE_EVIDENCE_INVALID"
+    ),
+    "financial_slice_batch_empty_or_ambiguous": ("REHEARSAL_FINANCIAL_SLICE_EMPTY_OR_AMBIGUOUS"),
+    "financial_fact_atomic_batch_write_failed": ("REHEARSAL_FINANCIAL_SLICE_ATOMIC_WRITE_FAILED"),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +177,7 @@ def collect_akshare_financial_slice_rehearsal(
         expected_candidate=candidate_sha,
     )
     provider, provider_identity = _select_provider(identities)
+    egress_routes = _require_akshare_financial_egress_routes(provider)
     budget = load_akshare_financial_slice_sync_budget()
     if (
         budget is None
@@ -245,6 +263,7 @@ def collect_akshare_financial_slice_rehearsal(
             "endpoint": akshare_notice_date_match_contract().endpoint,
             "source_time_contract": akshare_notice_date_match_contract().to_dict(),
         },
+        "egress_routes": list(egress_routes),
         "request_seed": {
             "asset_code": seed.asset_code,
             "announcement_date": seed.announcement_date.isoformat(),
@@ -512,8 +531,49 @@ def _require_successful_sync(result: FinancialSliceSyncResult, provider_id: int)
     ):
         raise DataFetchError(
             "S6 AKShare financial slice did not meet its controlled write contract",
-            code="REHEARSAL_FINANCIAL_SLICE_SYNC_INVALID",
+            code=_SYNC_FAILURE_CODES.get(
+                str(result.failure_reason or ""),
+                "REHEARSAL_FINANCIAL_SLICE_SYNC_INVALID",
+            ),
         )
+
+
+def _require_akshare_financial_egress_routes(
+    provider: ProviderConfig,
+) -> tuple[dict[str, object], ...]:
+    """Require both registered AKShare financial routes before any provider request."""
+
+    provider_id = _provider_id(provider)
+    region = akshare_financial_deployment_region()
+    evidence: list[dict[str, object]] = []
+    for dataset_key in (
+        FINANCIAL_FACT_DATASET_KEY,
+        FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    ):
+        decision = preview_route(
+            EgressRequestContext(
+                provider_id=provider_id,
+                dataset_key=dataset_key,
+                target_url=AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL,
+                deployment_region=region,
+            )
+        )
+        if decision.rule_id is None or decision.reason != "matched_rule":
+            raise DataFetchError(
+                "S6 AKShare financial slice requires both registered egress routes",
+                code="REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED",
+            )
+        evidence.append(
+            {
+                "dataset_key": dataset_key,
+                "rule_id": decision.rule_id,
+                "strategy": decision.strategy.value,
+                "matched_domain": decision.matched_domain,
+                "candidate_count": len(decision.candidates),
+                "deployment_region": region,
+            }
+        )
+    return tuple(evidence)
 
 
 def _verify_persisted_pair(

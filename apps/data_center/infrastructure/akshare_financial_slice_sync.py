@@ -88,12 +88,12 @@ def build_akshare_financial_slice_fetcher(
     if artifact_storage_root is None:
         gateway = build_akshare_financial_capture_gateway(
             config,
-            deployment_region=_deployment_region(),
+            deployment_region=akshare_financial_deployment_region(),
         )
     else:
         gateway = build_akshare_financial_capture_gateway(
             config,
-            deployment_region=_deployment_region(),
+            deployment_region=akshare_financial_deployment_region(),
             artifact_storage_root=artifact_storage_root,
         )
     return _BoundAkshareFinancialSliceFetcher(provider, gateway)
@@ -144,8 +144,8 @@ def load_akshare_financial_slice_sync_budget(
         return None
 
 
-def _deployment_region() -> str:
-    """Return the configured, non-secret egress region label."""
+def akshare_financial_deployment_region() -> str:
+    """Return the configured, non-secret AKShare financial egress region label."""
 
     return (
         str(
@@ -168,6 +168,7 @@ def _positive_int(value: object) -> int:
 
 
 __all__ = [
+    "akshare_financial_deployment_region",
     "build_akshare_financial_slice_fetcher",
     "load_akshare_financial_slice_sync_budget",
 ]
