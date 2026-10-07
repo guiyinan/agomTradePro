@@ -385,6 +385,45 @@ def _entry(
     }
 
 
+def _stabilize_semantic_identities(
+    entries: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Replace volatile source positions and labels with semantic identities.
+
+    Source line numbers and workflow display names are useful while reading a
+    file, but neither is an entrypoint identity.  Equivalent entries are
+    numbered only within the same category, path, symbol, and target so adding
+    unrelated source text cannot churn the generated governance projection.
+    """
+
+    candidates: dict[tuple[str, str, str, str], list[tuple[int, dict[str, object]]]] = {}
+    for source_order, entry in enumerate(entries):
+        category = str(entry["category"])
+        locator = str(entry["locator"])
+        if category == "workflow_step":
+            target = str(entry["target"])
+            entry["symbol"] = target
+        elif not locator.startswith("line:"):
+            continue
+        key = (
+            category,
+            str(entry["path"]),
+            str(entry["symbol"]),
+            str(entry["target"]),
+        )
+        candidates.setdefault(key, []).append((source_order, entry))
+
+    for key, grouped_entries in candidates.items():
+        category, path, symbol, target = key
+        seed = target or symbol
+        for occurrence, (_source_order, entry) in enumerate(grouped_entries, start=1):
+            suffix = f":occurrence:{occurrence}" if len(grouped_entries) > 1 else ""
+            locator = f"semantic:{seed}{suffix}"
+            entry["locator"] = locator
+            entry["id"] = f"{category}:{path}:{symbol}:{locator}"
+    return entries
+
+
 def _operational_tokens(text: str) -> tuple[tuple[str, str], ...]:
     """Return stable operational token/target pairs found in ``text``."""
 
@@ -490,7 +529,7 @@ def _discover_workflow_steps() -> list[dict[str, object]]:
                     category="workflow_step",
                     path=_relative(path),
                     symbol=step_name,
-                    locator="tokens:" + ",".join(label for label, _target in tokens),
+                    locator=f"line:{text.count(chr(10), 0, match.start()) + 1}",
                     target=",".join(target for _label, target in tokens),
                     status="candidate-review",
                     evidence="workflow step contains an operational database dispatch",
@@ -2519,6 +2558,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             + _discover_agent_skills()
         )
         entries = _apply_operational_governance(entries, operational)
+        entries = _stabilize_semantic_identities(entries)
     finally:
         ROOT = previous_root
     ordered = sorted(
@@ -2596,6 +2636,8 @@ def validate_inventory(payload: dict[str, object]) -> list[str]:
             violations.append(f"entry_path_missing:{entry_id}")
         if not str(item.get("symbol", "")).strip():
             violations.append(f"entry_symbol_missing:{entry_id}")
+        if str(item.get("locator", "")).startswith("line:"):
+            violations.append(f"entry_locator_volatile:{entry_id}")
         status = str(item.get("status", ""))
         if status not in STATUSES:
             violations.append(f"entry_status_invalid:{entry_id}:{status}")

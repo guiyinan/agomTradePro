@@ -76,6 +76,103 @@ def test_inventory_preserves_unreviewed_discovery_and_evidence(
     )
 
 
+def test_semantic_entrypoint_identities_ignore_lines_and_workflow_labels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whitespace and workflow display labels must not churn governance identity."""
+
+    inventory = _load_script()
+    _write_source(
+        tmp_path,
+        "apps/data_center/management/commands/verify_canonical_schema.py",
+        "class Command:\n    pass\n",
+    )
+    workflow = ".github/workflows/check.yml"
+    script = "scripts/check.py"
+    _write_source(
+        tmp_path,
+        workflow,
+        "steps:\n  - name: Prepare database\n    run: python manage.py migrate\n",
+    )
+    _write_source(tmp_path, script, "run = 'manage.py verify_canonical_schema'\n")
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+
+    before = inventory._stabilize_semantic_identities(
+        inventory._discover_workflow_steps() + inventory._discover_orchestration_entries()
+    )
+    _write_source(
+        tmp_path,
+        workflow,
+        "\n\nsteps:\n  - name: Apply schema with a clearer label\n"
+        "    run: python manage.py migrate\n",
+    )
+    _write_source(
+        tmp_path,
+        script,
+        "# unrelated source movement\n\nrun = 'manage.py verify_canonical_schema'\n",
+    )
+    after = inventory._stabilize_semantic_identities(
+        inventory._discover_workflow_steps() + inventory._discover_orchestration_entries()
+    )
+
+    assert before == after
+    assert all(not str(entry["locator"]).startswith("line:") for entry in after)
+
+
+def test_semantic_entrypoint_identities_change_for_real_dispatch_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Changing the governed operation must still change generated identity."""
+
+    inventory = _load_script()
+    workflow = ".github/workflows/check.yml"
+    _write_source(
+        tmp_path,
+        workflow,
+        "steps:\n  - name: Database operation\n    run: python manage.py migrate\n",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    before = inventory._stabilize_semantic_identities(inventory._discover_workflow_steps())
+
+    _write_source(
+        tmp_path,
+        workflow,
+        "steps:\n  - name: Database operation\n" "    run: python manage.py backup_database\n",
+    )
+    after = inventory._stabilize_semantic_identities(inventory._discover_workflow_steps())
+
+    assert [entry["id"] for entry in before] != [entry["id"] for entry in after]
+    assert before[0]["target"] == "django:migrate"
+    assert after[0]["target"] == "django:backup_database"
+
+
+def test_duplicate_semantic_entrypoints_use_stable_occurrences() -> None:
+    """Repeated equivalent operations remain unique without source positions."""
+
+    inventory = _load_script()
+    entries = [
+        inventory._entry(
+            category="workflow_step",
+            path=".github/workflows/check.yml",
+            symbol=label,
+            locator=f"line:{line}",
+            target="django:migrate",
+            status="active_public",
+            evidence="test evidence",
+        )
+        for label, line in (("First label", 10), ("Second label", 80))
+    ]
+
+    stabilized = inventory._stabilize_semantic_identities(entries)
+
+    assert [entry["symbol"] for entry in stabilized] == ["django:migrate"] * 2
+    assert [entry["locator"] for entry in stabilized] == [
+        "semantic:django:migrate:occurrence:1",
+        "semantic:django:migrate:occurrence:2",
+    ]
+    assert len({entry["id"] for entry in stabilized}) == 2
+
+
 def test_operational_inventory_has_no_unreviewed_repository_entrypoints(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
@@ -302,7 +399,7 @@ def test_inventory_includes_internal_consumers_admin_and_config_compatibility(
         "orchestration_entry",
         "scripts/setup_celery_beat.py",
         "init_scheduler_defaults",
-        "line:16",
+        "semantic:init_scheduler_defaults",
     ) in entry_keys
     assert any(
         category == "management_command" and path == "core/management/commands/warmup_cache.py"

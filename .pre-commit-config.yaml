@@ -15,3 +15,13 @@ repos:
     rev: 5.11.3
     hooks:
       - id: isort
+
+  - repo: local
+    hooks:
+      - id: data-center-entrypoint-inventory
+        name: check generated Data Center entrypoint inventory
+        entry: python scripts/data_center_entrypoint_inventory.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

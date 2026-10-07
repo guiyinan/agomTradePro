@@ -166,7 +166,7 @@ python scripts/scaffold_application_providers.py \
 在本地开发机上执行一次：
 
 ```bash
-pre-commit install
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
 当前仓库已内置 `.pre-commit-config.yaml`，默认会在提交前执行：
@@ -175,6 +175,12 @@ pre-commit install
 2. `ruff format`
 3. `black`
 4. `isort`
+
+`pre-push` 另执行 `python scripts/data_center_entrypoint_inventory.py`，用唯一生成器重建并校验
+`governance/data_center_entrypoints.json`。入口身份使用稳定业务语义；源码行号和 GitHub Actions
+step 的展示名不得进入身份。移动代码、插入空行或重命名 step 不应产生投影变化，新增、删除或
+更换真实入口仍必须先运行 `python scripts/data_center_entrypoint_inventory.py --write` 并提交投影。
+该钩子只检查，不自动改写工作树；CI 的 Consistency/Fast Feedback 继续保留同一 fail-closed 校验。
 
 ### 5) API 改动同步门禁
 
