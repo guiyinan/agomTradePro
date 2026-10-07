@@ -1,6 +1,7 @@
 name: Publication PostgreSQL contracts
 
 on:
+  workflow_call:
   pull_request:
     branches: [main, 'dev/**']
     paths:

@@ -1,6 +1,11 @@
 name: CI Fast Feedback
 
 on:
+  workflow_call:
+    inputs:
+      base_ref:
+        required: false
+        type: string
   pull_request:
     branches:
       - main
@@ -346,7 +351,6 @@ jobs:
         if: steps.targets.outputs.domain-coverage-count != '0'
         run: |
           python scripts/run_incremental_domain_coverage.py \
-            --fail-under 90 \
             ${{ steps.targets.outputs.domain-coverage-targets }}
 
   fast-feedback:

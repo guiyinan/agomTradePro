@@ -1,6 +1,7 @@
 name: Consistency Check
 
 on:
+  workflow_call:
   push:
     branches: [main, 'dev/**']
   pull_request:

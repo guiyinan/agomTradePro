@@ -6,6 +6,8 @@ from pathlib import Path
 
 from scripts.generate_quality_report import (
     generate_nightly_report,
+    generate_pr_report,
+    generate_rc_report,
     load_repository_coverage_minimum,
     parse_coverage_xml,
 )
@@ -74,3 +76,25 @@ def test_nightly_report_uses_apps_as_overall_and_keeps_scopes_separate(
     assert report["coverage_threshold"] == 80.0
     assert report["coverage_scopes"]["core"]["coverage_percent"] == 81.0
     assert report["coverage_scopes"]["sdk"]["branch_coverage_percent"] == 70.0
+
+
+def test_coverage_file_cannot_turn_missing_or_failed_tests_green(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_coverage(tmp_path / "coverage-unit.xml", line_rate=1, branch_rate=1)
+    monkeypatch.setenv(
+        "CI_STEP_RESULTS", json.dumps({"unit": {"outcome": "failure", "conclusion": "success"}})
+    )
+    nightly = generate_nightly_report(argparse.Namespace())
+    assert nightly["test_suites"]["unit"]["status"] == "failed"
+    assert nightly["test_suites"]["unit"]["coverage_status"] == "available"
+    assert nightly["test_suites"]["integration"]["status"] == "unverified"
+    assert nightly["production_acceptance"] == "unverified"
+    pr = generate_pr_report(argparse.Namespace())
+    assert pr["test_suites"]["unit_targeted"]["status"] == "unverified"
+
+
+def test_legacy_rc_entrypoint_cannot_claim_success_without_job_results(monkeypatch) -> None:
+    monkeypatch.delenv("CI_JOB_RESULTS", raising=False)
+    report = generate_rc_report(argparse.Namespace(version="rc"))
+    assert report["summary"]["overall_status"] == "blocked"
+    assert report["defect_inventory"] == "unverified"

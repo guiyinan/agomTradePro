@@ -14,6 +14,7 @@ import time
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TextIO
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import urlopen
@@ -29,7 +30,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run pytest suites against an explicitly managed Django live server."
     )
-    parser.add_argument("--suite-name", required=True, help="Logical suite name for logs and summaries.")
+    parser.add_argument(
+        "--suite-name", required=True, help="Logical suite name for logs and summaries."
+    )
     parser.add_argument(
         "--base-url",
         default="http://127.0.0.1:8000",
@@ -71,6 +74,11 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         help="Minimum number of collected tests required for the suite to count as executed.",
+    )
+    parser.add_argument(
+        "--require-no-skips",
+        action="store_true",
+        help="Require every collected case to execute; used by mandatory RC journeys.",
     )
     parser.add_argument(
         "--skip-server",
@@ -162,7 +170,7 @@ def _start_server(
     port: int,
     env: dict[str, str],
     log_path: Path | None,
-) -> tuple[subprocess.Popen[str], object | None]:
+) -> tuple[subprocess.Popen[str], TextIO | None]:
     command = [
         sys.executable,
         "manage.py",
@@ -171,8 +179,8 @@ def _start_server(
         "--noreload",
         "--nothreading",
     ]
-    stdout_target: object
-    server_log_handle: object | None = None
+    stdout_target: TextIO | int
+    server_log_handle: TextIO | None = None
     if log_path is not None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         server_log_handle = log_path.open("w", encoding="utf-8")
@@ -273,7 +281,13 @@ def _parse_junit_summary(junitxml: Path) -> dict[str, int]:
     }
 
 
-def _validate_summary(suite_name: str, summary: dict[str, int], min_tests: int) -> None:
+def _validate_summary(
+    suite_name: str,
+    summary: dict[str, int],
+    min_tests: int,
+    *,
+    require_no_skips: bool = False,
+) -> None:
     total = summary["total"]
     executed = summary["executed"]
     if total < min_tests:
@@ -284,9 +298,15 @@ def _validate_summary(suite_name: str, summary: dict[str, int], min_tests: int) 
         raise RuntimeError(
             f"{suite_name} did not execute any tests; all collected cases were skipped."
         )
+    if summary["failures"] or summary["errors"]:
+        raise RuntimeError(f"{suite_name} contains failed or errored test cases.")
+    if require_no_skips and summary["skipped"]:
+        raise RuntimeError(f"{suite_name} skipped required test cases.")
 
 
 def main() -> int:
+    """Run a managed test server and reject insufficient execution evidence."""
+
     args = _parse_args()
     pytest_args = _normalize_pytest_args(args.pytest_args)
     if not pytest_args:
@@ -318,7 +338,9 @@ def main() -> int:
             log_path=pytest_log,
         )
         summary = _parse_junit_summary(junitxml)
-        _validate_summary(args.suite_name, summary, args.min_tests)
+        _validate_summary(
+            args.suite_name, summary, args.min_tests, require_no_skips=args.require_no_skips
+        )
         print(
             "[pytest] Summary: "
             f"total={summary['total']} executed={summary['executed']} "

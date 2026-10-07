@@ -12,9 +12,9 @@ import json
 import os
 import sys
 import xml.etree.ElementTree as ET
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TESTING_BASELINE_PATH = REPO_ROOT / "governance" / "testing_quality_baseline.json"
@@ -69,9 +69,33 @@ def load_repository_coverage_minimum(
     return float(payload["coverage"]["repository_minimum"])
 
 
+def read_step_outcomes() -> dict[str, str]:
+    """Read actual Actions outcomes; absent evidence remains unverified."""
+    try:
+        payload: object = json.loads(os.environ.get("CI_STEP_RESULTS", "{}"))
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    outcomes: dict[str, str] = {}
+    statuses = {
+        "success": "passed",
+        "failure": "failed",
+        "cancelled": "cancelled",
+        "skipped": "skipped",
+    }
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, dict):
+            outcome = value.get("outcome")
+            outcomes[key] = (
+                statuses.get(outcome, "unverified") if isinstance(outcome, str) else "unverified"
+            )
+    return outcomes
+
+
 def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
     """Generate nightly test report with full metrics."""
-    report = {
+    report: dict[str, Any] = {
         "timestamp": datetime.now(UTC).isoformat(),
         "run_type": "nightly",
         "workflow": {
@@ -91,7 +115,34 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
         "coverage_scopes": {},
     }
 
-    # Parse coverage reports if they exist
+    outcomes = read_step_outcomes()
+    for suite in (
+        "unit",
+        "component",
+        "api_migrations",
+        "critical_sqlite",
+        "integration",
+        "app_local",
+        "sdk",
+        "mcp",
+        "e2e",
+        "guardrails",
+        "playwright_smoke",
+        "frontend",
+        "current_data",
+        "celery",
+    ):
+        report["test_suites"][suite] = {"status": outcomes.get(suite, "unverified")}
+    report["coverage_gate"] = outcomes.get("coverage_gate", "unverified")
+    report["full_lint_observation"] = {
+        "status": outcomes.get("full_lint", "unverified"),
+        "blocking": False,
+    }
+    report["production_acceptance"] = "unverified"
+    report["deployment_authorized"] = False
+    report["sha"] = os.environ.get("GITHUB_SHA", "unknown")
+
+    # Coverage measures executed lines; it cannot prove test success.
     coverage_files = {
         "unit": "coverage-unit.xml",
         "integration": "coverage-integration.xml",
@@ -103,9 +154,9 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
             metrics = parse_coverage_xml(filename)
             if "error" not in metrics:
                 report["test_suites"][suite]["coverage"] = metrics["coverage_percent"]
-                report["test_suites"][suite]["status"] = "passed"
+                report["test_suites"][suite]["coverage_status"] = "available"
             else:
-                report["test_suites"][suite]["status"] = "failed"
+                report["test_suites"][suite]["coverage_status"] = "invalid"
                 report["test_suites"][suite]["error"] = metrics["error"]
 
     scope_files = {
@@ -129,7 +180,7 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
 
 def generate_pr_report(args: argparse.Namespace) -> dict[str, Any]:
     """Generate PR gate report with changed-file focus."""
-    report = {
+    report: dict[str, Any] = {
         "timestamp": datetime.now(UTC).isoformat(),
         "run_type": "pr",
         "pr": {
@@ -143,155 +194,28 @@ def generate_pr_report(args: argparse.Namespace) -> dict[str, Any]:
         },
     }
 
+    outcomes = read_step_outcomes()
+    for suite in report["test_suites"]:
+        report["test_suites"][suite]["status"] = outcomes.get(suite, "unverified")
+    report["production_acceptance"] = "unverified"
+    report["deployment_authorized"] = False
+
     # Parse available coverage
     if os.path.exists("coverage-unit.xml"):
         metrics = parse_coverage_xml("coverage-unit.xml")
         if "error" not in metrics:
             report["test_suites"]["unit_targeted"]["coverage"] = metrics["coverage_percent"]
-            report["test_suites"]["unit_targeted"]["status"] = "passed"
+            report["test_suites"]["unit_targeted"]["coverage_status"] = "available"
 
     return report
 
 
 def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
-    """Generate RC gate report with full regression suite."""
-    import subprocess
+    """Project same-run job evidence using the canonical fail-closed RC reporter."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from rc_gate_report import report_from_environment
 
-    # Run quality checks
-    checks_passed = 0
-    checks_failed = 0
-    checks = {}
-
-    # 1. API Naming Convention check
-    try:
-        result = subprocess.run(
-            ["python", "scripts/check_routes.py", "--strict"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        checks["api_naming"] = {
-            "status": "passed" if result.returncode == 0 else "failed",
-            "threshold": "100%",
-            "description": "API routes follow /api/{module}/{resource}/ convention",
-        }
-        if result.returncode == 0:
-            checks_passed += 1
-        else:
-            checks_failed += 1
-    except Exception as e:
-        checks["api_naming"] = {"status": "failed", "error": str(e)}
-        checks_failed += 1
-
-    # 2. Navigation 404 check
-    try:
-        result = subprocess.run(
-            ["pytest", "tests/e2e/", "-k", "navigation", "-v", "--tb=short", "-q"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        checks["navigation_404"] = {
-            "status": "passed" if result.returncode == 0 else "failed",
-            "threshold": "0",
-            "description": "Main navigation has no 404 errors",
-        }
-        if result.returncode == 0:
-            checks_passed += 1
-        else:
-            checks_failed += 1
-    except Exception as e:
-        checks["navigation_404"] = {"status": "skipped", "error": str(e)}
-
-    # 3. Main Chain 501 check
-    try:
-        result = subprocess.run(
-            ["pytest", "tests/guardrails/", "-k", "501 or guardrail", "-v", "--tb=short", "-q"],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        checks["main_chain_501"] = {
-            "status": "passed" if result.returncode == 0 else "failed",
-            "threshold": "0",
-            "description": "Main chain APIs have no 501 responses",
-        }
-        if result.returncode == 0:
-            checks_passed += 1
-        else:
-            checks_failed += 1
-    except Exception as e:
-        checks["main_chain_501"] = {"status": "failed", "error": str(e)}
-        checks_failed += 1
-
-    # 4. P0/P1 defects check
-    from pathlib import Path
-
-    critical_paths = [
-        "apps/account/interface/views.py",
-        "apps/strategy/interface/views.py",
-        "apps/simulated_trading/interface/views.py",
-        "apps/backtest/interface/views.py",
-        "apps/audit/interface/views.py",
-    ]
-    blockers = []
-    for path in critical_paths:
-        p = Path(path)
-        if p.exists():
-            content = p.read_text(encoding="utf-8")
-            if "TODO" in content or "FIXME" in content:
-                lines = content.split("\n")
-                for i, line in enumerate(lines, 1):
-                    if ("TODO" in line or "FIXME" in line) and (
-                        "implement" in line.lower() or "placeholder" in line.lower()
-                    ):
-                        blockers.append(f"{path}:{i}")
-
-    p0_count = len(blockers)
-    checks["p0_p1_defects"] = {
-        "status": "passed" if p0_count == 0 else "failed",
-        "value": f"P0={p0_count}",
-        "threshold": "P0=0, P1<=2",
-        "description": "No P0 critical defects",
-    }
-    if p0_count == 0:
-        checks_passed += 1
-    else:
-        checks_failed += 1
-
-    report = {
-        "timestamp": datetime.now(UTC).isoformat(),
-        "run_type": "rc",
-        "version": args.version or os.environ.get("GITHUB_REF_NAME", "unknown"),
-        "sha": os.environ.get("GITHUB_SHA", "unknown"),
-        "test_suites": {
-            "unit_full": {"status": "pending"},
-            "integration_full": {"status": "pending"},
-            "e2e": {"status": "pending"},
-            "playwright_full": {"status": "pending"},
-            "performance": {"status": "pending"},
-        },
-        "quality_gates": {
-            "api_naming": checks.get("api_naming", {}),
-            "navigation_404": checks.get("navigation_404", {}),
-            "main_chain_501": checks.get("main_chain_501", {}),
-            "p0_p1_defects": checks.get("p0_p1_defects", {}),
-            "coverage_threshold": load_repository_coverage_minimum(),
-            "journey_tests": {
-                "status": "skipped" if args.skip_journey else "pending",
-                "threshold": ">= 90%",
-                "description": "Journey tests pass rate",
-            },
-        },
-        "summary": {
-            "total_checks": 4 + (0 if args.skip_journey else 1),
-            "passed": checks_passed,
-            "failed": checks_failed,
-            "overall_status": "passed" if checks_failed == 0 else "failed",
-        },
-    }
-
-    return report
+    return dict(report_from_environment(version=args.version))
 
 
 def save_report(report: dict[str, Any], output_dir: str) -> str:
@@ -310,7 +234,9 @@ def save_report(report: dict[str, Any], output_dir: str) -> str:
     return str(filepath)
 
 
-def main():
+def main() -> int:
+    """Write a quality report; an incomplete RC report must return failure."""
+
     parser = argparse.ArgumentParser(description="Generate quality reports for CI/CD")
     parser.add_argument(
         "--type",
@@ -326,11 +252,6 @@ def main():
     parser.add_argument(
         "--version",
         help="Version string (for RC reports)",
-    )
-    parser.add_argument(
-        "--skip-journey",
-        action="store_true",
-        help="Skip journey tests (emergency mode)",
     )
 
     args = parser.parse_args()
@@ -355,6 +276,8 @@ def main():
     if "overall_coverage" in report:
         print(f"Overall coverage: {report['overall_coverage']}%")
 
+    if args.type == "rc" and report["summary"]["overall_status"] != "passed":
+        return 1
     return 0
 
 

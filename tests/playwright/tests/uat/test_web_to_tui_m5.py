@@ -1513,6 +1513,7 @@ def test_local_fixture_detail_and_lifecycle_routes_complete(
 
 
 @pytest.mark.uat
+@pytest.mark.live_required
 @pytest.mark.skipif(
     not EXTERNAL_AI_UAT_ENABLED,
     reason=EXTERNAL_AI_UAT_SKIP_REASON,
@@ -1556,6 +1557,7 @@ def test_sentiment_external_ai_primary_task_completes(
 
 
 @pytest.mark.uat
+@pytest.mark.live_required
 @pytest.mark.skipif(
     not EXTERNAL_AI_UAT_ENABLED,
     reason=EXTERNAL_AI_UAT_SKIP_REASON,

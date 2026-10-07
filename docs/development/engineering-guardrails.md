@@ -158,7 +158,7 @@ python scripts/scaffold_application_providers.py \
 16. 公共 helper 接口必须兼容轻量测试替身；像 `user` 这类新增可选参数，只能在注入工厂明确接受该参数时再透传，不能直接破坏旧 mock。
 17. Provider 边界收紧返回结构时，适配层必须先做兼容归一化；例如 ETF 成分股 fixture 仍返回旧版 2-tuple 时，不能让降级链路直接在解包阶段崩掉。
 18. `ci-fast-feedback` 现在会对变更的 Python 文件执行增量 `ruff` / `black --check` / `isort --check-only`，并对变更的 `apps|core|shared` Python 文件执行增量 `mypy`。
-19. 领域层变更必须在日常 PR 阶段通过增量覆盖率门禁；当前阈值为 `Domain >= 70%`。
+19. 领域层变更必须在日常 PR 阶段通过逐 App 的增量覆盖率门禁；阈值读取 `governance/testing_quality_baseline.json` 的 `coverage.domain_module_minimum`，不得在工作流复制数字。RC 复用日常 CI，并强制运行 Nightly 全量覆盖率与分支棘轮。
 20. `ci-fast-feedback` 与 nightly 必须执行 `python scripts/check_mypy_debt_ceiling.py`；该门禁按生产代码文件和错误码精确记录全仓债务，PR 基线不得高于目标分支，修复后必须用 `--write-baseline` 同步下调。
 
 ### 4.1) 本地 pre-commit
@@ -207,6 +207,12 @@ pre-commit install
 8. 若存在 fallback/stale 语义，前端与 Agent 文案是否明确暴露该状态？
 
 ## 发布门禁（Release Gate）
+
+RC 使用日常工作流的同一实现，全部必需 job 成功才通过；失败、取消、跳过或缺失结果均阻断。
+用户旅程不再提供跳过开关，必须有足量实际执行证据。RC 通过仅表示候选在 CI 环境通过仓库验证，
+不证明生产验收、零缺陷或部署批准；TODO/FIXME 扫描不得当作 P0/P1 缺陷统计。
+各闸门的证据层级、阻断策略和证明边界见
+[架构与治理护栏](../governance/ARCHITECTURE_GUARDRAILS.md#evidence-levels-and-rc-composition)。
 
 合入前至少满足：
 

@@ -1,6 +1,7 @@
 name: Nightly Tests
 
 on:
+  workflow_call:
   schedule:
     - cron: '0 2 * * *'  # UTC 02:00 (北京时间 10:00)
   workflow_dispatch:  # 允许手动触发
@@ -51,6 +52,7 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Run registered current-data contract nodeids
+        id: current_data
         run: |
           python scripts/run_current_data_contract_tests.py \
             --pytest-arg=-q \
@@ -58,6 +60,7 @@ jobs:
             --pytest-arg=--timeout=300
 
       - name: Run registered Celery task contract nodeids
+        id: celery
         run: |
           python scripts/run_celery_task_contract_tests.py \
             --pytest-arg=-q \
@@ -69,11 +72,13 @@ jobs:
         run: python scripts/check_mypy_debt_ceiling.py
 
       - name: Run frontend Node contract tests
+        id: frontend
         run: |
           mkdir -p reports/quality
           npm run test:tui-js:ci
 
       - name: Run Unit Tests (full)
+        id: unit
         timeout-minutes: 25
         env:
           PYTHONFAULTHANDLER: "1"
@@ -93,6 +98,7 @@ jobs:
         run: python scripts/test_tier_inventory.py --check
 
       - name: Run Component Tests
+        id: component
         timeout-minutes: 25
         env:
           PYTHONFAULTHANDLER: "1"
@@ -107,6 +113,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run API And Migration Tests
+        id: api_migrations
         timeout-minutes: 35
         env:
           PYTHONFAULTHANDLER: "1"
@@ -122,6 +129,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Critical Reliability (SQLite + Fake Agent)
+        id: critical_sqlite
         timeout-minutes: 15
         env:
           PYTHONFAULTHANDLER: "1"
@@ -136,6 +144,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Integration Tests (core)
+        id: integration
         timeout-minutes: 45
         env:
           PYTHONFAULTHANDLER: "1"
@@ -153,6 +162,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run App-Local Module Tests
+        id: app_local
         timeout-minutes: 25
         run: |
           python -m pytest apps/*/tests -v -ra \
@@ -162,6 +172,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run SDK client tests
+        id: sdk
         timeout-minutes: 10
         run: |
           python -m pytest sdk/tests/test_sdk/ -v -ra \
@@ -175,6 +186,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run MCP contract tests
+        id: mcp
         timeout-minutes: 45
         run: |
           python -m pytest sdk/tests/test_mcp/ -v -ra \
@@ -188,6 +200,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Django E2E tests
+        id: e2e
         timeout-minutes: 20
         run: |
           python -m pytest tests/e2e/ -v -ra \
@@ -200,6 +213,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Guardrail Tests
+        id: guardrails
         # Guardrails exercise database-backed API paths and can exceed 15 minutes
         # on a cold shared runner when coverage from earlier suites is appended.
         timeout-minutes: 30
@@ -211,6 +225,7 @@ jobs:
             --cov-report=xml:coverage-guardrail.xml
 
       - name: Build final coverage report and enforce ratchet
+        id: coverage_gate
         run: |
           python -m coverage report
           python scripts/generate_coverage_reports.py --check
@@ -225,6 +240,7 @@ jobs:
             --write-ledger reports/architecture/nightly-module-ledger.md
 
       - name: Run Playwright Smoke Tests
+        id: playwright_smoke
         timeout-minutes: 15
         env:
           AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-nightly-playwright.sqlite3
@@ -251,6 +267,7 @@ jobs:
             --video=retain-on-failure
 
       - name: Full lint fallback (non-blocking)
+        id: full_lint
         continue-on-error: true
         run: |
           STATUS=0
@@ -263,6 +280,9 @@ jobs:
           fi
 
       - name: Generate Quality Report
+        if: always()
+        env:
+          CI_STEP_RESULTS: ${{ toJSON(steps) }}
         run: |
           python scripts/generate_quality_report.py --type nightly --output reports/quality
 
@@ -306,7 +326,7 @@ jobs:
             reports/quality/nightly-playwright-smoke.pytest.log
 
       - name: Create or update failure issue
-        if: failure()
+        if: failure() && github.workflow == 'Nightly Tests'
         uses: actions/github-script@v7
         with:
           script: |

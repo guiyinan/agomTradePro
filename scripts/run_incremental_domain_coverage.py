@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
+import math
 import os
 import subprocess
 import sys
@@ -89,7 +91,7 @@ def select_domain_test_targets(
 def build_pytest_command(
     module: str,
     *,
-    fail_under: int,
+    fail_under: float,
     root: Path = ROOT,
 ) -> list[str]:
     """Build one deterministic pytest-cov command for an app Domain package."""
@@ -117,7 +119,7 @@ def build_pytest_command(
 def build_pytest_commands(
     modules: list[str],
     *,
-    fail_under: int,
+    fail_under: float,
     root: Path = ROOT,
 ) -> list[list[str]]:
     """Build isolated commands so one well-tested app cannot hide another app."""
@@ -177,12 +179,25 @@ def run_pytest_commands(
     return first_failure
 
 
+def load_domain_minimum(path: Path = ROOT / "governance/testing_quality_baseline.json") -> float:
+    """Read the shared Domain floor; malformed policy cannot disable coverage."""
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    value = payload["coverage"]["domain_module_minimum"]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("Domain coverage minimum must be numeric")
+    minimum = float(value)
+    if not math.isfinite(minimum) or not 0 < minimum <= 100:
+        raise ValueError("Domain coverage minimum must be in (0, 100]")
+    return minimum
+
+
 def main() -> int:
     """Parse changed modules and run the incremental Domain coverage gate."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("modules", nargs="+", help="Changed Domain module import paths.")
-    parser.add_argument("--fail-under", type=int, default=90)
+    parser.add_argument("--fail-under", type=float, help="Optional stricter local floor.")
     parser.add_argument(
         "--max-workers",
         type=int,
@@ -191,8 +206,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    minimum = load_domain_minimum()
+    if args.fail_under is not None:
+        if not math.isfinite(args.fail_under) or not minimum <= args.fail_under <= 100:
+            parser.error("--fail-under cannot weaken the governed Domain minimum or exceed 100")
+        minimum = args.fail_under
+
     return run_pytest_commands(
-        build_pytest_commands(args.modules, fail_under=args.fail_under),
+        build_pytest_commands(args.modules, fail_under=minimum),
         max_workers=args.max_workers,
     )
 

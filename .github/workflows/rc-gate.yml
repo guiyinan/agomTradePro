@@ -3,132 +3,63 @@ name: RC Gate (Release Candidate)
 on:
   push:
     tags:
-      - 'v*.*.*-rc*'  # Matches v1.0.0-rc1, v1.0.0-rc2, etc.
+      - 'v*.*.*-rc*'
   workflow_dispatch:
     inputs:
-      skip_journey:
-        description: 'Skip journey tests (emergency only)'
+      base_ref:
+        description: 'Optional full ancestor SHA for cumulative incremental checks'
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+        type: string
 
+permissions:
+  contents: read
+  issues: write
+
+# Reuse daily implementations at this exact commit; never copy their thresholds.
+# Full regression is mandatory even when incremental selection finds no changes.
 jobs:
-  rc-gate:
-    name: RC Quality Gate
+  architecture:
+    uses: ./.github/workflows/architecture-layer-guard.yml
+  consistency:
+    uses: ./.github/workflows/consistency-check.yml
+  security:
+    uses: ./.github/workflows/security-scan.yml
+  fast:
+    uses: ./.github/workflows/ci-fast-feedback.yml
+    with:
+      base_ref: ${{ inputs.base_ref || '' }}
+  regression:
+    uses: ./.github/workflows/nightly-tests.yml
+  publication:
+    uses: ./.github/workflows/ci-publication-postgres.yml
+
+  journey:
+    name: Required RC user journeys (CI environment)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies and verify frontend bundle
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install -r requirements.txt
-            pip install pytest pytest-cov pytest-xdist pytest-base-url pytest-playwright playwright
-          fi
-          python -m playwright install chromium
-
-      - name: Prepare database
-        run: |
-          python manage.py migrate --noinput
-          python manage.py collectstatic --noinput
-
-      - name: Collect diff range
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            echo "BASE_REF=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV"
-          else
-            echo "BASE_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          fi
-          echo "HEAD_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      # Check 1: API naming convention 100%
-      - name: Check API Naming Convention
-        run: |
-          echo "==================================="
-          echo "Check 1: API Naming Convention"
-          echo "==================================="
-          python scripts/check_routes.py --strict
-          echo "API Naming: PASS"
-
-      # Check 2: Main navigation 404=0
-      - name: Check Navigation 404
-        run: |
-          echo "==================================="
-          echo "Check 2: Navigation 404 Check"
-          echo "==================================="
-          pytest tests/e2e/ -k "navigation" -v --tb=short
-          echo "Navigation 404: PASS"
-
-      # Check 3: Main chain 501=0
-      - name: Check Main Chain 501
-        run: |
-          echo "==================================="
-          echo "Check 3: Main Chain 501 Check"
-          echo "==================================="
-          pytest tests/guardrails/ -k "501 or guardrail" -v --tb=short
-          echo "Main Chain 501: PASS"
-
-      # Check 4: Critical journey tests >= 90%
-      - name: Run App-Local Module Tests
-        run: |
-          echo "==================================="
-          echo "Check 4: App-Local Module Tests"
-          echo "==================================="
-          pytest apps/*/tests -v --tb=short
-          echo "App-local module tests: PASS"
-
-      - name: Run Component Tests
-        run: |
-          pytest tests/component/ -v --tb=short
-          echo "Component tests: PASS"
-
-      # Check 5: API and migration tests
-      - name: Run API And Migration Tests
-        run: |
-          echo "==================================="
-          echo "Check 5: API And Migration Tests"
-          echo "==================================="
-          pytest tests/api/ tests/migrations/ -v --tb=short
-
-      - name: Critical Reliability
-        timeout-minutes: 20
-        env:
-          PYTHONFAULTHANDLER: "1"
-        run: |
-          pytest tests/critical/ tests/migrations/test_research_integrity_migrations.py \
-            -v --tb=short --durations=20
-          echo "API and migration tests: PASS"
-
-      # Check 6: Critical journey tests >= 90%
-      - name: Run Journey Tests
-        if: github.event.inputs.skip_journey != 'true'
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+          python -m playwright install --with-deps chromium
+          npm ci
+          npm run check:tui
+      - name: Run required user journeys
         env:
           AGOM_PLAYWRIGHT_DB_PATH: ${{ runner.temp }}/agomtradepro-rc-playwright.sqlite3
           DJANGO_SETTINGS_MODULE: core.settings.playwright
         run: |
-          echo "==================================="
-          echo "Check 6: Journey Tests (>= 90%)"
-          echo "==================================="
-          rm -f "${AGOM_PLAYWRIGHT_DB_PATH}"
           python manage.py migrate --noinput --settings=core.settings.playwright
           python scripts/run_live_server_pytest.py \
             --suite-name rc-journey-tests \
@@ -138,244 +69,40 @@ jobs:
             --settings-module core.settings.playwright \
             --health-timeout 180 \
             --min-tests 20 \
+            --require-no-skips \
             --junitxml reports/journey-results.xml \
             --server-log reports/journey-server.log \
             --pytest-log reports/journey-pytest.log \
             -- \
-            tests/playwright/tests/uat/ -v --tb=short --reuse-db
-
-      - name: Journey Tests (Skipped)
-        if: github.event.inputs.skip_journey == 'true'
-        run: |
-          echo "WARNING: Journey tests skipped by user input"
-          echo "This should only be used in emergency situations"
-
-      # Check 7: Logic guardrails
-      - name: Run Logic Guardrails
-        run: |
-          echo "==================================="
-          echo "Check 7: Logic Guardrails"
-          echo "==================================="
-          pytest tests/guardrails/test_logic_guardrails.py -v --tb=short
-          echo "Logic Guardrails: PASS"
-
-      # Check 8: Architecture layer guard
-      - name: Architecture Layer Guard
-        run: |
-          echo "==================================="
-          echo "Check 8: Architecture Layer Guard"
-          echo "==================================="
-          python scripts/check_architecture_delta.py \
-            --rules-file governance/architecture_rules.json \
-            --base-ref "$BASE_REF" \
-            --head-ref "$HEAD_REF" \
-            --include-audit \
-            --fail-on-audit-violations \
-            --format text
-          python scripts/verify_architecture.py \
-            --rules-file governance/architecture_rules.json \
-            --format text \
-            --include-audit \
-            --fail-on-audit-violations
-
-      # Check 9: Domain layer coverage >= 70%
-      - name: Domain Layer Coverage Gate
-        run: |
-          echo "==================================="
-          echo "Check 9: Domain Layer Coverage"
-          echo "==================================="
-          python - <<'PY'
-          import os
-          import shlex
-          import subprocess
-          import sys
-          from pathlib import Path
-
-          base_ref = os.environ.get("BASE_REF", "").strip()
-          head_ref = os.environ.get("HEAD_REF", "").strip()
-
-          diff_args = ["git", "diff", "--name-only"]
-          if base_ref and head_ref and base_ref != head_ref:
-              diff_args.extend([f"{base_ref}...{head_ref}"])
-          diff_args.extend(["--", ":(glob)apps/*/domain/**/*.py", ":(glob)apps/*/domain/*.py"])
-
-          changed_files = subprocess.check_output(diff_args, text=True).splitlines()
-          changed_cov_targets = sorted(
-              {
-                  str(Path(path).with_suffix("")).replace("\\", "/")
-                  for path in changed_files
-                  if "/domain/" in path.replace("\\", "/")
-              }
-          )
-
-          if not changed_cov_targets:
-              print("No changed domain files detected; skipping incremental coverage gate.")
-              sys.exit(0)
-
-          cmd = [
-              "pytest",
-              "tests/unit/domain/",
-              "-v",
-              "--tb=short",
-              "-o",
-              "addopts=",
-              "--cov-fail-under=70",
-              "--cov-report=term-missing",
-          ]
-          for target in changed_cov_targets:
-              cmd.append(f"--cov={target}")
-
-          print("Running incremental domain coverage gate:")
-          print(" ".join(shlex.quote(part) for part in cmd))
-          raise SystemExit(subprocess.call(cmd))
-          PY
-          echo "Domain Coverage: PASS"
-
-      # Check 10: P0/P1 defects check (renumbered)
-      - name: Check P0/P1 Defects
-        run: |
-          echo "==================================="
-          echo "Check 10: P0/P1 Defects"
-          echo "==================================="
-          echo "Checking for critical defects..."
-          # This can be integrated with external defect tracking systems
-          # For now, verify no known blocker issues exist
-          python -c "
-          import sys
-          # Check for TODO/FIXME in critical paths
-          from pathlib import Path
-
-          critical_paths = [
-              'apps/account/interface/views.py',
-              'apps/strategy/interface/views.py',
-              'apps/simulated_trading/interface/views.py',
-              'apps/backtest/interface/views.py',
-              'apps/audit/interface/views.py',
-          ]
-
-          blockers = []
-          for path in critical_paths:
-              p = Path(path)
-              if p.exists():
-                  content = p.read_text(encoding='utf-8')
-                  if 'TODO' in content or 'FIXME' in content:
-                      lines = content.split('\n')
-                      for i, line in enumerate(lines, 1):
-                          if 'TODO' in line or 'FIXME' in line:
-                              blockers.append(f'{path}:{i}: {line.strip()}')
-
-          if blockers:
-              print('Found potential P0/P1 blockers:')
-              for b in blockers[:5]:
-                  print(f'  {b}')
-              sys.exit(1)
-          print('P0=0, P1<=2: PASS')
-          "
-
-      # Generate RC Report
-      - name: Generate RC Report
-        run: |
-          echo "==================================="
-          echo "Generating RC Quality Report"
-          echo "==================================="
-          mkdir -p reports/quality
-          python -c "
-          import json
-          from datetime import datetime
-          from pathlib import Path
-
-          report = {
-              'type': 'rc-gate',
-              'version': '${{ github.ref_name }}',
-              'timestamp': datetime.utcnow().isoformat(),
-              'sha': '${{ github.sha }}',
-              'checks': {
-                  'api_naming': {'status': 'passed', 'description': 'API routes follow naming convention'},
-                  'navigation_404': {'status': 'passed', 'description': 'Main navigation has no 404 errors'},
-                  'main_chain_501': {'status': 'passed', 'description': 'Main chain has no 501 responses'},
-                  'app_local_tests': {'status': 'passed', 'description': 'App-local module test suites pass'},
-                  'api_migration_tests': {'status': 'passed', 'description': 'API and migration test suites pass'},
-                  'journey_tests': {'status': 'passed' if '${{ github.event.inputs.skip_journey }}' != 'true' else 'skipped', 'description': 'Journey tests pass >= 90%'},
-                  'logic_guardrails': {'status': 'passed', 'description': 'Logic guardrails pass'},
-                  'architecture_guard': {'status': 'passed', 'description': 'Architecture layer constraints satisfied'},
-                  'p0_p1_defects': {'status': 'passed', 'description': 'No P0 defects, P1 <= 2'},
-              },
-              'summary': {
-                  'total_checks': 9,
-                  'passed': 9,
-                  'failed': 0,
-                  'skipped': 1 if '${{ github.event.inputs.skip_journey }}' == 'true' else 0,
-              }
-          }
-
-          report_path = Path('reports/quality/rc-gate-report.json')
-          report_path.parent.mkdir(parents=True, exist_ok=True)
-          with open(report_path, 'w', encoding='utf-8') as f:
-              json.dump(report, f, indent=2, ensure_ascii=False)
-
-          print(f'RC Report generated: {report_path}')
-          print(json.dumps(report, indent=2))
-          "
-
-      - name: Upload RC Report
+            tests/playwright/tests/uat/ -v --tb=short --reuse-db \
+            -m "not live_required and not optional_runtime and not diagnostic"
+      - name: Upload journey evidence even on failure
         uses: actions/upload-artifact@v6
-        with:
-          name: rc-gate-report
-          path: reports/quality/
-          retention-days: 90
-
-      - name: Upload Journey Evidence
-        uses: actions/upload-artifact@v6
-        if: github.event.inputs.skip_journey != 'true'
+        if: always()
         with:
           name: rc-journey-evidence
-          path: |
-            reports/journey-results.xml
-            reports/journey-server.log
-            reports/journey-pytest.log
+          path: reports/journey-*
           retention-days: 90
 
-      - name: RC Gate Summary
-        run: |
-          echo ""
-          echo "==================================="
-          echo "RC GATE SUMMARY"
-          echo "==================================="
-          echo "Version: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo ""
-          echo "All checks PASSED!"
-          echo ""
-          echo "Checks completed:"
-          echo "  [PASS] API Naming Convention"
-          echo "  [PASS] Navigation 404 Check"
-          echo "  [PASS] Main Chain 501 Check"
-          echo "  [PASS] App-Local Module Tests"
-          echo "  [PASS] API And Migration Tests"
-          echo "  [PASS] Journey Tests (>= 90%)"
-          echo "  [PASS] Logic Guardrails"
-          echo "  [PASS] Architecture Layer Guard"
-          echo "  [PASS] P0/P1 Defects Check"
-          echo ""
-          echo "==================================="
-          echo "This RC is ready for release testing"
-          echo "==================================="
-
-  # Summary job for status check
   rc-gate-summary:
     name: RC Gate Summary
     runs-on: ubuntu-latest
-    needs: rc-gate
+    needs: [architecture, consistency, security, fast, regression, publication, journey]
     if: always()
     steps:
-      - name: Check RC Gate Status
-        run: |
-          if [ "${{ needs.rc-gate.result }}" == "success" ]; then
-            echo "RC Gate: PASSED"
-            echo "Release candidate ${{ github.ref_name }} is approved for testing"
-            exit 0
-          else
-            echo "RC Gate: FAILED"
-            echo "Release candidate ${{ github.ref_name }} did not pass quality gates"
-            exit 1
-          fi
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Summarize actual results and enforce required gates
+        env:
+          CI_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: python scripts/rc_gate_report.py
+      - name: Retain RC report even when blocked
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: rc-gate-report
+          path: reports/quality/rc-gate-report.json
+          if-no-files-found: error
+          retention-days: 90

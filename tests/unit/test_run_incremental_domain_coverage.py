@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 from configparser import ConfigParser
 from pathlib import Path
@@ -171,3 +172,28 @@ def test_run_pytest_commands_rejects_command_without_cov_target() -> None:
     runner = _load_script()
     with pytest.raises(ValueError, match="--cov="):
         runner.run_pytest_commands([["pytest", "tests/"]])
+
+
+def test_domain_floor_follows_machine_baseline(tmp_path: Path) -> None:
+    runner = _load_script()
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"coverage": {"domain_module_minimum": 93.5}}))
+    assert runner.load_domain_minimum(path) == 93.5
+
+
+@pytest.mark.parametrize("value", [True, 0, -1, 101, "90", float("nan")])
+def test_invalid_domain_floor_fails_closed(tmp_path: Path, value: object) -> None:
+    runner = _load_script()
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"coverage": {"domain_module_minimum": value}}))
+    with pytest.raises(ValueError):
+        runner.load_domain_minimum(path)
+
+
+def test_cli_rejects_a_lower_local_floor(monkeypatch) -> None:
+    runner = _load_script()
+    monkeypatch.setattr(runner, "load_domain_minimum", lambda: 90)
+    monkeypatch.setattr("sys.argv", ["runner", "apps.alpha.domain", "--fail-under", "70"])
+    with pytest.raises(SystemExit) as exc:
+        runner.main()
+    assert exc.value.code == 2

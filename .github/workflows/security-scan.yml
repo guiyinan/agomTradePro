@@ -10,6 +10,7 @@
 name: Security Scan
 
 on:
+  workflow_call:
   push:
     branches: [main, 'dev/**']
   pull_request:
@@ -280,9 +281,10 @@ jobs:
     if: always()
 
     steps:
-      - name: Download all artifacts
+      - name: Download security artifacts
         uses: actions/download-artifact@v7
         with:
+          pattern: '*-security-report'
           path: reports/security/
 
       - name: Generate summary

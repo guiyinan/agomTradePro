@@ -5,6 +5,15 @@
 Coverage configuration is owned by `.coveragerc`. Thresholds and completion targets are owned by
 `governance/testing_quality_baseline.json`. Workflows must not duplicate those values.
 
+Fast Feedback reads `coverage.domain_module_minimum` through
+`run_incremental_domain_coverage.py`; `--fail-under` may only request a stricter
+local threshold. RC calls Fast Feedback and the full Nightly workflow at the same
+candidate commit. It has no independent coverage threshold or last-commit-only
+substitute for the full regression. Coverage XML availability is reported separately
+from test step outcomes: a coverage report alone never establishes a passing suite.
+See [gate evidence boundaries](../../governance/ARCHITECTURE_GUARDRAILS.md#evidence-levels-and-rc-composition)
+for what CI, rehearsal and production acceptance each prove.
+
 Python coverage is collected once and then projected into independent reports:
 
 | Scope | Included source | Report |
