@@ -950,6 +950,51 @@ def _build_evidence(
             },
         }
     )
+
+    def stage_environment_payload(stages: tuple[str, ...], outcome: str) -> dict[str, Any]:
+        return {
+            "schema": "release.s6-stage-environment-preflight.v1",
+            "outcome": outcome,
+            "observations": {
+                "observed_at": (now - timedelta(minutes=2)).isoformat(),
+                "free_disk_bytes": 13 * 1024 * 1024 * 1024,
+                "available_memory_bytes": 1024 * 1024 * 1024,
+                "build_timeout_seconds": 3600,
+                "stage_timeout_seconds": 3600,
+                "provider_timeout_seconds": 1800,
+                "task_deadline_seconds": 600,
+                "lock_wait_limit_seconds": 5,
+            },
+            "categories": list(validator.STAGE_ENVIRONMENT_CATEGORIES),
+            "stages": list(stages),
+            "issues": [],
+            "matrix": [
+                {
+                    "stage": stage,
+                    "category": category,
+                    "outcome": "pass",
+                    "codes": [],
+                }
+                for stage in stages
+                for category in validator.STAGE_ENVIRONMENT_CATEGORIES
+            ],
+        }
+
+    prebuild_path = tmp_path / "prebuild-stage-environment-preflight.json"
+    prebuild_digest = _write_json(
+        prebuild_path,
+        stage_environment_payload(validator.STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass"),
+    )
+    stage_environment = _common("stage_environment_preflight", now)
+    stage_environment.pop("provider_identities")
+    stage_environment.update(
+        stage_environment_payload(validator.STAGE_ENVIRONMENT_CONTRACT_STAGES[2:], "success")
+    )
+    stage_environment["prebuild_report"] = {
+        "path": prebuild_path.name,
+        "sha256": prebuild_digest,
+    }
+
     reports: dict[str, Path] = {}
     references: list[dict[str, str]] = []
     for kind, payload in (
@@ -958,6 +1003,7 @@ def _build_evidence(
         ("production_policy_parity", parity),
         ("isolated_write_rehearsal", staging),
         ("akshare_financial_slice", financial_slice),
+        ("stage_environment_preflight", stage_environment),
         ("candidate_regression_evidence", regression),
     ):
         path = tmp_path / f"{kind}.json"
@@ -1086,7 +1132,39 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 6
+    assert len(result["validated_reports"]) == 7
+
+
+def test_validator_rejects_nonpassing_stage_environment_matrix(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["stage_environment_preflight"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["matrix"][0]["outcome"] = "blocked"
+    report["matrix"][0]["codes"] = ["REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_UNAVAILABLE"]
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID"
+
+
+def test_validator_rejects_incomplete_prebuild_environment_matrix(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["stage_environment_preflight"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    prebuild_path = tmp_path / report["prebuild_report"]["path"]
+    prebuild = json.loads(prebuild_path.read_text(encoding="utf-8"))
+    prebuild["matrix"].pop()
+    report["prebuild_report"]["sha256"] = _write_json(prebuild_path, prebuild)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID"
 
 
 def test_validator_recomputes_candidate_universe_digest_from_target_partition(

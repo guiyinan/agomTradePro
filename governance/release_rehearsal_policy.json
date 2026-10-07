@@ -7,6 +7,7 @@
     "production_policy_parity",
     "isolated_write_rehearsal",
     "akshare_financial_slice",
+    "stage_environment_preflight",
     "candidate_regression_evidence"
   ]
 }

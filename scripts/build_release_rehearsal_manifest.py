@@ -18,6 +18,7 @@ REQUIRED_SCHEMAS = {
     "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
+    "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 COMMIT_RE = re.compile(r"[0-9a-f]{40}")
@@ -237,13 +238,14 @@ def build_manifest(
 
 
 def main() -> int:
-    """Build one immutable bundle from the four producer reports."""
+    """Build one immutable bundle from every policy-required producer report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--real-response-unit-replay", required=True, type=Path)
     parser.add_argument("--full-universe-capacity", required=True, type=Path)
     parser.add_argument("--production-policy-parity", required=True, type=Path)
     parser.add_argument("--isolated-write-rehearsal", required=True, type=Path)
     parser.add_argument("--akshare-financial-slice", required=True, type=Path)
+    parser.add_argument("--stage-environment-preflight", required=True, type=Path)
     parser.add_argument("--candidate-regression-evidence", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--candidate-sha", required=True)

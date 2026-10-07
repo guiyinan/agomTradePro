@@ -1627,7 +1627,9 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
         )
     )
-    atomic_json(config.output_dir / "prebuild-stage-environment-preflight.json", report)
+    preflight_dir = config.output_dir / "stage-environment-preflight"
+    preflight_dir.mkdir(exist_ok=True)
+    atomic_json(preflight_dir / "prebuild-stage-environment-preflight.json", report)
     if report.get("outcome") != "pass":
         raise RehearsalBlocked(
             "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
@@ -1770,6 +1772,7 @@ def _run_stage_environment_preflight(
         frozen_unit,
         *config.transport_input_paths,
     )
+    started_at = datetime.now(UTC)
     dynamic_issues = _dynamic_stage_environment_issues(
         config, runner, identity, identity_path, manifest_path, provider_path, run_dir
     )
@@ -1790,7 +1793,30 @@ def _run_stage_environment_preflight(
             dynamic_issues=dynamic_issues,
         )
     )
-    atomic_json(run_dir / "stage-environment-preflight.json", report)
+    report_path = run_dir / "stage-environment-preflight" / "stage-environment-preflight.json"
+    if report.get("outcome") == "pass":
+        prebuild_path = report_path.parent / "prebuild-stage-environment-preflight.json"
+        evidence = {
+            **report,
+            "kind": "stage_environment_preflight",
+            "outcome": "success",
+            "candidate_sha": identity.candidate_sha,
+            "candidate_image_id": identity.candidate_image_id,
+            "candidate_source_attestation": "image_release_manifest",
+            "target_trade_date": identity.target_trade_date,
+            "universe_sha256": identity.universe_sha256,
+            "provider_identities_sha256": identity.provider_identities_sha256,
+            "evidence_mode": "read_only_environment_contract",
+            "started_at": started_at.isoformat(),
+            "finished_at": datetime.now(UTC).isoformat(),
+            "prebuild_report": {
+                "path": prebuild_path.name,
+                "sha256": hashlib.sha256(prebuild_path.read_bytes()).hexdigest(),
+            },
+        }
+        atomic_json(report_path, evidence)
+    else:
+        atomic_json(report_path, report)
     if report.get("outcome") != "pass":
         raise RehearsalBlocked(
             "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
@@ -2313,6 +2339,8 @@ def _run_release_rehearsal(
             str(isolated_dir / "output" / "isolated-write-rehearsal.json"),
             "--akshare-financial-slice",
             str(financial_report_path),
+            "--stage-environment-preflight",
+            str(run_dir / "stage-environment-preflight" / "stage-environment-preflight.json"),
             "--candidate-regression-evidence",
             str(ci_path),
             "--output-dir",

@@ -8,7 +8,9 @@
 统一 preflight 在候选镜像身份冻结后、`provider_probe` 之前运行。它一次执行所有宿主侧和候选侧只读探针，将全部缺口写入
 `stage-environment-preflight.json`，最终只用总码
 `REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED` 阻断排期。报告只含阶段、类别和稳定码，不含 env 值、密钥引用内容、URL
-凭据、provider 响应或异常文本。它不会调用 provider、创建任务、写建议或改生产配置。
+凭据、provider 响应或异常文本。成功报告连同 prebuild 报告的路径与 SHA-256 作为 required report 进入不可变
+release manifest、release validator 和 handoff receipt；缺失、摘要不匹配、矩阵不完整或任一格不是 pass 均失败关闭。
+它不会调用 provider、创建任务、写建议或改生产配置。
 
 ## 失败证据与抽象
 
@@ -52,8 +54,8 @@
 | `isolated_postgresql_write` | 已有：独立输出目录；所有身份文件只读 mount。 | 已有：统一门禁。 | 无外网：只连接已绑定的隔离 PostgreSQL/Redis network。 | 已有：`_preflight_isolated_database_container` 和 `preflight_isolated_write_rehearsal` 绑定容器、DB、host、candidate。 | 已有：526 migrations/事务回滚由阶段检查；DB clock 由动态探针检查。 | 已有：`AGOM_RELEASE_REHEARSAL_DATABASE=1`、network alias、container ID 在并行组前复核。 |
 | `github_ci_evidence` | 已有：`seal_container_input_tree` 按 descriptor 设置并复核 `0550/0440`；财报 mount 前 `verify_container_input_tree` 再次只读复核。 | 已有：统一门禁；GitHub artifact 下载内容另由 collector 的 schema/hash 校验。 | 已有：GitHub API/下载由 collector 访问，仓库/run ID 固定，连接或下载失败即关闭；独立 host allowlist preview 边界见未验证风险。 | 已有：exact SHA、repository、run ID、provider identities 和 artifact 节点契约。 | 已有：max age 24h 与 stage timeout。 | 已有：五组 CI、要求节点、零 skipped/failure/error 由 collector/validator 对账。 |
 | `akshare_financial_slice` | 已有：CI 输入树 descriptor 二次复核；candidate output 独立目录；双 body store/hash/size/RawAudit 验证。 | 已有：统一门禁。 | 已有：复用 `_require_akshare_financial_egress_routes`；逐一检查 provider ID、`equity.financial.fact`/`equity.financial.source-time`、`datacenter.eastmoney.com`、公开 deployment region。 | 已有：AKShare active row、完整 identity、artifact secret ref 可解析且不输出值。 | 已有：N≤1、2N≤2、200 行、stage timeout；统一门禁复核时钟/资源。 | 已有：预算 loader、owner-approved contract、两周期入口 disabled；不修改规则或开关。 |
-| `bundle_build` | 已有：只接收已验证报告；`_freeze_bundle` 拒绝 symlink 并将文件设只读，`bundle_tree_digest` 绑定路径/大小/hash。 | 已有：统一门禁。 | 无资源：本地组装，不出网。 | 已有：candidate/image/date/universe/provider/settings 全身份写入 manifest。 | 已有：固定 120 秒 timeout 与磁盘门禁。 | 已有：required reports policy 和 manifest builder 对账。 |
-| `release_validator` | 已有：冻结 bundle 在 validator 前后重算 tree digest，防验证后替换。 | 已有：统一门禁。 | 无资源：本地验证，不出网。 | 已有：validator-owned receipt、manifest SHA、candidate image ID 与 OCI revision。 | 已有：固定 120 秒 timeout。 | 已有：release policy 的 required reports、schema、freshness 和 CI 节点全部复核。 |
+| `bundle_build` | 已有：只接收已验证报告；prebuild/final 环境报告与其 SHA-256 图一并复制；`_freeze_bundle` 拒绝 symlink 并将文件设只读，`bundle_tree_digest` 绑定路径/大小/hash。 | 已有：统一门禁。 | 无资源：本地组装，不出网。 | 已有：candidate/image/date/universe/provider/settings 全身份写入 manifest。 | 已有：固定 120 秒 timeout 与磁盘门禁。 | 已有：环境报告属于 required reports；policy 和 manifest builder 精确对账。 |
+| `release_validator` | 已有：冻结 bundle 在 validator 前后重算 tree digest，防验证后替换。 | 已有：统一门禁。 | 无资源：本地验证，不出网。 | 已有：validator-owned receipt、manifest SHA、candidate image ID 与 OCI revision。 | 已有：固定 120 秒 timeout。 | 已有：release policy 的 required reports、schema、freshness、完整阶段 × 六类矩阵、prebuild 摘要和 CI 节点全部复核。 |
 
 ## 稳定码与聚合语义
 

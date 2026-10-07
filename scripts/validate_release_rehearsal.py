@@ -23,6 +23,21 @@ from pathlib import Path
 from typing import Any, NoReturn, cast
 from zoneinfo import ZoneInfo
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIRONMENT_CATEGORIES
+from shared.release_rehearsal_stage_environment import (
+    CONTRACT_STAGES as STAGE_ENVIRONMENT_CONTRACT_STAGES,
+)
+from shared.release_rehearsal_stage_environment import (
+    MINIMUM_AVAILABLE_MEMORY_BYTES as STAGE_ENVIRONMENT_MINIMUM_MEMORY_BYTES,
+)
+from shared.release_rehearsal_stage_environment import (
+    MINIMUM_FREE_DISK_BYTES as STAGE_ENVIRONMENT_MINIMUM_DISK_BYTES,
+)
+
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
@@ -41,6 +56,7 @@ REQUIRED_REPORT_SCHEMAS = {
     "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
+    "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 REQUIRED_EVIDENCE_MODES = {
@@ -49,6 +65,7 @@ REQUIRED_EVIDENCE_MODES = {
     "production_policy_parity": "production_policy_snapshot",
     "isolated_write_rehearsal": "isolated_postgresql",
     "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
+    "stage_environment_preflight": "read_only_environment_contract",
     "candidate_regression_evidence": "candidate_ci",
 }
 IMAGE_BOUND_REPORTS = frozenset(
@@ -58,10 +75,11 @@ IMAGE_BOUND_REPORTS = frozenset(
         "production_policy_parity",
         "isolated_write_rehearsal",
         "akshare_financial_slice",
+        "stage_environment_preflight",
     }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
-    {"full_universe_capacity", "isolated_write_rehearsal"}
+    {"full_universe_capacity", "isolated_write_rehearsal", "stage_environment_preflight"}
 )
 FINANCIAL_ZERO_WRITE_PROOF_CASES = (
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
@@ -579,6 +597,119 @@ def _validate_common_report(
         _fail("REHEARSAL_TIME_INVALID")
     if now - finished > max_age:
         _fail("REHEARSAL_EVIDENCE_STALE")
+
+
+def _validate_stage_environment_matrix(
+    report: dict[str, Any], expected_stages: tuple[str, ...]
+) -> None:
+    """Validate one complete, passing stage-by-category contract matrix."""
+
+    if report.get("categories") != list(STAGE_ENVIRONMENT_CATEGORIES):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_CATEGORIES_INVALID")
+    if report.get("stages") != list(expected_stages) or report.get("issues") != []:
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_RESULT_INVALID")
+    raw_matrix = report.get("matrix")
+    if not isinstance(raw_matrix, list) or len(raw_matrix) != len(expected_stages) * len(
+        STAGE_ENVIRONMENT_CATEGORIES
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
+    expected_cells = {
+        (stage, category) for stage in expected_stages for category in STAGE_ENVIRONMENT_CATEGORIES
+    }
+    observed_cells: set[tuple[str, str]] = set()
+    for raw_cell in cast(list[object], raw_matrix):
+        if not isinstance(raw_cell, dict) or set(raw_cell) != {
+            "stage",
+            "category",
+            "outcome",
+            "codes",
+        }:
+            _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
+        cell = cast(dict[str, Any], raw_cell)
+        stage = cell.get("stage")
+        category = cell.get("category")
+        if not isinstance(stage, str) or not isinstance(category, str):
+            _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
+        key = (stage, category)
+        if (
+            key not in expected_cells
+            or key in observed_cells
+            or cell.get("outcome") != "pass"
+            or cell.get("codes") != []
+        ):
+            _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
+        observed_cells.add(key)
+    if observed_cells != expected_cells:
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
+
+    observations = report.get("observations")
+    if not isinstance(observations, dict):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID")
+    observed = cast(dict[str, Any], observations)
+    _parse_datetime(observed.get("observed_at"), "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID")
+    free_disk = _require_nonnegative_int(
+        observed,
+        "free_disk_bytes",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    available_memory = _require_nonnegative_int(
+        observed,
+        "available_memory_bytes",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    build_timeout = _require_finite_number(
+        observed,
+        "build_timeout_seconds",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    stage_timeout = _require_finite_number(
+        observed,
+        "stage_timeout_seconds",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    provider_timeout = _require_finite_number(
+        observed,
+        "provider_timeout_seconds",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    task_deadline = _require_finite_number(
+        observed,
+        "task_deadline_seconds",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    lock_wait = _require_finite_number(
+        observed,
+        "lock_wait_limit_seconds",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
+    if (
+        free_disk < STAGE_ENVIRONMENT_MINIMUM_DISK_BYTES
+        or available_memory < STAGE_ENVIRONMENT_MINIMUM_MEMORY_BYTES
+        or provider_timeout > stage_timeout
+        or task_deadline > stage_timeout
+        or lock_wait > task_deadline
+        or build_timeout <= 0
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID")
+
+
+def _validate_stage_environment_preflight(report: dict[str, Any], report_root: Path) -> None:
+    """Bind both host prebuild and candidate runtime environment gates into release evidence."""
+
+    candidate_stages = STAGE_ENVIRONMENT_CONTRACT_STAGES[2:]
+    _validate_stage_environment_matrix(report, candidate_stages)
+    prebuild_ref = report.get("prebuild_report")
+    if not isinstance(prebuild_ref, dict):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REFERENCE_INVALID")
+    reference = cast(dict[str, Any], prebuild_ref)
+    prebuild_path = _resolve_artifact(report_root, reference.get("path"), reference.get("sha256"))
+    prebuild = _read_json(prebuild_path, "REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REPORT_INVALID")
+    if (
+        prebuild.get("schema") != "release.s6-stage-environment-preflight.v1"
+        or prebuild.get("outcome") != "pass"
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REPORT_INVALID")
+    _validate_stage_environment_matrix(prebuild, STAGE_ENVIRONMENT_CONTRACT_STAGES[:2])
 
 
 def _validate_receipt_identity(
@@ -2724,6 +2855,10 @@ def validate_release_rehearsal(
         loaded_reports["akshare_financial_slice"],
         regression_report=loaded_reports["candidate_regression_evidence"],
         expected_date=expected_target_date,
+    )
+    _validate_stage_environment_preflight(
+        loaded_reports["stage_environment_preflight"],
+        report_paths["stage_environment_preflight"].parent,
     )
     return {
         "outcome": "success",

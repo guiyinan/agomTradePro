@@ -8632,8 +8632,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:preflight_s6_stage_environment:line:1672",
-      "locator": "line:1672",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:preflight_s6_stage_environment:line:1674",
+      "locator": "line:1674",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "preflight_s6_stage_environment",

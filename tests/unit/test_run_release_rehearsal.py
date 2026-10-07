@@ -347,6 +347,7 @@ class FakeRunner:
                 "production_policy_parity": "--production-policy-parity",
                 "isolated_write_rehearsal": "--isolated-write-rehearsal",
                 "akshare_financial_slice": "--akshare-financial-slice",
+                "stage_environment_preflight": "--stage-environment-preflight",
                 "candidate_regression_evidence": "--candidate-regression-evidence",
             }.items()
         }
@@ -750,7 +751,11 @@ def test_stage_environment_preflight_aggregates_and_blocks_before_provider(tmp_p
         run_release_rehearsal(config, runner=runner)
 
     assert "provider_probe" not in runner.labels
-    report = json.loads((config.output_dir / "stage-environment-preflight.json").read_text())
+    report = json.loads(
+        (
+            config.output_dir / "stage-environment-preflight" / "stage-environment-preflight.json"
+        ).read_text()
+    )
     assert {item["code"] for item in report["issues"]} == {
         "REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID",
         "REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID",
