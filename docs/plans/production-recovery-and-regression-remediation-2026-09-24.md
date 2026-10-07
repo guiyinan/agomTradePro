@@ -2700,3 +2700,68 @@ member bound、freshness、coverage、source 与 provider 深度诊断入口均�
 下一片是否可开始：可以提交并 push 本节台账，绑定新 HEAD 的 Architecture、Security、Consistency、Fast Feedback 与 Publication
 PostgreSQL。五组全绿且固定 PostgreSQL 节点零跳过/零失败后才能从最新生产只读快照创建新的 fresh S6，禁止 `--resume`；S6 全部
 通过后只部署 receipt 绑定的同 SHA 镜像，再复测 readiness 时延并继续 signal API/SDK/MCP、Alpha、业务阻断语义和零副作用 UAT。
+
+##### 2026-10-08 最终候选 S6、同镜像部署与只读联合 UAT
+
+完成项：最终候选 `1d52b12a17ebcb087bdf1ddcdef28b72481fb91c` 的五组 exact-SHA CI 全绿：Architecture
+`37656854621`、Security `37656854464`、Consistency `37656854465`、Fast Feedback `37656854522`、Publication
+PostgreSQL `37656960713`。PostgreSQL artifact 已复核 Account final revalidation `8/0/0/0` 并包含
+`test_postgres_generation_fenced_graph_uow_reuses_outer_transaction`，financial slice sync `8/0/0/0` 并包含
+`test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write`，Publication `42/0/0/0` 并包含
+`test_activation_5001_members_has_fixed_queries_locks_and_retry`；固定节点零跳过、零失败、零 error，5,001-member 查询硬阈值未放宽。
+
+fresh S6 attempt `f06cac3ffd73410589b1c1f1ee851fd2` 从最新生产只读快照重新导出 provider settings、4 个完整 identities、
+5,572 个动态 universe 成员与 unit contract，在隔离 PostgreSQL/Redis、真实 provider、禁止 `--resume` 的条件下完成十阶段、统一
+stage environment preflight、财报 AKShare N=1/2N=2 双原件/双 RawAudit/typed evidence/单批原子写/零写失败反例和 release
+validator，outcome=`success_evidence`、exit 0。handoff receipt SHA256 为
+`e65e9c4373c080b1a0c348e0a193806449894da8f7ba820ab06eaee29b0f7c20`，manifest SHA256 为
+`d465c77765a0b34d6cba2f095cfad30bb2b623e558a0ecab89098a3fc1b1e084`，release tag 为 `20261007193250`，预构建镜像为
+`sha256:73e8005aeead0891560b022b3f13322694e622eb9a433ec59cf4f639ba1fce46`。生产严格复用该 receipt 绑定镜像部署成功，
+current=`/opt/agomtradepro/releases/source-20261007193250`，部署 report SHA256 为
+`1b05ff9765676bbba5122131dc03d00294d110e4c36cb614da851e7b19e404ff`；运行 Web/Celery OCI revision 与候选一致，526
+migrations applied / 0 unapplied，服务健康，provider route preflight 通过，statement logging 为 `none/-1/-1`。部署未投递
+full-market 或 financial refresh，`full-market-current-publications` 与 `financial-current-publication-refresh` 均保持
+`enabled=false`。
+
+只读正式发布对账确认 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 仍为业务 success，
+`requested/succeeded/failed/stored=5572/5572/0/11144`、`publication_updated=true`、run
+`aebb0da7-5336-4460-8fff-e4aa0f0317a7`。price/quote/valuation 三个 current pointer 仍由 activation
+`19d9a93e-55b6-5b8e-882d-8f3160f560dc` 原子绑定：price `5561` members、quote `5572`、valuation `5572`，各自
+Publication ID/hash/policy version/source/as-of 完整，`must_not_use_for_decision=false`。`/api/health/` 为 200/21.756ms，
+`/api/ready/` 为 200/degraded/3175.104ms，已从旧部署的 25.881s 慢路径恢复到团队响应目标内；`/api/decision-ready/` 为
+503/blocked/42.534ms 且 `must_not_use_for_decision=true`，继续诚实反映财报正式发布未恢复。
+
+API/SDK/MCP 只读联合 UAT 使用既有 privileged read-only operator token，没有创建、轮换或暴露凭据。signal 默认查询、显式
+`offset=0`、分页、状态过滤、证券过滤、组合过滤和确定为空的列表在三层均正常完成；当前真实结果为 0 条，没有造数，MCP 返回
+`status=completed` 和空数组。Policy 三层一致保留 `PX`、中文“待分类”、`policy_unclassified_manual_review`、
+`requires_manual_approval=true`、`must_not_use_for_decision=true` 与观测日期。Regime、动态选取 current valuation member 的估值分析、
+财报历史在 API 503、SDK typed `ServerError`、MCP error envelope 三层均保留 `decision_runtime_blocked`、中文原因、changed-at、
+责任角色和 `must_not_use_for_decision=true`，未压缩为 `capability_execution_failed`。`dashboard.read.alpha_history` 对真实 50 条 list
+响应在 API/SDK/MCP 三层内容一致；Task Monitor 三层一致返回上述业务 outcome、四项统计、目标交易日与 publication run ID。
+
+零副作用对账在每组 API/SDK/MCP 探针前后分别验证 TaskExecution、Alpha cache、decision snapshot、recommendation 与 token 数量完全
+不变。覆盖整个只读窗口的 PostgreSQL read-only/repeatable-read 聚合快照进一步证明 Alpha candidate/run/snapshot、Alpha cache、
+decision input/feature、valuation snapshot、investment/unified recommendation 与 signal 的 count 和内容 digest 均未改变；只允许 MCP
+READ 审计追加。TaskExecution 在长窗口净增 119 条，逐项归因为已有分钟级监控、agent-runtime maintenance、audit authority、storage
+budget、policy SLA/gate 与 realtime/broker maintenance 周期任务；没有 full-market、financial refresh、Alpha inference 或建议生成任务。
+证据已密封到
+`/opt/agomtradepro/rehearsals/s6-1d52b12a17-f06cac3ffd73410589b1c1f1ee851fd2/evidence/postdeploy-uat`，manifest
+SHA256 为 `c889cb4a12fc91e13536b7630f964cc34c11423d667768fa64090027ee13488a`，六份子证据逐文件 SHA256 由 manifest 绑定。
+
+测试计数：五组 CI 全绿；固定 PostgreSQL JUnit 合计 `58 passed / 0 skipped / 0 failure / 0 error`；fresh S6 `10/10` 阶段和
+release validator 全部通过；signal/policy/regime MCP 共 `10` 次 read capability 调用完成，估值/财报/Alpha history/Task Monitor
+另 `4` 次 read capability 调用按各自正常或稳定阻断契约通过。两组 bounded business-count 对账均为 before=after；长窗口除允许审计与
+已分类的后台 TaskExecution 外，`10` 类禁止写入业务模型 count/digest 精确不变。
+
+未完成项、未验证风险与停止线：财报 current publication `c8741812-cf01-512f-8d1c-91c0e6549f42` 仍是 legacy policy
+`1.0:1.0`、as-of `2026-04-29`、80 members；当前治理 policy version 为 3，decision runtime 因
+`canonical_publication_policy_version_mismatch` 正确 fail closed。不得把三类行情/估值发布写成四类全部恢复；生产 financial refresh
+仍需用户新的明确授权，N<=1/2N<=2 的 S6 ceiling 不能外推为全市场容量，禁止伪造 owner approval。生产 full-market task
+`bcb3e00f-538e-420d-b179-428c40082f43` 继续禁止重跑。普通用户 active token 为 0，用户也未提供已有合法普通角色浏览器会话；本轮
+只能提供 privileged read-only operator 的 API/SDK/MCP 证据，不能冒充普通用户完成候选详情、账户选择和页面主流程，因此普通用户
+生产页面 UAT 明确未完成。长窗口存在正常后台任务并发，虽然逐组 bounded 对账证明本次 GET/MCP 没有产生任务，聚合窗口不能把所有
+TaskExecution 行级变化表述为全局静止。结论为“部分通过/仍有阻断”，不能宣称全面恢复。
+
+下一片是否可开始：代码、CI、fresh S6、同镜像部署、正式行情/报价/估值发布与 privileged read-only 联合 UAT 已收口。后续只允许在
+用户新授权后设计并执行生产 financial refresh；在合法普通用户会话可用后补普通用户页面主流程。两项停止线未解除前，保持两个受保护
+周期入口 disabled，不投递任何 full-market/financial refresh，也不解除 decision runtime 保护。
