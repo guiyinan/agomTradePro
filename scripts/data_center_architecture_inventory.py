@@ -47,6 +47,16 @@ def _source_path(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
 
+def _project_reference_rows(rows: Iterable[dict[str, object]]) -> list[dict[str, object]]:
+    """Drop volatile source lines while retaining every semantic reference occurrence."""
+
+    projected = [{key: value for key, value in row.items() if key != "line"} for row in rows]
+    return sorted(
+        projected,
+        key=lambda row: json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+    )
+
+
 def _import_names(tree: ast.AST) -> list[tuple[str, int]]:
     imports: list[tuple[str, int]] = []
     for node in ast.walk(tree):
@@ -344,36 +354,20 @@ def build_inventory() -> dict[str, object]:
         grouped_legacy[str(item["symbol"])].append(item)
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "scan_roots": list(SOURCE_ROOTS),
-        "provider_imports_outside_data_center": sorted(
-            provider_imports, key=lambda row: (str(row["path"]), int(str(row["line"])))
+        "provider_imports_outside_data_center": _project_reference_rows(provider_imports),
+        "direct_data_center_imports_outside_data_center": _project_reference_rows(
+            direct_data_center_imports
         ),
-        "direct_data_center_imports_outside_data_center": sorted(
-            direct_data_center_imports,
-            key=lambda row: (str(row["path"]), int(str(row["line"]))),
-        ),
-        "external_http_imports_for_review": sorted(
-            external_http_imports,
-            key=lambda row: (str(row["path"]), int(str(row["line"]))),
-        ),
-        "approved_non_data_http_imports": sorted(
-            approved_non_data_http_imports,
-            key=lambda row: (str(row["path"]), int(str(row["line"]))),
-        ),
-        "cross_app_orm_imports": sorted(
-            cross_app_orm, key=lambda row: (str(row["path"]), int(str(row["line"])))
-        ),
+        "external_http_imports_for_review": _project_reference_rows(external_http_imports),
+        "approved_non_data_http_imports": _project_reference_rows(approved_non_data_http_imports),
+        "cross_app_orm_imports": _project_reference_rows(cross_app_orm),
         "legacy_fact_references": {
-            key: sorted(value, key=lambda row: (str(row["path"]), int(str(row["line"]))))
-            for key, value in sorted(grouped_legacy.items())
+            key: _project_reference_rows(value) for key, value in sorted(grouped_legacy.items())
         },
-        "current_surface_references": sorted(
-            current_surfaces, key=lambda row: (str(row["path"]), int(str(row["line"])))
-        ),
-        "data_write_task_decorators": sorted(
-            data_tasks, key=lambda row: (str(row["path"]), int(str(row["line"])))
-        ),
+        "current_surface_references": _project_reference_rows(current_surfaces),
+        "data_write_task_decorators": _project_reference_rows(data_tasks),
         "runtime_parameter_references": sorted(runtime_parameters),
         "counts": {
             "provider_imports_outside_data_center": len(provider_imports),

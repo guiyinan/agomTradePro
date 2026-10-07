@@ -18,6 +18,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: data-center-architecture-inventory
+        name: check generated Data Center architecture inventory
+        entry: python scripts/data_center_architecture_inventory.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       - id: data-center-entrypoint-inventory
         name: check generated Data Center entrypoint inventory
         entry: python scripts/data_center_entrypoint_inventory.py
