@@ -66,6 +66,20 @@ PROVIDER_IDENTITIES: list[dict[str, object]] = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _pinned_release_runner_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep orchestration tests independent of the workstation's ambient Paramiko."""
+
+    import scripts.run_release_rehearsal as rehearsal
+
+    original = rehearsal.importlib.metadata.version
+    monkeypatch.setattr(
+        rehearsal.importlib.metadata,
+        "version",
+        lambda name: rehearsal.REQUIRED_PARAMIKO_VERSION if name == "paramiko" else original(name),
+    )
+
+
 class FakeRunner:
     """Create stage outputs at the real filesystem boundaries and record order."""
 
@@ -773,6 +787,35 @@ def test_prebuild_preflight_rejects_missing_runner_dependency(
         "find_spec",
         lambda name: None if name == "paramiko" else original(name),
     )
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    report = json.loads(
+        (
+            config.output_dir
+            / "stage-environment-preflight"
+            / "prebuild-stage-environment-preflight.json"
+        ).read_text()
+    )
+    assert report["issues"] == [
+        {
+            "category": "identity_and_secrets",
+            "code": "REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING",
+            "stages": ["build_only"],
+        }
+    ]
+
+
+def test_prebuild_preflight_rejects_unpatched_runner_dependency(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import scripts.run_release_rehearsal as rehearsal
+
+    monkeypatch.setattr(rehearsal.importlib.metadata, "version", lambda name: "4.0.0")
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     runner = FakeRunner()
 

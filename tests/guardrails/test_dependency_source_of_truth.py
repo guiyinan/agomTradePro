@@ -12,6 +12,7 @@ from packaging.version import Version
 from scripts.sync_dependency_projections import render_projection
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+PARAMIKO_PATCHED_COMMIT = "a4489456b6f65281e172380cc4826cee5e851dbb"
 
 
 def test_requirements_files_are_exact_pyproject_projections() -> None:
@@ -25,6 +26,16 @@ def test_requirements_files_are_exact_pyproject_projections() -> None:
         "ops"
     )
     assert "-r requirements-prod.txt" not in render_projection("ops")
+
+
+def test_release_runner_uses_the_immutable_upstream_sha1_removal() -> None:
+    """Keep the runner off the vulnerable Paramiko 4.0.0 release."""
+
+    requirement = Requirement(render_projection("ops").splitlines()[-1])
+    assert canonicalize_name(requirement.name) == "paramiko"
+    assert requirement.url == (
+        "git+https://github.com/paramiko/paramiko.git@" + PARAMIKO_PATCHED_COMMIT
+    )
 
 
 def test_production_lock_covers_every_canonical_runtime_dependency() -> None:

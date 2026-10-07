@@ -70,7 +70,7 @@ qlib-dl = [
 
 # 开发工具
 dev = [
-    "paramiko==4.0.0",
+    "paramiko @ git+https://github.com/paramiko/paramiko.git@a4489456b6f65281e172380cc4826cee5e851dbb",
     "pytest",
     "pytest-django",
     "pytest-cov",
@@ -97,7 +97,7 @@ dev = [
 
 # 完整开发环境（包含 Qlib）
 all = [
-    "paramiko==4.0.0",
+    "paramiko @ git+https://github.com/paramiko/paramiko.git@a4489456b6f65281e172380cc4826cee5e851dbb",
     "pyqlib>=0.9.0",
     "lightgbm>=4.0.0",
     "pytest",
@@ -126,7 +126,7 @@ all = [
 
 # Operational tooling used by release rehearsal and VPS deployment entrypoints.
 ops = [
-    "paramiko==4.0.0",
+    "paramiko @ git+https://github.com/paramiko/paramiko.git@a4489456b6f65281e172380cc4826cee5e851dbb",
 ]
 
 [tool.setuptools]

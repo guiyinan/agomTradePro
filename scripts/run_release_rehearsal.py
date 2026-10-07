@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -106,6 +107,7 @@ STAGES = (
     "bundle_build",
     "release_validator",
 )
+REQUIRED_PARAMIKO_VERSION = "5.0.0"
 
 
 @dataclass(frozen=True)
@@ -1572,6 +1574,18 @@ def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> No
         raise RehearsalBlocked("preflight_containers", "S6_RUN_CONTAINERS_ACTIVE")
 
 
+def _missing_release_runner_dependencies() -> tuple[str, ...]:
+    """Return the secret-free dependency marker when the pinned SSH runtime is absent."""
+
+    if importlib.util.find_spec("paramiko") is None:
+        return ("paramiko",)
+    try:
+        version = importlib.metadata.version("paramiko")
+    except importlib.metadata.PackageNotFoundError:
+        return ("paramiko",)
+    return () if version == REQUIRED_PARAMIKO_VERSION else ("paramiko",)
+
+
 def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
     """Reject static build/identity assumptions before an expensive remote build."""
 
@@ -1594,9 +1608,7 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             | ({"DJANGO_SETTINGS_MODULE"} - provider_values.keys())
         )
     )
-    missing_runtime_dependencies = (
-        ("paramiko",) if importlib.util.find_spec("paramiko") is None else ()
-    )
+    missing_runtime_dependencies = _missing_release_runner_dependencies()
     files = (
         config.root,
         config.output_dir,
@@ -1756,9 +1768,7 @@ def _run_stage_environment_preflight(
             | (required_provider - provider_values.keys())
         )
     )
-    missing_runtime_dependencies = (
-        ("paramiko",) if importlib.util.find_spec("paramiko") is None else ()
-    )
+    missing_runtime_dependencies = _missing_release_runner_dependencies()
     frozen_settings = run_dir / "inputs" / "provider-settings.json"
     frozen_unit = run_dir / "inputs" / "provider-unit-contract.json"
     files = (
