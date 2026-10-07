@@ -2336,3 +2336,43 @@ Financial current publication 仍为 legacy policy identity 且无 member-bound 
 
 下一片是否可开始：可以提交本节台账并把新 HEAD 作为唯一最终候选，启动五组 exact-SHA CI；CI 全绿后执行 fresh S6 与 receipt-only
 同镜像部署。部署完成后继续只读联合 UAT并停在 financial refresh 与普通用户生产身份两个授权/输入门前。
+
+##### 2026-10-07 fresh S6 CI 证据只读挂载权限整改
+
+候选 `33f8c5a42b650ccf5342cf91e27d9572a87661b2` 的五组 exact-SHA CI 已全部通过：Architecture
+`37555464821`、Security `37555464829`、Consistency `37555464786`、Fast Feedback `37555464778`、Publication
+PostgreSQL `37555497546`。PostgreSQL artifact 已核对 financial slice sync 为 `8 passed / 0 skipped / 0 failed / 0 error`，
+Account outer-fence 为 `8/0/0/0`，Publication 为 `42/0/0/0`，并包含 5,001-member soak 节点。随后创建的 fresh S6 attempt
+`72de41d46b7242de9789cc0f8ce9d32c` 使用最新生产只读 PostgreSQL 快照、4 个完整 provider identities、5,572 动态 universe、
+隔离 PostgreSQL/Redis 和 exact-SHA 预构建镜像；build、image identity、provider probe、response replay、full-universe capacity、
+production-policy parity、isolated PostgreSQL write 与 GitHub CI evidence 八段均完成，未部署。
+
+该 attempt 在 `akshare_financial_slice` 以稳定码 `REHEARSAL_FINANCIAL_SLICE_FAILED` fail closed。隔离库取证确认失败时间窗内
+`SyncItemAttempt`、`RawAudit`、`FinancialFact` 和 source-time audit claim 的新增数均为 0，因而没有 provider 结果、审计或事实的
+部分写入。逐段只读复现进一步定位到 candidate regression evidence 读取：宿主 collector 生成的 `github-ci-evidence` 目录为
+`0700 root:root`，JSON/XML 文件为 `0600 root:root`，而 candidate stage 使用非 root 用户；readonly bind mount 保留上述 mode，
+容器在 provider 调用前即收到 `PermissionError`。失败 attempt、镜像和诊断继续保留，禁止 `--resume` 或把其八段前缀当成完整 S6。
+
+完成项（`1113724d95db3023d1ce3f2603e94f671b20d404`）：CI 证据完成身份校验后，checkpoint 文件系统边界递归拒绝 symlink 与特殊文件，
+使用候选镜像实测 primary GID 通过 descriptor-based `fchown/fchmod` 把目录封为 `0550`、文件封为 `0440`；逐项复核 inode、GID
+和 mode 后才允许 financial stage 挂载。容器只有组读取/遍历权限，宿主后续 checkpoint hash 与 bundle build 仍可读，未赋予写权限，
+也没有放宽 provider、请求、timeout、retry 或财报证据门槛。Windows 本地采用只读 `0555/0444` 投影。runner 非空行数保持
+`2177 -> 2177`，未规避 1,000 行增量门禁；Data Center entrypoint projection 由唯一生成器重建并与全新输出逐字节一致，共
+1,297 条。
+
+测试计数：S6 runner、candidate regression collector 与 release validator 组合回归为 `204 passed / 2 skipped`；两个 skip 均为
+Windows 本机不支持相应 symlink 故障注入，Linux CI 必须执行且不得跳过。新增正向反例从 `0700/0600` 输入开始，要求 financial
+container 启动前精确变为候选组 `0550/0440` 并可读；反向用例要求嵌套 symlink 以
+`S6_CONTAINER_INPUT_TREE_INVALID` 失败关闭。两个生产文件增量 mypy 为 0 regression，全仓 debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、governance consistency（0 violation）、Data Center architecture
+inventory（5,390 current surfaces、48 cross-app ORM imports、外部直连 0）均通过。
+
+未验证风险与剩余停止线：`1113724d9` 尚未 push，尚无包含本修复和本节台账的最终 exact-SHA 五组 CI，也没有新的 fresh S6、
+handoff receipt、同镜像部署或部署后只读 UAT。任何新 S6 必须重新预留 attempt、重新导出生产 provider settings/完整 identities/
+动态 universe/unit contract、从最新只读快照开始并禁止 `--resume`；不得复用 attempt `72de41d...` 的镜像或阶段前缀。生产任务
+`bcb3e00f-538e-420d-b179-428c40082f43` 禁止再次投递或重跑，生产 financial refresh 仍未授权，两个周期入口必须保持 disabled。
+普通用户生产会话仍未提供，禁止创建持久 token 或用管理员会话替代。
+
+下一片是否可开始：可以把本节台账提交后的 HEAD 作为唯一新候选，push 后绑定新的五组 exact-SHA CI。只有五组全绿且 Linux
+权限反例、financial slice、outer-fence 与 5,001-member soak 节点均零跳过/零失败，才可创建全新 S6；S6 十阶段、财报 N=1
+双原件/双 RawAudit/typed evidence/单批原子写/零写失败反例和 release validator 全部通过后，才可部署 receipt 绑定的同 SHA 镜像。
