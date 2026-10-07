@@ -27,17 +27,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIRONMENT_CATEGORIES
-from shared.release_rehearsal_stage_environment import (
-    CONTRACT_STAGES as STAGE_ENVIRONMENT_CONTRACT_STAGES,
-)
-from shared.release_rehearsal_stage_environment import (
-    MINIMUM_AVAILABLE_MEMORY_BYTES as STAGE_ENVIRONMENT_MINIMUM_MEMORY_BYTES,
-)
-from shared.release_rehearsal_stage_environment import (
-    MINIMUM_FREE_DISK_BYTES as STAGE_ENVIRONMENT_MINIMUM_DISK_BYTES,
-)
-
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
@@ -292,6 +281,43 @@ def _validate_required_reports_policy() -> None:
         or set(cast(list[object], required)) != set(REQUIRED_REPORT_SCHEMAS)
     ):
         _fail("REHEARSAL_REQUIRED_REPORTS_POLICY_INVALID")
+
+
+def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ...], int, int]:
+    """Read the governed stage/category projection without importing candidate application code."""
+
+    value = _release_policy().get("stage_environment_contract")
+    if not isinstance(value, dict):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_POLICY_INVALID")
+    contract = cast(dict[str, Any], value)
+    categories = contract.get("categories")
+    stages = contract.get("stages")
+    disk = contract.get("minimum_free_disk_bytes")
+    memory = contract.get("minimum_available_memory_bytes")
+    if (
+        contract.get("schema") != "release.s6-stage-environment-contract.v1"
+        or not isinstance(categories, list)
+        or not categories
+        or any(not isinstance(item, str) for item in categories)
+        or len(set(cast(list[str], categories))) != len(categories)
+        or not isinstance(stages, list)
+        or len(stages) < 3
+        or any(not isinstance(item, str) for item in stages)
+        or len(set(cast(list[str], stages))) != len(stages)
+        or isinstance(disk, bool)
+        or not isinstance(disk, int)
+        or disk <= 0
+        or isinstance(memory, bool)
+        or not isinstance(memory, int)
+        or memory <= 0
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_POLICY_INVALID")
+    return (
+        tuple(cast(list[str], categories)),
+        tuple(cast(list[str], stages)),
+        disk,
+        memory,
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -600,22 +626,24 @@ def _validate_common_report(
 
 
 def _validate_stage_environment_matrix(
-    report: dict[str, Any], expected_stages: tuple[str, ...]
+    report: dict[str, Any],
+    expected_stages: tuple[str, ...],
+    categories: tuple[str, ...],
+    minimum_disk_bytes: int,
+    minimum_memory_bytes: int,
 ) -> None:
     """Validate one complete, passing stage-by-category contract matrix."""
 
-    if report.get("categories") != list(STAGE_ENVIRONMENT_CATEGORIES):
+    if report.get("categories") != list(categories):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_CATEGORIES_INVALID")
     if report.get("stages") != list(expected_stages) or report.get("issues") != []:
         _fail("REHEARSAL_STAGE_ENVIRONMENT_RESULT_INVALID")
     raw_matrix = report.get("matrix")
     if not isinstance(raw_matrix, list) or len(raw_matrix) != len(expected_stages) * len(
-        STAGE_ENVIRONMENT_CATEGORIES
+        categories
     ):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID")
-    expected_cells = {
-        (stage, category) for stage in expected_stages for category in STAGE_ENVIRONMENT_CATEGORIES
-    }
+    expected_cells = {(stage, category) for stage in expected_stages for category in categories}
     observed_cells: set[tuple[str, str]] = set()
     for raw_cell in cast(list[object], raw_matrix):
         if not isinstance(raw_cell, dict) or set(raw_cell) != {
@@ -683,8 +711,8 @@ def _validate_stage_environment_matrix(
         "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
     )
     if (
-        free_disk < STAGE_ENVIRONMENT_MINIMUM_DISK_BYTES
-        or available_memory < STAGE_ENVIRONMENT_MINIMUM_MEMORY_BYTES
+        free_disk < minimum_disk_bytes
+        or available_memory < minimum_memory_bytes
         or provider_timeout > stage_timeout
         or task_deadline > stage_timeout
         or lock_wait > task_deadline
@@ -696,8 +724,11 @@ def _validate_stage_environment_matrix(
 def _validate_stage_environment_preflight(report: dict[str, Any], report_root: Path) -> None:
     """Bind both host prebuild and candidate runtime environment gates into release evidence."""
 
-    candidate_stages = STAGE_ENVIRONMENT_CONTRACT_STAGES[2:]
-    _validate_stage_environment_matrix(report, candidate_stages)
+    categories, stages, minimum_disk, minimum_memory = _stage_environment_contract_policy()
+    candidate_stages = stages[2:]
+    _validate_stage_environment_matrix(
+        report, candidate_stages, categories, minimum_disk, minimum_memory
+    )
     prebuild_ref = report.get("prebuild_report")
     if not isinstance(prebuild_ref, dict):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REFERENCE_INVALID")
@@ -709,7 +740,9 @@ def _validate_stage_environment_preflight(report: dict[str, Any], report_root: P
         or prebuild.get("outcome") != "pass"
     ):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REPORT_INVALID")
-    _validate_stage_environment_matrix(prebuild, STAGE_ENVIRONMENT_CONTRACT_STAGES[:2])
+    _validate_stage_environment_matrix(
+        prebuild, stages[:2], categories, minimum_disk, minimum_memory
+    )
 
 
 def _validate_receipt_identity(

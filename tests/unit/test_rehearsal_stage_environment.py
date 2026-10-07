@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -39,6 +40,20 @@ def _inputs(tmp_path: Path) -> StageEnvironmentInputs:
         task_deadline_seconds=5400,
         lock_wait_limit_seconds=10,
     )
+
+
+def test_governed_stage_environment_contract_matches_runtime_registry() -> None:
+    policy_path = (
+        Path(__file__).resolve().parents[2] / "governance" / "release_rehearsal_policy.json"
+    )
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    contract = policy["stage_environment_contract"]
+
+    assert contract["schema"] == "release.s6-stage-environment-contract.v1"
+    assert contract["categories"] == list(CATEGORIES)
+    assert contract["stages"] == list(CONTRACT_STAGES)
+    assert contract["minimum_free_disk_bytes"] == MINIMUM_FREE_DISK_BYTES
+    assert contract["minimum_available_memory_bytes"] == MINIMUM_AVAILABLE_MEMORY_BYTES
 
 
 @pytest.mark.parametrize("category", CATEGORIES)

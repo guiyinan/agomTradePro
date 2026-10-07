@@ -13,6 +13,11 @@ from typing import Any
 
 import pytest
 
+from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIRONMENT_CATEGORIES
+from shared.release_rehearsal_stage_environment import (
+    CONTRACT_STAGES as STAGE_ENVIRONMENT_CONTRACT_STAGES,
+)
+
 
 def _load_module():
     module_path = Path(__file__).resolve().parents[2] / "scripts" / "validate_release_rehearsal.py"
@@ -965,7 +970,7 @@ def _build_evidence(
                 "task_deadline_seconds": 600,
                 "lock_wait_limit_seconds": 5,
             },
-            "categories": list(validator.STAGE_ENVIRONMENT_CATEGORIES),
+            "categories": list(STAGE_ENVIRONMENT_CATEGORIES),
             "stages": list(stages),
             "issues": [],
             "matrix": [
@@ -976,19 +981,19 @@ def _build_evidence(
                     "codes": [],
                 }
                 for stage in stages
-                for category in validator.STAGE_ENVIRONMENT_CATEGORIES
+                for category in STAGE_ENVIRONMENT_CATEGORIES
             ],
         }
 
     prebuild_path = tmp_path / "prebuild-stage-environment-preflight.json"
     prebuild_digest = _write_json(
         prebuild_path,
-        stage_environment_payload(validator.STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass"),
+        stage_environment_payload(STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass"),
     )
     stage_environment = _common("stage_environment_preflight", now)
     stage_environment.pop("provider_identities")
     stage_environment.update(
-        stage_environment_payload(validator.STAGE_ENVIRONMENT_CONTRACT_STAGES[2:], "success")
+        stage_environment_payload(STAGE_ENVIRONMENT_CONTRACT_STAGES[2:], "success")
     )
     stage_environment["prebuild_report"] = {
         "path": prebuild_path.name,

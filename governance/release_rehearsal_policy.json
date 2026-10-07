@@ -1,6 +1,32 @@
 {
   "schema": "release.rehearsal-policy.v1",
   "minimum_capacity_margin_ratio": 0.15,
+  "stage_environment_contract": {
+    "schema": "release.s6-stage-environment-contract.v1",
+    "categories": [
+      "filesystem",
+      "transfer_encoding",
+      "network_egress",
+      "identity_and_secrets",
+      "resources_and_time",
+      "external_state"
+    ],
+    "stages": [
+      "build_only",
+      "docker_identity",
+      "provider_probe",
+      "response_replay",
+      "full_universe_capacity",
+      "production_policy_parity",
+      "isolated_postgresql_write",
+      "github_ci_evidence",
+      "akshare_financial_slice",
+      "bundle_build",
+      "release_validator"
+    ],
+    "minimum_free_disk_bytes": 12884901888,
+    "minimum_available_memory_bytes": 536870912
+  },
   "required_reports": [
     "real_response_unit_replay",
     "full_universe_capacity",
