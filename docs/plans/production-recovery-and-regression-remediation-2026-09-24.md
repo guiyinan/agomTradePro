@@ -2529,3 +2529,39 @@ refresh 未获授权，两个周期入口保持 disabled；普通用户生产会
 下一片是否可开始：可以提交本节台账并 push 新 HEAD，重新绑定五组 exact-SHA CI。只有五组全绿且 Publication PostgreSQL artifact
 中的 financial slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6；禁止
 `--resume` 或复用旧 receipt/镜像。
+
+##### 2026-10-07 S6 runner 运维依赖契约整改
+
+完成项：fresh attempt `2ef31abad54c455aa051388a73ed37b5` 的生产只读快照、4 个完整 provider identities、5,572 个动态
+证券、unit contract、526 migrations、隔离 PostgreSQL/Redis 及两层只读路由门禁均通过，但宿主启动 wrapper 调用不存在的
+`python`，在候选 runner 启动前 exit 127；诊断 SHA256 为
+`1e28d050315d04cff8f6b25c116392874f50f7774ec8a7feccfca2767f138f02`。该 attempt 没有 S6 stage、构建、provider 请求或生产写，
+根目录与诊断保留，精确匹配的 disposable 隔离资源已清理，禁止 resume。
+
+第二个 fresh attempt `d130ee2d5b514092bad8fd3d05173542` 使用实际存在的 `python3` 启动 runner，prebuild 环境矩阵通过，随后
+`build_only` 在 1 秒内以 `S6_STAGE_COMMAND_FAILED` 阻断。安全复核确认 Docker/network/隔离服务门禁均通过，但 VPS 的
+`/usr/bin/python3` 无 `paramiko`，而 `remote_build_deploy_vps.py` 在 SSH 前需要该模块；远端构建报告、候选镜像、provider 请求、
+生产写与 handoff receipt 均为 0。稳定诊断 `REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING` 的 SHA256 为
+`44f1397410403f2fe7263f7adee01811877a6756c71b91ef9bb2b51c3a2c851c`；失败 attempt 完整保留，隔离资源按 plan 身份清理，禁止
+resume。
+
+根因不是单次 VPS 漏装包，而是 operational entrypoint 的运行时依赖没有进入 `pyproject.toml` 真源，既有统一 preflight 也没有在
+远端构建前检查它。提交 `3c2576949` 新增精确 `paramiko==4.0.0` 的 `ops/dev/all` 依赖，唯一生成器新增最小
+`requirements-ops.txt` 投影；S6 prebuild 和最终环境报告都检查 remote builder 依赖可导入，缺失时仅在 `build_only` 单元格以
+`REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING` fail closed，不泄露模块名或解释器路径。quick reference 统一要求 attempt 私有 venv
+从 `requirements-ops.txt` 安装，避免修改系统 Python 或依赖人工遗留环境。
+
+测试计数：runner、六类环境矩阵与依赖真源组合为 `111 passed / 3 skipped`；加入 release validator 的组合为
+`215 passed / 3 skipped`。3 个 skip 均为 Windows 无法提供的 POSIX symlink/ownership 边界，未计作通过。三个生产/运维 Python
+文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、依赖投影
+check、Data Center entrypoint inventory `1,298` 条、module map `44 modules / 210 edges` 和 governance consistency `0 violation`
+均通过。
+
+未验证风险与停止线：`3c2576949` 与本节台账尚未 push，也未绑定新的五组 exact-SHA CI；attempt 私有 ops venv 尚未在 fresh S6
+实证。宿主 shell/SSH/DNS/host-key 仍位于 runner 自检之前，未知环境类别风险继续保留。生产 full-market task
+`bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，生产 financial refresh 未获授权，两个周期入口保持 disabled；普通用户生产
+会话仍未提供。
+
+下一片是否可开始：可以提交本节台账、push 新 exact SHA 并启动五组 CI。五组全绿且 Publication PostgreSQL artifact 的 financial
+slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败后，才能用 `requirements-ops.txt` 创建 attempt 私有 runner venv，
+从最新生产只读快照创建全新 S6，禁止 `--resume` 或复用上述失败 attempt 的输入、镜像和阶段证据。
