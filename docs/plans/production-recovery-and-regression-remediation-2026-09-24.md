@@ -2421,3 +2421,43 @@ dataset/domain 代替精确规则。普通用户生产会话仍未提供。
 下一片是否可开始：可以提交本节台账、push 新 exact SHA 并启动五组 CI；CI 全绿且 PostgreSQL artifact 节点满足原硬门槛后，先原子
 登记并只读复核两条精确生产路由，再从该最新生产快照创建全新 S6，禁止 resume。S6 十阶段与 release validator 全通过后才可部署
 receipt 绑定镜像；部署后继续只读 UAT并停在 financial refresh 与普通用户会话停止线前。
+
+##### 2026-10-07 fresh S6 opaque 财报原件位置整改
+
+最终候选 `a16155cd3ec95d2fc321d54b80c2cb192b20f8c6` 的五组 exact-SHA CI 已全部通过：Architecture
+`37573469062`、Security `37573469022`、Consistency `37573469018`、Fast Feedback `37573469092`、Publication
+PostgreSQL `37573469083`。PostgreSQL artifact 已复核 financial slice sync `8/0/0/0`、Account outer-fence
+`8/0/0/0`、Publication `42/0/0/0`，包含 5,001-member soak 和 valuation lineage 节点。生产以现有 Domain/Repository 原子登记
+provider `3` 到 `datacenter.eastmoney.com` 的 financial fact/source-time 两条精确规则，配置 receipt SHA256 为
+`48e6bc592ebba1bd738599f4665b30fdef24e09fe62e6dcdad853fbe06a1da78`；没有 provider 调用或 refresh，两个周期入口保持 disabled。
+
+fresh S6 attempt `aecd32f2c6494292b904f7f3f9776717` 从最新生产只读快照开始，重新导出 provider settings、4 个完整 identities、5,572
+动态 universe 和 unit contract，在隔离 PostgreSQL/Redis 中完成到 GitHub CI evidence；financial route preflight 和两个真实 provider
+请求均成功，生成两个不同 capture UUID、两份成功 RawAudit 和 typed evidence。该 attempt 随后在财报报告组装阶段以
+`REHEARSAL_FINANCIAL_SLICE_FAILED` fail closed，未生成 handoff receipt、未部署。安全诊断文件
+`financial-failure-state.json` SHA256 为 `dd3eee736985236c5d6476fee0293bc3b2314bde44de1d50bc63a0b92b7d9982`；进一步只读对账
+证明两份原件 hash/size、provider ID、audit link、availability 顺序、registry 和 request scope 均有效，对账报告 SHA256 为
+`332ff998d5e8e0a0c10ff7c847bf3dfee5d0910e77a897094841419f5a2eee56`。失败 attempt 禁止 resume 或部署。
+
+根因是报告层把 `FinancialResponseArtifactRef.location` 的 opaque URI（`financial-response:///...`）再次拼到本地目录并执行
+`is_file()`；而 Domain 合同明确禁止对该 location 作路径假设，正文在此前已由各自 BodyStore 完成解密、hash、size 和 RawAudit
+认证。URI 被错误解释为路径后抛出 `ValueError`，management command 按设计压缩为通用稳定码，因此真实 provider 和持久化证据成功
+仍不能生成 S6 report。
+
+完成项（`ac4b2fd0a`）：`_verify_artifact_bytes` 在两份 BodyStore 原件、hash/size 和精确 RawAudit provider link 全部通过后返回认证
+capture UUID 集合；typed persisted pair 携带该集合，报告层只核对它与当前 financial/source-time 两个 UUID 精确相等，不再解析或访问
+opaque location。缺少任一认证 capture 时继续以 `REHEARSAL_FINANCIAL_SLICE_BODY_INVALID` fail closed，没有放宽正文、审计、provider、
+request ceiling、timeout 或 retry 门槛。
+
+测试计数：财报 capture 与 rehearsal 合并回归 `41 passed`；加入完整 release validator 后为 `142 passed`。新增行为测试使用真实
+`financial-response:///...` 引用证明报告可生成，并以缺少一个认证 UUID 的故障注入证明零容忍。生产文件增量 mypy 为
+`0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 和 `git diff --check` 全部通过。
+
+未验证风险与停止线：`ac4b2fd0a` 尚未与本节台账一起 push，也没有新 exact-SHA 五组 CI、fresh S6、receipt、同镜像部署或部署后只读
+UAT。下一次 S6 必须重新预留 attempt、重新导出全部输入、从最新生产只读快照开始并禁止 `--resume`；不得复用
+`aecd32f2...` 的镜像或阶段前缀。生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，financial refresh
+仍未授权，两个周期入口必须保持 disabled；普通用户生产会话仍未提供。
+
+下一片是否可开始：可以把本节台账提交后的 HEAD 作为唯一最终候选并 push，重新绑定五组 exact-SHA CI。只有五组全绿且
+financial slice、outer-fence、5,001-member soak 全部零跳过/零失败后才可创建全新 S6；S6 十阶段、真实 provider N=1 双原件/双
+RawAudit/typed evidence/单批原子写/零写失败反例和 release validator 全通过后，才可部署 receipt 绑定的同 SHA 镜像。
