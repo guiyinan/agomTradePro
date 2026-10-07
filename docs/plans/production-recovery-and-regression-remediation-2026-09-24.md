@@ -2501,3 +2501,31 @@ Windows 跳过的 POSIX 权限、symlink/descriptor 和非 root 容器反例必�
 fresh S6，从最新生产只读快照重新导出 provider settings、完整 identities、动态 universe 与 unit contract，禁止 `--resume`，并要求
 prebuild 与全部阶段环境报告进入 manifest、release validator 和 handoff receipt。fresh S6 未完整通过前，不得把本门禁表述为已在真实
 环境验证，也不得进入 receipt-only 部署。
+
+##### 2026-10-07 Data Center 入口投影稳定身份整改
+
+完成项：提交 `b794a0be7d8c6757ef3c4ecda06ab8476805f07e` 将 Data Center 入口投影中的源码位置与治理身份分离。
+所有原先使用 `line:<n>` 的入口统一按 `category + path + symbol + target` 形成稳定语义身份；同一路径内完全相同的真实入口仅用确定性
+`occurrence` 序号消歧。GitHub Actions workflow step 不再以可变的展示名作为身份，而以实际数据库操作 target 作为身份。插入空行、
+移动代码或重命名 step 不再改变投影；新增、删除或更换真实数据库操作仍会改变条目和 ID，扫描范围、治理状态与 fail-closed 行为没有
+缩减。validator 新增反例，任何生成结果残留 `line:` locator 均以 `entry_locator_volatile` 拒绝。
+
+本地提交链路新增 `pre-push` 只读门禁，直接运行唯一生成器 `python scripts/data_center_entrypoint_inventory.py`；它不自动改写工作树，发现
+真实入口变化时要求显式执行 `--write` 并审阅、提交投影。工程护栏文档已更新安装命令，Consistency 与 Fast Feedback 继续执行同一
+生成器校验，未修改扫描规则或跳过失败组。投影由唯一生成器重建为 `1,298` 条，其中 `322` 条使用稳定语义 locator，重复 ID 为 `0`，
+workflow step `11` 条。
+
+测试计数：Data Center entrypoint inventory 专项 `26 passed`，包含无语义 workflow 标签/行移动不变、真实 dispatch 变更必变、重复语义
+入口稳定消歧三个新增用例；唯一生成器 stale check 通过。生产脚本增量 mypy 为 `0 regression`，全仓 debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、governance consistency `0 violation`、pre-commit YAML 解析均通过。
+本机基础 Python 未安装 `pre_commit` 包，无法运行其框架级 `validate-config`；门禁实际 entry command 已独立运行通过，配置仍须由新的
+exact-SHA CI 与安装了 pre-commit 的开发环境继续验证。
+
+未验证风险与停止线：稳定身份消除了已知的行号和 workflow 展示名漂移，但不能证明未来不会出现新的非语义字段；新增扫描类别必须用
+语义字段并继续接受 `entry_locator_volatile` 反例。当前提交尚未 push，也未绑定新的五组 exact-SHA CI，尚未创建 fresh S6、handoff
+receipt、同镜像部署或部署后只读 UAT。生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 继续禁止重跑，生产 financial
+refresh 未获授权，两个周期入口保持 disabled；普通用户生产会话仍未提供。
+
+下一片是否可开始：可以提交本节台账并 push 新 HEAD，重新绑定五组 exact-SHA CI。只有五组全绿且 Publication PostgreSQL artifact
+中的 financial slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6；禁止
+`--resume` 或复用旧 receipt/镜像。
