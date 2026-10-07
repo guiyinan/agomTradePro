@@ -2376,3 +2376,48 @@ handoff receipt、同镜像部署或部署后只读 UAT。任何新 S6 必须重
 下一片是否可开始：可以把本节台账提交后的 HEAD 作为唯一新候选，push 后绑定新的五组 exact-SHA CI。只有五组全绿且 Linux
 权限反例、financial slice、outer-fence 与 5,001-member soak 节点均零跳过/零失败，才可创建全新 S6；S6 十阶段、财报 N=1
 双原件/双 RawAudit/typed evidence/单批原子写/零写失败反例和 release validator 全部通过后，才可部署 receipt 绑定的同 SHA 镜像。
+
+##### 2026-10-07 fresh S6 财报出网路由契约整改
+
+最终候选 `e6aac397a625e8eddf8b4453331bda810a69e7d1` 的五组 exact-SHA CI 已全部通过：Architecture
+`37565456573`、Security `37565456549`、Consistency `37565456562`、Fast Feedback `37565456524`、Publication
+PostgreSQL `37565480146`。PostgreSQL artifact 已复核 financial slice sync `8/0/0/0`、Account outer-fence
+`8/0/0/0`、Publication `42/0/0/0`，并包含 5,001-member soak。首次新 attempt
+`ebe16fb787094b45957b16e17dfd771a` 在候选阶段开始前因远程 prepare wrapper 含 CR 字节退出 127；真实输入导出和只读快照恢复虽已
+完成，但没有启动候选阶段、provider 请求、部署或生产写。根目录和 `prepare-failure-diagnostic.json` 保留，隔离资源在精确身份检查后
+清理，禁止 resume。
+
+第二个 fresh attempt `5caf4f22e0264b3f9a9d67a06432f655` 重新导出 4 个完整 identities、5,572 动态 universe、provider
+settings 和最新生产只读 PostgreSQL 快照，隔离 PostgreSQL/Redis、候选 SHA、526 migrations、磁盘门槛与冻结 settings preflight
+均通过；候选 CI evidence 在非 root 容器中实读成功，证明 `1113724d9` 权限整改有效。该 attempt 完成至 GitHub CI evidence 后在
+`akshare_financial_slice` fail closed，未生成 receipt、未部署。隔离库时间窗对账为新增 `RawAudit=0`、source-time claim `=0`、
+`FinancialFact=0`、`SyncItemAttempt=0`，不存在部分写入。
+
+根因证据：无 provider 请求的真实组合诊断确认 provider row `3`、AKShare adapter、owner-approved contract、原件加密配置、请求
+ceiling 与 request seed 均有效；随后严格限制为两个 dataset 各最多一次 transport attempt 的隔离诊断在网络发送前分别返回
+`EGRESS_FINANCIAL_ROUTE_REQUIRED`，实际 provider 请求数仍为 0。生产快照的两条历史规则只覆盖 provider `2/4` 与
+`demo.agomtrade.pro`，没有 provider `3` 到 `datacenter.eastmoney.com` 的 `equity.financial.fact` 和
+`equity.financial.source-time` 规则。既有 `provider_policy_and_routes` 只检查全市场 model-market 批量路由，不能证明财报双原件
+路由，因此此前 pass 不构成该能力证据。
+
+完成项（`eab049b26`）：财报 S6 在任何 provider egress 前对两个精确 dataset、provider row、目标 host 和当前 deployment region
+分别执行持久化路由 preview，任一 rule 缺失即以 `REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED` fail closed；成功报告新增两条
+去敏路由证据，release validator 强制校验 dataset 集合、正数 rule ID、strategy、目标 host、candidate count 与 region。UseCase 的
+安全 failure reason 映射为稳定 rehearsal code，management command 只透传 `REHEARSAL_FINANCIAL_SLICE_*` allowlist，其他异常继续
+压缩为通用码，不泄露 provider 响应或凭据。deployment-region 解析被提升为同一公开 helper，route preflight 与实际 gateway 不再使用
+两套 region 逻辑。
+
+测试计数：财报 capture/sync/rehearsal、release evidence 和完整 release validator 合并回归 `155 passed`；更窄的财报切片与双原件
+回归 `39 passed`。三个生产文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、
+`git diff --check`、module map `44 modules / 210 edges` 通过。Data Center entrypoint inventory 由唯一生成器重建，仍为 1,297 条且无
+投影差异。
+
+未验证风险与停止线：生产尚未登记上述两条精确出网规则，新候选也尚未重新绑定五组 CI；attempt `5caf4f22...` 禁止 resume，其镜像
+不得部署。下一次 S6 前须通过现有 Domain/Repository 在事务内登记两条精确、可回滚规则，并保存 before/after、provider ID、dataset、
+host、region、rule ID 与内容 SHA；该配置写入不授权 financial refresh。生产任务 `bcb3e00f-538e-420d-b179-428c40082f43`
+仍禁止重跑，两个周期入口继续 disabled，financial refresh 仍须用户新的明确授权；不得扩大 timeout/retry/request ceiling 或用通配
+dataset/domain 代替精确规则。普通用户生产会话仍未提供。
+
+下一片是否可开始：可以提交本节台账、push 新 exact SHA 并启动五组 CI；CI 全绿且 PostgreSQL artifact 节点满足原硬门槛后，先原子
+登记并只读复核两条精确生产路由，再从该最新生产快照创建全新 S6，禁止 resume。S6 十阶段与 release validator 全通过后才可部署
+receipt 绑定镜像；部署后继续只读 UAT并停在 financial refresh 与普通用户会话停止线前。
