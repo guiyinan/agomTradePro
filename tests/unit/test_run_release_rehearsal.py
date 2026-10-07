@@ -23,7 +23,11 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     rehearsal_identities_digest,
 )
 from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS, build_manifest
-from scripts.rehearsal_checkpoint import run_lock, seal_container_input_tree
+from scripts.rehearsal_checkpoint import (
+    run_lock,
+    seal_container_input_tree,
+    verify_container_input_tree,
+)
 from scripts.run_release_rehearsal import (
     Command,
     CommandResult,
@@ -73,12 +77,16 @@ class FakeRunner:
         mutate_bundle_on_validation: bool = False,
         dirty_worktree: bool = False,
         mutate_settings_on_build: Path | None = None,
+        mutate_env_on_build: Path | None = None,
+        stage_environment_issues: list[dict[str, object]] | None = None,
     ) -> None:
         self.fail_label = fail_label
         self.wrong_identity_label = wrong_identity_label
         self.mutate_bundle_on_validation = mutate_bundle_on_validation
         self.dirty_worktree = dirty_worktree
         self.mutate_settings_on_build = mutate_settings_on_build
+        self.mutate_env_on_build = mutate_env_on_build
+        self.stage_environment_issues = stage_environment_issues or []
         self.commands: list[Command] = []
 
     def run(self, command: Command) -> CommandResult:
@@ -95,6 +103,8 @@ class FakeRunner:
             self._create_build_artifacts(command)
             if self.mutate_settings_on_build is not None:
                 self.mutate_settings_on_build.write_text('{"status":"replaced"}\n')
+            if self.mutate_env_on_build is not None:
+                self.mutate_env_on_build.write_text("DJANGO_SETTINGS_MODULE=changed.settings\n")
         elif command.label == "docker_inspect":
             return CommandResult(
                 returncode=0,
@@ -142,6 +152,16 @@ class FakeRunner:
                                 "DNSNames": ["agom-s6-redis-abcdefghij"],
                             }
                         },
+                    }
+                ),
+            )
+        elif command.label == "stage_environment_preflight":
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "schema": "release.s6-stage-environment-preflight.v1",
+                        "issues": self.stage_environment_issues,
                     }
                 ),
             )
@@ -368,7 +388,7 @@ def _provider_digest() -> str:
 def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
     """Create isolated input files for a fake-only rehearsal test."""
     provider_path = tmp_path / "provider-identities.json"
-    provider_path.write_text(json.dumps(PROVIDER_IDENTITIES), encoding="utf-8")
+    provider_path.write_text(json.dumps(PROVIDER_IDENTITIES), encoding="utf-8", newline="\n")
     unit_path = tmp_path / "unit-contract.json"
     unit_path.write_text(
         json.dumps(
@@ -381,6 +401,7 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
             }
         ),
         encoding="utf-8",
+        newline="\n",
     )
     settings_path = tmp_path / "provider-settings.json"
     settings_path.write_text(
@@ -397,7 +418,9 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
     password_path = tmp_path / "password.txt"
     password_path.write_text("not-a-real-secret", encoding="utf-8")
     provider_env = tmp_path / "provider.env"
-    provider_env.write_text("DJANGO_SETTINGS_MODULE=config.settings\n", encoding="utf-8")
+    provider_env.write_text(
+        "DJANGO_SETTINGS_MODULE=config.settings\n", encoding="utf-8", newline="\n"
+    )
     isolated_env = tmp_path / "isolated.env"
     isolated_env.write_text(
         "POSTGRES_HOST=agom-s6-postgres-abcdefghij\n"
@@ -410,7 +433,10 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         "REDIS_URL=redis://:not-a-real-secret@agom-s6-redis-abcdefghij:6379/0\n"
         "AGOM_RELEASE_REHEARSAL_DATABASE=1\n",
         encoding="utf-8",
+        newline="\n",
     )
+    transport_input = tmp_path / "prepare-s6.sh"
+    transport_input.write_text("#!/bin/sh\nset -eu\n", encoding="utf-8", newline="\n")
     return RehearsalConfig(
         root=root,
         output_dir=tmp_path / "rehearsal-run",
@@ -422,6 +448,7 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         provider_identities_path=provider_path,
         provider_settings_json=settings_path,
         unit_contract_path=unit_path,
+        transport_input_paths=(transport_input,),
         quote_provider_id=11,
         valuation_provider_id=12,
         provider_env_file=provider_env,
@@ -702,13 +729,43 @@ def test_database_preflight_precedes_provider_and_is_read_only(tmp_path: Path) -
     assert "isolated_postgresql_write" not in runner.labels
 
 
+def test_stage_environment_preflight_aggregates_and_blocks_before_provider(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(
+        stage_environment_issues=[
+            {
+                "category": "network_egress",
+                "code": "REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID",
+                "stages": ["provider_probe"],
+            },
+            {
+                "category": "external_state",
+                "code": "REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID",
+                "stages": ["akshare_financial_slice"],
+            },
+        ]
+    )
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "provider_probe" not in runner.labels
+    report = json.loads((config.output_dir / "stage-environment-preflight.json").read_text())
+    assert {item["code"] for item in report["issues"]} == {
+        "REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID",
+        "REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID",
+    }
+
+
 def test_provider_stages_override_stale_provider_database_with_isolated_env(
     tmp_path: Path,
 ) -> None:
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
     config.provider_env_file.write_text(
+        "DJANGO_SETTINGS_MODULE=config.settings\n"
         "DATABASE_URL=postgresql://user:secret@old-db/old_rehearsal\n",
         encoding="utf-8",
+        newline="\n",
     )
     runner = FakeRunner()
 
@@ -723,8 +780,8 @@ def test_provider_stages_override_stale_provider_database_with_isolated_env(
         ]
 
     provider_then_isolated = [
-        config.provider_env_file.resolve(),
-        config.isolated_postgres_env_file.resolve(),
+        (config.output_dir / "inputs" / "provider.env").resolve(),
+        (config.output_dir / "inputs" / "isolated.env").resolve(),
     ]
     for label in (
         "provider_probe",
@@ -734,7 +791,7 @@ def test_provider_stages_override_stale_provider_database_with_isolated_env(
     ):
         assert env_files(label) == provider_then_isolated
     assert env_files("preflight_database") == provider_then_isolated
-    assert env_files("isolated_postgresql_write") == [config.isolated_postgres_env_file.resolve()]
+    assert env_files("isolated_postgresql_write") == [provider_then_isolated[1]]
 
 
 def test_missing_isolated_environment_fails_closed_before_build(tmp_path: Path) -> None:
@@ -1313,6 +1370,26 @@ def test_parity_mount_uses_startup_copy_after_external_snapshot_changes(tmp_path
     assert expected_raw == hashlib.sha256(startup_bytes).hexdigest()
 
 
+def test_stage_env_files_use_private_startup_snapshots_after_source_changes(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    startup_bytes = config.provider_env_file.read_bytes()
+    runner = FakeRunner(mutate_env_on_build=config.provider_env_file)
+
+    run_release_rehearsal(config, runner=runner)
+
+    command = next(item for item in runner.commands if item.label == "provider_probe")
+    env_files = [
+        Path(command.argv[index + 1])
+        for index, value in enumerate(command.argv)
+        if value == "--env-file"
+    ]
+    frozen = config.output_dir / "inputs" / "provider.env"
+    assert env_files[0] == frozen
+    assert frozen.read_bytes() == startup_bytes
+    assert frozen.stat().st_mode & 0o222 == 0
+    assert config.provider_env_file.read_bytes() != startup_bytes
+
+
 def test_capacity_measurement_isolated_before_remaining_parallel_group(tmp_path: Path) -> None:
     """Capacity runs alone while the three compatible stages still overlap."""
     barrier = threading.Barrier(3)
@@ -1564,6 +1641,20 @@ def test_container_input_tree_rejects_nested_symlink(tmp_path: Path) -> None:
             os.getgid() if os.name == "posix" else 0,
             RehearsalBlocked,
         )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX ownership and mode injection only")
+def test_container_input_tree_recheck_rejects_mode_drift(tmp_path: Path) -> None:
+    root = tmp_path / "ci"
+    root.mkdir()
+    report = root / "report.json"
+    report.write_text("{}", encoding="utf-8")
+    gid = os.getgid()
+    seal_container_input_tree(root, gid, RehearsalBlocked)
+    report.chmod(0o640)
+
+    with pytest.raises(RehearsalBlocked, match="S6_CONTAINER_INPUT_PERMISSIONS_FAILED"):
+        verify_container_input_tree(root, gid, RehearsalBlocked)
 
 
 def test_failed_container_stage_seals_directory(

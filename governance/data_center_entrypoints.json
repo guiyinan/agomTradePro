@@ -11,13 +11,13 @@
       "compatibility_facade": 95,
       "current_data_surface": 73,
       "dynamic_import_edge": 13,
-      "management_command": 41,
+      "management_command": 42,
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 69,
       "operational_script": 32,
-      "orchestration_entry": 15,
+      "orchestration_entry": 16,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
@@ -30,13 +30,13 @@
       "workflow_step": 12
     },
     "by_status": {
-      "active_public": 821,
+      "active_public": 823,
       "adjacent_operational": 338,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1297
+    "total": 1299
   },
   "entries": [
     {
@@ -6152,6 +6152,16 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/preflight_s6_stage_environment.py:preflight_s6_stage_environment:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/preflight_s6_stage_environment.py",
+      "status": "active_public",
+      "symbol": "preflight_s6_stage_environment",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/purge_quote_snapshots_for_rebuild.py:purge_quote_snapshots_for_rebuild:",
       "locator": "",
       "path": "apps/data_center/management/commands/purge_quote_snapshots_for_rebuild.py",
@@ -8622,8 +8632,18 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_akshare_financial_slice:line:1281",
-      "locator": "line:1281",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:preflight_s6_stage_environment:line:1672",
+      "locator": "line:1672",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "preflight_s6_stage_environment",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_akshare_financial_slice:line:1326",
+      "locator": "line:1326",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_akshare_financial_slice",
@@ -8632,8 +8652,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:1214",
-      "locator": "line:1214",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:line:1259",
+      "locator": "line:1259",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_full_universe_capacity",
@@ -8642,8 +8662,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:1262",
-      "locator": "line:1262",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_isolated_publication_write:line:1307",
+      "locator": "line:1307",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_isolated_publication_write",
@@ -8652,8 +8672,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:1172",
-      "locator": "line:1172",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_market_providers:line:1217",
+      "locator": "line:1217",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_market_providers",
@@ -8662,8 +8682,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_production_policy_parity:line:1240",
-      "locator": "line:1240",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_production_policy_parity:line:1285",
+      "locator": "line:1285",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "rehearse_production_policy_parity",
@@ -8672,8 +8692,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:1196",
-      "locator": "line:1196",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:replay_market_provider_responses:line:1241",
+      "locator": "line:1241",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
       "symbol": "replay_market_provider_responses",

@@ -21,6 +21,8 @@ python scripts/plan_release_rehearsal_attempt.py \
 
 首次运行必须从候选 checkout 内直接执行 `scripts/run_release_rehearsal.py`。复制到仓库外的 launcher 会以
 `S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。失败后先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
+所有经 SSH/pipe 传输后执行或解析的脚本与配置必须分别用 `--transport-input` 登记；该清单及每个文件摘要属于
+checkpoint binding，同一 attempt 内缺项或字节漂移会失败关闭。
 
 ```text
 python scripts/run_release_rehearsal.py <原有完整参数> --resume

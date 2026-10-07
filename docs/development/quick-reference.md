@@ -71,12 +71,15 @@ python manage.py preflight_full_market_publication \
 
 # 3. S6 发布预演必须携带同一快照；缺 production_policy_parity 证据的
 #    receipt 会被 validate_release_rehearsal.py 拒绝
-python scripts/run_release_rehearsal.py ... --provider-settings-json provider-settings.json
+python scripts/run_release_rehearsal.py ... --provider-settings-json provider-settings.json \
+  --transport-input prepare-wrapper.sh --transport-input provider.env
 ```
 
 - 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
   必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
+- 所有经 SSH 或 pipe 传输后执行/解析的脚本与配置都必须逐项用 `--transport-input` 登记；runner 在远端构建前验证
+  UTF-8、无 BOM/NUL/CR，随后把 provider/isolated env 冻结到 attempt 私有输入目录供所有阶段复用。
 - 全新 S6 还会执行 `akshare_financial_slice`：它要求隔离 PostgreSQL/Redis 和 provider identities
   快照中的唯一 `akshare_financial_route`，从隔离快照的 AKShare `announced_at` 或 `available_at`
   动态选取一个请求 asset/date。旧日期只是不可信请求种子；只有这次精确 asset/date 的双原件、

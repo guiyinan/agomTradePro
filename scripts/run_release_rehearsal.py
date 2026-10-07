@@ -9,6 +9,7 @@ import importlib
 import json
 import os
 import re
+import shutil
 import signal
 import stat
 import subprocess
@@ -18,7 +19,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import AbstractContextManager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Protocol, cast, runtime_checkable
@@ -33,6 +34,13 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+)
+from shared.release_rehearsal_stage_environment import (
+    MINIMUM_AVAILABLE_MEMORY_BYTES,
+    StageEnvironmentInputs,
+    StageEnvironmentIssue,
+    evaluate_stage_environment,
+    parse_dynamic_issues,
 )
 
 
@@ -427,6 +435,7 @@ class RehearsalConfig:
     provider_identities_path: Path
     provider_settings_json: Path
     unit_contract_path: Path
+    transport_input_paths: tuple[Path, ...]
     quote_provider_id: int
     valuation_provider_id: int
     provider_request_limit: int
@@ -470,6 +479,8 @@ class RehearsalInputs:
     provider_settings_raw_file_sha256: str
     provider_settings_canonical_payload_sha256: str
     unit_contract_raw: bytes
+    provider_env_raw: bytes
+    isolated_env_raw: bytes
 
 
 @dataclass(frozen=True)
@@ -557,6 +568,23 @@ def _freeze_provider_settings_snapshot(run_dir: Path, inputs: RehearsalInputs) -
     ):
         raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_MISMATCH")
     path.chmod(0o444)
+    return path
+
+
+def _freeze_private_input(path: Path, raw: bytes) -> Path:
+    """Freeze one startup-captured env file without ever decoding or logging it."""
+
+    if path.is_symlink():
+        raise ValueError("S6_PRIVATE_INPUT_SNAPSHOT_INVALID")
+    if path.exists():
+        if not path.is_file() or path.read_bytes() != raw:
+            raise ValueError("S6_PRIVATE_INPUT_SNAPSHOT_MISMATCH")
+    else:
+        with path.open("xb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+    path.chmod(0o400 if os.name == "posix" else 0o444)
     return path
 
 
@@ -714,7 +742,17 @@ def _assert_launcher_provenance(root: Path, *, launcher_path: Path | None = None
 def _parse_env_file(path: Path) -> dict[str, str]:
     """Parse a Docker env file without ever exposing its values in failures."""
     try:
-        text = _read_file(path).decode("utf-8")
+        raw = _read_file(path)
+        return _parse_env_bytes(raw)
+    except UnicodeError as exc:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
+
+
+def _parse_env_bytes(raw: bytes) -> dict[str, str]:
+    """Parse already-captured Docker env bytes without exposing values."""
+
+    try:
+        text = raw.decode("utf-8")
     except UnicodeError as exc:
         raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
     values: dict[str, str] = {}
@@ -747,9 +785,15 @@ def _url_identity(value: str, *, schemes: frozenset[str]) -> tuple[str, str]:
     return host, unquote(parsed.path.removeprefix("/"))
 
 
-def _validate_isolated_environment_identity(config: RehearsalConfig) -> None:
+def _validate_isolated_environment_identity(
+    config: RehearsalConfig, isolated_env_raw: bytes | None = None
+) -> None:
     """Bind effective database and Redis endpoints before any remote build."""
-    values = _parse_env_file(config.isolated_postgres_env_file)
+    values = (
+        _parse_env_file(config.isolated_postgres_env_file)
+        if isolated_env_raw is None
+        else _parse_env_bytes(isolated_env_raw)
+    )
     required = {
         "POSTGRES_HOST",
         "POSTGRES_DB",
@@ -826,16 +870,15 @@ def _validate_inputs(
         or config.stage_timeout_seconds <= 0
         or config.provider_probe_timeout_seconds <= 0
         or config.max_dispatches <= 0
+        or not config.transport_input_paths
         or not 0 < config.max_age_hours <= 168
     ):
         raise ValueError("S6_INPUT_INVALID")
-    for path in (
-        config.password_file,
-        config.provider_env_file,
-        config.isolated_postgres_env_file,
-    ):
+    for path in (config.password_file, *config.transport_input_paths):
         _read_file(path)
-    _validate_isolated_environment_identity(config)
+    provider_env_raw = _read_file(config.provider_env_file)
+    isolated_env_raw = _read_file(config.isolated_postgres_env_file)
+    _validate_isolated_environment_identity(config, isolated_env_raw)
     provider_raw = _read_file(config.provider_identities_path, 16_384)
     try:
         identities = parse_rehearsal_identities(json.loads(provider_raw))
@@ -875,6 +918,8 @@ def _validate_inputs(
         provider_settings_raw_file_sha256=hashlib.sha256(settings_raw).hexdigest(),
         provider_settings_canonical_payload_sha256=settings_canonical_digest,
         unit_contract_raw=unit_raw,
+        provider_env_raw=provider_env_raw,
+        isolated_env_raw=isolated_env_raw,
     )
 
 
@@ -1418,6 +1463,8 @@ def _checkpoint_binding(
                 values[key] = inputs.provider_settings_raw_file_sha256
             else:
                 values[key] = file_digest(value)
+        elif key == "transport_input_paths":
+            values[key] = [file_digest(Path(path)) for path in value]
         else:
             values[key] = value
     values["provider_settings_canonical_payload_sha256"] = (
@@ -1522,6 +1569,232 @@ def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> No
     )
     if containers.stdout.strip():
         raise RehearsalBlocked("preflight_containers", "S6_RUN_CONTAINERS_ACTIVE")
+
+
+def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
+    """Reject static build/identity assumptions before an expensive remote build."""
+
+    isolated_values = _parse_env_file(config.isolated_postgres_env_file)
+    provider_values = _parse_env_file(config.provider_env_file)
+    missing = tuple(
+        sorted(
+            (
+                {
+                    "POSTGRES_HOST",
+                    "POSTGRES_DB",
+                    "DATABASE_URL",
+                    "MIGRATOR_DATABASE_URL",
+                    "REDIS_HOST",
+                    "REDIS_URL",
+                    "AGOM_RELEASE_REHEARSAL_DATABASE",
+                }
+                - isolated_values.keys()
+            )
+            | ({"DJANGO_SETTINGS_MODULE"} - provider_values.keys())
+        )
+    )
+    files = (
+        config.root,
+        config.output_dir,
+        config.password_file,
+        config.provider_env_file,
+        config.isolated_postgres_env_file,
+        config.provider_identities_path,
+        config.provider_settings_json,
+        config.unit_contract_path,
+        *config.transport_input_paths,
+    )
+    report = evaluate_stage_environment(
+        StageEnvironmentInputs(
+            stages=("build_only", "docker_identity"),
+            filesystem_paths=files,
+            text_transport_paths=(
+                config.provider_env_file,
+                config.isolated_postgres_env_file,
+                config.provider_identities_path,
+                config.provider_settings_json,
+                config.unit_contract_path,
+                *config.transport_input_paths,
+            ),
+            missing_identity_keys=missing,
+            free_disk_bytes=shutil.disk_usage(config.output_dir).free,
+            available_memory_bytes=_available_memory_bytes(),
+            observed_at=datetime.now(UTC),
+            build_timeout_seconds=config.build_timeout_seconds,
+            stage_timeout_seconds=config.stage_timeout_seconds,
+            provider_timeout_seconds=config.provider_probe_timeout_seconds,
+            task_deadline_seconds=config.task_deadline_seconds,
+            lock_wait_limit_seconds=config.lock_wait_limit_seconds,
+        )
+    )
+    atomic_json(config.output_dir / "prebuild-stage-environment-preflight.json", report)
+    if report.get("outcome") != "pass":
+        raise RehearsalBlocked(
+            "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
+        )
+
+
+def _available_memory_bytes() -> int:
+    """Read Linux available memory without adding a mutable runtime dependency."""
+
+    path = Path("/proc/meminfo")
+    if not path.is_file():
+        return MINIMUM_AVAILABLE_MEMORY_BYTES if os.name != "posix" else 0
+    try:
+        for line in path.read_text(encoding="ascii").splitlines():
+            if line.startswith("MemAvailable:"):
+                fields = line.split()
+                return int(fields[1]) * 1024 if len(fields) == 3 and fields[2] == "kB" else 0
+    except (OSError, UnicodeError, ValueError):
+        return 0
+    return 0
+
+
+def _dynamic_stage_environment_issues(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    identity: Identity,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    run_dir: Path,
+) -> tuple[StageEnvironmentIssue, ...]:
+    """Run the candidate's read-only production-composition probes and parse safe issues."""
+
+    preflight_dir = run_dir / "stage-environment-preflight"
+    preflight_dir.mkdir(exist_ok=True)
+    settings_path = run_dir / "inputs" / "provider-settings.json"
+    spec = StageSpec(
+        "stage_environment_preflight",
+        "",
+        (
+            "python",
+            "manage.py",
+            "preflight_s6_stage_environment",
+            "--provider-settings-json",
+            "/run/agom/provider-settings.json",
+            "--provider-identities",
+            "/run/agom/provider-identities.json",
+        ),
+        (config.provider_env_file, config.isolated_postgres_env_file),
+        mounts=((settings_path, "/run/agom/provider-settings.json", True),),
+    )
+    argv = _docker_command(
+        identity,
+        config.docker_network,
+        spec.env_files,
+        identity_path,
+        manifest_path,
+        provider_path,
+        preflight_dir,
+        spec,
+    )
+    result = runner.run(
+        Command(
+            argv=argv,
+            cwd=config.root,
+            env={},
+            timeout_seconds=min(config.stage_timeout_seconds, 180),
+            label=spec.name,
+            artifact_dir=preflight_dir,
+        )
+    )
+    if result.returncode:
+        return (
+            StageEnvironmentIssue(
+                "external_state",
+                "REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_UNAVAILABLE",
+                STAGES,
+            ),
+        )
+    try:
+        payload = _object(json.loads(result.stdout.strip()), "S6_STAGE_PREFLIGHT_REPORT_INVALID")
+        return tuple(parse_dynamic_issues(payload))
+    except (UnicodeError, json.JSONDecodeError, ValueError):
+        return (
+            StageEnvironmentIssue(
+                "external_state",
+                "REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_REPORT_INVALID",
+                STAGES,
+            ),
+        )
+
+
+def _run_stage_environment_preflight(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    identity: Identity,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    run_dir: Path,
+) -> None:
+    """Aggregate every known environment gap before any candidate evidence stage."""
+
+    isolated_values = _parse_env_file(config.isolated_postgres_env_file)
+    provider_values = _parse_env_file(config.provider_env_file)
+    required_isolated = {
+        "POSTGRES_HOST",
+        "POSTGRES_DB",
+        "DATABASE_URL",
+        "MIGRATOR_DATABASE_URL",
+        "REDIS_HOST",
+        "REDIS_URL",
+        "AGOM_RELEASE_REHEARSAL_DATABASE",
+    }
+    required_provider = {"DJANGO_SETTINGS_MODULE"}
+    missing = tuple(
+        sorted(
+            (required_isolated - isolated_values.keys())
+            | (required_provider - provider_values.keys())
+        )
+    )
+    frozen_settings = run_dir / "inputs" / "provider-settings.json"
+    frozen_unit = run_dir / "inputs" / "provider-unit-contract.json"
+    files = (
+        config.root,
+        run_dir,
+        config.password_file,
+        config.provider_env_file,
+        config.isolated_postgres_env_file,
+        provider_path,
+        frozen_settings,
+        frozen_unit,
+        *config.transport_input_paths,
+    )
+    text_files = (
+        config.provider_env_file,
+        config.isolated_postgres_env_file,
+        provider_path,
+        frozen_settings,
+        frozen_unit,
+        *config.transport_input_paths,
+    )
+    dynamic_issues = _dynamic_stage_environment_issues(
+        config, runner, identity, identity_path, manifest_path, provider_path, run_dir
+    )
+    report = evaluate_stage_environment(
+        StageEnvironmentInputs(
+            stages=STAGES,
+            filesystem_paths=files,
+            text_transport_paths=text_files,
+            missing_identity_keys=missing,
+            free_disk_bytes=shutil.disk_usage(run_dir).free,
+            available_memory_bytes=_available_memory_bytes(),
+            observed_at=datetime.now(UTC),
+            build_timeout_seconds=config.build_timeout_seconds,
+            stage_timeout_seconds=config.stage_timeout_seconds,
+            provider_timeout_seconds=config.provider_probe_timeout_seconds,
+            task_deadline_seconds=config.task_deadline_seconds,
+            lock_wait_limit_seconds=config.lock_wait_limit_seconds,
+            dynamic_issues=dynamic_issues,
+        )
+    )
+    atomic_json(run_dir / "stage-environment-preflight.json", report)
+    if report.get("outcome") != "pass":
+        raise RehearsalBlocked(
+            "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
+        )
 
 
 def _preflight_database(
@@ -1713,6 +1986,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     "preflight",
                     None,
                 )
+                _run_prebuild_stage_environment_preflight(config)
                 _preflight_environment(config, active)
             except RehearsalBlocked as exc:
                 _status(
@@ -1793,6 +2067,17 @@ def _run_release_rehearsal(
             unit_raw,
             reuse=checkpoint.done("docker_identity"),
         )
+        frozen_provider_env = _freeze_private_input(
+            run_dir / "inputs" / "provider.env", inputs.provider_env_raw
+        )
+        frozen_isolated_env = _freeze_private_input(
+            run_dir / "inputs" / "isolated.env", inputs.isolated_env_raw
+        )
+        config = replace(
+            config,
+            provider_env_file=frozen_provider_env,
+            isolated_postgres_env_file=frozen_isolated_env,
+        )
         checkpoint.complete("docker_identity", (run_dir / "inputs",))
         container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
         unit_path = run_dir / "inputs" / "provider-unit-contract.json"
@@ -1809,6 +2094,18 @@ def _run_release_rehearsal(
             )
         )
         completed.append(stage)
+        stage = "stage_environment_preflight"
+        _status(status_path, "running", completed, stage, None)
+        _assert_candidate(active, config.root, candidate)
+        _run_stage_environment_preflight(
+            config,
+            active,
+            identity,
+            identity_path,
+            manifest_path,
+            provider_path,
+            run_dir,
+        )
         isolated_database_container_id = _preflight_isolated_database_container(config, active)
         _preflight_database(
             config, active, identity, identity_path, manifest_path, provider_path, run_dir
@@ -1965,6 +2262,7 @@ def _run_release_rehearsal(
         stage = financial_spec.name
         _status(status_path, "running", completed, stage, None)
         _assert_candidate(active, config.root, candidate)
+        _checkpoint_module.verify_container_input_tree(ci_dir, container_gid, RehearsalBlocked)
         if not checkpoint.done(stage):
             checkpoint.prepare(stage, (financial_dir,), resume=config.resume)
             financial_dir.mkdir(exist_ok=True)
@@ -2216,6 +2514,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--provider-identities", type=Path, required=True)
     parser.add_argument("--provider-settings-json", type=Path, required=True)
     parser.add_argument("--unit-contract", type=Path, required=True)
+    parser.add_argument(
+        "--transport-input",
+        type=Path,
+        action="append",
+        required=True,
+        help="Repeat for every script/config transferred through SSH or a pipe before S6.",
+    )
     parser.add_argument("--quote-provider-id", type=int, required=True)
     parser.add_argument("--valuation-provider-id", type=int, required=True)
     parser.add_argument("--provider-request-limit", type=int, required=True)
@@ -2254,6 +2559,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         provider_identities_path=args.provider_identities.resolve(),
         provider_settings_json=args.provider_settings_json.resolve(),
         unit_contract_path=args.unit_contract.resolve(),
+        transport_input_paths=tuple(path.resolve() for path in args.transport_input),
         quote_provider_id=args.quote_provider_id,
         valuation_provider_id=args.valuation_provider_id,
         provider_request_limit=args.provider_request_limit,
