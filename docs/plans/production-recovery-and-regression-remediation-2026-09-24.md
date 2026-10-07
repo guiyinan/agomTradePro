@@ -2461,3 +2461,43 @@ UAT。下一次 S6 必须重新预留 attempt、重新导出全部输入、从�
 下一片是否可开始：可以把本节台账提交后的 HEAD 作为唯一最终候选并 push，重新绑定五组 exact-SHA CI。只有五组全绿且
 financial slice、outer-fence、5,001-member soak 全部零跳过/零失败后才可创建全新 S6；S6 十阶段、真实 provider N=1 双原件/双
 RawAudit/typed evidence/单批原子写/零写失败反例和 release validator 全通过后，才可部署 receipt 绑定的同 SHA 镜像。
+
+##### 2026-10-07 S6 阶段环境契约审计与统一 preflight
+
+完成项：提交 `7191ddcf294c545c58b1023fcdf2a5c05a9deb85` 新增
+`docs/development/s6-stage-environment-contract.md`，把现有 11 个 S6 阶段逐一映射到文件系统、传输编码、网络出口、身份与密钥、
+资源与时间、外部状态六类环境假设；每格均区分已有断言与缺口，并记录历史 attempt `72de41d4...`、`ebe16fb7...`、
+`5caf4f22...` 的只读取证。统一 stage environment preflight 在候选 build 前和各阶段起跑前执行只读断言，聚合全部缺口后一次性
+fail closed；稳定错误码均使用 `REHEARSAL_*` allowlist，不记录 secret 值或 provider 响应。权限复核复用 descriptor-based 密封，
+路由复核复用持久化 preview 与同一公开 deployment-region helper，没有创建第二套权限、路由或 region 规则。新阶段如果没有登记完整
+六类矩阵，runner 拒绝排期；preflight 不排队业务任务、不写建议，也不改变普通 GET 或只读 MCP 的行为。
+
+提交 `160494570d975e7f6ed9508bbd0eb1e8bf389981` 把 prebuild 与最终 stage-environment 报告列为 release rehearsal 第七类必需
+证据，并绑定 manifest、release validator 与 handoff receipt；validator 强制复核完整阶段/类别矩阵、报告身份、内容 hash、磁盘与内存
+硬阈值。提交 `3528c01b6eca63ad3f7862f205483ffc71b2d8f0` 把可移植的环境契约投影纳入
+`governance/release_rehearsal_policy.json`，validator 从治理真源读取投影，不再依赖 repository import path；独立临时目录中的 CI
+collector/validator 仍可运行。测试同时断言治理投影与运行时 registry 的 6 类、11 阶段和资源阈值逐项一致，防止形成第二真源。
+
+测试计数：最终实现 exact SHA `3528c01b6eca63ad3f7862f205483ffc71b2d8f0` 的 Architecture `37592421057`、Security
+`37592421131`、Consistency `37592421083`、Fast Feedback `37592421129`、Publication PostgreSQL `37592577981` 全部通过。
+PostgreSQL artifact 共 7 份 JUnit、`73 passed / 0 skipped / 0 failure / 0 error`：Account outer-fence `8/0/0/0` 并包含
+`test_postgres_generation_fenced_graph_uow_reuses_outer_transaction`，financial slice sync `8/0/0/0` 并包含
+`test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_write`，Publication `42/0/0/0` 并包含
+`test_activation_5001_members_has_fixed_queries_locks_and_retry`。本地统一 preflight、runner、collector、validator 组合回归为
+`308 passed / 4 skipped`；更早的完整目标组合为 `292 passed / 4 skipped`，可移植性定向回归为 `21 passed`，治理投影回归为
+`27 passed`。4 个 skip 均为 Windows 无法真实提供的 POSIX mode、symlink/descriptor 或非 root 容器边界，未计作通过。
+两个生产 Python 文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、
+`git diff --check`、完整架构扫描与增量架构扫描均通过，1,000 行文件门槛未放宽。module map 为 `44 modules / 210 edges`，
+Data Center entrypoint inventory 为 1,299 条，均由唯一生成器重建并通过检查。
+
+未验证风险与停止线：本门禁尚未在任何 fresh S6 中实证；正在准备或已经结束的历史 attempt 均不能作为本提交证据，也不得 resume。
+Windows 跳过的 POSIX 权限、symlink/descriptor 和非 root 容器反例必须由下一轮 Linux CI 与 fresh S6 补齐。统一 preflight 覆盖当前已知
+六类环境假设，但不能证明环境类别已经穷尽；runner 启动前的 SSH/DNS/host-key、远端 shell/bootstrap 以及未来新型外部依赖仍可能形成
+未知类别，发现后必须登记矩阵和补门禁，不得静默跳过或收窄断言。此切片没有启动 S6、部署、生产全市场或 financial refresh，也没有
+修改生产路由、周期入口或凭据。full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 继续禁止重跑，financial refresh 仍需用户
+新的明确授权，两个周期入口继续 disabled；普通用户生产会话仍未提供。
+
+下一片是否可开始：本切片代码和 exact-SHA 五组 CI 已满足进入下一候选准备阶段的代码门槛；实际运行只允许在后续新候选上创建全新
+fresh S6，从最新生产只读快照重新导出 provider settings、完整 identities、动态 universe 与 unit contract，禁止 `--resume`，并要求
+prebuild 与全部阶段环境报告进入 manifest、release validator 和 handoff receipt。fresh S6 未完整通过前，不得把本门禁表述为已在真实
+环境验证，也不得进入 receipt-only 部署。
