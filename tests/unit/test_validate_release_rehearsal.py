@@ -963,6 +963,7 @@ def _build_evidence(
             "observations": {
                 "observed_at": (now - timedelta(minutes=2)).isoformat(),
                 "free_disk_bytes": 13 * 1024 * 1024 * 1024,
+                "minimum_free_disk_bytes": 12 * 1024 * 1024 * 1024,
                 "available_memory_bytes": 1024 * 1024 * 1024,
                 "build_timeout_seconds": 3600,
                 "stage_timeout_seconds": 3600,
@@ -986,9 +987,12 @@ def _build_evidence(
         }
 
     prebuild_path = tmp_path / "prebuild-stage-environment-preflight.json"
+    prebuild_payload = stage_environment_payload(STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass")
+    prebuild_payload["observations"]["free_disk_bytes"] = 25 * 1024 * 1024 * 1024
+    prebuild_payload["observations"]["minimum_free_disk_bytes"] = 24 * 1024 * 1024 * 1024
     prebuild_digest = _write_json(
         prebuild_path,
-        stage_environment_payload(STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass"),
+        prebuild_payload,
     )
     stage_environment = _common("stage_environment_preflight", now)
     stage_environment.pop("provider_identities")

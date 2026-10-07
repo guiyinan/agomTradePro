@@ -53,6 +53,8 @@ ALLOWED_ISSUE_CODES = frozenset(
     }
 )
 MINIMUM_FREE_DISK_BYTES = 12 * 1024 * 1024 * 1024
+BUILD_DISK_RESERVE_BYTES = 12 * 1024 * 1024 * 1024
+MINIMUM_PREBUILD_FREE_DISK_BYTES = MINIMUM_FREE_DISK_BYTES + BUILD_DISK_RESERVE_BYTES
 MINIMUM_AVAILABLE_MEMORY_BYTES = 512 * 1024 * 1024
 
 
@@ -94,6 +96,7 @@ class StageEnvironmentInputs:
     lock_wait_limit_seconds: float
     missing_runtime_dependencies: tuple[str, ...] = ()
     dynamic_issues: tuple[StageEnvironmentIssue, ...] = ()
+    minimum_free_disk_bytes: int = MINIMUM_FREE_DISK_BYTES
 
 
 def _all(stages: Sequence[str], category: str, code: str) -> StageEnvironmentIssue:
@@ -164,7 +167,7 @@ def _identity_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIss
 
 def _resource_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIssue]:
     issues: list[StageEnvironmentIssue] = []
-    if inputs.free_disk_bytes < MINIMUM_FREE_DISK_BYTES:
+    if inputs.free_disk_bytes < inputs.minimum_free_disk_bytes:
         issues.append(
             _all(
                 inputs.stages,
@@ -252,6 +255,7 @@ def evaluate_stage_environment(inputs: StageEnvironmentInputs) -> dict[str, obje
         "observations": {
             "observed_at": inputs.observed_at.isoformat(),
             "free_disk_bytes": inputs.free_disk_bytes,
+            "minimum_free_disk_bytes": inputs.minimum_free_disk_bytes,
             "available_memory_bytes": inputs.available_memory_bytes,
             "build_timeout_seconds": inputs.build_timeout_seconds,
             "stage_timeout_seconds": inputs.stage_timeout_seconds,
@@ -291,10 +295,12 @@ def parse_dynamic_issues(payload: Mapping[str, object]) -> tuple[StageEnvironmen
 
 __all__ = [
     "ALLOWED_ISSUE_CODES",
+    "BUILD_DISK_RESERVE_BYTES",
     "CATEGORIES",
     "CONTRACT_STAGES",
     "MINIMUM_AVAILABLE_MEMORY_BYTES",
     "MINIMUM_FREE_DISK_BYTES",
+    "MINIMUM_PREBUILD_FREE_DISK_BYTES",
     "SCHEMA",
     "StageEnvironmentInputs",
     "StageEnvironmentIssue",

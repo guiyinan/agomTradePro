@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -60,27 +61,39 @@ class Command(BaseCommand):
 
         parser.add_argument("--provider-settings-json", type=Path, required=True)
         parser.add_argument("--provider-identities", type=Path, required=True)
+        parser.add_argument("--output", type=Path, required=True)
 
     def handle(self, *args: object, **options: Any) -> None:
-        """Evaluate every dynamic category and print only stable issue metadata."""
+        """Evaluate every dynamic category and write only stable issue metadata."""
 
         del args
         settings_path = options.get("provider_settings_json")
         identities_path = options.get("provider_identities")
-        if not isinstance(settings_path, Path) or not isinstance(identities_path, Path):
+        output_path = options.get("output")
+        if (
+            not isinstance(settings_path, Path)
+            or not isinstance(identities_path, Path)
+            or not isinstance(output_path, Path)
+        ):
             raise CommandError("REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID")
         issues: list[dict[str, object]] = []
         self._check_model_market_routes(settings_path, issues)
         self._check_financial_contract(identities_path, issues)
         self._check_clock(issues)
         self._check_external_state(issues)
-        self.stdout.write(
-            json.dumps(
-                {"schema": SCHEMA, "issues": issues},
-                sort_keys=True,
-                separators=(",", ":"),
-            )
+        raw = (
+            json.dumps({"schema": SCHEMA, "issues": issues}, sort_keys=True, separators=(",", ":"))
+            + "\n"
         )
+        if output_path.is_symlink() or output_path.exists() or not output_path.parent.is_dir():
+            raise CommandError("REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID")
+        try:
+            with output_path.open("xb") as stream:
+                stream.write(raw.encode("utf-8"))
+                stream.flush()
+                os.fsync(stream.fileno())
+        except OSError as exc:
+            raise CommandError("REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID") from exc
 
     @staticmethod
     def _append(

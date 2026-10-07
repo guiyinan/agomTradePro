@@ -13,10 +13,12 @@ import pytest
 from scripts.run_release_rehearsal import STAGES
 from shared.release_rehearsal_stage_environment import (
     ALLOWED_ISSUE_CODES,
+    BUILD_DISK_RESERVE_BYTES,
     CATEGORIES,
     CONTRACT_STAGES,
     MINIMUM_AVAILABLE_MEMORY_BYTES,
     MINIMUM_FREE_DISK_BYTES,
+    MINIMUM_PREBUILD_FREE_DISK_BYTES,
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
@@ -53,6 +55,8 @@ def test_governed_stage_environment_contract_matches_runtime_registry() -> None:
     assert contract["categories"] == list(CATEGORIES)
     assert contract["stages"] == list(CONTRACT_STAGES)
     assert contract["minimum_free_disk_bytes"] == MINIMUM_FREE_DISK_BYTES
+    assert contract["minimum_prebuild_free_disk_bytes"] == MINIMUM_PREBUILD_FREE_DISK_BYTES
+    assert MINIMUM_PREBUILD_FREE_DISK_BYTES == (MINIMUM_FREE_DISK_BYTES + BUILD_DISK_RESERVE_BYTES)
     assert contract["minimum_available_memory_bytes"] == MINIMUM_AVAILABLE_MEMORY_BYTES
 
 
@@ -92,6 +96,27 @@ def test_missing_runner_dependency_fails_build_only_without_leaking_name(tmp_pat
         }
     ]
     assert "paramiko" not in json.dumps(report)
+
+
+def test_prebuild_reserve_preserves_post_build_stage_headroom(tmp_path: Path) -> None:
+    inputs = replace(
+        _inputs(tmp_path),
+        stages=("build_only", "docker_identity"),
+        free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES - 1,
+        minimum_free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES,
+    )
+
+    report = evaluate_stage_environment(inputs)
+
+    assert report["outcome"] == "blocked"
+    assert report["observations"]["minimum_free_disk_bytes"] == (MINIMUM_PREBUILD_FREE_DISK_BYTES)
+    assert report["issues"] == [
+        {
+            "category": "resources_and_time",
+            "code": "REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT",
+            "stages": ["build_only", "docker_identity"],
+        }
+    ]
 
 
 @pytest.mark.parametrize(

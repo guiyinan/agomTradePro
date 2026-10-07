@@ -283,7 +283,7 @@ def _validate_required_reports_policy() -> None:
         _fail("REHEARSAL_REQUIRED_REPORTS_POLICY_INVALID")
 
 
-def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ...], int, int]:
+def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ...], int, int, int]:
     """Read the governed stage/category projection without importing candidate application code."""
 
     value = _release_policy().get("stage_environment_contract")
@@ -293,6 +293,7 @@ def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ..
     categories = contract.get("categories")
     stages = contract.get("stages")
     disk = contract.get("minimum_free_disk_bytes")
+    prebuild_disk = contract.get("minimum_prebuild_free_disk_bytes")
     memory = contract.get("minimum_available_memory_bytes")
     if (
         contract.get("schema") != "release.s6-stage-environment-contract.v1"
@@ -307,6 +308,9 @@ def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ..
         or isinstance(disk, bool)
         or not isinstance(disk, int)
         or disk <= 0
+        or isinstance(prebuild_disk, bool)
+        or not isinstance(prebuild_disk, int)
+        or prebuild_disk < disk
         or isinstance(memory, bool)
         or not isinstance(memory, int)
         or memory <= 0
@@ -316,6 +320,7 @@ def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ..
         tuple(cast(list[str], categories)),
         tuple(cast(list[str], stages)),
         disk,
+        prebuild_disk,
         memory,
     )
 
@@ -680,6 +685,11 @@ def _validate_stage_environment_matrix(
         "free_disk_bytes",
         "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
     )
+    required_disk = _require_nonnegative_int(
+        observed,
+        "minimum_free_disk_bytes",
+        "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
+    )
     available_memory = _require_nonnegative_int(
         observed,
         "available_memory_bytes",
@@ -711,7 +721,8 @@ def _validate_stage_environment_matrix(
         "REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID",
     )
     if (
-        free_disk < minimum_disk_bytes
+        required_disk != minimum_disk_bytes
+        or free_disk < minimum_disk_bytes
         or available_memory < minimum_memory_bytes
         or provider_timeout > stage_timeout
         or task_deadline > stage_timeout
@@ -724,7 +735,9 @@ def _validate_stage_environment_matrix(
 def _validate_stage_environment_preflight(report: dict[str, Any], report_root: Path) -> None:
     """Bind both host prebuild and candidate runtime environment gates into release evidence."""
 
-    categories, stages, minimum_disk, minimum_memory = _stage_environment_contract_policy()
+    categories, stages, minimum_disk, minimum_prebuild_disk, minimum_memory = (
+        _stage_environment_contract_policy()
+    )
     candidate_stages = stages[2:]
     _validate_stage_environment_matrix(
         report, candidate_stages, categories, minimum_disk, minimum_memory
@@ -741,7 +754,7 @@ def _validate_stage_environment_preflight(report: dict[str, Any], report_root: P
     ):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_PREBUILD_REPORT_INVALID")
     _validate_stage_environment_matrix(
-        prebuild, stages[:2], categories, minimum_disk, minimum_memory
+        prebuild, stages[:2], categories, minimum_prebuild_disk, minimum_memory
     )
 
 

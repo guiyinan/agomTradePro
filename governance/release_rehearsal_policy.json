@@ -25,6 +25,7 @@
       "release_validator"
     ],
     "minimum_free_disk_bytes": 12884901888,
+    "minimum_prebuild_free_disk_bytes": 25769803776,
     "minimum_available_memory_bytes": 536870912
   },
   "required_reports": [

@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from django.core.management.base import OutputWrapper
+from django.core.management.base import CommandError, OutputWrapper
 
 from apps.data_center.management.commands import preflight_s6_stage_environment as command
 
@@ -66,14 +66,16 @@ def test_candidate_preflight_aggregates_safe_codes_after_independent_failures(
     monkeypatch.setattr(command, "PeriodicTask", _BrokenPeriodicTask)
 
     stream = StringIO()
+    output_path = tmp_path / "dynamic-preflight.json"
     instance = command.Command()
     instance.stdout = OutputWrapper(stream)
     instance.handle(
         provider_settings_json=settings_path,
         provider_identities=identities_path,
+        output=output_path,
     )
 
-    payload = json.loads(stream.getvalue())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["schema"] == "release.s6-stage-environment-preflight.v1"
     assert {item["code"] for item in payload["issues"]} == {
         "REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID",
@@ -83,9 +85,10 @@ def test_candidate_preflight_aggregates_safe_codes_after_independent_failures(
         "REHEARSAL_STAGE_FINANCIAL_BUDGET_INVALID",
         "REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID",
     }
-    assert "secret provider response" not in stream.getvalue()
-    assert "secret reference" not in stream.getvalue()
-    assert "private policy" not in stream.getvalue()
+    assert stream.getvalue() == ""
+    assert "secret provider response" not in output_path.read_text(encoding="utf-8")
+    assert "secret reference" not in output_path.read_text(encoding="utf-8")
+    assert "private policy" not in output_path.read_text(encoding="utf-8")
 
 
 def test_candidate_preflight_reports_missing_provider_identity_and_keeps_checking(
@@ -117,14 +120,16 @@ def test_candidate_preflight_reports_missing_provider_identity_and_keeps_checkin
     )
 
     stream = StringIO()
+    output_path = tmp_path / "dynamic-preflight.json"
     instance = command.Command()
     instance.stdout = OutputWrapper(stream)
     instance.handle(
         provider_settings_json=settings_path,
         provider_identities=identities_path,
+        output=output_path,
     )
 
-    payload = json.loads(stream.getvalue())
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["issues"] == [
         {
             "category": "identity_and_secrets",
@@ -132,3 +137,27 @@ def test_candidate_preflight_reports_missing_provider_identity_and_keeps_checkin
             "stages": ["akshare_financial_slice"],
         }
     ]
+
+
+def test_candidate_preflight_refuses_existing_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings_path = tmp_path / "provider-settings.json"
+    identities_path = tmp_path / "provider-identities.json"
+    output_path = tmp_path / "dynamic-preflight.json"
+    settings_path.write_text("{}\n", encoding="utf-8")
+    identities_path.write_text("[]\n", encoding="utf-8")
+    output_path.write_text("operator-owned\n", encoding="utf-8")
+    monkeypatch.setattr(command.Command, "_check_model_market_routes", lambda *_args: None)
+    monkeypatch.setattr(command.Command, "_check_financial_contract", lambda *_args: None)
+    monkeypatch.setattr(command.Command, "_check_clock", lambda *_args: None)
+    monkeypatch.setattr(command.Command, "_check_external_state", lambda *_args: None)
+
+    with pytest.raises(CommandError, match="REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID"):
+        command.Command().handle(
+            provider_settings_json=settings_path,
+            provider_identities=identities_path,
+            output=output_path,
+        )
+
+    assert output_path.read_text(encoding="utf-8") == "operator-owned\n"

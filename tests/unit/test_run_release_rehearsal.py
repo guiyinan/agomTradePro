@@ -170,13 +170,21 @@ class FakeRunner:
                 ),
             )
         elif command.label == "stage_environment_preflight":
-            return CommandResult(
-                returncode=0,
-                stdout=json.dumps(
+            assert command.artifact_dir is not None
+            (command.artifact_dir / "dynamic-stage-environment-preflight.json").write_text(
+                json.dumps(
                     {
                         "schema": "release.s6-stage-environment-preflight.v1",
                         "issues": self.stage_environment_issues,
                     }
+                ),
+                encoding="utf-8",
+            )
+            return CommandResult(
+                returncode=0,
+                stdout=(
+                    "redis is ready\npostgres is ready\n"
+                    "[OK] PostgreSQL runtime role contract verified\n"
                 ),
             )
         elif command.label == "github_ci_evidence":
@@ -773,6 +781,80 @@ def test_stage_environment_preflight_aggregates_and_blocks_before_provider(tmp_p
     assert {item["code"] for item in report["issues"]} == {
         "REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID",
         "REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID",
+    }
+
+
+def test_dynamic_stage_environment_uses_bound_report_file_not_stdout(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    run_release_rehearsal(config, runner=runner)
+
+    command = next(item for item in runner.commands if item.label == "stage_environment_preflight")
+    assert command.argv[command.argv.index("--output") + 1] == (
+        "/run/agom/stage/dynamic-stage-environment-preflight.json"
+    )
+    report = json.loads(
+        (
+            config.output_dir / "stage-environment-preflight" / "stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert report["outcome"] == "success"
+
+
+def test_dynamic_stage_environment_rejects_malformed_bound_report(tmp_path: Path) -> None:
+    class MalformedDynamicReportRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "stage_environment_preflight":
+                assert command.artifact_dir is not None
+                (command.artifact_dir / "dynamic-stage-environment-preflight.json").write_text(
+                    "not-json\n", encoding="utf-8"
+                )
+                return CommandResult(returncode=0, stdout="entrypoint readiness noise\n")
+            return super().run(command)
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=MalformedDynamicReportRunner())
+
+    report = json.loads(
+        (
+            config.output_dir / "stage-environment-preflight" / "stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert {item["code"] for item in report["issues"]} == {
+        "REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_REPORT_INVALID"
+    }
+
+
+def test_prebuild_disk_reserve_blocks_before_expensive_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import scripts.run_release_rehearsal as rehearsal
+
+    monkeypatch.setattr(
+        rehearsal.shutil,
+        "disk_usage",
+        lambda _path: type("DiskUsage", (), {"free": 24 * 1024 * 1024 * 1024 - 1})(),
+    )
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    report = json.loads(
+        (
+            config.output_dir
+            / "stage-environment-preflight"
+            / "prebuild-stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert report["observations"]["minimum_free_disk_bytes"] == 24 * 1024 * 1024 * 1024
+    assert {item["code"] for item in report["issues"]} == {
+        "REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT"
     }
 
 

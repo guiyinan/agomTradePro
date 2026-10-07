@@ -34,8 +34,10 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
    `_require_akshare_financial_egress_routes`，后者调用持久化 `preview_route` 和公开
    `akshare_financial_deployment_region`。
 4. **身份与密钥**：只验证必要 env key、provider identity、active provider row、Config Center secret 可解析性和格式；从不记录值。
-5. **资源与时间**：保留 build 的 12 GiB Docker 硬门槛；统一门禁另要求证据文件系统至少 12 GiB、可用内存至少 512 MiB、
-   timeout 层级合法、时钟带时区、隔离 PostgreSQL `clock_timestamp()` 与应用时钟差不超过 5 秒。
+5. **资源与时间**：后续证据阶段继续要求至少 12 GiB；昂贵构建前另要求至少 24 GiB，其中 12 GiB 是构建保留量，确保构建完成后仍有
+   12 GiB 供 provider、数据库、bundle 与 validator 阶段使用。两个阈值均写入 release policy 和报告观察值，由 validator 对账；
+   不允许以构建后清理全局 Docker cache 代替容量准入。可用内存至少 512 MiB，timeout 层级合法、时钟带时区，隔离 PostgreSQL
+   `clock_timestamp()` 与应用时钟差不超过 5 秒。
 6. **外部状态**：冻结 provider settings、N=1/2N=2 财报预算、隔离 DB/Redis 身份、CI run 和两个生产周期入口的 disabled 状态。
 
 ## 阶段 × 六类矩阵
@@ -45,7 +47,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 
 | 阶段 | 文件系统 | 传输编码 | 网络出口 | 身份与密钥 | 资源与时间 | 外部状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断；依赖由 `pyproject.toml` 的 `ops` 组和生成的 `requirements-ops.txt` 提供。 | 已有：remote build 的 12 GiB `/var/lib/docker` 硬门槛、显式 build timeout；统一门禁复核证据盘/内存。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
+| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断；依赖由 `pyproject.toml` 的 `ops` 组和生成的 `requirements-ops.txt` 提供。 | 已有：prebuild 要求 24 GiB，明确保留 12 GiB 构建预算和 12 GiB 后续阶段余量；remote builder 自身仍保留 12 GiB `/var/lib/docker` 硬门槛与显式 build timeout。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
 | `docker_identity` | 已有：`_freeze_provider_settings_snapshot`、`_write_identity` 以排他写/哈希/只读 mode 冻结输入。 | 已有：统一门禁检查冻结 env/JSON/unit/identity 与登记传输文件。 | 无资源：仅检查本地候选镜像，不出网。 | 已有：`_candidate_container_gid`、OCI revision/image ID/release tag 精确绑定。 | 已有：命令 60 秒上限；统一门禁检查预算关系。 | 已有：checkpoint binding 绑定候选、输入摘要和隔离环境身份。 |
 | `provider_probe` | 已有：`_invoke_container_stage` 校验目录 inode、group write 窗口并在退出时密封。 | 已有：统一门禁在阶段前检查 env/冻结输入/transport bytes。 | 已有：候选动态探针复用 `provider_policy_and_routes`；stage 自身继续保留 response evidence。 | 已有：完整 identities digest、quote/valuation provider ID 与候选镜像绑定；Config Center provider policy 只读解析。 | 已有：sample 50、max dispatch、provider timeout 与外层 stage timeout 层级。 | 已有：冻结 provider settings，禁止从 live 设置静默漂移。 |
 | `response_replay` | 已有：provider probe 与 unit contract 只读 mount；报告/identity/hash 复核。 | 已有：统一门禁。 | 无资源：只重放已留存响应，不出网。 | 已有：probe SHA、unit contract SHA、candidate/provider digest。 | 已有：stage timeout；内存/磁盘由统一门禁覆盖。 | 已有：只消费同 attempt 前缀，checkpoint 防跨候选复用。 |
@@ -75,6 +77,8 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
   `REHEARSAL_STAGE_PERIODIC_ENTRYPOINT_INVALID`。
 - 报告 malformed 使用 `REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_REPORT_INVALID`；未登记阶段使用
   `REHEARSAL_STAGE_ENVIRONMENT_CONTRACT_MISSING`。所有探针跑完后才返回总阻断码。
+- 候选动态探针必须把报告排他写入 `/run/agom/stage/dynamic-stage-environment-preflight.json`；runner 只从绑定的 regular file
+  读取并校验 schema/allowlist。容器 entrypoint、readiness 和框架日志均不再属于 JSON 传输契约，stdout 噪声不能造成误报。
 
 ## 未验证风险与下一轮门槛
 
@@ -88,5 +92,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
   私有 venv 的源码获取仍依赖 GitHub 可达性，该 launcher 前置边界须由 prepare/bootstrap receipt 记录，不能记作 runner 自证。
 - build host 的 SSH/DNS/host-key 路径和 GitHub artifact host 仍缺独立的无副作用 allowlist preview；当前由实际阶段失败关闭，
   不能宣称这些外部依赖已被统一门禁完全覆盖。
+- 12 GiB 构建保留量来自当前镜像构建的实测量级并有 24 GiB 前置门槛保护，但它不是未来镜像大小的无界证明；若构建工作集继续增长，
+  remote builder 和构建后统一门禁仍会失败关闭，并须先做容量测算或扩容，不能降低 12 GiB 后续阶段余量。
 - 本门禁在本地与 CI 通过后仍不得称为 S6 实证；必须等待下一轮新候选，从 fresh production snapshot、fresh inputs、fresh attempt
   且禁止 `--resume` 跑完整十阶段。当前已准备或历史 attempt 均不能补记为本门禁证据。

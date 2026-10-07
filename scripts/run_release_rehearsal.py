@@ -39,6 +39,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
 )
 from shared.release_rehearsal_stage_environment import (
     MINIMUM_AVAILABLE_MEMORY_BYTES,
+    MINIMUM_PREBUILD_FREE_DISK_BYTES,
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
@@ -1642,6 +1643,7 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             task_deadline_seconds=config.task_deadline_seconds,
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
             missing_runtime_dependencies=missing_runtime_dependencies,
+            minimum_free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES,
         )
     )
     preflight_dir = config.output_dir / "stage-environment-preflight"
@@ -1694,6 +1696,8 @@ def _dynamic_stage_environment_issues(
             "/run/agom/provider-settings.json",
             "--provider-identities",
             "/run/agom/provider-identities.json",
+            "--output",
+            "/run/agom/stage/dynamic-stage-environment-preflight.json",
         ),
         (config.provider_env_file, config.isolated_postgres_env_file),
         mounts=((settings_path, "/run/agom/provider-settings.json", True),),
@@ -1708,17 +1712,20 @@ def _dynamic_stage_environment_issues(
         preflight_dir,
         spec,
     )
-    result = runner.run(
-        Command(
+    try:
+        _invoke_container_stage(
+            runner,
             argv=argv,
-            cwd=config.root,
-            env={},
-            timeout_seconds=min(config.stage_timeout_seconds, 180),
+            root=config.root,
             label=spec.name,
+            timeout=min(config.stage_timeout_seconds, 180),
+            env={},
             artifact_dir=preflight_dir,
+            container_gid=_candidate_container_gid(
+                runner, config.root, identity.candidate_image_id
+            ),
         )
-    )
-    if result.returncode:
+    except RehearsalBlocked:
         return (
             StageEnvironmentIssue(
                 "external_state",
@@ -1727,7 +1734,11 @@ def _dynamic_stage_environment_issues(
             ),
         )
     try:
-        payload = _object(json.loads(result.stdout.strip()), "S6_STAGE_PREFLIGHT_REPORT_INVALID")
+        report_path = preflight_dir / "dynamic-stage-environment-preflight.json"
+        payload = _object(
+            json.loads(_read_file(report_path, 1_048_576)),
+            "S6_STAGE_PREFLIGHT_REPORT_INVALID",
+        )
         return tuple(parse_dynamic_issues(payload))
     except (UnicodeError, json.JSONDecodeError, ValueError):
         return (
