@@ -2623,3 +2623,33 @@ Ruff、`git diff --check`、Data Center entrypoint inventory `1,298`、module ma
 下一片是否可开始：可以提交本节台账并 push 新 exact SHA，重新运行五组 CI。五组全绿后须先把 VPS 可用空间恢复到至少 24 GiB，且仅清理
 无引用、无 active build 的可回收资源；随后从最新生产只读快照创建全新 S6，重新导出全部输入并禁止 `--resume`。完整十阶段、财报
 N=1 双原件、release validator 与 receipt 通过后，才可部署同 SHA 预构建镜像。
+
+##### 2026-10-07 Data Center architecture 投影稳定语义整改
+
+根因证据：候选 `2d5a8e7de8b607b329a3b1cccb78e3d3a42365e8` 的 Architecture `37637504112` 与 Security
+`37637505122` 已通过，但 Consistency `37637504311` 在 `Enforce deterministic Data Center architecture inventory`
+正确失败。S6 preflight management command 仅新增一个标准库 import，使两个未变更的 current-surface 引用从 48/49 行移动到
+49/50 行；旧 architecture projection 把 AST/源码行号写入治理 JSON 并做字节级 stale check，因而把非语义行移动误判为治理事实变化。
+旧 run 禁止重跑；其余旧 SHA 结果不能作为新候选证据。
+
+完成项（`841f6733c2e8646ac8d6090a7357e9971f94253d`）：architecture inventory schema 升为 `2.0`，唯一生成器在全部 import、
+legacy fact、current surface 与 Celery task 引用进入投影前统一删除易变 `line`，按路径和语义内容的规范 JSON 确定性排序，并保留重复
+语义引用及全部原有计数。插入空行、注释或整体移动未变引用不再改变投影；provider、路径、引用文本等真实语义变化仍改变投影。
+扫描范围、规则和 fail-closed 条件没有缩减。pre-push 新增 architecture inventory 只读检查，并与既有 entrypoint inventory 门禁并列；
+CI 的 Consistency/Fast Feedback 检查继续保留。投影由唯一生成器重建，条目计数保持 current surface `5,392`、cross-app ORM
+`48`、Celery task `65`、runtime parameter `56`、批准的非数据 HTTP `5`，provider/直接 Data Center/待复核 HTTP/legacy 引用均为 0。
+
+测试计数：architecture inventory 专项 `7 passed`，包含完整 `build_inventory()` 的抗空行/注释回归和真实 provider 引用变化反例；
+唯一 architecture/entrypoint 生成器检查通过，entrypoint 总数保持 `1,298`。生产脚本增量 mypy 为 `0 regression`，全仓 debt ceiling
+为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map `44/210`、governance consistency `0 violation`
+全部通过。
+
+未验证风险与停止线：schema 2.0 的一次性生成投影差异较大，新的 exact-SHA 五组 CI 尚未运行；pre-push 仅在开发者安装相应 hook
+后执行，CI fail-closed 仍是强制真源。删除源码行号后，人工定位依赖路径与语义内容搜索；重复引用仍保留但不提供展示行号。稳定语义覆盖
+已知 architecture/entrypoint 两类投影，不能证明仓库其他或未来投影没有易变字段；新增投影类别必须增加相同的非语义移动正向测试和
+真实语义变化反例。fresh S6 尚未开始，生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 继续禁止重跑，两个周期入口
+保持 disabled；普通用户生产会话仍未提供。Financial 正式发布授权继续受 N<=1/2N<=2 治理上限约束。
+
+下一片是否可开始：可以提交本节台账并 push 新 exact SHA，重新绑定五组 CI。只有五组全绿且 Publication PostgreSQL artifact 的
+financial slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败，才可从最新生产只读快照创建新的 fresh S6；禁止
+`--resume` 或复用失败 attempt 的镜像、输入和阶段证据。
