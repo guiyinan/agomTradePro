@@ -2653,3 +2653,50 @@ CI 的 Consistency/Fast Feedback 检查继续保留。投影由唯一生成器�
 下一片是否可开始：可以提交本节台账并 push 新 exact SHA，重新绑定五组 CI。只有五组全绿且 Publication PostgreSQL artifact 的
 financial slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败，才可从最新生产只读快照创建新的 fresh S6；禁止
 `--resume` 或复用失败 attempt 的镜像、输入和阶段证据。
+
+##### 2026-10-08 stable projection 候选部署与 readiness 慢路径整改
+
+完成项：architecture stable projection 候选 `43dbd8345bc0a2df3200c8bbea43b5e63bbf9098` 的五组 exact-SHA CI 全绿：
+Architecture `37640822538`、Security `37640822558`、Consistency `37640822708`、Fast Feedback `37640822670`、
+Publication PostgreSQL `37640893754`。PostgreSQL artifact 已复核 financial slice sync `8/0/0/0`、Account outer-fence
+`8/0/0/0`、Publication `42/0/0/0`，包含 AKShare 原子写、generation-fenced graph UOW 和 5,001-member soak 固定节点，
+零跳过、零失败、零 error。
+
+fresh S6 attempt `c3971ca6bc82420fb80c43c1475a8085` 从最新生产只读快照重新导出 4 个完整 provider identities、
+provider settings、5,572 个动态 universe 成员及 unit contract，使用隔离 PostgreSQL/Redis、禁止 `--resume` 完成完整十阶段、
+财报 AKShare N=1/2N=2、统一环境 preflight 与 release validator，outcome=`success_evidence`、runner exit 0。handoff receipt
+SHA256 为 `ee2e2d926cf01926b911d4a268396691ba44bfc7b3e249e1330144cbb49a4124`，manifest SHA256 为
+`a09d77a26fc26843035e4442db832dc9191f6d8349daaa92242f07815bf10384`，release tag 为 `20261007172022`，预构建镜像为
+`sha256:41e5b6c4d26f94aac0410c8fcaa463543b97e718bb936ef0b6033b025678a88c`。生产严格复用该镜像部署，report SHA256 为
+`cc7b59007051716775e51b04c66eaacf38e8642a251e01660dc30faf671cd83c`；current、运行 Web/三个 Celery image 与 OCI revision
+均绑定候选，526 migrations applied / 0 unapplied，health、PostgreSQL、Redis、Prometheus 与 RSSHub 正常，statement logging
+为 `none/-1/-1`。部署没有投递 full-market 或 financial refresh，两个受保护周期入口继续 `enabled=false`。
+
+只读生产对账确认 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 仍为业务 success，
+`requested/succeeded/failed/stored=5572/5572/0/11144`、`published_members=16705`、publication run
+`aebb0da7-5336-4460-8fff-e4aa0f0317a7`；quote/price/valuation 三个 current pointer 仍以同一 activation
+`19d9a93e-55b6-5b8e-882d-8f3160f560dc` 指向已发布、未阻断且带有效 policy version/source time 的 Publication。
+full-market lease=false。`/api/health/` 为 200/0.056 秒，`/api/decision-ready/` 为 503/0.115 秒并保留
+`must_not_use_for_decision=true`；`/api/ready/` 虽为 200/degraded，却实测 25.881 秒，因此不能视为 UAT 通过。
+
+readiness 分段剖析将慢路径精确定位为 `alpha_workspace_consistency=19.862s`、Celery ping `3.637s`、decision data
+`2.374s`。Alpha 一致性只消费 Qlib 状态，却调用全部 provider 深度检查；其中 qlib `0.211s`、cache `0.012s`、simple
+`27.148s`、ETF `0.012s`。Simple 慢路径又由 publication-bound quote payload 读取贡献 `20.881s`，不是网络 timeout。
+提交 `7540dd9f4` 为 Alpha provider status 增加显式 provider-name scope，一致性只探测实际消费的 qlib；同时在全局决策门已
+阻断时让 service readiness 保留 `decision_readiness_blocked` 稳定投影并跳过重复的 decision-data/Alpha 深诊断。正式 Publication
+member bound、freshness、coverage、source 与 provider 深度诊断入口均未放宽。
+
+测试计数：受影响 health/Alpha consistency/provider 组件与 guardrail 回归 `68 passed`，其中新增四个红绿契约验证全局阻断短路、
+开放状态仍保留一致性结果、仅探测 qlib、未选 provider 零调用；三个生产文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为
+`0 errors in 0 files`。Black、isort、Ruff、`git diff --check`、entrypoint inventory `1,298`、architecture inventory
+`5,392/48/65/56/5`、module map `44/210`、governance consistency `0 violation` 全部通过。
+
+未验证风险与停止线：`7540dd9f4` 之后还包含并发完成的 CI 成本整改 `76b5dcc24`，两者均晚于已部署的 `43dbd8345`；必须把本节
+台账提交后的新 HEAD 作为新的 exact-SHA 候选重新跑五组 CI、fresh S6 与同镜像部署，才能复测 `/api/ready/` 真实延迟，禁止把旧
+部署当作新修复证据。Simple provider 的全量 status 诊断仍会执行严格 publication-bound 读取，尚未做查询优化；本切片只消除 readiness
+对无关 provider 的隐式调用。生产 full-market task 禁止重跑，两个周期入口保持 disabled；Financial 正式发布授权仍受 N<=1/2N<=2
+治理上限约束，普通用户生产会话仍未提供，API/SDK/MCP 与普通用户主流程联合 UAT 尚未完成。
+
+下一片是否可开始：可以提交并 push 本节台账，绑定新 HEAD 的 Architecture、Security、Consistency、Fast Feedback 与 Publication
+PostgreSQL。五组全绿且固定 PostgreSQL 节点零跳过/零失败后才能从最新生产只读快照创建新的 fresh S6，禁止 `--resume`；S6 全部
+通过后只部署 receipt 绑定的同 SHA 镜像，再复测 readiness 时延并继续 signal API/SDK/MCP、Alpha、业务阻断语义和零副作用 UAT。
