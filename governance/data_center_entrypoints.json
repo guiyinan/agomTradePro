@@ -27,16 +27,16 @@
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 84,
-      "workflow_step": 12
+      "workflow_step": 11
     },
     "by_status": {
-      "active_public": 823,
+      "active_public": 822,
       "adjacent_operational": 338,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1299
+    "total": 1298
   },
   "entries": [
     {
@@ -8552,8 +8552,8 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
-      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:409",
-      "locator": "line:409",
+      "id": "orchestration_entry:.github/workflows/nightly-tests.yml:initialize_data_center_catalog:line:429",
+      "locator": "line:429",
       "path": ".github/workflows/nightly-tests.yml",
       "status": "active_public",
       "symbol": "initialize_data_center_catalog",
@@ -13012,21 +13012,11 @@
     {
       "category": "workflow_step",
       "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
-      "id": "workflow_step:.github/workflows/rc-gate.yml:Prepare database:tokens:manage.py migrate",
+      "id": "workflow_step:.github/workflows/rc-gate.yml:Run required user journeys:tokens:manage.py migrate",
       "locator": "tokens:manage.py migrate",
       "path": ".github/workflows/rc-gate.yml",
       "status": "active_public",
-      "symbol": "Prepare database",
-      "target": "django:migrate"
-    },
-    {
-      "category": "workflow_step",
-      "evidence": "CI-owned database setup or PostgreSQL migration/backup/restore verification step",
-      "id": "workflow_step:.github/workflows/rc-gate.yml:Run Journey Tests:tokens:manage.py migrate",
-      "locator": "tokens:manage.py migrate",
-      "path": ".github/workflows/rc-gate.yml",
-      "status": "active_public",
-      "symbol": "Run Journey Tests",
+      "symbol": "Run required user journeys",
       "target": "django:migrate"
     }
   ],
