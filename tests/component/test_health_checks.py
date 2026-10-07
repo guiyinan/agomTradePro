@@ -317,6 +317,46 @@ class TestHealthCheckFunctions:
 
         assert result == {"runtime_state": runtime_state, **checks}
 
+    def test_service_readiness_short_circuits_decision_diagnostics_after_global_block(
+        self,
+        monkeypatch,
+    ):
+        """A blocked global gate keeps service probes bounded and explicitly blocked."""
+
+        from core import health_checks
+
+        monkeypatch.setattr(health_checks, "check_database", lambda: {"status": "ok"})
+        monkeypatch.setattr(health_checks, "check_redis", lambda: {"status": "ok"})
+        monkeypatch.setattr(health_checks, "check_celery", lambda: {"status": "ok"})
+        monkeypatch.setattr(health_checks, "check_critical_data", lambda: {"status": "ok"})
+        runtime_state = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_runtime_blocked",
+        }
+        monkeypatch.setattr(health_checks, "check_decision_runtime_state", lambda: runtime_state)
+
+        def unexpected_check():
+            raise AssertionError("blocked service readiness must not run decision diagnostics")
+
+        monkeypatch.setattr(health_checks, "check_decision_data_readiness", unexpected_check)
+        monkeypatch.setattr(
+            health_checks,
+            "check_alpha_workspace_consistency",
+            unexpected_check,
+        )
+
+        result = health_checks.run_readiness_checks()
+
+        assert result["decision_runtime"] is runtime_state
+        for check_name in ("decision_data", "alpha_workspace_consistency"):
+            assert result[check_name] == {
+                "status": "blocked",
+                "must_not_use_for_decision": True,
+                "block_reason_code": "decision_readiness_blocked",
+                "blocked_by": "decision_runtime_blocked",
+            }
+
     def test_check_database_healthy(self, db):
         """Test database check returns ok when database is accessible"""
         from core.health_checks import check_database

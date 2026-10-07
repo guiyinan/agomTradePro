@@ -5,7 +5,7 @@ Unit Tests for Alpha Providers
 """
 
 from datetime import UTC, date, datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.test import override_settings
@@ -509,6 +509,39 @@ class TestAlphaService:
 
         assert isinstance(status, dict)
         assert "cache" in status or "simple" in status or "etf" in status
+
+    def test_get_provider_status_can_bound_health_checks_to_named_providers(self):
+        """A diagnostic caller can avoid unrelated expensive provider probes."""
+
+        service = AlphaService()
+        qlib = MagicMock()
+        qlib.name = "qlib"
+        qlib.priority = 1
+        qlib.max_staleness_days = 1
+        qlib.health_check.return_value = AlphaProviderStatus.AVAILABLE
+        qlib._last_health_message = ""
+        simple = MagicMock()
+        simple.name = "simple"
+        simple.priority = 100
+        simple.max_staleness_days = 7
+        simple._last_health_message = ""
+
+        with patch.object(
+            service._registry,
+            "get_all_providers",
+            return_value=[qlib, simple],
+        ):
+            status = service.get_provider_status(provider_names=("qlib",))
+
+        assert status == {
+            "qlib": {
+                "priority": 1,
+                "status": "available",
+                "max_staleness_days": 1,
+            }
+        }
+        qlib.health_check.assert_called_once_with()
+        simple.health_check.assert_not_called()
 
     def test_get_available_universes(self):
         """测试获取支持的股票池"""

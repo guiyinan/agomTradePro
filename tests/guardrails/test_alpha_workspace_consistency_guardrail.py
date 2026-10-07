@@ -30,12 +30,8 @@ def test_alpha_workspace_consistency_guardrail_detects_stale_workspace() -> None
         ),
     )
 
-    assert "workspace_recommendations_stale" in {
-        issue.code for issue in result.issues
-    }
-    assert "workspace_missing_alpha_rank_origin" in {
-        issue.code for issue in result.issues
-    }
+    assert "workspace_recommendations_stale" in {issue.code for issue in result.issues}
+    assert "workspace_missing_alpha_rank_origin" in {issue.code for issue in result.issues}
 
 
 def test_readiness_includes_alpha_workspace_consistency(monkeypatch) -> None:
@@ -45,6 +41,14 @@ def test_readiness_includes_alpha_workspace_consistency(monkeypatch) -> None:
     monkeypatch.setattr("core.health_checks.check_redis", lambda: {"status": "skipped"})
     monkeypatch.setattr("core.health_checks.check_celery", lambda: {"status": "skipped"})
     monkeypatch.setattr("core.health_checks.check_critical_data", lambda: {"status": "ok"})
+    monkeypatch.setattr(
+        "core.health_checks.check_decision_runtime_state",
+        lambda: {"status": "ok", "must_not_use_for_decision": False},
+    )
+    monkeypatch.setattr(
+        "core.health_checks.check_decision_data_readiness",
+        lambda: {"status": "ok", "must_not_use_for_decision": False},
+    )
     monkeypatch.setattr(
         "core.health_checks.check_alpha_workspace_consistency",
         lambda: {"status": "warning", "issues": [{"code": "workspace_recommendations_stale"}]},

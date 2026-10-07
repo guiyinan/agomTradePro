@@ -70,7 +70,7 @@ def get_alpha_runtime_provider_status() -> dict[str, Any]:
     try:
         alpha_services = import_module("apps.alpha.application.services")
         AlphaService = alpha_services.AlphaService
-        raw_status = AlphaService().get_provider_status()
+        raw_status = AlphaService().get_provider_status(provider_names=("qlib",))
         if not isinstance(raw_status, Mapping):
             return {"__error__": {"status": "error", "error": "invalid_provider_status"}}
         return {str(key): value for key, value in raw_status.items()}

@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.decision_rhythm.infrastructure.consistency_snapshots import (
+    get_alpha_runtime_provider_status,
     get_latest_alpha_ranking_snapshot,
     get_workspace_recommendation_snapshot,
     run_alpha_workspace_consistency_check,
@@ -14,6 +15,34 @@ from apps.decision_rhythm.infrastructure.consistency_snapshots import (
 from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationModel
 
 pytestmark = pytest.mark.django_db
+
+
+def test_alpha_runtime_status_only_probes_qlib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Workspace consistency must not trigger unrelated provider deep checks."""
+
+    calls: list[tuple[str, ...] | None] = []
+
+    class _AlphaService:
+        def get_provider_status(
+            self,
+            *,
+            provider_names: tuple[str, ...] | None = None,
+        ) -> dict[str, dict[str, object]]:
+            calls.append(provider_names)
+            return {"qlib": {"status": "available"}}
+
+    class _Module:
+        AlphaService = _AlphaService
+
+    monkeypatch.setattr(
+        "apps.decision_rhythm.infrastructure.consistency_snapshots.import_module",
+        lambda module_name: _Module,
+    )
+
+    assert get_alpha_runtime_provider_status() == {"qlib": {"status": "available"}}
+    assert calls == [("qlib",)]
 
 
 def test_alpha_ranking_snapshot_reads_latest_cache(monkeypatch: pytest.MonkeyPatch) -> None:

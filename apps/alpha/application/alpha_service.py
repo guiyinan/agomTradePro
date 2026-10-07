@@ -1,6 +1,6 @@
 """Alpha service facade separated from provider-registry orchestration."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from datetime import date
 from typing import Any
 
@@ -223,11 +223,18 @@ class AlphaService:
         )
         return resolved.scope
 
-    def get_provider_status(self) -> dict[str, dict[str, Any]]:
+    def get_provider_status(
+        self,
+        *,
+        provider_names: Collection[str] | None = None,
+    ) -> dict[str, dict[str, Any]]:
         """
         获取所有 Provider 状态
 
         用于诊断和监控。
+
+        Args:
+            provider_names: Optional provider-name scope for bounded diagnostics.
 
         Returns:
             Provider 状态字典
@@ -239,8 +246,15 @@ class AlphaService:
             ...     print(f"{name}: {info['status']} (priority={info['priority']})")
         """
         status: dict[str, dict[str, Any]] = {}
+        selected_names = (
+            None
+            if provider_names is None
+            else {str(name).strip() for name in provider_names if str(name).strip()}
+        )
 
         for provider in self._registry.get_all_providers():
+            if selected_names is not None and provider.name not in selected_names:
+                continue
             health, error = _get_provider_health_or_unavailable(
                 provider,
                 context="get_provider_status",

@@ -381,14 +381,37 @@ def run_readiness_checks() -> dict[str, dict[str, Any]]:
             "critical_data": {"status": "ok"}
         }
     """
+    runtime_state = check_decision_runtime_state()
+    runtime_blocked = (
+        runtime_state.get("status") != "ok"
+        or runtime_state.get("must_not_use_for_decision") is True
+    )
+    if runtime_blocked:
+        reason = str(
+            runtime_state.get("block_reason_code")
+            or runtime_state.get("reason")
+            or "decision_runtime_blocked"
+        )
+        blocked_projection = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "block_reason_code": "decision_readiness_blocked",
+            "blocked_by": reason,
+        }
+        decision_data = dict(blocked_projection)
+        alpha_workspace_consistency = dict(blocked_projection)
+    else:
+        decision_data = check_decision_data_readiness()
+        alpha_workspace_consistency = check_alpha_workspace_consistency()
+
     checks = {
         "database": check_database(),
         "redis": check_redis(),
         "celery": check_celery(),
         "critical_data": check_critical_data(),
-        "decision_data": check_decision_data_readiness(),
-        "decision_runtime": check_decision_runtime_state(),
-        "alpha_workspace_consistency": check_alpha_workspace_consistency(),
+        "decision_data": decision_data,
+        "decision_runtime": runtime_state,
+        "alpha_workspace_consistency": alpha_workspace_consistency,
     }
     return checks
 
