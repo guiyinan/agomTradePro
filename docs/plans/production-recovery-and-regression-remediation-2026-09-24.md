@@ -2587,3 +2587,39 @@ check、Data Center entrypoint inventory `1,298` 条、module map `44 modules / 
 下一片是否可开始：可以提交本节台账、push 新 exact SHA 并启动五组 CI。五组全绿且 Publication PostgreSQL artifact 的 financial
 slice、Account outer-fence 与 5,001-member soak 节点零跳过/零失败后，才能用 `requirements-ops.txt` 创建 attempt 私有 runner venv，
 从最新生产只读快照创建全新 S6，禁止 `--resume` 或复用上述失败 attempt 的输入、镜像和阶段证据。
+
+##### 2026-10-07 S6 构建后资源保留与动态报告传输契约整改
+
+完成项：候选 `c3e1527bd31d7067c732cdcc9ae395cf9c5ce80a` 的五组 exact-SHA CI 和 PostgreSQL artifact 均通过后，fresh S6
+attempt `98c8bcbe3bb34f2e9c6c56fb68504bf0` 从最新生产只读快照完成 prepare、`build_only` 和 `docker_identity`，但统一
+`stage_environment_preflight` 以 `REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED` 正确阻断。终态同时列出
+`REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT` 与 `REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_REPORT_INVALID`，当时可用空间为
+`5,254,950,912` bytes；没有 provider 请求、生产写或 handoff receipt。失败诊断 SHA256 为
+`70623dc0d36ba52de16143dd1e21e7af37e3339c13d60b2b2c2e15a192781029`，attempt 根目录与诊断保留，隔离
+PostgreSQL/Redis/network/volume 已按精确身份清理，禁止 resume。
+
+根因有两项。第一，prebuild 与构建后阶段共用 12 GiB 门槛，prebuild 只证明起跑时有 12 GiB，没有为镜像、tar、runtime zip 和
+build cache 保留构建工作集，导致昂贵构建完成后才发现后续证据阶段余量不足。第二，候选 management command 输出本身是合法 JSON，
+但镜像 entrypoint 在 stdout 先写入 Redis/PostgreSQL readiness 三行；runner 错把整段 stdout 当成一个 JSON 文档。只读复现为 exit 0、
+stdout 末行合法 `release.s6-stage-environment-preflight.v1`，证明不是动态探针业务失败。
+
+完成项（`dcb8b6151`）：release policy 新增 24 GiB 构建前最低空间，其中 12 GiB 是构建保留量，后续阶段原 12 GiB 硬门槛保持不变；
+prebuild 报告显式记录本次适用的最低空间，validator 分别按 24/12 GiB 对账，低于 24 GiB 时在 `build_only` 前失败关闭。动态探针改为
+在候选容器的绑定 evidence 目录排他写入 regular JSON 文件，宿主只读取有界文件并校验 schema、阶段和稳定码 allowlist；entrypoint、
+readiness 和框架 stdout 不再属于结构化传输契约。输出已存在、畸形、缺失或命令失败均保持 fail closed；没有清全局 cache、降低阈值、
+扩大 timeout/retry 或增加 provider/业务写副作用。
+
+测试计数：统一环境、候选命令、runner 与 validator 组合为 `221 passed / 3 skipped`；remote builder、attempt planner 和 manifest 组合为
+`95 passed / 3 skipped`，合计 `316 passed / 6 skipped`。6 个 skip 均为 Windows 无法提供的 POSIX 权限、symlink/descriptor 或非 root
+容器边界，未计作通过。新增反例覆盖 24 GiB 前置不足在构建前阻断、stdout readiness 噪声不影响文件报告、畸形绑定报告拒绝、既有
+输出不覆盖。四个生产/运维 Python 文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、
+Ruff、`git diff --check`、Data Center entrypoint inventory `1,298`、module map `44/210`、governance consistency `0 violation` 全部通过。
+
+未验证风险与停止线：24 GiB 门槛按当前构建工作集保留 12 GiB，但不能证明未来镜像增长永远不超过该保留量；后续如增长必须先扩容或形成
+新的容量证据，不得降低后续阶段 12 GiB。`dcb8b6151` 尚未 push 或绑定新 exact-SHA 五组 CI，也尚未在 fresh S6 验证文件报告和
+24 GiB 门槛。生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个周期入口保持 disabled；普通用户生产
+会话仍未提供。Financial 正式发布已获用户授权，但 N<=1/2N<=2 治理上限继续有效，不能用循环小批次规避容量评估。
+
+下一片是否可开始：可以提交本节台账并 push 新 exact SHA，重新运行五组 CI。五组全绿后须先把 VPS 可用空间恢复到至少 24 GiB，且仅清理
+无引用、无 active build 的可回收资源；随后从最新生产只读快照创建全新 S6，重新导出全部输入并禁止 `--resume`。完整十阶段、财报
+N=1 双原件、release validator 与 receipt 通过后，才可部署同 SHA 预构建镜像。
