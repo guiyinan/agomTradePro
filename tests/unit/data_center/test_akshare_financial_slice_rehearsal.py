@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
+from uuid import UUID
 
 import pytest
 
@@ -22,10 +23,22 @@ from apps.data_center.domain.egress_routing import (
     EgressRouteDecision,
     EgressStrategy,
 )
-from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.domain.entities import ProviderConfig, RawAudit
+from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    FinancialResponseScopeBasis,
+)
+from apps.data_center.domain.financial_source_evidence import FinancialFactDecisionEvidence
 from apps.data_center.domain.financial_source_time_contract import (
     FINANCIAL_FACT_DATASET_KEY,
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
+)
+from apps.data_center.domain.financial_source_time_evidence import (
+    FinancialSourceTimeArtifactRef,
+    FinancialSourceTimeWitness,
 )
 from apps.data_center.infrastructure import akshare_financial_slice_rehearsal as rehearsal
 from apps.data_center.infrastructure.financial_source_time_matchers import (
@@ -54,6 +67,130 @@ def _identities() -> tuple[RehearsalProviderIdentity, ...]:
             "akshare-financial-route-v1",
         ),
     )
+
+
+def _verified_capture_pair() -> tuple[
+    rehearsal._VerifiedFinancialFacts,
+    RawAudit,
+    RawAudit,
+]:
+    """Build one authenticated pair whose financial location is an opaque URI."""
+
+    financial_capture_id = UUID("10000000-0000-4000-8000-000000000001")
+    source_time_capture_id = UUID("20000000-0000-4000-8000-000000000002")
+    response_body = b"financial-body"
+    response_hash = hashlib.sha256(response_body).hexdigest()
+    completed_at = datetime(2026, 9, 30, 8, 0, tzinfo=UTC)
+    financial_reference = FinancialResponseArtifactRef(
+        capture_id=financial_capture_id,
+        location=f"financial-response:///v1/{financial_capture_id}.frb",
+        evidence=FinancialResponseEvidence(
+            body_sha256=response_hash,
+            body_size_bytes=len(response_body),
+            response_completed_at=completed_at,
+            request_scope=FinancialRequestScope(
+                provider_name="akshare",
+                dataset_key=FINANCIAL_FACT_DATASET_KEY,
+                asset_code="688266.SH",
+                period_limit=8,
+            ),
+            response_scope=FinancialResponseScope(
+                asset_codes=("688266.SH",),
+                period_ends=(date(2026, 6, 30),),
+                row_count=1,
+            ),
+            response_scope_basis=FinancialResponseScopeBasis.PROVIDER_BODY_VERIFIED,
+        ),
+        format_version="financial-response-body-fernet-v1",
+        encryption_algorithm="fernet-aes128cbc-hmacsha256",
+        encryption_key_ref="config/financial-key",
+        encryption_key_version="v1",
+    )
+    source_time_reference = FinancialSourceTimeArtifactRef(
+        capture_id=source_time_capture_id,
+        location=f"financial-source-time/v1/{source_time_capture_id}.bin",
+        provider_name="akshare",
+        dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+        requested_asset_code="688266.SH",
+        requested_announcement_date=date(2026, 8, 1),
+        body_sha256=response_hash,
+        body_size_bytes=len(response_body),
+        response_completed_at=completed_at,
+        response_row_count=1,
+        format_version="financial-source-time-artifact.v1",
+        encryption_algorithm="fernet-aes128cbc-hmacsha256",
+        encryption_key_ref="config/financial-key",
+        encryption_key_version="v1",
+    )
+    verified = rehearsal._VerifiedFinancialFacts(
+        facts=(cast(rehearsal.FinancialFactModel, SimpleNamespace()),),
+        decision=cast(
+            FinancialFactDecisionEvidence,
+            SimpleNamespace(artifact_reference=financial_reference),
+        ),
+        source_time=cast(
+            FinancialSourceTimeWitness,
+            SimpleNamespace(artifact_reference=source_time_reference),
+        ),
+        verified_capture_ids=frozenset((financial_capture_id, source_time_capture_id)),
+    )
+    financial_audit = RawAudit(
+        provider_name="akshare",
+        capability="financial_fact",
+        request_params={},
+        status="ok",
+        raw_audit_id="financial-audit",
+        extra={"financial_response_artifact": {"provider_id": 19}},
+    )
+    source_time_audit = RawAudit(
+        provider_name="akshare",
+        capability="financial_source_time",
+        request_params={},
+        status="ok",
+        raw_audit_id="source-time-audit",
+        extra={"financial_source_time_artifact": {"provider_id": 19}},
+    )
+    return verified, financial_audit, source_time_audit
+
+
+def test_capture_evidence_keeps_verified_artifact_locations_opaque(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A verified financial-response URI is never reinterpreted as a local path."""
+
+    verified, financial_audit, source_time_audit = _verified_capture_pair()
+    repository = SimpleNamespace(
+        list_by_artifact_capture_id=lambda _capture_id: [financial_audit],
+        list_by_source_time_artifact_capture_id=lambda _capture_id: [source_time_audit],
+    )
+    monkeypatch.setattr(rehearsal, "RawAuditRepository", lambda: repository)
+
+    captures = rehearsal._capture_evidence(verified, provider_id=19)
+
+    assert [capture["capture_id"] for capture in captures] == [
+        "10000000-0000-4000-8000-000000000001",
+        "20000000-0000-4000-8000-000000000002",
+    ]
+
+
+def test_capture_evidence_fails_closed_when_a_body_was_not_verified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Report production rejects a pair missing either body-store verification proof."""
+
+    verified, financial_audit, source_time_audit = _verified_capture_pair()
+    repository = SimpleNamespace(
+        list_by_artifact_capture_id=lambda _capture_id: [financial_audit],
+        list_by_source_time_artifact_capture_id=lambda _capture_id: [source_time_audit],
+    )
+    monkeypatch.setattr(rehearsal, "RawAuditRepository", lambda: repository)
+    incomplete = replace(
+        verified,
+        verified_capture_ids=frozenset((verified.decision.artifact_reference.capture_id,)),
+    )
+
+    with pytest.raises(ValueError, match="REHEARSAL_FINANCIAL_SLICE_BODY_INVALID"):
+        rehearsal._capture_evidence(incomplete, provider_id=19)
 
 
 def test_seed_uses_available_at_as_untrusted_date_and_ignores_report_date(

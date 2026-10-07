@@ -13,6 +13,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import cast
 from urllib.parse import urlsplit
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import redis
@@ -128,6 +129,7 @@ class _VerifiedFinancialFacts:
     facts: tuple[FinancialFactModel, ...]
     decision: FinancialFactDecisionEvidence
     source_time: FinancialSourceTimeWitness
+    verified_capture_ids: frozenset[UUID]
 
 
 def collect_akshare_financial_slice_rehearsal(
@@ -216,7 +218,6 @@ def collect_akshare_financial_slice_rehearsal(
         captures = _capture_evidence(
             verified_facts,
             provider_id=_provider_id(provider),
-            artifact_root=artifact_root,
         )
 
     finished_at = datetime.now(UTC)
@@ -674,7 +675,7 @@ def _verify_persisted_pair(
             "S6 financial capture identifiers are not independent",
             code="REHEARSAL_FINANCIAL_SLICE_CAPTURE_PAIR_INVALID",
         )
-    _verify_artifact_bytes(
+    verified_capture_ids = _verify_artifact_bytes(
         financial_reference,
         source_time_reference,
         provider=provider,
@@ -684,6 +685,7 @@ def _verify_persisted_pair(
         facts=tuple(evidence_rows),
         decision=decision_evidence[0],
         source_time=witness_evidence[0],
+        verified_capture_ids=verified_capture_ids,
     )
 
 
@@ -693,7 +695,7 @@ def _verify_artifact_bytes(
     *,
     provider: ProviderConfig,
     artifact_root: Path,
-) -> None:
+) -> frozenset[UUID]:
     """Authenticate both stored body bytes and their one exact RawAudit each."""
 
     runtime = resolve_financial_response_artifact_config()
@@ -743,18 +745,23 @@ def _verify_artifact_bytes(
         or source_time_audits[0].status != "ok"
     ):
         raise ValueError("REHEARSAL_FINANCIAL_SLICE_RAW_AUDIT_PROVIDER_INVALID")
+    return frozenset((financial_reference.capture_id, source_time_reference.capture_id))
 
 
 def _capture_evidence(
     verified: _VerifiedFinancialFacts,
     *,
     provider_id: int,
-    artifact_root: Path,
 ) -> list[dict[str, object]]:
     """Return report-safe raw-body and audit metadata without exposing body bytes."""
 
     financial_reference = verified.decision.artifact_reference
     source_time_reference = verified.source_time.artifact_reference
+    expected_capture_ids = frozenset(
+        (financial_reference.capture_id, source_time_reference.capture_id)
+    )
+    if verified.verified_capture_ids != expected_capture_ids:
+        raise ValueError("REHEARSAL_FINANCIAL_SLICE_BODY_INVALID")
     raw_audits = RawAuditRepository()
     financial_audits = raw_audits.list_by_artifact_capture_id(financial_reference.capture_id)
     source_time_audits = raw_audits.list_by_source_time_artifact_capture_id(
@@ -784,9 +791,6 @@ def _capture_evidence(
         raw_provider_id = raw_link.get("provider_id")
         if raw_provider_id != provider_id:
             raise ValueError("REHEARSAL_FINANCIAL_SLICE_RAW_AUDIT_PROVIDER_INVALID")
-        body_path = artifact_root / reference.location
-        if body_path.is_symlink() or not body_path.is_file():
-            raise ValueError("REHEARSAL_FINANCIAL_SLICE_BODY_INVALID")
         captures.append(
             {
                 "dataset_key": dataset_key,
