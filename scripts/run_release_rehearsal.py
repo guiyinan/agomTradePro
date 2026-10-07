@@ -76,8 +76,7 @@ atomic_json = cast(Callable[[Path, Mapping[str, object]], None], _checkpoint_mod
 file_digest = cast(Callable[[Path], str], _checkpoint_module.file_digest)
 run_lock = cast(Callable[[Path], AbstractContextManager[None]], _checkpoint_module.run_lock)
 
-SHA = re.compile(r"[0-9a-f]{64}")
-COMMIT = re.compile(r"[0-9a-f]{40}")
+SHA, COMMIT = re.compile(r"[0-9a-f]{64}"), re.compile(r"[0-9a-f]{40}")
 IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 TAG = re.compile(r"[0-9]{14}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -1959,6 +1958,7 @@ def _run_release_rehearsal(
                 artifact_dir=ci_dir,
             )
         _report(ci_path, identity, image_bound=False)
+        _checkpoint_module.seal_container_input_tree(ci_dir, container_gid, RehearsalBlocked)
         checkpoint.complete(stage, (ci_dir,))
         completed.append(stage)
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import sys
 import threading
 import time
@@ -22,7 +23,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     rehearsal_identities_digest,
 )
 from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS, build_manifest
-from scripts.rehearsal_checkpoint import run_lock
+from scripts.rehearsal_checkpoint import run_lock, seal_container_input_tree
 from scripts.run_release_rehearsal import (
     Command,
     CommandResult,
@@ -1510,6 +1511,59 @@ def test_preoccupied_ci_evidence_directory_fails_closed_without_overwrite(
     assert "github_ci_evidence" in runner.labels
     assert "bundle_build" not in runner.labels
     assert not (config.output_dir / "s6-handoff-receipt.json").exists()
+
+
+def test_ci_evidence_is_group_readable_before_financial_container(
+    tmp_path: Path,
+) -> None:
+    class RestrictiveCiRunner(FakeRunner):
+        observed_container_input = False
+
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "akshare_financial_slice":
+                ci_dir = self._mounted_path(command.argv, target="/run/agom/ci")
+                directory_mode = stat.S_IMODE(ci_dir.stat().st_mode)
+                expected_directory_mode = 0o550 if os.name == "posix" else 0o555
+                expected_file_mode = 0o440 if os.name == "posix" else 0o444
+                assert directory_mode == expected_directory_mode
+                for path in ci_dir.iterdir():
+                    assert stat.S_IMODE(path.stat().st_mode) == expected_file_mode
+                    if os.name == "posix":
+                        assert path.stat().st_gid == os.getgid()
+                    path.read_bytes()
+                self.observed_container_input = True
+            result = super().run(command)
+            if command.label == "github_ci_evidence" and result.returncode == 0:
+                assert command.artifact_dir is not None
+                command.artifact_dir.chmod(0o700)
+                for path in command.artifact_dir.iterdir():
+                    path.chmod(0o600)
+            return result
+
+    runner = RestrictiveCiRunner()
+    run_release_rehearsal(_config(tmp_path, root=_fake_checkout(tmp_path)), runner=runner)
+
+    assert runner.observed_container_input is True
+
+
+def test_container_input_tree_rejects_nested_symlink(tmp_path: Path) -> None:
+    root = tmp_path / "ci"
+    root.mkdir()
+    (root / "report.json").write_text("{}", encoding="utf-8")
+    target = tmp_path / "outside.xml"
+    target.write_text("<testsuites />", encoding="utf-8")
+    link = root / "contracts.xml"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("file symlinks are unavailable")
+
+    with pytest.raises(RehearsalBlocked, match="S6_CONTAINER_INPUT_TREE_INVALID"):
+        seal_container_input_tree(
+            root,
+            os.getgid() if os.name == "posix" else 0,
+            RehearsalBlocked,
+        )
 
 
 def test_failed_container_stage_seals_directory(

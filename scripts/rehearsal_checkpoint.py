@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import sys
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -62,6 +63,64 @@ def tree_digest(path: Path) -> str:
             (item.relative_to(path).as_posix(), "directory" if item.is_dir() else file_digest(item))
         )
     return hashlib.sha256(json.dumps(entries, separators=(",", ":")).encode()).hexdigest()
+
+
+def seal_container_input_tree(
+    root: Path,
+    container_gid: int,
+    error_factory: Callable[[str, str], Exception],
+) -> None:
+    """Seal generated evidence while granting the candidate group read access."""
+
+    if root.is_symlink() or not root.is_dir():
+        raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_TREE_INVALID")
+    entries = tuple(sorted(root.rglob("*"), key=lambda item: len(item.parts), reverse=True))
+    if not entries or not any(item.is_file() for item in entries):
+        raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_TREE_INVALID")
+    for path in (*entries, root):
+        if path.is_symlink():
+            raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_TREE_INVALID")
+        metadata = path.lstat()
+        is_directory = stat.S_ISDIR(metadata.st_mode)
+        if not is_directory and not stat.S_ISREG(metadata.st_mode):
+            raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_TREE_INVALID")
+        expected_mode = 0o550 if is_directory else 0o440
+        if os.name == "posix":
+            fchown = cast(Callable[[int, int, int], None] | None, getattr(os, "fchown", None))
+            fchmod = cast(Callable[[int, int], None] | None, getattr(os, "fchmod", None))
+            if fchown is None or fchmod is None:
+                raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_PERMISSIONS_FAILED")
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            if is_directory:
+                flags |= getattr(os, "O_DIRECTORY", 0)
+            descriptor: int | None = None
+            try:
+                descriptor = os.open(path, flags)
+                opened = os.fstat(descriptor)
+                if (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino):
+                    raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_TREE_CHANGED")
+                fchown(descriptor, -1, container_gid)
+                fchmod(descriptor, expected_mode)
+                sealed = os.fstat(descriptor)
+            except OSError as exc:
+                raise error_factory(
+                    "github_ci_evidence", "S6_CONTAINER_INPUT_PERMISSIONS_FAILED"
+                ) from exc
+            finally:
+                if descriptor is not None:
+                    os.close(descriptor)
+            if (
+                sealed.st_gid != container_gid
+                or stat.S_IMODE(sealed.st_mode) != expected_mode
+                or (sealed.st_dev, sealed.st_ino) != (metadata.st_dev, metadata.st_ino)
+            ):
+                raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_PERMISSIONS_FAILED")
+        else:
+            portable_mode = 0o555 if is_directory else 0o444
+            path.chmod(portable_mode)
+            sealed = path.lstat()
+            if stat.S_IMODE(sealed.st_mode) != portable_mode:
+                raise error_factory("github_ci_evidence", "S6_CONTAINER_INPUT_PERMISSIONS_FAILED")
 
 
 @contextmanager
