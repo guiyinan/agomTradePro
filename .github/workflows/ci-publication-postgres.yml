@@ -79,6 +79,18 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           python -m pip install -e sdk/
+      - name: Exercise financial capacity non-PostgreSQL gate contracts
+        run: >-
+          python -m pytest
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_full_scope_capacity_rehearsal_receipt_can_start_formal_workflow
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_single_slice_qualification_receipt_never_qualifies_for_formal_start
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_capacity_rehearsal_without_owner_approval_has_zero_provider_egress
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_capacity_rehearsal_requires_exact_full_scope_ceiling_before_egress
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_rejected_rehearsal_budget_does_not_consume_approval_id
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_capacity_observed_physical_requests_over_ceiling_keep_provider_error_code
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_post_write_evidence_failure_preserves_known_sync_counts_without_receipt
+          --ds=core.settings.development_sqlite
+          -q -o addopts=''
       - name: Prepare isolated authority contract database
         env:
           PGPASSWORD: disposable_ci_only
@@ -129,9 +141,21 @@ jobs:
           tests/component/data_center/test_publication_read_snapshot_postgres.py
           tests/component/data_center/test_financial_fact_repository_postgres_provenance.py
           tests/component/data_center/test_publication_fact_lock_postgres.py
+          -k "not financial_capacity"
           --ds=tests.settings_data_center_sync_identity
           --confcutdir=tests/component/data_center
           -q -o addopts='' --junitxml=publication-postgres.xml
+      - name: Exercise financial capacity publication crash recovery and CAS
+        run: >-
+          python -m pytest
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_capacity_stage_commit_unknown_recovers_exact_candidate_postgresql
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_capacity_activation_commit_unknown_replays_only_same_plan_postgresql
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_capacity_activation_audit_failure_rolls_back_pointer_and_outbox_postgresql
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winner
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql
+          --ds=tests.settings_data_center_sync_identity
+          --confcutdir=tests/component/data_center
+          -q -o addopts=''
       - name: Exercise PostgreSQL control plane and valuation lineage staging
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
@@ -148,6 +172,11 @@ jobs:
           --create-db
           -q -o addopts='' --junitxml=backfill-control-plane-postgres.xml
       - name: Exercise governed AKShare financial capture and slice sync
+        env:
+          DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
+          DJANGO_SETTINGS_MODULE: core.settings.development
+          SECRET_KEY: publication-postgres-financial-slice-secret-key
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver
         run: >-
           python -m pytest
           tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_capture_retains_independent_exact_body_pair
@@ -158,7 +187,12 @@ jobs:
           tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair
           tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts
           tests/unit/data_center/test_akshare_financial_capture.py::test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed
-          --ds=core.settings.development_sqlite
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_checkpoint_repository_resumes_after_workflow_reconstruction
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_checkpoint_repository_consumes_receipt_once_even_after_reapproval
+          tests/unit/data_center/test_financial_publication_capacity_workflow.py::test_django_concurrent_duplicate_observes_live_claim_without_database_mutation
+          tests/unit/data_center/test_financial_capacity_manifest.py::test_formal_manifest_uses_asset_subquery_for_5572_active_assets
+          --ds=core.settings.development
+          --create-db
           -q -o addopts='' --junitxml=financial-slice-sync-contracts.xml
       - name: Exercise statement logging maintenance window and failure recovery
         env:
@@ -411,7 +445,7 @@ jobs:
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(final_revalidation_cases) == 8, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 3, 'Expected control-plane and lineage cases were not collected'
-          assert len(financial_slice_cases) == 8, 'Expected financial slice cases were not collected'
+          assert len(financial_slice_cases) == 12, 'Expected financial slice and capacity cases were not collected'
           assert snapshot_report['outcome'] == 'success'
           assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
           assert snapshot_report['source_row_count'] > 0

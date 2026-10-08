@@ -98,6 +98,11 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_isolated_write_publication_clock_rejects_future_current_publication",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_activation_5001_members_has_fixed_queries_locks_and_retry",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_group_activations_have_one_cas_winner",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_stage_commit_unknown_recovers_exact_candidate_postgresql",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_commit_unknown_replays_only_same_plan_postgresql",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_audit_failure_rolls_back_pointer_and_outbox_postgresql",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winner",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql",
     "tests.component.data_center.test_publication_fact_lock_postgres::test_disjoint_fact_writers_share_table_fence_with_bounded_query_count",
     "tests.component.data_center.test_publication_fact_lock_postgres::test_activation_excludes_writer_and_then_recovers_after_release",
     "tests.component.data_center.test_publication_fact_lock_postgres::test_matching_natural_key_writers_remain_serialized",
@@ -117,6 +122,10 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair",
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts",
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_budget_is_contract_bound_and_fails_closed",
+    "tests.unit.data_center.test_financial_publication_capacity_workflow::test_django_checkpoint_repository_resumes_after_workflow_reconstruction",
+    "tests.unit.data_center.test_financial_publication_capacity_workflow::test_django_checkpoint_repository_consumes_receipt_once_even_after_reapproval",
+    "tests.unit.data_center.test_financial_publication_capacity_workflow::test_django_concurrent_duplicate_observes_live_claim_without_database_mutation",
+    "tests.unit.data_center.test_financial_capacity_manifest::test_formal_manifest_uses_asset_subquery_for_5572_active_assets",
 )
 REQUIRED_REPLAY_CASES = {
     "valid",

@@ -3,22 +3,25 @@
 import ipaddress
 import json
 import os
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
+from decimal import Decimal
 from importlib import import_module
 from pathlib import Path
 from threading import Barrier
 from time import monotonic
+from types import SimpleNamespace
 from urllib.parse import unquote, urlsplit
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from cryptography.fernet import Fernet
 from django.apps import apps
-from django.db import IntegrityError, OperationalError, connections, transaction
+from django.db import IntegrityError, OperationalError, connection, connections, transaction
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
@@ -44,6 +47,19 @@ from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
 )
 from apps.audit.infrastructure.system_audit_models import SystemAuditEventModel
 from apps.audit.infrastructure.system_audit_outbox_models import SystemAuditOutboxModel
+from apps.data_center.akshare_financial_capture_composition import (
+    AKSHARE_FINANCIAL_DATASET_KEY,
+    AKSHARE_SOURCE_TIME_DATASET_KEY,
+    AkshareFinancialCaptureGateway,
+)
+from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
+from apps.data_center.application.financial_publication_capacity import (
+    FinancialCapacityBinding,
+    FinancialCapacityPublicationIndeterminateError,
+    FinancialCapacityPublicationPlan,
+    FinancialCapacitySliceEvidence,
+    FinancialCapacityWorkflowError,
+)
 from apps.data_center.application.publication_activation import (
     ActivateCanonicalPublicationGroupUseCase,
     PublicationActivationError,
@@ -56,6 +72,9 @@ from apps.data_center.application.publication_utils import (
     publication_member_from_reference,
 )
 from apps.data_center.application.query_services import query_published_valuation_facts
+from apps.data_center.application.sync_use_cases import (
+    with_verified_financial_transport_metadata,
+)
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -63,11 +82,24 @@ from apps.data_center.domain.control_plane import (
     PublicationMember,
     PublicationState,
 )
+from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.entities import RawAudit
+from apps.data_center.domain.financial_response_evidence import (
+    FinancialRequestScope,
+    FinancialResponseEvidence,
+    FinancialResponseScope,
+    raw_body_sha256,
+)
 from apps.data_center.domain.raw_audit_manifest import (
     CandidateRawAuditManifest,
     CandidateRawAuditReference,
     canonical_capability_for_publication_dataset,
+)
+from apps.data_center.financial_source_time_composition import (
+    verify_retained_financial_source_time_evidence,
+)
+from apps.data_center.infrastructure._provider_adapter_akshare import (
+    AkshareUnifiedProviderAdapter,
 )
 from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
@@ -85,11 +117,35 @@ from apps.data_center.infrastructure.catalog_models import (
 from apps.data_center.infrastructure.control_plane_repositories import (
     CanonicalPublicationRepository,
 )
+from apps.data_center.infrastructure.financial_capacity_publisher_runtime import (
+    AtomicFinancialPolicyV3Publisher,
+)
+from apps.data_center.infrastructure.financial_fact_repository import FinancialFactRepository
+from apps.data_center.infrastructure.financial_response_artifact_config import (
+    FinancialResponseArtifactRuntimeConfig,
+)
+from apps.data_center.infrastructure.financial_response_artifact_repository import (
+    FinancialResponseArtifactRepository,
+)
+from apps.data_center.infrastructure.financial_response_body_store import (
+    FinancialResponseBodyStore,
+)
+from apps.data_center.infrastructure.financial_source_time_artifact_repository import (
+    FinancialSourceTimeArtifactRepository,
+)
+from apps.data_center.infrastructure.financial_source_time_audit_repository import (
+    DjangoFinancialSourceTimeArtifactAuditRepository,
+)
+from apps.data_center.infrastructure.financial_source_time_body_store import (
+    FinancialSourceTimeBodyStore,
+)
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
     FinancialFactModel,
+    FinancialSourceTimeAuditClaimModel,
     PriceBarModel,
+    ProviderConfigModel,
     QuoteSnapshotModel,
     RawAuditModel,
     ValuationFactModel,
@@ -115,6 +171,7 @@ from apps.data_center.infrastructure.publication_read_snapshot import (
     consistent_publication_read,
 )
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
+from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
     DataPublicationManifestAuditObservation,
     SystemAuditEventOutboxCommit,
@@ -237,11 +294,13 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         DataOwnerRegistrationModel,
         AssetMasterModel,
         AssetAliasModel,
+        ProviderConfigModel,
         PriceBarModel,
         QuoteSnapshotModel,
         FinancialFactModel,
         ValuationFactModel,
         RawAuditModel,
+        FinancialSourceTimeAuditClaimModel,
         CanonicalPublicationModel,
         CandidateRawAuditManifestModel,
         CandidateRawAuditManifestMemberModel,
@@ -358,11 +417,13 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             DataOwnerRegistrationModel,
             AssetMasterModel,
             AssetAliasModel,
+            ProviderConfigModel,
             PriceBarModel,
             QuoteSnapshotModel,
             FinancialFactModel,
             ValuationFactModel,
             RawAuditModel,
+            FinancialSourceTimeAuditClaimModel,
             CanonicalPublicationModel,
             CandidateRawAuditManifestModel,
             CandidateRawAuditManifestMemberModel,
@@ -1931,3 +1992,659 @@ def test_postgres_0085_orm_insert_uses_0086_scope_blocks_database_default(
     assert column_metadata is not None
     assert column_metadata[0:2] == ("NO", "jsonb")
     assert column_metadata[2] is not None and "[]" in column_metadata[2]
+
+
+_FINANCIAL_CAPACITY_DATASET = "equity.financial.fact"
+
+
+def _financial_capacity_pg_policy() -> PublicationPolicy:
+    """Build the exact versioned evidence policy used by the capacity publisher tests."""
+
+    return PublicationPolicy(
+        dataset=DatasetKey(_FINANCIAL_CAPACITY_DATASET, "1.0", "1.0"),
+        minimum_coverage_ratio=1.0,
+        allow_partial=False,
+        conflict_action="block",
+        required_evidence=(
+            "source",
+            "observed_at",
+            "available_at",
+            "fetched_at",
+            "payload_hash",
+            "raw_payload_hash",
+            "raw_payload_scope",
+            "source_record_id",
+            "fact_content_hash",
+        ),
+        retention_days=3650,
+        policy_version="3",
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _FinancialCapacityPgCapture:
+    """Raw provider bytes returned by the test-only external transport seam."""
+
+    payload: object
+    evidence: FinancialResponseEvidence
+    raw_body: bytes
+    physical_request_attempts: int = 1
+
+
+class _FinancialCapacityPgCaptureRunner:
+    """Return deterministic EastMoney bytes while exercising production capture storage."""
+
+    def __init__(self, bodies: Mapping[str, bytes]) -> None:
+        self._bodies = dict(bodies)
+        self.requested_datasets: list[str] = []
+
+    def __call__(
+        self,
+        context: EgressRequestContext,
+        *,
+        request_id: UUID,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        request_scope: FinancialRequestScope,
+        response_scope: FinancialResponseScope,
+        max_attempts: int = 2,
+    ) -> FinancialResponseCaptureProtocol:
+        """Satisfy one capture request at the external provider boundary."""
+
+        del request_id
+        if method != "GET" or params is None or json_body is not None or headers is not None:
+            raise AssertionError("financial capture fixture received an unexpected request")
+        if max_attempts != 1:
+            raise AssertionError("financial capacity capture must use one route attempt")
+        body = self._bodies[context.dataset_key]
+        self.requested_datasets.append(context.dataset_key)
+        evidence = FinancialResponseEvidence(
+            body_sha256=raw_body_sha256(body),
+            body_size_bytes=len(body),
+            response_completed_at=timezone.now(),
+            request_scope=request_scope,
+            response_scope=response_scope,
+        )
+        return _FinancialCapacityPgCapture(
+            payload={},
+            evidence=evidence,
+            raw_body=body,
+        )
+
+
+def _financial_capacity_pg_body(asset_code: str, *, pretty: bool) -> bytes:
+    """Build a valid one-row EastMoney response for the real AKShare parser."""
+
+    row = {
+        "SECUCODE": asset_code,
+        "REPORT_DATE": "2026-06-30 00:00:00",
+        "NOTICE_DATE": "2026-09-30 00:00:00",
+        "TOTALOPERATEREVE": 1000000,
+        "PARENTNETPROFIT": 250000,
+        "TOTALOPERATEREVETZ": 8.5,
+        "PARENTNETPROFITTZ": 12.0,
+        "ROEJQ": 7.5,
+        "ZCFZL": 50,
+        "LIABILITY": 500000,
+        "TOTAL_ASSETS": 1000000,
+        "TOTAL_EQUITY": 500000,
+        "JROA": 3.8,
+    }
+    payload = {"success": True, "code": 0, "result": {"count": 1, "data": [row]}}
+    if pretty:
+        return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def _financial_capacity_pg_artifact_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> FinancialResponseArtifactRuntimeConfig:
+    """Inject only a test-local explicit key/root into the real verifier."""
+
+    runtime = FinancialResponseArtifactRuntimeConfig(
+        root=(tmp_path / "financial-capacity-artifacts").resolve(),
+        encryption_key=Fernet.generate_key(),
+        encryption_key_ref="test/financial-capacity-pg-key",
+        encryption_key_version="test-v1",
+        max_body_bytes=1024 * 1024,
+    )
+    source_time_composition = import_module("apps.data_center.financial_source_time_composition")
+    monkeypatch.setattr(
+        source_time_composition,
+        "resolve_financial_response_artifact_config",
+        lambda **_kwargs: runtime,
+    )
+    return runtime
+
+
+def _seed_financial_capacity_pg_case(
+    *,
+    asset_code: str,
+    artifact_runtime: FinancialResponseArtifactRuntimeConfig,
+) -> tuple[FinancialCapacityBinding, UUID, FinancialCapacitySliceEvidence, FinancialFactModel]:
+    """Capture, verify, and atomically persist a real financial slice lineage."""
+
+    policy = PublicationPolicyRepository().get_active(_FINANCIAL_CAPACITY_DATASET)
+    if policy is None:
+        policy = PublicationPolicyRepository().save(_financial_capacity_pg_policy())
+    provider_row = ProviderConfigModel.objects.create(
+        name=f"financial-capacity-pg-{uuid4().hex}",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        description="Disposable provider identity for financial publication PostgreSQL tests",
+    )
+    provider = provider_row.to_domain()
+    run_id = uuid4()
+    raw_audits = RawAuditRepository()
+    financial_store = FinancialResponseBodyStore(
+        artifact_runtime.root,
+        encryption_key=artifact_runtime.encryption_key,
+        encryption_key_ref=artifact_runtime.encryption_key_ref,
+        encryption_key_version=artifact_runtime.encryption_key_version,
+        max_body_bytes=artifact_runtime.max_body_bytes,
+    )
+    source_time_store = FinancialSourceTimeBodyStore(
+        artifact_runtime.root,
+        encryption_key=artifact_runtime.encryption_key,
+        encryption_key_ref=artifact_runtime.encryption_key_ref,
+        encryption_key_version=artifact_runtime.encryption_key_version,
+        max_body_bytes=artifact_runtime.max_body_bytes,
+    )
+    runner = _FinancialCapacityPgCaptureRunner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: _financial_capacity_pg_body(
+                asset_code,
+                pretty=False,
+            ),
+            AKSHARE_SOURCE_TIME_DATASET_KEY: _financial_capacity_pg_body(
+                asset_code,
+                pretty=True,
+            ),
+        }
+    )
+    gateway = AkshareFinancialCaptureGateway(
+        provider,
+        deployment_region="postgres-ci",
+        financial_repository=FinancialResponseArtifactRepository(
+            financial_store,
+            raw_audits,
+            failure_audit_repository=raw_audits,
+        ),
+        source_time_repository=FinancialSourceTimeArtifactRepository(
+            source_time_store,
+            DjangoFinancialSourceTimeArtifactAuditRepository(raw_audits),
+        ),
+        capture_runner=runner,
+        max_route_attempts=1,
+    )
+    facts = AkshareUnifiedProviderAdapter(provider).fetch_financials_for_announcement_date(
+        asset_code,
+        date(2026, 9, 30),
+        periods=8,
+        capture_gateway=gateway,
+        run_id=run_id,
+    )
+    if not facts or len(runner.requested_datasets) != 2:
+        raise AssertionError("the real AKShare adapter did not complete one dual capture")
+    facts_with_transport = [with_verified_financial_transport_metadata(fact) for fact in facts]
+    written = FinancialFactRepository(
+        source_time_evidence_verifier=verify_retained_financial_source_time_evidence,
+    ).bulk_upsert(facts_with_transport, ingested_run_id=run_id)
+    persisted_facts = tuple(
+        FinancialFactModel.objects.filter(asset_code=asset_code, ingested_run_id=run_id).order_by(
+            "metric_code"
+        )
+    )
+    if written != len(facts) or len(persisted_facts) != written:
+        raise AssertionError("the real financial fact repository did not persist the exact batch")
+    if any(
+        fact.source_record_id == "" or not fact.raw_payload_hash or fact.decision_evidence == {}
+        for fact in persisted_facts
+    ):
+        raise AssertionError("persisted financial facts are missing typed source evidence")
+
+    first_decision = facts[0].decision_evidence
+    if first_decision is None or first_decision.source_time_witness is None:
+        raise AssertionError("the real AKShare adapter did not bind its source-time witness")
+    financial_reference = first_decision.artifact_reference
+    source_time_reference = first_decision.source_time_witness.artifact_reference
+    financial_audits = raw_audits.list_by_artifact_capture_id(financial_reference.capture_id)
+    source_time_audits = raw_audits.list_by_source_time_artifact_capture_id(
+        source_time_reference.capture_id
+    )
+    if len(financial_audits) != 1 or len(source_time_audits) != 1:
+        raise AssertionError("the dual capture did not produce one audit on each side")
+    for audit in (*financial_audits, *source_time_audits):
+        if audit.run_id != str(run_id) or audit.ingested_run_id != str(run_id):
+            raise AssertionError("the captured RawAudit run lineage is inconsistent")
+
+    pointer, _created = CanonicalPublicationPointerModel.objects.get_or_create(
+        dataset_key=_FINANCIAL_CAPACITY_DATASET,
+        publication_key="current",
+    )
+    if pointer.publication_id is not None or pointer.publication_hash or pointer.activation_id:
+        raise AssertionError("financial capacity PostgreSQL fixture requires an empty pointer")
+    evidence = FinancialCapacitySliceEvidence(
+        asset_code=asset_code,
+        announcement_date=date(2026, 9, 30),
+        financial_body_sha256=financial_reference.body_sha256,
+        source_time_body_sha256=source_time_reference.body_sha256,
+        financial_body_size_bytes=financial_reference.body_size_bytes,
+        source_time_body_size_bytes=source_time_reference.body_size_bytes,
+        financial_capture_id=str(financial_reference.capture_id),
+        source_time_capture_id=str(source_time_reference.capture_id),
+        financial_raw_audit_id=financial_audits[0].raw_audit_id,
+        source_time_raw_audit_id=source_time_audits[0].raw_audit_id,
+        financial_raw_audit_count=len(financial_audits),
+        source_time_raw_audit_count=len(source_time_audits),
+        typed_financial_evidence_count=len(facts),
+        source_time_witness_count=len(facts),
+        atomic_fact_write_count=1,
+        stored=written,
+        duration_ms=1,
+    )
+    binding = FinancialCapacityBinding(
+        environment="production",
+        candidate_sha="f" * 40,
+        provider_id=int(provider_row.pk),
+        provider_name="akshare",
+        provider_source="akshare",
+        provider_identity_sha256="1" * 64,
+        contract_id="capacity-financial-contract",
+        contract_version="1",
+        contract_sha256="2" * 64,
+        parser_id="capacity-financial-parser",
+        parser_sha256="3" * 64,
+        deployment_region="postgres-ci",
+        publication_policy_version="3",
+        publication_policy_sha256=policy.content_hash,
+    )
+    return binding, run_id, evidence, persisted_facts[0]
+
+
+def _patch_financial_capacity_activation_runtime(
+    monkeypatch,
+    *,
+    writer_factory=None,
+    capture_barrier: Barrier | None = None,
+) -> object:
+    """Keep PG authority, audit, pointer, candidate and outbox transactions real."""
+
+    runtime = import_module("apps.data_center.infrastructure.financial_capacity_publisher_runtime")
+    authority = (
+        import_module("tests.unit.account.test_account_authority_shadow_scanner")
+        ._legacy_current()
+        .authority
+    )
+    context = SimpleNamespace(tenant_id=authority.tenant_id, owner_id=authority.owner_id)
+    monkeypatch.setattr(
+        runtime,
+        "preflight_data_reliability_audit_runtime",
+        lambda **_kwargs: context,
+    )
+
+    def capture_authority(**_kwargs):
+        fence, proof = _production_activation_fence()
+        if capture_barrier is not None:
+            capture_barrier.wait(timeout=20)
+        return SimpleNamespace(authority_fence=fence, authority_proof=proof)
+
+    monkeypatch.setattr(runtime, "capture_production_account_authority", capture_authority)
+    monkeypatch.setattr(
+        runtime,
+        "get_data_publication_activation_audit_writer",
+        lambda **_kwargs: (
+            writer_factory() if writer_factory is not None else _PostgresActivationAuditWriter()
+        ),
+    )
+    return runtime
+
+
+def test_financial_capacity_stage_commit_unknown_recovers_exact_candidate_postgresql(
+    activation_runtime_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Recover a staged candidate after its PG commit succeeds but its response is lost."""
+
+    del activation_runtime_pg
+    artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
+    binding, run_id, evidence, fact = _seed_financial_capacity_pg_case(
+        asset_code="000001.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    publisher = AtomicFinancialPolicyV3Publisher()
+    intent = publisher.begin_activation(binding=binding, run_id=run_id, evidence=(evidence,))
+    repository_type = import_module(
+        "apps.data_center.infrastructure.financial_capacity_publisher_runtime"
+    ).DjangoPublicationActivationRepository
+    original_stage = repository_type.stage_candidate_with_members
+    lost_response = True
+
+    def commit_then_disconnect(repository, publication, members):
+        nonlocal lost_response
+        persisted = original_stage(repository, publication, members)
+        if lost_response:
+            lost_response = False
+            raise OSError("injected lost stage response after PostgreSQL commit")
+        return persisted
+
+    monkeypatch.setattr(repository_type, "stage_candidate_with_members", commit_then_disconnect)
+    plan = publisher.stage(
+        binding=binding,
+        intent=intent,
+        asset_codes=(fact.asset_code,),
+        manifest_sha256="9" * 64,
+    )
+    replay = publisher.stage(
+        binding=binding,
+        intent=intent,
+        asset_codes=(fact.asset_code,),
+        manifest_sha256="9" * 64,
+    )
+
+    assert replay == plan
+    assert (
+        CanonicalPublicationModel.objects.filter(
+            dataset_key=_FINANCIAL_CAPACITY_DATASET,
+            publication_key="current",
+            run_id=run_id,
+        ).count()
+        == 1
+    )
+    staged = CanonicalPublicationModel.objects.get(publication_id=plan.candidate_publication_id)
+    assert staged.state == PublicationState.CANDIDATE.value
+    assert staged.publication_hash == plan.candidate_publication_hash
+    assert staged.members_sealed_at is not None
+    assert staged.member_manifest_hash == plan.member_manifest_sha256
+    assert (
+        PublicationMemberModel.objects.filter(publication_id=plan.candidate_publication_id).count()
+        == evidence.stored
+    )
+
+
+def test_financial_capacity_activation_commit_unknown_replays_only_same_plan_postgresql(
+    activation_runtime_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Reconcile a lost activation response without rebuilding mutated live facts."""
+
+    del activation_runtime_pg
+    artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
+    binding, run_id, evidence, fact = _seed_financial_capacity_pg_case(
+        asset_code="000002.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    publisher = AtomicFinancialPolicyV3Publisher()
+    intent = publisher.begin_activation(binding=binding, run_id=run_id, evidence=(evidence,))
+    plan = publisher.stage(
+        binding=binding,
+        intent=intent,
+        asset_codes=(fact.asset_code,),
+        manifest_sha256="8" * 64,
+    )
+    runtime = _patch_financial_capacity_activation_runtime(monkeypatch)
+    original_execute = runtime.ActivateCanonicalPublicationUseCase.execute
+    lost_response = True
+
+    def commit_then_disconnect(use_case, request, **kwargs):
+        nonlocal lost_response
+        activated = original_execute(use_case, request, **kwargs)
+        if lost_response:
+            lost_response = False
+            raise OSError("injected lost activation response after PostgreSQL commit")
+        return activated
+
+    monkeypatch.setattr(
+        runtime.ActivateCanonicalPublicationUseCase,
+        "execute",
+        commit_then_disconnect,
+    )
+    assert publisher.activate(binding=binding, plan=plan) == plan.candidate_publication_hash
+    pointer = CanonicalPublicationPointerModel.objects.get(
+        dataset_key=_FINANCIAL_CAPACITY_DATASET,
+        publication_key="current",
+    )
+    assert str(pointer.publication_id) == plan.candidate_publication_id
+    assert pointer.publication_hash == plan.candidate_publication_hash
+    assert pointer.activation_id == str(intent.activation_id)
+    assert (
+        CanonicalPublicationModel.objects.get(publication_id=plan.candidate_publication_id).state
+        == PublicationState.PUBLISHED.value
+    )
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
+    event = SystemAuditEventModel.objects.get()
+    assert event.correlations["run_id"] == str(run_id)
+    assert event.correlations["ingested_run_id"] == str(run_id)
+    assert event.publication_id == plan.candidate_publication_id
+
+    FinancialFactModel.objects.filter(pk=fact.pk).update(value=Decimal("999.0000"))
+    monkeypatch.setattr(
+        runtime,
+        "build_current_publication_rebuild",
+        lambda **_kwargs: pytest.fail("same-plan replay must not rebuild mutable live facts"),
+    )
+    assert publisher.activate(binding=binding, plan=plan) == plan.candidate_publication_hash
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
+
+    different_activation = replace(intent, activation_id=uuid4())
+    different_plan = replace(plan, intent=different_activation)
+    with pytest.raises(DataFetchError) as rejected:
+        publisher.activate(binding=binding, plan=different_plan)
+    assert (
+        getattr(rejected.value, "code", "") == "financial_capacity_current_pointer_activation_drift"
+    )
+    assert (
+        str(
+            CanonicalPublicationPointerModel.objects.get(
+                dataset_key=_FINANCIAL_CAPACITY_DATASET,
+                publication_key="current",
+            ).publication_id
+        )
+        == plan.candidate_publication_id
+    )
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
+
+
+def test_financial_capacity_activation_audit_failure_rolls_back_pointer_and_outbox_postgresql(
+    activation_runtime_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """A required audit append failure rolls back candidate, pointer, event and outbox together."""
+
+    del activation_runtime_pg
+    artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
+    binding, run_id, evidence, fact = _seed_financial_capacity_pg_case(
+        asset_code="000003.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    publisher = AtomicFinancialPolicyV3Publisher()
+    intent = publisher.begin_activation(binding=binding, run_id=run_id, evidence=(evidence,))
+    plan = publisher.stage(
+        binding=binding,
+        intent=intent,
+        asset_codes=(fact.asset_code,),
+        manifest_sha256="7" * 64,
+    )
+
+    class AppendThenRaiseWriter(_PostgresActivationAuditWriter):
+        def append_required(self, *, request, publication, members, observation):
+            super().append_required(
+                request=request,
+                publication=publication,
+                members=members,
+                observation=observation,
+            )
+            raise RuntimeError("injected failure after audit and outbox writes")
+
+    _patch_financial_capacity_activation_runtime(
+        monkeypatch,
+        writer_factory=AppendThenRaiseWriter,
+    )
+    with pytest.raises(FinancialCapacityPublicationIndeterminateError) as exc_info:
+        publisher.activate(binding=binding, plan=plan)
+    assert exc_info.value.phase == "activation"
+    pointer = CanonicalPublicationPointerModel.objects.get(
+        dataset_key=_FINANCIAL_CAPACITY_DATASET,
+        publication_key="current",
+    )
+    assert pointer.publication_id is None
+    assert pointer.publication_hash == ""
+    assert pointer.activation_id == ""
+    assert (
+        CanonicalPublicationModel.objects.get(publication_id=plan.candidate_publication_id).state
+        == PublicationState.CANDIDATE.value
+    )
+    assert SystemAuditEventModel.objects.count() == 0
+    assert SystemAuditOutboxModel.objects.count() == 0
+
+
+def test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winner(
+    activation_runtime_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """Two distinct financial candidates racing one empty pointer must have one winner."""
+
+    del activation_runtime_pg
+    artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
+    first_binding, first_run, first_evidence, first_fact = _seed_financial_capacity_pg_case(
+        asset_code="000004.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    second_binding, second_run, second_evidence, second_fact = _seed_financial_capacity_pg_case(
+        asset_code="000005.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    publisher = AtomicFinancialPolicyV3Publisher()
+    first_intent = publisher.begin_activation(
+        binding=first_binding,
+        run_id=first_run,
+        evidence=(first_evidence,),
+    )
+    second_intent = publisher.begin_activation(
+        binding=second_binding,
+        run_id=second_run,
+        evidence=(second_evidence,),
+    )
+    first_plan = publisher.stage(
+        binding=first_binding,
+        intent=first_intent,
+        asset_codes=(first_fact.asset_code,),
+        manifest_sha256="6" * 64,
+    )
+    second_plan = publisher.stage(
+        binding=second_binding,
+        intent=second_intent,
+        asset_codes=(second_fact.asset_code,),
+        manifest_sha256="5" * 64,
+    )
+    capture_barrier = Barrier(2)
+    _patch_financial_capacity_activation_runtime(
+        monkeypatch,
+        capture_barrier=capture_barrier,
+    )
+    settings = deepcopy(connections["default"].settings_dict)
+
+    def activate(plan: FinancialCapacityPublicationPlan, binding: FinancialCapacityBinding):
+        previous_connection = connections["default"]
+        worker_connection = load_backend(settings["ENGINE"]).DatabaseWrapper(
+            deepcopy(settings), alias="default"
+        )
+        connections["default"] = worker_connection
+        try:
+            return "published", publisher.activate(binding=binding, plan=plan)
+        except Exception as error:
+            return "rejected", getattr(error, "code", type(error).__name__)
+        finally:
+            worker_connection.close()
+            connections["default"] = previous_connection
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = tuple(
+            future.result(timeout=45)
+            for future in (
+                executor.submit(activate, first_plan, first_binding),
+                executor.submit(activate, second_plan, second_binding),
+            )
+        )
+    assert [outcome for outcome, _result in outcomes].count("published") == 1
+    assert [outcome for outcome, _result in outcomes].count("rejected") == 1
+    winner_hash = next(result for outcome, result in outcomes if outcome == "published")
+    winning_plan = next(
+        plan for plan in (first_plan, second_plan) if plan.candidate_publication_hash == winner_hash
+    )
+    pointer = CanonicalPublicationPointerModel.objects.get(
+        dataset_key=_FINANCIAL_CAPACITY_DATASET,
+        publication_key="current",
+    )
+    assert str(pointer.publication_id) == winning_plan.candidate_publication_id
+    assert pointer.publication_hash == winning_plan.candidate_publication_hash
+    assert pointer.activation_id == str(winning_plan.intent.activation_id)
+    assert (
+        CanonicalPublicationModel.objects.filter(
+            dataset_key=_FINANCIAL_CAPACITY_DATASET,
+            publication_key="current",
+            state=PublicationState.PUBLISHED.value,
+        ).count()
+        == 1
+    )
+    assert SystemAuditEventModel.objects.count() == 1
+    assert SystemAuditOutboxModel.objects.count() == 1
+
+
+def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql(
+    activation_runtime_pg,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    """The production manifest query stays bounded on a real 5,572-asset PG universe."""
+
+    del activation_runtime_pg
+    artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
+    binding, _run_id, _evidence, _fact = _seed_financial_capacity_pg_case(
+        asset_code="000001.SZ",
+        artifact_runtime=artifact_runtime,
+    )
+    AssetMasterModel.objects.bulk_create(
+        [
+            AssetMasterModel(
+                code=f"{index:06d}.SZ",
+                name=f"Security {index}",
+                short_name=f"S{index}",
+                asset_type="stock",
+                exchange="SZSE",
+                is_active=True,
+            )
+            for index in range(1, 5_573)
+        ],
+        batch_size=500,
+    )
+    manifest_runtime = import_module(
+        "apps.data_center.infrastructure.financial_publication_capacity_runtime"
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        with pytest.raises(
+            FinancialCapacityWorkflowError,
+            match="typed announcement scope is incomplete",
+        ):
+            manifest_runtime.DjangoFinancialCapacityManifestSource().freeze(
+                stage="formal_publication",
+                binding=binding,
+            )
+
+    sql = " ".join(query["sql"] for query in queries.captured_queries).upper()
+    assert len(queries) == 2
+    assert " IN (SELECT " in sql
+    assert "000001.SZ" not in sql
+    assert "005572.SZ" not in sql

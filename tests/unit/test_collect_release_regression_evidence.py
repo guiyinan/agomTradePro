@@ -121,7 +121,10 @@ class GithubStub:
             if "test_account_authority_final_revalidator_v3_postgres" in identity
         ]
         financial_slice = [
-            identity for identity in required if "test_akshare_financial_capture" in identity
+            identity
+            for identity in required
+            if "test_akshare_financial_capture" in identity
+            or "test_financial_publication_capacity_workflow" in identity
         ]
         publication = [
             identity
