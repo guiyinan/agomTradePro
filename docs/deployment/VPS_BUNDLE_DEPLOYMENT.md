@@ -136,9 +136,15 @@ Default deployment root:
 
 - `/opt/agomtradepro`
 
-### 5.1 Remote-build disk guard
+### 5.1 Remote-build safety and disk guard
 
-Before either source-upload or Git-clone Docker builds, `scripts/remote_build_deploy_vps.py` removes only unused `agomtradepro-web:*` images. Images referenced by any running or stopped container are retained, and the guard does not prune volumes, other repositories, or global Docker resources.
+Before either source-upload or Git-clone Docker builds, and before any remote deployment operation (including prebuilt-image deployment), `scripts/remote_build_deploy_vps.py` checks the target Docker context and daemon endpoint and verifies the Engine is at least 29.3.2. Engine versions 29.3.0 and 29.3.1 are rejected before the release directory is replaced, Compose is queried, or a build starts. Deploy-only operations use `REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED` without printing version or endpoint details. The build preflight also requires a Docker client from 29.3.2 up to, but not including, 30.0.0; failures use `REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED`.
+
+The governed S6 build explicitly runs `DOCKER_BUILDKIT=0 docker --context default build`, confirms the legacy-builder output markers, and has no BuildKit default attempt or fallback retry. This avoids the affected integrated BuildKit path and also requires a Docker Engine version containing the upstream panic fix. The CLI ceiling keeps the deprecated legacy builder available; move to a separately governed builder before upgrading the Docker CLI to 30.0.0.
+
+The production panic stack matches [Moby issue #52257](https://github.com/moby/moby/issues/52257); [Moby PR #52230](https://github.com/moby/moby/pull/52230) updates the bundled BuildKit version. Docker documents `DOCKER_BUILDKIT=0` as the explicit legacy-builder opt-out in its [deprecation guidance](https://docs.docker.com/engine/deprecated/).
+
+After the preflight, the script removes only unused `agomtradepro-web:*` images. Images referenced by any running or stopped container are retained, and the guard does not prune volumes, other repositories, or global Docker resources.
 
 After that project-scoped cleanup, the build requires at least 12 GiB free under `/var/lib/docker`. Insufficient capacity fails before `docker build`, leaving the current containers and data volumes untouched. Inspect `df -h /var/lib/docker` and `docker system df` before any separately authorized global cleanup.
 

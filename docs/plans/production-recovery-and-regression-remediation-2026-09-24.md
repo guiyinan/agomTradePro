@@ -3110,3 +3110,25 @@ authenticated owner approval 和用户新的明确授权。
 下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 从头运行五组 CI。五组全绿且官方 artifact 同时包含
 `financial-capacity-postgres.xml` 的精确五节点、publication 42、financial slice 12、Account final revalidation 8 及 5,001 member soak
 后，才可清理失败 attempt 的 disposable runtime 并从最新生产只读快照创建 fresh S6；禁止 `--resume`。
+
+##### 2026-10-09 S6 Docker 29.3.0 BuildKit panic guard
+
+完成项：fresh S6 attempt `46709ac27e654b1f8fd84feb10e1906c` 在 `build_only` 触发 Docker Engine 29.3.0 内置 BuildKit 的
+`ListenBuildHistory` nil-pointer panic，导致 dockerd 被 systemd 重启并停止生产及隔离容器。该 attempt 已由操作员终止，生产旧版本已恢复；
+原始事故证据保留在远端 `evidence/incident-dockerd-panic`，本切片未修改证据、未 resume、未部署或运行 S6。堆栈与
+[Moby issue #52257](https://github.com/moby/moby/issues/52257) 一致；[PR #52230](https://github.com/moby/moby/pull/52230)
+升级 bundled BuildKit，修复版本下限为 Engine 29.3.2。代码提交 `14ef9a4e0197236d67800df91caaed286eb208f4` 将构建模式和
+Docker endpoint/version 纳入治理 policy；在任何构建前核验默认 context、Unix socket 和 client/server 版本，拒绝 Engine 29.3.0/29.3.1；
+用 `DOCKER_BUILDKIT=0 docker --context default build` 显式走 legacy builder，并核对输出标记，不再发送 inline-cache 参数或尝试默认
+BuildKit 回退。远端 build 和含预构建镜像的 deploy 都有相应的 Engine preflight，错误使用稳定码且诊断不暴露 endpoint/version。
+
+测试计数：4 个聚焦单元模块 `380 passed / 4 skipped`，包括 fake-Docker 故障注入及生成 shell 语法检查；变更生产文件增量 mypy
+`0 regressions`。Black、isort、Ruff、py_compile、governance consistency（0 violations）和 `git diff --check` 通过。全仓 mypy debt ceiling
+未通过：并行 financial scope 切片在 4 个未提交 Data Center 文件引入 13 条新增诊断；该切片未被本提交暂存或修改，错误清单已交回主任务处理。
+
+未验证风险与停止线：目标生产 VPS 升级后 Engine `>=29.3.2` 的只读核验、该 SHA 的 CI、Docker 29.3.2 实际 legacy build 及完整 fresh S6 均未执行；
+因此本地故障注入不能证明生产环境已经安全。旧 attempt 不得恢复或补记，生产部署需待主任务执行主机升级与只读核验后单独推进。Docker CLI policy
+当前限定在 `29.3.2 <= client < 30.0.0`；升级 CLI 前须验证并治理替代 builder 路径。
+
+下一片是否可开始：否。先修复并通过全仓 mypy debt ceiling，再由主任务完成目标 VPS Engine `>=29.3.2` 只读核验和新 exact-SHA CI；条件满足后只可从
+最新生产只读快照启动全新的 S6 attempt，禁止 resume 事故 attempt。部署仍须等 fresh S6 完整通过及相应授权。
