@@ -91,7 +91,38 @@ def test_current_fact_repair_requires_operator_for_execute() -> None:
 def test_current_fact_repair_executes_with_explicit_operator(mocker) -> None:
     coordinator = mocker.Mock()
     coordinator.execute.return_value = SimpleNamespace(
-        to_dict=lambda: {"quote_stored_count": 2, "publication_ids": ["all"]}
+        to_dict=lambda: {
+            "outcome": "partial",
+            "success": False,
+            "stage": "financial_publication",
+            "error_code": "financial_capacity_receipt_required",
+            "blocked_reason": "financial_capacity_receipt_required",
+            "must_not_use_for_decision": True,
+            "deferred_publications": [
+                {
+                    "dataset_key": "equity.financial.fact",
+                    "outcome": "blocked",
+                    "blocked_reason": "financial_capacity_receipt_required",
+                    "attempted": False,
+                    "must_not_use_for_decision": True,
+                }
+            ],
+            "quote_stored_count": 2,
+            "publication_ids": ["quote", "price", "valuation"],
+            "publications": {
+                "outcome": "partial",
+                "blocked_reason": "financial_capacity_receipt_required",
+                "deferred_publications": [
+                    {
+                        "dataset_key": "equity.financial.fact",
+                        "outcome": "blocked",
+                        "blocked_reason": "financial_capacity_receipt_required",
+                        "attempted": False,
+                        "must_not_use_for_decision": True,
+                    }
+                ],
+            },
+        }
     )
     factory = _patch_command_dependencies(mocker, coordinator)
     stdout = StringIO()
@@ -109,7 +140,18 @@ def test_current_fact_repair_executes_with_explicit_operator(mocker) -> None:
     payload = json.loads(stdout.getvalue())
     assert payload["mode"] == "execute"
     assert payload["operator"] == "django-user:7"
+    assert payload["success"] is False
+    assert payload["outcome"] == "partial"
+    assert payload["stage"] == "financial_publication"
+    assert payload["error_code"] == "financial_capacity_receipt_required"
+    assert payload["blocked_reason"] == "financial_capacity_receipt_required"
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["deferred_publications"][0]["outcome"] == "blocked"
     assert payload["quote_stored_count"] == 2
+    assert payload["publications"]["blocked_reason"] == "financial_capacity_receipt_required"
+    assert payload["publications"]["deferred_publications"][0]["dataset_key"] == (
+        "equity.financial.fact"
+    )
     coordinator.execute.assert_called_once_with(
         asset_codes=["000001.SZ", "600000.SH"],
         session_date=SESSION_DATE,

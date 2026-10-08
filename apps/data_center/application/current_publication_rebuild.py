@@ -19,7 +19,13 @@ from apps.data_center.domain.market_time import (
 )
 from apps.data_center.domain.protocols import PublicationPolicyRepositoryProtocol
 
-from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
+from .control_plane import (
+    FINANCIAL_CAPACITY_RECEIPT_REQUIRED,
+    CanonicalPublicationRepositoryPort,
+    FinancialPublicationLaneRequiredError,
+    PublishCanonicalDatasetUseCase,
+    require_generic_publication_lane,
+)
 from .current_publication_candidate import (
     CurrentPublicationCandidateSnapshot,
     CurrentPublicationDataset,
@@ -170,6 +176,8 @@ class CurrentPublicationRebuildUseCase:
     ) -> CanonicalPublication:
         """Build and atomically publish a complete current member snapshot."""
 
+        self.validate_execution_lane()
+
         candidate = self.prepare_candidate(
             asset_codes=asset_codes,
             published_at=published_at,
@@ -199,6 +207,11 @@ class CurrentPublicationRebuildUseCase:
             ),
             members=candidate.members,
         )
+
+    def validate_execution_lane(self) -> None:
+        """Require the dedicated capacity workflow for financial pointer writes."""
+
+        require_generic_publication_lane(self.dataset.dataset_key)
 
     def _validate_quote_suspension_scope(
         self,
@@ -444,16 +457,45 @@ class CurrentPublicationRebuildUseCase:
 
 
 @dataclass(frozen=True)
+class DeferredCurrentPublicationLane:
+    """A dataset intentionally owned by a separate governed publication lane."""
+
+    dataset_key: str
+    outcome: str
+    blocked_reason: str
+
+    def __post_init__(self) -> None:
+        if not self.dataset_key or self.outcome != "blocked" or not self.blocked_reason:
+            raise ValueError("Deferred current-publication lane status is invalid")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return stable JSON-safe lane status for operators and Task Monitor."""
+
+        return {
+            "dataset_key": self.dataset_key,
+            "outcome": self.outcome,
+            "blocked_reason": self.blocked_reason,
+            "attempted": False,
+            "must_not_use_for_decision": True,
+        }
+
+
+@dataclass(frozen=True)
 class CoreCurrentPublicationPreview:
     """Read-only combined preview for all configured core datasets."""
 
     datasets: tuple[CurrentPublicationPreview, ...]
+    deferred_publications: tuple[DeferredCurrentPublicationLane, ...] = ()
 
     @property
     def ready(self) -> bool:
         """Return whether every configured dataset has exact universe coverage."""
 
-        return bool(self.datasets) and all(item.ready for item in self.datasets)
+        return (
+            bool(self.datasets)
+            and not self.deferred_publications
+            and all(item.ready for item in self.datasets)
+        )
 
     @property
     def member_count(self) -> int:
@@ -469,6 +511,8 @@ class CoreCurrentPublicationPreview:
             "dataset_count": len(self.datasets),
             "member_count": self.member_count,
             "datasets": [item.to_dict() for item in self.datasets],
+            "deferred_publications": [item.to_dict() for item in self.deferred_publications],
+            "must_not_use_for_decision": bool(self.deferred_publications),
         }
 
 
@@ -478,6 +522,7 @@ class CoreCurrentPublicationRebuildResult:
 
     publications: tuple[CanonicalPublication, ...]
     covered_asset_count: int
+    deferred_publications: tuple[DeferredCurrentPublicationLane, ...] = ()
 
     def __post_init__(self) -> None:
         if self.covered_asset_count <= 0:
@@ -509,8 +554,19 @@ class CoreCurrentPublicationRebuildResult:
 
         return {
             "published_count": self.published_count,
+            "outcome": "partial" if self.deferred_publications else "success",
+            "success": not self.deferred_publications,
+            "stage": "financial_publication" if self.deferred_publications else "complete",
+            "error_code": (
+                self.deferred_publications[0].blocked_reason if self.deferred_publications else ""
+            ),
+            "blocked_reason": (
+                self.deferred_publications[0].blocked_reason if self.deferred_publications else ""
+            ),
+            "must_not_use_for_decision": bool(self.deferred_publications),
             "run_id": self.run_id,
             "publication_ids": list(self.publication_ids),
+            "deferred_publications": [item.to_dict() for item in self.deferred_publications],
             "datasets": [
                 {
                     "dataset_key": publication.dataset_key,
@@ -542,15 +598,28 @@ class CoreCurrentPublicationRebuildUseCase:
         rebuilders: tuple[CurrentPublicationRebuildUseCase, ...],
         transaction: Callable[[], AbstractContextManager[None]],
         authority_preflight: Callable[[datetime], None],
+        deferred_dataset_keys: tuple[str, ...] = (),
     ) -> None:
         if not rebuilders:
             raise ValueError("At least one current-publication rebuilder is required")
         dataset_keys = [rebuilder.dataset.dataset_key for rebuilder in rebuilders]
         if len(dataset_keys) != len(set(dataset_keys)):
             raise ValueError("Current-publication rebuilders must have unique datasets")
+        if len(deferred_dataset_keys) != len(set(deferred_dataset_keys)) or set(
+            dataset_keys
+        ).intersection(deferred_dataset_keys):
+            raise ValueError("Deferred current-publication datasets must be unique and unselected")
         self._rebuilders = rebuilders
         self._transaction = transaction
         self._authority_preflight = authority_preflight
+        self._deferred_publications = tuple(
+            DeferredCurrentPublicationLane(
+                dataset_key=dataset_key,
+                outcome="blocked",
+                blocked_reason=FINANCIAL_CAPACITY_RECEIPT_REQUIRED.lower(),
+            )
+            for dataset_key in deferred_dataset_keys
+        )
 
     @property
     def rebuilders(self) -> tuple[CurrentPublicationRebuildUseCase, ...]:
@@ -591,7 +660,10 @@ class CoreCurrentPublicationRebuildUseCase:
                 )
                 for rebuilder in self._rebuilders
             )
-        return CoreCurrentPublicationPreview(datasets=previews)
+        return CoreCurrentPublicationPreview(
+            datasets=previews,
+            deferred_publications=self._deferred_publications,
+        )
 
     def execute(
         self,
@@ -607,6 +679,8 @@ class CoreCurrentPublicationRebuildUseCase:
         """Publish all datasets in one transaction or leave all current rows intact."""
 
         observed_at = published_at or datetime.now(UTC)
+        for rebuilder in self._rebuilders:
+            rebuilder.validate_execution_lane()
         self._authority_preflight(observed_at)
         exclusions_by_dataset = scope_exclusions_by_dataset or {}
         self._validate_scope_exclusion_dataset_keys(exclusions_by_dataset)
@@ -636,6 +710,7 @@ class CoreCurrentPublicationRebuildUseCase:
         return CoreCurrentPublicationRebuildResult(
             publications=publications,
             covered_asset_count=covered_asset_count,
+            deferred_publications=self._deferred_publications,
         )
 
     def _validate_scope_exclusion_dataset_keys(
@@ -674,6 +749,9 @@ __all__ = [
     "CoreCurrentPublicationRebuildResult",
     "CoreCurrentPublicationRebuildUseCase",
     "CurrentPublicationCandidateRepositoryProtocol",
+    "DeferredCurrentPublicationLane",
+    "FINANCIAL_CAPACITY_RECEIPT_REQUIRED",
+    "FinancialPublicationLaneRequiredError",
     "CurrentPublicationCandidateSnapshot",
     "CurrentPublicationDataset",
     "CurrentPublicationPreview",

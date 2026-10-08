@@ -25,8 +25,8 @@ class Command(BaseCommand):
     """Expose a dry-run-first operator boundary for core publication rebuilds."""
 
     help = (
-        "Preview full active-A-share quote/price/valuation/financial current publications; "
-        "use --execute with an operator identity to commit atomically."
+        "Preview active-A-share quote/price/valuation publications; financial current "
+        "publication is receipt-gated and owned by its dedicated workflow."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -35,7 +35,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--execute",
             action="store_true",
-            help="Commit all four publications atomically after exact coverage validation.",
+            help="Commit quote, price, and valuation publications after exact coverage validation.",
         )
         parser.add_argument(
             "--operator",

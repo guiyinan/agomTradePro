@@ -14,6 +14,7 @@ from apps.data_center.application.current_publication_rebuild import (
     CurrentPublicationPreview,
     CurrentPublicationRebuildUseCase,
     CurrentPublicationScopeExclusion,
+    FinancialPublicationLaneRequiredError,
 )
 from apps.data_center.application.publication_utils import (
     current_publication_id_for_hash,
@@ -1271,12 +1272,13 @@ def test_rebuild_rejects_wrong_fact_table_and_future_observation() -> None:
         )
 
 
-def test_financial_rebuild_allows_multiple_latest_metrics_per_asset() -> None:
+def test_financial_candidate_preparation_allows_multiple_latest_metrics_per_asset() -> None:
     dataset = CurrentPublicationDataset(
         dataset_key="equity.financial.fact",
         fact_table="data_center_financial_fact",
         created_by="ops.current_publication_rebuild",
     )
+    publications = _PublicationRepository()
     use_case = _use_case(
         dataset,
         [
@@ -1284,20 +1286,52 @@ def test_financial_rebuild_allows_multiple_latest_metrics_per_asset() -> None:
             _reference("000001.SZ", "2", dataset=dataset, suffix="net_profit"),
             _reference("600000.SH", "3", dataset=dataset, suffix="revenue"),
         ],
+        publications,
     )
 
-    publication = use_case.execute(
+    candidate = use_case.prepare_candidate(
         asset_codes=["000001.SZ", "600000.SH"],
         published_at=NOW,
     )
 
-    assert publication.member_count == 3
-    assert publication.coverage.requested_count == 3
-    assert publication.coverage.selected_count == 3
+    assert candidate.publication.member_count == 3
+    assert candidate.publication.coverage.requested_count == 3
+    assert candidate.publication.coverage.selected_count == 3
+    assert publications.published == []
 
 
-def test_core_rebuild_wraps_all_three_publications_in_one_transaction() -> None:
+def test_generic_financial_execute_fails_before_candidate_or_pointer_write() -> None:
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.financial.fact",
+        fact_table="data_center_financial_fact",
+        created_by="ops.current_publication_rebuild",
+    )
+    candidates = _CandidateRepository([_reference("000001.SZ", "1", dataset=dataset)])
+    publications = _PublicationRepository()
+    use_case = CurrentPublicationRebuildUseCase(
+        dataset=dataset,
+        candidate_repository=candidates,
+        publication_repository=publications,
+        policy_repository=_PolicyRepository(),
+    )
+
+    with pytest.raises(FinancialPublicationLaneRequiredError) as caught:
+        use_case.execute(asset_codes=["000001.SZ"], published_at=NOW)
+
+    assert caught.value.code == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert candidates.calls == []
+    assert publications.published == []
+    assert publications.current == {}
+    assert publications.members == {}
+
+
+def test_core_rebuild_wraps_quote_price_and_valuation_in_one_transaction() -> None:
     datasets = (
+        CurrentPublicationDataset(
+            "equity.quote.snapshot",
+            "data_center_quote_snapshot",
+            "ops.current_publication_rebuild",
+        ),
         CurrentPublicationDataset(
             "equity.price.bar",
             "data_center_price_bar",
@@ -1306,11 +1340,6 @@ def test_core_rebuild_wraps_all_three_publications_in_one_transaction() -> None:
         CurrentPublicationDataset(
             "equity.valuation.fact",
             "data_center_valuation_fact",
-            "ops.current_publication_rebuild",
-        ),
-        CurrentPublicationDataset(
-            "equity.financial.fact",
-            "data_center_financial_fact",
             "ops.current_publication_rebuild",
         ),
     )
@@ -1345,6 +1374,60 @@ def test_core_rebuild_wraps_all_three_publications_in_one_transaction() -> None:
     assert all(
         str(item["policy_identity"]).startswith("1.0:1.0") for item in result.to_dict()["datasets"]
     )
+
+
+def test_core_rebuild_with_financial_selection_fails_before_transaction_or_any_publication() -> (
+    None
+):
+    datasets = (
+        CurrentPublicationDataset(
+            "equity.quote.snapshot",
+            "data_center_quote_snapshot",
+            "ops.current_publication_rebuild",
+        ),
+        CurrentPublicationDataset(
+            "equity.price.bar",
+            "data_center_price_bar",
+            "ops.current_publication_rebuild",
+        ),
+        CurrentPublicationDataset(
+            "equity.valuation.fact",
+            "data_center_valuation_fact",
+            "ops.current_publication_rebuild",
+        ),
+        CurrentPublicationDataset(
+            "equity.financial.fact",
+            "data_center_financial_fact",
+            "ops.current_publication_rebuild",
+        ),
+    )
+    publications = _PublicationRepository()
+    rebuilders = tuple(
+        _use_case(
+            dataset,
+            [_reference("000001.SZ", str(index), dataset=dataset)],
+            publications,
+        )
+        for index, dataset in enumerate(datasets, start=1)
+    )
+    transaction_entries: list[str] = []
+    authority_entries: list[str] = []
+    coordinator = CoreCurrentPublicationRebuildUseCase(
+        rebuilders=rebuilders,
+        transaction=lambda: transaction_entries.append("enter") or nullcontext(),
+        authority_preflight=lambda _as_of: authority_entries.append("preflight"),
+    )
+
+    with pytest.raises(FinancialPublicationLaneRequiredError) as caught:
+        coordinator.execute(asset_codes=["000001.SZ"], published_at=NOW)
+
+    assert caught.value.code == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert authority_entries == []
+    assert transaction_entries == []
+    assert all(rebuilder._candidates.calls == [] for rebuilder in rebuilders)
+    assert publications.published == []
+    assert publications.current == {}
+    assert publications.members == {}
 
 
 def test_core_preview_is_read_only() -> None:

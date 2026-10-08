@@ -31,7 +31,11 @@ from apps.data_center.domain.protocols import (
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
 from apps.data_center.domain.publication_snapshot_policy import publication_selected_source_summary
 
-from .control_plane import CanonicalPublicationRepositoryPort, PublishCanonicalDatasetUseCase
+from .control_plane import (
+    CanonicalPublicationRepositoryPort,
+    PublishCanonicalDatasetUseCase,
+    require_generic_publication_lane,
+)
 from .publication_idempotence import publication_replay_matches
 from .publication_sync_market import (
     PriceBarPublicationCandidateRepositoryProtocol,
@@ -557,6 +561,7 @@ class PublishFinancialBatchUseCase:
     ) -> CanonicalPublication | None:
         """Resolve and atomically publish only facts with available-at evidence."""
 
+        require_generic_publication_lane(self.dataset_key)
         normalized_key = publication_key.strip()
         if not normalized_key:
             raise ValueError("publication_key cannot be empty")

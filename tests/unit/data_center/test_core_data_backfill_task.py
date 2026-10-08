@@ -11,6 +11,10 @@ import pytest
 
 from apps.data_center.application.backfill_control_plane import backfill_control_plane_ids
 from apps.data_center.application.batch_identity import ProviderAssetIdentityError
+from apps.data_center.application.current_publication_rebuild import (
+    DeferredCurrentPublicationLane,
+    FinancialPublicationLaneRequiredError,
+)
 from apps.data_center.application.tasks import (
     _publication_evidence_hash_from_result,
     backfill_active_a_share_core_data_batch_task,
@@ -23,11 +27,10 @@ from apps.data_center.domain.control_plane import (
 from core.exceptions import InvalidInputError
 
 AUTHORITY_HASH = "a" * 64
-PUBLICATION_DATASETS = (
+GENERIC_PUBLICATION_DATASETS = (
     "equity.quote.snapshot",
     "equity.price.bar",
     "equity.valuation.fact",
-    "equity.financial.fact",
 )
 
 
@@ -44,54 +47,62 @@ def _universe_hash(*asset_codes: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _publication_result(
-    member_count: int,
-    *,
-    financial_member_count: int | None = None,
-) -> SimpleNamespace:
-    """Return exact four-Publication evidence for task tests."""
+def _publication_result(member_count: int) -> SimpleNamespace:
+    """Return exact generic-market publication and deferred-lane task evidence."""
 
-    member_counts = {
-        dataset_key: (
-            financial_member_count
-            if dataset_key == "equity.financial.fact" and financial_member_count is not None
-            else member_count
-        )
-        for dataset_key in PUBLICATION_DATASETS
-    }
     datasets = [
         {
             "dataset_key": dataset_key,
             "publication_id": f"publication-{index}",
             "publication_hash": format(index + 1, "x") * 64,
-            "member_count": member_counts[dataset_key],
+            "member_count": member_count,
             "covered_asset_count": member_count,
             "policy_identity": f"p2:{index + 1}:{format(index + 5, 'x') * 64}",
         }
-        for index, dataset_key in enumerate(PUBLICATION_DATASETS)
+        for index, dataset_key in enumerate(GENERIC_PUBLICATION_DATASETS)
     ]
-    published_count = sum(member_counts.values())
+    published_count = sum(item["member_count"] for item in datasets)
+    deferred_publications = (
+        DeferredCurrentPublicationLane(
+            dataset_key="equity.financial.fact",
+            outcome="blocked",
+            blocked_reason="financial_capacity_receipt_required",
+        ),
+    )
     return SimpleNamespace(
         published_count=published_count,
         datasets=datasets,
+        deferred_publications=deferred_publications,
         to_dict=lambda: {
             "published_count": published_count,
+            "deferred_publications": [item.to_dict() for item in deferred_publications],
             "datasets": datasets,
         },
     )
 
 
-def test_four_publication_evidence_allows_financial_member_count_to_differ() -> None:
-    result = _publication_result(2, financial_member_count=5)
+def test_three_publication_evidence_binds_the_deferred_financial_lane() -> None:
+    result = _publication_result(2)
 
     digest = _publication_evidence_hash_from_result(result, expected_asset_count=2)
 
     assert len(digest) == 64
-    assert result.published_count == 11
+    assert result.published_count == 6
 
 
-def test_four_publication_evidence_rejects_asset_coverage_drift() -> None:
-    result = _publication_result(2, financial_member_count=5)
+def test_publication_evidence_rejects_missing_deferred_financial_lane() -> None:
+    result = _publication_result(2)
+    result.to_dict = lambda: {
+        "published_count": result.published_count,
+        "datasets": result.datasets,
+    }
+
+    with pytest.raises(ValueError, match="financial publication lane status is missing"):
+        _publication_evidence_hash_from_result(result, expected_asset_count=2)
+
+
+def test_three_publication_evidence_rejects_asset_coverage_drift() -> None:
+    result = _publication_result(2)
     result.datasets[-1]["covered_asset_count"] = 1
 
     with pytest.raises(ValueError, match="covered-asset-count"):
@@ -99,8 +110,8 @@ def test_four_publication_evidence_rejects_asset_coverage_drift() -> None:
 
 
 @pytest.mark.parametrize("field_name", ["publication_id", "publication_hash"])
-def test_four_publication_evidence_rejects_reused_identity(field_name: str) -> None:
-    result = _publication_result(2, financial_member_count=5)
+def test_three_publication_evidence_rejects_reused_identity(field_name: str) -> None:
+    result = _publication_result(2)
     result.datasets[-1][field_name] = result.datasets[0][field_name]
 
     with pytest.raises(ValueError, match=f"{field_name} evidence must be unique"):
@@ -465,17 +476,29 @@ def test_backfill_batch_blocks_oversized_authority_checkpoint_before_repository_
     universe.assert_not_called()
 
 
-def test_backfill_batch_reports_all_success_with_checkpoint(mocker) -> None:
+def test_backfill_batch_reports_market_success_and_financial_lane_block(mocker) -> None:
     factory, coordinator = _patch_backfill_dependencies(mocker)
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == "partial"
+    assert result["success"] is False
+    assert result["stage"] == "financial_publication"
+    assert result["blocked_reason"] == "financial_capacity_receipt_required"
+    assert result["must_not_use_for_decision"] is True
+    assert result["deferred_publications"] == [result["financial_publication"]]
+    assert result["financial_publication"] == {
+        "dataset_key": "equity.financial.fact",
+        "outcome": "blocked",
+        "blocked_reason": "financial_capacity_receipt_required",
+        "attempted": False,
+        "must_not_use_for_decision": True,
+    }
     assert result["requested"] == 2
     assert result["succeeded"] == 2
     assert result["failed"] == 0
     assert result["stored"] == 8
-    assert result["published"] == 8
+    assert result["published"] == 6
     assert result["checkpoint"] == {
         "offset": 0,
         "next_offset": 2,
@@ -505,7 +528,8 @@ def test_backfill_batch_records_all_item_phase_attempts(
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == "partial"
+    assert result["financial_publication"]["outcome"] == "blocked"
     assert [
         len(call.kwargs["asset_codes"]) for call in item_attempts.begin_many.call_args_list
     ] == [2, 2, 2, 2, 2]
@@ -636,7 +660,7 @@ def test_backfill_batch_persists_heterogeneous_terminal_counts_once_per_phase(
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
-    assert result["outcome"] == "success"
+    assert result["outcome"] == "partial"
     price_batches = [
         call.args[0]
         for call in item_attempts.finish_many.call_args_list
@@ -697,7 +721,8 @@ def test_backfill_resume_accepts_exact_frozen_universe_hash(mocker) -> None:
     )
 
     assert first["checkpoint"]["complete"] is False
-    assert second["outcome"] == "success"
+    assert second["outcome"] == "partial"
+    assert second["blocked_reason"] == "financial_capacity_receipt_required"
     assert second["checkpoint"]["complete"] is True
     assert second["checkpoint"]["universe_hash"] == first["checkpoint"]["universe_hash"]
 
@@ -776,7 +801,7 @@ def test_backfill_batch_persists_stable_run_batch_and_cursor_on_retry(
     assert batch_saves[0].args[0].requested == 2
     assert batch_saves[0].args[0].succeeded == 2
     assert batch_saves[0].args[0].stored == 8
-    assert batch_saves[0].args[0].published == 8
+    assert batch_saves[0].args[0].published == 6
     assert json.loads(checkpoint_saves[0].args[0].cursor_value) == first["checkpoint"]
     assert json.loads(checkpoint_saves[1].args[0].cursor_value) == second["checkpoint"]
 
@@ -805,7 +830,7 @@ def test_backfill_batch_reports_partial_failure(mocker) -> None:
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
 
     assert result["outcome"] == "partial"
-    assert result["success"] is True
+    assert result["success"] is False
     assert result["succeeded"] == 1
     assert result["failed"] == 1
     assert result["domains"]["price"]["failed"] == 1
@@ -1007,11 +1032,42 @@ def test_backfill_batch_blocks_and_keeps_checkpoint_open_when_publication_fails(
         == {
             "domain": "publication",
             "asset_code": "universe",
-            "error": "rebuild_failed",
+            "error": "current_publication_rebuild_failed",
         }
         for error in result["errors"]
     )
     coordinator.execute.assert_called_once()
+
+
+def test_backfill_explicit_financial_selection_preserves_stable_lane_block(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    _factory, coordinator = _patch_backfill_dependencies(mocker)
+    coordinator.execute.side_effect = FinancialPublicationLaneRequiredError()
+
+    result = backfill_active_a_share_core_data_batch_task.run(batch_size=2)
+
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "financial_publication"
+    assert result["blocked_reason"] == "financial_capacity_receipt_required"
+    assert result["financial_publication"] == {
+        "dataset_key": "equity.financial.fact",
+        "outcome": "blocked",
+        "blocked_reason": "financial_capacity_receipt_required",
+        "attempted": False,
+        "must_not_use_for_decision": True,
+    }
+    assert result["published"] == 0
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
+    assert _patch_control_plane_repositories["run"].save.call_args.args[0].error_code == (
+        "financial_capacity_receipt_required"
+    )
+    assert (
+        _patch_control_plane_repositories["item_attempt"].finish.call_args.kwargs["error_code"]
+        == "financial_capacity_receipt_required"
+    )
 
 
 def test_backfill_batch_reports_missing_provider_as_failure(mocker) -> None:

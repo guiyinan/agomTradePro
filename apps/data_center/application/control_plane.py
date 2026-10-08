@@ -30,10 +30,35 @@ from apps.data_center.domain.publication_snapshot_policy import (
     publication_policy_coverage_ratio,
     validate_publication_snapshot_policy,
 )
+from core.exceptions import BusinessLogicError
 from core.integration.data_center_audit import (
     AuditOutcome,
     DataPublicationRollbackAuditObservation,
 )
+
+FINANCIAL_CAPACITY_RECEIPT_REQUIRED = "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+_FINANCIAL_DATASET_KEY = "equity.financial.fact"
+
+
+class FinancialPublicationLaneRequiredError(BusinessLogicError):
+    """Reject generic writes to the receipt-gated financial current lane."""
+
+    code = FINANCIAL_CAPACITY_RECEIPT_REQUIRED
+    default_message = "financial_capacity_receipt_required"
+    default_code = FINANCIAL_CAPACITY_RECEIPT_REQUIRED
+    default_status_code = 409
+
+    def __init__(self) -> None:
+        """Expose a stable task-safe code without runtime details."""
+
+        super().__init__(self.default_message, code=self.code, status_code=self.default_status_code)
+
+
+def require_generic_publication_lane(dataset_key: str) -> None:
+    """Prevent generic publication execution from bypassing governed lanes."""
+
+    if dataset_key == _FINANCIAL_DATASET_KEY:
+        raise FinancialPublicationLaneRequiredError()
 
 
 class SyncRunRepositoryPort(Protocol):
@@ -202,6 +227,7 @@ class PublishCanonicalDatasetUseCase:
     ) -> CanonicalPublication:
         """Validate policy, persist members, and publish atomically via the port."""
 
+        require_generic_publication_lane(publication.dataset_key)
         if publication.dataset_key != policy.dataset.value:
             raise ValueError("Publication dataset_key does not match policy")
         if publication.policy_version != policy.identity:
@@ -400,6 +426,8 @@ class RollbackCanonicalPublicationUseCase:
 
 __all__ = [
     "CanonicalPublicationRepositoryPort",
+    "FINANCIAL_CAPACITY_RECEIPT_REQUIRED",
+    "FinancialPublicationLaneRequiredError",
     "PublishCanonicalDatasetUseCase",
     "RollbackCanonicalPublicationUseCase",
     "publication_rollback_evidence_content_hash",
@@ -409,4 +437,5 @@ __all__ = [
     "SyncBatchRepositoryPort",
     "SyncCheckpointRepositoryPort",
     "SyncRunRepositoryPort",
+    "require_generic_publication_lane",
 ]

@@ -217,7 +217,7 @@
         },
         "all_success": {
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",
-          "test_function": "test_backfill_batch_reports_all_success_with_checkpoint"
+          "test_function": "test_backfill_batch_reports_market_success_and_financial_lane_block"
         },
         "partial_failure": {
           "test_file": "tests/unit/data_center/test_core_data_backfill_task.py",

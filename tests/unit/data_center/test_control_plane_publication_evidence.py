@@ -7,7 +7,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from apps.data_center.application.control_plane import PublishCanonicalDatasetUseCase
+from apps.data_center.application.control_plane import (
+    FinancialPublicationLaneRequiredError,
+    PublishCanonicalDatasetUseCase,
+)
 from apps.data_center.application.publication_utils import member_reference, publication_hash
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
@@ -114,6 +117,35 @@ def test_generic_publish_port_rejects_missing_raw_scope_before_repository() -> N
             policy=policy,
             members=(replace(member, raw_payload_scope=""),),
         )
+    assert repository.published is None
+
+
+def test_generic_publish_port_blocks_financial_current_before_repository() -> None:
+    market_policy = _policy()
+    market_member = _member(market_policy)
+    financial_policy = replace(
+        market_policy,
+        dataset=DatasetKey("equity.financial.fact", "1.0", "1.0"),
+    )
+    financial_member = replace(
+        market_member,
+        dataset_key=financial_policy.dataset.value,
+        fact_table="data_center_financial_fact",
+    )
+    financial_publication = replace(
+        _publication(market_policy, market_member),
+        dataset_key=financial_policy.dataset.value,
+    )
+    repository = _Repository()
+
+    with pytest.raises(FinancialPublicationLaneRequiredError) as caught:
+        PublishCanonicalDatasetUseCase(repository).execute(
+            financial_publication,
+            policy=financial_policy,
+            members=(financial_member,),
+        )
+
+    assert caught.value.code == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
     assert repository.published is None
 
 

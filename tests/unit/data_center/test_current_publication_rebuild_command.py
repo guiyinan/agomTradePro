@@ -29,7 +29,19 @@ def test_rebuild_command_is_dry_run_by_default(mocker) -> None:
     coordinator = mocker.Mock()
     coordinator.preview.return_value = SimpleNamespace(
         ready=True,
-        to_dict=lambda: {"ready": True, "member_count": 6},
+        to_dict=lambda: {
+            "ready": False,
+            "member_count": 6,
+            "deferred_publications": [
+                {
+                    "dataset_key": "equity.financial.fact",
+                    "outcome": "blocked",
+                    "blocked_reason": "financial_capacity_receipt_required",
+                    "attempted": False,
+                    "must_not_use_for_decision": True,
+                }
+            ],
+        },
     )
     factory = mocker.patch(
         f"{COMMAND_MODULE}.make_core_current_publication_rebuild_use_case",
@@ -46,7 +58,7 @@ def test_rebuild_command_is_dry_run_by_default(mocker) -> None:
 
     payload = json.loads(stdout.getvalue())
     assert payload["mode"] == "dry_run"
-    assert payload["ready"] is True
+    assert payload["ready"] is False
     coordinator.preview.assert_called_once()
     coordinator.execute.assert_not_called()
     authority_preflight.assert_not_called()
@@ -67,7 +79,22 @@ def test_rebuild_command_executes_with_explicit_operator(mocker) -> None:
         published_count=6,
         to_dict=lambda: {
             "published_count": 6,
-            "publication_ids": ["price", "valuation", "financial"],
+            "publication_ids": ["quote", "price", "valuation"],
+            "outcome": "partial",
+            "success": False,
+            "stage": "financial_publication",
+            "error_code": "financial_capacity_receipt_required",
+            "blocked_reason": "financial_capacity_receipt_required",
+            "must_not_use_for_decision": True,
+            "deferred_publications": [
+                {
+                    "dataset_key": "equity.financial.fact",
+                    "outcome": "blocked",
+                    "blocked_reason": "financial_capacity_receipt_required",
+                    "attempted": False,
+                    "must_not_use_for_decision": True,
+                }
+            ],
         },
     )
     coordinator = mocker.Mock()
@@ -98,6 +125,8 @@ def test_rebuild_command_executes_with_explicit_operator(mocker) -> None:
     assert payload["mode"] == "execute"
     assert payload["operator"] == "django-user:7"
     assert payload["published_count"] == 6
+    assert payload["outcome"] == "partial"
+    assert payload["blocked_reason"] == "financial_capacity_receipt_required"
     coordinator.execute.assert_called_once()
     factory.assert_called_once_with(created_by="ops.current_publication_rebuild:django-user:7")
     authority_preflight.assert_called_once()

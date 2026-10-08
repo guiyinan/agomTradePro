@@ -11,7 +11,7 @@ def publication_evidence_hash_from_result(
     result: object,
     expected_asset_count: int,
 ) -> str:
-    """Hash exact four-Publication identity, policy and asset coverage evidence."""
+    """Hash exact generic-market Publications and the deferred financial lane status."""
 
     if (
         isinstance(expected_asset_count, bool)
@@ -27,13 +27,12 @@ def publication_evidence_hash_from_result(
     if not isinstance(payload, Mapping):
         raise ValueError("publication rebuild evidence must be a mapping")
     raw_datasets = payload.get("datasets")
-    if not isinstance(raw_datasets, list) or len(raw_datasets) != 4:
-        raise ValueError("publication rebuild must commit exactly four datasets")
+    if not isinstance(raw_datasets, list) or len(raw_datasets) != 3:
+        raise ValueError("generic publication rebuild must commit exactly three datasets")
     expected_datasets = {
         "equity.quote.snapshot",
         "equity.price.bar",
         "equity.valuation.fact",
-        "equity.financial.fact",
     }
     normalized: list[dict[str, object]] = []
     normalized_member_total = 0
@@ -88,6 +87,22 @@ def publication_evidence_hash_from_result(
         )
     if {item["dataset_key"] for item in normalized} != expected_datasets:
         raise ValueError("publication rebuild evidence is incomplete")
+    raw_deferred = payload.get("deferred_publications")
+    if (
+        not isinstance(raw_deferred, list)
+        or len(raw_deferred) != 1
+        or not isinstance(raw_deferred[0], Mapping)
+    ):
+        raise ValueError("financial publication lane status is missing")
+    financial_lane = raw_deferred[0]
+    if (
+        financial_lane.get("dataset_key") != "equity.financial.fact"
+        or financial_lane.get("outcome") != "blocked"
+        or financial_lane.get("blocked_reason") != "financial_capacity_receipt_required"
+        or financial_lane.get("attempted") is not False
+        or financial_lane.get("must_not_use_for_decision") is not True
+    ):
+        raise ValueError("financial publication lane status is invalid")
     for field_name in ("publication_id", "publication_hash"):
         values = [str(item[field_name]) for item in normalized]
         if len(set(values)) != len(values):
@@ -102,7 +117,18 @@ def publication_evidence_hash_from_result(
     if getattr(result, "published_count", None) != published_count:
         raise ValueError("publication result count differs from canonical evidence")
     encoded = json.dumps(
-        sorted(normalized, key=lambda item: str(item["dataset_key"])),
+        {
+            "datasets": sorted(normalized, key=lambda item: str(item["dataset_key"])),
+            "deferred_publications": [
+                {
+                    "dataset_key": "equity.financial.fact",
+                    "outcome": "blocked",
+                    "blocked_reason": "financial_capacity_receipt_required",
+                    "attempted": False,
+                    "must_not_use_for_decision": True,
+                }
+            ],
+        },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

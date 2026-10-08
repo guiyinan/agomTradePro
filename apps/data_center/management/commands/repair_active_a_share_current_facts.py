@@ -27,8 +27,9 @@ class Command(BaseCommand):
 
     help = (
         "Preview active-A-share current-fact coverage; use --execute and an "
-        "operator identity to refresh real quote/valuation facts, repair financial "
-        "availability, materialize completed-session prices, and publish atomically."
+        "operator identity to refresh quote/valuation facts, repair financial "
+        "availability, materialize completed-session prices, and publish quote/price/valuation. "
+        "Financial current publication remains receipt-gated in its dedicated workflow."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -37,7 +38,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--execute",
             action="store_true",
-            help="Perform provider writes and the final all-dataset publication.",
+            help="Perform provider writes and publish quote, price, and valuation datasets.",
         )
         parser.add_argument(
             "--operator",

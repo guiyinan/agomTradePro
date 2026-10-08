@@ -447,6 +447,25 @@ class CoreCurrentFactRefreshResult:
         """Return stable JSON-safe execution evidence."""
 
         return {
+            "success": not self.publications.deferred_publications,
+            "outcome": "partial" if self.publications.deferred_publications else "success",
+            "stage": (
+                "financial_publication" if self.publications.deferred_publications else "complete"
+            ),
+            "error_code": (
+                self.publications.deferred_publications[0].blocked_reason
+                if self.publications.deferred_publications
+                else ""
+            ),
+            "blocked_reason": (
+                self.publications.deferred_publications[0].blocked_reason
+                if self.publications.deferred_publications
+                else ""
+            ),
+            "must_not_use_for_decision": bool(self.publications.deferred_publications),
+            "deferred_publications": [
+                item.to_dict() for item in self.publications.deferred_publications
+            ],
             "quote_stored_count": self.quote_stored_count,
             "valuation_stored_count": self.valuation_stored_count,
             "price_probe_stored_count": self.price_probe_stored_count,

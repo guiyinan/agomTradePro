@@ -30,6 +30,13 @@ from core.integration.data_center_audit import (
     preflight_data_reliability_audit_runtime,
 )
 
+_GENERIC_CURRENT_DATASET_KEYS = (
+    "equity.quote.snapshot",
+    "equity.price.bar",
+    "equity.valuation.fact",
+)
+_FINANCIAL_DATASET_KEY = "equity.financial.fact"
+
 
 def build_current_publication_rebuild(
     *,
@@ -104,6 +111,9 @@ def build_current_publication_rebuild(
             or not set(dataset_keys) <= available
         ):
             raise ValueError("Invalid current-publication dataset selection")
+    selected_dataset_keys = (
+        set(_GENERIC_CURRENT_DATASET_KEYS) if dataset_keys is None else set(dataset_keys)
+    )
     rebuilders = tuple(
         CurrentPublicationRebuildUseCase(
             dataset=dataset,
@@ -112,10 +122,11 @@ def build_current_publication_rebuild(
             policy_repository=policy_repository,
         )
         for dataset, repository in specifications
-        if dataset_keys is None or dataset.dataset_key in dataset_keys
+        if dataset.dataset_key in selected_dataset_keys
     )
     return CoreCurrentPublicationRebuildUseCase(
         rebuilders=rebuilders,
         transaction=transaction.atomic,
         authority_preflight=preflight_current_authority,
+        deferred_dataset_keys=((_FINANCIAL_DATASET_KEY,) if dataset_keys is None else ()),
     )

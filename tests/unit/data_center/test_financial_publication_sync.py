@@ -99,13 +99,19 @@ def test_financial_slice_result_preserves_observed_over_limit_failure_evidence()
 class _CandidateRepository:
     def __init__(self, references: list[PublicationFactReference]) -> None:
         self.references = references
+        self.calls = 0
 
     def list_publication_candidates(self, _facts):
+        self.calls += 1
         return list(self.references)
 
 
 class _PolicyRepository:
+    def __init__(self) -> None:
+        self.calls = 0
+
     def get_active(self, _dataset_key: str):
+        self.calls += 1
         return PublicationPolicy(
             dataset=DatasetKey("equity.financial.fact", "1.0", "1.0"),
             minimum_coverage_ratio=1.0,
@@ -261,81 +267,45 @@ def _reference(
     )
 
 
-def test_financial_publication_uses_available_at_and_exact_members() -> None:
+def test_generic_financial_batch_fails_before_candidate_or_pointer_access() -> None:
+    from apps.data_center.application.control_plane import FinancialPublicationLaneRequiredError
+
+    candidates = _CandidateRepository([_reference()])
+    policies = _PolicyRepository()
     repository = _PublicationRepository()
     use_case = PublishFinancialBatchUseCase(
-        fact_repository=_CandidateRepository([_reference()]),
+        fact_repository=candidates,
         publication_repository=repository,
-        policy_repository=_PolicyRepository(),
+        policy_repository=policies,
     )
 
-    publication = use_case.execute(
-        [_fact()],
-        provider_name="provider-main",
-        published_at=PUBLISHED_AT,
-    )
-
-    assert publication is not None
-    assert publication.as_of == AVAILABLE_AT
-    assert publication.as_of != _fact().fetched_at
-    assert publication.coverage.selected_count == 1
-    assert publication.coverage.missing_count == 0
-    assert repository.published[0][1][0].fact_pk == "201"
-    assert repository.published[0][1][0].observed_at == AVAILABLE_AT
-
-
-def test_financial_publication_is_idempotent_for_same_snapshot() -> None:
-    repository = _PublicationRepository()
-    use_case = PublishFinancialBatchUseCase(
-        fact_repository=_CandidateRepository([_reference()]),
-        publication_repository=repository,
-        policy_repository=_PolicyRepository(),
-    )
-
-    first = use_case.execute([_fact()], provider_name="provider-main", published_at=PUBLISHED_AT)
-    second = use_case.execute([_fact()], provider_name="provider-main", published_at=PUBLISHED_AT)
-
-    assert first is second
-    assert len(repository.published) == 1
-
-
-def test_financial_publication_fails_closed_below_coverage_policy() -> None:
-    facts = [_fact("000001.SZ"), _fact("600000.SH")]
-    use_case = PublishFinancialBatchUseCase(
-        fact_repository=_CandidateRepository([_reference("000001.SZ")]),
-        publication_repository=_PublicationRepository(),
-        policy_repository=_PolicyRepository(),
-    )
-
-    with pytest.raises(ValueError, match="coverage"):
-        use_case.execute(facts, provider_name="provider-main", published_at=PUBLISHED_AT)
-
-
-def test_financial_publication_blocks_when_available_at_is_missing() -> None:
-    use_case = PublishFinancialBatchUseCase(
-        fact_repository=_CandidateRepository([]),
-        publication_repository=_PublicationRepository(),
-        policy_repository=_PolicyRepository(),
-    )
-
-    with pytest.raises(ValueError, match="available_at"):
-        use_case.execute(
-            [_fact(available_at=None)],
-            provider_name="provider-main",
-            published_at=PUBLISHED_AT,
-        )
-
-
-def test_financial_publication_rejects_future_available_at() -> None:
-    future = datetime(2026, 8, 5, tzinfo=UTC)
-    use_case = PublishFinancialBatchUseCase(
-        fact_repository=_CandidateRepository([_reference(observed_at=future)]),
-        publication_repository=_PublicationRepository(),
-        policy_repository=_PolicyRepository(),
-    )
-
-    with pytest.raises(ValueError, match="availability"):
+    with pytest.raises(FinancialPublicationLaneRequiredError) as caught:
         use_case.execute([_fact()], provider_name="provider-main", published_at=PUBLISHED_AT)
+
+    assert caught.value.code == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert str(caught.value) == "financial_capacity_receipt_required"
+    assert candidates.calls == 0
+    assert policies.calls == 0
+    assert repository.current is None
+    assert repository.published == []
+
+
+def test_generic_financial_batch_is_blocked_even_for_empty_fact_selection() -> None:
+    from apps.data_center.application.control_plane import FinancialPublicationLaneRequiredError
+
+    candidates = _CandidateRepository([])
+    repository = _PublicationRepository()
+    use_case = PublishFinancialBatchUseCase(
+        fact_repository=candidates,
+        publication_repository=repository,
+        policy_repository=_PolicyRepository(),
+    )
+
+    with pytest.raises(FinancialPublicationLaneRequiredError):
+        use_case.execute([], provider_name="provider-main", published_at=PUBLISHED_AT)
+
+    assert candidates.calls == 0
+    assert repository.published == []
 
 
 @pytest.mark.django_db

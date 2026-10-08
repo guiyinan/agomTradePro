@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from apps.data_center.domain.control_plane import (
     SyncItemAttempt,
@@ -19,6 +19,10 @@ from shared.domain.task_outcomes import TaskBusinessOutcome
 
 from .backfill_control_plane import backfill_control_plane_ids, backfill_execution_token
 from .batch_identity import ProviderAssetIdentityError
+from .current_publication_rebuild import (
+    FINANCIAL_CAPACITY_RECEIPT_REQUIRED,
+    DeferredCurrentPublicationLane,
+)
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
 from .sync_use_cases import (
@@ -411,6 +415,7 @@ def run_active_a_share_core_data_backfill_batch(
         for name in ("quote", "price", "valuation", "financial")
     }
     published_total = 0
+    deferred_publications: tuple[DeferredCurrentPublicationLane, ...] = ()
     errors: list[dict[str, str]] = []
     failed_asset_codes: set[str] = set()
     execution_token = backfill_execution_token(idempotency_key)
@@ -1010,6 +1015,7 @@ def run_active_a_share_core_data_backfill_batch(
                     asset_codes=asset_codes,
                     published_at=services.current_time(),
                 )
+                deferred_publications = _deferred_publication_lanes(rebuild_result)
                 rebuild_published_count = services.published_count_from_result(rebuild_result)
                 publication_evidence_hash = services.publication_evidence_hash(
                     rebuild_result,
@@ -1023,9 +1029,21 @@ def run_active_a_share_core_data_backfill_batch(
                     evidence_hash=publication_evidence_hash,
                 ):
                     return item_evidence_blocked_response()
-            except Exception:
+                if deferred_publications:
+                    outcome = TaskBusinessOutcome.PARTIAL
+                    result_stage = "financial_publication"
+                    errors.append(
+                        {
+                            "domain": "publication",
+                            "asset_code": "universe",
+                            "error": deferred_publications[0].blocked_reason,
+                        }
+                    )
+            except Exception as exc:
+                raw_error_code = getattr(exc, "code", "")
+                financial_lane_error = raw_error_code == FINANCIAL_CAPACITY_RECEIPT_REQUIRED
                 outcome = TaskBusinessOutcome.BLOCKED
-                result_stage = "publication"
+                result_stage = "financial_publication" if financial_lane_error else "publication"
                 checkpoint = {
                     **checkpoint,
                     "next_offset": validated_offset,
@@ -1033,17 +1051,30 @@ def run_active_a_share_core_data_backfill_batch(
                 }
                 succeeded_total = 0
                 failed_total = len(batch_codes)
+                error_code = (
+                    FINANCIAL_CAPACITY_RECEIPT_REQUIRED.lower()
+                    if financial_lane_error
+                    else "current_publication_rebuild_failed"
+                )
+                if financial_lane_error:
+                    deferred_publications = (
+                        DeferredCurrentPublicationLane(
+                            dataset_key="equity.financial.fact",
+                            outcome="blocked",
+                            blocked_reason=error_code,
+                        ),
+                    )
                 errors.append(
                     {
                         "domain": "publication",
                         "asset_code": "universe",
-                        "error": "rebuild_failed",
+                        "error": error_code,
                     }
                 )
                 if not finish_attempts(
                     publication_attempts,
                     state=SyncItemAttemptState.FAILED,
-                    error_code="rebuild_failed",
+                    error_code=error_code,
                 ):
                     return item_evidence_blocked_response()
 
@@ -1064,15 +1095,22 @@ def run_active_a_share_core_data_backfill_batch(
             "zero_output"
             if outcome is TaskBusinessOutcome.FAILED and stored_total == 0
             else (
-                "partial_failure"
-                if outcome is TaskBusinessOutcome.PARTIAL
+                deferred_publications[0].blocked_reason
+                if outcome is TaskBusinessOutcome.PARTIAL and deferred_publications
                 else (
-                    "authority_changed_or_expired"
-                    if outcome is TaskBusinessOutcome.BLOCKED and result_stage == "authority"
+                    "partial_failure"
+                    if outcome is TaskBusinessOutcome.PARTIAL
                     else (
-                        "current_publication_rebuild_failed"
+                        errors[-1]["error"]
                         if outcome is TaskBusinessOutcome.BLOCKED
-                        else ""
+                        and result_stage in {"publication", "financial_publication"}
+                        and errors
+                        else (
+                            "authority_changed_or_expired"
+                            if outcome is TaskBusinessOutcome.BLOCKED
+                            and result_stage == "authority"
+                            else ""
+                        )
                     )
                 )
             )
@@ -1080,9 +1118,19 @@ def run_active_a_share_core_data_backfill_batch(
         error_message=(errors[0]["error"] if errors else ""),
     )
     return {
-        "success": outcome not in {TaskBusinessOutcome.FAILED, TaskBusinessOutcome.BLOCKED},
+        "success": outcome in {TaskBusinessOutcome.SUCCESS, TaskBusinessOutcome.NOOP},
         "outcome": outcome.value,
         "stage": result_stage,
+        "blocked_reason": (
+            deferred_publications[0].blocked_reason
+            if deferred_publications
+            else (errors[-1]["error"] if outcome is TaskBusinessOutcome.BLOCKED else "")
+        ),
+        "financial_publication": (
+            deferred_publications[0].to_dict() if deferred_publications else None
+        ),
+        "deferred_publications": [item.to_dict() for item in deferred_publications],
+        "must_not_use_for_decision": bool(deferred_publications),
         "source": normalized_source,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
@@ -1096,3 +1144,16 @@ def run_active_a_share_core_data_backfill_batch(
         "errors": errors,
         "checkpoint": checkpoint,
     }
+
+
+def _deferred_publication_lanes(
+    result: object,
+) -> tuple[DeferredCurrentPublicationLane, ...]:
+    """Narrow the rebuild result's externally owned publication lanes."""
+
+    value = getattr(result, "deferred_publications", ())
+    if not isinstance(value, tuple) or any(
+        type(item) is not DeferredCurrentPublicationLane for item in value
+    ):
+        raise ValueError("deferred publication lane evidence is invalid")
+    return cast(tuple[DeferredCurrentPublicationLane, ...], value)

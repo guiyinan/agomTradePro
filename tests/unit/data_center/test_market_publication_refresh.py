@@ -3185,11 +3185,24 @@ def test_task_rejects_duplicate_provider_asset_identities_before_publication(
     assert result.get("published_members", 0) == 0
 
 
-def test_market_dataset_selection_retains_default_financial_rebuild():
+def test_market_dataset_selection_defers_financial_to_receipt_gated_lane():
     from apps.data_center.composition import make_core_current_publication_rebuild_use_case
 
     default = make_core_current_publication_rebuild_use_case()
-    assert len(default._rebuilders) == 4
+    assert {item.dataset.dataset_key for item in default._rebuilders} == {
+        "equity.quote.snapshot",
+        "equity.price.bar",
+        "equity.valuation.fact",
+    }
+    assert [item.to_dict() for item in default._deferred_publications] == [
+        {
+            "dataset_key": "equity.financial.fact",
+            "outcome": "blocked",
+            "blocked_reason": "financial_capacity_receipt_required",
+            "attempted": False,
+            "must_not_use_for_decision": True,
+        }
+    ]
     selected = make_core_current_publication_rebuild_use_case(
         dataset_keys=("equity.quote.snapshot", "equity.valuation.fact")
     )
