@@ -2847,3 +2847,43 @@ stale active 标记 timeout，本轮不提前伪造终态。生产 full-market t
 全市场容量/请求预算/owner approval 的合格证据并获得用户新的明确授权，才能投递一次 production financial refresh；在此之前保持
 财报与 decision runtime fail closed。历史 stale Task Monitor 行只能由现有 7 日 retention/reconciliation 规则产生可追踪终态，不得
 人工改写或借此重跑财报任务。
+
+##### 2026-10-08 Financial 正式发布容量与 owner approval 根因整改
+
+根因：现有财报链路只有 S6 的单资产 `N=1 / 2N=2` 资格证据，没有覆盖生产 5,572 资产工作量的真实 provider 容量测量、精确请求预算、
+全量 manifest 绑定和独立 owner approval。legacy financial current publication 因而仍使用 policy `1.0:1.0`，无法满足当前 policy v3 的
+member-bound provenance，decision runtime 报 `canonical_publication_policy_version_mismatch` 是正确的 fail-closed 结果。直接循环
+N=1 或复用旧批量任务无法证明全市场容量，也不能作为 owner approval。
+
+完成项：提交 `92d308d48` 将 AKShare 双原件、双 RawAudit、typed source-time、事实写入和 request accounting 绑定到同一 capacity
+run/slice lineage；逻辑请求与物理 transport attempt 分开计数，provider 发送前原子预留预算，超限在零业务写入下返回稳定码。提交
+`af49dfc6e` 新增三阶段工作流：`qualification` 仅用于隔离 N=1 契约验证；`capacity_rehearsal` 仅在隔离环境按完整 active universe、
+精确 2N 请求 ceiling 与双人治理事件测量真实规模；`formal` 仅接受 manifest/build/provider/policy/region 全绑定的成功 rehearsal receipt、
+独立生产 ceiling 和已认证 owner approval。审批、撤销和 receipt 均为数据库不可变记录，审批人与录入人必须分离，撤销不可逆，审批与
+receipt 只能消费一次；legacy `refresh_financial_publications_batch` 在参数校验后、provider 出网前以
+`financial_capacity_receipt_required` 阻断。正式 activation 使用 candidate staging、pointer CAS、audit/outbox 原子切换，并覆盖 commit
+unknown 恢复。持久化采用 compact checkpoint、immutable manifest item 和 append-only evidence ledger；每个 slice 的 manifest 复核、
+证据追加与 checkpoint CAS 在同一事务内完成，避免把 5,572 项数组重复写入 checkpoint。typed evidence 全局扫描硬上限为 600,000 行，
+依据生产只读快照 487,624 行校准，超限继续 fail closed。提交 `c113d6f64` 将 stage/activation commit-unknown、audit rollback、并发 CAS
+单赢家、5,572 manifest subquery 与 full-scope 阶段门禁加入 Publication PostgreSQL workflow 和 release validator；提交
+`f614619ef` 仅用唯一生成器重建 Celery/current-data/module/architecture/entrypoint 治理投影，没有修改扫描规则。
+
+测试计数：容量/governance/manifest/lease 契约在排除规模节点时 `107 passed / 2 deselected`；独立 5,572 规模节点 `1 passed`，观测
+总 SQL `50,183`、业务 ORM `27,891`、写入 `16,746`、checkpoint `5,045 bytes`、source freeze `2` 次，分别满足 `9N+64`、
+`5N+64`、`3N+64`、16 KiB 和 2 次硬阈值。AKShare capture、egress、financial sync/source-time、release validator 组合
+`186 passed`。`makemigrations --check --dry-run` 无变化；current-data `73` surfaces、Celery `95` tasks/`21` exemptions/
+`24` governed files、module map `44/210`、entrypoint `1,303`、governance consistency `0 violation`。38 个生产 Python 文件增量
+mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；54 个 Python 文件 Black、isort、Ruff 和 `git diff --check`
+通过。
+
+未验证风险与停止线：上述提交尚未 push，也未绑定最终 exact-SHA 五组 CI；新增 PostgreSQL 故障注入和 5,572 查询节点尚需由 Linux
+CI artifact 证明零跳过/零失败。真实生产已有 legacy facts 不等于具备完整 typed source-time evidence；全量 manifest 可能在演练起点
+因缺证而正确阻断。当前不存在可消费的 full-scope rehearsal ceiling、成功 receipt 或 production owner approval，禁止创建虚假记录，
+也禁止把本地 5,572 数据库规模测试表述为真实 provider 容量通过。尚未执行 fresh S6、同镜像部署或 production financial refresh；
+`bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个受保护周期入口保持 disabled，decision runtime 继续 fail closed。结论仍是
+“部分通过/仍有阻断”，不能宣称四类正式发布全部恢复。
+
+下一片是否可开始：可以提交本节台账、push 最终 exact SHA 并运行 Architecture、Security、Consistency、Fast Feedback、
+Publication PostgreSQL 五组 CI。五组全绿且固定 PostgreSQL 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止
+`--resume`；S6 先验证 N=1、零出网失败反例与 release validator。完整 full-universe capacity rehearsal 必须另有真实 workload owner
+提供精确 ceiling 和独立认证 approval；没有这些外部治理事实时应停在授权门前，不得执行 production financial refresh。
