@@ -3030,3 +3030,23 @@ owner approval 与用户新的明确授权。
 下一片是否可开始：可以提交本节台账并 push 新 HEAD，绑定同一 exact SHA 的 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。五组全绿且 PostgreSQL artifact 固定节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止
 `--resume`；S6 必须实际应用隔离 migrations、完成十阶段与 release validator，之后只能部署 receipt 绑定的同 SHA 预构建镜像。
+
+##### 2026-10-09 migration evidence collector fixture 收口
+
+完成项：候选 `abc35c73fea4a27665ce91385f98dfadafc029ca` 的 Architecture `37811451997`、Security `37811452073`、
+Consistency `37811452042` 与 Publication PostgreSQL `37811452076` 通过；Fast Feedback `37811452215` 在 Python 3.11/3.13 的同一
+collector 组合测试失败。根因是 `test_collector_report_satisfies_bundle_identity_contract` 继续用带通用 `artifact` 字段的最小 report
+代替所有 required reports，而新 migration report 的严格 schema 正确拒绝额外字段并要求完整 disposable database identity。提交
+`b3df5a264c6aecd7063463520a55cc754ad3546a` 仅把该测试替身改为真实 `release.isolated-database-migrations.v1` 字段集，覆盖
+candidate/image、database host/address/port/container、固定命令/role 与合法 noop `[]/[]/[]`；生产 builder/validator、请求门槛和
+迁移行为均未修改。旧失败 run 未重跑，旧 SHA 的四组成功结果不得与新 SHA 拼接。
+
+测试计数：collector + builder + validator 聚焦回归 `155 passed / 1 skipped`；与失败 Fast Feedback 相同的 21 个选择目标在本地
+`595 passed / 8 skipped`，其中 skip 均为 Windows 缺少 Linux/Docker/PostgreSQL 的环境门禁。Black、isort、Ruff、Data Center
+entrypoint 唯一生成投影（1,306 entries，candidate-review=0）、governance consistency（0 violations）与 `git diff --check` 通过。
+
+未验证风险与停止线：Python 3.13 和 Linux 能力仍须由新 Fast Feedback 验证；新最终 SHA 尚未绑定五组 exact-SHA CI。旧
+Publication PostgreSQL 虽通过，也不能作为新 SHA 证据。fresh S6、同镜像部署和部署后 UAT 均未开始，全部生产刷新与审批停止线不变。
+
+下一片是否可开始：可以提交台账并 push，以新 HEAD 从头绑定五组 CI；只有同一 SHA 五组全绿并核验 Publication PostgreSQL artifact
+固定节点零跳过/零失败后，才可准备新的 disposable database 和 fresh S6 attempt。
