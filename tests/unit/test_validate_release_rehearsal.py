@@ -1004,6 +1004,30 @@ def _build_evidence(
         "sha256": prebuild_digest,
     }
 
+    migration_pending = [
+        "data_center.0090_financial_publication_capacity_workflow",
+        "data_center.0091_financial_capacity_governance_record",
+        "data_center.0092_financial_capacity_owner_approval_events",
+        "data_center.0093_financial_capacity_slice_ledger",
+    ]
+    isolated_database_migrations = _common("isolated_database_migrations", now)
+    isolated_database_migrations.pop("provider_identities")
+    isolated_database_migrations.update(
+        {
+            "candidate_source_attestation": "image_release_manifest",
+            "database_name": "agom_release_rehearsal_attempt_1234",
+            "database_host": "agom-s6-postgres-attempt-1234",
+            "database_address": "172.20.0.3",
+            "database_port": 5432,
+            "database_container_id": "e" * 64,
+            "migration_command": ("python -m scripts.manage_vps_migrations migrate --noinput"),
+            "migrator_database_role": "agomtradepro_migrator",
+            "pending_before": migration_pending,
+            "pending_after": [],
+            "applied_migrations": migration_pending,
+        }
+    )
+
     reports: dict[str, Path] = {}
     references: list[dict[str, str]] = []
     for kind, payload in (
@@ -1013,6 +1037,7 @@ def _build_evidence(
         ("isolated_write_rehearsal", staging),
         ("akshare_financial_slice", financial_slice),
         ("stage_environment_preflight", stage_environment),
+        ("isolated_database_migrations", isolated_database_migrations),
         ("candidate_regression_evidence", regression),
     ):
         path = tmp_path / f"{kind}.json"
@@ -1141,7 +1166,134 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 7
+    assert len(result["validated_reports"]) == 8
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_code"),
+    [
+        (
+            {"pending_after": ["data_center.0093_financial_capacity_slice_ledger"]},
+            "REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID",
+        ),
+        (
+            {"applied_migrations": ["data_center.0090_financial_publication_capacity_workflow"]},
+            "REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID",
+        ),
+        (
+            {"pending_before": ["data_center.0093_financial_capacity_slice_ledger"]},
+            "REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID",
+        ),
+        (
+            {
+                "pending_before": [
+                    "data_center.0091_financial_capacity_governance_record",
+                    "data_center.0090_financial_publication_capacity_workflow",
+                    "data_center.0092_financial_capacity_owner_approval_events",
+                    "data_center.0093_financial_capacity_slice_ledger",
+                ]
+            },
+            "REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID",
+        ),
+        (
+            {"database_name": "production"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"candidate_image_id": "sha256:" + "0" * 64},
+            "REHEARSAL_REPORT_IMAGE_MISMATCH",
+        ),
+        (
+            {"database_host": "production-db.internal"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_address": "production-db.internal"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_address": "172.20.0.3/24"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_address": "postgresql://172.20.0.3/db"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_port": 0},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_port": True},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_container_id": "g" * 64},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"migration_command": "python manage.py migrate"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"migrator_database_role": "agomtradepro_owner"},
+            "REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID",
+        ),
+        (
+            {"database_url": "postgresql://user:secret@production/db"},
+            "REHEARSAL_DATABASE_MIGRATION_FIELDS_INVALID",
+        ),
+    ],
+)
+def test_validator_rejects_invalid_isolated_database_migration_report(
+    tmp_path: Path,
+    mutation: dict[str, object],
+    expected_code: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["isolated_database_migrations"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report.update(mutation)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == expected_code
+
+
+def test_validator_requires_isolated_database_migration_report(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, _reports = _build_evidence(tmp_path, now)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["reports"] = [
+        item for item in payload["reports"] if item["kind"] != "isolated_database_migrations"
+    ]
+    _write_json(manifest, payload)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_REPORT_SET_INCOMPLETE"
+
+
+def test_validator_accepts_noop_candidate_migration_evidence(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["isolated_database_migrations"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report.update(
+        {
+            "database_address": "2001:db8::1",
+            "pending_before": [],
+            "pending_after": [],
+            "applied_migrations": [],
+        }
+    )
+    _replace_report(manifest, report_path, report)
+
+    assert _validate(manifest, now)["outcome"] == "success"
 
 
 def test_validator_rejects_nonpassing_stage_environment_matrix(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # S6 预检、续跑和诊断
 
-本规范对应 `scripts/run_release_rehearsal.py`。目标是让同一候选的环境故障或后续阶段失败可恢复，避免重复构建、重复 provider 调用；不改变业务验收门槛或部署审批。
+本规范对应 `scripts/run_release_rehearsal.py`。目标是让同一候选的环境故障或后续阶段失败可恢复，避免重复构建、重复 provider 调用；不改变业务验收门槛或部署审批。`isolated_database_migrations` 是有状态写入阶段：只有报告和检查点证明迁移阶段完整成功、目标 container ID 未变时，后续阶段才可按普通检查点恢复；迁移阶段被启动但结果不明时绝不能 `--resume` 重放。
 
 ## 操作方式
 
@@ -20,7 +20,7 @@ python scripts/plan_release_rehearsal_attempt.py \
 因此资源和 `/tmp` export 路径互不覆盖。
 
 首次运行必须从候选 checkout 内直接执行 `scripts/run_release_rehearsal.py`。复制到仓库外的 launcher 会以
-`S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。失败后先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
+`S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。对于允许检查点恢复的失败，先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
 所有经 SSH/pipe 传输后执行或解析的脚本与配置必须分别用 `--transport-input` 登记；该清单及每个文件摘要属于
 checkpoint binding，同一 attempt 内缺项或字节漂移会失败关闭。
 
@@ -30,7 +30,11 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 
 无需人工选择起始阶段。执行器自动验证检查点，复用已完成的前缀，从第一个未完成阶段继续。最终 validator 始终运行；成功后由 launcher 生成原有非授权 handoff receipt，部署入口继续进行原有独立校验。
 
-例如隔离写入因未迁移而失败，应用迁移后续跑会复用镜像、provider、回放和容量证据，重新执行隔离写入及后续步骤。若仅 validator 失败，续跑不重复 producer 阶段。缺失的本机镜像从已经校验的归档重新加载，不重新构建。
+候选 migrations 在 `isolated_database_migrations` 阶段内由候选镜像执行，且只连接精确绑定的 disposable 数据库、只使用 migrator URL。阶段通过后，launcher 立即执行 runtime URL 下的只读 migration preflight；迁移阶段报告、镜像身份与 container ID 均进入检查点和 release manifest。旧 attempt 因 `REHEARSAL_WRITE_MIGRATIONS_PENDING` 阻断时，不能手工迁移后续跑来补齐新 required report，应保留原记录并为新 schema 建立 fresh attempt。
+
+若 migration command 尚未启动且检查点完整，按既定前缀恢复规则处理；若 command 已启动后超时、进程中断、容器消失、报告缺失/无效或提交状态无法确认，视为 unknown commit，停止该 attempt，不自动重跑迁移。应从新的 disposable database 和 fresh attempt 重新开始。迁移报告若已成功封存，且后续 provider/validator stage 失败，只能在检查点验证 migration report 与相同 database/container identity 均未变化后恢复；恢复会跳过已完成的迁移阶段。
+
+若仅 validator 失败，续跑不重复 producer 阶段。缺失的本机镜像从已经校验的归档重新加载，不重新构建。
 
 ## 复用条件
 
@@ -70,7 +74,7 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 - `diagnostics` 中每个完成命令保存独立 JSON：保留数据库、权限、网络、超时、语法等白名单诊断分类、稳定业务码及最多八个 traceback 文件名/行号/函数名；不保存原始 stdout/stderr、异常消息、命令参数、token 或 provider 响应。原始响应只留在原有受控证据目录。
 - 心跳代表 launcher 有响应，输出字节增长才表示新增输出；两者都不代表业务成功。
 - 超时返回 `S6_STAGE_TIMEOUT`。执行器终止自己启动的本地进程树，并尝试移除该命令唯一命名的候选容器。远端构建由原有构建器管理；launcher 被强杀或 SSH 中断时，重试构建前仍需确认远端任务已退出，不能假定远端自动取消。
-- 操作者发送 Ctrl-C 时，执行器取消全部活动阶段的进程组并尝试移除各阶段唯一命名的容器，CLI 返回 130；`run-status.json` 写入 `outcome=interrupted` 和 `S6_RUN_INTERRUPTED`，不生成 handoff receipt。后续只能按同一候选检查点规则显式 `--resume`。
+- 操作者发送 Ctrl-C 时，执行器取消全部活动阶段的进程组并尝试移除各阶段唯一命名的容器，CLI 返回 130；`run-status.json` 写入 `outcome=interrupted` 和 `S6_RUN_INTERRUPTED`，不生成 handoff receipt。若当前阶段为已启动但未确认完成的迁移阶段，不得 `--resume`；其他阶段按同一候选检查点规则处理。
 - 失败即返回，不自动启动下一轮。修复后显式续跑；身份改变、证据过期或最终 validator 拒绝时保持阻断。
 
 ## 回归与边界

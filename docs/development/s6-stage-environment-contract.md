@@ -5,12 +5,13 @@
 `STAGES` 同步。新增阶段若未同时登记运行时契约、本矩阵和测试，统一 preflight 以
 `REHEARSAL_STAGE_ENVIRONMENT_CONTRACT_MISSING` 失败关闭。
 
-统一 preflight 在候选镜像身份冻结后、`provider_probe` 之前运行。它一次执行所有宿主侧和候选侧只读探针，将全部缺口写入
+统一 preflight 在候选镜像身份冻结后、`isolated_database_migrations` 之前运行。它一次执行所有宿主侧和候选侧只读探针，将全部缺口写入
 `stage-environment-preflight.json`，最终只用总码
 `REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED` 阻断排期。报告只含阶段、类别和稳定码，不含 env 值、密钥引用内容、URL
 凭据、provider 响应或异常文本。成功报告连同 prebuild 报告的路径与 SHA-256 作为 required report 进入不可变
 release manifest、release validator 和 handoff receipt；缺失、摘要不匹配、矩阵不完整或任一格不是 pass 均失败关闭。
-它不会调用 provider、创建任务、写建议或改生产配置。
+该 preflight 本身不调用 provider、创建任务、写建议或连接可变生产配置。其后的迁移阶段只允许在精确绑定的 disposable PostgreSQL
+中执行候选镜像 migrations；它不是生产迁移入口。
 
 ## 失败证据与抽象
 
@@ -40,6 +41,23 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
    `clock_timestamp()` 与应用时钟差不超过 5 秒。
 6. **外部状态**：冻结 provider settings、N=1/2N=2 财报预算、隔离 DB/Redis 身份、CI run 和两个生产周期入口的 disabled 状态。
 
+## 候选迁移阶段
+
+`isolated_database_migrations` 位于候选镜像身份与环境 preflight 之后、所有 provider evidence stage 之前。迁移必须在候选镜像中通过
+固定的 `scripts.manage_vps_migrations migrate --noinput` 命令执行；Django 的 `DATABASE_URL` 在这个阶段只能绑定
+`MIGRATOR_DATABASE_URL`。阶段同时核对 `agom_release_rehearsal_*` 数据库名、`agom-s6-postgres-*` 隔离 host、当前 PostgreSQL
+container ID、连接的实际数据库身份和 `agomtradepro_migrator` session role。配置 URL 对了但实际连接身份不符仍然阻断。
+
+迁移报告 `isolated_database_migrations` 只保留候选 SHA/image、隔离数据库名/host/port/container ID、固定迁移命令与 migrator role、
+`database_address` 是从隔离 Docker network inspect 得到的合法 IP；数据库身份、`pending_before`、`applied_migrations`、`pending_after` 和阶段时间不得包含 URL、密码或 env 内容。列表必须排序且无重复；
+`pending_after` 必须为空，`applied_migrations` 必须与 `pending_before` 完全相同。`pending_before=[]` 允许无迁移的 noop；non-empty
+列表表示该 disposable snapshot 在这次运行中应用了候选迁移。
+
+迁移完成后，launcher 立即用 runtime `DATABASE_URL` 再运行候选镜像中的现有只读数据库 preflight。只有同一 database/container/image
+身份仍成立且 migration graph 无 pending 时，才可开始 provider stage。该后置 preflight 不运行 migration，也不写业务数据。
+迁移阶段中断或提交结果不确定时不得重放同一迁移尝试；保留失败证据并使用新的 disposable 数据库与 fresh attempt。旧的
+`REHEARSAL_WRITE_MIGRATIONS_PENDING` attempt 不通过手工迁移后续跑来补成完整证据。
+
 ## 阶段 × 六类矩阵
 
 “已有”表示当前代码或已有门禁执行断言；“无资源”表示该阶段不触碰该类资源，
@@ -49,11 +67,12 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 | --- | --- | --- | --- | --- | --- | --- |
 | `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断；依赖由 `pyproject.toml` 的 `ops` 组和生成的 `requirements-ops.txt` 提供。 | 已有：prebuild 要求 24 GiB，明确保留 12 GiB 构建预算和 12 GiB 后续阶段余量；remote builder 自身仍保留 12 GiB `/var/lib/docker` 硬门槛与显式 build timeout。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
 | `docker_identity` | 已有：`_freeze_provider_settings_snapshot`、`_write_identity` 以排他写/哈希/只读 mode 冻结输入。 | 已有：统一门禁检查冻结 env/JSON/unit/identity 与登记传输文件。 | 无资源：仅检查本地候选镜像，不出网。 | 已有：`_candidate_container_gid`、OCI revision/image ID/release tag 精确绑定。 | 已有：命令 60 秒上限；统一门禁检查预算关系。 | 已有：checkpoint binding 绑定候选、输入摘要和隔离环境身份。 |
+| `isolated_database_migrations` | 要求：候选身份只读挂载；仅迁移结果 JSON 进入独立输出目录并密封。 | 要求：校验必要 DB identity 后，最小化重建 migrator stage env；私有 `0400` 文件只允许 DB identity、Django `SECRET_KEY` 与历史 migration 可能需要的 `AGOMTRADEPRO_ENCRYPTION_KEY`。provider/API secret 不进入 stage env，任何 secret 都不得进入 argv、report、诊断或 release bundle；报告 schema 拒绝额外字段。 | 要求：不注入 provider env/凭据/路由，迁移命令只访问精确绑定的 disposable PostgreSQL；生产 entrypoint 另等待精确绑定的隔离 Redis。该 stage 与其他 S6 stage 复用非 internal network，网络层外连未物理封禁，属未验证风险。 | 要求：候选 image/SHA、数据库名/host/IP/port/container ID 和 migrator role 精确绑定；迁移只使用 `MIGRATOR_DATABASE_URL`。 | 要求：独立 stage timeout 和统一资源门禁；超时/unknown commit 保持阻断，不自动重放。 | 要求：`pending_before/applied_migrations/pending_after` 精确对账；迁后立即用 runtime URL 做只读 migration preflight。 |
 | `provider_probe` | 已有：`_invoke_container_stage` 校验目录 inode、group write 窗口并在退出时密封。 | 已有：统一门禁在阶段前检查 env/冻结输入/transport bytes。 | 已有：候选动态探针复用 `provider_policy_and_routes`；stage 自身继续保留 response evidence。 | 已有：完整 identities digest、quote/valuation provider ID 与候选镜像绑定；Config Center provider policy 只读解析。 | 已有：sample 50、max dispatch、provider timeout 与外层 stage timeout 层级。 | 已有：冻结 provider settings，禁止从 live 设置静默漂移。 |
 | `response_replay` | 已有：provider probe 与 unit contract 只读 mount；报告/identity/hash 复核。 | 已有：统一门禁。 | 无资源：只重放已留存响应，不出网。 | 已有：probe SHA、unit contract SHA、candidate/provider digest。 | 已有：stage timeout；内存/磁盘由统一门禁覆盖。 | 已有：只消费同 attempt 前缀，checkpoint 防跨候选复用。 |
 | `full_universe_capacity` | 已有：独立 stage 输出目录，报告密封并哈希。 | 已有：统一门禁。 | 已有：模型行情 bulk route 由候选动态探针预览，容量阶段仍执行真实 provider 契约。 | 已有：quote/valuation provider row 与 identities 一致。 | 已有：请求、窗口、deadline、lock wait、dispatch 均显式；容量阶段单独运行以免并发污染测量。 | 已有：动态 universe/target date/provider snapshot 被报告绑定。 |
 | `production_policy_parity` | 已有：只读挂载启动时冻结的 provider settings，而不是可变源文件。 | 已有：统一门禁检查冻结副本。 | 已有：`provider_policy_and_routes` 同生产组合只读执行。 | 已有：raw file SHA 与 canonical payload SHA 双绑定。 | 已有：stage timeout 与统一资源门禁。 | 已有：生产策略 snapshot 与候选报告精确对账；两个周期入口必须 disabled。 |
-| `isolated_postgresql_write` | 已有：独立输出目录；所有身份文件只读 mount。 | 已有：统一门禁。 | 无外网：只连接已绑定的隔离 PostgreSQL/Redis network。 | 已有：`_preflight_isolated_database_container` 和 `preflight_isolated_write_rehearsal` 绑定容器、DB、host、candidate。 | 已有：526 migrations/事务回滚由阶段检查；DB clock 由动态探针检查。 | 已有：`AGOM_RELEASE_REHEARSAL_DATABASE=1`、network alias、container ID 在并行组前复核。 |
+| `isolated_postgresql_write` | 已有：独立输出目录；所有身份文件只读 mount。 | 已有：统一门禁。 | 无外网：只连接已绑定的隔离 PostgreSQL/Redis network。 | 已有：`_preflight_isolated_database_container` 和 `preflight_isolated_write_rehearsal` 绑定容器、DB、host、candidate。 | 已有：迁移阶段及迁后只读 preflight 确认 migration graph 无 pending；写入事务回滚由本阶段检查，DB clock 由动态探针检查。 | 已有：`AGOM_RELEASE_REHEARSAL_DATABASE=1`、network alias、container ID 在并行组前复核。 |
 | `github_ci_evidence` | 已有：`seal_container_input_tree` 按 descriptor 设置并复核 `0550/0440`；财报 mount 前 `verify_container_input_tree` 再次只读复核。 | 已有：统一门禁；GitHub artifact 下载内容另由 collector 的 schema/hash 校验。 | 已有：GitHub API/下载由 collector 访问，仓库/run ID 固定，连接或下载失败即关闭；独立 host allowlist preview 边界见未验证风险。 | 已有：exact SHA、repository、run ID、provider identities 和 artifact 节点契约。 | 已有：max age 24h 与 stage timeout。 | 已有：五组 CI、要求节点、零 skipped/failure/error 由 collector/validator 对账。 |
 | `akshare_financial_slice` | 已有：CI 输入树 descriptor 二次复核；candidate output 独立目录；双 body store/hash/size/RawAudit 验证。 | 已有：统一门禁。 | 已有：复用 `_require_akshare_financial_egress_routes`；逐一检查 provider ID、`equity.financial.fact`/`equity.financial.source-time`、`datacenter.eastmoney.com`、公开 deployment region。 | 已有：AKShare active row、完整 identity、artifact secret ref 可解析且不输出值。 | 已有：N≤1、2N≤2、200 行、stage timeout；统一门禁复核时钟/资源。 | 已有：预算 loader、owner-approved contract、两周期入口 disabled；不修改规则或开关。 |
 | `bundle_build` | 已有：只接收已验证报告；prebuild/final 环境报告与其 SHA-256 图一并复制；`_freeze_bundle` 拒绝 symlink 并将文件设只读，`bundle_tree_digest` 绑定路径/大小/hash。 | 已有：统一门禁。 | 无资源：本地组装，不出网。 | 已有：candidate/image/date/universe/provider/settings 全身份写入 manifest。 | 已有：固定 120 秒 timeout 与磁盘门禁。 | 已有：环境报告属于 required reports；policy 和 manifest builder 精确对账。 |
@@ -92,7 +111,9 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
   私有 venv 的源码获取仍依赖 GitHub 可达性，该 launcher 前置边界须由 prepare/bootstrap receipt 记录，不能记作 runner 自证。
 - build host 的 SSH/DNS/host-key 路径和 GitHub artifact host 仍缺独立的无副作用 allowlist preview；当前由实际阶段失败关闭，
   不能宣称这些外部依赖已被统一门禁完全覆盖。
+- migration stage 仅约束容器内不注入 provider env、凭据与路由，并由命令连接精确绑定的隔离 PostgreSQL；它与其他 S6 stage
+  共用非 internal network，尚未用网络策略物理阻断或验证外连，不能据此声称网络层零外网。
 - 12 GiB 构建保留量来自当前镜像构建的实测量级并有 24 GiB 前置门槛保护，但它不是未来镜像大小的无界证明；若构建工作集继续增长，
   remote builder 和构建后统一门禁仍会失败关闭，并须先做容量测算或扩容，不能降低 12 GiB 后续阶段余量。
 - 本门禁在本地与 CI 通过后仍不得称为 S6 实证；必须等待下一轮新候选，从 fresh production snapshot、fresh inputs、fresh attempt
-  且禁止 `--resume` 跑完整十阶段。当前已准备或历史 attempt 均不能补记为本门禁证据。
+  且禁止 `--resume` 跑完整阶段序列。当前已准备或历史 attempt 均不能补记为本门禁证据。

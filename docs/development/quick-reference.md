@@ -75,6 +75,8 @@ python3 -m venv <attempt-root>/runner-venv
 <attempt-root>/runner-venv/bin/python -m pip install -r requirements-ops.txt
 <attempt-root>/runner-venv/bin/python scripts/run_release_rehearsal.py ... \
   --provider-settings-json provider-settings.json \
+  --isolated-migrator-env-file isolated-migrator.env \
+  --transport-input isolated-migrator.env \
   --transport-input prepare-wrapper.sh --transport-input provider.env
 ```
 
@@ -82,7 +84,16 @@ python3 -m venv <attempt-root>/runner-venv
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
   必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
 - 所有经 SSH 或 pipe 传输后执行/解析的脚本与配置都必须逐项用 `--transport-input` 登记；runner 在远端构建前验证
-  UTF-8、无 BOM/NUL/CR，随后把 provider/isolated env 冻结到 attempt 私有输入目录供所有阶段复用。
+  UTF-8、无 BOM/NUL/CR。迁移阶段只校验 source env 的必要 DB identity，再重建最小 migrator stage env；该私有文件只保留 DB identity、Django `SECRET_KEY` 与历史 migration 可能需要的 `AGOMTRADEPRO_ENCRYPTION_KEY`，provider/API secret 不进入 stage env，任何 secret 都不得进入 argv、report、诊断或 release bundle。
+- `isolated_database_migrations` 在任何 provider stage 之前使用候选镜像迁移**精确绑定的 disposable PostgreSQL**。该 stage 的
+  Django `DATABASE_URL` 只取 `MIGRATOR_DATABASE_URL`；只校验 source env 的必要 DB identity 后重建最小 migrator stage env，仅允许
+  DB identity、`SECRET_KEY` 与 `AGOMTRADEPRO_ENCRYPTION_KEY`。迁移容器不注入 provider env/凭据/路由，迁移命令只访问精确绑定的隔离
+  PostgreSQL；生产 entrypoint 另等待精确绑定的隔离 Redis。stage 与其他 S6 stage 复用非 internal network，外连未物理封禁/验证，
+  不能宣称网络层零外网。report 只记录候选/image、隔离 database/container identity、迁移命令和
+  `pending_before/applied_migrations/pending_after`，不含 URL 或密码；`database_address` 必须是从隔离 Docker network inspect 得到的合法 IP。
+  成功后 launcher 必须立即用 runtime URL 执行只读 preflight，确认同一 database/container/image 且无 pending migrations；该步骤不迁移生产库。
+- 旧 attempt 若以 `REHEARSAL_WRITE_MIGRATIONS_PENDING` 阻断，不能手工应用候选 migrations 再用 `--resume` 补证据。新候选必须使用
+  fresh attempt 和新的 disposable 数据库；迁移阶段若超时或提交结果未知，保留失败 attempt 并重新准备新隔离数据库，不自动重放。
 - 全新 S6 还会执行 `akshare_financial_slice`：它要求隔离 PostgreSQL/Redis 和 provider identities
   快照中的唯一 `akshare_financial_route`，从隔离快照的 AKShare `announced_at` 或 `available_at`
   动态选取一个请求 asset/date。旧日期只是不可信请求种子；只有这次精确 asset/date 的双原件、

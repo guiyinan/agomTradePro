@@ -8,6 +8,7 @@ import hashlib
 import importlib
 import importlib.metadata
 import importlib.util
+import ipaddress
 import json
 import os
 import re
@@ -97,7 +98,10 @@ STABLE_REHEARSAL_HEADROOM_ERROR_CODE = re.compile(
 )
 STABLE_REHEARSAL_CODE_VALUE = re.compile(r"REHEARSAL_[A-Z0-9_]{3,96}")
 IMAGE_NAME = "agomtradepro-web"
+MIGRATION_COMMAND_RESULT_SCHEMA = "release.s6-isolated-database-migration-result.v1"
+MIGRATION_REPORT_SCHEMA = "release.isolated-database-migrations.v1"
 STAGES = (
+    "isolated_database_migrations",
     "provider_probe",
     "response_replay",
     "full_universe_capacity",
@@ -109,6 +113,15 @@ STAGES = (
     "release_validator",
 )
 REQUIRED_PARAMIKO_VERSION = "5.0.0"
+_INSECURE_DJANGO_SECRET_KEY_PATTERNS = (
+    "django-insecure",
+    "change-this",
+    "dev-only",
+    "test-only",
+    "xxx",
+    "example",
+    "placeholder",
+)
 
 
 @dataclass(frozen=True)
@@ -428,6 +441,7 @@ class RehearsalConfig:
     password_file: Path
     provider_env_file: Path
     isolated_postgres_env_file: Path
+    isolated_migrator_env_file: Path
     docker_network: str
     isolated_database_name: str
     isolated_database_host: str
@@ -485,6 +499,7 @@ class RehearsalInputs:
     unit_contract_raw: bytes
     provider_env_raw: bytes
     isolated_env_raw: bytes
+    migrator_env_raw: bytes
 
 
 @dataclass(frozen=True)
@@ -498,6 +513,28 @@ class StageSpec:
     image_bound: bool = True
     retain_responses: bool = False
     mounts: tuple[tuple[Path, str, bool], ...] = ()
+    environment: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class IsolatedDatabaseMigrationObservation:
+    """Secret-free migration state reported by the candidate migration process."""
+
+    started_at: datetime
+    finished_at: datetime
+    pending_before: tuple[str, ...]
+    pending_after: tuple[str, ...]
+    applied_migrations: tuple[str, ...]
+    database_port: int
+    database_address: str
+
+
+@dataclass(frozen=True)
+class IsolatedDatabaseIdentity:
+    """Network-scoped container identity proven by Docker inspect."""
+
+    container_id: str
+    address: str
 
 
 class RehearsalBlocked(RuntimeError):
@@ -784,9 +821,28 @@ def _url_identity(value: str, *, schemes: frozenset[str]) -> tuple[str, str]:
         port = parsed.port
     except ValueError as exc:
         raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
-    if parsed.scheme not in schemes or host is None or port is not None and port <= 0:
+    if (
+        parsed.scheme not in schemes
+        or host is None
+        or port is not None
+        and port <= 0
+        or parsed.scheme in {"postgres", "postgresql"}
+        and bool(parsed.query or parsed.fragment)
+    ):
         raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID")
     return host, unquote(parsed.path.removeprefix("/"))
+
+
+def _url_port(value: str, *, schemes: frozenset[str]) -> int:
+    """Return the explicit/default database port without exposing URL credentials."""
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError as exc:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID") from exc
+    if parsed.scheme not in schemes or parsed.hostname is None:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_INVALID")
+    return 5432 if port is None else port
 
 
 def _validate_isolated_environment_identity(
@@ -801,6 +857,7 @@ def _validate_isolated_environment_identity(
     required = {
         "POSTGRES_HOST",
         "POSTGRES_DB",
+        "POSTGRES_PORT",
         "DATABASE_URL",
         "MIGRATOR_DATABASE_URL",
         "REDIS_HOST",
@@ -815,6 +872,10 @@ def _validate_isolated_environment_identity(
     migrator_host, migrator_name = _url_identity(
         values["MIGRATOR_DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
     )
+    database_port = _url_port(values["DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"}))
+    migrator_port = _url_port(
+        values["MIGRATOR_DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
+    )
     redis_host, _redis_database = _url_identity(
         values["REDIS_URL"], schemes=frozenset({"redis", "rediss"})
     )
@@ -826,10 +887,89 @@ def _validate_isolated_environment_identity(
         or database_name != config.isolated_database_name
         or migrator_host != config.isolated_database_host
         or migrator_name != config.isolated_database_name
+        or database_port != migrator_port
+        or values["POSTGRES_PORT"] != str(database_port)
         or values["REDIS_HOST"] != config.isolated_redis_host
         or redis_host != config.isolated_redis_host
     ):
         raise RehearsalBlocked("inputs", "S6_ISOLATED_ENV_IDENTITY_MISMATCH")
+
+
+def _validate_isolated_migrator_environment_identity(
+    config: RehearsalConfig,
+    isolated_env_raw: bytes,
+    migrator_env_raw: bytes,
+) -> bytes:
+    """Validate the migrator endpoint and return its minimal private stage env."""
+    runtime_values = _parse_env_bytes(isolated_env_raw)
+    migrator_values = _parse_env_bytes(migrator_env_raw)
+    required_runtime = {
+        "MIGRATOR_DATABASE_URL",
+        "POSTGRES_HOST",
+        "POSTGRES_DB",
+        "POSTGRES_PORT",
+    }
+    required_migrator = {
+        "DATABASE_URL",
+        "POSTGRES_HOST",
+        "POSTGRES_DB",
+        "POSTGRES_PORT",
+        "AGOM_RELEASE_REHEARSAL_DATABASE",
+        "SECRET_KEY",
+        "AGOMTRADEPRO_ENCRYPTION_KEY",
+    }
+    if not required_runtime.issubset(runtime_values) or not required_migrator.issubset(
+        migrator_values
+    ):
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_MIGRATOR_ENV_IDENTITY_MISMATCH")
+    django_secret_key = migrator_values["SECRET_KEY"].strip()
+    encryption_key = migrator_values["AGOMTRADEPRO_ENCRYPTION_KEY"].strip()
+    if (
+        len(django_secret_key) < 50
+        or any(
+            marker in django_secret_key.lower() for marker in _INSECURE_DJANGO_SECRET_KEY_PATTERNS
+        )
+        or not encryption_key
+    ):
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_MIGRATOR_BOOTSTRAP_SECRET_INVALID")
+    runtime_migrator_host, runtime_migrator_name = _url_identity(
+        runtime_values["MIGRATOR_DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
+    )
+    stage_database_host, stage_database_name = _url_identity(
+        migrator_values["DATABASE_URL"], schemes=frozenset({"postgres", "postgresql"})
+    )
+    if (
+        migrator_values["DATABASE_URL"] != runtime_values["MIGRATOR_DATABASE_URL"]
+        or runtime_migrator_host != config.isolated_database_host
+        or runtime_migrator_name != config.isolated_database_name
+        or stage_database_host != config.isolated_database_host
+        or stage_database_name != config.isolated_database_name
+        or runtime_values["POSTGRES_HOST"] != config.isolated_database_host
+        or runtime_values["POSTGRES_DB"] != config.isolated_database_name
+        or runtime_values["POSTGRES_PORT"]
+        != str(
+            _url_port(
+                runtime_values["MIGRATOR_DATABASE_URL"],
+                schemes=frozenset({"postgres", "postgresql"}),
+            )
+        )
+        or migrator_values["POSTGRES_HOST"] != config.isolated_database_host
+        or migrator_values["POSTGRES_DB"] != config.isolated_database_name
+        or migrator_values["POSTGRES_PORT"] != runtime_values["POSTGRES_PORT"]
+        or runtime_values.get("AGOM_RELEASE_REHEARSAL_DATABASE") != "1"
+        or migrator_values["AGOM_RELEASE_REHEARSAL_DATABASE"] != "1"
+    ):
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_MIGRATOR_ENV_IDENTITY_MISMATCH")
+    sanitized = {
+        "DATABASE_URL": runtime_values["MIGRATOR_DATABASE_URL"],
+        "POSTGRES_HOST": config.isolated_database_host,
+        "POSTGRES_DB": config.isolated_database_name,
+        "POSTGRES_PORT": runtime_values["POSTGRES_PORT"],
+        "AGOM_RELEASE_REHEARSAL_DATABASE": "1",
+        "SECRET_KEY": django_secret_key,
+        "AGOMTRADEPRO_ENCRYPTION_KEY": encryption_key,
+    }
+    return "".join(f"{key}={value}\n" for key, value in sorted(sanitized.items())).encode("utf-8")
 
 
 def _assert_candidate(runner: CommandRunner, root: Path, expected: str) -> None:
@@ -856,7 +996,7 @@ def _validate_inputs(
         or REPOSITORY.fullmatch(config.github_repository) is None
         or not config.build_host.strip()
         or not config.build_user.strip()
-        or not config.docker_network.strip()
+        or re.fullmatch(r"agom-s6-network-[a-z0-9-]+", config.docker_network) is None
         or re.fullmatch(r"agom_release_rehearsal_[a-z0-9_]+", config.isolated_database_name) is None
         or re.fullmatch(r"agom-s6-postgres-[a-z0-9-]+", config.isolated_database_host) is None
         or re.fullmatch(r"agom-s6-(?:pg|postgres)-[a-z0-9-]+", config.isolated_database_container)
@@ -878,11 +1018,27 @@ def _validate_inputs(
         or not 0 < config.max_age_hours <= 168
     ):
         raise ValueError("S6_INPUT_INVALID")
+    resource_suffixes = (
+        config.isolated_database_name.removeprefix("agom_release_rehearsal_"),
+        config.isolated_database_host.removeprefix("agom-s6-postgres-"),
+        config.isolated_database_container.removeprefix("agom-s6-postgres-").removeprefix(
+            "agom-s6-pg-"
+        ),
+        config.isolated_redis_host.removeprefix("agom-s6-redis-"),
+        config.isolated_redis_container.removeprefix("agom-s6-redis-"),
+        config.docker_network.removeprefix("agom-s6-network-"),
+    )
+    if len(set(resource_suffixes)) != 1:
+        raise RehearsalBlocked("inputs", "S6_ISOLATED_RESOURCE_IDENTITY_MISMATCH")
     for path in (config.password_file, *config.transport_input_paths):
         _read_file(path)
     provider_env_raw = _read_file(config.provider_env_file)
     isolated_env_raw = _read_file(config.isolated_postgres_env_file)
+    migrator_env_raw = _read_file(config.isolated_migrator_env_file)
     _validate_isolated_environment_identity(config, isolated_env_raw)
+    sanitized_migrator_env_raw = _validate_isolated_migrator_environment_identity(
+        config, isolated_env_raw, migrator_env_raw
+    )
     provider_raw = _read_file(config.provider_identities_path, 16_384)
     try:
         identities = parse_rehearsal_identities(json.loads(provider_raw))
@@ -924,6 +1080,7 @@ def _validate_inputs(
         unit_contract_raw=unit_raw,
         provider_env_raw=provider_env_raw,
         isolated_env_raw=isolated_env_raw,
+        migrator_env_raw=sanitized_migrator_env_raw,
     )
 
 
@@ -1156,6 +1313,8 @@ def _docker_command(
     ]
     for env_file in env_files:
         args.extend(("--env-file", str(env_file.resolve())))
+    for key, value in stage.environment:
+        args.extend(("--env", f"{key}={value}"))
     args.extend(
         (
             "--env",
@@ -1452,6 +1611,78 @@ def _status(
     atomic_json(path, _write)
 
 
+def _validate_resume_outcome(config: RehearsalConfig) -> None:
+    """Refuse only migration attempts whose commit outcome is unknown."""
+    if not config.resume:
+        return
+    status_path = config.output_dir / "run-status.json"
+    status: dict[str, object] = {}
+    if status_path.exists():
+        try:
+            status = _object(json.loads(_read_file(status_path)), "S6_RUN_STATUS_INVALID")
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            raise RehearsalBlocked("resume", "S6_RUN_STATUS_INVALID") from exc
+    checkpoint_path = config.output_dir / "checkpoint.json"
+    try:
+        if not checkpoint_path.is_file():
+            raise FileNotFoundError
+        checkpoint_payload = _object(
+            json.loads(_read_file(checkpoint_path)), "S6_CHECKPOINT_INVALID"
+        )
+        stages = _object(checkpoint_payload.get("stages"), "S6_CHECKPOINT_INVALID")
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        code = "S6_CHECKPOINT_MISSING" if not checkpoint_path.exists() else "S6_CHECKPOINT_INVALID"
+        raise RehearsalBlocked("resume", code) from exc
+    migration_complete = "isolated_database_migrations" in stages
+    marker_exists = (config.output_dir / "migration-in-progress.json").exists()
+    migration_current = status.get("current_stage") == "isolated_database_migrations"
+    if not migration_complete and (marker_exists or migration_current):
+        raise RehearsalBlocked("resume", "S6_MIGRATION_STAGE_OUTCOME_UNKNOWN")
+
+
+def _write_migration_marker(
+    path: Path, identity: Identity, database_identity: IsolatedDatabaseIdentity
+) -> None:
+    """Durably mark a migration attempt before its first possible database write."""
+    atomic_json(
+        path,
+        {
+            "schema": "release.s6-migration-in-progress.v1",
+            "candidate_sha": identity.candidate_sha,
+            "candidate_image_id": identity.candidate_image_id,
+            "database_container_id": database_identity.container_id,
+            "database_address": database_identity.address,
+            "started_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    _fsync_directory(path.parent)
+
+
+def _fsync_directory(path: Path) -> None:
+    """Persist directory-entry changes on POSIX before changing migration state."""
+    if os.name != "posix":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(path, flags)
+        os.fsync(descriptor)
+    except OSError as exc:
+        raise RehearsalBlocked(
+            "isolated_database_migrations", "S6_MIGRATION_DIRECTORY_SYNC_FAILED"
+        ) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _clear_migration_marker(path: Path) -> None:
+    """Remove the unknown-outcome marker after a checkpoint has durable success."""
+    if path.exists():
+        path.unlink()
+        _fsync_directory(path.parent)
+
+
 def _checkpoint_binding(
     config: RehearsalConfig, candidate: str, inputs: RehearsalInputs
 ) -> dict[str, object]:
@@ -1485,7 +1716,8 @@ def _preflight_isolated_container(
     container: str,
     host: str,
     invalid_code: str,
-) -> str:
+    require_address: bool = False,
+) -> tuple[str, str | None]:
     """Bind an isolated service host to its running container and network."""
     template = (
         '{"id":{{json .Id}},"name":{{json .Name}},'
@@ -1516,6 +1748,7 @@ def _preflight_isolated_container(
             invalid_code,
         ) from exc
     container_id = payload.get("id")
+    address = network.get("IPAddress")
     network_names: set[str] = set()
     for key in ("Aliases", "DNSNames"):
         values = network.get(key)
@@ -1527,24 +1760,39 @@ def _preflight_isolated_container(
         or payload.get("name") != f"/{container}"
         or payload.get("running") is not True
         or host not in network_names
+        or (require_address and not isinstance(address, str))
     ):
         raise RehearsalBlocked(
             label,
             invalid_code,
         )
-    return container_id
+    normalized_address: str | None = None
+    if isinstance(address, str):
+        try:
+            normalized_address = str(ipaddress.ip_address(address))
+        except ValueError as exc:
+            raise RehearsalBlocked(label, invalid_code) from exc
+    return container_id, normalized_address
 
 
-def _preflight_isolated_database_container(config: RehearsalConfig, runner: CommandRunner) -> str:
-    """Bind the configured isolated database host to its running container."""
-    return _preflight_isolated_container(
+def _preflight_isolated_database_container(
+    config: RehearsalConfig, runner: CommandRunner
+) -> IsolatedDatabaseIdentity:
+    """Bind the configured isolated database host and exact network IP."""
+    container_id, address = _preflight_isolated_container(
         config,
         runner,
         label="preflight_isolated_database_container",
         container=config.isolated_database_container,
         host=config.isolated_database_host,
         invalid_code="S6_ISOLATED_DATABASE_CONTAINER_INVALID",
+        require_address=True,
     )
+    if address is None:
+        raise RehearsalBlocked(
+            "preflight_isolated_database_container", "S6_ISOLATED_DATABASE_CONTAINER_INVALID"
+        )
+    return IsolatedDatabaseIdentity(container_id=container_id, address=address)
 
 
 def _preflight_environment(config: RehearsalConfig, runner: CommandRunner) -> None:
@@ -1598,6 +1846,7 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
                 {
                     "POSTGRES_HOST",
                     "POSTGRES_DB",
+                    "POSTGRES_PORT",
                     "DATABASE_URL",
                     "MIGRATOR_DATABASE_URL",
                     "REDIS_HOST",
@@ -1772,10 +2021,22 @@ def _run_stage_environment_preflight(
         "REDIS_URL",
         "AGOM_RELEASE_REHEARSAL_DATABASE",
     }
+    migrator_values = _parse_env_file(config.isolated_migrator_env_file)
+    required_migrator = {
+        "DATABASE_URL",
+        "POSTGRES_HOST",
+        "POSTGRES_DB",
+        "POSTGRES_PORT",
+        "AGOM_RELEASE_REHEARSAL_DATABASE",
+        "SECRET_KEY",
+        "AGOMTRADEPRO_ENCRYPTION_KEY",
+    }
     required_provider = {"DJANGO_SETTINGS_MODULE"}
     missing = tuple(
         sorted(
             (required_isolated - isolated_values.keys())
+            | (required_migrator - migrator_values.keys())
+            | (migrator_values.keys() - required_migrator)
             | (required_provider - provider_values.keys())
         )
     )
@@ -1788,6 +2049,7 @@ def _run_stage_environment_preflight(
         config.password_file,
         config.provider_env_file,
         config.isolated_postgres_env_file,
+        config.isolated_migrator_env_file,
         provider_path,
         frozen_settings,
         frozen_unit,
@@ -1796,6 +2058,7 @@ def _run_stage_environment_preflight(
     text_files = (
         config.provider_env_file,
         config.isolated_postgres_env_file,
+        config.isolated_migrator_env_file,
         provider_path,
         frozen_settings,
         frozen_unit,
@@ -1901,6 +2164,293 @@ def _preflight_database(
         label=spec.name,
         timeout=min(config.stage_timeout_seconds, 120),
     )
+
+
+def _assert_candidate_image_identity(
+    runner: CommandRunner, config: RehearsalConfig, identity: Identity
+) -> None:
+    """Recheck the exact candidate image digest and source label before migration."""
+    result = _invoke(
+        runner,
+        argv=(
+            "docker",
+            "image",
+            "inspect",
+            identity.candidate_image_id,
+            "--format",
+            "{{json .}}",
+        ),
+        root=config.root,
+        label="isolated_migration_image_identity",
+        timeout=30,
+    )
+    try:
+        image = _object(json.loads(result.stdout), "S6_IMAGE_INSPECT_INVALID")
+        image_config = _object(image.get("Config"), "S6_IMAGE_INSPECT_INVALID")
+        labels = _object(image_config.get("Labels"), "S6_IMAGE_INSPECT_INVALID")
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RehearsalBlocked("isolated_database_migrations", "S6_IMAGE_INSPECT_INVALID") from exc
+    if (
+        image.get("Id") != identity.candidate_image_id
+        or labels.get("org.opencontainers.image.revision") != identity.candidate_sha
+    ):
+        raise RehearsalBlocked("isolated_database_migrations", "S6_IMAGE_IDENTITY_MISMATCH")
+
+
+def _migration_name_list(value: object) -> tuple[str, ...]:
+    """Narrow a migration name list and require deterministic unique ordering."""
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError("S6_MIGRATION_RESULT_INVALID")
+    names = tuple(cast(list[str], value))
+    if names != tuple(sorted(set(names))) or any(not item for item in names):
+        raise ValueError("S6_MIGRATION_RESULT_INVALID")
+    return names
+
+
+def _validate_isolated_database_migration_report(
+    report: Mapping[str, object],
+    *,
+    identity: Identity,
+    config: RehearsalConfig,
+    database_identity: IsolatedDatabaseIdentity,
+) -> None:
+    """Verify the runner-owned, secret-free schema-migration evidence."""
+    try:
+        started_at = datetime.fromisoformat(cast(str, report["started_at"]))
+        finished_at = datetime.fromisoformat(cast(str, report["finished_at"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RehearsalBlocked(
+            "isolated_database_migrations", "S6_MIGRATION_REPORT_INVALID"
+        ) from exc
+    pending_before = report.get("pending_before")
+    pending_after = report.get("pending_after")
+    applied_migrations = report.get("applied_migrations")
+    database_port = report.get("database_port")
+    runtime_values = _parse_env_file(config.isolated_postgres_env_file)
+    expected_database_port = _url_port(
+        runtime_values["MIGRATOR_DATABASE_URL"],
+        schemes=frozenset({"postgres", "postgresql"}),
+    )
+    if (
+        report.get("schema") != MIGRATION_REPORT_SCHEMA
+        or report.get("kind") != "isolated_database_migrations"
+        or report.get("outcome") != "success"
+        or report.get("evidence_mode") != "isolated_postgresql_migrations"
+        or report.get("candidate_sha") != identity.candidate_sha
+        or report.get("candidate_image_id") != identity.candidate_image_id
+        or report.get("candidate_source_attestation") != "image_release_manifest"
+        or report.get("target_trade_date") != identity.target_trade_date
+        or report.get("universe_sha256") != identity.universe_sha256
+        or report.get("provider_identities_sha256") != identity.provider_identities_sha256
+        or report.get("database_name") != config.isolated_database_name
+        or report.get("database_host") != config.isolated_database_host
+        or type(database_port) is not int
+        or database_port != expected_database_port
+        or report.get("database_container_id") != database_identity.container_id
+        or report.get("database_address") != database_identity.address
+        or report.get("migration_command")
+        != "python -m scripts.manage_vps_migrations migrate --noinput"
+        or report.get("migrator_database_role") != "agomtradepro_migrator"
+        or started_at.utcoffset() is None
+        or finished_at.utcoffset() is None
+        or finished_at < started_at
+        or pending_after != []
+        or not isinstance(pending_before, list)
+        or not isinstance(applied_migrations, list)
+    ):
+        raise RehearsalBlocked(
+            "isolated_database_migrations", "S6_MIGRATION_REPORT_IDENTITY_MISMATCH"
+        )
+    try:
+        validated_pending_before = _migration_name_list(pending_before)
+        _migration_name_list(pending_after)
+        validated_applied = _migration_name_list(applied_migrations)
+    except ValueError as exc:
+        raise RehearsalBlocked(
+            "isolated_database_migrations", "S6_MIGRATION_REPORT_INVALID"
+        ) from exc
+    if validated_applied != validated_pending_before:
+        raise RehearsalBlocked(
+            "isolated_database_migrations", "S6_MIGRATION_REPORT_IDENTITY_MISMATCH"
+        )
+
+
+def _run_isolated_database_migrations(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    identity: Identity,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    run_dir: Path,
+    database_identity: IsolatedDatabaseIdentity,
+    container_gid: int,
+    checkpoint: _Checkpoint,
+) -> IsolatedDatabaseMigrationObservation | None:
+    """Apply candidate migrations only to the exact isolated database."""
+    stage = "isolated_database_migrations"
+    stage_dir = run_dir / stage
+    report_path = stage_dir / "isolated-database-migrations.json"
+    if checkpoint.done(stage):
+        try:
+            report = _object(json.loads(_read_file(report_path)), "S6_MIGRATION_REPORT_INVALID")
+        except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            raise RehearsalBlocked(stage, "S6_MIGRATION_REPORT_INVALID") from exc
+        _validate_isolated_database_migration_report(
+            report,
+            identity=identity,
+            config=config,
+            database_identity=database_identity,
+        )
+        _clear_migration_marker(run_dir / "migration-in-progress.json")
+        return None
+
+    checkpoint.prepare(stage, (stage_dir,), resume=config.resume)
+    stage_dir.mkdir(exist_ok=True)
+    _assert_candidate(runner, config.root, identity.candidate_sha)
+    _assert_candidate_image_identity(runner, config, identity)
+    if _preflight_isolated_database_container(config, runner) != database_identity:
+        raise RehearsalBlocked(stage, "S6_ISOLATED_DATABASE_CONTAINER_CHANGED")
+
+    migration_result_path = stage_dir / "migration-command-result.json"
+    marker_path = run_dir / "migration-in-progress.json"
+    _write_migration_marker(marker_path, identity, database_identity)
+    migration_spec = StageSpec(
+        stage,
+        migration_result_path.name,
+        ("python", "-m", "scripts.manage_vps_migrations", "migrate", "--noinput"),
+        (config.isolated_migrator_env_file,),
+        environment=(
+            ("DJANGO_SETTINGS_MODULE", "core.settings.production"),
+            ("REDIS_HOST", config.isolated_redis_host),
+            ("REDIS_PORT", "6379"),
+            ("AGOM_S6_ISOLATED_DATABASE_MIGRATION", "1"),
+            ("AGOM_S6_EXPECTED_DATABASE_NAME", config.isolated_database_name),
+            ("AGOM_S6_EXPECTED_DATABASE_HOST", config.isolated_database_host),
+            ("AGOM_S6_EXPECTED_DATABASE_CONTAINER_ID", database_identity.container_id),
+            ("AGOM_S6_EXPECTED_DATABASE_ADDRESS", database_identity.address),
+            ("AGOM_S6_MIGRATION_RESULT_PATH", "/run/agom/stage/migration-command-result.json"),
+        ),
+    )
+    started_at = datetime.now(UTC)
+    _invoke_container_stage(
+        runner,
+        argv=_docker_command(
+            identity,
+            config.docker_network,
+            migration_spec.env_files,
+            identity_path,
+            manifest_path,
+            provider_path,
+            stage_dir,
+            migration_spec,
+        ),
+        root=config.root,
+        label=stage,
+        timeout=config.stage_timeout_seconds,
+        env={
+            "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+            "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+        },
+        artifact_dir=stage_dir,
+        container_gid=container_gid,
+    )
+    if _preflight_isolated_database_container(config, runner) != database_identity:
+        raise RehearsalBlocked(stage, "S6_ISOLATED_DATABASE_CONTAINER_CHANGED")
+    try:
+        command_result = _object(
+            json.loads(_read_file(migration_result_path, 4_194_304)),
+            "S6_MIGRATION_RESULT_INVALID",
+        )
+        if (
+            set(command_result)
+            != {
+                "schema",
+                "pending_before",
+                "pending_after",
+                "applied_migrations",
+                "database_port",
+                "database_address",
+            }
+            or command_result.get("schema") != MIGRATION_COMMAND_RESULT_SCHEMA
+        ):
+            raise ValueError("S6_MIGRATION_RESULT_INVALID")
+        pending_before = _migration_name_list(command_result.get("pending_before"))
+        pending_after = _migration_name_list(command_result.get("pending_after"))
+        applied_migrations = _migration_name_list(command_result.get("applied_migrations"))
+        database_port = command_result.get("database_port")
+        database_address = command_result.get("database_address")
+    except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        raise RehearsalBlocked(stage, "S6_MIGRATION_RESULT_INVALID") from exc
+    runtime_values = _parse_env_file(config.isolated_postgres_env_file)
+    expected_database_port = _url_port(
+        runtime_values["MIGRATOR_DATABASE_URL"],
+        schemes=frozenset({"postgres", "postgresql"}),
+    )
+    if (
+        pending_after
+        or applied_migrations != pending_before
+        or type(database_port) is not int
+        or database_port != expected_database_port
+        or database_address != database_identity.address
+    ):
+        raise RehearsalBlocked(stage, "S6_MIGRATIONS_REMAIN_PENDING")
+    return IsolatedDatabaseMigrationObservation(
+        started_at=started_at,
+        finished_at=datetime.now(UTC),
+        pending_before=pending_before,
+        pending_after=pending_after,
+        applied_migrations=applied_migrations,
+        database_port=database_port,
+        database_address=database_identity.address,
+    )
+
+
+def _write_isolated_database_migration_report(
+    config: RehearsalConfig,
+    identity: Identity,
+    run_dir: Path,
+    database_identity: IsolatedDatabaseIdentity,
+    observation: IsolatedDatabaseMigrationObservation,
+    checkpoint: _Checkpoint,
+) -> None:
+    """Record migration evidence only after the runtime-role read-only preflight passes."""
+    report: dict[str, object] = {
+        "schema": MIGRATION_REPORT_SCHEMA,
+        "kind": "isolated_database_migrations",
+        "outcome": "success",
+        "candidate_sha": identity.candidate_sha,
+        "candidate_image_id": identity.candidate_image_id,
+        "candidate_source_attestation": "image_release_manifest",
+        "target_trade_date": identity.target_trade_date,
+        "universe_sha256": identity.universe_sha256,
+        "provider_identities_sha256": identity.provider_identities_sha256,
+        "database_name": config.isolated_database_name,
+        "database_host": config.isolated_database_host,
+        "database_port": observation.database_port,
+        "database_container_id": database_identity.container_id,
+        "database_address": observation.database_address,
+        "migration_command": "python -m scripts.manage_vps_migrations migrate --noinput",
+        "migrator_database_role": "agomtradepro_migrator",
+        "pending_before": list(observation.pending_before),
+        "pending_after": list(observation.pending_after),
+        "applied_migrations": list(observation.applied_migrations),
+        "evidence_mode": "isolated_postgresql_migrations",
+        "started_at": observation.started_at.isoformat(),
+        "finished_at": observation.finished_at.isoformat(),
+    }
+    _validate_isolated_database_migration_report(
+        report,
+        identity=identity,
+        config=config,
+        database_identity=database_identity,
+    )
+    stage_dir = run_dir / "isolated_database_migrations"
+    _write_json(stage_dir / "isolated-database-migrations.json", report, read_only=True)
+    _fsync_directory(stage_dir)
+    checkpoint.complete("isolated_database_migrations", (stage_dir,))
+    _fsync_directory(run_dir)
+    _clear_migration_marker(run_dir / "migration-in-progress.json")
 
 
 def _run_parallel_stage_member(
@@ -2031,6 +2581,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                 max_age_hours=config.max_age_hours,
                 stage_order=("build_artifacts", "build_only", "docker_identity", *STAGES[:-1]),
             )
+            _validate_resume_outcome(config)
             if (config.output_dir / "s6-handoff-receipt.json").exists():
                 raise RehearsalBlocked("handoff", "S6_RUN_ALREADY_COMPLETE")
             _freeze_provider_settings_snapshot(config.output_dir.resolve(), inputs)
@@ -2129,10 +2680,14 @@ def _run_release_rehearsal(
         frozen_isolated_env = _freeze_private_input(
             run_dir / "inputs" / "isolated.env", inputs.isolated_env_raw
         )
+        frozen_migrator_env = _freeze_private_input(
+            run_dir / "inputs" / "isolated-migrator.env", inputs.migrator_env_raw
+        )
         config = replace(
             config,
             provider_env_file=frozen_provider_env,
             isolated_postgres_env_file=frozen_isolated_env,
+            isolated_migrator_env_file=frozen_migrator_env,
         )
         checkpoint.complete("docker_identity", (run_dir / "inputs",))
         container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
@@ -2162,10 +2717,36 @@ def _run_release_rehearsal(
             provider_path,
             run_dir,
         )
-        isolated_database_container_id = _preflight_isolated_database_container(config, active)
+        isolated_database_identity = _preflight_isolated_database_container(config, active)
+        stage = "isolated_database_migrations"
+        _status(status_path, "running", completed, stage, None)
+        migration_observation = _run_isolated_database_migrations(
+            config,
+            active,
+            identity,
+            identity_path,
+            manifest_path,
+            provider_path,
+            run_dir,
+            isolated_database_identity,
+            container_gid,
+            checkpoint,
+        )
+        stage = "preflight_database"
+        _status(status_path, "running", completed, stage, None)
         _preflight_database(
             config, active, identity, identity_path, manifest_path, provider_path, run_dir
         )
+        if migration_observation is not None:
+            _write_isolated_database_migration_report(
+                config,
+                identity,
+                run_dir,
+                isolated_database_identity,
+                migration_observation,
+                checkpoint,
+            )
+        completed.append("isolated_database_migrations")
 
         path_values: dict[str, Path] = {
             "provider_dir": provider_dir,
@@ -2221,7 +2802,7 @@ def _run_release_rehearsal(
         stage = pending[0] if pending else evidence_specs[0].name
         _status(status_path, "running", completed, stage, None)
         _assert_candidate(active, config.root, candidate)
-        if _preflight_isolated_database_container(config, active) != isolated_database_container_id:
+        if _preflight_isolated_database_container(config, active) != isolated_database_identity:
             raise RehearsalBlocked(
                 "isolated_postgresql_write", "S6_ISOLATED_DATABASE_CONTAINER_CHANGED"
             )
@@ -2371,6 +2952,8 @@ def _run_release_rehearsal(
             str(financial_report_path),
             "--stage-environment-preflight",
             str(run_dir / "stage-environment-preflight" / "stage-environment-preflight.json"),
+            "--isolated-database-migrations",
+            str(run_dir / "isolated_database_migrations" / "isolated-database-migrations.json"),
             "--candidate-regression-evidence",
             str(ci_path),
             "--output-dir",
@@ -2561,6 +3144,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--password-file", type=Path, required=True)
     parser.add_argument("--provider-env-file", type=Path, required=True)
     parser.add_argument("--isolated-postgres-env-file", type=Path, required=True)
+    parser.add_argument("--isolated-migrator-env-file", type=Path, required=True)
     parser.add_argument("--docker-network", required=True)
     parser.add_argument("--isolated-database-name", required=True)
     parser.add_argument("--isolated-database-host", required=True)
@@ -2606,6 +3190,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         password_file=args.password_file.resolve(),
         provider_env_file=args.provider_env_file.resolve(),
         isolated_postgres_env_file=args.isolated_postgres_env_file.resolve(),
+        isolated_migrator_env_file=args.isolated_migrator_env_file.resolve(),
         docker_network=args.docker_network,
         isolated_database_name=args.isolated_database_name,
         isolated_database_host=args.isolated_database_host,

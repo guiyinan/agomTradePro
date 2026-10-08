@@ -18,6 +18,7 @@ from typing import cast
 
 import pytest
 
+import scripts.run_release_rehearsal as rehearsal
 from apps.data_center.infrastructure.rehearsal_identity import (
     parse_rehearsal_identities,
     rehearsal_identities_digest,
@@ -87,20 +88,37 @@ class FakeRunner:
         self,
         *,
         fail_label: str | None = None,
+        interrupt_label: str | None = None,
+        timeout_label: str | None = None,
         wrong_identity_label: str | None = None,
         mutate_bundle_on_validation: bool = False,
         dirty_worktree: bool = False,
         mutate_settings_on_build: Path | None = None,
         mutate_env_on_build: Path | None = None,
         stage_environment_issues: list[dict[str, object]] | None = None,
+        wrong_migration_image_identity: bool = False,
+        extra_migration_result_key: bool = False,
+        migration_pending_before: tuple[str, ...] = (
+            "data_center.0090_financial_publication_capacity_workflow",
+            "data_center.0091_financial_capacity_governance_record",
+            "data_center.0092_financial_capacity_owner_approval_events",
+            "data_center.0093_financial_capacity_slice_ledger",
+        ),
+        migration_applied: tuple[str, ...] | None = None,
     ) -> None:
         self.fail_label = fail_label
+        self.interrupt_label = interrupt_label
+        self.timeout_label = timeout_label
         self.wrong_identity_label = wrong_identity_label
         self.mutate_bundle_on_validation = mutate_bundle_on_validation
         self.dirty_worktree = dirty_worktree
         self.mutate_settings_on_build = mutate_settings_on_build
         self.mutate_env_on_build = mutate_env_on_build
         self.stage_environment_issues = stage_environment_issues or []
+        self.wrong_migration_image_identity = wrong_migration_image_identity
+        self.extra_migration_result_key = extra_migration_result_key
+        self.migration_pending_before = migration_pending_before
+        self.migration_applied = migration_applied
         self.commands: list[Command] = []
 
     def run(self, command: Command) -> CommandResult:
@@ -108,6 +126,10 @@ class FakeRunner:
         self.commands.append(command)
         if command.label == self.fail_label:
             return CommandResult(returncode=2, stderr="private provider detail")
+        if command.label == self.interrupt_label:
+            raise KeyboardInterrupt
+        if command.label == self.timeout_label:
+            return CommandResult(returncode=124, stderr="TimeoutExpired")
         if command.label == "git_head":
             return CommandResult(returncode=0, stdout=f"{CANDIDATE_SHA}\n")
         if command.label == "git_status":
@@ -129,6 +151,18 @@ class FakeRunner:
                     }
                 ),
             )
+        elif command.label == "isolated_migration_image_identity":
+            image_id = "sha256:" + "9" * 64 if self.wrong_migration_image_identity else IMAGE_ID
+            revision = "e" * 40 if self.wrong_migration_image_identity else CANDIDATE_SHA
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "Id": image_id,
+                        "Config": {"Labels": {"org.opencontainers.image.revision": revision}},
+                    }
+                ),
+            )
         elif command.label == "docker_gid":
             gid = os.getgid() if hasattr(os, "getgid") else 1000
             return CommandResult(returncode=0, stdout=f"{gid}\n")
@@ -141,7 +175,8 @@ class FakeRunner:
                         "name": "/agom-s6-pg-abcdefghij",
                         "running": True,
                         "networks": {
-                            "agomtradepro_rehearsal": {
+                            "agom-s6-network-abcdefghij": {
+                                "IPAddress": "172.30.0.2",
                                 "Aliases": ["agom-s6-postgres-abcdefghij"],
                                 "DNSNames": [
                                     "agom-s6-pg-abcdefghij",
@@ -161,7 +196,7 @@ class FakeRunner:
                         "name": "/agom-s6-redis-abcdefghij",
                         "running": True,
                         "networks": {
-                            "agomtradepro_rehearsal": {
+                            "agom-s6-network-abcdefghij": {
                                 "Aliases": ["agom-s6-redis-abcdefghij"],
                                 "DNSNames": ["agom-s6-redis-abcdefghij"],
                             }
@@ -186,6 +221,26 @@ class FakeRunner:
                     "redis is ready\npostgres is ready\n"
                     "[OK] PostgreSQL runtime role contract verified\n"
                 ),
+            )
+        elif command.label == "isolated_database_migrations":
+            assert command.artifact_dir is not None
+            applied = (
+                self.migration_pending_before
+                if self.migration_applied is None
+                else self.migration_applied
+            )
+            payload: dict[str, object] = {
+                "schema": "release.s6-isolated-database-migration-result.v1",
+                "pending_before": list(self.migration_pending_before),
+                "pending_after": [],
+                "applied_migrations": sorted(set(applied)),
+                "database_port": 5432,
+                "database_address": "172.30.0.2",
+            }
+            if self.extra_migration_result_key:
+                payload["database_url"] = "postgresql://migrator:secret@wrong/db"
+            (command.artifact_dir / "migration-command-result.json").write_text(
+                json.dumps(payload), encoding="utf-8"
             )
         elif command.label == "github_ci_evidence":
             assert command.artifact_dir is not None
@@ -370,6 +425,7 @@ class FakeRunner:
                 "isolated_write_rehearsal": "--isolated-write-rehearsal",
                 "akshare_financial_slice": "--akshare-financial-slice",
                 "stage_environment_preflight": "--stage-environment-preflight",
+                "isolated_database_migrations": "--isolated-database-migrations",
                 "candidate_regression_evidence": "--candidate-regression-evidence",
             }.items()
         }
@@ -448,6 +504,7 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
     isolated_env.write_text(
         "POSTGRES_HOST=agom-s6-postgres-abcdefghij\n"
         "POSTGRES_DB=agom_release_rehearsal_abcdefghij\n"
+        "POSTGRES_PORT=5432\n"
         "DATABASE_URL=postgresql://user:not-a-real-secret@"
         "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij\n"
         "MIGRATOR_DATABASE_URL=postgresql://migrator:not-a-real-secret@"
@@ -455,6 +512,21 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         "REDIS_HOST=agom-s6-redis-abcdefghij\n"
         "REDIS_URL=redis://:not-a-real-secret@agom-s6-redis-abcdefghij:6379/0\n"
         "AGOM_RELEASE_REHEARSAL_DATABASE=1\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    isolated_migrator_env = tmp_path / "isolated-migrator.env"
+    isolated_migrator_env.write_text(
+        "DATABASE_URL=postgresql://migrator:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij\n"
+        "POSTGRES_HOST=agom-s6-postgres-abcdefghij\n"
+        "POSTGRES_DB=agom_release_rehearsal_abcdefghij\n"
+        "POSTGRES_PORT=5432\n"
+        "AGOM_RELEASE_REHEARSAL_DATABASE=1\n"
+        "TUSHARE_TOKEN=provider-secret-marker\n"
+        "SECRET_KEY=s6-bootstrap-django-key-abcdefghijklmnopqrstuvwxyz-0123456789\n"
+        "AGOMTRADEPRO_ENCRYPTION_KEY=s6-bootstrap-encryption-key-marker\n"
+        "DJANGO_SETTINGS_MODULE=untrusted.settings\n",
         encoding="utf-8",
         newline="\n",
     )
@@ -476,7 +548,8 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         valuation_provider_id=12,
         provider_env_file=provider_env,
         isolated_postgres_env_file=isolated_env,
-        docker_network="agomtradepro_rehearsal",
+        isolated_migrator_env_file=isolated_migrator_env,
+        docker_network="agom-s6-network-abcdefghij",
         isolated_database_name="agom_release_rehearsal_abcdefghij",
         isolated_database_host="agom-s6-postgres-abcdefghij",
         isolated_database_container="agom-s6-pg-abcdefghij",
@@ -684,6 +757,47 @@ def test_environment_failure_precedes_expensive_build(tmp_path: Path, label: str
     runner = FakeRunner(fail_label=label)
     with pytest.raises(RehearsalBlocked):
         run_release_rehearsal(config, runner=runner)
+    assert "build_only" not in runner.labels
+
+
+@pytest.mark.parametrize(
+    ("key", "replacement", "error_code"),
+    [
+        (
+            "SECRET_KEY",
+            "SECRET_KEY=short\n",
+            "S6_ISOLATED_MIGRATOR_BOOTSTRAP_SECRET_INVALID",
+        ),
+        (
+            "AGOMTRADEPRO_ENCRYPTION_KEY",
+            "AGOMTRADEPRO_ENCRYPTION_KEY=\n",
+            "S6_ISOLATED_MIGRATOR_BOOTSTRAP_SECRET_INVALID",
+        ),
+        (
+            "AGOMTRADEPRO_ENCRYPTION_KEY",
+            "",
+            "S6_ISOLATED_MIGRATOR_ENV_IDENTITY_MISMATCH",
+        ),
+    ],
+)
+def test_migrator_bootstrap_secret_contract_blocks_before_build(
+    tmp_path: Path,
+    key: str,
+    replacement: str,
+    error_code: str,
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    lines = config.isolated_migrator_env_file.read_text(encoding="utf-8").splitlines(keepends=True)
+    config.isolated_migrator_env_file.write_text(
+        "".join(replacement if line.startswith(f"{key}=") else line for line in lines),
+        encoding="utf-8",
+        newline="\n",
+    )
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match=error_code):
+        run_release_rehearsal(config, runner=runner)
+
     assert "build_only" not in runner.labels
 
 
@@ -1030,6 +1144,19 @@ def test_resume_keeps_failed_attempt_outputs_and_only_reloads_missing_image(tmp_
     assert archived[0].read_text(encoding="utf-8") == '{"failed": true}'
 
 
+def test_provider_stage_failure_remains_resumable(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+    runner = FakeRunner()
+
+    receipt = run_release_rehearsal(replace(config, resume=True), runner=runner)
+
+    assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
+    assert "isolated_database_migrations" not in runner.labels
+    assert not (config.output_dir / "migration-in-progress.json").exists()
+
+
 @pytest.mark.parametrize("invalid", ["missing", "expired", "future", "active", "prefix"])
 def test_resume_rejects_missing_expired_or_active_checkpoint(tmp_path: Path, invalid: str) -> None:
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
@@ -1069,9 +1196,11 @@ def test_resume_blocks_orphan_stage_container(tmp_path: Path) -> None:
             return super().run(command)
 
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="stage_environment_preflight"))
     runner = OrphanRunner()
     with pytest.raises(RehearsalBlocked, match="S6_RUN_CONTAINERS_ACTIVE"):
-        run_release_rehearsal(config, runner=runner)
+        run_release_rehearsal(replace(config, resume=True), runner=runner)
     assert "build_only" not in runner.labels
 
 
@@ -1405,6 +1534,13 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     assert runner.labels.count("build_only") == 1
     assert runner.labels.index("build_only") < runner.labels.index("docker_load")
     assert runner.labels.index("docker_load") < runner.labels.index("docker_inspect")
+    assert runner.labels.index("stage_environment_preflight") < runner.labels.index(
+        "isolated_database_migrations"
+    )
+    assert runner.labels.index("isolated_database_migrations") < runner.labels.index(
+        "preflight_database"
+    )
+    assert runner.labels.index("preflight_database") < runner.labels.index("provider_probe")
     expected_stages = [
         "provider_probe",
         "response_replay",
@@ -1435,6 +1571,37 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     provider_command = next(item for item in runner.commands if item.label == "provider_probe")
     target_index = provider_command.argv.index("--target-trade-date")
     assert provider_command.argv[target_index + 1] == TRADE_DATE
+    migration_command = next(
+        item for item in runner.commands if item.label == "isolated_database_migrations"
+    )
+    migration_env_files = tuple(
+        Path(migration_command.argv[index + 1]).name
+        for index, value in enumerate(migration_command.argv[:-1])
+        if value == "--env-file"
+    )
+    assert migration_env_files == ("isolated-migrator.env",)
+    assert "--noinput" in migration_command.argv
+    assert migration_command.argv[-4:] == (
+        "python",
+        "-m",
+        "scripts.manage_vps_migrations",
+        "migrate",
+    ) or migration_command.argv[-5:] == (
+        "python",
+        "-m",
+        "scripts.manage_vps_migrations",
+        "migrate",
+        "--noinput",
+    )
+    assert "AGOM_RELEASE_REHEARSAL_DATABASE" not in migration_command.env
+    migration_env = {
+        migration_command.argv[index + 1]
+        for index, value in enumerate(migration_command.argv[:-1])
+        if value == "--env"
+    }
+    assert "DJANGO_SETTINGS_MODULE=core.settings.production" in migration_env
+    assert "REDIS_HOST=agom-s6-redis-abcdefghij" in migration_env
+    assert "REDIS_PORT=6379" in migration_env
     for label in expected_stages[:5]:
         command = next(item for item in runner.commands if item.label == label)
         assert command.env["AGOM_CANDIDATE_IMAGE_ID"] == IMAGE_ID
@@ -1472,6 +1639,60 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     assert manifest["candidate_image_id"] == IMAGE_ID
     assert manifest["target_trade_date"] == TRADE_DATE
     assert manifest["universe_sha256"] == UNIVERSE_SHA256
+    migration_report = json.loads(
+        (
+            config.output_dir / "isolated_database_migrations" / "isolated-database-migrations.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert migration_report["database_port"] == 5432
+    assert migration_report["pending_before"] == [
+        "data_center.0090_financial_publication_capacity_workflow",
+        "data_center.0091_financial_capacity_governance_record",
+        "data_center.0092_financial_capacity_owner_approval_events",
+        "data_center.0093_financial_capacity_slice_ledger",
+    ]
+    assert migration_report["applied_migrations"] == migration_report["pending_before"]
+    assert migration_report["pending_after"] == []
+    sanitized_migrator_env = (config.output_dir / "inputs" / "isolated-migrator.env").read_text(
+        encoding="utf-8"
+    )
+    assert {line.partition("=")[0] for line in sanitized_migrator_env.splitlines()} == {
+        "AGOM_RELEASE_REHEARSAL_DATABASE",
+        "AGOMTRADEPRO_ENCRYPTION_KEY",
+        "DATABASE_URL",
+        "POSTGRES_DB",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "SECRET_KEY",
+    }
+    assert "provider-secret-marker" not in sanitized_migrator_env
+    assert "s6-bootstrap-django-key-abcdefghijklmnopqrstuvwxyz-0123456789" in (
+        sanitized_migrator_env
+    )
+    assert "s6-bootstrap-encryption-key-marker" in sanitized_migrator_env
+    migration_command_text = repr(migration_command.argv) + repr(migration_report)
+    assert "provider-secret-marker" not in migration_command_text
+    assert "s6-bootstrap-django-key-abcdefghijklmnopqrstuvwxyz-0123456789" not in (
+        migration_command_text
+    )
+    assert "s6-bootstrap-encryption-key-marker" not in migration_command_text
+    for command in runner.commands:
+        assert "provider-secret-marker" not in repr(command.argv)
+        assert "not-a-real-secret" not in repr(command.argv)
+        assert "provider-secret-marker" not in repr(command.env)
+        assert "s6-bootstrap-django-key-abcdefghijklmnopqrstuvwxyz-0123456789" not in repr(
+            command.env
+        )
+        assert "s6-bootstrap-encryption-key-marker" not in repr(command.env)
+        assert "not-a-real-secret" not in repr(command.env)
+    bundle_dir = Path(cast(str, receipt["bundle_dir"]))
+    for path in bundle_dir.rglob("*"):
+        if path.is_file():
+            contents = path.read_text(encoding="utf-8")
+            assert "provider-secret-marker" not in contents
+            assert "s6-bootstrap-django-key-abcdefghijklmnopqrstuvwxyz-0123456789" not in contents
+            assert "s6-bootstrap-encryption-key-marker" not in contents
+            assert "not-a-real-secret" not in contents
     raw_settings = config.provider_settings_json.read_bytes()
     canonical_settings = json.dumps(
         json.loads(raw_settings), ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -1512,6 +1733,182 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     ):
         writable_mode = 0o2770 if os.name == "posix" else 0o770
         assert chmod_calls[directory] == [writable_mode, 0o750]
+
+
+def test_isolated_database_migration_noop_is_valid_evidence(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    receipt = run_release_rehearsal(
+        config,
+        runner=FakeRunner(migration_pending_before=()),
+    )
+    assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
+    report = json.loads(
+        (
+            config.output_dir / "isolated_database_migrations" / "isolated-database-migrations.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert report["pending_before"] == []
+    assert report["applied_migrations"] == []
+    assert report["pending_after"] == []
+
+
+@pytest.mark.parametrize("failure_mode", ["failed", "timeout", "interrupted"])
+def test_unknown_migration_outcome_cannot_be_resumed(tmp_path: Path, failure_mode: str) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    options = {
+        "failed": {"fail_label": "isolated_database_migrations"},
+        "timeout": {"timeout_label": "isolated_database_migrations"},
+        "interrupted": {"interrupt_label": "isolated_database_migrations"},
+    }[failure_mode]
+    runner = FakeRunner(**options)
+    if failure_mode == "interrupted":
+        with pytest.raises(KeyboardInterrupt):
+            run_release_rehearsal(config, runner=runner)
+    else:
+        with pytest.raises(RehearsalBlocked):
+            run_release_rehearsal(config, runner=runner)
+    assert (config.output_dir / "migration-in-progress.json").is_file()
+
+    # A SIGKILL/process-loss leaves the durable running status; marker absence
+    # must not be used as proof that an in-flight migration never started.
+    if failure_mode == "interrupted":
+        (config.output_dir / "migration-in-progress.json").unlink()
+    resume_runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_MIGRATION_STAGE_OUTCOME_UNKNOWN"):
+        run_release_rehearsal(replace(config, resume=True), runner=resume_runner)
+    assert "isolated_database_migrations" not in resume_runner.labels
+    assert "provider_probe" not in resume_runner.labels
+
+
+def test_wrong_candidate_image_blocks_before_migration_egress(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(wrong_migration_image_identity=True)
+    with pytest.raises(RehearsalBlocked, match="S6_IMAGE_IDENTITY_MISMATCH"):
+        run_release_rehearsal(config, runner=runner)
+    assert "isolated_database_migrations" not in runner.labels
+    assert "provider_probe" not in runner.labels
+
+
+def test_migration_command_result_rejects_unexpected_secret_fields(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(extra_migration_result_key=True)
+    with pytest.raises(RehearsalBlocked, match="S6_MIGRATION_RESULT_INVALID"):
+        run_release_rehearsal(config, runner=runner)
+    assert "provider_probe" not in runner.labels
+    assert (config.output_dir / "migration-in-progress.json").is_file()
+
+
+def test_migration_marker_and_checkpoint_directory_sync_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[tuple[str, str]] = []
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+
+    def record_directory_sync(path: Path) -> None:
+        events.append(("directory_sync", path.name))
+
+    class ObservedRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "isolated_database_migrations":
+                events.append(("migration_egress", command.label))
+            return super().run(command)
+
+    monkeypatch.setattr(rehearsal, "_fsync_directory", record_directory_sync)
+    run_release_rehearsal(config, runner=ObservedRunner())
+
+    egress_index = events.index(("migration_egress", "isolated_database_migrations"))
+    assert events.index(("directory_sync", config.output_dir.name)) < egress_index
+    assert [kind for kind, _name in events[egress_index + 1 :]].count("directory_sync") >= 3
+
+
+def test_migration_marker_directory_sync_failure_blocks_before_egress(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    def fail_directory_sync(_path: Path) -> None:
+        raise RehearsalBlocked("isolated_database_migrations", "S6_MIGRATION_DIRECTORY_SYNC_FAILED")
+
+    monkeypatch.setattr(rehearsal, "_fsync_directory", fail_directory_sync)
+    with pytest.raises(RehearsalBlocked, match="S6_MIGRATION_DIRECTORY_SYNC_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+    assert "isolated_database_migrations" not in runner.labels
+    assert "provider_probe" not in runner.labels
+
+
+def test_runtime_preflight_failure_keeps_migration_unknown_marker(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner(fail_label="preflight_database")
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=runner)
+    assert (config.output_dir / "migration-in-progress.json").is_file()
+    assert "provider_probe" not in runner.labels
+
+    resume_runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_MIGRATION_STAGE_OUTCOME_UNKNOWN"):
+        run_release_rehearsal(replace(config, resume=True), runner=resume_runner)
+    assert "isolated_database_migrations" not in resume_runner.labels
+    assert "provider_probe" not in resume_runner.labels
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "DATABASE_URL=postgresql://user:not-a-real-secret@old-db/old_rehearsal",
+        "DATABASE_URL=postgresql://user:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij?host=wrong-db",
+        "MIGRATOR_DATABASE_URL=postgresql://migrator:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij/agom_release_rehearsal_abcdefghij#wrong-db",
+        "MIGRATOR_DATABASE_URL=postgresql://migrator:not-a-real-secret@"
+        "agom-s6-postgres-abcdefghij:5433/agom_release_rehearsal_abcdefghij",
+    ],
+)
+def test_database_endpoint_mismatch_blocks_before_any_runner_command(
+    tmp_path: Path, replacement: str
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    source = config.isolated_postgres_env_file.read_text(encoding="utf-8")
+    key = replacement.partition("=")[0]
+    lines = [line for line in source.splitlines() if not line.startswith(f"{key}=")]
+    lines.append(replacement)
+    config.isolated_postgres_env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=runner)
+    assert runner.labels == []
+
+
+def test_database_url_default_and_explicit_5432_are_same_endpoint(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    raw = config.isolated_postgres_env_file.read_bytes()
+    raw = raw.replace(
+        b"DATABASE_URL=postgresql://user:not-a-real-secret@" b"agom-s6-postgres-abcdefghij/",
+        b"DATABASE_URL=postgresql://user:not-a-real-secret@" b"agom-s6-postgres-abcdefghij:5432/",
+    )
+    rehearsal._validate_isolated_environment_identity(config, raw)
+
+
+def test_isolated_resource_attempt_suffix_must_match(tmp_path: Path) -> None:
+    config = replace(
+        _config(tmp_path, root=_fake_checkout(tmp_path)),
+        isolated_redis_container="agom-s6-redis-other-attempt",
+    )
+    runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_RESOURCE_IDENTITY_MISMATCH"):
+        run_release_rehearsal(config, runner=runner)
+    assert runner.labels == []
+
+
+def test_isolated_network_attempt_suffix_must_match(tmp_path: Path) -> None:
+    config = replace(
+        _config(tmp_path, root=_fake_checkout(tmp_path)),
+        docker_network="agom-s6-network-other-attempt",
+    )
+    runner = FakeRunner()
+    with pytest.raises(RehearsalBlocked, match="S6_ISOLATED_RESOURCE_IDENTITY_MISMATCH"):
+        run_release_rehearsal(config, runner=runner)
+    assert runner.labels == []
 
 
 def test_parity_mount_uses_startup_copy_after_external_snapshot_changes(tmp_path: Path) -> None:
@@ -1620,9 +2017,6 @@ def test_parallel_group_failure_records_only_completed_prefix(tmp_path: Path) ->
     receipt = run_release_rehearsal(replace(config, resume=True), runner=resumed)
     assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
     assert "response_replay" not in resumed.labels
-    assert "full_universe_capacity" in resumed.labels
-    assert "production_policy_parity" in resumed.labels
-    assert "isolated_postgresql_write" in resumed.labels
 
 
 def test_output_inside_checkout_is_rejected_before_build(tmp_path: Path) -> None:

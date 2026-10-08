@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -19,11 +20,43 @@ REQUIRED_SCHEMAS = {
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
+    "isolated_database_migrations": "release.isolated-database-migrations.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
+MIGRATION_NAME_RE = re.compile(r"[a-z][a-z0-9_]*\.[0-9][A-Za-z0-9_]*")
+DATABASE_NAME_RE = re.compile(r"agom_release_rehearsal_[a-z0-9_]+")
+DATABASE_HOST_RE = re.compile(r"agom-s6-postgres-[a-z0-9-]+")
+MIGRATION_COMMAND = "python -m scripts.manage_vps_migrations migrate --noinput"
+MIGRATOR_DATABASE_ROLE = "agomtradepro_migrator"
+ISOLATED_DATABASE_MIGRATION_FIELDS = frozenset(
+    {
+        "schema",
+        "kind",
+        "outcome",
+        "candidate_sha",
+        "candidate_source_attestation",
+        "candidate_image_id",
+        "target_trade_date",
+        "universe_sha256",
+        "provider_identities_sha256",
+        "evidence_mode",
+        "started_at",
+        "finished_at",
+        "database_name",
+        "database_host",
+        "database_address",
+        "database_port",
+        "database_container_id",
+        "migration_command",
+        "migrator_database_role",
+        "pending_before",
+        "pending_after",
+        "applied_migrations",
+    }
+)
 MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 
 
@@ -61,6 +94,54 @@ def _canonical_provider_settings_digest(payload: dict[str, object]) -> str:
         default=str,
     )
     return _digest(canonical.encode("utf-8"))
+
+
+def _is_ip_address(value: object) -> bool:
+    """Return whether a secret-free report value is a syntactically valid IP address."""
+    if not isinstance(value, str):
+        return False
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_isolated_database_migrations(payload: dict[str, object]) -> None:
+    """Reject migration evidence outside the fixed disposable-database contract."""
+    pending_before = payload.get("pending_before")
+    pending_after = payload.get("pending_after")
+    applied_migrations = payload.get("applied_migrations")
+    if set(payload) != ISOLATED_DATABASE_MIGRATION_FIELDS:
+        raise ValueError("REHEARSAL_BUNDLE_MIGRATION_REPORT_INVALID")
+    if (
+        payload.get("candidate_source_attestation") != "image_release_manifest"
+        or payload.get("evidence_mode") != "isolated_postgresql_migrations"
+        or payload.get("migration_command") != MIGRATION_COMMAND
+        or payload.get("migrator_database_role") != MIGRATOR_DATABASE_ROLE
+        or not isinstance(payload.get("database_name"), str)
+        or DATABASE_NAME_RE.fullmatch(cast(str, payload.get("database_name"))) is None
+        or not isinstance(payload.get("database_host"), str)
+        or DATABASE_HOST_RE.fullmatch(cast(str, payload.get("database_host"))) is None
+        or not _is_ip_address(payload.get("database_address"))
+        or type(payload.get("database_port")) is not int
+        or not 1 <= cast(int, payload.get("database_port")) <= 65535
+        or not isinstance(payload.get("database_container_id"), str)
+        or SHA256_RE.fullmatch(cast(str, payload.get("database_container_id"))) is None
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_MIGRATION_REPORT_INVALID")
+    if (
+        not isinstance(pending_before, list)
+        or any(
+            not isinstance(name, str) or MIGRATION_NAME_RE.fullmatch(name) is None
+            for name in pending_before
+        )
+        or pending_before != sorted(set(pending_before))
+        or pending_after != []
+        or not isinstance(applied_migrations, list)
+        or applied_migrations != pending_before
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_MIGRATION_REPORT_INVALID")
 
 
 def _artifact_refs(value: object) -> list[tuple[str, str]]:
@@ -181,6 +262,7 @@ def build_manifest(
             )
         ):
             raise ValueError("REHEARSAL_BUNDLE_REPORT_MISMATCH")
+    _validate_isolated_database_migrations(loaded["isolated_database_migrations"])
     parity = loaded["production_policy_parity"]
     settings = parity.get("provider_settings")
     if not isinstance(settings, dict) or any(not isinstance(key, str) for key in settings):
@@ -246,6 +328,7 @@ def main() -> int:
     parser.add_argument("--isolated-write-rehearsal", required=True, type=Path)
     parser.add_argument("--akshare-financial-slice", required=True, type=Path)
     parser.add_argument("--stage-environment-preflight", required=True, type=Path)
+    parser.add_argument("--isolated-database-migrations", required=True, type=Path)
     parser.add_argument("--candidate-regression-evidence", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--candidate-sha", required=True)

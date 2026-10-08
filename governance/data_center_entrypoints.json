@@ -15,7 +15,7 @@
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 69,
+      "operational_dispatch_edge": 70,
       "operational_script": 32,
       "orchestration_entry": 16,
       "public_port": 97,
@@ -26,17 +26,17 @@
       "script": 12,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 84,
+      "test_evidence": 86,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 828,
+      "active_public": 831,
       "adjacent_operational": 337,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1303
+    "total": 1306
   },
   "entries": [
     {
@@ -7842,6 +7842,16 @@
     {
       "category": "operational_dispatch_edge",
       "evidence": "canonical allow-listed migrate, flush, and loaddata runner; validates the migrator-to-owner role and scopes candidate-manifest fixture restore capability to loaddata",
+      "id": "operational_dispatch_edge:scripts/manage_vps_migrations.py:MigrationExecutor:token:MigrationExecutor",
+      "locator": "token:MigrationExecutor",
+      "path": "scripts/manage_vps_migrations.py",
+      "status": "active_public",
+      "symbol": "MigrationExecutor",
+      "target": "django:MigrationExecutor"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "canonical allow-listed migrate, flush, and loaddata runner; validates the migrator-to-owner role and scopes candidate-manifest fixture restore capability to loaddata",
       "id": "operational_dispatch_edge:scripts/manage_vps_migrations.py:execute_from_command_line flush:token:execute_from_command_line flush",
       "locator": "token:execute_from_command_line flush",
       "path": "scripts/manage_vps_migrations.py",
@@ -8427,7 +8437,7 @@
       "path": "scripts/manage_vps_migrations.py",
       "status": "active_public",
       "symbol": "__main__",
-      "target": "django:flush,django:loaddata,django:migrate"
+      "target": "django:MigrationExecutor,django:flush,django:loaddata,django:migrate"
     },
     {
       "category": "operational_script",
@@ -12852,6 +12862,16 @@
     {
       "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_build_release_rehearsal_manifest.py:test_build_release_rehearsal_manifest:",
+      "locator": "",
+      "path": "tests/unit/test_build_release_rehearsal_manifest.py",
+      "status": "active_public",
+      "symbol": "test_build_release_rehearsal_manifest",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_data_center_0085_rollback_compatibility.py:test_data_center_0085_rollback_compatibility:",
       "locator": "",
       "path": "tests/unit/test_data_center_0085_rollback_compatibility.py",
@@ -12937,6 +12957,16 @@
       "path": "tests/unit/test_remote_build_deploy_vps.py",
       "status": "active_public",
       "symbol": "test_remote_build_deploy_vps",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_validate_release_rehearsal.py:test_validate_release_rehearsal:",
+      "locator": "",
+      "path": "tests/unit/test_validate_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "test_validate_release_rehearsal",
       "target": ""
     },
     {

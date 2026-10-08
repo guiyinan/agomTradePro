@@ -14,6 +14,7 @@
     "stages": [
       "build_only",
       "docker_identity",
+      "isolated_database_migrations",
       "provider_probe",
       "response_replay",
       "full_universe_capacity",
@@ -35,6 +36,7 @@
     "isolated_write_rehearsal",
     "akshare_financial_slice",
     "stage_environment_preflight",
+    "isolated_database_migrations",
     "candidate_regression_evidence"
   ]
 }

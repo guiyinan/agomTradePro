@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import ipaddress
 import json
 import math
 import os
@@ -30,6 +31,37 @@ if str(PROJECT_ROOT) not in sys.path:
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+MIGRATION_NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]*\.[0-9][A-Za-z0-9_]*")
+DATABASE_NAME_PATTERN = re.compile(r"agom_release_rehearsal_[a-z0-9_]+")
+DATABASE_HOST_PATTERN = re.compile(r"agom-s6-postgres-[a-z0-9-]+")
+MIGRATION_COMMAND = "python -m scripts.manage_vps_migrations migrate --noinput"
+MIGRATOR_DATABASE_ROLE = "agomtradepro_migrator"
+ISOLATED_DATABASE_MIGRATION_FIELDS = frozenset(
+    {
+        "schema",
+        "kind",
+        "candidate_sha",
+        "target_trade_date",
+        "universe_sha256",
+        "provider_identities_sha256",
+        "outcome",
+        "candidate_source_attestation",
+        "candidate_image_id",
+        "evidence_mode",
+        "started_at",
+        "finished_at",
+        "database_name",
+        "database_host",
+        "database_address",
+        "database_port",
+        "database_container_id",
+        "migration_command",
+        "migrator_database_role",
+        "pending_before",
+        "pending_after",
+        "applied_migrations",
+    }
+)
 ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 PROVIDER_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 PROVIDER_CORE_ROLES = frozenset({"quote", "valuation"})
@@ -46,6 +78,7 @@ REQUIRED_REPORT_SCHEMAS = {
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
+    "isolated_database_migrations": "release.isolated-database-migrations.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 REQUIRED_EVIDENCE_MODES = {
@@ -55,6 +88,7 @@ REQUIRED_EVIDENCE_MODES = {
     "isolated_write_rehearsal": "isolated_postgresql",
     "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
     "stage_environment_preflight": "read_only_environment_contract",
+    "isolated_database_migrations": "isolated_postgresql_migrations",
     "candidate_regression_evidence": "candidate_ci",
 }
 IMAGE_BOUND_REPORTS = frozenset(
@@ -65,10 +99,16 @@ IMAGE_BOUND_REPORTS = frozenset(
         "isolated_write_rehearsal",
         "akshare_financial_slice",
         "stage_environment_preflight",
+        "isolated_database_migrations",
     }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
-    {"full_universe_capacity", "isolated_write_rehearsal", "stage_environment_preflight"}
+    {
+        "full_universe_capacity",
+        "isolated_write_rehearsal",
+        "stage_environment_preflight",
+        "isolated_database_migrations",
+    }
 )
 FINANCIAL_ZERO_WRITE_PROOF_CASES = (
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
@@ -765,6 +805,55 @@ def _validate_stage_environment_preflight(report: dict[str, Any], report_root: P
     _validate_stage_environment_matrix(
         prebuild, stages[:2], categories, minimum_prebuild_disk, minimum_memory
     )
+
+
+def _validate_isolated_database_migrations(report: dict[str, Any]) -> None:
+    """Require exact, secret-free migration evidence for one disposable database."""
+    if set(report) != ISOLATED_DATABASE_MIGRATION_FIELDS:
+        _fail("REHEARSAL_DATABASE_MIGRATION_FIELDS_INVALID")
+    if (
+        report.get("candidate_source_attestation") != "image_release_manifest"
+        or report.get("evidence_mode") != "isolated_postgresql_migrations"
+        or report.get("migration_command") != MIGRATION_COMMAND
+        or report.get("migrator_database_role") != MIGRATOR_DATABASE_ROLE
+        or not isinstance(report.get("database_name"), str)
+        or DATABASE_NAME_PATTERN.fullmatch(cast(str, report.get("database_name"))) is None
+        or not isinstance(report.get("database_host"), str)
+        or DATABASE_HOST_PATTERN.fullmatch(cast(str, report.get("database_host"))) is None
+        or not _is_ip_address(report.get("database_address"))
+        or type(report.get("database_port")) is not int
+        or not 1 <= cast(int, report.get("database_port")) <= 65535
+        or not isinstance(report.get("database_container_id"), str)
+        or SHA256_PATTERN.fullmatch(cast(str, report.get("database_container_id"))) is None
+    ):
+        _fail("REHEARSAL_DATABASE_MIGRATION_IDENTITY_INVALID")
+
+    migration_lists: list[list[str]] = []
+    for key in ("pending_before", "pending_after", "applied_migrations"):
+        raw = report.get(key)
+        if not isinstance(raw, list) or any(
+            not isinstance(name, str) or MIGRATION_NAME_PATTERN.fullmatch(name) is None
+            for name in raw
+        ):
+            _fail("REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID")
+        names = cast(list[str], raw)
+        if names != sorted(set(names)):
+            _fail("REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID")
+        migration_lists.append(names)
+    pending_before, pending_after, applied_migrations = migration_lists
+    if pending_after or applied_migrations != pending_before:
+        _fail("REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID")
+
+
+def _is_ip_address(value: object) -> bool:
+    """Return whether a secret-free report value is a syntactically valid IP address."""
+    if not isinstance(value, str):
+        return False
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _validate_receipt_identity(
@@ -2863,6 +2952,7 @@ def validate_release_rehearsal(
         )
         loaded_reports[kind] = report
         report_paths[kind] = report_path
+    _validate_isolated_database_migrations(loaded_reports["isolated_database_migrations"])
     capacity = _validate_capacity(
         loaded_reports["full_universe_capacity"],
         report_paths["full_universe_capacity"].parent,

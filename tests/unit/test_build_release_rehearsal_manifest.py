@@ -65,6 +65,34 @@ def _reports(tmp_path: Path) -> dict[str, Path]:
                     ),
                 }
             )
+        if kind == "isolated_database_migrations":
+            report_payload.pop("artifact")
+            pending = [
+                "data_center.0090_financial_publication_capacity_workflow",
+                "data_center.0091_financial_capacity_governance_record",
+                "data_center.0092_financial_capacity_owner_approval_events",
+                "data_center.0093_financial_capacity_slice_ledger",
+            ]
+            report_payload.update(
+                {
+                    "candidate_source_attestation": "image_release_manifest",
+                    "database_name": "agom_release_rehearsal_attempt_1234",
+                    "database_host": "agom-s6-postgres-attempt-1234",
+                    "database_address": "172.20.0.3",
+                    "database_port": 5432,
+                    "database_container_id": "e" * 64,
+                    "migration_command": (
+                        "python -m scripts.manage_vps_migrations migrate --noinput"
+                    ),
+                    "migrator_database_role": "agomtradepro_migrator",
+                    "pending_before": pending,
+                    "pending_after": [],
+                    "applied_migrations": pending,
+                    "started_at": "2026-09-24T23:40:00+00:00",
+                    "finished_at": "2026-09-24T23:41:00+00:00",
+                    "evidence_mode": "isolated_postgresql_migrations",
+                }
+            )
         _write(report, report_payload)
         reports[kind] = report
     return reports
@@ -90,7 +118,11 @@ def test_builder_copies_hash_linked_graph_and_refuses_overwrite(tmp_path: Path) 
     )
 
     assert [item["kind"] for item in manifest["reports"]] == list(REQUIRED_SCHEMAS)
-    assert all((output / kind / "receipt.json").is_file() for kind in REQUIRED_SCHEMAS)
+    assert all(
+        (output / kind / "receipt.json").is_file()
+        for kind in REQUIRED_SCHEMAS
+        if kind != "isolated_database_migrations"
+    )
     with pytest.raises(ValueError, match="OUTPUT_EXISTS"):
         build_manifest(
             reports=_reports(tmp_path / "second"),
@@ -135,6 +167,103 @@ def test_builder_rejects_runtime_report_from_another_image(tmp_path: Path) -> No
     _write(capacity, payload)
 
     with pytest.raises(ValueError, match="REPORT_MISMATCH"):
+        build_manifest(
+            reports=reports,
+            output_dir=tmp_path / "bundle",
+            candidate_sha=CANDIDATE,
+            target_trade_date=DATE,
+            universe_sha256=UNIVERSE,
+            provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
+            candidate_image_id=IMAGE_ID,
+        )
+
+
+def test_builder_accepts_noop_candidate_migration_report(tmp_path: Path) -> None:
+    reports = _reports(tmp_path)
+    migration_report = reports["isolated_database_migrations"]
+    payload = json.loads(migration_report.read_text(encoding="utf-8"))
+    payload.update(
+        {
+            "database_address": "2001:db8::1",
+            "pending_before": [],
+            "pending_after": [],
+            "applied_migrations": [],
+        }
+    )
+    _write(migration_report, payload)
+
+    manifest = build_manifest(
+        reports=reports,
+        output_dir=tmp_path / "bundle",
+        candidate_sha=CANDIDATE,
+        target_trade_date=DATE,
+        universe_sha256=UNIVERSE,
+        provider_identities_sha256=PROVIDERS,
+        provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+        provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
+        candidate_image_id=IMAGE_ID,
+    )
+
+    manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert "isolated_database_migrations" in {item["kind"] for item in manifest_payload["reports"]}
+
+
+def test_builder_requires_isolated_database_migration_report(tmp_path: Path) -> None:
+    reports = _reports(tmp_path)
+    reports.pop("isolated_database_migrations")
+
+    with pytest.raises(ValueError, match="IDENTITY_INVALID"):
+        build_manifest(
+            reports=reports,
+            output_dir=tmp_path / "bundle",
+            candidate_sha=CANDIDATE,
+            target_trade_date=DATE,
+            universe_sha256=UNIVERSE,
+            provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
+            candidate_image_id=IMAGE_ID,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        (
+            {"pending_after": ["data_center.0093_financial_capacity_slice_ledger"]},
+            "MIGRATION_REPORT_INVALID",
+        ),
+        (
+            {"applied_migrations": ["data_center.0090_financial_publication_capacity_workflow"]},
+            "MIGRATION_REPORT_INVALID",
+        ),
+        ({"candidate_image_id": "sha256:" + "e" * 64}, "REPORT_MISMATCH"),
+        ({"database_host": "production-db.internal"}, "MIGRATION_REPORT_INVALID"),
+        ({"database_address": "production-db.internal"}, "MIGRATION_REPORT_INVALID"),
+        ({"database_address": "172.20.0.3/24"}, "MIGRATION_REPORT_INVALID"),
+        ({"database_address": "postgresql://172.20.0.3/db"}, "MIGRATION_REPORT_INVALID"),
+        ({"database_port": 65536}, "MIGRATION_REPORT_INVALID"),
+        ({"database_port": True}, "MIGRATION_REPORT_INVALID"),
+        ({"migration_command": "python manage.py migrate"}, "MIGRATION_REPORT_INVALID"),
+        ({"migrator_database_role": "agomtradepro_owner"}, "MIGRATION_REPORT_INVALID"),
+        (
+            {"database_url": "postgresql://user:secret@production/db"},
+            "MIGRATION_REPORT_INVALID",
+        ),
+    ],
+)
+def test_builder_rejects_invalid_isolated_migration_evidence(
+    tmp_path: Path, mutation: dict[str, object], expected_error: str
+) -> None:
+    reports = _reports(tmp_path)
+    migration_report = reports["isolated_database_migrations"]
+    payload = json.loads(migration_report.read_text(encoding="utf-8"))
+    payload.update(mutation)
+    _write(migration_report, payload)
+
+    with pytest.raises(ValueError, match=expected_error):
         build_manifest(
             reports=reports,
             output_dir=tmp_path / "bundle",

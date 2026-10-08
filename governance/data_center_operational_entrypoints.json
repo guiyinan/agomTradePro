@@ -160,6 +160,7 @@
         "tests/unit/test_alpha_trigger_subscriber_wiring.py",
         "tests/unit/test_backup_delivery_secret_ownership.py",
         "tests/unit/test_backup_vps_postgres.py",
+        "tests/unit/test_build_release_rehearsal_manifest.py",
         "tests/unit/test_data_center_entrypoint_inventory.py",
         "tests/unit/test_data_center_0085_rollback_compatibility.py",
         "tests/unit/test_deploy_vps_verify.py",
@@ -168,6 +169,7 @@
         "tests/unit/test_evid_02_postgres_evidence.py",
         "tests/unit/test_postgres_role_contract.py",
         "tests/unit/test_remote_build_deploy_vps.py",
+        "tests/unit/test_validate_release_rehearsal.py",
         "tests/unit/test_vps_web_watchdog.py",
         "tests/unit/ci/test_select_tests.py",
         "tests/unit/test_verify_postgres_backup_restore.py"
