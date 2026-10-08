@@ -1,5 +1,7 @@
 """Isolated settings for the dormant sync identity persistence contract."""
 
+from pathlib import Path
+
 from django.apps import AppConfig
 
 
@@ -11,6 +13,7 @@ class IsolatedAccountConfig(AppConfig):
 
 
 SECRET_KEY = "data-center-sync-identity-test"
+BASE_DIR = Path(__file__).resolve().parent.parent
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
