@@ -19,9 +19,20 @@ from django.utils import timezone
 
 from apps.data_center.application.financial_capacity_contracts import (
     FinancialCapacityWorkflowError,
+    GovernedFinancialCapacityRehearsalCeiling,
+    GovernedFinancialProductionCeiling,
+    GovernedFinancialQualificationCeiling,
 )
 from apps.data_center.application.financial_capacity_governance import (
     parse_financial_capacity_governance_record,
+)
+from apps.data_center.application.financial_scope_discovery_governance import (
+    parse_financial_scope_discovery_authorization,
+    parse_financial_scope_manifest_review,
+)
+from apps.data_center.domain.financial_scope_discovery import (
+    FinancialScopeDiscoveryAuthorization,
+    FinancialScopeManifestReview,
 )
 from apps.data_center.infrastructure.financial_capacity_build_identity import (
     FileFinancialCapacityBuildIdentitySource,
@@ -31,7 +42,13 @@ from apps.data_center.infrastructure.models import (
     FinancialCapacityOwnerApprovalEventModel,
 )
 
-_STAGES = ("qualification", "capacity_rehearsal", "production")
+_STAGES = (
+    "qualification",
+    "capacity_rehearsal",
+    "production",
+    "scope_discovery",
+    "scope_manifest_review",
+)
 
 
 class Command(BaseCommand):
@@ -86,14 +103,28 @@ class Command(BaseCommand):
                 if not isinstance(row.record, Mapping):
                     raise CommandError("financial capacity approval payload is invalid")
                 raw_record = cast(dict[str, object], row.record)
+                parsed: (
+                    FinancialScopeDiscoveryAuthorization
+                    | FinancialScopeManifestReview
+                    | GovernedFinancialQualificationCeiling
+                    | GovernedFinancialCapacityRehearsalCeiling
+                    | GovernedFinancialProductionCeiling
+                )
                 try:
-                    parsed = parse_financial_capacity_governance_record(
-                        stage=cast(
-                            Literal["qualification", "capacity_rehearsal", "production"],
-                            row.stage,
-                        ),
-                        record=raw_record,
-                    )
+                    if row.stage == "scope_discovery":
+                        parsed = parse_financial_scope_discovery_authorization(raw_record)
+                    elif row.stage == "scope_manifest_review":
+                        parsed = parse_financial_scope_manifest_review(raw_record)
+                    elif row.stage in {"qualification", "capacity_rehearsal", "production"}:
+                        parsed = parse_financial_capacity_governance_record(
+                            stage=cast(
+                                Literal["qualification", "capacity_rehearsal", "production"],
+                                row.stage,
+                            ),
+                            record=raw_record,
+                        )
+                    else:
+                        raise CommandError("financial capacity approval stage is invalid")
                 except (FinancialCapacityWorkflowError, TypeError, ValueError) as exc:
                     raise CommandError("financial capacity approval payload is invalid") from exc
                 if parsed.approval_id != row.approval_id:
@@ -113,6 +144,14 @@ class Command(BaseCommand):
                 ).exists():
                     raise CommandError("financial capacity approval already has an owner event")
 
+                candidate_sha = (
+                    parsed.candidate_sha
+                    if isinstance(
+                        parsed,
+                        (FinancialScopeDiscoveryAuthorization, FinancialScopeManifestReview),
+                    )
+                    else parsed.binding.candidate_sha
+                )
                 try:
                     source_commit = FileFinancialCapacityBuildIdentitySource(
                         Path(settings.AGOM_BUILD_IDENTITY_PATH)
@@ -121,14 +160,13 @@ class Command(BaseCommand):
                     raise CommandError(
                         "financial capacity runtime build identity is unavailable"
                     ) from exc
-                if parsed.binding.candidate_sha != source_commit:
+                if candidate_sha != source_commit:
                     raise CommandError(
                         "approval candidate does not match the running build identity"
                     )
 
                 now = timezone.now()
-                ceiling = parsed
-                if ceiling.approved_at > now or ceiling.expires_at <= now:
+                if parsed.approved_at > now or parsed.expires_at <= now:
                     raise CommandError(
                         "capacity owner approval time is future or ceiling is expired"
                     )
@@ -140,10 +178,10 @@ class Command(BaseCommand):
                 ).encode("utf-8")
                 FinancialCapacityOwnerApprovalEventModel._default_manager.create(
                     governance_record=row,
-                    event_id=f"financial-capacity-owner:{uuid4()}",
+                    event_id=_approval_event_id(parsed),
                     approved_by=owner_user.get_username(),
-                    approved_at=ceiling.approved_at,
-                    approval_receipt_sha256=ceiling.approval_receipt_sha256,
+                    approved_at=parsed.approved_at,
+                    approval_receipt_sha256=_approval_receipt_sha256(parsed),
                     record_sha256=hashlib.sha256(canonical_payload).hexdigest(),
                 )
         except IntegrityError as exc:
@@ -154,3 +192,35 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(message))
         return message
+
+
+def _approval_receipt_sha256(
+    parsed: (
+        FinancialScopeDiscoveryAuthorization
+        | FinancialScopeManifestReview
+        | GovernedFinancialCapacityRehearsalCeiling
+        | GovernedFinancialProductionCeiling
+        | GovernedFinancialQualificationCeiling
+    ),
+) -> str:
+    """Return the canonical receipt digest field across supported governance stages."""
+
+    if isinstance(parsed, (FinancialScopeDiscoveryAuthorization, FinancialScopeManifestReview)):
+        return parsed.receipt_sha256
+    return parsed.approval_receipt_sha256
+
+
+def _approval_event_id(
+    parsed: (
+        FinancialScopeDiscoveryAuthorization
+        | FinancialScopeManifestReview
+        | GovernedFinancialCapacityRehearsalCeiling
+        | GovernedFinancialProductionCeiling
+        | GovernedFinancialQualificationCeiling
+    ),
+) -> str:
+    """Bind scope-stage owner events to the payload's predeclared event identity."""
+
+    if isinstance(parsed, (FinancialScopeDiscoveryAuthorization, FinancialScopeManifestReview)):
+        return parsed.event_id
+    return f"financial-capacity-owner:{uuid4()}"

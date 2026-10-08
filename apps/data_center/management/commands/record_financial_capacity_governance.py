@@ -22,13 +22,27 @@ from apps.data_center.application.financial_capacity_contracts import (
 from apps.data_center.application.financial_capacity_governance import (
     parse_financial_capacity_governance_record,
 )
+from apps.data_center.application.financial_scope_discovery_governance import (
+    parse_financial_scope_discovery_authorization,
+    parse_financial_scope_manifest_review,
+)
+from apps.data_center.domain.financial_scope_discovery import (
+    FinancialScopeDiscoveryAuthorization,
+    FinancialScopeManifestReview,
+)
 from apps.data_center.infrastructure.financial_capacity_build_identity import (
     FileFinancialCapacityBuildIdentitySource,
 )
 from apps.data_center.infrastructure.models import FinancialCapacityGovernanceRecordModel
 
 _MAX_RECORD_BYTES = 64 * 1024
-_STAGES = ("qualification", "capacity_rehearsal", "production")
+_STAGES = (
+    "qualification",
+    "capacity_rehearsal",
+    "production",
+    "scope_discovery",
+    "scope_manifest_review",
+)
 
 
 class Command(BaseCommand):
@@ -77,22 +91,48 @@ class Command(BaseCommand):
             raise CommandError("financial capacity approval file size is invalid")
         try:
             payload: object = json.loads(content.decode("utf-8"))
-            parsed = parse_financial_capacity_governance_record(
-                stage=cast(Literal["qualification", "capacity_rehearsal", "production"], stage),
-                record=payload,
+            parsed: (
+                FinancialScopeDiscoveryAuthorization
+                | FinancialScopeManifestReview
+                | GovernedFinancialQualificationCeiling
+                | GovernedFinancialCapacityRehearsalCeiling
+                | GovernedFinancialProductionCeiling
             )
-        except (UnicodeError, json.JSONDecodeError, FinancialCapacityWorkflowError) as exc:
+            if stage == "scope_discovery":
+                parsed = parse_financial_scope_discovery_authorization(payload)
+            elif stage == "scope_manifest_review":
+                parsed = parse_financial_scope_manifest_review(payload)
+            else:
+                parsed = parse_financial_capacity_governance_record(
+                    stage=cast(
+                        Literal["qualification", "capacity_rehearsal", "production"],
+                        stage,
+                    ),
+                    record=payload,
+                )
+        except (
+            UnicodeError,
+            json.JSONDecodeError,
+            FinancialCapacityWorkflowError,
+            ValueError,
+        ) as exc:
             raise CommandError("financial capacity approval record is invalid") from exc
         if not isinstance(payload, dict):
             raise CommandError("financial capacity approval record must be a JSON object")
+        if stage == "scope_discovery" and not isinstance(
+            parsed, FinancialScopeDiscoveryAuthorization
+        ):
+            raise CommandError("financial scope discovery authorization has the wrong stage")
+        if stage == "scope_manifest_review" and not isinstance(
+            parsed, FinancialScopeManifestReview
+        ):
+            raise CommandError("financial scope manifest review has the wrong stage")
         if stage == "qualification" and not isinstance(
-            parsed,
-            GovernedFinancialQualificationCeiling,
+            parsed, GovernedFinancialQualificationCeiling
         ):
             raise CommandError("financial capacity record does not match qualification stage")
         if stage == "capacity_rehearsal" and not isinstance(
-            parsed,
-            GovernedFinancialCapacityRehearsalCeiling,
+            parsed, GovernedFinancialCapacityRehearsalCeiling
         ):
             raise CommandError("financial capacity record does not match capacity rehearsal stage")
         if stage == "production" and not isinstance(parsed, GovernedFinancialProductionCeiling):
@@ -108,7 +148,15 @@ class Command(BaseCommand):
             ).source_commit()
         except FinancialCapacityWorkflowError as exc:
             raise CommandError("financial capacity runtime build identity is unavailable") from exc
-        if parsed.binding.candidate_sha != source_commit:
+        candidate_sha = (
+            parsed.candidate_sha
+            if isinstance(
+                parsed,
+                (FinancialScopeDiscoveryAuthorization, FinancialScopeManifestReview),
+            )
+            else parsed.binding.candidate_sha
+        )
+        if candidate_sha != source_commit:
             raise CommandError(
                 "financial capacity approval candidate does not match the running build identity"
             )

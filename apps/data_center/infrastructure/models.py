@@ -996,10 +996,14 @@ class FinancialCapacityGovernanceRecordModel(models.Model):
     QUALIFICATION = "qualification"
     CAPACITY_REHEARSAL = "capacity_rehearsal"
     PRODUCTION = "production"
+    SCOPE_DISCOVERY = "scope_discovery"
+    SCOPE_MANIFEST_REVIEW = "scope_manifest_review"
     STAGE_CHOICES = (
         (QUALIFICATION, "Isolated qualification"),
         (CAPACITY_REHEARSAL, "Isolated full-scope capacity rehearsal"),
         (PRODUCTION, "Formal production"),
+        (SCOPE_DISCOVERY, "Isolated financial scope discovery"),
+        (SCOPE_MANIFEST_REVIEW, "Independent financial scope manifest review"),
     )
 
     approval_id = models.CharField(max_length=300, unique=True)

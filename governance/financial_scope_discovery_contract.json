@@ -1,0 +1,61 @@
+{
+  "schema_version": "akshare-financial-scope-discovery-contract.v1",
+  "status": "enforced",
+  "provider_name": "akshare",
+  "provider_source": "akshare",
+  "contract_id": "akshare.financial-scope.latest-notice",
+  "contract_version": "2026-10-09.v1",
+  "endpoint": "datacenter.eastmoney.com/securities/api/data/get?type=RPT_F10_FINANCE_MAINFINADATA",
+  "datasets": [
+    "equity.financial.fact",
+    "equity.financial.source-time"
+  ],
+  "request": {
+    "method": "GET",
+    "query_type": "RPT_F10_FINANCE_MAINFINADATA",
+    "filter_field": "SECUCODE",
+    "filter_operator": "exact",
+    "announcement_date_filter": false,
+    "page_number": 1,
+    "maximum_rows_per_asset": 200,
+    "sort_field": "NOTICE_DATE",
+    "sort_direction": "descending",
+    "projected_fields": [
+      "SECUCODE",
+      "REPORT_DATE",
+      "NOTICE_DATE"
+    ]
+  },
+  "parser": {
+    "parser_id": "akshare-financial-scope-parser.v1",
+    "parser_sha256": "ffe70921ce8a636261f0b6629d7af52e98924e27b63084af36e209c9110d1a34",
+    "asset_field": "SECUCODE",
+    "period_field": "REPORT_DATE",
+    "announcement_date_field": "NOTICE_DATE",
+    "source_timezone": "Asia/Shanghai"
+  },
+  "response": {
+    "provider_count_must_match_rows": true,
+    "provider_count_above_row_ceiling": "fail_closed",
+    "empty_asset_scope": "fail_closed",
+    "duplicate_native_rows": "fail_closed",
+    "pair_drift": "fail_closed"
+  },
+  "evidence": {
+    "retention": "two exact encrypted raw response bodies",
+    "audit": "one RawAudit per retained body",
+    "typed_source_time": "provider-native NOTICE_DATE only",
+    "availability_rule": "Asia/Shanghai date plus one day at 00:00",
+    "business_fact_writes": 0,
+    "publication_writes": 0
+  },
+  "authorization": {
+    "pre_egress_owner_event_required": true,
+    "post_manifest_owner_and_independent_reviewer_required": true,
+    "approved_scope": "exact active dynamic universe hash and count",
+    "logical_requests_per_asset": 2,
+    "physical_attempts_per_logical_request_maximum": 2
+  },
+  "authentication": "none",
+  "contract_sha256": "d99df926c2afb2f07a5429290058e38c3fab1d56be8b0266e9090c6db61e39ac"
+}

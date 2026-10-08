@@ -869,4 +869,7 @@ def _sha256(value: bytes | str) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-__all__ = ["collect_akshare_financial_slice_rehearsal"]
+__all__ = [
+    "collect_akshare_financial_slice_rehearsal",
+    "verify_configured_rehearsal_identities",
+]
