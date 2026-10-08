@@ -12,7 +12,9 @@ from datetime import date
 from enum import Enum
 from typing import Any
 
-_SUFFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<code>\d{6})\.(?P<exchange>SH|SZ|BJ)\b", re.IGNORECASE)
+_SUFFIX_STOCK_CODE_PATTERN = re.compile(
+    r"\b(?P<code>\d{6})\.(?P<exchange>SH|SZ|BJ)\b", re.IGNORECASE
+)
 _PREFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<exchange>SH|SZ|BJ)(?P<code>\d{6})\b", re.IGNORECASE)
 _PLAIN_STOCK_CODE_PATTERN = re.compile(r"\b(?P<code>\d{6})\b")
 
@@ -195,7 +197,9 @@ class StockScore:
             "model_id": self.model_id,
             "model_artifact_hash": self.model_artifact_hash,
             "asof_date": self.asof_date.isoformat() if self.asof_date else None,
-            "intended_trade_date": self.intended_trade_date.isoformat() if self.intended_trade_date else None,
+            "intended_trade_date": (
+                self.intended_trade_date.isoformat() if self.intended_trade_date else None
+            ),
             "universe_id": self.universe_id,
             "feature_set_id": self.feature_set_id,
             "label_id": self.label_id,
@@ -219,7 +223,9 @@ class StockScore:
             model_id=data.get("model_id"),
             model_artifact_hash=data.get("model_artifact_hash"),
             asof_date=date.fromisoformat(asof_date) if asof_date else None,
-            intended_trade_date=date.fromisoformat(intended_trade_date) if intended_trade_date else None,
+            intended_trade_date=(
+                date.fromisoformat(intended_trade_date) if intended_trade_date else None
+            ),
             universe_id=data.get("universe_id"),
             feature_set_id=data.get("feature_set_id"),
             label_id=data.get("label_id"),
@@ -287,6 +293,23 @@ class AlphaPoolScope:
             "market": self.market,
             "pool_mode": self.pool_mode,
             "instrument_codes": list(self.instrument_codes),
+            "pool_size": self.pool_size,
+            "selection_reason": self.selection_reason,
+            "trade_date": self.trade_date.isoformat(),
+            "display_label": self.display_label,
+            "portfolio_id": self.portfolio_id,
+            "portfolio_name": self.portfolio_name,
+            "scope_hash": self.scope_hash,
+            "universe_id": self.universe_id,
+        }
+
+    def to_summary_dict(self) -> dict[str, Any]:
+        """Return public scope metadata without expanding every instrument code."""
+
+        return {
+            "pool_type": self.pool_type,
+            "market": self.market,
+            "pool_mode": self.pool_mode,
             "pool_size": self.pool_size,
             "selection_reason": self.selection_reason,
             "trade_date": self.trade_date.isoformat(),

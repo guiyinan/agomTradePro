@@ -84,6 +84,28 @@ class TestAlphaComparabilityImprovements:
         assert not result3.success
         assert "nonexistent" in result3.error_message
 
+    def test_filtered_unsupported_provider_skips_health_and_scoring(self):
+        """Admission must reject an impossible scope before expensive health reads."""
+
+        registry = AlphaProviderRegistry()
+        provider = Mock(spec=AlphaProvider)
+        provider.name = "simple"
+        provider.priority = 100
+        provider.supports.return_value = False
+        provider.max_staleness_days = 7
+        registry.register(provider)
+
+        result = registry.get_scores_with_fallback(
+            "portfolio-large",
+            date.today(),
+            provider_filter="simple",
+        )
+
+        assert result.status == "unavailable"
+        assert "不支持当前股票池" in (result.error_message or "")
+        provider.health_check.assert_not_called()
+        provider.get_stock_scores.assert_not_called()
+
     def test_fallback_alert_creation(self):
         """测试方案 2: Provider 切换告警（验证降级逻辑）"""
         registry = AlphaProviderRegistry()

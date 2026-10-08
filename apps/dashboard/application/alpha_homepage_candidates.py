@@ -30,6 +30,13 @@ class AlphaCandidateMixin:
     def _load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         return self.context_repo.load_stock_context(codes)
 
+    def _load_research_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Load asset identity without decision datasets for blocked research results."""
+
+        if not codes:
+            return {}
+        return self.context_repo.load_research_stock_context(codes)
+
     def _load_actionable_map(self) -> dict[str, Any]:
         return self.context_repo.load_actionable_map()
 

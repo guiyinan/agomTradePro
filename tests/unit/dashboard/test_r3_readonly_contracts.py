@@ -122,8 +122,24 @@ def test_homepage_read_does_not_persist_history(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(query, "_attach_scope_resolution_metadata", lambda **kwargs: None)
-    monkeypatch.setattr(query, "_build_meta", lambda **kwargs: {})
-    monkeypatch.setattr(query, "_load_stock_context", lambda codes: {})
+    monkeypatch.setattr(
+        query,
+        "_build_meta",
+        lambda **kwargs: {"must_not_use_for_decision": True},
+    )
+    research_context_calls: list[list[str]] = []
+    monkeypatch.setattr(
+        query,
+        "_load_research_stock_context",
+        lambda codes: research_context_calls.append(codes) or {},
+    )
+    monkeypatch.setattr(
+        query,
+        "_load_stock_context",
+        lambda codes: (_ for _ in ()).throw(
+            AssertionError("blocked results must not read decision publications")
+        ),
+    )
     monkeypatch.setattr(query, "_load_actionable_map", lambda: {})
     monkeypatch.setattr(query, "_load_pending_map", lambda user_id: {})
     monkeypatch.setattr(
@@ -146,3 +162,4 @@ def test_homepage_read_does_not_persist_history(monkeypatch) -> None:
     assert result.history_run_id is None
     assert result.recent_runs == []
     assert persist_calls == []
+    assert research_context_calls == [[]]

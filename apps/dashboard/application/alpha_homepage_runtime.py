@@ -588,7 +588,7 @@ class AlphaRuntimeMixin:
         resolved_pool: ResolvedAlphaPool | None = None,
     ) -> dict[str, Any]:
         metadata = _json_object(alpha_result.metadata)
-        scope_metadata = scope.to_dict()
+        scope_metadata = scope.to_summary_dict()
         requested_pool_mode = metadata.get("requested_pool_mode")
         requested_pool_size = metadata.get("requested_pool_size")
         if resolved_pool is not None:

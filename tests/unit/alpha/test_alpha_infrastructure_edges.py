@@ -254,6 +254,23 @@ def test_simple_provider_bounds_large_request_pool(monkeypatch) -> None:
     assert calls == 0
 
 
+def test_simple_provider_rejects_large_scope_before_health_check(monkeypatch) -> None:
+    """Registry admission can inspect the bounded scope without publication I/O."""
+
+    provider = SimpleAlphaProvider()
+    monkeypatch.setattr(settings, "ALPHA_SIMPLE_MAX_POOL_SIZE", 2, raising=False)
+    scope = AlphaPoolScope(
+        pool_type="portfolio_market",
+        market="CN",
+        pool_mode="price_covered",
+        instrument_codes=("000001.SZ", "000002.SZ", "000003.SZ"),
+        selection_reason="test",
+        trade_date=date(2026, 7, 24),
+    )
+
+    assert provider.supports(scope.universe_id, pool_scope=scope) is False
+
+
 def test_simple_provider_reports_empty_universe_and_unusable_data(monkeypatch) -> None:
     """Simple Alpha returns auditable failures for missing source data."""
     provider = SimpleAlphaProvider()

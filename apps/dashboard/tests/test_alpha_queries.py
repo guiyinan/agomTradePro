@@ -399,6 +399,8 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
     assert meta["refresh_status"] == "queued"
     assert meta["async_task_id"] == "task-scope-1"
     assert meta["no_recommendation_reason"] == result.metadata["no_recommendation_reason"]
+    assert "instrument_codes" not in meta["scope_metadata"]
+    assert meta["scope_metadata"]["pool_size"] == scope.pool_size
 
 
 def test_alpha_homepage_query_uses_simple_when_cache_is_broader_mapping():
@@ -868,6 +870,11 @@ def test_alpha_homepage_meta_marks_general_scope_as_research_only():
         pool_size=1,
         universe_id="csi300",
         to_dict=lambda: {"scope_hash": "general-scope", "universe_id": "csi300"},
+        to_summary_dict=lambda: {
+            "scope_hash": "general-scope",
+            "universe_id": "csi300",
+            "pool_size": 1,
+        },
     )
     alpha_result = SimpleNamespace(
         success=True,

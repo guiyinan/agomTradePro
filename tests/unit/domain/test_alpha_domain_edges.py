@@ -108,6 +108,8 @@ def test_pool_scope_normalizes_deduplicates_and_builds_stable_identity() -> None
     assert scope.pool_size == 2
     assert scope.universe_id == f"portfolio-42-{scope.scope_hash}"
     assert AlphaPoolScope.from_dict(scope.to_dict()) == scope
+    assert "instrument_codes" not in scope.to_summary_dict()
+    assert scope.to_summary_dict()["pool_size"] == 2
 
     market_scope = AlphaPoolScope.from_dict(
         {

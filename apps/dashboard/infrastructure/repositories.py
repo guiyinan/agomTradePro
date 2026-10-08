@@ -232,7 +232,17 @@ class DashboardAlphaContextRepository:
         code_aliases = self._build_code_aliases(codes)
         local_context = self._integration_gateway.get_stock_context_map(codes)
 
-        asset_context = self._load_data_center_asset_context(codes, code_aliases)
+        asset_context = self._load_data_center_asset_context(
+            [
+                code
+                for code in codes
+                if not any(
+                    str((local_context.get(code, {}) or {}).get(field) or "").strip()
+                    for field in ("name", "sector", "market")
+                )
+            ],
+            code_aliases,
+        )
         legacy_holding_context = self._load_legacy_holding_asset_context(
             [
                 code
@@ -308,6 +318,61 @@ class DashboardAlphaContextRepository:
             )
             context[code] = info
         return context
+
+    def load_research_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Load asset identity only for results already blocked from decision use."""
+
+        if not codes:
+            return {}
+        code_aliases = self._build_code_aliases(codes)
+        master_context = self._integration_gateway.get_stock_master_context_map(codes)
+        fallback_context = self._load_data_center_asset_context(
+            [
+                code
+                for code in codes
+                if not any(
+                    str((master_context.get(code, {}) or {}).get(field) or "").strip()
+                    for field in ("name", "sector", "market")
+                )
+            ],
+            code_aliases,
+        )
+        legacy_context = self._load_legacy_holding_asset_context(
+            [
+                code
+                for code in codes
+                if not (
+                    (master_context.get(code, {}) or {}).get("name")
+                    or (fallback_context.get(code, {}) or {}).get("name")
+                )
+            ],
+            code_aliases,
+            persist_asset_names=False,
+        )
+        return {
+            code: {
+                "name": str(
+                    (master_context.get(code, {}) or {}).get("name")
+                    or (fallback_context.get(code, {}) or {}).get("name")
+                    or (legacy_context.get(code, {}) or {}).get("name")
+                    or ""
+                ),
+                "sector": str(
+                    (master_context.get(code, {}) or {}).get("sector")
+                    or (fallback_context.get(code, {}) or {}).get("sector")
+                    or ""
+                ),
+                "market": str(
+                    (master_context.get(code, {}) or {}).get("market")
+                    or (fallback_context.get(code, {}) or {}).get("market")
+                    or ""
+                ),
+                "must_not_use_for_decision": True,
+                "blocked_reason": "research_only_context",
+                "publication_gates": {},
+            }
+            for code in codes
+        }
 
     @staticmethod
     def _build_code_aliases(codes: list[str]) -> dict[str, set[str]]:

@@ -479,6 +479,24 @@ class AlphaProviderRegistry:
                     error_message=f"指定的 Provider '{provider_filter}' 不存在或不可用",
                 )
 
+            if not self._call_provider_supports(
+                provider=provider,
+                universe_id=universe_id,
+                pool_scope=pool_scope,
+            ):
+                logger.info(
+                    "指定的 Provider '%s' 不支持当前股票池",
+                    provider_filter,
+                )
+                return AlphaResult(
+                    success=False,
+                    scores=[],
+                    source=provider_filter,
+                    timestamp=date.today().isoformat(),
+                    status="unavailable",
+                    error_message=f"指定的 Provider '{provider_filter}' 不支持当前股票池",
+                )
+
             status, error = _get_provider_health_or_unavailable(
                 provider,
                 context=f"provider_filter:{provider_filter}",

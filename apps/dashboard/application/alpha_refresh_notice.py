@@ -383,7 +383,26 @@ def get_refresh_notice(
             "attempted_at": "",
         }
     market_recovered_at: datetime | None = None
+    requires_recovery_proof = False
+    for record in records:
+        if record.task_name != _MARKET_REFRESH:
+            continue
+        if record.status in {TaskStatus.PENDING, TaskStatus.STARTED, TaskStatus.RETRY}:
+            break
+        projection = project_task_business_result(record.result)
+        requires_recovery_proof = projection.outcome in {
+            "blocked",
+            "failed",
+            "partial",
+        } or record.status in {TaskStatus.FAILURE, TaskStatus.TIMEOUT, TaskStatus.REVOKED}
+        break
     try:
+        if not requires_recovery_proof:
+            return build_refresh_notice(
+                records,
+                portfolio_id=portfolio_id,
+                universe_id=universe_id,
+            )
         from apps.data_center.application.public import get_decision_publication_gate
 
         publication_times: list[datetime] = []

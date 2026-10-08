@@ -182,6 +182,29 @@ def test_queue_failure_visible_without_a_persisted_task(monkeypatch):
     assert "后台" in notice["message"]
 
 
+def test_successful_market_task_skips_publication_recovery_proof(monkeypatch):
+    """A current business success needs no expensive proof for an older failure."""
+
+    from apps.dashboard.application import alpha_refresh_notice
+
+    successful = replace(
+        record("{'outcome': 'success', 'stored': 11144}"),
+        task_name="data_center.refresh_full_market_publications",
+    )
+    monkeypatch.setattr(
+        alpha_refresh_notice,
+        "list_task_executions",
+        lambda *args, **kwargs: [successful],
+    )
+
+    notice = alpha_refresh_notice.get_refresh_notice(
+        portfolio_id=None,
+        universe_id="csi300",
+    )
+
+    assert notice == {}
+
+
 @pytest.mark.parametrize("items", [[], [{"code": "000001.SZ", "alpha_score": 1}]])
 def test_tui_notice_survives_empty_and_cached_results(items):
     from apps.terminal.application.tui_workbench import TuiWorkbenchService

@@ -145,6 +145,18 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """最大陈旧天数"""
         return 7
 
+    @staticmethod
+    def _max_pool_size() -> int:
+        """Return the governed synchronous pool-size ceiling."""
+
+        return max(1, int(getattr(settings, "ALPHA_SIMPLE_MAX_POOL_SIZE", 120)))
+
+    def supports(self, universe_id: str, pool_scope: AlphaPoolScope | None = None) -> bool:
+        """Reject scopes that cannot fit the bounded synchronous implementation."""
+
+        del universe_id
+        return pool_scope is None or pool_scope.pool_size <= self._max_pool_size()
+
     @provider_safe(default_success=False)
     def health_check(self) -> AlphaProviderStatus:
         """
@@ -222,10 +234,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return self._create_error_result(
                 f"股票池 {universe_id} 中没有可用的估值数据，请先同步估值数据"
             )
-        max_pool_size = max(
-            1,
-            int(getattr(settings, "ALPHA_SIMPLE_MAX_POOL_SIZE", 120)),
-        )
+        max_pool_size = self._max_pool_size()
         if len(stock_list) > max_pool_size:
             logger.info(
                 "SimpleAlphaProvider 跳过超大股票池: universe=%s, size=%s, max=%s",

@@ -157,7 +157,12 @@ class AlphaHomepageQuery(
         )
 
         top_scores = list(alpha_result.scores[:top_n]) if alpha_result.success else []
-        stock_context = self._load_stock_context([score.code for score in top_scores])
+        context_codes = [score.code for score in top_scores]
+        stock_context = (
+            self._load_research_stock_context(context_codes)
+            if bool(meta.get("must_not_use_for_decision"))
+            else self._load_stock_context(context_codes)
+        )
         actionable_map = self._load_actionable_map()
         pending_map = self._load_pending_map(user.id)
         position_map, portfolio_snapshot, sizing_context = self._load_portfolio_context(
@@ -291,7 +296,7 @@ class AlphaHomepageQuery(
         )
         meta = self._build_meta(alpha_result=alpha_result, scope=scope)
 
-        stock_context = self._load_stock_context([score.code for score in top_scores])
+        stock_context = self._load_research_stock_context([score.code for score in top_scores])
         policy_state = self._load_policy_state()
         top_candidates = [
             self._build_candidate_item(

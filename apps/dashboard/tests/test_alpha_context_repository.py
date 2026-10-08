@@ -16,6 +16,7 @@ from apps.dashboard.infrastructure.repositories import (
 def _build_gateway(**overrides):
     defaults = {
         "get_stock_context_map": lambda codes: {},
+        "get_stock_master_context_map": lambda codes: {},
         "resolve_asset": lambda code: None,
         "query_latest_quote": lambda asset_code: None,
         "query_latest_quotes": lambda asset_codes: [],
@@ -154,6 +155,7 @@ def test_dashboard_alpha_context_uses_gateway_for_valuation_repairs():
 
 
 def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
+    resolved: list[str] = []
     gateway = _build_gateway(
         get_stock_context_map=lambda codes: {
             "000001.SZ": {
@@ -174,7 +176,8 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
                 "dividend_yield": 4.5,
                 "valuation_trade_date": None,
             }
-        }
+        },
+        resolve_asset=lambda code: resolved.append(code) or None,
     )
 
     context = DashboardAlphaContextRepository(gateway).load_stock_context(["000001.SZ"])
@@ -187,6 +190,48 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
     assert context["000001.SZ"]["profit_growth"] == pytest.approx(18.2)
     assert context["000001.SZ"]["pe"] == pytest.approx(5.6)
     assert context["000001.SZ"]["pb"] == pytest.approx(0.72)
+    assert resolved == []
+
+
+def test_dashboard_gateway_master_context_disables_all_decision_datasets(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def published_context(codes, **kwargs):
+        captured.update({"codes": codes, **kwargs})
+        return {"000001.SZ": {"name": "平安银行", "market": "SZ"}}
+
+    monkeypatch.setattr(
+        "apps.equity.application.query_services.get_published_stock_context_map",
+        published_context,
+    )
+
+    context = DashboardApplicationGateway().get_stock_master_context_map(["000001.SZ"])
+
+    assert context["000001.SZ"]["name"] == "平安银行"
+    assert captured == {
+        "codes": ["000001.SZ"],
+        "include_price": False,
+        "include_financial": False,
+        "include_valuation": False,
+    }
+
+
+def test_dashboard_alpha_research_context_skips_decision_publications_and_quotes():
+    calls: list[tuple[str, list[str]]] = []
+    gateway = _build_gateway(
+        get_stock_master_context_map=lambda codes: calls.append(("master", codes))
+        or {"000001.SZ": {"name": "平安银行", "sector": "银行", "market": "SZ"}},
+        get_stock_context_map=lambda codes: pytest.fail("decision context must stay unread"),
+        query_latest_quotes=lambda codes: pytest.fail("quotes must stay unread"),
+        resolve_asset=lambda code: pytest.fail("complete master rows need no fallback"),
+    )
+
+    context = DashboardAlphaContextRepository(gateway).load_research_stock_context(["000001.SZ"])
+
+    assert calls == [("master", ["000001.SZ"])]
+    assert context["000001.SZ"]["name"] == "平安银行"
+    assert context["000001.SZ"]["must_not_use_for_decision"] is True
+    assert "close" not in context["000001.SZ"]
 
 
 def test_dashboard_alpha_context_uses_fund_application_port_for_legacy_names(monkeypatch):

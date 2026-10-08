@@ -34,20 +34,52 @@ def _json_rows(value: object) -> list[dict[str, Any]]:
     return [_json_object(item) for item in value if isinstance(item, Mapping)]
 
 
+def _stock_context_map(
+    codes: list[str],
+    *,
+    include_price: bool,
+    include_financial: bool,
+    include_valuation: bool,
+) -> dict[str, dict[str, Any]]:
+    """Read canonical equity context through one shared application import."""
+
+    from apps.equity.application.query_services import get_published_stock_context_map
+
+    raw_context = get_published_stock_context_map(
+        codes,
+        include_price=include_price,
+        include_financial=include_financial,
+        include_valuation=include_valuation,
+    )
+    if not isinstance(raw_context, Mapping):
+        return {}
+    return {
+        str(code): _json_object(payload)
+        for code, payload in raw_context.items()
+        if isinstance(payload, Mapping)
+    }
+
+
 class DashboardApplicationGateway:
     """Bridge dashboard repositories to other apps through application APIs."""
 
     def get_stock_context_map(self, codes: list[str]) -> dict[str, dict[str, Any]]:
-        from apps.equity.application.query_services import get_published_stock_context_map
+        return _stock_context_map(
+            codes,
+            include_price=True,
+            include_financial=True,
+            include_valuation=True,
+        )
 
-        raw_context = get_published_stock_context_map(codes)
-        if not isinstance(raw_context, Mapping):
-            return {}
-        return {
-            str(code): _json_object(payload)
-            for code, payload in raw_context.items()
-            if isinstance(payload, Mapping)
-        }
+    def get_stock_master_context_map(self, codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Return canonical asset-master fields without decision-publication reads."""
+
+        return _stock_context_map(
+            codes,
+            include_price=False,
+            include_financial=False,
+            include_valuation=False,
+        )
 
     def resolve_asset(self, code: str) -> Any | None:
         from apps.data_center.application.public import resolve_asset_payload
