@@ -11,17 +11,21 @@ from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from celery import shared_task
-from celery.exceptions import OperationalError as CeleryOperationalError
-from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.data_center.application.financial_publication_capacity import (
+    FinancialCapacityWorkflowError,
+    FinancialCapacityWorkflowResult,
+)
 from apps.data_center.composition import (
     get_backfill_item_attempt_store,
     get_publication_policy_repository,
     make_core_current_publication_rebuild_use_case,
+    make_financial_publication_capacity_workflow,
     persist_sync_control_plane_snapshot,
+    preflight_financial_capacity_isolation,
     sync_active_a_share_universe,
 )
 from apps.data_center.domain.control_plane import (
@@ -37,8 +41,7 @@ from apps.data_center.publication_candidate_activation_composition import (
 from apps.data_center.target_date_universe_composition import (
     build_target_date_a_share_universe_scope,
 )
-from core.exceptions import DataFetchError, DataValidationError, InvalidInputError
-from core.integration import data_center_audit as audit_integration
+from core.exceptions import DataFetchError, DataValidationError
 from core.integration.task_monitor_runtime import (
     get_current_task_attempt_identity,
     record_current_task_progress,
@@ -46,7 +49,7 @@ from core.integration.task_monitor_runtime import (
 from shared.domain.task_outcomes import TaskBusinessOutcome
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
-from . import financial_refresh_lease, full_market_refresh_lease
+from . import full_market_refresh_lease
 from . import full_market_task_support as market_task
 from . import market_publication_refresh as market_publication_services
 from . import public as public_services
@@ -99,6 +102,17 @@ BACKFILL_DATASET_KEY = "equity.core.backfill"
 BACKFILL_TASK_NAME = "celery.backfill_a_share_core"
 _BACKFILL_AUTHORITY_WINDOW = timedelta(seconds=3900)
 _FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW = timedelta(seconds=3900)
+
+
+class _FinancialCapacityAuthorityLatch(_Data02AuthorityLatch):
+    """Adapt the existing DATA-02 authority latch to workflow write boundaries."""
+
+    def is_current(self) -> bool:
+        """Revalidate the same authority before one provider or activation boundary."""
+
+        return self.allows_next_write(as_of=datetime.now(UTC))
+
+
 _AUTHORITY_FINALIZATION_WINDOW = timedelta(seconds=300)
 _FULL_MARKET_AUTHORITY_WINDOW = timedelta(
     seconds=full_market_refresh_lease.FULL_MARKET_REFRESH_AUTHORITY_WINDOW_SECONDS
@@ -198,314 +212,336 @@ def refresh_financial_publications_batch_task(
     auto_continue: bool = False,
     workflow_id: str = "",
 ) -> dict[str, object]:
-    """Refresh one evidence-complete financial batch and publish after the full universe."""
+    """Fail closed until the exact-scope, receipt-gated publication workflow is used."""
 
-    if (
-        isinstance(offset, bool)
-        or not isinstance(offset, int)
-        or not 0 <= offset <= 100_000
-        or isinstance(batch_size, bool)
-        or not isinstance(batch_size, int)
-        or not 1 <= batch_size <= 200
-        or isinstance(financial_periods, bool)
-        or not isinstance(financial_periods, int)
-        or not 1 <= financial_periods <= 40
-        or not isinstance(source, str)
-        or source not in {"akshare", "tushare"}
-        or not isinstance(universe_hash, str)
-        or not isinstance(auto_continue, bool)
-        or not isinstance(workflow_id, str)
-        or len(workflow_id) > 64
-        or any(character.isspace() for character in workflow_id)
-        or (
-            universe_hash
-            and (
-                len(universe_hash) != 64
-                or any(character not in "0123456789abcdef" for character in universe_hash)
+    valid_input = (
+        type(offset) is int
+        and 0 <= offset <= 100_000
+        and type(batch_size) is int
+        and 1 <= batch_size <= 200
+        and type(financial_periods) is int
+        and 1 <= financial_periods <= 40
+        and type(source) is str
+        and source in {"akshare", "tushare"}
+        and type(universe_hash) is str
+        and (
+            not universe_hash
+            or (
+                len(universe_hash) == 64
+                and all(character in "0123456789abcdef" for character in universe_hash)
             )
         )
-    ):
+        and type(auto_continue) is bool
+        and type(workflow_id) is str
+        and len(workflow_id) <= 64
+        and not any(character.isspace() for character in workflow_id)
+    )
+    if not valid_input:
         return {
             **market_task.full_market_input_failure("invalid_financial_refresh_input"),
             "stage": "input",
         }
+    reason = "financial_capacity_receipt_required"
+    return {
+        **market_task.full_market_input_failure(reason),
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "stage": "capacity",
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "published": 0,
+        "publication_updated": False,
+        "blocked_reason": reason,
+        "must_not_use_for_decision": True,
+    }
 
-    started_at = datetime.now(UTC)
-    authority, authority_failure = _preflight_data02_task_authority(
-        as_of=started_at,
-        minimum_window=_FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW,
+
+@shared_task(  # type: ignore[misc]
+    name="data_center.refresh_financial_publication_capacity",
+    time_limit=3600,
+    soft_time_limit=3500,
+)
+def refresh_financial_publication_capacity_task(
+    *,
+    action: str,
+    workflow_id: str,
+    candidate_sha: str,
+    total_provider_request_budget: int = 0,
+    capacity_rehearsal_workflow_id: str = "",
+    max_slices: int = 1,
+    expected_database_name: str = "",
+    expected_database_host: str = "",
+) -> dict[str, object]:
+    """Drive qualification, full isolated rehearsal, or receipt-gated publication."""
+
+    valid_input = (
+        type(action) is str
+        and action
+        in {
+            "qualification_start",
+            "qualification_run",
+            "capacity_rehearsal_start",
+            "capacity_rehearsal_run",
+            "formal_start",
+            "formal_run",
+        }
+        and type(workflow_id) is str
+        and 0 < len(workflow_id) <= 300
+        and not any(character.isspace() for character in workflow_id)
+        and type(candidate_sha) is str
+        and len(candidate_sha) == 40
+        and all(character in "0123456789abcdef" for character in candidate_sha)
+        and type(total_provider_request_budget) is int
+        and total_provider_request_budget >= 0
+        and type(capacity_rehearsal_workflow_id) is str
+        and len(capacity_rehearsal_workflow_id) <= 300
+        and not any(character.isspace() for character in capacity_rehearsal_workflow_id)
+        and type(max_slices) is int
+        and max_slices > 0
+        and type(expected_database_name) is str
+        and type(expected_database_host) is str
     )
-    if authority_failure is not None:
-        return authority_failure
-    if authority is None:  # pragma: no cover - narrowed by the failure branch
-        raise RuntimeError("authority preflight returned no context")
-    provider_id = get_active_provider_id_by_source(source)
-    if provider_id is None:
+    if not valid_input:
         return {
-            **market_task.full_market_input_failure("financial_provider_unavailable"),
-            "stage": "provider",
-        }
-
-    active_codes = sorted(list_active_stock_codes_for_backfill())
-    if (
-        not active_codes
-        or any(not code for code in active_codes)
-        or len(set(active_codes)) != len(active_codes)
-    ):
-        return {
-            **market_task.full_market_input_failure("financial_universe_invalid"),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "stage": "universe",
-            "must_not_use_for_decision": True,
-        }
-    encoded_universe = json.dumps(
-        {"schema": "active-a-share-universe.v1", "asset_codes": active_codes},
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    observed_universe_hash = hashlib.sha256(encoded_universe.encode("utf-8")).hexdigest()
-
-    owner = workflow_id
-    if auto_continue and not owner:
-        if cache.get(financial_refresh_lease.FINANCIAL_REFRESH_LOCK_KEY):
-            return financial_refresh_lease.financial_refresh_lock_noop_result()
-        resume_offset = financial_refresh_lease.restore_financial_refresh_offset(
-            cache,
-            universe_hash=observed_universe_hash,
-            source=source,
-            financial_periods=financial_periods,
-            batch_size=batch_size,
-            total_assets=len(active_codes),
-        )
-        if resume_offset is not None:
-            offset = resume_offset
-            universe_hash = observed_universe_hash
-        owner = str(uuid4())
-        if not financial_refresh_lease.claim_financial_refresh_lock(cache, owner):
-            return financial_refresh_lease.financial_refresh_lock_noop_result()
-    elif auto_continue and not financial_refresh_lease.claim_financial_refresh_lock(cache, owner):
-        return {
-            **market_task.full_market_input_failure("financial_refresh_lock_lost"),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "stage": "lock",
-            "must_not_use_for_decision": True,
-        }
-
-    if offset > 0 and not universe_hash:
-        financial_refresh_lease.release_financial_refresh_lock(cache, owner)
-        return {
-            **market_task.full_market_input_failure("financial_universe_hash_required"),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "stage": "universe",
-            "must_not_use_for_decision": True,
-        }
-    if universe_hash and universe_hash != observed_universe_hash:
-        financial_refresh_lease.clear_financial_refresh_progress(cache)
-        financial_refresh_lease.release_financial_refresh_lock(cache, owner)
-        return {
-            **market_task.full_market_input_failure("financial_universe_hash_mismatch"),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "stage": "universe",
-            "must_not_use_for_decision": True,
-        }
-
-    batch_codes = active_codes[offset : offset + batch_size]
-    next_offset = offset + len(batch_codes)
-    checkpoint = financial_refresh_lease.financial_refresh_checkpoint(
-        offset=offset,
-        next_offset=next_offset,
-        total_assets=len(active_codes),
-        universe_hash=observed_universe_hash,
-    )
-    if not batch_codes:
-        financial_refresh_lease.clear_financial_refresh_progress(cache)
-        financial_refresh_lease.release_financial_refresh_lock(cache, owner)
-        return {
-            "success": True,
-            "outcome": TaskBusinessOutcome.NOOP.value,
-            "stage": "complete",
+            **market_task.full_market_input_failure("invalid_financial_capacity_workflow_input"),
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "stage": "input",
             "requested": 0,
             "succeeded": 0,
             "failed": 0,
             "stored": 0,
             "published": 0,
-            "checkpoint": checkpoint,
-            "noop_reason": "no_remaining_financial_assets",
         }
-
-    sync = make_backfill_sync_financial_use_case()
-    succeeded = 0
-    failed = 0
-    blocked = 0
-    stored = 0
-    authority_changed = False
-    soft_time_limit_exceeded = False
-    for asset_code in batch_codes:
-        if not _same_data02_task_authority_is_current(
-            authority,
-            as_of=datetime.now(UTC),
-        ):
-            authority_changed = True
-            blocked += len(batch_codes) - succeeded - failed
-            break
+    if action in {"qualification_start", "capacity_rehearsal_start"} and (
+        total_provider_request_budget <= 0
+    ):
+        return {
+            **market_task.full_market_input_failure(
+                "financial_capacity_total_request_budget_required"
+            ),
+            "outcome": TaskBusinessOutcome.FAILED.value,
+            "stage": "input",
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "published": 0,
+        }
+    isolation_attestation_sha256 = ""
+    if action in {
+        "qualification_start",
+        "qualification_run",
+        "capacity_rehearsal_start",
+        "capacity_rehearsal_run",
+    }:
+        if not expected_database_name or not expected_database_host:
+            return {
+                **market_task.full_market_input_failure(
+                    "financial_capacity_isolated_database_identity_required"
+                ),
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "stage": "isolation",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "published": 0,
+                "must_not_use_for_decision": True,
+            }
         try:
-            from .dtos import SyncFinancialRequest
+            isolation_attestation_sha256 = preflight_financial_capacity_isolation(
+                candidate_sha=candidate_sha,
+                expected_database_name=expected_database_name,
+                expected_database_host=expected_database_host,
+            )
+        except (DataFetchError, DatabaseError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            return {
+                **market_task.full_market_input_failure(_financial_capacity_error_code(exc)),
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "stage": "isolation",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "published": 0,
+                "must_not_use_for_decision": True,
+            }
 
-            result = sync.execute(
-                SyncFinancialRequest(
-                    provider_id=provider_id,
-                    asset_code=asset_code,
-                    periods=financial_periods,
-                    require_decision_evidence=True,
+    authority_validator: _FinancialCapacityAuthorityLatch | None = None
+    if action in {"formal_start", "formal_run"}:
+        authority, authority_failure = _preflight_data02_task_authority(
+            as_of=datetime.now(UTC),
+            minimum_window=_FINANCIAL_PUBLICATIONS_AUTHORITY_WINDOW,
+        )
+        if authority_failure is not None:
+            return authority_failure
+        if authority is None:
+            raise RuntimeError("authority preflight returned no context")
+        authority_validator = _FinancialCapacityAuthorityLatch(authority)
+
+    try:
+        workflow = make_financial_publication_capacity_workflow(
+            isolation_attestation_sha256=isolation_attestation_sha256,
+            authority_validator=authority_validator,
+        )
+        if action in {"qualification_run", "capacity_rehearsal_run", "formal_run"}:
+            checkpoint = workflow.get_checkpoint(workflow_id)
+            expected_stage = (
+                "qualification"
+                if action == "qualification_run"
+                else (
+                    "capacity_rehearsal"
+                    if action == "capacity_rehearsal_run"
+                    else "formal_publication"
                 )
             )
             if (
-                isinstance(result.stored_count, bool)
-                or not isinstance(result.stored_count, int)
-                or result.stored_count <= 0
+                checkpoint is None
+                or checkpoint.stage != expected_stage
+                or checkpoint.binding.candidate_sha != candidate_sha
             ):
-                failed += 1
-                continue
-            succeeded += 1
-            stored += result.stored_count
-        except SoftTimeLimitExceeded:
-            failed += len(batch_codes) - succeeded - failed - blocked
-            soft_time_limit_exceeded = True
-            break
-        except InvalidInputError as exc:
-            if exc.code == "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
-                blocked += 1
-            else:
-                failed += 1
-        except (
-            DataFetchError,
-            DataValidationError,
-            DatabaseError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ):
-            failed += 1
-
-    if blocked:
-        outcome = TaskBusinessOutcome.BLOCKED
-    elif failed and succeeded:
-        outcome = TaskBusinessOutcome.PARTIAL
-    elif failed:
-        outcome = TaskBusinessOutcome.FAILED
-    else:
-        outcome = TaskBusinessOutcome.SUCCESS
-    published = 0
-    publication_updated = False
-    blocked_reason = (
-        "authority_changed_or_expired"
-        if authority_changed
-        else ("financial_source_evidence_required" if blocked else "")
-    )
-    stage = (
-        "provider"
-        if soft_time_limit_exceeded
-        else ("authority" if authority_changed else ("financial_evidence" if blocked else "batch"))
-    )
-
-    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is True:
-        try:
-            rebuild = make_core_current_publication_rebuild_use_case(
-                created_by=f"celery.financial_refresh:{authority.actor_id}",
-                dataset_keys=("equity.financial.fact",),
-            ).execute(
-                asset_codes=active_codes,
-                published_at=datetime.now(UTC),
+                reason = "financial_capacity_checkpoint_candidate_binding_mismatch"
+                return {
+                    **market_task.full_market_input_failure(reason),
+                    "outcome": TaskBusinessOutcome.BLOCKED.value,
+                    "stage": "capacity",
+                    "workflow_id": workflow_id,
+                    "requested": 0,
+                    "succeeded": 0,
+                    "failed": 0,
+                    "stored": 0,
+                    "published": 0,
+                    "provider_requests": 0,
+                    "reserved_provider_requests": 0,
+                    "blocked_reason": reason,
+                    "must_not_use_for_decision": True,
+                }
+        if action == "qualification_start":
+            result = workflow.start_qualification(
+                workflow_id=workflow_id,
+                candidate_sha=candidate_sha,
+                total_provider_request_budget=total_provider_request_budget,
             )
-            published = rebuild.published_count
-            publication_updated = published > 0
-            if not publication_updated:
-                raise DataValidationError("financial publication produced no members")
-        except (
-            DataFetchError,
-            DataValidationError,
-            DatabaseError,
-            OSError,
-            RuntimeError,
-            audit_integration.SystemAuditCompositionUnavailable,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.warning(
-                "Financial current publication rebuild failed: %s",
-                type(exc).__name__,
+        elif action == "qualification_run":
+            result = workflow.run_qualification(
+                workflow_id=workflow_id,
+                max_slices=max_slices,
             )
-            outcome = TaskBusinessOutcome.BLOCKED
-            blocked_reason = "financial_publication_rebuild_failed"
-            stage = "publication"
+        elif action == "capacity_rehearsal_start":
+            result = workflow.start_capacity_rehearsal(
+                workflow_id=workflow_id,
+                candidate_sha=candidate_sha,
+                total_provider_request_budget=total_provider_request_budget,
+            )
+        elif action == "capacity_rehearsal_run":
+            result = workflow.run_capacity_rehearsal(
+                workflow_id=workflow_id,
+                max_slices=max_slices,
+            )
+        elif action == "formal_start":
+            source_checkpoint = workflow.get_checkpoint(capacity_rehearsal_workflow_id)
+            if (
+                source_checkpoint is None
+                or source_checkpoint.stage != "capacity_rehearsal"
+                or source_checkpoint.status != "success"
+                or source_checkpoint.capacity_receipt is None
+            ):
+                return {
+                    **market_task.full_market_input_failure(
+                        "financial_capacity_receipt_not_qualified"
+                    ),
+                    "outcome": TaskBusinessOutcome.BLOCKED.value,
+                    "stage": "capacity",
+                    "workflow_id": workflow_id,
+                    "requested": 0,
+                    "succeeded": 0,
+                    "failed": 0,
+                    "stored": 0,
+                    "published": 0,
+                    "blocked_reason": "financial_capacity_receipt_not_qualified",
+                    "must_not_use_for_decision": True,
+                }
+            result = workflow.start_formal_publication(
+                workflow_id=workflow_id,
+                candidate_sha=candidate_sha,
+                capacity_receipt=source_checkpoint.capacity_receipt,
+            )
+        else:
+            result = workflow.run_formal_publication(
+                workflow_id=workflow_id,
+                max_slices=max_slices,
+            )
+    except (
+        DataFetchError,
+        DataValidationError,
+        DatabaseError,
+        FinancialCapacityWorkflowError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        reason = _financial_capacity_error_code(exc)
+        return {
+            **market_task.full_market_input_failure(reason),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "stage": "capacity",
+            "workflow_id": workflow_id,
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "published": 0,
+            "blocked_reason": reason,
+            "must_not_use_for_decision": True,
+        }
+    return _financial_capacity_result_payload(result)
 
-    response: dict[str, object] = {
-        "success": outcome not in {TaskBusinessOutcome.FAILED, TaskBusinessOutcome.BLOCKED},
-        "outcome": outcome.value,
-        "stage": stage,
-        "requested": len(batch_codes),
-        "succeeded": succeeded,
-        "failed": failed,
-        "blocked": blocked,
-        "stored": stored,
-        "published": published,
-        "publication_updated": publication_updated,
-        "checkpoint": checkpoint,
+
+def _financial_capacity_result_payload(
+    result: FinancialCapacityWorkflowResult,
+) -> dict[str, object]:
+    """Serialize receipt-safe counters and checkpoint identity for Task Monitor."""
+
+    checkpoint = result.checkpoint
+    payload: dict[str, object] = {
+        "success": result.outcome in {"success", "partial", "noop"},
+        "outcome": result.outcome,
+        "stage": checkpoint.stage,
+        "workflow_id": checkpoint.workflow_id,
+        "manifest_sha256": checkpoint.manifest_sha256,
+        "requested": checkpoint.requested,
+        "succeeded": checkpoint.succeeded,
+        "failed": checkpoint.failed,
+        "stored": checkpoint.stored,
+        "provider_requests": checkpoint.observed_provider_requests,
+        "reserved_provider_requests": checkpoint.reserved_provider_requests,
+        "total_provider_request_budget": checkpoint.total_provider_request_budget,
+        "next_slice_index": checkpoint.next_slice_index,
+        "slice_count": checkpoint.manifest_count,
+        "checkpoint_revision": checkpoint.revision,
+        "published": int(checkpoint.publication_hash is not None),
+        "publication_updated": checkpoint.publication_hash is not None,
+        "must_not_use_for_decision": result.outcome in {"blocked", "failed", "partial"},
     }
-    if blocked_reason:
-        response["blocked_reason"] = blocked_reason
-        response["must_not_use_for_decision"] = True
-    if soft_time_limit_exceeded:
-        response["error_code"] = "financial_refresh_soft_time_limit_exceeded"
-        response["must_not_use_for_decision"] = True
+    if result.blocked_reason:
+        payload["blocked_reason"] = result.blocked_reason
+    if checkpoint.capacity_receipt is not None:
+        payload["capacity_receipt"] = checkpoint.capacity_receipt.to_dict()
+        payload["capacity_receipt_sha256"] = checkpoint.capacity_receipt.sha256
+    if checkpoint.publication_hash is not None:
+        payload["publication_hash"] = checkpoint.publication_hash
+    return payload
 
-    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is False:
-        financial_refresh_lease.save_financial_refresh_progress(
-            cache,
-            next_offset=next_offset,
-            universe_hash=observed_universe_hash,
-            source=source,
-            financial_periods=financial_periods,
-            batch_size=batch_size,
-        )
-        if auto_continue:
-            try:
-                continuation = refresh_financial_publications_batch_task.apply_async(
-                    kwargs={
-                        "offset": next_offset,
-                        "batch_size": batch_size,
-                        "source": source,
-                        "financial_periods": financial_periods,
-                        "universe_hash": observed_universe_hash,
-                        "auto_continue": True,
-                        "workflow_id": owner,
-                    },
-                    countdown=5,
-                )
-            except (OSError, CeleryOperationalError) as exc:
-                logger.warning(
-                    "Financial refresh continuation enqueue failed: %s",
-                    type(exc).__name__,
-                )
-                response.update(
-                    {
-                        "success": False,
-                        "outcome": TaskBusinessOutcome.FAILED.value,
-                        "stage": "continuation",
-                        "error_code": "financial_refresh_continuation_enqueue_failed",
-                        "must_not_use_for_decision": True,
-                    }
-                )
-                financial_refresh_lease.release_financial_refresh_lock(cache, owner)
-            else:
-                response["continuation_task_id"] = str(continuation.id)
-    else:
-        if outcome is TaskBusinessOutcome.SUCCESS:
-            financial_refresh_lease.clear_financial_refresh_progress(cache)
-        financial_refresh_lease.release_financial_refresh_lock(cache, owner)
-    return response
+
+def _financial_capacity_error_code(exc: BaseException) -> str:
+    """Return a stable public code without including provider or database details."""
+
+    code = getattr(exc, "code", "")
+    if type(code) is str and code.startswith("FINANCIAL_"):
+        return code.lower()
+    return "financial_capacity_workflow_unavailable"
 
 
 def _backfill_idempotency_key(

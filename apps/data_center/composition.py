@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +11,7 @@ from typing import Any, cast
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
 from apps.data_center.application.current_fact_remediation import (
@@ -25,6 +28,10 @@ from apps.data_center.application.current_valuation_sync import (
 from apps.data_center.application.data_chain_replay import ReplayDataChainUseCase
 from apps.data_center.application.decision_read_audit import (
     RecordPublicationDecisionReadUseCase,
+)
+from apps.data_center.application.financial_publication_capacity import (
+    FinancialCapacityAuthorityValidator,
+    FinancialCapacityWorkflow,
 )
 from apps.data_center.application.macro_publication import PublishMacroBatchUseCase
 from apps.data_center.application.pit_use_cases import (
@@ -185,6 +192,8 @@ __all__ = [
     "make_data_chain_replay_use_case",
     "make_core_current_fact_refresh_use_case",
     "make_core_current_publication_rebuild_use_case",
+    "make_financial_publication_capacity_workflow",
+    "preflight_financial_capacity_isolation",
     "make_repair_run_replay_use_case",
     "make_system_audited_sync_current_valuation_batch_use_case",
     "make_publication_decision_read_recorder",
@@ -627,6 +636,78 @@ def make_core_current_publication_rebuild_use_case(
     from apps.data_center.publication_rebuild_composition import build_current_publication_rebuild
 
     return build_current_publication_rebuild(created_by=created_by, dataset_keys=dataset_keys)
+
+
+def make_financial_publication_capacity_workflow(
+    *,
+    isolation_attestation_sha256: str = "",
+    authority_validator: FinancialCapacityAuthorityValidator | None = None,
+) -> FinancialCapacityWorkflow:
+    """Compose the durable, exact-scope financial capacity gate and publication path."""
+
+    from apps.data_center.infrastructure.financial_publication_capacity_runtime import (
+        make_django_financial_capacity_ports,
+    )
+
+    (
+        checkpoint_repository,
+        binding_source,
+        manifest_source,
+        slice_runner,
+        publisher,
+        qualification_ceiling_source,
+        capacity_rehearsal_ceiling_source,
+        production_ceiling_source,
+    ) = make_django_financial_capacity_ports(
+        isolation_attestation_sha256=isolation_attestation_sha256,
+    )
+    return FinancialCapacityWorkflow(
+        checkpoint_repository=checkpoint_repository,
+        binding_source=binding_source,
+        manifest_source=manifest_source,
+        slice_runner=slice_runner,
+        publisher=publisher,
+        qualification_ceiling_source=qualification_ceiling_source,
+        capacity_rehearsal_ceiling_source=capacity_rehearsal_ceiling_source,
+        production_ceiling_source=production_ceiling_source,
+        authority_validator=authority_validator,
+        clock=timezone.now,
+    )
+
+
+def preflight_financial_capacity_isolation(
+    *,
+    candidate_sha: str,
+    expected_database_name: str,
+    expected_database_host: str,
+) -> str:
+    """Return a digest binding a qualification run to its isolated candidate image and DB."""
+
+    from apps.data_center.infrastructure.isolated_write_rehearsal_runner import (
+        preflight_isolated_write_rehearsal,
+    )
+
+    source_attestation, candidate_image_id, database_identity_sha256 = (
+        preflight_isolated_write_rehearsal(
+            candidate_sha=candidate_sha,
+            source_root=Path(settings.BASE_DIR),
+            expected_database_name=expected_database_name,
+            expected_database_host=expected_database_host,
+            require_ephemeral_host=True,
+        )
+    )
+    material = json.dumps(
+        {
+            "candidate_sha": candidate_sha,
+            "source_attestation": source_attestation,
+            "candidate_image_id": candidate_image_id,
+            "database_identity_sha256": database_identity_sha256,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
 
 
 def make_core_current_fact_refresh_use_case(

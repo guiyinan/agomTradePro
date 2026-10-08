@@ -6,9 +6,15 @@ from typing import Any
 
 from django import forms
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import QuerySet
 from django.http import HttpRequest
 
+from apps.data_center.application.financial_capacity_contracts import FinancialCapacityWorkflowError
+from apps.data_center.application.financial_capacity_governance import (
+    parse_financial_capacity_governance_record,
+)
 from apps.data_center.application.public import (
     persist_provider_credentials,
 )
@@ -17,6 +23,9 @@ from apps.data_center.models import (
     DatasetContractModel,
     DatasetProviderBindingModel,
     DatasetPublicationPolicyModel,
+    FinancialCapacityGovernanceRecordModel,
+    FinancialCapacityGovernanceRevocationModel,
+    FinancialCapacityOwnerApprovalEventModel,
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
     ProductionCoverageUniverseConfigModel,
@@ -123,6 +132,230 @@ class ProviderConfigAdminForm(TypedModelForm[ProviderConfigModel]):
         extra_config["tushare_request_mode"] = mode
         cleaned_data["extra_config"] = extra_config
         return cleaned_data
+
+
+class FinancialCapacityGovernanceRecordAdminForm(
+    TypedModelForm[FinancialCapacityGovernanceRecordModel]
+):
+    """Accept only an explicit reviewed record whose identity matches its DB key."""
+
+    class Meta:
+        model = FinancialCapacityGovernanceRecordModel
+        fields = "__all__"
+
+    def clean(self) -> dict[str, Any]:
+        """Reject unapproved, malformed, or stage-mismatched records at the admin boundary."""
+
+        cleaned_data = super().clean() or {}
+        record = cleaned_data.get("record")
+        stage = cleaned_data.get("stage")
+        approval_id = cleaned_data.get("approval_id")
+        if not isinstance(record, dict):
+            self.add_error("record", "审批记录必须是 JSON 对象。")
+            return cleaned_data
+        if record.get("approval_id") != approval_id:
+            self.add_error("record", "记录中的 approval_id 必须与数据库主记录一致。")
+        try:
+            if stage == "qualification":
+                parse_financial_capacity_governance_record(
+                    stage="qualification",
+                    record=record,
+                )
+            elif stage == "production":
+                parse_financial_capacity_governance_record(
+                    stage="production",
+                    record=record,
+                )
+            else:
+                self.add_error("stage", "请选择有效的治理阶段。")
+        except FinancialCapacityWorkflowError as exc:
+            self.add_error("record", str(exc))
+        return cleaned_data
+
+
+@admin.register(FinancialCapacityGovernanceRecordModel)
+class FinancialCapacityGovernanceRecordAdmin(
+    TypedModelAdmin[FinancialCapacityGovernanceRecordModel]
+):
+    """Expose immutable approval rows and append-only revocation actions to superusers."""
+
+    form = FinancialCapacityGovernanceRecordAdminForm
+    list_display = ("approval_id", "stage", "created_by", "created_at")
+    list_filter = ("stage",)
+    search_fields = ("approval_id", "created_by")
+    ordering = ("-created_at", "approval_id")
+    fields = ("approval_id", "stage", "record", "created_by", "created_at")
+    actions = ("revoke_selected_records",)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Reserve all approval appends for the build-identity-checked command."""
+
+        return False
+
+    def has_module_permission(self, request: HttpRequest) -> bool:
+        """Expose approval history only to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_view_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRecordModel | None = None,
+    ) -> bool:
+        """Keep approval details private to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRecordModel | None = None,
+    ) -> bool:
+        """Keep approvals append-only; revocations are separate rows."""
+
+        return False
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRecordModel | None = None,
+    ) -> tuple[str, ...]:
+        """Keep approval contents immutable after insertion."""
+
+        return ("approval_id", "stage", "record", "created_by", "created_at")
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRecordModel,
+        form: FinancialCapacityGovernanceRecordAdminForm,
+        change: bool,
+    ) -> None:
+        """Reject all edits; approvals can only be appended by the build-bound command."""
+
+        raise PermissionDenied(
+            "Financial capacity approvals are immutable; use the separate revoke action."
+        )
+
+    @admin.action(description="Revoke selected financial capacity approvals")
+    def revoke_selected_records(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[FinancialCapacityGovernanceRecordModel],
+    ) -> None:
+        """Append one revocation event per approval; never modify its source row."""
+
+        if not request.user.is_authenticated or not request.user.is_superuser:
+            raise PermissionDenied("Only a superuser may revoke financial capacity approvals.")
+        with transaction.atomic():
+            for record in queryset.iterator(chunk_size=500):
+                FinancialCapacityGovernanceRevocationModel._default_manager.get_or_create(
+                    governance_record=record,
+                    defaults={"revoked_by": request.user.get_username()},
+                )
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRecordModel | None = None,
+    ) -> bool:
+        """Keep approval history; separate revocation rows preserve the forward-only state."""
+
+        return False
+
+
+@admin.register(FinancialCapacityGovernanceRevocationModel)
+class FinancialCapacityGovernanceRevocationAdmin(
+    TypedModelAdmin[FinancialCapacityGovernanceRevocationModel]
+):
+    """Show immutable revocation events to superusers only."""
+
+    list_display = ("governance_record", "revoked_by", "revoked_at")
+    ordering = ("-revoked_at",)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Revocation events are appended only through the approval admin action."""
+
+        return False
+
+    def has_module_permission(self, request: HttpRequest) -> bool:
+        """Limit revocation history visibility to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_view_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRevocationModel | None = None,
+    ) -> bool:
+        """Limit event details to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRevocationModel | None = None,
+    ) -> bool:
+        """Keep revocation events immutable."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityGovernanceRevocationModel | None = None,
+    ) -> bool:
+        """Keep revocation history append-only."""
+
+        return False
+
+
+@admin.register(FinancialCapacityOwnerApprovalEventModel)
+class FinancialCapacityOwnerApprovalEventAdmin(
+    TypedModelAdmin[FinancialCapacityOwnerApprovalEventModel]
+):
+    """Inspect owner-auth events without exposing an unauthenticated creation path."""
+
+    list_display = ("event_id", "governance_record", "approved_by", "approved_at")
+    ordering = ("-approved_at",)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        """Owner-auth events require their dedicated authenticated approval integration."""
+
+        return False
+
+    def has_module_permission(self, request: HttpRequest) -> bool:
+        """Limit owner approval event visibility to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_view_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityOwnerApprovalEventModel | None = None,
+    ) -> bool:
+        """Limit owner approval event details to superusers."""
+
+        return request.user.is_authenticated and request.user.is_superuser
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityOwnerApprovalEventModel | None = None,
+    ) -> bool:
+        """Keep owner-auth event details immutable."""
+
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FinancialCapacityOwnerApprovalEventModel | None = None,
+    ) -> bool:
+        """Keep owner-auth event history immutable."""
+
+        return False
 
 
 @admin.register(ProviderConfigModel)

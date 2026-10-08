@@ -10,6 +10,7 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.data_center.domain.entities import (
@@ -912,3 +913,154 @@ SyncExecutionIdentityModel = _split_models.SyncExecutionIdentityModel
 SyncItemAttemptModel = _sync_item_attempt_models.SyncItemAttemptModel
 SyncRunModel = _split_models.SyncRunModel
 ValuationFactModel = _split_models.ValuationFactModel
+
+
+class FinancialPublicationCapacityWorkflowModel(models.Model):
+    """Durable, revision-checked checkpoint for financial capacity workflows."""
+
+    workflow_id = models.CharField(max_length=300, primary_key=True)
+    approval_id = models.CharField(max_length=300, null=True, unique=True)
+    receipt_sha256 = models.CharField(max_length=64, null=True, unique=True)
+    stage = models.CharField(max_length=32)
+    status = models.CharField(max_length=16)
+    revision = models.PositiveIntegerField(default=1)
+    checkpoint = models.JSONField()
+    started_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_financial_publication_capacity_workflow"
+        indexes = [
+            models.Index(
+                fields=["stage", "status"],
+                name="data_center_stage_bef870_idx",
+            ),
+        ]
+
+
+class FinancialPublicationCapacityManifestItemModel(models.Model):
+    """One immutable ordinal in a frozen capacity workload manifest."""
+
+    workflow = models.ForeignKey(
+        FinancialPublicationCapacityWorkflowModel,
+        on_delete=models.CASCADE,
+        related_name="manifest_items",
+    )
+    ordinal = models.PositiveIntegerField()
+    asset_code = models.CharField(max_length=20)
+    announcement_date = models.DateField()
+    item_sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        db_table = "data_center_financial_capacity_manifest_item"
+        ordering = ["ordinal"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workflow", "ordinal"],
+                name="dc_cap_manifest_workflow_ordinal_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["workflow", "asset_code", "announcement_date"],
+                name="dc_cap_manifest_slice_uniq",
+            ),
+        ]
+
+
+class FinancialPublicationCapacityEvidenceModel(models.Model):
+    """Append-only per-slice evidence stored outside the compact workflow header."""
+
+    workflow = models.ForeignKey(
+        FinancialPublicationCapacityWorkflowModel,
+        on_delete=models.CASCADE,
+        related_name="slice_evidence",
+    )
+    ordinal = models.PositiveIntegerField()
+    evidence = models.JSONField()
+    evidence_sha256 = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_capacity_slice_evidence"
+        ordering = ["ordinal"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workflow", "ordinal"],
+                name="dc_cap_evidence_workflow_ordinal_uniq",
+            ),
+        ]
+
+
+class FinancialCapacityGovernanceRecordModel(models.Model):
+    """Deployment-time, independently reviewed request ceilings; no records are seeded."""
+
+    QUALIFICATION = "qualification"
+    CAPACITY_REHEARSAL = "capacity_rehearsal"
+    PRODUCTION = "production"
+    STAGE_CHOICES = (
+        (QUALIFICATION, "Isolated qualification"),
+        (CAPACITY_REHEARSAL, "Isolated full-scope capacity rehearsal"),
+        (PRODUCTION, "Formal production"),
+    )
+
+    approval_id = models.CharField(max_length=300, unique=True)
+    stage = models.CharField(max_length=32, choices=STAGE_CHOICES)
+    record = models.JSONField()
+    created_by = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_capacity_governance_record"
+
+    def __str__(self) -> str:
+        """Show only the recorded approval identity in admin lists."""
+
+        return self.approval_id
+
+
+class FinancialCapacityGovernanceRevocationModel(models.Model):
+    """Append-only revocation event; an approval row is never reactivated in place."""
+
+    governance_record = models.OneToOneField(
+        FinancialCapacityGovernanceRecordModel,
+        on_delete=models.PROTECT,
+        related_name="revocation",
+    )
+    revoked_by = models.CharField(max_length=150)
+    revoked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_capacity_governance_revocation"
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Keep revocation history append-only through model instance operations."""
+
+        raise ValidationError("Financial capacity revocation events are append-only.")
+
+    def __str__(self) -> str:
+        """Show the approval identity being revoked without exposing the payload."""
+
+        return self.governance_record.approval_id
+
+
+class FinancialCapacityOwnerApprovalEventModel(models.Model):
+    """Independent owner-auth event required before a ceiling can reach runtime."""
+
+    governance_record = models.OneToOneField(
+        FinancialCapacityGovernanceRecordModel,
+        on_delete=models.PROTECT,
+        related_name="owner_approval_event",
+    )
+    event_id = models.CharField(max_length=300, unique=True)
+    approved_by = models.CharField(max_length=150)
+    approved_at = models.DateTimeField()
+    approval_receipt_sha256 = models.CharField(max_length=64)
+    record_sha256 = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_capacity_owner_approval_event"
+
+    def __str__(self) -> str:
+        """Show the external approval event identity only."""
+
+        return self.event_id
