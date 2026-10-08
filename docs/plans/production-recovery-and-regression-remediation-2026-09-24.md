@@ -2965,3 +2965,24 @@ mypy、全仓 debt ceiling、Black、isort、Ruff、architecture/entrypoint/modu
 
 下一片是否可开始：可以提交台账并 push 新 HEAD，重绑五组 CI；Publication PostgreSQL 需从头完成全部步骤且 artifact 零跳过/零失败，
 才可进入 fresh S6。
+
+##### 2026-10-08 Financial evidence Fast Feedback 契约替身整改
+
+完成项：候选 `2b309a6fa6b3dbe280f7c554a148ffea7384feb4` 的 Architecture `37786031836`、Security
+`37786031809`、Consistency `37786031865` 与 Publication PostgreSQL `37786031849` 已通过。Publication PostgreSQL 从头完成
+financial capacity crash recovery/CAS、Account authority generation/final fence、真实 publication locks、control-plane、AKShare financial
+slice、statement logging、migration、SQLite reconciliation 与 evidence validator，全部步骤 success。Fast Feedback `37786031847` 的 Python
+3.11/3.13 各仅有相同 3 个旧测试替身失败：egress 测试仍要求 transport capture 对象原样返回，没有核对新增的规范化
+`physical_request_attempts`；两个 source-time composition fake 没有接受并核对新增的 `expected_run_id`。提交 `8316420a0` 将测试改为核对
+payload/evidence/raw body/精确物理请求次数，并要求两个 fake 接受且在普通读取场景收到空 run ID；生产实现、请求 ceiling 和 fail-closed
+规则均未修改，旧 Fast Feedback run 未重跑。
+
+测试计数：两份直接相关测试文件 `34 passed`；与 Fast Feedback 相同的 14 组本地目标 `3004 passed / 70 skipped`，包含 API、component、
+critical、guardrail、migration、全部 data_center unit 与 Tushare client。两个测试文件 Black、isort、Ruff 和 `git diff --check` 通过。
+
+未验证风险与停止线：`8316420a0` 及本节台账组成的新 HEAD 尚未绑定新一轮五组 exact-SHA CI；本地仅使用 Python 3.11，Python 3.13
+由 Fast Feedback runner 复核。上一候选四组成功结果和 PostgreSQL artifact 不能与新 SHA 拼接为最终门禁。生产 financial refresh、
+full-market 重跑、owner approval 和两个周期入口的停止线不变；不存在可消费的 full-scope rehearsal receipt 时必须继续 fail closed。
+
+下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 重跑五组 CI。只有五组同 SHA 全绿且 Publication PostgreSQL artifact
+固定节点零跳过、零失败、零 error，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
