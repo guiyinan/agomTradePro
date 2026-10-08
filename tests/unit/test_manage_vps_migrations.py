@@ -54,7 +54,7 @@ def test_migration_scope_checks_exact_database_host_and_live_address(
             return None
 
         def execute(self, query: str) -> None:
-            assert query == "SELECT inet_server_addr()::text, inet_server_port()"
+            assert query == "SELECT host(inet_server_addr()), inet_server_port()"
 
         def fetchone(self) -> tuple[str, int]:
             return "172.30.0.2", 5432
@@ -81,8 +81,46 @@ def test_migration_scope_checks_exact_database_host_and_live_address(
     ]
 
 
-def test_migration_scope_rejects_connected_address_mismatch(
+def test_migration_scope_rejects_cidr_bearing_live_address(
     monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Cursor:
+        def __enter__(self) -> Cursor:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def execute(self, query: str) -> None:
+            assert query == "SELECT host(inet_server_addr()), inet_server_port()"
+
+        def fetchone(self) -> tuple[str, int]:
+            return "172.30.0.2/32", 5432
+
+    monkeypatch.setattr(
+        migrations,
+        "connection",
+        SimpleNamespace(settings_dict={"PORT": "5432"}, cursor=lambda: Cursor()),
+    )
+    monkeypatch.setattr(
+        isolated_write_rehearsal_runner,
+        "assert_isolated_rehearsal_database",
+        lambda **kwargs: None,
+    )
+    _set_s6_environment(monkeypatch, Path("/run/agom/stage/migration-command-result.json"))
+
+    with pytest.raises(RuntimeError, match="database address is invalid"):
+        migrations._assert_s6_rehearsal_scope()
+
+
+@pytest.mark.parametrize(
+    ("server_address", "server_port"),
+    [("172.30.0.3", 5432), ("172.30.0.2", 5433)],
+)
+def test_migration_scope_rejects_connected_endpoint_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    server_address: str,
+    server_port: int,
 ) -> None:
     class Cursor:
         def __enter__(self) -> Cursor:
@@ -95,7 +133,7 @@ def test_migration_scope_rejects_connected_address_mismatch(
             return None
 
         def fetchone(self) -> tuple[str, int]:
-            return "172.30.0.3", 5432
+            return server_address, server_port
 
     monkeypatch.setattr(
         migrations,
@@ -240,3 +278,31 @@ def test_s6_migration_requires_exact_noninteractive_command_before_connection(
         migrations.main(arguments)
 
     assert calls == []
+
+
+def test_s6_migration_scope_failure_prevents_state_reads_and_migration(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    result_path = tmp_path / "migration-result.json"
+    _set_s6_environment(monkeypatch, result_path)
+    calls: list[str] = []
+    monkeypatch.setattr(migrations.connection_created, "connect", lambda *args, **kwargs: None)
+    monkeypatch.setattr(migrations.connections["default"], "ensure_connection", lambda: None)
+    monkeypatch.setattr(
+        migrations,
+        "_assert_s6_rehearsal_scope",
+        lambda: (_ for _ in ()).throw(RuntimeError("endpoint mismatch")),
+    )
+    monkeypatch.setattr(migrations, "_migration_state", lambda: calls.append("state"))
+    monkeypatch.setattr(
+        migrations,
+        "execute_from_command_line",
+        lambda argv: calls.append("migrate"),
+    )
+
+    with pytest.raises(RuntimeError, match="endpoint mismatch"):
+        migrations.main(["migrate", "--noinput"])
+
+    assert calls == []
+    assert not result_path.exists()

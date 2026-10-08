@@ -66,7 +66,7 @@ def _assert_s6_rehearsal_scope() -> tuple[int, str] | None:
     if not 1 <= database_port <= 65535:
         raise RuntimeError("isolated S6 migration database port is invalid")
     with connection.cursor() as cursor:
-        cursor.execute("SELECT inet_server_addr()::text, inet_server_port()")
+        cursor.execute("SELECT host(inet_server_addr()), inet_server_port()")
         server_address, server_port = cast(tuple[str | None, int | None], cursor.fetchone())
     try:
         expected_address = ipaddress.ip_address(expected_database_address)

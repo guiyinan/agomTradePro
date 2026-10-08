@@ -917,9 +917,11 @@ def test_concurrent_group_activations_have_one_cas_winner(activation_runtime_pg)
 
 def test_connected_database_identity_returns_real_postgres_address_without_cidr(
     actual_publication_pg,
+    monkeypatch,
 ) -> None:
-    """Real PostgreSQL endpoint identity must return a host address without a CIDR mask."""
+    """Both endpoint guards must return the real host address without a CIDR mask."""
     from apps.data_center.infrastructure import isolated_write_rehearsal_runner as runner
+    from scripts import manage_vps_migrations as migration_runner
 
     del actual_publication_pg
     database_name, server_address, server_port = runner._connected_database_identity()
@@ -929,6 +931,20 @@ def test_connected_database_identity_returns_real_postgres_address_without_cidr(
     assert "/" not in server_address
     ipaddress.ip_address(server_address)
     assert server_port == 5432
+
+    monkeypatch.setenv("AGOM_S6_ISOLATED_DATABASE_MIGRATION", "1")
+    monkeypatch.setenv("AGOM_RELEASE_REHEARSAL_DATABASE", "1")
+    monkeypatch.setenv("AGOM_S6_EXPECTED_DATABASE_NAME", str(database_name))
+    monkeypatch.setenv("AGOM_S6_EXPECTED_DATABASE_HOST", "agom-s6-postgres-contract-test")
+    monkeypatch.setenv("AGOM_S6_EXPECTED_DATABASE_CONTAINER_ID", "a" * 64)
+    monkeypatch.setenv("AGOM_S6_EXPECTED_DATABASE_ADDRESS", server_address)
+    monkeypatch.setenv(
+        "AGOM_S6_MIGRATION_RESULT_PATH",
+        migration_runner._S6_MIGRATION_RESULT_PATH,
+    )
+    monkeypatch.setattr(runner, "assert_isolated_rehearsal_database", lambda **kwargs: None)
+
+    assert migration_runner._assert_s6_rehearsal_scope() == (server_port, server_address)
 
 
 def test_market_rehearsal_database_enforces_read_only_on_provider_write(
