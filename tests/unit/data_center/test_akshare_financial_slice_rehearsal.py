@@ -21,6 +21,7 @@ from apps.data_center.application.financial_slice_sync import (
 from apps.data_center.domain.egress_routing import (
     EgressRequestContext,
     EgressRouteDecision,
+    EgressRouteRule,
     EgressStrategy,
 )
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
@@ -469,6 +470,23 @@ def test_financial_route_preflight_requires_both_registered_datasets(
         )
 
     monkeypatch.setattr(rehearsal, "preview_route", preview)
+    monkeypatch.setattr(
+        rehearsal,
+        "list_rules",
+        lambda: (
+            EgressRouteRule(
+                rule_id=91,
+                provider_id=19,
+                dataset_key=FINANCIAL_FACT_DATASET_KEY,
+                domain_pattern="datacenter.eastmoney.com",
+                deployment_region="unknown",
+                strategy=EgressStrategy.DIRECT,
+                fixed_egress_id=None,
+                priority=1,
+                enabled=True,
+            ),
+        ),
+    )
     monkeypatch.setattr(rehearsal, "akshare_financial_deployment_region", lambda: "unknown")
 
     with pytest.raises(DataFetchError) as caught:
@@ -476,6 +494,226 @@ def test_financial_route_preflight_requires_both_registered_datasets(
 
     assert caught.value.code == "REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED"
     assert seen == [FINANCIAL_FACT_DATASET_KEY, FINANCIAL_SOURCE_TIME_DATASET_KEY]
+
+
+def _exact_financial_egress_rules(
+    *, provider_id: int = 19, deployment_region: str = "isolated-test"
+) -> tuple[EgressRouteRule, EgressRouteRule]:
+    """Build both persisted exact-host financial routes for rehearsal tests."""
+
+    return (
+        EgressRouteRule(
+            rule_id=91,
+            provider_id=provider_id,
+            dataset_key=FINANCIAL_FACT_DATASET_KEY,
+            domain_pattern="datacenter.eastmoney.com",
+            deployment_region=deployment_region,
+            strategy=EgressStrategy.DIRECT,
+            fixed_egress_id=None,
+            priority=1,
+            enabled=True,
+        ),
+        EgressRouteRule(
+            rule_id=92,
+            provider_id=provider_id,
+            dataset_key=FINANCIAL_SOURCE_TIME_DATASET_KEY,
+            domain_pattern="datacenter.eastmoney.com",
+            deployment_region=deployment_region,
+            strategy=EgressStrategy.DIRECT,
+            fixed_egress_id=None,
+            priority=1,
+            enabled=True,
+        ),
+    )
+
+
+def test_financial_route_preflight_accepts_exact_persisted_route_pair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The route evidence binds provider, dataset, host, and deployment region."""
+
+    provider = ProviderConfig(
+        id=19,
+        name="AKShare Financial",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    rules = _exact_financial_egress_rules()
+    contexts: list[EgressRequestContext] = []
+
+    def preview(context: EgressRequestContext) -> EgressRouteDecision:
+        contexts.append(context)
+        rule = next(rule for rule in rules if rule.dataset_key == context.dataset_key)
+        return EgressRouteDecision(
+            rule_id=rule.rule_id,
+            strategy=rule.strategy,
+            candidates=(None,),
+            reason="matched_rule",
+            matched_domain="datacenter.eastmoney.com",
+        )
+
+    monkeypatch.setattr(rehearsal, "list_rules", lambda: rules)
+    monkeypatch.setattr(rehearsal, "preview_route", preview)
+
+    evidence = rehearsal.require_akshare_financial_egress_routes(
+        provider,
+        deployment_region="isolated-test",
+    )
+
+    assert tuple(item["rule_id"] for item in evidence) == (91, 92)
+    assert tuple(context.dataset_key for context in contexts) == (
+        FINANCIAL_FACT_DATASET_KEY,
+        FINANCIAL_SOURCE_TIME_DATASET_KEY,
+    )
+    assert all(context.provider_id == 19 for context in contexts)
+    assert all(context.deployment_region == "isolated-test" for context in contexts)
+    assert all("datacenter.eastmoney.com" in context.target_url for context in contexts)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("provider_id", 20),
+        ("dataset_key", "*"),
+        ("domain_pattern", "*.eastmoney.com"),
+        ("domain_pattern", "other.example.test"),
+        ("deployment_region", "*"),
+        ("deployment_region", "other-region"),
+        ("enabled", False),
+    ),
+)
+def test_financial_route_preflight_rejects_non_exact_persisted_rule_dimensions(
+    field: str,
+    value: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Wildcard or mismatched persisted dimensions cannot satisfy a financial route."""
+
+    provider = ProviderConfig(
+        id=19,
+        name="AKShare Financial",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    exact_rules = list(_exact_financial_egress_rules())
+    exact_rules[0] = replace(exact_rules[0], **{field: value})
+    rules = tuple(exact_rules)
+
+    def preview(context: EgressRequestContext) -> EgressRouteDecision:
+        return EgressRouteDecision(
+            rule_id=91 if context.dataset_key == FINANCIAL_FACT_DATASET_KEY else 92,
+            strategy=EgressStrategy.DIRECT,
+            candidates=(None,),
+            reason="matched_rule",
+            matched_domain="datacenter.eastmoney.com",
+        )
+
+    monkeypatch.setattr(rehearsal, "list_rules", lambda: rules)
+    monkeypatch.setattr(rehearsal, "preview_route", preview)
+
+    with pytest.raises(DataFetchError) as caught:
+        rehearsal.require_akshare_financial_egress_routes(
+            provider,
+            deployment_region="isolated-test",
+        )
+
+    assert caught.value.code == "REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED"
+
+
+def test_financial_route_preflight_rejects_preview_without_persisted_rule(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful-looking preview cannot substitute for the persistent route row."""
+
+    provider = ProviderConfig(
+        id=19,
+        name="AKShare Financial",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    monkeypatch.setattr(rehearsal, "list_rules", lambda: ())
+    monkeypatch.setattr(
+        rehearsal,
+        "preview_route",
+        lambda _context: EgressRouteDecision(
+            rule_id=91,
+            strategy=EgressStrategy.DIRECT,
+            candidates=(None,),
+            reason="matched_rule",
+            matched_domain="datacenter.eastmoney.com",
+        ),
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        rehearsal.require_akshare_financial_egress_routes(
+            provider,
+            deployment_region="isolated-test",
+        )
+
+    assert caught.value.code == "REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED"
+
+
+def test_financial_route_preflight_fails_closed_when_both_routes_are_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multiple missing route dimensions still produce one stable blocker."""
+
+    provider = ProviderConfig(
+        id=19,
+        name="AKShare Financial",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+    contexts: list[EgressRequestContext] = []
+    monkeypatch.setattr(rehearsal, "list_rules", lambda: ())
+    monkeypatch.setattr(
+        rehearsal,
+        "preview_route",
+        lambda context: contexts.append(context)
+        or EgressRouteDecision(
+            rule_id=None,
+            strategy=EgressStrategy.DIRECT,
+            candidates=(None,),
+            reason="no_matching_rule",
+        ),
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        rehearsal.require_akshare_financial_egress_routes(
+            provider,
+            deployment_region="isolated-test",
+        )
+
+    assert caught.value.code == "REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED"
+    assert tuple(context.dataset_key for context in contexts) == (FINANCIAL_FACT_DATASET_KEY,)
 
 
 @pytest.mark.parametrize(

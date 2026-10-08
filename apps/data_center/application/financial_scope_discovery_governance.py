@@ -24,6 +24,8 @@ _AUTHORIZATION_KEYS = frozenset(
         "approval_receipt_sha256",
         "expires_at",
         "approved",
+        "recorded_by",
+        "event_id",
         "binding",
         "universe",
         "budget",

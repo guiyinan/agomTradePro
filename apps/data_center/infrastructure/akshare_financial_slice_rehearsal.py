@@ -25,13 +25,13 @@ from apps.data_center.akshare_financial_capture_composition import (
 from apps.data_center.akshare_financial_slice_sync_composition import (
     make_sync_akshare_financial_slices_use_case,
 )
-from apps.data_center.application.egress_service import preview_route
+from apps.data_center.application.egress_service import list_rules, preview_route
 from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
     FinancialSliceSyncRequest,
     FinancialSliceSyncResult,
 )
-from apps.data_center.domain.egress_routing import EgressRequestContext
+from apps.data_center.domain.egress_routing import EgressRequestContext, target_hostname
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_source_evidence import (
@@ -539,13 +539,18 @@ def _require_successful_sync(result: FinancialSliceSyncResult, provider_id: int)
         )
 
 
-def _require_akshare_financial_egress_routes(
+def require_akshare_financial_egress_routes(
     provider: ProviderConfig,
+    *,
+    deployment_region: str | None = None,
 ) -> tuple[dict[str, object], ...]:
-    """Require both registered AKShare financial routes before any provider request."""
+    """Require exact persisted AKShare routes for both financial datasets."""
 
     provider_id = _provider_id(provider)
-    region = akshare_financial_deployment_region()
+    region = (
+        akshare_financial_deployment_region() if deployment_region is None else deployment_region
+    )
+    expected_host = target_hostname(AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT_URL)
     evidence: list[dict[str, object]] = []
     for dataset_key in (
         FINANCIAL_FACT_DATASET_KEY,
@@ -559,9 +564,24 @@ def _require_akshare_financial_egress_routes(
                 deployment_region=region,
             )
         )
-        if decision.rule_id is None or decision.reason != "matched_rule":
+        persisted_rules = list_rules()
+        persisted_rule = next(
+            (rule for rule in persisted_rules if rule.rule_id == decision.rule_id),
+            None,
+        )
+        if (
+            decision.rule_id is None
+            or decision.reason != "matched_rule"
+            or decision.matched_domain != expected_host
+            or persisted_rule is None
+            or persisted_rule.enabled is not True
+            or persisted_rule.provider_id != provider_id
+            or persisted_rule.dataset_key != dataset_key
+            or persisted_rule.domain_pattern != expected_host
+            or persisted_rule.deployment_region != region
+        ):
             raise DataFetchError(
-                "S6 AKShare financial slice requires both registered egress routes",
+                "S6 AKShare financial slice requires exact persisted egress routes",
                 code="REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED",
             )
         evidence.append(
@@ -575,6 +595,14 @@ def _require_akshare_financial_egress_routes(
             }
         )
     return tuple(evidence)
+
+
+def _require_akshare_financial_egress_routes(
+    provider: ProviderConfig,
+) -> tuple[dict[str, object], ...]:
+    """Retain the rehearsal's internal entrypoint for existing callers."""
+
+    return require_akshare_financial_egress_routes(provider)
 
 
 def _verify_persisted_pair(
@@ -871,5 +899,6 @@ def _sha256(value: bytes | str) -> str:
 
 __all__ = [
     "collect_akshare_financial_slice_rehearsal",
+    "require_akshare_financial_egress_routes",
     "verify_configured_rehearsal_identities",
 ]

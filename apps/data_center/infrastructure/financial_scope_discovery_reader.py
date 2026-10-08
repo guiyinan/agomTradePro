@@ -18,7 +18,6 @@ from django.conf import settings
 from apps.data_center.application.egress_service import (
     FinancialResponseAttemptBudget,
     execute_financial_response_request,
-    preview_route,
 )
 from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.domain.entities import ProviderConfig
@@ -39,6 +38,9 @@ from apps.data_center.domain.financial_scope_discovery import (
 from apps.data_center.domain.financial_source_evidence import FINANCIAL_FACT_DATASET_KEY
 from apps.data_center.domain.financial_source_time_evidence import (
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
+)
+from apps.data_center.infrastructure.akshare_financial_slice_rehearsal import (
+    require_akshare_financial_egress_routes,
 )
 from apps.data_center.infrastructure.financial_capacity_build_identity import (
     FileFinancialCapacityBuildIdentitySource,
@@ -154,19 +156,15 @@ class AkshareFinancialScopeDiscoveryReader:
             raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_IDENTITY_INVALID"
             )
-        for dataset_key in _DATASET_KEYS:
-            route = preview_route(
-                EgressRequestContext(
-                    provider_id=binding.provider_id,
-                    dataset_key=dataset_key,
-                    target_url=_endpoint_url(),
-                    deployment_region=binding.deployment_region,
-                )
+        try:
+            require_akshare_financial_egress_routes(
+                self._provider,
+                deployment_region=binding.deployment_region,
             )
-            if route.rule_id is None:
-                raise FinancialScopeDiscoveryError(
-                    "FINANCIAL_SCOPE_DISCOVERY_EGRESS_ROUTE_REQUIRED"
-                )
+        except (DataFetchError, RuntimeError, ValueError):
+            raise FinancialScopeDiscoveryError(
+                "FINANCIAL_SCOPE_DISCOVERY_EGRESS_ROUTE_REQUIRED"
+            ) from None
 
     def capture_pair(
         self,
