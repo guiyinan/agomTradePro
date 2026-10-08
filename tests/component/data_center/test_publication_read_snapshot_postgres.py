@@ -52,7 +52,10 @@ from apps.data_center.akshare_financial_capture_composition import (
     AKSHARE_SOURCE_TIME_DATASET_KEY,
     AkshareFinancialCaptureGateway,
 )
-from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
+from apps.data_center.application.egress_service import (
+    FinancialResponseAttemptBudget,
+    FinancialResponseCaptureProtocol,
+)
 from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacityBinding,
     FinancialCapacityPublicationIndeterminateError,
@@ -2050,6 +2053,7 @@ class _FinancialCapacityPgCaptureRunner:
         request_scope: FinancialRequestScope,
         response_scope: FinancialResponseScope,
         max_attempts: int = 2,
+        attempt_budget: FinancialResponseAttemptBudget | None = None,
     ) -> FinancialResponseCaptureProtocol:
         """Satisfy one capture request at the external provider boundary."""
 
@@ -2058,6 +2062,8 @@ class _FinancialCapacityPgCaptureRunner:
             raise AssertionError("financial capture fixture received an unexpected request")
         if max_attempts != 1:
             raise AssertionError("financial capacity capture must use one route attempt")
+        if attempt_budget is None or not attempt_budget.reserve():
+            raise AssertionError("financial capacity capture must reserve one transport attempt")
         body = self._bodies[context.dataset_key]
         self.requested_datasets.append(context.dataset_key)
         evidence = FinancialResponseEvidence(
