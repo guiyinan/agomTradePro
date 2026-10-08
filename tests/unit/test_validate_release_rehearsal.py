@@ -802,24 +802,48 @@ def _build_evidence(
     )
     junit_artifacts: list[dict[str, str]] = []
     OFFICIAL_JUNIT_FILES.clear()
-    for filename, selected_tests in (
-        (
-            "publication-postgres.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[4:-10],
-        ),
-        (
-            "backfill-control-plane-postgres.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[:3],
-        ),
-        (
-            "account-authority-final-revalidation-postgres.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[3:4],
-        ),
-        (
-            "financial-slice-sync-contracts.xml",
-            validator.REQUIRED_POSTGRESQL_TESTS[-10:],
-        ),
-    ):
+    required_tests = set(validator.REQUIRED_POSTGRESQL_TESTS)
+    backfill_tests = {
+        test_id
+        for test_id in required_tests
+        if "test_core_data_backfill_control_plane" in test_id
+        or "test_current_publication_staging" in test_id
+    }
+    account_final_tests = {
+        test_id
+        for test_id in required_tests
+        if "test_account_authority_final_revalidator_v3_postgres" in test_id
+    }
+    financial_capacity_tests = {
+        test_id
+        for test_id in required_tests
+        if "test_publication_read_snapshot_postgres" in test_id and "financial_capacity" in test_id
+    }
+    financial_slice_tests = {
+        test_id
+        for test_id in required_tests
+        if "test_akshare_financial_capture" in test_id
+        or "test_financial_publication_capacity_workflow" in test_id
+        or "test_financial_capacity_manifest" in test_id
+    }
+    publication_tests = required_tests.difference(
+        backfill_tests,
+        account_final_tests,
+        financial_capacity_tests,
+        financial_slice_tests,
+    )
+    junit_partitions = {
+        "publication-postgres.xml": publication_tests,
+        "backfill-control-plane-postgres.xml": backfill_tests,
+        "account-authority-final-revalidation-postgres.xml": account_final_tests,
+        "financial-capacity-postgres.xml": financial_capacity_tests,
+        "financial-slice-sync-contracts.xml": financial_slice_tests,
+    }
+    assert all(junit_partitions.values())
+    assert set().union(*junit_partitions.values()) == required_tests
+    assert sum(len(tests) for tests in junit_partitions.values()) == len(required_tests)
+    for filename, selected_test_set in junit_partitions.items():
+        selected_tests = sorted(selected_test_set)
         junit_path = tmp_path / filename
         junit_cases = "".join(
             f'<testcase classname="{test_id.rsplit("::", 1)[0]}" name="{test_id.rsplit("::", 1)[1]}"/>'

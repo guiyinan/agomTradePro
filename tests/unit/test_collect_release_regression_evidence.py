@@ -94,6 +94,7 @@ class GithubStub:
     )
     junit_timestamp: datetime | None = None
     omit_required_test: str | None = None
+    omit_junit_file: str | None = None
     skip_required_test: str | None = None
     fail_digest: bool = False
     expired: bool = False
@@ -113,7 +114,10 @@ class GithubStub:
         if self.omit_required_test is not None:
             required.remove(self.omit_required_test)
         backfill = [
-            identity for identity in required if "test_core_data_backfill_control_plane" in identity
+            identity
+            for identity in required
+            if "test_core_data_backfill_control_plane" in identity
+            or "test_current_publication_staging" in identity
         ]
         account_final = [
             identity
@@ -125,6 +129,13 @@ class GithubStub:
             for identity in required
             if "test_akshare_financial_capture" in identity
             or "test_financial_publication_capacity_workflow" in identity
+            or "test_financial_capacity_manifest" in identity
+        ]
+        financial_capacity = [
+            identity
+            for identity in required
+            if "test_publication_read_snapshot_postgres" in identity
+            and "financial_capacity" in identity
         ]
         publication = [
             identity
@@ -132,6 +143,7 @@ class GithubStub:
             if identity not in backfill
             and identity not in account_final
             and identity not in financial_slice
+            and identity not in financial_capacity
         ]
         self.junit_files = {
             "publication-postgres.xml": _junit_bytes(
@@ -143,10 +155,15 @@ class GithubStub:
             "account-authority-final-revalidation-postgres.xml": _junit_bytes(
                 account_final, timestamp, self.skip_required_test
             ),
+            "financial-capacity-postgres.xml": _junit_bytes(
+                financial_capacity, timestamp, self.skip_required_test
+            ),
             "financial-slice-sync-contracts.xml": _junit_bytes(
                 financial_slice, timestamp, self.skip_required_test
             ),
         }
+        if self.omit_junit_file is not None:
+            self.junit_files.pop(self.omit_junit_file)
         self.archive = _zip_bytes(self.junit_files)
         self.current_archive = self.archive
 
@@ -430,6 +447,7 @@ def test_collector_report_satisfies_bundle_identity_contract(
         ("failed", "REHEARSAL_GITHUB_RUN_NOT_APPROVED"),
         ("expired", "REHEARSAL_GITHUB_ARTIFACT_MISSING"),
         ("digest", "REHEARSAL_GITHUB_ARTIFACT_DIGEST_MISMATCH"),
+        ("missing_junit", "REHEARSAL_GITHUB_ARTIFACT_INCOMPLETE"),
         ("missing_test", "REHEARSAL_REQUIRED_TEST_MISSING"),
         ("skipped", "REHEARSAL_JUNIT_NOT_GREEN"),
         ("stale_time", "REHEARSAL_JUNIT_STALE"),
@@ -456,6 +474,9 @@ def test_rejects_invalid_or_drifting_official_evidence(
         stub.expired = True
     elif fault == "digest":
         stub.fail_digest = True
+    elif fault == "missing_junit":
+        stub.omit_junit_file = "financial-capacity-postgres.xml"
+        stub.__post_init__()
     elif fault == "missing_test":
         stub.omit_required_test = collector_sandbox.validator.REQUIRED_POSTGRESQL_TESTS[-1]
         stub.__post_init__()

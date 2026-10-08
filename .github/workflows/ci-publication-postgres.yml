@@ -155,7 +155,7 @@ jobs:
           tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql
           --ds=tests.settings_data_center_sync_identity
           --confcutdir=tests/component/data_center
-          -q -o addopts=''
+          -q -o addopts='' --junitxml=financial-capacity-postgres.xml
       - name: Exercise PostgreSQL control plane and valuation lineage staging
         env:
           DATABASE_URL: postgresql://contract_test:disposable_ci_only@127.0.0.1:5432/agom_release_rehearsal_ci
@@ -433,6 +433,9 @@ jobs:
           control_plane_cases = ElementTree.parse(
               'backfill-control-plane-postgres.xml'
           ).findall('.//testcase')
+          financial_capacity_cases = ElementTree.parse(
+              'financial-capacity-postgres.xml'
+          ).findall('.//testcase')
           financial_slice_cases = ElementTree.parse(
               'financial-slice-sync-contracts.xml'
           ).findall('.//testcase')
@@ -445,6 +448,19 @@ jobs:
           assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
           assert len(final_revalidation_cases) == 8, 'Expected authority final-revalidation PostgreSQL cases were not collected'
           assert len(control_plane_cases) == 3, 'Expected control-plane and lineage cases were not collected'
+          expected_financial_capacity_cases = {
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_stage_commit_unknown_recovers_exact_candidate_postgresql',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_commit_unknown_replays_only_same_plan_postgresql',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_audit_failure_rolls_back_pointer_and_outbox_postgresql',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winner',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql',
+          }
+          observed_financial_capacity_cases = {
+              f"{case.get('classname')}::{case.get('name')}"
+              for case in financial_capacity_cases
+          }
+          assert len(financial_capacity_cases) == 5, 'Expected financial capacity PostgreSQL cases were not collected'
+          assert observed_financial_capacity_cases == expected_financial_capacity_cases, 'Financial capacity PostgreSQL case identities changed'
           assert len(financial_slice_cases) == 12, 'Expected financial slice and capacity cases were not collected'
           assert snapshot_report['outcome'] == 'success'
           assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
@@ -457,6 +473,7 @@ jobs:
               *shadow_cases,
               *final_revalidation_cases,
               *control_plane_cases,
+              *financial_capacity_cases,
               *financial_slice_cases,
           ]
           assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
@@ -474,6 +491,7 @@ jobs:
             account-authority-shadow-postgres.xml
             account-authority-final-revalidation-postgres.xml
             backfill-control-plane-postgres.xml
+            financial-capacity-postgres.xml
             financial-slice-sync-contracts.xml
             role-bootstrap-postgres.log
             statement-logging-guard.log

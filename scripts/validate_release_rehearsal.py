@@ -203,6 +203,7 @@ REQUIRED_JUNIT_FILES = {
     "account-authority-final-revalidation-postgres.xml",
     "publication-postgres.xml",
     "backfill-control-plane-postgres.xml",
+    "financial-capacity-postgres.xml",
     "financial-slice-sync-contracts.xml",
 }
 RELEASE_POLICY_PATH = (
