@@ -342,7 +342,8 @@ def test_migration_runner_private_import_is_exact() -> None:
     """Keep the canonical runner's scoped Data Center capability exact."""
 
     assert _script_imports(ROOT / "scripts" / "manage_vps_migrations.py") == [
-        "apps.data_center.infrastructure.candidate_raw_audit_manifest_models"
+        "apps.data_center.infrastructure.isolated_write_rehearsal_runner",
+        "apps.data_center.infrastructure.candidate_raw_audit_manifest_models",
     ]
 
 
