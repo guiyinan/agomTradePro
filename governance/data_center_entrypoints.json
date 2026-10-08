@@ -1,17 +1,17 @@
 {
   "counts": {
     "by_category": {
-      "admin_surface": 13,
+      "admin_surface": 16,
       "agent_skill": 3,
       "application_consumer": 161,
       "beat_schedule": 61,
       "capability_runtime": 25,
-      "celery_dispatch_edge": 19,
-      "celery_task": 129,
+      "celery_dispatch_edge": 18,
+      "celery_task": 130,
       "compatibility_facade": 95,
       "current_data_surface": 73,
       "dynamic_import_edge": 13,
-      "management_command": 42,
+      "management_command": 44,
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 822,
-      "adjacent_operational": 338,
+      "active_public": 828,
+      "adjacent_operational": 337,
       "candidate-review": 0,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1298
+    "total": 1303
   },
   "entries": [
     {
@@ -108,6 +108,36 @@
       "status": "active_public",
       "symbol": "DatasetPublicationPolicyAdmin",
       "target": "DatasetPublicationPolicyModel"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:FinancialCapacityGovernanceRecordAdmin:FinancialCapacityGovernanceRecordModel",
+      "locator": "FinancialCapacityGovernanceRecordModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "FinancialCapacityGovernanceRecordAdmin",
+      "target": "FinancialCapacityGovernanceRecordModel"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:FinancialCapacityGovernanceRevocationAdmin:FinancialCapacityGovernanceRevocationModel",
+      "locator": "FinancialCapacityGovernanceRevocationModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "FinancialCapacityGovernanceRevocationAdmin",
+      "target": "FinancialCapacityGovernanceRevocationModel"
+    },
+    {
+      "category": "admin_surface",
+      "evidence": "Data/Config Center-owned Django Admin registration",
+      "id": "admin_surface:apps/data_center/interface/admin.py:FinancialCapacityOwnerApprovalEventAdmin:FinancialCapacityOwnerApprovalEventModel",
+      "locator": "FinancialCapacityOwnerApprovalEventModel",
+      "path": "apps/data_center/interface/admin.py",
+      "status": "active_public",
+      "symbol": "FinancialCapacityOwnerApprovalEventAdmin",
+      "target": "FinancialCapacityOwnerApprovalEventModel"
     },
     {
       "category": "admin_surface",
@@ -2791,16 +2821,6 @@
     },
     {
       "category": "celery_dispatch_edge",
-      "evidence": "statically resolved Celery task dispatch",
-      "id": "celery_dispatch_edge:apps/data_center/application/tasks.py:apply_async:semantic:data_center.refresh_financial_publications_batch",
-      "locator": "semantic:data_center.refresh_financial_publications_batch",
-      "path": "apps/data_center/application/tasks.py",
-      "status": "adjacent_operational",
-      "symbol": "apply_async",
-      "target": "data_center.refresh_financial_publications_batch"
-    },
-    {
-      "category": "celery_dispatch_edge",
       "evidence": "dispatch target is registered in governance/celery_task_contracts.json",
       "id": "celery_dispatch_edge:apps/macro/application/tasks.py:delay:semantic:apps.macro.application.tasks.send_data_freshness_alert",
       "locator": "semantic:apps.macro.application.tasks.send_data_freshness_alert",
@@ -3358,6 +3378,16 @@
       "status": "active_public",
       "symbol": "refresh_decision_quote_snapshots_task",
       "target": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+    },
+    {
+      "category": "celery_task",
+      "evidence": "governance/celery_task_contracts.json",
+      "id": "celery_task:apps/data_center/application/tasks.py:refresh_financial_publication_capacity_task:data_center.refresh_financial_publication_capacity",
+      "locator": "data_center.refresh_financial_publication_capacity",
+      "path": "apps/data_center/application/tasks.py",
+      "status": "active_public",
+      "symbol": "refresh_financial_publication_capacity_task",
+      "target": "data_center.refresh_financial_publication_capacity"
     },
     {
       "category": "celery_task",
@@ -5281,7 +5311,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=88",
+      "evidence": "governed current-data contract; source_files=117",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -6012,6 +6042,16 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/approve_financial_capacity_governance.py:approve_financial_capacity_governance:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/approve_financial_capacity_governance.py",
+      "status": "active_public",
+      "symbol": "approve_financial_capacity_governance",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/audit_macro_fact_consistency.py:audit_macro_fact_consistency:",
       "locator": "",
       "path": "apps/data_center/management/commands/audit_macro_fact_consistency.py",
@@ -6187,6 +6227,16 @@
       "path": "apps/data_center/management/commands/record_data_center_reconciliation.py",
       "status": "active_public",
       "symbol": "record_data_center_reconciliation",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/record_financial_capacity_governance.py:record_financial_capacity_governance:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/record_financial_capacity_governance.py",
+      "status": "active_public",
+      "symbol": "record_financial_capacity_governance",
       "target": ""
     },
     {
@@ -13030,7 +13080,7 @@
     "retired_blocked": "known unsafe or obsolete operational path retained only as blocked evidence"
   },
   "source_contract_counts": {
-    "celery_tasks": 94,
+    "celery_tasks": 95,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 33,

@@ -4817,6 +4817,17 @@
         "apps/data_center/application/full_market_refresh_orchestration.py",
         "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/financial_refresh_lease.py",
+        "apps/data_center/application/financial_capacity_contracts.py",
+        "apps/data_center/application/financial_capacity_formal_publication.py",
+        "apps/data_center/application/financial_capacity_qualification.py",
+        "apps/data_center/application/financial_capacity_rehearsal.py",
+        "apps/data_center/application/financial_capacity_workflow_base.py",
+        "apps/data_center/application/financial_publication_capacity.py",
+        "apps/data_center/infrastructure/financial_capacity_checkpoint_repository.py",
+        "apps/data_center/infrastructure/financial_capacity_checkpoint_codec.py",
+        "apps/data_center/infrastructure/financial_capacity_governance.py",
+        "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",
+        "apps/data_center/migrations/0090_financial_publication_capacity_workflow.py",
         "apps/data_center/application/full_market_refresh_lease.py",
         "apps/data_center/application/tasks.py",
         "apps/data_center/application/market_publication_refresh.py",
@@ -4856,7 +4867,25 @@
         "apps/data_center/migrations/0086_canonical_publication_scope_blocks.py",
         "shared/domain/task_outcomes.py",
         "apps/data_center/infrastructure/tushare_a_share_provider.py",
-        "apps/data_center/application/publication_member_scope.py"
+        "apps/data_center/application/publication_member_scope.py",
+        "apps/data_center/application/financial_capacity_models.py",
+        "apps/data_center/application/financial_capacity_ports.py",
+        "apps/data_center/application/financial_capacity_governance.py",
+        "apps/data_center/application/financial_slice_sync.py",
+        "apps/data_center/application/financial_response_artifact.py",
+        "apps/data_center/application/financial_source_time_artifact.py",
+        "apps/data_center/infrastructure/financial_capacity_build_identity.py",
+        "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+        "apps/data_center/infrastructure/financial_response_capture.py",
+        "apps/data_center/akshare_financial_capture_composition.py",
+        "apps/data_center/management/commands/record_financial_capacity_governance.py",
+        "apps/data_center/management/commands/approve_financial_capacity_governance.py",
+        "apps/data_center/migrations/0091_financial_capacity_governance_record.py",
+        "apps/data_center/migrations/0092_financial_capacity_owner_approval_events.py",
+        "tests/unit/data_center/test_financial_capacity_governance.py",
+        "tests/unit/data_center/test_financial_capacity_manifest.py",
+        "tests/unit/data_center/test_financial_refresh_lease.py",
+        "apps/data_center/interface/admin.py"
       ],
       "required_markers": {
         "apps/data_center/application/current_fact_remediation.py": [
@@ -5086,17 +5115,7 @@
           "self.decision_evidence.to_dict() if self.decision_evidence is not None else None"
         ],
         "apps/data_center/infrastructure/financial_fact_write_guard.py": [
-          "def bulk_upsert_financial_facts(",
-          "_lock_rows_by_natural_key",
-          "select_for_update()",
-          "bulk_update(",
-          "_model_decimal_storage",
-          "_validate_fact_decision_evidence(fact)",
-          "source_time_evidence_verifier(decision)",
-          "encode_financial_decision_evidence(fact.decision_evidence)",
-          "financial decision evidence cannot be removed from an existing row",
-          "financial decision evidence is required for canonical writes",
-          "financial source-time witness must be independently verified before write"
+          "ingested_run_id=ingested_run_id"
         ],
         "apps/data_center/infrastructure/financial_decision_evidence_codec.py": [
           "financial-fact-decision-evidence.v1",
@@ -5107,7 +5126,10 @@
           "FinancialDecisionEvidenceCodecError"
         ],
         "apps/data_center/infrastructure/models.py": [
-          "decision_evidence = models.JSONField(default=dict, blank=True)"
+          "decision_evidence = models.JSONField(default=dict, blank=True)",
+          "class FinancialCapacityGovernanceRecordModel(models.Model):",
+          "class FinancialCapacityGovernanceRevocationModel(models.Model):",
+          "class FinancialCapacityOwnerApprovalEventModel(models.Model):"
         ],
         "apps/data_center/migrations/0082_financial_fact_decision_evidence.py": [
           "name=\"decision_evidence\"",
@@ -5201,6 +5223,67 @@
           "def restore_financial_refresh_offset(",
           "def save_financial_refresh_progress("
         ],
+        "apps/data_center/application/financial_capacity_contracts.py": [
+          "from apps.data_center.application.financial_capacity_models import (",
+          "FinancialCapacityReceipt,",
+          "from apps.data_center.application.financial_capacity_ports import ("
+        ],
+        "apps/data_center/application/financial_capacity_qualification.py": [
+          "self._qualification_ceiling_source.get_qualification(",
+          "financial_capacity_qualification_ceiling_not_approved",
+          "financial_capacity_qualification_budget_exceeds_approved_ceiling"
+        ],
+        "apps/data_center/application/financial_capacity_rehearsal.py": [
+          "start_capacity_rehearsal(",
+          "stage=\"capacity_rehearsal\"",
+          "financial_capacity_rehearsal_ceiling_not_approved",
+          "financial_capacity_rehearsal_budget_not_exact"
+        ],
+        "apps/data_center/application/financial_capacity_formal_publication.py": [
+          "authority_current = self._formal_authority_is_current()",
+          "self._production_ceiling_source.get(",
+          "financial_capacity_scope_drift",
+          "capacity_receipt.stage == \"capacity_rehearsal\""
+        ],
+        "apps/data_center/application/financial_capacity_workflow_base.py": [
+          "financial_capacity_inflight_outcome_indeterminate",
+          "rehearsal_ceiling.maximum_provider_requests",
+          "in_flight_claim_token=str(uuid4())",
+          "attempt.observed_provider_requests is None",
+          "self._publisher.begin_activation(",
+          "self._publisher.stage(",
+          "self._publisher.activate("
+        ],
+        "apps/data_center/infrastructure/financial_capacity_checkpoint_repository.py": [
+          "receipt_sha256=_consumed_receipt_sha256(created)",
+          "financial capacity approval or receipt has already been consumed",
+          "\"revision\": expected_revision",
+          "capacity_rehearsal_ceiling"
+        ],
+        "apps/data_center/infrastructure/financial_capacity_checkpoint_codec.py": [
+          "financial-publication-capacity-checkpoint.v5",
+          "schema != \"financial-publication-capacity-checkpoint.v5\""
+        ],
+        "apps/data_center/infrastructure/financial_capacity_governance.py": [
+          "DjangoFinancialCapacityGovernanceSource",
+          "revocation__isnull=True",
+          "select_related(\"owner_approval_event\")",
+          "_has_matching_owner_event(row, ceiling, raw_record)",
+          "stage=FinancialCapacityGovernanceRecordModel.CAPACITY_REHEARSAL"
+        ],
+        "apps/data_center/infrastructure/financial_publication_capacity_runtime.py": [
+          "class ControlledAkshareFinancialCapacitySliceRunner",
+          "make_sync_akshare_financial_slices_use_case(max_route_attempts=1)",
+          "_verified_isolated_seed(",
+          "row.available_at == witness.available_at",
+          "stage == \"formal_publication\"",
+          "expected_environment = \"production\" if stage == \"formal_publication\" else \"isolated\""
+        ],
+        "apps/data_center/migrations/0090_financial_publication_capacity_workflow.py": [
+          "FinancialPublicationCapacityWorkflowModel",
+          "receipt_sha256",
+          "unique=True"
+        ],
         "apps/data_center/application/full_market_refresh_lease.py": [
           "FULL_MARKET_REFRESH_LOCK_KEY = ",
           "FULL_MARKET_REFRESH_HARD_TIME_LIMIT_SECONDS = 5700",
@@ -5224,8 +5307,9 @@
           "revalidate_authority=revalidate_authority",
           "created_by=f\"celery.core_data_backfill:{authority.actor_id}\"",
           "def refresh_financial_publications_batch_task(",
-          "financial_publication_rebuild_failed",
-          "dataset_keys=(\"equity.financial.fact\",)",
+          "financial_capacity_receipt_required",
+          "def refresh_financial_publication_capacity_task(",
+          "capacity_receipt=source_checkpoint.capacity_receipt",
           "get_backfill_item_attempt_store()",
           "publication_evidence_hash=_publication_evidence_hash_from_result",
           "publication_evidence_hash_from_result as _publication_evidence_hash_from_result"
@@ -5485,9 +5569,71 @@
           "def find_scope_block(",
           "def scope_block_reason(",
           "canonical_publication_members_missing"
+        ],
+        "apps/data_center/application/financial_capacity_models.py": [
+          "class FinancialCapacityReceipt:",
+          "stage: FinancialWorkflowStage",
+          "class GovernedFinancialCapacityRehearsalCeiling:",
+          "receipt_sha256: str",
+          "in_flight_slice_index: int | None = None"
+        ],
+        "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py": [
+          "prepare_candidate(",
+          "stage_candidate_with_members(",
+          "ActivateCanonicalPublicationUseCase(",
+          "financial_capacity_current_pointer_verification_failed"
+        ],
+        "apps/data_center/infrastructure/financial_capacity_build_identity.py": [
+          "normally ``/app/.agom-build-identity.json``",
+          "def source_commit(self) -> str:",
+          "source_commit"
+        ],
+        "apps/data_center/application/financial_capacity_governance.py": [
+          "def parse_financial_capacity_governance_record(",
+          "stage: Literal[\"qualification\", \"capacity_rehearsal\", \"production\"]",
+          "approved_by",
+          "approved_at",
+          "approval_receipt_sha256"
+        ],
+        "apps/data_center/management/commands/record_financial_capacity_governance.py": [
+          "recorder.casefold() == parsed.approved_by.casefold()",
+          "_STAGES = (\"qualification\", \"capacity_rehearsal\", \"production\")",
+          "FinancialCapacityGovernanceRecordModel._default_manager.create("
+        ],
+        "apps/data_center/management/commands/approve_financial_capacity_governance.py": [
+          "owner_user.is_superuser",
+          "FinancialCapacityOwnerApprovalEventModel._default_manager.create(",
+          "record_sha256=hashlib.sha256(canonical_payload).hexdigest()"
+        ],
+        "apps/data_center/interface/admin.py": [
+          "def has_add_permission(",
+          "FinancialCapacityGovernanceRevocationModel._default_manager.get_or_create("
+        ],
+        "apps/data_center/migrations/0091_financial_capacity_governance_record.py": [
+          "FinancialCapacityGovernanceRecordModel",
+          "\"stage\"",
+          "capacity_rehearsal",
+          "\"record\""
+        ],
+        "apps/data_center/migrations/0092_financial_capacity_owner_approval_events.py": [
+          "FinancialCapacityGovernanceRevocationModel",
+          "FinancialCapacityOwnerApprovalEventModel",
+          "\"approval_receipt_sha256\""
+        ],
+        "apps/data_center/application/financial_slice_sync.py": [
+          "run_id: UUID | None",
+          "ingested_run_id=request.run_id"
+        ],
+        "apps/data_center/infrastructure/financial_response_capture.py": [
+          "physical_request_attempts: int = 1"
         ]
       },
       "required_tests": [
+        {
+          "case": "financial_capacity_rehearsal_exact_full_scope_gate",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_full_scope_capacity_rehearsal_receipt_can_start_formal_workflow"
+        },
         {
           "case": "a_share_provider_retries_segmented_connection_and_json_failures",
           "test_file": "tests/unit/data_center/test_a_share_universe_provider.py",
@@ -5539,14 +5685,54 @@
           "test_function": "test_production_daily_basic_path_uses_the_same_row_mapper"
         },
         {
-          "case": "scheduled_financial_refresh_publishes_only_after_full_universe",
-          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_publishes_only_after_full_universe"
+          "case": "financial_capacity_full_scope_rehearsal_reaches_formal",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_full_scope_capacity_rehearsal_receipt_can_start_formal_workflow"
         },
         {
-          "case": "scheduled_financial_refresh_keeps_partial_batch_unpublished",
+          "case": "financial_capacity_n1_receipt_is_never_formal",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_single_slice_qualification_receipt_never_qualifies_for_formal_start"
+        },
+        {
+          "case": "financial_capacity_rehearsal_requires_owner_approval",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_capacity_rehearsal_without_owner_approval_has_zero_provider_egress"
+        },
+        {
+          "case": "financial_capacity_rehearsal_requires_exact_budget",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_capacity_rehearsal_requires_exact_full_scope_ceiling_before_egress"
+        },
+        {
+          "case": "financial_capacity_invalid_budget_does_not_consume_owner_approval",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_rejected_rehearsal_budget_does_not_consume_approval_id"
+        },
+        {
+          "case": "financial_capacity_overrun_is_not_receipted",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_capacity_observed_physical_requests_over_ceiling_keep_provider_error_code"
+        },
+        {
+          "case": "financial_capacity_post_write_evidence_failure_keeps_counts",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_post_write_evidence_failure_preserves_known_sync_counts_without_receipt"
+        },
+        {
+          "case": "receipt_gated_financial_refresh_publishes_only_after_full_scope",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_formal_workflow_activates_policy_v3_only_after_every_slice_succeeds"
+        },
+        {
+          "case": "receipt_gated_financial_refresh_keeps_partial_scope_unpublished",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_formal_partial_failure_does_not_create_policy_v3_candidate_or_activate"
+        },
+        {
+          "case": "legacy_financial_refresh_requires_capacity_receipt_before_egress",
           "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_reports_partial_failure_without_publishing"
+          "test_function": "test_financial_refresh_fails_closed_before_legacy_provider_or_publication"
         },
         {
           "case": "exact_full_universe_current_publication",
@@ -5899,24 +6085,24 @@
           "test_function": "test_task_blocks_partial_valuation_seed_without_verified_scope_exclusions"
         },
         {
-          "case": "financial_refresh_soft_timeout_releases_lease",
-          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_soft_timeout_releases_lease_and_can_retry"
+          "case": "financial_capacity_timeout_preserves_indeterminate_inflight_evidence",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_capacity_workflow_keeps_orphan_evidence_and_never_replays_an_inflight_slice"
         },
         {
-          "case": "financial_refresh_broker_failure_preserves_checkpoint",
-          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_broker_failure_keeps_checkpoint_and_releases_lease"
+          "case": "financial_capacity_task_does_not_enqueue_broker_continuation",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_capacity_task_runs_one_step_without_broker_continuation"
         },
         {
-          "case": "financial_refresh_worker_loss_recovers_after_lease_expiry",
-          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_recovers_after_worker_lease_expires"
+          "case": "financial_capacity_checkpoint_resumes_after_worker_reconstruction",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_django_checkpoint_repository_resumes_after_workflow_reconstruction"
         },
         {
-          "case": "financial_refresh_lease_renewal_failure_fails_closed",
-          "test_file": "tests/unit/data_center/test_financial_publication_refresh.py",
-          "test_function": "test_financial_refresh_fails_closed_when_lease_renewal_fails"
+          "case": "financial_capacity_lease_loss_fails_closed",
+          "test_file": "tests/unit/data_center/test_financial_refresh_lease.py",
+          "test_function": "test_financial_refresh_lease_loss_fails_closed_and_release_is_owner_checked"
         },
         {
           "case": "resumable_backfill_records_all_item_phases",
@@ -6532,6 +6718,36 @@
           "case": "legacy_published_publication_is_not_adopted_as_candidate",
           "test_file": "tests/component/data_center/test_current_publication_staging.py",
           "test_function": "test_legacy_published_same_id_is_never_adopted_as_candidate"
+        },
+        {
+          "case": "financial_capacity_authenticated_owner_event_binds_exact_record",
+          "test_file": "tests/unit/data_center/test_financial_capacity_governance.py",
+          "test_function": "test_owner_event_must_match_exact_payload_hash_and_owner_identity"
+        },
+        {
+          "case": "financial_capacity_revocation_is_irreversible",
+          "test_file": "tests/unit/data_center/test_financial_capacity_governance.py",
+          "test_function": "test_capacity_admin_appends_irreversible_revocation_event"
+        },
+        {
+          "case": "financial_capacity_approval_is_consumed_once",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_django_checkpoint_repository_consumes_receipt_once_even_after_reapproval"
+        },
+        {
+          "case": "financial_capacity_crash_replays_exact_candidate",
+          "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
+          "test_function": "test_formal_checkpoint_crash_after_activation_ignores_later_live_fact_changes"
+        },
+        {
+          "case": "financial_capacity_manifest_requires_source_time_per_asset",
+          "test_file": "tests/unit/data_center/test_financial_capacity_manifest.py",
+          "test_function": "test_formal_manifest_still_requires_typed_source_time_for_every_active_asset"
+        },
+        {
+          "case": "financial_capacity_manifest_scales_to_5572_active_assets",
+          "test_file": "tests/unit/data_center/test_financial_capacity_manifest.py",
+          "test_function": "test_formal_manifest_uses_asset_subquery_for_5572_active_assets"
         }
       ]
     },

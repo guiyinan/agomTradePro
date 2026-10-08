@@ -3851,6 +3851,7 @@
         "application/tasks.py": [
           "backfill_active_a_share_core_data_batch_task",
           "refresh_decision_quote_snapshots_task",
+          "refresh_financial_publication_capacity_task",
           "refresh_financial_publications_batch_task",
           "refresh_full_market_publications_task",
           "refresh_market_thermometer_task"
@@ -4214,7 +4215,10 @@
           "EgressRuleRepositoryProtocol",
           "EgressTransportProtocol",
           "EgressTransportResult",
+          "FinancialResponseAttemptBudget",
           "FinancialResponseCaptureProtocol",
+          "FinancialResponseCaptureResult",
+          "FinancialResponseRequestFailed",
           "configure_egress_audit_writer",
           "configure_egress_rule_repository",
           "configure_egress_transport",
@@ -4257,6 +4261,55 @@
           "QueryNewsUseCase",
           "QuerySectorConstituentsUseCase",
           "QueryValuationsUseCase"
+        ],
+        "application/financial_capacity_formal_publication.py": [
+          "FinancialCapacityFormalPublicationWorkflow"
+        ],
+        "application/financial_capacity_governance.py": [
+          "parse_financial_capacity_governance_record"
+        ],
+        "application/financial_capacity_models.py": [
+          "FinancialCapacityActivationIntent",
+          "FinancialCapacityBinding",
+          "FinancialCapacityCheckpoint",
+          "FinancialCapacityManifestSnapshot",
+          "FinancialCapacityPublicationIndeterminateError",
+          "FinancialCapacityPublicationPlan",
+          "FinancialCapacityReceipt",
+          "FinancialCapacitySliceAttempt",
+          "FinancialCapacitySliceEvidence",
+          "FinancialCapacityWorkflowError",
+          "FinancialCapacityWorkflowResult",
+          "FinancialPublicationSlice",
+          "GovernedFinancialCapacityRehearsalCeiling",
+          "GovernedFinancialProductionCeiling",
+          "GovernedFinancialQualificationCeiling"
+        ],
+        "application/financial_capacity_ports.py": [
+          "FinancialCapacityAuthorityValidator",
+          "FinancialCapacityBindingSource",
+          "FinancialCapacityBuildIdentitySource",
+          "FinancialCapacityCheckpointRepository",
+          "FinancialCapacityManifestSource",
+          "FinancialCapacityPublisher",
+          "FinancialCapacityRehearsalCeilingSource",
+          "FinancialCapacitySliceRunner",
+          "FinancialProductionCeilingSource",
+          "FinancialQualificationCeilingSource",
+          "InMemoryFinancialCapacityCheckpointRepository",
+          "ProtocolClock"
+        ],
+        "application/financial_capacity_qualification.py": [
+          "FinancialCapacityQualificationWorkflow"
+        ],
+        "application/financial_capacity_rehearsal.py": [
+          "FinancialCapacityRehearsalWorkflow"
+        ],
+        "application/financial_capacity_workflow_base.py": [
+          "FinancialCapacityWorkflowBase"
+        ],
+        "application/financial_publication_capacity.py": [
+          "FinancialCapacityWorkflow"
         ],
         "application/financial_refresh_lease.py": [
           "claim_financial_refresh_lock",
@@ -4933,6 +4986,7 @@
         "application/tasks.py": [
           "backfill_active_a_share_core_data_batch_task",
           "refresh_decision_quote_snapshots_task",
+          "refresh_financial_publication_capacity_task",
           "refresh_financial_publications_batch_task",
           "refresh_full_market_publications_task",
           "refresh_market_thermometer_task"
@@ -5007,11 +5061,11 @@
         ]
       },
       "layers": {
-        "application": 120,
+        "application": 129,
         "domain": 34,
-        "infrastructure": 167,
+        "infrastructure": 174,
         "interface": 19,
-        "management": 35,
+        "management": 37,
         "root": 20
       },
       "orm_models": {
@@ -5028,7 +5082,13 @@
           "PriceBarModel",
           "QuoteSnapshotModel",
           "FundNavFactModel",
-          "FinancialFactModel"
+          "FinancialFactModel",
+          "FinancialPublicationCapacityWorkflowModel",
+          "FinancialPublicationCapacityManifestItemModel",
+          "FinancialPublicationCapacityEvidenceModel",
+          "FinancialCapacityGovernanceRecordModel",
+          "FinancialCapacityGovernanceRevocationModel",
+          "FinancialCapacityOwnerApprovalEventModel"
         ]
       }
     },
@@ -10690,6 +10750,10 @@
         "application/operational_alerts.py": [
           "record_operational_alert"
         ],
+        "application/orphan_reconciliation.py": [
+          "ReconcileOrphanedTaskRecordsUseCase",
+          "TaskOrphanReconciliationResult"
+        ],
         "application/query_services.py": [
           "has_recent_task_failures",
           "list_task_executions"
@@ -10702,6 +10766,7 @@
           "get_scheduler_bootstrap_gateway",
           "get_scheduler_configuration_gateway",
           "get_scheduler_repository",
+          "get_task_orphan_evidence_provider",
           "get_task_record_repository"
         ],
         "application/tasks.py": [
@@ -10750,9 +10815,9 @@
         ]
       },
       "layers": {
-        "application": 15,
-        "domain": 3,
-        "infrastructure": 7,
+        "application": 16,
+        "domain": 4,
+        "infrastructure": 8,
         "interface": 7,
         "management": 23,
         "root": 4

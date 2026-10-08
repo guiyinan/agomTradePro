@@ -39,8 +39,8 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5392,
-    "data_write_task_decorators": 65,
+    "current_surface_references": 5423,
+    "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
     "legacy_fact_references": 0,
@@ -8055,6 +8055,18 @@
       "text": "\"\"\"Refuse capture unless the current owner-approved registry matches code.\"\"\""
     },
     {
+      "path": "apps/data_center/akshare_financial_capture_composition.py",
+      "text": "current = self._observed_provider_requests"
+    },
+    {
+      "path": "apps/data_center/akshare_financial_capture_composition.py",
+      "text": "current is None"
+    },
+    {
+      "path": "apps/data_center/akshare_financial_capture_composition.py",
+      "text": "self._observed_provider_requests = current + attempts"
+    },
+    {
       "path": "apps/data_center/application/business_runtime_gateway.py",
       "text": "\"\"\"Fetch latest prices, returning no fallback rows when Realtime is absent.\"\"\""
     },
@@ -8581,6 +8593,86 @@
     {
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_models.py",
+      "text": "\"\"\"Exact staged candidate and member seal saved before current-pointer activation.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_models.py",
+      "text": "\"\"\"One task invocation result plus its current durable checkpoint.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_models.py",
+      "text": "\"financial capacity current pointer compare-and-swap pair is incomplete\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "\"\"\"Freeze the current-pointer CAS and one exact workflow RawAudit identity.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "\"\"\"Read the current human-governed production ceiling for one receipt.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "\"\"\"Return current UTC time.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "\"\"\"Return the current timezone-aware workflow timestamp.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "current = self._checkpoints.get(checkpoint.workflow_id)"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "current = self._checkpoints[saved.workflow_id]"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "current.evidence_sha256,"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "if current is None or current.revision != expected_revision:"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_ports.py",
+      "text": "or saved.evidence_previous_sha256 != current.evidence_sha256"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_workflow_base.py",
+      "text": "if latest is not None and latest.revision != checkpoint.revision:"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_workflow_base.py",
+      "text": "if latest.in_flight_slice_index is not None:"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_workflow_base.py",
+      "text": "latest = self._checkpoints.get(checkpoint.workflow_id)"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_workflow_base.py",
+      "text": "return self._handle_existing_claim(latest)"
+    },
+    {
+      "path": "apps/data_center/application/financial_capacity_workflow_base.py",
+      "text": "return self._result(latest)"
+    },
+    {
+      "path": "apps/data_center/application/financial_slice_sync.py",
+      "text": "current: object,"
+    },
+    {
+      "path": "apps/data_center/application/financial_slice_sync.py",
+      "text": "if previous is None or isinstance(current, bool) or not isinstance(current, int) or current < 0:"
+    },
+    {
+      "path": "apps/data_center/application/financial_slice_sync.py",
+      "text": "return previous + current"
     },
     {
       "path": "apps/data_center/application/full_market_publication_preflight.py",
@@ -9696,10 +9788,6 @@
     },
     {
       "path": "apps/data_center/application/tasks.py",
-      "text": "\"Financial current publication rebuild failed: %s\","
-    },
-    {
-      "path": "apps/data_center/application/tasks.py",
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
@@ -10605,6 +10693,38 @@
     {
       "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
       "text": "summary = models.TextField(blank=True)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"\"\"Read and validate the current financial publication pointer pair.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"\"\"Stage immutable financial candidates and CAS the canonical current pointer.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"financial capacity current pointer activation identity differs\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"financial capacity current pointer does not match the activated candidate\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"financial capacity current publication pointer changed before activation\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"financial capacity current publication pointer is malformed\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "\"financial capacity current publication pointer is malformed\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_capacity_publisher_runtime.py",
+      "text": "_PUBLICATION_KEY = \"current\""
     },
     {
       "path": "apps/data_center/infrastructure/financial_fact_repository.py",
@@ -19787,6 +19907,10 @@
       "text": "total_tasks=summary.total_tasks,"
     },
     {
+      "path": "apps/task_monitor/domain/interfaces.py",
+      "text": "\"\"\"Atomically time out one still-current task attempt.\"\"\""
+    },
+    {
       "path": "apps/task_monitor/infrastructure/backup_service.py",
       "text": "backup_file = output_path / \"postgres-current.dump\""
     },
@@ -21886,6 +22010,10 @@
     },
     {
       "path": "apps/data_center/application/retention_tasks.py",
+      "text": "@shared_task(  # type: ignore[misc]"
+    },
+    {
+      "path": "apps/data_center/application/tasks.py",
       "text": "@shared_task(  # type: ignore[misc]"
     },
     {
