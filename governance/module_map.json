@@ -4012,6 +4012,7 @@
         ],
         "application/control_plane.py": [
           "CanonicalPublicationRepositoryPort",
+          "FinancialPublicationLaneRequiredError",
           "PublishCanonicalDatasetUseCase",
           "QuarantineRepositoryPort",
           "RecordQuarantineUseCase",
@@ -4020,7 +4021,8 @@
           "SyncBatchRepositoryPort",
           "SyncCheckpointRepositoryPort",
           "SyncRunRepositoryPort",
-          "publication_rollback_evidence_content_hash"
+          "publication_rollback_evidence_content_hash",
+          "require_generic_publication_lane"
         ],
         "application/core_data_backfill.py": [
           "BackfillAuthorityBinding",
@@ -4072,6 +4074,7 @@
           "CoreCurrentPublicationRebuildUseCase",
           "CurrentPublicationCandidateRepositoryProtocol",
           "CurrentPublicationRebuildUseCase",
+          "DeferredCurrentPublicationLane",
           "TargetDatePublicationObservationProbeProtocol"
         ],
         "application/current_publication_staging.py": [
@@ -4334,6 +4337,30 @@
           "RetainFinancialResponseArtifactUseCase",
           "RetainFinancialResponseFailureUseCase",
           "RetainedFinancialResponsePayload"
+        ],
+        "application/financial_scope_capacity_input.py": [
+          "FinancialScopeCapacityInput",
+          "FinancialScopeCapacityInputError",
+          "FinancialScopeManifestCurrentPointer",
+          "FinancialScopeManifestCurrentPointerSource",
+          "install_financial_scope_manifest_pointer",
+          "prepare_financial_scope_manifest_pointer",
+          "resolve_current_financial_scope_capacity_input",
+          "validate_capacity_scope_input"
+        ],
+        "application/financial_scope_discovery_governance.py": [
+          "parse_financial_scope_discovery_authorization",
+          "parse_financial_scope_manifest_review"
+        ],
+        "application/financial_scope_manifest_bootstrap.py": [
+          "FinancialScopeDiscoveryAuthorizationSource",
+          "FinancialScopeDiscoveryReader",
+          "FinancialScopeDiscoveryResult",
+          "FinancialScopeDiscoveryUniverseSource",
+          "FinancialScopeDiscoveryUseCase",
+          "FinancialScopeManifestReviewSource",
+          "ScopeDiscoveryRequest",
+          "independently_review_financial_scope_candidate"
         ],
         "application/financial_slice_sync.py": [
           "FinancialAnnouncementSlice",
@@ -5061,12 +5088,12 @@
         ]
       },
       "layers": {
-        "application": 129,
-        "domain": 34,
-        "infrastructure": 174,
+        "application": 132,
+        "domain": 35,
+        "infrastructure": 177,
         "interface": 19,
-        "management": 37,
-        "root": 20
+        "management": 39,
+        "root": 21
       },
       "orm_models": {
         "infrastructure/models.py": [
@@ -5088,7 +5115,8 @@
           "FinancialPublicationCapacityEvidenceModel",
           "FinancialCapacityGovernanceRecordModel",
           "FinancialCapacityGovernanceRevocationModel",
-          "FinancialCapacityOwnerApprovalEventModel"
+          "FinancialCapacityOwnerApprovalEventModel",
+          "FinancialScopeManifestCurrentPointerModel"
         ]
       }
     },

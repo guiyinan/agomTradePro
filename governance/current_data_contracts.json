@@ -5602,7 +5602,7 @@
         ],
         "apps/data_center/management/commands/record_financial_capacity_governance.py": [
           "recorder.casefold() == parsed.approved_by.casefold()",
-          "_STAGES = (\"qualification\", \"capacity_rehearsal\", \"production\")",
+          "_STAGES = (",
           "FinancialCapacityGovernanceRecordModel._default_manager.create("
         ],
         "apps/data_center/management/commands/approve_financial_capacity_governance.py": [
