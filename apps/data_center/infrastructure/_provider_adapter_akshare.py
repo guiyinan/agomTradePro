@@ -13,6 +13,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from time import sleep
 from typing import Any, cast
+from uuid import UUID
 
 import requests
 
@@ -673,6 +674,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         periods: int = 8,
         *,
         capture_gateway: AkshareFinancialCaptureGateway | None = None,
+        run_id: UUID | None = None,
     ) -> list[FinancialFact]:
         """Return one asset/date slice only after dual-body evidence is complete.
 
@@ -713,13 +715,24 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             self._config,
             deployment_region=_deployment_region(),
         )
-        pair = gateway.capture_and_retain(
-            asset_code=canonical_asset_code,
-            period_limit=periods,
-            announcement_date=announcement_date,
-        )
+        if run_id is None:
+            pair = gateway.capture_and_retain(
+                asset_code=canonical_asset_code,
+                period_limit=periods,
+                announcement_date=announcement_date,
+            )
+        else:
+            pair = gateway.capture_and_retain(
+                asset_code=canonical_asset_code,
+                period_limit=periods,
+                announcement_date=announcement_date,
+                run_id=run_id,
+            )
         self._require_pair_provider_identity(pair)
-        financial_body, source_time_body = gateway.read_retained_bodies(pair)
+        financial_body, source_time_body = gateway.read_retained_bodies(
+            pair,
+            expected_run_id=run_id,
+        )
         return self._facts_from_retained_pair(
             pair=pair,
             financial_body=financial_body,

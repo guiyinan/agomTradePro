@@ -184,6 +184,7 @@ class RetainFinancialResponseArtifactUseCase:
         request_params: Mapping[str, object],
         row_count: int = 0,
         provider_id: int | None = None,
+        run_id: UUID | None = None,
     ) -> FinancialResponseArtifactRetention:
         """Store exact bytes, then append one versioned and redacted audit link.
 
@@ -197,6 +198,9 @@ class RetainFinancialResponseArtifactUseCase:
         normalized_provider = _required_text(provider_name, "provider_name", 128)
         if isinstance(row_count, bool) or not isinstance(row_count, int) or row_count < 0:
             raise ValueError("financial artifact row_count must be non-negative")
+        if run_id is not None and not isinstance(run_id, UUID):
+            raise ValueError("financial response artifact run_id must be a UUID")
+        run_id_text = str(run_id) if run_id is not None else ""
         safe_params = _safe_request_params(request_params)
         artifact = FinancialResponseArtifact(
             capture_id=capture_id,
@@ -231,6 +235,7 @@ class RetainFinancialResponseArtifactUseCase:
                 evidence=evidence,
                 row_count=row_count,
                 expected_extra=expected_extra,
+                expected_run_id=run_id_text,
             ):
                 raise ValueError("financial artifact replay metadata conflicts")
             return FinancialResponseArtifactRetention(reference, existing_audit)
@@ -249,6 +254,8 @@ class RetainFinancialResponseArtifactUseCase:
             redacted=True,
             parser_version="financial-response-artifact.v1",
             payload_size_bytes=evidence.body_size_bytes,
+            run_id=run_id_text,
+            ingested_run_id=run_id_text,
         )
         try:
             persisted = self._audit_repository.log(audit)
@@ -385,6 +392,7 @@ def _artifact_audit_matches(
     evidence: FinancialResponseEvidence,
     row_count: int,
     expected_extra: Mapping[str, object],
+    expected_run_id: str,
 ) -> bool:
     """Require a replay to match the complete successful audit projection."""
 
@@ -405,8 +413,8 @@ def _artifact_audit_matches(
         and audit.parser_version == "financial-response-artifact.v1"
         and audit.payload_size_bytes == evidence.body_size_bytes
         and audit.retention_until is None
-        and audit.run_id == ""
-        and audit.ingested_run_id == ""
+        and audit.run_id == expected_run_id
+        and audit.ingested_run_id == expected_run_id
         and _content_hash_matches(audit)
     )
 

@@ -6,6 +6,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from threading import Lock
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -169,6 +170,70 @@ class FinancialResponseCaptureProtocol(Protocol):
     def raw_body(self) -> bytes:
         """Return the exact captured bytes without allowing replacement."""
         ...
+
+    @property
+    def physical_request_attempts(self) -> int:
+        """Return routed transport attempts used to obtain this response."""
+        ...
+
+
+class FinancialResponseAttemptBudget:
+    """Reserve a fixed number of routed financial transport attempts before send."""
+
+    def __init__(self, maximum_attempts: int) -> None:
+        """Create one execution-scoped budget with a non-negative hard ceiling."""
+
+        if (
+            isinstance(maximum_attempts, bool)
+            or not isinstance(maximum_attempts, int)
+            or maximum_attempts < 0
+        ):
+            raise ValueError("financial response attempt budget must be non-negative")
+        self._maximum_attempts = maximum_attempts
+        self._reserved_attempts = 0
+        self._lock = Lock()
+
+    @property
+    def maximum_attempts(self) -> int:
+        """Return the immutable attempt ceiling."""
+
+        return self._maximum_attempts
+
+    @property
+    def reserved_attempts(self) -> int:
+        """Return attempts reserved before their transport send."""
+
+        with self._lock:
+            return self._reserved_attempts
+
+    def reserve(self) -> bool:
+        """Consume one attempt before transport starts, or refuse at the hard cap."""
+
+        with self._lock:
+            if self._reserved_attempts >= self._maximum_attempts:
+                return False
+            self._reserved_attempts += 1
+            return True
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialResponseCaptureResult:
+    """Exact response projection plus the number of routed physical attempts."""
+
+    payload: object
+    evidence: FinancialResponseEvidence
+    raw_body: bytes
+    physical_request_attempts: int
+
+
+class FinancialResponseRequestFailed(DataFetchError):
+    """Failed routed response with exact attempts, or ``None`` when unobservable."""
+
+    def __init__(self, message: str, *, code: str, observed_attempts: int | None) -> None:
+        """Retain request-attempt evidence alongside the normalized fetch error."""
+
+        super().__init__(message, code=code)
+        self.observed_attempts = observed_attempts
 
 
 @dataclass(frozen=True, slots=True)
@@ -388,6 +453,7 @@ def execute_financial_response_request(
     request_scope: FinancialRequestScope,
     response_scope: FinancialResponseScope,
     max_attempts: int = 2,
+    attempt_budget: FinancialResponseAttemptBudget | None = None,
 ) -> FinancialResponseCaptureProtocol:
     """Run one allowlisted financial request and retain its raw-body capture.
 
@@ -413,28 +479,52 @@ def execute_financial_response_request(
         raise EgressRoutingError("unsupported provider read method")
     transport = _transport
     if transport is None:
-        raise DataFetchError("出网传输尚未配置。", code="EGRESS_TRANSPORT_UNAVAILABLE")
+        raise FinancialResponseRequestFailed(
+            "出网传输尚未配置。",
+            code="EGRESS_TRANSPORT_UNAVAILABLE",
+            observed_attempts=0,
+        )
     route = preview_route(context)
     if route.rule_id is None:
-        raise DataFetchError("金融请求没有已登记出网规则。", code="EGRESS_FINANCIAL_ROUTE_REQUIRED")
+        raise FinancialResponseRequestFailed(
+            "金融请求没有已登记出网规则。",
+            code="EGRESS_FINANCIAL_ROUTE_REQUIRED",
+            observed_attempts=0,
+        )
     last = EgressTransportResult(
         outcome="blocked",
         error_code="EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
         message="金融响应证据捕获失败。",
     )
+    attempts_observed = 0
+    active_attempt_budget = attempt_budget or FinancialResponseAttemptBudget(max_attempts)
     for attempt_number, egress_id in enumerate(route.candidates[:max_attempts], start=1):
-        result, captured = transport.request_financial_response(
-            context,
-            egress_id=egress_id,
-            request_id=request_id,
-            attempt=attempt_number,
-            method=method,
-            params=params,
-            json_body=json_body,
-            headers=headers,
-            request_scope=request_scope,
-            response_scope=response_scope,
-        )
+        if not active_attempt_budget.reserve():
+            raise FinancialResponseRequestFailed(
+                "金融请求已达到物理发送次数上限。",
+                code="FINANCIAL_PROVIDER_REQUEST_HARD_LIMIT_EXCEEDED",
+                observed_attempts=attempts_observed,
+            )
+        try:
+            result, captured = transport.request_financial_response(
+                context,
+                egress_id=egress_id,
+                request_id=request_id,
+                attempt=attempt_number,
+                method=method,
+                params=params,
+                json_body=json_body,
+                headers=headers,
+                request_scope=request_scope,
+                response_scope=response_scope,
+            )
+        except (ConnectionError, OSError, RuntimeError, TimeoutError, TypeError, ValueError) as exc:
+            raise FinancialResponseRequestFailed(
+                "金融响应传输未返回可核验的请求次数。",
+                code="EGRESS_FINANCIAL_RESPONSE_ATTEMPT_COUNT_UNKNOWN",
+                observed_attempts=None,
+            ) from exc
+        attempts_observed = attempt_number
         _record_attempt(
             context,
             route,
@@ -442,13 +532,19 @@ def execute_financial_response_request(
             _diagnostic_attempt(result, attempt_number, egress_id),
         )
         if result.outcome == "success" and captured is not None:
-            return captured
+            return FinancialResponseCaptureResult(
+                payload=captured.payload,
+                evidence=captured.evidence,
+                raw_body=captured.raw_body,
+                physical_request_attempts=attempts_observed,
+            )
         last = result
         if not result.retryable:
             break
-    raise DataFetchError(
+    raise FinancialResponseRequestFailed(
         last.message or "金融响应证据捕获失败。",
         code=last.error_code or "EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
+        observed_attempts=attempts_observed,
     )
 
 
@@ -788,7 +884,9 @@ __all__ = [
     "diagnose_route",
     "execute_financial_response_request",
     "execute_provider_request",
+    "FinancialResponseAttemptBudget",
     "FinancialResponseCaptureProtocol",
+    "FinancialResponseRequestFailed",
     "get_egress_transport",
     "list_endpoints",
     "list_rules",

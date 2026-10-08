@@ -20,8 +20,13 @@ from apps.data_center.akshare_financial_capture_composition import (
     AKSHARE_SOURCE_TIME_DATASET_KEY,
     AkshareFinancialCaptureError,
     AkshareFinancialCaptureGateway,
+    FinancialResponseRequestRunner,
 )
-from apps.data_center.application.egress_service import FinancialResponseCaptureProtocol
+from apps.data_center.application.egress_service import (
+    FinancialResponseAttemptBudget,
+    FinancialResponseCaptureProtocol,
+    FinancialResponseRequestFailed,
+)
 from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
     FinancialSliceSyncBudget,
@@ -114,6 +119,7 @@ class _Capture:
     payload: object
     evidence: FinancialResponseEvidence
     raw_body: bytes
+    physical_request_attempts: int = 1
 
 
 class _CaptureIdFactory:
@@ -129,8 +135,9 @@ class _CaptureIdFactory:
 class _Runner:
     """Return queued provider bytes while recording both egress requests."""
 
-    def __init__(self, bodies: Mapping[str, bytes]) -> None:
+    def __init__(self, bodies: Mapping[str, bytes], *, physical_attempts: int = 1) -> None:
         self._bodies = dict(bodies)
+        self._physical_attempts = physical_attempts
         self.calls: list[tuple[EgressRequestContext, UUID, Mapping[str, object]]] = []
 
     def __call__(
@@ -145,6 +152,7 @@ class _Runner:
         request_scope: FinancialRequestScope,
         response_scope: FinancialResponseScope,
         max_attempts: int = 2,
+        attempt_budget: FinancialResponseAttemptBudget | None = None,
     ) -> FinancialResponseCaptureProtocol:
         """Synthesize the transport's immutable capture projection."""
 
@@ -153,8 +161,64 @@ class _Runner:
         assert headers is None
         assert max_attempts == 2
         assert params is not None
+        if attempt_budget is not None:
+            for _ in range(self._physical_attempts):
+                assert attempt_budget.reserve()
         body = self._bodies[context.dataset_key]
         self.calls.append((context, request_id, dict(params)))
+        evidence = FinancialResponseEvidence(
+            body_sha256=raw_body_sha256(body),
+            body_size_bytes=len(body),
+            response_completed_at=COMPLETED_AT,
+            request_scope=request_scope,
+            response_scope=response_scope,
+        )
+        return _Capture(
+            payload={},
+            evidence=evidence,
+            raw_body=body,
+            physical_request_attempts=self._physical_attempts,
+        )
+
+
+class _CapacityRouteAttemptRunner:
+    """Verify capacity captures receive a one-route budget and fail at the chosen side."""
+
+    def __init__(self, failed_dataset: str) -> None:
+        self.failed_dataset = failed_dataset
+        self.calls: list[tuple[str, int]] = []
+
+    def __call__(
+        self,
+        context: EgressRequestContext,
+        *,
+        request_id: UUID,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+        request_scope: FinancialRequestScope,
+        response_scope: FinancialResponseScope,
+        max_attempts: int = 2,
+        attempt_budget: FinancialResponseAttemptBudget | None = None,
+    ) -> FinancialResponseCaptureProtocol:
+        """Record each logical capture and simulate a retryable route failure."""
+
+        del request_id, method, params, json_body, headers
+        self.calls.append((context.dataset_key, max_attempts))
+        if context.dataset_key == self.failed_dataset:
+            assert attempt_budget is not None and attempt_budget.reserve()
+            raise FinancialResponseRequestFailed(
+                "synthetic retryable first-route failure",
+                code="EGRESS_TIMEOUT",
+                observed_attempts=1,
+            )
+        assert attempt_budget is not None and attempt_budget.reserve()
+        body = (
+            FINANCIAL_BODY
+            if context.dataset_key == AKSHARE_FINANCIAL_DATASET_KEY
+            else SOURCE_TIME_BODY
+        )
         evidence = FinancialResponseEvidence(
             body_sha256=raw_body_sha256(body),
             body_size_bytes=len(body),
@@ -203,12 +267,14 @@ class _FactWriter:
 
     def __init__(self, stored_count: int | None = None) -> None:
         self.calls: list[list[object]] = []
+        self.ingested_run_ids: list[UUID | None] = []
         self.stored_count = stored_count
 
-    def bulk_upsert(self, facts) -> int:
+    def bulk_upsert(self, facts, *, ingested_run_id: UUID | None = None) -> int:
         """Record one atomic-batch call and report all rows as stored."""
 
         self.calls.append(list(facts))
+        self.ingested_run_ids.append(ingested_run_id)
         return len(facts) if self.stored_count is None else self.stored_count
 
 
@@ -218,6 +284,13 @@ class _SequenceFetcher:
     def __init__(self, facts: list[FinancialFact]) -> None:
         self.facts = facts
         self.calls = 0
+        self._last_observed_provider_requests: int | None = 0
+
+    @property
+    def last_observed_provider_requests(self) -> int | None:
+        """Report the synthetic fetch's exact physical attempts."""
+
+        return self._last_observed_provider_requests
 
     def fetch_financials_for_announcement_date(
         self,
@@ -229,6 +302,7 @@ class _SequenceFetcher:
 
         del asset_code, announcement_date, periods
         self.calls += 1
+        self._last_observed_provider_requests = 2
         if self.calls == 1:
             return self.facts
         raise DataFetchError("synthetic second-slice provider outage")
@@ -343,11 +417,12 @@ def _provider() -> ProviderConfig:
 
 def _gateway(
     tmp_path: Path,
-    runner: _Runner,
+    runner: FinancialResponseRequestRunner,
     audits: _Audits | None = None,
     *,
     capture_ids: tuple[UUID, ...] = CAPTURE_IDS,
     provider: ProviderConfig | None = None,
+    max_route_attempts: int = 2,
 ) -> tuple[
     AkshareFinancialCaptureGateway,
     _Audits,
@@ -386,6 +461,7 @@ def _gateway(
         ),
         capture_runner=runner,
         capture_id_factory=_CaptureIdFactory(capture_ids),
+        max_route_attempts=max_route_attempts,
     )
     return gateway, audit_port, financial_store, source_time_store
 
@@ -460,6 +536,39 @@ def test_akshare_financial_capture_retains_independent_exact_body_pair(tmp_path:
         wrong_row.verify_source_time(retained.source_time.audit, retained.source_time.reference)
         is None
     )
+
+
+@pytest.mark.parametrize(
+    ("failed_dataset", "expected_datasets"),
+    (
+        (AKSHARE_FINANCIAL_DATASET_KEY, (AKSHARE_FINANCIAL_DATASET_KEY,)),
+        (
+            AKSHARE_SOURCE_TIME_DATASET_KEY,
+            (AKSHARE_FINANCIAL_DATASET_KEY, AKSHARE_SOURCE_TIME_DATASET_KEY),
+        ),
+    ),
+)
+def test_capacity_capture_limits_each_dual_capture_to_one_route_attempt(
+    tmp_path: Path,
+    failed_dataset: str,
+    expected_datasets: tuple[str, ...],
+) -> None:
+    """A retryable first-route failure never adds a second candidate to the N=1 budget."""
+
+    runner = _CapacityRouteAttemptRunner(failed_dataset)
+    gateway, audits, _financial_store, _source_time_store = _gateway(
+        tmp_path,
+        runner,
+        max_route_attempts=1,
+    )
+
+    with pytest.raises(DataFetchError):
+        _capture_pair(gateway)
+
+    assert tuple(dataset for dataset, _attempts in runner.calls) == expected_datasets
+    assert all(max_attempts == 1 for _dataset, max_attempts in runner.calls)
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
 
 
 def test_akshare_adapter_builds_typed_facts_from_two_retained_raw_bodies(
@@ -826,20 +935,24 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
 ) -> None:
     """The controlled entrypoint reaches only the retained-body AKShare adapter."""
 
-    runner = _Runner(
-        {
-            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
-            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
-        }
+    runner = _CapacityRouteAttemptRunner("")
+    gateway, audits, _financial_store, _source_time_store = _gateway(
+        tmp_path,
+        runner,
+        max_route_attempts=1,
     )
-    gateway, audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
     provider = AkshareUnifiedProviderAdapter(_provider())
     writer = _FactWriter()
     configs = _ProviderConfigs()
     registry = _Registry(provider)
     gateway_builds: list[tuple[int | None, str]] = []
 
-    def _build_gateway(config: ProviderConfig, *, deployment_region: str):
+    def _build_gateway(
+        config: ProviderConfig,
+        *,
+        deployment_region: str,
+        **_kwargs: object,
+    ):
         gateway_builds.append((config.id, deployment_region))
         return gateway
 
@@ -853,8 +966,9 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
         provider_registry=registry,
         fact_repo=writer,
         fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
-        evidence_verifier=lambda _config, _evidence: True,
+        evidence_verifier=lambda _config, _evidence, **_kwargs: True,
         request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+        max_route_attempts=1,
     )
 
     result = use_case.execute(
@@ -862,6 +976,7 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
             provider_id=17,
             source="akshare",
             slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+            run_id=UUID("c425ae25-2d76-481a-b3c7-110a1dfbb98d"),
         )
     )
 
@@ -875,6 +990,8 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
         "failed": 0,
         "stored": len(writer.calls[0]),
         "planned_provider_requests": 2,
+        "maximum_physical_provider_attempts": 2,
+        "observed_provider_requests": 2,
         "atomic_fact_write_count": 1,
         "failure_reason": None,
     }
@@ -883,9 +1000,16 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
     assert configs.lookups == [17]
     assert registry.lookups == [17]
     assert len(runner.calls) == 2
+    assert all(max_attempts == 1 for _dataset, max_attempts in runner.calls)
     assert len(audits.financial_rows) == 1
     assert len(audits.source_time_rows) == 1
     assert len(writer.calls) == 1
+    expected_run_id = "c425ae25-2d76-481a-b3c7-110a1dfbb98d"
+    assert writer.ingested_run_ids == [UUID(expected_run_id)]
+    assert audits.financial_rows[0].run_id == expected_run_id
+    assert audits.financial_rows[0].ingested_run_id == expected_run_id
+    assert audits.source_time_rows[0].run_id == expected_run_id
+    assert audits.source_time_rows[0].ingested_run_id == expected_run_id
     assert all(fact.decision_evidence is not None for fact in writer.calls[0])
     assert all(
         fact.extra["financial_response_capture_id"]
@@ -897,6 +1021,109 @@ def test_akshare_financial_slice_sync_uses_exact_approved_route_and_one_atomic_w
         == str(fact.decision_evidence.source_time_witness.artifact_reference.capture_id)
         for fact in writer.calls[0]
     )
+
+
+def test_generic_slice_sync_accepts_four_physical_attempts_for_two_logical_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two dual-capture requests may each use one routed retry within the cap."""
+
+    runner = _Runner(
+        {
+            AKSHARE_FINANCIAL_DATASET_KEY: FINANCIAL_BODY,
+            AKSHARE_SOURCE_TIME_DATASET_KEY: SOURCE_TIME_BODY,
+        },
+        physical_attempts=2,
+    )
+    gateway, _audits, _financial_store, _source_time_store = _gateway(tmp_path, runner)
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        lambda _config, **_kwargs: gateway,
+    )
+    writer = _FactWriter()
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(AkshareUnifiedProviderAdapter(_provider())),
+        fact_repo=writer,
+        fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+        max_route_attempts=2,
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+        )
+    )
+
+    assert result.outcome == "success"
+    assert result.planned_provider_requests == 2
+    assert result.maximum_physical_provider_attempts == 4
+    assert result.observed_provider_requests == 4
+    assert gateway.reserved_physical_attempts == 4
+    assert len(writer.calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("failed_dataset", "expected_observed_requests"),
+    (
+        (AKSHARE_FINANCIAL_DATASET_KEY, 1),
+        (AKSHARE_SOURCE_TIME_DATASET_KEY, 2),
+    ),
+)
+def test_slice_sync_observed_requests_count_actual_first_and_second_capture_attempts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_dataset: str,
+    expected_observed_requests: int,
+) -> None:
+    """Observed calls count each physical attempt instead of reserving both."""
+
+    runner = _CapacityRouteAttemptRunner(failed_dataset)
+    gateway, audits, _financial_store, _source_time_store = _gateway(
+        tmp_path,
+        runner,
+        max_route_attempts=1,
+    )
+    provider = AkshareUnifiedProviderAdapter(_provider())
+    writer = _FactWriter()
+    configs = _ProviderConfigs()
+    registry = _Registry(provider)
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        lambda _config, **_kwargs: gateway,
+    )
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=configs,
+        provider_registry=registry,
+        fact_repo=writer,
+        fetcher_factory=akshare_financial_slice_sync.build_akshare_financial_slice_fetcher,
+        evidence_verifier=lambda _config, _evidence, **_kwargs: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+        max_route_attempts=1,
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+            run_id=UUID("c425ae25-2d76-481a-b3c7-110a1dfbb98d"),
+        )
+    )
+
+    assert result.outcome == "failed"
+    assert result.planned_provider_requests == 2
+    assert result.observed_provider_requests == expected_observed_requests
+    assert writer.calls == []
+    assert audits.financial_rows == []
+    assert audits.source_time_rows == []
 
 
 def test_akshare_financial_slice_sync_default_source_blocks_without_fallback(
@@ -953,7 +1180,7 @@ def test_akshare_financial_slice_sync_zero_store_explains_noop(
     monkeypatch.setattr(
         akshare_financial_slice_sync,
         "build_akshare_financial_capture_gateway",
-        lambda _config, *, deployment_region: gateway,
+        lambda _config, **_kwargs: gateway,
     )
     use_case = SyncAkshareFinancialSlicesUseCase(
         provider_repo=_ProviderConfigs(),
@@ -1182,6 +1409,59 @@ def test_akshare_financial_slice_sync_scale_gate_counts_two_requests_per_pair(
     assert writer.calls == []
 
 
+def test_capacity_slice_sync_fails_closed_when_physical_attempts_exceed_two() -> None:
+    """A capacity slice with more than two observed physical attempts is not written."""
+
+    class _OverBudgetFetcher:
+        @property
+        def last_observed_provider_requests(self) -> int:
+            return 3
+
+        def fetch_financials_for_announcement_date(
+            self,
+            asset_code: str,
+            announcement_date: date,
+            periods: int,
+            *,
+            run_id: UUID | None = None,
+        ) -> list[FinancialFact]:
+            del asset_code, announcement_date, periods
+            del run_id
+            return []
+
+    writer = _FactWriter()
+    fetcher = _OverBudgetFetcher()
+    use_case = SyncAkshareFinancialSlicesUseCase(
+        provider_repo=_ProviderConfigs(),
+        provider_registry=_Registry(AkshareUnifiedProviderAdapter(_provider())),
+        fact_repo=writer,
+        fetcher_factory=lambda _config, _provider: fetcher,
+        evidence_verifier=lambda _config, _evidence: True,
+        request_budget=FinancialSliceSyncBudget(1, 2, 2, 200),
+        max_route_attempts=1,
+    )
+
+    result = use_case.execute(
+        FinancialSliceSyncRequest(
+            provider_id=17,
+            source="akshare",
+            slices=(FinancialAnnouncementSlice(ASSET_CODE, ANNOUNCEMENT_DATE),),
+            run_id=UUID("c425ae25-2d76-481a-b3c7-110a1dfbb98d"),
+        )
+    )
+
+    assert result.outcome == "failed"
+    assert result.failure_reason == "financial_provider_request_hard_limit_exceeded"
+    assert result.requested == 1
+    assert result.succeeded == 0
+    assert result.failed == 1
+    assert result.stored == 0
+    assert result.planned_provider_requests == 2
+    assert result.maximum_physical_provider_attempts == 2
+    assert result.observed_provider_requests == 3
+    assert writer.calls == []
+
+
 def test_akshare_financial_slice_sync_partial_provider_failure_writes_zero_facts(
     tmp_path: Path,
 ) -> None:
@@ -1321,3 +1601,63 @@ def test_akshare_financial_slice_composition_builds_explicit_fact_only_use_case(
     assert use_case._fact_repo is writer
     assert use_case._fetcher_factory is fetcher_factory
     assert use_case._request_budget == budget
+
+
+def test_capacity_sync_composition_passes_single_route_attempt_to_gateway(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The capacity-only route budget reaches make-sync, fetcher, and capture gateway."""
+
+    configs = _ProviderConfigs()
+    provider = AkshareUnifiedProviderAdapter(_provider())
+    registry = _Registry(provider)
+    writer = _FactWriter()
+    budget = FinancialSliceSyncBudget(1, 2, 2, 200)
+    gateway = object()
+    gateway_builds: list[tuple[int | None, str]] = []
+
+    def _build_gateway(
+        config: ProviderConfig,
+        *,
+        deployment_region: str,
+        max_route_attempts: int = 2,
+        maximum_physical_attempts: int | None = None,
+    ) -> object:
+        gateway_builds.append((config.id, max_route_attempts))
+        assert deployment_region
+        assert maximum_physical_attempts == 2
+        return gateway
+
+    monkeypatch.setattr(
+        financial_slice_composition,
+        "get_provider_config_repository",
+        lambda: configs,
+    )
+    monkeypatch.setattr(
+        financial_slice_composition,
+        "build_provider_registry_for_repo",
+        lambda repository: registry if repository is configs else None,
+    )
+    monkeypatch.setattr(
+        financial_slice_composition,
+        "FinancialFactRepository",
+        lambda **_kwargs: writer,
+    )
+    monkeypatch.setattr(
+        financial_slice_composition,
+        "load_akshare_financial_slice_sync_budget",
+        lambda: budget,
+    )
+    monkeypatch.setattr(
+        akshare_financial_slice_sync,
+        "build_akshare_financial_capture_gateway",
+        _build_gateway,
+    )
+
+    use_case = financial_slice_composition.make_sync_akshare_financial_slices_use_case(
+        max_route_attempts=1
+    )
+    fetcher = use_case._fetcher_factory(_provider(), provider)
+
+    assert gateway_builds == [(17, 1)]
+    assert fetcher._gateway is gateway

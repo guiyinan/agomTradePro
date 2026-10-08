@@ -102,7 +102,12 @@ class FinancialSourceTimeEvidenceVerifier:
         self._audit_link_verifier = audit_link_verifier
         self._matcher = matcher
 
-    def verify(self, decision_evidence: FinancialFactDecisionEvidence) -> bool:
+    def verify(
+        self,
+        decision_evidence: FinancialFactDecisionEvidence,
+        *,
+        expected_run_id: UUID | None = None,
+    ) -> bool:
         """Return true only after independently recomputing the complete evidence chain."""
 
         if not isinstance(decision_evidence, FinancialFactDecisionEvidence):
@@ -146,6 +151,15 @@ class FinancialSourceTimeEvidenceVerifier:
         )
         if financial_audit is None or source_time_audit is None:
             return False
+        if expected_run_id is not None:
+            expected_run_text = str(expected_run_id)
+            if (
+                financial_audit.run_id != expected_run_text
+                or financial_audit.ingested_run_id != expected_run_text
+                or source_time_audit.run_id != expected_run_text
+                or source_time_audit.ingested_run_id != expected_run_text
+            ):
+                return False
         if not _audit_matches(
             financial_audit,
             capability=FINANCIAL_RESPONSE_AUDIT_CAPABILITY,

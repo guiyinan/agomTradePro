@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from typing import TypeAlias
+from uuid import UUID
 
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Q
@@ -52,11 +53,14 @@ def bulk_upsert_financial_facts(
     facts: list[FinancialFact],
     *,
     source_time_evidence_verifier: FinancialSourceTimeEvidenceVerifier | None = None,
+    ingested_run_id: UUID | None = None,
 ) -> int:
     """Return actual inserts/updates, preserving unchanged rows and source proof."""
 
     if not facts:
         return 0
+    if ingested_run_id is not None and not isinstance(ingested_run_id, UUID):
+        raise FinancialFactProvenanceConflictError("ingested_run_id must be a UUID")
     _reject_duplicate_natural_keys(facts)
     for fact in facts:
         _validate_fact_decision_evidence(fact)
@@ -93,10 +97,10 @@ def bulk_upsert_financial_facts(
         for fact in facts:
             row = locked_before[_financial_natural_key(fact)]
             if row is not None:
-                _validate_existing_row_update(fact, row)
+                _validate_existing_row_update(fact, row, ingested_run_id=ingested_run_id)
 
         missing = [fact for fact in facts if locked_before[_financial_natural_key(fact)] is None]
-        inserted_count = _insert_missing_facts(missing)
+        inserted_count = _insert_missing_facts(missing, ingested_run_id=ingested_run_id)
 
         locked_after = dict(locked_before)
         if missing:
@@ -107,7 +111,7 @@ def bulk_upsert_financial_facts(
                 raise FinancialFactProvenanceConflictError(
                     "Financial fact row disappeared during upsert"
                 )
-            _validate_missing_row_race(fact, row)
+            _validate_missing_row_race(fact, row, ingested_run_id=ingested_run_id)
 
         normalized_updates: list[FinancialFactModel] = []
         source_updates: list[FinancialFactModel] = []
@@ -126,7 +130,7 @@ def bulk_upsert_financial_facts(
                 raise FinancialFactProvenanceConflictError(
                     "Financial fact row disappeared during upsert"
                 )
-            if _update_existing_row(fact, row):
+            if _update_existing_row(fact, row, ingested_run_id=ingested_run_id):
                 if str(row.pk) in pinned:
                     row.pk = None
                     row.revision_number += 1
@@ -142,32 +146,38 @@ def bulk_upsert_financial_facts(
                 FinancialFactModel._default_manager.bulk_create(successors, batch_size=500)
             )
         if normalized_updates:
+            normalized_fields = [
+                "value",
+                "unit",
+                "report_date",
+                "available_at",
+                "extra",
+                "decision_evidence",
+            ]
+            if ingested_run_id is not None:
+                normalized_fields.append("ingested_run_id")
             updated_count += FinancialFactModel._default_manager.bulk_update(
                 normalized_updates,
-                fields=[
-                    "value",
-                    "unit",
-                    "report_date",
-                    "available_at",
-                    "extra",
-                    "decision_evidence",
-                ],
+                fields=normalized_fields,
                 batch_size=1_000,
             )
         if source_updates:
+            source_fields = [
+                "value",
+                "unit",
+                "report_date",
+                "available_at",
+                "extra",
+                "decision_evidence",
+                "announced_at",
+                "source_record_id",
+                "raw_payload_hash",
+            ]
+            if ingested_run_id is not None:
+                source_fields.append("ingested_run_id")
             updated_count += FinancialFactModel._default_manager.bulk_update(
                 source_updates,
-                fields=[
-                    "value",
-                    "unit",
-                    "report_date",
-                    "available_at",
-                    "extra",
-                    "decision_evidence",
-                    "announced_at",
-                    "source_record_id",
-                    "raw_payload_hash",
-                ],
+                fields=source_fields,
                 batch_size=1_000,
             )
         if updated_count != len(normalized_updates) + len(source_updates):
@@ -175,7 +185,11 @@ def bulk_upsert_financial_facts(
     return inserted_count + updated_count
 
 
-def _insert_missing_facts(facts: list[FinancialFact]) -> int:
+def _insert_missing_facts(
+    facts: list[FinancialFact],
+    *,
+    ingested_run_id: UUID | None,
+) -> int:
     """Insert a batch, checking one unique-key race without counting its winner.
 
     A failed batch is rolled back to a savepoint before its committed natural
@@ -186,7 +200,7 @@ def _insert_missing_facts(facts: list[FinancialFact]) -> int:
     if not facts:
         return 0
     try:
-        return _insert_new_batch(facts)
+        return _insert_new_batch(facts, ingested_run_id=ingested_run_id)
     except IntegrityError:
         raced_rows = _lock_rows_by_natural_key(facts)
         winners = [fact for fact in facts if raced_rows[_financial_natural_key(fact)] is not None]
@@ -195,12 +209,12 @@ def _insert_missing_facts(facts: list[FinancialFact]) -> int:
         for fact in winners:
             row = raced_rows[_financial_natural_key(fact)]
             if row is not None:
-                _validate_missing_row_race(fact, row)
+                _validate_missing_row_race(fact, row, ingested_run_id=ingested_run_id)
         remaining = [fact for fact in facts if raced_rows[_financial_natural_key(fact)] is None]
-        return _insert_new_batch(remaining)
+        return _insert_new_batch(remaining, ingested_run_id=ingested_run_id)
 
 
-def _insert_new_batch(facts: list[FinancialFact]) -> int:
+def _insert_new_batch(facts: list[FinancialFact], *, ingested_run_id: UUID | None) -> int:
     """Count successful new inserts; never discard conflicts or overwrite winners."""
 
     if not facts:
@@ -208,7 +222,8 @@ def _insert_new_batch(facts: list[FinancialFact]) -> int:
     ordered_facts = sorted(facts, key=_financial_natural_key)
     with transaction.atomic():
         created = FinancialFactModel._default_manager.bulk_create(
-            [_model_from_fact(fact) for fact in ordered_facts], batch_size=1_000
+            [_model_from_fact(fact, ingested_run_id=ingested_run_id) for fact in ordered_facts],
+            batch_size=1_000,
         )
     return len(created)
 
@@ -490,7 +505,12 @@ def _source_fields_match(fact: FinancialFact, row: FinancialFactModel) -> bool:
     )
 
 
-def _validate_existing_row_update(fact: FinancialFact, row: FinancialFactModel) -> None:
+def _validate_existing_row_update(
+    fact: FinancialFact,
+    row: FinancialFactModel,
+    *,
+    ingested_run_id: UUID | None,
+) -> None:
     """Reject a value update that would retain or merge stale source proof."""
 
     stored_decision: object = getattr(row, "decision_evidence", None)
@@ -531,7 +551,12 @@ def _validate_existing_row_update(fact: FinancialFact, row: FinancialFactModel) 
         )
 
 
-def _validate_missing_row_race(fact: FinancialFact, row: FinancialFactModel) -> None:
+def _validate_missing_row_race(
+    fact: FinancialFact,
+    row: FinancialFactModel,
+    *,
+    ingested_run_id: UUID | None,
+) -> None:
     """Verify an ignored conflict did not hide a concurrent source-bearing row."""
 
     if not _normalized_fields_match(fact, row):
@@ -545,6 +570,10 @@ def _validate_missing_row_race(fact: FinancialFact, row: FinancialFactModel) -> 
     if fact.decision_evidence is not None and not _decision_evidence_matches(fact, row):
         raise FinancialFactProvenanceConflictError(
             "concurrent financial decision evidence differs from the requested witness"
+        )
+    if ingested_run_id is not None and row.ingested_run_id != ingested_run_id:
+        raise FinancialFactProvenanceConflictError(
+            "concurrent financial fact belongs to a different ingestion run"
         )
 
 
@@ -584,7 +613,11 @@ def _is_transport_metadata_upgrade(fact: FinancialFact, row: FinancialFactModel)
     return all(fact.extra.get(key) == value for key, value in expected.items())
 
 
-def _model_from_fact(fact: FinancialFact) -> FinancialFactModel:
+def _model_from_fact(
+    fact: FinancialFact,
+    *,
+    ingested_run_id: UUID | None,
+) -> FinancialFactModel:
     """Build an ORM row without fabricating absent source fields."""
 
     announced_at, source_record_id, raw_payload_hash = _source_fields(fact)
@@ -603,16 +636,23 @@ def _model_from_fact(fact: FinancialFact) -> FinancialFactModel:
         announced_at=announced_at,
         source_record_id=source_record_id,
         raw_payload_hash=raw_payload_hash,
+        ingested_run_id=ingested_run_id,
     )
 
 
-def _update_existing_row(fact: FinancialFact, row: FinancialFactModel) -> bool:
+def _update_existing_row(
+    fact: FinancialFact,
+    row: FinancialFactModel,
+    *,
+    ingested_run_id: UUID | None,
+) -> bool:
     """Apply one prevalidated in-memory update and report whether it changed."""
 
     if (
         _normalized_fields_match(fact, row)
         and (fact.source_evidence is None or _source_fields_match(fact, row))
         and _decision_evidence_matches(fact, row)
+        and (ingested_run_id is None or row.ingested_run_id == ingested_run_id)
     ):
         return False
     row.value = fact.value
@@ -626,6 +666,8 @@ def _update_existing_row(fact: FinancialFact, row: FinancialFactModel) -> bool:
         row.announced_at = announced_at
         row.source_record_id = source_record_id
         row.raw_payload_hash = raw_payload_hash
+    if ingested_run_id is not None:
+        row.ingested_run_id = ingested_run_id
     return True
 
 

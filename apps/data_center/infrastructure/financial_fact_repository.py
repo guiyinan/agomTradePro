@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date, datetime
+from uuid import UUID
 
 from django.db.models import OuterRef, Subquery
 
@@ -114,12 +115,18 @@ class FinancialFactRepository(FinancialAvailabilityRepositoryMixin):
                 return self._from_model(m)
         return None
 
-    def bulk_upsert(self, facts: list[FinancialFact]) -> int:
+    def bulk_upsert(
+        self,
+        facts: list[FinancialFact],
+        *,
+        ingested_run_id: UUID | None = None,
+    ) -> int:
         """Persist facts without allowing stale source evidence to follow new values."""
 
         return bulk_upsert_financial_facts(
             facts,
             source_time_evidence_verifier=self._source_time_evidence_verifier,
+            ingested_run_id=ingested_run_id,
         )
 
     def list_publication_candidates(

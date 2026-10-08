@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 
 from apps.data_center.application.dtos import SyncFinancialRequest
+from apps.data_center.application.financial_slice_sync import FinancialSliceSyncResult
 from apps.data_center.application.publication_sync import PublishFinancialBatchUseCase
 from apps.data_center.application.sync_use_cases import SyncFinancialUseCase
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
@@ -31,6 +32,7 @@ from apps.data_center.domain.financial_source_time_evidence import (
     FinancialSourceTimePrecision,
     FinancialSourceTimeWitness,
 )
+from apps.data_center.infrastructure import financial_fact_write_guard
 from apps.data_center.infrastructure.financial_decision_evidence_codec import (
     encode_financial_decision_evidence,
 )
@@ -43,6 +45,55 @@ from apps.data_center.infrastructure.models import FinancialFactModel
 PUBLISHED_AT = datetime(2026, 8, 4, 12, 0, tzinfo=UTC)
 PERIOD_END = date(2026, 6, 30)
 AVAILABLE_AT = datetime(2026, 7, 31, 9, 30, tzinfo=UTC)
+
+
+def test_financial_slice_result_separates_logical_requests_from_physical_attempts() -> None:
+    """A successful result may report four routed attempts for two logical reads."""
+
+    result = FinancialSliceSyncResult(
+        outcome="success",
+        source="akshare",
+        provider_id=17,
+        provider_name="AKShare Public",
+        requested=1,
+        succeeded=1,
+        failed=0,
+        stored=2,
+        planned_provider_requests=2,
+        maximum_physical_provider_attempts=4,
+        observed_provider_requests=4,
+        atomic_fact_write_count=1,
+    )
+
+    payload = result.to_dict()
+    assert payload["planned_provider_requests"] == 2
+    assert payload["maximum_physical_provider_attempts"] == 4
+    assert payload["observed_provider_requests"] == 4
+
+
+def test_financial_slice_result_preserves_observed_over_limit_failure_evidence() -> None:
+    """A failed result keeps the real over-limit count for the caller's audit."""
+
+    result = FinancialSliceSyncResult(
+        outcome="failed",
+        source="akshare",
+        provider_id=17,
+        provider_name="AKShare Public",
+        requested=1,
+        succeeded=0,
+        failed=1,
+        stored=0,
+        planned_provider_requests=2,
+        maximum_physical_provider_attempts=2,
+        observed_provider_requests=3,
+        failure_reason="financial_provider_request_hard_limit_exceeded",
+    )
+
+    payload = result.to_dict()
+    assert payload["outcome"] == "failed"
+    assert payload["failure_reason"] == "financial_provider_request_hard_limit_exceeded"
+    assert payload["maximum_physical_provider_attempts"] == 2
+    assert payload["observed_provider_requests"] == 3
 
 
 class _CandidateRepository:
@@ -404,6 +455,42 @@ def test_financial_repository_rejects_legacy_evidence_without_source_time_witnes
 
     with pytest.raises(FinancialFactProvenanceConflictError, match="source-time evidence"):
         FinancialFactRepository().list_publication_candidates([bound_fact])
+
+
+@pytest.mark.django_db
+def test_capacity_run_lineage_is_written_and_atomic_batch_failure_rolls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = UUID("c425ae25-2d76-481a-b3c7-110a1dfbb98d")
+    fact = _source_ready_fact(source_record_id="capacity-run-fact")
+    repository = FinancialFactRepository(source_time_evidence_verifier=lambda _evidence: True)
+
+    assert repository.bulk_upsert([fact], ingested_run_id=run_id) == 1
+    row = FinancialFactModel.objects.get(
+        asset_code=fact.asset_code,
+        period_end=fact.period_end,
+        period_type=fact.period_type.value,
+        metric_code=fact.metric_code,
+        source=fact.source,
+    )
+    assert row.ingested_run_id == run_id
+
+    first_new = replace(fact, metric_code="operating_cash_flow")
+    second = replace(fact, metric_code="net_profit", value=456.7)
+    original_insert = financial_fact_write_guard._insert_missing_facts
+
+    def insert_one_then_fail(facts, *, ingested_run_id):
+        original_insert(facts[:1], ingested_run_id=ingested_run_id)
+        raise RuntimeError("synthetic failure after first insert")
+
+    monkeypatch.setattr(
+        financial_fact_write_guard,
+        "_insert_missing_facts",
+        insert_one_then_fail,
+    )
+    with pytest.raises(RuntimeError, match="after first insert"):
+        repository.bulk_upsert([first_new, second], ingested_run_id=run_id)
+    assert not FinancialFactModel.objects.filter(ingested_run_id=run_id).exclude(pk=row.pk).exists()
 
 
 def test_sync_financial_use_case_invokes_publication_after_fact_write() -> None:

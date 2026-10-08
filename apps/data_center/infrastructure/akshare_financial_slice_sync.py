@@ -7,6 +7,7 @@ import os
 from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
+from uuid import UUID
 
 from django.conf import settings
 
@@ -45,21 +46,46 @@ class _BoundAkshareFinancialSliceFetcher:
 
         self._provider = provider
         self._gateway = gateway
+        self._last_observed_provider_requests: int | None = None
+
+    @property
+    def last_observed_provider_requests(self) -> int | None:
+        """Return exact physical attempts for the most recent requested slice."""
+
+        return self._last_observed_provider_requests
 
     def fetch_financials_for_announcement_date(
         self,
         asset_code: str,
         announcement_date: date,
         periods: int,
+        *,
+        run_id: UUID | None = None,
     ) -> list[FinancialFact]:
         """Use only the retained dual-capture AKShare adapter path."""
 
-        return self._provider.fetch_financials_for_announcement_date(
-            asset_code,
-            announcement_date,
-            periods,
-            capture_gateway=self._gateway,
-        )
+        before = self._gateway.observed_provider_requests
+        try:
+            if run_id is None:
+                return self._provider.fetch_financials_for_announcement_date(
+                    asset_code,
+                    announcement_date,
+                    periods,
+                    capture_gateway=self._gateway,
+                )
+            return self._provider.fetch_financials_for_announcement_date(
+                asset_code,
+                announcement_date,
+                periods,
+                capture_gateway=self._gateway,
+                run_id=run_id,
+            )
+        finally:
+            after = self._gateway.observed_provider_requests
+            if type(before) is int and type(after) is int and after >= before:
+                self._last_observed_provider_requests = after - before
+            else:
+                self._last_observed_provider_requests = None
 
 
 def build_akshare_financial_slice_fetcher(
@@ -67,9 +93,17 @@ def build_akshare_financial_slice_fetcher(
     provider: UnifiedDataProviderProtocol,
     *,
     artifact_storage_root: Path | None = None,
+    max_route_attempts: int = 2,
 ) -> FinancialSliceFetcherProtocol:
     """Preflight the exact adapter row and approved dual-capture capability."""
 
+    budget = load_akshare_financial_slice_sync_budget()
+    if budget is None:
+        raise DataFetchError(
+            "AKShare financial request budget is unavailable",
+            code="financial_sync_request_budget_unavailable",
+        )
+    maximum_physical_attempts = budget.max_provider_requests * max_route_attempts
     provider_id = config.id
     if (
         config.source_type != "akshare"
@@ -85,16 +119,36 @@ def build_akshare_financial_slice_fetcher(
             "AKShare financial slice route does not match the exact active provider row",
             code="AKSHARE_FINANCIAL_PROVIDER_IDENTITY_INVALID",
         )
-    if artifact_storage_root is None:
+    deployment_region = akshare_financial_deployment_region()
+    if artifact_storage_root is None and max_route_attempts == 2:
         gateway = build_akshare_financial_capture_gateway(
             config,
-            deployment_region=akshare_financial_deployment_region(),
+            deployment_region=deployment_region,
+            max_route_attempts=max_route_attempts,
+            maximum_physical_attempts=maximum_physical_attempts,
+        )
+    elif artifact_storage_root is None:
+        gateway = build_akshare_financial_capture_gateway(
+            config,
+            deployment_region=deployment_region,
+            max_route_attempts=max_route_attempts,
+            maximum_physical_attempts=maximum_physical_attempts,
+        )
+    elif max_route_attempts == 2:
+        gateway = build_akshare_financial_capture_gateway(
+            config,
+            deployment_region=deployment_region,
+            artifact_storage_root=artifact_storage_root,
+            max_route_attempts=max_route_attempts,
+            maximum_physical_attempts=maximum_physical_attempts,
         )
     else:
         gateway = build_akshare_financial_capture_gateway(
             config,
-            deployment_region=akshare_financial_deployment_region(),
+            deployment_region=deployment_region,
             artifact_storage_root=artifact_storage_root,
+            max_route_attempts=max_route_attempts,
+            maximum_physical_attempts=maximum_physical_attempts,
         )
     return _BoundAkshareFinancialSliceFetcher(provider, gateway)
 

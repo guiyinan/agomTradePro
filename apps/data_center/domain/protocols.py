@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Protocol, runtime_checkable
+from uuid import UUID
 
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
@@ -445,7 +446,12 @@ class FinancialFactRepositoryProtocol(Protocol):
         self, asset_code: str, period_type: FinancialPeriodType | None = None
     ) -> FinancialFact | None: ...
 
-    def bulk_upsert(self, facts: list[FinancialFact]) -> int: ...
+    def bulk_upsert(
+        self,
+        facts: list[FinancialFact],
+        *,
+        ingested_run_id: UUID | None = None,
+    ) -> int: ...
     def list_publication_candidates(
         self, facts: Sequence[FinancialFact]
     ) -> list[PublicationFactReference]: ...

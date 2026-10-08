@@ -13,7 +13,9 @@ from uuid import UUID, uuid4
 from django.conf import settings
 
 from apps.data_center.application.egress_service import (
+    FinancialResponseAttemptBudget,
     FinancialResponseCaptureProtocol,
+    FinancialResponseRequestFailed,
     execute_financial_response_request,
 )
 from apps.data_center.application.financial_response_artifact import (
@@ -110,6 +112,7 @@ class FinancialResponseRequestRunner(Protocol):
         request_scope: FinancialRequestScope,
         response_scope: FinancialResponseScope,
         max_attempts: int = 2,
+        attempt_budget: FinancialResponseAttemptBudget | None = None,
     ) -> FinancialResponseCaptureProtocol:
         """Return the successful response's exact body and transport evidence."""
         ...
@@ -152,9 +155,24 @@ class AkshareFinancialCaptureGateway:
         source_time_repository: FinancialSourceTimeArtifactRepository,
         capture_runner: FinancialResponseRequestRunner = execute_financial_response_request,
         capture_id_factory: CaptureIdFactory = uuid4,
+        max_route_attempts: int = 2,
+        maximum_physical_attempts: int | None = None,
     ) -> None:
         """Bind provider, region, explicit stores, egress, and identity source."""
 
+        if type(max_route_attempts) is not int or max_route_attempts not in {1, 2}:
+            raise ValueError("AKShare financial route attempts must be one or two")
+        effective_maximum_attempts = (
+            2 * max_route_attempts
+            if maximum_physical_attempts is None
+            else maximum_physical_attempts
+        )
+        if (
+            isinstance(effective_maximum_attempts, bool)
+            or not isinstance(effective_maximum_attempts, int)
+            or effective_maximum_attempts < 0
+        ):
+            raise ValueError("AKShare financial physical request budget is invalid")
         self._provider = provider
         self._provider_id = _active_akshare_provider_id(provider)
         self._deployment_region = deployment_region
@@ -162,6 +180,21 @@ class AkshareFinancialCaptureGateway:
         self._source_time_repository = source_time_repository
         self._capture_runner = capture_runner
         self._capture_id_factory = capture_id_factory
+        self._max_route_attempts = max_route_attempts
+        self._attempt_budget = FinancialResponseAttemptBudget(effective_maximum_attempts)
+        self._observed_provider_requests: int | None = 0
+
+    @property
+    def observed_provider_requests(self) -> int | None:
+        """Return routed physical attempts, or ``None`` when any count is unknown."""
+
+        return self._observed_provider_requests
+
+    @property
+    def reserved_physical_attempts(self) -> int:
+        """Return physical attempts reserved before transport sends."""
+
+        return self._attempt_budget.reserved_attempts
 
     def capture_and_retain(
         self,
@@ -169,6 +202,7 @@ class AkshareFinancialCaptureGateway:
         asset_code: str,
         period_limit: int,
         announcement_date: date,
+        run_id: UUID | None = None,
     ) -> AkshareFinancialArtifactPair:
         """Capture two independent raw bodies and retain them only after validation.
 
@@ -179,6 +213,8 @@ class AkshareFinancialCaptureGateway:
         """
 
         requested_asset = _required_text(asset_code, "asset_code", maximum=64)
+        if run_id is not None and not isinstance(run_id, UUID):
+            raise AkshareFinancialCaptureError("容量运行 run_id 必须是 UUID。")
         if _ASSET_CODE_PATTERN.fullmatch(requested_asset) is None:
             raise AkshareFinancialCaptureError("AKShare asset_code 含不支持的字符。")
         if (
@@ -234,6 +270,7 @@ class AkshareFinancialCaptureGateway:
             request_params=audit_params,
             row_count=financial.row_count,
             provider_id=self._provider_id,
+            run_id=run_id,
         )
         source_time_retention = self._source_time_repository.retain(
             capture_id=source_time_capture_id,
@@ -246,6 +283,7 @@ class AkshareFinancialCaptureGateway:
             response_row_count=source_time.row_count,
             request_params=audit_params,
             parser_version=AKSHARE_NOTICE_DATE_PARSER_VERSION,
+            run_id=run_id,
         )
         return AkshareFinancialArtifactPair(
             financial=financial_retention,
@@ -255,11 +293,23 @@ class AkshareFinancialCaptureGateway:
     def read_retained_bodies(
         self,
         pair: AkshareFinancialArtifactPair,
+        *,
+        expected_run_id: UUID | None = None,
     ) -> tuple[bytes, bytes]:
         """Read both retained bodies and recheck their exact provider-row bindings."""
 
         if not isinstance(pair, AkshareFinancialArtifactPair):
             raise AkshareFinancialCaptureError("AKShare 财报原件对无效。")
+        if expected_run_id is not None and not isinstance(expected_run_id, UUID):
+            raise AkshareFinancialCaptureError("容量运行 run_id 必须是 UUID。")
+        expected_run_text = str(expected_run_id) if expected_run_id is not None else ""
+        if (
+            pair.financial.audit.run_id != expected_run_text
+            or pair.financial.audit.ingested_run_id != expected_run_text
+            or pair.source_time.audit.run_id != expected_run_text
+            or pair.source_time.audit.ingested_run_id != expected_run_text
+        ):
+            raise AkshareFinancialCaptureError("AKShare 财报双原件 run lineage 不匹配。")
         financial_reference = pair.financial.reference
         source_time_reference = pair.source_time.reference
         financial_evidence = financial_reference.evidence
@@ -330,17 +380,30 @@ class AkshareFinancialCaptureGateway:
             period_ends=(),
             row_count=0,
         )
-        captured = self._capture_runner(
-            context,
-            request_id=capture_id,
-            method="GET",
-            params=request_params,
-            json_body=None,
-            headers=None,
-            request_scope=request_scope,
-            response_scope=declared_scope,
-            max_attempts=2,
-        )
+        try:
+            captured = self._capture_runner(
+                context,
+                request_id=capture_id,
+                method="GET",
+                params=request_params,
+                json_body=None,
+                headers=None,
+                request_scope=request_scope,
+                response_scope=declared_scope,
+                max_attempts=self._max_route_attempts,
+                attempt_budget=self._attempt_budget,
+            )
+        except FinancialResponseRequestFailed as exc:
+            self._add_observed_provider_requests(exc.observed_attempts)
+            raise
+        except (DataFetchError, OSError, RuntimeError, TimeoutError, TypeError, ValueError):
+            self._add_observed_provider_requests(None)
+            raise
+        observed_attempts: object = getattr(captured, "physical_request_attempts", None)
+        if type(observed_attempts) is int and 1 <= observed_attempts <= self._max_route_attempts:
+            self._add_observed_provider_requests(observed_attempts)
+        else:
+            self._add_observed_provider_requests(None)
         body = captured.raw_body
         evidence = captured.evidence
         if (
@@ -378,6 +441,21 @@ class AkshareFinancialCaptureGateway:
             row_count=len(rows),
         )
 
+    def _add_observed_provider_requests(self, attempts: int | None) -> None:
+        """Accumulate exact attempt counts without replacing unknown with a guess."""
+
+        current = self._observed_provider_requests
+        if (
+            current is None
+            or attempts is None
+            or isinstance(attempts, bool)
+            or not isinstance(attempts, int)
+            or attempts < 0
+        ):
+            self._observed_provider_requests = None
+            return
+        self._observed_provider_requests = current + attempts
+
 
 @dataclass(frozen=True, slots=True)
 class _VerifiedAkshareCapture:
@@ -394,6 +472,8 @@ def build_akshare_financial_capture_gateway(
     deployment_region: str,
     environment: str | None = None,
     artifact_storage_root: Path | None = None,
+    max_route_attempts: int = 2,
+    maximum_physical_attempts: int | None = None,
 ) -> AkshareFinancialCaptureGateway:
     """Build the AKShare pair producer from approved policy and explicit runtime config.
 
@@ -404,6 +484,8 @@ def build_akshare_financial_capture_gateway(
     producer.
     """
 
+    if type(max_route_attempts) is not int or max_route_attempts not in {1, 2}:
+        raise ValueError("AKShare financial route attempts must be one or two")
     _active_akshare_provider_id(provider)
     _require_active_akshare_contract()
     runtime = resolve_financial_response_artifact_config(environment=environment)
@@ -434,6 +516,8 @@ def build_akshare_financial_capture_gateway(
             source_time_store,
             DjangoFinancialSourceTimeArtifactAuditRepository(raw_audits),
         ),
+        max_route_attempts=max_route_attempts,
+        maximum_physical_attempts=maximum_physical_attempts,
     )
 
 
@@ -611,6 +695,7 @@ __all__ = [
     "AkshareFinancialArtifactPair",
     "AkshareFinancialCaptureError",
     "AkshareFinancialCaptureGateway",
+    "FinancialResponseAttemptBudget",
     "FinancialResponseRequestRunner",
     "build_akshare_financial_capture_gateway",
 ]

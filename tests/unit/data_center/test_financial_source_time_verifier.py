@@ -347,6 +347,39 @@ def test_exact_recomputation_accepts_one_complete_evidence_chain() -> None:
     assert _verifier().verify(_decision()) is True
 
 
+def test_expected_capacity_run_requires_both_audits_to_share_that_run() -> None:
+    run_id = UUID("30000000-0000-4000-8000-000000000003")
+    run_text = str(run_id)
+    financial = replace(
+        _audit(source_time=False),
+        run_id=run_text,
+        ingested_run_id=run_text,
+        content_hash="",
+    )
+    financial = replace(financial, content_hash=raw_audit_content_hash(financial))
+    source_time = replace(
+        _audit(source_time=True),
+        run_id=run_text,
+        ingested_run_id=run_text,
+        content_hash="",
+    )
+    source_time = replace(source_time, content_hash=raw_audit_content_hash(source_time))
+
+    assert _verifier(
+        financial_audits=(financial,),
+        source_audits=(source_time,),
+    ).verify(_decision(), expected_run_id=run_id)
+
+    drifted = replace(source_time, ingested_run_id="40000000-0000-4000-8000-000000000004")
+    drifted = replace(
+        drifted, content_hash=raw_audit_content_hash(replace(drifted, content_hash=""))
+    )
+    assert not _verifier(
+        financial_audits=(financial,),
+        source_audits=(drifted,),
+    ).verify(_decision(), expected_run_id=run_id)
+
+
 def test_financial_and_source_time_audits_require_the_same_provider_id() -> None:
     assert _verifier(financial_provider_id=7, source_provider_id=8).verify(_decision()) is False
 

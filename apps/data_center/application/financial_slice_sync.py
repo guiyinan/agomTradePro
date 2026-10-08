@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal, Protocol
+from uuid import UUID
 
 from apps.data_center.domain.entities import FinancialFact, ProviderConfig
 from apps.data_center.domain.enums import DataCapability
@@ -39,11 +40,12 @@ class FinancialSliceSyncRequest:
     source: str = ""
     slices: tuple[FinancialAnnouncementSlice, ...] = ()
     period_limit: int = 8
+    run_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class FinancialSliceSyncBudget:
-    """Governed upper bounds for one invocation's AKShare capture work."""
+    """Governed upper bounds for logical AKShare provider requests per invocation."""
 
     max_slices: int
     provider_requests_per_slice: int
@@ -77,8 +79,14 @@ class FinancialSliceFetcherProtocol(Protocol):
         asset_code: str,
         announcement_date: date,
         periods: int,
+        *,
+        run_id: UUID | None = None,
     ) -> list[FinancialFact]:
         """Return typed facts only after retained-body witness validation."""
+
+    @property
+    def last_observed_provider_requests(self) -> int | None:
+        """Return exact physical attempts for the most recent slice, if known."""
 
 
 class FinancialSliceFetcherFactory(Protocol):
@@ -99,6 +107,8 @@ class FinancialSliceEvidenceVerifier(Protocol):
         self,
         provider: ProviderConfig,
         evidence: FinancialFactDecisionEvidence,
+        *,
+        expected_run_id: UUID | None = None,
     ) -> bool:
         """Return whether the exact pair is still retained and audit-bound."""
 
@@ -127,6 +137,8 @@ class FinancialSliceSyncResult:
     planned_provider_requests: int
     atomic_fact_write_count: int = 0
     failure_reason: str | None = None
+    observed_provider_requests: int | None = 0
+    maximum_physical_provider_attempts: int | None = None
 
     def __post_init__(self) -> None:
         """Keep counters internally consistent and non-negative."""
@@ -139,9 +151,25 @@ class FinancialSliceSyncResult:
             isinstance(self.planned_provider_requests, bool)
             or not isinstance(self.planned_provider_requests, int)
             or self.planned_provider_requests < 0
+            or (
+                self.maximum_physical_provider_attempts is not None
+                and (
+                    isinstance(self.maximum_physical_provider_attempts, bool)
+                    or not isinstance(self.maximum_physical_provider_attempts, int)
+                    or self.maximum_physical_provider_attempts < 0
+                )
+            )
             or isinstance(self.atomic_fact_write_count, bool)
             or not isinstance(self.atomic_fact_write_count, int)
             or self.atomic_fact_write_count not in {0, 1}
+            or (
+                self.observed_provider_requests is not None
+                and (
+                    isinstance(self.observed_provider_requests, bool)
+                    or not isinstance(self.observed_provider_requests, int)
+                    or self.observed_provider_requests < 0
+                )
+            )
         ):
             raise ValueError("financial slice provider request or atomic write count is invalid")
 
@@ -158,6 +186,12 @@ class FinancialSliceSyncResult:
             "failed": self.failed,
             "stored": self.stored,
             "planned_provider_requests": self.planned_provider_requests,
+            "maximum_physical_provider_attempts": (
+                self.maximum_physical_provider_attempts
+                if self.maximum_physical_provider_attempts is not None
+                else self.planned_provider_requests * 2
+            ),
+            "observed_provider_requests": self.observed_provider_requests,
             "atomic_fact_write_count": self.atomic_fact_write_count,
             "failure_reason": self.failure_reason,
         }
@@ -177,6 +211,7 @@ class SyncAkshareFinancialSlicesUseCase:
         fetcher_factory: FinancialSliceFetcherFactory,
         evidence_verifier: FinancialSliceEvidenceVerifier,
         request_budget: FinancialSliceSyncBudget | None,
+        max_route_attempts: int = 2,
     ) -> None:
         """Inject provider routing, retained-evidence preflight, and atomic storage."""
 
@@ -186,6 +221,9 @@ class SyncAkshareFinancialSlicesUseCase:
         self._fetcher_factory = fetcher_factory
         self._evidence_verifier = evidence_verifier
         self._request_budget = request_budget
+        if type(max_route_attempts) is not int or max_route_attempts not in {1, 2}:
+            raise ValueError("financial slice route attempts must be one or two")
+        self._max_route_attempts = max_route_attempts
 
     def execute(self, request: FinancialSliceSyncRequest) -> FinancialSliceSyncResult:
         """Validate, fetch, verify, then atomically write one complete slice batch."""
@@ -202,6 +240,18 @@ class SyncAkshareFinancialSlicesUseCase:
                 stored=0,
                 planned_requests=planned_requests,
                 failure_reason=invalid_reason,
+            )
+
+        request_budget = self._request_budget
+        if request_budget is None:
+            return self._result(
+                request,
+                outcome="blocked",
+                requested=requested,
+                succeeded=0,
+                stored=0,
+                planned_requests=planned_requests,
+                failure_reason="financial_sync_request_budget_unavailable",
             )
 
         provider_id = request.provider_id
@@ -296,14 +346,23 @@ class SyncAkshareFinancialSlicesUseCase:
 
         all_facts: list[FinancialFact] = []
         succeeded = 0
+        observed_provider_requests: int | None = 0
         used_capture_ids: set[str] = set()
         for item in request.slices:
             try:
-                facts = fetcher.fetch_financials_for_announcement_date(
-                    item.asset_code,
-                    item.announcement_date,
-                    request.period_limit,
-                )
+                if request.run_id is None:
+                    facts = fetcher.fetch_financials_for_announcement_date(
+                        item.asset_code,
+                        item.announcement_date,
+                        request.period_limit,
+                    )
+                else:
+                    facts = fetcher.fetch_financials_for_announcement_date(
+                        item.asset_code,
+                        item.announcement_date,
+                        request.period_limit,
+                        run_id=request.run_id,
+                    )
             except (
                 DataFetchError,
                 ConnectionError,
@@ -312,7 +371,20 @@ class SyncAkshareFinancialSlicesUseCase:
                 TimeoutError,
                 TypeError,
                 ValueError,
-            ):
+            ) as exc:
+                observed_provider_requests = _accumulate_observed_provider_requests(
+                    observed_provider_requests,
+                    getattr(fetcher, "last_observed_provider_requests", None),
+                )
+                request_count_failure = self._provider_request_count_failure(
+                    observed_provider_requests
+                )
+                provider_error_code = getattr(exc, "code", None)
+                failure_reason = request_count_failure or (
+                    "financial_provider_request_hard_limit_exceeded"
+                    if provider_error_code == "FINANCIAL_PROVIDER_REQUEST_HARD_LIMIT_EXCEEDED"
+                    else "akshare_provider_or_capture_failed"
+                )
                 return self._result(
                     request,
                     outcome="partial" if succeeded else "failed",
@@ -322,7 +394,27 @@ class SyncAkshareFinancialSlicesUseCase:
                     planned_requests=planned_requests,
                     provider_id=provider_id,
                     provider_name=config.name,
-                    failure_reason="akshare_provider_or_capture_failed",
+                    failure_reason=failure_reason,
+                    observed_requests=observed_provider_requests,
+                )
+
+            observed_provider_requests = _accumulate_observed_provider_requests(
+                observed_provider_requests,
+                getattr(fetcher, "last_observed_provider_requests", None),
+            )
+            request_count_failure = self._provider_request_count_failure(observed_provider_requests)
+            if request_count_failure is not None:
+                return self._result(
+                    request,
+                    outcome="partial" if succeeded else "failed",
+                    requested=requested,
+                    succeeded=succeeded,
+                    stored=0,
+                    planned_requests=planned_requests,
+                    provider_id=provider_id,
+                    provider_name=config.name,
+                    failure_reason=request_count_failure,
+                    observed_requests=observed_provider_requests,
                 )
 
             try:
@@ -332,6 +424,7 @@ class SyncAkshareFinancialSlicesUseCase:
                     item=item,
                     period_limit=request.period_limit,
                     used_capture_ids=used_capture_ids,
+                    run_id=request.run_id,
                 )
             except (
                 DataFetchError,
@@ -353,6 +446,7 @@ class SyncAkshareFinancialSlicesUseCase:
                     provider_id=provider_id,
                     provider_name=config.name,
                     failure_reason="financial_source_evidence_incomplete_or_mismatched",
+                    observed_requests=observed_provider_requests,
                 )
             succeeded += 1
             all_facts.extend(facts)
@@ -368,6 +462,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 provider_id=provider_id,
                 provider_name=config.name,
                 failure_reason="financial_slice_batch_empty_or_ambiguous",
+                observed_requests=observed_provider_requests,
             )
 
         atomic_fact_write_count = 0
@@ -376,7 +471,13 @@ class SyncAkshareFinancialSlicesUseCase:
                 with_verified_financial_transport_metadata(fact) for fact in all_facts
             ]
             atomic_fact_write_count = 1
-            stored = self._fact_repo.bulk_upsert(facts_with_transport_metadata)
+            if request.run_id is None:
+                stored = self._fact_repo.bulk_upsert(facts_with_transport_metadata)
+            else:
+                stored = self._fact_repo.bulk_upsert(
+                    facts_with_transport_metadata,
+                    ingested_run_id=request.run_id,
+                )
         except (
             DataValidationError,
             InvalidInputError,
@@ -397,6 +498,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 provider_name=config.name,
                 atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_atomic_batch_write_failed",
+                observed_requests=observed_provider_requests,
             )
         if isinstance(stored, bool) or not isinstance(stored, int) or stored < 0:
             return self._result(
@@ -411,6 +513,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 provider_name=config.name,
                 atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_repository_count_invalid",
+                observed_requests=observed_provider_requests,
             )
         if stored > len(facts_with_transport_metadata):
             return self._result(
@@ -424,6 +527,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 provider_name=config.name,
                 atomic_fact_write_count=atomic_fact_write_count,
                 failure_reason="financial_fact_repository_count_invalid",
+                observed_requests=observed_provider_requests,
             )
         return self._result(
             request,
@@ -436,6 +540,7 @@ class SyncAkshareFinancialSlicesUseCase:
             provider_name=config.name,
             atomic_fact_write_count=atomic_fact_write_count,
             failure_reason=None if stored > 0 else "financial_facts_already_current",
+            observed_requests=observed_provider_requests,
         )
 
     def _request_block_reason(
@@ -476,11 +581,30 @@ class SyncAkshareFinancialSlicesUseCase:
             or not 1 <= request.period_limit <= budget.max_period_rows_per_capture
         ):
             return "financial_period_limit_outside_governed_bound"
+        if request.run_id is not None and not isinstance(request.run_id, UUID):
+            return "financial_capacity_run_id_invalid"
         if requested > budget.max_slices or planned_requests > budget.max_provider_requests:
             return "financial_provider_request_scale_exceeds_governed_bound"
         if budget.provider_requests_per_slice != 2:
             return "financial_provider_request_model_mismatch"
         return None
+
+    def _provider_request_count_failure(self, observed_requests: int | None) -> str | None:
+        """Reject unknown or over-ceiling physical attempts before evidence or storage."""
+
+        if observed_requests is None:
+            return "financial_provider_request_count_unknown"
+        if observed_requests > self._maximum_physical_provider_attempts:
+            return "financial_provider_request_hard_limit_exceeded"
+        return None
+
+    @property
+    def _maximum_physical_provider_attempts(self) -> int:
+        """Return the logical invocation ceiling expanded by route attempts."""
+
+        if self._request_budget is None:
+            return 0
+        return self._request_budget.max_provider_requests * self._max_route_attempts
 
     def _slice_facts_are_valid(
         self,
@@ -490,6 +614,7 @@ class SyncAkshareFinancialSlicesUseCase:
         item: FinancialAnnouncementSlice,
         period_limit: int,
         used_capture_ids: set[str],
+        run_id: UUID | None,
     ) -> bool:
         """Require every returned fact to bind to this exact dual-capture slice."""
 
@@ -536,7 +661,7 @@ class SyncAkshareFinancialSlicesUseCase:
                 or not witness.available_at
                 <= reference.evidence.response_completed_at
                 <= fact.fetched_at
-                or not self._evidence_verifier(provider, decision)
+                or not self._verify_slice_evidence(provider, decision, run_id=run_id)
             ):
                 return False
             pair_ids = {str(reference.capture_id), str(witness.artifact_reference.capture_id)}
@@ -552,6 +677,23 @@ class SyncAkshareFinancialSlicesUseCase:
             return False
         used_capture_ids.update(slice_capture_ids)
         return True
+
+    def _verify_slice_evidence(
+        self,
+        provider: ProviderConfig,
+        evidence: FinancialFactDecisionEvidence,
+        *,
+        run_id: UUID | None,
+    ) -> bool:
+        """Verify retained evidence and, for capacity runs, its exact run lineage."""
+
+        if run_id is None:
+            return self._evidence_verifier(provider, evidence)
+        return self._evidence_verifier(
+            provider,
+            evidence,
+            expected_run_id=run_id,
+        )
 
     @staticmethod
     def _has_duplicate_natural_keys(facts: list[FinancialFact]) -> bool:
@@ -569,8 +711,8 @@ class SyncAkshareFinancialSlicesUseCase:
         ]
         return len(set(keys)) != len(keys)
 
-    @staticmethod
     def _result(
+        self,
         request: FinancialSliceSyncRequest,
         *,
         outcome: FinancialSliceOutcome,
@@ -583,6 +725,7 @@ class SyncAkshareFinancialSlicesUseCase:
         provider_name: str | None = None,
         failed: int | None = None,
         atomic_fact_write_count: int = 0,
+        observed_requests: int | None = 0,
     ) -> FinancialSliceSyncResult:
         """Build one immutable count contract from an execution decision."""
 
@@ -597,9 +740,22 @@ class SyncAkshareFinancialSlicesUseCase:
             failed=final_failed,
             stored=stored,
             planned_provider_requests=planned_requests,
+            maximum_physical_provider_attempts=self._maximum_physical_provider_attempts,
             atomic_fact_write_count=atomic_fact_write_count,
             failure_reason=failure_reason,
+            observed_provider_requests=observed_requests,
         )
+
+
+def _accumulate_observed_provider_requests(
+    previous: int | None,
+    current: object,
+) -> int | None:
+    """Sum exact physical attempts, propagating unknown instead of estimating."""
+
+    if previous is None or isinstance(current, bool) or not isinstance(current, int) or current < 0:
+        return None
+    return previous + current
 
 
 def _valid_slice(item: FinancialAnnouncementSlice) -> bool:

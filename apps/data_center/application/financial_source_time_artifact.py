@@ -157,6 +157,7 @@ class RetainFinancialSourceTimeArtifactUseCase:
         provider_id: int,
         request_params: Mapping[str, object],
         parser_version: str,
+        run_id: UUID | None = None,
     ) -> FinancialSourceTimeArtifactRetention:
         """Retain one body and exact audit link, replaying only identical evidence."""
 
@@ -164,6 +165,9 @@ class RetainFinancialSourceTimeArtifactUseCase:
             raise ValueError("financial source-time reference must be typed")
         if isinstance(provider_id, bool) or not isinstance(provider_id, int) or provider_id <= 0:
             raise ValueError("financial source-time provider_id must be positive")
+        if run_id is not None and not isinstance(run_id, UUID):
+            raise ValueError("financial source-time run_id must be a UUID")
+        run_id_text = str(run_id) if run_id is not None else ""
         normalized_parser = _required_text(parser_version, "parser_version", 128)
         safe_params = _safe_request_params(request_params)
         expected_extra = {
@@ -191,6 +195,7 @@ class RetainFinancialSourceTimeArtifactUseCase:
                 request_params=safe_params,
                 parser_version=normalized_parser,
                 expected_extra=expected_extra,
+                expected_run_id=run_id_text,
             ):
                 raise FinancialSourceTimeArtifactReplayConflictError()
             return FinancialSourceTimeArtifactRetention(stored, audit)
@@ -209,6 +214,8 @@ class RetainFinancialSourceTimeArtifactUseCase:
             redacted=True,
             parser_version=normalized_parser,
             payload_size_bytes=stored.body_size_bytes,
+            run_id=run_id_text,
+            ingested_run_id=run_id_text,
         )
         try:
             persisted = self._audit_repository.log_source_time(audit)
@@ -220,6 +227,7 @@ class RetainFinancialSourceTimeArtifactUseCase:
             request_params=safe_params,
             parser_version=normalized_parser,
             expected_extra=expected_extra,
+            expected_run_id=run_id_text,
         ):
             raise FinancialSourceTimeArtifactAuditError(stored)
         return FinancialSourceTimeArtifactRetention(stored, persisted)
@@ -257,6 +265,7 @@ def _audit_matches(
     request_params: Mapping[str, object],
     parser_version: str,
     expected_extra: Mapping[str, object],
+    expected_run_id: str,
 ) -> bool:
     """Require every immutable audit projection to match an exact replay."""
 
@@ -278,8 +287,8 @@ def _audit_matches(
         and audit.parser_version == parser_version
         and audit.payload_size_bytes == reference.body_size_bytes
         and audit.retention_until is None
-        and audit.run_id == ""
-        and audit.ingested_run_id == ""
+        and audit.run_id == expected_run_id
+        and audit.ingested_run_id == expected_run_id
         and bool(audit.content_hash)
         and audit.content_hash == raw_audit_content_hash(audit)
     )

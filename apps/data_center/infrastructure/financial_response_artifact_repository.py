@@ -118,6 +118,7 @@ class FinancialResponseArtifactRepository:
         request_params: Mapping[str, object],
         row_count: int = 0,
         provider_id: int | None = None,
+        run_id: UUID | None = None,
     ) -> FinancialResponseArtifactRetention:
         """Retain one exact body and its versioned redacted audit link."""
 
@@ -129,6 +130,7 @@ class FinancialResponseArtifactRepository:
             request_params=request_params,
             row_count=row_count,
             provider_id=provider_id,
+            run_id=run_id,
         )
 
     def read(self, reference: FinancialResponseArtifactRef) -> bytes:

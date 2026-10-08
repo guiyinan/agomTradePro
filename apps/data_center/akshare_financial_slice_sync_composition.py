@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import UUID
 
 from apps.data_center.application.financial_slice_sync import (
     FinancialSliceFetcherProtocol,
@@ -27,7 +28,7 @@ from apps.data_center.infrastructure.akshare_financial_slice_sync import (
 
 
 def make_sync_akshare_financial_slices_use_case(
-    *, artifact_storage_root: Path | None = None
+    *, artifact_storage_root: Path | None = None, max_route_attempts: int = 2
 ) -> SyncAkshareFinancialSlicesUseCase:
     """Build the explicit, one-provider AKShare financial slice sync entrypoint."""
 
@@ -41,11 +42,14 @@ def make_sync_akshare_financial_slices_use_case(
             config,
             provider,
             artifact_storage_root=artifact_storage_root,
+            max_route_attempts=max_route_attempts,
         )
 
     def verify_provider_evidence(
         provider: ProviderConfig,
         evidence: FinancialFactDecisionEvidence,
+        *,
+        expected_run_id: UUID | None = None,
     ) -> bool:
         """Reverify the captured pair under the same stage-local retention root."""
 
@@ -53,6 +57,7 @@ def make_sync_akshare_financial_slices_use_case(
             provider,
             evidence,
             artifact_storage_root=artifact_storage_root,
+            expected_run_id=expected_run_id,
         )
 
     def verify_retained_evidence(evidence: FinancialFactDecisionEvidence) -> bool:
@@ -64,7 +69,9 @@ def make_sync_akshare_financial_slices_use_case(
         )
 
     fetcher_factory = (
-        build_akshare_financial_slice_fetcher if artifact_storage_root is None else build_fetcher
+        build_akshare_financial_slice_fetcher
+        if artifact_storage_root is None and max_route_attempts == 2
+        else build_fetcher
     )
     provider_evidence_verifier = (
         verify_provider_financial_source_time_evidence
@@ -87,6 +94,7 @@ def make_sync_akshare_financial_slices_use_case(
         fetcher_factory=fetcher_factory,
         evidence_verifier=provider_evidence_verifier,
         request_budget=load_akshare_financial_slice_sync_budget(),
+        max_route_attempts=max_route_attempts,
     )
 
 

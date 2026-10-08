@@ -49,6 +49,7 @@ class FinancialSourceTimeArtifactRepository:
         response_row_count: int,
         request_params: Mapping[str, object],
         parser_version: str,
+        run_id: UUID | None = None,
     ) -> FinancialSourceTimeArtifactRetention:
         """Retain provider-native bytes without interpreting time semantics."""
 
@@ -67,6 +68,7 @@ class FinancialSourceTimeArtifactRepository:
             provider_id=provider_id,
             request_params=request_params,
             parser_version=parser_version,
+            run_id=run_id,
         )
 
     def read(self, reference: FinancialSourceTimeArtifactRef) -> bytes:

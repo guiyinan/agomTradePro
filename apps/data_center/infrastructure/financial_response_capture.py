@@ -79,6 +79,7 @@ class CapturedFinancialResponse(Generic[PayloadT]):
     payload: PayloadT
     evidence: FinancialResponseEvidence
     raw_body: bytes = field(repr=False)
+    physical_request_attempts: int = 1
 
 
 def capture_financial_response(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from uuid import UUID
 
 from django.conf import settings
 from django.db import DatabaseError
@@ -85,6 +86,7 @@ def verify_provider_financial_source_time_evidence(
     evidence: FinancialFactDecisionEvidence,
     *,
     artifact_storage_root: Path | None = None,
+    expected_run_id: UUID | None = None,
 ) -> bool:
     """Bind logical source identity and both audits to one active provider row."""
 
@@ -103,12 +105,14 @@ def verify_provider_financial_source_time_evidence(
             evidence,
             environment=None,
             expected_provider_id=int(provider.id),
+            expected_run_id=expected_run_id,
         )
     return _verify_source_time_evidence(
         evidence,
         environment=None,
         expected_provider_id=int(provider.id),
         artifact_storage_root=artifact_storage_root,
+        expected_run_id=expected_run_id,
     )
 
 
@@ -118,6 +122,7 @@ def _verify_source_time_evidence(
     environment: str | None,
     expected_provider_id: int | None,
     artifact_storage_root: Path | None = None,
+    expected_run_id: UUID | None = None,
 ) -> bool:
     """Build and execute the shared read-only verifier implementation."""
 
@@ -176,7 +181,10 @@ def _verify_source_time_evidence(
             ),
             matcher=matcher,
         )
-        return verifier.verify(decision_evidence)
+        return verifier.verify(
+            decision_evidence,
+            expected_run_id=expected_run_id,
+        )
     except (DatabaseError, DataFetchError, LookupError, OSError, TypeError, ValueError):
         return False
 
