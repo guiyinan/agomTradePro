@@ -2931,3 +2931,20 @@ capture runner 不接受新增 `attempt_budget` 参数时失败。提交 `bdefd1
 
 下一片是否可开始：可以提交台账并 push 新 HEAD，重新绑定五组 exact-SHA CI；只有 PostgreSQL 节点继续越过 test seam 并完成真实事务
 断言，才可将本次修复计作通过。
+
+##### 2026-10-08 Financial candidate 多指标 coverage 根因整改
+
+完成项：候选 `4017b58ff40485298135fdc6719362847b998dca` 的 Architecture `37783337795`、Security
+`37783337327`、Consistency `37783337130` 已通过；Publication PostgreSQL `37783337582` 已完成双 capture 和事实落库，随后暴露
+生产 validator 把 financial candidate 的 `coverage.requested_count/eligible_count` 错当证券数。通用 candidate 对无 scope block 的财报
+按 metric member 计 coverage，一个证券包含多个指标，因此任何真实候选都会被误判为
+`financial_capacity_atomic_activation_incomplete`。提交 `a20809d62` 将 coverage 三项与精确 members 数量绑定，同时继续用 member natural
+key 的资产前缀集合与完整 `asset_codes` 做精确证券范围校验；没有放宽 member/source/run/policy/hash 校验。5,572 manifest PostgreSQL 用例
+同时补齐明确 `environment=production`，保持环境绑定 fail closed。生产文件增量 mypy、全仓 debt ceiling、Black、isort、Ruff、
+current-data/architecture/entrypoint/module/governance 检查和 `git diff --check` 通过，治理投影无差异。
+
+未验证风险与停止线：本地无 PostgreSQL，真实多指标 candidate staging、commit-unknown、audit rollback、并发 CAS 与 5,572 subquery 仍须
+由新 CI 实证；旧 run 未重跑。生产 financial refresh、owner approval 与周期入口停止线不变。
+
+下一片是否可开始：可以提交台账并 push 新 HEAD，重新绑定五组 CI；Publication PostgreSQL 的五个 capacity 节点必须零跳过、零失败，
+并继续完成后续 control-plane、financial slice 和 evidence validator 节点后，才可进入 fresh S6。
