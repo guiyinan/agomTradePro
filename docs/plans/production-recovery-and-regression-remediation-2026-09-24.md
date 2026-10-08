@@ -2948,3 +2948,20 @@ current-data/architecture/entrypoint/module/governance 检查和 `git diff --che
 
 下一片是否可开始：可以提交台账并 push 新 HEAD，重新绑定五组 CI；Publication PostgreSQL 的五个 capacity 节点必须零跳过、零失败，
 并继续完成后续 control-plane、financial slice 和 evidence validator 节点后，才可进入 fresh S6。
+
+##### 2026-10-08 DATA-02 audit seam 兼容性整改
+
+完成项：候选 `6d0caa771180f415123bec56a6a9282957229376` 的 Architecture `37784250317`、Security
+`37784250440`、Consistency `37784250341` 已通过；Publication PostgreSQL `37784250308` 的新增 capacity crash-recovery/CAS
+阶段已整体通过，证明五个固定节点越过了 capture、candidate、activation 与 5,572 manifest 查询断言。后续既有 backfill control-plane
+节点因 `tasks.audit_integration` 属性缺失而在 fixture setup 失败：authority 实现已移入共享 `data02_task_authority`，但历史组件和单元测试仍
+通过 tasks 公开模块 seam patch 同一 audit module。提交 `1d85f0857` 恢复该公开模块别名；底层与共享 authority helper 引用同一个 Python
+module object，因此 patch 仍作用于真实读取边界，没有增加第二套 authority 逻辑或关闭保护。core backfill 契约 `40 passed`；生产文件增量
+mypy、全仓 debt ceiling、Black、isort、Ruff、architecture/entrypoint/module/current-data/Celery/governance 检查和
+`git diff --check` 通过，生成投影无差异。
+
+未验证风险与停止线：旧 PostgreSQL run 在 backfill 节点停止，后续 financial slice、maintenance、migration、SQLite 与 artifact validator
+没有执行；必须以新 SHA 完整通过，不能只引用已通过的 capacity step。生产停止线不变。
+
+下一片是否可开始：可以提交台账并 push 新 HEAD，重绑五组 CI；Publication PostgreSQL 需从头完成全部步骤且 artifact 零跳过/零失败，
+才可进入 fresh S6。
