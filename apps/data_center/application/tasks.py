@@ -42,6 +42,7 @@ from apps.data_center.target_date_universe_composition import (
     build_target_date_a_share_universe_scope,
 )
 from core.exceptions import DataFetchError, DataValidationError
+from core.integration import data_center_audit as _audit_integration
 from core.integration.task_monitor_runtime import (
     get_current_task_attempt_identity,
     record_current_task_progress,
@@ -96,6 +97,9 @@ from .query_services import (
 from .query_use_cases import latest_completed_cn_market_session
 
 logger = logging.getLogger(__name__)
+
+# Public test/composition seam retained for callers that patch the shared audit module.
+audit_integration = _audit_integration
 
 DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
 BACKFILL_DATASET_KEY = "equity.core.backfill"
