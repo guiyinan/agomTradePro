@@ -3080,3 +3080,33 @@ capacity receipt、独立 owner approval 和用户新的明确授权，不得由
 下一片是否可开始：可以提交本节台账、push 最终 SHA，并从头运行 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。五组同 SHA 全绿且固定 PostgreSQL 节点零跳过/零失败后，才可从最新生产只读快照创建新的 disposable
 PostgreSQL/Redis 和 fresh S6 attempt；完整通过后只能部署 receipt 绑定的同 SHA 预构建镜像，再执行只读 UAT。
+
+##### 2026-10-09 Financial capacity PostgreSQL 官方证据投影整改
+
+完成项：候选 `36cfd0d722fb60d46913aba62da7bb0328d9aa7f` 的五组 exact-SHA CI 全绿，Publication PostgreSQL artifact
+包含 migration helper 真实地址节点、Account outer-fence 和 5,001 member soak，均零跳过、零失败。fresh S6 attempt
+`0bf34cbf3eb243d18d4dd86d0707ccf0` 随后实际完成 `data_center.0090`–`0093` 的隔离迁移并通过前八个阶段，证明数据库地址修复、
+候选镜像和迁移图有效；但 `github_ci_evidence` 以 `REHEARSAL_REQUIRED_TEST_MISSING` fail closed。根因是 workflow 已单独执行五个
+financial capacity PostgreSQL crash-recovery/CAS/5,572 manifest 节点，却没有为该 pytest 调用生成 JUnit；主 publication XML 又明确
+以 `-k "not financial_capacity"` 排除这些节点，因此官方 artifact 无法证明五个必需测试的身份和结果。失败 attempt、checkpoint、
+runner 终态与安全诊断均保留，未使用 `--resume`，也未部署或产生生产写。
+
+提交 `7256bf6ef` 为五个节点增加独立 `financial-capacity-postgres.xml`，workflow 在上传前校验精确五项身份集合并把它们纳入
+skip/failure/error 扫描，artifact upload 与 release validator 的官方 JUnit 文件全集同步增加该文件。validator/collector 测试替身不再
+使用位置切片，而是按测试语义建立互斥分区并验证并集覆盖全部 50 个 required identities；反例覆盖新 XML 缺失时
+`REHEARSAL_GITHUB_ARTIFACT_INCOMPLETE`、必需节点缺失和 skipped/failure 的既有 fail-closed 路径。没有删减
+`REQUIRED_POSTGRESQL_TESTS`、修改测试扫描规则或把五个节点并入会被其他 pytest 调用覆盖的旧 XML。
+
+测试计数：validator 与官方 evidence collector 聚焦回归 `139 passed`；生产 validator 增量 mypy `0 regressions`，全仓 debt ceiling
+`0 errors`；Black、isort、Ruff、workflow YAML 解析、module map `44/210`、Data Center entrypoint 唯一生成投影 `1,306 entries` 和
+`git diff --check` 全部通过，治理投影无差异。Luna Max 红队只读复核确认独立 JUnit、精确身份集合、官方文件全集和负向证据边界完整。
+
+未验证风险与停止线：`7256bf6ef` 与本节台账组成的新 HEAD 尚未绑定新的五组 exact-SHA CI；新
+`financial-capacity-postgres.xml` 必须由 Linux Publication PostgreSQL run 实际生成，并证明 `5 tests / 0 skipped / 0 failure /
+0 error`。旧候选的五组成功和失败 S6 的前八阶段不能与新 SHA 拼接。当前 S6 attempt 不得 resume，旧 receipt/image 不得复用；
+生产 full-market 任务禁止重跑，两个周期入口保持 disabled，production financial refresh 仍需 full-scope capacity receipt、独立
+authenticated owner approval 和用户新的明确授权。
+
+下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 从头运行五组 CI。五组全绿且官方 artifact 同时包含
+`financial-capacity-postgres.xml` 的精确五节点、publication 42、financial slice 12、Account final revalidation 8 及 5,001 member soak
+后，才可清理失败 attempt 的 disposable runtime 并从最新生产只读快照创建 fresh S6；禁止 `--resume`。
