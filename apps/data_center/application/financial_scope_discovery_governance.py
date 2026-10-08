@@ -46,6 +46,8 @@ _REVIEW_KEYS = frozenset(
         "event_id",
         "approval_receipt_sha256",
         "role",
+        "environment",
+        "report_sha256",
         "approved_at",
         "expires_at",
     }
@@ -149,6 +151,13 @@ def parse_financial_scope_manifest_review(record: object) -> FinancialScopeManif
             role = "independent_reviewer"
         else:
             raise ValueError
+        environment_text = _text(payload, "environment")
+        if environment_text == "isolated":
+            environment: Literal["isolated", "production"] = "isolated"
+        elif environment_text == "production":
+            environment = "production"
+        else:
+            raise ValueError
         return FinancialScopeManifestReview(
             candidate_sha=_text(payload, "candidate_sha"),
             manifest_sha256=_text(payload, "manifest_sha256"),
@@ -162,6 +171,8 @@ def parse_financial_scope_manifest_review(record: object) -> FinancialScopeManif
             event_id=_text(payload, "event_id"),
             receipt_sha256=_text(payload, "approval_receipt_sha256"),
             role=role,
+            environment=environment,
+            report_sha256=_text(payload, "report_sha256"),
             approved_at=_datetime(payload, "approved_at"),
             expires_at=_datetime(payload, "expires_at"),
         )

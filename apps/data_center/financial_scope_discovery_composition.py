@@ -164,13 +164,17 @@ def make_financial_scope_discovery_use_case(
 def review_financial_scope_candidate(
     candidate: FinancialScopeDiscoveryCandidate,
     *,
+    environment: Literal["isolated", "production"],
+    report_sha256: str,
     now: datetime,
 ) -> FinancialScopeReviewedManifest:
-    """Require authenticated owner and independent-reviewer records for a candidate."""
+    """Require dual persisted approvals bound to the report and target environment."""
 
     return independently_review_financial_scope_candidate(
         candidate=candidate,
         source=DjangoFinancialScopeManifestReviewSource(),
+        environment=environment,
+        report_sha256=report_sha256,
         now=now,
     )
 

@@ -29,6 +29,11 @@ from apps.data_center.application.financial_publication_capacity import (
     FinancialPublicationSlice,
     FinancialWorkflowStage,
 )
+from apps.data_center.application.financial_scope_capacity_input import (
+    FinancialScopeCapacityInput,
+    resolve_current_financial_scope_capacity_input,
+    validate_capacity_scope_input,
+)
 from apps.data_center.application.financial_slice_sync import (
     FinancialAnnouncementSlice,
     FinancialSliceSyncRequest,
@@ -66,6 +71,12 @@ from apps.data_center.infrastructure.financial_decision_evidence_codec import (
 )
 from apps.data_center.infrastructure.financial_response_artifact_config import (
     resolve_financial_response_artifact_config,
+)
+from apps.data_center.infrastructure.financial_scope_discovery_governance import (
+    DjangoFinancialScopeManifestReviewSource,
+)
+from apps.data_center.infrastructure.financial_scope_manifest_current_pointer import (
+    DjangoFinancialScopeManifestCurrentPointerSource,
 )
 from apps.data_center.infrastructure.financial_source_time_matchers import (
     akshare_notice_date_match_contract,
@@ -175,7 +186,7 @@ class DjangoFinancialCapacityBindingSource(FinancialCapacityBindingSource):
         )
 
 
-class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
+class _DjangoFinancialCapacityManifestReader(FinancialCapacityManifestSource):
     """Freeze one isolated qualification seed or a full isolated/production universe."""
 
     def freeze(
@@ -184,6 +195,7 @@ class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
         stage: FinancialWorkflowStage,
         environment: Literal["isolated", "production"],
         binding: FinancialCapacityBinding,
+        scope_input: FinancialScopeCapacityInput | None = None,
     ) -> FinancialCapacityManifestSnapshot:
         """Resolve scope from the exact stage and runtime binding without provider egress."""
 
@@ -230,6 +242,7 @@ class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
         candidate_identities_by_asset: dict[str, set[tuple[date | None, date | None]]] = {}
         latest_dates: dict[str, date] = {}
         latest_source_identities: dict[str, dict[str, object]] = {}
+        latest_source_record_ids: dict[str, str] = {}
         seed_row: tuple[FinancialFactModel, date, str] | None = None
         seed_pair_count = 0
         global_scan_count = 0
@@ -287,9 +300,13 @@ class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
                     seed_pair_count += 1
                     if row.id == seed_row[0].id:
                         latest_source_identities[row.asset_code] = _typed_source_identity(row)
+                        if row.source_record_id:
+                            latest_source_record_ids[row.asset_code] = row.source_record_id
             elif row.asset_code in unresolved_assets:
                 latest_dates[row.asset_code] = typed_row[1]
                 latest_source_identities[row.asset_code] = _typed_source_identity(row)
+                if row.source_record_id:
+                    latest_source_record_ids[row.asset_code] = row.source_record_id
                 unresolved_assets.remove(row.asset_code)
                 candidate_identities_by_asset.pop(row.asset_code, None)
                 scan_count_by_asset.pop(row.asset_code, None)
@@ -330,10 +347,71 @@ class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
         typed_source_snapshot_sha256 = _canonical_sha256(
             [latest_source_identities[item.asset_code] for item in frozen_slices]
         )
-        return FinancialCapacityManifestSnapshot.build(
+        snapshot = FinancialCapacityManifestSnapshot.build(
             slices=frozen_slices,
             active_universe_sha256=active_universe_sha256,
             typed_source_snapshot_sha256=typed_source_snapshot_sha256,
+        )
+        if scope_input is not None:
+            validate_capacity_scope_input(
+                scope_input=scope_input,
+                active_asset_codes=active_codes,
+                snapshot=snapshot,
+                typed_source_record_ids=latest_source_record_ids,
+            )
+        return snapshot
+
+
+class DjangoFinancialCapacityManifestSource(FinancialCapacityManifestSource):
+    """Freeze workflow input through the current persisted reviewed scope and typed facts."""
+
+    def __init__(self) -> None:
+        """Bind the current-pointer reader and persistent dual-review event source."""
+
+        self._reader = _DjangoFinancialCapacityManifestReader()
+        self._pointer_source = DjangoFinancialScopeManifestCurrentPointerSource()
+        self._review_source = DjangoFinancialScopeManifestReviewSource()
+
+    def freeze(
+        self,
+        *,
+        stage: FinancialWorkflowStage,
+        environment: Literal["isolated", "production"],
+        binding: FinancialCapacityBinding,
+    ) -> FinancialCapacityManifestSnapshot:
+        """Require reviewed scope for full capacity/formal stages; keep N=1 qualification separate."""
+
+        if stage == "qualification":
+            return self._reader.freeze(
+                stage=stage,
+                environment=environment,
+                binding=binding,
+            )
+        scope_input = resolve_current_financial_scope_capacity_input(
+            pointer_source=self._pointer_source,
+            review_source=self._review_source,
+            binding=binding,
+            environment=environment,
+            now=timezone.now(),
+        )
+        typed_snapshot = self._reader.freeze(
+            stage=stage,
+            environment=environment,
+            binding=binding,
+            scope_input=scope_input,
+        )
+        candidate = scope_input.reviewed_manifest.candidate
+        reviewed_scope_snapshot_sha256 = _canonical_sha256(
+            {
+                "typed_source_snapshot_sha256": typed_snapshot.typed_source_snapshot_sha256,
+                "reviewed_scope_manifest_sha256": candidate.manifest_sha256,
+                "reviewed_scope_report_sha256": scope_input.report_sha256,
+            }
+        )
+        return FinancialCapacityManifestSnapshot.build(
+            slices=typed_snapshot.slices,
+            active_universe_sha256=typed_snapshot.active_universe_sha256,
+            typed_source_snapshot_sha256=reviewed_scope_snapshot_sha256,
         )
 
 

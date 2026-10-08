@@ -63,9 +63,11 @@ class FinancialScopeManifestReviewSource(Protocol):
         self,
         *,
         candidate: FinancialScopeDiscoveryCandidate,
+        environment: Literal["isolated", "production"],
+        report_sha256: str,
         now: datetime,
     ) -> tuple[FinancialScopeManifestReview, FinancialScopeManifestReview] | None:
-        """Return the exact pair of distinct persisted review events, if complete."""
+        """Return distinct persisted events bound to the exact report, environment, and digest."""
         ...
 
 
@@ -453,16 +455,29 @@ def independently_review_financial_scope_candidate(
     *,
     candidate: FinancialScopeDiscoveryCandidate,
     source: FinancialScopeManifestReviewSource,
+    environment: Literal["isolated", "production"],
+    report_sha256: str,
     now: datetime,
 ) -> FinancialScopeReviewedManifest:
     """Return an approved manifest only from two exact authenticated review events."""
 
     try:
-        reviews = source.get(candidate=candidate, now=now)
+        reviews = source.get(
+            candidate=candidate,
+            environment=environment,
+            report_sha256=report_sha256,
+            now=now,
+        )
         if reviews is None or len(reviews) != 2:
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_REVIEW_REQUIRED")
         owner, reviewer = reviews
-        return candidate.approve(owner=owner, reviewer=reviewer, now=now)
+        return candidate.approve(
+            owner=owner,
+            reviewer=reviewer,
+            environment=environment,
+            report_sha256=report_sha256,
+            now=now,
+        )
     except FinancialScopeDiscoveryError:
         raise
     except Exception:

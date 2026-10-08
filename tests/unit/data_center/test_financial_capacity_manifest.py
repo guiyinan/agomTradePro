@@ -36,6 +36,7 @@ class _FactRow:
     available_at: datetime
     announcement_date: date | None
     basis: str
+    source_record_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,7 +311,7 @@ def test_qualification_freezes_one_deterministic_isolated_typed_slice(
     monkeypatch.setattr(runtime, "_typed_announcement_row_matches", lambda *_: True)
     monkeypatch.setattr(runtime, "_verify_persisted_pair", verify)
 
-    manifest = runtime.DjangoFinancialCapacityManifestSource().freeze(
+    manifest = runtime._DjangoFinancialCapacityManifestReader().freeze(
         stage="qualification",
         environment="isolated",
         binding=_binding("isolated"),
@@ -389,7 +390,7 @@ def test_full_manifest_streams_newest_typed_row_and_stops_after_scope(
     monkeypatch.setattr(runtime, "_seed_date", lambda row: (row.announcement_date, row.basis))
     monkeypatch.setattr(runtime, "_typed_announcement_row_matches", lambda *_: True)
 
-    manifest = runtime.DjangoFinancialCapacityManifestSource().freeze(
+    manifest = runtime._DjangoFinancialCapacityManifestReader().freeze(
         stage=stage,
         environment=environment,
         binding=_binding(environment),
@@ -436,7 +437,7 @@ def test_qualification_allows_more_than_one_hundred_metric_rows_for_one_pair(
         lambda **kwargs: verified.append(kwargs),
     )
 
-    manifest = runtime.DjangoFinancialCapacityManifestSource().freeze(
+    manifest = runtime._DjangoFinancialCapacityManifestReader().freeze(
         stage="qualification",
         environment="isolated",
         binding=_binding("isolated"),
@@ -474,7 +475,7 @@ def test_manifest_candidate_guard_counts_distinct_typed_pair_candidates(
     monkeypatch.setattr(runtime, "_seed_date", lambda _row: (None, "unavailable"))
 
     with pytest.raises(FinancialCapacityWorkflowError, match="candidate guard exceeded"):
-        runtime.DjangoFinancialCapacityManifestSource().freeze(
+        runtime._DjangoFinancialCapacityManifestReader().freeze(
             stage="formal_publication",
             environment="production",
             binding=_binding("production"),
@@ -508,7 +509,7 @@ def test_manifest_scan_guard_blocks_unbounded_typed_history(
     monkeypatch.setattr(runtime, "_seed_date", lambda _row: (None, "unavailable"))
 
     with pytest.raises(FinancialCapacityWorkflowError, match="scan guard exceeded"):
-        runtime.DjangoFinancialCapacityManifestSource().freeze(
+        runtime._DjangoFinancialCapacityManifestReader().freeze(
             stage="formal_publication",
             environment="production",
             binding=_binding("production"),
@@ -576,7 +577,7 @@ def test_qualification_without_typed_source_time_fails_closed_before_provider_ac
     workflow = FinancialCapacityWorkflow(
         checkpoint_repository=InMemoryFinancialCapacityCheckpointRepository(),
         binding_source=_BindingSource(),
-        manifest_source=runtime.DjangoFinancialCapacityManifestSource(),
+        manifest_source=runtime._DjangoFinancialCapacityManifestReader(),
         slice_runner=runner,
         publisher=_UnusedPublisher(),
         qualification_ceiling_source=SimpleNamespace(get_qualification=lambda **_: None),
@@ -632,7 +633,7 @@ def test_formal_manifest_still_requires_typed_source_time_for_every_active_asset
     with pytest.raises(
         FinancialCapacityWorkflowError, match="typed announcement scope is incomplete"
     ):
-        runtime.DjangoFinancialCapacityManifestSource().freeze(
+        runtime._DjangoFinancialCapacityManifestReader().freeze(
             stage="formal_publication",
             environment="production",
             binding=_binding("production"),
@@ -653,7 +654,7 @@ def test_manifest_stage_must_match_bound_environment(
     )
 
     with pytest.raises(FinancialCapacityWorkflowError, match="stage and binding environment"):
-        runtime.DjangoFinancialCapacityManifestSource().freeze(
+        runtime._DjangoFinancialCapacityManifestReader().freeze(
             stage="qualification",
             environment="isolated",
             binding=_binding("production"),
@@ -686,7 +687,7 @@ def test_formal_manifest_uses_asset_subquery_for_5572_active_assets() -> None:
             FinancialCapacityWorkflowError,
             match="typed announcement scope is incomplete",
         ):
-            runtime.DjangoFinancialCapacityManifestSource().freeze(
+            runtime._DjangoFinancialCapacityManifestReader().freeze(
                 stage="formal_publication",
                 environment="production",
                 binding=_binding("production"),

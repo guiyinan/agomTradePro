@@ -6,7 +6,13 @@ import hashlib
 import json
 from collections.abc import Mapping
 from datetime import datetime
+from typing import Literal
 
+from django.db import DatabaseError
+
+from apps.data_center.application.financial_scope_capacity_input import (
+    FinancialScopeCapacityInputError,
+)
 from apps.data_center.application.financial_scope_discovery_governance import (
     parse_financial_scope_discovery_authorization,
     parse_financial_scope_manifest_review,
@@ -70,36 +76,48 @@ class DjangoFinancialScopeManifestReviewSource:
         self,
         *,
         candidate: FinancialScopeDiscoveryCandidate,
+        environment: Literal["isolated", "production"],
+        report_sha256: str,
         now: datetime,
     ) -> tuple[FinancialScopeManifestReview, FinancialScopeManifestReview] | None:
-        """Read owner and reviewer approvals bound to one exact candidate digest."""
+        """Read dual approvals bound to exact manifest/report digests and environment."""
 
         by_role: dict[str, list[FinancialScopeManifestReview]] = {
             "data_owner": [],
             "independent_reviewer": [],
         }
-        rows = (
-            FinancialCapacityGovernanceRecordModel._default_manager.filter(
-                stage=FinancialCapacityGovernanceRecordModel.SCOPE_MANIFEST_REVIEW,
-                revocation__isnull=True,
+        try:
+            rows = (
+                FinancialCapacityGovernanceRecordModel._default_manager.filter(
+                    stage=FinancialCapacityGovernanceRecordModel.SCOPE_MANIFEST_REVIEW,
+                    revocation__isnull=True,
+                )
+                .select_related("owner_approval_event")
+                .iterator(chunk_size=100)
             )
-            .select_related("owner_approval_event")
-            .iterator(chunk_size=100)
-        )
-        for row in rows:
-            if not isinstance(row.record, Mapping):
-                continue
-            try:
-                review = parse_financial_scope_manifest_review(row.record)
-                review.validate(candidate=candidate, now=now)
-            except (FinancialScopeDiscoveryError, TypeError, ValueError):
-                continue
-            if (
-                row.approval_id == review.approval_id
-                and row.created_by == review.recorded_by
-                and _has_matching_review_event(row, review)
-            ):
-                by_role[review.role].append(review)
+            for row in rows:
+                if not isinstance(row.record, Mapping):
+                    continue
+                try:
+                    review = parse_financial_scope_manifest_review(row.record)
+                    review.validate(
+                        candidate=candidate,
+                        environment=environment,
+                        report_sha256=report_sha256,
+                        now=now,
+                    )
+                except (FinancialScopeDiscoveryError, TypeError, ValueError):
+                    continue
+                if (
+                    row.approval_id == review.approval_id
+                    and row.created_by == review.recorded_by
+                    and _has_matching_review_event(row, review)
+                ):
+                    by_role[review.role].append(review)
+        except DatabaseError:
+            raise FinancialScopeCapacityInputError(
+                "FINANCIAL_CAPACITY_SCOPE_APPROVAL_REQUIRED"
+            ) from None
         if len(by_role["data_owner"]) != 1 or len(by_role["independent_reviewer"]) != 1:
             return None
         return by_role["data_owner"][0], by_role["independent_reviewer"][0]

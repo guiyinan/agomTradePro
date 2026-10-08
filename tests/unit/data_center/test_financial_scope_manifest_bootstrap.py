@@ -363,6 +363,8 @@ def test_review_requires_independent_owner_and_reviewer_bound_to_exact_manifest(
         event_id="event-owner-1",
         receipt_sha256="e" * 64,
         role="data_owner",
+        environment="isolated",
+        report_sha256="9" * 64,
         approved_at=datetime(2026, 10, 9, 2, tzinfo=UTC),
         expires_at=datetime(2026, 10, 10, 2, tzinfo=UTC),
     )
@@ -376,7 +378,11 @@ def test_review_requires_independent_owner_and_reviewer_bound_to_exact_manifest(
     )
 
     reviewed = candidate.approve(
-        owner=owner, reviewer=reviewer, now=datetime(2026, 10, 9, 3, tzinfo=UTC)
+        owner=owner,
+        reviewer=reviewer,
+        environment="isolated",
+        report_sha256="9" * 64,
+        now=datetime(2026, 10, 9, 3, tzinfo=UTC),
     )
 
     assert reviewed.review_status == "approved"
@@ -384,7 +390,10 @@ def test_review_requires_independent_owner_and_reviewer_bound_to_exact_manifest(
     assert reviewed.reviewer_approval_id == reviewer.approval_id
 
 
-@pytest.mark.parametrize("bad_field", ("manifest_sha256", "universe_sha256", "deployment_region"))
+@pytest.mark.parametrize(
+    "bad_field",
+    ("manifest_sha256", "universe_sha256", "deployment_region", "report_sha256", "environment"),
+)
 def test_manifest_review_rejects_stale_or_misbound_approval(bad_field: str) -> None:
     assets = ("000001.SZ",)
     candidate = (
@@ -410,11 +419,20 @@ def test_manifest_review_rejects_stale_or_misbound_approval(bad_field: str) -> N
         event_id="event-1",
         receipt_sha256="e" * 64,
         role="data_owner",
+        environment="isolated",
+        report_sha256="9" * 64,
         approved_at=datetime(2026, 10, 9, 2, tzinfo=UTC),
         expires_at=datetime(2026, 10, 10, 2, tzinfo=UTC),
     )
     approval = replace(
-        approval, **{bad_field: "0" * 64 if bad_field != "deployment_region" else "other"}
+        approval,
+        **{
+            bad_field: (
+                "production"
+                if bad_field == "environment"
+                else ("0" * 64 if bad_field != "deployment_region" else "other")
+            )
+        },
     )
     reviewer = replace(
         approval,
@@ -427,7 +445,11 @@ def test_manifest_review_rejects_stale_or_misbound_approval(bad_field: str) -> N
 
     with pytest.raises(FinancialScopeDiscoveryError) as caught:
         candidate.approve(
-            owner=approval, reviewer=reviewer, now=datetime(2026, 10, 9, 3, tzinfo=UTC)
+            owner=approval,
+            reviewer=reviewer,
+            environment="isolated",
+            report_sha256="9" * 64,
+            now=datetime(2026, 10, 9, 3, tzinfo=UTC),
         )
 
     assert caught.value.code == "FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID"

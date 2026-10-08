@@ -1,5 +1,6 @@
 """Opt-in real PostgreSQL consistency, locking and rollback publication tests."""
 
+import hashlib
 import ipaddress
 import json
 import os
@@ -7,7 +8,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from pathlib import Path
@@ -63,6 +64,9 @@ from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacitySliceEvidence,
     FinancialCapacityWorkflowError,
 )
+from apps.data_center.application.financial_scope_capacity_input import (
+    install_financial_scope_manifest_pointer,
+)
 from apps.data_center.application.publication_activation import (
     ActivateCanonicalPublicationGroupUseCase,
     PublicationActivationError,
@@ -92,6 +96,12 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseEvidence,
     FinancialResponseScope,
     raw_body_sha256,
+)
+from apps.data_center.domain.financial_scope_discovery import (
+    FinancialScopeDiscoveryAsset,
+    FinancialScopeDiscoveryAuthorization,
+    FinancialScopeDiscoveryBinding,
+    make_candidate,
 )
 from apps.data_center.domain.raw_audit_manifest import (
     CandidateRawAuditManifest,
@@ -133,6 +143,12 @@ from apps.data_center.infrastructure.financial_response_artifact_repository impo
 from apps.data_center.infrastructure.financial_response_body_store import (
     FinancialResponseBodyStore,
 )
+from apps.data_center.infrastructure.financial_scope_discovery_governance import (
+    DjangoFinancialScopeManifestReviewSource,
+)
+from apps.data_center.infrastructure.financial_scope_manifest_current_pointer import (
+    DjangoFinancialScopeManifestCurrentPointerSource,
+)
 from apps.data_center.infrastructure.financial_source_time_artifact_repository import (
     FinancialSourceTimeArtifactRepository,
 )
@@ -145,6 +161,8 @@ from apps.data_center.infrastructure.financial_source_time_body_store import (
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
+    FinancialCapacityGovernanceRecordModel,
+    FinancialCapacityOwnerApprovalEventModel,
     FinancialFactModel,
     FinancialSourceTimeAuditClaimModel,
     PriceBarModel,
@@ -2624,6 +2642,201 @@ def test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winne
     assert SystemAuditOutboxModel.objects.count() == 1
 
 
+def _financial_scope_report_for_capacity_pg_universe(
+    *,
+    binding: FinancialCapacityBinding,
+    asset_codes: tuple[str, ...],
+    typed_fact: FinancialFactModel,
+    now: datetime,
+) -> dict[str, object]:
+    """Build a full dynamic reviewed-scope report without treating it as typed fact."""
+
+    scope_binding = FinancialScopeDiscoveryBinding(
+        candidate_sha=binding.candidate_sha,
+        provider_id=binding.provider_id,
+        provider_name="akshare",
+        provider_identity_sha256=binding.provider_identity_sha256,
+        contract_id=binding.contract_id,
+        contract_version=binding.contract_version,
+        contract_sha256=binding.contract_sha256,
+        parser_id=binding.parser_id,
+        parser_sha256=binding.parser_sha256,
+        deployment_region=binding.deployment_region,
+    )
+    generated_at = now - timedelta(minutes=5)
+    authorization = FinancialScopeDiscoveryAuthorization.for_universe(
+        binding=scope_binding,
+        asset_codes=asset_codes,
+        approval_id="pg-full-universe-discovery-owner",
+        approved_by="pg-discovery-owner",
+        recorded_by="pg-discovery-operator",
+        event_id="pg-full-universe-discovery-event",
+        receipt_sha256="a" * 64,
+        approved_at=generated_at - timedelta(minutes=1),
+        expires_at=now + timedelta(days=1),
+        maximum_logical_requests=len(asset_codes) * 2,
+        maximum_rows_per_asset=200,
+    )
+    announcement_date = date(2026, 9, 30)
+    native_row_ids = tuple(
+        (
+            (
+                typed_fact.source_record_id
+                if asset_code == typed_fact.asset_code
+                else f"akshare:{asset_code}:2026-06-30:{announcement_date.isoformat()}"
+            ),
+        )
+        for asset_code in asset_codes
+    )
+    items = tuple(
+        FinancialScopeDiscoveryAsset(
+            asset_code=asset_code,
+            announcement_date=announcement_date,
+            available_at=datetime(2026, 10, 1, tzinfo=UTC),
+            native_row_ids=row_ids,
+            financial_capture_id=f"financial-capture-{index}",
+            financial_body_sha256=f"{index + 1:064x}",
+            financial_raw_audit_id=(index * 2) + 1,
+            source_time_capture_id=f"source-time-capture-{index}",
+            source_time_body_sha256=f"{index + len(asset_codes) + 1:064x}",
+            source_time_raw_audit_id=(index * 2) + 2,
+            response_completed_at=(now - timedelta(minutes=3), now - timedelta(minutes=2)),
+        )
+        for index, (asset_code, row_ids) in enumerate(zip(asset_codes, native_row_ids, strict=True))
+    )
+    candidate = make_candidate(
+        binding=scope_binding,
+        authorization=authorization,
+        asset_codes=asset_codes,
+        items=items,
+        generated_at=generated_at,
+    )
+    candidate_manifest = candidate.payload()
+    candidate_manifest["manifest_sha256"] = candidate.manifest_sha256
+    return {
+        "schema": "release.financial-scope-discovery.v1",
+        "kind": "financial_scope_discovery",
+        "candidate_sha": binding.candidate_sha,
+        "started_at": (now - timedelta(minutes=4)).isoformat(),
+        "finished_at": (now - timedelta(minutes=3)).isoformat(),
+        "outcome": "success",
+        "review_status": "pending_independent_review",
+        "binding": {
+            "provider_id": scope_binding.provider_id,
+            "provider_name": scope_binding.provider_name,
+            "provider_identity_sha256": scope_binding.provider_identity_sha256,
+            "contract_id": scope_binding.contract_id,
+            "contract_version": scope_binding.contract_version,
+            "contract_sha256": scope_binding.contract_sha256,
+            "parser_id": scope_binding.parser_id,
+            "parser_sha256": scope_binding.parser_sha256,
+            "deployment_region": scope_binding.deployment_region,
+        },
+        "database": {
+            "vendor": "postgresql",
+            "scope": "disposable",
+            "release_rehearsal_guard": True,
+            "name": "agom_release_rehearsal_financial_scope",
+            "host": "agom-s6-postgres-contract-test",
+            "isolation_attestation_sha256": "b" * 64,
+        },
+        "authorization": {
+            "approval_id": candidate.discovery_approval_id,
+            "owner_event_id": candidate.discovery_owner_event_id,
+            "owner_receipt_sha256": candidate.discovery_owner_receipt_sha256,
+        },
+        "candidate_image_id": "sha256:" + "c" * 64,
+        "artifact_root": "financial-scope-artifacts",
+        "encrypted_artifacts": [],
+        "result": {
+            "schema": "data-center.financial-scope-discovery-result.v1",
+            "outcome": "success",
+            "error_codes": [],
+            "counts": {
+                "requested": len(asset_codes),
+                "captured": len(asset_codes),
+                "failed_capture": 0,
+                "missing": 0,
+                "duplicates": 0,
+                "conflicts": 0,
+                "logical_requests": len(asset_codes) * 2,
+                "physical_attempts": len(asset_codes) * 2,
+                "artifact_writes": len(asset_codes) * 2,
+                "raw_audit_writes": len(asset_codes) * 2,
+                "fact_writes": 0,
+                "publication_writes": 0,
+            },
+            "candidate": {
+                "manifest_sha256": candidate.manifest_sha256,
+                "universe_sha256": candidate.universe_sha256,
+                "coverage_count": candidate.coverage_count,
+                "review_status": "pending_independent_review",
+            },
+            "candidate_manifest": candidate_manifest,
+        },
+    }
+
+
+def _install_financial_scope_pg_reviews(report: dict[str, object]) -> None:
+    """Persist separately authenticated owner and reviewer events for the exact report."""
+
+    report_bytes = json.dumps(
+        report,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    report_sha256 = hashlib.sha256(report_bytes).hexdigest()
+    manifest = report["result"]["candidate_manifest"]
+    candidate = manifest
+    review_records = (
+        ("data_owner", "pg-financial-data-owner", "owner"),
+        ("independent_reviewer", "pg-independent-financial-reviewer", "reviewer"),
+    )
+    for role, approver, suffix in review_records:
+        record_payload: dict[str, object] = {
+            "schema_version": "data-center.financial-scope-manifest-review.v1",
+            "candidate_sha": candidate["binding"]["candidate_sha"],
+            "manifest_sha256": candidate["manifest_sha256"],
+            "universe_sha256": candidate["universe"]["sha256"],
+            "provider_identity_sha256": candidate["binding"]["provider_identity_sha256"],
+            "contract_sha256": candidate["binding"]["contract_sha256"],
+            "deployment_region": candidate["binding"]["deployment_region"],
+            "approval_id": f"pg-scope-review-{suffix}-{report_sha256[:12]}",
+            "approved_by": approver,
+            "recorded_by": "pg-financial-scope-operator",
+            "event_id": f"pg-scope-review-event-{suffix}-{report_sha256[:12]}",
+            "approval_receipt_sha256": ("d" if suffix == "owner" else "e") * 64,
+            "role": role,
+            "environment": "isolated",
+            "report_sha256": report_sha256,
+            "approved_at": timezone.now().isoformat(),
+            "expires_at": (timezone.now() + timedelta(days=1)).isoformat(),
+        }
+        governance_record = FinancialCapacityGovernanceRecordModel.objects.create(
+            approval_id=str(record_payload["approval_id"]),
+            stage=FinancialCapacityGovernanceRecordModel.SCOPE_MANIFEST_REVIEW,
+            record=record_payload,
+            created_by=str(record_payload["recorded_by"]),
+        )
+        approval_bytes = json.dumps(
+            record_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        FinancialCapacityOwnerApprovalEventModel.objects.create(
+            governance_record=governance_record,
+            event_id=str(record_payload["event_id"]),
+            approved_by=approver,
+            approved_at=datetime.fromisoformat(str(record_payload["approved_at"])),
+            approval_receipt_sha256=str(record_payload["approval_receipt_sha256"]),
+            record_sha256=hashlib.sha256(approval_bytes).hexdigest(),
+        )
+
+
 def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql(
     activation_runtime_pg,
     monkeypatch,
@@ -2633,7 +2846,7 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
 
     del activation_runtime_pg
     artifact_runtime = _financial_capacity_pg_artifact_runtime(tmp_path, monkeypatch)
-    binding, _run_id, _evidence, _fact = _seed_financial_capacity_pg_case(
+    binding, _run_id, _evidence, typed_fact = _seed_financial_capacity_pg_case(
         asset_code="000001.SZ",
         artifact_runtime=artifact_runtime,
     )
@@ -2654,6 +2867,28 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
     manifest_runtime = import_module(
         "apps.data_center.infrastructure.financial_publication_capacity_runtime"
     )
+    capacity_binding = replace(
+        binding,
+        environment="isolated",
+        isolation_attestation_sha256="6" * 64,
+    )
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 5_573))
+    now = timezone.now().astimezone(UTC)
+    scope_report = _financial_scope_report_for_capacity_pg_universe(
+        binding=capacity_binding,
+        asset_codes=asset_codes,
+        typed_fact=typed_fact,
+        now=now,
+    )
+    _install_financial_scope_pg_reviews(scope_report)
+    install_financial_scope_manifest_pointer(
+        pointer_source=DjangoFinancialScopeManifestCurrentPointerSource(),
+        review_source=DjangoFinancialScopeManifestReviewSource(),
+        report_payload=scope_report,
+        environment="isolated",
+        updated_by="pg-financial-scope-operator",
+        now=now,
+    )
 
     with CaptureQueriesContext(connection) as queries:
         with pytest.raises(
@@ -2661,13 +2896,13 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
             match="typed announcement scope is incomplete",
         ):
             manifest_runtime.DjangoFinancialCapacityManifestSource().freeze(
-                stage="formal_publication",
-                environment="production",
-                binding=binding,
+                stage="capacity_rehearsal",
+                environment="isolated",
+                binding=capacity_binding,
             )
 
     sql = " ".join(query["sql"] for query in queries.captured_queries).upper()
-    assert len(queries) == 2
+    assert len(queries) == 4
     assert " IN (SELECT " in sql
     assert "000001.SZ" not in sql
     assert "005572.SZ" not in sql

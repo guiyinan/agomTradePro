@@ -8,6 +8,7 @@ from apps.data_center.application.financial_capacity_contracts import (
     FinancialCapacityReceipt,
     FinancialCapacityWorkflowError,
     FinancialCapacityWorkflowResult,
+    GovernedFinancialProductionCeiling,
     _freeze_manifest,
     _manifest_sha256,
     _require_token,
@@ -25,7 +26,7 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
         *,
         workflow_id: str,
         candidate_sha: str,
-        capacity_receipt: FinancialCapacityReceipt,
+        capacity_receipt: FinancialCapacityReceipt | None,
     ) -> FinancialCapacityWorkflowResult:
         """Start only with an approved, unexpired ceiling bound to this exact scope."""
 
@@ -44,20 +45,25 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
         )
         manifest = _freeze_manifest(snapshot.slices)
         manifest_sha256 = _manifest_sha256(manifest)
-        receipt_stage_eligible = capacity_receipt.stage == "capacity_rehearsal"
+        receipt_stage_eligible = (
+            capacity_receipt is not None and capacity_receipt.stage == "capacity_rehearsal"
+        )
         ledger_block_reason = (
             self._capacity_receipt_ledger_block_reason(capacity_receipt)
-            if receipt_stage_eligible
+            if receipt_stage_eligible and capacity_receipt is not None
             else "financial_capacity_receipt_stage_not_eligible"
         )
-        scope_drift = manifest_sha256 != capacity_receipt.manifest_sha256
-        ceiling_source_error = False
-        ceiling = (
-            None
-            if scope_drift or not receipt_stage_eligible or ledger_block_reason is not None
-            else None
+        scope_drift = (
+            capacity_receipt is None or manifest_sha256 != capacity_receipt.manifest_sha256
         )
-        if not scope_drift and receipt_stage_eligible and ledger_block_reason is None:
+        ceiling_source_error = False
+        ceiling: GovernedFinancialProductionCeiling | None = None
+        if (
+            capacity_receipt is not None
+            and not scope_drift
+            and receipt_stage_eligible
+            and ledger_block_reason is None
+        ):
             try:
                 ceiling = self._production_ceiling_source.get(
                     receipt_sha256=capacity_receipt.sha256,
@@ -66,35 +72,31 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
                 )
             except (OSError, RuntimeError, TypeError, ValueError):
                 ceiling_source_error = True
-        reason = (
-            "financial_capacity_authority_not_current"
-            if not authority_current
-            else (
-                "financial_capacity_receipt_stage_not_eligible"
-                if not receipt_stage_eligible
-                else (
-                    ledger_block_reason
-                    if ledger_block_reason is not None
-                    else (
-                        "financial_capacity_scope_drift"
-                        if scope_drift
-                        else (
-                            "financial_capacity_production_ceiling_unavailable"
-                            if ceiling_source_error
-                            else self._formal_start_block_reason(
-                                candidate_sha=candidate_sha,
-                                binding=binding,
-                                manifest=manifest,
-                                source_revision_sha256=snapshot.source_revision_sha256,
-                                receipt=capacity_receipt,
-                                ceiling=ceiling,
-                            )
-                        )
-                    )
-                )
+        reason: str | None
+        if not authority_current:
+            reason = "financial_capacity_authority_not_current"
+        elif capacity_receipt is None:
+            reason = "financial_capacity_receipt_not_qualified"
+        elif not receipt_stage_eligible:
+            reason = "financial_capacity_receipt_stage_not_eligible"
+        elif ledger_block_reason is not None:
+            reason = ledger_block_reason
+        elif scope_drift:
+            reason = "financial_capacity_scope_drift"
+        elif ceiling_source_error:
+            reason = "financial_capacity_production_ceiling_unavailable"
+        else:
+            reason = self._formal_start_block_reason(
+                candidate_sha=candidate_sha,
+                binding=binding,
+                manifest=manifest,
+                source_revision_sha256=snapshot.source_revision_sha256,
+                receipt=capacity_receipt,
+                ceiling=ceiling,
             )
+        approved_ceiling: GovernedFinancialProductionCeiling | None = (
+            ceiling if reason is None else None
         )
-        approved_ceiling = ceiling if reason is None else None
 
         checkpoint = self._new_checkpoint(
             workflow_id=workflow_id,

@@ -539,13 +539,20 @@ class FinancialScopeDiscoveryCandidate:
         *,
         owner: FinancialScopeManifestReview,
         reviewer: FinancialScopeManifestReview,
+        environment: Literal["isolated", "production"],
+        report_sha256: str,
         now: datetime,
     ) -> FinancialScopeReviewedManifest:
         """Require separate authenticated owner and reviewer events for this exact digest."""
 
         _validate_aware(now)
         for approval in (owner, reviewer):
-            approval.validate(candidate=self, now=now)
+            approval.validate(
+                candidate=self,
+                environment=environment,
+                report_sha256=report_sha256,
+                now=now,
+            )
         if (
             owner.role != "data_owner"
             or reviewer.role != "independent_reviewer"
@@ -560,6 +567,8 @@ class FinancialScopeDiscoveryCandidate:
             owner_event_id=owner.event_id,
             reviewer_approval_id=reviewer.approval_id,
             reviewer_event_id=reviewer.event_id,
+            environment=environment,
+            report_sha256=report_sha256,
             reviewed_at=now,
         )
 
@@ -580,6 +589,8 @@ class FinancialScopeManifestReview:
     event_id: str
     receipt_sha256: str
     role: Literal["data_owner", "independent_reviewer"]
+    environment: Literal["isolated", "production"]
+    report_sha256: str
     approved_at: datetime
     expires_at: datetime
 
@@ -592,6 +603,7 @@ class FinancialScopeManifestReview:
             self.provider_identity_sha256,
             self.contract_sha256,
             self.receipt_sha256,
+            self.report_sha256,
         ):
             if _SHA256.fullmatch(value) is None:
                 raise FinancialScopeDiscoveryError(
@@ -610,7 +622,10 @@ class FinancialScopeManifestReview:
                 raise FinancialScopeDiscoveryError(
                     "FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID"
                 )
-        if self.role not in {"data_owner", "independent_reviewer"}:
+        if self.role not in {"data_owner", "independent_reviewer"} or self.environment not in {
+            "isolated",
+            "production",
+        }:
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID")
         if self.approved_by.casefold() == self.recorded_by.casefold():
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID")
@@ -619,7 +634,14 @@ class FinancialScopeManifestReview:
         if self.expires_at <= self.approved_at:
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID")
 
-    def validate(self, *, candidate: FinancialScopeDiscoveryCandidate, now: datetime) -> None:
+    def validate(
+        self,
+        *,
+        candidate: FinancialScopeDiscoveryCandidate,
+        environment: Literal["isolated", "production"],
+        report_sha256: str,
+        now: datetime,
+    ) -> None:
         """Reject stale approvals or any candidate/provider/universe drift."""
 
         if (
@@ -632,6 +654,8 @@ class FinancialScopeManifestReview:
             or self.provider_identity_sha256 != candidate.binding.provider_identity_sha256
             or self.contract_sha256 != candidate.binding.contract_sha256
             or self.deployment_region != candidate.binding.deployment_region
+            or self.environment != environment
+            or self.report_sha256 != report_sha256
         ):
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_APPROVAL_BINDING_INVALID")
 
@@ -645,6 +669,8 @@ class FinancialScopeReviewedManifest:
     owner_event_id: str
     reviewer_approval_id: str
     reviewer_event_id: str
+    environment: Literal["isolated", "production"]
+    report_sha256: str
     reviewed_at: datetime
 
     @property

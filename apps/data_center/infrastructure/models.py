@@ -1068,3 +1068,35 @@ class FinancialCapacityOwnerApprovalEventModel(models.Model):
         """Show the external approval event identity only."""
 
         return self.event_id
+
+
+class FinancialScopeManifestCurrentPointerModel(models.Model):
+    """Current reviewed scope report used as the financial capacity input authority."""
+
+    environment = models.CharField(
+        max_length=16,
+        unique=True,
+        choices=(("isolated", "Isolated capacity rehearsal"), ("production", "Production")),
+    )
+    report_payload = models.JSONField()
+    report_sha256 = models.CharField(max_length=64)
+    owner_approval_id = models.CharField(max_length=300)
+    owner_event_id = models.CharField(max_length=300)
+    reviewer_approval_id = models.CharField(max_length=300)
+    reviewer_event_id = models.CharField(max_length=300)
+    revision = models.PositiveBigIntegerField(default=1)
+    updated_by = models.CharField(max_length=150)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_financial_scope_manifest_current_pointer"
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Keep the current scope pointer present as auditable state."""
+
+        raise ValidationError("Financial scope current pointers cannot be deleted.")
+
+    def __str__(self) -> str:
+        """Show only the environment and pointer revision."""
+
+        return f"{self.environment}:r{self.revision}"
