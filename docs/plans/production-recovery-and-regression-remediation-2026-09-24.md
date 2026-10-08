@@ -2902,3 +2902,18 @@ isort、Ruff、architecture/entrypoint/module/governance 检查和 `git diff --c
 
 下一片是否可开始：可以提交并 push 本节台账，以新 HEAD 重新运行全部五组 CI；只有同一 SHA 五组全绿并满足 PostgreSQL artifact 固定
 节点要求后，才能进入 fresh S6。
+
+##### 2026-10-08 Financial capacity PostgreSQL settings 门禁修复
+
+完成项：候选 `b3be8977aceaaf6486d252fd15fb538398de994a` 的 Architecture `37781926128` 与 Security
+`37781926135` 已通过，但 Publication PostgreSQL `37781926083` 在新增 capacity crash-recovery/CAS 节点正确失败；五个固定用例均在
+真实 AKShare capture 的 owner-approved contract 读取前因专用 `tests.settings_data_center_sync_identity` 缺少 `BASE_DIR` 而停止，未进入
+stage/activation/CAS 查询断言。提交 `8363baf9e` 在该隔离 settings 中将 `BASE_DIR` 显式绑定仓库根，保留真实 contract registry 校验，
+没有 monkeypatch 或绕过生产契约。路径探针确认批准契约文件存在；Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：本地没有运行中的 Docker/PostgreSQL，因此五个节点只能得到环境门禁 skip，不能计作通过；必须由新 exact-SHA 的
+Publication PostgreSQL Linux runner 证明五个节点零跳过/零失败。旧候选的其他 CI 结果不得拼接。生产 financial refresh 和既有停止线
+没有变化。
+
+下一片是否可开始：可以提交本节台账并 push 新 HEAD，重新运行同一 SHA 五组 CI；Publication PostgreSQL 必须实际进入五个新增节点，
+随后继续完成其余固定节点和 artifact validator，才可进入 fresh S6。
