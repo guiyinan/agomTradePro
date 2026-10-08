@@ -2887,3 +2887,18 @@ CI artifact 证明零跳过/零失败。真实生产已有 legacy facts 不等�
 Publication PostgreSQL 五组 CI。五组全绿且固定 PostgreSQL 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止
 `--resume`；S6 先验证 N=1、零出网失败反例与 release validator。完整 full-universe capacity rehearsal 必须另有真实 workload owner
 提供精确 ceiling 和独立认证 approval；没有这些外部治理事实时应停在授权门前，不得执行 production financial refresh。
+
+##### 2026-10-08 Financial capacity Architecture 门禁修复
+
+完成项：首个候选 `ee3c5816ee62d356fa5a1fa6d1c993ab8f8fbc6d` 的 Architecture run `37780825408` 在两个 Python
+版本均由 `apps_no_app_root_model_shim_imports_outside_admin` 正确阻断；两个新增 management command 经
+`apps.data_center.models` 根 shim 读取 capacity governance model，产生 2 个 audit violation，boundary violation 为 0。旧 run 未重跑。
+提交 `a725bc79c` 将两处导入改为本 App 的 `infrastructure.models`，没有放宽架构规则或增加例外。相同 base 的完整 architecture delta
+复跑为 `0 boundary / 0 audit violation`，governance command 契约 `25 passed`；两个生产文件增量 mypy、全仓 debt ceiling、Black、
+isort、Ruff、architecture/entrypoint/module/governance 检查和 `git diff --check` 通过，生成投影无差异。
+
+未验证风险与停止线：`a725bc79c` 及本节台账形成的新 HEAD 尚未绑定新的五组 exact-SHA CI，旧候选其余 run 即使成功也不能拼接使用。
+生产与授权停止线不变：没有 full-scope capacity rehearsal receipt 和独立 owner approval 时不得执行 production financial refresh。
+
+下一片是否可开始：可以提交并 push 本节台账，以新 HEAD 重新运行全部五组 CI；只有同一 SHA 五组全绿并满足 PostgreSQL artifact 固定
+节点要求后，才能进入 fresh S6。
