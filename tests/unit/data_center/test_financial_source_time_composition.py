@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
+from uuid import UUID
 
 import pytest
 
@@ -124,8 +125,10 @@ def test_provider_verifier_uses_logical_source_and_binds_the_exact_provider_row(
         *,
         environment: str | None,
         expected_provider_id: int | None,
+        expected_run_id: UUID | None,
     ) -> bool:
         assert environment is None
+        assert expected_run_id is None
         expected_ids.append(expected_provider_id)
         return expected_provider_id == 17
 
@@ -187,8 +190,10 @@ def test_provider_verifier_passes_explicit_s6_artifact_root(
         environment: str | None,
         expected_provider_id: int | None,
         artifact_storage_root: Path | None,
+        expected_run_id: UUID | None,
     ) -> bool:
         assert environment is None
+        assert expected_run_id is None
         observed.append((expected_provider_id, artifact_storage_root))
         return True
 

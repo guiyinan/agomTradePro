@@ -842,7 +842,10 @@ def test_egress_financial_helper_reuses_request_id_and_requires_route(
         response_scope=evidence.response_scope,
     )
 
-    assert result is captured
+    assert result.payload == captured.payload
+    assert result.evidence == captured.evidence
+    assert result.raw_body == captured.raw_body
+    assert result.physical_request_attempts == 1
     assert transport.calls[0]["request_id"] == request_id
     assert transport.calls[0]["request_scope"] == evidence.request_scope
 
