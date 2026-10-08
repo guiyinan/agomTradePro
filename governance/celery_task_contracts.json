@@ -1131,7 +1131,7 @@
       "task_path": "apps.task_monitor.application.tasks.cleanup_old_task_records",
       "source_file": "apps/task_monitor/application/tasks.py",
       "criticality": "data_mutation_critical",
-      "coverage_note": "Orphan reconciliation runs only from this scheduled maintenance task. tests/unit/task_monitor/test_orphan_reconciliation.py covers timeout threshold, pending preservation, backend terminal state, active/reserved/scheduled and ready queue evidence, worker presence, domain lease presence or uncertainty, safe evidence, CAS concurrency, attempt mismatch, and read-query side effects. The repository cleanup regression test confirms retention never guesses stale active rows are orphaned.",
+      "coverage_note": "Orphan reconciliation runs only from this scheduled maintenance task. tests/unit/task_monitor/test_orphan_reconciliation.py covers timeout threshold, pending preservation, backend terminal state, active/reserved/scheduled and ready queue evidence, worker presence, legacy financial lease ownership, financial capacity checkpoint claims (active, missing, running without claim, expired, in-flight and publication commit indeterminate, and safe terminal), safe evidence, CAS concurrency, attempt mismatch, and read-query side effects. The repository cleanup regression test confirms retention never guesses stale active rows are orphaned.",
       "required_cases": {
         "invalid_input": {
           "test_file": "tests/unit/task_monitor/test_t4b_monitoring_outcome_contracts.py",

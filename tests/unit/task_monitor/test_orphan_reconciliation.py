@@ -2,9 +2,11 @@
 
 import json
 from collections.abc import Callable
-from datetime import timedelta
+from dataclasses import replace
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from django.utils import timezone
@@ -33,6 +35,7 @@ _HARD_LIMIT_SECONDS = 300
 _VISIBILITY_SECONDS = 7_200
 _GRACE_SECONDS = 300
 _FINANCIAL_TASK_NAME = "data_center.refresh_financial_publications_batch"
+_FINANCIAL_CAPACITY_TASK_NAME = "data_center.refresh_financial_publication_capacity"
 
 
 class _EvidenceProvider:
@@ -112,6 +115,8 @@ def _make_evidence(
 def _create_record(
     *,
     task_id: str = _TASK_ID,
+    task_name: str = "demo.task",
+    task_kwargs: dict[str, object] | None = None,
     status: str = "started",
     attempt_id: str | None = _ATTEMPT_ID,
     worker: str | None = _WORKER,
@@ -123,11 +128,11 @@ def _create_record(
     )
     return TaskExecutionModel.objects.create(
         task_id=task_id,
-        task_name="demo.task",
+        task_name=task_name,
         status=status,
         attempt_id=attempt_id,
         args=["sensitive-arg"],
-        kwargs={"token": "never-persist-this"},
+        kwargs=(task_kwargs if task_kwargs is not None else {"token": "never-persist-this"}),
         started_at=start,
         finished_at=None,
         result=None,
@@ -137,6 +142,146 @@ def _create_record(
         retries=retries,
         worker=worker,
         queue="celery",
+    )
+
+
+def _create_financial_capacity_checkpoint(
+    workflow_id: str,
+    *,
+    claim_state: str = "none",
+) -> None:
+    """Persist one real capacity checkpoint for lease-probe integration tests."""
+
+    from apps.data_center.application.financial_capacity_models import (
+        FinancialCapacityBinding,
+        FinancialCapacityCheckpoint,
+        FinancialPublicationSlice,
+        _empty_evidence_sha256,
+        _manifest_sha256,
+    )
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
+        DjangoFinancialCapacityCheckpointRepository,
+    )
+
+    manifest = (FinancialPublicationSlice("000001.SZ", date(2026, 10, 1)),)
+    binding = FinancialCapacityBinding(
+        environment="isolated",
+        candidate_sha="a" * 40,
+        provider_id=1,
+        provider_name="AKShare Public",
+        provider_source="akshare",
+        provider_identity_sha256="b" * 64,
+        contract_id="test.financial-capacity",
+        contract_version="test.v1",
+        contract_sha256="c" * 64,
+        parser_id="test.financial-parser",
+        parser_sha256="d" * 64,
+        deployment_region="test-egress",
+        publication_policy_version="3",
+        publication_policy_sha256="e" * 64,
+        isolation_attestation_sha256="f" * 64,
+    )
+    now = timezone.now()
+    checkpoint = FinancialCapacityCheckpoint(
+        workflow_id=workflow_id,
+        stage="qualification",
+        binding=binding,
+        manifest=manifest,
+        manifest_count=1,
+        manifest_sha256=_manifest_sha256(manifest),
+        source_revision_sha256="1" * 64,
+        total_provider_request_budget=2,
+        status="running",
+        next_slice_index=0,
+        reserved_provider_requests=0,
+        observed_provider_requests=0,
+        requested=0,
+        succeeded=0,
+        failed=0,
+        stored=0,
+        evidence=(),
+        evidence_count=0,
+        evidence_sha256=_empty_evidence_sha256(),
+        raw_body_count=0,
+        raw_audit_count=0,
+        typed_evidence_count=0,
+        atomic_fact_write_count=0,
+        error_codes=(),
+        started_at=now - timedelta(minutes=5),
+        run_id=str(uuid4()),
+    )
+    repository = DjangoFinancialCapacityCheckpointRepository()
+    persisted = repository.create(checkpoint)
+    if claim_state == "terminal":
+        repository.save(
+            replace(persisted, status="success", finished_at=now),
+            expected_revision=persisted.revision,
+        )
+        return
+    if claim_state in {
+        "publication_staging_indeterminate",
+        "publication_activation_indeterminate",
+    }:
+        phase = "staging" if claim_state == "publication_staging_indeterminate" else "activation"
+        repository.save(
+            replace(
+                persisted,
+                status="blocked",
+                blocked_reason=f"financial_capacity_publication_{phase}_outcome_indeterminate",
+                finished_at=now,
+            ),
+            expected_revision=persisted.revision,
+        )
+        return
+    if claim_state == "none":
+        return
+
+    expires_at = now + timedelta(minutes=5)
+    status = "running"
+    blocked_reason = None
+    finished_at = None
+    if claim_state == "expired":
+        expires_at = now - timedelta(seconds=1)
+    elif claim_state == "indeterminate_commit":
+        expires_at = now - timedelta(seconds=1)
+        status = "blocked"
+        blocked_reason = "financial_capacity_inflight_outcome_indeterminate"
+        finished_at = now
+    claimed = replace(
+        persisted,
+        status=status,
+        reserved_provider_requests=2,
+        in_flight_slice_index=0,
+        in_flight_claim_token=str(uuid4()),
+        in_flight_claim_expires_at=expires_at,
+        blocked_reason=blocked_reason,
+        finished_at=finished_at,
+    )
+    repository.save(claimed, expected_revision=persisted.revision)
+
+
+def _make_capacity_celery_app() -> SimpleNamespace:
+    """Return a complete read-only Celery evidence fixture for capacity tasks."""
+
+    queue_declare = Mock(return_value=SimpleNamespace(message_count=0))
+    channel = SimpleNamespace(queue_declare=queue_declare, close=Mock())
+    connection = SimpleNamespace(channel=Mock(return_value=channel), release=Mock())
+    inspect = SimpleNamespace(
+        ping=Mock(return_value={"worker-b@example": {"ok": "pong"}}),
+        active=Mock(return_value={"worker-b@example": []}),
+        reserved=Mock(return_value={"worker-b@example": []}),
+        scheduled=Mock(return_value={"worker-b@example": []}),
+    )
+    return SimpleNamespace(
+        conf=SimpleNamespace(
+            broker_transport_options={"visibility_timeout": _VISIBILITY_SECONDS},
+            task_queues=(SimpleNamespace(name="celery"),),
+            task_time_limit=None,
+        ),
+        tasks={_FINANCIAL_CAPACITY_TASK_NAME: SimpleNamespace(time_limit=3_600)},
+        connection_for_read=Mock(return_value=connection),
+        control=SimpleNamespace(inspect=Mock(return_value=inspect)),
+        backend=SimpleNamespace(get_task_meta=Mock(return_value={"status": "PENDING"})),
     )
 
 
@@ -465,6 +610,71 @@ def test_financial_domain_lease_is_checked_against_exact_workflow_owner(
     )
     safe_evidence = evidence.to_safe_dict(record=record, snapshot=_make_snapshot())
     assert "workflow-current" not in json.dumps(safe_evidence)
+
+
+@pytest.mark.parametrize(
+    ("checkpoint_state", "expected_lease_state", "expected_timed_out_count"),
+    [
+        ("active", TaskOrphanLeaseState.ACTIVE, 0),
+        ("missing", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("none", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("expired", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("indeterminate_commit", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("publication_staging_indeterminate", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("publication_activation_indeterminate", TaskOrphanLeaseState.UNKNOWN, 0),
+        ("terminal", TaskOrphanLeaseState.ABSENT, 1),
+    ],
+)
+def test_financial_capacity_checkpoint_lease_gates_orphan_timeout(
+    db,
+    checkpoint_state: str,
+    expected_lease_state: TaskOrphanLeaseState,
+    expected_timed_out_count: int,
+) -> None:
+    """Only a valid active claim or uncertain checkpoint state defers timeout."""
+
+    from apps.data_center.infrastructure.task_monitor_lease_probe import (
+        DjangoDataCenterTaskLeaseProbe,
+    )
+
+    workflow_id = f"capacity-{checkpoint_state}"
+    if checkpoint_state != "missing":
+        _create_financial_capacity_checkpoint(
+            workflow_id,
+            claim_state=checkpoint_state,
+        )
+    task_kwargs = {"action": "qualification_run", "workflow_id": workflow_id}
+    row = _create_record(
+        task_name=_FINANCIAL_CAPACITY_TASK_NAME,
+        task_kwargs=task_kwargs,
+        started_at=timezone.now() - timedelta(hours=4),
+    )
+    record = DjangoTaskRecordRepository().list_orphan_reconciliation_candidates(limit=1)[0]
+    celery_provider = CeleryTaskOrphanEvidenceProvider(
+        celery_app=_make_capacity_celery_app(),
+        domain_lease_probes=(DjangoDataCenterTaskLeaseProbe(),),
+    )
+    snapshot = celery_provider.capture_cluster_snapshot()
+    evidence = celery_provider.get_attempt_evidence(record, snapshot=snapshot)
+
+    assert evidence.lease_state is expected_lease_state
+    assert _FINANCIAL_CAPACITY_TASK_NAME == record.task_name
+    result = _run_reconciliation(_EvidenceProvider(snapshot, evidence))
+
+    row.refresh_from_db()
+    assert result.timed_out_count == expected_timed_out_count
+    if expected_timed_out_count:
+        assert row.status == TaskStatus.TIMEOUT.value
+        assert row.exception == "TASK_ORPHAN_TIMEOUT"
+        payload = json.loads(row.result or "{}")
+        assert payload["error_code"] == "TASK_ORPHAN_TIMEOUT"
+        assert payload["requested"] is None
+        assert payload["succeeded"] is None
+        assert payload["failed"] is None
+        assert payload["stored"] is None
+        assert payload["counts_unavailable"] is True
+    else:
+        assert row.status == TaskStatus.STARTED.value
 
 
 @pytest.mark.parametrize("workflow_id", [None, 7, "", "bad workflow", "x" * 65])

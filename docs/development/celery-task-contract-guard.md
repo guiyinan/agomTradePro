@@ -117,6 +117,8 @@ Interface Serializer 可重复提供更友好的 HTTP 错误，但不能作为�
 
 候选记录的原 worker 必须不在当前 worker 响应集合内；任务专属 domain lease 必须明确 absent，cache 不可用或 owner 输入缺失时保留原行。金融续批 lease 按记录中的 `workflow_id` 精确查验；全市场刷新检查 task-wide lease key。无 domain lease 声明的任务记录为 `not_required`。任何运行中、排队中、ready queue 非空、证据不完整或第 1 次以外的尝试都不做状态转换。
 
+`data_center.refresh_financial_publication_capacity` 使用持久 workflow checkpoint 作为只读 domain lease 真源。完整且未过期的 in-flight slice claim 是 `active`；checkpoint 缺失或不可读、running 状态缺少 claim、claim 过期/不完整，以及任一 `*_outcome_indeterminate` 状态都为 `unknown`，必须保留 Task Monitor 原行。只有校验通过、没有 claim 且带有效完成时间的 workflow 终态 checkpoint 才是 `absent`。此规则不改变兼容任务 `data_center.refresh_financial_publications_batch` 的精确 cache owner 检查。
+
 最终写入使用单条条件更新，同时匹配原 `status=started` 和 `attempt_id`。终态事件或新尝试先到时，CAS 失败。只有确认 orphan 后才写 `timeout`、稳定码 `TASK_ORPHAN_TIMEOUT` 和 `task_monitor_orphan_v1` 安全证据；证据不含任务参数、结果、worker 名称或 lease owner。超时结果保留规范 `outcome=failed`，`requested/succeeded/failed/stored` 均为 `null` 并标记 `counts_unavailable=true`，不虚构业务计数。相关反例与并发测试登记在 `governance/celery_task_contracts.json` 的 Task Monitor cleanup 覆盖说明中。
 
 ## 开发与验收命令
