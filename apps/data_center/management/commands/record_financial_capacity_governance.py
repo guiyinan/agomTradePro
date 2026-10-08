@@ -25,7 +25,7 @@ from apps.data_center.application.financial_capacity_governance import (
 from apps.data_center.infrastructure.financial_capacity_build_identity import (
     FileFinancialCapacityBuildIdentitySource,
 )
-from apps.data_center.models import FinancialCapacityGovernanceRecordModel
+from apps.data_center.infrastructure.models import FinancialCapacityGovernanceRecordModel
 
 _MAX_RECORD_BYTES = 64 * 1024
 _STAGES = ("qualification", "capacity_rehearsal", "production")
