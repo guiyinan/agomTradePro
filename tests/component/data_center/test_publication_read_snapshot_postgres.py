@@ -2646,6 +2646,7 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
         ):
             manifest_runtime.DjangoFinancialCapacityManifestSource().freeze(
                 stage="formal_publication",
+                environment="production",
                 binding=binding,
             )
 

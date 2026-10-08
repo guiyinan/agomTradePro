@@ -660,8 +660,9 @@ class AtomicFinancialPolicyV3Publisher(FinancialCapacityPublisher):
             or publication.run_id != str(intent.run_id)
             or publication.selected_source != intent.provider_key
             or publication.member_count <= 0
-            or publication.coverage.requested_count != len(asset_codes)
-            or publication.coverage.eligible_count != len(asset_codes)
+            or publication.coverage.requested_count != len(members)
+            or publication.coverage.eligible_count != len(members)
+            or publication.coverage.selected_count != len(members)
             or publication.coverage.missing_count != 0
             or len({member.source for member in members}) != 1
             or {member.source for member in members} != {intent.provider_key}
