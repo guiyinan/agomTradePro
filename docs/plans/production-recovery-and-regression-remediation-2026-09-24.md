@@ -2765,3 +2765,17 @@ TaskExecution 行级变化表述为全局静止。结论为“部分通过/仍�
 下一片是否可开始：代码、CI、fresh S6、同镜像部署、正式行情/报价/估值发布与 privileged read-only 联合 UAT 已收口。后续只允许在
 用户新授权后设计并执行生产 financial refresh；在合法普通用户会话可用后补普通用户页面主流程。两项停止线未解除前，保持两个受保护
 周期入口 disabled，不投递任何 full-market/financial refresh，也不解除 decision runtime 保护。
+
+##### 2026-10-08 普通用户生产 UAT 基线与阻断 Alpha 读取有界化整改
+
+完成项：按用户明确授权创建/重置生产普通用户 `user`，保持 `is_staff=false`、`is_superuser=false`、active，未创建 API/MCP token、未伪造协议或风险确认；该用户拥有独立模拟账户与实盘账户。使用真实普通用户浏览器会话完成登录、账户读取、Dashboard 候选到 Workspace Step 4 的动态证券/账户跳转、研究详情和阻断解释复验；Admin 明确拒绝访问，ops Task Monitor 返回 403。Workspace 对候选 `688011.SH` 正确绑定模拟账户并在正式决策链路仍阻断时展示研究详情、零建议和解释，没有自动刷新或生成建议。
+
+生产基线显示 Alpha GET 为 29.542 秒、Dashboard 为 44.838 秒、候选 Workspace 为 12.339 秒。分段只读剖析定位为四类重复成本：被 `must_not_use_for_decision` 阻断的 Alpha 仍校验 price/financial/valuation/quote 完整发布图；5,572 证券 scope 已超过 simple provider 上限却在 admission 前运行深度 health check；最新 full-market 已业务成功仍为旧失败执行三套 Publication 恢复证明；公共 meta 回传完整 5,572 个证券代码。读取窗口前后业务模型 count/digest 保持不变；新增 TaskExecution 均来自既有周期任务，没有 full-market、financial refresh、Alpha inference 或建议生成。
+
+整改提交 `c349bd5d3` 将上述四类按契约收口：阻断或通用研究结果只读取 canonical asset master，决策可用结果仍保留完整 Publication/quote 校验；simple provider 用既有同步 pool ceiling 在 health I/O 前拒绝不支持 scope；只有最新 full-market 终态是失败/部分完成时才执行 Publication 恢复证明；公共 scope metadata 只保留 pool size/hash/universe 等摘要，任务、缓存与持久化仍使用完整 scope。完整 stock context 仅在本地主数据 name/sector/market 全缺失时逐资产 fallback，未放宽 freshness、coverage、source、audit 或 `SIGNAL_WEAK=0.6000`。
+
+测试计数：相关 Alpha provider/domain、Dashboard runtime/repository/refresh notice/read-only 契约共 `116 passed`；格式化后的核心子集复跑 `73 passed`。9 个生产文件增量 mypy 为 `0 regression`，补充 gateway 增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、governance consistency `0 violation`、module map `44/210` 均通过。Data Center entrypoint 唯一生成器仍为 `1,298` 条、architecture inventory 保持 `5,392/48/65/56/5`，本次生产代码行移动没有产生治理投影差异，证明稳定语义整改已覆盖本次场景。
+
+未验证风险与停止线：`c349bd5d3` 尚未 push、未绑定 exact-SHA 五组 CI，未经过 fresh S6、同 SHA 镜像部署和部署后普通用户延迟复测；当前只能证明本地契约与生产慢路径根因。静态资源 `echarts.min.js`、`mermaid.min.js` 曾出现 `ERR_CONNECTION_CLOSED`，需在部署后浏览器 UAT 复测。Financial current publication 仍为 legacy policy 且全市场容量没有合格证据；N<=1/2N<=2 不能外推，禁止生产 financial refresh、伪造 owner approval 或解除 decision runtime。full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个周期入口保持 disabled。
+
+下一片是否可开始：可以提交本节台账并 push 新 HEAD，启动五组 exact-SHA CI。五组全绿且固定 PostgreSQL artifact 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止 `--resume`；S6 与 release validator 通过后只部署 receipt 绑定镜像，再用同一普通用户复测 Alpha GET、Dashboard、候选 Workspace、权限隔离、静态资源与零副作用。
