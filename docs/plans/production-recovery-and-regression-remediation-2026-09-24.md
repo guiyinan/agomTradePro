@@ -3050,3 +3050,33 @@ Publication PostgreSQL 虽通过，也不能作为新 SHA 证据。fresh S6、�
 
 下一片是否可开始：可以提交台账并 push，以新 HEAD 从头绑定五组 CI；只有同一 SHA 五组全绿并核验 Publication PostgreSQL artifact
 固定节点零跳过/零失败后，才可准备新的 disposable database 和 fresh S6 attempt。
+
+##### 2026-10-09 S6 隔离迁移数据库地址类型契约整改
+
+完成项：候选 `271151cd02408cd3855c5d7fbce7ae1f37efe53c` 的五组 exact-SHA CI 与 Publication PostgreSQL 固定
+节点已全部通过；fresh S6 attempt `d34c9831322f4b23ba72506d1f0d9ca6` 完成候选镜像构建、镜像 revision、环境 preflight 后，
+在 `isolated_database_migrations` 阶段于任何候选 migration 执行前 fail closed。安全诊断和隔离 PostgreSQL 只读查询确认 Docker
+identity 为 `172.19.0.2`，而 `SELECT inet_server_addr()::text` 返回 PostgreSQL `inet` 的 CIDR 文本 `172.19.0.2/32`；
+严格 `ipaddress.ip_address()` 因而正确拒绝，但查询端违反了既定的纯 host address 类型契约。数据库中 `data_center.0090`–`0093`
+迁移记录为 0，失败 attempt 的 unknown-commit marker、runner 状态和证据均保留，禁止 resume 或复用其镜像/receipt。
+
+提交 `2aa13fdc1` 将 migration helper 改为 PostgreSQL 原生 `host(inet_server_addr())`，仍由 Python 严格解析单 IP 并逐项比对 Docker
+地址和端口；没有在 Python 中裁剪前缀，也没有放宽 database name/host/container/role/command/opt-in 校验。单元反例覆盖 CIDR、地址
+不一致、端口不一致，以及 scope 失败时不得读取 migration state、不得调用 migrate、不得生成结果文件。现有 Publication PostgreSQL
+必需节点 `test_connected_database_identity_returns_real_postgres_address_without_cidr` 同时调用真实 migration helper，避免只由 fake cursor
+证明 PostgreSQL 类型语义，也没有新增第二套 REQUIRED test identity 或改变固定 JUnit 节点数。
+
+测试计数：migration/role/runner/validator/collector 聚焦回归 `278 passed / 3 skipped`；3 个 skip 为本地 Windows 缺少 Linux
+Docker/PostgreSQL 的既有环境门禁。真实 PostgreSQL 节点本地按约定 `1 skipped`，必须由新 Publication PostgreSQL CI 实证。
+生产文件增量 mypy `0 regressions`，全仓 debt ceiling `0 errors`；Black、isort、Ruff、module map `44/210`、current-data
+`73 surfaces`、Celery contracts `95 tasks / 21 exemptions / 24 governed files`、Data Center entrypoint 唯一投影 `1,306 entries`
+和 `git diff --check` 全部通过，治理投影无差异。
+
+未验证风险与停止线：修复后的真实 PostgreSQL migration helper、0090–0093 隔离迁移、后续十阶段与 release validator 尚未由新
+exact-SHA CI/fresh S6 证明。失败 attempt 必须保留诊断并删除其 disposable runtime 后再创建全新 attempt；不得 `--resume`、复用旧
+receipt/image 或重跑旧 CI。生产 full-market 任务禁止重跑，两个周期入口保持 disabled；production financial refresh 仍需 full-scope
+capacity receipt、独立 owner approval 和用户新的明确授权，不得由本次迁移修复越过。
+
+下一片是否可开始：可以提交本节台账、push 最终 SHA，并从头运行 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。五组同 SHA 全绿且固定 PostgreSQL 节点零跳过/零失败后，才可从最新生产只读快照创建新的 disposable
+PostgreSQL/Redis 和 fresh S6 attempt；完整通过后只能部署 receipt 绑定的同 SHA 预构建镜像，再执行只读 UAT。
