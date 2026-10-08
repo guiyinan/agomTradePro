@@ -453,7 +453,7 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
   compose_vps exec -T web sh scripts/publish-tui-release.sh "$release_name"
 
   log_info "Running cold-start bootstrap"
-  compose_vps exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
+  compose_vps exec -T web python manage.py bootstrap_cold_start --preserve-protected-schedules-disabled --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
 
   log_info "Ensuring macro periodic tasks"
   if ! compose_vps exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then

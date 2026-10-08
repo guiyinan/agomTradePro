@@ -29,9 +29,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Create/update all defaults but mark them disabled.",
         )
+        parser.add_argument(
+            "--preserve-protected-disabled",
+            action="store_true",
+            help=(
+                "Keep full-market and financial publication schedules disabled while "
+                "initializing other scheduler defaults normally."
+            ),
+        )
 
     def handle(self, *args: str, **options: Any) -> None:
         disable = bool(options.get("disable"))
+        preserve_protected_disabled = bool(options.get("preserve_protected_disabled"))
         executed: list[str] = []
         outputs: list[str] = []
         current_command = ""
@@ -45,7 +54,10 @@ class Command(BaseCommand):
                         "stdout": buffer,
                         "stderr": buffer,
                     }
-                    if disable:
+                    if disable or (
+                        preserve_protected_disabled
+                        and command_name == "setup_full_market_publications"
+                    ):
                         kwargs["disable"] = True
                     call_command(command_name, **kwargs)
                     executed.append(command_name)
@@ -62,7 +74,11 @@ class Command(BaseCommand):
         for output in outputs:
             self.stdout.write(output)
 
-        status = "disabled" if disable else "enabled"
+        status = (
+            "disabled"
+            if disable
+            else "protected-disabled" if preserve_protected_disabled else "enabled"
+        )
         self.stdout.write(
             self.style.SUCCESS(f"Scheduler defaults initialized ({status}): {', '.join(executed)}")
         )

@@ -2004,6 +2004,29 @@ def test_remote_deploy_runs_static_checks_in_background_with_explicit_wait() -> 
     assert script.index(gate) < script.index(publish)
 
 
+def test_remote_deploy_bootstrap_preserves_protected_publication_stop_lines() -> None:
+    """Deployment repair may create defaults but must keep both refresh schedules disabled."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+
+    assert (
+        'BOOTSTRAP_CMD="python manage.py bootstrap_cold_start '
+        '--preserve-protected-schedules-disabled"'
+    ) in script
+
+    project_root = Path(__file__).resolve().parents[2]
+    shell_bundle_deploy = (project_root / "scripts" / "deploy-on-vps.sh").read_text(
+        encoding="utf-8"
+    )
+    powershell_bundle_deploy = (project_root / "scripts" / "deploy-on-vps.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    protected_flag = "--preserve-protected-schedules-disabled"
+    assert protected_flag in shell_bundle_deploy
+    assert protected_flag in powershell_bundle_deploy
+
+
 def test_built_image_download_overlaps_deploy_and_is_joined_before_cleanup() -> None:
     """The image tar download runs on a thread during the deploy and joins before cleanup."""
 

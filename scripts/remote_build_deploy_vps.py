@@ -2970,7 +2970,7 @@ fi
 
 BOOTSTRAP_ALPHA="${AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA:-0}"
 BOOTSTRAP_DECISION_REPAIR="${AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR:-0}"
-BOOTSTRAP_CMD="python manage.py bootstrap_cold_start"
+BOOTSTRAP_CMD="python manage.py bootstrap_cold_start --preserve-protected-schedules-disabled"
 if [ "$BOOTSTRAP_ALPHA" = "1" ]; then
   BOOTSTRAP_CMD="$BOOTSTRAP_CMD --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
 fi

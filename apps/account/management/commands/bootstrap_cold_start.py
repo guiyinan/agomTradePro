@@ -106,12 +106,26 @@ class Command(BaseCommand):
             default="auto",
             help="Environment to use for init_decision_model_params.",
         )
+        parser.add_argument(
+            "--preserve-protected-schedules-disabled",
+            action="store_true",
+            help=(
+                "Create or repair scheduler defaults while keeping full-market and "
+                "financial publication schedules disabled."
+            ),
+        )
 
     def handle(self, *args: object, **options: Any) -> None:
         decision_env = self._resolve_decision_env(str(options.get("decision_env", "")))
         self.stdout.write(self.style.SUCCESS("Cold-start bootstrap begin"))
 
-        steps = self._build_steps(decision_env)
+        preserve_protected_schedules_disabled = bool(
+            options.get("preserve_protected_schedules_disabled")
+        )
+        steps = self._build_steps(
+            decision_env,
+            preserve_protected_schedules_disabled=preserve_protected_schedules_disabled,
+        )
 
         applied = 0
         skipped = 0
@@ -174,7 +188,12 @@ class Command(BaseCommand):
             )
         )
 
-    def _build_steps(self, decision_env: str) -> list[BootstrapStep]:
+    def _build_steps(
+        self,
+        decision_env: str,
+        *,
+        preserve_protected_schedules_disabled: bool = False,
+    ) -> list[BootstrapStep]:
         """Build the ordered, inspectable cold-start configuration plan."""
 
         return [
@@ -231,8 +250,13 @@ class Command(BaseCommand):
             ),
             BootstrapStep(
                 name="scheduler_defaults",
-                check=self._scheduler_defaults_ready,
-                run=lambda: self._run_command("init_scheduler_defaults"),
+                check=lambda: self._scheduler_defaults_ready(
+                    require_protected_disabled=preserve_protected_schedules_disabled
+                ),
+                run=lambda: self._run_command(
+                    "init_scheduler_defaults",
+                    preserve_protected_disabled=preserve_protected_schedules_disabled,
+                ),
             ),
             BootstrapStep(
                 name="policy_sentiment_gate_defaults",
@@ -377,7 +401,9 @@ class Command(BaseCommand):
             return True
         return PositionManagementRuleModel._default_manager.exists()
 
-    def _scheduler_defaults_ready(self) -> bool:
+    def _scheduler_defaults_ready(self, *, require_protected_disabled: bool = False) -> bool:
+        """Check scheduler coverage and optional protected-publication stop lines."""
+
         periodic_task_model = django_apps.get_model("django_celery_beat", "PeriodicTask")
         existing_names = set(periodic_task_model._default_manager.values_list("name", flat=True))
         expected_names = {
@@ -398,7 +424,19 @@ class Command(BaseCommand):
             "personal-readiness-daily-evidence",
             "sentiment-refresh-current-index",
         }
-        return expected_names.issubset(existing_names)
+        if not expected_names.issubset(existing_names):
+            return False
+        if not require_protected_disabled:
+            return True
+        protected_names = {
+            "full-market-current-publications",
+            "financial-current-publication-refresh",
+        }
+        protected_rows = periodic_task_model._default_manager.filter(
+            name__in=protected_names
+        ).values_list("name", "enabled")
+        protected_state = {str(name): bool(enabled) for name, enabled in protected_rows}
+        return protected_state == dict.fromkeys(protected_names, False)
 
     def _policy_sentiment_gate_defaults_ready(self) -> bool:
         """Return whether the canonical all-assets gate row has been initialized."""

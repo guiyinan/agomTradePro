@@ -77,6 +77,110 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
     ]
 
 
+def test_init_scheduler_defaults_preserves_protected_publications_disabled(monkeypatch):
+    calls = []
+
+    class _Atomic:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, traceback):
+            return None
+
+    def _fake_call_command(command_name, **kwargs):
+        calls.append((command_name, kwargs.get("disable", False)))
+
+    monkeypatch.setattr(
+        "apps.task_monitor.management.commands.init_scheduler_defaults.call_command",
+        _fake_call_command,
+    )
+    monkeypatch.setattr(
+        "apps.task_monitor.management.commands.init_scheduler_defaults.transaction.atomic",
+        lambda: _Atomic(),
+    )
+
+    command = InitSchedulerDefaultsCommand()
+    command.stdout = StringIO()
+    command.handle(preserve_protected_disabled=True)
+
+    assert calls == [
+        (name, name == "setup_full_market_publications")
+        for name in (
+            "setup_macro_daily_sync",
+            "setup_equity_valuation_sync",
+            "setup_full_market_publications",
+            "setup_decision_quote_refresh",
+            "setup_workspace_snapshot_refresh",
+            "setup_account_risk_tasks",
+            "setup_auto_advisor_weekly_report",
+            "setup_personal_readiness_daily",
+            "setup_sentiment_refresh",
+        )
+    ]
+    assert "protected-disabled" in command.stdout.getvalue()
+
+
+def test_bootstrap_scheduler_step_forwards_protected_stop_line(monkeypatch):
+    """Cold-start planning forwards the protected schedule mode to check and repair."""
+
+    checks = []
+    calls = []
+    command = BootstrapColdStartCommand()
+    monkeypatch.setattr(
+        command,
+        "_scheduler_defaults_ready",
+        lambda *, require_protected_disabled=False: checks.append(require_protected_disabled)
+        or False,
+    )
+    monkeypatch.setattr(
+        command,
+        "_run_command",
+        lambda name, **kwargs: calls.append((name, kwargs)),
+    )
+
+    scheduler_step = next(
+        step
+        for step in command._build_steps("prod", preserve_protected_schedules_disabled=True)
+        if step.name == "scheduler_defaults"
+    )
+
+    assert scheduler_step.check() is False
+    scheduler_step.run()
+    assert checks == [True]
+    assert calls == [("init_scheduler_defaults", {"preserve_protected_disabled": True})]
+
+
+@pytest.mark.django_db
+def test_init_scheduler_defaults_repairs_protected_rows_disabled_end_to_end(monkeypatch):
+    """The real command chain creates and repairs both protected rows as disabled."""
+
+    monkeypatch.setattr(
+        "apps.task_monitor.management.commands.init_scheduler_defaults.SCHEDULER_COMMANDS",
+        ("setup_full_market_publications",),
+    )
+
+    call_command("init_scheduler_defaults", preserve_protected_disabled=True)
+
+    protected_names = {
+        "full-market-current-publications",
+        "financial-current-publication-refresh",
+    }
+    protected_state = dict(
+        PeriodicTask.objects.filter(name__in=protected_names).values_list("name", "enabled")
+    )
+    assert protected_state == dict.fromkeys(protected_names, False)
+
+    PeriodicTask.objects.filter(name="full-market-current-publications").update(enabled=True)
+    PeriodicTask.objects.filter(name="financial-current-publication-refresh").delete()
+
+    call_command("init_scheduler_defaults", preserve_protected_disabled=True)
+
+    repaired_state = dict(
+        PeriodicTask.objects.filter(name__in=protected_names).values_list("name", "enabled")
+    )
+    assert repaired_state == dict.fromkeys(protected_names, False)
+
+
 def test_init_scheduler_defaults_rolls_back_on_subcommand_failure(monkeypatch):
     calls = []
     atomic_events = []
@@ -466,6 +570,61 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
     command = BootstrapColdStartCommand()
 
     assert command._scheduler_defaults_ready() is True
+
+
+def test_bootstrap_cold_start_requires_both_protected_schedules_disabled(monkeypatch):
+    default_names = {
+        "daily-sync-and-calculate",
+        "check-data-freshness",
+        "high-frequency-generate-signal",
+        "high-frequency-recalculate-regime",
+        "equity-valuation-daily-sync",
+        "equity-valuation-quality-validate",
+        "equity-valuation-freshness-check",
+        "decision-quote-intraday-refresh",
+        "decision-quote-post-close-refresh",
+        "decision-quote-pre-readiness-refresh",
+        "decision-quote-freshness-check",
+        "decision-workspace-nightly-snapshot-refresh",
+        "account-check-stop-loss-take-profit-intraday",
+        "dashboard-auto-advisor-weekly-report",
+        "personal-readiness-daily-evidence",
+        "sentiment-refresh-current-index",
+    }
+
+    class _Query:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def values_list(self, *args, **kwargs):
+            return self.rows
+
+    class _Manager:
+        protected_rows = [
+            ("full-market-current-publications", False),
+            ("financial-current-publication-refresh", False),
+        ]
+
+        @classmethod
+        def values_list(cls, *args, **kwargs):
+            return list(default_names) + [name for name, _enabled in cls.protected_rows]
+
+        @classmethod
+        def filter(cls, **kwargs):
+            return _Query(cls.protected_rows)
+
+    class _PeriodicTaskModel:
+        _default_manager = _Manager()
+
+    monkeypatch.setattr(
+        "apps.account.management.commands.bootstrap_cold_start.django_apps.get_model",
+        lambda app_label, model_name: _PeriodicTaskModel,
+    )
+    command = BootstrapColdStartCommand()
+
+    assert command._scheduler_defaults_ready(require_protected_disabled=True) is True
+    _Manager.protected_rows[0] = ("full-market-current-publications", True)
+    assert command._scheduler_defaults_ready(require_protected_disabled=True) is False
 
 
 def test_bootstrap_cold_start_detects_authoritative_rss_sources_ready(monkeypatch):
