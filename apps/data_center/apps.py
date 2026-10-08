@@ -47,6 +47,9 @@ class DataCenterConfig(AppConfig):
             configure_r1_evaluation_actual_repository_factory,
         )
         from core.integration.r3_owner_evidence import configure_r3_pit_projection_factory
+        from core.integration.task_lease_probe_registry import (
+            register_domain_task_lease_probe,
+        )
 
         configure_data_center_read_port(build_data_center_read_facade())
         get_asset_analysis_market_registry().register_name_resolver(
@@ -73,6 +76,14 @@ class DataCenterConfig(AppConfig):
 
         configure_r1_evaluation_actual_repository_factory(
             lambda using: DjangoEvaluationActualRepository(using=using)
+        )
+        from apps.data_center.infrastructure.task_monitor_lease_probe import (
+            DjangoDataCenterTaskLeaseProbe,
+        )
+
+        register_domain_task_lease_probe(
+            "data_center",
+            DjangoDataCenterTaskLeaseProbe(),
         )
         from apps.data_center.application.pit_provider import configure_pit_providers
 
