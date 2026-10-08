@@ -354,20 +354,46 @@ def test_collector_report_satisfies_bundle_identity_contract(
         artifact.write_text(json.dumps({"kind": kind}), encoding="utf-8")
         artifact_digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
         report_path = report_dir / "report.json"
-        report_payload: dict[str, object] = {
-            "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
-            "kind": kind,
-            "outcome": "success",
-            "candidate_sha": CANDIDATE_SHA,
-            "candidate_image_id": IMAGE_ID,
-            "target_trade_date": "2026-09-25",
-            "universe_sha256": UNIVERSE_SHA,
-            "provider_identities_sha256": PROVIDER_DIGEST,
-            "artifact": {
-                "path": artifact.name,
-                "sha256": artifact_digest,
-            },
-        }
+        if kind == "isolated_database_migrations":
+            report_payload = {
+                "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
+                "kind": kind,
+                "outcome": "success",
+                "candidate_sha": CANDIDATE_SHA,
+                "candidate_source_attestation": "image_release_manifest",
+                "candidate_image_id": IMAGE_ID,
+                "target_trade_date": "2026-09-25",
+                "universe_sha256": UNIVERSE_SHA,
+                "provider_identities_sha256": PROVIDER_DIGEST,
+                "evidence_mode": "isolated_postgresql_migrations",
+                "started_at": "2026-09-25T01:00:00+00:00",
+                "finished_at": "2026-09-25T01:01:00+00:00",
+                "database_name": "agom_release_rehearsal_collector",
+                "database_host": "agom-s6-postgres-collector",
+                "database_address": "172.18.0.2",
+                "database_port": 5432,
+                "database_container_id": "d" * 64,
+                "migration_command": ("python -m scripts.manage_vps_migrations migrate --noinput"),
+                "migrator_database_role": "agomtradepro_migrator",
+                "pending_before": [],
+                "pending_after": [],
+                "applied_migrations": [],
+            }
+        else:
+            report_payload = {
+                "schema": BUNDLE_REQUIRED_SCHEMAS[kind],
+                "kind": kind,
+                "outcome": "success",
+                "candidate_sha": CANDIDATE_SHA,
+                "candidate_image_id": IMAGE_ID,
+                "target_trade_date": "2026-09-25",
+                "universe_sha256": UNIVERSE_SHA,
+                "provider_identities_sha256": PROVIDER_DIGEST,
+                "artifact": {
+                    "path": artifact.name,
+                    "sha256": artifact_digest,
+                },
+            }
         if kind == "production_policy_parity":
             report_payload.update(
                 {
