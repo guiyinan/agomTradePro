@@ -62,6 +62,142 @@ _RUNTIME_SOURCE_PERMISSION_NORMALIZER = r"""normalize_runtime_source_permissions
 }
 normalize_runtime_source_permissions
 """
+_DOCKER_BUILD_PREFLIGHT = r"""docker_builder_preflight() {
+  if [ "${DOCKER_BUILDER_MODE:-}" != "legacy" ] ||
+     [ "${DOCKER_DAEMON_ENDPOINT:-}" != "unix:///var/run/docker.sock" ] ||
+     [ -z "${DOCKER_MINIMUM_CLIENT_VERSION:-}" ] ||
+     [ -z "${DOCKER_MAXIMUM_CLIENT_VERSION_EXCLUSIVE:-}" ] ||
+     [ -z "${DOCKER_MINIMUM_SERVER_VERSION:-}" ] ||
+     [ -z "${DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS:-}" ] ||
+     [ -n "${DOCKER_HOST:-}" ] || [ -n "${DOCKER_CONTEXT:-}" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  DOCKER_CONTEXT_NAME="$(docker context show 2>/dev/null || true)"
+  if [ "$DOCKER_CONTEXT_NAME" != "default" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+  DOCKER_CONTEXT_ENDPOINT="$(docker context inspect default --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+  if [ "$DOCKER_CONTEXT_ENDPOINT" != "$DOCKER_DAEMON_ENDPOINT" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  DOCKER_CLIENT_VERSION="$(docker --context default version --format '{{.Client.Version}}' 2>/dev/null || true)"
+  DOCKER_SERVER_VERSION="$(docker --context default version --format '{{.Server.Version}}' 2>/dev/null || true)"
+  if ! python3 - "$DOCKER_CLIENT_VERSION" "$DOCKER_SERVER_VERSION" \
+    "$DOCKER_MINIMUM_CLIENT_VERSION" "$DOCKER_MAXIMUM_CLIENT_VERSION_EXCLUSIVE" \
+    "$DOCKER_MINIMUM_SERVER_VERSION" "$DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS" <<'PY'
+import re
+import sys
+
+def parse_version(value):
+    match = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)", value)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+client, server, minimum_client, maximum_client, minimum_server = (
+    parse_version(value) for value in sys.argv[1:6]
+)
+vulnerable = tuple(filter(None, sys.argv[6].split(",")))
+if (
+    client is None
+    or server is None
+    or minimum_client is None
+    or maximum_client is None
+    or minimum_server is None
+    or not minimum_client <= client < maximum_client
+    or server < minimum_server
+    or sys.argv[2] in vulnerable
+):
+    raise SystemExit(1)
+PY
+  then
+    echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  export DOCKER_CLIENT_VERSION DOCKER_SERVER_VERSION
+  echo "[INFO] Docker builder preflight passed"
+}
+docker_builder_preflight
+docker_target() { docker --context default "$@"; }
+"""
+
+
+_DOCKER_ENGINE_PREFLIGHT = r"""docker_engine_preflight() {
+  if [ "${DOCKER_DAEMON_ENDPOINT:-}" != "unix:///var/run/docker.sock" ] ||
+     [ -z "${DOCKER_MINIMUM_SERVER_VERSION:-}" ] ||
+     [ -z "${DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS:-}" ] ||
+     [ -n "${DOCKER_HOST:-}" ] || [ -n "${DOCKER_CONTEXT:-}" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  DOCKER_CONTEXT_NAME="$(docker context show 2>/dev/null || true)"
+  if [ "$DOCKER_CONTEXT_NAME" != "default" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+  DOCKER_CONTEXT_ENDPOINT="$(docker context inspect default --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+  if [ "$DOCKER_CONTEXT_ENDPOINT" != "$DOCKER_DAEMON_ENDPOINT" ]; then
+    echo "[ERROR] REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  DOCKER_SERVER_VERSION="$(docker --context default version --format '{{.Server.Version}}' 2>/dev/null || true)"
+  if ! python3 - "$DOCKER_SERVER_VERSION" "$DOCKER_MINIMUM_SERVER_VERSION" \
+    "$DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS" <<'PY'
+import re
+import sys
+
+def parse_version(value):
+    match = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)", value)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+server, minimum_server = (parse_version(value) for value in sys.argv[1:3])
+vulnerable = tuple(filter(None, sys.argv[3].split(",")))
+if server is None or minimum_server is None or server < minimum_server or sys.argv[1] in vulnerable:
+    raise SystemExit(1)
+PY
+  then
+    echo "[ERROR] REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" >&2
+    return 1
+  fi
+
+  export DOCKER_SERVER_VERSION
+  echo "[INFO] Docker Engine preflight passed"
+}
+docker_engine_preflight
+"""
+
+
+def _docker_build_policy_environment(policy: DockerBuildPolicy) -> dict[str, str]:
+    """Return validated, non-secret Docker policy values for the remote build shell."""
+
+    return {
+        "DOCKER_BUILDER_MODE": policy.builder_mode,
+        "DOCKER_DAEMON_ENDPOINT": policy.daemon_endpoint,
+        "DOCKER_MINIMUM_CLIENT_VERSION": policy.minimum_client_version,
+        "DOCKER_MAXIMUM_CLIENT_VERSION_EXCLUSIVE": policy.maximum_client_version_exclusive,
+        "DOCKER_MINIMUM_SERVER_VERSION": policy.minimum_server_version,
+        "DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS": ",".join(
+            policy.known_vulnerable_server_versions
+        ),
+    }
+
+
+def _docker_engine_policy_environment(policy: DockerBuildPolicy) -> dict[str, str]:
+    """Return the governed daemon target and server-version checks for deployment."""
+
+    return {
+        "DOCKER_DAEMON_ENDPOINT": policy.daemon_endpoint,
+        "DOCKER_MINIMUM_SERVER_VERSION": policy.minimum_server_version,
+        "DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS": ",".join(
+            policy.known_vulnerable_server_versions
+        ),
+    }
 
 
 def _remote_build_report_path(release_tag: str, attempt_id: str) -> str:
@@ -84,6 +220,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 _rehearsal_module = importlib.import_module("scripts.run_release_rehearsal")
 RehearsalBlocked = _rehearsal_module.RehearsalBlocked
+from shared.release_rehearsal_stage_environment import (
+    DockerBuildPolicy,
+    load_docker_build_policy,
+)
+
 verify_evidence_handoff_receipt = cast(
     Callable[[Path], dict[str, object]],
     _rehearsal_module.verify_evidence_handoff_receipt,
@@ -1371,7 +1512,7 @@ export SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_STARTED_AT
 
-command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "[ERROR] python3 is required" >&2; exit 1; }
 
@@ -1386,13 +1527,18 @@ if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
 if re.fullmatch(r"[0-9]{14}", release_tag) is None:
     raise SystemExit("[ERROR] RELEASE_TAG must be an exact 14-digit UTC deployment tag")
 PY
+__DOCKER_BUILD_PREFLIGHT__
 
 REMOTE_BASE="$(dirname "$REMOTE_TARBALL")"
 __CLAIM_ACTIVE_BUILD_MARKER__
 release_active_build_marker() {
   __RELEASE_ACTIVE_BUILD_MARKER__ >/dev/null 2>&1 || true
 }
-trap release_active_build_marker EXIT
+cleanup_remote_build() {
+  if [ -n "${BUILD_LOG:-}" ]; then rm -f "$BUILD_LOG"; fi
+  release_active_build_marker
+}
+trap cleanup_remote_build EXIT
 WORK_ROOT="$REMOTE_BASE/build-$RELEASE_TAG"
 rm -rf "$WORK_ROOT"
 mkdir -p "$WORK_ROOT"
@@ -1445,14 +1591,14 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
 fi
 
 echo "[INFO] Pruning unused AgomTradePro images before build"
-docker images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
+docker_target images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
 while IFS= read -r image_ref; do
   [ -n "$image_ref" ] || continue
-  if docker ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
+  if docker_target ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
     echo "[INFO] Keeping container-referenced image $image_ref"
     continue
   fi
-  if docker image rm "$image_ref"; then
+  if docker_target image rm "$image_ref"; then
     echo "[INFO] Removed unused project image $image_ref"
   else
     echo "[WARN] Could not remove project image $image_ref; Docker kept it protected" >&2
@@ -1473,13 +1619,28 @@ if [ "$DOCKER_BUILD_FREE_KB" -lt "$MIN_DOCKER_BUILD_FREE_KB" ]; then
 fi
 echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
 
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
+echo "[INFO] Building Docker image agomtradepro-web:$RELEASE_TAG"
+BUILD_LOG="$(mktemp /tmp/agomtradepro-docker-build.XXXXXX)"
+set -o pipefail
+if DOCKER_BUILDKIT=0 docker --context default build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" . 2>&1 | tee "$BUILD_LOG"; then
+  set +o pipefail
+else
+  BUILD_EXIT_CODE=$?
+  set +o pipefail
+  echo "[ERROR] REHEARSAL_DOCKER_BUILD_FAILED" >&2
+  exit "$BUILD_EXIT_CODE"
 fi
-docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
+if ! grep -Fq 'DEPRECATED: The legacy builder is deprecated' "$BUILD_LOG" ||
+   ! grep -Fq 'BuildKit is currently disabled' "$BUILD_LOG"; then
+  echo "[ERROR] REHEARSAL_DOCKER_BUILDER_MODE_MISMATCH" >&2
+  exit 1
+fi
+DOCKER_LEGACY_MODE_CONFIRMED=1
+export DOCKER_LEGACY_MODE_CONFIRMED
+docker_target run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
 IMAGE_TAG="agomtradepro-web:$RELEASE_TAG"
-IMAGE_ID="$(docker image inspect "$IMAGE_TAG" --format '{{.Id}}')"
-IMAGE_REVISION="$(docker image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+IMAGE_ID="$(docker_target image inspect "$IMAGE_TAG" --format '{{.Id}}')"
+IMAGE_REVISION="$(docker_target image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
 if [ "$IMAGE_REVISION" != "$SOURCE_COMMIT" ]; then
   echo "[ERROR] image OCI revision does not match source commit: image=$IMAGE_REVISION source=$SOURCE_COMMIT" >&2
   exit 1
@@ -1536,7 +1697,7 @@ manifest_path.chmod(0o444)
 PY
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
-  IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
+  IMAGE_BYTES="$(docker_target image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
   AVAIL_BYTES="$(df -Pk "$(dirname "$REMOTE_IMAGE_TAR")" | awk 'NR==2 {print $4 * 1024}')"
   HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
   REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
@@ -1546,7 +1707,7 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
   rm -f "$REMOTE_IMAGE_TAR"
-  docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
+  docker_target save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
 fi
 
 if [ -n "$PREDEPLOY_BACKUP_PID" ]; then
@@ -1572,6 +1733,13 @@ report = {
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
+    "docker_builder": {
+        "builder_mode": os.environ["DOCKER_BUILDER_MODE"],
+        "daemon_endpoint": os.environ["DOCKER_DAEMON_ENDPOINT"],
+        "client_version": os.environ["DOCKER_CLIENT_VERSION"],
+        "server_version": os.environ["DOCKER_SERVER_VERSION"],
+        "legacy_mode_confirmed": os.environ.get("DOCKER_LEGACY_MODE_CONFIRMED") == "1",
+    },
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
 }
@@ -1602,6 +1770,7 @@ echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
             "__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__",
             _RUNTIME_SOURCE_PERMISSION_NORMALIZER,
         )
+        .replace("__DOCKER_BUILD_PREFLIGHT__", _DOCKER_BUILD_PREFLIGHT)
     )
 
 
@@ -1656,7 +1825,7 @@ export EXPECTED_SOURCE_COMMIT
 BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export BUILD_STARTED_AT
 
-command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" >&2; exit 1; }
 command -v git >/dev/null 2>&1 || { echo "[ERROR] git is required" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "[ERROR] python3 is required" >&2; exit 1; }
 
@@ -1668,6 +1837,7 @@ source_commit = sys.argv[1]
 if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
     raise SystemExit("[ERROR] SOURCE_COMMIT must be an exact lowercase 40-hex Git commit")
 PY
+__DOCKER_BUILD_PREFLIGHT__
 
 RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 rm -rf "$RELEASE_DIR"
@@ -1728,15 +1898,21 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
   sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
 fi
 
+BUILD_LOG=""
+cleanup_build_log() {
+  if [ -n "${BUILD_LOG:-}" ]; then rm -f "$BUILD_LOG"; fi
+}
+trap cleanup_build_log EXIT
+
 echo "[INFO] Pruning unused AgomTradePro images before build"
-docker images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
+docker_target images --filter 'reference=agomtradepro-web:*' --format '{{.Repository}}:{{.Tag}}' |
 while IFS= read -r image_ref; do
   [ -n "$image_ref" ] || continue
-  if docker ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
+  if docker_target ps -a --format '{{.Image}}' | grep -Fqx "$image_ref"; then
     echo "[INFO] Keeping container-referenced image $image_ref"
     continue
   fi
-  if docker image rm "$image_ref"; then
+  if docker_target image rm "$image_ref"; then
     echo "[INFO] Removed unused project image $image_ref"
   else
     echo "[WARN] Could not remove project image $image_ref; Docker kept it protected" >&2
@@ -1758,13 +1934,30 @@ fi
 echo "[INFO] Docker build headroom: ${DOCKER_BUILD_FREE_KB} KiB available"
 
 echo "[INFO] Building Docker image agomtradepro-web:$RELEASE_TAG"
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
+BUILD_LOG="$(mktemp /tmp/agomtradepro-docker-build.XXXXXX)"
+set -o pipefail
+if DOCKER_BUILDKIT=0 docker --context default build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" . 2>&1 | tee "$BUILD_LOG"; then
+  set +o pipefail
+else
+  BUILD_EXIT_CODE=$?
+  set +o pipefail
+  rm -f "$BUILD_LOG"
+  echo "[ERROR] REHEARSAL_DOCKER_BUILD_FAILED" >&2
+  exit "$BUILD_EXIT_CODE"
 fi
-docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
+if ! grep -Fq 'DEPRECATED: The legacy builder is deprecated' "$BUILD_LOG" ||
+   ! grep -Fq 'BuildKit is currently disabled' "$BUILD_LOG"; then
+  rm -f "$BUILD_LOG"
+  echo "[ERROR] REHEARSAL_DOCKER_BUILDER_MODE_MISMATCH" >&2
+  exit 1
+fi
+rm -f "$BUILD_LOG"
+DOCKER_LEGACY_MODE_CONFIRMED=1
+export DOCKER_LEGACY_MODE_CONFIRMED
+docker_target run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
 IMAGE_TAG="agomtradepro-web:$RELEASE_TAG"
-IMAGE_ID="$(docker image inspect "$IMAGE_TAG" --format '{{.Id}}')"
-IMAGE_REVISION="$(docker image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+IMAGE_ID="$(docker_target image inspect "$IMAGE_TAG" --format '{{.Id}}')"
+IMAGE_REVISION="$(docker_target image inspect "$IMAGE_TAG" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
 if [ "$IMAGE_REVISION" != "$SOURCE_COMMIT" ]; then
   echo "[ERROR] image OCI revision does not match source commit: image=$IMAGE_REVISION source=$SOURCE_COMMIT" >&2
   exit 1
@@ -1821,7 +2014,7 @@ manifest_path.chmod(0o444)
 PY
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
-  IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
+  IMAGE_BYTES="$(docker_target image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
   AVAIL_BYTES="$(df -Pk "$(dirname "$REMOTE_IMAGE_TAR")" | awk 'NR==2 {print $4 * 1024}')"
   HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
   REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
@@ -1831,7 +2024,7 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
   rm -f "$REMOTE_IMAGE_TAR"
-  docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
+  docker_target save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
 fi
 
 if [ -n "$PREDEPLOY_BACKUP_PID" ]; then
@@ -1857,6 +2050,13 @@ report = {
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
+    "docker_builder": {
+        "builder_mode": os.environ["DOCKER_BUILDER_MODE"],
+        "daemon_endpoint": os.environ["DOCKER_DAEMON_ENDPOINT"],
+        "client_version": os.environ["DOCKER_CLIENT_VERSION"],
+        "server_version": os.environ["DOCKER_SERVER_VERSION"],
+        "legacy_mode_confirmed": os.environ.get("DOCKER_LEGACY_MODE_CONFIRMED") == "1",
+    },
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
     "git_repo": os.environ.get("GIT_REPO", ""),
@@ -1872,7 +2072,7 @@ echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """.replace(
         "__NORMALIZE_RUNTIME_SOURCE_PERMISSIONS__",
         _RUNTIME_SOURCE_PERMISSION_NORMALIZER,
-    )
+    ).replace("__DOCKER_BUILD_PREFLIGHT__", _DOCKER_BUILD_PREFLIGHT)
 
 
 def _build_remote_deploy_script() -> str:
@@ -1898,7 +2098,8 @@ PRESERVE_DATA_CENTER_CATALOG="${PRESERVE_DATA_CENTER_CATALOG:-0}"
 RELEASE_REHEARSAL_SHA256="${RELEASE_REHEARSAL_SHA256:?missing RELEASE_REHEARSAL_SHA256}"
 REHEARSAL_IMAGE_ID="${REHEARSAL_IMAGE_ID:?missing REHEARSAL_IMAGE_ID}"
 
-command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "[ERROR] REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" >&2; exit 1; }
+__DOCKER_ENGINE_PREFLIGHT__
 if docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -3001,7 +3202,7 @@ fi
 DEPLOY_SUCCEEDED=1
 [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
 echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
-"""
+""".replace("__DOCKER_ENGINE_PREFLIGHT__", _DOCKER_ENGINE_PREFLIGHT)
 
 
 def main() -> int:
@@ -3134,6 +3335,16 @@ def main() -> int:
                 )
         except ValueError as exc:
             _die(str(exc))
+    try:
+        docker_build_policy = load_docker_build_policy(
+            project_root / "governance" / "release_rehearsal_policy.json"
+        )
+    except ValueError:
+        _die("REHEARSAL_DOCKER_BUILDER_POLICY_INVALID")
+    docker_engine_environment = _docker_engine_policy_environment(docker_build_policy)
+    docker_build_environment = (
+        {} if prebuilt else _docker_build_policy_environment(docker_build_policy)
+    )
     if not args.git_clone:
         try:
             worktree_status = subprocess.check_output(
@@ -3357,6 +3568,7 @@ def main() -> int:
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
                 "SOURCE_COMMIT": source_commit,
+                **docker_build_environment,
             }
             exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
             remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
@@ -3422,6 +3634,7 @@ def main() -> int:
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
                 "SOURCE_COMMIT": source_commit,
+                **docker_build_environment,
             }
 
             exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
@@ -3514,6 +3727,7 @@ def main() -> int:
                 "AGOMTRADEPRO_PASSWORD": sdk_password,
                 "RELEASE_REHEARSAL_SHA256": args.release_rehearsal_sha256,
                 "REHEARSAL_IMAGE_ID": args.prebuilt_image_id,
+                **docker_engine_environment,
             }
             deploy_exports = " ".join(
                 f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()

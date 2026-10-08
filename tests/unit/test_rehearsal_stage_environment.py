@@ -22,6 +22,9 @@ from shared.release_rehearsal_stage_environment import (
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
+    load_docker_build_policy,
+    parse_docker_build_observation,
+    parse_docker_build_policy,
 )
 
 
@@ -44,6 +47,13 @@ def _inputs(tmp_path: Path) -> StageEnvironmentInputs:
     )
 
 
+def _docker_build_policy():
+    policy_path = (
+        Path(__file__).resolve().parents[2] / "governance" / "release_rehearsal_policy.json"
+    )
+    return load_docker_build_policy(policy_path)
+
+
 def test_governed_stage_environment_contract_matches_runtime_registry() -> None:
     policy_path = (
         Path(__file__).resolve().parents[2] / "governance" / "release_rehearsal_policy.json"
@@ -58,6 +68,13 @@ def test_governed_stage_environment_contract_matches_runtime_registry() -> None:
     assert contract["minimum_prebuild_free_disk_bytes"] == MINIMUM_PREBUILD_FREE_DISK_BYTES
     assert MINIMUM_PREBUILD_FREE_DISK_BYTES == (MINIMUM_FREE_DISK_BYTES + BUILD_DISK_RESERVE_BYTES)
     assert contract["minimum_available_memory_bytes"] == MINIMUM_AVAILABLE_MEMORY_BYTES
+    docker_policy = load_docker_build_policy(policy_path)
+    assert docker_policy.builder_mode == "legacy"
+    assert docker_policy.minimum_server_version == "29.3.2"
+    assert policy["docker_build_policy"]["known_vulnerable_server_versions"] == [
+        "29.3.0",
+        "29.3.1",
+    ]
 
 
 @pytest.mark.parametrize("category", CATEGORIES)
@@ -83,6 +100,7 @@ def test_missing_runner_dependency_fails_build_only_without_leaking_name(tmp_pat
         _inputs(tmp_path),
         stages=("build_only", "docker_identity"),
         missing_runtime_dependencies=("paramiko",),
+        docker_build_policy=_docker_build_policy(),
     )
 
     report = evaluate_stage_environment(inputs)
@@ -104,6 +122,7 @@ def test_prebuild_reserve_preserves_post_build_stage_headroom(tmp_path: Path) ->
         stages=("build_only", "docker_identity"),
         free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES - 1,
         minimum_free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES,
+        docker_build_policy=_docker_build_policy(),
     )
 
     report = evaluate_stage_environment(inputs)
@@ -117,6 +136,59 @@ def test_prebuild_reserve_preserves_post_build_stage_headroom(tmp_path: Path) ->
             "stages": ["build_only", "docker_identity"],
         }
     ]
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        {"builder_mode": "buildkit"},
+        {"daemon_endpoint": "tcp://docker:2375"},
+        {"minimum_server_version": "29.3.1"},
+        {"minimum_client_version": "29.3.0"},
+        {"maximum_client_version_exclusive": "31.0.0"},
+        {"known_vulnerable_server_versions": ["29.3.0"]},
+    ],
+)
+def test_docker_build_policy_rejects_unsafe_or_unmodeled_values(defect: dict[str, object]) -> None:
+    policy_path = (
+        Path(__file__).resolve().parents[2] / "governance" / "release_rehearsal_policy.json"
+    )
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))["docker_build_policy"]
+    policy.update(defect)
+
+    with pytest.raises(ValueError, match="REHEARSAL_DOCKER_BUILDER_POLICY_INVALID"):
+        parse_docker_build_policy(policy)
+
+
+@pytest.mark.parametrize(
+    ("client_version", "server_version", "mode", "endpoint", "confirmed"),
+    [
+        ("29.3.2", "29.3.0", "legacy", "unix:///var/run/docker.sock", True),
+        ("29.3.2", "29.3.1", "legacy", "unix:///var/run/docker.sock", True),
+        ("29.3.2", "invalid", "legacy", "unix:///var/run/docker.sock", True),
+        ("30.0.0", "29.3.2", "legacy", "unix:///var/run/docker.sock", True),
+        ("29.3.2", "29.3.2", "buildkit", "unix:///var/run/docker.sock", True),
+        ("29.3.2", "29.3.2", "legacy", "tcp://docker:2375", True),
+        ("29.3.2", "29.3.2", "legacy", "unix:///var/run/docker.sock", False),
+    ],
+)
+def test_docker_build_observation_faults_fail_closed(
+    client_version: str,
+    server_version: str,
+    mode: str,
+    endpoint: str,
+    confirmed: bool,
+) -> None:
+    observation = {
+        "builder_mode": mode,
+        "daemon_endpoint": endpoint,
+        "client_version": client_version,
+        "server_version": server_version,
+        "legacy_mode_confirmed": confirmed,
+    }
+
+    with pytest.raises(ValueError, match="REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED"):
+        parse_docker_build_observation(observation, _docker_build_policy())
 
 
 @pytest.mark.parametrize(

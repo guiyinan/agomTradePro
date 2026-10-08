@@ -17,6 +17,9 @@ from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIR
 from shared.release_rehearsal_stage_environment import (
     CONTRACT_STAGES as STAGE_ENVIRONMENT_CONTRACT_STAGES,
 )
+from shared.release_rehearsal_stage_environment import (
+    load_docker_build_policy,
+)
 
 
 def _load_module():
@@ -30,6 +33,7 @@ def _load_module():
 
 
 validator = _load_module()
+DOCKER_BUILD_POLICY = load_docker_build_policy(validator.RELEASE_POLICY_PATH)
 CANDIDATE = "a" * 40
 IMAGE_ID = "sha256:" + "f" * 64
 ASSET_CODES = sorted(
@@ -981,20 +985,23 @@ def _build_evidence(
     )
 
     def stage_environment_payload(stages: tuple[str, ...], outcome: str) -> dict[str, Any]:
+        observations: dict[str, Any] = {
+            "observed_at": (now - timedelta(minutes=2)).isoformat(),
+            "free_disk_bytes": 13 * 1024 * 1024 * 1024,
+            "minimum_free_disk_bytes": 12 * 1024 * 1024 * 1024,
+            "available_memory_bytes": 1024 * 1024 * 1024,
+            "build_timeout_seconds": 3600,
+            "stage_timeout_seconds": 3600,
+            "provider_timeout_seconds": 1800,
+            "task_deadline_seconds": 600,
+            "lock_wait_limit_seconds": 5,
+        }
+        if "build_only" in stages:
+            observations["docker_build_policy"] = DOCKER_BUILD_POLICY.to_dict()
         return {
             "schema": "release.s6-stage-environment-preflight.v1",
             "outcome": outcome,
-            "observations": {
-                "observed_at": (now - timedelta(minutes=2)).isoformat(),
-                "free_disk_bytes": 13 * 1024 * 1024 * 1024,
-                "minimum_free_disk_bytes": 12 * 1024 * 1024 * 1024,
-                "available_memory_bytes": 1024 * 1024 * 1024,
-                "build_timeout_seconds": 3600,
-                "stage_timeout_seconds": 3600,
-                "provider_timeout_seconds": 1800,
-                "task_deadline_seconds": 600,
-                "lock_wait_limit_seconds": 5,
-            },
+            "observations": observations,
             "categories": list(STAGE_ENVIRONMENT_CATEGORIES),
             "stages": list(stages),
             "issues": [],
@@ -1026,6 +1033,13 @@ def _build_evidence(
     stage_environment["prebuild_report"] = {
         "path": prebuild_path.name,
         "sha256": prebuild_digest,
+    }
+    stage_environment["docker_builder"] = {
+        "builder_mode": "legacy",
+        "daemon_endpoint": "unix:///var/run/docker.sock",
+        "client_version": "29.3.2",
+        "server_version": "29.3.2",
+        "legacy_mode_confirmed": True,
     }
 
     migration_pending = [
@@ -1350,6 +1364,51 @@ def test_validator_rejects_incomplete_prebuild_environment_matrix(tmp_path: Path
         _validate(manifest, now)
 
     assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("server_version", "29.3.0"),
+        ("server_version", "29.3.1"),
+        ("builder_mode", "buildkit"),
+        ("daemon_endpoint", "tcp://docker:2375"),
+        ("legacy_mode_confirmed", False),
+    ],
+)
+def test_validator_rejects_unsafe_docker_builder_observation(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["stage_environment_preflight"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["docker_builder"][field] = value
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_DOCKER_BUILDER_INVALID"
+
+
+def test_validator_rejects_prebuild_policy_that_does_not_match_governance(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["stage_environment_preflight"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    prebuild_path = tmp_path / report["prebuild_report"]["path"]
+    prebuild = json.loads(prebuild_path.read_text(encoding="utf-8"))
+    prebuild["observations"]["docker_build_policy"]["minimum_server_version"] = "29.3.1"
+    report["prebuild_report"]["sha256"] = _write_json(prebuild_path, prebuild)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_DOCKER_BUILDER_INVALID"
 
 
 def test_validator_recomputes_candidate_universe_digest_from_target_partition(

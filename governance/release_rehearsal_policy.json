@@ -1,6 +1,18 @@
 {
   "schema": "release.rehearsal-policy.v1",
   "minimum_capacity_margin_ratio": 0.15,
+  "docker_build_policy": {
+    "schema": "release.s6-docker-build-policy.v1",
+    "builder_mode": "legacy",
+    "daemon_endpoint": "unix:///var/run/docker.sock",
+    "minimum_client_version": "29.3.2",
+    "maximum_client_version_exclusive": "30.0.0",
+    "minimum_server_version": "29.3.2",
+    "known_vulnerable_server_versions": [
+      "29.3.0",
+      "29.3.1"
+    ]
+  },
   "stage_environment_contract": {
     "schema": "release.s6-stage-environment-contract.v1",
     "categories": [

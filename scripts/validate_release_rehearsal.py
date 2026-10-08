@@ -28,6 +28,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from shared.release_rehearsal_stage_environment import (
+    load_docker_build_policy,
+    parse_docker_build_observation,
+)
+
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 IMAGE_ID_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
@@ -806,6 +811,20 @@ def _validate_stage_environment_preflight(report: dict[str, Any], report_root: P
     _validate_stage_environment_matrix(
         prebuild, stages[:2], categories, minimum_prebuild_disk, minimum_memory
     )
+    try:
+        docker_build_policy = load_docker_build_policy(RELEASE_POLICY_PATH)
+    except ValueError:
+        _fail("REHEARSAL_DOCKER_BUILDER_POLICY_INVALID")
+    prebuild_observations = prebuild.get("observations")
+    if (
+        not isinstance(prebuild_observations, dict)
+        or prebuild_observations.get("docker_build_policy") != docker_build_policy.to_dict()
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_DOCKER_BUILDER_INVALID")
+    try:
+        parse_docker_build_observation(report.get("docker_builder"), docker_build_policy)
+    except ValueError:
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_DOCKER_BUILDER_INVALID")
 
 
 def _validate_isolated_database_migrations(report: dict[str, Any]) -> None:

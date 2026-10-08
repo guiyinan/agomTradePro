@@ -30,6 +30,37 @@ def _load_module() -> ModuleType:
 remote_build_deploy_vps = _load_module()
 
 
+@pytest.mark.parametrize(
+    "builder_name",
+    [
+        "_build_remote_build_script",
+        "_build_remote_git_clone_build_script",
+        "_build_remote_deploy_script",
+    ],
+)
+def test_generated_remote_docker_scripts_are_valid_bash(builder_name: str) -> None:
+    """The generated remote shell must parse before it can reach Docker or release files."""
+
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = None if git is None else Path(git).parent.parent / "bin" / "bash.exe"
+        bash = str(git_bash) if git_bash is not None and git_bash.is_file() else None
+    if bash is None:
+        pytest.skip("bash is required to parse generated remote scripts")
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    result = subprocess.run(
+        [bash, "-n"],
+        check=False,
+        capture_output=True,
+        text=True,
+        input=script,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def _required_cli_options(source: str) -> set[str]:
     """Return literal argparse options declared with ``required=True``."""
     tree = ast.parse(source)
@@ -380,11 +411,181 @@ def test_remote_builds_fail_closed_and_write_immutable_release_manifest(
     assert f'"source_mode": "{source_mode}"' in script
     assert "sort_keys=True" in script
     assert script.index('re.fullmatch(r"[0-9a-f]{40}", source_commit)') < script.index(
-        "docker build"
+        "DOCKER_BUILDKIT=0 docker --context default build"
     )
     assert script.index("org.opencontainers.image.revision") < script.index(
         'manifest_path.open("x"'
     )
+
+
+@pytest.mark.parametrize(
+    "builder_name",
+    ["_build_remote_build_script", "_build_remote_git_clone_build_script"],
+)
+def test_remote_builds_pin_safe_daemon_and_legacy_builder_without_fallback(
+    builder_name: str,
+) -> None:
+    script = getattr(remote_build_deploy_vps, builder_name)()
+
+    preflight = "docker_builder_preflight"
+    docker_build = "DOCKER_BUILDKIT=0 docker --context default build --build-arg PIP_OFFLINE_ONLY=0"
+    assert "__DOCKER_BUILD_PREFLIGHT__" not in script
+    assert "DOCKER_BUILDER_MODE" in script
+    assert "docker context inspect default --format '{{.Endpoints.docker.Host}}'" in script
+    assert "docker --context default version --format '{{.Client.Version}}'" in script
+    assert "docker --context default version --format '{{.Server.Version}}'" in script
+    assert "unix:///var/run/docker.sock" in script
+    assert "DOCKER_MINIMUM_SERVER_VERSION" in script
+    assert "DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS" in script
+    assert "REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED" in script
+    assert "REHEARSAL_DOCKER_BUILDER_MODE_MISMATCH" in script
+    assert "REHEARSAL_DOCKER_BUILD_FAILED" in script
+    assert "DEPRECATED: The legacy builder is deprecated" in script
+    assert "BuildKit is currently disabled" in script
+    assert "BUILDKIT_INLINE_CACHE" not in script
+    assert "if ! docker build" not in script
+    assert script.count("docker --context default build") == 1
+    assert script.index("\n" + preflight + "\n") < script.index(docker_build)
+    assert script.index("REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED") < script.index(
+        "docker_target images"
+    )
+
+
+def _run_generated_docker_preflight(
+    preflight: str,
+    *,
+    client_version: str,
+    server_version: str,
+    context_name: str,
+    endpoint: str,
+) -> subprocess.CompletedProcess[str]:
+    """Run a generated Docker guard against a deterministic fake Docker CLI."""
+
+    bash = shutil.which("bash")
+    python3 = shutil.which("python3")
+    if os.name == "nt":
+        git = shutil.which("git")
+        git_bash = None if git is None else Path(git).parent.parent / "bin" / "bash.exe"
+        bash = str(git_bash) if git_bash is not None and git_bash.is_file() else None
+        python3 = shutil.which("python")
+    if bash is None or python3 is None:
+        pytest.skip("bash and python3 are required to execute the generated preflight")
+
+    docker_stub = r"""docker() {
+  case "$*" in
+    "context show") printf '%s\n' "$MOCK_CONTEXT_NAME" ;;
+    "context inspect default --format {{.Endpoints.docker.Host}}") printf '%s\n' "$MOCK_DOCKER_ENDPOINT" ;;
+    "--context default version --format {{.Client.Version}}") printf '%s\n' "$MOCK_CLIENT_VERSION" ;;
+    "--context default version --format {{.Server.Version}}") printf '%s\n' "$MOCK_SERVER_VERSION" ;;
+    *) return 97 ;;
+  esac
+}"""
+    python3_compatibility = 'python3() { python "$@"; }\n' if os.name == "nt" else ""
+    command = f"set -eu\n{python3_compatibility}{docker_stub}\n{preflight}"
+    environment = os.environ.copy()
+    for key in ("DOCKER_HOST", "DOCKER_CONTEXT"):
+        environment.pop(key, None)
+    environment.update(
+        {
+            "DOCKER_BUILDER_MODE": "legacy",
+            "DOCKER_DAEMON_ENDPOINT": "unix:///var/run/docker.sock",
+            "DOCKER_MINIMUM_CLIENT_VERSION": "29.3.2",
+            "DOCKER_MAXIMUM_CLIENT_VERSION_EXCLUSIVE": "30.0.0",
+            "DOCKER_MINIMUM_SERVER_VERSION": "29.3.2",
+            "DOCKER_KNOWN_VULNERABLE_SERVER_VERSIONS": "29.3.0,29.3.1",
+            "MOCK_CLIENT_VERSION": client_version,
+            "MOCK_SERVER_VERSION": server_version,
+            "MOCK_CONTEXT_NAME": context_name,
+            "MOCK_DOCKER_ENDPOINT": endpoint,
+        }
+    )
+    return subprocess.run(
+        [bash, "-c", command],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+@pytest.mark.parametrize(
+    ("client_version", "server_version", "context_name", "endpoint", "expected_code"),
+    [
+        ("29.3.2", "29.3.0", "default", "unix:///var/run/docker.sock", 1),
+        ("29.3.2", "29.3.1", "default", "unix:///var/run/docker.sock", 1),
+        ("30.0.0", "29.3.2", "default", "unix:///var/run/docker.sock", 1),
+        ("29.3.2", "29.3.2", "desktop-linux", "unix:///var/run/docker.sock", 1),
+        ("29.3.2", "29.3.2", "default", "tcp://docker:2375", 1),
+        ("29.3.2", "29.3.2", "default", "unix:///var/run/docker.sock", 0),
+    ],
+)
+def test_remote_docker_preflight_fault_injection_is_fail_closed_and_sanitized(
+    client_version: str,
+    server_version: str,
+    context_name: str,
+    endpoint: str,
+    expected_code: int,
+) -> None:
+    """Exercise the generated shell's real version/endpoint gate with a fake Docker CLI."""
+
+    result = _run_generated_docker_preflight(
+        remote_build_deploy_vps._DOCKER_BUILD_PREFLIGHT,
+        client_version=client_version,
+        server_version=server_version,
+        context_name=context_name,
+        endpoint=endpoint,
+    )
+
+    assert result.returncode == expected_code, result.stderr
+    output = result.stdout + result.stderr
+    if expected_code:
+        assert output.count("REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED") == 1
+        assert client_version not in output
+        assert server_version not in output
+        assert endpoint not in output
+    else:
+        assert "Docker builder preflight passed" in output
+        assert client_version not in output
+        assert server_version not in output
+
+
+@pytest.mark.parametrize(
+    ("server_version", "context_name", "endpoint", "expected_code"),
+    [
+        ("29.3.0", "default", "unix:///var/run/docker.sock", 1),
+        ("29.3.1", "default", "unix:///var/run/docker.sock", 1),
+        ("invalid", "default", "unix:///var/run/docker.sock", 1),
+        ("29.3.2", "desktop-linux", "unix:///var/run/docker.sock", 1),
+        ("29.3.2", "default", "tcp://docker:2375", 1),
+        ("29.3.2", "default", "unix:///var/run/docker.sock", 0),
+    ],
+)
+def test_remote_deploy_engine_preflight_fault_injection_is_fail_closed(
+    server_version: str,
+    context_name: str,
+    endpoint: str,
+    expected_code: int,
+) -> None:
+    """Prebuilt deployments reject vulnerable engines without revealing host details."""
+
+    result = _run_generated_docker_preflight(
+        remote_build_deploy_vps._DOCKER_ENGINE_PREFLIGHT,
+        client_version="29.3.0",
+        server_version=server_version,
+        context_name=context_name,
+        endpoint=endpoint,
+    )
+
+    assert result.returncode == expected_code
+    output = result.stdout + result.stderr
+    if expected_code:
+        assert output.count("REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED") == 1
+        assert server_version not in output
+        assert endpoint not in output
+    else:
+        assert "Docker Engine preflight passed" in output
+        assert server_version not in output
+        assert endpoint not in output
 
 
 @pytest.mark.parametrize(
@@ -400,7 +601,7 @@ def test_remote_builds_normalize_runtime_bind_mount_permissions_before_build(
 
     normalizer = "normalize_runtime_source_permissions()"
     normalizer_call = "normalize_runtime_source_permissions\n"
-    docker_build = "docker build"
+    docker_build = "DOCKER_BUILDKIT=0 docker --context default build"
     assert normalizer in script
     assert normalizer_call in script
     assert 'chmod 0755 "$runtime_directory"' in script
@@ -485,9 +686,9 @@ def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroo
 
     script = getattr(remote_build_deploy_vps, builder_name)()
 
-    inventory = "docker images --filter 'reference=agomtradepro-web:*'"
-    active_check = "docker ps -a --format '{{.Image}}'"
-    removal = 'docker image rm "$image_ref"'
+    inventory = "docker_target images --filter 'reference=agomtradepro-web:*'"
+    active_check = "docker_target ps -a --format '{{.Image}}'"
+    removal = 'docker_target image rm "$image_ref"'
     disk_check = "df -Pk /var/lib/docker"
 
     assert inventory in script
@@ -502,7 +703,9 @@ def test_remote_builds_prune_only_unused_project_images_and_require_disk_headroo
     assert "docker volume" not in script
     assert script.index(active_check) < script.index(removal)
     assert script.index(removal) < script.index(disk_check)
-    assert script.index(disk_check) < script.index("docker build")
+    assert script.index(disk_check) < script.index(
+        "DOCKER_BUILDKIT=0 docker --context default build"
+    )
 
 
 def test_remote_source_upload_cleanup_is_scoped_to_dedicated_temp_directory() -> None:
@@ -917,7 +1120,8 @@ def test_remote_build_marker_command_validates_release_tag_before_path_use() -> 
     assert "release_tag = sys.argv[2]" in script
     assert 're.fullmatch(r"[0-9]{14}", release_tag)' in script
     assert "fcntl.flock(lock_fd, fcntl.LOCK_EX)" in script
-    assert "trap release_active_build_marker EXIT" in script
+    assert "release_active_build_marker" in script
+    assert "trap cleanup_remote_build EXIT" in script
     assert "docker system prune" not in script
     assert "docker volume" not in script
     assert "/opt/agomtradepro" not in remote_build_deploy_vps._REMOTE_TEMP_ARTIFACT_PRUNER
@@ -964,7 +1168,9 @@ def test_git_clone_mode_pins_remote_clone_to_requested_local_candidate() -> None
     assert "cloned source commit does not match requested candidate" in script
     assert script.index(expected_assignment) < script.index("git clone")
     assert script.index(cloned_assignment) < script.index(comparison)
-    assert script.index(comparison) < script.index("docker build")
+    assert script.index(comparison) < script.index(
+        "DOCKER_BUILDKIT=0 docker --context default build"
+    )
 
 
 def test_remote_deploy_validates_manifest_and_image_before_any_start_or_switch() -> None:
@@ -1405,6 +1611,28 @@ def test_remote_deploy_publishes_canonical_https_origin_and_validates_tls() -> N
     assert "curl -fsS --max-time 10 $HEALTH_RESOLVE" in script
 
 
+def test_remote_deploy_preflights_governed_engine_before_compose_or_release_access() -> None:
+    """Prebuilt and regular deploys share the vulnerable-engine stop line."""
+
+    script = remote_build_deploy_vps._build_remote_deploy_script()
+    source = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert "__DOCKER_ENGINE_PREFLIGHT__" not in script
+    assert "REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED" in script
+    assert "docker_engine_preflight" in script
+    assert script.index("docker_engine_preflight\n") < script.index("docker compose version")
+    assert script.index("docker compose version") < script.index(
+        'RELEASE_DIR="$TARGET_DIR/releases/'
+    )
+    assert (
+        "docker_engine_environment = _docker_engine_policy_environment(docker_build_policy)"
+        in source
+    )
+    assert "**docker_engine_environment" in source
+
+
 def test_remote_deploy_publishes_and_verifies_tui_release_metadata() -> None:
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
@@ -1698,8 +1926,9 @@ def test_remote_builds_overlap_predeploy_backup_with_image_build(builder_name: s
     assert "Pre-deploy backup failed during the image build" in script
     # The backup is launched before the image build and only awaited afterwards,
     # so the backup still precedes any writer stop or migration in the deploy phase.
-    assert script.index(launch) < script.index("docker build")
-    assert script.index("docker build") < script.index(wait_gate)
+    docker_build = "DOCKER_BUILDKIT=0 docker --context default build"
+    assert script.index(launch) < script.index(docker_build)
+    assert script.index(docker_build) < script.index(wait_gate)
     # The completion marker is emitted only after a successful wait, before the
     # build report is written.
     assert script.index(wait_gate) < script.index(marker)

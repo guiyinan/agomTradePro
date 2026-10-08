@@ -295,6 +295,13 @@ class FakeRunner:
                     "source_mode": "source-upload",
                     "build_started_at": "2026-09-25T04:30:00Z",
                     "build_finished_at": "2026-09-25T04:31:00Z",
+                    "docker_builder": {
+                        "builder_mode": "legacy",
+                        "daemon_endpoint": "unix:///var/run/docker.sock",
+                        "client_version": "29.3.2",
+                        "server_version": "29.3.2",
+                        "legacy_mode_confirmed": True,
+                    },
                 }
             ),
             encoding="utf-8",
@@ -624,6 +631,12 @@ def test_duplicate_isolated_environment_key_fails_closed_without_secret_leak(
 def _fake_checkout(tmp_path: Path) -> Path:
     root = tmp_path / "checkout"
     root.mkdir()
+    governance_dir = root / "governance"
+    governance_dir.mkdir()
+    repository_policy = (
+        Path(__file__).resolve().parents[2] / "governance" / "release_rehearsal_policy.json"
+    )
+    (governance_dir / "release_rehearsal_policy.json").write_bytes(repository_policy.read_bytes())
     return root
 
 
@@ -1033,6 +1046,86 @@ def test_prebuild_preflight_rejects_unpatched_runner_dependency(
             "stages": ["build_only"],
         }
     ]
+
+
+def test_prebuild_rejects_lowered_docker_engine_security_floor_before_build(
+    tmp_path: Path,
+) -> None:
+    root = _fake_checkout(tmp_path)
+    policy_path = root / "governance" / "release_rehearsal_policy.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["docker_build_policy"]["minimum_server_version"] = "29.3.1"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    config = _config(tmp_path, root=root)
+    runner = FakeRunner()
+
+    with pytest.raises(
+        RehearsalBlocked,
+        match="REHEARSAL_DOCKER_BUILDER_POLICY_INVALID",
+    ):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    prebuild = json.loads(
+        (
+            config.output_dir
+            / "stage-environment-preflight"
+            / "prebuild-stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert prebuild["outcome"] == "blocked"
+    assert [issue["code"] for issue in prebuild["issues"]] == [
+        "REHEARSAL_DOCKER_BUILDER_POLICY_INVALID"
+    ]
+
+
+def test_remote_docker_builder_preflight_error_keeps_stable_s6_code(
+    tmp_path: Path,
+) -> None:
+    class DockerBuilderPreflightFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "build_only":
+                self.commands.append(command)
+                return CommandResult(
+                    returncode=1,
+                    stderr="[ERROR] REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED",
+                )
+            return super().run(command)
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = DockerBuilderPreflightFailureRunner()
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(config, runner=runner)
+
+    assert exc_info.value.stage == "build_only"
+    assert exc_info.value.code == "REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED"
+    assert "docker_load" not in runner.labels
+    status = json.loads((config.output_dir / "run-status.json").read_text(encoding="utf-8"))
+    assert status["error_code"] == "REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED"
+
+
+def test_s6_rejects_report_from_vulnerable_docker_engine(
+    tmp_path: Path,
+) -> None:
+    class VulnerableDockerObservationRunner(FakeRunner):
+        def _create_build_artifacts(self, command: Command) -> None:
+            super()._create_build_artifacts(command)
+            report_dir = Path(command.argv[command.argv.index("--report-dir") + 1])
+            report_path = next(report_dir.glob("remote-build-report-*.json"))
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["docker_builder"]["server_version"] = "29.3.1"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = VulnerableDockerObservationRunner()
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(config, runner=runner)
+
+    assert exc_info.value.stage == "build_only"
+    assert exc_info.value.code == "REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED"
+    assert "docker_load" not in runner.labels
 
 
 def test_provider_stages_override_stale_provider_database_with_isolated_env(

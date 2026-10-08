@@ -41,9 +41,13 @@ from apps.data_center.infrastructure.rehearsal_identity import (
 from shared.release_rehearsal_stage_environment import (
     MINIMUM_AVAILABLE_MEMORY_BYTES,
     MINIMUM_PREBUILD_FREE_DISK_BYTES,
+    DockerBuildObservation,
+    DockerBuildPolicy,
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
+    load_docker_build_policy,
+    parse_docker_build_observation,
     parse_dynamic_issues,
 )
 
@@ -95,6 +99,10 @@ REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 STABLE_REHEARSAL_CODE = re.compile(r"^CommandError: (REHEARSAL_[A-Z0-9_]{3,96})\s*$", re.MULTILINE)
 STABLE_REHEARSAL_HEADROOM_ERROR_CODE = re.compile(
     r"\[ERROR\]\s+(REHEARSAL_BUILD_DISK_HEADROOM_(?:INSUFFICIENT|UNAVAILABLE))(?=[:\s]|$)"
+)
+STABLE_REHEARSAL_DOCKER_BUILD_ERROR_CODE = re.compile(
+    r"\[ERROR\]\s+(REHEARSAL_DOCKER_BUILDER_(?:POLICY_INVALID|PREFLIGHT_FAILED|MODE_MISMATCH)"
+    r"|REHEARSAL_DOCKER_BUILD_FAILED|REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED)(?=[:\s]|$)"
 )
 STABLE_REHEARSAL_CODE_VALUE = re.compile(r"REHEARSAL_[A-Z0-9_]{3,96}")
 IMAGE_NAME = "agomtradepro-web"
@@ -645,6 +653,7 @@ def _invoke(
         output = result.stdout + "\n" + result.stderr
         safe_codes = set(STABLE_REHEARSAL_CODE.findall(output))
         safe_codes.update(STABLE_REHEARSAL_HEADROOM_ERROR_CODE.findall(output))
+        safe_codes.update(STABLE_REHEARSAL_DOCKER_BUILD_ERROR_CODE.findall(output))
         for line in output.splitlines():
             try:
                 payload: object = json.loads(line)
@@ -1090,8 +1099,14 @@ def _build_image(
     run_dir: Path,
     candidate_sha: str,
     checkpoint: _Checkpoint,
-) -> tuple[dict[str, object], Path]:
+) -> tuple[dict[str, object], Path, DockerBuildObservation]:
     """Build once in build-only mode, retain the image tar and inspect the loaded image."""
+    try:
+        docker_build_policy = load_docker_build_policy(
+            config.root / "governance" / "release_rehearsal_policy.json"
+        )
+    except ValueError as exc:
+        raise RehearsalBlocked("build_only", "REHEARSAL_DOCKER_BUILDER_POLICY_INVALID") from exc
     report_dir, image_dir = run_dir / "build-report", run_dir / "images"
     if not checkpoint.done("build_artifacts"):
         checkpoint.prepare("build_artifacts", (report_dir, image_dir), resume=config.resume)
@@ -1135,6 +1150,12 @@ def _build_image(
         report = _object(json.loads(_read_file(reports[0])), "S6_BUILD_REPORT_INVALID")
     except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RehearsalBlocked("build_only", "S6_BUILD_REPORT_INVALID") from exc
+    try:
+        docker_builder_observation = parse_docker_build_observation(
+            report.get("docker_builder"), docker_build_policy
+        )
+    except ValueError as exc:
+        raise RehearsalBlocked("build_only", "REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED") from exc
     tag, image_tag, image_id = (
         report.get("release_tag"),
         report.get("image_tag"),
@@ -1193,7 +1214,7 @@ def _build_image(
         or labels.get("org.opencontainers.image.revision") != candidate_sha
     ):
         raise RehearsalBlocked("docker_inspect", "S6_IMAGE_IDENTITY_MISMATCH")
-    return report, archives[0]
+    return report, archives[0], docker_builder_observation
 
 
 def _write_identity(
@@ -1859,6 +1880,12 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
         )
     )
     missing_runtime_dependencies = _missing_release_runner_dependencies()
+    try:
+        docker_build_policy = load_docker_build_policy(
+            config.root / "governance" / "release_rehearsal_policy.json"
+        )
+    except ValueError:
+        docker_build_policy = None
     files = (
         config.root,
         config.output_dir,
@@ -1893,12 +1920,22 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
             missing_runtime_dependencies=missing_runtime_dependencies,
             minimum_free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES,
+            docker_build_policy=docker_build_policy,
         )
     )
     preflight_dir = config.output_dir / "stage-environment-preflight"
     preflight_dir.mkdir(exist_ok=True)
     atomic_json(preflight_dir / "prebuild-stage-environment-preflight.json", report)
     if report.get("outcome") != "pass":
+        issues = report.get("issues")
+        if isinstance(issues, list) and any(
+            isinstance(issue, dict)
+            and issue.get("code") == "REHEARSAL_DOCKER_BUILDER_POLICY_INVALID"
+            for issue in issues
+        ):
+            raise RehearsalBlocked(
+                "stage_environment_preflight", "REHEARSAL_DOCKER_BUILDER_POLICY_INVALID"
+            )
         raise RehearsalBlocked(
             "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
         )
@@ -2007,6 +2044,7 @@ def _run_stage_environment_preflight(
     manifest_path: Path,
     provider_path: Path,
     run_dir: Path,
+    docker_builder_observation: DockerBuildObservation,
 ) -> None:
     """Aggregate every known environment gap before any candidate evidence stage."""
 
@@ -2100,6 +2138,7 @@ def _run_stage_environment_preflight(
             "universe_sha256": identity.universe_sha256,
             "provider_identities_sha256": identity.provider_identities_sha256,
             "evidence_mode": "read_only_environment_contract",
+            "docker_builder": docker_builder_observation.to_dict(),
             "started_at": started_at.isoformat(),
             "finished_at": datetime.now(UTC).isoformat(),
             "prebuild_report": {
@@ -2654,7 +2693,9 @@ def _run_release_rehearsal(
         _assert_candidate(active, config.root, candidate)
 
         stage = "build_only"
-        build_report, _archive = _build_image(config, active, run_dir, candidate, checkpoint)
+        build_report, _archive, docker_builder_observation = _build_image(
+            config, active, run_dir, candidate, checkpoint
+        )
         checkpoint.complete("build_only", ())
         completed.append(stage)
         stage = "docker_identity"
@@ -2716,6 +2757,7 @@ def _run_release_rehearsal(
             manifest_path,
             provider_path,
             run_dir,
+            docker_builder_observation,
         )
         isolated_database_identity = _preflight_isolated_database_container(config, active)
         stage = "isolated_database_migrations"
