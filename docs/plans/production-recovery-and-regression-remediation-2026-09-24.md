@@ -2779,3 +2779,71 @@ TaskExecution 行级变化表述为全局静止。结论为“部分通过/仍�
 未验证风险与停止线：`c349bd5d3` 尚未 push、未绑定 exact-SHA 五组 CI，未经过 fresh S6、同 SHA 镜像部署和部署后普通用户延迟复测；当前只能证明本地契约与生产慢路径根因。静态资源 `echarts.min.js`、`mermaid.min.js` 曾出现 `ERR_CONNECTION_CLOSED`，需在部署后浏览器 UAT 复测。Financial current publication 仍为 legacy policy 且全市场容量没有合格证据；N<=1/2N<=2 不能外推，禁止生产 financial refresh、伪造 owner approval 或解除 decision runtime。full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个周期入口保持 disabled。
 
 下一片是否可开始：可以提交本节台账并 push 新 HEAD，启动五组 exact-SHA CI。五组全绿且固定 PostgreSQL artifact 节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止 `--resume`；S6 与 release validator 通过后只部署 receipt 绑定镜像，再用同一普通用户复测 Alpha GET、Dashboard、候选 Workspace、权限隔离、静态资源与零副作用。
+
+##### 2026-10-08 普通用户生产 UAT、当前 SDK/MCP 复验与证据链收口
+
+完成项：Alpha 阻断读取有界化最终候选 `d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df` 的五组 exact-SHA CI
+全部通过：Architecture `37718839202`、Security `37718839203`、Consistency `37718839256`、Fast Feedback
+`37718839297`、Publication PostgreSQL `37718898033`。PostgreSQL artifact 中 Account outer-fence `8/0/0/0`、
+financial slice `8/0/0/0`、Publication `42/0/0/0`，包含 generation-fenced graph UOW、AKShare 单批原子写与
+5,001-member soak 固定节点，零跳过、零失败、零 error。
+
+fresh S6 attempt `dd545cdd59bd4e7683e52df6ee700fbf` 从最新生产只读快照重新导出 provider settings、4 个完整
+identities、5,572 个动态 universe 成员与 unit contract，在隔离 PostgreSQL/Redis、真实 provider、禁止 `--resume` 的
+条件下完成十阶段、统一环境 preflight、财报 AKShare N=1/2N=2 双原件/双 RawAudit/typed evidence/单批原子写/零写
+失败反例和 release validator，outcome=`success_evidence`、exit 0。handoff receipt SHA256 为
+`2585d32289a35a727e3c16867065053ecbcd48a107fd48c7454586092c259212`，manifest SHA256 为
+`c058a6182956fd98e27b952024d7de8588114126da7bf8549aa4d67f4f1afeab`，release tag 为 `20261008050500`，
+预构建镜像为 `sha256:da482ea1210f0b486852e97b83eb7437577aa957efb872b1f06e8c5c725b1996`。生产严格复用该
+receipt 绑定镜像部署成功，current=`/opt/agomtradepro/releases/source-20261008050500`，部署 report SHA256 为
+`50bec407407f44e1a2ed3ae63ce775162ccb5e7ad817e1c0982f20661db22011`；运行 Web/三个 Celery 容器的 OCI
+revision 与候选一致，526 migrations applied / 0 unapplied，provider preflight 通过，statement logging 为
+`none/-1/-1`。两个受保护周期入口继续 `enabled=false`，full-market lease=false。S6 成功和 receipt 存在性复核后，仅删除该
+attempt 的精确隔离 PostgreSQL/Redis/network/volume；生产容器及候选镜像未变化，attempt 根目录和全部证据保留。
+
+按用户明确授权创建/重置普通用户 `user`，保持 active、`is_staff=false`、`is_superuser=false`，关联独立实盘和模拟账户；没有为该
+用户创建 API/MCP Token，UAT 结束后 active token 仍为 0。真实普通用户浏览器会话完成登录、Dashboard 候选、账户选择和
+`688011.SH` Workspace Step 4 跳转：模拟账户绑定正确，研究详情和阻断解释可见，建议数为 0，页面只提供显式刷新动作；Admin 重定向
+到管理员登录，ops Task Monitor 返回 403。Dashboard 服务端实测 7.387 秒，候选 Workspace 导航 3.892 秒；Alpha API 冷读
+4.488 秒、同会话热读 0.485 秒，相比整改前的 44.838/12.339/29.542 秒慢路径已恢复。ECharts 和 Mermaid 静态资源均为
+200，大小分别为 1,024,695 与 2,963,890 bytes，浏览器 console error 为 0。
+
+普通用户 API 复验覆盖 signal 默认、显式 `offset=0`、分页、状态、证券、组合过滤及确定为空列表，全部 200 且返回规范空数组；
+Alpha 返回 10 个研究候选、`must_not_use_for_decision=true`、`async_refresh_queued=false`、空 task ID，不回传完整
+instrument code scope。普通用户 Alpha history 返回其账号范围内的规范空列表；账户 API 返回 2 个账户。Regime、估值、财报均返回
+503、稳定码 `decision_runtime_blocked`、`changed_at` 与 `must_not_use_for_decision=true`；decision-ready 同样诚实返回
+503/blocked。普通用户访问 Task Monitor API 为 403，符合最小权限。最新外部探针为 health 200/54.648ms、ready
+200/degraded/3446.805ms、decision-ready 503/168.627ms，ready 保持团队响应目标内。
+
+当前精确候选的 SDK/MCP 使用既有管理员 read-only operator Token；没有创建、轮换、持久化或输出凭据。SDK 与 MCP 的 signal 七种
+查询全部正常完成并返回 0 条，MCP `status=completed`。Policy 两层均保留 `PX`、中文“待分类”、
+`requires_manual_approval=true`、`policy_unclassified_manual_review`、`must_not_use_for_decision=true` 和观测时间。
+SDK 的 Regime/估值/财报返回 typed `ServerError`，MCP 返回 error envelope；两层均保留 `decision_runtime_blocked`、中文原因、
+`changed_at` 和决策禁用标记，没有压缩为 `capability_execution_failed`。Alpha history 两层均为 50 条；Task Monitor 两层一致
+返回 full-market 业务 `outcome=success`、`requested/succeeded/failed/stored=5572/5572/0/11144`、
+`publication_updated=true`、目标交易日 `2026-09-30` 和 run `aebb0da7-5336-4460-8fff-e4aa0f0317a7`。
+
+零副作用对账对 10 类 Alpha cache、recommendation、decision snapshot、valuation snapshot 与 signal 模型执行调用前后完整内容
+SHA256，count/digest 精确不变。普通用户浏览器/API 窗口后的 TaskExecution 增量全部归因为既有 Alpha monitor、agent-runtime
+maintenance、audit authority、storage budget、policy gate/SLA、realtime、regime health 与 broker maintenance；
+`data_center.refresh_full_market_publications`、`data_center.refresh_financial_publications_batch`、非 monitor Alpha 任务和
+recommendation 任务增量均为 0。MCP 只新增 13 条 `MCP_CALL/READ` 审计。密封证据位于
+`/opt/agomtradepro/rehearsals/s6-d3fdbd6f1c-dd545cdd59bd4e7683e52df6ee700fbf/evidence/postdeploy-ordinary-uat`，
+manifest SHA256 为 `6ccb5729efe6af9719322da300b927050dbdf1fee741a24d40dfe080702fa360`。
+
+测试计数：五组 exact-SHA CI 全绿；固定 PostgreSQL JUnit 合计 `58 passed / 0 skipped / 0 failure / 0 error`；fresh S6
+`10/10` 阶段与 release validator 全部通过。普通用户 signal API 7 个查询、账户/Alpha/Alpha history/health/ready/
+decision-ready/Regime/Policy/估值/财报/Task Monitor 与 2 个静态资源均完成契约核对；当前候选 SDK 13 组、MCP 13 组读取完成，
+其中三类决策接口按稳定阻断契约通过。普通用户页面、普通用户 API、SDK/MCP 三组 bounded 对账的 10 类业务模型均 before=after。
+
+未完成项、未验证风险与停止线：Financial current publication 仍是 legacy policy identity，正式全市场容量没有合格证据；S6
+N<=1/2N<=2 不能外推为全市场容量，未执行生产 financial refresh、未伪造 owner approval，也未解除 decision runtime。
+Task Monitor 仍保留历史任务 `51cc8472-6963-4e63-aaf5-3253853b027f` 的 `started` 行：它绑定已退出的旧 worker、无
+finished/result/exception，当前 active/reserved/scheduled 队列和 financial lease 均无对应任务；现有 retention policy 只在 7 天后将
+stale active 标记 timeout，本轮不提前伪造终态。生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，
+两个周期入口保持 disabled。结论为“部分通过/仍有阻断”，不得宣称四类正式发布或 decision runtime 已全面恢复。
+
+下一片是否可开始：普通用户页面主流程、API/SDK/MCP 契约、性能、权限隔离和零副作用 UAT 已收口。只有先形成 production financial
+全市场容量/请求预算/owner approval 的合格证据并获得用户新的明确授权，才能投递一次 production financial refresh；在此之前保持
+财报与 decision runtime fail closed。历史 stale Task Monitor 行只能由现有 7 日 retention/reconciliation 规则产生可追踪终态，不得
+人工改写或借此重跑财报任务。
