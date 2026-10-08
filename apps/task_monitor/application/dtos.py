@@ -83,6 +83,7 @@ class TaskAttemptResponse:
     succeeded: int | None = None
     failed: int | None = None
     stored: int | None = None
+    counts_unavailable: bool | None = None
     error_code: str | None = None
     blocked_reason: str | None = None
     stable_error_code: str | None = None
@@ -108,6 +109,7 @@ class TaskBusinessProjection:
     succeeded: int | None
     failed: int | None
     stored: int | None
+    counts_unavailable: bool | None
     error_code: str | None
     blocked_reason: str | None
     stable_error_code: str | None
@@ -317,6 +319,10 @@ def project_task_business_result(result: str | None) -> TaskBusinessProjection:
         if outcome in {"success", "noop"}
         else False if outcome in {"partial", "blocked", "failed"} else None
     )
+    raw_counts_unavailable = payload.get("counts_unavailable")
+    counts_unavailable = (
+        raw_counts_unavailable if isinstance(raw_counts_unavailable, bool) else None
+    )
     return TaskBusinessProjection(
         outcome=outcome,
         phase=_safe_token(_text_value(payload, "phase", "current_phase")),
@@ -325,6 +331,7 @@ def project_task_business_result(result: str | None) -> TaskBusinessProjection:
         succeeded=_count_value(payload, "succeeded"),
         failed=_count_value(payload, "failed"),
         stored=_count_value(payload, "stored"),
+        counts_unavailable=counts_unavailable,
         error_code=error_code,
         blocked_reason=_safe_error_code(payload.get("blocked_reason")),
         stable_error_code=stable_error_code,
@@ -359,6 +366,7 @@ def task_attempt_response(
         succeeded=projection.succeeded,
         failed=projection.failed,
         stored=projection.stored,
+        counts_unavailable=projection.counts_unavailable,
         error_code=projection.error_code,
         blocked_reason=projection.blocked_reason,
         stable_error_code=projection.stable_error_code,
@@ -408,6 +416,7 @@ def task_status_response(
         succeeded=projection.succeeded,
         failed=projection.failed,
         stored=projection.stored,
+        counts_unavailable=projection.counts_unavailable,
         error_code=projection.error_code,
         blocked_reason=projection.blocked_reason,
         stable_error_code=projection.stable_error_code,
@@ -447,6 +456,7 @@ class TaskStatusResponse:
     succeeded: int | None = None
     failed: int | None = None
     stored: int | None = None
+    counts_unavailable: bool | None = None
     error_code: str | None = None
     blocked_reason: str | None = None
     stable_error_code: str | None = None

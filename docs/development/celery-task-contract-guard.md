@@ -109,6 +109,16 @@ Interface Serializer 可重复提供更友好的 HTTP 错误，但不能作为�
 - Prometheus 指标使用 `success / partial / noop / blocked / failed` 标签；
 - 老任务没有结构化返回载荷时暂按历史成功口径处理，迁移后应显式发布 `outcome`。
 
+## Task Monitor orphan reconciliation
+
+`cleanup_old_task_records` 每日维护时可协调已开始但遗失终态信号的任务。普通 HTTP GET、页面查询和 MCP 查询保持只读，不得触发协调。保留期清理不能将旧 `pending` 或 `started` 行直接改成 timeout；`pending` 的 Celery `PENDING` 状态无法区分仍在 broker 排队与任务已遗失，因此不推断其为 orphan。
+
+只评估有当前 `attempt_id`、worker identity、首次尝试（`retries=0`）和 aware `started_at` 的 `started` 行。任务必须超过其注册 hard time limit、broker `visibility_timeout` 与默认 300 秒 grace 之和；可用 `TASK_MONITOR_ORPHAN_GRACE_SECONDS` 调整 grace，范围为 0–3600 秒。每轮只读快照必须覆盖全部配置队列的 passive ready 数，以及 worker ping、active、reserved、scheduled；worker 响应集合须一致，所有 ready 队列合计必须为零，且任务 ID 不得出现在任何 worker 列表中。Celery backend 的终态阻止 timeout；`PENDING`、`STARTED`、`RETRY` 或 `UNKNOWN` 只能作为非终态证据使用，backend 查询失败或状态无法识别时保留原行。
+
+候选记录的原 worker 必须不在当前 worker 响应集合内；任务专属 domain lease 必须明确 absent，cache 不可用或 owner 输入缺失时保留原行。金融续批 lease 按记录中的 `workflow_id` 精确查验；全市场刷新检查 task-wide lease key。无 domain lease 声明的任务记录为 `not_required`。任何运行中、排队中、ready queue 非空、证据不完整或第 1 次以外的尝试都不做状态转换。
+
+最终写入使用单条条件更新，同时匹配原 `status=started` 和 `attempt_id`。终态事件或新尝试先到时，CAS 失败。只有确认 orphan 后才写 `timeout`、稳定码 `TASK_ORPHAN_TIMEOUT` 和 `task_monitor_orphan_v1` 安全证据；证据不含任务参数、结果、worker 名称或 lease owner。超时结果保留规范 `outcome=failed`，`requested/succeeded/failed/stored` 均为 `null` 并标记 `counts_unavailable=true`，不虚构业务计数。相关反例与并发测试登记在 `governance/celery_task_contracts.json` 的 Task Monitor cleanup 覆盖说明中。
+
 ## 开发与验收命令
 
 ```bash

@@ -4,6 +4,7 @@ Task Monitor Domain Interfaces
 定义任务监控仓储协议。
 """
 
+from datetime import datetime
 from typing import Any, Protocol
 
 from apps.task_monitor.domain.entities import (
@@ -13,6 +14,8 @@ from apps.task_monitor.domain.entities import (
     SchedulerBootstrapResult,
     SchedulerCatalogSummary,
     TaskExecutionRecord,
+    TaskOrphanAttemptEvidence,
+    TaskOrphanClusterSnapshot,
     TaskStatistics,
     TaskStatus,
 )
@@ -61,6 +64,24 @@ class TaskRecordRepositoryProtocol(Protocol):
         expected_attempt_id: str | None = None,
     ) -> bool:
         """Atomically update result only while the record retains its expected state."""
+        ...
+
+    def list_orphan_reconciliation_candidates(self, *, limit: int) -> list[TaskExecutionRecord]:
+        """Return a bounded snapshot of currently STARTED task attempts."""
+        ...
+
+    def timeout_orphan_if_current_attempt(
+        self,
+        *,
+        task_id: str,
+        expected_status: TaskStatus,
+        expected_attempt_id: str,
+        finished_at: datetime,
+        runtime_seconds: float | None,
+        result: str,
+        exception: str,
+    ) -> bool:
+        """Atomically time out one still-current task attempt."""
         ...
 
     def list_by_task_name(
@@ -123,6 +144,23 @@ class CeleryHealthCheckerProtocol(Protocol):
         Returns:
             CeleryHealthStatus: 健康状态
         """
+        ...
+
+
+class TaskOrphanEvidenceProviderProtocol(Protocol):
+    """Read-only source of cluster and per-attempt orphan evidence."""
+
+    def capture_cluster_snapshot(self) -> TaskOrphanClusterSnapshot:
+        """Capture queue and worker state once for a reconciliation batch."""
+        ...
+
+    def get_attempt_evidence(
+        self,
+        record: TaskExecutionRecord,
+        *,
+        snapshot: TaskOrphanClusterSnapshot,
+    ) -> TaskOrphanAttemptEvidence:
+        """Read backend and domain lease state for one exact task record."""
         ...
 
 

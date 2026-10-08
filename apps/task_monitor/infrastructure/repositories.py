@@ -383,6 +383,44 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         )
         return updated_count == 1
 
+    def list_orphan_reconciliation_candidates(self, *, limit: int) -> list[TaskExecutionRecord]:
+        """Return a bounded, oldest-first snapshot of STARTED attempts."""
+
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+            raise ValueError("orphan reconciliation limit must be between 1 and 500")
+        models = TaskExecutionModel.objects.filter(status=TaskStatus.STARTED.value).order_by(
+            "started_at", "id"
+        )[:limit]
+        return [self._model_to_entity(model) for model in models]
+
+    def timeout_orphan_if_current_attempt(
+        self,
+        *,
+        task_id: str,
+        expected_status: TaskStatus,
+        expected_attempt_id: str,
+        finished_at: datetime,
+        runtime_seconds: float | None,
+        result: str,
+        exception: str,
+    ) -> bool:
+        """Atomically time out only the exact STARTED attempt that was assessed."""
+
+        updated_count = TaskExecutionModel.objects.filter(
+            task_id=task_id,
+            status=expected_status.value,
+            attempt_id=expected_attempt_id,
+        ).update(
+            status=TaskStatus.TIMEOUT.value,
+            finished_at=finished_at,
+            runtime_seconds=runtime_seconds,
+            result=_redact_evidence_text(result),
+            exception=_redact_evidence_text(exception, limit=2_000),
+            traceback=None,
+            updated_at=timezone.now(),
+        )
+        return updated_count == 1
+
     def list_by_task_name(
         self, task_name: str, limit: int = 100, status: str | None = None
     ) -> list[TaskExecutionRecord]:
@@ -443,16 +481,6 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         if isinstance(days_to_keep, bool) or not isinstance(days_to_keep, int) or days_to_keep <= 0:
             raise ValueError("days_to_keep must be a positive integer")
         now = timezone.now()
-        stale_active_cutoff = now - timedelta(days=7)
-        TaskExecutionModel.objects.filter(
-            status__in=["pending", "started"],
-            created_at__lt=stale_active_cutoff,
-        ).update(
-            status="timeout",
-            finished_at=now,
-            exception="Marked timeout by retention policy after 7 days",
-        )
-
         policies = (
             (["success", "revoked"], now - timedelta(days=days_to_keep)),
             (["failure", "timeout", "retry"], now - timedelta(days=90)),

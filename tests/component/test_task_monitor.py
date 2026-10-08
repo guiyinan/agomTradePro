@@ -350,7 +350,9 @@ class TestDjangoTaskRecordRepository:
         # 验证旧记录已删除
         assert repository.get_by_task_id("old-record") is None
 
-    def test_cleanup_uses_tiered_retention_and_times_out_stale_active(self, repository, db):
+    def test_cleanup_uses_tiered_retention_without_guessing_stale_active_state(
+        self, repository, db
+    ):
         now = timezone.now()
         cases = (
             ("old-failure", "failure", 100),
@@ -374,8 +376,8 @@ class TestDjangoTaskRecordRepository:
         assert not TaskExecutionModel.objects.filter(task_id="old-failure").exists()
         assert TaskExecutionModel.objects.filter(task_id="recent-failure").exists()
         stale = TaskExecutionModel.objects.get(task_id="old-pending")
-        assert stale.status == "timeout"
-        assert stale.finished_at is not None
+        assert stale.status == "pending"
+        assert stale.finished_at is None
 
 
 class TestCeleryHealthChecker:

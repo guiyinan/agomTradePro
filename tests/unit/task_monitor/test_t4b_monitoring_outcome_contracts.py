@@ -753,6 +753,18 @@ def test_backup_verification_distinguishes_missing_empty_valid_and_corrupt(
 def test_cleanup_task_reports_deleted_count(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(tasks, "get_repository", lambda: object())
     monkeypatch.setattr(
+        tasks,
+        "ReconcileOrphanedTaskRecordsUseCase",
+        lambda **_kwargs: SimpleNamespace(
+            execute=lambda: SimpleNamespace(
+                checked_count=2,
+                timed_out_count=1,
+                deferred_count=1,
+                evidence_complete=True,
+            )
+        ),
+    )
+    monkeypatch.setattr(
         "apps.task_monitor.application.use_cases.CleanupOldRecordsUseCase",
         lambda repository: SimpleNamespace(execute=lambda *, days_to_keep: days_to_keep + 2),
     )
@@ -766,6 +778,12 @@ def test_cleanup_task_reports_deleted_count(monkeypatch: pytest.MonkeyPatch) -> 
         "failed": 0,
         "stored": 0,
         "deleted_count": 32,
+        "orphan_reconciliation": {
+            "status": "complete",
+            "checked": 2,
+            "timed_out": 1,
+            "deferred": 1,
+        },
         "days_to_keep": 30,
     }
 
@@ -775,6 +793,18 @@ def test_cleanup_task_reports_noop_and_stable_input_failure(
 ) -> None:
     repository = Mock()
     monkeypatch.setattr(tasks, "get_repository", lambda: repository)
+    monkeypatch.setattr(
+        tasks,
+        "ReconcileOrphanedTaskRecordsUseCase",
+        lambda **_kwargs: SimpleNamespace(
+            execute=lambda: SimpleNamespace(
+                checked_count=0,
+                timed_out_count=0,
+                deferred_count=0,
+                evidence_complete=True,
+            )
+        ),
+    )
     monkeypatch.setattr(
         "apps.task_monitor.application.use_cases.CleanupOldRecordsUseCase",
         lambda repository: SimpleNamespace(execute=lambda *, days_to_keep: 0),
@@ -789,6 +819,12 @@ def test_cleanup_task_reports_noop_and_stable_input_failure(
         "failed": 0,
         "stored": 0,
         "deleted_count": 0,
+        "orphan_reconciliation": {
+            "status": "complete",
+            "checked": 0,
+            "timed_out": 0,
+            "deferred": 0,
+        },
         "days_to_keep": 30,
     }
     assert tasks.cleanup_old_task_records.run(days_to_keep=True) == {
@@ -800,6 +836,12 @@ def test_cleanup_task_reports_noop_and_stable_input_failure(
         "failed": 1,
         "stored": 0,
         "deleted_count": 0,
+        "orphan_reconciliation": {
+            "status": "deferred",
+            "checked": 0,
+            "timed_out": 0,
+            "deferred": 0,
+        },
         "days_to_keep": True,
         "error": "days_to_keep must be an integer between 1 and 3650",
     }

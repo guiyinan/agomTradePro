@@ -29,7 +29,14 @@ from apps.operational_readiness.management.commands.run_personal_readiness_daily
 )
 from apps.task_monitor.application.backup_tasks import backup_database_task as backup_database_task
 from apps.task_monitor.application.backup_tasks import verify_backup_task as verify_backup_task
-from apps.task_monitor.application.repository_provider import get_task_record_repository
+from apps.task_monitor.application.orphan_reconciliation import (
+    ReconcileOrphanedTaskRecordsUseCase,
+    TaskOrphanReconciliationResult,
+)
+from apps.task_monitor.application.repository_provider import (
+    get_task_orphan_evidence_provider,
+    get_task_record_repository,
+)
 from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
@@ -810,6 +817,7 @@ def _cleanup_old_task_records_result(
     outcome: str,
     days_to_keep: object,
     deleted_count: int = 0,
+    orphan_reconciliation: TaskOrphanReconciliationResult | None = None,
     error: str | None = None,
 ) -> dict[str, Any]:
     """Build one normalized cleanup operation result in record-count units."""
@@ -817,6 +825,12 @@ def _cleanup_old_task_records_result(
     if outcome not in {"success", "noop", "failed"}:
         raise ValueError("invalid task-monitor cleanup outcome")
     completed = outcome in {"success", "noop"}
+    reconciliation = orphan_reconciliation or TaskOrphanReconciliationResult(
+        checked_count=0,
+        timed_out_count=0,
+        deferred_count=0,
+        evidence_complete=False,
+    )
     payload: dict[str, Any] = {
         "status": "success" if completed else "error",
         "outcome": outcome,
@@ -826,6 +840,12 @@ def _cleanup_old_task_records_result(
         "failed": 1 if outcome == "failed" else 0,
         "stored": 0,
         "deleted_count": deleted_count,
+        "orphan_reconciliation": {
+            "status": "complete" if reconciliation.evidence_complete else "deferred",
+            "checked": reconciliation.checked_count,
+            "timed_out": reconciliation.timed_out_count,
+            "deferred": reconciliation.deferred_count,
+        },
         "days_to_keep": days_to_keep,
     }
     if error is not None:
@@ -856,17 +876,36 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
     try:
         from apps.task_monitor.application.use_cases import CleanupOldRecordsUseCase
 
-        use_case = CleanupOldRecordsUseCase(repository=get_repository())
+        repository = get_repository()
+        use_case = CleanupOldRecordsUseCase(repository=repository)
         count = use_case.execute(days_to_keep=days_to_keep)
         if type(count) is not int or count < 0:
             raise ValueError("cleanup repository returned an invalid deleted count")
 
+        try:
+            orphan_reconciliation = ReconcileOrphanedTaskRecordsUseCase(
+                repository=repository,
+                evidence_provider=get_task_orphan_evidence_provider(),
+            ).execute()
+        except Exception as exc:
+            logger.info(
+                "Task orphan reconciliation deferred: error_type=%s",
+                type(exc).__name__,
+            )
+            orphan_reconciliation = TaskOrphanReconciliationResult(
+                checked_count=0,
+                timed_out_count=0,
+                deferred_count=0,
+                evidence_complete=False,
+            )
+
         logger.info(f"Cleaned up {count} old task records")
 
         return _cleanup_old_task_records_result(
-            outcome="success" if count else "noop",
+            outcome=("success" if count or orphan_reconciliation.timed_out_count else "noop"),
             days_to_keep=days_to_keep,
             deleted_count=count,
+            orphan_reconciliation=orphan_reconciliation,
         )
 
     except Exception as exc:

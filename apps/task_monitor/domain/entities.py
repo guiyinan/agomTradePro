@@ -31,6 +31,82 @@ class TaskPriority(Enum):
     CRITICAL = "critical"
 
 
+class TaskOrphanLeaseState(Enum):
+    """Evidence state for a task-specific domain lease."""
+
+    ABSENT = "absent"
+    NOT_REQUIRED = "not_required"
+    ACTIVE = "active"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class TaskOrphanClusterSnapshot:
+    """One read-only broker and worker snapshot used for orphan decisions."""
+
+    observed_at: datetime
+    complete: bool
+    broker_visibility_timeout_seconds: int | None
+    grace_seconds: int | None
+    ready_message_count: int | None
+    active_task_ids: tuple[str, ...] | None
+    reserved_task_ids: tuple[str, ...] | None
+    scheduled_task_ids: tuple[str, ...] | None
+    responding_worker_names: tuple[str, ...] | None
+    managed_queue_count: int = 0
+
+
+@dataclass(frozen=True)
+class TaskOrphanAttemptEvidence:
+    """Task-specific hard-limit, backend, and lease evidence."""
+
+    hard_time_limit_seconds: int | None
+    backend_state: str | None
+    lease_state: TaskOrphanLeaseState
+    lease_evidence_code: str
+
+    def to_safe_dict(
+        self,
+        *,
+        record: "TaskExecutionRecord",
+        snapshot: TaskOrphanClusterSnapshot,
+    ) -> dict[str, str | int | bool | None]:
+        """Build the bounded public evidence projection for a confirmed orphan."""
+
+        from hashlib import sha256
+
+        attempt_digest = (
+            sha256(record.attempt_id.encode("utf-8")).hexdigest()
+            if record.attempt_id is not None
+            else None
+        )
+        worker_online = (
+            record.worker in snapshot.responding_worker_names
+            if record.worker is not None and snapshot.responding_worker_names is not None
+            else None
+        )
+        return {
+            "evidence_version": "task_monitor_orphan_v1",
+            "error_code": "TASK_ORPHAN_TIMEOUT",
+            "observed_at": snapshot.observed_at.isoformat(),
+            "attempt_id_sha256": attempt_digest,
+            "hard_time_limit_seconds": self.hard_time_limit_seconds,
+            "broker_visibility_timeout_seconds": snapshot.broker_visibility_timeout_seconds,
+            "grace_seconds": snapshot.grace_seconds,
+            "backend_state": self.backend_state,
+            "ready_message_count": snapshot.ready_message_count,
+            "managed_queue_count": snapshot.managed_queue_count,
+            "queue_evidence_code": "complete_all_managed_queues_empty",
+            "worker_snapshot_complete": snapshot.complete,
+            "original_worker_online": worker_online,
+            "task_seen_active": record.task_id in (snapshot.active_task_ids or ()),
+            "task_seen_reserved": record.task_id in (snapshot.reserved_task_ids or ()),
+            "task_seen_scheduled": record.task_id in (snapshot.scheduled_task_ids or ()),
+            "domain_lease_state": self.lease_state.value,
+            "domain_lease_evidence_code": self.lease_evidence_code,
+        }
+
+
 @dataclass(frozen=True)
 class TaskExecutionRecord:
     """任务执行记录（值对象）"""

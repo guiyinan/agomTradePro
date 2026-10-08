@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from apps.task_monitor.domain.interfaces import TaskOrphanEvidenceProviderProtocol
 from core.celery import app as celery_app
 
 
@@ -21,6 +22,20 @@ def get_celery_health_checker() -> Any:
     from apps.task_monitor.infrastructure.providers import CeleryHealthChecker
 
     return CeleryHealthChecker(celery_app=celery_app)
+
+
+def get_task_orphan_evidence_provider() -> TaskOrphanEvidenceProviderProtocol:
+    """Return the read-only Celery evidence provider for maintenance reconciliation."""
+
+    from apps.data_center.application.task_orphan_lease_provider import (
+        get_data_center_task_orphan_lease_probe,
+    )
+    from apps.task_monitor.infrastructure.orphan_evidence import CeleryTaskOrphanEvidenceProvider
+
+    return CeleryTaskOrphanEvidenceProvider(
+        celery_app=celery_app,
+        domain_lease_probes=(get_data_center_task_orphan_lease_probe(),),
+    )
 
 
 def get_database_backup_service() -> Any:
