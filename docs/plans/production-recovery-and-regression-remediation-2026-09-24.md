@@ -2917,3 +2917,17 @@ Publication PostgreSQL Linux runner 证明五个节点零跳过/零失败。旧�
 
 下一片是否可开始：可以提交本节台账并 push 新 HEAD，重新运行同一 SHA 五组 CI；Publication PostgreSQL 必须实际进入五个新增节点，
 随后继续完成其余固定节点和 artifact validator，才可进入 fresh S6。
+
+##### 2026-10-08 Financial capacity PostgreSQL transport budget 门禁修复
+
+完成项：候选 `455e72b46b4b2b87186a575a6aef77a4c07f9069` 的 Architecture `37782627726` 与 Security
+`37782627697` 已通过；Publication PostgreSQL `37782627612` 已越过 contract registry 路径，但五个 capacity 节点在 test-only
+capture runner 不接受新增 `attempt_budget` 参数时失败。提交 `bdefd1e04` 使 PostgreSQL seam 与生产 capture protocol 同签名，并在每次
+模拟 transport send 前真实调用 `reserve()`；缺少 budget 或超限均失败，测试不再绕过物理请求计数。相关双 capture/单 route budget
+契约 `3 passed`，Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：本地无 PostgreSQL，新增五节点仍必须在新 Linux CI 中实证；旧 run 未重跑，其余旧 SHA 结果不复用。所有生产刷新、
+审批与周期入口停止线不变。
+
+下一片是否可开始：可以提交台账并 push 新 HEAD，重新绑定五组 exact-SHA CI；只有 PostgreSQL 节点继续越过 test seam 并完成真实事务
+断言，才可将本次修复计作通过。
