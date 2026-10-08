@@ -2986,3 +2986,47 @@ full-market 重跑、owner approval 和两个周期入口的停止线不变；�
 
 下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 重跑五组 CI。只有五组同 SHA 全绿且 Publication PostgreSQL artifact
 固定节点零跳过、零失败、零 error，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-08 fresh S6 候选迁移与发布证据门禁
+
+现状：fresh S6 的只读数据库 preflight 在 `REHEARSAL_WRITE_MIGRATIONS_PENDING` 阻断；输入快照已到 `data_center.0089`，候选含
+`data_center.0090`–`0093`。该 preflight 先于 provider stage 且在只读事务中运行，因此本次阻断不能被当作迁移已完成或正式发布证据。
+
+本切片将隔离候选迁移报告纳入 release manifest 和 validator，固定 schema 为
+`release.isolated-database-migrations.v1`，evidence mode 为 `isolated_postgresql_migrations`。报告绑定 candidate SHA、candidate image、
+disposable database name/host/port/container ID、固定 migrator 命令与 `agomtradepro_migrator` 角色，并列出排序后的
+`database_address` 必须由 Docker network inspect 取得并通过严格 IP 解析；报告身份绑定 database name/host/address/port/container ID。迁移清单包括
+`pending_before`、`applied_migrations`、`pending_after`。validator 只接受 `pending_after=[]` 且 `applied_migrations` 与
+`pending_before` 完全相同；`[]/[]/[]` 是合法 noop。schema 不允许 URL、密码或额外 secret 字段。required report 和环境阶段顺序由
+`governance/release_rehearsal_policy.json` 同时约束，迁移报告随其他报告进入 bundle 的 hash graph。
+
+实施边界：迁移只能由候选 image 对精确 disposable PostgreSQL 使用 migrator URL 执行；迁后必须用 runtime URL 立即运行只读 preflight，
+验证同一个 database/container/image 且没有 pending migrations 后才开始 provider stages。迁移命令启动后若 timeout、进程中断或提交状态未知，
+必须阻断该 attempt，不能 `--resume` 重放；保留旧的 pending attempt，下一次使用新的 disposable DB 与 fresh attempt。此整改没有授权直接修改
+production migrations，也没有执行 production migration 或旧 attempt resume。
+
+完成项：提交 `d044defd8d2e66e53ec2c743e4ff911b7187daf9` 增加 `isolated_database_migrations` 阶段，并将其排在全部
+provider stage 之前。runner 同时校验 runtime/migrator URL 的 host、database 与 port、Docker network 中精确 PostgreSQL container/IP、
+candidate image/SHA、migrator session/current role，以及迁前/迁后 migration graph。迁移命令只接受
+`python -m scripts.manage_vps_migrations migrate --noinput`；`pending_before`、实际 applied delta 与 `pending_after` 必须精确对账。迁移启动前
+持久化 unknown-commit marker；只有 secret-free report 与 checkpoint 均 fsync 完成后才清除 marker，失败、超时或中断均保留阻断，同 attempt
+不得重放。release manifest、validator、policy required reports、test selector、环境契约与恢复手册已同步。migrator 私有 `0400` env 只允许
+隔离 DB identity、Django `SECRET_KEY` 与历史加密数据 migration 可能需要的 `AGOMTRADEPRO_ENCRYPTION_KEY`；provider/API、Sentry、SMTP、
+broker 与 MCP 凭据不会进入 stage env，任何 secret 都不会进入 argv、报告、诊断或 release bundle。两个应用密钥属于高敏迁移授权，用于保证
+从含历史密文的生产克隆演练时与真实数据一致，不能外推为 provider 授权。
+
+测试计数：迁移 runner/manager、manifest/validator、环境矩阵、selector 与 PostgreSQL role contract 聚焦回归
+`358 passed / 4 skipped`；4 个 skip 是本地 Windows 无 Docker/PostgreSQL 的既有环境门禁，不能计作 Linux 实证。生产文件增量 mypy
+`0 regressions`，全仓 mypy debt ceiling `0 errors`；Black、isort、Ruff、module map（44 modules/210 edges）、current-data（73 surfaces）、
+Celery contracts（95 tasks）、governance consistency（0 violations）、Data Center entrypoint 唯一生成投影（1,306 entries，
+candidate-review=0）及 `git diff --check` 全部通过。
+
+未验证风险与停止线：本地测试不能证明候选容器真实连到 disposable endpoint，也不能证明同一候选在 Linux 下完成 0090–0093 后继续通过十阶段、
+release validator 与 receipt handoff；迁移 stage 复用的 Docker network 不是 internal network，虽然没有注入 provider env/路由，但尚无物理层零外网
+证明。exact-SHA 五组 CI、Publication PostgreSQL artifact、fresh S6、同镜像部署和部署后只读 UAT 均未执行。旧 attempt、旧 receipt、旧 image
+不可补记或复用；生产 full-market 禁止重跑，两个周期入口保持 disabled，production financial refresh 仍需 full-scope capacity receipt、独立
+owner approval 与用户新的明确授权。
+
+下一片是否可开始：可以提交本节台账并 push 新 HEAD，绑定同一 exact SHA 的 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。五组全绿且 PostgreSQL artifact 固定节点零跳过/零失败后，才可从最新生产只读快照创建 fresh S6，禁止
+`--resume`；S6 必须实际应用隔离 migrations、完成十阶段与 release validator，之后只能部署 receipt 绑定的同 SHA 预构建镜像。
