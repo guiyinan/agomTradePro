@@ -6,11 +6,6 @@ from typing import TypeAlias, cast
 from celery import shared_task
 from django.conf import settings
 
-from apps.data_center.application.dtos import SyncFinancialRequest
-from apps.data_center.application.public import (
-    get_active_provider_id_by_source,
-    make_sync_financial_use_case,
-)
 from apps.equity.application.repository_provider import (
     get_equity_stock_pool_repository,
     get_equity_stock_repository,
@@ -27,7 +22,6 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
 )
-from core.exceptions import InvalidInputError
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
 TaskPayload: TypeAlias = dict[str, object]
@@ -36,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 _SOURCE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _STOCK_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+_FINANCIAL_CAPACITY_RECEIPT_REQUIRED = "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
 
 
 def _validate_positive_int(
@@ -100,6 +95,27 @@ def _failure_payload(error: str, *, stage: str | None = None) -> TaskPayload:
     if stage is not None:
         payload["stage"] = stage
     return payload
+
+
+def _financial_capacity_blocked_payload(*, requested_stock_count: int) -> TaskPayload:
+    """Return a stable zero-egress response for the retired legacy financial sync lane."""
+
+    return {
+        "success": False,
+        "outcome": TaskBusinessOutcome.BLOCKED.value,
+        "stage": "capacity",
+        "error_code": _FINANCIAL_CAPACITY_RECEIPT_REQUIRED,
+        "blocked_reason": "financial_capacity_receipt_required",
+        "partial_success": False,
+        "synced_count": 0,
+        "stored_record_count": 0,
+        "error_count": 0,
+        "requested_stock_count": requested_stock_count,
+        "succeeded_stock_count": 0,
+        "failed_stock_count": 0,
+        "blocked_stock_count": requested_stock_count,
+        "must_not_use_for_decision": True,
+    }
 
 
 def _has_synced_valuation_records(payload: TaskPayload) -> bool:
@@ -361,21 +377,11 @@ def sync_financial_data_task(
     periods: int = 8,
     stock_codes: list[str] | None = None,
 ) -> TaskPayload:
-    """
-    同步财务数据
+    """Block legacy fact-sync requests that do not carry a governed capacity receipt."""
 
-    Args:
-        source: 数据源（akshare 或 tushare）
-        periods: 获取最近几个报告期
-        stock_codes: 指定股票代码列表（None 表示全部活跃股票）
-    """
     try:
-        normalized_source = _normalize_source(source, field_name="source")
-        validated_periods = _validate_positive_int(
-            periods,
-            field_name="periods",
-            maximum=40,
-        )
+        _normalize_source(source, field_name="source")
+        _validate_positive_int(periods, field_name="periods", maximum=40)
         if stock_codes is not None and not isinstance(stock_codes, list):
             raise ValueError("stock_codes 必须是字符串列表")
         if stock_codes is not None and len(stock_codes) > 5000:
@@ -383,117 +389,26 @@ def sync_financial_data_task(
     except ValueError as exc:
         return _failure_payload(str(exc), stage="input")
 
-    stock_repo = get_equity_stock_repository()
     if stock_codes is None:
-        active_stock_codes = stock_repo.list_active_stock_codes()
-    else:
-        active_stock_codes = []
-        seen_codes: set[str] = set()
-        try:
-            for stock_code in stock_codes:
-                normalized = _normalize_identifier(
-                    stock_code,
-                    field_name="stock_code",
-                    pattern=_STOCK_CODE_PATTERN,
-                    maximum_length=32,
-                ).upper()
-                if normalized not in seen_codes:
-                    seen_codes.add(normalized)
-                    active_stock_codes.append(normalized)
-        except ValueError as exc:
-            return _failure_payload(str(exc), stage="input")
+        return _financial_capacity_blocked_payload(requested_stock_count=0)
+
+    active_stock_codes: list[str] = []
+    seen_codes: set[str] = set()
+    try:
+        for stock_code in stock_codes:
+            normalized = _normalize_identifier(
+                stock_code,
+                field_name="stock_code",
+                pattern=_STOCK_CODE_PATTERN,
+                maximum_length=32,
+            ).upper()
+            if normalized not in seen_codes:
+                seen_codes.add(normalized)
+                active_stock_codes.append(normalized)
+    except ValueError as exc:
+        return _failure_payload(str(exc), stage="input")
 
     if not active_stock_codes:
         return _failure_payload("没有找到活跃股票", stage="input")
 
-    provider_id = get_active_provider_id_by_source(normalized_source)
-    if provider_id is None:
-        return _failure_payload(
-            f"未找到启用的数据源: {normalized_source}",
-            stage="input",
-        )
-
-    sync_use_case = make_sync_financial_use_case()
-    synced_count = 0
-    error_count = 0
-    blocked_count = 0
-    errors: list[str] = []
-
-    for stock_code in active_stock_codes:
-        try:
-            result = sync_use_case.execute(
-                SyncFinancialRequest(
-                    provider_id=provider_id,
-                    asset_code=stock_code,
-                    periods=validated_periods,
-                    require_decision_evidence=True,
-                )
-            )
-            stored_count = result.stored_count
-            if (
-                isinstance(stored_count, bool)
-                or not isinstance(stored_count, int)
-                or stored_count < 0
-            ):
-                raise ValueError("同步结果 stored_count 无效")
-            synced_count += stored_count
-        except InvalidInputError as exc:
-            if exc.code != "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
-                error_count += 1
-                logger.warning(
-                    "Financial data sync failed for %s: %s",
-                    stock_code,
-                    type(exc).__name__,
-                )
-                if len(errors) < 10:
-                    errors.append(f"{stock_code}: 同步失败")
-                continue
-            blocked_count += 1
-            logger.info(
-                "Financial data sync blocked for %s: %s",
-                stock_code,
-                exc.code,
-            )
-        except Exception as exc:
-            error_count += 1
-            logger.warning(
-                "Financial data sync failed for %s: %s",
-                stock_code,
-                type(exc).__name__,
-            )
-            if len(errors) < 10:  # 只记录前 10 个错误
-                errors.append(f"{stock_code}: 同步失败")
-
-    total_stocks = len(active_stock_codes)
-    succeeded_stock_count = total_stocks - error_count - blocked_count
-    is_partial = succeeded_stock_count > 0 and (error_count > 0 or blocked_count > 0)
-    if succeeded_stock_count == 0 and error_count > 0:
-        outcome = TaskBusinessOutcome.FAILED
-    elif blocked_count == total_stocks:
-        outcome = TaskBusinessOutcome.BLOCKED
-    elif is_partial:
-        outcome = TaskBusinessOutcome.PARTIAL
-    elif synced_count == 0:
-        outcome = TaskBusinessOutcome.NOOP
-    else:
-        outcome = TaskBusinessOutcome.SUCCESS
-
-    payload: TaskPayload = {
-        "success": outcome is not TaskBusinessOutcome.FAILED,
-        "outcome": outcome.value,
-        "partial_success": is_partial,
-        "synced_count": synced_count,
-        "stored_record_count": synced_count,
-        "error_count": error_count,
-        "total_stocks": total_stocks,
-        "requested_stock_count": total_stocks,
-        "succeeded_stock_count": succeeded_stock_count,
-        "failed_stock_count": error_count,
-        "blocked_stock_count": blocked_count,
-        "errors": errors,
-    }
-    if blocked_count:
-        payload["blocked_reason"] = "financial_source_evidence_required"
-    if outcome is TaskBusinessOutcome.NOOP:
-        payload["noop_reason"] = "provider completed without new financial records"
-    return payload
+    return _financial_capacity_blocked_payload(requested_stock_count=len(active_stock_codes))

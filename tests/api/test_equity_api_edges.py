@@ -4,8 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
@@ -604,12 +606,9 @@ def test_equity_multidim_screen_rejects_invalid_request_shapes(
 
 
 @pytest.mark.django_db
-def test_equity_sync_financial_data_returns_task_payload(authenticated_client):
-    task_payload = {"success": True, "queued": True, "task_id": "sync-123"}
-
+def test_equity_financial_sync_denies_ordinary_authenticated_user(authenticated_client):
     with patch(
         "apps.equity.application.tasks_valuation_sync.sync_financial_data_task",
-        return_value=task_payload,
     ) as mock_task:
         response = authenticated_client.post(
             "/api/equity/financial-data/sync/",
@@ -617,12 +616,56 @@ def test_equity_sync_financial_data_returns_task_payload(authenticated_client):
             format="json",
         )
 
-    assert response.status_code == 200
-    assert response.json() == task_payload
+    assert response.status_code == 403
+    mock_task.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("payload", "stock_codes"),
+    [
+        (
+            {"stock_codes": ["600519.SH"], "periods": 4, "source": "akshare"},
+            ["600519.SH"],
+        ),
+        ({"periods": 4, "source": "akshare"}, None),
+    ],
+)
+def test_equity_financial_sync_admin_is_blocked_without_capacity_receipt(payload, stock_codes):
+    admin = get_user_model().objects.create_superuser(
+        username="financial_sync_admin",
+        email="financial-sync-admin@example.com",
+        password="testpass123",
+    )
+    client = APIClient()
+    client.force_authenticate(user=admin)
+
+    task_payload = {
+        "success": False,
+        "outcome": "blocked",
+        "error_code": "FINANCIAL_CAPACITY_RECEIPT_REQUIRED",
+        "stored_record_count": 0,
+        "must_not_use_for_decision": True,
+    }
+    with patch(
+        "apps.equity.application.tasks_valuation_sync.sync_financial_data_task",
+        return_value=task_payload,
+    ) as mock_task:
+        response = client.post(
+            "/api/equity/financial-data/sync/",
+            payload,
+            format="json",
+        )
+
+    assert response.status_code == 409
+    assert response.json()["outcome"] == "blocked"
+    assert response.json()["error_code"] == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert response.json()["stored_record_count"] == 0
+    assert response.json()["must_not_use_for_decision"] is True
     mock_task.assert_called_once_with(
         source="akshare",
         periods=4,
-        stock_codes=["600519.SH"],
+        stock_codes=stock_codes,
     )
 
 

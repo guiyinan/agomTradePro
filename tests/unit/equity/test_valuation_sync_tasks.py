@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from apps.equity.application import tasks as compatibility_tasks
 from apps.equity.application import tasks_valuation_sync as canonical_tasks
 from apps.equity.application.tasks_valuation_sync import (
@@ -7,7 +9,6 @@ from apps.equity.application.tasks_valuation_sync import (
     sync_financial_data_task,
     sync_validate_scan_equity_valuation_task,
 )
-from core.exceptions import InvalidInputError
 
 
 def test_legacy_equity_task_aliases_delegate_exactly_to_canonical_tasks(monkeypatch) -> None:
@@ -208,175 +209,59 @@ def test_sync_valuation_task_fails_when_success_response_has_no_records():
     assert result["sync"] == {"requested_count": 2, "synced_count": 0}
 
 
-def test_sync_financial_data_task_uses_explicit_codes_without_legacy_filter():
-    with (
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
-            return_value=3,
-        ),
-        patch(
-            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
-        ) as make_sync_uc,
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
-        ) as stock_repo_cls,
-    ):
-        stock_repo_cls.return_value.list_active_stock_codes.return_value = []
-        make_sync_uc.return_value.execute.return_value = MagicMock(stored_count=10)
+def test_sync_financial_data_task_blocks_full_universe_before_repository_access(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        pytest.fail("legacy financial sync must block before repository or provider access")
 
-        result = sync_financial_data_task(
-            source="akshare",
-            periods=8,
-            stock_codes=["001979.SZ", "001979.SZ"],
-        )
-
-        assert result["success"] is True
-        assert result["outcome"] == "success"
-        assert result["synced_count"] == 10
-        assert result["stored_record_count"] == 10
-        assert result["total_stocks"] == 1
-        assert result["requested_stock_count"] == 1
-        assert result["succeeded_stock_count"] == 1
-        assert result["failed_stock_count"] == 0
-        stock_repo_cls.return_value.list_active_stock_codes.assert_not_called()
-        make_sync_uc.return_value.execute.assert_called_once()
-        request = make_sync_uc.return_value.execute.call_args.args[0]
-        assert request.provider_id == 3
-        assert request.asset_code == "001979.SZ"
-        assert request.periods == 8
-        assert request.require_decision_evidence is True
-
-
-def test_sync_financial_data_task_does_not_expand_explicit_empty_list():
     with patch(
         "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
     ) as stock_repo_cls:
-        result = sync_financial_data_task(stock_codes=[])
+        monkeypatch.setattr(
+            canonical_tasks, "get_active_provider_id_by_source", fail_if_called, raising=False
+        )
+        monkeypatch.setattr(
+            canonical_tasks, "make_sync_financial_use_case", fail_if_called, raising=False
+        )
+        result = sync_financial_data_task(stock_codes=None)
 
-    assert result == {
-        "success": False,
-        "outcome": "failed",
-        "error": "没有找到活跃股票",
-        "stage": "input",
-    }
-    stock_repo_cls.return_value.list_active_stock_codes.assert_not_called()
+    assert result["success"] is False
+    assert result["outcome"] == "blocked"
+    assert result["stage"] == "capacity"
+    assert result["error_code"] == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert result["requested_stock_count"] == 0
+    assert result["stored_record_count"] == 0
+    assert result["must_not_use_for_decision"] is True
+    stock_repo_cls.assert_not_called()
 
 
-def test_sync_financial_data_task_reports_complete_failure():
-    with (
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
-            return_value=3,
-        ),
-        patch(
-            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
-        ) as make_sync_use_case,
-    ):
-        make_sync_use_case.return_value.execute.side_effect = RuntimeError("provider down")
+def test_sync_financial_data_task_blocks_explicit_scope_without_governed_budget(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        pytest.fail("legacy financial sync must block before repository or provider access")
 
+    with patch(
+        "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
+    ) as stock_repo_cls:
+        monkeypatch.setattr(
+            canonical_tasks, "get_active_provider_id_by_source", fail_if_called, raising=False
+        )
+        monkeypatch.setattr(
+            canonical_tasks, "make_sync_financial_use_case", fail_if_called, raising=False
+        )
         result = sync_financial_data_task(
-            source="custom.provider",
+            source="akshare",
             periods=8,
-            stock_codes=["000001.SZ", "600000.SH"],
+            stock_codes=["001979.SZ", "600000.SH"],
         )
 
     assert result["success"] is False
-    assert result["outcome"] == "failed"
-    assert result["partial_success"] is False
-    assert result["synced_count"] == 0
-    assert result["error_count"] == 2
-    assert result["total_stocks"] == 2
-    assert result["requested_stock_count"] == 2
-    assert result["succeeded_stock_count"] == 0
-    assert result["failed_stock_count"] == 2
-    assert result["errors"] == [
-        "000001.SZ: 同步失败",
-        "600000.SH: 同步失败",
-    ]
-    assert "provider down" not in str(result)
-
-
-def test_sync_financial_data_task_reports_source_evidence_gate_as_blocked():
-    """Missing decision evidence is a bounded business block, not a provider failure."""
-
-    with (
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
-            return_value=3,
-        ),
-        patch(
-            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
-        ) as make_sync_use_case,
-    ):
-        make_sync_use_case.return_value.execute.side_effect = InvalidInputError(
-            "financial provider facts require complete source evidence before write",
-            code="FINANCIAL_SOURCE_EVIDENCE_REQUIRED",
-        )
-
-        result = sync_financial_data_task(
-            source="tushare",
-            periods=8,
-            stock_codes=["000001.SZ"],
-        )
-
-    assert result["success"] is True
     assert result["outcome"] == "blocked"
-    assert result["blocked_reason"] == "financial_source_evidence_required"
+    assert result["stage"] == "capacity"
+    assert result["error_code"] == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
+    assert result["blocked_reason"] == "financial_capacity_receipt_required"
+    assert result["requested_stock_count"] == 2
     assert result["stored_record_count"] == 0
-    assert result["requested_stock_count"] == 1
-    assert result["succeeded_stock_count"] == 0
-    assert result["failed_stock_count"] == 0
-    assert result["blocked_stock_count"] == 1
-
-
-def test_sync_financial_data_task_reports_partial_success():
-    with (
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
-            return_value=3,
-        ),
-        patch(
-            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
-        ) as make_sync_use_case,
-    ):
-        make_sync_use_case.return_value.execute.side_effect = [
-            MagicMock(stored_count=4),
-            RuntimeError("second failed"),
-        ]
-
-        result = sync_financial_data_task(
-            periods=8,
-            stock_codes=["000001.SZ", "600000.SH"],
-        )
-
-    assert result["success"] is True
-    assert result["outcome"] == "partial"
-    assert result["partial_success"] is True
-    assert result["synced_count"] == 4
-    assert result["error_count"] == 1
-
-
-def test_sync_financial_data_task_reports_explicit_noop_for_zero_records():
-    with (
-        patch(
-            "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source",
-            return_value=3,
-        ),
-        patch(
-            "apps.equity.application.tasks_valuation_sync.make_sync_financial_use_case"
-        ) as make_sync_use_case,
-    ):
-        make_sync_use_case.return_value.execute.return_value = MagicMock(stored_count=0)
-
-        result = sync_financial_data_task(
-            periods=8,
-            stock_codes=["000001.SZ"],
-        )
-
-    assert result["success"] is True
-    assert result["outcome"] == "noop"
-    assert result["stored_record_count"] == 0
-    assert result["noop_reason"] == "provider completed without new financial records"
+    assert result["must_not_use_for_decision"] is True
+    stock_repo_cls.assert_not_called()
 
 
 def test_sync_financial_data_task_rejects_invalid_periods_before_repository_access():
@@ -394,16 +279,27 @@ def test_sync_financial_data_task_rejects_invalid_periods_before_repository_acce
     stock_repository.assert_not_called()
 
 
-def test_sync_financial_data_task_rejects_malformed_stock_code_before_provider_access():
+def test_sync_financial_data_task_rejects_malformed_stock_code_before_provider_access(
+    monkeypatch,
+):
+    def fail_if_called(*args, **kwargs):
+        pytest.fail("malformed financial scope must be rejected before provider access")
+
+    monkeypatch.setattr(
+        canonical_tasks, "get_active_provider_id_by_source", fail_if_called, raising=False
+    )
+    monkeypatch.setattr(
+        canonical_tasks, "make_sync_financial_use_case", fail_if_called, raising=False
+    )
     with patch(
-        "apps.equity.application.tasks_valuation_sync.get_active_provider_id_by_source"
-    ) as provider_lookup:
+        "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
+    ) as stock_repository:
         result = sync_financial_data_task(stock_codes=["000001.SZ;DROP"])
 
     assert result["success"] is False
     assert result["outcome"] == "failed"
     assert result["stage"] == "input"
-    provider_lookup.assert_not_called()
+    stock_repository.assert_not_called()
 
 
 def test_validate_valuation_task_rejects_invalid_source_before_repository_access():

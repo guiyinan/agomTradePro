@@ -12,6 +12,7 @@ from typing import Any, Protocol, TypeVar, cast
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -150,13 +151,21 @@ class EquityValuationActionsMixin:
 
     @typed_schema(
         summary="同步财务数据",
-        description="同步指定股票的财务数据（ROE、营收、利润等）",
+        description="旧财务同步入口需要容量收据；正式导入请使用治理后的容量工作流。",
         request=SyncFinancialDataRequestSerializer,
-        responses={200: SyncFinancialDataResponseSerializer},
+        responses={
+            200: SyncFinancialDataResponseSerializer,
+            409: SyncFinancialDataResponseSerializer,
+        },
     )
-    @typed_action(detail=False, methods=["post"], url_path="financial-data/sync")
+    @typed_action(
+        detail=False,
+        methods=["post"],
+        url_path="financial-data/sync",
+        permission_classes=[IsAdminUser],
+    )
     def sync_financial_data(self, request: Request) -> Response:
-        """同步财务数据"""
+        """Keep the legacy write route administrator-only and capacity fail-closed."""
         from apps.equity.application.tasks_valuation_sync import sync_financial_data_task
 
         serializer = SyncFinancialDataRequestSerializer(data=request.data)
@@ -170,7 +179,10 @@ class EquityValuationActionsMixin:
             stock_codes=data.get("stock_codes"),
         )
 
-        return Response(result, status=status.HTTP_200_OK)
+        response_status = (
+            status.HTTP_409_CONFLICT if result.get("outcome") == "blocked" else status.HTTP_200_OK
+        )
+        return Response(result, status=response_status)
 
     @typed_schema(
         summary="列出估值修复快照",
