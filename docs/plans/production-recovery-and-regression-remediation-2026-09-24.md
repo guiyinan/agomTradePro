@@ -3171,3 +3171,28 @@ PostgreSQL 测试和 fresh S6 的真实 provider/full-scope 阶段共同证明�
 SHA 的 Architecture、Security、Consistency、Fast Feedback 与 Publication PostgreSQL 五组全部通过，并确认 13 个 financial-capacity 节点、
 financial slice、Account outer-fence 与 5,001 member soak 零跳过/零失败后，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧
 receipt/image。fresh S6 全部通过并同镜像部署后仍须停在 production financial refresh 的系统 owner approval/ceiling 门前。
+
+##### 2026-10-09 最终治理与 Qlib 停牌范围门禁收口
+
+完成项：最终治理复核发现 current-data contract 仍引用 financial capacity checkpoint v5、legacy financial sync 的旧决策证据 marker 与已删除的成功
+测试 selector。提交 `700b2a487` 只更新 `governance/current_data_contracts.json`：checkpoint marker 提升为 v6，legacy sync 改为
+`FINANCIAL_CAPACITY_RECEIPT_REQUIRED` 与全 scope fail-closed 契约，required selector 指向现有容量阻断测试；scanner、freshness 和 production 行为未改。
+批量回归同时暴露 pytest 插件导入顺序：owner evidence 模块先作为 helper 被导入、后声明 `pytest_plugins`，导致首批收集缺少现有
+`owner_physical_alias` fixture。提交 `40db1f37d` 在 research `conftest.py` 提前注册同一个 Account PostgreSQL contract plugin，并删除迟到的模块声明；
+没有复制 fixture 或新增 skip。
+
+Qlib 回归进一步发现生产正确性问题：部分证券有停牌证据、其余证券仅未知缺行时，旧逻辑会错误返回 `MODEL_MARKET_SUSPENDED`；存在部分行情时也可能
+静默遗漏未知成员。提交 `1f99739ee` 在任何日历或特征写入前要求冻结请求范围精确满足
+`requested = observed_with_rows ∪ verified_suspended`。未知缺失稳定返回 `MODEL_MARKET_SCOPE_INCOMPLETE`，details 只列资产代码；只有全部请求证券
+都有精确停牌证据且无行情时才返回 `MODEL_MARKET_SUSPENDED`。没有降低停牌证据、freshness、coverage 或来源阈值。
+
+测试计数：current-data checker `73 surfaces`，Qlib builder `29 passed`，owner v2/evidence `20 passed / 8 skipped`；完整 current-data registered runner
+四批共 `1,048 passed / 43 skipped / 0 failed`，skip 为当前 Windows/Linux/PostgreSQL 能力门禁，未计作通过。Qlib 生产文件增量 mypy 为
+`0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 和 `git diff --check` 通过。
+
+未验证风险与停止线：owner evidence 与 financial capacity 的专用 PostgreSQL 节点仍须由 Linux Publication PostgreSQL CI 证明实际执行且零 skip；
+本地 Windows 的通过不能替代真实 PostgreSQL 锁、事务和权限链路。尚未执行 final exact-SHA 五组 CI、fresh S6、同镜像部署或 production financial
+refresh。生产全市场任务、owner approval、capacity ceiling 与两个周期入口停止线保持不变。
+
+下一片是否可开始：可以提交本节台账、push 最终 SHA 并启动五组 exact-SHA CI。五组同 SHA 全绿且官方 PostgreSQL artifact 固定节点全部零跳过/
+零失败后，才可进入 fresh S6；后续生产 financial refresh 仍必须等待完整 receipt import、两个独立认证 owner/reviewer 事件和有效 ceiling。
