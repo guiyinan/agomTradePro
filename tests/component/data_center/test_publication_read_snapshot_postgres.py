@@ -3071,11 +3071,10 @@ def test_financial_scope_import_locks_nullable_revocation_join_on_postgresql(
 
 
 def _formal_checkpoint_for_pg_import_test(
-    *, scope_import: FinancialScopeCapacityImportModel, workflow_id: str
+    *, scope_import: FinancialScopeCapacityImportModel, workflow_id: str, now: datetime
 ) -> FinancialCapacityCheckpoint:
     """Build a valid formal checkpoint tied to one persisted scope import."""
 
-    now = datetime.now(UTC)
     binding = FinancialCapacityBinding(
         environment="production",
         candidate_sha=scope_import.candidate_sha,
@@ -3186,7 +3185,7 @@ def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -
     )
     from apps.data_center.application.financial_scope_capacity_receipt import canonical_sha256
 
-    now = timezone.now().astimezone(UTC) + timedelta(seconds=60)
+    now = timezone.now().astimezone(UTC)
     binding = FinancialCapacityBinding(
         environment="production",
         candidate_sha="f" * 40,
@@ -3358,6 +3357,7 @@ def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -
     checkpoint = _formal_checkpoint_for_pg_import_test(
         scope_import=scope_import,
         workflow_id=workflow_id,
+        now=now,
     )
     return (
         authority,
@@ -3565,9 +3565,11 @@ def test_formal_start_consumes_verified_scope_import_atomically_postgresql(
     )
 
     scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    now = datetime.now(UTC)
     checkpoint = _formal_checkpoint_for_pg_import_test(
         scope_import=scope_import,
         workflow_id="pg-atomic-formal-start",
+        now=now,
     )
     repository = DjangoFinancialCapacityCheckpointRepository(
         scope_capacity_import_authority_source=_postgres_scope_import_authority(monkeypatch)
@@ -3608,9 +3610,11 @@ def test_formal_start_import_event_failure_rolls_back_all_rows_postgresql(
     )
 
     scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    now = datetime.now(UTC)
     checkpoint = _formal_checkpoint_for_pg_import_test(
         scope_import=scope_import,
         workflow_id="pg-rollback-formal-start",
+        now=now,
     )
     authority = _postgres_scope_import_authority(monkeypatch)
     append_event = authority.consume_formal_start
@@ -3648,9 +3652,11 @@ def test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_i
     )
 
     scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    now = datetime.now(UTC)
     first_checkpoint = _formal_checkpoint_for_pg_import_test(
         scope_import=scope_import,
         workflow_id="pg-replay-formal-start-a",
+        now=now,
     )
     repository = DjangoFinancialCapacityCheckpointRepository(
         scope_capacity_import_authority_source=_postgres_scope_import_authority(monkeypatch)
@@ -3661,6 +3667,7 @@ def test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_i
     second_checkpoint = _formal_checkpoint_for_pg_import_test(
         scope_import=scope_import,
         workflow_id="pg-replay-formal-start-b",
+        now=now,
     )
     with pytest.raises(FinancialCapacityWorkflowError):
         repository.create(second_checkpoint)
@@ -3684,10 +3691,12 @@ def test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner(
     )
 
     scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    now = datetime.now(UTC)
     checkpoints = tuple(
         _formal_checkpoint_for_pg_import_test(
             scope_import=scope_import,
             workflow_id=f"pg-concurrent-formal-start-{index}",
+            now=now,
         )
         for index in range(2)
     )
