@@ -4299,6 +4299,7 @@
           "FinancialCapacitySliceRunner",
           "FinancialProductionCeilingSource",
           "FinancialQualificationCeilingSource",
+          "FinancialScopeCapacityImportAuthoritySource",
           "InMemoryFinancialCapacityCheckpointRepository",
           "ProtocolClock"
         ],
@@ -5101,7 +5102,7 @@
       "layers": {
         "application": 134,
         "domain": 35,
-        "infrastructure": 178,
+        "infrastructure": 179,
         "interface": 19,
         "management": 40,
         "root": 21
@@ -5128,7 +5129,8 @@
           "FinancialCapacityGovernanceRevocationModel",
           "FinancialCapacityOwnerApprovalEventModel",
           "FinancialScopeManifestCurrentPointerModel",
-          "FinancialScopeCapacityImportModel"
+          "FinancialScopeCapacityImportModel",
+          "FinancialScopeCapacityImportConsumptionModel"
         ]
       }
     },

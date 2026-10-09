@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 48,
-    "current_surface_references": 5423,
+    "current_surface_references": 5493,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -3973,6 +3973,14 @@
     {
       "path": "apps/account/management/commands/backfill_canonical_account_creation_consumption_v1.py",
       "text": "raise CommandError(\"expected inventory hash does not match current inventory\")"
+    },
+    {
+      "path": "apps/account/management/commands/bootstrap_cold_start.py",
+      "text": "\"financial-current-publication-refresh\","
+    },
+    {
+      "path": "apps/account/management/commands/bootstrap_cold_start.py",
+      "text": "\"full-market-current-publications\","
     },
     {
       "path": "apps/account/management/commands/bootstrap_cold_start.py",
@@ -8108,6 +8116,10 @@
     },
     {
       "path": "apps/data_center/application/control_plane.py",
+      "text": "\"\"\"Reject generic writes to the receipt-gated financial current lane.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/control_plane.py",
       "text": "\"\"\"Return exact normalized hashes for the referenced current fact rows.\"\"\""
     },
     {
@@ -8436,6 +8448,14 @@
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "raise ValueError(\"Deferred current-publication datasets must be unique and unselected\")"
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "raise ValueError(\"Deferred current-publication lane status is invalid\")"
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Scope exclusions are unsupported for this current dataset\")"
     },
     {
@@ -8661,6 +8681,86 @@
     {
       "path": "apps/data_center/application/financial_capacity_workflow_base.py",
       "text": "return self._result(latest)"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"A report whose current review events have been reloaded and verified.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"Persisted current report pointer plus the two event identities it consumed.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"Read and atomically replace the current reviewed full-scope report pointer.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"Reload current pointer and review events, then verify exact runtime identities.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"Return the current pointer for one environment, if a pointer exists.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "\"\"\"Validate persisted review events, then compare-and-swap the current report pointer.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "current = pointer_source.get_current(environment=environment)"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "expected_revision=current.revision if current is not None else 0,"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "or summary.get(\"coverage_count\") != candidate.coverage_count"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "or summary.get(\"manifest_sha256\") != candidate.manifest_sha256"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "or summary.get(\"review_status\") != \"pending_independent_review\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "or summary.get(\"universe_sha256\") != candidate.universe_sha256"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "set(summary) != {\"manifest_sha256\", \"universe_sha256\", \"coverage_count\", \"review_status\"}"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_input.py",
+      "text": "summary = _mapping(result.get(\"candidate\"))"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
+      "text": "or summary.get(\"coverage_count\") != asset_count"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
+      "text": "or summary.get(\"manifest_sha256\") != candidate.get(\"manifest_sha256\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
+      "text": "or summary.get(\"review_status\") != \"pending_independent_review\""
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
+      "text": "or summary.get(\"universe_sha256\") != universe.get(\"sha256\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
+      "text": "summary = _mapping(result.get(\"candidate\"), \"S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE\")"
+    },
+    {
+      "path": "apps/data_center/application/financial_scope_manifest_bootstrap.py",
+      "text": "\"\"\"Read the complete current active securities universe without side effects.\"\"\""
     },
     {
       "path": "apps/data_center/application/financial_slice_sync.py",
@@ -9847,6 +9947,10 @@
       "text": "summary: str"
     },
     {
+      "path": "apps/data_center/domain/financial_scope_discovery.py",
+      "text": "\"\"\"Latest source-native announcement date and its two capture proofs.\"\"\""
+    },
+    {
       "path": "apps/data_center/domain/market_time.py",
       "text": "\"\"\"Return the latest source-observed closed session, including during trading.\"\"\""
     },
@@ -10747,6 +10851,14 @@
       "text": "qs = qs.filter(pk=Subquery(latest))"
     },
     {
+      "path": "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",
+      "text": "\"\"\"Bind the current-pointer reader and persistent dual-review event source.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_publication_capacity_runtime.py",
+      "text": "\"\"\"Freeze workflow input through the current persisted reviewed scope and typed facts.\"\"\""
+    },
+    {
       "path": "apps/data_center/infrastructure/financial_response_body_store.py",
       "text": "current /= part"
     },
@@ -10765,6 +10877,146 @@
     {
       "path": "apps/data_center/infrastructure/financial_response_capture.py",
       "text": "\"\"\"Return the system's current aware UTC time for completion evidence.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_authority.py",
+      "text": "\"\"\"Re-read the import, current typed scope, dual reviews, and owner ceiling.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_authority.py",
+      "text": "\"\"\"Return a deterministic event binding authority, current scope, and formal workflow.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_authority.py",
+      "text": "\"\"\"Verify current production authority and append one-time formal consumption.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_runtime.py",
+      "text": "current /= part"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_runtime.py",
+      "text": "current = Path(path.anchor)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_runtime.py",
+      "text": "current_path = Path(current)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_runtime.py",
+      "text": "for current, directories, files in os.walk(directory, followlinks=False):"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_capacity_import_runtime.py",
+      "text": "metadata = current.lstat()"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_discovery_governance.py",
+      "text": "\"\"\"Read the complete current active stock universe in deterministic order.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_discovery_reader.py",
+      "text": "\"contract_id\": \"akshare.financial-scope.latest-notice\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "\"\"\"Atomically replace the current pointer when its expected revision is current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "\"\"\"PostgreSQL-backed current pointer for reviewed full-scope financial reports.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "\"\"\"Read and compare-and-swap the one current reviewed manifest per environment.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "actual_revision = current.revision if current is not None else 0"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current = ("
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current = FinancialScopeManifestCurrentPointerModel("
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.owner_approval_id = pointer.owner_approval_id"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.owner_event_id = pointer.owner_event_id"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.report_payload = pointer.report_payload"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.report_sha256 = pointer.report_sha256"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.reviewer_approval_id = pointer.reviewer_approval_id"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.reviewer_event_id = pointer.reviewer_event_id"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.revision = actual_revision + 1"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.save()"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "current.updated_by = pointer.updated_by"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "environment=cast(Literal[\"isolated\", \"production\"], current.environment),"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "owner_approval_id=current.owner_approval_id,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "owner_event_id=current.owner_event_id,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "report_payload=current.report_payload,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "report_sha256=current.report_sha256,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "reviewer_approval_id=current.reviewer_approval_id,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "reviewer_event_id=current.reviewer_event_id,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "revision=current.revision,"
+    },
+    {
+      "path": "apps/data_center/infrastructure/financial_scope_manifest_current_pointer.py",
+      "text": "updated_by=current.updated_by,"
     },
     {
       "path": "apps/data_center/infrastructure/full_universe_capacity_runner.py",
@@ -10981,6 +11233,18 @@
     {
       "path": "apps/data_center/infrastructure/market_structure_repository.py",
       "text": "\"\"\"Resolve historical members without substituting the current component set.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/models.py",
+      "text": "\"\"\"Current reviewed scope report used as the financial capacity input authority.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/models.py",
+      "text": "\"\"\"Keep the current scope pointer present as auditable state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/models.py",
+      "text": "raise ValidationError(\"Financial scope current pointers cannot be deleted.\")"
     },
     {
       "path": "apps/data_center/infrastructure/news_repository.py",
@@ -11539,6 +11803,10 @@
       "text": "for item in summary[\"issues\"][:sample_size]:"
     },
     {
+      "path": "apps/data_center/management/commands/import_financial_scope_capacity_receipt.py",
+      "text": "help = \"Import one current full-scope S6 financial capacity evidence bundle.\""
+    },
+    {
       "path": "apps/data_center/management/commands/init_macro_indicator_governance.py",
       "text": "raise CommandError(summary)"
     },
@@ -11580,7 +11848,7 @@
     },
     {
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
-      "text": "\"Preview full active-A-share quote/price/valuation/financial current publications; \""
+      "text": "\"Preview active-A-share quote/price/valuation publications; financial current \""
     },
     {
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
@@ -11589,6 +11857,18 @@
     {
       "path": "apps/data_center/management/commands/rebuild_active_a_share_core_publications.py",
       "text": "raise CommandError(\"--operator must match the current server-issued actor\")"
+    },
+    {
+      "path": "apps/data_center/management/commands/record_financial_scope_manifest_pointer.py",
+      "text": "\"\"\"Install the exact independently reviewed isolated scope report as current capacity input.\"\"\""
+    },
+    {
+      "path": "apps/data_center/management/commands/record_financial_scope_manifest_pointer.py",
+      "text": "help = \"Install one reviewed isolated financial scope report as current capacity input.\""
+    },
+    {
+      "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",
+      "text": "\"Financial current publication remains receipt-gated in its dedicated workflow.\""
     },
     {
       "path": "apps/data_center/management/commands/repair_active_a_share_current_facts.py",

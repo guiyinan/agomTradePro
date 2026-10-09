@@ -3,7 +3,7 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 161,
+      "application_consumer": 159,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
@@ -11,32 +11,32 @@
       "compatibility_facade": 95,
       "current_data_surface": 73,
       "dynamic_import_edge": 13,
-      "management_command": 45,
+      "management_command": 47,
       "management_command_edge": 62,
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 70,
       "operational_script": 32,
-      "orchestration_entry": 16,
+      "orchestration_entry": 17,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 12,
+      "script": 14,
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 86,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 832,
+      "active_public": 833,
       "adjacent_operational": 337,
-      "candidate-review": 0,
+      "candidate-review": 2,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1307
+    "total": 1310
   },
   "entries": [
     {
@@ -607,26 +607,6 @@
       "path": "apps/equity/application/query_services.py",
       "status": "active_public",
       "symbol": "get_published_equity_context_payloads",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/application/tasks_valuation_sync.py:get_active_provider_id_by_source:semantic:get_active_provider_id_by_source",
-      "locator": "semantic:get_active_provider_id_by_source",
-      "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "active_public",
-      "symbol": "get_active_provider_id_by_source",
-      "target": ""
-    },
-    {
-      "category": "application_consumer",
-      "evidence": "canonical Data Center Application Public Port import",
-      "id": "application_consumer:apps/equity/application/tasks_valuation_sync.py:make_sync_financial_use_case:semantic:make_sync_financial_use_case",
-      "locator": "semantic:make_sync_financial_use_case",
-      "path": "apps/equity/application/tasks_valuation_sync.py",
-      "status": "active_public",
-      "symbol": "make_sync_financial_use_case",
       "target": ""
     },
     {
@@ -5311,7 +5291,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=117",
+      "evidence": "governed current-data contract; source_files=118",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -6132,6 +6112,16 @@
     {
       "category": "management_command",
       "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/import_financial_scope_capacity_receipt.py:import_financial_scope_capacity_receipt:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/import_financial_scope_capacity_receipt.py",
+      "status": "active_public",
+      "symbol": "import_financial_scope_capacity_receipt",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
       "id": "management_command:apps/data_center/management/commands/import_investor_accounts.py:import_investor_accounts:",
       "locator": "",
       "path": "apps/data_center/management/commands/import_investor_accounts.py",
@@ -6237,6 +6227,16 @@
       "path": "apps/data_center/management/commands/record_financial_capacity_governance.py",
       "status": "active_public",
       "symbol": "record_financial_capacity_governance",
+      "target": ""
+    },
+    {
+      "category": "management_command",
+      "evidence": "Data Center-owned Django command",
+      "id": "management_command:apps/data_center/management/commands/record_financial_scope_manifest_pointer.py:record_financial_scope_manifest_pointer:",
+      "locator": "",
+      "path": "apps/data_center/management/commands/record_financial_scope_manifest_pointer.py",
+      "status": "active_public",
+      "symbol": "record_financial_scope_manifest_pointer",
       "target": ""
     },
     {
@@ -8722,6 +8722,16 @@
     {
       "category": "orchestration_entry",
       "evidence": "script/workflow delegates to a governed Django command",
+      "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_financial_scope_discovery:semantic:rehearse_financial_scope_discovery",
+      "locator": "semantic:rehearse_financial_scope_discovery",
+      "path": "scripts/run_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "rehearse_financial_scope_discovery",
+      "target": ""
+    },
+    {
+      "category": "orchestration_entry",
+      "evidence": "script/workflow delegates to a governed Django command",
       "id": "orchestration_entry:scripts/run_release_rehearsal.py:rehearse_full_universe_capacity:semantic:rehearse_full_universe_capacity",
       "locator": "semantic:rehearse_full_universe_capacity",
       "path": "scripts/run_release_rehearsal.py",
@@ -11171,6 +11181,16 @@
     },
     {
       "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/build_release_rehearsal_manifest.py:__main__:",
+      "locator": "",
+      "path": "scripts/build_release_rehearsal_manifest.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/check_data_center_runtime_catalog.py:__main__:",
       "locator": "",
@@ -11276,6 +11296,16 @@
       "locator": "",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/validate_release_rehearsal.py:__main__:",
+      "locator": "",
+      "path": "scripts/validate_release_rehearsal.py",
+      "status": "candidate-review",
       "symbol": "__main__",
       "target": ""
     },
