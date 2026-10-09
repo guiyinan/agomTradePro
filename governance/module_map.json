@@ -3886,7 +3886,7 @@
           "imports": 4
         },
         "equity": {
-          "imports": 47
+          "imports": 45
         },
         "factor": {
           "imports": 4
@@ -4347,6 +4347,12 @@
           "prepare_financial_scope_manifest_pointer",
           "resolve_current_financial_scope_capacity_input",
           "validate_capacity_scope_input"
+        ],
+        "application/financial_scope_capacity_receipt.py": [
+          "FinancialScopeCapacityReceiptError",
+          "build_financial_scope_capacity_receipt",
+          "canonical_sha256",
+          "validate_financial_scope_capacity_receipt"
         ],
         "application/financial_scope_discovery_governance.py": [
           "parse_financial_scope_discovery_authorization",
@@ -5088,7 +5094,7 @@
         ]
       },
       "layers": {
-        "application": 132,
+        "application": 133,
         "domain": 35,
         "infrastructure": 177,
         "interface": 19,
@@ -5673,7 +5679,7 @@
           ]
         },
         "data_center": {
-          "imports": 47,
+          "imports": 45,
           "target_layers": [
             "application",
             "composition",
