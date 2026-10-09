@@ -17,6 +17,7 @@ from apps.data_center.akshare_financial_slice_sync_composition import (
     make_sync_akshare_financial_slices_use_case,
 )
 from apps.data_center.application.financial_publication_capacity import (
+    FinancialCapacityAuthorityValidator,
     FinancialCapacityBinding,
     FinancialCapacityBindingSource,
     FinancialCapacityBuildIdentitySource,
@@ -25,6 +26,7 @@ from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacitySliceAttempt,
     FinancialCapacitySliceEvidence,
     FinancialCapacitySliceRunner,
+    FinancialCapacityWorkflow,
     FinancialCapacityWorkflowError,
     FinancialPublicationSlice,
     FinancialScopeCapacityImportAuthoritySource,
@@ -766,10 +768,46 @@ def make_django_financial_capacity_ports(
     )
 
 
+def make_django_financial_capacity_workflow(
+    *,
+    isolation_attestation_sha256: str = "",
+    authority_validator: FinancialCapacityAuthorityValidator | None = None,
+) -> FinancialCapacityWorkflow:
+    """Compose the database-backed financial workflow from its concrete runtime ports."""
+
+    (
+        checkpoint_repository,
+        binding_source,
+        manifest_source,
+        slice_runner,
+        publisher,
+        qualification_ceiling_source,
+        capacity_rehearsal_ceiling_source,
+        production_ceiling_source,
+        scope_capacity_import_authority_source,
+    ) = make_django_financial_capacity_ports(
+        isolation_attestation_sha256=isolation_attestation_sha256,
+    )
+    return FinancialCapacityWorkflow(
+        checkpoint_repository=checkpoint_repository,
+        binding_source=binding_source,
+        manifest_source=manifest_source,
+        slice_runner=slice_runner,
+        publisher=publisher,
+        qualification_ceiling_source=qualification_ceiling_source,
+        capacity_rehearsal_ceiling_source=capacity_rehearsal_ceiling_source,
+        production_ceiling_source=production_ceiling_source,
+        scope_capacity_import_authority_source=scope_capacity_import_authority_source,
+        authority_validator=authority_validator,
+        clock=timezone.now,
+    )
+
+
 __all__ = [
     "AtomicFinancialPolicyV3Publisher",
     "ControlledAkshareFinancialCapacitySliceRunner",
     "DjangoFinancialCapacityBindingSource",
     "DjangoFinancialCapacityManifestSource",
+    "make_django_financial_capacity_workflow",
     "make_django_financial_capacity_ports",
 ]

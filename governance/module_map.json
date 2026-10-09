@@ -4309,6 +4309,9 @@
         "application/financial_capacity_rehearsal.py": [
           "FinancialCapacityRehearsalWorkflow"
         ],
+        "application/financial_capacity_task_entry.py": [
+          "formal_scope_import_input_failure"
+        ],
         "application/financial_capacity_workflow_base.py": [
           "FinancialCapacityWorkflowBase"
         ],
@@ -5100,7 +5103,7 @@
         ]
       },
       "layers": {
-        "application": 134,
+        "application": 135,
         "domain": 35,
         "infrastructure": 179,
         "interface": 19,

@@ -11,7 +11,6 @@ from typing import Any, cast
 
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
 from apps.data_center.application.control_plane import RollbackCanonicalPublicationUseCase
 from apps.data_center.application.current_fact_remediation import (
@@ -646,34 +645,12 @@ def make_financial_publication_capacity_workflow(
     """Compose the durable, exact-scope financial capacity gate and publication path."""
 
     from apps.data_center.infrastructure.financial_publication_capacity_runtime import (
-        make_django_financial_capacity_ports,
+        make_django_financial_capacity_workflow,
     )
 
-    (
-        checkpoint_repository,
-        binding_source,
-        manifest_source,
-        slice_runner,
-        publisher,
-        qualification_ceiling_source,
-        capacity_rehearsal_ceiling_source,
-        production_ceiling_source,
-        scope_capacity_import_authority_source,
-    ) = make_django_financial_capacity_ports(
+    return make_django_financial_capacity_workflow(
         isolation_attestation_sha256=isolation_attestation_sha256,
-    )
-    return FinancialCapacityWorkflow(
-        checkpoint_repository=checkpoint_repository,
-        binding_source=binding_source,
-        manifest_source=manifest_source,
-        slice_runner=slice_runner,
-        publisher=publisher,
-        qualification_ceiling_source=qualification_ceiling_source,
-        capacity_rehearsal_ceiling_source=capacity_rehearsal_ceiling_source,
-        production_ceiling_source=production_ceiling_source,
-        scope_capacity_import_authority_source=scope_capacity_import_authority_source,
         authority_validator=authority_validator,
-        clock=timezone.now,
     )
 
 

@@ -2629,6 +2629,32 @@ def test_capacity_task_formal_start_rejects_noncanonical_scope_import_id(
     assert result["stored"] == 0
 
 
+def test_financial_capacity_composition_delegates_runtime_wiring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import apps.data_center.composition as composition
+    import apps.data_center.infrastructure.financial_publication_capacity_runtime as runtime
+
+    captured: dict[str, object] = {}
+    workflow = object()
+
+    def compose(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return workflow
+
+    monkeypatch.setattr(runtime, "make_django_financial_capacity_workflow", compose)
+
+    result = composition.make_financial_publication_capacity_workflow(
+        isolation_attestation_sha256="a" * 64
+    )
+
+    assert result is workflow
+    assert captured == {
+        "isolation_attestation_sha256": "a" * 64,
+        "authority_validator": None,
+    }
+
+
 def test_capacity_task_can_finish_one_explicit_isolated_qualification_step(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

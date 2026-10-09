@@ -8,13 +8,16 @@ import logging
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from celery import shared_task
 from django.core.cache import cache
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.data_center.application.financial_capacity_task_entry import (
+    formal_scope_import_input_failure,
+)
 from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacityWorkflowError,
     FinancialCapacityWorkflowResult,
@@ -321,37 +324,12 @@ def refresh_financial_publication_capacity_task(
             "stored": 0,
             "published": 0,
         }
-    if action == "formal_start" and scope_capacity_import_id:
-        try:
-            if str(UUID(scope_capacity_import_id)) != scope_capacity_import_id:
-                raise ValueError("non-canonical import ID")
-        except (TypeError, ValueError):
-            return {
-                **market_task.full_market_input_failure(
-                    "invalid_financial_capacity_scope_import_id"
-                ),
-                "outcome": TaskBusinessOutcome.FAILED.value,
-                "stage": "input",
-                "requested": 0,
-                "succeeded": 0,
-                "failed": 0,
-                "stored": 0,
-                "published": 0,
-            }
-    if action == "formal_start" and not scope_capacity_import_id:
-        reason = "financial_capacity_scope_import_required"
-        return {
-            **market_task.full_market_input_failure(reason),
-            "outcome": TaskBusinessOutcome.BLOCKED.value,
-            "stage": "capacity",
-            "requested": 0,
-            "succeeded": 0,
-            "failed": 0,
-            "stored": 0,
-            "published": 0,
-            "blocked_reason": reason,
-            "must_not_use_for_decision": True,
-        }
+    scope_import_failure = formal_scope_import_input_failure(
+        action=action,
+        scope_capacity_import_id=scope_capacity_import_id,
+    )
+    if scope_import_failure is not None:
+        return scope_import_failure
     if action in {"qualification_start", "capacity_rehearsal_start"} and (
         total_provider_request_budget <= 0
     ):
