@@ -3275,3 +3275,28 @@ CAS 与事务实现均未修改或放宽。旧失败 run 未重跑，其四组�
 
 下一片是否可开始：可以提交本节台账、push 新最终 SHA，并从头绑定五组 CI。只有同一 SHA 五组全绿且 Publication PostgreSQL
 artifact 的全部必需节点通过后，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-09 Financial authority PostgreSQL 统一测试时钟整改
+
+完成项：候选 `0e591960606de381c32a7e91ea06107eb90feb23` 的 Architecture `37892171171`、Security
+`37892171178`、Consistency `37892171151` 与 Fast Feedback `37892171177` 通过；Fast Feedback 的 Python 3.11/3.13
+FIFO、targeted pytest、RTM 和静态检查均通过。Publication PostgreSQL `37892171210` 在 real publication locks/frozen facts
+阶段为 `47 passed / 3 failed`，三个失败均在真实 formal scope import authority 测试，稳定返回
+`financial_capacity_scope_import_review_or_pointer_drift`；后续 capacity 与完整 artifact 校验按 fail-closed 跳过。
+
+根因是测试 authority seed 将 report/pointer/review 时钟设为 wall clock 加 60 秒，而 formal checkpoint helper 随后重新读取当前 wall clock。
+两条真实 review 因 `approved_at > checkpoint.started_at/consume now` 被生产校验正确拒绝，candidate/provider/universe drift 测试也因此无法进入
+预期的后续分支。提交 `65e9a2aad` 仅使这些 PostgreSQL fixture 显式共享同一个 UTC `now`：candidate generated_at 为 `now - 5 minutes`，
+owner/reviewer approved_at、pointer now 与 checkpoint/consume now 均绑定该时点。所有其他 formal checkpoint 调用点也显式传入捕获时钟；生产
+review/pointer/import 校验、错误码和阈值未改。
+
+测试计数：失败 CI 的目标阶段为 `47 passed / 3 failed`；修复后三个精确节点本地收集为 `3 skipped`，原因是未启用专用 disposable
+loopback PostgreSQL，不能计作通过。Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：统一时钟修复必须由新 exact-SHA Publication PostgreSQL 实证；旧 SHA 的四组成功不得拼接。官方 artifact 尚未证明
+13 个 financial-capacity 节点、financial slice、Account outer-fence 与 5,001 member soak 全部零 skip/failure/error。VPS 上另有旧 SHA
+`c35df0dd18b4577f80bfc62e7f8623d6f6a26b3a` attempt 的历史 `run-status=running`，新 S6 前必须确认无实际 runner/资源并按证据保留规则处理，
+不得 resume 或误用其状态。生产 full-market、financial refresh、双 owner/reviewer、ceiling 与两个周期入口停止线不变。
+
+下一片是否可开始：可以提交本节台账、push 新最终 SHA 并从头运行五组 CI。只有同一 SHA 五组全绿、完整 PostgreSQL artifact 验证通过，
+且 VPS 无活动 rehearsal 资源后，才可由 planner 原子预留全新 S6 attempt；禁止复用历史 run、receipt 或 image。
