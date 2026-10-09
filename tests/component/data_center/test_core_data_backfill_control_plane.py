@@ -18,12 +18,11 @@ PUBLICATION_DATASETS = (
     "equity.quote.snapshot",
     "equity.price.bar",
     "equity.valuation.fact",
-    "equity.financial.fact",
 )
 
 
 def _publication_result(member_count: int) -> SimpleNamespace:
-    """Return exact four-Publication evidence for component wiring tests."""
+    """Return three generic Publications and the deferred financial lane."""
 
     datasets = [
         {
@@ -41,6 +40,15 @@ def _publication_result(member_count: int) -> SimpleNamespace:
         to_dict=lambda: {
             "published_count": member_count * len(datasets),
             "datasets": datasets,
+            "deferred_publications": [
+                {
+                    "dataset_key": "equity.financial.fact",
+                    "outcome": "blocked",
+                    "blocked_reason": "financial_capacity_receipt_required",
+                    "attempted": False,
+                    "must_not_use_for_decision": True,
+                }
+            ],
         },
     )
 
@@ -229,7 +237,7 @@ def test_backfill_persists_run_batch_and_checkpoint_rows(mocker) -> None:
     checkpoint = SyncCheckpointModel._default_manager.get(batch_id=batch.batch_id)
     assert run.outcome == "success"
     assert run.stored == 4
-    assert run.published == 4
+    assert run.published == 3
     assert batch.idempotency_key.startswith("equity.core.backfill:tushare:offset=0:window=1:")
     assert checkpoint.cursor_name == "asset_offset"
     assert '"complete":true' in checkpoint.cursor_value
@@ -322,7 +330,7 @@ def test_postgresql_backfill_provider_domain_failure_persists_partial_outcome(mo
 
     result = backfill_active_a_share_core_data_batch_task.run(batch_size=1)
 
-    assert result["success"] is True
+    assert result["success"] is False
     assert result["outcome"] == "partial"
     assert result["domains"]["price"]["failed"] == 1
     assert result["errors"] == [
