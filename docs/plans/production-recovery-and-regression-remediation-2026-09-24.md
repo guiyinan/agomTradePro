@@ -3132,3 +3132,42 @@ BuildKit 回退。远端 build 和含预构建镜像的 deploy 都有相应的 E
 
 下一片是否可开始：否。先修复并通过全仓 mypy debt ceiling，再由主任务完成目标 VPS Engine `>=29.3.2` 只读核验和新 exact-SHA CI；条件满足后只可从
 最新生产只读快照启动全新的 S6 attempt，禁止 resume 事故 attempt。部署仍须等 fresh S6 完整通过及相应授权。
+
+##### 2026-10-09 Financial capacity 已验证导入的一次性消费门禁
+
+完成项：提交 `e3d746e48` 将 production formal financial workflow 收紧为只接受已持久化的 verified capacity import ID；调用方不能提供或覆盖
+import record hash。新增 append-only consumption ledger 和 `data_center.0097`，以 import 唯一约束阻止不同 workflow 重放；checkpoint repository
+在同一 `transaction.atomic()` 内锁定并重读 import authority，写入 consumption、formal workflow 与 manifest，任一写入失败整体回滚。start、
+in-flight claim、resume、slice 和 activation 均重新校验 consumed import 与当前 owner/reviewer/ceiling、candidate、provider、universe 和 source revision
+绑定；同 workflow 的 commit-unknown 通过精确 read-back 对账，不重复消费或发起 provider 请求。production composition 与 Celery task 只传持久化
+import ID，裸 receipt 稳定返回 `financial_capacity_scope_import_required`。
+
+Luna Max 红队发现反向可空 revocation 关系上的 `LEFT OUTER JOIN + FOR UPDATE` 会被 PostgreSQL 拒绝。提交 `0b0226c82` 将 importer 与 formal
+authority 两处锁限定为 `select_for_update(of=("self",))`，只锁 governance 主表；新增真实 PostgreSQL 节点覆盖 nullable join、真实 import/pointer/
+review/ceiling authority、审批撤销、ceiling 漂移、import digest 篡改、candidate/provider/universe 漂移，以及事务已提交后客户端收到
+`DatabaseError` 的同 workflow read-back。Publication PostgreSQL 的 `financial-capacity-postgres.xml` 精确集合由 5 扩为 13 个节点，workflow
+校验 exact identities 与 `0 skipped / 0 failure / 0 error`，`validate_release_rehearsal.py::REQUIRED_POSTGRESQL_TESTS` 同步登记。提交
+`cc1703a96` 仅由唯一生成器更新 module map、Data Center architecture inventory 与 entrypoint inventory；检查结果为 module map
+`44 modules / 210 edges`、entrypoint `1,310 records`（833 active_public、337 adjacent_operational、138 compatibility、2 candidate-review），
+architecture inventory 统计一致。
+
+提交 `ae00c0306` 另行收口 Celery 合约的 5 个历史 selector：legacy `sync_financial_data_task` 已永久改为 capacity fail-closed，
+治理清单却仍引用旧 all-success、partial、complete-failure 与 zero-output 行为测试。整改没有修改 checker 或恢复旧行为，只保留该兼容入口仍可发生的
+`invalid_input` 与 `blocked` 契约；blocked 反例同时覆盖默认全集和显式证券范围，成功与部分失败行为继续归受控新任务。`check_celery_task_contracts.py`
+通过，guardrail/checker `13 passed`、估值任务 `11 passed`、注册契约套件 `279 passed`，Black、isort、Ruff 与 diff 检查通过。
+
+测试计数：financial capacity workflow `64 passed`，production pointer/replay 精确节点 `1 passed`，capacity import `17 passed / 1 skipped`，release
+validator `140 passed`，新增 PostgreSQL 节点本机因未配置专用 loopback PostgreSQL 明确 `4 skipped`，全文件 `44 collected`；这 4 项不能计作通过。
+17 个生产 Python 文件增量 mypy 为 `0 regression`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、migration dry-run、三份生成
+投影 check 与 `git diff --check` 通过。Luna Max 对 `0b0226c82` 最终只读红队复核未发现 P0/P1。
+
+未验证风险与停止线：最终候选尚未 push，13 个 financial-capacity PostgreSQL 节点必须由同一 exact SHA 的 Linux Publication PostgreSQL
+artifact 证明零跳过/零失败；authority PG 节点使用稳定替身提供 provider binding snapshot 与 typed-source manifest freeze，这部分仍需既有独立
+PostgreSQL 测试和 fresh S6 的真实 provider/full-scope 阶段共同证明。尚未执行 fresh S6、同镜像部署或 production financial refresh。聊天授权不能
+替代系统内 data_owner 与 independent_reviewer 的两个独立认证事件，也不能替代未撤销、未过期的 production ceiling；缺少任一事实时 formal refresh
+必须 fail closed。生产全市场任务 `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个受保护周期入口保持 disabled。
+
+下一片是否可开始：可以提交本节台账并形成最终候选 SHA。只有同一
+SHA 的 Architecture、Security、Consistency、Fast Feedback 与 Publication PostgreSQL 五组全部通过，并确认 13 个 financial-capacity 节点、
+financial slice、Account outer-fence 与 5,001 member soak 零跳过/零失败后，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧
+receipt/image。fresh S6 全部通过并同镜像部署后仍须停在 production financial refresh 的系统 owner approval/ceiling 门前。
