@@ -3196,3 +3196,34 @@ refresh。生产全市场任务、owner approval、capacity ceiling 与两个周
 
 下一片是否可开始：可以提交本节台账、push 最终 SHA 并启动五组 exact-SHA CI。五组同 SHA 全绿且官方 PostgreSQL artifact 固定节点全部零跳过/
 零失败后，才可进入 fresh S6；后续生产 financial refresh 仍必须等待完整 receipt import、两个独立认证 owner/reviewer 事件和有效 ceiling。
+
+##### 2026-10-09 Financial 最终候选 CI 失败根因整改与入口投影收口
+
+完成项：候选 `bd395da7565985a180c844a662c435d9355ddacd` 的 Architecture `37885865994` 与 Security
+`37885865977` 通过，但该 SHA 不是最终候选，结果不得复用。Consistency `37885865918` 因两份 release rehearsal 脚本缺少
+operational lifecycle 登记而失败；Fast Feedback `37885865976` 因 `apps/data_center/application/tasks.py` 与
+`apps/data_center/composition.py` 超出 changed-file 1,000 行增量门禁而失败；Publication PostgreSQL `37885865951` 因七个新 capacity
+fixture 未满足真实模型字段与隔离 build identity 契约而失败。旧 run 均未重跑。
+
+提交 `a7b21c5ee` 仅修复 PostgreSQL fixture：使用完整 `FinancialFactModel` 字段，并生成 schema-valid、与候选绑定的隔离 build identity；
+13 个 official financial capacity test identities 未删减。提交 `c4896eda9` 将 financial capacity task gate 组装拆到独立模块，由 runtime
+持有具体 port/workflow assembly，`tasks.py` 收敛到 985 行，`composition.py` 收敛到 1,109 行且低于其比较基线；没有提高文件门槛。
+提交 `071f56863` 使用唯一 entrypoint generator 与 operational manifest 精确登记
+`scripts/build_release_rehearsal_manifest.py` 和 `scripts/validate_release_rehearsal.py`。生成投影从 1,310 增至 1,312 条，新增的两条
+`active_public operational_script` 与原有两条 `candidate-review script` 并存，保留 import review；legacy checker、扫描规则与 compatibility
+清单未修改，也没有通配放行。
+
+测试计数：financial capacity workflow `64 passed`，task/composition 聚焦回归 `3 passed`；PostgreSQL 七个目标在本机成功收集，但因未配置专用
+loopback PostgreSQL 明确 skipped，不能计作通过。entrypoint/legacy suite `32 passed`，新增语义正反例 `3 passed`；entrypoint stale-check
+为 1,312 entries、34 operational scripts、2 candidate-review，legacy checker 为 0 direct/0 wrappers。changed-file headroom、生产文件增量
+mypy、全仓 debt ceiling、Black、isort、Ruff、module map `44 modules / 210 edges`、Architecture inventory、current-data `73 surfaces`、
+Celery contracts `95 tasks`、governance consistency `0 violations` 与 `git diff --check` 均通过。
+
+未验证风险与停止线：上述三个整改提交组成的新 HEAD 尚未由同一 exact SHA 的五组 CI 验证；本地 Windows 无法证明真实 PostgreSQL 锁、
+事务、nullable relation 与 build identity 行为。两份 release script 的 import surface 仍保留 candidate-review，后续 architecture review 可独立处理，
+本次不能用 lifecycle 登记伪装为 import review 完成。尚未执行 fresh S6、同镜像部署、production financial refresh 或普通用户 UAT；生产
+full-market 任务禁止重跑，两个周期入口保持 disabled，系统内 data_owner/independent_reviewer/ceiling 停止线不变。
+
+下一片是否可开始：可以以本节台账提交形成新最终候选并 push，从头绑定 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。只有五组同 SHA 全绿且 official artifact 证明 13 个 financial capacity 节点、financial slice、Account outer-fence
+与 5,001 member soak 零跳过、零失败、零 error，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
