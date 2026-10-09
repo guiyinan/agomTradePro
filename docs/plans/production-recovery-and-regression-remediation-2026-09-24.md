@@ -3300,3 +3300,26 @@ loopback PostgreSQL，不能计作通过。Black、isort、Ruff 与 `git diff --
 
 下一片是否可开始：可以提交本节台账、push 新最终 SHA 并从头运行五组 CI。只有同一 SHA 五组全绿、完整 PostgreSQL artifact 验证通过，
 且 VPS 无活动 rehearsal 资源后，才可由 planner 原子预留全新 S6 attempt；禁止复用历史 run、receipt 或 image。
+
+##### 2026-10-09 Core backfill 发布证据测试契约同步
+
+完成项：候选 `6128a82f18da2042376bb5aed2f741fd93d2ace8` 的 Architecture `37893185300`、Security
+`37893185246`、Consistency `37893185269` 与 Fast Feedback `37893185179` 通过；Fast Feedback 的 Python 3.11/3.13
+FIFO/special-file、targeted pytest、RTM 和静态检查均通过。Publication PostgreSQL `37893185280` 已越过前述双审批时钟、真实
+publication locks、financial-capacity crash recovery/CAS，在 control plane/valuation lineage 阶段的 3 个节点中 `1 passed / 2 failed`。
+
+第一项失败由 component 测试替身仍声明 quote/price/valuation/financial 四类通用 Publication 且缺少 `deferred_publications` 引起；当前生产
+契约要求三类通用 Publication，并以 `financial_capacity_receipt_required`、`attempted=false` 的 deferred financial lane 明确阻断财报。
+第二项失败是 partial provider-domain 测试仍期望兼容字段 `success=true`，而任务最低契约只允许 SUCCESS/NOOP 为 true，规范 `partial`
+必须返回 false。提交 `90d0022a8` 仅同步测试替身和断言：generic published 从 4 改为 3，四个同步域实际 `stored=4` 保持不变；partial 的
+`outcome=partial`、失败域与错误明细断言全部保留。生产任务、发布证据哈希、财报阻断和 Celery outcome 逻辑均未修改。
+
+测试计数：该 component 文件非 PostgreSQL 用例 `2 passed / 2 deselected`；失败 CI JUnit 为 `1 passed / 2 failed / 0 skipped / 0 error`。
+Black、isort、Ruff 与 `git diff --check` 通过；两个真实 PostgreSQL 节点仍须由新 CI 实证。
+
+未验证风险与停止线：旧 SHA 的四组成功不得拼接。Publication PostgreSQL 后续 financial slice、statement logging、migration、SQLite
+reconciliation 与完整 artifact validator 因前序失败未执行；13 个 financial-capacity、Account outer-fence 与 5,001 member soak 的完整官方证据
+仍须新 run 一次性验证。fresh S6、部署、production financial refresh 与普通用户 UAT 未开始；全部生产停止线保持不变。
+
+下一片是否可开始：可以提交本节台账、push 新最终 SHA 并重新绑定五组 CI。只有同一 SHA 五组全绿且完整 artifact 零
+skip/failure/error，才可进入 fresh S6。
