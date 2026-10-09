@@ -426,74 +426,55 @@ jobs:
       - name: Reject missing or skipped PostgreSQL evidence
         run: |
           python - <<'PY'
-          from xml.etree import ElementTree
-          publication_cases = ElementTree.parse('publication-postgres.xml').findall('.//testcase')
-          authority_cases = ElementTree.parse('authority-lock-postgres.xml').findall('.//testcase')
-          generation_cases = ElementTree.parse(
-              'account-authority-generation-postgres.xml'
-          ).findall('.//testcase')
-          shadow_cases = ElementTree.parse(
-              'account-authority-shadow-postgres.xml'
-          ).findall('.//testcase')
-          final_revalidation_cases = ElementTree.parse(
-              'account-authority-final-revalidation-postgres.xml'
-          ).findall('.//testcase')
-          control_plane_cases = ElementTree.parse(
-              'backfill-control-plane-postgres.xml'
-          ).findall('.//testcase')
-          financial_capacity_cases = ElementTree.parse(
-              'financial-capacity-postgres.xml'
-          ).findall('.//testcase')
-          financial_slice_cases = ElementTree.parse(
-              'financial-slice-sync-contracts.xml'
-          ).findall('.//testcase')
           import json
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          from scripts.validate_release_rehearsal import REQUIRED_POSTGRESQL_TESTS
+
+          junit_files = (
+              'publication-postgres.xml',
+              'authority-lock-postgres.xml',
+              'account-authority-generation-postgres.xml',
+              'account-authority-shadow-postgres.xml',
+              'account-authority-final-revalidation-postgres.xml',
+              'backfill-control-plane-postgres.xml',
+              'financial-capacity-postgres.xml',
+              'financial-slice-sync-contracts.xml',
+          )
+          cases = []
+          for filename in junit_files:
+              path = Path(filename)
+              assert path.is_file() and path.stat().st_size > 0, (
+                  f'Missing or empty PostgreSQL evidence: {filename}'
+              )
+              file_cases = ElementTree.parse(path).findall('.//testcase')
+              assert file_cases, f'PostgreSQL evidence has no testcases: {filename}'
+              cases.extend(file_cases)
+
+          assert all(
+              case.find('skipped') is None for case in cases
+          ), 'PostgreSQL cases must execute'
+          assert all(
+              case.find('failure') is None and case.find('error') is None
+              for case in cases
+          )
+
+          observed_tests = {
+              f"{(case.get('classname') or '').strip()}::{(case.get('name') or '').strip()}"
+              for case in cases
+          }
+          missing_tests = set(REQUIRED_POSTGRESQL_TESTS) - observed_tests
+          assert not missing_tests, (
+              f'Missing required PostgreSQL test identities: {sorted(missing_tests)}'
+          )
+
           with open('sqlite-snapshot-rehearsal-report.json', encoding='utf-8') as handle:
               snapshot_report = json.load(handle)
-          assert len(publication_cases) == 42, 'Expected publication PostgreSQL cases were not collected'
-          assert len(authority_cases) == 2, 'Expected authority PostgreSQL cases were not collected'
-          assert len(generation_cases) == 9, 'Expected authority generation PostgreSQL cases were not collected'
-          assert len(shadow_cases) == 1, 'Expected authority shadow PostgreSQL case was not collected'
-          assert len(final_revalidation_cases) == 8, 'Expected authority final-revalidation PostgreSQL cases were not collected'
-          assert len(control_plane_cases) == 3, 'Expected control-plane and lineage cases were not collected'
-          expected_financial_capacity_cases = {
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_stage_commit_unknown_recovers_exact_candidate_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_commit_unknown_replays_only_same_plan_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_activation_audit_failure_rolls_back_pointer_and_outbox_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_financial_capacity_activations_have_one_postgresql_cas_winner',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_assets_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_start_consumes_verified_scope_import_atomically_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_start_import_event_failure_rolls_back_all_rows_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_is_blocked_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_scope_import_locks_nullable_revocation_join_on_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_authority_rechecks_real_postgresql_rows',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_authority_rejects_candidate_provider_and_universe_drift_postgresql',
-              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workflow_postgresql',
-          }
-          observed_financial_capacity_cases = {
-              f"{case.get('classname')}::{case.get('name')}"
-              for case in financial_capacity_cases
-          }
-          assert len(financial_capacity_cases) == 13, 'Expected financial capacity PostgreSQL cases were not collected'
-          assert observed_financial_capacity_cases == expected_financial_capacity_cases, 'Financial capacity PostgreSQL case identities changed'
-          assert len(financial_slice_cases) == 12, 'Expected financial slice and capacity cases were not collected'
           assert snapshot_report['outcome'] == 'success'
           assert snapshot_report['fixture_row_count'] == snapshot_report['source_serialized_row_count']
           assert snapshot_report['source_row_count'] > 0
           assert snapshot_report['mismatches'] == {}
-          cases = [
-              *publication_cases,
-              *authority_cases,
-              *generation_cases,
-              *shadow_cases,
-              *final_revalidation_cases,
-              *control_plane_cases,
-              *financial_capacity_cases,
-              *financial_slice_cases,
-          ]
-          assert all(case.find('skipped') is None for case in cases), 'PostgreSQL cases must execute'
-          assert all(case.find('failure') is None and case.find('error') is None for case in cases)
           PY
       - name: Retain test evidence
         if: always()
