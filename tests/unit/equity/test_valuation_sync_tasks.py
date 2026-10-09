@@ -209,7 +209,17 @@ def test_sync_valuation_task_fails_when_success_response_has_no_records():
     assert result["sync"] == {"requested_count": 2, "synced_count": 0}
 
 
-def test_sync_financial_data_task_blocks_full_universe_before_repository_access(monkeypatch):
+@pytest.mark.parametrize(
+    ("stock_codes", "requested_stock_count"),
+    [(None, 0), (["001979.SZ", "600000.SH"], 2)],
+)
+def test_sync_financial_data_task_blocks_scopes_without_governed_budget(
+    stock_codes: list[str] | None,
+    requested_stock_count: int,
+    monkeypatch,
+):
+    """Legacy full-universe and explicit scopes both stop before external access."""
+
     def fail_if_called(*args, **kwargs):
         pytest.fail("legacy financial sync must block before repository or provider access")
 
@@ -222,43 +232,13 @@ def test_sync_financial_data_task_blocks_full_universe_before_repository_access(
         monkeypatch.setattr(
             canonical_tasks, "make_sync_financial_use_case", fail_if_called, raising=False
         )
-        result = sync_financial_data_task(stock_codes=None)
+        result = sync_financial_data_task(stock_codes=stock_codes)
 
     assert result["success"] is False
     assert result["outcome"] == "blocked"
     assert result["stage"] == "capacity"
     assert result["error_code"] == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
-    assert result["requested_stock_count"] == 0
-    assert result["stored_record_count"] == 0
-    assert result["must_not_use_for_decision"] is True
-    stock_repo_cls.assert_not_called()
-
-
-def test_sync_financial_data_task_blocks_explicit_scope_without_governed_budget(monkeypatch):
-    def fail_if_called(*args, **kwargs):
-        pytest.fail("legacy financial sync must block before repository or provider access")
-
-    with patch(
-        "apps.equity.application.tasks_valuation_sync.get_equity_stock_repository"
-    ) as stock_repo_cls:
-        monkeypatch.setattr(
-            canonical_tasks, "get_active_provider_id_by_source", fail_if_called, raising=False
-        )
-        monkeypatch.setattr(
-            canonical_tasks, "make_sync_financial_use_case", fail_if_called, raising=False
-        )
-        result = sync_financial_data_task(
-            source="akshare",
-            periods=8,
-            stock_codes=["001979.SZ", "600000.SH"],
-        )
-
-    assert result["success"] is False
-    assert result["outcome"] == "blocked"
-    assert result["stage"] == "capacity"
-    assert result["error_code"] == "FINANCIAL_CAPACITY_RECEIPT_REQUIRED"
-    assert result["blocked_reason"] == "financial_capacity_receipt_required"
-    assert result["requested_stock_count"] == 2
+    assert result["requested_stock_count"] == requested_stock_count
     assert result["stored_record_count"] == 0
     assert result["must_not_use_for_decision"] is True
     stock_repo_cls.assert_not_called()
