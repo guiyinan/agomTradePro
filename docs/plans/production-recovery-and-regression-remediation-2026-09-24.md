@@ -3227,3 +3227,28 @@ full-market 任务禁止重跑，两个周期入口保持 disabled，系统内 d
 下一片是否可开始：可以以本节台账提交形成新最终候选并 push，从头绑定 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。只有五组同 SHA 全绿且 official artifact 证明 13 个 financial capacity 节点、financial slice、Account outer-fence
 与 5,001 member soak 零跳过、零失败、零 error，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-09 最终候选 Linux descriptor 与 commit-unknown 故障注入整改
+
+完成项：候选 `c8fd5a92170e5bdd85d959a3591c91a95b5cc765` 的 Architecture `37889036254`、Security
+`37889036284`、Consistency `37889036282` 通过；Fast Feedback `37889036293` 与 Publication PostgreSQL `37889036296` 失败，因此
+该 SHA 不可进入 S6，三组成功也不得与后续 SHA 拼接。Fast Feedback 的 Python 3.11/3.13 均只在
+`test_rejects_fifo_swapped_between_stat_and_open` 失败：测试替换 `os.open` 后，运行时再次用被替换函数查询 `os.supports_dir_fd`，错误选择
+path fallback，实际没有执行 stat/open 间 FIFO 替换。提交 `c3ff57631` 在模块导入时冻结原生 descriptor 能力；真实 open 调用仍动态解析，
+Linux 故障注入可拦截，descriptor identity、`O_NOFOLLOW`、`O_NONBLOCK`、regular-file 与前后 inode/mode/size/mtime 校验均未放宽。
+
+Publication PostgreSQL 的失败步骤为 `49 passed / 1 failed / 6 deselected`，唯一失败是 formal scope import 的 commit-unknown read-back。
+根因不是生产 outer UOW：测试 monkeypatch 了共享 `transaction.atomic`，而 `bulk_create()` 内部也会进入一个 atomic/savepoint；旧替身在第一个
+内层 atomic 退出时即抛出“确认丢失”，外层 formal-start UOW 因而正确回滚，read-back 也正确返回空。提交 `46129a2f6` 将注入条件绑定为
+`not connection.in_atomic_block` 且 autocommit 已恢复，只在最外层提交已经完成后模拟确认丢失；生产 repository、事务和 read-back equality 均未修改。
+
+测试计数：financial workflow unit suite `65 passed`；file reader 本地 `2 passed / 3 skipped`，三个 skip 是 Windows 无 FIFO/symlink 能力，不能计作
+Linux 实证。PostgreSQL 精确节点本机成功收集但因专用 loopback PostgreSQL 未启用而 skipped，不能计作通过。两个切片的 Black、isort、Ruff、
+`git diff --check` 通过；file reader 生产文件增量 mypy 与全仓 debt ceiling 为 0 errors。
+
+未验证风险与停止线：新的 Linux descriptor 路径及正确的最外层 commit-unknown 注入仍须由新 exact-SHA Fast Feedback 和 Publication PostgreSQL
+实证。失败 PostgreSQL run 的后续 financial capacity CAS、financial slice、statement logging、migration、SQLite reconciliation 与 artifact
+validator 因前序失败未完成，不能引用其部分结果。fresh S6、同镜像部署、production financial refresh 与普通用户 UAT 尚未执行；其余生产停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push 新最终 SHA，从头运行五组 CI。只有同一 SHA 五组全绿、Fast Feedback 两个 Python 版本的 FIFO
+race 反例通过，且 Publication PostgreSQL official artifact 固定节点全部零 skip/failure/error，才可进入 fresh S6。
