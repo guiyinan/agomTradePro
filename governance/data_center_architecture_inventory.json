@@ -38,7 +38,7 @@
   ],
   "counts": {
     "approved_non_data_http_imports": 5,
-    "cross_app_orm_imports": 48,
+    "cross_app_orm_imports": 47,
     "current_surface_references": 5493,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
@@ -207,10 +207,6 @@
     {
       "import": "apps.sentiment.infrastructure.models",
       "path": "apps/agent_runtime/infrastructure/context_snapshot_repository.py"
-    },
-    {
-      "import": "apps.signal.infrastructure.models",
-      "path": "apps/account/infrastructure/position_repository.py"
     },
     {
       "import": "apps.signal.infrastructure.models",
