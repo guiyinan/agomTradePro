@@ -33,6 +33,20 @@
       "status": "active_public"
     },
     {
+      "category": "operational_script",
+      "evidence": "candidate-bound S6 release evidence manifest builder; script import remains under candidate review",
+      "path": "scripts/build_release_rehearsal_manifest.py",
+      "status": "active_public",
+      "target": "release evidence manifest construction"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "candidate-bound S6 release evidence validator; script import remains under candidate review",
+      "path": "scripts/validate_release_rehearsal.py",
+      "status": "active_public",
+      "target": "release evidence validation"
+    },
+    {
       "category": [
         "operational_script",
         "operational_dispatch_edge"

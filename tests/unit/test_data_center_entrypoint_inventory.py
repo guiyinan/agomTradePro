@@ -173,14 +173,44 @@ def test_duplicate_semantic_entrypoints_use_stable_occurrences() -> None:
     assert len({entry["id"] for entry in stabilized}) == 2
 
 
-def test_operational_inventory_has_no_unreviewed_repository_entrypoints(
+def test_data_center_script_imports_remain_candidate_review_after_registration(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
-    """Every currently discovered operational entry must have an explicit lifecycle."""
+    """Only the two deliberately pending import reviews remain unapproved."""
 
     _inventory, payload = inventory_payload
 
-    assert payload["counts"]["by_status"]["candidate-review"] == 0
+    candidate_entries = [
+        entry for entry in payload["entries"] if entry["status"] == "candidate-review"
+    ]
+    assert [entry["path"] for entry in candidate_entries if entry["category"] == "script"] == [
+        "scripts/build_release_rehearsal_manifest.py",
+        "scripts/validate_release_rehearsal.py",
+    ]
+    assert all(entry["category"] == "script" for entry in candidate_entries)
+    for path in (
+        "scripts/build_release_rehearsal_manifest.py",
+        "scripts/validate_release_rehearsal.py",
+    ):
+        assert any(
+            entry["path"] == path
+            and entry["category"] == "operational_script"
+            and entry["status"] == "active_public"
+            for entry in payload["entries"]
+        )
+    assert sorted(
+        entry["path"]
+        for entry in payload["entries"]
+        if entry["category"] == "operational_script"
+        and entry["path"]
+        in {
+            "scripts/build_release_rehearsal_manifest.py",
+            "scripts/validate_release_rehearsal.py",
+        }
+    ) == [
+        "scripts/build_release_rehearsal_manifest.py",
+        "scripts/validate_release_rehearsal.py",
+    ]
 
 
 def test_management_command_discovery_ignores_generated_and_agent_temp_trees(
@@ -763,6 +793,105 @@ def test_new_operational_surfaces_default_to_candidate_review(
         == "adjacent_operational"
     )
     assert any(entry["status"] == "candidate-review" for entry in entries)
+
+
+def test_governed_release_tool_keeps_script_review_and_registers_operational_owner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source-import review stays pending while its exact CLI entry is owned."""
+
+    inventory = _load_script()
+    script_path = "scripts/release_tool.py"
+    _write_source(
+        tmp_path,
+        script_path,
+        "from apps.data_center.infrastructure.rehearsal_identity import parse_rehearsal_identities\n",
+    )
+    monkeypatch.setattr(inventory, "ROOT", tmp_path)
+    operational_rule = {
+        "category": "operational_script",
+        "evidence": "supported candidate-bound release evidence tool",
+        "path": script_path,
+        "status": "active_public",
+        "target": "release evidence tooling",
+    }
+    operational_governance = {"entries": [operational_rule]}
+    legacy_manifest = {
+        "schema_version": "1.1",
+        "owner": "data_center",
+        "entrypoints": [],
+        "wrappers": [],
+    }
+    script_entries = inventory._discover_scripts(legacy_manifest)
+    discovered_operational = inventory._discover_operational_scripts()
+
+    assert [entry["status"] for entry in script_entries] == ["candidate-review"]
+    assert not discovered_operational
+    synthesized_operational = inventory._discover_governed_data_center_script_operations(
+        script_entries=script_entries,
+        discovered_operational_entries=discovered_operational,
+        governance=operational_governance,
+    )
+    entries = script_entries + discovered_operational + synthesized_operational
+    inventory._apply_operational_governance(entries, operational_governance)
+
+    assert [entry["status"] for entry in entries if entry["category"] == "script"] == [
+        "candidate-review"
+    ]
+    assert [entry["status"] for entry in entries if entry["category"] == "operational_script"] == [
+        "active_public"
+    ]
+
+    legacy_path = tmp_path / "governance" / "data_center_legacy_entrypoints.json"
+    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_path.write_text(json.dumps(legacy_manifest), encoding="utf-8")
+    (legacy_path.parent / "data_center_operational_entrypoints.json").write_text(
+        json.dumps(operational_governance), encoding="utf-8"
+    )
+    from scripts.check_data_center_legacy_entrypoints import validate
+
+    assert (
+        validate(
+            manifest_path=legacy_path,
+            scripts_root=tmp_path / "scripts",
+            repository_root=tmp_path,
+        )
+        == []
+    )
+
+
+def test_unregistered_governed_release_script_fails_legacy_guard(
+    tmp_path: Path,
+) -> None:
+    """Discovery alone never grants the operational governance exemption."""
+
+    script_path = _write_source(
+        tmp_path,
+        "scripts/release_tool.py",
+        "from apps.data_center.infrastructure.rehearsal_identity import parse_rehearsal_identities\n",
+    )
+    legacy_path = tmp_path / "governance" / "data_center_legacy_entrypoints.json"
+    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.1",
+                "owner": "data_center",
+                "entrypoints": [],
+                "wrappers": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from scripts.check_data_center_legacy_entrypoints import validate
+
+    assert validate(
+        manifest_path=legacy_path,
+        scripts_root=script_path.parent,
+        repository_root=tmp_path,
+    ) == ["unregistered_script_entrypoint:scripts/release_tool.py"]
 
 
 def test_typed_task_aliases_and_celery_dispatch_edges_are_discovered(

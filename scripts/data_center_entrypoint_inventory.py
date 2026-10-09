@@ -485,6 +485,68 @@ def _discover_operational_scripts() -> list[dict[str, object]]:
     return results
 
 
+def _discover_governed_data_center_script_operations(
+    *,
+    script_entries: list[dict[str, object]],
+    discovered_operational_entries: list[dict[str, object]],
+    governance: dict[str, Any],
+) -> list[dict[str, object]]:
+    """Project explicit operational ownership for reviewed Data Center scripts.
+
+    Some supported release tools import a Data Center implementation contract but
+    do not themselves dispatch a database operation detectable by the operational
+    token scanner. An exact operational-governance registration may therefore add
+    a separate ``operational_script`` row while the original ``script`` discovery
+    remains ``candidate-review``. This keeps import review separate from CLI
+    lifecycle ownership.
+    """
+
+    explicit_paths: set[str] = set()
+    rules = governance.get("entries", [])
+    if not isinstance(rules, list):
+        raise ValueError("operational governance entries must be a list")
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError("operational governance rule must be an object")
+        category_raw = rule.get("category", [])
+        categories = (
+            {str(item) for item in category_raw}
+            if isinstance(category_raw, list)
+            else {str(category_raw)}
+        )
+        if "operational_script" not in categories:
+            continue
+        path_raw = rule.get("path", [])
+        paths = path_raw if isinstance(path_raw, list) else [path_raw]
+        explicit_paths.update(
+            str(item).replace("\\", "/")
+            for item in paths
+            if str(item).strip() and not any(token in str(item) for token in "*?[")
+        )
+
+    candidate_script_paths = {
+        str(entry.get("path", ""))
+        for entry in script_entries
+        if entry.get("category") == "script" and entry.get("status") == "candidate-review"
+    }
+    discovered_paths = {
+        str(entry.get("path", ""))
+        for entry in discovered_operational_entries
+        if entry.get("category") == "operational_script"
+    }
+    missing_paths = sorted(explicit_paths & candidate_script_paths - discovered_paths)
+    return [
+        _entry(
+            category="operational_script",
+            path=path,
+            symbol="__main__",
+            status="candidate-review",
+            evidence="explicit operational governance for a Data Center script discovery",
+        )
+        for path in missing_paths
+    ]
+
+
 def _discover_operational_dispatch_edges() -> list[dict[str, object]]:
     """Expand each script-level database operation into a reviewable edge."""
 
@@ -2529,8 +2591,17 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
         current_data = _load_json(ROOT / "governance" / "current_data_contracts.json")
         runtime_config = _load_json(ROOT / "governance" / "runtime_config_contracts.json")
         operational = _load_json(ROOT / "governance" / "data_center_operational_entrypoints.json")
+        script_entries = _discover_scripts(legacy)
+        discovered_operational_scripts = _discover_operational_scripts()
+        operational_script_entries = discovered_operational_scripts + (
+            _discover_governed_data_center_script_operations(
+                script_entries=script_entries,
+                discovered_operational_entries=discovered_operational_scripts,
+                governance=operational,
+            )
+        )
         entries = (
-            _discover_scripts(legacy)
+            script_entries
             + _discover_management_commands()
             + _discover_management_command_edges()
             + _discover_application_consumers()
@@ -2550,7 +2621,7 @@ def build_inventory(repo_root: Path = ROOT) -> dict[str, object]:
             + _discover_ports_and_facades()
             + _discover_runtime_config_keys(runtime_config)
             + _discover_system_settings_compatibility()
-            + _discover_operational_scripts()
+            + operational_script_entries
             + _discover_operational_dispatch_edges()
             + _discover_workflow_steps()
             + _discover_test_and_migration_evidence()

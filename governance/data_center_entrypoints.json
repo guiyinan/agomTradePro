@@ -16,7 +16,7 @@
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 70,
-      "operational_script": 32,
+      "operational_script": 34,
       "orchestration_entry": 17,
       "public_port": 97,
       "rest_url": 72,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 833,
+      "active_public": 835,
       "adjacent_operational": 337,
       "candidate-review": 2,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1310
+    "total": 1312
   },
   "entries": [
     {
@@ -8351,6 +8351,16 @@
     },
     {
       "category": "operational_script",
+      "evidence": "candidate-bound S6 release evidence manifest builder; script import remains under candidate review",
+      "id": "operational_script:scripts/build_release_rehearsal_manifest.py:__main__:",
+      "locator": "",
+      "path": "scripts/build_release_rehearsal_manifest.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "release evidence manifest construction"
+    },
+    {
+      "category": "operational_script",
       "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_script:scripts/check_migration_graph.py:__main__:",
       "locator": "",
@@ -8558,6 +8568,16 @@
       "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "django:migrate"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "candidate-bound S6 release evidence validator; script import remains under candidate review",
+      "id": "operational_script:scripts/validate_release_rehearsal.py:__main__:",
+      "locator": "",
+      "path": "scripts/validate_release_rehearsal.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "release evidence validation"
     },
     {
       "category": "operational_script",
@@ -13153,7 +13173,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 33,
+    "operational_governance_rules": 35,
     "runtime_config_keys": 45
   },
   "source_contracts": [
