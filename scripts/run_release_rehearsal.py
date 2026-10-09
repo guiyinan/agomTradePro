@@ -180,8 +180,13 @@ class _Chown(Protocol):
 class SubprocessRunner:
     """Production runner that captures output and never invokes a shell."""
 
-    def __init__(self, progress_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        progress_dir: Path | None = None,
+        activity_status_path: Path | None = None,
+    ) -> None:
         self.progress_dir = progress_dir
+        self.activity_status_path = activity_status_path
         self._cancelled = threading.Event()
         self._active_lock = threading.Lock()
         self._active_processes: dict[int, subprocess.Popen[str]] = {}
@@ -274,15 +279,15 @@ class SubprocessRunner:
                 self._active_progress.values(),
                 key=lambda item: (str(item["command"]), str(item["invocation_id"])),
             )
-            atomic_json(
-                self.progress_dir / "active-commands.json",
-                {
-                    "schema": "release.rehearsal-active-commands.v1",
-                    "active_count": len(active_commands),
-                    "active_commands": active_commands,
-                    "updated_at": datetime.now(UTC).isoformat(),
-                },
-            )
+            active_summary: dict[str, object] = {
+                "schema": "release.rehearsal-active-commands.v1",
+                "active_count": len(active_commands),
+                "active_commands": active_commands,
+                "updated_at": datetime.now(UTC).isoformat(),
+            }
+            atomic_json(self.progress_dir / "active-commands.json", active_summary)
+            if self.activity_status_path is not None:
+                atomic_json(self.activity_status_path, active_summary)
             if outcome != "running":
                 atomic_json(self.progress_dir / f"{command.label}-{invocation_id}.json", payload)
 
@@ -1667,6 +1672,7 @@ def _status(
         "outcome": outcome,
         "completed_stages": list(completed),
         "current_stage": stage,
+        "activity_status_path": "activity-status.json",
         "error_code": code,
         "updated_at": datetime.now(UTC).isoformat(),
     }
@@ -2650,7 +2656,10 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
             raise RehearsalBlocked("inputs", "S6_OUTPUT_DIRECTORY_EXISTS")
         if config.resume and not config.output_dir.is_dir():
             raise ValueError("S6_CHECKPOINT_MISSING")
-        active = runner or SubprocessRunner(config.output_dir / "diagnostics")
+        active = runner or SubprocessRunner(
+            config.output_dir / "diagnostics",
+            config.output_dir / "activity-status.json",
+        )
         candidate = _candidate_sha(active if runner else SubprocessRunner(), config.root)
         config.output_dir.mkdir(parents=True, exist_ok=config.resume)
         with run_lock(config.output_dir):

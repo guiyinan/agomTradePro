@@ -1381,7 +1381,8 @@ def test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats(
     tmp_path: Path,
 ) -> None:
     progress_dir = tmp_path / "diagnostics"
-    runner = SubprocessRunner(progress_dir)
+    activity_status_path = tmp_path / "activity-status.json"
+    runner = SubprocessRunner(progress_dir, activity_status_path)
     results: dict[str, CommandResult] = {}
 
     def execute(label: str, delay: float) -> None:
@@ -1410,6 +1411,7 @@ def test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats(
                 break
         time.sleep(0.02)
     assert summary["active_count"] == 2
+    assert json.loads(activity_status_path.read_text(encoding="utf-8")) == summary
     active_commands = cast(list[dict[str, object]], summary["active_commands"])
     assert {item["command"] for item in active_commands} == {"quick", "slow"}
     slow_first_update = next(
@@ -1653,6 +1655,7 @@ def test_preflight_operator_interrupt_updates_status(tmp_path: Path) -> None:
         "outcome": "interrupted",
         "completed_stages": [],
         "current_stage": "preflight",
+        "activity_status_path": "activity-status.json",
         "error_code": "S6_RUN_INTERRUPTED",
         "updated_at": status["updated_at"],
     }

@@ -198,6 +198,52 @@ def test_run_drains_stdout_and_stderr_without_sequential_read_deadlock() -> None
     assert stderr == "stderr\n"
 
 
+def test_run_emits_safe_remote_command_heartbeat(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class FakeChannel:
+        def recv_ready(self) -> bool:
+            return False
+
+        def recv_stderr_ready(self) -> bool:
+            return False
+
+        def exit_status_ready(self) -> bool:
+            return True
+
+        def recv_exit_status(self) -> int:
+            return 0
+
+        def close(self) -> None:
+            return None
+
+    class FakeStream:
+        def __init__(self, channel: FakeChannel) -> None:
+            self.channel = channel
+
+    class FakeSSH:
+        def exec_command(
+            self, _command: str, timeout: int
+        ) -> tuple[object, FakeStream, FakeStream]:
+            assert timeout == 5
+            channel = FakeChannel()
+            return object(), FakeStream(channel), FakeStream(channel)
+
+    monkeypatch.setattr(remote_build_deploy_vps, "REMOTE_COMMAND_HEARTBEAT_SECONDS", 0.0)
+
+    exit_code, stdout, stderr = remote_build_deploy_vps._run(
+        FakeSSH(), "secret-command-value", timeout=5
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert stdout == ""
+    assert stderr == ""
+    assert "Remote command active:" in captured.out
+    assert "stdout_bytes=0 stderr_bytes=0" in captured.out
+    assert "secret-command-value" not in captured.out
+
+
 @pytest.mark.parametrize(
     "value",
     [

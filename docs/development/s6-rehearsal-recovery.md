@@ -67,12 +67,15 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 ## 运维观察与停止条件
 
 - `run-status.json`：业务阶段、已完成阶段和稳定阻断码。
+- `activity-status.json`：根目录的安全活动摘要；`run-status.json.activity_status_path` 指向该文件，运维侧无需进入
+  `diagnostics` 即可读取活动命令数、阶段标签、已耗时、超时预算、输出字节数与最近心跳。它不包含 argv、环境变量或原始输出。
 - `diagnostics/current-command.json`：兼容入口，保存最近一次命令心跳或终态。
 - `diagnostics/active-commands.json` 与 `diagnostics/active-commands/<invocation-id>.json`：同时列出所有仍运行的并行命令；
   一个命令结束只移除自己的 invocation，不会覆盖仍运行命令。长命令每约 5 秒刷新；结束后活动集合归零，并在 diagnostics
   根目录按 command 与 invocation ID 保留独立终态。
 - `diagnostics` 中每个完成命令保存独立 JSON：保留数据库、权限、网络、超时、语法等白名单诊断分类、稳定业务码及最多八个 traceback 文件名/行号/函数名；不保存原始 stdout/stderr、异常消息、命令参数、token 或 provider 响应。原始响应只留在原有受控证据目录。
-- 心跳代表 launcher 有响应，输出字节增长才表示新增输出；两者都不代表业务成功。
+- SSH 远端长命令每约 15 秒向 launcher 输出一次只含已耗时与 stdout/stderr 字节数的安全心跳；Python 日志使用即时
+  flush，避免非交互管道缓冲造成“长时间无进度”。心跳代表 launcher 有响应，输出字节增长才表示新增输出；两者都不代表业务成功。
 - 超时返回 `S6_STAGE_TIMEOUT`。执行器终止自己启动的本地进程树，并尝试移除该命令唯一命名的候选容器。远端构建由原有构建器管理；launcher 被强杀或 SSH 中断时，重试构建前仍需确认远端任务已退出，不能假定远端自动取消。
 - 操作者发送 Ctrl-C 时，执行器取消全部活动阶段的进程组并尝试移除各阶段唯一命名的容器，CLI 返回 130；`run-status.json` 写入 `outcome=interrupted` 和 `S6_RUN_INTERRUPTED`，不生成 handoff receipt。若当前阶段为已启动但未确认完成的迁移阶段，不得 `--resume`；其他阶段按同一候选检查点规则处理。
 - 失败即返回，不自动启动下一轮。修复后显式续跑；身份改变、证据过期或最终 validator 拒绝时保持阻断。

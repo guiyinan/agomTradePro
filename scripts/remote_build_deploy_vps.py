@@ -237,15 +237,15 @@ validate_release_rehearsal = cast(
 
 
 def _info(msg: str) -> None:
-    print(f"[INFO] {msg}")
+    print(f"[INFO] {msg}", flush=True)
 
 
 def _warn(msg: str) -> None:
-    print(f"[WARN] {msg}", file=sys.stderr)
+    print(f"[WARN] {msg}", file=sys.stderr, flush=True)
 
 
 def _die(msg: str, code: int = 1) -> NoReturn:
-    print(f"[ERROR] {msg}", file=sys.stderr)
+    print(f"[ERROR] {msg}", file=sys.stderr, flush=True)
     raise SystemExit(code)
 
 
@@ -875,10 +875,16 @@ def _ssh_connect(
     raise RuntimeError("SSH connection failed without an exception")
 
 
+REMOTE_COMMAND_HEARTBEAT_SECONDS = 15.0
+
+
 def _run(ssh: Any, cmd: str, timeout: int) -> tuple[int, str, str]:
+    """Run a remote command and emit only byte-count heartbeats while it is active."""
     _stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
     channel = stdout.channel
-    deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    deadline = started + timeout
+    next_heartbeat = started + REMOTE_COMMAND_HEARTBEAT_SECONDS
     stdout_buffer = bytearray()
     stderr_buffer = bytearray()
 
@@ -891,11 +897,20 @@ def _run(ssh: Any, cmd: str, timeout: int) -> tuple[int, str, str]:
             stderr_buffer.extend(channel.recv_stderr(32768))
             drained = True
 
+        now = time.monotonic()
+        if now >= next_heartbeat:
+            _info(
+                "Remote command active: "
+                f"elapsed_seconds={int(now - started)} "
+                f"stdout_bytes={len(stdout_buffer)} stderr_bytes={len(stderr_buffer)}"
+            )
+            next_heartbeat = now + REMOTE_COMMAND_HEARTBEAT_SECONDS
+
         if channel.exit_status_ready():
             exit_code = channel.recv_exit_status()
             break
 
-        remaining = deadline - time.monotonic()
+        remaining = deadline - now
         if remaining <= 0:
             channel.close()
             raise TimeoutError(f"remote command timed out after {timeout}s")
