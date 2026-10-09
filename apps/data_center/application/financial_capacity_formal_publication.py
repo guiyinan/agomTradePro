@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from apps.data_center.application.financial_capacity_contracts import (
     FinancialCapacityReceipt,
     FinancialCapacityWorkflowError,
@@ -27,6 +25,8 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
         workflow_id: str,
         candidate_sha: str,
         capacity_receipt: FinancialCapacityReceipt | None,
+        scope_capacity_import_id: str | None = None,
+        scope_capacity_import_record_sha256: str | None = None,
     ) -> FinancialCapacityWorkflowResult:
         """Start only with an approved, unexpired ceiling bound to this exact scope."""
 
@@ -45,6 +45,16 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
         )
         manifest = _freeze_manifest(snapshot.slices)
         manifest_sha256 = _manifest_sha256(manifest)
+        scope_import_reason, persisted_import_sha256 = self._scope_capacity_import_block_reason(
+            import_id=scope_capacity_import_id,
+            record_sha256=scope_capacity_import_record_sha256,
+            workflow_id=workflow_id,
+            binding=binding,
+            manifest_sha256=manifest_sha256,
+            active_universe_sha256=snapshot.active_universe_sha256,
+            source_revision_sha256=snapshot.source_revision_sha256,
+            expected_consumed=False,
+        )
         receipt_stage_eligible = (
             capacity_receipt is not None and capacity_receipt.stage == "capacity_rehearsal"
         )
@@ -94,6 +104,8 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
                 receipt=capacity_receipt,
                 ceiling=ceiling,
             )
+            if reason is None and scope_import_reason is not None:
+                reason = scope_import_reason
         approved_ceiling: GovernedFinancialProductionCeiling | None = (
             ceiling if reason is None else None
         )
@@ -103,22 +115,21 @@ class FinancialCapacityFormalPublicationWorkflow(FinancialCapacityWorkflowBase):
             stage="formal_publication",
             binding=binding,
             manifest=manifest,
+            active_universe_sha256=snapshot.active_universe_sha256,
             source_revision_sha256=snapshot.source_revision_sha256,
             total_provider_request_budget=(
                 approved_ceiling.maximum_provider_requests if approved_ceiling is not None else 0
             ),
             capacity_receipt=capacity_receipt,
             governed_ceiling=approved_ceiling,
+            status="running" if reason is None else "blocked",
+            blocked_reason=reason,
+            finished_at=self._clock() if reason is not None else None,
+            scope_capacity_import_id=(scope_capacity_import_id if reason is None else None),
+            scope_capacity_import_record_sha256=(
+                persisted_import_sha256 if reason is None else None
+            ),
         )
-
-        if reason is not None:
-
-            checkpoint = replace(
-                checkpoint,
-                status="blocked",
-                blocked_reason=reason,
-                finished_at=self._clock(),
-            )
 
         return self._result(self._checkpoints.create(checkpoint))
 

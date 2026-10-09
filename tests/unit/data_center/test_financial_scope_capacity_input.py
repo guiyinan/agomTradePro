@@ -203,6 +203,7 @@ def _canonical_sha256(payload: object) -> str:
 def _persist_reviews(
     report: dict[str, object],
     *,
+    environment: Literal["isolated", "production"] = "isolated",
     owner_expires_at: datetime | None = None,
 ) -> tuple[FinancialCapacityGovernanceRecordModel, ...]:
     """Persist review rows and separately authenticated approval events."""
@@ -228,7 +229,7 @@ def _persist_reviews(
             "event_id": f"scope-review-event-{suffix}-{report_sha256[:12]}",
             "approval_receipt_sha256": ("4" if suffix == "owner" else "5") * 64,
             "role": role,
-            "environment": "isolated",
+            "environment": environment,
             "report_sha256": report_sha256,
             "approved_at": (_NOW - timedelta(minutes=20)).isoformat(),
             "expires_at": (
@@ -421,6 +422,40 @@ def test_missing_or_revoked_review_and_production_report_fail_closed() -> None:
             now=_NOW,
         )
     assert production.value.code == "FINANCIAL_CAPACITY_SCOPE_ENVIRONMENT_MISMATCH"
+
+
+@pytest.mark.django_db
+def test_production_pointer_revalidates_current_s6_report_with_production_reviews() -> None:
+    """Production reviews bind an isolated S6 report to the current typed-data scope."""
+
+    report = _report()
+    owner, reviewer = _persist_reviews(report, environment="production")
+    report_sha256 = _canonical_sha256(report)
+    FinancialScopeManifestCurrentPointerModel._default_manager.create(
+        environment="production",
+        report_payload=report,
+        report_sha256=report_sha256,
+        owner_approval_id=owner.approval_id,
+        owner_event_id=str(owner.record["event_id"]),
+        reviewer_approval_id=reviewer.approval_id,
+        reviewer_event_id=str(reviewer.record["event_id"]),
+        revision=1,
+        updated_by="financial-scope-production-operator",
+    )
+    pointer_source, review_source = _pointer_services()
+
+    resolved = resolve_current_financial_scope_capacity_input(
+        pointer_source=pointer_source,
+        review_source=review_source,
+        binding=_capacity_binding(environment="production"),
+        environment="production",
+        now=_NOW,
+    )
+
+    assert resolved.environment == "production"
+    assert resolved.report_sha256 == report_sha256
+    assert resolved.reviewed_manifest.owner_event_id == owner.record["event_id"]
+    assert resolved.reviewed_manifest.reviewer_event_id == reviewer.record["event_id"]
 
 
 @pytest.mark.django_db

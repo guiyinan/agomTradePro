@@ -336,7 +336,7 @@ def _parse_reviewable_report(
 ) -> tuple[FinancialScopeDiscoveryCandidate, str]:
     """Parse an exact successful disposable PostgreSQL discovery report and digest it."""
 
-    if environment != "isolated" or environment not in _POINTER_ENVIRONMENTS:
+    if environment not in _POINTER_ENVIRONMENTS:
         raise FinancialScopeCapacityInputError("FINANCIAL_CAPACITY_SCOPE_ENVIRONMENT_MISMATCH")
     report = _mapping(value)
     if (

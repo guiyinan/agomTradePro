@@ -59,10 +59,16 @@ from apps.data_center.application.egress_service import (
 )
 from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacityBinding,
+    FinancialCapacityCheckpoint,
     FinancialCapacityPublicationIndeterminateError,
     FinancialCapacityPublicationPlan,
+    FinancialCapacityReceipt,
     FinancialCapacitySliceEvidence,
     FinancialCapacityWorkflowError,
+    FinancialPublicationSlice,
+    GovernedFinancialProductionCeiling,
+    _empty_evidence_sha256,
+    _manifest_sha256,
 )
 from apps.data_center.application.financial_scope_capacity_input import (
     install_financial_scope_manifest_pointer,
@@ -164,6 +170,10 @@ from apps.data_center.infrastructure.models import (
     FinancialCapacityGovernanceRecordModel,
     FinancialCapacityOwnerApprovalEventModel,
     FinancialFactModel,
+    FinancialPublicationCapacityManifestItemModel,
+    FinancialPublicationCapacityWorkflowModel,
+    FinancialScopeCapacityImportConsumptionModel,
+    FinancialScopeCapacityImportModel,
     FinancialSourceTimeAuditClaimModel,
     PriceBarModel,
     ProviderConfigModel,
@@ -319,6 +329,10 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         PriceBarModel,
         QuoteSnapshotModel,
         FinancialFactModel,
+        FinancialPublicationCapacityWorkflowModel,
+        FinancialPublicationCapacityManifestItemModel,
+        FinancialScopeCapacityImportModel,
+        FinancialScopeCapacityImportConsumptionModel,
         ValuationFactModel,
         RawAuditModel,
         FinancialSourceTimeAuditClaimModel,
@@ -442,6 +456,10 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             PriceBarModel,
             QuoteSnapshotModel,
             FinancialFactModel,
+            FinancialPublicationCapacityWorkflowModel,
+            FinancialPublicationCapacityManifestItemModel,
+            FinancialScopeCapacityImportModel,
+            FinancialScopeCapacityImportConsumptionModel,
             ValuationFactModel,
             RawAuditModel,
             FinancialSourceTimeAuditClaimModel,
@@ -2906,3 +2924,328 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
     assert " IN (SELECT " in sql
     assert "000001.SZ" not in sql
     assert "005572.SZ" not in sql
+
+
+def _financial_scope_capacity_import_row_for_pg_test() -> FinancialScopeCapacityImportModel:
+    """Create an import identity for database transaction-boundary tests."""
+
+    now = datetime.now(UTC)
+    return FinancialScopeCapacityImportModel._default_manager.create(
+        import_id=uuid4(),
+        environment="production",
+        release_manifest_sha256="1" * 64,
+        capacity_receipt_raw_sha256="2" * 64,
+        scope_report_raw_sha256="3" * 64,
+        scope_report_review_sha256="4" * 64,
+        receipt_sha256="5" * 64,
+        scope_pointer_sha256="6" * 64,
+        candidate_sha="f" * 40,
+        candidate_image_id="sha256:" + "7" * 64,
+        target_trade_date=date(2026, 10, 9),
+        release_universe_sha256="8" * 64,
+        provider_identities_sha256="9" * 64,
+        scope_manifest_sha256="a" * 64,
+        financial_universe_sha256="b" * 64,
+        financial_provider_id=17,
+        financial_provider_identity_sha256="c" * 64,
+        source_revision_sha256="d" * 64,
+        evidence_ledger_sha256="e" * 64,
+        artifact_ledger_sha256="f" * 64,
+        owner_approval_id="pg-owner-approval",
+        owner_event_id="pg-owner-event",
+        reviewer_approval_id="pg-reviewer-approval",
+        reviewer_event_id="pg-reviewer-event",
+        production_ceiling_approval_id="pg-ceiling-approval",
+        production_ceiling_event_id="pg-ceiling-event",
+        production_ceiling_record_sha256="1" * 64,
+        record_payload={},
+        record_sha256="2" * 64,
+        imported_by="pg-test-operator",
+        imported_at=now,
+    )
+
+
+def _formal_checkpoint_for_pg_import_test(
+    *, scope_import: FinancialScopeCapacityImportModel, workflow_id: str
+) -> FinancialCapacityCheckpoint:
+    """Build a valid formal checkpoint tied to one persisted scope import."""
+
+    now = datetime.now(UTC)
+    binding = FinancialCapacityBinding(
+        environment="production",
+        candidate_sha=scope_import.candidate_sha,
+        provider_id=scope_import.financial_provider_id,
+        provider_name="akshare",
+        provider_source="akshare",
+        provider_identity_sha256=scope_import.financial_provider_identity_sha256,
+        contract_id="pg-capacity-contract",
+        contract_version="1",
+        contract_sha256="3" * 64,
+        parser_id="pg-capacity-parser",
+        parser_sha256="4" * 64,
+        deployment_region="postgres-ci",
+        publication_policy_version="3",
+        publication_policy_sha256="5" * 64,
+    )
+    manifest = (FinancialPublicationSlice("000001.SZ", date(2026, 9, 30)),)
+    manifest_sha256 = _manifest_sha256(manifest)
+    receipt = FinancialCapacityReceipt.build(
+        workflow_id=f"capacity-rehearsal-{workflow_id}",
+        stage="capacity_rehearsal",
+        approval_id=f"capacity-approval-{workflow_id}",
+        binding=replace(
+            binding,
+            environment="isolated",
+            isolation_attestation_sha256="6" * 64,
+        ),
+        manifest_count=1,
+        manifest_sha256=manifest_sha256,
+        source_revision_sha256="7" * 64,
+        outcome="success",
+        total_provider_request_budget=2,
+        provider_requests=2,
+        reserved_provider_requests=2,
+        requested=1,
+        succeeded=1,
+        failed=0,
+        stored=1,
+        evidence_count=1,
+        evidence_sha256="8" * 64,
+        raw_body_count=2,
+        raw_audit_count=2,
+        typed_evidence_count=1,
+        atomic_fact_write_count=1,
+        error_codes=(),
+        started_at=now - timedelta(minutes=2),
+        finished_at=now - timedelta(minutes=1),
+    )
+    ceiling = GovernedFinancialProductionCeiling(
+        approval_id=f"production-ceiling-{workflow_id}",
+        approved_by="pg-data-owner",
+        approved_at=now - timedelta(minutes=1),
+        approval_receipt_sha256="9" * 64,
+        receipt_sha256=receipt.sha256,
+        binding=binding,
+        manifest_sha256=manifest_sha256,
+        maximum_slices=1,
+        maximum_provider_requests=2,
+        expires_at=now + timedelta(hours=1),
+        approved=True,
+    )
+    return FinancialCapacityCheckpoint(
+        workflow_id=workflow_id,
+        stage="formal_publication",
+        binding=binding,
+        manifest=manifest,
+        manifest_count=1,
+        manifest_sha256=manifest_sha256,
+        source_revision_sha256=scope_import.source_revision_sha256,
+        total_provider_request_budget=2,
+        status="running",
+        next_slice_index=0,
+        reserved_provider_requests=0,
+        observed_provider_requests=0,
+        requested=0,
+        succeeded=0,
+        failed=0,
+        stored=0,
+        evidence=(),
+        evidence_count=0,
+        evidence_sha256=_empty_evidence_sha256(),
+        raw_body_count=0,
+        raw_audit_count=0,
+        typed_evidence_count=0,
+        atomic_fact_write_count=0,
+        error_codes=(),
+        started_at=now,
+        run_id=str(uuid4()),
+        capacity_receipt=receipt,
+        governed_ceiling=ceiling,
+        active_universe_sha256=scope_import.financial_universe_sha256,
+        scope_capacity_import_id=str(scope_import.import_id),
+        scope_capacity_import_record_sha256=scope_import.record_sha256,
+    )
+
+
+def _postgres_scope_import_authority(monkeypatch: pytest.MonkeyPatch):
+    """Keep real consumption SQL while isolating live authority dependencies."""
+
+    authority_type = import_module(
+        "apps.data_center.infrastructure.financial_scope_capacity_import_authority"
+    ).DjangoFinancialScopeCapacityImportAuthoritySource
+    authority = authority_type()
+    monkeypatch.setattr(authority, "_validate_row", lambda **_kwargs: None)
+    return authority
+
+
+def test_formal_start_consumes_verified_scope_import_atomically_postgresql(
+    actual_publication_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Import consumption, formal workflow, and manifest commit together."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
+        DjangoFinancialCapacityCheckpointRepository,
+    )
+
+    scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    checkpoint = _formal_checkpoint_for_pg_import_test(
+        scope_import=scope_import,
+        workflow_id="pg-atomic-formal-start",
+    )
+    repository = DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=_postgres_scope_import_authority(monkeypatch)
+    )
+
+    persisted = repository.create(checkpoint)
+
+    assert persisted.status == "running"
+    assert (
+        FinancialPublicationCapacityWorkflowModel._default_manager.filter(
+            workflow_id=checkpoint.workflow_id
+        ).count()
+        == 1
+    )
+    assert (
+        FinancialPublicationCapacityManifestItemModel._default_manager.filter(
+            workflow_id=checkpoint.workflow_id
+        ).count()
+        == 1
+    )
+    consumption = FinancialScopeCapacityImportConsumptionModel._default_manager.get(
+        scope_import=scope_import
+    )
+    assert consumption.workflow_id == checkpoint.workflow_id
+    assert consumption.record_sha256 == scope_import.record_sha256
+
+
+def test_formal_start_import_event_failure_rolls_back_all_rows_postgresql(
+    actual_publication_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failure after event insertion leaves no consumption, workflow, or manifest row."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
+        DjangoFinancialCapacityCheckpointRepository,
+    )
+
+    scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    checkpoint = _formal_checkpoint_for_pg_import_test(
+        scope_import=scope_import,
+        workflow_id="pg-rollback-formal-start",
+    )
+    authority = _postgres_scope_import_authority(monkeypatch)
+    append_event = authority.consume_formal_start
+
+    def append_then_fail(request: FinancialCapacityCheckpoint, *, now: datetime) -> None:
+        append_event(request, now=now)
+        raise FinancialCapacityWorkflowError("injected failure after consumption append")
+
+    monkeypatch.setattr(authority, "consume_formal_start", append_then_fail)
+    repository = DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=authority
+    )
+
+    with pytest.raises(
+        FinancialCapacityWorkflowError,
+        match="injected failure after consumption append",
+    ):
+        repository.create(checkpoint)
+
+    assert FinancialScopeCapacityImportConsumptionModel._default_manager.count() == 0
+    assert FinancialPublicationCapacityWorkflowModel._default_manager.count() == 0
+    assert FinancialPublicationCapacityManifestItemModel._default_manager.count() == 0
+
+
+def test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_is_blocked_postgresql(
+    actual_publication_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same-workflow retries reconcile while another workflow cannot consume the import."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
+        DjangoFinancialCapacityCheckpointRepository,
+    )
+
+    scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    first_checkpoint = _formal_checkpoint_for_pg_import_test(
+        scope_import=scope_import,
+        workflow_id="pg-replay-formal-start-a",
+    )
+    repository = DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=_postgres_scope_import_authority(monkeypatch)
+    )
+
+    persisted = repository.create(first_checkpoint)
+    retried = repository.create(first_checkpoint)
+    second_checkpoint = _formal_checkpoint_for_pg_import_test(
+        scope_import=scope_import,
+        workflow_id="pg-replay-formal-start-b",
+    )
+    with pytest.raises(FinancialCapacityWorkflowError):
+        repository.create(second_checkpoint)
+
+    assert retried == persisted
+    assert FinancialPublicationCapacityWorkflowModel._default_manager.count() == 1
+    assert FinancialPublicationCapacityManifestItemModel._default_manager.count() == 1
+    assert FinancialScopeCapacityImportConsumptionModel._default_manager.count() == 1
+
+
+def test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner(
+    actual_publication_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Concurrent starts racing on one import leave exactly one durable winner."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
+        DjangoFinancialCapacityCheckpointRepository,
+    )
+
+    scope_import = _financial_scope_capacity_import_row_for_pg_test()
+    checkpoints = tuple(
+        _formal_checkpoint_for_pg_import_test(
+            scope_import=scope_import,
+            workflow_id=f"pg-concurrent-formal-start-{index}",
+        )
+        for index in range(2)
+    )
+    repository = DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=_postgres_scope_import_authority(monkeypatch)
+    )
+    settings = deepcopy(connections["default"].settings_dict)
+    barrier = Barrier(2)
+
+    def create(checkpoint: FinancialCapacityCheckpoint) -> str:
+        previous_connection = connections["default"]
+        worker_connection = load_backend(settings["ENGINE"]).DatabaseWrapper(
+            deepcopy(settings), alias="default"
+        )
+        connections["default"] = worker_connection
+        try:
+            barrier.wait(timeout=20)
+            repository.create(checkpoint)
+            return "created"
+        except FinancialCapacityWorkflowError:
+            return "rejected"
+        finally:
+            worker_connection.close()
+            connections["default"] = previous_connection
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = tuple(
+            future.result(timeout=45)
+            for future in (
+                executor.submit(create, checkpoints[0]),
+                executor.submit(create, checkpoints[1]),
+            )
+        )
+
+    assert outcomes.count("created") == 1
+    assert outcomes.count("rejected") == 1
+    assert FinancialScopeCapacityImportConsumptionModel._default_manager.count() == 1
+    assert FinancialPublicationCapacityWorkflowModel._default_manager.count() == 1
+    assert FinancialPublicationCapacityManifestItemModel._default_manager.count() == 1

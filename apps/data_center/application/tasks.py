@@ -8,7 +8,7 @@ import logging
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from celery import shared_task
 from django.core.cache import cache
@@ -273,6 +273,7 @@ def refresh_financial_publication_capacity_task(
     candidate_sha: str,
     total_provider_request_budget: int = 0,
     capacity_rehearsal_workflow_id: str = "",
+    scope_capacity_import_id: str = "",
     max_slices: int = 1,
     expected_database_name: str = "",
     expected_database_host: str = "",
@@ -301,6 +302,9 @@ def refresh_financial_publication_capacity_task(
         and type(capacity_rehearsal_workflow_id) is str
         and len(capacity_rehearsal_workflow_id) <= 300
         and not any(character.isspace() for character in capacity_rehearsal_workflow_id)
+        and type(scope_capacity_import_id) is str
+        and len(scope_capacity_import_id) <= 36
+        and not any(character.isspace() for character in scope_capacity_import_id)
         and type(max_slices) is int
         and max_slices > 0
         and type(expected_database_name) is str
@@ -316,6 +320,37 @@ def refresh_financial_publication_capacity_task(
             "failed": 0,
             "stored": 0,
             "published": 0,
+        }
+    if action == "formal_start" and scope_capacity_import_id:
+        try:
+            if str(UUID(scope_capacity_import_id)) != scope_capacity_import_id:
+                raise ValueError("non-canonical import ID")
+        except (TypeError, ValueError):
+            return {
+                **market_task.full_market_input_failure(
+                    "invalid_financial_capacity_scope_import_id"
+                ),
+                "outcome": TaskBusinessOutcome.FAILED.value,
+                "stage": "input",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "published": 0,
+            }
+    if action == "formal_start" and not scope_capacity_import_id:
+        reason = "financial_capacity_scope_import_required"
+        return {
+            **market_task.full_market_input_failure(reason),
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "stage": "capacity",
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "published": 0,
+            "blocked_reason": reason,
+            "must_not_use_for_decision": True,
         }
     if action in {"qualification_start", "capacity_rehearsal_start"} and (
         total_provider_request_budget <= 0
@@ -470,6 +505,7 @@ def refresh_financial_publication_capacity_task(
                 workflow_id=workflow_id,
                 candidate_sha=candidate_sha,
                 capacity_receipt=source_checkpoint.capacity_receipt,
+                scope_capacity_import_id=scope_capacity_import_id,
             )
         else:
             result = workflow.run_formal_publication(

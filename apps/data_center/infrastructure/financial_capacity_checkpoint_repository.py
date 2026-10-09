@@ -6,7 +6,7 @@ import hashlib
 import json
 from dataclasses import replace
 
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
 
 from apps.data_center.application.financial_publication_capacity import (
@@ -15,6 +15,7 @@ from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacitySliceEvidence,
     FinancialCapacityWorkflowError,
     FinancialPublicationSlice,
+    FinancialScopeCapacityImportAuthoritySource,
     _append_evidence_sha256,
     _empty_evidence_sha256,
     _evidence_manifest_sha256,
@@ -34,6 +35,17 @@ from apps.data_center.infrastructure.models import (
 
 class DjangoFinancialCapacityCheckpointRepository(FinancialCapacityCheckpointRepository):
     """Persist immutable workflow state with atomic revision compare-and-swap."""
+
+    def __init__(
+        self,
+        *,
+        scope_capacity_import_authority_source: (
+            FinancialScopeCapacityImportAuthoritySource | None
+        ) = None,
+    ) -> None:
+        """Inject the production S6 authority that shares formal-start transactions."""
+
+        self._scope_capacity_import_authority_source = scope_capacity_import_authority_source
 
     def create(self, checkpoint: FinancialCapacityCheckpoint) -> FinancialCapacityCheckpoint:
         """Insert one initial checkpoint or reject a workflow identifier collision."""
@@ -79,7 +91,20 @@ class DjangoFinancialCapacityCheckpointRepository(FinancialCapacityCheckpointRep
                     ],
                     batch_size=500,
                 )
+                if checkpoint.stage == "formal_publication" and checkpoint.status == "running":
+                    authority_source = self._scope_capacity_import_authority_source
+                    if authority_source is None:
+                        raise FinancialCapacityWorkflowError(
+                            "financial capacity scope import authority is unavailable"
+                        )
+                    authority_source.consume_formal_start(
+                        created,
+                        now=timezone.now(),
+                    )
         except IntegrityError as exc:
+            existing = self._read_back(checkpoint)
+            if existing is not None and _same_initial_formal_start(existing, checkpoint):
+                return existing
             if _approval_id(created) is not None:
                 raise FinancialCapacityWorkflowError(
                     "financial capacity approval or receipt has already been consumed"
@@ -91,7 +116,24 @@ class DjangoFinancialCapacityCheckpointRepository(FinancialCapacityCheckpointRep
             raise FinancialCapacityWorkflowError(
                 "financial capacity workflow already exists"
             ) from exc
+        except DatabaseError as exc:
+            existing = self._read_back(checkpoint)
+            if existing is not None and _same_initial_formal_start(existing, checkpoint):
+                return existing
+            raise FinancialCapacityWorkflowError(
+                "financial capacity workflow commit outcome is indeterminate"
+            ) from exc
         return _compact_checkpoint(created)
+
+    def _read_back(
+        self, checkpoint: FinancialCapacityCheckpoint
+    ) -> FinancialCapacityCheckpoint | None:
+        """Reconcile a duplicate or commit-unknown create by exact workflow identity."""
+
+        try:
+            return self.get(checkpoint.workflow_id)
+        except (DatabaseError, FinancialCapacityWorkflowError, RuntimeError, TypeError, ValueError):
+            return None
 
     def get(self, workflow_id: str) -> FinancialCapacityCheckpoint | None:
         """Read one checkpoint by its exact workflow identifier."""
@@ -278,6 +320,29 @@ def _compact_checkpoint(
         evidence=(),
         evidence_append=None,
         evidence_previous_sha256=None,
+    )
+
+
+def _same_initial_formal_start(
+    existing: FinancialCapacityCheckpoint,
+    requested: FinancialCapacityCheckpoint,
+) -> bool:
+    """Match a retried formal create to the one durable import and exact frozen scope."""
+
+    return bool(
+        existing.stage == requested.stage == "formal_publication"
+        and existing.workflow_id == requested.workflow_id
+        and existing.binding == requested.binding
+        and existing.manifest_count == requested.manifest_count
+        and existing.manifest_sha256 == requested.manifest_sha256
+        and existing.source_revision_sha256 == requested.source_revision_sha256
+        and existing.active_universe_sha256 == requested.active_universe_sha256
+        and existing.total_provider_request_budget == requested.total_provider_request_budget
+        and existing.capacity_receipt == requested.capacity_receipt
+        and existing.governed_ceiling == requested.governed_ceiling
+        and existing.scope_capacity_import_id == requested.scope_capacity_import_id
+        and existing.scope_capacity_import_record_sha256
+        == requested.scope_capacity_import_record_sha256
     )
 
 

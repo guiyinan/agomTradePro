@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -27,6 +27,7 @@ from apps.data_center.application.financial_capacity_contracts import (
     FinancialProductionCeilingSource,
     FinancialPublicationSlice,
     FinancialQualificationCeilingSource,
+    FinancialScopeCapacityImportAuthoritySource,
     FinancialWorkflowStage,
     FinancialWorkflowStatus,
     GovernedFinancialCapacityRehearsalCeiling,
@@ -66,6 +67,9 @@ class FinancialCapacityWorkflowBase:
         authority_validator: FinancialCapacityAuthorityValidator | None,
         clock: ProtocolClock,
         capacity_rehearsal_ceiling_source: FinancialCapacityRehearsalCeilingSource | None = None,
+        scope_capacity_import_authority_source: (
+            FinancialScopeCapacityImportAuthoritySource | None
+        ) = None,
     ) -> None:
         """Inject durable state and exact provider, scope, sync, and activation ports."""
 
@@ -77,6 +81,7 @@ class FinancialCapacityWorkflowBase:
         self._qualification_ceiling_source = qualification_ceiling_source
         self._production_ceiling_source = production_ceiling_source
         self._capacity_rehearsal_ceiling_source = capacity_rehearsal_ceiling_source
+        self._scope_capacity_import_authority_source = scope_capacity_import_authority_source
         self._authority_validator = authority_validator
         self._clock = clock
 
@@ -96,6 +101,15 @@ class FinancialCapacityWorkflowBase:
         if max_slices is not None and (type(max_slices) is not int or max_slices <= 0):
             raise FinancialCapacityWorkflowError("financial capacity invocation size is invalid")
         if checkpoint.in_flight_slice_index is not None:
+            if formal:
+                authority_reason = self._resume_block_reason(checkpoint, formal=True)
+                if authority_reason is not None:
+                    return self._result(checkpoint, blocked_reason=authority_reason)
+                if not self._formal_authority_is_current():
+                    return self._result(
+                        checkpoint,
+                        blocked_reason="financial_capacity_authority_not_current",
+                    )
             return self._handle_existing_claim(checkpoint)
         if (
             checkpoint.in_flight_claim_token is not None
@@ -560,6 +574,27 @@ class FinancialCapacityWorkflowBase:
                 now=self._clock(),
             ):
                 return "financial_capacity_governed_ceiling_expired_or_drifted"
+            snapshot_reason = self._validate_source_snapshot(checkpoint, formal=True)
+            if snapshot_reason is not None:
+                return snapshot_reason
+            if checkpoint.active_universe_sha256 is None:
+                return "financial_capacity_scope_import_invalid"
+            import_reason, persisted_import_sha256 = self._scope_capacity_import_block_reason(
+                import_id=checkpoint.scope_capacity_import_id,
+                record_sha256=checkpoint.scope_capacity_import_record_sha256,
+                workflow_id=checkpoint.workflow_id,
+                binding=checkpoint.binding,
+                manifest_sha256=checkpoint.manifest_sha256,
+                active_universe_sha256=checkpoint.active_universe_sha256,
+                source_revision_sha256=checkpoint.source_revision_sha256,
+                expected_consumed=True,
+            )
+            if import_reason is not None or persisted_import_sha256 != (
+                checkpoint.scope_capacity_import_record_sha256
+            ):
+                if import_reason is None:
+                    return "financial_capacity_scope_import_invalid"
+                return import_reason
         elif checkpoint.stage == "qualification":
             qualification_ceiling = checkpoint.qualification_ceiling
             if qualification_ceiling is None:
@@ -774,12 +809,18 @@ class FinancialCapacityWorkflowBase:
         stage: FinancialWorkflowStage,
         binding: FinancialCapacityBinding,
         manifest: tuple[FinancialPublicationSlice, ...],
+        active_universe_sha256: str,
         source_revision_sha256: str,
         total_provider_request_budget: int,
         capacity_receipt: FinancialCapacityReceipt | None = None,
         qualification_ceiling: GovernedFinancialQualificationCeiling | None = None,
         capacity_rehearsal_ceiling: GovernedFinancialCapacityRehearsalCeiling | None = None,
         governed_ceiling: GovernedFinancialProductionCeiling | None = None,
+        status: FinancialWorkflowStatus = "running",
+        blocked_reason: str | None = None,
+        finished_at: datetime | None = None,
+        scope_capacity_import_id: str | None = None,
+        scope_capacity_import_record_sha256: str | None = None,
     ) -> FinancialCapacityCheckpoint:
         return FinancialCapacityCheckpoint(
             workflow_id=workflow_id,
@@ -788,9 +829,10 @@ class FinancialCapacityWorkflowBase:
             manifest=manifest,
             manifest_count=len(manifest),
             manifest_sha256=_manifest_sha256(manifest),
+            active_universe_sha256=active_universe_sha256,
             source_revision_sha256=source_revision_sha256,
             total_provider_request_budget=total_provider_request_budget,
-            status="running",
+            status=status,
             next_slice_index=0,
             reserved_provider_requests=0,
             observed_provider_requests=0,
@@ -807,17 +849,72 @@ class FinancialCapacityWorkflowBase:
             atomic_fact_write_count=0,
             error_codes=(),
             started_at=self._clock(),
+            finished_at=finished_at,
             run_id=str(uuid4()),
             capacity_receipt=capacity_receipt,
             qualification_ceiling=qualification_ceiling,
             capacity_rehearsal_ceiling=capacity_rehearsal_ceiling,
             governed_ceiling=governed_ceiling,
+            blocked_reason=blocked_reason,
+            scope_capacity_import_id=scope_capacity_import_id,
+            scope_capacity_import_record_sha256=scope_capacity_import_record_sha256,
         )
 
     def _formal_authority_is_current(self) -> bool:
         """Fail closed unless the caller supplied an active, same-grant validator."""
 
         return self._authority_validator is not None and self._authority_validator.is_current()
+
+    def _scope_capacity_import_block_reason(
+        self,
+        *,
+        import_id: str | None,
+        record_sha256: str | None,
+        workflow_id: str,
+        binding: FinancialCapacityBinding,
+        manifest_sha256: str,
+        active_universe_sha256: str,
+        source_revision_sha256: str,
+        expected_consumed: bool,
+    ) -> tuple[str | None, str | None]:
+        """Revalidate the exact imported S6 evidence authority at a formal boundary."""
+
+        if import_id is None and record_sha256 is None:
+            return "financial_capacity_scope_import_required", None
+        if import_id is None:
+            return "financial_capacity_scope_import_invalid", None
+        try:
+            if str(UUID(import_id)) != import_id:
+                return "financial_capacity_scope_import_invalid", None
+        except (TypeError, ValueError):
+            return "financial_capacity_scope_import_invalid", None
+        source = self._scope_capacity_import_authority_source
+        if source is None:
+            return "financial_capacity_scope_import_unavailable", None
+        try:
+            persisted_record_sha256 = source.load_record_sha256(import_id)
+            if (
+                persisted_record_sha256 is None
+                or _SHA256.fullmatch(persisted_record_sha256) is None
+                or (record_sha256 is not None and record_sha256 != persisted_record_sha256)
+            ):
+                return "financial_capacity_scope_import_invalid", None
+            reason = source.validate_current(
+                import_id=import_id,
+                record_sha256=persisted_record_sha256,
+                workflow_id=workflow_id,
+                binding=binding,
+                manifest_sha256=manifest_sha256,
+                active_universe_sha256=active_universe_sha256,
+                source_revision_sha256=source_revision_sha256,
+                now=self._clock(),
+                expected_consumed=expected_consumed,
+            )
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return "financial_capacity_scope_import_unavailable", None
+        if reason is not None:
+            return reason, None
+        return None, persisted_record_sha256
 
     def _handle_existing_claim(
         self,
@@ -895,11 +992,9 @@ class FinancialCapacityWorkflowBase:
             stage=stage,
             binding=binding,
             manifest=(),
+            active_universe_sha256="0" * 64,
             source_revision_sha256="0" * 64,
             total_provider_request_budget=0,
-        )
-        checkpoint = replace(
-            checkpoint,
             status="blocked",
             blocked_reason=reason,
             finished_at=self._clock(),

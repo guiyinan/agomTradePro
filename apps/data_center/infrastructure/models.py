@@ -1159,3 +1159,33 @@ class FinancialScopeCapacityImportModel(models.Model):
         """Show only stable one-time import identity and candidate."""
 
         return f"{self.import_id}:{self.candidate_sha}"
+
+
+class FinancialScopeCapacityImportConsumptionModel(models.Model):
+    """Append-only one-time link from a verified S6 import to formal workflow start."""
+
+    scope_import = models.OneToOneField(
+        FinancialScopeCapacityImportModel,
+        on_delete=models.PROTECT,
+        related_name="formal_consumption",
+    )
+    workflow_id = models.CharField(max_length=300, unique=True)
+    record_sha256 = models.CharField(max_length=64)
+    event_payload = models.JSONField()
+    event_sha256 = models.CharField(max_length=64, unique=True)
+    consumed_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "data_center_financial_scope_capacity_consumption"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Keep the first formal-consumption event immutable."""
+
+        if not self._state.adding:
+            raise ValidationError("Financial scope capacity consumption is append-only.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Preserve the one-time consumption audit event."""
+
+        raise ValidationError("Financial scope capacity consumption is append-only.")

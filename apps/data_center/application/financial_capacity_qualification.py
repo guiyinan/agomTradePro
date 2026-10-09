@@ -96,6 +96,7 @@ class FinancialCapacityQualificationWorkflow(FinancialCapacityWorkflowBase):
             stage="qualification",
             binding=binding,
             manifest=manifest,
+            active_universe_sha256=snapshot.active_universe_sha256,
             source_revision_sha256=snapshot.source_revision_sha256,
             total_provider_request_budget=total_provider_request_budget,
             qualification_ceiling=ceiling if not reason else None,

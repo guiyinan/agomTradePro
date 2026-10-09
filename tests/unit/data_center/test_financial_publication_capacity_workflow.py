@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from threading import Barrier, Event
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
@@ -38,6 +38,9 @@ from apps.data_center.application.financial_slice_sync import FinancialSliceSync
 from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
     DjangoFinancialCapacityCheckpointRepository,
 )
+
+_VERIFIED_IMPORT_ID = "8e8f46f9-0f8f-4e96-8901-3ba1f0f1a500"
+_VERIFIED_IMPORT_RECORD_SHA256 = "9" * 64
 
 
 def _binding() -> FinancialCapacityBinding:
@@ -528,6 +531,8 @@ def _start_formal_replay_workflow(
         workflow_id=workflow_id,
         candidate_sha=isolated_binding.candidate_sha,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
     return formal, production_binding, manifest, runner, ceiling
 
@@ -613,6 +618,79 @@ class _AuthorityValidator:
         return self.current and self.checks != self.fail_on_check
 
 
+class _ScopeCapacityImportAuthoritySource:
+    """Accept one explicit synthetic verified-import identity in workflow tests."""
+
+    def load_record_sha256(self, import_id: str) -> str | None:
+        """Return the fixture digest only for its exact persisted import ID."""
+
+        return _VERIFIED_IMPORT_RECORD_SHA256 if import_id == _VERIFIED_IMPORT_ID else None
+
+    def validate_current(
+        self,
+        *,
+        import_id: str,
+        record_sha256: str,
+        workflow_id: str,
+        binding: FinancialCapacityBinding,
+        manifest_sha256: str,
+        active_universe_sha256: str,
+        source_revision_sha256: str,
+        now: datetime,
+        expected_consumed: bool,
+    ) -> str | None:
+        """Reject any import identity except the test fixture's verified record."""
+
+        if import_id != _VERIFIED_IMPORT_ID or record_sha256 != _VERIFIED_IMPORT_RECORD_SHA256:
+            return "financial_capacity_scope_import_invalid"
+        return None
+
+    def consume_formal_start(
+        self,
+        checkpoint: FinancialCapacityCheckpoint,
+        *,
+        now: datetime,
+    ) -> None:
+        """Keep application-only workflow tests independent of persistence behavior."""
+
+        return None
+
+
+class _TrackingScopeCapacityImportAuthoritySource(_ScopeCapacityImportAuthoritySource):
+    """Record formal boundary revalidation while returning a controlled revocation."""
+
+    def __init__(self, reason: str | None = None) -> None:
+        self.reason = reason
+        self.expected_consumed: list[bool] = []
+
+    def validate_current(
+        self,
+        *,
+        import_id: str,
+        record_sha256: str,
+        workflow_id: str,
+        binding: FinancialCapacityBinding,
+        manifest_sha256: str,
+        active_universe_sha256: str,
+        source_revision_sha256: str,
+        now: datetime,
+        expected_consumed: bool,
+    ) -> str | None:
+        self.expected_consumed.append(expected_consumed)
+        reason = super().validate_current(
+            import_id=import_id,
+            record_sha256=record_sha256,
+            workflow_id=workflow_id,
+            binding=binding,
+            manifest_sha256=manifest_sha256,
+            active_universe_sha256=active_universe_sha256,
+            source_revision_sha256=source_revision_sha256,
+            now=now,
+            expected_consumed=expected_consumed,
+        )
+        return reason or self.reason
+
+
 def _workflow(
     *,
     binding: _RuntimeBinding,
@@ -676,6 +754,7 @@ def _workflow(
         ),
         production_ceiling_source=ceiling_source or _CeilingSource(),
         authority_validator=authority_validator or _AuthorityValidator(),
+        scope_capacity_import_authority_source=_ScopeCapacityImportAuthoritySource(),
         clock=clock or (lambda: datetime(2026, 10, 8, tzinfo=UTC)),
     )
 
@@ -736,12 +815,77 @@ def test_full_scope_capacity_rehearsal_receipt_can_start_formal_workflow() -> No
         workflow_id="formal-after-full-rehearsal",
         candidate_sha=isolated_binding.binding.candidate_sha,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
 
     assert formal_started.checkpoint.status == "running"
     assert formal_started.blocked_reason is None
     assert formal_started.checkpoint is not None
     assert formal_started.checkpoint.capacity_receipt == receipt
+    from apps.data_center.infrastructure.financial_capacity_checkpoint_codec import (
+        _checkpoint_from_payload,
+        _checkpoint_to_payload,
+    )
+
+    encoded_checkpoint = _checkpoint_to_payload(formal_started.checkpoint)
+    decoded_checkpoint = _checkpoint_from_payload(encoded_checkpoint)
+    assert encoded_checkpoint["schema"] == "financial-publication-capacity-checkpoint.v6"
+    assert decoded_checkpoint.scope_capacity_import_id == _VERIFIED_IMPORT_ID
+    assert decoded_checkpoint.scope_capacity_import_record_sha256 == _VERIFIED_IMPORT_RECORD_SHA256
+    assert decoded_checkpoint.active_universe_sha256 is not None
+
+
+def test_formal_start_rejects_capacity_receipt_without_verified_s6_import() -> None:
+    """A local rehearsal receipt alone cannot authorize the production workflow."""
+
+    slices = (_slice(33),)
+    isolated_binding = _RuntimeBinding(_binding())
+    repository = InMemoryFinancialCapacityCheckpointRepository()
+    rehearsal = _workflow(
+        binding=isolated_binding,
+        manifest=_Manifest(slices),
+        runner=_SliceRunner(),
+        checkpoint_repository=repository,
+    )
+    rehearsal.start_capacity_rehearsal(
+        workflow_id="capacity-before-import-gate",
+        candidate_sha=isolated_binding.binding.candidate_sha,
+        total_provider_request_budget=2,
+    )
+    receipt = rehearsal.run_capacity_rehearsal(workflow_id="capacity-before-import-gate").receipt
+    assert receipt is not None
+
+    production_binding = _RuntimeBinding(isolated_binding.binding.for_environment("production"))
+    ceiling = GovernedFinancialProductionCeiling(
+        approval_id="production-review:no-s6-import",
+        approved_by="owner:financial-data",
+        approved_at=datetime(2026, 10, 8, tzinfo=UTC),
+        approval_receipt_sha256="8" * 64,
+        receipt_sha256=receipt.sha256,
+        binding=production_binding.binding,
+        manifest_sha256=receipt.manifest_sha256,
+        maximum_slices=1,
+        maximum_provider_requests=2,
+        expires_at=datetime(2026, 10, 9, tzinfo=UTC),
+        approved=True,
+    )
+    formal = _workflow(
+        binding=production_binding,
+        manifest=_Manifest(slices),
+        runner=_SliceRunner(),
+        ceiling_source=_CeilingSource(ceiling),
+        checkpoint_repository=repository,
+    )
+
+    result = formal.start_formal_publication(
+        workflow_id="formal-rejects-capacity-without-s6-import",
+        candidate_sha=isolated_binding.binding.candidate_sha,
+        capacity_receipt=receipt,
+    )
+
+    assert result.outcome == "blocked"
+    assert result.blocked_reason == "financial_capacity_scope_import_required"
 
 
 def test_single_slice_qualification_receipt_never_qualifies_for_formal_start() -> None:
@@ -1559,6 +1703,45 @@ def test_capacity_workflow_keeps_orphan_evidence_and_never_replays_an_inflight_s
     assert retry_runner.calls == []
 
 
+def test_formal_inflight_claim_rechecks_import_and_owner_authority_before_returning() -> None:
+    """A live claim does not bypass current S6 import or formal task authority checks."""
+
+    repository = InMemoryFinancialCapacityCheckpointRepository()
+    formal, _binding_source, _manifest, runner, _ceiling = _start_formal_replay_workflow(
+        workflow_id="formal-live-claim-authority-recheck",
+        checkpoint_repository=repository,
+        publisher=_Publisher(),
+    )
+    checkpoint = repository.get("formal-live-claim-authority-recheck")
+    assert checkpoint is not None
+    claimed = replace(
+        checkpoint,
+        reserved_provider_requests=2,
+        in_flight_slice_index=0,
+        in_flight_claim_token=str(uuid4()),
+        in_flight_claim_expires_at=datetime(2026, 10, 8, 0, 10, tzinfo=UTC),
+    )
+    repository.save(claimed, expected_revision=checkpoint.revision)
+    source = _TrackingScopeCapacityImportAuthoritySource(
+        reason="financial_capacity_scope_import_authority_revoked"
+    )
+    formal._scope_capacity_import_authority_source = source
+
+    revoked = formal.run_formal_publication(workflow_id="formal-live-claim-authority-recheck")
+
+    assert revoked.blocked_reason == "financial_capacity_scope_import_authority_revoked"
+    assert source.expected_consumed == [True]
+    assert runner.calls == []
+
+    source.reason = None
+    formal._authority_validator = _AuthorityValidator(current=False)
+    stale_owner = formal.run_formal_publication(workflow_id="formal-live-claim-authority-recheck")
+
+    assert stale_owner.blocked_reason == "financial_capacity_authority_not_current"
+    assert source.expected_consumed == [True, True]
+    assert runner.calls == []
+
+
 def test_concurrent_duplicate_returns_live_claim_without_mutating_checkpoint() -> None:
     """A duplicate invocation observes the durable running claim and does no work."""
 
@@ -1760,6 +1943,8 @@ def test_formal_workflow_activates_policy_v3_only_after_every_slice_succeeds() -
         workflow_id="formal-success",
         candidate_sha="a" * 40,
         capacity_receipt=qualified.receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
     assert started.outcome == "partial"
     assert publisher.calls == []
@@ -1996,6 +2181,8 @@ def test_formal_workflow_revalidates_exact_binding_and_ceiling_before_each_slice
         workflow_id=f"formal-slice-revalidation-{drift}",
         candidate_sha="a" * 40,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
 
     result = formal.run_formal_publication(
@@ -2121,6 +2308,8 @@ def test_formal_approval_cannot_be_consumed_by_two_workflow_ids() -> None:
         workflow_id="formal-single-consumption-a",
         candidate_sha="a" * 40,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
 
     with pytest.raises(
@@ -2131,6 +2320,8 @@ def test_formal_approval_cannot_be_consumed_by_two_workflow_ids() -> None:
             workflow_id="formal-single-consumption-b",
             candidate_sha="a" * 40,
             capacity_receipt=receipt,
+            scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+            scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
         )
 
     assert first_runner.calls == []
@@ -2187,6 +2378,8 @@ def test_formal_partial_failure_does_not_create_policy_v3_candidate_or_activate(
         workflow_id="formal-partial",
         candidate_sha="a" * 40,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
 
     result = workflow.run_formal_publication(workflow_id="formal-partial")
@@ -2257,6 +2450,8 @@ def test_formal_workflow_revalidates_authority_at_provider_and_activation_bounda
         workflow_id=f"formal-authority-{fail_on_check}",
         candidate_sha="a" * 40,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
 
     result = formal.run_formal_publication(workflow_id=f"formal-authority-{fail_on_check}")
@@ -2307,6 +2502,7 @@ def test_capacity_task_blocks_without_approved_ceiling_before_formal_provider_eg
         workflow_id="formal-publication",
         candidate_sha="a" * 40,
         capacity_rehearsal_workflow_id="qualification-receipt",
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
     )
 
     assert result["outcome"] == "blocked"
@@ -2345,6 +2541,7 @@ def test_capacity_task_authority_denial_precedes_formal_workflow_composition(
         workflow_id=f"authority-{action}",
         candidate_sha="a" * 40,
         capacity_rehearsal_workflow_id="qualification-receipt",
+        scope_capacity_import_id=(_VERIFIED_IMPORT_ID if action == "formal_start" else ""),
     )
 
     assert result == authority_failure
@@ -2373,6 +2570,63 @@ def test_capacity_task_rejects_invalid_input_before_isolation_or_provider_access
     assert result["outcome"] == "failed"
     assert result["stage"] == "input"
     assert result["requested"] == 0
+
+
+def test_capacity_task_formal_start_requires_persisted_scope_import_before_composition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A capacity receipt and chat/task arguments cannot replace the durable S6 import."""
+
+    monkeypatch.setattr(
+        tasks,
+        "_preflight_data02_task_authority",
+        lambda **_: pytest.fail("missing S6 import must block before authority or composition"),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_financial_publication_capacity_workflow",
+        lambda **_: pytest.fail("missing S6 import must block before checkpoint access"),
+    )
+
+    result = tasks.refresh_financial_publication_capacity_task.run(
+        action="formal_start",
+        workflow_id="formal-task-without-import",
+        candidate_sha="a" * 40,
+        capacity_rehearsal_workflow_id="verified-capacity-rehearsal",
+    )
+
+    assert result["outcome"] == "blocked"
+    assert result["blocked_reason"] == "financial_capacity_scope_import_required"
+    assert result["stored"] == 0
+
+
+def test_capacity_task_formal_start_rejects_noncanonical_scope_import_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The formal task rejects malformed import identities before any DB authority read."""
+
+    monkeypatch.setattr(
+        tasks,
+        "_preflight_data02_task_authority",
+        lambda **_: pytest.fail("invalid S6 import ID must fail before authority preflight"),
+    )
+    monkeypatch.setattr(
+        tasks,
+        "make_financial_publication_capacity_workflow",
+        lambda **_: pytest.fail("invalid S6 import ID must fail before composition"),
+    )
+
+    result = tasks.refresh_financial_publication_capacity_task.run(
+        action="formal_start",
+        workflow_id="formal-task-with-invalid-import",
+        candidate_sha="a" * 40,
+        capacity_rehearsal_workflow_id="verified-capacity-rehearsal",
+        scope_capacity_import_id="not-a-canonical-uuid",
+    )
+
+    assert result["outcome"] == "failed"
+    assert result["blocked_reason"] == "invalid_financial_capacity_scope_import_id"
+    assert result["stored"] == 0
 
 
 def test_capacity_task_can_finish_one_explicit_isolated_qualification_step(
@@ -2491,6 +2745,12 @@ def test_capacity_task_candidate_sha_must_match_durable_checkpoint_before_run(
         started.checkpoint,
         stage=expected_stage,
         binding=mismatch_binding,
+        scope_capacity_import_id=(
+            _VERIFIED_IMPORT_ID if expected_stage == "formal_publication" else None
+        ),
+        scope_capacity_import_record_sha256=(
+            _VERIFIED_IMPORT_RECORD_SHA256 if expected_stage == "formal_publication" else None
+        ),
     )
     monkeypatch.setattr(workflow, "get_checkpoint", lambda _workflow_id: mismatched_checkpoint)
     monkeypatch.setattr(
@@ -3039,7 +3299,9 @@ def test_django_checkpoint_repository_consumes_receipt_once_even_after_reapprova
 
     isolated_binding = _binding()
     slices = (_slice(81),)
-    repository = DjangoFinancialCapacityCheckpointRepository()
+    repository = DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=_ScopeCapacityImportAuthoritySource()
+    )
     qualification = _workflow(
         binding=_RuntimeBinding(isolated_binding),
         manifest=_Manifest(slices),
@@ -3088,14 +3350,16 @@ def test_django_checkpoint_repository_consumes_receipt_once_even_after_reapprova
         ceiling_source=_CeilingSource(reapproved_ceiling),
         checkpoint_repository=repository,
     )
-    first.start_formal_publication(
+    first_start = first.start_formal_publication(
         workflow_id="formal-database-consumption-a",
         candidate_sha="a" * 40,
         capacity_receipt=receipt,
+        scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+        scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
     )
     first_checkpoint = repository.get("formal-database-consumption-a")
     assert first_checkpoint is not None
-    assert first_checkpoint.status == "running"
+    assert first_checkpoint.status == "running", first_start.blocked_reason
     assert first_checkpoint.capacity_receipt == receipt
 
     with pytest.raises(
@@ -3106,6 +3370,8 @@ def test_django_checkpoint_repository_consumes_receipt_once_even_after_reapprova
             workflow_id="formal-database-consumption-b",
             candidate_sha="a" * 40,
             capacity_receipt=receipt,
+            scope_capacity_import_id=_VERIFIED_IMPORT_ID,
+            scope_capacity_import_record_sha256=_VERIFIED_IMPORT_RECORD_SHA256,
         )
 
     assert first_runner.calls == []

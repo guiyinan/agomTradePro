@@ -27,6 +27,7 @@ from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacitySliceRunner,
     FinancialCapacityWorkflowError,
     FinancialPublicationSlice,
+    FinancialScopeCapacityImportAuthoritySource,
     FinancialWorkflowStage,
 )
 from apps.data_center.application.financial_scope_capacity_input import (
@@ -737,12 +738,20 @@ def make_django_financial_capacity_ports(
     DjangoFinancialCapacityGovernanceSource,
     DjangoFinancialCapacityGovernanceSource,
     DjangoFinancialCapacityGovernanceSource,
+    FinancialScopeCapacityImportAuthoritySource,
 ]:
     """Build the DB-backed production workflow ports without executing provider calls."""
 
+    from apps.data_center.infrastructure.financial_scope_capacity_import_authority import (
+        DjangoFinancialScopeCapacityImportAuthoritySource,
+    )
+
     governance_source = DjangoFinancialCapacityGovernanceSource()
+    import_authority_source = DjangoFinancialScopeCapacityImportAuthoritySource()
     return (
-        DjangoFinancialCapacityCheckpointRepository(),
+        DjangoFinancialCapacityCheckpointRepository(
+            scope_capacity_import_authority_source=import_authority_source,
+        ),
         DjangoFinancialCapacityBindingSource(
             isolation_attestation_sha256=isolation_attestation_sha256,
             build_identity_source=build_identity_source,
@@ -753,6 +762,7 @@ def make_django_financial_capacity_ports(
         governance_source,
         governance_source,
         governance_source,
+        import_authority_source,
     )
 
 

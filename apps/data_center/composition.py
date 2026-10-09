@@ -658,6 +658,7 @@ def make_financial_publication_capacity_workflow(
         qualification_ceiling_source,
         capacity_rehearsal_ceiling_source,
         production_ceiling_source,
+        scope_capacity_import_authority_source,
     ) = make_django_financial_capacity_ports(
         isolation_attestation_sha256=isolation_attestation_sha256,
     )
@@ -670,6 +671,7 @@ def make_financial_publication_capacity_workflow(
         qualification_ceiling_source=qualification_ceiling_source,
         capacity_rehearsal_ceiling_source=capacity_rehearsal_ceiling_source,
         production_ceiling_source=production_ceiling_source,
+        scope_capacity_import_authority_source=scope_capacity_import_authority_source,
         authority_validator=authority_validator,
         clock=timezone.now,
     )

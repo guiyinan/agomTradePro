@@ -143,6 +143,36 @@ class FinancialProductionCeilingSource(Protocol):
         """Return an exact approved ceiling, or None when governance has not approved it."""
 
 
+class FinancialScopeCapacityImportAuthoritySource(Protocol):
+    """Revalidate one persisted S6 import and its production authority chain."""
+
+    def load_record_sha256(self, import_id: str) -> str | None:
+        """Return the sealed digest read from one persisted import record."""
+
+    def validate_current(
+        self,
+        *,
+        import_id: str,
+        record_sha256: str,
+        workflow_id: str,
+        binding: FinancialCapacityBinding,
+        manifest_sha256: str,
+        active_universe_sha256: str,
+        source_revision_sha256: str,
+        now: datetime,
+        expected_consumed: bool,
+    ) -> str | None:
+        """Return a stable block reason unless the import still authorizes this exact scope."""
+
+    def consume_formal_start(
+        self,
+        checkpoint: FinancialCapacityCheckpoint,
+        *,
+        now: datetime,
+    ) -> None:
+        """Append the one-time consumption event inside the checkpoint transaction."""
+
+
 class FinancialCapacityCheckpointRepository(Protocol):
     """Persist one workflow using revision-checked updates."""
 

@@ -28,12 +28,13 @@ def _checkpoint_to_payload(checkpoint: FinancialCapacityCheckpoint) -> dict[str,
     """Encode only bounded control-plane state; ledgers live in dedicated rows."""
 
     return {
-        "schema": "financial-publication-capacity-checkpoint.v5",
+        "schema": "financial-publication-capacity-checkpoint.v6",
         "workflow_id": checkpoint.workflow_id,
         "stage": checkpoint.stage,
         "binding": checkpoint.binding.to_dict(),
         "manifest_count": checkpoint.manifest_count,
         "manifest_sha256": checkpoint.manifest_sha256,
+        "active_universe_sha256": checkpoint.active_universe_sha256,
         "source_revision_sha256": checkpoint.source_revision_sha256,
         "total_provider_request_budget": checkpoint.total_provider_request_budget,
         "status": checkpoint.status,
@@ -95,6 +96,8 @@ def _checkpoint_to_payload(checkpoint: FinancialCapacityCheckpoint) -> dict[str,
         ),
         "publication_hash": checkpoint.publication_hash,
         "blocked_reason": checkpoint.blocked_reason,
+        "scope_capacity_import_id": checkpoint.scope_capacity_import_id,
+        "scope_capacity_import_record_sha256": checkpoint.scope_capacity_import_record_sha256,
         "revision": checkpoint.revision,
     }
 
@@ -236,21 +239,28 @@ def _checkpoint_from_payload(payload: object) -> FinancialCapacityCheckpoint:
         "revision",
     }
     schema = raw.get("schema")
-    if schema != "financial-publication-capacity-checkpoint.v5":
+    if schema not in {
+        "financial-publication-capacity-checkpoint.v5",
+        "financial-publication-capacity-checkpoint.v6",
+    }:
         raise FinancialCapacityWorkflowError("financial capacity checkpoint schema is invalid")
-    _exact_keys(
-        raw,
-        checkpoint_keys
-        | {
-            "capacity_rehearsal_ceiling",
-            "in_flight_claim_token",
-            "in_flight_claim_expires_at",
-            "run_id",
-            "activation_intent",
-            "publication_plan",
-        },
-        "checkpoint",
-    )
+    optional_checkpoint_keys = {
+        "capacity_rehearsal_ceiling",
+        "in_flight_claim_token",
+        "in_flight_claim_expires_at",
+        "run_id",
+        "activation_intent",
+        "publication_plan",
+    }
+    if schema == "financial-publication-capacity-checkpoint.v6":
+        optional_checkpoint_keys.update(
+            {
+                "scope_capacity_import_id",
+                "scope_capacity_import_record_sha256",
+                "active_universe_sha256",
+            }
+        )
+    _exact_keys(raw, checkpoint_keys | optional_checkpoint_keys, "checkpoint")
     stage = _token(raw, "stage")
     allowed_stages = {"qualification", "capacity_rehearsal", "formal_publication"}
     if stage not in allowed_stages:
@@ -302,6 +312,11 @@ def _checkpoint_from_payload(payload: object) -> FinancialCapacityCheckpoint:
         manifest=(),
         manifest_count=_int(raw, "manifest_count"),
         manifest_sha256=_token(raw, "manifest_sha256"),
+        active_universe_sha256=(
+            _token(raw, "active_universe_sha256")
+            if raw.get("active_universe_sha256") is not None
+            else None
+        ),
         source_revision_sha256=_token(raw, "source_revision_sha256"),
         total_provider_request_budget=_int(raw, "total_provider_request_budget"),
         status=cast(FinancialWorkflowStatus, status),
@@ -356,6 +371,16 @@ def _checkpoint_from_payload(payload: object) -> FinancialCapacityCheckpoint:
         ),
         publication_hash=(raw_publication_hash),
         blocked_reason=raw_blocked_reason,
+        scope_capacity_import_id=(
+            _token(raw, "scope_capacity_import_id")
+            if raw.get("scope_capacity_import_id") is not None
+            else None
+        ),
+        scope_capacity_import_record_sha256=(
+            _token(raw, "scope_capacity_import_record_sha256")
+            if raw.get("scope_capacity_import_record_sha256") is not None
+            else None
+        ),
         revision=_int(raw, "revision"),
     )
 

@@ -1792,7 +1792,8 @@
         },
         "blocked": {
           "test_file": "tests/unit/data_center/test_financial_publication_capacity_workflow.py",
-          "test_function": "test_capacity_task_authority_denial_precedes_formal_workflow_composition"
+          "test_function": "test_capacity_task_authority_denial_precedes_formal_workflow_composition",
+          "coverage_note": "Formal start also requires a canonical persisted S6 scope_capacity_import_id before authority reads or workflow composition; test_capacity_task_formal_start_requires_persisted_scope_import_before_composition and test_capacity_task_formal_start_rejects_noncanonical_scope_import_id cover missing and malformed IDs."
         }
       }
     },

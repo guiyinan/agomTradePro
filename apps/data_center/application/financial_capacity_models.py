@@ -769,6 +769,9 @@ class FinancialCapacityCheckpoint:
     publication_plan: FinancialCapacityPublicationPlan | None = None
     publication_hash: str | None = None
     blocked_reason: str | None = None
+    active_universe_sha256: str | None = None
+    scope_capacity_import_id: str | None = None
+    scope_capacity_import_record_sha256: str | None = None
     revision: int = 0
 
     def __post_init__(self) -> None:
@@ -782,6 +785,27 @@ class FinancialCapacityCheckpoint:
                 raise FinancialCapacityWorkflowError(
                     "financial capacity workflow run ID is invalid"
                 ) from exc
+        import_id = self.scope_capacity_import_id
+        import_record_sha256 = self.scope_capacity_import_record_sha256
+        if self.active_universe_sha256 is not None:
+            _require_sha256(self.active_universe_sha256, "active_universe_sha256")
+        if (import_id is None) != (import_record_sha256 is None):
+            raise FinancialCapacityWorkflowError(
+                "financial scope capacity import identity is incomplete"
+            )
+        if import_id is not None:
+            try:
+                if str(UUID(import_id)) != import_id:
+                    raise ValueError("non-canonical import UUID")
+            except (TypeError, ValueError) as exc:
+                raise FinancialCapacityWorkflowError(
+                    "financial scope capacity import ID is invalid"
+                ) from exc
+            _require_sha256(import_record_sha256, "scope_capacity_import_record_sha256")
+        if self.stage == "formal_publication" and self.status == "running" and import_id is None:
+            raise FinancialCapacityWorkflowError(
+                "formal financial capacity checkpoint requires a verified scope import"
+            )
         if self.activation_intent is not None and (
             self.run_id is None or str(self.activation_intent.run_id) != self.run_id
         ):
