@@ -34,7 +34,7 @@ from django.db import (
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
-from django.test.utils import CaptureQueriesContext
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.utils import timezone
 
 from apps.account.application.owner_tenant_authority_v3 import (
@@ -512,6 +512,40 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             cursor.execute(f"TRUNCATE TABLE {names} RESTART IDENTITY")
         with wrapper.schema_editor() as editor:
             _ACCOUNT_GENERATION_MIGRATION.seed_generation_row(apps, editor)
+
+
+@pytest.fixture
+def financial_capacity_pg_build_identity(tmp_path: Path) -> Iterator[Path]:
+    """Expose a schema-valid isolated build identity to capacity PG compositions."""
+
+    identity_path = tmp_path / "financial-capacity-build-identity.json"
+    identity_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "app_version": "postgres-component-test",
+                "source_commit": "f" * 40,
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    with override_settings(AGOM_BUILD_IDENTITY_PATH=identity_path):
+        yield identity_path
+
+
+def test_financial_capacity_pg_build_identity_uses_runtime_reader(
+    financial_capacity_pg_build_identity: Path,
+) -> None:
+    """Exercise the real binding reader against the isolated production-format fixture."""
+
+    del financial_capacity_pg_build_identity
+    binding_source_type = import_module(
+        "apps.data_center.infrastructure.financial_publication_capacity_runtime"
+    ).DjangoFinancialCapacityBindingSource
+    binding_source = binding_source_type()
+
+    assert binding_source._build_identity_source.source_commit() == "f" * 40
 
 
 @pytest.fixture
@@ -2819,6 +2853,20 @@ def _financial_scope_report_for_capacity_pg_universe(
     }
 
 
+def _pg_financial_fact_contract(*, asset_code: str, source_record_id: str) -> FinancialFactModel:
+    """Create an unsaved typed fact with the production model's natural-key fields."""
+
+    return FinancialFactModel(
+        asset_code=asset_code,
+        period_end=date(2026, 6, 30),
+        period_type="quarterly",
+        metric_code="revenue",
+        value=Decimal("1.0000"),
+        source="akshare",
+        source_record_id=source_record_id,
+    )
+
+
 def _install_financial_scope_pg_reviews(
     report: dict[str, object], *, environment: str = "isolated"
 ) -> None:
@@ -3159,7 +3207,10 @@ def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -
     report = _financial_scope_report_for_capacity_pg_universe(
         binding=binding,
         asset_codes=asset_codes,
-        typed_fact=SimpleNamespace(source_record_id="akshare:000001.SZ:2026-06-30:2026-09-30"),
+        typed_fact=_pg_financial_fact_contract(
+            asset_code="000001.SZ",
+            source_record_id="akshare:000001.SZ:2026-06-30:2026-09-30",
+        ),
         now=now,
     )
     _install_financial_scope_pg_reviews(report, environment="production")
@@ -3319,10 +3370,11 @@ def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -
 
 def test_formal_scope_import_authority_rechecks_real_postgresql_rows(
     actual_publication_pg,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """Consume only a hash-valid import with live dual review and production ceiling rows."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     failure_expectations = {
         "review_revoked": "financial_capacity_scope_import_authority_revoked_or_missing",
         "ceiling_drift": "financial_capacity_scope_import_ceiling_revoked_or_expired",
@@ -3383,10 +3435,11 @@ def test_formal_scope_import_authority_rechecks_real_postgresql_rows(
 
 def test_formal_scope_import_authority_rejects_candidate_provider_and_universe_drift_postgresql(
     actual_publication_pg,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """The real import row cannot resume under a changed candidate, provider, or universe."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     authority, scope_import, checkpoint, _ceiling_approval_id, _reviewer_approval_id = (
         _seed_real_financial_scope_capacity_authority_pg_case(
             workflow_id="pg-real-scope-authority-binding-drift"
@@ -3430,10 +3483,11 @@ def test_formal_scope_import_authority_rejects_candidate_provider_and_universe_d
 def test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workflow_postgresql(
     actual_publication_pg,
     monkeypatch: pytest.MonkeyPatch,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """Recover the exact durable start after PostgreSQL commits but loses its acknowledgment."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     from apps.data_center.infrastructure import financial_capacity_checkpoint_repository as repo
 
     authority, scope_import, checkpoint, _ceiling_approval_id, _reviewer_approval_id = (
@@ -3495,10 +3549,11 @@ def _postgres_scope_import_authority(monkeypatch: pytest.MonkeyPatch):
 def test_formal_start_consumes_verified_scope_import_atomically_postgresql(
     actual_publication_pg,
     monkeypatch: pytest.MonkeyPatch,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """Import consumption, formal workflow, and manifest commit together."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
         DjangoFinancialCapacityCheckpointRepository,
     )
@@ -3537,10 +3592,11 @@ def test_formal_start_consumes_verified_scope_import_atomically_postgresql(
 def test_formal_start_import_event_failure_rolls_back_all_rows_postgresql(
     actual_publication_pg,
     monkeypatch: pytest.MonkeyPatch,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """A failure after event insertion leaves no consumption, workflow, or manifest row."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
         DjangoFinancialCapacityCheckpointRepository,
     )
@@ -3576,10 +3632,11 @@ def test_formal_start_import_event_failure_rolls_back_all_rows_postgresql(
 def test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_is_blocked_postgresql(
     actual_publication_pg,
     monkeypatch: pytest.MonkeyPatch,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """Same-workflow retries reconcile while another workflow cannot consume the import."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
         DjangoFinancialCapacityCheckpointRepository,
     )
@@ -3611,10 +3668,11 @@ def test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_i
 def test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner(
     actual_publication_pg,
     monkeypatch: pytest.MonkeyPatch,
+    financial_capacity_pg_build_identity: Path,
 ) -> None:
     """Concurrent starts racing on one import leave exactly one durable winner."""
 
-    del actual_publication_pg
+    del actual_publication_pg, financial_capacity_pg_build_identity
     from apps.data_center.infrastructure.financial_capacity_checkpoint_repository import (
         DjangoFinancialCapacityCheckpointRepository,
     )
