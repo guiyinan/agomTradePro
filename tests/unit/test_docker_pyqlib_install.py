@@ -25,6 +25,23 @@ def test_mirror_dockerfile_installs_pyqlib_distribution() -> None:
     assert " qlib>=0.9.0" not in dockerfile
 
 
+def test_production_dockerfile_uses_secure_pypi_first_with_regional_fallbacks() -> None:
+    dockerfile = (REPO_ROOT / "docker" / "Dockerfile.prod").read_text(encoding="utf-8")
+    dependency_install = dockerfile.split('RUN if [ "$INSTALL_QLIB"', maxsplit=1)[0]
+    fallback = (
+        '(pip_install "$PYPI_URL" "pypi.org" || '
+        'pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || '
+        'pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn")'
+    )
+
+    assert dependency_install.count(fallback) == 2
+    assert 'PYPI_URL="https://pypi.org/simple/"' in dependency_install
+    assert 'ALIYUN_URL="https://mirrors.aliyun.com/pypi/simple/"' in dependency_install
+    assert 'TUNA_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"' in dependency_install
+    assert "http://mirrors.aliyun.com" not in dockerfile
+    assert "http://pypi.tuna.tsinghua.edu.cn" not in dockerfile
+
+
 def test_qlib_train_image_uses_supported_python_and_pyqlib_distribution() -> None:
     dockerfile = (REPO_ROOT / "docker" / "Dockerfile.qlib-train").read_text(encoding="utf-8")
 
