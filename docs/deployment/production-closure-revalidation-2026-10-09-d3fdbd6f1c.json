@@ -1,0 +1,789 @@
+{
+  "schema": "production-closure-revalidation.v7",
+  "status": "sealed_candidate_bound_read_only_revalidation",
+  "sealed_at_utc": "2026-10-09T07:43:43.713274Z",
+  "repository_head": "47a91e25a0c13f5967ef4d1081a8080711c4b5fe",
+  "probe_time_repository_head": "47a91e25a0c13f5967ef4d1081a8080711c4b5fe",
+  "repository_branch": "dev/next-development",
+  "production_commit": "d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df",
+  "production_release_tag": "20261008050500",
+  "production_is_behind_repository_head": true,
+  "candidate_commit_count_not_deployed": 71,
+  "candidate_commits_not_deployed": [
+    "eb3c4973dcb25ec9af661d4b3a34cbfa680dd115 docs: record postdeploy ordinary user uat",
+    "d6537ba95c365100068d2ac301ef47e983562e74 fix: reconcile orphaned task executions",
+    "b576647edfcb64b5d81542d23d1a21770f09cf75 fix: register task lease probes at composition root",
+    "92d308d48d1087f8cd3e76a8eaa380b1fd6c44f8 feat: bind financial sync evidence to capacity runs",
+    "af49dfc6eb56234944c2da0ad8d6f8b401e6f50b feat: add governed financial publication capacity workflow",
+    "c113d6f64af4b69a06282b4c760164790ef83789 test: enforce financial capacity postgres recovery",
+    "f614619ef7ae023f15c3dc5d680e32ccd80d4ec1 chore: refresh financial capacity governance projections",
+    "ee3c5816ee62d356fa5a1fa6d1c993ab8f8fbc6d docs: record financial capacity remediation evidence",
+    "a725bc79cea76611afd15bf52bfeb0b50e386c74 fix: import capacity models from infrastructure",
+    "b3be8977aceaaf6486d252fd15fb538398de994a docs: record financial capacity architecture gate",
+    "8363baf9e4f856236718912f2c5acb81da96b5b5 test: bind postgres capacity settings to repository root",
+    "455e72b46b4b2b87186a575a6aef77a4c07f9069 docs: record financial capacity postgres gate",
+    "bdefd1e047a4b58f5e1e87b0646aa02ea211fa0d test: account postgres capacity transport attempts",
+    "4017b58ff40485298135fdc6719362847b998dca docs: record postgres capacity transport gate",
+    "a20809d6264f3f43f2a1ea01bb500538f26547c3 fix: validate financial candidate member coverage",
+    "6d0caa771180f415123bec56a6a9282957229376 docs: record financial candidate coverage remediation",
+    "1d85f0857861383a8f1de87f1e41557cc8ed0ce5 fix: preserve data backfill audit seam",
+    "2b309a6fa6b3dbe280f7c554a148ffea7384feb4 docs: record data backfill audit seam recovery",
+    "8316420a018eb71de621b57b5694e76079d11dd6 test: align financial evidence contract seams",
+    "f65e3d3766a3d29eab0da2a0e03edcf50e511e7c docs: record financial evidence contract recovery",
+    "d044defd8d2e66e53ec2c743e4ff911b7187daf9 fix: govern isolated database migrations",
+    "abc35c73fea4a27665ce91385f98dfadafc029ca docs: record isolated migration gate evidence",
+    "b3df5a264c6aecd7063463520a55cc754ad3546a test: align migration evidence fixture",
+    "271151cd02408cd3855c5d7fbce7ae1f37efe53c docs: record migration collector gate",
+    "2aa13fdc15e843934a8145e799a2e42d770a2b34 fix: normalize isolated migration database address",
+    "36cfd0d722fb60d46913aba62da7bb0328d9aa7f docs: record isolated migration address failure",
+    "7256bf6ef7ce3d553178dbc62ac3792523b38531 fix: retain financial capacity postgres evidence",
+    "c35df0dd18b4577f80bfc62e7f8623d6f6a26b3a docs: record financial capacity evidence gap",
+    "14ef9a4e0197236d67800df91caaed286eb208f4 fix: guard Docker builder and daemon compatibility",
+    "6d84e4cad94ea0543c231de79dfa5c16173691d4 docs: record Docker engine safety gate",
+    "118da3e56b5b9a89dc85d5d27dafc160f7171f9e feat: bootstrap governed financial scope manifests",
+    "31f64eef52a995cbd52550a7615b1eab3229c3f9 fix: enforce exact financial scope authorization routes",
+    "d61290b8cc76535f4f9083241c96721cde77551e fix: preserve publication scheduler stop lines",
+    "65b4043b95b08082a2366100668e52f7169a2eeb test: align migration runner import contract",
+    "ccd2d6ca1cf2d1ff051033da488f045b242b7978 chore: refresh data center entrypoint projection",
+    "fe2de7b34a87835e1c8053cfbde0a9140bc8aae7 fix: probe financial capacity task leases",
+    "e788187537f23acb8b81cd1b5b0f47b024420dbb fix: gate generic financial publications",
+    "ebf023db5513f888592f8eb7e36779224eaac68a feat: bind reviewed scope to financial capacity",
+    "755025d3810473f969f32d71012663ad46469e0e chore: refresh financial governance projections",
+    "775d2176869c02f1fcfd72f043a533a4859280e0 fix: gate legacy financial sync egress",
+    "0b825107e999f60be442e293e858945db12f0c50 feat: add full-scope financial S6 receipt",
+    "d259c299c4a308bb2de59538112fb380c0029a4e chore: refresh module map projection",
+    "4fa0925d05a95e1ec3bc2f483400475111c5209e feat: import financial capacity receipt",
+    "626c858ab96639394b708819233d88fce7bf48a3 chore: refresh module map projection",
+    "b426cfadf26199729b35557dda555127a170a7c7 fix: harden s6 evidence binding",
+    "e3d746e48a75743d5cbe1e8000e0c30f5205785a feat: atomically consume verified capacity imports",
+    "0b0226c823e4005a4a77fd1286a078e7c673e51b fix: lock financial authority rows safely",
+    "cc1703a961876e3c7e8a1e6f78c6389851403fcc chore: refresh generated data center inventories",
+    "ae00c0306440758114df45ddfb2698674b47be1d fix: align legacy financial task contract evidence",
+    "bc8e14f977e0df0702c0b317082772c98a9b899f docs: record financial capacity import gate",
+    "700b2a4876e0ce8c3d6a51c9be00147057060e22 chore: refresh financial publication contract",
+    "40db1f37d8e2aa943f3fb500f991c5c2a795a4be test: register owner evidence postgres fixture early",
+    "1f99739ee0e540f2b753c6a5d064c0bf0f2fd825 fix: reject incomplete qlib suspension scopes",
+    "bd395da7565985a180c844a662c435d9355ddacd docs: record final financial recovery gates",
+    "a7b21c5ee771d0a104ad1416fba396d96103d7b4 test: fix financial capacity PostgreSQL fixtures",
+    "c4896eda90cb6a6f9ca0c1edde865ef9ea920140 refactor: split financial task gate wiring",
+    "071f568634e13d86b6a6899ea3499839f2d5595e fix: govern release rehearsal entrypoints",
+    "c8fd5a92170e5bdd85d959a3591c91a95b5cc765 docs: record final financial candidate fixes",
+    "c3ff576316b723f143cfb8fbea07c42d04bd0ef8 fix: freeze descriptor support detection",
+    "46129a2f6dde5b28a395e6f9c514d008b6b6bc7a test: inject lost acknowledgment after outer commit",
+    "364b1f44c128df52e293080e5cf51b6ac2e5ae6d docs: record Linux gate fault injection fixes",
+    "3acaf8093322042d6388f09cad4392ad80eaf25c test: stabilize financial approval clock",
+    "0e591960606de381c32a7e91ea06107eb90feb23 docs: record financial capacity clock fix",
+    "65e9a2aada9d6d4828bd630da9ad80a7f36d1d07 test: share financial authority clock",
+    "6128a82f18da2042376bb5aed2f741fd93d2ace8 docs: record financial authority clock fix",
+    "90d0022a849196fa5c6956d8e21cabb73e9e0240 test: align backfill publication evidence",
+    "695087ebb8ab4fb029ef563c029d0fde10d02279 docs: record backfill evidence test fix",
+    "fb62856f877091f1583f8e0138607a7bfd6cdd02 ci: validate required postgres evidence identities",
+    "cee373b2663453414666922c171984b407e35f4f docs: record postgres evidence gate fix",
+    "a8c765c19231d514ab8d91b5e1153eea96f0b2ef chore: govern postgres workflow evidence test",
+    "47a91e25a0c13f5967ef4d1081a8080711c4b5fe docs: record postgres evidence governance"
+  ],
+  "observations": {
+    "current_identity": {
+      "containers": [
+        {
+          "available": true,
+          "health": "healthy",
+          "image_id": "sha256:da482ea1210f0b486852e97b83eb7437577aa957efb872b1f06e8c5c725b1996",
+          "image_reference": "agomtradepro-web:20261008050500",
+          "name": "agomtradepro-web-1",
+          "oci_revision": "d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df",
+          "restart_count": 0,
+          "started_at": "2026-10-08T21:25:42.27733626Z",
+          "status": "running"
+        },
+        {
+          "available": true,
+          "health": "healthy",
+          "image_id": "sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+          "image_reference": "prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996",
+          "name": "agomtradepro-prometheus-1",
+          "oci_revision": null,
+          "restart_count": 0,
+          "started_at": "2026-10-08T21:25:09.275877759Z",
+          "status": "running"
+        },
+        {
+          "available": false,
+          "name": "agomtradepro-worker-1"
+        },
+        {
+          "available": false,
+          "name": "agomtradepro-beat-1"
+        }
+      ],
+      "current_release_path": "/opt/agomtradepro/releases/source-20261008050500",
+      "https": {
+        "/api/decision-ready/": {
+          "body_bytes": 1312,
+          "body_sha256": "bb6f140578f3de83398b7a51ae258ad56c30287d728132daf6a1ad406bbfeb9c",
+          "content_type": "application/json",
+          "status": 503
+        },
+        "/api/health/": {
+          "body_bytes": 62,
+          "body_sha256": "567c5e063f5eaf1f2af7deb2431d55039076cd69eac7a989aef9dd16e7bb1d0e",
+          "content_type": "application/json",
+          "status": 200
+        },
+        "/api/health/db/": {
+          "body_bytes": 95,
+          "body_sha256": "b109ca28ea0f0bf19b732f01023eae5f59eff078bb84bc97fe542888edaeac55",
+          "content_type": "application/json",
+          "status": 200
+        },
+        "/api/operational-readiness/release-identity/": {
+          "body_bytes": 61,
+          "body_sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+          "content_type": "application/json",
+          "status": 403
+        },
+        "/api/ready/": {
+          "body_bytes": 1490,
+          "body_sha256": "dc8b320b1ed578d66e761e288be8aa375ea5740d5912dc1d264517cd2a6f90ab",
+          "content_type": "application/json",
+          "status": 200
+        }
+      },
+      "manifest": {
+        "image_id": "sha256:da482ea1210f0b486852e97b83eb7437577aa957efb872b1f06e8c5c725b1996",
+        "image_tag": "agomtradepro-web:20261008050500",
+        "release_tag": "20261008050500",
+        "source_commit": "d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df"
+      },
+      "manifest_sha256": "42168c87e288527082a091815b42f6826049e56d0b06ecb7c81d5238fd2c9350",
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:38:04.642926Z",
+      "schema": "production-closure-current-identity.v1",
+      "secret_values_emitted": false
+    },
+    "database": {
+      "facts": {
+        "active_a_share_asset_count": 5572,
+        "active_profiles": [
+          {
+            "activated_at": "2026-09-25T19:08:34.040197+00:00",
+            "content_hash": "602cce03d36fa3c3ed190a70f96535843f05515da13704a7b5150aba8e6606b5",
+            "environment": "production",
+            "profile_id": "2f954b62-d810-4431-b28a-5a9e01474217",
+            "profile_key": "production",
+            "release_ref": "9c77c51182c49613699fe916a4ad0d82c7a6cd2d",
+            "version": 19
+          }
+        ],
+        "audit_runtime_values": {
+          "audit.system_event.authority_selector": {
+            "validation_status": "valid",
+            "value": {
+              "actor_content_hash": "5ff706791b068b8cf184e3f2de2b2618710731f749bbd5b2828096fa35c75270",
+              "actor_source_id": "system-audit-renewal-actor:20260925185511",
+              "actor_source_version": "v3.2-20260925185511",
+              "scope_content_hash": "bbf39236cec8a6798188e8a670f4a1561d2079856b8786ec5f796a5134827fa0",
+              "scope_schema": "account.owner_tenant_authority.v3",
+              "scope_source_id": "audit-admin-owner-authority-recovery-20260925185839",
+              "scope_source_version": "v3.1-20260925185839"
+            }
+          },
+          "audit.system_event.mode": {
+            "validation_status": "valid",
+            "value": "required"
+          },
+          "audit.system_event.outbox_enabled": {
+            "validation_status": "valid",
+            "value": true
+          }
+        },
+        "authority_counts": {
+          "actor_source_max_valid_until": "2026-10-09T18:47:05.150255+00:00",
+          "actor_source_v3": 37,
+          "owner_assignment_evidence_v5": 6,
+          "owner_assignment_receipt_v5": 6,
+          "owner_authority_max_valid_until": "2027-09-12T18:23:04.344562+00:00",
+          "owner_tenant_v3": 6,
+          "owner_tenant_v3_revocations": 0,
+          "rbac_source_v3": 24,
+          "temporally_current_actor_leaf_heads": 1,
+          "temporally_current_joined_actor_owner_pairs": 1,
+          "temporally_current_owner_leaf_heads": 1,
+          "user_source_v3": 24
+        },
+        "core_current_publications": [
+          {
+            "as_of": "2026-04-29T00:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 80,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 80,
+            "coverage_selected_count": 80,
+            "dataset_key": "equity.financial.fact",
+            "member_count": 80,
+            "must_not_use_for_decision": false,
+            "publication_hash": "20acdb3f16bcd4843a5a5ca48b6758f791a9b7cb1eefb12a27b7e474ac76785c",
+            "publication_id": "c8741812-cf01-512f-8d1c-91c0e6549f42",
+            "published_at": "2026-08-15T02:54:59.904908+00:00"
+          },
+          {
+            "as_of": "2026-09-29T16:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5572,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5572,
+            "dataset_key": "equity.price.bar",
+            "member_count": 5572,
+            "must_not_use_for_decision": false,
+            "publication_hash": "f626dd08270392e5a0170be5b0da14f68db05ddbc16ffcf99d60a43ba9b35873",
+            "publication_id": "5fcce0d7-82ac-5466-a70b-557b44e0f686",
+            "published_at": "2026-10-01T21:30:35.023075+00:00"
+          },
+          {
+            "as_of": "2026-09-30T07:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5561,
+            "coverage_missing_count": 11,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5561,
+            "dataset_key": "equity.price.bar",
+            "member_count": 5561,
+            "must_not_use_for_decision": false,
+            "publication_hash": "7ca621b7a349a8d318eee65f2b386c85cab7e9868a4a648361b4615a312ab3fb",
+            "publication_id": "09744cd3-3ca4-5314-ae29-ebc1a67047f4",
+            "published_at": "2026-10-06T10:34:29.820133+00:00"
+          },
+          {
+            "as_of": "2026-09-30T07:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5564,
+            "coverage_missing_count": 8,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5564,
+            "dataset_key": "equity.quote.snapshot",
+            "member_count": 5564,
+            "must_not_use_for_decision": false,
+            "publication_hash": "1b9974d19ee4539a3ed354c56c8b76952ce5d05a2fbb94cc940af8e4d7c01679",
+            "publication_id": "d9b21044-94d7-5765-a11f-331eac58ab80",
+            "published_at": "2026-10-01T21:30:35.023075+00:00"
+          },
+          {
+            "as_of": "2026-09-30T07:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5572,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5572,
+            "dataset_key": "equity.quote.snapshot",
+            "member_count": 5572,
+            "must_not_use_for_decision": false,
+            "publication_hash": "6e8c6931de65003f856cdbb6e32cc8fc47eb8dbe1ac8028d7175a9de2d344678",
+            "publication_id": "7be67625-995d-5f01-af0b-38c03ea039aa",
+            "published_at": "2026-10-06T10:34:29.820133+00:00"
+          },
+          {
+            "as_of": "2026-09-30T07:00:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5561,
+            "coverage_missing_count": 11,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5561,
+            "dataset_key": "equity.valuation.fact",
+            "member_count": 5561,
+            "must_not_use_for_decision": false,
+            "publication_hash": "059c25d3f0c724cbf31a4f098e0fcbc88f00925a1c1433ec61ad761f3eae3282",
+            "publication_id": "38125afa-4390-599f-8279-0afa554e219f",
+            "published_at": "2026-10-01T21:30:35.023075+00:00"
+          },
+          {
+            "as_of": "2026-09-30T08:15:00+00:00",
+            "blocked_reason": "",
+            "coverage_conflict_count": 0,
+            "coverage_eligible_count": 5572,
+            "coverage_missing_count": 0,
+            "coverage_requested_count": 5572,
+            "coverage_selected_count": 5572,
+            "dataset_key": "equity.valuation.fact",
+            "member_count": 5572,
+            "must_not_use_for_decision": false,
+            "publication_hash": "7fa189457fb1804a818ca3e5274446bf9f2844c9b5eec93db7d4174388a5f7d2",
+            "publication_id": "2aef6ec3-b4fb-5976-9390-c60d3a950ff5",
+            "published_at": "2026-10-06T10:34:29.820133+00:00"
+          }
+        ]
+      },
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:38:12.056676Z",
+      "schema": "production-closure-database-readonly.v1",
+      "secret_values_emitted": false,
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK"
+    },
+    "current_publication_pointers": {
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:38:14.930420Z",
+      "pointers": [
+        {
+          "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+          "as_of": "2026-09-30T07:00:00+00:00",
+          "blocked_reason": "",
+          "coverage_conflict_count": 0,
+          "coverage_eligible_count": 5561,
+          "coverage_missing_count": 11,
+          "coverage_requested_count": 5572,
+          "coverage_selected_count": 5561,
+          "dataset_key": "equity.price.bar",
+          "member_count": 5561,
+          "must_not_use_for_decision": false,
+          "pointer_publication_hash": "7ca621b7a349a8d318eee65f2b386c85cab7e9868a4a648361b4615a312ab3fb",
+          "pointer_publication_id": "09744cd3-3ca4-5314-ae29-ebc1a67047f4",
+          "pointer_resolves_eligible": true,
+          "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+          "publication_key": "current",
+          "published_at": "2026-10-06T10:34:29.820133+00:00",
+          "state": "published"
+        },
+        {
+          "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+          "as_of": "2026-09-30T07:00:00+00:00",
+          "blocked_reason": "",
+          "coverage_conflict_count": 0,
+          "coverage_eligible_count": 5572,
+          "coverage_missing_count": 0,
+          "coverage_requested_count": 5572,
+          "coverage_selected_count": 5572,
+          "dataset_key": "equity.quote.snapshot",
+          "member_count": 5572,
+          "must_not_use_for_decision": false,
+          "pointer_publication_hash": "6e8c6931de65003f856cdbb6e32cc8fc47eb8dbe1ac8028d7175a9de2d344678",
+          "pointer_publication_id": "7be67625-995d-5f01-af0b-38c03ea039aa",
+          "pointer_resolves_eligible": true,
+          "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+          "publication_key": "current",
+          "published_at": "2026-10-06T10:34:29.820133+00:00",
+          "state": "published"
+        },
+        {
+          "activation_id": "19d9a93e-55b6-5b8e-882d-8f3160f560dc",
+          "as_of": "2026-09-30T08:15:00+00:00",
+          "blocked_reason": "",
+          "coverage_conflict_count": 0,
+          "coverage_eligible_count": 5572,
+          "coverage_missing_count": 0,
+          "coverage_requested_count": 5572,
+          "coverage_selected_count": 5572,
+          "dataset_key": "equity.valuation.fact",
+          "member_count": 5572,
+          "must_not_use_for_decision": false,
+          "pointer_publication_hash": "7fa189457fb1804a818ca3e5274446bf9f2844c9b5eec93db7d4174388a5f7d2",
+          "pointer_publication_id": "2aef6ec3-b4fb-5976-9390-c60d3a950ff5",
+          "pointer_resolves_eligible": true,
+          "pointer_updated_at": "2026-10-06T10:34:29.820133+00:00",
+          "publication_key": "current",
+          "published_at": "2026-10-06T10:34:29.820133+00:00",
+          "state": "published"
+        }
+      ],
+      "schema": "production-current-publication-pointer-readonly.v1",
+      "secret_values_emitted": false,
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK"
+    },
+    "financial_decision_evidence_aggregates": {
+      "facts": {
+        "financial_fact_announced_at_count": 0,
+        "financial_fact_available_at_count": 105606,
+        "financial_fact_decision_evidence_count": 0,
+        "financial_fact_source_time_witness_count": 0,
+        "financial_fact_total": 487624,
+        "latest_source_time_audit_at": null,
+        "source_time_artifact_audit_count": 0,
+        "source_time_bound_claim_count": 0,
+        "source_time_claim_count": 0,
+        "source_time_success_audit_count": 0
+      },
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:38:20.493318Z",
+      "schema": "production-financial-decision-evidence-readonly.v1",
+      "secret_values_emitted": false,
+      "transaction": "REPEATABLE READ READ ONLY; ROLLBACK"
+    },
+    "deployed_source_governance": {
+      "source_commit": "d3fdbd6f1ce8a1b77c4ba4fec923d651f4a2b7df",
+      "financial_source_time_contract_registry": {
+        "path": "governance/financial_source_time_match_contracts.json",
+        "sha256": "608194910207fbe5941857ef239181f61be9e74ca82904b7a6d1201ddd95c7a6",
+        "status": "active",
+        "contracts_count": 1,
+        "approval_present": true,
+        "approval": {
+          "approved_at": "2026-10-04T15:31:50Z",
+          "approved_by": "guiyinan",
+          "receipt_sha256": "ee7741d99d654cacb2f6480adb1de1ad52a1d1c3121d4425728c4d23eeb3ba69",
+          "contract_set_sha256": "20b528b7221a9b309cc14712631458cef1f9765d8df0bd3317311f1b8492ea66"
+        },
+        "contract_ids": [
+          "akshare.financial-main-data.notice-date"
+        ]
+      },
+      "numeric_tolerance_policy_registry": {
+        "path": "governance/data02_numeric_tolerance_policies.json",
+        "sha256": "8e8d59f6e46b4697eadd4b5564362ae3e89eb0f2d7f2de68affb4d443cfaa430",
+        "status": "awaiting_owner_approval",
+        "policies_count": 0
+      },
+      "financial_source_time_composition": {
+        "path": "apps/data_center/financial_source_time_composition.py",
+        "sha256": "31898af8c223880b683a6ccd20e119816e3a7a74f3cba8a7bbb182188abdddf0",
+        "exact_matcher_registry_empty": false,
+        "registered_matcher": "AkshareNoticeDateSourceTimeMatcher",
+        "provider_verifier_present": true,
+        "retained_evidence_verifier_present": true
+      },
+      "retained_real_provider_sample_observed_by_this_validation": false,
+      "explicit_production_write_authorization_observed_by_this_validation": false,
+      "claim_boundary": "Producer and verifier code is deployed, but zero retained claims/audits/witnesses and zero persisted decision evidence mean production evidence acceptance cannot be claimed."
+    },
+    "data02_repair_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "repair_active_a_share_current_facts",
+        "--source",
+        "akshare",
+        "--batch-size",
+        "50"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:40:55.597156Z",
+      "schema": "production-closure-data02-preview.v1",
+      "stderr_last_line": "apps.data_center.infrastructure.financial_fact_write_guard.FinancialFactProvenanceConflictError: financial decision evidence is required for publication candidates",
+      "stderr_sha256": "194bd03d308b66a7828be2cb214cbd0773603da2d813d3ffb64d484f5ef451a3",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "data02_publication_preview": {
+      "command": [
+        "docker",
+        "exec",
+        "agomtradepro-web-1",
+        "python",
+        "manage.py",
+        "rebuild_active_a_share_core_publications"
+      ],
+      "execute_flag_supplied": false,
+      "exit_code": 1,
+      "mutations_performed": false,
+      "observed_at_utc": "2026-10-09T07:42:16.589030Z",
+      "schema": "production-closure-data02-publication-preview.v1",
+      "stderr_last_line": "apps.data_center.infrastructure.financial_fact_write_guard.FinancialFactProvenanceConflictError: financial decision evidence is required for publication candidates",
+      "stderr_sha256": "f3a7323152c19f51eb35afcc23e4232074d7f121cbcd66c2523475b14139abe4",
+      "stdout_last_line": "",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "protected_monitoring_initial": {
+      "base_url": "https://demo.agomtrade.pro",
+      "decision": "DENY_STOP_LINES",
+      "decision_gate_cleared": false,
+      "https_statuses": {
+        "/api/decision-ready/": 503,
+        "/api/health/": 200,
+        "/api/health/db/": 200,
+        "/api/ready/": 200
+      },
+      "observed_at_utc": "2026-10-09T07:38:27.744058Z",
+      "protected_query_authenticated_status": 401,
+      "protected_query_unauthenticated_status": 401,
+      "retained_up_target": null,
+      "root_only_secret_path": "/opt/agomtradepro/prometheus-query-client.secret",
+      "schema": "evid09.protected-https-stop-lines.v1",
+      "secret_values_emitted": false,
+      "tls_default_trust_used": true
+    },
+    "protected_monitoring_retry": {
+      "base_url": "https://demo.agomtrade.pro",
+      "decision": "DENY_STOP_LINES",
+      "decision_gate_cleared": false,
+      "https_statuses": {
+        "/api/decision-ready/": 503,
+        "/api/health/": 200,
+        "/api/health/db/": 200,
+        "/api/ready/": 200
+      },
+      "observed_at_utc": "2026-10-09T07:38:34.842723Z",
+      "protected_query_authenticated_status": 401,
+      "protected_query_unauthenticated_status": 401,
+      "retained_up_target": null,
+      "root_only_secret_path": "/opt/agomtradepro/prometheus-query-client.secret",
+      "schema": "evid09.protected-https-stop-lines.v1",
+      "secret_values_emitted": false,
+      "tls_default_trust_used": true
+    }
+  },
+  "derived_findings": [
+    "Production materially advanced to d3fdbd6f1 / 20261008050500; probe-time repository HEAD 47a91e25a is 71 commits ahead.",
+    "The prior clean-candidate architecture blocker is resolved at repository HEAD 47a91e25a: the Application-to-Infrastructure task lease probe import was moved to the composition root, and the architecture audit now reports zero violations.",
+    "Health, database health and ready remain 200 while decision-ready remains fail-closed at 503 and release-identity remains 403.",
+    "Active current pointers are unchanged: quote and valuation each have full 5,572 coverage, price has 5,561 members with 11 missing, and financial has no current pointer. Historical financial published membership remains 80.",
+    "Production exact identity binding remains P0-blocked because profile v19 is bound to release_ref 9c77c51182 while runtime executes d3fdbd6f1.",
+    "Audit mode remains required, outbox enabled, selector valid and temporally current actor/owner/joined heads 1/1/1; exact EVID/AUD acceptance remains absent.",
+    "The deployed revision now includes provider/retained source-time verification in addition to the approved contract and exact matcher. Aggregate production evidence remains empty: announced_at=0, decision_evidence=0, source_time_witness=0, claims=0, bound claims=0, artifact audits=0 and successful audits=0. No retained real provider sample is established.",
+    "Financial available_at is populated on 105,606 of 487,624 facts, but without announced_at or decision evidence this does not satisfy the governed source-time gate.",
+    "Numeric tolerances remain awaiting_owner_approval with zero policies, and this validation observed no explicit production-write authorization.",
+    "Both no-execute previews still return financial-decision-evidence denials with mutations_performed=false. The wrapper result does not prove an internal provider path was never reached.",
+    "Protected monitoring now returns 401 for credentialed and anonymous requests after the prior dual TimeoutError. Transport reachability improved, authentication remains denied and no TUI-02 sample or clock can be claimed.",
+    "DATA-02, EVID-01/02 and AUD-03 remain awaiting_production; TUI-02 and DATA-18 remain active."
+  ],
+  "state_transitions": {
+    "DATA-02": "awaiting_production -> awaiting_production",
+    "EVID-01": "awaiting_production -> awaiting_production",
+    "EVID-02": "awaiting_production -> awaiting_production",
+    "AUD-03": "awaiting_production -> awaiting_production",
+    "TUI-02": "active -> active",
+    "DATA-18": "active -> active"
+  },
+  "production_mutations_performed": false,
+  "direct_provider_calls_performed_by_validation_harness": false,
+  "secrets_or_row_values_emitted": false,
+  "validation_harness_scope_note": "The validation harness used read-only transactions and no-execute commands only; it made no direct provider call or production write. Child-process provider reachability is not inferred from wrapper failure.",
+  "raw_archive": {
+    "path": "docs/deployment/production-closure-revalidation-2026-10-09-d3fdbd6f1c-raw.zip",
+    "sha256": "92d7d488a5289eab3190c8a6ec80b076495fc9dd3e3e149e9e6882eb7d333678",
+    "members": {
+      "revalidation/current_identity_probe.py": {
+        "bytes": 4139,
+        "sha256": "2098275c239bf882da35441a264d95c16bebd090af1612062452bdeba504a852"
+      },
+      "revalidation/current_identity_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/current_identity_probe.py.stdout": {
+        "bytes": 2246,
+        "sha256": "ac6d14628ea6c785e2c1ac572c5e9db6f62da60e7c3d3e262459903ee5e22a7c"
+      },
+      "revalidation/data02_preview_probe.py": {
+        "bytes": 2698,
+        "sha256": "2530813a3b51b4d2f30cb3d7075eda569ff6f9536cbfed4ec93b50dc1887d6ee"
+      },
+      "revalidation/data02_preview_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02_preview_probe.py.stdout": {
+        "bytes": 692,
+        "sha256": "1a61f741ad00881c2f1ec8203db3e2718e47b0d0a01d6f5c8b358aa5b4d2caa5"
+      },
+      "revalidation/data02_publication_preview_probe.py": {
+        "bytes": 1900,
+        "sha256": "4a9e2da1cc95e3e3f9182f274b3db2a48943ff139fdf9ffcc2ec1add90313782"
+      },
+      "revalidation/data02_publication_preview_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/data02_publication_preview_probe.py.stdout": {
+        "bytes": 668,
+        "sha256": "bd29acba0d6864726a964beee0974685297405a7528726d9edbedc7af7ee5d2d"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py": {
+        "bytes": 6317,
+        "sha256": "469caad33f2eb60f9accfa2507441e8e98429c50d34e1c6447a1474330f092dc"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/evid09_protected_https_stop_probe.py.stdout": {
+        "bytes": 551,
+        "sha256": "adbd9f6026b3376afc2e84326f73581af7c1a7081007bd63c30a5e5cf4812f14"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py": {
+        "bytes": 6317,
+        "sha256": "469caad33f2eb60f9accfa2507441e8e98429c50d34e1c6447a1474330f092dc"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/evid09_protected_https_stop_retry.py.stdout": {
+        "bytes": 551,
+        "sha256": "b500ad3f6fb0a49e98d907899c1e8cd5e47e9744e00e57ad383f3cb42907aa13"
+      },
+      "revalidation/metadata.json": {
+        "bytes": 1105,
+        "sha256": "01f5e81a06d4fbd8fdbd5f743d83690199ee6ac4aa40d4f083a6d7f279f2af38"
+      },
+      "revalidation/production_current_pointer_probe.py": {
+        "bytes": 2369,
+        "sha256": "be75fd566292abf5912963f3e760636401d9340a4d0db42b5972aa14ee5fdf25"
+      },
+      "revalidation/production_current_pointer_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/production_current_pointer_probe.py.stdout": {
+        "bytes": 2328,
+        "sha256": "59ca2f0a026eaaa7510242d9c13b8213d4658f0d663b21a09b3e5ccefcc7c813"
+      },
+      "revalidation/production_database_probe.py": {
+        "bytes": 6563,
+        "sha256": "15376f5cdf777fcdbdfde6af05d559e4a6b0b87cc6df69674abe8ad82a60c800"
+      },
+      "revalidation/production_database_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/production_database_probe.py.stdout": {
+        "bytes": 5208,
+        "sha256": "a654c71e81a49257e7f3f9b282dabfba90e5c6afd901793d55188dea2df9f301"
+      },
+      "revalidation/production_financial_evidence_probe.py": {
+        "bytes": 2568,
+        "sha256": "ee03d8417275ed17b949662c09fabcaa3c71766f58d844b6ba86f24f4628fdc1"
+      },
+      "revalidation/production_financial_evidence_probe.py.stderr": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "revalidation/production_financial_evidence_probe.py.stdout": {
+        "bytes": 601,
+        "sha256": "11d2e112160ee8424c5bd77c63564bf341d852811c78712fb3b562fed32749f5"
+      },
+      "revalidation/run-summary.json": {
+        "bytes": 2430,
+        "sha256": "7fa558dbc8e6ad7de610e9c93468e8fc1acb9236088a96badfc502178ef69989"
+      }
+    }
+  },
+  "gates": [
+    {
+      "name": "registry",
+      "command": [
+        "python",
+        "scripts/check_active_plan_registry.py"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "ce745c89018eb12ccc20737bcaedbd61f4e7c324b3c2a5268877dc5124d12a10",
+      "log_bytes": 123
+    },
+    {
+      "name": "governance",
+      "command": [
+        "python",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+      "log_bytes": 668
+    },
+    {
+      "name": "current-data",
+      "command": [
+        "python",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "f104886346456605579f5e86869fbf70af18e1eec81f816151611f79581d015e",
+      "log_bytes": 52
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "python",
+        "scripts/verify_architecture.py",
+        "--rules-file",
+        "governance/architecture_rules.json",
+        "--format",
+        "text",
+        "--include-audit",
+        "--fail-on-audit-violations"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "b729a786be5a807b8061be6fe5214041bdef628db484ac652dfca08ce61bd7db",
+      "log_bytes": 179
+    },
+    {
+      "name": "version-retirement",
+      "command": [
+        "python",
+        "scripts/check_versioned_surface_retirement.py"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+      "log_bytes": 220
+    },
+    {
+      "name": "module-map",
+      "command": [
+        "python",
+        "scripts/check_module_map.py"
+      ],
+      "execution_context": "clean candidate snapshot",
+      "exit_code": 0,
+      "log_sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd",
+      "log_bytes": 112
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "execution_context": "staged candidate only",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log_bytes": 0
+    }
+  ],
+  "next_gates": [
+    "Bind the active production profile to exact deployed revision before production acceptance or writes.",
+    "Keep full quote/valuation coverage, remediate the active price pointer shortfall and establish the missing financial current pointer only through authorized production flow.",
+    "Produce and retain a genuine provider source-time sample through the deployed verifier path; require nonzero governed claims/audits/witnesses and persisted decision evidence.",
+    "Obtain owner-approved numeric tolerances and explicit production-write authorization before any bounded backfill or Publication switch.",
+    "Collect exact Evidence/Audit production acceptance using genuine current authority.",
+    "Restore protected-monitoring authentication and retain a successful sample before any TUI-02 clock."
+  ],
+  "luna_max_next_action_review": {
+    "status": "complete",
+    "evidence_package_p0": 0,
+    "evidence_package_p1": 0,
+    "production_closure_p0": 1,
+    "production_closure_p1": 4,
+    "decision": "sealed_candidate_bound_readonly_evidence_submittable_production_closure_p0_blocked",
+    "verified": [
+      "all eight probe source/stdout/stderr hashes match their run summaries and all 26 raw archive members",
+      "repository HEAD 47a91e25a matches origin and the prior architecture violation is resolved with zero audit violations",
+      "production identity is d3fdbd6f1 / 20261008050500 while profile v19 remains bound to 9c77c51182",
+      "quote and valuation active pointers are full 5,572; price is 5,561 with 11 missing and financial pointer is absent",
+      "deployed provider/retained verifier code has zero production decision evidence, witnesses, claims and audits",
+      "both no-execute previews remain fail-closed with mutations_performed=false",
+      "protected monitoring remains credentialed/anonymous 401 and DENY_STOP_LINES",
+      "affected unit states remain unchanged"
+    ],
+    "claim_boundary": "Repository architecture recovery does not close production identity. Deployed code does not establish retained real evidence, production acceptance or write authorization. Wrapper failures do not prove that an internal provider path was never reached.",
+    "remaining_blocker": "Exact production/profile identity, active price shortfall, missing financial pointer, nonzero retained source-time evidence, owner-approved tolerances, exact EVID/AUD acceptance, explicit write authorization and protected monitoring authentication remain unresolved."
+  },
+  "production_deployment_observed": true
+}
