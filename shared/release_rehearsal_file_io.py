@@ -6,6 +6,16 @@ import os
 import stat
 from pathlib import Path
 
+# Check native descriptor support before callers can wrap ``os.open``. Actual
+# opens remain dynamic so tests can intercept and exercise replacement races.
+_SUPPORTS_DIRECTORY_DESCRIPTORS = (
+    os.name != "nt"
+    and hasattr(os, "O_NOFOLLOW")
+    and hasattr(os, "O_DIRECTORY")
+    and os.open in os.supports_dir_fd
+    and os.stat in os.supports_dir_fd
+)
+
 
 class RehearsalFileReadError(ValueError):
     """A path failed the S6 regular-file and identity checks."""
@@ -23,13 +33,7 @@ def read_regular_file(root: Path, relative: str, limit: int) -> bytes:
     if not parts or any(part in {"", "."} for part in parts):
         raise RehearsalFileReadError("file_invalid")
     try:
-        if (
-            os.name != "nt"
-            and hasattr(os, "O_NOFOLLOW")
-            and hasattr(os, "O_DIRECTORY")
-            and os.open in os.supports_dir_fd
-            and os.stat in os.supports_dir_fd
-        ):
+        if _SUPPORTS_DIRECTORY_DESCRIPTORS:
             return _read_with_directory_descriptors(root_path, parts, limit)
         return _read_with_path_rechecks(root_path, parts, limit)
     except RehearsalFileReadError:
