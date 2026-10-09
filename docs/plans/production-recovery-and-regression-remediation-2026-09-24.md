@@ -3348,3 +3348,25 @@ Python 与 artifact 清单，禁止恢复硬编码 case 总数，并证明新增
 production financial authority/refresh 与普通用户 UAT 均未开始，全部生产停止线保持不变。
 
 下一片是否可开始：可以提交本节台账、push 新最终 SHA，并从头绑定五组 CI。只有同一 SHA 五组全绿并核验新 artifact 后，才可启动 fresh S6。
+
+##### 2026-10-09 PostgreSQL 证据测试治理登记与唯一投影收口
+
+完成项：候选 `cee373b2663453414666922c171984b407e35f4f` 的 Architecture `37896359441`、Security
+`37896359427` 与 Publication PostgreSQL `37896359436` 通过；新的 required-identity evidence gate 自身通过，证明去计数化实现可在真实
+artifact 上运行。Fast Feedback `37896359438` 的 Python 3.11/3.13 测试任务和 FIFO guard 均通过，但其 incremental quality gate 与
+Consistency `37896359417` 同时因 Data Center entrypoint projection stale 失败。根因是新建的 workflow contract 测试属于 operational
+test evidence，却未在同一提交登记治理 lifecycle 并重建唯一投影；生产、PostgreSQL 与 workflow 功能没有失败。
+
+提交 `a8c765c19` 将 `tests/unit/ci/test_publication_postgres_workflow.py` 精确登记为 active public test evidence，测试读取共享 required
+inventory 时改为 AST 读取 literal，避免直接导入 operational script；随后只用 `scripts/data_center_entrypoint_inventory.py --write` 重建
+`governance/data_center_entrypoints.json`。投影现为 1,313 entries：active_public 836、adjacent_operational 337、candidate-review 2、
+compatibility 138；没有修改 scanner、状态语义或容许 stale projection。
+
+测试计数：entrypoint inventory 与 workflow contract 聚焦回归 `30 passed`；workflow contract 独立 `2 passed`。生成器连续写入/检查摘要一致，
+Black、isort、Ruff 与 `git diff --check` 通过。仓库已有 pre-push inventory hook，但当前执行环境未安装/触发该 hook，故此次遗漏仍由远端 CI
+发现；这项主机级安装风险保留在交接，不以修改扫描器消除。
+
+未验证风险与停止线：治理登记后的新 exact SHA 尚未五组全绿；上一 SHA 的成功 Publication PostgreSQL 不得拼接使用。candidate-review
+仍有既有 2 项，本切片未伪装为清零。fresh S6、部署、production financial refresh 与普通用户 UAT 未开始；生产停止线不变。
+
+下一片是否可开始：可以提交台账并 push，以新 exact SHA 从头运行五组 CI。五组与 official artifact 全部通过后才可进入 fresh S6。
