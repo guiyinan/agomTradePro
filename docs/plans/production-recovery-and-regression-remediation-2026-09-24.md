@@ -3252,3 +3252,26 @@ validator 因前序失败未完成，不能引用其部分结果。fresh S6、�
 
 下一片是否可开始：可以提交本节台账并 push 新最终 SHA，从头运行五组 CI。只有同一 SHA 五组全绿、Fast Feedback 两个 Python 版本的 FIFO
 race 反例通过，且 Publication PostgreSQL official artifact 固定节点全部零 skip/failure/error，才可进入 fresh S6。
+
+##### 2026-10-09 Financial capacity 双审批测试时钟稳定化
+
+完成项：候选 `364b1f44c128df52e293080e5cf51b6ac2e5ae6d` 的 Architecture `37891194121`、Security
+`37891194042`、Consistency `37891194030` 与 Fast Feedback `37891194133` 通过；Fast Feedback 在 Python 3.11/3.13 的
+FIFO stat/open 竞态反例、targeted pytest、RTM 与静态检查均通过，证明 descriptor 修复有效。Publication PostgreSQL
+`37891194024` 在 financial-capacity 阶段为 `12 passed / 1 failed`，唯一失败是 5,572 资产 manifest 的双审批被稳定码
+`FINANCIAL_CAPACITY_SCOPE_APPROVAL_REQUIRED` 拒绝。根因是测试先捕获校验时点 `now`，helper 随后分别调用更晚的
+`timezone.now()` 写入两条 `approved_at`，生产 domain 校验正确拒绝 `approved_at > now`；该失败不属于容量、审批或生产事务规则缺陷。
+
+提交 `3acaf8093` 只让 PostgreSQL 测试 helper 接收调用方捕获的同一个 aware `now`，并将两条独立 owner/reviewer 记录的
+`approved_at` 绑定到该时点、`expires_at` 绑定到 `now + 1 day`。生产审批校验、双人角色、有效期、5,572 scope、capacity ceiling、
+CAS 与事务实现均未修改或放宽。旧失败 run 未重跑，其四组成功结果不得与新 SHA 拼接。
+
+测试计数：修复前 CI 的 financial-capacity 官方节点为 `12 passed / 1 failed`；修复后精确 5,572 PostgreSQL 节点在本地成功收集，
+但因未启用专用 disposable loopback PostgreSQL 明确 `1 skipped`，不能计作通过。Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：修复后的 13 个 financial-capacity PostgreSQL 节点及后续 financial slice、Account outer-fence、5,001 member soak
+仍须由新 exact-SHA official artifact 证明零 skip/failure/error。fresh S6、同镜像部署、production financial refresh 与普通用户 UAT 均未开始；
+生产 full-market 任务禁止重跑，两个周期入口保持 disabled。聊天授权不能替代系统内 data_owner、independent_reviewer 与有效 production ceiling。
+
+下一片是否可开始：可以提交本节台账、push 新最终 SHA，并从头绑定五组 CI。只有同一 SHA 五组全绿且 Publication PostgreSQL
+artifact 的全部必需节点通过后，才可从最新生产只读快照创建 fresh S6；禁止 `--resume` 或复用旧 receipt/image。
