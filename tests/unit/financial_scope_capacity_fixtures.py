@@ -21,11 +21,12 @@ def write_financial_scope_capacity_fixture(
     release_universe_sha256: str,
     provider_identities_sha256: str,
     now: datetime,
+    scope_report: dict[str, object] | None = None,
 ) -> Path:
     """Write a complete source report, encrypted artifact tree, and capacity receipt."""
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    scope_report = _scope_report()
+    scope_report = _scope_report() if scope_report is None else scope_report
     scope_report["candidate_image_id"] = candidate_image_id
     scope_report["started_at"] = (now.replace(microsecond=0)).isoformat()
     scope_report["finished_at"] = (now.replace(microsecond=0)).isoformat()

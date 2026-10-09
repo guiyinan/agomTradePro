@@ -9,6 +9,7 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
 """
 
 from typing import Any
+from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -1100,3 +1101,61 @@ class FinancialScopeManifestCurrentPointerModel(models.Model):
         """Show only the environment and pointer revision."""
 
         return f"{self.environment}:r{self.revision}"
+
+
+class FinancialScopeCapacityImportModel(models.Model):
+    """Append-only production ledger for validated S6 full-scope capacity evidence."""
+
+    import_id = models.UUIDField(default=uuid4, editable=False, unique=True)
+    environment = models.CharField(max_length=16, default="production", editable=False)
+    release_manifest_sha256 = models.CharField(max_length=64)
+    capacity_receipt_raw_sha256 = models.CharField(max_length=64)
+    scope_report_raw_sha256 = models.CharField(max_length=64)
+    scope_report_review_sha256 = models.CharField(max_length=64)
+    receipt_sha256 = models.CharField(max_length=64, unique=True)
+    scope_pointer_sha256 = models.CharField(max_length=64, unique=True)
+    candidate_sha = models.CharField(max_length=40)
+    candidate_image_id = models.CharField(max_length=71)
+    target_trade_date = models.DateField()
+    release_universe_sha256 = models.CharField(max_length=64)
+    provider_identities_sha256 = models.CharField(max_length=64)
+    scope_manifest_sha256 = models.CharField(max_length=64)
+    financial_universe_sha256 = models.CharField(max_length=64)
+    financial_provider_id = models.PositiveBigIntegerField()
+    financial_provider_identity_sha256 = models.CharField(max_length=64)
+    source_revision_sha256 = models.CharField(max_length=64)
+    evidence_ledger_sha256 = models.CharField(max_length=64)
+    artifact_ledger_sha256 = models.CharField(max_length=64)
+    owner_approval_id = models.CharField(max_length=300)
+    owner_event_id = models.CharField(max_length=300, unique=True)
+    reviewer_approval_id = models.CharField(max_length=300)
+    reviewer_event_id = models.CharField(max_length=300, unique=True)
+    production_ceiling_approval_id = models.CharField(max_length=300)
+    production_ceiling_event_id = models.CharField(max_length=300, unique=True)
+    production_ceiling_record_sha256 = models.CharField(max_length=64)
+    record_payload = models.JSONField()
+    record_sha256 = models.CharField(max_length=64, unique=True)
+    imported_by = models.CharField(max_length=150)
+    imported_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "data_center_financial_scope_capacity_import"
+        ordering = ["-imported_at", "import_id"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Disallow in-place changes after the first durable import record."""
+
+        if not self._state.adding:
+            raise ValidationError("Financial scope capacity import records are append-only.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Keep the imported evidence and authority chain append-only."""
+
+        raise ValidationError("Financial scope capacity import records are append-only.")
+
+    def __str__(self) -> str:
+        """Show only stable one-time import identity and candidate."""
+
+        return f"{self.import_id}:{self.candidate_sha}"

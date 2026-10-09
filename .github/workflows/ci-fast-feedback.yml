@@ -421,6 +421,12 @@ jobs:
       - name: Django system check
         run: python manage.py check
 
+      - name: Verify S6 handoff rejects a symlinked evidence artifact
+        run: >-
+          python -m pytest
+          tests/unit/data_center/test_financial_scope_capacity_import.py::test_bundle_reader_rejects_symlinked_artifact
+          -q -o addopts=''
+
       - name: Run targeted pytest suite
         run: |
           echo "Changed modules: ${{ needs.detect-tests.outputs.changed-modules }}"

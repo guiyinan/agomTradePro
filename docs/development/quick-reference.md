@@ -104,6 +104,11 @@ python3 -m venv <attempt-root>/runner-venv
   pre-egress owner event 对每只活跃证券做两类独立读取，封存来源报告、全量预算、财报 universe 与证据/artifact ledger 摘要；
   它只写隔离 raw capture/audit 与加密 artifact，`fact_writes` 和 `publication_writes` 必须为零。该 hash graph 不是加密签名，
   也不替代生产 `data_owner`、独立 reviewer 或生产 owner ceiling；市场容量报告和 N=1 财报 slice 都不能替代它。
+- 将全新 S6 release bundle 复制到生产受控入口后，可用
+  `python manage.py import_financial_scope_capacity_receipt --bundle-dir <release-root> --actor <superuser>`
+  只读重验候选、provider/universe、完整 hash/artifact graph 和生产双人 review/owner ceiling，并追加一条 production import ledger；
+  需要交互式 superuser 密码、非 DEBUG PostgreSQL，不运行 refresh，也不写 fact/publication。bundle hash graph 依赖既有可信传输/保管边界，
+  当前没有加密签名或外部 source-identity proof。
 - 治理真源：`governance/release_rehearsal_policy.json` 的 `required_reports`。
 
 - 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。
