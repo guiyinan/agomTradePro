@@ -3370,3 +3370,31 @@ Black、isort、Ruff 与 `git diff --check` 通过。仓库已有 pre-push inven
 仍有既有 2 项，本切片未伪装为清零。fresh S6、部署、production financial refresh 与普通用户 UAT 未开始；生产停止线不变。
 
 下一片是否可开始：可以提交台账并 push，以新 exact SHA 从头运行五组 CI。五组与 official artifact 全部通过后才可进入 fresh S6。
+
+##### 2026-10-10 最终候选架构投影与失败 S6 资源收口
+
+完成项：候选 `ef5a0e148ecce8d971d85a29510deb64fc2f0723` 的 Architecture `37946712919`、Security
+`37946713189` 与 Publication PostgreSQL `37946713051` 通过；Consistency `37946713117` 和 Fast Feedback
+`37946713014` 的代码测试通过，但都在 `Enforce deterministic Data Center architecture inventory` 阻断，因此该 SHA 不得与后续
+结果拼接。根因是 `b94625377` 已移除 Account position repository 对 Signal infrastructure model 的跨 App ORM 导入，生成投影仍保留旧引用。
+提交 `1efb65b370abba0b4f19492a731cb233dd817977` 只运行唯一生成器
+`scripts/data_center_architecture_inventory.py --write` 并提交 `governance/data_center_architecture_inventory.json`：
+`cross_app_orm_imports` 从 48 降至 47，其余计数不变；扫描器、边界规则与 allowlist 均未修改。
+
+失败 S6 attempt `a99d27730f014e9a9c3a78ac3f7b9e0b` 的 `run-status=blocked`、
+`REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED`、runner exit 2 和完整 evidence 目录继续保留；确认 runner PID `49364` 与历史 PID
+`49548` 均已退出且不存在 active build marker 后，在共享 artifact lock 下只删除该 attempt 的 disposable PostgreSQL、Redis、network、
+volume、未被容器引用的候选镜像 `agomtradepro-web:20261009163425` 及其 image tar。`/var/lib/docker` 可用空间从 19 GiB 恢复到
+25 GiB，超过既有 24 GiB prebuild 门槛；没有删除 attempt root、降低磁盘门槛或触碰生产容器/数据。
+
+测试计数：架构投影生成器 check 通过，`tests/unit/test_data_center_architecture_inventory.py` 为 `7 passed`，
+`git diff --check` 通过。失败 S6 清理前后均验证 evidence 目录与终态文件存在；清理后只移除精确命名的 disposable runtime 与构建产物。
+
+未验证风险与停止线：包含本节台账的新 HEAD 尚未由同一 exact SHA 的五组 CI 验证；上一 SHA 的三组成功不得复用。新的 official
+PostgreSQL artifact 仍须证明 13 个 financial-capacity、financial slice、Account outer-fence 与 5,001 member soak 节点零
+skip/failure/error。生产 full-market task `bcb3e00f-538e-420d-b179-428c40082f43` 禁止重跑，两个周期入口保持 disabled；
+production financial refresh 仍须系统内两个独立认证 owner/reviewer 事件和有效 full-scope ceiling，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push 新 exact SHA，从头绑定五组 CI。五组全绿且 official artifact 身份完整后，才可从最新生产
+只读快照原子预留 fresh S6，重新导出全部输入并禁止 `--resume`；完整十阶段与 release validator 通过后只能部署 receipt 绑定的同 SHA
+预构建镜像。
