@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from importlib.util import resolve_name
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "apps"
@@ -46,6 +46,7 @@ class ImportRecord:
     import_path: str
     target_module: str | None
     lineno: int
+    end_lineno: int | None = None
 
 
 @dataclass(frozen=True)
@@ -121,9 +122,7 @@ def iter_source_files(source_roots: Sequence[str]) -> Iterable[SourceFile]:
             yield build_source_file(path)
 
 
-def resolve_import_path(
-    source_file: SourceFile, module: str | None, level: int
-) -> str | None:
+def resolve_import_path(source_file: SourceFile, module: str | None, level: int) -> str | None:
     if level == 0:
         return module
     if not source_file.package:
@@ -178,8 +177,27 @@ def resolve_dynamic_import_path(source_file: SourceFile, node: ast.Call) -> str 
 
 
 def extract_import_records(source_file: SourceFile) -> list[ImportRecord]:
+    """Collect direct imports and statically identifiable model resolver targets."""
+
     records: list[ImportRecord] = []
     tree = ast.parse(source_file.text, filename=source_file.source_path)
+    resolver_names: set[str] = set()
+    resolver_modules: set[str] = {"shared.model_loading"}
+    for node in ast.walk(tree) if "model_loading" in source_file.text else ():
+        if isinstance(node, ast.ImportFrom) and node.module == "shared.model_loading":
+            resolver_names.update(
+                alias.asname or alias.name for alias in node.names if alias.name == "resolve_model"
+            )
+        elif isinstance(node, ast.ImportFrom) and node.module == "shared":
+            resolver_modules.update(
+                alias.asname or alias.name for alias in node.names if alias.name == "model_loading"
+            )
+        elif isinstance(node, ast.Import):
+            resolver_modules.update(
+                alias.asname or alias.name
+                for alias in node.names
+                if alias.name == "shared.model_loading"
+            )
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -193,6 +211,7 @@ def extract_import_records(source_file: SourceFile) -> list[ImportRecord]:
                         import_path=alias.name,
                         target_module=build_target_module(alias.name),
                         lineno=node.lineno,
+                        end_lineno=node.end_lineno,
                     )
                 )
         elif isinstance(node, ast.ImportFrom):
@@ -208,10 +227,32 @@ def extract_import_records(source_file: SourceFile) -> list[ImportRecord]:
                     import_path=import_path,
                     target_module=build_target_module(import_path),
                     lineno=node.lineno,
+                    end_lineno=node.end_lineno,
                 )
             )
-        elif isinstance(node, ast.Call) and is_dynamic_import_call(node):
-            import_path = resolve_dynamic_import_path(source_file, node)
+        elif isinstance(node, ast.Call):
+            import_path = None
+            if is_dynamic_import_call(node):
+                import_path = resolve_dynamic_import_path(source_file, node)
+            elif (isinstance(node.func, ast.Name) and node.func.id in resolver_names) or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "resolve_model"
+                and ast.unparse(node.func.value) in resolver_modules
+            ):
+                arguments = {keyword.arg: keyword.value for keyword in node.keywords}
+                fallback = arguments.get("fallback_module")
+                if fallback is None and len(node.args) > 2:
+                    fallback = node.args[2]
+                if isinstance(fallback, ast.Constant) and isinstance(fallback.value, str):
+                    import_path = fallback.value
+                else:
+                    label = arguments.get("app_label")
+                    if label is None and node.args:
+                        label = node.args[0]
+                    if isinstance(label, ast.Constant) and isinstance(label.value, str):
+                        import_path = f"apps.{label.value}.infrastructure.models"
+                    else:
+                        import_path = "shared.model_loading.resolve_model"
             if not import_path:
                 continue
             records.append(
@@ -223,6 +264,7 @@ def extract_import_records(source_file: SourceFile) -> list[ImportRecord]:
                     import_path=import_path,
                     target_module=build_target_module(import_path),
                     lineno=node.lineno,
+                    end_lineno=node.end_lineno,
                 )
             )
 
@@ -287,8 +329,11 @@ def rule_matches_record(record: ImportRecord | LineRecord, rule: dict) -> bool:
     return True
 
 
-def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict]) -> list[dict]:
-    violations: list[dict] = []
+def find_import_violations(
+    records: Sequence[ImportRecord], rules: Sequence[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Report dependencies that violate the registered JSON architecture rules."""
+    violations: list[dict[str, Any]] = []
     for rule in rules:
         prefixes = rule.get("forbidden_import_prefixes", [])
         patterns = rule.get("forbidden_import_patterns", [])
@@ -336,6 +381,7 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
                     "source_module": record.source_module,
                     "source_layer": record.source_layer,
                     "lineno": record.lineno,
+                    "end_lineno": record.end_lineno or record.lineno,
                     "kind": "import",
                     "import_path": record.import_path,
                     "matched_pattern": matched,

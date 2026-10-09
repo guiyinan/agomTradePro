@@ -26,7 +26,7 @@ from apps.account.infrastructure.models import (
     TransactionModel,
 )
 from apps.account.infrastructure.portfolio_repository import PortfolioRepository
-from apps.signal.infrastructure.models import InvestmentSignalModel
+from apps.signal.application.owned_signal_queries import get_owned_signal_asset_code
 
 logger = logging.getLogger(__name__)
 
@@ -420,9 +420,8 @@ class PositionRepository:
         price: Decimal,
     ) -> Position | None:
         """从投资信号创建持仓"""
-        try:
-            signal = InvestmentSignalModel._default_manager.get(id=signal_id, user_id=user_id)
-        except InvestmentSignalModel.DoesNotExist:
+        asset_code = get_owned_signal_asset_code(signal_id=signal_id, user_id=user_id)
+        if asset_code is None:
             return None
 
         # 获取用户默认组合
@@ -439,7 +438,7 @@ class PositionRepository:
         # 创建持仓
         position = self.create_position_legacy(
             portfolio_id=portfolio_id,
-            asset_code=signal.asset_code,
+            asset_code=asset_code,
             shares=shares,
             price=price,
             source="signal",

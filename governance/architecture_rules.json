@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-30.v8",
+  "version": "2026-10-09.v9",
   "source_roots": [
     "apps",
     "core",
@@ -163,7 +163,10 @@
         "django_apps\\.get_model\\(",
         "\\bapps\\.get_model\\("
       ],
-      "rationale": "Transaction scope and runtime ORM model resolution belong in infrastructure, admin, or migrations instead of application orchestration."
+      "rationale": "Transaction scope and runtime ORM model resolution belong in infrastructure, admin, or migrations instead of application orchestration.",
+      "forbidden_import_patterns": [
+        "^shared\\.model_loading(?:\\.|$)"
+      ]
     },
     {
       "id": "apps_application_no_call_command_except_whitelisted_entrypoints",
@@ -234,7 +237,8 @@
         "interface"
       ],
       "forbidden_import_patterns": [
-        "(^|\\.)infrastructure(?!\\.django_admin(?:\\.|$))(?:\\.|$)"
+        "(^|\\.)infrastructure(?!\\.django_admin(?:\\.|$))(?:\\.|$)",
+        "^shared\\.model_loading(?:\\.|$)"
       ],
       "rationale": "Interface should stay at validation and response formatting boundaries. The shared typed Django Admin base is a technical framework adapter required by the project Admin typing standard."
     },
@@ -431,7 +435,8 @@
         "domain"
       ],
       "forbidden_import_patterns": [
-        "^(django|pandas|numpy|requests|akshare|tushare)(?:\\.|$)"
+        "^(django|pandas|numpy|requests|akshare|tushare)(?:\\.|$)",
+        "^shared\\.model_loading(?:\\.|$)"
       ],
       "forbidden_line_patterns": [
         "importlib\\.import_module\\([\"'](?:django|pandas|numpy|requests|akshare|tushare)(?:\\.|[\"'])"

@@ -11,6 +11,7 @@ from typing import TypeVar
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from apps.hedge.application.dtos import HedgePairWriteData
 from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
@@ -43,6 +44,25 @@ def _attach_domain_meta(
 
 class HedgePairRepository:
     """Repository for HedgePair entities"""
+
+    def name_exists(self, *, name: str, exclude_pair_id: int | None = None) -> bool:
+        """Check unique configuration names without exposing an ORM validator."""
+        queryset = HedgePairModel._default_manager.filter(name=name)
+        if exclude_pair_id is not None:
+            queryset = queryset.exclude(pk=exclude_pair_id)
+        return queryset.exists()
+
+    def create_record(self, *, values: HedgePairWriteData) -> HedgePairModel:
+        """Persist validated API fields and apply model-owned defaults."""
+        return HedgePairModel._default_manager.create(**values)
+
+    def update_record(self, *, pair_id: int, values: HedgePairWriteData) -> HedgePairModel:
+        """Persist validated partial or full configuration updates."""
+        model = HedgePairModel._default_manager.get(pk=pair_id)
+        for field, value in values.items():
+            setattr(model, field, value)
+        model.save()
+        return model
 
     def get_queryset(self, active_only: bool | None = None) -> QuerySet[HedgePairModel]:
         """Return the ORM queryset for hedge pairs."""

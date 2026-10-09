@@ -11,6 +11,7 @@ import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from verify_architecture import (
     DEFAULT_SCAN_ROOTS,
@@ -164,9 +165,9 @@ def parse_added_lines(diff_text: str) -> dict[str, set[int]]:
 
 
 def filter_violations_to_added_lines(
-    violations: Sequence[dict],
+    violations: Sequence[dict[str, Any]],
     added_lines: dict[str, set[int]],
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Keep only violations that fall on added lines."""
 
     if not added_lines:
@@ -176,7 +177,9 @@ def filter_violations_to_added_lines(
         violation
         for violation in violations
         if violation["source_path"] in added_lines
-        and violation["lineno"] in added_lines[violation["source_path"]]
+        and added_lines[violation["source_path"]].intersection(
+            range(violation["lineno"], violation.get("end_lineno", violation["lineno"]) + 1)
+        )
     ]
 
 
@@ -209,7 +212,9 @@ def build_delta_report(
     report["changed_line_count"] = sum(len(lines) for lines in added_lines.values())
     if audit_violations is not None:
         report["audit"]["top_rules"] = build_top_counts(audit_violations, "rule_id", "rule_id")
-        report["audit"]["top_files"] = build_top_counts(audit_violations, "source_path", "source_path")
+        report["audit"]["top_files"] = build_top_counts(
+            audit_violations, "source_path", "source_path"
+        )
     return report
 
 
@@ -225,7 +230,9 @@ def print_delta_text_report(report: dict) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check architecture violations on added diff lines.")
+    parser = argparse.ArgumentParser(
+        description="Check architecture violations on added diff lines."
+    )
     parser.add_argument(
         "--rules-file",
         default="governance/architecture_rules.json",

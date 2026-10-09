@@ -35,11 +35,13 @@
 
 - 负责 ORM、Pandas、外部 API、缓存、文件和网络 I/O，并实现 Domain/Application 定义的 Protocol。
 - 外部输入必须在进入 Domain/Application 前完成校验、标准化和类型收窄。
+- 跨 App 依赖同样优先通过公开 Application 入口。现有单向 ORM 直连不代表新增代码获准照搬；机器门禁仅覆盖已登记规则，扫描通过不能替代模块边界审查。覆盖范围见 `docs/governance/ARCHITECTURE_GUARDRAILS.md`。
 
 ### Interface (`apps/*/interface/`)
 
 - 只负责 HTTP/DRF 输入验证、用例调用和输出格式化，禁止业务逻辑。
 - 禁止导入任何 `apps.*.infrastructure`；不得直接查 ORM。
+- 不得通过 `resolve_model`、Django app registry 或动态导入间接加载 ORM；serializer 使用显式字段，写入通过 Application 入口交给 Infrastructure。
 
 CI 会扫描新增行并拒绝以下结构回退：
 

@@ -7,6 +7,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from apps.hedge.application.dtos import HedgePairWriteData
 from apps.hedge.application.repository_provider import (
     HedgeIntegrationService,
     get_hedge_alert_repository,
@@ -72,6 +73,21 @@ def get_hedge_pair_queryset() -> Any:
     """Return the hedge pair queryset for DRF viewsets."""
 
     return get_hedge_pair_repository().get_queryset()
+
+
+def hedge_pair_name_exists(*, name: str, exclude_pair_id: int | None = None) -> bool:
+    """Validate uniqueness through the owning repository."""
+    return get_hedge_pair_repository().name_exists(name=name, exclude_pair_id=exclude_pair_id)
+
+
+def create_hedge_pair_record(*, values: HedgePairWriteData) -> object:
+    """Delegate validated configuration persistence to the repository."""
+    return get_hedge_pair_repository().create_record(values=values)
+
+
+def update_hedge_pair_record(*, pair_id: int, values: HedgePairWriteData) -> object:
+    """Delegate validated configuration updates to the repository."""
+    return get_hedge_pair_repository().update_record(pair_id=pair_id, values=values)
 
 
 def get_correlation_history_queryset() -> Any:

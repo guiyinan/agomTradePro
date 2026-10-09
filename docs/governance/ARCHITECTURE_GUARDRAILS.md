@@ -1,6 +1,6 @@
 # Architecture Guardrails
 
-> Last updated: 2026-10-07
+> Last updated: 2026-10-09
 > Dynamic governance machine source of truth: `governance/governance_baseline.json`
 
 This document defines how repository-wide architecture and governance checks are enforced.
@@ -71,6 +71,7 @@ The project uses complementary guardrails:
    - Runs as a full-repository architecture audit gate.
    - Fails on both boundary violations and audit violations.
    - Current hard checks include Application ORM access, transaction ownership, Interface infrastructure imports, Domain runtime imports, naive datetime usage, retired shared compatibility imports, and app-root model shim misuse.
+   - The shared model resolver is forbidden in Domain/Application/Interface. Its literal fallback modules and app labels are recorded as dependencies, including imported aliases and keyword arguments. Unknown resolver arguments still fail closed through the resolver dependency. Incremental checks consider the complete multiline import/call span, so changing only a fallback target cannot evade the guard.
 
 3. `scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --fail-on-cycles`
    - Locks app-level cycles to zero.
@@ -110,6 +111,21 @@ The project uses complementary guardrails:
    - Allows a migration exception only when owner, reason, replacement plan, expiry date, exact path, symbol, rule, and AST fingerprint all match. Expired, edited, or stale exceptions fail closed.
 
 ## Guard Responsibility Boundaries
+
+`AGENTS.md` defines the development policy; the machine rules below implement a
+bounded static check, not complete Python dependency analysis. Application's
+cross-app infrastructure ban is layer-scoped. Infrastructure has targeted bans
+(including Data Center) and graph budgets, but no blanket machine ban on every
+other app's ORM. Existing single-direction infrastructure ORM dependencies are
+therefore visible in the module map without necessarily failing a registered
+rule. Passing the scan does not authorize copying those dependencies into new
+code. Prefer the owner's Application read port and preserve ownership filters.
+
+Architecture CI already runs a blocking full audit on pushes, pull requests and
+manual runs. Repeating the same audit more often cannot expose an unrecognized
+loader; extend its dependency extraction and add counterexample tests first.
+Arbitrary wrappers, computed imports and runtime monkey-patching still require
+review; this scanner does not claim whole-program analysis.
 
 | Responsibility | Machine source and entrypoint | What it proves | What it does not prove |
 |---|---|---|---|

@@ -124,8 +124,7 @@
         "signal": {
           "imports": 2,
           "target_layers": [
-            "application",
-            "infrastructure"
+            "application"
           ]
         }
       },
@@ -6608,13 +6607,15 @@
           "CorrelationMatrixResponse",
           "HedgeAlertResponse",
           "HedgeEffectivenessRequest",
-          "HedgeEffectivenessResponse"
+          "HedgeEffectivenessResponse",
+          "HedgePairWriteData"
         ],
         "application/integration_service.py": [
           "HedgeIntegrationService"
         ],
         "application/interface_services.py": [
           "activate_hedge_pair",
+          "create_hedge_pair_record",
           "deactivate_hedge_pair",
           "get_all_effectiveness_payload",
           "get_correlation_history_queryset",
@@ -6630,9 +6631,11 @@
           "get_hedge_snapshots_page_context",
           "get_latest_snapshots_payload",
           "get_recent_alerts_payload",
+          "hedge_pair_name_exists",
           "monitor_hedge_pairs_payload",
           "resolve_hedge_alert",
-          "update_all_portfolios_payload"
+          "update_all_portfolios_payload",
+          "update_hedge_pair_record"
         ],
         "application/repository_provider.py": [
           "get_hedge_alert_repository",
@@ -9919,6 +9922,9 @@
           "NotificationServiceProtocol",
           "check_and_invalidate_signals"
         ],
+        "application/owned_signal_queries.py": [
+          "get_owned_signal_asset_code"
+        ],
         "application/policy_gateway.py": [
           "register_signal_policy_gateway"
         ],
@@ -10017,7 +10023,7 @@
         ]
       },
       "layers": {
-        "application": 15,
+        "application": 16,
         "domain": 12,
         "infrastructure": 16,
         "interface": 8,

@@ -2,7 +2,84 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from shared.model_loading import resolve_model\n"
+        "model = resolve_model('hedge', 'HedgePairModel',\n"
+        "    'apps.hedge.infrastructure.models')\n",
+        "from shared.model_loading import resolve_model as load\n"
+        "model = load(app_label='hedge', model_name='HedgePairModel',\n"
+        "    fallback_module='apps.hedge.infrastructure.models')\n",
+        "import shared.model_loading as loader\n"
+        "model = loader.resolve_model('hedge', 'HedgePairModel')\n",
+        "from shared import model_loading as loader\n"
+        "model = loader.resolve_model('hedge', 'HedgePairModel')\n",
+    ],
+)
+def test_verify_architecture_tracks_model_resolver_dependencies(source):
+    module = _load_script_module("verify_architecture.py", "test_model_resolver_guard")
+    source_file = module.SourceFile(
+        path=REPO_ROOT / "apps/hedge/interface/serializers.py",
+        source_path="apps/hedge/interface/serializers.py",
+        source_root="apps",
+        source_module="hedge",
+        source_layer="interface",
+        module_path="apps.hedge.interface.serializers",
+        package="apps.hedge.interface",
+        text=source,
+    )
+    rules = module.load_rules(REPO_ROOT / "governance/architecture_rules.json")
+    records = module.extract_import_records(source_file)
+    violations = module.find_import_violations(records, rules["audit_rules"])
+    assert any(
+        row["import_path"] == "apps.hedge.infrastructure.models"
+        and row["rule_id"] == "apps_interface_no_infrastructure_imports"
+        for row in violations
+    )
+
+
+def test_hedge_serializers_have_no_hidden_model_dependencies():
+    module = _load_script_module("verify_architecture.py", "test_hedge_serializer_guard")
+    source = module.build_source_file(REPO_ROOT / "apps/hedge/interface/serializers.py")
+    assert "resolve_model" not in source.text
+    assert "ModelSerializer" not in source.text
+
+
+def test_model_resolver_with_unknown_arguments_still_fails_closed():
+    module = _load_script_module("verify_architecture.py", "test_unknown_model_resolver")
+    source = module.build_source_file(REPO_ROOT / "apps/hedge/interface/serializers.py")
+    from dataclasses import replace
+
+    source = replace(
+        source,
+        text="from shared.model_loading import resolve_model as load\nload(label, name, fallback)\n",
+    )
+    rules = module.load_rules(REPO_ROOT / "governance/architecture_rules.json")
+    violations = module.find_import_violations(
+        module.extract_import_records(source), rules["audit_rules"]
+    )
+    assert any(row["lineno"] == 2 for row in violations)
+
+
+def test_architecture_delta_checks_changed_multiline_target():
+    module = _load_script_module("check_architecture_delta.py", "test_multiline_target_delta")
+    violation = {
+        "source_path": "apps/hedge/interface/serializers.py",
+        "lineno": 13,
+        "end_lineno": 17,
+    }
+    assert module.filter_violations_to_added_lines(
+        [violation], {violation["source_path"]: {16}}
+    ) == [violation]
+    assert (
+        module.filter_violations_to_added_lines([violation], {violation["source_path"]: {18}}) == []
+    )
 
 
 def _load_script_module(script_name: str, module_name: str):

@@ -49,6 +49,36 @@ def hedge_pair(db):
 
 
 @pytest.mark.django_db
+def test_pair_crud_preserves_defaults_validation_and_read_only_fields(staff_client):
+    url = "/api/hedge/pairs/"
+    payload = {"name": "CRUD contract", "long_asset": "510300", "hedge_asset": "511260"}
+    created = staff_client.post(url, payload, format="json")
+    assert created.status_code == 201
+    assert created["Content-Type"].startswith("application/json")
+    row = created.json()
+    assert row["target_long_weight"] == 0.7
+    assert row["hedge_method"] == "beta"
+    detail = f"{url}{row['id']}/"
+    updated = staff_client.patch(
+        detail,
+        {"name": "renamed", "max_hedge_cost": 0.09, "beta_target": None, "id": 999},
+        format="json",
+    )
+    assert updated.status_code == 200
+    assert updated.json()["id"] == row["id"]
+    assert updated.json()["max_hedge_cost"] == 0.09
+    assert updated.json()["beta_target"] is None
+    assert staff_client.patch(detail, {"name": "renamed"}, format="json").status_code == 200
+    duplicate = staff_client.post(url, {**payload, "name": "renamed"}, format="json")
+    assert duplicate.status_code == 400
+    assert "name" in duplicate.json()["details"]
+    assert staff_client.put(detail, payload, format="json").status_code == 200
+    assert staff_client.patch(detail, {"hedge_method": "invalid"}, format="json").status_code == 400
+    assert staff_client.delete(detail).status_code == 204
+    assert not HedgePairModel.objects.filter(pk=row["id"]).exists()
+
+
+@pytest.mark.django_db
 def test_pair_catalog_and_detail_return_persisted_contract(
     authenticated_client,
     hedge_pair,
