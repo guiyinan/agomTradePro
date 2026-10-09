@@ -13,6 +13,9 @@ from typing import Any
 
 import pytest
 
+from apps.data_center.application.financial_scope_capacity_receipt import (
+    build_financial_scope_capacity_receipt,
+)
 from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIRONMENT_CATEGORIES
 from shared.release_rehearsal_stage_environment import (
     CONTRACT_STAGES as STAGE_ENVIRONMENT_CONTRACT_STAGES,
@@ -20,6 +23,7 @@ from shared.release_rehearsal_stage_environment import (
 from shared.release_rehearsal_stage_environment import (
     load_docker_build_policy,
 )
+from tests.unit.financial_scope_capacity_fixtures import write_financial_scope_capacity_fixture
 
 
 def _load_module():
@@ -1081,7 +1085,32 @@ def _build_evidence(
         path = tmp_path / f"{kind}.json"
         digest = _write_json(path, payload)
         reports[kind] = path
-        references.append({"kind": kind, "path": path.name, "sha256": digest})
+        references.append(
+            {
+                "kind": kind,
+                "path": path.relative_to(tmp_path).as_posix(),
+                "sha256": digest,
+            }
+        )
+    financial_scope_capacity_path = write_financial_scope_capacity_fixture(
+        tmp_path / "financial_scope_capacity",
+        candidate_image_id=IMAGE_ID,
+        target_trade_date=TARGET_DATE,
+        release_universe_sha256=UNIVERSE,
+        provider_identities_sha256=PROVIDER_DIGEST,
+        now=now,
+    )
+    financial_scope_capacity_digest = hashlib.sha256(
+        financial_scope_capacity_path.read_bytes()
+    ).hexdigest()
+    reports["financial_scope_capacity"] = financial_scope_capacity_path
+    references.append(
+        {
+            "kind": "financial_scope_capacity",
+            "path": financial_scope_capacity_path.relative_to(tmp_path).as_posix(),
+            "sha256": financial_scope_capacity_digest,
+        }
+    )
     manifest = tmp_path / "manifest.json"
     _write_json(
         manifest,
@@ -1204,7 +1233,89 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 8
+    assert len(result["validated_reports"]) == 9
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_code"),
+    [
+        ("candidate_sha", "0" * 40, "REHEARSAL_CANDIDATE_MISMATCH"),
+        ("universe_sha256", "0" * 64, "REHEARSAL_UNIVERSE_MISMATCH"),
+        ("provider_identities_sha256", "0" * 64, "REHEARSAL_PROVIDER_MISMATCH"),
+        ("receipt_sha256", "0" * 64, "S6_FINANCIAL_SCOPE_RECEIPT_BINDING_INVALID"),
+        ("environment", "production", "S6_FINANCIAL_SCOPE_RECEIPT_BINDING_INVALID"),
+        (
+            "financial_universe_sha256",
+            "0" * 64,
+            "S6_FINANCIAL_SCOPE_RECEIPT_BINDING_INVALID",
+        ),
+        (
+            "financial_provider_identity_sha256",
+            "0" * 64,
+            "S6_FINANCIAL_SCOPE_RECEIPT_BINDING_INVALID",
+        ),
+    ],
+)
+def test_validator_rejects_financial_scope_receipt_identity_drift(
+    tmp_path: Path, field: str, value: str, expected_code: str
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["financial_scope_capacity"]
+    capacity = json.loads(capacity_path.read_text(encoding="utf-8"))
+    capacity[field] = value
+    _replace_report(manifest, capacity_path, capacity)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == expected_code
+
+
+def test_validator_rejects_tampered_encrypted_financial_scope_artifact(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    source_path = reports["financial_scope_capacity"].parent / "financial-scope-discovery.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    artifact_path = source_path.parent / source["encrypted_artifacts"][0]["path"]
+    artifact_path.write_bytes(artifact_path.read_bytes() + b"tampered")
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_ARTIFACT_DIGEST_MISMATCH"
+
+
+def test_validator_rejects_stale_financial_scope_source_report(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["financial_scope_capacity"]
+    source_path = capacity_path.parent / "financial-scope-discovery.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    stale = now - timedelta(days=2)
+    source["started_at"] = (stale - timedelta(minutes=5)).isoformat()
+    source["finished_at"] = stale.isoformat()
+    source_bytes = (json.dumps(source, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
+        "utf-8"
+    )
+    source_path.write_bytes(source_bytes)
+    receipt = build_financial_scope_capacity_receipt(
+        scope_report=source,
+        scope_report_sha256=hashlib.sha256(source_bytes).hexdigest(),
+        target_trade_date=TARGET_DATE,
+        release_universe_sha256=UNIVERSE,
+        provider_identities_sha256=PROVIDER_DIGEST,
+    )
+    capacity_path.write_text(
+        json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _replace_report(manifest, capacity_path, receipt)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_EVIDENCE_STALE"
 
 
 @pytest.mark.parametrize(

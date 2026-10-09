@@ -42,6 +42,7 @@ from scripts.run_release_rehearsal import (
     run_release_rehearsal,
     verify_evidence_handoff_receipt,
 )
+from tests.unit.financial_scope_capacity_fixtures import write_financial_scope_capacity_fixture
 
 CANDIDATE_SHA = "a" * 40
 IMAGE_ID = f"sha256:{'c' * 64}"
@@ -259,6 +260,7 @@ class FakeRunner:
             "production_policy_parity",
             "isolated_postgresql_write",
             "akshare_financial_slice",
+            "financial_scope_capacity",
         }:
             self._create_stage_report(command)
         elif command.label == "bundle_build":
@@ -337,6 +339,16 @@ class FakeRunner:
                 provider_digest = _provider_digest()
         if command.label == self.wrong_identity_label:
             image_value = f"sha256:{'d' * 64}"
+        if command.label == "financial_scope_capacity":
+            write_financial_scope_capacity_fixture(
+                command.artifact_dir / "output",
+                candidate_image_id=image_value,
+                target_trade_date=TRADE_DATE,
+                release_universe_sha256=UNIVERSE_SHA256,
+                provider_identities_sha256=provider_digest,
+                now=datetime.now(UTC),
+            )
+            return
         filenames = {
             "provider_probe": "probe.json",
             "response_replay": "output/real-response-unit-replay.json",
@@ -345,6 +357,7 @@ class FakeRunner:
             "isolated_postgresql_write": "output/isolated-write-rehearsal.json",
             "github_ci_evidence": "candidate-regression-evidence.json",
             "akshare_financial_slice": "output/akshare-financial-slice.json",
+            "financial_scope_capacity": "output/financial-full-scope-capacity.json",
         }
         kinds = {
             "response_replay": "real_response_unit_replay",
@@ -353,6 +366,7 @@ class FakeRunner:
             "isolated_postgresql_write": "isolated_write_rehearsal",
             "github_ci_evidence": "candidate_regression_evidence",
             "akshare_financial_slice": "akshare_financial_slice",
+            "financial_scope_capacity": "financial_scope_capacity",
         }
         payload: dict[str, object] = {
             "outcome": "success",
@@ -416,6 +430,7 @@ class FakeRunner:
                 "isolated_postgresql_write": "isolated_postgresql",
                 "github_ci_evidence": "candidate_ci",
                 "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
+                "financial_scope_capacity": "isolated_full_scope_financial_capture",
             }[command.label]
         report_path = command.artifact_dir / filenames[command.label]
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -431,6 +446,7 @@ class FakeRunner:
                 "production_policy_parity": "--production-policy-parity",
                 "isolated_write_rehearsal": "--isolated-write-rehearsal",
                 "akshare_financial_slice": "--akshare-financial-slice",
+                "financial_scope_capacity": "--financial-scope-capacity",
                 "stage_environment_preflight": "--stage-environment-preflight",
                 "isolated_database_migrations": "--isolated-database-migrations",
                 "candidate_regression_evidence": "--candidate-regression-evidence",
@@ -674,6 +690,7 @@ def test_rehearsal_accepts_frozen_failover_route_identities(tmp_path: Path) -> N
         "isolated_postgresql_write",
         "github_ci_evidence",
         "akshare_financial_slice",
+        "financial_scope_capacity",
         "bundle_build",
         "release_validator",
     ],
@@ -698,6 +715,7 @@ def test_resume_reuses_verified_prefix_without_rebuilding(
         "isolated_postgresql_write",
         "github_ci_evidence",
         "akshare_financial_slice",
+        "financial_scope_capacity",
         "bundle_build",
         "release_validator",
     ]
@@ -1642,6 +1660,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         "isolated_postgresql_write",
         "github_ci_evidence",
         "akshare_financial_slice",
+        "financial_scope_capacity",
         "bundle_build",
         "release_validator",
     ]
@@ -1657,6 +1676,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     assert observed_stages[5:] == [
         "github_ci_evidence",
         "akshare_financial_slice",
+        "financial_scope_capacity",
         "bundle_build",
         "release_validator",
     ]

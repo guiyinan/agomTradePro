@@ -34,6 +34,7 @@
       "isolated_postgresql_write",
       "github_ci_evidence",
       "akshare_financial_slice",
+      "financial_scope_capacity",
       "bundle_build",
       "release_validator"
     ],
@@ -47,6 +48,7 @@
     "production_policy_parity",
     "isolated_write_rehearsal",
     "akshare_financial_slice",
+    "financial_scope_capacity",
     "stage_environment_preflight",
     "isolated_database_migrations",
     "candidate_regression_evidence"

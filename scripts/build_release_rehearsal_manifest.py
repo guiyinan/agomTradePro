@@ -19,6 +19,7 @@ REQUIRED_SCHEMAS = {
     "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
+    "financial_scope_capacity": "release.financial-scope-capacity.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "isolated_database_migrations": "release.isolated-database-migrations.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
@@ -148,7 +149,7 @@ def _artifact_refs(value: object) -> list[tuple[str, str]]:
     refs: list[tuple[str, str]] = []
     if isinstance(value, dict):
         path = value.get("path")
-        digest = value.get("sha256")
+        digest = value.get("sha256", value.get("ciphertext_sha256"))
         if isinstance(path, str) and isinstance(digest, str):
             refs.append((path, digest))
         for child in value.values():
@@ -327,6 +328,7 @@ def main() -> int:
     parser.add_argument("--production-policy-parity", required=True, type=Path)
     parser.add_argument("--isolated-write-rehearsal", required=True, type=Path)
     parser.add_argument("--akshare-financial-slice", required=True, type=Path)
+    parser.add_argument("--financial-scope-capacity", required=True, type=Path)
     parser.add_argument("--stage-environment-preflight", required=True, type=Path)
     parser.add_argument("--isolated-database-migrations", required=True, type=Path)
     parser.add_argument("--candidate-regression-evidence", required=True, type=Path)

@@ -100,6 +100,10 @@ python3 -m venv <attempt-root>/runner-venv
   两个同 provider RawAudit、typed source-time contract 和单次 atomic fact write 才构成新证据。
   该 stage 的逻辑 provider 请求固定为 `N=1, 2N=2`；零写故障反例绑定到候选 CI 的 JUnit SHA，
   不会额外产生真实 provider 请求。
+- S6 另要求 `financial_scope_capacity` 全范围证据：它在带 release guard 的 disposable PostgreSQL 中，按 scope-discovery
+  pre-egress owner event 对每只活跃证券做两类独立读取，封存来源报告、全量预算、财报 universe 与证据/artifact ledger 摘要；
+  它只写隔离 raw capture/audit 与加密 artifact，`fact_writes` 和 `publication_writes` 必须为零。该 hash graph 不是加密签名，
+  也不替代生产 `data_owner`、独立 reviewer 或生产 owner ceiling；市场容量报告和 N=1 财报 slice 都不能替代它。
 - 治理真源：`governance/release_rehearsal_policy.json` 的 `required_reports`。
 
 - 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。

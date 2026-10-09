@@ -11,6 +11,7 @@ import json
 import math
 import os
 import re
+import stat
 import subprocess
 import sys
 import urllib.error
@@ -67,6 +68,11 @@ ISOLATED_DATABASE_MIGRATION_FIELDS = frozenset(
         "applied_migrations",
     }
 )
+from apps.data_center.application.financial_scope_capacity_receipt import (
+    FinancialScopeCapacityReceiptError,
+    validate_financial_scope_capacity_receipt,
+)
+
 ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 PROVIDER_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 PROVIDER_CORE_ROLES = frozenset({"quote", "valuation"})
@@ -82,6 +88,7 @@ REQUIRED_REPORT_SCHEMAS = {
     "production_policy_parity": "release.production-policy-parity.v1",
     "isolated_write_rehearsal": "release.isolated-write-rehearsal.v1",
     "akshare_financial_slice": "release.akshare-financial-slice.v1",
+    "financial_scope_capacity": "release.financial-scope-capacity.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "isolated_database_migrations": "release.isolated-database-migrations.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
@@ -92,6 +99,7 @@ REQUIRED_EVIDENCE_MODES = {
     "production_policy_parity": "production_policy_snapshot",
     "isolated_write_rehearsal": "isolated_postgresql",
     "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
+    "financial_scope_capacity": "isolated_full_scope_financial_capture",
     "stage_environment_preflight": "read_only_environment_contract",
     "isolated_database_migrations": "isolated_postgresql_migrations",
     "candidate_regression_evidence": "candidate_ci",
@@ -103,6 +111,7 @@ IMAGE_BOUND_REPORTS = frozenset(
         "production_policy_parity",
         "isolated_write_rehearsal",
         "akshare_financial_slice",
+        "financial_scope_capacity",
         "stage_environment_preflight",
         "isolated_database_migrations",
     }
@@ -113,6 +122,7 @@ PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
         "isolated_write_rehearsal",
         "stage_environment_preflight",
         "isolated_database_migrations",
+        "financial_scope_capacity",
     }
 )
 FINANCIAL_ZERO_WRITE_PROOF_CASES = (
@@ -2581,6 +2591,96 @@ def _validate_regression(
         _fail("REHEARSAL_REQUIRED_TEST_MISSING")
 
 
+def _validate_financial_scope_capacity(
+    report: dict[str, Any],
+    report_path: Path,
+    *,
+    expected_candidate: str,
+    expected_image_id: str,
+    expected_date: str,
+    expected_universe: str,
+    expected_provider_digest: str,
+    now: datetime,
+    max_age: timedelta,
+) -> None:
+    """Verify the nested full-scope ledger and every encrypted capture artifact."""
+
+    source_ref = report.get("scope_report")
+    if (
+        not isinstance(source_ref, dict)
+        or set(source_ref) != {"path", "sha256"}
+        or source_ref.get("path") != "financial-scope-discovery.json"
+    ):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_REFERENCE_INVALID")
+    source_path = _resolve_artifact(
+        report_path.parent,
+        source_ref.get("path"),
+        source_ref.get("sha256"),
+    )
+    source_report = _read_json(source_path, "REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    artifacts = source_report.get("encrypted_artifacts")
+    artifact_root_name = source_report.get("artifact_root")
+    if not isinstance(artifacts, list) or not isinstance(artifact_root_name, str):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+    artifact_root = source_path.parent / artifact_root_name
+    if artifact_root.is_symlink() or not artifact_root.is_dir():
+        _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+    listed_paths: set[str] = set()
+    for raw_artifact in cast(list[object], artifacts):
+        if not isinstance(raw_artifact, dict):
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        artifact = cast(dict[str, Any], raw_artifact)
+        path = artifact.get("path")
+        digest = artifact.get("ciphertext_sha256")
+        size = artifact.get("size_bytes")
+        if (
+            not isinstance(path, str)
+            or not path.startswith(f"{artifact_root_name}/")
+            or isinstance(size, bool)
+            or not isinstance(size, int)
+            or size <= 0
+            or path in listed_paths
+        ):
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        artifact_path = _resolve_artifact(source_path.parent, path, digest)
+        try:
+            metadata = artifact_path.lstat()
+        except OSError:
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size != size:
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        listed_paths.add(path)
+    observed_paths: set[str] = set()
+    for artifact_path in artifact_root.rglob("*"):
+        if artifact_path.is_symlink():
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        if artifact_path.is_dir():
+            continue
+        if not artifact_path.is_file():
+            _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        observed_paths.add(artifact_path.relative_to(source_path.parent).as_posix())
+    if observed_paths != listed_paths:
+        _fail("REHEARSAL_FINANCIAL_SCOPE_ARTIFACT_LEDGER_MISMATCH")
+    source_finished = _parse_datetime(
+        source_report.get("finished_at"), "REHEARSAL_FINANCIAL_SCOPE_TIME_INVALID"
+    )
+    if source_finished > now + timedelta(minutes=5) or now - source_finished > max_age:
+        _fail("REHEARSAL_EVIDENCE_STALE")
+    try:
+        validate_financial_scope_capacity_receipt(
+            receipt=report,
+            scope_report=source_report,
+            scope_report_sha256=cast(str, source_ref.get("sha256")),
+            expected_candidate=expected_candidate,
+            expected_image_id=expected_image_id,
+            expected_trade_date=expected_date,
+            expected_release_universe_sha256=expected_universe,
+            expected_provider_identities_sha256=expected_provider_digest,
+        )
+    except FinancialScopeCapacityReceiptError as exc:
+        _fail(exc.code)
+
+
 def _validate_akshare_financial_slice(
     report: dict[str, Any],
     *,
@@ -3020,6 +3120,17 @@ def validate_release_rehearsal(
         loaded_reports["akshare_financial_slice"],
         regression_report=loaded_reports["candidate_regression_evidence"],
         expected_date=expected_target_date,
+    )
+    _validate_financial_scope_capacity(
+        loaded_reports["financial_scope_capacity"],
+        report_paths["financial_scope_capacity"],
+        expected_candidate=expected_candidate,
+        expected_image_id=expected_candidate_image_id,
+        expected_date=expected_target_date,
+        expected_universe=expected_universe_sha256,
+        expected_provider_digest=expected_provider_identities_sha256,
+        now=observed_now,
+        max_age=timedelta(hours=max_age_hours),
     )
     _validate_stage_environment_preflight(
         loaded_reports["stage_environment_preflight"],

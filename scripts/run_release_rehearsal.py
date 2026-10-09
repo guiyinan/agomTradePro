@@ -117,6 +117,7 @@ STAGES = (
     "isolated_postgresql_write",
     "github_ci_evidence",
     "akshare_financial_slice",
+    "financial_scope_capacity",
     "bundle_build",
     "release_validator",
 )
@@ -1529,6 +1530,34 @@ def _stage_specs(
         "--output-dir",
         "/run/agom/stage/output",
     )
+    scope_artifact_root = (
+        "agom-s6-financial-scope-"
+        + hashlib.sha256(f"{identity.candidate_sha}:financial-scope-capacity".encode()).hexdigest()[
+            :32
+        ]
+    )
+    financial_scope_capacity = (
+        "python",
+        "manage.py",
+        "rehearse_financial_scope_discovery",
+        *common,
+        "--target-trade-date",
+        identity.target_trade_date,
+        "--release-universe-sha256",
+        identity.universe_sha256,
+        "--provider-identities",
+        "/run/agom/provider-identities.json",
+        "--provider-identities-sha256",
+        identity.provider_identities_sha256,
+        "--expected-database-name",
+        config.isolated_database_name,
+        "--expected-database-host",
+        config.isolated_database_host,
+        "--artifact-root",
+        f"/run/agom/stage/output/{scope_artifact_root}",
+        "--output-dir",
+        "/run/agom/stage/output",
+    )
     return (
         StageSpec(
             "provider_probe",
@@ -1578,6 +1607,12 @@ def _stage_specs(
             financial_slice,
             (config.provider_env_file, config.isolated_postgres_env_file),
             mounts=((cast(Path, paths["ci_dir"]), "/run/agom/ci", True),),
+        ),
+        StageSpec(
+            "financial_scope_capacity",
+            "output/financial-full-scope-capacity.json",
+            financial_scope_capacity,
+            (config.provider_env_file, config.isolated_postgres_env_file),
         ),
     )
 
@@ -2733,7 +2768,16 @@ def _run_release_rehearsal(
         checkpoint.complete("docker_identity", (run_dir / "inputs",))
         container_gid = _candidate_container_gid(active, config.root, identity.candidate_image_id)
         unit_path = run_dir / "inputs" / "provider-unit-contract.json"
-        provider_dir, replay_dir, capacity_dir, parity_dir, isolated_dir, ci_dir, financial_dir = (
+        (
+            provider_dir,
+            replay_dir,
+            capacity_dir,
+            parity_dir,
+            isolated_dir,
+            ci_dir,
+            financial_dir,
+            financial_scope_capacity_dir,
+        ) = (
             run_dir / name
             for name in (
                 "provider-probe",
@@ -2743,6 +2787,7 @@ def _run_release_rehearsal(
                 "isolated-postgresql",
                 "github-ci-evidence",
                 "akshare-financial-slice",
+                "financial-scope-capacity",
             )
         )
         completed.append(stage)
@@ -2975,6 +3020,49 @@ def _run_release_rehearsal(
         checkpoint.complete(stage, (financial_dir,))
         completed.append(stage)
 
+        financial_scope_capacity_spec = specs[6]
+        stage = financial_scope_capacity_spec.name
+        _status(status_path, "running", completed, stage, None)
+        _assert_candidate(active, config.root, candidate)
+        if not checkpoint.done(stage):
+            checkpoint.prepare(stage, (financial_scope_capacity_dir,), resume=config.resume)
+            financial_scope_capacity_dir.mkdir(exist_ok=True)
+            output_dir = financial_scope_capacity_dir / "output"
+            output_dir.mkdir(exist_ok=True)
+            scope_argv = _docker_command(
+                identity,
+                config.docker_network,
+                financial_scope_capacity_spec.env_files,
+                identity_path,
+                manifest_path,
+                provider_path,
+                financial_scope_capacity_dir,
+                financial_scope_capacity_spec,
+            )
+            _invoke_container_stage(
+                active,
+                argv=scope_argv,
+                root=config.root,
+                label=stage,
+                timeout=config.stage_timeout_seconds,
+                env={
+                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                },
+                artifact_dir=financial_scope_capacity_dir,
+                container_gid=container_gid,
+            )
+        financial_scope_capacity_path = (
+            financial_scope_capacity_dir / financial_scope_capacity_spec.report_name
+        )
+        financial_scope_capacity_report = _report(
+            financial_scope_capacity_path, identity, image_bound=True
+        )
+        if financial_scope_capacity_report.get("kind") != "financial_scope_capacity":
+            raise RehearsalBlocked(stage, "S6_FINANCIAL_SCOPE_CAPACITY_REPORT_INVALID")
+        checkpoint.complete(stage, (financial_scope_capacity_dir,))
+        completed.append(stage)
+
         stage = "bundle_build"
         _status(status_path, "running", completed, stage, None)
         _assert_candidate(active, config.root, candidate)
@@ -2992,6 +3080,8 @@ def _run_release_rehearsal(
             str(isolated_dir / "output" / "isolated-write-rehearsal.json"),
             "--akshare-financial-slice",
             str(financial_report_path),
+            "--financial-scope-capacity",
+            str(financial_scope_capacity_path),
             "--stage-environment-preflight",
             str(run_dir / "stage-environment-preflight" / "stage-environment-preflight.json"),
             "--isolated-database-migrations",

@@ -29,6 +29,7 @@ from apps.data_center.domain.financial_scope_discovery import (
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _CANDIDATE_SHA = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
+_S6_ARTIFACT_ROOT = re.compile(r"^agom-s6-financial-scope-[0-9a-f]{32}$")
 _POINTER_ENVIRONMENTS = frozenset({"isolated", "production"})
 _POINTER_ERROR_CODES = frozenset(
     {
@@ -362,7 +363,13 @@ def _parse_reviewable_report(
             "host",
             "isolation_attestation_sha256",
         }
-        or report.get("artifact_root") != "financial-scope-artifacts"
+        or (
+            report.get("artifact_root") != "financial-scope-artifacts"
+            and (
+                type(report.get("artifact_root")) is not str
+                or _S6_ARTIFACT_ROOT.fullmatch(cast(str, report.get("artifact_root"))) is None
+            )
+        )
         or database.get("vendor") != "postgresql"
         or database.get("scope") != "disposable"
         or database.get("release_rehearsal_guard") is not True

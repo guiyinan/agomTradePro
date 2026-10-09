@@ -37,6 +37,7 @@ CONTRACT_STAGES = (
     "isolated_postgresql_write",
     "github_ci_evidence",
     "akshare_financial_slice",
+    "financial_scope_capacity",
     "bundle_build",
     "release_validator",
 )

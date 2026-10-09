@@ -9,7 +9,7 @@ import re
 import stat
 from argparse import ArgumentParser
 from dataclasses import replace
-from datetime import UTC
+from datetime import UTC, date
 from pathlib import Path
 
 from django.conf import settings
@@ -17,6 +17,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.data_center.application.financial_scope_capacity_receipt import (
+    build_financial_scope_capacity_receipt,
+)
 from apps.data_center.application.financial_scope_manifest_bootstrap import (
     FinancialScopeDiscoveryResult,
     ScopeDiscoveryRequest,
@@ -60,6 +63,8 @@ class Command(BaseCommand):
         """Accept only the frozen candidate, identity snapshot, and disposable output paths."""
 
         parser.add_argument("--candidate-sha", required=True)
+        parser.add_argument("--target-trade-date", required=True)
+        parser.add_argument("--release-universe-sha256", required=True)
         parser.add_argument("--provider-identities", required=True, type=Path)
         parser.add_argument("--provider-identities-sha256", required=True)
         parser.add_argument("--expected-database-name", required=True)
@@ -71,6 +76,8 @@ class Command(BaseCommand):
         self,
         *args: object,
         candidate_sha: str,
+        target_trade_date: str,
+        release_universe_sha256: str,
         provider_identities: Path,
         provider_identities_sha256: str,
         expected_database_name: str,
@@ -82,9 +89,12 @@ class Command(BaseCommand):
         """Run one complete dynamic discovery and emit safe evidence before failing closed."""
 
         report_path = output_dir / "financial-scope-discovery.json"
+        receipt_path = output_dir / "financial-full-scope-capacity.json"
         try:
             _validate_inputs(
                 candidate_sha=candidate_sha,
+                target_trade_date=target_trade_date,
+                release_universe_sha256=release_universe_sha256,
                 provider_identities_path=provider_identities,
                 provider_identities_sha256=provider_identities_sha256,
                 expected_database_name=expected_database_name,
@@ -92,6 +102,7 @@ class Command(BaseCommand):
                 artifact_root=artifact_root,
                 output_dir=output_dir,
                 output_path=report_path,
+                receipt_path=receipt_path,
             )
             report = _run_discovery(
                 candidate_sha=candidate_sha,
@@ -103,6 +114,16 @@ class Command(BaseCommand):
                 output_dir=output_dir,
             )
             _write_exclusive_json(report_path, report)
+            result = report.get("result")
+            if isinstance(result, dict) and result.get("outcome") == "success":
+                capacity_receipt = build_financial_scope_capacity_receipt(
+                    scope_report=report,
+                    scope_report_sha256=hashlib.sha256(_encoded_json(report)).hexdigest(),
+                    target_trade_date=target_trade_date,
+                    release_universe_sha256=release_universe_sha256,
+                    provider_identities_sha256=provider_identities_sha256,
+                )
+                _write_exclusive_json(receipt_path, capacity_receipt)
         except Exception as exc:
             code = _stable_rehearsal_code(exc)
             _write_safe_failure_report(report_path, candidate_sha=candidate_sha, code=code)
@@ -231,7 +252,7 @@ def _run_discovery(
         },
         "authorization": _authorization_projection(result),
         "candidate_image_id": candidate_image_id,
-        "artifact_root": "financial-scope-artifacts",
+        "artifact_root": artifact_root.name,
         "encrypted_artifacts": encrypted_artifacts,
         "result": _result_projection(result.to_dict()),
     }
@@ -294,7 +315,7 @@ def _encrypted_artifact_projection(root: Path) -> list[dict[str, object]]:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         artifacts.append(
             {
-                "path": relative_path,
+                "path": f"{root.name}/{relative_path}",
                 "size_bytes": metadata.st_size,
                 "ciphertext_sha256": digest,
             }
@@ -305,6 +326,8 @@ def _encrypted_artifact_projection(root: Path) -> list[dict[str, object]]:
 def _validate_inputs(
     *,
     candidate_sha: str,
+    target_trade_date: str,
+    release_universe_sha256: str,
     provider_identities_path: Path,
     provider_identities_sha256: str,
     expected_database_name: str,
@@ -312,11 +335,14 @@ def _validate_inputs(
     artifact_root: Path,
     output_dir: Path,
     output_path: Path,
+    receipt_path: Path,
 ) -> None:
     """Reject stale identities and unsafe output paths before constructing providers."""
 
     if (
         _CANDIDATE_SHA.fullmatch(candidate_sha) is None
+        or _SHA256.fullmatch(release_universe_sha256) is None
+        or not _valid_trade_date(target_trade_date)
         or _SHA256.fullmatch(provider_identities_sha256) is None
         or not provider_identities_path.is_file()
         or provider_identities_path.is_symlink()
@@ -324,10 +350,13 @@ def _validate_inputs(
         or output_dir.is_symlink()
         or output_path.exists()
         or output_path.is_symlink()
+        or receipt_path.exists()
+        or receipt_path.is_symlink()
         or artifact_root.is_symlink()
         or artifact_root.exists()
         or not artifact_root.is_absolute()
         or _ARTIFACT_ROOT_NAME.fullmatch(artifact_root.name) is None
+        or artifact_root.parent.resolve() != output_dir.resolve()
     ):
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CONTRACT_INVALID")
     if not expected_database_name.startswith(
@@ -336,10 +365,20 @@ def _validate_inputs(
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_ENVIRONMENT_FORBIDDEN")
 
 
+def _valid_trade_date(value: str) -> bool:
+    """Check the S6 release date before any financial provider request begins."""
+
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _write_exclusive_json(path: Path, payload: dict[str, object]) -> None:
     """Write one immutable canonical JSON report and fsync the file and directory."""
 
-    raw = (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    raw = _encoded_json(payload)
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
@@ -353,6 +392,14 @@ def _write_exclusive_json(path: Path, payload: dict[str, object]) -> None:
     finally:
         os.close(descriptor)
     _fsync_directory(path.parent)
+
+
+def _encoded_json(payload: dict[str, object]) -> bytes:
+    """Return the exact exclusive-report encoding used by both S6 outputs."""
+
+    return (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
+        "utf-8"
+    )
 
 
 def _write_safe_failure_report(path: Path, *, candidate_sha: str, code: str) -> None:
