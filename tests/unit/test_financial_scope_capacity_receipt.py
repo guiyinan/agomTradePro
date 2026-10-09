@@ -13,9 +13,19 @@ from apps.data_center.application.financial_scope_capacity_receipt import (
 
 _CANDIDATE = "a" * 40
 _IMAGE = "sha256:" + "b" * 64
-_PROVIDER_DIGEST = "c" * 64
-_RELEASE_UNIVERSE = "d" * 64
 _ARTIFACT_ROOT = "agom-s6-financial-scope-" + "e" * 32
+_FINANCIAL_IDENTITY = {
+    "role": "akshare_financial_route:17",
+    "provider_id": 17,
+    "source": "akshare_financial",
+    "version": "akshare-financial-test",
+    "endpoint_id": "financial-route-test",
+    "deployment_region": "ap-east-1",
+}
+_FROZEN_PROVIDER_IDENTITIES = (_FINANCIAL_IDENTITY,)
+_PROVIDER_DIGEST = canonical_sha256([_FINANCIAL_IDENTITY])
+_RELEASE_ASSET_CODES = ("000001.SZ",)
+_RELEASE_UNIVERSE = canonical_sha256(list(_RELEASE_ASSET_CODES))
 
 
 def _scope_report() -> dict[str, object]:
@@ -25,7 +35,7 @@ def _scope_report() -> dict[str, object]:
         "candidate_sha": _CANDIDATE,
         "provider_id": 17,
         "provider_name": "akshare",
-        "provider_identity_sha256": "1" * 64,
+        "provider_identity_sha256": canonical_sha256(_FINANCIAL_IDENTITY),
         "contract_id": "financial-contract",
         "contract_version": "v1",
         "contract_sha256": "2" * 64,
@@ -43,15 +53,15 @@ def _scope_report() -> dict[str, object]:
         "announcement_date": "2026-08-31",
         "available_at": "2026-08-31T16:00:00+08:00",
         "native_row_ids": ["akshare:000001.SZ:2026-06-30:2026-08-31"],
-        "financial_capture_id": "capture-financial-1",
+        "financial_capture_id": "00000000-0000-4000-8000-000000000001",
         "financial_body_sha256": "5" * 64,
         "financial_raw_audit_id": 101,
-        "source_time_capture_id": "capture-source-1",
+        "source_time_capture_id": "00000000-0000-4000-8000-000000000002",
         "source_time_body_sha256": "6" * 64,
         "source_time_raw_audit_id": 102,
         "response_completed_at": [
-            "2026-08-31T08:00:00+00:00",
-            "2026-08-31T09:00:00+00:00",
+            "2026-08-31T09:05:00+00:00",
+            "2026-08-31T09:15:00+00:00",
         ],
     }
     candidate: dict[str, object] = {
@@ -81,11 +91,25 @@ def _scope_report() -> dict[str, object]:
             "path": f"{_ARTIFACT_ROOT}/v1/00000000-0000-4000-8000-000000000001.frb",
             "size_bytes": 120,
             "ciphertext_sha256": "7" * 64,
+            "envelope_index": {
+                "asset_code": "000001.SZ",
+                "dataset_key": "equity.financial.fact",
+                "capture_id": "00000000-0000-4000-8000-000000000001",
+                "body_sha256": "5" * 64,
+                "raw_audit_id": 101,
+            },
         },
         {
             "path": f"{_ARTIFACT_ROOT}/v1/00000000-0000-4000-8000-000000000002.frb",
             "size_bytes": 130,
             "ciphertext_sha256": "8" * 64,
+            "envelope_index": {
+                "asset_code": "000001.SZ",
+                "dataset_key": "equity.financial.source-time",
+                "capture_id": "00000000-0000-4000-8000-000000000002",
+                "body_sha256": "6" * 64,
+                "raw_audit_id": 102,
+            },
         },
     ]
     return {
@@ -148,6 +172,8 @@ def _build(scope_report: object | None = None) -> dict[str, object]:
         target_trade_date="2026-09-01",
         release_universe_sha256=_RELEASE_UNIVERSE,
         provider_identities_sha256=_PROVIDER_DIGEST,
+        expected_release_asset_codes=_RELEASE_ASSET_CODES,
+        frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
     )
 
 
@@ -175,6 +201,102 @@ def test_full_scope_receipt_seals_capacity_and_zero_write_evidence() -> None:
         "fact_writes": 0,
         "publication_writes": 0,
     }
+
+
+def test_capacity_receipt_rejects_one_asset_when_frozen_release_universe_has_two() -> None:
+    """A source report cannot define its own smaller meaning of full scope."""
+
+    source = _scope_report()
+    frozen_release_codes = ("000001.SZ", "000002.SZ")
+    frozen_financial_identity = {
+        "role": "akshare_financial_route:17",
+        "provider_id": 17,
+        "source": "akshare_financial",
+        "deployment_region": "ap-east-1",
+    }
+
+    with pytest.raises(FinancialScopeCapacityReceiptError):
+        build_financial_scope_capacity_receipt(
+            scope_report=source,
+            scope_report_sha256="f" * 64,
+            target_trade_date="2026-09-01",
+            release_universe_sha256=_RELEASE_UNIVERSE,
+            provider_identities_sha256=_PROVIDER_DIGEST,
+            expected_release_asset_codes=frozen_release_codes,
+            frozen_provider_identities=(frozen_financial_identity,),
+        )
+
+
+def test_capacity_receipt_rejects_provider_outside_frozen_financial_route_identity() -> None:
+    """The financial binding must match the frozen route, source and region member."""
+
+    source = _scope_report()
+    frozen_financial_identity = {
+        "role": "akshare_financial_route:18",
+        "provider_id": 18,
+        "source": "akshare_financial",
+        "deployment_region": "ap-east-1",
+    }
+
+    with pytest.raises(FinancialScopeCapacityReceiptError):
+        build_financial_scope_capacity_receipt(
+            scope_report=source,
+            scope_report_sha256="f" * 64,
+            target_trade_date="2026-09-01",
+            release_universe_sha256=_RELEASE_UNIVERSE,
+            provider_identities_sha256=_PROVIDER_DIGEST,
+            expected_release_asset_codes=("000001.SZ",),
+            frozen_provider_identities=(frozen_financial_identity,),
+        )
+
+
+@pytest.mark.parametrize("field", ["generated_at", "response_completed_at"])
+def test_capacity_receipt_rejects_inner_evidence_outside_source_window(field: str) -> None:
+    """Fresh outer timestamps cannot wrap older candidate or response evidence."""
+
+    source = _scope_report()
+    result = source["result"]
+    assert isinstance(result, dict)
+    candidate = result["candidate_manifest"]
+    assert isinstance(candidate, dict)
+    if field == "generated_at":
+        candidate["generated_at"] = "2026-08-31T08:59:00+00:00"
+    else:
+        items = candidate["items"]
+        assert isinstance(items, list) and isinstance(items[0], dict)
+        items[0]["response_completed_at"] = [
+            "2026-08-31T08:59:00+00:00",
+            "2026-08-31T09:01:00+00:00",
+        ]
+    candidate.pop("manifest_sha256", None)
+    candidate["manifest_sha256"] = canonical_sha256(candidate)
+    summary = result["candidate"]
+    assert isinstance(summary, dict)
+    summary["manifest_sha256"] = candidate["manifest_sha256"]
+
+    with pytest.raises(FinancialScopeCapacityReceiptError):
+        _build(source)
+
+
+def test_capacity_receipt_rejects_encrypted_artifact_without_item_envelope_mapping() -> None:
+    """Every ciphertext must identify the exact asset, dataset, capture and audit row."""
+
+    source = _scope_report()
+    result = source["result"]
+    assert isinstance(result, dict)
+    candidate = result["candidate_manifest"]
+    assert isinstance(candidate, dict)
+    items = candidate["items"]
+    assert isinstance(items, list) and isinstance(items[0], dict)
+    items[0]["financial_capture_id"] = "123e4567-e89b-42d3-a456-426614174099"
+    candidate.pop("manifest_sha256", None)
+    candidate["manifest_sha256"] = canonical_sha256(candidate)
+    summary = result["candidate"]
+    assert isinstance(summary, dict)
+    summary["manifest_sha256"] = candidate["manifest_sha256"]
+
+    with pytest.raises(FinancialScopeCapacityReceiptError):
+        _build(source)
 
 
 def test_capacity_receipt_rejects_partial_capture_and_any_fact_write() -> None:
@@ -230,6 +352,8 @@ def test_capacity_receipt_revalidates_candidate_image_and_provider_bindings() ->
         expected_trade_date="2026-09-01",
         expected_release_universe_sha256=_RELEASE_UNIVERSE,
         expected_provider_identities_sha256=_PROVIDER_DIGEST,
+        expected_release_asset_codes=_RELEASE_ASSET_CODES,
+        frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
     )
     altered = dict(receipt)
     altered["provider_identities_sha256"] = "0" * 64
@@ -243,6 +367,8 @@ def test_capacity_receipt_revalidates_candidate_image_and_provider_bindings() ->
             expected_trade_date="2026-09-01",
             expected_release_universe_sha256=_RELEASE_UNIVERSE,
             expected_provider_identities_sha256=_PROVIDER_DIGEST,
+            expected_release_asset_codes=_RELEASE_ASSET_CODES,
+            frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
         )
     with pytest.raises(FinancialScopeCapacityReceiptError):
         validate_financial_scope_capacity_receipt(
@@ -254,6 +380,8 @@ def test_capacity_receipt_revalidates_candidate_image_and_provider_bindings() ->
             expected_trade_date="2026-09-01",
             expected_release_universe_sha256=_RELEASE_UNIVERSE,
             expected_provider_identities_sha256=_PROVIDER_DIGEST,
+            expected_release_asset_codes=_RELEASE_ASSET_CODES,
+            frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
         )
 
 
@@ -266,5 +394,7 @@ def test_source_report_digest_changes_receipt_identity() -> None:
         target_trade_date="2026-09-01",
         release_universe_sha256=_RELEASE_UNIVERSE,
         provider_identities_sha256=_PROVIDER_DIGEST,
+        expected_release_asset_codes=_RELEASE_ASSET_CODES,
+        frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
     )
     assert first["scope_pointer_sha256"] != second["scope_pointer_sha256"]

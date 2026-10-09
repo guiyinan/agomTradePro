@@ -10,9 +10,40 @@ from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS, build_man
 
 CANDIDATE = "c" * 40
 DATE = "2026-09-24"
-UNIVERSE = "a" * 64
-PROVIDERS = "b" * 64
+UNIVERSE_CODES = ["000001.SZ"]
+UNIVERSE = hashlib.sha256(
+    json.dumps(UNIVERSE_CODES, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+).hexdigest()
+PROVIDER_IDENTITIES: list[dict[str, object]] = [
+    {
+        "role": "quote",
+        "provider_id": 11,
+        "source": "tushare",
+        "version": "v1",
+        "endpoint_id": "quote.daily",
+    },
+    {
+        "role": "valuation",
+        "provider_id": 12,
+        "source": "tushare",
+        "version": "v1",
+        "endpoint_id": "quote.daily_basic",
+    },
+    {
+        "role": "akshare_financial_route:13",
+        "provider_id": 13,
+        "source": "akshare_financial",
+        "version": "v1",
+        "endpoint_id": "financial.route",
+        "deployment_region": "ap-east-1",
+    },
+]
+PROVIDERS = hashlib.sha256(
+    json.dumps(PROVIDER_IDENTITIES, sort_keys=True, separators=(",", ":")).encode()
+).hexdigest()
 IMAGE_ID = "sha256:" + "d" * 64
+RELEASE_TAG = "20261009120000"
+IMAGE_TAG = f"agomtradepro-web:{RELEASE_TAG}"
 POLICY_SETTINGS = {"status": "active", "default_source": "tushare"}
 POLICY_SETTINGS_RAW = (
     json.dumps(POLICY_SETTINGS, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
@@ -65,6 +96,22 @@ def _reports(tmp_path: Path) -> dict[str, Path]:
                     ),
                 }
             )
+        if kind == "full_universe_capacity":
+            report_payload.update(
+                {
+                    "asset_codes": UNIVERSE_CODES,
+                    "universe_count": len(UNIVERSE_CODES),
+                    "measured_asset_count": len(UNIVERSE_CODES),
+                }
+            )
+        if kind == "akshare_financial_slice":
+            report_payload["provider_identities"] = PROVIDER_IDENTITIES
+        if kind == "financial_scope_capacity":
+            report_payload["release_universe"] = {
+                "asset_count": len(UNIVERSE_CODES),
+                "asset_codes": UNIVERSE_CODES,
+                "sha256": UNIVERSE,
+            }
         if kind == "isolated_database_migrations":
             report_payload.pop("artifact")
             pending = [
@@ -110,6 +157,8 @@ def test_builder_copies_hash_linked_graph_and_refuses_overwrite(tmp_path: Path) 
         provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
         provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
         candidate_image_id=IMAGE_ID,
+        release_tag=RELEASE_TAG,
+        image_tag=IMAGE_TAG,
     )
     manifest = json.loads(path.read_text(encoding="utf-8"))
     assert manifest["provider_settings_raw_file_sha256"] == POLICY_SETTINGS_RAW_SHA256
@@ -134,6 +183,8 @@ def test_builder_copies_hash_linked_graph_and_refuses_overwrite(tmp_path: Path) 
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
 
@@ -154,6 +205,8 @@ def test_builder_rejects_tampered_child_and_removes_partial_bundle(tmp_path: Pat
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
     assert not output.exists()
@@ -177,6 +230,39 @@ def test_builder_rejects_runtime_report_from_another_image(tmp_path: Path) -> No
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
+        )
+
+
+def test_builder_rejects_financial_receipt_that_self_certifies_one_asset_scope(
+    tmp_path: Path,
+) -> None:
+    reports = _reports(tmp_path)
+    path = reports["financial_scope_capacity"]
+    receipt = json.loads(path.read_text(encoding="utf-8"))
+    receipt["release_universe"] = {
+        "asset_count": 1,
+        "asset_codes": ["000002.SZ"],
+        "sha256": hashlib.sha256(
+            json.dumps(["000002.SZ"], sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }
+    _write(path, receipt)
+
+    with pytest.raises(ValueError, match="FINANCIAL_SCOPE_BINDING_INVALID"):
+        build_manifest(
+            reports=reports,
+            output_dir=tmp_path / "bundle",
+            candidate_sha=CANDIDATE,
+            target_trade_date=DATE,
+            universe_sha256=UNIVERSE,
+            provider_identities_sha256=PROVIDERS,
+            provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
+            provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
+            candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
 
@@ -204,6 +290,8 @@ def test_builder_accepts_noop_candidate_migration_report(tmp_path: Path) -> None
         provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
         provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
         candidate_image_id=IMAGE_ID,
+        release_tag=RELEASE_TAG,
+        image_tag=IMAGE_TAG,
     )
 
     manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
@@ -225,6 +313,8 @@ def test_builder_requires_isolated_database_migration_report(tmp_path: Path) -> 
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
 
@@ -274,6 +364,8 @@ def test_builder_rejects_invalid_isolated_migration_evidence(
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
 
@@ -297,6 +389,8 @@ def test_builder_rejects_parent_traversal_and_symlink_artifacts(tmp_path: Path) 
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )
 
     reports = _reports(tmp_path / "symlink-source")
@@ -317,4 +411,6 @@ def test_builder_rejects_parent_traversal_and_symlink_artifacts(tmp_path: Path) 
             provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
             provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
             candidate_image_id=IMAGE_ID,
+            release_tag=RELEASE_TAG,
+            image_tag=IMAGE_TAG,
         )

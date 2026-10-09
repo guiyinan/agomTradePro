@@ -54,6 +54,7 @@ from apps.data_center.infrastructure.models import (
     FinancialCapacityOwnerApprovalEventModel,
     FinancialScopeCapacityImportModel,
 )
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 
 _MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 _MAX_JSON_BYTES = 16 * 1024 * 1024
@@ -311,116 +312,15 @@ def _checked_bundle_root(bundle_dir: Path) -> Path:
 
 
 def _read_checked_file(root: Path, relative: str, limit: int) -> bytes:
-    parts = _relative_parts(relative)
     try:
-        if (
-            os.name != "nt"
-            and hasattr(os, "O_NOFOLLOW")
-            and hasattr(os, "O_DIRECTORY")
-            and os.open in os.supports_dir_fd
-            and os.stat in os.supports_dir_fd
-        ):
-            return _read_with_directory_descriptors(root, parts, limit)
-        return _read_with_path_rechecks(root, parts, limit)
-    except FinancialScopeCapacityImportRuntimeError:
-        raise
-    except OSError:
-        raise FinancialScopeCapacityImportRuntimeError(
-            "FINANCIAL_SCOPE_IMPORT_FILE_INVALID"
-        ) from None
-
-
-def _read_with_directory_descriptors(root: Path, parts: tuple[str, ...], limit: int) -> bytes:
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | no_follow
-    file_flags = os.O_RDONLY | no_follow | getattr(os, "O_BINARY", 0)
-    root_fd = os.open(root.anchor, directory_flags)
-    opened_directories: list[int] = [root_fd]
-    directory_fd = root_fd
-    file_fd = -1
-    try:
-        for part in root.parts[1:]:
-            directory_fd = os.open(part, directory_flags, dir_fd=directory_fd)
-            opened_directories.append(directory_fd)
-        for part in parts[:-1]:
-            directory_fd = os.open(part, directory_flags, dir_fd=directory_fd)
-            opened_directories.append(directory_fd)
-        filename = parts[-1]
-        before = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
-        if not stat.S_ISREG(before.st_mode):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_INVALID")
-        file_fd = os.open(filename, file_flags, dir_fd=directory_fd)
-        opened = os.fstat(file_fd)
-        if not _same_file(before, opened):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_CHANGED")
-        raw = _read_descriptor(file_fd, limit)
-        after = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
-        if not stat.S_ISREG(after.st_mode) or not _same_file(opened, after):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_CHANGED")
-        return raw
-    finally:
-        if file_fd >= 0:
-            os.close(file_fd)
-        for descriptor in reversed(opened_directories):
-            os.close(descriptor)
-
-
-def _read_with_path_rechecks(root: Path, parts: tuple[str, ...], limit: int) -> bytes:
-    _assert_no_symlink_chain(root)
-    path = root
-    for part in parts:
-        path /= part
-        try:
-            metadata = path.lstat()
-        except OSError:
-            raise FinancialScopeCapacityImportRuntimeError(
-                "FINANCIAL_SCOPE_IMPORT_FILE_INVALID"
-            ) from None
-        if _is_symlink_or_reparse_point(metadata):
-            raise FinancialScopeCapacityImportRuntimeError(
-                "FINANCIAL_SCOPE_IMPORT_SYMLINK_FORBIDDEN"
-            )
-    try:
-        before = path.lstat()
-        if not stat.S_ISREG(before.st_mode) or not path.resolve(strict=True).is_relative_to(root):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_INVALID")
-        descriptor = os.open(
-            path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
-        )
-    except FinancialScopeCapacityImportRuntimeError:
-        raise
-    except OSError:
-        raise FinancialScopeCapacityImportRuntimeError(
-            "FINANCIAL_SCOPE_IMPORT_FILE_INVALID"
-        ) from None
-    try:
-        opened = os.fstat(descriptor)
-        if not _same_file(before, opened):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_CHANGED")
-        raw = _read_descriptor(descriptor, limit)
-        after = path.lstat()
-        _assert_no_symlink_chain(path)
-        if _is_symlink_or_reparse_point(after) or not _same_file(opened, after):
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_CHANGED")
-        return raw
-    finally:
-        os.close(descriptor)
-
-
-def _read_descriptor(descriptor: int, limit: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    while True:
-        chunk = os.read(descriptor, min(1024 * 1024, limit + 1 - total))
-        if not chunk:
-            break
-        total += len(chunk)
-        if total > limit:
-            raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_TOO_LARGE")
-        chunks.append(chunk)
-    if total <= 0:
-        raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_FILE_INVALID")
-    return b"".join(chunks)
+        return read_regular_file(root, relative, limit)
+    except RehearsalFileReadError as exc:
+        code = {
+            "file_too_large": "FINANCIAL_SCOPE_IMPORT_FILE_TOO_LARGE",
+            "file_changed": "FINANCIAL_SCOPE_IMPORT_FILE_CHANGED",
+            "symlink_forbidden": "FINANCIAL_SCOPE_IMPORT_SYMLINK_FORBIDDEN",
+        }.get(str(exc), "FINANCIAL_SCOPE_IMPORT_FILE_INVALID")
+        raise FinancialScopeCapacityImportRuntimeError(code) from None
 
 
 def _list_checked_artifact_paths(root: Path, artifact_root: str) -> set[str]:
@@ -743,15 +643,6 @@ def _is_symlink_or_reparse_point(metadata: os.stat_result) -> bool:
     file_attributes = getattr(metadata, "st_file_attributes", 0)
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
     return stat.S_ISLNK(metadata.st_mode) or bool(file_attributes & reparse_flag)
-
-
-def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
-    return (
-        left.st_dev == right.st_dev
-        and left.st_ino == right.st_ino
-        and left.st_size == right.st_size
-        and left.st_mtime_ns == right.st_mtime_ns
-    )
 
 
 def _canonical_sha256(payload: object) -> str:

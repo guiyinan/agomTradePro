@@ -102,6 +102,15 @@ def prepare_financial_scope_capacity_import_record(
 
     manifest = _mapping(release_manifest, "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
     manifest_identity = _parse_release_manifest(manifest)
+    expected_release_asset_codes = _manifest_release_asset_codes(manifest)
+    frozen_provider_identities = _manifest_provider_identities(manifest)
+    if expected_release_asset_codes != active_asset_codes:
+        raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_UNIVERSE_MISMATCH")
+    if (
+        canonical_sha256([dict(item) for item in frozen_provider_identities])
+        != manifest_identity["provider_identities_sha256"]
+    ):
+        raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_BINDING_INVALID")
     if manifest_identity["capacity_report_sha256"] != capacity_receipt_raw_sha256:
         raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_BINDING_INVALID")
     try:
@@ -140,6 +149,8 @@ def prepare_financial_scope_capacity_import_record(
             expected_trade_date=manifest_identity["target_trade_date"],
             expected_release_universe_sha256=manifest_identity["universe_sha256"],
             expected_provider_identities_sha256=manifest_identity["provider_identities_sha256"],
+            expected_release_asset_codes=expected_release_asset_codes,
+            frozen_provider_identities=frozen_provider_identities,
         )
     except FinancialScopeCapacityReceiptError:
         raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_RECEIPT_INVALID") from None
@@ -258,6 +269,10 @@ def _parse_release_manifest(manifest: Mapping[str, object]) -> dict[str, str]:
         "provider_settings_raw_file_sha256",
         "provider_settings_canonical_payload_sha256",
         "candidate_image_id",
+        "release_tag",
+        "image_tag",
+        "release_universe",
+        "provider_identities",
         "reports",
     }
     if set(manifest) != expected_keys or manifest.get("schema") != _RELEASE_SCHEMA:
@@ -310,6 +325,12 @@ def _parse_release_manifest(manifest: Mapping[str, object]) -> dict[str, str]:
     if (
         _CANDIDATE_SHA.fullmatch(values["candidate_sha"]) is None
         or _IMAGE_ID.fullmatch(values["candidate_image_id"]) is None
+        or re.fullmatch(
+            r"[0-9]{14}", _text(manifest, "release_tag", "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
+        )
+        is None
+        or _text(manifest, "image_tag", "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
+        != f"agomtradepro-web:{_text(manifest, 'release_tag', 'FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID')}"
     ):
         raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
     try:
@@ -319,6 +340,43 @@ def _parse_release_manifest(manifest: Mapping[str, object]) -> dict[str, str]:
     if parsed_date.isoformat() != values["target_trade_date"]:
         raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
     return values
+
+
+def _manifest_release_asset_codes(manifest: Mapping[str, object]) -> tuple[str, ...]:
+    release_universe = _mapping(
+        manifest.get("release_universe"), "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID"
+    )
+    codes = release_universe.get("asset_codes")
+    if (
+        set(release_universe) != {"asset_count", "asset_codes", "sha256"}
+        or not isinstance(codes, list)
+        or not codes
+        or any(
+            type(code) is not str or re.fullmatch(r"[0-9]{6}\.(?:SH|SZ|BJ)", code) is None
+            for code in codes
+        )
+        or codes != sorted(set(codes))
+        or release_universe.get("asset_count") != len(codes)
+        or release_universe.get("sha256") != canonical_sha256(codes)
+    ):
+        raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
+    return tuple(cast(list[str], codes))
+
+
+def _manifest_provider_identities(
+    manifest: Mapping[str, object],
+) -> tuple[Mapping[str, object], ...]:
+    raw_identities = manifest.get("provider_identities")
+    if not isinstance(raw_identities, list) or not raw_identities:
+        raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
+    identities: list[Mapping[str, object]] = []
+    for raw in cast(list[object], raw_identities):
+        identity = _mapping(raw, "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
+        normalized = dict(identity)
+        if normalized.get("deployment_region") is None:
+            normalized.pop("deployment_region", None)
+        identities.append(normalized)
+    return tuple(identities)
 
 
 def _validate_runtime_provider(

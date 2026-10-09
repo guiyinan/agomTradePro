@@ -7,9 +7,11 @@ import importlib.metadata
 import json
 import re
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
+
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 
 IDENTITY_ERROR_CODES = frozenset(
     {
@@ -34,6 +36,7 @@ class RehearsalProviderIdentity:
     source: str
     version: str
     endpoint_id: str
+    deployment_region: str | None = None
 
 
 def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity, ...]:
@@ -44,7 +47,10 @@ def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity
     roles: set[str] = set()
     keys = {"role", "provider_id", "source", "version", "endpoint_id"}
     for item in cast(list[object], value):
-        if not isinstance(item, dict) or set(item) != keys:
+        if not isinstance(item, dict) or frozenset(item) not in {
+            frozenset(keys),
+            frozenset(keys | {"deployment_region"}),
+        }:
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         record = cast(dict[str, object], item)
         provider_id = record["provider_id"]
@@ -63,13 +69,31 @@ def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity
             and role != akshare_financial_route_role(provider_id)
         ):
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        if role == akshare_financial_route_role(provider_id) and (
+            strings["source"] != _AKSHARE_FINANCIAL_IDENTITY_SOURCE
+            or "deployment_region" not in record
+            or not isinstance(record.get("deployment_region"), str)
+            or re.fullmatch(r"[a-z0-9_.:-]{1,128}", cast(str, record.get("deployment_region")))
+            is None
+        ):
+            raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         if (
-            role == akshare_financial_route_role(provider_id)
-            and strings["source"] != _AKSHARE_FINANCIAL_IDENTITY_SOURCE
+            role != akshare_financial_route_role(provider_id)
+            and record.get("deployment_region") is not None
         ):
             raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         roles.add(role)
-        identities.append(RehearsalProviderIdentity(provider_id=provider_id, **strings))
+        identities.append(
+            RehearsalProviderIdentity(
+                provider_id=provider_id,
+                deployment_region=(
+                    cast(str, record.get("deployment_region"))
+                    if record.get("deployment_region") is not None
+                    else None
+                ),
+                **strings,
+            )
+        )
     if not _CORE_ROLES.issubset(roles):
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     # Preserve frozen input order: the release validator hashes this same ordered list.
@@ -94,8 +118,15 @@ def akshare_financial_route_role(provider_id: int) -> str:
 
 def load_rehearsal_identities(path: Path) -> tuple[RehearsalProviderIdentity, ...]:
     """Read a bounded public snapshot, never a provider configuration or credential file."""
-    with path.open("rb") as stream:
-        data = stream.read(16_385)
+    try:
+        data = read_regular_file(path.parent, path.name, 16_384)
+    except RehearsalFileReadError as exc:
+        code = (
+            "REHEARSAL_PROVIDER_IDENTITY_LIMIT"
+            if str(exc) == "file_too_large"
+            else ("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        )
+        raise ValueError(code) from None
     if len(data) > 16_384:
         raise ValueError("REHEARSAL_PROVIDER_IDENTITY_LIMIT")
     try:
@@ -108,9 +139,26 @@ def load_rehearsal_identities(path: Path) -> tuple[RehearsalProviderIdentity, ..
 def rehearsal_identities_digest(identities: tuple[RehearsalProviderIdentity, ...]) -> str:
     """Match the release validator's canonical JSON digest, including input order."""
     encoded = json.dumps(
-        [asdict(identity) for identity in identities], sort_keys=True, separators=(",", ":")
+        [rehearsal_identity_dict(identity) for identity in identities],
+        sort_keys=True,
+        separators=(",", ":"),
     ).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def rehearsal_identity_dict(identity: RehearsalProviderIdentity) -> dict[str, object]:
+    """Serialize one frozen identity while retaining region only for the financial route."""
+
+    value: dict[str, object] = {
+        "role": identity.role,
+        "provider_id": identity.provider_id,
+        "source": identity.source,
+        "version": identity.version,
+        "endpoint_id": identity.endpoint_id,
+    }
+    if identity.deployment_region is not None:
+        value["deployment_region"] = identity.deployment_region
+    return value
 
 
 def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalProviderIdentity:
@@ -203,6 +251,7 @@ def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalPr
 def configured_akshare_financial_identity(*, provider_id: int) -> RehearsalProviderIdentity:
     """Bind the active provider row to the governed AKShare announcement-date route."""
 
+    from .akshare_financial_slice_sync import akshare_financial_deployment_region
     from .financial_source_time_matchers import (
         AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
         akshare_notice_date_match_contract,
@@ -262,6 +311,7 @@ def configured_akshare_financial_identity(*, provider_id: int) -> RehearsalProvi
             f"contract-{contract.contract_sha256[:12]}"
         ),
         endpoint_id=f"akshare-financial-{hashlib.sha256(endpoint_material).hexdigest()}",
+        deployment_region=akshare_financial_deployment_region(),
     )
 
 
@@ -306,7 +356,9 @@ def verify_configured_rehearsal_identities(
 ) -> tuple[RehearsalProviderIdentity, ...]:
     """Fail closed unless supplied identities equal the live non-secret identities."""
 
-    checked = parse_rehearsal_identities([asdict(identity) for identity in identities])
+    checked = parse_rehearsal_identities(
+        [rehearsal_identity_dict(identity) for identity in identities]
+    )
     actual = tuple(
         configured_rehearsal_identity(provider_id=identity.provider_id, role=identity.role)
         for identity in checked

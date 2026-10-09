@@ -32,8 +32,18 @@ from tests.unit.financial_scope_capacity_fixtures import write_financial_scope_c
 
 _CANDIDATE = "a" * 40
 _IMAGE = "sha256:" + "b" * 64
-_PROVIDER_DIGEST = "c" * 64
-_RELEASE_UNIVERSE = "d" * 64
+_RELEASE_CODES = ("000001.SZ",)
+_RELEASE_UNIVERSE = canonical_sha256(list(_RELEASE_CODES))
+_FINANCIAL_PROVIDER_IDENTITY: dict[str, object] = {
+    "role": "akshare_financial_route:17",
+    "provider_id": 17,
+    "source": "akshare_financial",
+    "version": "akshare-financial-test",
+    "endpoint_id": "financial-route-test",
+    "deployment_region": "isolated-test",
+}
+_FROZEN_PROVIDER_IDENTITIES = (_FINANCIAL_PROVIDER_IDENTITY,)
+_PROVIDER_DIGEST = canonical_sha256([_FINANCIAL_PROVIDER_IDENTITY])
 _NOW = datetime(2026, 11, 10, 12, 0, tzinfo=UTC)
 
 
@@ -56,6 +66,8 @@ def _payloads(
         target_trade_date=_NOW.date().isoformat(),
         release_universe_sha256=_RELEASE_UNIVERSE,
         provider_identities_sha256=_PROVIDER_DIGEST,
+        expected_release_asset_codes=_RELEASE_CODES,
+        frozen_provider_identities=_FROZEN_PROVIDER_IDENTITIES,
         now=_NOW,
         scope_report=_scope_report_for_import(),
     )
@@ -73,6 +85,14 @@ def _payloads(
         "provider_settings_raw_file_sha256": "1" * 64,
         "provider_settings_canonical_payload_sha256": "2" * 64,
         "candidate_image_id": _IMAGE,
+        "release_tag": "20261110120000",
+        "image_tag": "agomtradepro-web:20261110120000",
+        "release_universe": {
+            "asset_count": len(_RELEASE_CODES),
+            "asset_codes": list(_RELEASE_CODES),
+            "sha256": _RELEASE_UNIVERSE,
+        },
+        "provider_identities": list(_FROZEN_PROVIDER_IDENTITIES),
         "reports": [
             {
                 "kind": "financial_scope_capacity",
@@ -150,7 +170,7 @@ def _binding(candidate_sha: str = _CANDIDATE) -> FinancialCapacityBinding:
         provider_id=17,
         provider_name="akshare",
         provider_source="akshare",
-        provider_identity_sha256="b" * 64,
+        provider_identity_sha256=canonical_sha256(_FINANCIAL_PROVIDER_IDENTITY),
         contract_id="akshare.financial-scope.latest-notice",
         contract_version="2026-10-09.v1",
         contract_sha256="c" * 64,
@@ -350,14 +370,16 @@ def test_bundle_reader_detects_same_size_file_change_during_open(
     payloads = _payloads(tmp_path)
     _write_release_manifest(tmp_path, payloads)
     artifact = tmp_path / "financial_scope_capacity" / payloads[5][0].path
-    read_descriptor = import_runtime._read_descriptor
+    from shared import release_rehearsal_file_io
+
+    read_descriptor = release_rehearsal_file_io._read_descriptor
 
     def change_after_read(descriptor: int, limit: int) -> bytes:
         raw = read_descriptor(descriptor, limit)
         artifact.write_bytes(b"x" * len(raw))
         return raw
 
-    monkeypatch.setattr(import_runtime, "_read_descriptor", change_after_read)
+    monkeypatch.setattr(release_rehearsal_file_io, "_read_descriptor", change_after_read)
     with pytest.raises(import_runtime.FinancialScopeCapacityImportRuntimeError) as caught:
         import_runtime._read_checked_file(
             tmp_path,

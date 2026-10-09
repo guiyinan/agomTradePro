@@ -37,6 +37,8 @@ def build_financial_scope_capacity_receipt(
     target_trade_date: str,
     release_universe_sha256: str,
     provider_identities_sha256: str,
+    expected_release_asset_codes: tuple[str, ...],
+    frozen_provider_identities: tuple[Mapping[str, object], ...],
 ) -> dict[str, object]:
     """Seal full-universe dual-capture evidence without treating it as publication."""
 
@@ -73,7 +75,20 @@ def build_financial_scope_capacity_receipt(
     if _ARTIFACT_ROOT.fullmatch(root_name) is None:
         raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
 
-    _validate_candidate(candidate, source, result, binding, universe, items, counts, artifacts)
+    _validate_candidate(
+        candidate,
+        source,
+        result,
+        binding,
+        universe,
+        items,
+        counts,
+        artifacts,
+        expected_release_asset_codes=expected_release_asset_codes,
+        frozen_provider_identities=frozen_provider_identities,
+        release_universe_sha256=release_universe_sha256,
+        provider_identities_sha256=provider_identities_sha256,
+    )
     evidence_ledger_sha256 = canonical_sha256(items)
     artifact_ledger_sha256 = canonical_sha256(artifacts)
     source_revision_sha256 = canonical_sha256(
@@ -107,6 +122,11 @@ def build_financial_scope_capacity_receipt(
         "candidate_source_attestation": "image_release_manifest",
         "target_trade_date": target_trade_date,
         "universe_sha256": release_universe_sha256,
+        "release_universe": {
+            "asset_count": len(expected_release_asset_codes),
+            "asset_codes": list(expected_release_asset_codes),
+            "sha256": release_universe_sha256,
+        },
         "provider_identities_sha256": provider_identities_sha256,
         "outcome": "success",
         "evidence_mode": "isolated_full_scope_financial_capture",
@@ -153,6 +173,8 @@ def validate_financial_scope_capacity_receipt(
     expected_trade_date: str,
     expected_release_universe_sha256: str,
     expected_provider_identities_sha256: str,
+    expected_release_asset_codes: tuple[str, ...],
+    frozen_provider_identities: tuple[Mapping[str, object], ...],
 ) -> None:
     """Recompute all receipt hashes and bind the report to the exact S6 candidate."""
 
@@ -162,6 +184,8 @@ def validate_financial_scope_capacity_receipt(
         target_trade_date=expected_trade_date,
         release_universe_sha256=expected_release_universe_sha256,
         provider_identities_sha256=expected_provider_identities_sha256,
+        expected_release_asset_codes=expected_release_asset_codes,
+        frozen_provider_identities=frozen_provider_identities,
     )
     value = _mapping(receipt, "S6_FINANCIAL_SCOPE_RECEIPT_INVALID")
     if value != expected:
@@ -263,6 +287,11 @@ def _validate_candidate(
     items: list[object],
     counts: Mapping[str, object],
     artifacts: list[object],
+    *,
+    expected_release_asset_codes: tuple[str, ...],
+    frozen_provider_identities: tuple[Mapping[str, object], ...],
+    release_universe_sha256: str,
+    provider_identities_sha256: str,
 ) -> None:
     candidate_binding = _mapping(candidate.get("binding"), "S6_FINANCIAL_SCOPE_SOURCE_INVALID")
     codes = _list(universe.get("asset_codes"), "S6_FINANCIAL_SCOPE_UNIVERSE_INVALID")
@@ -302,6 +331,20 @@ def _validate_candidate(
     manifest_counts = _mapping(candidate.get("counts"), "S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE")
     candidate_sha = _text(source, "candidate_sha", "S6_FINANCIAL_SCOPE_SOURCE_INVALID")
     if (
+        not expected_release_asset_codes
+        or expected_release_asset_codes != tuple(sorted(set(expected_release_asset_codes)))
+        or any(_ASSET_CODE.fullmatch(code) is None for code in expected_release_asset_codes)
+        or canonical_sha256(list(expected_release_asset_codes)) != release_universe_sha256
+    ):
+        raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_UNIVERSE_INVALID")
+    if canonical_sha256([dict(item) for item in frozen_provider_identities]) != (
+        provider_identities_sha256
+    ) or not _frozen_financial_identity_matches(
+        frozen_provider_identities=frozen_provider_identities,
+        binding=binding,
+    ):
+        raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_PROVIDER_INVALID")
+    if (
         set(candidate) != expected_manifest_keys
         or set(candidate_binding) != expected_binding_keys
         or candidate.get("schema") != "data-center.financial-scope-discovery-manifest.v1"
@@ -331,9 +374,15 @@ def _validate_candidate(
         or summary.get("coverage_count") != asset_count
         or summary.get("review_status") != "pending_independent_review"
         or source.get("authorization") != candidate.get("discovery_authorization")
+        or tuple(cast(list[str], codes)) != expected_release_asset_codes
+        or asset_count != len(expected_release_asset_codes)
     ):
         raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE")
-    _parse_datetime(candidate.get("generated_at"))
+    started_at = _parse_datetime(source.get("started_at"))
+    finished_at = _parse_datetime(source.get("finished_at"))
+    generated_at = _parse_datetime(candidate.get("generated_at"))
+    if generated_at < started_at or generated_at > finished_at:
+        raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_TIME_INVALID")
     expected_count_keys = {
         "requested",
         "captured",
@@ -420,6 +469,7 @@ def _validate_candidate(
             or len(set(row_ids)) != len(row_ids)
             or len(completed_at) != 2
             or any(not _is_utc(value) for value in completed_at)
+            or any(value < started_at or value > finished_at for value in completed_at)
             or available_at > min(completed_at)
         ):
             raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
@@ -445,25 +495,88 @@ def _validate_candidate(
         raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE")
     root_name = _text(source, "artifact_root", "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
     paths: set[str] = set()
+    indexed_capture_ids: set[str] = set()
+    expected_artifact_indexes: dict[str, tuple[str, str, str, int]] = {}
+    for raw_item in items:
+        item = _mapping(raw_item, "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+        asset_code = _text(item, "asset_code", "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+        expected_artifact_indexes[
+            _text(item, "financial_capture_id", "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+        ] = (
+            asset_code,
+            "equity.financial.fact",
+            _text(item, "financial_body_sha256", "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID"),
+            _positive_int(item, "financial_raw_audit_id"),
+        )
+        expected_artifact_indexes[
+            _text(item, "source_time_capture_id", "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+        ] = (
+            asset_code,
+            "equity.financial.source-time",
+            _text(item, "source_time_body_sha256", "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID"),
+            _positive_int(item, "source_time_raw_audit_id"),
+        )
     for value in artifacts:
         artifact = _mapping(value, "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
         path = _text(artifact, "path", "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
         digest = _text(artifact, "ciphertext_sha256", "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
         size = artifact.get("size_bytes")
+        envelope_index = _mapping(
+            artifact.get("envelope_index"), "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID"
+        )
+        capture_id = _text(envelope_index, "capture_id", "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
+        expected_index = expected_artifact_indexes.get(capture_id)
         if (
-            set(artifact) != {"path", "size_bytes", "ciphertext_sha256"}
+            set(artifact) != {"path", "size_bytes", "ciphertext_sha256", "envelope_index"}
             or _ARTIFACT_PATH.fullmatch(path) is None
             or not path.startswith(f"{root_name}/")
             or _SHA256.fullmatch(digest) is None
             or type(size) is not int
             or size <= 0
             or path in paths
+            or expected_index is None
+            or capture_id in indexed_capture_ids
+            or path.rsplit("/", 1)[-1] != f"{capture_id}.frb"
+            or set(envelope_index)
+            != {"asset_code", "dataset_key", "capture_id", "body_sha256", "raw_audit_id"}
+            or envelope_index.get("asset_code") != expected_index[0]
+            or envelope_index.get("dataset_key") != expected_index[1]
+            or envelope_index.get("body_sha256") != expected_index[2]
+            or envelope_index.get("raw_audit_id") != expected_index[3]
         ):
             raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
         paths.add(path)
+        indexed_capture_ids.add(capture_id)
+    if indexed_capture_ids != set(expected_artifact_indexes):
+        raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
     _require_sha256(
         _text(universe, "sha256", "S6_FINANCIAL_SCOPE_UNIVERSE_INVALID"),
         "S6_FINANCIAL_SCOPE_UNIVERSE_INVALID",
+    )
+
+
+def _frozen_financial_identity_matches(
+    *,
+    frozen_provider_identities: tuple[Mapping[str, object], ...],
+    binding: Mapping[str, object],
+) -> bool:
+    """Require the source binding to equal one frozen financial route identity."""
+
+    provider_id = binding.get("provider_id")
+    region = binding.get("deployment_region")
+    if type(provider_id) is not int or not isinstance(region, str):
+        return False
+    role = f"akshare_financial_route:{provider_id}"
+    matches = [
+        identity
+        for identity in frozen_provider_identities
+        if identity.get("role") == role
+        and identity.get("provider_id") == provider_id
+        and identity.get("source") == "akshare_financial"
+        and identity.get("deployment_region") == region
+    ]
+    return len(matches) == 1 and canonical_sha256(dict(matches[0])) == binding.get(
+        "provider_identity_sha256"
     )
     _require_sha256(
         _text(binding, "provider_identity_sha256", "S6_FINANCIAL_SCOPE_PROVIDER_INVALID"),

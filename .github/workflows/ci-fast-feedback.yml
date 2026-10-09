@@ -421,10 +421,17 @@ jobs:
       - name: Django system check
         run: python manage.py check
 
-      - name: Verify S6 handoff rejects a symlinked evidence artifact
+      - name: Verify S6 evidence readers reject symlinks and special files
         run: >-
           python -m pytest
           tests/unit/data_center/test_financial_scope_capacity_import.py::test_bundle_reader_rejects_symlinked_artifact
+          tests/unit/test_release_rehearsal_file_io.py::test_rejects_symlink_target
+          tests/unit/test_release_rehearsal_file_io.py::test_rejects_fifo_without_blocking_on_open
+          tests/unit/test_release_rehearsal_file_io.py::test_rejects_fifo_swapped_between_stat_and_open
+          tests/unit/test_build_release_rehearsal_manifest.py::test_builder_rejects_parent_traversal_and_symlink_artifacts
+          tests/unit/test_run_release_rehearsal.py::test_container_input_tree_rejects_nested_symlink
+          tests/unit/test_run_release_rehearsal.py::test_container_input_tree_recheck_rejects_mode_drift
+          tests/unit/test_run_release_rehearsal.py::test_container_stage_rejects_symlink
           -q -o addopts=''
 
       - name: Run targeted pytest suite

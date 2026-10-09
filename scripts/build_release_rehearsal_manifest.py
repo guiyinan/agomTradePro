@@ -13,6 +13,12 @@ import shutil
 from pathlib import Path
 from typing import cast
 
+from apps.data_center.infrastructure.rehearsal_identity import (
+    parse_rehearsal_identities,
+    rehearsal_identity_dict,
+)
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
+
 REQUIRED_SCHEMAS = {
     "real_response_unit_replay": "release.real-response-unit-replay.v1",
     "full_universe_capacity": "release.full-universe-capacity.v2",
@@ -27,6 +33,8 @@ REQUIRED_SCHEMAS = {
 COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
+RELEASE_TAG_RE = re.compile(r"[0-9]{14}")
+ASSET_CODE_RE = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 MIGRATION_NAME_RE = re.compile(r"[a-z][a-z0-9_]*\.[0-9][A-Za-z0-9_]*")
 DATABASE_NAME_RE = re.compile(r"agom_release_rehearsal_[a-z0-9_]+")
 DATABASE_HOST_RE = re.compile(r"agom-s6-postgres-[a-z0-9-]+")
@@ -62,12 +70,10 @@ MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 
 
 def _read(path: Path, limit: int = MAX_BUNDLE_BYTES) -> bytes:
-    if path.is_symlink() or not path.is_file():
-        raise ValueError("REHEARSAL_BUNDLE_ARTIFACT_INVALID")
-    raw = path.read_bytes()
-    if not raw or len(raw) > limit:
-        raise ValueError("REHEARSAL_BUNDLE_ARTIFACT_INVALID")
-    return raw
+    try:
+        return read_regular_file(path.parent, path.name, limit)
+    except RehearsalFileReadError as exc:
+        raise ValueError("REHEARSAL_BUNDLE_ARTIFACT_INVALID") from exc
 
 
 def _json(path: Path) -> dict[str, object]:
@@ -233,6 +239,8 @@ def build_manifest(
     provider_settings_raw_file_sha256: str,
     provider_settings_canonical_payload_sha256: str,
     candidate_image_id: str,
+    release_tag: str,
+    image_tag: str,
 ) -> Path:
     """Copy each hash-linked report graph and create one exclusive manifest."""
     if output_dir.exists():
@@ -244,6 +252,8 @@ def build_manifest(
         or SHA256_RE.fullmatch(provider_settings_raw_file_sha256) is None
         or SHA256_RE.fullmatch(provider_settings_canonical_payload_sha256) is None
         or IMAGE_ID_RE.fullmatch(candidate_image_id) is None
+        or RELEASE_TAG_RE.fullmatch(release_tag) is None
+        or image_tag != f"agomtradepro-web:{release_tag}"
         or set(reports) != set(REQUIRED_SCHEMAS)
     ):
         raise ValueError("REHEARSAL_BUNDLE_IDENTITY_INVALID")
@@ -263,6 +273,50 @@ def build_manifest(
             )
         ):
             raise ValueError("REHEARSAL_BUNDLE_REPORT_MISMATCH")
+    raw_codes = loaded["full_universe_capacity"].get("asset_codes")
+    raw_identities = loaded["akshare_financial_slice"].get("provider_identities")
+    normalized_identities = (
+        [
+            rehearsal_identity_dict(identity)
+            for identity in parse_rehearsal_identities(raw_identities)
+        ]
+        if isinstance(raw_identities, list)
+        else []
+    )
+    if (
+        not isinstance(raw_codes, list)
+        or not raw_codes
+        or any(
+            not isinstance(code, str) or ASSET_CODE_RE.fullmatch(code) is None for code in raw_codes
+        )
+        or raw_codes != sorted(set(raw_codes))
+        or _digest(
+            json.dumps(
+                raw_codes, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+            ).encode()
+        )
+        != universe_sha256
+        or loaded["full_universe_capacity"].get("universe_count") != len(raw_codes)
+        or loaded["full_universe_capacity"].get("measured_asset_count") != len(raw_codes)
+        or not isinstance(raw_identities, list)
+        or not raw_identities
+        or _digest(
+            json.dumps(normalized_identities, sort_keys=True, separators=(",", ":")).encode()
+        )
+        != provider_identities_sha256
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_FROZEN_IDENTITY_INVALID")
+    release_universe: dict[str, object] = {
+        "asset_count": len(raw_codes),
+        "asset_codes": raw_codes,
+        "sha256": universe_sha256,
+    }
+    financial_capacity = loaded["financial_scope_capacity"]
+    if (
+        financial_capacity.get("release_universe") != release_universe
+        or financial_capacity.get("provider_identities_sha256") != provider_identities_sha256
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_FINANCIAL_SCOPE_BINDING_INVALID")
     _validate_isolated_database_migrations(loaded["isolated_database_migrations"])
     parity = loaded["production_policy_parity"]
     settings = parity.get("provider_settings")
@@ -306,6 +360,10 @@ def build_manifest(
                 provider_settings_canonical_payload_sha256
             ),
             "candidate_image_id": candidate_image_id,
+            "release_tag": release_tag,
+            "image_tag": image_tag,
+            "release_universe": release_universe,
+            "provider_identities": raw_identities,
             "reports": references,
         }
         path = output_dir / "release-rehearsal-manifest.json"
@@ -340,6 +398,8 @@ def main() -> int:
     parser.add_argument("--provider-settings-raw-file-sha256", required=True)
     parser.add_argument("--provider-settings-canonical-payload-sha256", required=True)
     parser.add_argument("--candidate-image-id", required=True)
+    parser.add_argument("--release-tag", required=True)
+    parser.add_argument("--image-tag", required=True)
     args = parser.parse_args()
     path = build_manifest(
         reports={kind: getattr(args, kind) for kind in REQUIRED_SCHEMAS},
@@ -353,6 +413,8 @@ def main() -> int:
             args.provider_settings_canonical_payload_sha256
         ),
         candidate_image_id=args.candidate_image_id,
+        release_tag=args.release_tag,
+        image_tag=args.image_tag,
     )
     print(json.dumps({"outcome": "success", "manifest": str(path)}, sort_keys=True))
     return 0

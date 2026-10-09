@@ -40,6 +40,8 @@ validator = _load_module()
 DOCKER_BUILD_POLICY = load_docker_build_policy(validator.RELEASE_POLICY_PATH)
 CANDIDATE = "a" * 40
 IMAGE_ID = "sha256:" + "f" * 64
+RELEASE_TAG = "20260924120000"
+IMAGE_TAG = f"agomtradepro-web:{RELEASE_TAG}"
 ASSET_CODES = sorted(
     ["000001.SZ", "600000.SH", "830001.BJ"] + [f"{index:06d}.SZ" for index in range(2, 50)]
 )
@@ -98,6 +100,7 @@ PROVIDERS = [
             f"{FINANCIAL_SOURCE_TIME_CONTRACT['contract_sha256'][:12]}"
         ),
         "endpoint_id": "akshare-financial-test-route",
+        "deployment_region": "ap-east-1",
     },
 ]
 PROVIDER_DIGEST = hashlib.sha256(
@@ -1098,6 +1101,8 @@ def _build_evidence(
         target_trade_date=TARGET_DATE,
         release_universe_sha256=UNIVERSE,
         provider_identities_sha256=PROVIDER_DIGEST,
+        expected_release_asset_codes=tuple(ASSET_CODES),
+        frozen_provider_identities=tuple(PROVIDERS),
         now=now,
     )
     financial_scope_capacity_digest = hashlib.sha256(
@@ -1123,6 +1128,14 @@ def _build_evidence(
             "provider_settings_raw_file_sha256": POLICY_SETTINGS_RAW_SHA256,
             "provider_settings_canonical_payload_sha256": settings_canonical_digest,
             "candidate_image_id": IMAGE_ID,
+            "release_tag": RELEASE_TAG,
+            "image_tag": IMAGE_TAG,
+            "release_universe": {
+                "asset_count": len(ASSET_CODES),
+                "asset_codes": ASSET_CODES,
+                "sha256": UNIVERSE,
+            },
+            "provider_identities": PROVIDERS,
             "reports": references,
         },
     )
@@ -1295,6 +1308,17 @@ def test_validator_rejects_stale_financial_scope_source_report(tmp_path: Path) -
     stale = now - timedelta(days=2)
     source["started_at"] = (stale - timedelta(minutes=5)).isoformat()
     source["finished_at"] = stale.isoformat()
+    result = source["result"]
+    candidate = result["candidate_manifest"]
+    candidate["generated_at"] = (stale - timedelta(minutes=1)).isoformat()
+    for item in candidate["items"]:
+        item["available_at"] = (stale - timedelta(minutes=2)).isoformat()
+        item["response_completed_at"] = [stale.isoformat(), stale.isoformat()]
+    candidate.pop("manifest_sha256", None)
+    candidate["manifest_sha256"] = hashlib.sha256(
+        json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    ).hexdigest()
+    result["candidate"]["manifest_sha256"] = candidate["manifest_sha256"]
     source_bytes = (json.dumps(source, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
         "utf-8"
     )
@@ -1305,6 +1329,55 @@ def test_validator_rejects_stale_financial_scope_source_report(tmp_path: Path) -
         target_trade_date=TARGET_DATE,
         release_universe_sha256=UNIVERSE,
         provider_identities_sha256=PROVIDER_DIGEST,
+        expected_release_asset_codes=tuple(ASSET_CODES),
+        frozen_provider_identities=tuple(PROVIDERS),
+    )
+    capacity_path.write_text(
+        json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    _replace_report(manifest, capacity_path, receipt)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_EVIDENCE_STALE"
+
+
+def test_validator_rejects_stale_inner_financial_evidence_with_fresh_outer_window(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    capacity_path = reports["financial_scope_capacity"]
+    source_path = capacity_path.parent / "financial-scope-discovery.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    stale = now - timedelta(days=2)
+    source["started_at"] = (stale - timedelta(minutes=5)).isoformat()
+    source["finished_at"] = (now - timedelta(minutes=1)).isoformat()
+    result = source["result"]
+    candidate = result["candidate_manifest"]
+    candidate["generated_at"] = (stale - timedelta(minutes=1)).isoformat()
+    for item in candidate["items"]:
+        item["available_at"] = (stale - timedelta(minutes=2)).isoformat()
+        item["response_completed_at"] = [stale.isoformat(), stale.isoformat()]
+    candidate.pop("manifest_sha256", None)
+    candidate["manifest_sha256"] = hashlib.sha256(
+        json.dumps(candidate, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    ).hexdigest()
+    result["candidate"]["manifest_sha256"] = candidate["manifest_sha256"]
+    source_bytes = (json.dumps(source, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
+        "utf-8"
+    )
+    source_path.write_bytes(source_bytes)
+    receipt = build_financial_scope_capacity_receipt(
+        scope_report=source,
+        scope_report_sha256=hashlib.sha256(source_bytes).hexdigest(),
+        target_trade_date=TARGET_DATE,
+        release_universe_sha256=UNIVERSE,
+        provider_identities_sha256=PROVIDER_DIGEST,
+        expected_release_asset_codes=tuple(ASSET_CODES),
+        frozen_provider_identities=tuple(PROVIDERS),
     )
     capacity_path.write_text(
         json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n",

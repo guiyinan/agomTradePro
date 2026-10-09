@@ -47,7 +47,10 @@ from tests.unit.financial_scope_capacity_fixtures import write_financial_scope_c
 CANDIDATE_SHA = "a" * 40
 IMAGE_ID = f"sha256:{'c' * 64}"
 TRADE_DATE = "2026-09-24"
-UNIVERSE_SHA256 = "b" * 64
+UNIVERSE_CODES = ("000001.SZ",)
+UNIVERSE_SHA256 = hashlib.sha256(
+    json.dumps(list(UNIVERSE_CODES), sort_keys=True, separators=(",", ":")).encode()
+).hexdigest()
 GITHUB_REPOSITORY = "owner/repository"
 GITHUB_RUN_ID = 12345
 PROVIDER_IDENTITIES: list[dict[str, object]] = [
@@ -64,6 +67,14 @@ PROVIDER_IDENTITIES: list[dict[str, object]] = [
         "source": "tushare",
         "version": "v1",
         "endpoint_id": "quote.daily_basic",
+    },
+    {
+        "role": "akshare_financial_route:13",
+        "provider_id": 13,
+        "source": "akshare_financial",
+        "version": "akshare-financial-test",
+        "endpoint_id": "financial.route",
+        "deployment_region": "isolated-test",
     },
 ]
 
@@ -346,6 +357,15 @@ class FakeRunner:
                 target_trade_date=TRADE_DATE,
                 release_universe_sha256=UNIVERSE_SHA256,
                 provider_identities_sha256=provider_digest,
+                expected_release_asset_codes=UNIVERSE_CODES,
+                frozen_provider_identities=tuple(
+                    json.loads(
+                        self._mounted_path(
+                            command.argv,
+                            target="/run/agom/provider-identities.json",
+                        ).read_text(encoding="utf-8")
+                    )
+                ),
                 now=datetime.now(UTC),
             )
             return
@@ -414,6 +434,17 @@ class FakeRunner:
                     ],
                 },
             }
+        if command.label == "full_universe_capacity":
+            payload["asset_codes"] = list(UNIVERSE_CODES)
+            payload["universe_count"] = len(UNIVERSE_CODES)
+            payload["measured_asset_count"] = len(UNIVERSE_CODES)
+        if command.label == "akshare_financial_slice":
+            payload["provider_identities"] = json.loads(
+                self._mounted_path(
+                    command.argv,
+                    target="/run/agom/provider-identities.json",
+                ).read_text(encoding="utf-8")
+            )
         if command.label != "github_ci_evidence":
             payload["candidate_image_id"] = image_value
         if command.label == "provider_probe":
@@ -467,6 +498,8 @@ class FakeRunner:
                 args[args.index("--provider-settings-canonical-payload-sha256") + 1]
             ),
             candidate_image_id=args[args.index("--candidate-image-id") + 1],
+            release_tag=args[args.index("--release-tag") + 1],
+            image_tag=args[args.index("--image-tag") + 1],
         )
 
     @staticmethod
@@ -2623,3 +2656,35 @@ def test_forged_validator_owned_receipt_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(RehearsalBlocked, match="S6_HANDOFF_RECEIPT_MISMATCH"):
         verify_evidence_handoff_receipt(receipt_path)
+
+
+def test_handoff_rejects_each_identity_field_that_differs_from_manifest(
+    tmp_path: Path,
+) -> None:
+    runner = FakeRunner()
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    receipt_path = run_release_rehearsal(config, runner=runner)
+    original = json.loads(receipt_path.read_text(encoding="utf-8"))
+    identity_fields = (
+        "candidate_sha",
+        "candidate_image_id",
+        "release_tag",
+        "image_tag",
+        "target_trade_date",
+        "universe_sha256",
+        "provider_identities_sha256",
+        "provider_settings_raw_file_sha256",
+        "provider_settings_canonical_payload_sha256",
+    )
+
+    for field in identity_fields:
+        forged = dict(original)
+        forged[field] = "mismatch"
+        receipt_path.chmod(0o644)
+        receipt_path.write_text(json.dumps(forged), encoding="utf-8")
+        with pytest.raises(RehearsalBlocked, match="S6_HANDOFF_RECEIPT_MISMATCH"):
+            verify_evidence_handoff_receipt(receipt_path)
+
+    receipt_path.chmod(0o644)
+    receipt_path.write_text(json.dumps(original), encoding="utf-8")
+    assert verify_evidence_handoff_receipt(receipt_path)["candidate_sha"] == CANDIDATE_SHA

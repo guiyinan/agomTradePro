@@ -11,6 +11,7 @@ from argparse import ArgumentParser
 from dataclasses import replace
 from datetime import UTC, date
 from pathlib import Path
+from typing import cast
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -19,6 +20,7 @@ from django.utils import timezone
 
 from apps.data_center.application.financial_scope_capacity_receipt import (
     build_financial_scope_capacity_receipt,
+    canonical_sha256,
 )
 from apps.data_center.application.financial_scope_manifest_bootstrap import (
     FinancialScopeDiscoveryResult,
@@ -26,6 +28,7 @@ from apps.data_center.application.financial_scope_manifest_bootstrap import (
 )
 from apps.data_center.domain.financial_scope_discovery import (
     FINANCIAL_SCOPE_DISCOVERY_ERROR_CODES,
+    FinancialScopeDiscoveryCandidate,
     FinancialScopeDiscoveryError,
 )
 from apps.data_center.financial_scope_discovery_composition import (
@@ -46,12 +49,15 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     akshare_financial_route_role,
     load_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identity_dict,
 )
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 
 _CANDIDATE_SHA = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ARTIFACT_ROOT_NAME = re.compile(r"^agom-s6-financial-scope-[0-9a-f]{32}$")
 _ARTIFACT_RELATIVE_PATH = re.compile(r"^v1/[0-9a-f-]{36}\.frb$")
+_ASSET_CODE = re.compile(r"^[0-9]{6}\.(?:SH|SZ|BJ)$")
 
 
 class Command(BaseCommand):
@@ -65,6 +71,7 @@ class Command(BaseCommand):
         parser.add_argument("--candidate-sha", required=True)
         parser.add_argument("--target-trade-date", required=True)
         parser.add_argument("--release-universe-sha256", required=True)
+        parser.add_argument("--release-universe-capacity-report", required=True, type=Path)
         parser.add_argument("--provider-identities", required=True, type=Path)
         parser.add_argument("--provider-identities-sha256", required=True)
         parser.add_argument("--expected-database-name", required=True)
@@ -78,6 +85,7 @@ class Command(BaseCommand):
         candidate_sha: str,
         target_trade_date: str,
         release_universe_sha256: str,
+        release_universe_capacity_report: Path,
         provider_identities: Path,
         provider_identities_sha256: str,
         expected_database_name: str,
@@ -97,6 +105,7 @@ class Command(BaseCommand):
                 release_universe_sha256=release_universe_sha256,
                 provider_identities_path=provider_identities,
                 provider_identities_sha256=provider_identities_sha256,
+                release_universe_capacity_report=release_universe_capacity_report,
                 expected_database_name=expected_database_name,
                 expected_database_host=expected_database_host,
                 artifact_root=artifact_root,
@@ -104,10 +113,22 @@ class Command(BaseCommand):
                 output_path=report_path,
                 receipt_path=receipt_path,
             )
+            expected_release_asset_codes = _validate_release_universe_report(
+                release_universe_capacity_report,
+                candidate_sha=candidate_sha,
+                target_trade_date=target_trade_date,
+                universe_sha256=release_universe_sha256,
+            )
+            frozen_provider_identities = tuple(
+                rehearsal_identity_dict(identity)
+                for identity in load_rehearsal_identities(provider_identities)
+            )
             report = _run_discovery(
                 candidate_sha=candidate_sha,
                 provider_identities_path=provider_identities,
                 provider_identities_sha256=provider_identities_sha256,
+                release_universe_capacity_report=release_universe_capacity_report,
+                expected_release_asset_codes=expected_release_asset_codes,
                 expected_database_name=expected_database_name,
                 expected_database_host=expected_database_host,
                 artifact_root=artifact_root,
@@ -122,6 +143,8 @@ class Command(BaseCommand):
                     target_trade_date=target_trade_date,
                     release_universe_sha256=release_universe_sha256,
                     provider_identities_sha256=provider_identities_sha256,
+                    expected_release_asset_codes=expected_release_asset_codes,
+                    frozen_provider_identities=frozen_provider_identities,
                 )
                 _write_exclusive_json(receipt_path, capacity_receipt)
         except Exception as exc:
@@ -151,6 +174,8 @@ def _run_discovery(
     candidate_sha: str,
     provider_identities_path: Path,
     provider_identities_sha256: str,
+    release_universe_capacity_report: Path,
+    expected_release_asset_codes: tuple[str, ...],
     expected_database_name: str,
     expected_database_host: str,
     artifact_root: Path,
@@ -201,6 +226,8 @@ def _run_discovery(
         artifact_storage_root=artifact_root,
     )
     universe = DjangoFinancialScopeDiscoveryUniverseSource().get_active_asset_codes()
+    if universe != expected_release_asset_codes:
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_INVALID")
     result = use_case.use_case.execute(
         ScopeDiscoveryRequest(
             environment="isolated",
@@ -210,7 +237,7 @@ def _run_discovery(
         )
     )
     try:
-        encrypted_artifacts = _encrypted_artifact_projection(artifact_root)
+        encrypted_artifacts = _encrypted_artifact_projection(artifact_root, result.candidate)
     except FinancialScopeDiscoveryError as exc:
         result = replace(
             result,
@@ -289,12 +316,32 @@ def _result_projection(value: dict[str, object]) -> dict[str, object]:
     return projected
 
 
-def _encrypted_artifact_projection(root: Path) -> list[dict[str, object]]:
+def _encrypted_artifact_projection(
+    root: Path, candidate: FinancialScopeDiscoveryCandidate | None
+) -> list[dict[str, object]]:
     """Enumerate only opaque encrypted artifacts and reject links or special files."""
 
     if root.is_symlink() or not root.is_dir():
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
+    expected: dict[str, dict[str, object]] = {}
+    if candidate is not None:
+        for item in candidate.items:
+            expected[item.financial_capture_id] = {
+                "asset_code": item.asset_code,
+                "dataset_key": "equity.financial.fact",
+                "capture_id": item.financial_capture_id,
+                "body_sha256": item.financial_body_sha256,
+                "raw_audit_id": item.financial_raw_audit_id,
+            }
+            expected[item.source_time_capture_id] = {
+                "asset_code": item.asset_code,
+                "dataset_key": "equity.financial.source-time",
+                "capture_id": item.source_time_capture_id,
+                "body_sha256": item.source_time_body_sha256,
+                "raw_audit_id": item.source_time_raw_audit_id,
+            }
     artifacts: list[dict[str, object]] = []
+    observed: set[str] = set()
     for path in sorted(root.rglob("*")):
         if path.is_symlink():
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
@@ -312,15 +359,66 @@ def _encrypted_artifact_projection(root: Path) -> list[dict[str, object]]:
             or _ARTIFACT_RELATIVE_PATH.fullmatch(relative_path) is None
         ):
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        capture_id = path.stem
+        envelope_index = expected.get(capture_id)
+        if envelope_index is None or capture_id in observed:
+            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
+        try:
+            raw = read_regular_file(root, relative_path, 64 * 1024 * 1024)
+        except RehearsalFileReadError:
+            raise FinancialScopeDiscoveryError(
+                "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID"
+            ) from None
+        if len(raw) != metadata.st_size:
+            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
+        digest = hashlib.sha256(raw).hexdigest()
+        observed.add(capture_id)
         artifacts.append(
             {
                 "path": f"{root.name}/{relative_path}",
-                "size_bytes": metadata.st_size,
+                "size_bytes": len(raw),
                 "ciphertext_sha256": digest,
+                "envelope_index": envelope_index,
             }
         )
+    if observed != set(expected):
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
     return artifacts
+
+
+def _validate_release_universe_report(
+    path: Path,
+    *,
+    candidate_sha: str,
+    target_trade_date: str,
+    universe_sha256: str,
+) -> tuple[str, ...]:
+    """Bind the financial capture request to the earlier frozen capacity universe."""
+    try:
+        raw = read_regular_file(path.parent, path.name, 16 * 1024 * 1024)
+        value: object = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError, RehearsalFileReadError):
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_INVALID") from None
+    if not isinstance(value, dict):
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_INVALID")
+    codes = value.get("asset_codes")
+    if (
+        value.get("schema") != "release.full-universe-capacity.v2"
+        or value.get("kind") != "full_universe_capacity"
+        or value.get("outcome") != "success"
+        or value.get("candidate_sha") != candidate_sha
+        or value.get("target_trade_date") != target_trade_date
+        or value.get("universe_sha256") != universe_sha256
+        or not isinstance(codes, list)
+        or not codes
+        or any(type(code) is not str or _ASSET_CODE.fullmatch(code) is None for code in codes)
+        or codes != sorted(set(codes))
+        or value.get("universe_count") != len(codes)
+        or value.get("measured_asset_count") != len(codes)
+        or canonical_sha256(codes) != universe_sha256
+    ):
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_INVALID")
+    return tuple(cast(list[str], codes))
 
 
 def _validate_inputs(
@@ -328,6 +426,7 @@ def _validate_inputs(
     candidate_sha: str,
     target_trade_date: str,
     release_universe_sha256: str,
+    release_universe_capacity_report: Path,
     provider_identities_path: Path,
     provider_identities_sha256: str,
     expected_database_name: str,
@@ -346,6 +445,8 @@ def _validate_inputs(
         or _SHA256.fullmatch(provider_identities_sha256) is None
         or not provider_identities_path.is_file()
         or provider_identities_path.is_symlink()
+        or not release_universe_capacity_report.is_file()
+        or release_universe_capacity_report.is_symlink()
         or not output_dir.is_dir()
         or output_dir.is_symlink()
         or output_path.exists()

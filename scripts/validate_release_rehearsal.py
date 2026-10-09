@@ -72,6 +72,7 @@ from apps.data_center.application.financial_scope_capacity_receipt import (
     FinancialScopeCapacityReceiptError,
     validate_financial_scope_capacity_receipt,
 )
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 
 ASSET_CODE_PATTERN = re.compile(r"[0-9]{6}\.(?:SH|SZ|BJ)")
 PROVIDER_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
@@ -125,6 +126,11 @@ PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
         "financial_scope_capacity",
     }
 )
+from apps.data_center.infrastructure.rehearsal_identity import (
+    parse_rehearsal_identities,
+    rehearsal_identity_dict,
+)
+
 FINANCIAL_ZERO_WRITE_PROOF_CASES = (
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_capture_provider_failure_does_not_retain_any_artifact",
     "tests.unit.data_center.test_akshare_financial_capture::test_akshare_financial_slice_sync_evidence_rejection_writes_zero_facts",
@@ -307,9 +313,9 @@ def _require_candidate_attestation(payload: dict[str, Any]) -> None:
 
 def _read_json(path: Path, code: str) -> dict[str, Any]:
     try:
-        raw = path.read_bytes()
+        raw = read_regular_file(path.parent, path.name, 16 * 1024 * 1024)
         payload: object = json.loads(raw)
-    except (OSError, UnicodeError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError, RehearsalFileReadError):
         _fail(code)
     if not raw or not isinstance(payload, dict):
         _fail(code)
@@ -392,8 +398,8 @@ def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ..
 
 def _sha256(path: Path) -> str:
     try:
-        raw = path.read_bytes()
-    except OSError:
+        raw = read_regular_file(path.parent, path.name, 64 * 1024 * 1024)
+    except (OSError, RehearsalFileReadError):
         _fail("REHEARSAL_ARTIFACT_UNREADABLE")
     if not raw:
         _fail("REHEARSAL_ARTIFACT_EMPTY")
@@ -567,12 +573,11 @@ def _validate_provider_identities(value: object) -> str:
     roles: set[str] = set()
     identities: set[tuple[object, ...]] = set()
     for item in cast(list[object], value):
-        if not isinstance(item, dict) or set(item) != {
-            "role",
-            "provider_id",
-            "source",
-            "version",
-            "endpoint_id",
+        if not isinstance(item, dict) or frozenset(item) not in {
+            frozenset({"role", "provider_id", "source", "version", "endpoint_id"}),
+            frozenset(
+                {"role", "provider_id", "source", "version", "endpoint_id", "deployment_region"}
+            ),
         }:
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         identity_item = cast(dict[str, object], item)
@@ -581,6 +586,7 @@ def _validate_provider_identities(value: object) -> str:
         source = identity_item.get("source")
         version = identity_item.get("version")
         endpoint_id = identity_item.get("endpoint_id")
+        deployment_region = identity_item.get("deployment_region")
         if (
             not isinstance(role, str)
             or PROVIDER_IDENTITY_TOKEN_PATTERN.fullmatch(role) is None
@@ -603,22 +609,30 @@ def _validate_provider_identities(value: object) -> str:
             and role != expected_financial_route_role
         ):
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
-        if role == expected_financial_route_role and source != "akshare_financial":
+        if role == expected_financial_route_role:
+            if (
+                source != "akshare_financial"
+                or not isinstance(deployment_region, str)
+                or re.fullmatch(r"[a-z0-9_.:-]{1,128}", deployment_region) is None
+            ):
+                _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+        elif deployment_region is not None:
             _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
         identity = (role, provider_id, source, version, endpoint_id)
         if role in roles or identity in identities:
             _fail("REHEARSAL_PROVIDER_IDENTITY_DUPLICATE")
         roles.add(role)
         identities.add(identity)
-        normalized.append(
-            {
-                "endpoint_id": endpoint_id,
-                "provider_id": provider_id,
-                "role": role,
-                "source": source,
-                "version": version,
-            }
-        )
+        normalized_identity: dict[str, object] = {
+            "endpoint_id": endpoint_id,
+            "provider_id": provider_id,
+            "role": role,
+            "source": source,
+            "version": version,
+        }
+        if deployment_region is not None:
+            normalized_identity["deployment_region"] = deployment_region
+        normalized.append(normalized_identity)
     if not PROVIDER_CORE_ROLES.issubset(roles):
         _fail("REHEARSAL_PROVIDER_IDENTITY_INVALID")
     encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode()
@@ -1048,9 +1062,9 @@ def _read_tushare_response_rows(path: Path) -> list[dict[str, object]]:
 
 def _read_tencent_response_rows(path: Path) -> list[dict[str, object]]:
     try:
-        body = path.read_bytes()
+        body = read_regular_file(path.parent, path.name, 16 * 1024 * 1024)
         decoded = body.decode("gb18030", errors="strict")
-    except (OSError, UnicodeError):
+    except (OSError, UnicodeError, RehearsalFileReadError):
         _fail("REHEARSAL_REPLAY_RESPONSE_BODY_INVALID")
     rows: list[dict[str, object]] = []
     seen: set[str] = set()
@@ -2554,8 +2568,8 @@ def _validate_regression(
             _fail("REHEARSAL_JUNIT_INVALID")
         observed_names.add(artifact_name)
         try:
-            local_bytes = junit_path.read_bytes()
-        except OSError:
+            local_bytes = read_regular_file(junit_path.parent, junit_path.name, 64 * 1024 * 1024)
+        except (OSError, RehearsalFileReadError):
             _fail("REHEARSAL_JUNIT_INVALID")
         if official_files.get(artifact_name) != local_bytes:
             _fail("REHEARSAL_JUNIT_ARTIFACT_MISMATCH")
@@ -2600,6 +2614,8 @@ def _validate_financial_scope_capacity(
     expected_date: str,
     expected_universe: str,
     expected_provider_digest: str,
+    expected_release_asset_codes: tuple[str, ...],
+    frozen_provider_identities: tuple[dict[str, object], ...],
     now: datetime,
     max_age: timedelta,
 ) -> None:
@@ -2618,6 +2634,29 @@ def _validate_financial_scope_capacity(
         source_ref.get("sha256"),
     )
     source_report = _read_json(source_path, "REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    result = source_report.get("result")
+    candidate_manifest = result.get("candidate_manifest") if isinstance(result, dict) else None
+    if not isinstance(candidate_manifest, dict):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    generated_at = _parse_datetime(
+        candidate_manifest.get("generated_at"), "REHEARSAL_FINANCIAL_SCOPE_TIME_INVALID"
+    )
+    if generated_at > now + timedelta(minutes=5) or now - generated_at > max_age:
+        _fail("REHEARSAL_EVIDENCE_STALE")
+    raw_items = candidate_manifest.get("items")
+    if not isinstance(raw_items, list):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    for raw_item in cast(list[object], raw_items):
+        if not isinstance(raw_item, dict) or not isinstance(
+            raw_item.get("response_completed_at"), list
+        ):
+            _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+        for completed_value in cast(list[object], raw_item["response_completed_at"]):
+            completed_at = _parse_datetime(
+                completed_value, "REHEARSAL_FINANCIAL_SCOPE_TIME_INVALID"
+            )
+            if completed_at > now + timedelta(minutes=5) or now - completed_at > max_age:
+                _fail("REHEARSAL_EVIDENCE_STALE")
     artifacts = source_report.get("encrypted_artifacts")
     artifact_root_name = source_report.get("artifact_root")
     if not isinstance(artifacts, list) or not isinstance(artifact_root_name, str):
@@ -2676,6 +2715,8 @@ def _validate_financial_scope_capacity(
             expected_trade_date=expected_date,
             expected_release_universe_sha256=expected_universe,
             expected_provider_identities_sha256=expected_provider_digest,
+            expected_release_asset_codes=expected_release_asset_codes,
+            frozen_provider_identities=frozen_provider_identities,
         )
     except FinancialScopeCapacityReceiptError as exc:
         _fail(exc.code)
@@ -2937,8 +2978,8 @@ def _akshare_financial_source_time_contract() -> dict[str, Any]:
         / "financial_source_time_match_contracts.json"
     )
     try:
-        payload: object = json.loads(path.read_bytes())
-    except (OSError, UnicodeError, json.JSONDecodeError):
+        payload: object = json.loads(read_regular_file(path.parent, path.name, 1_048_576))
+    except (OSError, UnicodeError, json.JSONDecodeError, RehearsalFileReadError):
         _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
     if not isinstance(payload, dict) or payload.get("status") != "active":
         _fail("REHEARSAL_FINANCIAL_SLICE_CONTRACT_INVALID")
@@ -3024,6 +3065,14 @@ def validate_release_rehearsal(
         or manifest.get("candidate_image_id") != expected_candidate_image_id
     ):
         _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
+    release_tag = manifest.get("release_tag")
+    image_tag = manifest.get("image_tag")
+    if (
+        not isinstance(release_tag, str)
+        or re.fullmatch(r"[0-9]{14}", release_tag) is None
+        or image_tag != f"agomtradepro-web:{release_tag}"
+    ):
+        _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
     manifest_raw_settings_digest = manifest.get("provider_settings_raw_file_sha256")
     manifest_canonical_settings_digest = manifest.get("provider_settings_canonical_payload_sha256")
     if (
@@ -3072,6 +3121,32 @@ def validate_release_rehearsal(
         )
         loaded_reports[kind] = report
         report_paths[kind] = report_path
+    release_universe = manifest.get("release_universe")
+    provider_identities = manifest.get("provider_identities")
+    full_universe_report = loaded_reports["full_universe_capacity"]
+    full_asset_codes = full_universe_report.get("asset_codes")
+    financial_slice_identities = loaded_reports["akshare_financial_slice"].get(
+        "provider_identities"
+    )
+    if (
+        not isinstance(release_universe, dict)
+        or set(release_universe) != {"asset_count", "asset_codes", "sha256"}
+        or not isinstance(full_asset_codes, list)
+        or release_universe.get("asset_codes") != full_asset_codes
+        or release_universe.get("asset_count") != len(full_asset_codes)
+        or release_universe.get("sha256") != expected_universe_sha256
+        or not isinstance(provider_identities, list)
+        or provider_identities != financial_slice_identities
+        or _validate_provider_identities(provider_identities) != expected_provider_identities_sha256
+    ):
+        _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
+    try:
+        normalized_provider_identities = tuple(
+            rehearsal_identity_dict(identity)
+            for identity in parse_rehearsal_identities(provider_identities)
+        )
+    except ValueError:
+        _fail("REHEARSAL_MANIFEST_IDENTITY_MISMATCH")
     _validate_isolated_database_migrations(loaded_reports["isolated_database_migrations"])
     capacity = _validate_capacity(
         loaded_reports["full_universe_capacity"],
@@ -3129,6 +3204,8 @@ def validate_release_rehearsal(
         expected_date=expected_target_date,
         expected_universe=expected_universe_sha256,
         expected_provider_digest=expected_provider_identities_sha256,
+        expected_release_asset_codes=tuple(cast(list[str], release_universe["asset_codes"])),
+        frozen_provider_identities=normalized_provider_identities,
         now=observed_now,
         max_age=timedelta(hours=max_age_hours),
     )

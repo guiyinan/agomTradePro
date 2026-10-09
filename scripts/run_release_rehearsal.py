@@ -38,6 +38,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     parse_rehearsal_identities,
     rehearsal_identities_digest,
 )
+from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 from shared.release_rehearsal_stage_environment import (
     MINIMUM_AVAILABLE_MEMORY_BYTES,
     MINIMUM_PREBUILD_FREE_DISK_BYTES,
@@ -563,13 +564,11 @@ def _object(value: object, code: str) -> dict[str, object]:
 
 
 def _read_file(path: Path, maximum: int = 16_777_216) -> bytes:
-    """Read a bounded regular file and reject symlinks."""
-    if path.is_symlink() or not path.is_file():
-        raise ValueError("S6_INPUT_FILE_INVALID")
-    raw = path.read_bytes()
-    if not raw or len(raw) > maximum:
-        raise ValueError("S6_INPUT_FILE_INVALID")
-    return raw
+    """Read a bounded regular file through the shared no-follow descriptor check."""
+    try:
+        return read_regular_file(path.parent, path.name, maximum)
+    except RehearsalFileReadError as exc:
+        raise ValueError("S6_INPUT_FILE_INVALID") from exc
 
 
 def _write_json(path: Path, payload: Mapping[str, object], *, read_only: bool = False) -> None:
@@ -606,7 +605,7 @@ def _freeze_provider_settings_snapshot(run_dir: Path, inputs: RehearsalInputs) -
     if path.is_symlink():
         raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_INVALID")
     if path.exists():
-        if not path.is_file() or path.read_bytes() != inputs.provider_settings_raw:
+        if _read_file(path, 65_536) != inputs.provider_settings_raw:
             raise ValueError("S6_PROVIDER_SETTINGS_SNAPSHOT_MISMATCH")
     else:
         with path.open("xb") as stream:
@@ -627,7 +626,7 @@ def _freeze_private_input(path: Path, raw: bytes) -> Path:
     if path.is_symlink():
         raise ValueError("S6_PRIVATE_INPUT_SNAPSHOT_INVALID")
     if path.exists():
-        if not path.is_file() or path.read_bytes() != raw:
+        if _read_file(path, 16_384) != raw:
             raise ValueError("S6_PRIVATE_INPUT_SNAPSHOT_MISMATCH")
     else:
         with path.open("xb") as stream:
@@ -1545,6 +1544,8 @@ def _stage_specs(
         identity.target_trade_date,
         "--release-universe-sha256",
         identity.universe_sha256,
+        "--release-universe-capacity-report",
+        "/run/agom/release-universe-capacity.json",
         "--provider-identities",
         "/run/agom/provider-identities.json",
         "--provider-identities-sha256",
@@ -1627,9 +1628,14 @@ def bundle_tree_digest(bundle_dir: Path) -> str:
             raise ValueError("S6_BUNDLE_SYMLINK_REJECTED")
         if path.is_dir():
             continue
-        if not path.is_file():
-            raise ValueError("S6_BUNDLE_ENTRY_INVALID")
-        raw = path.read_bytes()
+        try:
+            raw = read_regular_file(
+                bundle_dir,
+                path.relative_to(bundle_dir).as_posix(),
+                64 * 1024 * 1024,
+            )
+        except RehearsalFileReadError as exc:
+            raise ValueError("S6_BUNDLE_ENTRY_INVALID") from exc
         entries.append(
             {
                 "path": path.relative_to(bundle_dir).as_posix(),
@@ -2178,7 +2184,7 @@ def _run_stage_environment_preflight(
             "finished_at": datetime.now(UTC).isoformat(),
             "prebuild_report": {
                 "path": prebuild_path.name,
-                "sha256": hashlib.sha256(prebuild_path.read_bytes()).hexdigest(),
+                "sha256": hashlib.sha256(_read_file(prebuild_path)).hexdigest(),
             },
         }
         atomic_json(report_path, evidence)
@@ -2932,13 +2938,22 @@ def _run_release_rehearsal(
         )
         outcomes[capacity_spec.name] = capacity_failure
         _assert_candidate(active, config.root, candidate)
-        for spec, folder in stage_pairs:
+        completed_prefix = 0
+        for index, (spec, _) in enumerate(stage_pairs):
+            if outcomes[spec.name] is not None:
+                break
+            completed_prefix = index + 1
+        for spec, folder in stage_pairs[:completed_prefix]:
             stage = spec.name
-            failure = outcomes[spec.name]
-            if failure is not None:
-                raise failure
             checkpoint.complete(spec.name, (folder,))
             completed.append(spec.name)
+        if completed_prefix < len(stage_pairs):
+            failed_spec = stage_pairs[completed_prefix][0]
+            stage = failed_spec.name
+            failure = outcomes[failed_spec.name]
+            if failure is None:
+                raise RehearsalBlocked(stage, "S6_STAGE_OUTCOME_INVALID")
+            raise failure
 
         stage = "github_ci_evidence"
         _status(status_path, "running", completed, stage, None)
@@ -3021,6 +3036,12 @@ def _run_release_rehearsal(
         completed.append(stage)
 
         financial_scope_capacity_spec = specs[6]
+        capacity_report_path = capacity_dir / "output" / "full-universe-capacity.json"
+        financial_scope_capacity_spec = replace(
+            financial_scope_capacity_spec,
+            mounts=financial_scope_capacity_spec.mounts
+            + ((capacity_report_path, "/run/agom/release-universe-capacity.json", True),),
+        )
         stage = financial_scope_capacity_spec.name
         _status(status_path, "running", completed, stage, None)
         _assert_candidate(active, config.root, candidate)
@@ -3104,6 +3125,10 @@ def _run_release_rehearsal(
             identity.provider_settings_canonical_payload_sha256,
             "--candidate-image-id",
             identity.candidate_image_id,
+            "--release-tag",
+            identity.release_tag,
+            "--image-tag",
+            identity.image_tag,
         )
         if not checkpoint.done(stage):
             checkpoint.prepare(stage, (bundle_dir,), resume=config.resume)
@@ -3244,16 +3269,29 @@ def verify_evidence_handoff_receipt(receipt_path: Path) -> dict[str, object]:
         )
         manifest_payload = _object(json.loads(_read_file(manifest)), "S6_MANIFEST_INVALID")
         for key in (
+            "candidate_sha",
+            "release_tag",
+            "image_tag",
+            "target_trade_date",
+            "universe_sha256",
+            "provider_identities_sha256",
+            "provider_settings_raw_file_sha256",
+            "provider_settings_canonical_payload_sha256",
+        ):
+            identity_value = receipt.get(key)
+            if not isinstance(identity_value, str) or manifest_payload.get(key) != identity_value:
+                valid = False
+        for key in (
+            "universe_sha256",
+            "provider_identities_sha256",
             "provider_settings_raw_file_sha256",
             "provider_settings_canonical_payload_sha256",
         ):
             digest = receipt.get(key)
-            if (
-                not isinstance(digest, str)
-                or SHA.fullmatch(digest) is None
-                or manifest_payload.get(key) != digest
-            ):
+            if not isinstance(digest, str) or SHA.fullmatch(digest) is None:
                 valid = False
+        if manifest_payload.get("candidate_image_id") != receipt.get("candidate_image_id"):
+            valid = False
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
         raise RehearsalBlocked("handoff", "S6_RECEIPT_INVALID") from exc
     if not valid:
