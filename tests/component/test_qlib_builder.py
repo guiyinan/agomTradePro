@@ -15,7 +15,9 @@ from apps.alpha.infrastructure.qlib_builder import (
     resolve_effective_trade_date,
 )
 from apps.config_center.infrastructure.models import AlphaUniverseConfigModel
+from apps.data_center.domain.model_market_data import ModelDailyBar
 from apps.data_center.infrastructure.tushare_model_market_source import TushareModelMarketSource
+from core.exceptions import DataFetchError
 
 
 class _MockTushareProClient:
@@ -126,6 +128,29 @@ class _MockTushareProClient:
                 },
             ]
         )
+
+
+class _PerAssetTusharePort:
+    """Expose per-asset reads without claiming the optional batch-prefetch capability."""
+
+    def __init__(self, client: _MockTushareProClient) -> None:
+        self._source = TushareModelMarketSource(client)
+
+    def stock_history(
+        self, asset_code: str, start_date: date, end_date: date
+    ) -> tuple[ModelDailyBar, ...]:
+        return self._source.stock_history(asset_code, start_date, end_date)
+
+    def index_history(
+        self, asset_code: str, start_date: date, end_date: date
+    ) -> tuple[ModelDailyBar, ...]:
+        return self._source.index_history(asset_code, start_date, end_date)
+
+    def trade_days(self, start_date: date, end_date: date) -> tuple[date, ...]:
+        return self._source.trade_days(start_date, end_date)
+
+    def index_members(self, index_code: str, target_date: date) -> tuple[str, ...]:
+        return self._source.index_members(index_code, target_date)
 
 
 class _RateLimitedIndexWeightClient(_MockTushareProClient):
@@ -647,21 +672,19 @@ def test_index_fetch_failure_does_not_advance_qlib_calendar(tmp_path: Path):
 
 
 def test_verified_suspension_excludes_current_instrument_without_fabricated_bars(tmp_path: Path):
-    from core.exceptions import DataFetchError
-
-    class Port(TushareModelMarketSource):
-        def stock_history(self, code, start, end):
-            if code == "600001.SH":
+    class Port(_PerAssetTusharePort):
+        def stock_history(self, asset_code, start_date, end_date):
+            if asset_code == "600001.SH":
                 raise DataFetchError(
                     "suspended",
                     code="MODEL_MARKET_SUSPENDED",
                     details={
-                        "asset_code": code,
+                        "asset_code": asset_code,
                         "last_observed_date": "2026-04-01",
                         "suspended_through": "2026-04-03",
                     },
                 )
-            return super().stock_history(code, start, end)
+            return super().stock_history(asset_code, start_date, end_date)
 
     builder = TushareQlibBuilder(str(tmp_path), data_port=Port(_MockTushareProClient()))
     builder._ensure_layout()
@@ -680,6 +703,61 @@ def test_verified_suspension_excludes_current_instrument_without_fabricated_bars
     assert not (tmp_path / "features" / "sh600001").exists()
     for market in ("test", "all"):
         assert builder._read_instrument_ranges(market)["SH600001"][1] == date(2026, 4, 1)
+
+
+def test_partial_suspension_does_not_hide_unverified_missing_qlib_member(tmp_path: Path):
+    class Port(_PerAssetTusharePort):
+        def stock_history(self, asset_code, start_date, end_date):
+            if asset_code == "600000.SH":
+                return ()
+            raise _suspension_for_qlib_builder(asset_code)
+
+    builder = TushareQlibBuilder(str(tmp_path), data_port=Port(_MockTushareProClient()))
+    with pytest.raises(DataFetchError) as caught:
+        builder._build_recent_data_for_members(
+            target_date=date(2026, 4, 3),
+            universe_members={"test": ["600000.SH", "600001.SH"]},
+            lookback_days=90,
+            index_codes=(),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_SCOPE_INCOMPLETE"
+    assert caught.value.details["missing_asset_codes"] == ["600000.SH"]
+    assert caught.value.details["suspended_asset_codes"] == ["600001.SH"]
+    assert inspect_latest_trade_date(str(tmp_path)) is None
+
+
+def test_all_qlib_members_require_verified_suspension_before_suspended_outcome(
+    tmp_path: Path,
+):
+    class Port(_PerAssetTusharePort):
+        def stock_history(self, asset_code, _start_date, _end_date):
+            raise _suspension_for_qlib_builder(asset_code)
+
+    builder = TushareQlibBuilder(str(tmp_path), data_port=Port(_MockTushareProClient()))
+    with pytest.raises(DataFetchError) as caught:
+        builder._build_recent_data_for_members(
+            target_date=date(2026, 4, 3),
+            universe_members={"test": ["600000.SH", "600001.SH"]},
+            lookback_days=90,
+            index_codes=(),
+        )
+
+    assert caught.value.code == "MODEL_MARKET_SUSPENDED"
+    assert caught.value.details["suspended_asset_codes"] == ["600000.SH", "600001.SH"]
+    assert inspect_latest_trade_date(str(tmp_path)) is None
+
+
+def _suspension_for_qlib_builder(asset_code: str) -> DataFetchError:
+    return DataFetchError(
+        "suspended",
+        code="MODEL_MARKET_SUSPENDED",
+        details={
+            "asset_code": asset_code,
+            "last_observed_date": "2026-04-01",
+            "suspended_through": "2026-04-03",
+        },
+    )
 
 
 def test_unverified_stale_stock_still_blocks_whole_build(tmp_path: Path):

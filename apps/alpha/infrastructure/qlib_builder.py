@@ -283,10 +283,28 @@ class DataCenterQlibBuilder:
                 tuple(stock_codes), requested_start_date, target_date
             )
         stock_daily = self._fetch_stock_daily(stock_codes, requested_start_date, target_date)
+        observed_codes = (
+            set(stock_daily["ts_code"].dropna().astype(str).unique())
+            if not stock_daily.empty
+            else set()
+        )
+        suspended_codes = set(self._suspended_codes)
+        missing_codes = sorted(set(stock_codes) - observed_codes - suspended_codes)
+        if missing_codes:
+            raise DataFetchError(
+                "Qlib history scope has instruments without observations or verified suspension",
+                code="MODEL_MARKET_SCOPE_INCOMPLETE",
+                details={
+                    "missing_asset_codes": missing_codes,
+                    "suspended_asset_codes": sorted(suspended_codes),
+                },
+            )
         if stock_daily.empty:
-            if self._suspended_codes:
+            if suspended_codes == set(stock_codes):
                 raise DataFetchError(
-                    "All requested instruments are suspended", code="MODEL_MARKET_SUSPENDED"
+                    "All requested instruments are suspended",
+                    code="MODEL_MARKET_SUSPENDED",
+                    details={"suspended_asset_codes": sorted(suspended_codes)},
                 )
             raise RuntimeError("未获取到股票日线，无法构建 Qlib 数据")
 

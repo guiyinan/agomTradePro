@@ -461,15 +461,25 @@
           "test_file": "tests/unit/data_center/test_model_market_data.py",
           "test_function": "test_incomplete_suspension_evidence_remains_stale"
         },
-        {
-          "case": "suspended_instrument_no_fabrication",
-          "test_file": "tests/component/test_qlib_builder.py",
-          "test_function": "test_verified_suspension_excludes_current_instrument_without_fabricated_bars"
-        },
-        {
-          "case": "prediction_current_membership",
-          "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
-          "test_function": "test_qlib_prediction_filters_instruments_at_actual_prediction_date"
+    {
+      "case": "suspended_instrument_no_fabrication",
+      "test_file": "tests/component/test_qlib_builder.py",
+      "test_function": "test_verified_suspension_excludes_current_instrument_without_fabricated_bars"
+    },
+    {
+      "case": "qlib_partial_suspension_does_not_hide_missing_member",
+      "test_file": "tests/component/test_qlib_builder.py",
+      "test_function": "test_partial_suspension_does_not_hide_unverified_missing_qlib_member"
+    },
+    {
+      "case": "qlib_all_suspension_requires_exact_requested_scope",
+      "test_file": "tests/component/test_qlib_builder.py",
+      "test_function": "test_all_qlib_members_require_verified_suspension_before_suspended_outcome"
+    },
+    {
+      "case": "prediction_current_membership",
+      "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
+      "test_function": "test_qlib_prediction_filters_instruments_at_actual_prediction_date"
         },
         {
           "case": "configured_star_volume",
