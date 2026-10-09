@@ -5266,8 +5266,9 @@
           "capacity_rehearsal_ceiling"
         ],
         "apps/data_center/infrastructure/financial_capacity_checkpoint_codec.py": [
-          "financial-publication-capacity-checkpoint.v5",
-          "schema != \"financial-publication-capacity-checkpoint.v5\""
+          "financial-publication-capacity-checkpoint.v6",
+          "if schema not in {",
+          "financial capacity checkpoint schema is invalid"
         ],
         "apps/data_center/infrastructure/financial_capacity_governance.py": [
           "DjangoFinancialCapacityGovernanceSource",
@@ -5498,7 +5499,8 @@
           "require_decision_evidence=True"
         ],
         "apps/equity/application/tasks_valuation_sync.py": [
-          "require_decision_evidence=True"
+          "FINANCIAL_CAPACITY_RECEIPT_REQUIRED",
+          "return _financial_capacity_blocked_payload(requested_stock_count=len(active_stock_codes))"
         ],
         "apps/data_center/infrastructure/_provider_adapter_tushare.py": [
           "observed_at=cn_market_session_close_utc(record.trade_date)",
@@ -6368,9 +6370,9 @@
           "test_function": "test_core_refresh_source_probe_blocks_before_any_normalized_write"
         },
         {
-          "case": "equity_financial_task_requires_decision_evidence",
+          "case": "equity_legacy_financial_task_requires_capacity_receipt",
           "test_file": "tests/unit/equity/test_valuation_sync_tasks.py",
-          "test_function": "test_sync_financial_data_task_uses_explicit_codes_without_legacy_filter"
+          "test_function": "test_sync_financial_data_task_blocks_scopes_without_governed_budget"
         },
         {
           "case": "on_demand_financial_requires_decision_evidence",
