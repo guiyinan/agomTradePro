@@ -3502,7 +3502,13 @@ def test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workfl
     def commit_then_disconnect(*args: object, **kwargs: object) -> Iterator[None]:
         with original_atomic(*args, **kwargs):
             yield
-        if not lost_acknowledgments:
+        if (
+            not lost_acknowledgments
+            and not connection.in_atomic_block
+            and connection.get_autocommit()
+        ):
+            # QuerySet.bulk_create exits its own savepoint before the repository's
+            # outer transaction commits. Inject only after the durable boundary.
             lost_acknowledgments.append("after-commit")
             raise DatabaseError("injected lost PostgreSQL commit acknowledgment")
 
