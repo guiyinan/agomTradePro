@@ -6,6 +6,7 @@ import json
 import os
 from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
@@ -22,7 +23,14 @@ import psycopg
 import pytest
 from cryptography.fernet import Fernet
 from django.apps import apps
-from django.db import IntegrityError, OperationalError, connection, connections, transaction
+from django.db import (
+    DatabaseError,
+    IntegrityError,
+    OperationalError,
+    connection,
+    connections,
+    transaction,
+)
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.migrations.state import ProjectState
 from django.db.utils import load_backend
@@ -60,6 +68,7 @@ from apps.data_center.application.egress_service import (
 from apps.data_center.application.financial_publication_capacity import (
     FinancialCapacityBinding,
     FinancialCapacityCheckpoint,
+    FinancialCapacityManifestSnapshot,
     FinancialCapacityPublicationIndeterminateError,
     FinancialCapacityPublicationPlan,
     FinancialCapacityReceipt,
@@ -72,6 +81,7 @@ from apps.data_center.application.financial_publication_capacity import (
 )
 from apps.data_center.application.financial_scope_capacity_input import (
     install_financial_scope_manifest_pointer,
+    prepare_financial_scope_manifest_pointer,
 )
 from apps.data_center.application.publication_activation import (
     ActivateCanonicalPublicationGroupUseCase,
@@ -108,6 +118,7 @@ from apps.data_center.domain.financial_scope_discovery import (
     FinancialScopeDiscoveryAuthorization,
     FinancialScopeDiscoveryBinding,
     make_candidate,
+    universe_sha256,
 )
 from apps.data_center.domain.raw_audit_manifest import (
     CandidateRawAuditManifest,
@@ -149,6 +160,9 @@ from apps.data_center.infrastructure.financial_response_artifact_repository impo
 from apps.data_center.infrastructure.financial_response_body_store import (
     FinancialResponseBodyStore,
 )
+from apps.data_center.infrastructure.financial_scope_capacity_import_authority import (
+    DjangoFinancialScopeCapacityImportAuthoritySource,
+)
 from apps.data_center.infrastructure.financial_scope_discovery_governance import (
     DjangoFinancialScopeManifestReviewSource,
 )
@@ -168,12 +182,14 @@ from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
     FinancialCapacityGovernanceRecordModel,
+    FinancialCapacityGovernanceRevocationModel,
     FinancialCapacityOwnerApprovalEventModel,
     FinancialFactModel,
     FinancialPublicationCapacityManifestItemModel,
     FinancialPublicationCapacityWorkflowModel,
     FinancialScopeCapacityImportConsumptionModel,
     FinancialScopeCapacityImportModel,
+    FinancialScopeManifestCurrentPointerModel,
     FinancialSourceTimeAuditClaimModel,
     PriceBarModel,
     ProviderConfigModel,
@@ -331,6 +347,10 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         FinancialFactModel,
         FinancialPublicationCapacityWorkflowModel,
         FinancialPublicationCapacityManifestItemModel,
+        FinancialCapacityGovernanceRecordModel,
+        FinancialCapacityGovernanceRevocationModel,
+        FinancialCapacityOwnerApprovalEventModel,
+        FinancialScopeManifestCurrentPointerModel,
         FinancialScopeCapacityImportModel,
         FinancialScopeCapacityImportConsumptionModel,
         ValuationFactModel,
@@ -458,6 +478,10 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             FinancialFactModel,
             FinancialPublicationCapacityWorkflowModel,
             FinancialPublicationCapacityManifestItemModel,
+            FinancialCapacityGovernanceRecordModel,
+            FinancialCapacityGovernanceRevocationModel,
+            FinancialCapacityOwnerApprovalEventModel,
+            FinancialScopeManifestCurrentPointerModel,
             FinancialScopeCapacityImportModel,
             FinancialScopeCapacityImportConsumptionModel,
             ValuationFactModel,
@@ -2795,7 +2819,9 @@ def _financial_scope_report_for_capacity_pg_universe(
     }
 
 
-def _install_financial_scope_pg_reviews(report: dict[str, object]) -> None:
+def _install_financial_scope_pg_reviews(
+    report: dict[str, object], *, environment: str = "isolated"
+) -> None:
     """Persist separately authenticated owner and reviewer events for the exact report."""
 
     report_bytes = json.dumps(
@@ -2827,7 +2853,7 @@ def _install_financial_scope_pg_reviews(report: dict[str, object]) -> None:
             "event_id": f"pg-scope-review-event-{suffix}-{report_sha256[:12]}",
             "approval_receipt_sha256": ("d" if suffix == "owner" else "e") * 64,
             "role": role,
-            "environment": "isolated",
+            "environment": environment,
             "report_sha256": report_sha256,
             "approved_at": timezone.now().isoformat(),
             "expires_at": (timezone.now() + timedelta(days=1)).isoformat(),
@@ -2965,6 +2991,37 @@ def _financial_scope_capacity_import_row_for_pg_test() -> FinancialScopeCapacity
     )
 
 
+def test_financial_scope_import_locks_nullable_revocation_join_on_postgresql(
+    actual_publication_pg,
+) -> None:
+    """Importer locks governance rows without asking PostgreSQL to lock a nullable join."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure.financial_scope_capacity_import_runtime import (
+        _lock_authority_rows,
+    )
+
+    approval_ids = (
+        "pg-scope-owner-lock",
+        "pg-scope-reviewer-lock",
+        "pg-capacity-ceiling-lock",
+    )
+    for approval_id in approval_ids:
+        FinancialCapacityGovernanceRecordModel.objects.create(
+            approval_id=approval_id,
+            stage=FinancialCapacityGovernanceRecordModel.SCOPE_MANIFEST_REVIEW,
+            record={},
+            created_by="pg-lock-test-operator",
+        )
+
+    with transaction.atomic():
+        _lock_authority_rows(
+            owner_approval_id=approval_ids[0],
+            reviewer_approval_id=approval_ids[1],
+            ceiling_approval_id=approval_ids[2],
+        )
+
+
 def _formal_checkpoint_for_pg_import_test(
     *, scope_import: FinancialScopeCapacityImportModel, workflow_id: str
 ) -> FinancialCapacityCheckpoint:
@@ -3064,6 +3121,363 @@ def _formal_checkpoint_for_pg_import_test(
         active_universe_sha256=scope_import.financial_universe_sha256,
         scope_capacity_import_id=str(scope_import.import_id),
         scope_capacity_import_record_sha256=scope_import.record_sha256,
+    )
+
+
+def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -> tuple[
+    DjangoFinancialScopeCapacityImportAuthoritySource,
+    FinancialScopeCapacityImportModel,
+    FinancialCapacityCheckpoint,
+    str,
+    str,
+]:
+    """Build a PG import with real current pointer, review, and owner-ceiling rows."""
+
+    from apps.data_center.application.financial_scope_capacity_input import (
+        _parse_reviewable_report,
+    )
+    from apps.data_center.application.financial_scope_capacity_receipt import canonical_sha256
+
+    now = timezone.now().astimezone(UTC) + timedelta(seconds=60)
+    binding = FinancialCapacityBinding(
+        environment="production",
+        candidate_sha="f" * 40,
+        provider_id=17,
+        provider_name="akshare",
+        provider_source="akshare",
+        provider_identity_sha256="c" * 64,
+        contract_id="pg-capacity-contract",
+        contract_version="1",
+        contract_sha256="3" * 64,
+        parser_id="pg-capacity-parser",
+        parser_sha256="4" * 64,
+        deployment_region="postgres-ci",
+        publication_policy_version="3",
+        publication_policy_sha256="5" * 64,
+    )
+    asset_codes = ("000001.SZ",)
+    report = _financial_scope_report_for_capacity_pg_universe(
+        binding=binding,
+        asset_codes=asset_codes,
+        typed_fact=SimpleNamespace(source_record_id="akshare:000001.SZ:2026-06-30:2026-09-30"),
+        now=now,
+    )
+    _install_financial_scope_pg_reviews(report, environment="production")
+    report_sha256 = canonical_sha256(report)
+    review_source = DjangoFinancialScopeManifestReviewSource()
+    pointer = prepare_financial_scope_manifest_pointer(
+        report_payload=report,
+        environment="production",
+        review_source=review_source,
+        updated_by="pg-financial-scope-operator",
+        now=now,
+    )
+    pointer_source = DjangoFinancialScopeManifestCurrentPointerSource()
+    current_pointer = pointer_source.get_current(environment="production")
+    pointer_source.set_current(
+        pointer,
+        expected_revision=current_pointer.revision if current_pointer is not None else 0,
+    )
+    candidate, parsed_report_sha256 = _parse_reviewable_report(
+        report,
+        environment="production",
+    )
+    if parsed_report_sha256 != report_sha256:
+        raise AssertionError("the production scope report digest changed during setup")
+
+    formal_manifest = (FinancialPublicationSlice("000001.SZ", date(2026, 9, 30)),)
+    typed_source_snapshot_sha256 = "9" * 64
+    snapshot = FinancialCapacityManifestSnapshot.build(
+        slices=formal_manifest,
+        active_universe_sha256=universe_sha256(asset_codes),
+        typed_source_snapshot_sha256=typed_source_snapshot_sha256,
+    )
+    authority = DjangoFinancialScopeCapacityImportAuthoritySource()
+    authority._binding_source = SimpleNamespace(snapshot=lambda **_kwargs: binding)
+    authority._manifest_source = SimpleNamespace(freeze=lambda **_kwargs: snapshot)
+
+    receipt_sha256 = hashlib.sha256(f"{workflow_id}:receipt".encode()).hexdigest()
+    ceiling_approval_id = f"pg-capacity-ceiling-{workflow_id}"
+    ceiling_event_id = f"pg-capacity-ceiling-event-{workflow_id}"
+    ceiling_payload: dict[str, object] = {
+        "approval_id": ceiling_approval_id,
+        "approved_by": "pg-independent-capacity-owner",
+        "approved_at": (now - timedelta(minutes=1)).isoformat(),
+        "approval_receipt_sha256": "b" * 64,
+        "receipt_sha256": receipt_sha256,
+        "binding": binding.to_dict(),
+        "manifest_sha256": candidate.manifest_sha256,
+        "maximum_slices": 1,
+        "maximum_provider_requests": 2,
+        "expires_at": (now + timedelta(days=1)).isoformat(),
+        "approved": True,
+    }
+    ceiling_record = FinancialCapacityGovernanceRecordModel.objects.create(
+        approval_id=ceiling_approval_id,
+        stage=FinancialCapacityGovernanceRecordModel.PRODUCTION,
+        record=ceiling_payload,
+        created_by="pg-capacity-ceiling-recorder",
+    )
+    FinancialCapacityOwnerApprovalEventModel.objects.create(
+        governance_record=ceiling_record,
+        event_id=ceiling_event_id,
+        approved_by=str(ceiling_payload["approved_by"]),
+        approved_at=datetime.fromisoformat(str(ceiling_payload["approved_at"])),
+        approval_receipt_sha256=str(ceiling_payload["approval_receipt_sha256"]),
+        record_sha256=canonical_sha256(ceiling_payload),
+    )
+
+    imported_at = now
+    review_ids = {
+        "owner_approval_id": f"pg-scope-review-owner-{report_sha256[:12]}",
+        "owner_event_id": f"pg-scope-review-event-owner-{report_sha256[:12]}",
+        "reviewer_approval_id": f"pg-scope-review-reviewer-{report_sha256[:12]}",
+        "reviewer_event_id": f"pg-scope-review-event-reviewer-{report_sha256[:12]}",
+    }
+    record_payload: dict[str, object] = {
+        "schema": "data-center.financial-scope-capacity-import.v1",
+        "environment": "production",
+        "release_manifest_sha256": "1" * 64,
+        "capacity_receipt_raw_sha256": "2" * 64,
+        "scope_report_raw_sha256": "3" * 64,
+        "scope_report_review_sha256": report_sha256,
+        "receipt_sha256": receipt_sha256,
+        "scope_pointer_sha256": canonical_sha256({"kind": "scope-pointer", "id": workflow_id}),
+        "candidate_sha": binding.candidate_sha,
+        "candidate_image_id": "sha256:" + "7" * 64,
+        "target_trade_date": "2026-10-09",
+        "release_universe_sha256": "8" * 64,
+        "provider_identities_sha256": "6" * 64,
+        "scope_manifest_sha256": candidate.manifest_sha256,
+        "financial_universe_sha256": candidate.universe_sha256,
+        "financial_provider_id": binding.provider_id,
+        "financial_provider_identity_sha256": binding.provider_identity_sha256,
+        "source_revision_sha256": snapshot.source_revision_sha256,
+        "evidence_ledger_sha256": "d" * 64,
+        "artifact_ledger_sha256": "e" * 64,
+        "runtime_binding": binding.to_dict(),
+        "review": review_ids,
+        "production_ceiling": {
+            "approval_id": ceiling_approval_id,
+            "event_id": ceiling_event_id,
+            "record_sha256": canonical_sha256(ceiling_payload),
+            "maximum_slices": 1,
+            "maximum_provider_requests": 2,
+        },
+        "imported_by": "pg-financial-scope-importer",
+        "imported_at": imported_at.isoformat(),
+        "capacity_receipt": {"receipt_sha256": receipt_sha256},
+        "scope_report": report,
+    }
+    record_sha256 = canonical_sha256(record_payload)
+    record_payload["record_sha256"] = record_sha256
+    scope_import = FinancialScopeCapacityImportModel.objects.create(
+        import_id=uuid4(),
+        environment="production",
+        release_manifest_sha256="1" * 64,
+        capacity_receipt_raw_sha256="2" * 64,
+        scope_report_raw_sha256="3" * 64,
+        scope_report_review_sha256=report_sha256,
+        receipt_sha256=receipt_sha256,
+        scope_pointer_sha256=canonical_sha256({"kind": "scope-pointer", "id": workflow_id}),
+        candidate_sha=binding.candidate_sha,
+        candidate_image_id="sha256:" + "7" * 64,
+        target_trade_date=date(2026, 10, 9),
+        release_universe_sha256="8" * 64,
+        provider_identities_sha256="6" * 64,
+        scope_manifest_sha256=candidate.manifest_sha256,
+        financial_universe_sha256=candidate.universe_sha256,
+        financial_provider_id=binding.provider_id,
+        financial_provider_identity_sha256=binding.provider_identity_sha256,
+        source_revision_sha256=snapshot.source_revision_sha256,
+        evidence_ledger_sha256="d" * 64,
+        artifact_ledger_sha256="e" * 64,
+        owner_approval_id=review_ids["owner_approval_id"],
+        owner_event_id=review_ids["owner_event_id"],
+        reviewer_approval_id=review_ids["reviewer_approval_id"],
+        reviewer_event_id=review_ids["reviewer_event_id"],
+        production_ceiling_approval_id=ceiling_approval_id,
+        production_ceiling_event_id=ceiling_event_id,
+        production_ceiling_record_sha256=canonical_sha256(ceiling_payload),
+        record_payload=record_payload,
+        record_sha256=record_sha256,
+        imported_by="pg-financial-scope-importer",
+        imported_at=imported_at,
+    )
+    checkpoint = _formal_checkpoint_for_pg_import_test(
+        scope_import=scope_import,
+        workflow_id=workflow_id,
+    )
+    return (
+        authority,
+        scope_import,
+        checkpoint,
+        ceiling_approval_id,
+        review_ids["reviewer_approval_id"],
+    )
+
+
+def test_formal_scope_import_authority_rechecks_real_postgresql_rows(
+    actual_publication_pg,
+) -> None:
+    """Consume only a hash-valid import with live dual review and production ceiling rows."""
+
+    del actual_publication_pg
+    failure_expectations = {
+        "review_revoked": "financial_capacity_scope_import_authority_revoked_or_missing",
+        "ceiling_drift": "financial_capacity_scope_import_ceiling_revoked_or_expired",
+        "import_digest_tampered": "financial_capacity_scope_import_invalid",
+    }
+    for authority_change in ("happy", *failure_expectations):
+        authority, scope_import, checkpoint, ceiling_approval_id, reviewer_approval_id = (
+            _seed_real_financial_scope_capacity_authority_pg_case(
+                workflow_id=f"pg-real-scope-authority-{authority_change}"
+            )
+        )
+        expected_error = failure_expectations.get(authority_change)
+        if authority_change == "review_revoked":
+            review_record = FinancialCapacityGovernanceRecordModel.objects.get(
+                approval_id=reviewer_approval_id
+            )
+            FinancialCapacityGovernanceRevocationModel.objects.create(
+                governance_record=review_record,
+                revoked_by="pg-scope-authority-red-team",
+            )
+        elif authority_change == "ceiling_drift":
+            ceiling_record = FinancialCapacityGovernanceRecordModel.objects.get(
+                approval_id=ceiling_approval_id
+            )
+            changed_payload = dict(ceiling_record.record)
+            changed_payload["maximum_provider_requests"] = 4
+            FinancialCapacityGovernanceRecordModel.objects.filter(pk=ceiling_record.pk).update(
+                record=changed_payload
+            )
+        elif authority_change == "import_digest_tampered":
+            changed_payload = dict(scope_import.record_payload)
+            changed_payload["scope_report_raw_sha256"] = "f" * 64
+            FinancialScopeCapacityImportModel.objects.filter(pk=scope_import.pk).update(
+                record_payload=changed_payload
+            )
+            assert authority.load_record_sha256(str(scope_import.import_id)) is None
+
+        if expected_error is None:
+            assert (
+                authority.load_record_sha256(str(scope_import.import_id))
+                == scope_import.record_sha256
+            )
+            with transaction.atomic():
+                authority.consume_formal_start(checkpoint, now=checkpoint.started_at)
+            consumption = FinancialScopeCapacityImportConsumptionModel.objects.get(
+                scope_import=scope_import
+            )
+            assert consumption.workflow_id == checkpoint.workflow_id
+            assert consumption.record_sha256 == scope_import.record_sha256
+        else:
+            with pytest.raises(FinancialCapacityWorkflowError, match=expected_error):
+                with transaction.atomic():
+                    authority.consume_formal_start(checkpoint, now=checkpoint.started_at)
+            assert not FinancialScopeCapacityImportConsumptionModel.objects.filter(
+                scope_import=scope_import
+            ).exists()
+
+
+def test_formal_scope_import_authority_rejects_candidate_provider_and_universe_drift_postgresql(
+    actual_publication_pg,
+) -> None:
+    """The real import row cannot resume under a changed candidate, provider, or universe."""
+
+    del actual_publication_pg
+    authority, scope_import, checkpoint, _ceiling_approval_id, _reviewer_approval_id = (
+        _seed_real_financial_scope_capacity_authority_pg_case(
+            workflow_id="pg-real-scope-authority-binding-drift"
+        )
+    )
+    base_kwargs = {
+        "import_id": str(scope_import.import_id),
+        "record_sha256": scope_import.record_sha256,
+        "workflow_id": checkpoint.workflow_id,
+        "manifest_sha256": checkpoint.manifest_sha256,
+        "active_universe_sha256": checkpoint.active_universe_sha256,
+        "source_revision_sha256": checkpoint.source_revision_sha256,
+        "now": checkpoint.started_at,
+        "expected_consumed": False,
+    }
+    assert (
+        authority.validate_current(
+            **base_kwargs,
+            binding=replace(checkpoint.binding, candidate_sha="0" * 40),
+        )
+        == "financial_capacity_scope_import_candidate_drift"
+    )
+    assert (
+        authority.validate_current(
+            **base_kwargs,
+            binding=replace(checkpoint.binding, provider_id=checkpoint.binding.provider_id + 1),
+        )
+        == "financial_capacity_scope_import_candidate_drift"
+    )
+    wrong_universe_kwargs = dict(base_kwargs)
+    wrong_universe_kwargs["active_universe_sha256"] = "0" * 64
+    assert (
+        authority.validate_current(
+            **wrong_universe_kwargs,
+            binding=checkpoint.binding,
+        )
+        == "financial_capacity_scope_drift"
+    )
+
+
+def test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workflow_postgresql(
+    actual_publication_pg,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Recover the exact durable start after PostgreSQL commits but loses its acknowledgment."""
+
+    del actual_publication_pg
+    from apps.data_center.infrastructure import financial_capacity_checkpoint_repository as repo
+
+    authority, scope_import, checkpoint, _ceiling_approval_id, _reviewer_approval_id = (
+        _seed_real_financial_scope_capacity_authority_pg_case(
+            workflow_id="pg-real-scope-authority-commit-unknown"
+        )
+    )
+    original_atomic = transaction.atomic
+    lost_acknowledgments: list[str] = []
+
+    @contextmanager
+    def commit_then_disconnect(*args: object, **kwargs: object) -> Iterator[None]:
+        with original_atomic(*args, **kwargs):
+            yield
+        if not lost_acknowledgments:
+            lost_acknowledgments.append("after-commit")
+            raise DatabaseError("injected lost PostgreSQL commit acknowledgment")
+
+    monkeypatch.setattr(repo.transaction, "atomic", commit_then_disconnect)
+    repository = repo.DjangoFinancialCapacityCheckpointRepository(
+        scope_capacity_import_authority_source=authority
+    )
+
+    persisted = repository.create(checkpoint)
+
+    assert lost_acknowledgments == ["after-commit"]
+    assert persisted.workflow_id == checkpoint.workflow_id
+    assert (
+        FinancialScopeCapacityImportConsumptionModel.objects.get(
+            scope_import=scope_import
+        ).workflow_id
+        == checkpoint.workflow_id
+    )
+    assert (
+        FinancialPublicationCapacityWorkflowModel.objects.filter(
+            workflow_id=checkpoint.workflow_id
+        ).count()
+        == 1
+    )
+    assert (
+        FinancialPublicationCapacityManifestItemModel.objects.filter(
+            workflow_id=checkpoint.workflow_id
+        ).count()
+        == 1
     )
 
 

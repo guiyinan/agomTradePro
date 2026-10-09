@@ -501,7 +501,7 @@ def _lock_authority_rows(
 ) -> None:
     approval_ids = (owner_approval_id, reviewer_approval_id, ceiling_approval_id)
     rows = tuple(
-        FinancialCapacityGovernanceRecordModel._default_manager.select_for_update()
+        FinancialCapacityGovernanceRecordModel._default_manager.select_for_update(of=("self",))
         .filter(approval_id__in=approval_ids, revocation__isnull=True)
         .order_by("approval_id")
     )

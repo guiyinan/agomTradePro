@@ -157,6 +157,10 @@ jobs:
           tests/component/data_center/test_publication_read_snapshot_postgres.py::test_formal_start_import_event_failure_rolls_back_all_rows_postgresql
           tests/component/data_center/test_publication_read_snapshot_postgres.py::test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_is_blocked_postgresql
           tests/component/data_center/test_publication_read_snapshot_postgres.py::test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_financial_scope_import_locks_nullable_revocation_join_on_postgresql
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_formal_scope_import_authority_rechecks_real_postgresql_rows
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_formal_scope_import_authority_rejects_candidate_provider_and_universe_drift_postgresql
+          tests/component/data_center/test_publication_read_snapshot_postgres.py::test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workflow_postgresql
           --ds=tests.settings_data_center_sync_identity
           --confcutdir=tests/component/data_center
           -q -o addopts='' --junitxml=financial-capacity-postgres.xml
@@ -462,12 +466,16 @@ jobs:
               'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_start_import_event_failure_rolls_back_all_rows_postgresql',
               'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_start_same_workflow_retry_reconciles_and_other_workflow_replay_is_blocked_postgresql',
               'tests.component.data_center.test_publication_read_snapshot_postgres::test_concurrent_formal_start_replay_has_one_postgresql_consumption_winner',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_financial_scope_import_locks_nullable_revocation_join_on_postgresql',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_authority_rechecks_real_postgresql_rows',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_authority_rejects_candidate_provider_and_universe_drift_postgresql',
+              'tests.component.data_center.test_publication_read_snapshot_postgres::test_formal_scope_import_commit_unknown_after_commit_reads_back_exact_workflow_postgresql',
           }
           observed_financial_capacity_cases = {
               f"{case.get('classname')}::{case.get('name')}"
               for case in financial_capacity_cases
           }
-          assert len(financial_capacity_cases) == 9, 'Expected financial capacity PostgreSQL cases were not collected'
+          assert len(financial_capacity_cases) == 13, 'Expected financial capacity PostgreSQL cases were not collected'
           assert observed_financial_capacity_cases == expected_financial_capacity_cases, 'Financial capacity PostgreSQL case identities changed'
           assert len(financial_slice_cases) == 12, 'Expected financial slice and capacity cases were not collected'
           assert snapshot_report['outcome'] == 'success'

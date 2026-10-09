@@ -230,7 +230,9 @@ class DjangoFinancialScopeCapacityImportAuthoritySource:
         )
         if lock_authorities:
             locked_ids = tuple(
-                FinancialCapacityGovernanceRecordModel._default_manager.select_for_update()
+                FinancialCapacityGovernanceRecordModel._default_manager.select_for_update(
+                    of=("self",)
+                )
                 .filter(approval_id__in=authority_ids, revocation__isnull=True)
                 .order_by("approval_id")
                 .values_list("approval_id", flat=True)
