@@ -9,11 +9,29 @@ from pathlib import Path
 
 import yaml
 
-from scripts.validate_release_rehearsal import REQUIRED_POSTGRESQL_TESTS
-
 ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_PATH = ROOT / ".github/workflows/ci-publication-postgres.yml"
+VALIDATOR_PATH = ROOT / "scripts/validate_release_rehearsal.py"
 EVIDENCE_ARTIFACT = "publication-postgres-evidence"
+
+
+def _required_postgresql_tests() -> tuple[str, ...]:
+    """Read the validator's literal inventory without importing an operational script."""
+
+    module = ast.parse(VALIDATOR_PATH.read_text(encoding="utf-8"))
+    assignment = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "REQUIRED_POSTGRESQL_TESTS"
+            for target in node.targets
+        )
+    )
+    value = ast.literal_eval(assignment.value)
+    assert isinstance(value, tuple)
+    assert all(isinstance(item, str) for item in value)
+    return value
 
 
 def _evidence_gate_source() -> tuple[str, set[str]]:
@@ -75,6 +93,7 @@ def test_postgres_evidence_gate_accepts_additional_testcases(
 
     python_source, artifact_junit_files = _evidence_gate_source()
     extra_case = "tests.extra.test_future_publication_case::test_added_case"
+    required_postgresql_tests = _required_postgresql_tests()
 
     def testcase(identity: str) -> str:
         classname, name = identity.rsplit("::", maxsplit=1)
@@ -82,7 +101,7 @@ def test_postgres_evidence_gate_accepts_additional_testcases(
 
     for filename in artifact_junit_files:
         identities = (
-            (*REQUIRED_POSTGRESQL_TESTS, extra_case)
+            (*required_postgresql_tests, extra_case)
             if filename == "publication-postgres.xml"
             else (extra_case,)
         )

@@ -185,6 +185,7 @@
         "tests/unit/test_remote_build_deploy_vps.py",
         "tests/unit/test_validate_release_rehearsal.py",
         "tests/unit/test_vps_web_watchdog.py",
+        "tests/unit/ci/test_publication_postgres_workflow.py",
         "tests/unit/ci/test_select_tests.py",
         "tests/unit/test_verify_postgres_backup_restore.py"
       ],

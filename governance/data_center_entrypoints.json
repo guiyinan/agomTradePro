@@ -26,17 +26,17 @@
       "script": 14,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 86,
+      "test_evidence": 87,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 835,
+      "active_public": 836,
       "adjacent_operational": 337,
       "candidate-review": 2,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1312
+    "total": 1313
   },
   "entries": [
     {
@@ -12697,6 +12697,16 @@
       "path": "tests/unit/audit/test_system_audit_archive.py",
       "status": "adjacent_operational",
       "symbol": "test_system_audit_archive",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/ci/test_publication_postgres_workflow.py:test_publication_postgres_workflow:",
+      "locator": "",
+      "path": "tests/unit/ci/test_publication_postgres_workflow.py",
+      "status": "active_public",
+      "symbol": "test_publication_postgres_workflow",
       "target": ""
     },
     {
