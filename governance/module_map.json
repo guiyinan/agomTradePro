@@ -4338,6 +4338,11 @@
           "RetainFinancialResponseFailureUseCase",
           "RetainedFinancialResponsePayload"
         ],
+        "application/financial_scope_capacity_import.py": [
+          "FinancialScopeCapacityArtifactDigest",
+          "FinancialScopeCapacityImportError",
+          "prepare_financial_scope_capacity_import_record"
+        ],
         "application/financial_scope_capacity_input.py": [
           "FinancialScopeCapacityInput",
           "FinancialScopeCapacityInputError",
@@ -5094,11 +5099,11 @@
         ]
       },
       "layers": {
-        "application": 133,
+        "application": 134,
         "domain": 35,
-        "infrastructure": 177,
+        "infrastructure": 178,
         "interface": 19,
-        "management": 39,
+        "management": 40,
         "root": 21
       },
       "orm_models": {
@@ -5122,7 +5127,8 @@
           "FinancialCapacityGovernanceRecordModel",
           "FinancialCapacityGovernanceRevocationModel",
           "FinancialCapacityOwnerApprovalEventModel",
-          "FinancialScopeManifestCurrentPointerModel"
+          "FinancialScopeManifestCurrentPointerModel",
+          "FinancialScopeCapacityImportModel"
         ]
       }
     },
