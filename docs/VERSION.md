@@ -103,10 +103,10 @@ When cutting a new formal version:
 
 - [ ] Update `core/version.py`
 - [ ] Update `pyproject.toml`
-- [ ] Update `AGENTS.md`
+- [ ] Update `AGENTS.md` only when agent policy or documentation routing changed; it links here instead of duplicating the release version
 - [ ] Update `README.md`
 - [ ] Update `README_EN.md`
-- [ ] Update `docs/INDEX.md`
+- [ ] Update `docs/INDEX.md` only when release navigation or linked documents changed
 - [ ] Update `governance/governance_baseline.json` only when code-derived governance facts changed
 - [ ] Update `docs/governance/SYSTEM_BASELINE.md` only when its narrative, source mapping, or deployment posture changed
 - [ ] Run `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
@@ -115,4 +115,4 @@ When cutting a new formal version:
 ---
 
 **Maintainer**: AgomTradePro Team
-**Last updated**: `2026-07-05`
+**Last updated**: `2026-10-09`

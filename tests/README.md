@@ -1,5 +1,10 @@
 # AgomTradePro SDK & MCP Testing Guide
 
+Historical NBS/PMI network probes are retained in `tests/diagnostics/nbs_probes/`.
+They are manual diagnostic scripts, not automated regression evidence; run them
+explicitly from the repository root only when investigating those providers.
+Do not add new one-off probes to the `tests/` root.
+
 ## Quick Start
 
 ### Prerequisites
