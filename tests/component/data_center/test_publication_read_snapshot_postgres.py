@@ -2868,7 +2868,7 @@ def _pg_financial_fact_contract(*, asset_code: str, source_record_id: str) -> Fi
 
 
 def _install_financial_scope_pg_reviews(
-    report: dict[str, object], *, environment: str = "isolated"
+    report: dict[str, object], *, now: datetime, environment: str = "isolated"
 ) -> None:
     """Persist separately authenticated owner and reviewer events for the exact report."""
 
@@ -2903,8 +2903,8 @@ def _install_financial_scope_pg_reviews(
             "role": role,
             "environment": environment,
             "report_sha256": report_sha256,
-            "approved_at": timezone.now().isoformat(),
-            "expires_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "approved_at": now.isoformat(),
+            "expires_at": (now + timedelta(days=1)).isoformat(),
         }
         governance_record = FinancialCapacityGovernanceRecordModel.objects.create(
             approval_id=str(record_payload["approval_id"]),
@@ -2972,7 +2972,7 @@ def test_financial_capacity_formal_manifest_uses_asset_subquery_for_5572_active_
         typed_fact=typed_fact,
         now=now,
     )
-    _install_financial_scope_pg_reviews(scope_report)
+    _install_financial_scope_pg_reviews(scope_report, now=now)
     install_financial_scope_manifest_pointer(
         pointer_source=DjangoFinancialScopeManifestCurrentPointerSource(),
         review_source=DjangoFinancialScopeManifestReviewSource(),
@@ -3213,7 +3213,7 @@ def _seed_real_financial_scope_capacity_authority_pg_case(*, workflow_id: str) -
         ),
         now=now,
     )
-    _install_financial_scope_pg_reviews(report, environment="production")
+    _install_financial_scope_pg_reviews(report, now=now, environment="production")
     report_sha256 = canonical_sha256(report)
     review_source = DjangoFinancialScopeManifestReviewSource()
     pointer = prepare_financial_scope_manifest_pointer(
