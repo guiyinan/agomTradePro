@@ -25,8 +25,6 @@ from tests.component.account.test_owner_tenant_authority_v2_composition import (
 )
 from tests.unit.research.test_evidence_contracts import _spec
 
-pytest_plugins = ["tests.component.account.test_owner_tenant_authority_v2_composition"]
-
 
 @pytest.fixture
 def owner_evidence_alias(owner_physical_alias):
