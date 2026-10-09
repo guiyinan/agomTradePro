@@ -3323,3 +3323,28 @@ reconciliation 与完整 artifact validator 因前序失败未执行；13 个 fi
 
 下一片是否可开始：可以提交本节台账、push 新最终 SHA 并重新绑定五组 CI。只有同一 SHA 五组全绿且完整 artifact 零
 skip/failure/error，才可进入 fresh S6。
+
+##### 2026-10-09 Publication PostgreSQL 官方证据身份门禁去计数化
+
+完成项：候选 `695087ebb8ab4fb029ef563c029d0fde10d02279` 的 Architecture `37894259503`、Security
+`37894259487`、Consistency `37894259373` 与 Fast Feedback `37894259477` 通过；Publication PostgreSQL `37894259379`
+的全部功能阶段也通过，包括 13 个 financial-capacity、12 个 financial slice、8 个 Account final-revalidation/outer-fence、
+5,001 member soak、控制面、角色迁移、statement logging 与 SQLite 快照。官方 artifact `11600261047`（API SHA-256
+`1f2a952ac2e8b01c64c90f9a7daf57b8cc72bfdd0de2aba8269a41e1f7f2f324`）共 98 个 testcase，全部零 skip/failure/error；
+SQLite source/serialized/fixture 均为 291 行且 mismatches 为空。run 仅在最终 evidence guard 失败，因为 workflow 将
+`publication-postgres.xml` 总数硬编码为 42，而实际随测试新增已为 50。
+
+提交 `fb62856f8` 将门禁从易漂移的 suite 总数改为业务不变量：八个官方 JUnit 文件必须逐个存在、非空并包含 testcase；聚合后任何
+skip/failure/error 都拒绝；全部 `scripts.validate_release_rehearsal.REQUIRED_POSTGRESQL_TESTS` 身份必须出现。删除 42/2/9/1/8/3/13/12
+等重复总数和 workflow 内第二份 financial-capacity 身份清单；critical identity 的单一真源及集合没有删减。新增测试解析 workflow 的嵌入
+Python 与 artifact 清单，禁止恢复硬编码 case 总数，并证明新增额外 testcase 在所有 required identities 齐全时不会造成假失败。
+
+测试计数：workflow contract `2 passed`，release validator `140 passed`，合计 `142 passed`；修改后的门禁已对上述真实官方 artifact
+离线执行通过。PyYAML、Black、isort、Ruff 与 `git diff --check` 通过；本机没有 `actionlint`，因此 GitHub workflow 的平台级解析仍由新 CI
+验证，未以未报错替代。
+
+未验证风险与停止线：workflow 逻辑变化后的新 exact-SHA Publication PostgreSQL 必须自身成功并重新产生 official artifact；不能把旧 artifact
+功能全绿与新 workflow 拼接。门禁只证明已知 `REQUIRED_POSTGRESQL_TESTS` 和八个官方 suite，不能证明未知环境类别已穷尽。fresh S6、同镜像部署、
+production financial authority/refresh 与普通用户 UAT 均未开始，全部生产停止线保持不变。
+
+下一片是否可开始：可以提交本节台账、push 新最终 SHA，并从头绑定五组 CI。只有同一 SHA 五组全绿并核验新 artifact 后，才可启动 fresh S6。
