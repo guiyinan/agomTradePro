@@ -27,6 +27,7 @@
     {"code": "provider_capability_recent_failure", "owner": "data_center"},
     {"code": "provider_capability_success_stale", "owner": "data_center"},
     {"code": "readiness_calendar_coverage_unavailable", "owner": "operational_readiness"},
+    {"code": "renewal_transaction_rejected", "owner": "audit"},
     {"code": "section_evidence_missing", "owner": "equity"},
     {"code": "upstream_read_failed", "owner": "equity"}
   ],
@@ -40,6 +41,16 @@
       "path": "apps/audit/infrastructure/system_audit_authority_renewal_executor.py",
       "symbol": "def _blocked",
       "pattern": "^renewal_(?:command_failed|request_(?:not_configured|not_found|unavailable)|result_invalid)$"
+    },
+    {
+      "path": "apps/audit/management/commands/recover_system_audit_authority.py",
+      "symbol": "def _blocked_payload",
+      "pattern": "^recovery_(?:envelope_consumed|identity_conflict|preflight_unavailable|transaction_rejected)$"
+    },
+    {
+      "path": "apps/audit/management/commands/renew_system_audit_authority.py",
+      "symbol": "def _blocked_payload",
+      "pattern": "^(?:actor_authority_not_current|actor_capture_(?:corrupt|rejected|type_invalid)|authority_renewal_(?:envelope_consumed|predecessor_changed|preflight_unavailable)|authority_window_too_short|owner_authority_not_current|owner_successor_(?:corrupt|identity_mismatch|rejected|type_invalid)|renewal_transaction_rejected)$"
     },
     {
       "path": "apps/config_center/domain/entities.py",
