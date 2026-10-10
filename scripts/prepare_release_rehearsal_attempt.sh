@@ -278,7 +278,7 @@ except (OSError, ValueError, json.JSONDecodeError):
     raise SystemExit("S6_PREPARE_BLOCKED code=S6_CANDIDATE_SOURCE_RECEIPT_INVALID")
 PY
 )" || fail S6_CANDIDATE_SOURCE_RECEIPT_INVALID
-python3 "$candidate_source_helper" --candidate-sha "$sha" --destination "$candidate_source" \
+python3 -B "$candidate_source_helper" --candidate-sha "$sha" --destination "$candidate_source" \
   --receipt "$candidate_source_receipt" --container-gid "$candidate_gid_from_receipt" \
   --verify-only > "$verify_log" 2>&1 || fail S6_CANDIDATE_SOURCE_VERIFY_FAILED
 chmod 600 "$verify_log"

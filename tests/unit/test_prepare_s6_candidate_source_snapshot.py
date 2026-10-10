@@ -744,3 +744,36 @@ fi
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or shutil.which("python3") is None,
+    reason="sealed verifier bytecode contract requires POSIX Python",
+)
+def test_sealed_candidate_verifier_disables_bytecode_writes(tmp_path: Path) -> None:
+    candidate = tmp_path / "candidate-source"
+    scripts = candidate / "scripts"
+    scripts.mkdir(parents=True)
+    project_scripts = Path(__file__).resolve().parents[2] / "scripts"
+    for name in ("prepare_s6_candidate_source_snapshot.py", "rehearsal_checkpoint.py"):
+        shutil.copy2(project_scripts / name, scripts / name)
+
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(candidate)
+    result = subprocess.run(
+        [
+            shutil.which("python3") or "python3",
+            "-B",
+            str(scripts / "prepare_s6_candidate_source_snapshot.py"),
+            "--help",
+        ],
+        cwd=candidate,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not list(candidate.rglob("__pycache__"))
+    assert not list(candidate.rglob("*.pyc"))

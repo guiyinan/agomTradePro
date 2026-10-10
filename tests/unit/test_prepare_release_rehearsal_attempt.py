@@ -37,6 +37,7 @@ def test_wrapper_consumes_only_a_reserved_v2_plan_and_plan_bound_source() -> Non
     assert "workspace:/candidate-src" not in source
     assert '"$candidate_source:/candidate-src:ro"' in source
     assert "prepare_s6_candidate_source_snapshot.py" in source
+    assert 'python3 -B "$candidate_source_helper"' in source
     assert "--verify-only" in source
 
 
