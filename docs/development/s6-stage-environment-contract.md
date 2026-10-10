@@ -17,6 +17,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 
 | attempt | 已确认事实 | 被抽象的契约 |
 | --- | --- | --- |
+| fresh prepare（candidate `c6fcf4a…`） | candidate exporter 的 `copytree` 无法读取 root:0700 的工作区顶层；随后 wrapper 在 `set -u` 下用未加括号的 `$mode_FAILED` 把错误遮蔽成 `mode_FAILED`。 | attempt planner v2 在 reserve 时从 exact clean Git candidate tree 的 blob 建立不含 `.git` 的独立快照，拒绝 symlink/特殊项，只密封快照为候选 GID 的 `0550/0440`；保存含 receipt SHA 与 tree SHA 的无秘密 receipt。每次 Docker exporter 前只读复核，并要求唯一、位于 image 参数之前的 `--user <non-root UID>:<candidate GID>`、精确 image 与只读 mount。 |
 | `72de41d46b7242de9789cc0f8ce9d32c` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，前缀已完成至 `github_ci_evidence`。CI 证据目录/文件由 root 生成，非 root 候选只读挂载时不可读。 | 文件树必须无 symlink/特殊文件，并以 descriptor 复核 group 与 `0550/0440` 密封状态；财报阶段挂载前再次只读复核。 |
 | `ebe16fb787094b45957b16e17dfd771a` | `prepare-status.json` 为 exit 127，候选阶段未启动；远端 wrapper 含 CR 字节。 | 所有经 SSH/pipe 传输且随后执行或解析的文本必须 UTF-8、无 BOM/NUL/CR，并通过重复 `--transport-input` 显式登记。 |
 | `5caf4f22e0264b3f9a9d67a06432f655` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，生产快照当时缺 provider 3 的两条财报 egress 规则。 | 候选侧必须在 provider I/O 前复用持久化 `preview_route`，逐一验证 provider row × dataset × host × deployment region。 |
@@ -65,7 +66,7 @@ container ID、连接的实际数据库身份和 `agomtradepro_migrator` session
 
 | 阶段 | 文件系统 | 传输编码 | 网络出口 | 身份与密钥 | 资源与时间 | 外部状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断。构建前校验受治理的 Docker policy、默认 context 与 Unix socket、client/server 版本；拒绝 Docker Engine 29.3.0/29.3.1，构建显式使用 legacy builder，并核对输出标记，禁止 BuildKit 默认路径、inline cache 和自动回退。版本、endpoint 或模式不符均以稳定码阻断且诊断不输出 endpoint/版本细节。 | 已有：prebuild 要求 24 GiB，明确保留 12 GiB 构建预算和 12 GiB 后续阶段余量；remote builder 自身仍保留 12 GiB `/var/lib/docker` 硬门槛与显式 build timeout。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；build-only 禁止部署。 |
+| `build_only` | 已有：`_build_image` 拒绝缺失/多份 report 与 image tar；remote builder 校验归档。 | 已有：起跑前检查所有显式登记的 `--transport-input` 为 UTF-8/LF；未登记 transport 输入使 CLI 失败关闭。runner 自身启动前的 wrapper 边界见未验证风险。 | 已有：SSH/build host 由实际连接、host-key 交换及 build 命令失败关闭；没有额外 provider 请求。独立 allowlist preview 边界见未验证风险。 | 已有：`_validate_inputs` 只接受 regular password file；prebuild 同时验证 remote builder 所需 `paramiko` 可导入，缺失时在 SSH 前以稳定码阻断。构建前校验受治理的 Docker policy、默认 context 与 Unix socket、client/server 版本；拒绝 Docker Engine 29.3.0/29.3.1，构建显式使用 legacy builder，并核对输出标记，禁止 BuildKit 默认路径、inline cache 和自动回退。版本、endpoint 或模式不符均以稳定码阻断且诊断不输出 endpoint/版本细节。 | 已有：prebuild 要求 24 GiB，明确保留 12 GiB 构建预算和 12 GiB 后续阶段余量；remote builder 自身仍保留 12 GiB `/var/lib/docker` 硬门槛与显式 build timeout。 | 已有：`_candidate_sha` 要求 exact SHA 和 clean tree；候选 exporter 从 exact Git blobs 准备隔离 source snapshot，不对原工作树 chmod；build-only 禁止部署。 |
 | `docker_identity` | 已有：`_freeze_provider_settings_snapshot`、`_write_identity` 以排他写/哈希/只读 mode 冻结输入。 | 已有：统一门禁检查冻结 env/JSON/unit/identity 与登记传输文件。 | 无资源：仅检查本地候选镜像，不出网。 | 已有：`_candidate_container_gid`、OCI revision/image ID/release tag 精确绑定。 | 已有：命令 60 秒上限；统一门禁检查预算关系。 | 已有：checkpoint binding 绑定候选、输入摘要和隔离环境身份。 |
 | `isolated_database_migrations` | 要求：候选身份只读挂载；仅迁移结果 JSON 进入独立输出目录并密封。 | 要求：校验必要 DB identity 后，最小化重建 migrator stage env；私有 `0400` 文件只允许 DB identity、Django `SECRET_KEY` 与历史 migration 可能需要的 `AGOMTRADEPRO_ENCRYPTION_KEY`。provider/API secret 不进入 stage env，任何 secret 都不得进入 argv、report、诊断或 release bundle；报告 schema 拒绝额外字段。 | 要求：不注入 provider env/凭据/路由，迁移命令只访问精确绑定的 disposable PostgreSQL；生产 entrypoint 另等待精确绑定的隔离 Redis。该 stage 与其他 S6 stage 复用非 internal network，网络层外连未物理封禁，属未验证风险。 | 要求：候选 image/SHA、数据库名/host/IP/port/container ID 和 migrator role 精确绑定；迁移只使用 `MIGRATOR_DATABASE_URL`。 | 要求：独立 stage timeout 和统一资源门禁；超时/unknown commit 保持阻断，不自动重放。 | 要求：`pending_before/applied_migrations/pending_after` 精确对账；迁后立即用 runtime URL 做只读 migration preflight。 |
 | `provider_probe` | 已有：`_invoke_container_stage` 校验目录 inode、group write 窗口并在退出时密封。 | 已有：统一门禁在阶段前检查 env/冻结输入/transport bytes。 | 已有：候选动态探针复用 `provider_policy_and_routes`；stage 自身继续保留 response evidence。 | 已有：完整 identities digest、quote/valuation provider ID 与候选镜像绑定；Config Center provider policy 只读解析。 | 已有：sample 50、max dispatch、provider timeout 与外层 stage timeout 层级。 | 已有：冻结 provider settings，禁止从 live 设置静默漂移。 |
@@ -92,6 +93,9 @@ container ID、连接的实际数据库身份和 `agomtradepro_migrator` session
   `REHEARSAL_DOCKER_BUILDER_PREFLIGHT_FAILED`、
   `REHEARSAL_DOCKER_BUILDER_MODE_MISMATCH`、`REHEARSAL_DOCKER_BUILD_FAILED`。
   远端只打印稳定码；Docker 版本与 endpoint 只进入经过 validator 校验的 build observation。
+- Candidate source CLI 将快照、receipt、密封与 exporter 前复核错误映射为 `S6_CANDIDATE_SOURCE_*`；Docker exporter 失败映射为
+  `S6_CANDIDATE_EXPORT_PRODUCTION_FAILED`、`S6_CANDIDATE_EXPORT_UNIVERSE_FAILED` 或
+  `S6_CANDIDATE_EXPORT_CONTRACT_FAILED`。wrapper 应消费 CLI 的稳定错误码；兼容 shell 必须复用受测 helper，不得自行拼接 `$mode_FAILED`。
 - 候选动态问题：`REHEARSAL_STAGE_MODEL_MARKET_ROUTE_INVALID`、
   `REHEARSAL_FINANCIAL_SLICE_EGRESS_ROUTE_REQUIRED`、
   `REHEARSAL_STAGE_PROVIDER_IDENTITY_INVALID`、
@@ -109,7 +113,8 @@ container ID、连接的实际数据库身份和 `agomtradepro_migrator` session
 - 本清单只覆盖已知六类，不能证明环境假设已经穷尽；未知类别风险必须保留在每次台账与交接中。
 - Windows 本地不能证明 POSIX symlink race、descriptor ownership、非 root 容器读取和实际 mode；相关正反例必须由 Linux CI 执行，
   下一轮 fresh S6 再提供真实容器证据，不能把 Windows skip 计作通过。
-- runner 无法在自身启动前检查启动它的 wrapper；上传/执行链必须在发送端复用同一 UTF-8/LF 规则，并把每个实际输入通过
+- runner 无法在自身启动前检查启动它的 wrapper；candidate source 已由 attempt planner v2 强制创建并绑定到计划，exporter 由 tracked CLI
+  在调用 Docker 前复核，但更外层上传/执行链仍必须在发送端复用同一 UTF-8/LF 规则，并把每个实际输入通过
   `--transport-input` 交给 runner 复核。未登记即输入校验失败。宿主应先用 `requirements-ops.txt` 创建 attempt 私有虚拟环境；
   `paramiko` 固定到上游删除 RSA/SHA-1 支持的不可变提交 `a4489456b6f65281e172380cc4826cee5e851dbb`
   （包版本 `5.0.0`）；runner 起动后还会独立复核该版本，因此错误解释器、漏装依赖或旧版依赖会在远端构建前失败关闭。

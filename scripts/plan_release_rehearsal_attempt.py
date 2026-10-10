@@ -5,22 +5,34 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import os
 import re
 import stat
 import sys
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath
-from typing import TypedDict
+from typing import TypedDict, cast
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+_candidate_source_module = importlib.import_module("scripts.prepare_s6_candidate_source_snapshot")
+CandidateSourceSnapshotError = _candidate_source_module.CandidateSourceSnapshotError
+create_candidate_source_snapshot = cast(
+    Callable[..., object],
+    _candidate_source_module.create_candidate_source_snapshot,
+)
 
 _CANDIDATE_SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _ATTEMPT_ID_RE = re.compile(
     r"(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\Z"
 )
-_PLAN_SCHEMA = "release.s6-attempt-plan.v1"
+_PLAN_SCHEMA = "release.s6-attempt-plan.v2"
 _READ_ONLY_MODE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 
 
@@ -40,6 +52,8 @@ class AttemptPlan(TypedDict):
     database: str
     provider_settings_export_path: str
     provider_identities_export_path: str
+    candidate_source_snapshot_path: str
+    candidate_source_receipt_path: str
 
 
 class AttemptPlanError(ValueError):
@@ -95,6 +109,8 @@ def build_attempt_plan(
         "database": f"agom_release_rehearsal_{resource_key}",
         "provider_settings_export_path": str(export_root / "provider-settings.json"),
         "provider_identities_export_path": str(export_root / "provider-identities.json"),
+        "candidate_source_snapshot_path": str(root / "candidate-source"),
+        "candidate_source_receipt_path": str(root / "candidate-source-receipt.json"),
     }
 
 
@@ -169,6 +185,24 @@ def reserve_attempt(plan: AttemptPlan) -> Path:
     return plan_file
 
 
+def reserve_prepared_attempt(
+    plan: AttemptPlan,
+    *,
+    workspace: Path,
+    container_gid: int,
+) -> Path:
+    """Reserve a fresh attempt and atomically bind its exact candidate source snapshot."""
+    plan_file = reserve_attempt(plan)
+    create_candidate_source_snapshot(
+        workspace=workspace,
+        candidate_sha=plan["candidate_sha"],
+        destination=Path(plan["candidate_source_snapshot_path"]),
+        receipt_path=Path(plan["candidate_source_receipt_path"]),
+        container_gid=container_gid,
+    )
+    return plan_file
+
+
 def resume_attempt(plan: AttemptPlan) -> Path:
     """Resume only when the reserved plan is byte-identical and remains read-only."""
     canonical, raw = _canonical_plan(plan)
@@ -202,6 +236,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--candidate-sha", required=True)
     parser.add_argument("--attempt-id")
     parser.add_argument("--attempts-dir", type=Path, default=Path("artifacts/s6-attempts"))
+    parser.add_argument("--workspace", type=Path)
+    parser.add_argument("--container-gid", type=int)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--reserve", action="store_true")
     mode.add_argument("--resume", action="store_true")
@@ -217,7 +253,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         plan_file: Path | None = None
         if args.reserve:
-            plan_file = reserve_attempt(plan)
+            if args.workspace is None or args.container_gid is None:
+                raise AttemptPlanError("S6_ATTEMPT_SOURCE_SNAPSHOT_REQUIRED")
+            plan_file = reserve_prepared_attempt(
+                plan,
+                workspace=args.workspace,
+                container_gid=args.container_gid,
+            )
         elif args.resume:
             plan_file = resume_attempt(plan)
         result: dict[str, object] = {"outcome": "success", "plan": plan}
@@ -226,6 +268,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
     except AttemptPlanError as exc:
+        print(
+            json.dumps({"outcome": "failed", "error": exc.error_code}, sort_keys=True),
+            file=sys.stderr,
+        )
+        return 2
+    except CandidateSourceSnapshotError as exc:
         print(
             json.dumps({"outcome": "failed", "error": exc.error_code}, sort_keys=True),
             file=sys.stderr,

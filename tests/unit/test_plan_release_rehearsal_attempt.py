@@ -3,6 +3,7 @@
 import json
 import os
 import stat
+import subprocess
 from pathlib import Path
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from scripts.plan_release_rehearsal_attempt import (
     AttemptPlanError,
     build_attempt_plan,
     reserve_attempt,
+    reserve_prepared_attempt,
     resume_attempt,
 )
 
@@ -45,6 +47,8 @@ def test_same_candidate_retries_get_disjoint_resources_and_export_paths(
         "database",
         "provider_settings_export_path",
         "provider_identities_export_path",
+        "candidate_source_snapshot_path",
+        "candidate_source_receipt_path",
     )
     for field in unique_fields:
         assert first[field] != second[field]
@@ -163,6 +167,8 @@ def test_plan_contains_only_non_secret_identifiers_and_paths(tmp_path: Path) -> 
         "database",
         "provider_settings_export_path",
         "provider_identities_export_path",
+        "candidate_source_snapshot_path",
+        "candidate_source_receipt_path",
     }
     assert not any(term in serialized.lower() for term in ("password", "credential", "secret"))
 
@@ -194,3 +200,71 @@ def test_explicit_resume_requires_the_attempt_id(
 
     assert exit_code == 2
     assert "S6_ATTEMPT_RESUME_ID_REQUIRED" in capsys.readouterr().err
+
+
+def _candidate_workspace(tmp_path: Path) -> tuple[Path, str]:
+    workspace = tmp_path / "candidate"
+    workspace.mkdir()
+    commands = (
+        ("init", "-q"),
+        ("config", "user.name", "S6 planner test"),
+        ("config", "user.email", "s6-planner@example.invalid"),
+    )
+    for command in commands:
+        subprocess.run(["git", "-C", str(workspace), *command], check=True)
+    (workspace / "candidate.py").write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(workspace), "add", "candidate.py"], check=True)
+    subprocess.run(
+        ["git", "-C", str(workspace), "commit", "-qm", "candidate"],
+        check=True,
+    )
+    result = subprocess.run(
+        ["git", "-C", str(workspace), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return workspace, result.stdout.strip()
+
+
+def test_prepared_reservation_creates_bound_source_snapshot(tmp_path: Path) -> None:
+    workspace, candidate_sha = _candidate_workspace(tmp_path)
+    plan = build_attempt_plan(
+        candidate_sha=candidate_sha,
+        attempt_id=ATTEMPT_ID,
+        attempts_dir=tmp_path / "attempts",
+    )
+
+    plan_file = reserve_prepared_attempt(
+        plan,
+        workspace=workspace,
+        container_gid=os.getgid() if os.name == "posix" else 0,
+    )
+
+    assert plan_file.is_file()
+    assert (
+        Path(plan["candidate_source_snapshot_path"], "candidate.py").read_text(encoding="utf-8")
+        == "VALUE = 1\n"
+    )
+    receipt = json.loads(Path(plan["candidate_source_receipt_path"]).read_text(encoding="utf-8"))
+    assert receipt["candidate_sha"] == candidate_sha
+
+
+def test_reserve_cli_requires_source_snapshot_inputs(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from scripts.plan_release_rehearsal_attempt import main
+
+    exit_code = main(
+        [
+            "--candidate-sha",
+            CANDIDATE_SHA,
+            "--attempts-dir",
+            os.fspath(tmp_path),
+            "--reserve",
+        ]
+    )
+
+    assert exit_code == 2
+    assert "S6_ATTEMPT_SOURCE_SNAPSHOT_REQUIRED" in capsys.readouterr().err

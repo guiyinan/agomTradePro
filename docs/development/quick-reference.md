@@ -47,6 +47,8 @@ agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 python scripts/plan_release_rehearsal_attempt.py \
   --candidate-sha <40位候选SHA> \
   --attempts-dir /opt/agomtradepro/rehearsals \
+  --workspace <exact-clean-checkout> \
+  --container-gid <candidate-GID> \
   --reserve
 
 # 1. 从生产（或目标环境）只读导出 provider 策略快照；stdout 即快照文件内容，

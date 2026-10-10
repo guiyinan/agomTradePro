@@ -12,12 +12,33 @@ PostgreSQL/Redis/network/volume/database 和 provider export 临时路径必须�
 python scripts/plan_release_rehearsal_attempt.py \
   --candidate-sha <40位候选SHA> \
   --attempts-dir /opt/agomtradepro/rehearsals \
+  --workspace <exact-clean-checkout> \
+  --container-gid <candidate-GID> \
   --reserve
 ```
 
-`--reserve` 原子创建 attempt root 和只读 `attempt-plan.json`；已存在目录、symlink 或碰撞均失败关闭，不删除旧证据。
+`--reserve` 原子创建 attempt root 和只读 `attempt-plan.json`，随后立即从 exact Git blobs 创建计划内的
+`candidate-source` 与只读 receipt；缺少 workspace/GID 时拒绝 reserve。已存在目录、symlink、脏工作区或碰撞均失败关闭，
+不删除旧证据。
 同一 attempt 续跑必须显式传入原 `--attempt-id --resume`，并要求计划逐字节一致。相同 SHA 的新尝试使用新 attempt ID，
 因此资源和 `/tmp` export 路径互不覆盖。
+
+## 候选 exporter 源码准备
+
+每个 fresh prepare 由上述 planner 强制调用 tracked CLI，从 exact candidate commit 的 Git blobs 建立独立源码快照；工作区必须位于该 SHA 且 clean。
+快照不含 `.git`、ignored 或 untracked 内容，拒绝 symlink、gitlink 和特殊项。只对新快照调用
+`seal_container_input_tree`，按 candidate GID 密封为 POSIX `0550/0440`；绝不递归修改原 clone 的权限。示例：
+
+receipt 不包含源码或秘密，记录 candidate SHA、快照 tree SHA-256、receipt 内容 SHA-256、GID 和密封模式。每次 Docker exporter 启动前，必须使用同一 CLI 的
+`--run-export`（或先用 `--verify-only` 做额外只读检查）；`--run-export` 会再次校验 receipt SHA、tree digest、candidate、GID 和 descriptor mode，
+并验证只读挂载恰好指向 `/candidate-src`。每条 exporter argv 必须且只能在 Docker image 之前包含与镜像身份一致的非 root
+`--user <container-uid>:<candidate-GID>`，同时传入正数 `--container-uid` 和精确 `--candidate-image`；生产 Dockerfile 当前将 `appuser` 固定为 UID 1000。
+导出 stdout/stderr 进入 attempt 私有日志文件，命令只向 wrapper 返回稳定错误码：
+`S6_CANDIDATE_EXPORT_PRODUCTION_FAILED`、`S6_CANDIDATE_EXPORT_UNIVERSE_FAILED` 或
+`S6_CANDIDATE_EXPORT_CONTRACT_FAILED`。Shell wrapper 应直接消费 CLI 错误码；兼容 wrapper 必须 source
+`scripts/shared/s6_candidate_export_failure.sh`，禁止自行拼接 `$mode_FAILED`。
+
+该门禁仅适用于新的 fresh attempt；不得为历史 attempt 追加成功 receipt，或据此改变其状态。
 
 首次运行必须从候选 checkout 内直接执行 `scripts/run_release_rehearsal.py`。复制到仓库外的 launcher 会以
 `S6_LAUNCHER_PROVENANCE_INVALID` 失败关闭。对于允许检查点恢复的失败，先修复具体环境问题，再使用**完全相同的参数和输出目录**，追加 `--resume`。
