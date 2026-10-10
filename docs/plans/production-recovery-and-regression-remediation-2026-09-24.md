@@ -3553,3 +3553,28 @@ disabled；production financial refresh 的系统双审批、full-scope ceiling 
 
 下一片是否可开始：可以提交台账并 push，新 exact SHA 从头运行五组 CI；全部通过并核验 official artifact 后，重新 reserve fresh attempt，
 禁止 `--resume` 或复用本次 isolated runtime。完整 S6 成功前不得部署。
+
+##### 2026-10-10 S6 candidate exporter 全入口零 bytecode 收口
+
+完成项：候选 `a31d584f4d5aa84db1bac304e30e268bd55dc555` 的 Architecture `38023868878` 与 Security
+`38023868856` 已通过；在其余三组完成及 fresh S6 reserve 前，Luna Max 横向审计发现 tracked prepare 仅给
+`--verify-only` helper 调用增加了 `python3 -B`，而 production/universe/contract 三个 `--run-export` 模式仍由 root 使用普通
+`python3` 执行同一个密封候选 helper。该 helper 导入 `scripts.rehearsal_checkpoint`，会产生与上一轮相同的 `__pycache__` 污染，随后
+receipt/tree 复核必然 fail closed。Consistency `38023868925`、Fast Feedback `38023868852` 与 Publication PostgreSQL
+`38023886358` 已主动取消；该 SHA 未 reserve S6，已通过的两组结果不得与新候选拼接。
+
+提交 `c82cdc81c` 将 exporter 唯一调用点也改为 `python3 -B`；契约测试要求两个 candidate helper 执行入口全部使用 `-B`，并明确禁止
+恢复普通 `python3 "$candidate_source_helper"`。POSIX 回归同时执行 verifier 帮助入口和 `--run-export` 参数失败入口，证明两条 CLI 路径
+均不产生 `__pycache__`/`*.pyc`；没有删除 snapshot 复核、放宽文件权限，或以清理污染文件代替根因修复。
+
+测试计数：prepare/source 聚焦回归 `28 passed / 6 skipped`；6 个 skip 均为本地 Windows 缺少 POSIX mode、symlink、fchown 或 bash
+能力，未计作通过。Black、isort、Ruff、`bash -n`、Data Center 唯一投影连续 write/check（1,322 entries）、全仓 mypy debt ceiling
+`0 errors in 0 files` 与 `git diff --check` 通过；未修改生产 Python，因此无增量生产 mypy 文件列表。
+
+未验证风险与停止线：`c82cdc81c` 与本节台账组成的新 HEAD 尚未由同一 exact SHA 的五组 CI 验证；Linux `--run-export` 零 bytecode
+反例、完整 official PostgreSQL artifact、fresh S6 十阶段和 release validator 仍须重新实证。六类已知环境契约不能证明未知类别穷尽。
+生产 full-market 任务禁止重跑，两个周期入口保持 disabled；production financial refresh 的系统双审批、full-scope ceiling 和新明确授权
+停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official artifact 所有 required
+identity 零 skip/failure/error 后，才可由 planner 原子 reserve 新 attempt；禁止 `--resume`、复用旧 receipt/image 或在 CI 前启动 S6。
