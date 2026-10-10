@@ -552,10 +552,11 @@ def test_existing_output_directory_is_rejected_without_network_reads(
     assert "REHEARSAL_OUTPUT_DIRECTORY_EXISTS" in capsys.readouterr().err
 
 
-def test_cli_help_imports_sibling_validator_from_an_unrelated_working_directory(
+def test_cli_help_does_not_import_sibling_validator_from_unrelated_working_directory(
     collector_sandbox: CollectorSandbox,
 ) -> None:
     script = collector_sandbox.package_directory / "collect_release_regression_evidence.py"
+    (collector_sandbox.package_directory / "validate_release_rehearsal.py").unlink()
     result = subprocess.run(
         [sys.executable, str(script), "--help"],
         cwd=collector_sandbox.sandbox_directory,
