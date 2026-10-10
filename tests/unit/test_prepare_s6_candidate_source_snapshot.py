@@ -748,9 +748,9 @@ fi
 
 @pytest.mark.skipif(
     os.name != "posix" or shutil.which("python3") is None,
-    reason="sealed verifier bytecode contract requires POSIX Python",
+    reason="sealed candidate helper bytecode contract requires POSIX Python",
 )
-def test_sealed_candidate_verifier_disables_bytecode_writes(tmp_path: Path) -> None:
+def test_sealed_candidate_helper_clis_disable_bytecode_writes(tmp_path: Path) -> None:
     candidate = tmp_path / "candidate-source"
     scripts = candidate / "scripts"
     scripts.mkdir(parents=True)
@@ -760,7 +760,7 @@ def test_sealed_candidate_verifier_disables_bytecode_writes(tmp_path: Path) -> N
 
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(candidate)
-    result = subprocess.run(
+    verify_result = subprocess.run(
         [
             shutil.which("python3") or "python3",
             "-B",
@@ -773,7 +773,30 @@ def test_sealed_candidate_verifier_disables_bytecode_writes(tmp_path: Path) -> N
         text=True,
         check=False,
     )
+    export_result = subprocess.run(
+        [
+            shutil.which("python3") or "python3",
+            "-B",
+            str(scripts / "prepare_s6_candidate_source_snapshot.py"),
+            "--candidate-sha",
+            "a" * 40,
+            "--destination",
+            str(candidate),
+            "--receipt",
+            str(tmp_path / "receipt.json"),
+            "--container-gid",
+            "1000",
+            "--run-export",
+        ],
+        cwd=candidate,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    assert result.returncode == 0, result.stderr
+    assert verify_result.returncode == 0, verify_result.stderr
+    assert export_result.returncode == 2
+    assert "S6_CANDIDATE_EXPORT_LOG_INVALID" in export_result.stderr
     assert not list(candidate.rglob("__pycache__"))
     assert not list(candidate.rglob("*.pyc"))

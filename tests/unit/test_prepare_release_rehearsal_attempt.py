@@ -37,7 +37,8 @@ def test_wrapper_consumes_only_a_reserved_v2_plan_and_plan_bound_source() -> Non
     assert "workspace:/candidate-src" not in source
     assert '"$candidate_source:/candidate-src:ro"' in source
     assert "prepare_s6_candidate_source_snapshot.py" in source
-    assert 'python3 -B "$candidate_source_helper"' in source
+    assert source.count('python3 -B "$candidate_source_helper"') == 2
+    assert 'python3 "$candidate_source_helper"' not in source
     assert "--verify-only" in source
 
 
@@ -61,6 +62,7 @@ def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_ar
     assert "^sha256:[0-9a-f]{64}$" in source
     assert 's6_candidate_export_failure_code "$mode"' in source
     assert "$mode_FAILED" not in source
+    assert 'python3 -B "$candidate_source_helper" "${helper_argv[@]}"' in source
 
 
 def test_prepare_reorders_to_isolated_snapshot_and_exporter_network() -> None:

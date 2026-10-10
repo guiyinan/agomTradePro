@@ -698,7 +698,7 @@ run_candidate_export() {
   for docker_argument in "${docker_argv[@]}"; do
     helper_argv+=("--docker-arg=$docker_argument")
   done
-  if python3 "$candidate_source_helper" "${helper_argv[@]}" > "$helper_log" 2>&1; then
+  if python3 -B "$candidate_source_helper" "${helper_argv[@]}" > "$helper_log" 2>&1; then
     chmod 600 "$helper_log" "$exporter_log"
     return 0
   fi
