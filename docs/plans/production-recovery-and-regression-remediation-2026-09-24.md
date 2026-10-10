@@ -3434,6 +3434,8 @@ attempt，并以 tracked exporter 跑完整 fresh S6；禁止复用旧 receipt/i
 后来新增共享 stage-environment 依赖后，collector 仍在 argparse 之前导入完整 validator，使隔离目录中的 `--help` 因缺少
 `shared` 包而失败。提交 `0fda9b76a` 补齐完整冻结身份 fixture，并将 validator 动态导入延迟到参数解析后的真实采集入口；
 `--help` 保持无运行时副作用，真实采集和直接函数调用仍加载同一个严格 validator，加载或校验失败继续返回稳定 blocked 结果。
+独立审计后，提交 `51e88d64f` 又在 `--help` 子进程启动前删除沙箱中的 sibling validator，直接证明帮助路径不加载该模块，
+避免未来 validator 重新具备独立可移植性时出现假绿。
 
 测试计数：collector 与 manifest 聚焦回归 `34 passed / 1 skipped`，其中 1 个 skip 是 Windows 无法执行的 POSIX 文件模式反例，
 未计作通过；collector 独立回归 `16 passed`。完整 no-database Fast suite 为 `4,041 passed`，耗时 44.74 秒，低于 120 秒预算。
