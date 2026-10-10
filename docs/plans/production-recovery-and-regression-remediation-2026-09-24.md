@@ -3483,3 +3483,17 @@ disabled；production financial refresh 仍须 verified full-scope capacity impo
 PostgreSQL 五组 CI。只有同一 SHA 五组全绿且 official artifact 全部 required identities 零 skip/failure/error 后，才可由 planner v2
 原子 reserve 全新 attempt 并运行 tracked prepare；fresh S6 禁止 `--resume`，完整十阶段与 release validator 通过后只能部署 receipt 绑定的
 同 SHA 预构建镜像。
+
+##### 2026-10-10 Fresh S6 prepare Security 扫描误报整改
+
+完成项：候选 `edf1b2bee7dbb9be8e29d83f1deb225c4541e177` 的 Architecture `38019286277` 通过，Security
+`38019286323` 在 gitleaks 唯一失败；Bandit、依赖和 npm 扫描均通过。定位结果是 final-validation 嵌入 Python 的环境解析断言把局部变量名
+`key` 与稳定错误码字符串写在同一行，命中 `generic-api-key` 启发式；扫描报告已 redact，没有真实凭据进入 Git。提交 `6224d06d3`
+将变量改为 `variable_name`，并把失败分支改为显式稳定错误码，输入校验、错误码、密钥隔离和运行行为不变；没有添加 gitleaks ignore 或放宽规则。
+
+测试计数：wrapper 聚焦回归 `6 passed / 1 skipped`，skip 为 Windows 缺少 POSIX mode；`bash -n` 与 `git diff --check` 通过。
+
+未验证风险与停止线：该修复和本节台账组成的新 HEAD 尚未绑定五组 exact-SHA CI；旧 SHA 的 Architecture 成功不得拼接，仍运行的
+Consistency、Fast Feedback 与 Publication PostgreSQL 也只能作为失败诊断，不能作为下一候选证据。fresh S6、部署及生产刷新停止线均不变。
+
+下一片是否可开始：可以提交台账并 push，新 SHA 必须从头运行五组 CI；同 SHA 五组全绿前不得 reserve fresh S6。
