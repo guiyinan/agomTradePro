@@ -103,7 +103,6 @@ from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
-    PublicationFactReference,
     PublicationMember,
     PublicationState,
 )
@@ -566,8 +565,29 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
     run_id = uuid4()
     activation_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:current-market-activation:{run_id}"))
     attempt_id = uuid4().hex
-    policy_identity = f"p2:component:{'a' * 64}"
-    published_at = datetime(2026, 10, 6, 10, 34, tzinfo=UTC)
+    policies = {
+        dataset_key: PublicationPolicyRepository().save(
+            PublicationPolicy(
+                dataset=DatasetKey(dataset_key, "1.0", "1.0"),
+                minimum_coverage_ratio=1.0,
+                allow_partial=False,
+                conflict_action="block",
+                required_evidence=(
+                    "source",
+                    "observed_at",
+                    "source_record_id",
+                    "fact_content_hash",
+                ),
+                retention_days=3650,
+                policy_version="component-current-target",
+            )
+        )
+        for dataset_key in (
+            "equity.price.bar",
+            "equity.quote.snapshot",
+            "equity.valuation.fact",
+        )
+    }
     price_rows = [
         PriceBarModel.objects.create(
             asset_code=asset_code,
@@ -604,40 +624,57 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
     )
     quote_publication_id = str(uuid4())
     valuation_publication_id = str(uuid4())
+    quote_observed_at = cn_market_session_close_utc(target_date)
+    quote_row = QuoteSnapshotModel.objects.create(
+        asset_code="000001.SZ",
+        snapshot_at=quote_observed_at,
+        fetched_at=quote_observed_at + timedelta(minutes=1),
+        current_price=Decimal("10.5"),
+        source="component",
+        source_record_id="quote:000001.SZ:2026-09-30",
+        raw_payload_hash="d" * 64,
+        quality_status="accepted",
+        revision_number=1,
+        ingested_run_id=run_id,
+    )
     quote_members = (
         publication_member_from_reference(
-            PublicationFactReference(
-                natural_key="000001.SZ:2026-09-30:quote:component",
-                source="component",
-                source_record_id="quote:000001.SZ:2026-09-30",
-                fact_table="data_center_quote_snapshot",
-                fact_pk="1",
-                observed_at=cn_market_session_close_utc(target_date),
-                raw_payload_hash="d" * 64,
-                fact_content_hash="e" * 64,
+            publication_fact_reference_for_dataset(
+                quote_row,
+                dataset_key="equity.quote.snapshot",
             ),
             member_id=str(uuid4()),
             publication_id=quote_publication_id,
             dataset_key="equity.quote.snapshot",
         ),
     )
+    valuation_observed_at = datetime(2026, 9, 30, 8, 15, tzinfo=UTC)
+    valuation_row = ValuationFactModel.objects.create(
+        asset_code="000001.SZ",
+        val_date=target_date,
+        pe_ttm=Decimal("12.5"),
+        source="component",
+        observed_at=valuation_observed_at,
+        available_at=valuation_observed_at,
+        fetched_at=valuation_observed_at + timedelta(minutes=1),
+        source_record_id="valuation:000001.SZ:2026-09-30",
+        raw_payload_hash="f" * 64,
+        quality_status="accepted",
+        revision_number=1,
+        ingested_run_id=run_id,
+    )
     valuation_members = (
         publication_member_from_reference(
-            PublicationFactReference(
-                natural_key="000001.SZ:2026-09-30:valuation:component",
-                source="component",
-                source_record_id="valuation:000001.SZ:2026-09-30",
-                fact_table="data_center_valuation_fact",
-                fact_pk="1",
-                observed_at=datetime(2026, 9, 30, 8, 15, tzinfo=UTC),
-                raw_payload_hash="f" * 64,
-                fact_content_hash="1" * 64,
+            publication_fact_reference_for_dataset(
+                valuation_row,
+                dataset_key="equity.valuation.fact",
             ),
             member_id=str(uuid4()),
             publication_id=valuation_publication_id,
             dataset_key="equity.valuation.fact",
         ),
     )
+    published_at = timezone.now()
     members_by_dataset = {
         "equity.price.bar": price_members,
         "equity.quote.snapshot": quote_members,
@@ -665,6 +702,7 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
     ):
         dataset_members = members_by_dataset[dataset_key]
         member_count = len(dataset_members)
+        policy_identity = policies[dataset_key].identity
         publication_digest = publication_hash(
             tuple(member_reference(member) for member in dataset_members),
             policy_identity=policy_identity,
