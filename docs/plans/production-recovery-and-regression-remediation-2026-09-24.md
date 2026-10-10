@@ -3989,3 +3989,47 @@ attempt 原子前移为 SUCCESS；缺少 prerun marker 的反例仍返回 `CURRE
 Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact required identities 全部零
 skip/failure/error，才可清理上述精确 disposable namespace，并从最新生产只读快照 reserve 新 fresh S6；禁止 `--resume` 或复用
 旧 receipt/image。
+
+##### 2026-10-11 S6 evidence-qualified market graph partial 契约整改
+
+完成项：候选 `0d6d9164f23db94f30bd6c182a4c657c8ce7a89c` 的五组 exact-SHA CI 已全部通过：Architecture
+`38068894493`、Security `38068894553`、Consistency `38068894603`、Fast Feedback `38068894585` 与
+Publication PostgreSQL `38068934674`；官方 PostgreSQL artifact `11675624318` 共 `99 tests`，全部 `59` 个 required
+identity 出现，financial slice、Account outer-fence 与 5,001-member soak 均为 0 skip/failure/error。fresh S6 attempt
+`39cb230a5d89402cbeaed0b8f380cf8e`（root
+`/opt/agomtradepro/rehearsals/s6-0d6d9164f2-39cb230a5d89402cbeaed0b8f380cf8e`，namespace
+`agom-s6-1285e935fdb37a73e6b4e79d951cf9dd`）启用 `--advance-isolated-market-graph` 后，在隔离数据库内完成目标交易日
+`2026-10-09` 的受证据约束动态 partial：业务结果为 `outcome=partial`、资产
+`requested/succeeded/failed/stored=5573/5559/14/11132`、operation `113/113/0`，publication 已更新并发布
+`16691` 个 member，run `c633a06c-0925-4a2a-b80d-128c7c2d7736`、activation
+`a987dc51-b33f-5b37-8eb1-f4efda41450e`；price 与 quote 各有 14 个带完整全日停牌证据的动态 scope block，valuation
+为 5573/5573，三个 current pointer 已在隔离库原子切换。随后旧的 S6 success-only receipt/export 契约错误拒绝该合法结果，以
+`S6_GRAPH_REFRESH_TASK_RESULT_INVALID` / `S6_GRAPH_REFRESH_BLOCKED` / `S6_GRAPH_REFRESH_COMMAND_FAILED` fail
+closed；未启动十阶段 runner、未部署、未产生生产写。
+
+根因不是行情业务失败，而是 S6 证据链仍把“全量零失败”误作唯一可接受结果，未复用正式发布已经实施的 evidence-qualified dynamic
+partial 不变量。提交 `7c6844fc0` 新增共享 Application 校验器，按动态集合验证 Task Monitor、资产与 operation 守恒、三类 current
+publication、唯一 active policy、member/fact hash、source/date/run/activation 和逐项 scope evidence；price/quote 仅接受有非空
+`evidence_source` 的全日停牌，valuation 仅接受 `valuation_source_data_unavailable`，不写死证券、数量或错误码集合。bounded Task
+Monitor projection 补齐必需统计并允许从不可变 Publication 记录重建详细 scope；receipt、candidate exporter 与 prepare 统一调用同一
+校验器。Linux 候选导入顺序也收紧为 candidate bootstrap 后再延迟导入 sealed helper，避免从 host workspace 缓存错误模块；没有放宽
+freshness、coverage、audit、来源、15:00 收盘、请求/查询/文件阈值或失败关闭语义。
+
+测试计数：互不重复的相关回归共 `296 passed / 4 skipped`：S6/Task Monitor 聚焦套件 `104 passed / 4 skipped`、full-market
+publication refresh `103 passed`、current publication evidence 与 rebuild `49 passed`、governance `40 passed`。4 个 skip
+均为本地 Windows 无法验证的 POSIX permission/symlink/bash 行为，未计作 Linux 通过。5 个修改的生产 Python 文件逐个增量 mypy
+均为 0 issues / 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`py_compile`、
+module map（`44 modules / 210 edges`）、Data Center architecture inventory（`5504` references）、entrypoint inventory
+（`1328` entries）、Celery task contracts（`95 registered / 21 exemptions / 24 governed files`）、current data contracts
+（`73` surfaces）与 `git diff --check` 全部通过。治理投影仅由唯一生成器重建。
+
+未验证风险与停止线：该共享 partial 契约尚未由新 exact-SHA Linux CI、官方 PostgreSQL artifact 与 fresh S6 实证；上述 4 个
+POSIX-only skip 必须由 Linux CI/S6 覆盖。失败 attempt 的目录与诊断继续保留，禁止 resume 或复用其 receipt/image。必须以包含本节台账
+的最终 SHA 从头运行五组 CI，并确认官方 PostgreSQL artifact 全部 59 个 required identity 为 0 skip/failure/error；随后只能从最新
+生产只读快照 reserve 全新 attempt、显式启用 `--advance-isolated-market-graph`、完整跑十阶段与 release validator。部署前不得投递
+生产任务；部署后仅可按用户现有授权投递一次新的 production full-market refresh。两个周期入口继续 disabled。production financial
+refresh 仍须 verified full-scope capacity、系统内两个独立认证 owner/reviewer 事件和有效 ceiling；聊天授权不能替代这些系统事实。
+
+下一片是否可开始：可以提交本节台账并 push，以 `7c6844fc0` 与本台账组成的新 exact SHA 从头运行 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部 required identity 为零
+skip/failure/error，才可启动 fresh S6；禁止 `--resume`、重跑失败 attempt 或复用历史 receipt/image。
