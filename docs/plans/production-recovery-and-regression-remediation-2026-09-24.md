@@ -4033,3 +4033,27 @@ refresh 仍须 verified full-scope capacity、系统内两个独立认证 owner/
 下一片是否可开始：可以提交本节台账并 push，以 `7c6844fc0` 与本台账组成的新 exact SHA 从头运行 Architecture、Security、
 Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部 required identity 为零
 skip/failure/error，才可启动 fresh S6；禁止 `--resume`、重跑失败 attempt 或复用历史 receipt/image。
+
+##### 2026-10-11 Publication PostgreSQL 当前发布证据夹具收口
+
+完成项：候选 `8a5a68ed444b7493d9824ad2f73784ad7f0887e1` 的 Architecture `38079994133`、Security
+`38079994116` 与 Consistency `38079994117` 已通过，但 Publication PostgreSQL `38079994169` 在
+`Exercise real publication locks and frozen facts` 稳定失败 1 项（`50 passed / 1 failed / 6 deselected`），因此该 SHA 失去
+候选资格，已通过结果不得与后续 SHA 拼接，失败 run 禁止重跑。失败发生在
+`test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snapshot`：生产 exporter 新增的 active-policy/member/fact
+证据复核正确 fail closed，而旧组件夹具仍使用任意 policy identity，并让 quote/valuation member 指向不存在的 fact 行，无法证明
+`current` publication 的真实内容。提交 `ff29ec526` 只修复组件夹具：为 price/quote/valuation 建立各自真实 active
+`PublicationPolicy`，持久化真实 quote/valuation fact，再从三类真实 fact 生成 member、内容哈希和 policy identity；生产校验器、扫描规则
+和门槛均未修改。
+
+测试计数：本地 exporter 回归 `36 passed / 1 skipped`；目标 PostgreSQL 节点在本机因未启用专用 loopback PostgreSQL 而
+`1 skipped`，未计作通过，Docker Desktop daemon 也未运行，因此必须由新的 Linux Publication PostgreSQL CI 实证。修改测试文件的
+Black、isort、Ruff 与 `git diff --check` 通过；全仓 mypy debt ceiling 继续为零，本片没有生产 Python 改动，不适用增量生产 mypy。
+
+未验证风险与停止线：真实 PostgreSQL fixture 能否完整越过 policy、member、fact hash 与 chronology 校验尚待新 exact-SHA CI；
+`8a5a68ed4` 的任何成功结果和仍运行结果均不再是 release 证据。fresh S6、部署和生产任务不得开始。失败 attempt
+`39cb230a5d89402cbeaed0b8f380cf8e` 继续保留且禁止 resume；两个周期入口保持 disabled，production financial refresh 的
+full-scope capacity、双人认证 owner/reviewer 事件和有效 ceiling 停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `ff29ec526` 与本台账的新 exact SHA 从头运行五组 CI。只有五组全绿且官方
+PostgreSQL artifact 的全部 59 个 required identity 为 0 skip/failure/error，才可 reserve fresh S6。
