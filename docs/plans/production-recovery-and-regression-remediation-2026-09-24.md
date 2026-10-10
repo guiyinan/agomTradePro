@@ -3699,3 +3699,29 @@ pointer 共享 activation `19d9a93e-55b6-5b8e-882d-8f3160f560dc`，Task Monitor 
 下一片是否可开始：可以提交本节台账并 push，以含代码与台账的新 exact SHA 从头运行五组 CI。只有五组全绿、official PostgreSQL
 artifact 包含新增 target-date 节点及全部既有 required identity 且零 skip/failure/error，才可从最新生产只读快照 reserve 新 fresh S6；
 禁止 `--resume` 或复用历史 receipt/image。S6 十阶段与 release validator 全部通过后，只能部署 receipt 绑定的同 SHA 预构建镜像。
+
+##### 2026-10-10 Publication PostgreSQL 隔离 Task Monitor composition 收口
+
+完成项：候选 `eb4c9767caf8cc29b347d5db7a4ae7410e597e10` 的 Architecture `38038196485`、Security
+`38038196474` 与 Consistency `38038196475` 已通过，但 Publication PostgreSQL `38038196480` 在
+`Exercise real publication locks and frozen facts` 收集阶段失败，因此该 SHA 不得进入 S6，已通过组也不得与后续候选拼接。失败根因不是
+target-date 业务断言：新增 production-composition 节点首次把真实 `TaskExecutionModel` 纳入隔离 schema，但专用
+`tests.settings_data_center_sync_identity` 未注册 Task Monitor；直接补注册后，Django 继续加载该模块既有 repository 依赖的
+`django_celery_beat`，故两者必须作为同一隔离 composition 完整登记。
+
+提交 `c41b3360a` 新增无 production `ready()` 副作用的 `IsolatedTaskMonitorConfig`，同时在专用 settings 中登记
+`django_celery_beat`，并将 `task_monitor` 迁移交给该 PostgreSQL fixture 的显式 schema 建表清单。修复没有修改生产模型、workflow、
+测试选择或 required identity，也没有跳过新增节点；同一 exact workflow 命令在本地已能完整收集测试，不再出现 app-label 错误。
+
+测试计数：exporter/validator 单元回归 `171 passed / 1 skipped`；Publication PostgreSQL exact 命令本地收集成功，因 Windows 未提供
+显式 disposable PostgreSQL 为 `51 skipped / 6 deselected`，这些 skip 不计作通过。Black、isort、Ruff、`git diff --check` 与全仓
+mypy debt ceiling `0 errors in 0 files` 通过；本片未修改生产 Python，因此无增量生产 mypy 文件列表。
+
+未验证风险与停止线：隔离 composition 和新增 target-date 节点仍必须由包含本片与本节台账的新 exact-SHA Linux official artifact
+实跑，全部 required identity 必须零 skip/failure/error。失败 run `38038196480` 禁止重跑或作为后续证据。fresh S6、同镜像部署与只读
+联合 UAT 尚未开始；生产 full-market 任务禁止重跑，两个周期入口保持 disabled。production financial refresh 的 full-scope ceiling、
+系统内独立 owner/reviewer approval 与新明确授权停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以新 HEAD 从头绑定五组 exact-SHA CI。仅当五组全绿且 official PostgreSQL artifact
+包含新增 target-date、financial slice、Account outer-fence 与 5,001-member soak 等全部 required identity，且零 skip/failure/error，
+才可从最新生产只读快照 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。
