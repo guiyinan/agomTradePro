@@ -32,7 +32,7 @@ _ATTEMPT_ID_RE = re.compile(
     r"(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\Z"
 )
-_PLAN_SCHEMA = "release.s6-attempt-plan.v2"
+_PLAN_SCHEMA = "release.s6-attempt-plan.v3"
 _READ_ONLY_MODE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 
 
@@ -54,6 +54,7 @@ class AttemptPlan(TypedDict):
     provider_identities_export_path: str
     candidate_source_snapshot_path: str
     candidate_source_receipt_path: str
+    advance_isolated_market_graph: bool
 
 
 class AttemptPlanError(ValueError):
@@ -80,10 +81,13 @@ def build_attempt_plan(
     candidate_sha: str,
     attempts_dir: Path,
     attempt_id: str | None = None,
+    advance_isolated_market_graph: bool = False,
 ) -> AttemptPlan:
     """Build a deterministic local resource plan without creating any files."""
     if _CANDIDATE_SHA_RE.fullmatch(candidate_sha) is None:
         raise AttemptPlanError("S6_CANDIDATE_SHA_INVALID")
+    if type(advance_isolated_market_graph) is not bool:
+        raise AttemptPlanError("S6_ATTEMPT_PLAN_INVALID")
 
     normalized_attempt_id = _normalize_attempt_id(attempt_id)
     identity_digest = hashlib.sha256(
@@ -111,6 +115,7 @@ def build_attempt_plan(
         "provider_identities_export_path": str(export_root / "provider-identities.json"),
         "candidate_source_snapshot_path": str(root / "candidate-source"),
         "candidate_source_receipt_path": str(root / "candidate-source-receipt.json"),
+        "advance_isolated_market_graph": advance_isolated_market_graph,
     }
 
 
@@ -122,6 +127,7 @@ def _canonical_plan(plan: AttemptPlan) -> tuple[AttemptPlan, bytes]:
             candidate_sha=plan["candidate_sha"],
             attempt_id=plan["attempt_id"],
             attempts_dir=root.parent,
+            advance_isolated_market_graph=plan["advance_isolated_market_graph"],
         )
     except (KeyError, TypeError, ValueError, OSError) as exc:
         raise AttemptPlanError("S6_ATTEMPT_PLAN_INVALID") from exc
@@ -238,6 +244,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--attempts-dir", type=Path, default=Path("artifacts/s6-attempts"))
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--container-gid", type=int)
+    parser.add_argument(
+        "--advance-isolated-market-graph",
+        action="store_true",
+        help="Refresh the isolated current market publication graph using real providers.",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--reserve", action="store_true")
     mode.add_argument("--resume", action="store_true")
@@ -250,6 +261,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             candidate_sha=args.candidate_sha,
             attempt_id=args.attempt_id,
             attempts_dir=args.attempts_dir,
+            advance_isolated_market_graph=args.advance_isolated_market_graph,
         )
         plan_file: Path | None = None
         if args.reserve:

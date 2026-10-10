@@ -176,7 +176,7 @@ def test_duplicate_semantic_entrypoints_use_stable_occurrences() -> None:
 def test_data_center_script_imports_remain_candidate_review_after_registration(
     inventory_payload: tuple[ModuleType, dict[str, object]],
 ) -> None:
-    """Only the two deliberately pending import reviews remain unapproved."""
+    """Script import review remains separate from explicit operational ownership."""
 
     _inventory, payload = inventory_payload
 
@@ -185,11 +185,17 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
     ]
     assert [entry["path"] for entry in candidate_entries if entry["category"] == "script"] == [
         "scripts/build_release_rehearsal_manifest.py",
+        "scripts/prepare_s6_candidate_source_snapshot.py",
+        "scripts/refresh_s6_isolated_market_graph.py",
+        "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
     assert all(entry["category"] == "script" for entry in candidate_entries)
     for path in (
         "scripts/build_release_rehearsal_manifest.py",
+        "scripts/prepare_s6_candidate_source_snapshot.py",
+        "scripts/refresh_s6_isolated_market_graph.py",
+        "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ):
         assert any(
@@ -205,10 +211,16 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
         and entry["path"]
         in {
             "scripts/build_release_rehearsal_manifest.py",
+            "scripts/prepare_s6_candidate_source_snapshot.py",
+            "scripts/refresh_s6_isolated_market_graph.py",
+            "scripts/s6_isolated_market_graph_receipt.py",
             "scripts/validate_release_rehearsal.py",
         }
     ) == [
         "scripts/build_release_rehearsal_manifest.py",
+        "scripts/prepare_s6_candidate_source_snapshot.py",
+        "scripts/refresh_s6_isolated_market_graph.py",
+        "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
 

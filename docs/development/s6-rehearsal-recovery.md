@@ -42,7 +42,7 @@ receipt 不包含源码或秘密，记录 candidate SHA、快照 tree SHA-256、
 `S6_CANDIDATE_EXPORT_CONTRACT_FAILED`。Shell wrapper 应直接消费 CLI 错误码；兼容 wrapper 必须 source
 `scripts/shared/s6_candidate_export_failure.sh`，禁止自行拼接 `$mode_FAILED`。
 
-## Fresh prepare wrapper v2
+## Fresh prepare wrapper v3
 
 planner `--reserve` 已生成只读 `attempt-plan.json`、候选源码快照和 receipt 后，执行：
 
@@ -50,7 +50,7 @@ planner `--reserve` 已生成只读 `attempt-plan.json`、候选源码快照和 
 bash scripts/prepare_release_rehearsal_attempt.sh --plan-file <reserved-attempt>/attempt-plan.json
 ```
 
-wrapper 只接受 planner v2 的规范字节和 plan 内资源/path，不会自行 reserve，也不会删除或回滚 reservation。
+wrapper 只接受 planner v3 的规范字节和 plan 内资源/path，不会自行 reserve，也不会删除或回滚 reservation。
 当前 checkout 必须是 plan 绑定的 exact clean candidate；`<reserved-attempt>/inputs-private` 预先只放置权限为
 `0700` 的目录及 `0600` 的 `runner.env`、`vps-password.txt`。失败会保留 attempt、日志和安全状态，供诊断；需要重试时应 reserve 新 attempt。
 
@@ -71,6 +71,21 @@ plan 绑定的独立 PostgreSQL 容器和 volume。候选 exporter 在三个 mod
 `production`、`universe`、`contract` 三个 mode 重新生成/交叉验证 settings、identities、unit contract、动态 universe 摘要及 runner
 参数契约。安全 `prepare-status.json` 与 `prepare-receipt.json` 记录 execution image ID、候选 source/output 摘要、prepare network/PG alias
 及稳定阶段状态，不写入环境变量或密钥值。
+
+正常 prepare 从生产只读快照取得 current market graph，不额外消耗 provider 请求。仅当隔离快照的 current graph 已过时、导致
+鲜活 provider probe 以 `REHEARSAL_RESPONSE_FUTURE_DATE` 阻断时，才可在规划阶段显式添加
+`--advance-isolated-market-graph`。该开关默认关闭并写入只读 v3 attempt plan；不能在 prepare 或 runner 运行中临时打开。
+
+启用后，wrapper 在 role bootstrap 后、只读 exporters 前，以当前 production execution image、candidate source 只读 mount、
+非 root UID/GID 和精确 isolated runtime env，执行候选仓库固定 CLI。它只连接该 attempt 恢复出的 PostgreSQL/Redis 和 S6 network，
+通过标准 Task Monitor 任务及规范 `success` outcome 刷新完整 current graph；它会真实访问 provider，因此会产生额外 provider 用量。
+生产数据库、目标日期阈值、15:00 收盘校验、响应时效和 provider-probe 预算均不变；plan、数据库、容器、network、image、
+Task Monitor attempt、run、activation、三个 current pointers/publications、member/fact hashes、source-time min/max 与 target date
+共同进入只读 refresh receipt。receipt 由 `universe` 与 `contract` exporter 在只读事务中针对 live isolated graph 重读校验，
+并进入 prepare receipt v3；任一步失败均不会产生成功 prepare receipt。不要对缺 schema 的快照自动迁移或恢复生产状态。
+
+该可选 refresh receipt 是 prepare 内部证据，不是 release bundle required report；它不会改变
+`governance/release_rehearsal_policy.json::required_reports`。无 opt-in 的 prepare 不调用 refresh task，也不生成该 receipt。
 
 该流程的信任边界是已经通过 exact-SHA 代码评审和 CI 的候选：source snapshot 内同时包含 exporter 与 snapshot verifier，因此它不能作为
 执行任意不受信代码的独立沙箱。若将来允许未评审候选进入 S6，必须把 verifier 固定到候选之外的 operator-owned 工具链。当前单元测试也不能

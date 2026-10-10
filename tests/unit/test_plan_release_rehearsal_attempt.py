@@ -81,6 +81,30 @@ def test_default_attempt_id_is_a_fresh_uuid4(tmp_path: Path) -> None:
     assert first["attempt_id"] != second["attempt_id"]
 
 
+def test_isolated_market_graph_refresh_requires_explicit_plan_opt_in(
+    tmp_path: Path,
+) -> None:
+    default_plan = build_attempt_plan(
+        candidate_sha=CANDIDATE_SHA,
+        attempt_id=ATTEMPT_ID,
+        attempts_dir=tmp_path / "default",
+    )
+    opted_in_plan = build_attempt_plan(
+        candidate_sha=CANDIDATE_SHA,
+        attempt_id=ATTEMPT_ID,
+        attempts_dir=tmp_path / "opt-in",
+        advance_isolated_market_graph=True,
+    )
+
+    assert default_plan["advance_isolated_market_graph"] is False
+    assert opted_in_plan["advance_isolated_market_graph"] is True
+    assert default_plan["schema"] == opted_in_plan["schema"] == "release.s6-attempt-plan.v3"
+
+    reserved_path = reserve_attempt(opted_in_plan)
+    assert json.loads(reserved_path.read_text(encoding="utf-8")) == opted_in_plan
+    assert resume_attempt(opted_in_plan) == reserved_path
+
+
 def test_same_attempt_requires_explicit_resume_and_resume_is_read_only(
     tmp_path: Path,
 ) -> None:
@@ -169,7 +193,9 @@ def test_plan_contains_only_non_secret_identifiers_and_paths(tmp_path: Path) -> 
         "provider_identities_export_path",
         "candidate_source_snapshot_path",
         "candidate_source_receipt_path",
+        "advance_isolated_market_graph",
     }
+    assert plan["advance_isolated_market_graph"] is False
     assert not any(term in serialized.lower() for term in ("password", "credential", "secret"))
 
 

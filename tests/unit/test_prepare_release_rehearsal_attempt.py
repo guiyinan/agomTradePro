@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -10,8 +11,16 @@ import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
+
+from scripts.plan_release_rehearsal_attempt import build_attempt_plan
+from scripts.prepare_s6_candidate_source_snapshot import (
+    CandidateSourceSnapshotError,
+    _FinalPrepareValidation,
+    validate_final_prepare_receipt,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WRAPPER = PROJECT_ROOT / "scripts" / "prepare_release_rehearsal_attempt.sh"
@@ -22,7 +31,7 @@ def _wrapper_text() -> str:
     return WRAPPER.read_text(encoding="utf-8")
 
 
-def test_wrapper_consumes_only_a_reserved_v2_plan_and_plan_bound_source() -> None:
+def test_wrapper_consumes_only_a_reserved_v3_plan_and_plan_bound_source() -> None:
     source = _wrapper_text()
 
     assert '"--plan-file"' in source
@@ -37,9 +46,15 @@ def test_wrapper_consumes_only_a_reserved_v2_plan_and_plan_bound_source() -> Non
     assert "workspace:/candidate-src" not in source
     assert '"$candidate_source:/candidate-src:ro"' in source
     assert "prepare_s6_candidate_source_snapshot.py" in source
-    assert source.count('python3 -B "$candidate_source_helper"') == 2
+    assert source.count('python3 -B "$candidate_source_helper"') == 4
     assert 'python3 "$candidate_source_helper"' not in source
     assert "--verify-only" in source
+    assert 'advance_isolated_market_graph="${plan_values[14]}"' in source
+    assert 'test "$advance_isolated_market_graph" = 1 || return 0' in source
+    assert '--read-only --user "$candidate_uid:$candidate_gid"' in source
+    assert '"$candidate_source:/candidate-src:ro"' in source
+    assert '"$inputs/isolated-postgres.env"' in source
+    assert 'install -m 400 "$export_root/current-market-graph-refresh.json"' in source
 
 
 def test_python_heredoc_failure_branches_do_not_use_line_continuations() -> None:
@@ -51,11 +66,15 @@ def test_python_heredoc_failure_branches_do_not_use_line_continuations() -> None
 
     assert "<<'PY' || fail S6_PROVIDER_ENV_CAPTURE_INVALID" in source
     assert "<<'PY' || fail S6_CANDIDATE_INPUT_TREE_INVALID" in source
-    assert "<<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED" in source
+    assert "--validate-final-receipt" in source
+    assert "<<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED" not in source
 
 
 def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_argv() -> None:
     source = _wrapper_text()
+    helper = (PROJECT_ROOT / "scripts" / "prepare_s6_candidate_source_snapshot.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "production|universe|contract" in source
     assert "--run-export" in source
@@ -75,12 +94,16 @@ def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_ar
     assert 's6_candidate_export_failure_code "$mode"' in source
     assert "$mode_FAILED" not in source
     assert 'python3 -B "$candidate_source_helper" "${helper_argv[@]}"' in source
-    assert source.count("parse_complete_rehearsal_identities") == 4
+    assert source.count("parse_complete_rehearsal_identities") == 2
+    assert "parse_complete_rehearsal_identities" in helper
     assert 'row.get("deployment_region") for row in identities' not in source
 
 
 def test_prepare_reorders_to_isolated_snapshot_and_exporter_network() -> None:
     source = _wrapper_text()
+    helper = (PROJECT_ROOT / "scripts" / "prepare_s6_candidate_source_snapshot.py").read_text(
+        encoding="utf-8"
+    )
     exporter_role_sql = EXPORTER_ROLE_BOOTSTRAP.read_text(encoding="utf-8")
 
     assert "--format=custom --no-owner --no-acl" in source
@@ -119,11 +142,10 @@ def test_prepare_reorders_to_isolated_snapshot_and_exporter_network() -> None:
     assert (
         'docker network connect --alias "$prepare_alias" "$prepare_network" "$redis"' not in source
     )
-    assert "provider_allowlist = {" in source
-    assert '"REDIS_URL", "REDIS_HOST"' in source
-    assert '"execution_image_id": sys.argv[8] or None' in source
-    assert '"execution_image_id": image_id' in source
-    assert '"prepare_network_removed": True' in source
+    assert "provider_allowlist = {" in helper
+    assert '"REDIS_URL"' in helper and '"REDIS_HOST"' in helper
+    assert '"execution_image_id": context.execution_image_id' in helper
+    assert '"prepare_network_removed": True' in helper
     assert "S6_PREPARE_COMPLETE candidate=%s attempt=%s execution_image_id=%s" in source
 
 
@@ -337,22 +359,35 @@ def test_production_export_validation_uses_complete_identity_contract(
         assert "S6_PROVIDER_IDENTITIES_INVALID" in result.stderr
 
 
-@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
-def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_path: Path) -> None:
-    source = _wrapper_text()
-    validation_start = source.index("phase=final_validation\n")
-    body_start = source.index(
-        "import datetime, hashlib, json, os, re, stat, sys\n", validation_start
-    )
-    body_end = source.index("\nPY\n", body_start)
-    body = source[body_start:body_end]
+def _final_validation_context(
+    tmp_path: Path,
+    *,
+    advance_graph: bool = False,
+    task_result_run_id: str | None = None,
+) -> _FinalPrepareValidation:
+    """Create one canonical private S6 attempt tree for helper-level validation."""
 
-    inputs = tmp_path / "inputs-private"
-    exports = tmp_path / "exports"
+    candidate_sha = "c" * 40
+    plan = build_attempt_plan(
+        candidate_sha=candidate_sha,
+        attempt_id=uuid4().hex,
+        attempts_dir=tmp_path / "attempts",
+        advance_isolated_market_graph=advance_graph,
+    )
+    attempt_root = Path(plan["root"])
+    attempt_root.mkdir(parents=True)
+    plan_bytes = (json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
+        "utf-8"
+    )
+    plan_path = attempt_root / "attempt-plan.json"
+    plan_path.write_bytes(plan_bytes)
+    plan_path.chmod(0o400)
+    inputs = attempt_root / "inputs-private"
+    exports = Path(plan["provider_settings_export_path"]).parent
     inputs.mkdir(mode=0o700)
-    exports.mkdir(mode=0o700)
+    exports.mkdir(parents=True, mode=0o700)
     names = {
-        "provider-settings.json": {"candidate_sha": "c" * 40},
+        "provider-settings.json": {"candidate_sha": candidate_sha},
         "provider-identities.json": [
             {
                 "role": "quote",
@@ -379,7 +414,7 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
                 "deployment_region": "unknown",
             },
         ],
-        "unit-contract.json": {"candidate_sha": "c" * 40},
+        "unit-contract.json": {"candidate_sha": candidate_sha},
         "provider-policy-preflight.json": {"outcome": "pass"},
         "universe-summary.json": {
             "target_trade_date": "2026-10-10",
@@ -413,8 +448,9 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
     inputs.chmod(0o700)
     exports.chmod(0o700)
 
-    candidate_sha = "c" * 40
-    source_receipt_path = tmp_path / "candidate-source-receipt.json"
+    source_directory = Path(plan["candidate_source_snapshot_path"])
+    source_directory.mkdir()
+    source_receipt_path = Path(plan["candidate_source_receipt_path"])
     source_receipt_path.write_text(
         json.dumps(
             {
@@ -426,9 +462,13 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
         ),
         encoding="utf-8",
     )
-    runner_python = "/opt/runner/bin/python"
+    runner_python_path = attempt_root / "runner-venv" / "bin" / "python"
+    runner_python_path.parent.mkdir(parents=True)
+    runner_python_path.write_text("test-only\n", encoding="utf-8")
+    runner_python_path.chmod(0o700)
+    runner_python = str(runner_python_path)
     requirements_sha = "e" * 64
-    runner_receipt_path = tmp_path / "runner-runtime-receipt.json"
+    runner_receipt_path = attempt_root / "runner-runtime-receipt.json"
     runner_receipt_path.write_text(
         json.dumps(
             {
@@ -441,46 +481,216 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
         ),
         encoding="utf-8",
     )
-    receipt_path = tmp_path / "prepare-receipt.json"
     owner = exports.stat()
-    args = [
-        str(inputs),
-        str(exports),
-        candidate_sha,
-        "s6_test_database",
-        "s6_test_network",
-        "s6_test_postgres",
-        "s6_test_redis",
-        "s6_test_network-prepare",
-        "s6_test_postgres-prepare",
-        "s6_test_namespace",
-        str(tmp_path / "evidence"),
-        str(exports / "provider-settings.json"),
-        str(exports / "provider-identities.json"),
-        str(source_receipt_path),
-        "sha256:" + "d" * 64,
-        str(receipt_path),
-        str(runner_receipt_path),
-        runner_python,
-        requirements_sha,
-        str(owner.st_uid),
-        str(owner.st_gid),
-        str(PROJECT_ROOT),
-    ]
-
-    result = subprocess.run(
-        [sys.executable, "-", *args],
-        input=body,
-        capture_output=True,
-        text=True,
-        check=False,
+    context = _FinalPrepareValidation(
+        candidate_sha=candidate_sha,
+        source_directory=source_directory,
+        source_receipt=source_receipt_path,
+        container_uid=owner.st_uid,
+        container_gid=owner.st_gid,
+        execution_image_id="sha256:" + "d" * 64,
+        inputs=inputs,
+        exports=exports,
+        runner_python=runner_python,
+        requirements_sha256=requirements_sha,
+        postgres_container_id="1" * 64,
+        redis_container_id="2" * 64,
+        network_id="3" * 64,
     )
+    if advance_graph:
+        run_id = "11111111-1111-4111-8111-111111111111"
+        result_run_id = task_result_run_id or run_id
+        activation_id = "22222222-2222-4222-8222-222222222222"
+        datasets = (
+            "equity.price.bar",
+            "equity.quote.snapshot",
+            "equity.valuation.fact",
+        )
+        pointers: list[dict[str, object]] = []
+        publications: list[dict[str, object]] = []
+        member_hashes = dict.fromkeys(datasets, "4" * 64)
+        fact_hashes = dict.fromkeys(datasets, "5" * 64)
+        for index, dataset in enumerate(datasets, start=1):
+            publication_id = f"00000000-0000-4000-8000-{index:012d}"
+            publication_hash = str(index) * 64
+            pointers.append(
+                {
+                    "dataset_key": dataset,
+                    "publication_id": publication_id,
+                    "publication_hash": publication_hash,
+                    "activation_id": activation_id,
+                }
+            )
+            publications.append(
+                {
+                    "dataset_key": dataset,
+                    "publication_id": publication_id,
+                    "publication_hash": publication_hash,
+                    "member_manifest_hash": member_hashes[dataset],
+                    "run_id": run_id,
+                    "state": "published",
+                    "must_not_use_for_decision": False,
+                    "coverage_requested_count": 3,
+                    "coverage_eligible_count": 1,
+                    "coverage_selected_count": 1,
+                    "coverage_missing_count": 2,
+                    "scope_blocks": [{"reason": "bounded_evidence_gap", "count": 2}],
+                }
+            )
+        graph_receipt: dict[str, object] = {
+            "schema": "release.s6-isolated-market-graph-refresh.v1",
+            "outcome": "success",
+            "candidate_sha": candidate_sha,
+            "attempt_id": plan["attempt_id"],
+            "attempt_plan_sha256": hashlib.sha256(plan_bytes).hexdigest(),
+            "database": plan["database"],
+            "postgres_container": plan["postgres_container"],
+            "redis_container": plan["redis_container"],
+            "postgres_container_id": context.postgres_container_id,
+            "redis_container_id": context.redis_container_id,
+            "network": plan["network"],
+            "network_id": context.network_id,
+            "execution_image_id": context.execution_image_id,
+            "task_name": "data_center.refresh_full_market_publications",
+            "task_id": f"s6-market-refresh-{plan['attempt_id']}",
+            "task_attempt_id": "6" * 32,
+            "task_result_sha256": "7" * 64,
+            "task_result": {
+                "outcome": "success",
+                "requested": 3,
+                "succeeded": 3,
+                "failed": 0,
+                "stored": 9,
+                "publication_run_id": result_run_id,
+            },
+            "run_id": run_id,
+            "activation_id": activation_id,
+            "target_trade_date": "2026-10-10",
+            "source_time_min": "2026-10-09T08:00:00+00:00",
+            "source_time_max": "2026-10-10T08:00:00+00:00",
+            "pointers": pointers,
+            "publications": publications,
+            "member_hashes": member_hashes,
+            "fact_hashes": fact_hashes,
+        }
+        unsigned = (
+            json.dumps(
+                graph_receipt,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            + "\n"
+        ).encode("utf-8")
+        graph_receipt["receipt_sha256"] = hashlib.sha256(unsigned).hexdigest()
+        graph_encoded = (
+            json.dumps(
+                graph_receipt,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            + "\n"
+        ).encode("utf-8")
+        graph_output = exports / "current-market-graph-refresh.json"
+        graph_output.write_bytes(graph_encoded)
+        graph_output.chmod(0o600)
+        graph_input = inputs / graph_output.name
+        graph_input.write_bytes(graph_encoded)
+        graph_input.chmod(0o400)
+    return context
 
-    assert result.returncode == 0, result.stderr
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    assert receipt["schema"] == "release.s6-prepare-receipt.v2"
-    assert receipt["execution_image_id"] == "sha256:" + "d" * 64
-    assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
+
+@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
+def test_final_validation_helper_writes_plan_bound_v3_receipt(tmp_path: Path) -> None:
+    """The Python helper validates the attempt tree and records the opt-in graph."""
+
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot_helper
+
+    context = _final_validation_context(tmp_path, advance_graph=True)
+    try:
+        result = snapshot_helper.main(
+            [
+                "--candidate-sha",
+                context.candidate_sha,
+                "--destination",
+                str(context.source_directory),
+                "--receipt",
+                str(context.source_receipt),
+                "--container-gid",
+                str(context.container_gid),
+                "--container-uid",
+                str(context.container_uid),
+                "--execution-image",
+                context.execution_image_id,
+                "--input-directory",
+                str(context.inputs),
+                "--output-directory",
+                str(context.exports),
+                "--validate-final-receipt",
+                "--runner-python",
+                context.runner_python,
+                "--requirements-sha256",
+                context.requirements_sha256,
+                "--postgres-container-id",
+                context.postgres_container_id,
+                "--redis-container-id",
+                context.redis_container_id,
+                "--network-id",
+                context.network_id,
+            ]
+        )
+        assert result == 0
+        receipt_path = context.inputs.parent / "prepare-receipt.json"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        assert receipt["schema"] == "release.s6-prepare-receipt.v3"
+        assert receipt["advance_isolated_market_graph"] is True
+        assert (
+            receipt["current_market_graph_refresh_run_id"] == "11111111-1111-4111-8111-111111111111"
+        )
+        assert json.loads(receipt_path.read_text(encoding="utf-8")) == receipt
+        assert stat.S_IMODE(receipt_path.stat().st_mode) == 0o600
+    finally:
+        shutil.rmtree(context.exports, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
+def test_final_validation_helper_rejects_result_run_drift_without_receipt(
+    tmp_path: Path,
+) -> None:
+    """A success receipt cannot be written when Task result and graph run differ."""
+
+    context = _final_validation_context(
+        tmp_path,
+        advance_graph=True,
+        task_result_run_id="33333333-3333-4333-8333-333333333333",
+    )
+    try:
+        with pytest.raises(
+            CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_TASK_RESULT_INVALID"
+        ):
+            validate_final_prepare_receipt(context)
+        assert not (context.inputs.parent / "prepare-receipt.json").exists()
+    finally:
+        shutil.rmtree(context.exports, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
+def test_final_validation_helper_rejects_unexpected_export_without_receipt(
+    tmp_path: Path,
+) -> None:
+    """Unexpected export files block preparation before receipt creation."""
+
+    context = _final_validation_context(tmp_path)
+    try:
+        (context.exports / "unexpected.json").write_text("{}\n", encoding="utf-8")
+        with pytest.raises(CandidateSourceSnapshotError, match="S6_EXPORT_FILE_SET_INVALID"):
+            validate_final_prepare_receipt(context)
+        assert not (context.inputs.parent / "prepare-receipt.json").exists()
+    finally:
+        shutil.rmtree(context.exports, ignore_errors=True)
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash syntax check requires bash")
@@ -498,3 +708,34 @@ def test_wrapper_has_valid_bash_syntax() -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash success-tail check requires bash")
+def test_wrapper_success_tail_sets_complete_and_reports_completion() -> None:
+    """The final marker runs only after the phase is set to complete."""
+
+    source = _wrapper_text()
+    phase_marker = "\nphase=complete\nprintf 'S6_PREPARE_COMPLETE candidate=%s attempt=%s execution_image_id=%s\\n'"
+    assert phase_marker in source
+    assert "phase=completeprintf" not in source
+
+    completion_tail = source[source.rindex("\nphase=complete") + 1 :]
+    variable_arguments = '  "$sha" "$attempt_id" "$execution_image"'
+    assert variable_arguments in completion_tail
+    completion_tail = completion_tail.replace(
+        variable_arguments,
+        f"  candidate-test-sha attempt-test-id sha256:{'a' * 64}",
+        1,
+    )
+    result = subprocess.run(
+        [shutil.which("bash") or "bash", "-c", completion_tail],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "S6_PREPARE_COMPLETE candidate=candidate-test-sha attempt=attempt-test-id "
+        f"execution_image_id=sha256:{'a' * 64}\n"
+    )

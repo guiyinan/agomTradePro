@@ -56,8 +56,9 @@ try:
     from scripts.plan_release_rehearsal_attempt import build_attempt_plan
     candidate = plan.get("candidate_sha")
     attempt = plan.get("attempt_id")
+    advance = plan.get("advance_isolated_market_graph")
     root_text = plan.get("root")
-    if not isinstance(candidate, str) or not isinstance(attempt, str):
+    if not isinstance(candidate, str) or not isinstance(attempt, str) or type(advance) is not bool:
         blocked("S6_ATTEMPT_PLAN_INVALID")
     if not isinstance(root_text, str) or not Path(root_text).is_absolute():
         blocked("S6_ATTEMPT_PLAN_INVALID")
@@ -66,6 +67,7 @@ try:
         candidate_sha=candidate,
         attempt_id=attempt,
         attempts_dir=planned_root.parent,
+        advance_isolated_market_graph=advance,
     )
     canonical = (json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     if plan != expected or raw != canonical:
@@ -101,6 +103,7 @@ try:
     if any(not isinstance(value, str) or not value or any(c in value for c in "\r\n\x00") for value in values):
         blocked("S6_ATTEMPT_PLAN_INVALID")
     print("\n".join(values))
+    print("1" if expected["advance_isolated_market_graph"] else "0")
 except SystemExit:
     raise
 except Exception:
@@ -109,7 +112,7 @@ PY
 )" || exit 60
 plan_values=()
 mapfile -t plan_values <<< "$plan_payload"
-test "${#plan_values[@]}" -eq 14 || fail S6_ATTEMPT_PLAN_INVALID
+test "${#plan_values[@]}" -eq 15 || fail S6_ATTEMPT_PLAN_INVALID
 sha="${plan_values[0]}"
 attempt_id="${plan_values[1]}"
 namespace="${plan_values[2]}"
@@ -126,6 +129,11 @@ provider_settings_export_path="${plan_values[10]}"
 provider_identities_export_path="${plan_values[11]}"
 candidate_source="${plan_values[12]}"
 candidate_source_receipt="${plan_values[13]}"
+advance_isolated_market_graph="${plan_values[14]}"
+attempt_plan_sha256="$(sha256sum -- "$2" 2>/dev/null | cut -d ' ' -f 1)"
+[[ "$attempt_plan_sha256" =~ ^[0-9a-f]{64}$ ]] || fail S6_ATTEMPT_PLAN_INVALID
+[[ "$advance_isolated_market_graph" == 0 || "$advance_isolated_market_graph" == 1 ]] \
+  || fail S6_ATTEMPT_PLAN_INVALID
 inputs="$root/inputs-private"
 candidate_input_staging="$root/candidate-input-staging"
 export_root="$(dirname -- "$provider_settings_export_path")"
@@ -147,6 +155,9 @@ candidate_uid=""
 candidate_gid=""
 web_container=""
 web_container_id=""
+isolated_pg_id=""
+isolated_redis_id=""
+isolated_network_id=""
 production_postgres=""
 expected_production_database=""
 source "$failure_helper" 2>/dev/null || fail S6_CANDIDATE_EXPORT_FAILURE_HELPER_INVALID
@@ -603,6 +614,34 @@ for _ in $(seq 1 30); do
 done
 test "$redis_ready" = 1 || fail S6_ISOLATED_REDIS_HEALTH_FAILED
 
+isolated_pg_id="$(docker inspect -f '{{.Id}}' "$pg" 2>/dev/null)" \
+  || fail S6_ISOLATED_CONTAINER_IDENTITY_UNAVAILABLE
+isolated_redis_id="$(docker inspect -f '{{.Id}}' "$redis" 2>/dev/null)" \
+  || fail S6_ISOLATED_CONTAINER_IDENTITY_UNAVAILABLE
+isolated_network_id="$(docker network inspect -f '{{.Id}}' "$net" 2>/dev/null)" \
+  || fail S6_ISOLATED_NETWORK_IDENTITY_UNAVAILABLE
+[[ "$isolated_pg_id" =~ ^[0-9a-f]{64}$ && "$isolated_redis_id" =~ ^[0-9a-f]{64}$ \
+  && "$isolated_network_id" =~ ^[0-9a-f]{64}$ ]] || fail S6_ISOLATED_CONTAINER_IDENTITY_INVALID
+verify_isolated_runtime_identity() {
+  local current_pg current_redis current_network member_output
+  local -a members
+  current_pg="$(docker inspect -f '{{.Id}}' "$pg" 2>/dev/null)" \
+    || fail S6_ISOLATED_CONTAINER_IDENTITY_UNAVAILABLE
+  current_redis="$(docker inspect -f '{{.Id}}' "$redis" 2>/dev/null)" \
+    || fail S6_ISOLATED_CONTAINER_IDENTITY_UNAVAILABLE
+  current_network="$(docker network inspect -f '{{.Id}}' "$net" 2>/dev/null)" \
+    || fail S6_ISOLATED_NETWORK_IDENTITY_UNAVAILABLE
+  test "$current_pg" = "$isolated_pg_id" && test "$current_redis" = "$isolated_redis_id" \
+    && test "$current_network" = "$isolated_network_id" \
+    || fail S6_ISOLATED_RUNTIME_IDENTITY_DRIFT
+  member_output="$(docker network inspect -f '{{range .Containers}}{{println .Name}}{{end}}' "$net" 2>/dev/null)" \
+    || fail S6_ISOLATED_NETWORK_MEMBERS_UNAVAILABLE
+  mapfile -t members < <(printf '%s\n' "$member_output" | sed '/^$/d' | sort)
+  test "${#members[@]}" -eq 2 && test "${members[0]}" = "$pg" \
+    && test "${members[1]}" = "$redis" || fail S6_ISOLATED_NETWORK_MEMBERS_INVALID
+}
+verify_isolated_runtime_identity
+
 phase=production_snapshot
 docker exec "$production_postgres" sh -eu -c \
   'pg_dump -U "$POSTGRES_USER" -d "$1" --format=custom --no-owner --no-acl' \
@@ -679,6 +718,13 @@ run_candidate_export() {
     -e "S6_EXPECTED_DB=$db"
     -e "S6_NETWORK=$net" -e "S6_DATABASE=$db"
     -e "S6_PG_CONTAINER=$pg" -e "S6_REDIS_CONTAINER=$redis"
+    -e "S6_ATTEMPT_ID=$attempt_id"
+    -e "S6_ATTEMPT_PLAN_SHA256=$attempt_plan_sha256"
+    -e "S6_ADVANCE_ISOLATED_MARKET_GRAPH=$advance_isolated_market_graph"
+    -e "S6_PG_CONTAINER_ID=$isolated_pg_id"
+    -e "S6_REDIS_CONTAINER_ID=$isolated_redis_id"
+    -e "S6_NETWORK_ID=$isolated_network_id"
+    -e "S6_EXECUTION_IMAGE_ID=$execution_image"
     -e "PGOPTIONS=-c default_transaction_read_only=on -c transaction_read_only=on"
     -v "$candidate_source:/candidate-src:ro"
     -v "$candidate_input_staging:/candidate-inputs:ro"
@@ -718,6 +764,96 @@ PY
   fail "$(s6_candidate_export_failure_code "$mode")"
 }
 
+run_candidate_market_graph_refresh() {
+  local exporter_log="$root/current-market-graph-refresh.log"
+  local helper_log="$root/current-market-graph-refresh-cli.log"
+  local current_web_id current_image helper_error docker_argument
+  local -a docker_argv helper_argv
+  test "$advance_isolated_market_graph" = 1 || return 0
+  test ! -e "$exporter_log" && test ! -L "$exporter_log" \
+    || fail S6_GRAPH_REFRESH_LOG_REUSE_REJECTED
+  test ! -e "$helper_log" && test ! -L "$helper_log" \
+    || fail S6_GRAPH_REFRESH_LOG_REUSE_REJECTED
+  verify_isolated_runtime_identity
+  current_web_id="$(docker inspect -f '{{.Id}}' "$web_container" 2>/dev/null)" \
+    || fail S6_PRODUCTION_WEB_UNAVAILABLE
+  current_image="$(docker inspect -f '{{.Image}}' "$web_container" 2>/dev/null)" \
+    || fail S6_PRODUCTION_WEB_UNAVAILABLE
+  test "$current_web_id" = "$web_container_id" && test "$current_image" = "$execution_image" \
+    || fail S6_EXECUTION_IMAGE_IDENTITY_DRIFT
+  docker_argv=(
+    docker run --rm --read-only --user "$candidate_uid:$candidate_gid"
+    --network "$net"
+    --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=2147483648
+    --env-file "$inputs/isolated-postgres.env"
+    -e S6_GRAPH_REFRESH_ENABLED=1
+    -v "$candidate_source:/candidate-src:ro"
+    -v "$candidate_input_staging:/candidate-inputs:ro"
+    -v "$export_root:/candidate-output:rw"
+    --entrypoint python "$execution_image"
+    /candidate-src/scripts/refresh_s6_isolated_market_graph.py
+    --candidate-sha "$sha"
+    --attempt-id "$attempt_id"
+    --attempt-plan-sha256 "$attempt_plan_sha256"
+    --database "$db"
+    --postgres-container "$pg"
+    --redis-container "$redis"
+    --database-container-id "$isolated_pg_id"
+    --redis-container-id "$isolated_redis_id"
+    --network "$net"
+    --network-id "$isolated_network_id"
+    --execution-image-id "$execution_image"
+    --task-id "s6-market-refresh-$attempt_id"
+  )
+  helper_argv=(
+    --candidate-sha "$sha" --destination "$candidate_source"
+    --receipt "$candidate_source_receipt" --container-gid "$candidate_gid"
+    --container-uid "$candidate_uid" --execution-image "$execution_image"
+    --input-directory "$candidate_input_staging" --output-directory "$export_root"
+    --execution-env-file "$inputs/isolated-postgres.env" --docker-network "$net"
+    --run-market-graph-refresh --attempt-id "$attempt_id"
+    --attempt-plan-sha256 "$attempt_plan_sha256" --database "$db"
+    --postgres-container "$pg" --redis-container "$redis"
+    --postgres-container-id "$isolated_pg_id" --redis-container-id "$isolated_redis_id"
+    --network-id "$isolated_network_id" --log-path "$exporter_log"
+  )
+  for docker_argument in "${docker_argv[@]}"; do
+    helper_argv+=("--docker-arg=$docker_argument")
+  done
+  if python3 -B "$candidate_source_helper" "${helper_argv[@]}" > "$helper_log" 2>&1; then
+    chmod 600 "$helper_log" "$exporter_log"
+    verify_isolated_runtime_identity
+    verify_candidate_files "$export_root" current-market-graph-refresh.json \
+      || fail S6_GRAPH_REFRESH_RECEIPT_INVALID
+    test ! -e "$candidate_input_staging/current-market-graph-refresh.json" \
+      && test ! -L "$candidate_input_staging/current-market-graph-refresh.json" \
+      || fail S6_CANDIDATE_INPUT_REUSE_REJECTED
+    install -m 400 "$export_root/current-market-graph-refresh.json" \
+      "$candidate_input_staging/current-market-graph-refresh.json" \
+      || fail S6_CANDIDATE_INPUT_COPY_FAILED
+    chown "$candidate_uid:$candidate_gid" "$candidate_input_staging/current-market-graph-refresh.json" \
+      || fail S6_CANDIDATE_INPUT_COPY_FAILED
+    verify_candidate_files "$candidate_input_staging" current-market-graph-refresh.json \
+      || fail S6_GRAPH_REFRESH_RECEIPT_INVALID
+    return 0
+  fi
+  chmod 600 "$helper_log" "$exporter_log" 2>/dev/null || true
+  helper_error="$(python3 - "$helper_log" <<'PY'
+import json, re, sys
+from pathlib import Path
+try:
+    value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    error = value.get("error") if isinstance(value, dict) else None
+    if isinstance(error, str) and re.fullmatch(r"S6_(?:CANDIDATE|GRAPH)_REFRESH_[A-Z0-9_]+", error):
+        print(error)
+except (OSError, UnicodeError, json.JSONDecodeError):
+    pass
+PY
+)"
+  if [[ -n "$helper_error" ]]; then fail "$helper_error"; fi
+  fail S6_GRAPH_REFRESH_COMMAND_FAILED
+}
+
 verify_candidate_files() {
   local directory="$1"
   shift
@@ -736,7 +872,13 @@ try:
     actual = set()
     for item in os.scandir(root):
         metadata = item.stat(follow_symlinks=False)
-        if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600:
+        expected_mode = (
+            0o400
+            if item.name == "current-market-graph-refresh.json"
+            and root.name == "candidate-input-staging"
+            else 0o600
+        )
+        if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != expected_mode:
             raise ValueError
         if (metadata.st_uid, metadata.st_gid) != (uid, gid):
             raise ValueError
@@ -758,9 +900,16 @@ copy_candidate_input() {
     || fail S6_CANDIDATE_INPUT_COPY_FAILED
 }
 
+run_candidate_market_graph_refresh
+expected_export_names=(
+  provider-settings.json provider-identities.json unit-contract.json provider-policy-preflight.json
+)
+if [[ "$advance_isolated_market_graph" = 1 ]]; then
+  expected_export_names+=(current-market-graph-refresh.json)
+fi
 run_candidate_export production || fail S6_CANDIDATE_EXPORT_PRODUCTION_FAILED
-verify_candidate_files "$export_root" provider-settings.json provider-identities.json \
-  unit-contract.json provider-policy-preflight.json || fail S6_PRODUCTION_EXPORT_INVALID
+verify_candidate_files "$export_root" "${expected_export_names[@]}" \
+  || fail S6_PRODUCTION_EXPORT_INVALID
 python3 -B - "$export_root/provider-settings.json" "$export_root/provider-identities.json" \
   "$export_root/unit-contract.json" "$sha" "$candidate_source" <<'PY' || fail S6_PRODUCTION_EXPORT_INVALID
 import json, sys
@@ -782,12 +931,16 @@ PY
 copy_candidate_input provider-settings.json
 copy_candidate_input provider-identities.json
 copy_candidate_input unit-contract.json
-verify_candidate_files "$candidate_input_staging" provider-settings.json provider-identities.json \
-  unit-contract.json || fail S6_CANDIDATE_INPUT_TREE_INVALID
+expected_input_names=(provider-settings.json provider-identities.json unit-contract.json)
+if [[ "$advance_isolated_market_graph" = 1 ]]; then
+  expected_input_names+=(current-market-graph-refresh.json)
+fi
+verify_candidate_files "$candidate_input_staging" "${expected_input_names[@]}" \
+  || fail S6_CANDIDATE_INPUT_TREE_INVALID
 
 run_candidate_export universe || fail S6_CANDIDATE_EXPORT_UNIVERSE_FAILED
-verify_candidate_files "$export_root" provider-settings.json provider-identities.json \
-  unit-contract.json provider-policy-preflight.json universe-summary.json \
+expected_export_names+=(universe-summary.json)
+verify_candidate_files "$export_root" "${expected_export_names[@]}" \
   || fail S6_UNIVERSE_EXPORT_INVALID
 python3 - "$export_root/universe-summary.json" <<'PY' || fail S6_UNIVERSE_SCOPE_INVALID
 import datetime, json, re, sys
@@ -805,17 +958,28 @@ if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
     raise SystemExit("S6_PREPARE_BLOCKED code=S6_UNIVERSE_SCOPE_INVALID")
 PY
 copy_candidate_input universe-summary.json
-verify_candidate_files "$candidate_input_staging" provider-settings.json provider-identities.json \
-  unit-contract.json universe-summary.json || fail S6_CANDIDATE_INPUT_TREE_INVALID
+expected_input_names+=(universe-summary.json)
+if [[ "$advance_isolated_market_graph" = 1 ]]; then
+  expected_input_names+=(current-market-graph-refresh.json)
+fi
+verify_candidate_files "$candidate_input_staging" "${expected_input_names[@]}" \
+  || fail S6_CANDIDATE_INPUT_TREE_INVALID
 run_candidate_export contract || fail S6_CANDIDATE_EXPORT_CONTRACT_FAILED
-verify_candidate_files "$export_root" provider-settings.json provider-identities.json \
-  unit-contract.json provider-policy-preflight.json universe-summary.json \
+verify_candidate_files "$export_root" "${expected_export_names[@]}" \
   || fail S6_EXPORT_FILE_SET_INVALID
 for name in provider-settings.json provider-identities.json unit-contract.json \
   provider-policy-preflight.json universe-summary.json; do
   test ! -e "$inputs/$name" && test ! -L "$inputs/$name" || fail S6_PRIVATE_EXPORT_REUSE_REJECTED
   install -m 600 "$export_root/$name" "$inputs/$name" || fail S6_PRIVATE_EXPORT_COPY_FAILED
 done
+if [[ "$advance_isolated_market_graph" = 1 ]]; then
+  test ! -e "$inputs/current-market-graph-refresh.json" \
+    && test ! -L "$inputs/current-market-graph-refresh.json" \
+    || fail S6_PRIVATE_EXPORT_REUSE_REJECTED
+  install -m 400 "$candidate_input_staging/current-market-graph-refresh.json" \
+    "$inputs/current-market-graph-refresh.json" \
+    || fail S6_PRIVATE_EXPORT_COPY_FAILED
+fi
 
 phase=prepare_network_cleanup
 docker network disconnect "$prepare_network" "$pg" >/dev/null 2>&1 \
@@ -833,155 +997,18 @@ if docker network inspect "$prepare_network" >/dev/null 2>&1; then
 fi
 
 phase=final_validation
-python3 -B - "$inputs" "$export_root" "$sha" "$db" "$net" "$pg" "$redis" \
-  "$prepare_network" "$prepare_alias" \
-  "$namespace" "$evidence_dir" "$provider_settings_export_path" \
-  "$provider_identities_export_path" "$candidate_source_receipt" \
-  "$execution_image" "$prepare_receipt" "$runner_receipt" "$runner_python" \
-  "$requirements_sha256" "$candidate_uid" "$candidate_gid" "$candidate_source" <<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED
-import datetime, hashlib, json, os, re, stat, sys
-from pathlib import Path
-(
-    inputs_text, exports_text, candidate, database, network, postgres, redis,
-    prepare_network, prepare_alias, namespace,
-    evidence_dir, settings_path, identities_path, source_receipt_path, image_id,
-    prepare_receipt_path, runner_receipt_path, runner_python, requirements_sha,
-    uid_text, gid_text, candidate_source,
-) = sys.argv[1:]
-sys.path.insert(0, candidate_source)
-from apps.data_center.infrastructure.rehearsal_identity import parse_complete_rehearsal_identities
-inputs, exports = Path(inputs_text), Path(exports_text)
-uid, gid = int(uid_text), int(gid_text)
-expected = {
-    "provider-settings.json", "provider-identities.json", "unit-contract.json",
-    "provider-policy-preflight.json", "universe-summary.json",
-}
-def require(condition, code):
-    if not condition:
-        raise SystemExit(f"S6_PREPARE_BLOCKED code={code}")
-def check_tree(path, names, ownership):
-    info = path.lstat()
-    require(stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o700, "S6_EXPORT_DIRECTORY_INVALID")
-    require((info.st_uid, info.st_gid) == ownership, "S6_EXPORT_DIRECTORY_OWNER_INVALID")
-    found = set()
-    for item in os.scandir(path):
-        entry = item.stat(follow_symlinks=False)
-        require(stat.S_ISREG(entry.st_mode) and stat.S_IMODE(entry.st_mode) == 0o600, "S6_EXPORT_FILE_INVALID")
-        require((entry.st_uid, entry.st_gid) == ownership, "S6_EXPORT_FILE_OWNER_INVALID")
-        found.add(item.name)
-    require(found == names, "S6_EXPORT_FILE_SET_INVALID")
-check_tree(exports, expected, (uid, gid))
-private_expected = {
-    "runner.env", "vps-password.txt", "provider.env", "isolated-postgres.env",
-    "isolated-migrator.env", *expected,
-}
-private_info = inputs.lstat()
-require(stat.S_ISDIR(private_info.st_mode) and stat.S_IMODE(private_info.st_mode) == 0o700, "S6_PRIVATE_INPUT_DIRECTORY_INVALID")
-require({item.name for item in os.scandir(inputs)} == private_expected, "S6_PRIVATE_INPUT_SET_INVALID")
-for name in private_expected:
-    info = (inputs / name).lstat()
-    require(stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o600, "S6_PRIVATE_INPUT_MODE_INVALID")
-for name in expected:
-    require((exports / name).read_bytes() == (inputs / name).read_bytes(), "S6_PRIVATE_EXPORT_COPY_MISMATCH")
-def read_env(name):
-    values = {}
-    for line in (inputs / name).read_text(encoding="utf-8").splitlines():
-        variable_name, separator, value = line.partition("=")
-        if not separator or variable_name in values:
-            raise SystemExit(
-                "S6_PREPARE_BLOCKED code=S6_PRIVATE_ENVIRONMENT_INVALID"
-            )
-        values[variable_name] = value
-    return values
-provider = read_env("provider.env")
-provider_allowlist = {
-    "DJANGO_SETTINGS_MODULE", "TUSHARE_TOKEN", "TUSHARE_HTTP_URL", "TUSHARE_REQUEST_MODE",
-    "DATA_CENTER_DEPLOYMENT_REGION", "AGOMTRADEPRO_DEPLOYMENT_REGION",
-    "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
-}
-require(provider.get("DJANGO_SETTINGS_MODULE") == "core.settings.production", "S6_PROVIDER_ENVIRONMENT_INVALID")
-require(set(provider) <= provider_allowlist, "S6_PROVIDER_ENVIRONMENT_INVALID")
-require(not ({"SECRET_KEY", "AGOMTRADEPRO_ENCRYPTION_KEY", "DATABASE_URL", "REDIS_URL", "REDIS_HOST"} & set(provider)), "S6_PROVIDER_ENVIRONMENT_INVALID")
-require(not (inputs / "prepare-export.env").exists(), "S6_PREPARE_ENV_CLEANUP_FAILED")
-isolated = read_env("isolated-postgres.env")
-require(isolated.get("POSTGRES_HOST") == postgres and isolated.get("POSTGRES_DB") == database, "S6_ISOLATED_DATABASE_ENVIRONMENT_INVALID")
-require(isolated.get("REDIS_HOST") == redis and isolated.get("REDIS_URL") == f"redis://{redis}:6379/0", "S6_ISOLATED_REDIS_ENVIRONMENT_INVALID")
-require(prepare_network == f"{network}-prepare" and prepare_alias == f"{postgres}-prepare", "S6_PREPARE_NETWORK_IDENTITY_INVALID")
-settings = json.loads((exports / "provider-settings.json").read_text(encoding="utf-8"))
-identities = json.loads((exports / "provider-identities.json").read_text(encoding="utf-8"))
-unit = json.loads((exports / "unit-contract.json").read_text(encoding="utf-8"))
-policy = json.loads((exports / "provider-policy-preflight.json").read_text(encoding="utf-8"))
-universe = json.loads((exports / "universe-summary.json").read_text(encoding="utf-8"))
-require(isinstance(settings, dict) and bool(settings), "S6_PROVIDER_SETTINGS_INVALID")
-require(isinstance(identities, list) and bool(identities), "S6_PROVIDER_IDENTITIES_INVALID")
-try:
-    parse_complete_rehearsal_identities(identities)
-except ValueError:
-    require(False, "S6_PROVIDER_IDENTITIES_INVALID")
-require(isinstance(unit, dict) and unit.get("candidate_sha") == candidate, "S6_UNIT_CONTRACT_INVALID")
-require(isinstance(policy, dict) and policy.get("outcome") == "pass", "S6_PROVIDER_POLICY_PREFLIGHT_INVALID")
-date_value, count, universe_sha = universe.get("target_trade_date"), universe.get("universe_count"), universe.get("universe_sha256")
-try:
-    require(isinstance(date_value, str) and datetime.date.fromisoformat(date_value).isoformat() == date_value, "S6_UNIVERSE_SCOPE_INVALID")
-except ValueError:
-    require(False, "S6_UNIVERSE_SCOPE_INVALID")
-require(isinstance(count, int) and not isinstance(count, bool) and count > 0, "S6_UNIVERSE_SCOPE_INVALID")
-require(isinstance(universe_sha, str) and re.fullmatch(r"[0-9a-f]{64}", universe_sha) is not None, "S6_UNIVERSE_SCOPE_INVALID")
-source_receipt = json.loads(Path(source_receipt_path).read_text(encoding="utf-8"))
-require(source_receipt.get("candidate_sha") == candidate and source_receipt.get("container_gid") == gid, "S6_CANDIDATE_SOURCE_RECEIPT_INVALID")
-tree_sha = source_receipt.get("tree_sha256")
-receipt_sha = source_receipt.get("receipt_sha256")
-require(isinstance(tree_sha, str) and re.fullmatch(r"[0-9a-f]{64}", tree_sha) is not None, "S6_CANDIDATE_SOURCE_RECEIPT_INVALID")
-require(isinstance(receipt_sha, str) and re.fullmatch(r"[0-9a-f]{64}", receipt_sha) is not None, "S6_CANDIDATE_SOURCE_RECEIPT_INVALID")
-require(re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) is not None, "S6_EXECUTION_IMAGE_ID_INVALID")
-runner = json.loads(Path(runner_receipt_path).read_text(encoding="utf-8"))
-require(runner.get("schema") == "release.s6-runner-runtime.v1", "S6_RUNNER_RUNTIME_RECEIPT_INVALID")
-require(runner.get("runner_python") == runner_python and runner.get("requirements_ops_sha256") == requirements_sha, "S6_RUNNER_RUNTIME_RECEIPT_INVALID")
-require(runner.get("paramiko_version") == "5.0.0", "S6_RUNNER_RUNTIME_RECEIPT_INVALID")
-require(runner.get("paramiko_commit") == "a4489456b6f65281e172380cc4826cee5e851dbb", "S6_RUNNER_RUNTIME_RECEIPT_INVALID")
-def digest(path):
-    sha = hashlib.sha256()
-    with path.open("rb") as stream:
-        while chunk := stream.read(1024 * 1024):
-            sha.update(chunk)
-    return sha.hexdigest()
-outputs = {name: digest(exports / name) for name in sorted(expected)}
-receipt = {
-    "schema": "release.s6-prepare-receipt.v2",
-    "outcome": "success",
-    "candidate_sha": candidate,
-    "attempt_namespace": namespace,
-    "database": database,
-    "network": network,
-    "postgres_container": postgres,
-    "redis_container": redis,
-    "prepare_network": prepare_network,
-    "prepare_postgres_alias": prepare_alias,
-    "prepare_network_removed": True,
-    "evidence_dir": evidence_dir,
-    "provider_settings_export_path": settings_path,
-    "provider_identities_export_path": identities_path,
-    "candidate_source_tree_sha256": tree_sha,
-    "candidate_source_receipt_sha256": receipt_sha,
-    "execution_image_id": image_id,
-    "provider_settings_sha256": outputs["provider-settings.json"],
-    "provider_identities_sha256": outputs["provider-identities.json"],
-    "unit_contract_sha256": outputs["unit-contract.json"],
-    "provider_policy_preflight_sha256": outputs["provider-policy-preflight.json"],
-    "target_trade_date": date_value,
-    "universe_count": count,
-    "universe_sha256": universe_sha,
-}
-target = Path(prepare_receipt_path)
-fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
-with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
-    stream.write(json.dumps(receipt, sort_keys=True) + "\n")
-    stream.flush()
-    os.fsync(stream.fileno())
-PY
 test -x "$runner_python" && test -f "$runner_receipt" && test ! -L "$runner_receipt" \
   || fail S6_RUNNER_RUNTIME_RECEIPT_INVALID
-chmod 600 "$prepare_receipt"
+python3 -B "$candidate_source_helper" \
+  --candidate-sha "$sha" --destination "$candidate_source" \
+  --receipt "$candidate_source_receipt" --container-gid "$candidate_gid" \
+  --container-uid "$candidate_uid" --execution-image "$execution_image" \
+  --input-directory "$inputs" --output-directory "$export_root" \
+  --validate-final-receipt --runner-python "$runner_python" \
+  --requirements-sha256 "$requirements_sha256" \
+  --postgres-container-id "$isolated_pg_id" \
+  --redis-container-id "$isolated_redis_id" --network-id "$isolated_network_id" \
+  || fail S6_PREPARE_FINAL_VALIDATION_FAILED
 phase=complete
 printf 'S6_PREPARE_COMPLETE candidate=%s attempt=%s execution_image_id=%s\n' \
   "$sha" "$attempt_id" "$execution_image"

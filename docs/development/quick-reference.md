@@ -85,6 +85,9 @@ python3 -m venv <attempt-root>/runner-venv
 - 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
   必须废弃本次输入、重新导出并启动新的 S6，不能复用旧快照或声称已检测到实时漂移。
+- planner v3 的 `--advance-isolated-market-graph` 默认关闭。仅在 fresh prepare 的隔离快照 current graph 已过时、
+  并导致鲜活 provider probe `REHEARSAL_RESPONSE_FUTURE_DATE` 时，才可在 reserve 时显式启用；它会额外执行真实全市场 provider
+  refresh。该选择进入不可变 attempt plan 和 prepare receipt，不改变日期、新鲜度、15:00 或 provider-probe 门槛。
 - 所有经 SSH 或 pipe 传输后执行/解析的脚本与配置都必须逐项用 `--transport-input` 登记；runner 在远端构建前验证
   UTF-8、无 BOM/NUL/CR。迁移阶段只校验 source env 的必要 DB identity，再重建最小 migrator stage env；该私有文件只保留 DB identity、Django `SECRET_KEY` 与历史 migration 可能需要的 `AGOMTRADEPRO_ENCRYPTION_KEY`，provider/API secret 不进入 stage env，任何 secret 都不得进入 argv、report、诊断或 release bundle。
 - `isolated_database_migrations` 在任何 provider stage 之前使用候选镜像迁移**精确绑定的 disposable PostgreSQL**。该 stage 的

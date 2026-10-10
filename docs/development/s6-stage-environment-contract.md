@@ -17,11 +17,12 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 
 | attempt | 已确认事实 | 被抽象的契约 |
 | --- | --- | --- |
-| fresh prepare（candidate `c6fcf4a…`） | candidate exporter 的 `copytree` 无法读取 root:0700 的工作区顶层；随后 wrapper 在 `set -u` 下用未加括号的 `$mode_FAILED` 把错误遮蔽成 `mode_FAILED`。 | attempt planner v2 在 reserve 时从 exact clean Git candidate tree 的 blob 建立不含 `.git` 的独立快照，拒绝 symlink/特殊项，只密封快照为候选 GID 的 `0550/0440`；保存含 receipt SHA 与 tree SHA 的无秘密 receipt。每次 Docker exporter 前只读复核，并要求唯一、位于 image 参数之前的 `--user <non-root UID>:<candidate GID>`、精确 image 与只读 mount。 |
+| fresh prepare（candidate `c6fcf4a…`） | candidate exporter 的 `copytree` 无法读取 root:0700 的工作区顶层；随后 wrapper 在 `set -u` 下用未加括号的 `$mode_FAILED` 把错误遮蔽成 `mode_FAILED`。 | attempt planner v3 在 reserve 时从 exact clean Git candidate tree 的 blob 建立不含 `.git` 的独立快照，拒绝 symlink/特殊项，只密封快照为候选 GID 的 `0550/0440`；保存含 receipt SHA 与 tree SHA 的无秘密 receipt。每次 Docker exporter 前只读复核，并要求唯一、位于 image 参数之前的 `--user <non-root UID>:<candidate GID>`、精确 image 与只读 mount。 |
 | `72de41d46b7242de9789cc0f8ce9d32c` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，前缀已完成至 `github_ci_evidence`。CI 证据目录/文件由 root 生成，非 root 候选只读挂载时不可读。 | 文件树必须无 symlink/特殊文件，并以 descriptor 复核 group 与 `0550/0440` 密封状态；财报阶段挂载前再次只读复核。 |
 | `ebe16fb787094b45957b16e17dfd771a` | `prepare-status.json` 为 exit 127，候选阶段未启动；远端 wrapper 含 CR 字节。 | 所有经 SSH/pipe 传输且随后执行或解析的文本必须 UTF-8、无 BOM/NUL/CR，并通过重复 `--transport-input` 显式登记。 |
 | `5caf4f22e0264b3f9a9d67a06432f655` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，生产快照当时缺 provider 3 的两条财报 egress 规则。 | 候选侧必须在 provider I/O 前复用持久化 `preview_route`，逐一验证 provider row × dataset × host × deployment region。 |
 | `11fa71b43e504660b2f77a6ff7a31d28` | fresh prepare 已恢复最新生产只读快照，但 `universe` exporter 在 internal Docker network 内调用 provider-backed 市场日历，Tushare/Akshare 均无出口，最终 `S6_TARGET_SESSION_UNAVAILABLE`。 | prepare 的 target date 必须由生产者已封存的 current publication graph 推导；禁止依赖 provider 出网、主机 wall clock、`date.today()` 或原始表 `MAX(date)`。 |
+| 新增 opt-in 设计（尚待下一次 Linux fresh S6 实证） | production snapshot 的 publication graph 日期落后于实时 provider response context 时，fresh probe 可能以 `REHEARSAL_RESPONSE_FUTURE_DATE` 阻断。 | planner v3 提供默认关闭的 `--advance-isolated-market-graph`；只有明确启用后才在恢复后的 disposable PostgreSQL/Redis 上运行候选 full-market Task Monitor task，并在只读 exporter 中重读验证完整 receipt。该流程不连生产 DB，不放宽目标日期、新鲜度或 15:00 规则；运行失败不产生成功 prepare receipt。 |
 
 上述只读证据来自 VPS 历史 attempt；目录没有被修改或删除。
 
@@ -56,6 +57,16 @@ member counts、source timestamps 和 dataset coverage 摘要逐项一致。Task
 publication hash 与 Task Monitor dataset summary 全部一致时才允许作为解释明确的 partial dataset；不得写死证券或把未解释缺口吞成成功。
 该读取不访问 provider、不排队任务、不写建议，也不以数据年龄门槛替代 producer evidence。任一图节点缺失或漂移统一返回
 `S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID`，外层保留候选 universe export 的稳定阻断语义。
+
+默认 fresh prepare 仍直接复用恢复快照中的 current graph。planner v3 可在 reserve 时显式选择
+`--advance-isolated-market-graph`；该选择随 plan hash 绑定 attempt。wrapper 只在隔离角色 bootstrap 后、只读 exporter 前，
+用 candidate source readonly mount 和当前执行 image 启动固定 refresh CLI；运行时只接受精确 `agom_release_rehearsal_*` 数据库、
+runtime PostgreSQL role、同 attempt 的 Redis/容器/network/image 身份。该 full-market Task Monitor task 会真实访问 provider，
+所以该 opt-in 有额外调用成本。成功 receipt 必须包含任务规范 outcome 与 `requested/succeeded/failed/stored`、Task Monitor attempt、
+run/activation、三个 pointer/publication header、重算 member/fact hash、source-time min/max 和 target date；只读 `universe` 与
+`contract` exporter 再针对 live isolated graph 复核 receipt 与 universe target date。失败时不封存成功 receipt。
+上述操作不改变 provider probe 的 freshness/date/15:00 阈值，不在生产 DB 执行，并不新增 release manifest 的 required report；
+实际 Linux Docker 和真实 provider 运行仍须由下一次 fresh S6 验证。
 
 ## 候选迁移阶段
 
@@ -128,7 +139,7 @@ container ID、连接的实际数据库身份和 `agomtradepro_migrator` session
 - 本清单只覆盖已知六类，不能证明环境假设已经穷尽；未知类别风险必须保留在每次台账与交接中。
 - Windows 本地不能证明 POSIX symlink race、descriptor ownership、非 root 容器读取和实际 mode；相关正反例必须由 Linux CI 执行，
   下一轮 fresh S6 再提供真实容器证据，不能把 Windows skip 计作通过。
-- runner 无法在自身启动前检查启动它的 wrapper；candidate source 已由 attempt planner v2 强制创建并绑定到计划，exporter 由 tracked CLI
+- runner 无法在自身启动前检查启动它的 wrapper；candidate source 已由 attempt planner v3 强制创建并绑定到计划，exporter 由 tracked CLI
   在调用 Docker 前复核，但更外层上传/执行链仍必须在发送端复用同一 UTF-8/LF 规则，并把每个实际输入通过
   `--transport-input` 交给 runner 复核。未登记即输入校验失败。宿主应先用 `requirements-ops.txt` 创建 attempt 私有虚拟环境；
   `paramiko` 固定到上游删除 RSA/SHA-1 支持的不可变提交 `a4489456b6f65281e172380cc4826cee5e851dbb`

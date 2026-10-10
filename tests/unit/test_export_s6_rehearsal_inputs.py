@@ -72,6 +72,27 @@ def _config() -> exporter.ExportConfig:
     )
 
 
+def _refresh_config() -> exporter.ExportConfig:
+    """Return the explicitly opted-in isolated graph-refresh export context."""
+
+    return exporter.ExportConfig(
+        candidate_sha="a" * 40,
+        expected_database="agom_release_rehearsal_" + "b" * 32,
+        settings_module="core.settings.production",
+        network="agom-s6-network-" + "c" * 32,
+        isolated_database="agom_release_rehearsal_" + "b" * 32,
+        postgres_container="agom-s6-postgres-" + "b" * 32,
+        redis_container="agom-s6-redis-" + "d" * 32,
+        advance_isolated_market_graph=True,
+        attempt_id="e" * 32,
+        attempt_plan_sha256="f" * 64,
+        postgres_container_id="1" * 64,
+        redis_container_id="2" * 64,
+        network_id="3" * 64,
+        execution_image_id="sha256:" + "4" * 64,
+    )
+
+
 def test_help_is_side_effect_free_and_invalid_mode_has_stable_code(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -120,6 +141,78 @@ def test_all_three_modes_dispatch_with_validated_environment(
     assert [mode for mode, _config in dispatched] == ["production", "universe", "contract"]
     assert all(config.expected_database == "production_ro" for _mode, config in dispatched)
     assert "S6_CANDIDATE_EXPORT_COMPLETE mode=contract" in capsys.readouterr().out
+
+
+def test_graph_refresh_export_context_is_opt_in_and_identity_bound() -> None:
+    """Exporter defaults to no refresh and rejects malformed identity on opt-in."""
+
+    environment = {
+        "S6_EXPECTED_CANDIDATE": "a" * 40,
+        "S6_EXPECTED_DB": "agom_release_rehearsal_" + "b" * 32,
+        "S6_NETWORK": "agom-s6-network-" + "c" * 32,
+        "S6_DATABASE": "agom_release_rehearsal_" + "b" * 32,
+        "S6_PG_CONTAINER": "agom-s6-postgres-" + "b" * 32,
+        "S6_REDIS_CONTAINER": "agom-s6-redis-" + "d" * 32,
+    }
+    default_config = exporter._load_config("universe", environment)
+    assert default_config.advance_isolated_market_graph is False
+
+    opted_in_environment = {
+        **environment,
+        "S6_ADVANCE_ISOLATED_MARKET_GRAPH": "1",
+        "S6_ATTEMPT_ID": "e" * 32,
+        "S6_ATTEMPT_PLAN_SHA256": "f" * 64,
+        "S6_PG_CONTAINER_ID": "1" * 64,
+        "S6_REDIS_CONTAINER_ID": "2" * 64,
+        "S6_NETWORK_ID": "3" * 64,
+        "S6_EXECUTION_IMAGE_ID": "sha256:" + "4" * 64,
+    }
+    opted_in_config = exporter._load_config("universe", opted_in_environment)
+    assert opted_in_config.advance_isolated_market_graph is True
+    assert opted_in_config.attempt_plan_sha256 == "f" * 64
+
+    with pytest.raises(exporter.ExportBlocked, match="S6_GRAPH_REFRESH_IDENTITY_INVALID"):
+        exporter._load_config(
+            "universe",
+            {**opted_in_environment, "S6_PG_CONTAINER_ID": "mutable-container"},
+        )
+
+
+def test_exporter_receipt_validator_reuses_exact_runtime_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The exporter passes the candidate/attempt/container identity to fresh graph read."""
+
+    from scripts import s6_isolated_market_graph_receipt as receipt_module
+
+    config = _refresh_config()
+    captured: list[tuple[Path, dict[str, str]]] = []
+    expected = {"target_trade_date": "2026-10-09"}
+
+    def validate(path: Path, *, context: dict[str, str]) -> dict[str, object]:
+        captured.append((path, context))
+        return expected
+
+    monkeypatch.setattr(receipt_module, "read_and_validate_refresh_receipt", validate)
+    assert exporter._validate_isolated_market_graph_refresh(config) == expected
+    assert captured == [
+        (
+            exporter.INPUT_ROOT / "current-market-graph-refresh.json",
+            {
+                "candidate_sha": config.candidate_sha,
+                "attempt_id": config.attempt_id,
+                "attempt_plan_sha256": config.attempt_plan_sha256,
+                "database": config.isolated_database,
+                "postgres_container": config.postgres_container,
+                "redis_container": config.redis_container,
+                "postgres_container_id": config.postgres_container_id,
+                "redis_container_id": config.redis_container_id,
+                "network": config.network,
+                "network_id": config.network_id,
+                "execution_image_id": config.execution_image_id,
+            },
+        )
+    ]
 
 
 def test_tree_digest_matches_host_snapshot_digest_and_rejects_links(tmp_path: Path) -> None:
@@ -550,6 +643,80 @@ def test_universe_export_uses_snapshot_publications_without_provider_calendar(
     summary = json.loads(published[0]["universe-summary.json"])
     assert summary["target_trade_date"] == "2026-10-09"
     assert summary["universe_count"] == 1
+
+
+def test_universe_export_rejects_refresh_receipt_for_another_target_date(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stale refresh receipt cannot move the exporter to a different graph date."""
+
+    from apps.data_center import target_date_universe_composition
+
+    candidate_sha = "a" * 40
+    monkeypatch.setattr(
+        exporter,
+        "_current_market_publication_target_date",
+        lambda: date(2026, 10, 9),
+    )
+    monkeypatch.setattr(
+        target_date_universe_composition,
+        "build_target_date_a_share_universe_scope",
+        lambda target: SimpleNamespace(
+            requested_codes=("000001.SZ",),
+            candidate_codes=("000001.SZ",),
+            excluded_not_yet_listed=(),
+            unknown_listing_date_codes=(),
+            target_date=target,
+        ),
+    )
+    monkeypatch.setattr(exporter, "_read_json", lambda _path, _limit: _identity_payload())
+    monkeypatch.setattr(
+        exporter,
+        "_read_json_object",
+        lambda _path, _limit: _unit_contract(candidate_sha),
+    )
+    monkeypatch.setattr(
+        exporter,
+        "_validate_isolated_market_graph_refresh",
+        lambda _config: {"target_trade_date": "2026-10-10"},
+    )
+
+    @contextmanager
+    def read_only(_database: str) -> Iterator[None]:
+        yield
+
+    monkeypatch.setattr(exporter, "_read_only_database", read_only)
+    with pytest.raises(exporter.ExportBlocked, match="S6_GRAPH_REFRESH_RECEIPT_MISMATCH"):
+        exporter._export_universe(_refresh_config())
+
+
+def test_contract_export_rechecks_refresh_receipt_against_universe_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The final exporter mode binds the same refresh target as universe evidence."""
+
+    monkeypatch.setattr(exporter, "_read_json", lambda _path, _limit: _identity_payload())
+    monkeypatch.setattr(
+        exporter,
+        "_read_json_object",
+        lambda _path, _limit: {"target_trade_date": "2026-10-09", "settings": True},
+    )
+    monkeypatch.setattr(exporter, "_validate_frozen_inputs", lambda *_args: object())
+    monkeypatch.setattr(exporter, "_validate_universe_summary", lambda _summary: None)
+    monkeypatch.setattr(
+        exporter,
+        "_validate_isolated_market_graph_refresh",
+        lambda _config: {"target_trade_date": "2026-10-10"},
+    )
+
+    @contextmanager
+    def read_only(_database: str) -> Iterator[None]:
+        yield
+
+    monkeypatch.setattr(exporter, "_read_only_database", read_only)
+    with pytest.raises(exporter.ExportBlocked, match="S6_GRAPH_REFRESH_RECEIPT_MISMATCH"):
+        exporter._export_contract(tmp_path / "runtime", _refresh_config())
 
 
 def test_runner_argv_matches_real_parser_and_rejects_resume(tmp_path: Path) -> None:

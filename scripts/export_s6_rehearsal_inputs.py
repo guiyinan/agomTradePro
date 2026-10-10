@@ -45,6 +45,7 @@ _REQUIRED_SOURCE_FILES = (
     "manage.py",
     "scripts/export_s6_rehearsal_inputs.py",
     "scripts/run_release_rehearsal.py",
+    "scripts/s6_isolated_market_graph_receipt.py",
     "scripts/validate_release_rehearsal.py",
     "apps/data_center/management/commands/export_provider_settings_snapshot.py",
     "apps/data_center/management/commands/export_rehearsal_provider_identities.py",
@@ -63,6 +64,7 @@ _REQUIRED_SOURCE_FILES = (
 _CANDIDATE_MODULES = (
     "scripts.run_release_rehearsal",
     "scripts.validate_release_rehearsal",
+    "scripts.s6_isolated_market_graph_receipt",
     "apps.data_center.management.commands.export_provider_settings_snapshot",
     "apps.data_center.management.commands.export_rehearsal_provider_identities",
     "apps.data_center.management.commands.preflight_full_market_publication",
@@ -102,6 +104,13 @@ class ExportConfig:
     isolated_database: str | None = None
     postgres_container: str | None = None
     redis_container: str | None = None
+    advance_isolated_market_graph: bool = False
+    attempt_id: str | None = None
+    attempt_plan_sha256: str | None = None
+    postgres_container_id: str | None = None
+    redis_container_id: str | None = None
+    network_id: str | None = None
+    execution_image_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -180,17 +189,75 @@ def _load_config(mode: Mode, environment: Mapping[str, str]) -> ExportConfig:
     settings_module = environment.get("DJANGO_SETTINGS_MODULE", "core.settings.production")
     if _MODULE_NAME.fullmatch(settings_module) is None:
         raise ExportBlocked("S6_CANDIDATE_SETTINGS_INVALID")
-    if mode != "contract":
+    if mode == "production":
         return ExportConfig(candidate_sha, expected_database, settings_module)
 
+    advance_flag = environment.get("S6_ADVANCE_ISOLATED_MARKET_GRAPH", "0")
+    if advance_flag not in {"0", "1"}:
+        raise ExportBlocked("S6_GRAPH_REFRESH_ENVIRONMENT_INVALID")
+    network = _required_environment(environment, "S6_NETWORK")
+    database = _required_environment(environment, "S6_DATABASE")
+    postgres = _required_environment(environment, "S6_PG_CONTAINER")
+    redis = _required_environment(environment, "S6_REDIS_CONTAINER")
+    graph_values: dict[str, str] = {}
+    if advance_flag == "1":
+        graph_values = {
+            "attempt_id": _required_environment(environment, "S6_ATTEMPT_ID"),
+            "attempt_plan_sha256": _required_environment(environment, "S6_ATTEMPT_PLAN_SHA256"),
+            "postgres_container_id": _required_environment(environment, "S6_PG_CONTAINER_ID"),
+            "redis_container_id": _required_environment(environment, "S6_REDIS_CONTAINER_ID"),
+            "network_id": _required_environment(environment, "S6_NETWORK_ID"),
+            "execution_image_id": _required_environment(environment, "S6_EXECUTION_IMAGE_ID"),
+        }
+        if (
+            re.fullmatch(r"[0-9a-f]{32}", graph_values["attempt_id"]) is None
+            or _TREE_SHA.fullmatch(graph_values["attempt_plan_sha256"]) is None
+            or any(
+                _TREE_SHA.fullmatch(graph_values[field]) is None
+                for field in (
+                    "postgres_container_id",
+                    "redis_container_id",
+                    "network_id",
+                )
+            )
+            or re.fullmatch(r"sha256:[0-9a-f]{64}", graph_values["execution_image_id"]) is None
+            or re.fullmatch(r"agom-s6-postgres-[a-f0-9]{32}", postgres) is None
+            or re.fullmatch(r"agom-s6-redis-[a-f0-9]{32}", redis) is None
+            or database != expected_database
+        ):
+            raise ExportBlocked("S6_GRAPH_REFRESH_IDENTITY_INVALID")
+    if mode == "universe":
+        return ExportConfig(
+            candidate_sha=candidate_sha,
+            expected_database=expected_database,
+            settings_module=settings_module,
+            network=network,
+            isolated_database=database,
+            postgres_container=postgres,
+            redis_container=redis,
+            advance_isolated_market_graph=advance_flag == "1",
+            attempt_id=graph_values.get("attempt_id"),
+            attempt_plan_sha256=graph_values.get("attempt_plan_sha256"),
+            postgres_container_id=graph_values.get("postgres_container_id"),
+            redis_container_id=graph_values.get("redis_container_id"),
+            network_id=graph_values.get("network_id"),
+            execution_image_id=graph_values.get("execution_image_id"),
+        )
     return ExportConfig(
         candidate_sha=candidate_sha,
         expected_database=expected_database,
         settings_module=settings_module,
-        network=_required_environment(environment, "S6_NETWORK"),
-        isolated_database=_required_environment(environment, "S6_DATABASE"),
-        postgres_container=_required_environment(environment, "S6_PG_CONTAINER"),
-        redis_container=_required_environment(environment, "S6_REDIS_CONTAINER"),
+        network=network,
+        isolated_database=database,
+        postgres_container=postgres,
+        redis_container=redis,
+        advance_isolated_market_graph=advance_flag == "1",
+        attempt_id=graph_values.get("attempt_id"),
+        attempt_plan_sha256=graph_values.get("attempt_plan_sha256"),
+        postgres_container_id=graph_values.get("postgres_container_id"),
+        redis_container_id=graph_values.get("redis_container_id"),
+        network_id=graph_values.get("network_id"),
+        execution_image_id=graph_values.get("execution_image_id"),
     )
 
 
@@ -1225,6 +1292,51 @@ def _current_market_publication_target_date() -> date:
     )
 
 
+def _validate_isolated_market_graph_refresh(config: ExportConfig) -> dict[str, object] | None:
+    """Rebuild the opt-in refresh receipt from the current isolated PostgreSQL snapshot."""
+
+    if not config.advance_isolated_market_graph:
+        return None
+    required = (
+        config.attempt_id,
+        config.attempt_plan_sha256,
+        config.postgres_container_id,
+        config.redis_container_id,
+        config.network,
+        config.network_id,
+        config.execution_image_id,
+        config.postgres_container,
+        config.redis_container,
+        config.isolated_database,
+    )
+    if any(value is None or not value for value in required):
+        raise ExportBlocked("S6_GRAPH_REFRESH_IDENTITY_INVALID")
+    from scripts.s6_isolated_market_graph_receipt import (
+        MarketGraphReceiptError,
+        read_and_validate_refresh_receipt,
+    )
+
+    try:
+        return read_and_validate_refresh_receipt(
+            INPUT_ROOT / "current-market-graph-refresh.json",
+            context={
+                "candidate_sha": config.candidate_sha,
+                "attempt_id": cast(str, config.attempt_id),
+                "attempt_plan_sha256": cast(str, config.attempt_plan_sha256),
+                "database": cast(str, config.isolated_database),
+                "postgres_container": cast(str, config.postgres_container),
+                "redis_container": cast(str, config.redis_container),
+                "postgres_container_id": cast(str, config.postgres_container_id),
+                "redis_container_id": cast(str, config.redis_container_id),
+                "network": cast(str, config.network),
+                "network_id": cast(str, config.network_id),
+                "execution_image_id": cast(str, config.execution_image_id),
+            },
+        )
+    except MarketGraphReceiptError as exc:
+        raise ExportBlocked(exc.error_code) from exc
+
+
 def _export_universe(config: ExportConfig) -> None:
     """Export the dynamic A-share scope bound to current formal publications."""
 
@@ -1237,7 +1349,13 @@ def _export_universe(config: ExportConfig) -> None:
     unit_value = _read_json_object(INPUT_ROOT / "unit-contract.json", 65_536)
     _validate_frozen_inputs(identities_value, unit_value, config.candidate_sha)
     with _read_only_database(config.expected_database):
+        refresh_receipt = _validate_isolated_market_graph_refresh(config)
         target_date = _current_market_publication_target_date()
+        if (
+            refresh_receipt is not None
+            and refresh_receipt.get("target_trade_date") != target_date.isoformat()
+        ):
+            raise ExportBlocked("S6_GRAPH_REFRESH_RECEIPT_MISMATCH")
         scope = build_target_date_a_share_universe_scope(target_date)
         codes = tuple(scope.requested_codes)
         if not codes:
@@ -1415,6 +1533,11 @@ def _export_contract(runtime: Path, config: ExportConfig) -> None:
         raise ExportBlocked("S6_PROVIDER_SETTINGS_INVALID")
     inputs = _validate_frozen_inputs(identities_value, unit_value, config.candidate_sha)
     _validate_universe_summary(summary)
+    refresh_receipt = _validate_isolated_market_graph_refresh(config)
+    if refresh_receipt is not None and refresh_receipt.get("target_trade_date") != summary.get(
+        "target_trade_date"
+    ):
+        raise ExportBlocked("S6_GRAPH_REFRESH_RECEIPT_MISMATCH")
     try:
         from scripts import run_release_rehearsal as runner
 

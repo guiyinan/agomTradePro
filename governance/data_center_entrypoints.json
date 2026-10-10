@@ -16,27 +16,27 @@
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 72,
-      "operational_script": 36,
+      "operational_script": 39,
       "orchestration_entry": 17,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 15,
+      "script": 18,
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 88,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 845,
+      "active_public": 848,
       "adjacent_operational": 337,
-      "candidate-review": 2,
+      "candidate-review": 5,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1322
+    "total": 1328
   },
   "entries": [
     {
@@ -8051,7 +8051,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "evidence": "planner v3-bound fresh S6 preparation with default-false isolated market graph opt-in; exporter calls reverify the sealed candidate source receipt before each mode",
       "id": "operational_dispatch_edge:scripts/prepare_release_rehearsal_attempt.sh:pg_dump:token:pg_dump",
       "locator": "token:pg_dump",
       "path": "scripts/prepare_release_rehearsal_attempt.sh",
@@ -8061,7 +8061,7 @@
     },
     {
       "category": "operational_dispatch_edge",
-      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "evidence": "planner v3-bound fresh S6 preparation with default-false isolated market graph opt-in; exporter calls reverify the sealed candidate source receipt before each mode",
       "id": "operational_dispatch_edge:scripts/prepare_release_rehearsal_attempt.sh:pg_restore:token:pg_restore",
       "locator": "token:pg_restore",
       "path": "scripts/prepare_release_rehearsal_attempt.sh",
@@ -8561,13 +8561,23 @@
     },
     {
       "category": "operational_script",
-      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "evidence": "planner v3-bound fresh S6 preparation with default-false isolated market graph opt-in; exporter calls reverify the sealed candidate source receipt before each mode",
       "id": "operational_script:scripts/prepare_release_rehearsal_attempt.sh:__main__:",
       "locator": "",
       "path": "scripts/prepare_release_rehearsal_attempt.sh",
       "status": "active_public",
       "symbol": "__main__",
       "target": "fresh S6 attempt preparation"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal planner v3-bound S6 source sealer and final prepare-receipt validator; validates only isolated exports and emits no provider calls",
+      "id": "operational_script:scripts/prepare_s6_candidate_source_snapshot.py:__main__:",
+      "locator": "",
+      "path": "scripts/prepare_s6_candidate_source_snapshot.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "fresh S6 candidate snapshot and prepare receipt validation"
     },
     {
       "category": "operational_script",
@@ -8578,6 +8588,16 @@
       "status": "active_public",
       "symbol": "__main__",
       "target": "postgres:pg_restore"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal planner v3-bound S6 CLI; provider refresh is restricted to the disposable attempt database and runs before read-only exporters",
+      "id": "operational_script:scripts/refresh_s6_isolated_market_graph.py:__main__:",
+      "locator": "",
+      "path": "scripts/refresh_s6_isolated_market_graph.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "fresh S6 isolated market graph advance"
     },
     {
       "category": "operational_script",
@@ -8618,6 +8638,16 @@
       "status": "active_public",
       "symbol": "__main__",
       "target": "scripts/remote_build_deploy_vps.py"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal S6 receipt projection and live graph verifier; emits no receipt unless Task Monitor and current publication evidence agree",
+      "id": "operational_script:scripts/s6_isolated_market_graph_receipt.py:__main__:",
+      "locator": "",
+      "path": "scripts/s6_isolated_market_graph_receipt.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "S6 isolated market graph receipt verification"
     },
     {
       "category": "operational_script",
@@ -11331,6 +11361,16 @@
     },
     {
       "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/prepare_s6_candidate_source_snapshot.py:__main__:",
+      "locator": "",
+      "path": "scripts/prepare_s6_candidate_source_snapshot.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/record_data01_restore_evidence.py:__main__:",
       "locator": "",
@@ -11381,6 +11421,16 @@
     },
     {
       "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/refresh_s6_isolated_market_graph.py:__main__:",
+      "locator": "",
+      "path": "scripts/refresh_s6_isolated_market_graph.py",
+      "status": "candidate-review",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "Data Center governance/measurement tooling",
       "id": "script:scripts/run_data02_isolated_simulation.py:__main__:",
       "locator": "",
@@ -11396,6 +11446,16 @@
       "locator": "",
       "path": "scripts/run_release_rehearsal.py",
       "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
+      "evidence": "static Data Center reference; explicit owner review required",
+      "id": "script:scripts/s6_isolated_market_graph_receipt.py:__main__:",
+      "locator": "",
+      "path": "scripts/s6_isolated_market_graph_receipt.py",
+      "status": "candidate-review",
       "symbol": "__main__",
       "target": ""
     },
@@ -13273,7 +13333,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 38,
+    "operational_governance_rules": 41,
     "runtime_config_keys": 45
   },
   "source_contracts": [

@@ -16,6 +16,7 @@ from scripts.prepare_s6_candidate_source_snapshot import (
     CandidateSourceSnapshotError,
     create_candidate_source_snapshot,
     run_candidate_export,
+    run_candidate_market_graph_refresh,
     verify_candidate_source_snapshot,
 )
 
@@ -75,6 +76,11 @@ def _prepare(
 
 
 _PREPARE_NETWORK = "agom-s6-network-" + "b" * 32 + "-prepare"
+_S6_ATTEMPT_ID = "c" * 32
+_S6_PLAN_SHA256 = "d" * 64
+_S6_PG_ID = "e" * 64
+_S6_REDIS_ID = "f" * 64
+_S6_NETWORK_ID = "1" * 64
 
 
 def _export_bindings(output_root: Path) -> tuple[Path, Path, Path]:
@@ -119,7 +125,7 @@ def _valid_export_argv(
         "-e",
         f"S6_EXPECTED_CANDIDATE={candidate_sha}",
         "-e",
-        "S6_EXPECTED_DB=isolated_snapshot",
+        "S6_EXPECTED_DB=agom_release_rehearsal_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "-e",
         "S6_NETWORK=agom-s6-network-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "-e",
@@ -128,6 +134,20 @@ def _valid_export_argv(
         "S6_PG_CONTAINER=agom-s6-postgres-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "-e",
         "S6_REDIS_CONTAINER=agom-s6-redis-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "-e",
+        f"S6_ATTEMPT_ID={_S6_ATTEMPT_ID}",
+        "-e",
+        f"S6_ATTEMPT_PLAN_SHA256={_S6_PLAN_SHA256}",
+        "-e",
+        "S6_ADVANCE_ISOLATED_MARKET_GRAPH=0",
+        "-e",
+        f"S6_PG_CONTAINER_ID={_S6_PG_ID}",
+        "-e",
+        f"S6_REDIS_CONTAINER_ID={_S6_REDIS_ID}",
+        "-e",
+        f"S6_NETWORK_ID={_S6_NETWORK_ID}",
+        "-e",
+        f"S6_EXECUTION_IMAGE_ID={execution_image}",
         "-e",
         "PGOPTIONS=-c default_transaction_read_only=on -c transaction_read_only=on",
         "-v",
@@ -158,6 +178,70 @@ def _run_export_kwargs(
         "execution_env_file": execution_env,
         "docker_network": _PREPARE_NETWORK,
     }
+
+
+def _valid_refresh_argv(
+    *,
+    destination: Path,
+    input_directory: Path,
+    output_directory: Path,
+    execution_env: Path,
+    candidate_sha: str,
+) -> list[str]:
+    """Return the one fixed isolated refresh command accepted by the wrapper."""
+
+    gid = os.getgid() if os.name == "posix" else 0
+    attempt_id = "c" * 32
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--read-only",
+        "--user",
+        f"1000:{gid}",
+        "--network",
+        "agom-s6-network-" + "b" * 32,
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,mode=1777,size=2147483648",
+        "--env-file",
+        str(execution_env.resolve()),
+        "-e",
+        "S6_GRAPH_REFRESH_ENABLED=1",
+        "-v",
+        f"{destination.resolve()}:/candidate-src:ro",
+        "-v",
+        f"{input_directory.resolve()}:/candidate-inputs:ro",
+        "-v",
+        f"{output_directory.resolve()}:/candidate-output:rw",
+        "--entrypoint",
+        "python",
+        EXECUTION_IMAGE_ID,
+        "/candidate-src/scripts/refresh_s6_isolated_market_graph.py",
+        "--candidate-sha",
+        candidate_sha,
+        "--attempt-id",
+        attempt_id,
+        "--attempt-plan-sha256",
+        "d" * 64,
+        "--database",
+        "agom_release_rehearsal_" + "e" * 32,
+        "--postgres-container",
+        "agom-s6-postgres-" + "e" * 32,
+        "--redis-container",
+        "agom-s6-redis-" + "f" * 32,
+        "--database-container-id",
+        "1" * 64,
+        "--redis-container-id",
+        "2" * 64,
+        "--network",
+        "agom-s6-network-" + "b" * 32,
+        "--network-id",
+        "3" * 64,
+        "--execution-image-id",
+        EXECUTION_IMAGE_ID,
+        "--task-id",
+        f"s6-market-refresh-{attempt_id}",
+    ]
 
 
 def test_snapshot_uses_exact_clean_source_and_seals_only_the_copy(tmp_path: Path) -> None:
@@ -299,6 +383,155 @@ def test_candidate_export_reverifies_then_runs_structured_docker_argv(
     assert log_path.read_bytes() == b"safe test exporter log\n"
     if os.name == "posix":
         assert stat.S_IMODE(log_path.stat().st_mode) & 0o077 == 0
+
+
+def test_opt_in_refresh_runs_only_the_fixed_isolated_candidate_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The opt-in runner binds source, plan, image, isolated runtime, and result."""
+
+    if os.name != "posix":
+        pytest.skip("The container writes POSIX 0600 output files on the shared mount")
+
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot_module
+
+    workspace, candidate_sha = _workspace(tmp_path)
+    output_root = tmp_path / "attempt"
+    destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+    log_path = output_root / "refresh.log"
+    attempt_id = "c" * 32
+    report = {
+        "schema": "release.s6-isolated-market-graph-refresh.v1",
+        "outcome": "success",
+        "candidate_sha": candidate_sha,
+        "attempt_id": attempt_id,
+        "attempt_plan_sha256": "d" * 64,
+        "database": "agom_release_rehearsal_" + "e" * 32,
+        "task_id": f"s6-market-refresh-{attempt_id}",
+    }
+    docker_argv = _valid_refresh_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+    )
+    calls: list[list[str]] = []
+
+    def mock_run(command, *args, **kwargs):
+        calls.append(list(command))
+        report_path = output_directory / "current-market-graph-refresh.json"
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        report_path.chmod(0o600)
+        kwargs["stdout"].write(b"S6_GRAPH_REFRESH_COMPLETE\n")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(snapshot_module.subprocess, "run", mock_run)
+    run_candidate_market_graph_refresh(
+        docker_argv=docker_argv,
+        destination=destination,
+        receipt_path=receipt_path,
+        candidate_sha=candidate_sha,
+        container_gid=os.getgid() if os.name == "posix" else 0,
+        container_uid=1000,
+        execution_image=EXECUTION_IMAGE_ID,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env_file=execution_env,
+        docker_network="agom-s6-network-" + "b" * 32,
+        attempt_id=attempt_id,
+        attempt_plan_sha256="d" * 64,
+        database="agom_release_rehearsal_" + "e" * 32,
+        postgres_container="agom-s6-postgres-" + "e" * 32,
+        redis_container="agom-s6-redis-" + "f" * 32,
+        postgres_container_id="1" * 64,
+        redis_container_id="2" * 64,
+        network_id="3" * 64,
+        log_path=log_path,
+    )
+
+    assert calls == [docker_argv]
+    assert log_path.read_text(encoding="utf-8") == "S6_GRAPH_REFRESH_COMPLETE\n"
+
+
+def test_opt_in_refresh_rejects_command_or_receipt_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No write can start for a widened command or mismatched attempt receipt."""
+
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot_module
+
+    workspace, candidate_sha = _workspace(tmp_path)
+    output_root = tmp_path / "attempt"
+    destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+    command = _valid_refresh_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+    )
+    widened = command.copy()
+    widened[widened.index("--read-only")] = "--privileged"
+    monkeypatch.setattr(
+        snapshot_module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unsafe Docker command must be rejected before launch")
+        ),
+    )
+    kwargs = {
+        "destination": destination,
+        "receipt_path": receipt_path,
+        "candidate_sha": candidate_sha,
+        "container_gid": os.getgid() if os.name == "posix" else 0,
+        "container_uid": 1000,
+        "execution_image": EXECUTION_IMAGE_ID,
+        "input_directory": input_directory,
+        "output_directory": output_directory,
+        "execution_env_file": execution_env,
+        "docker_network": "agom-s6-network-" + "b" * 32,
+        "attempt_id": "c" * 32,
+        "attempt_plan_sha256": "d" * 64,
+        "database": "agom_release_rehearsal_" + "e" * 32,
+        "postgres_container": "agom-s6-postgres-" + "e" * 32,
+        "redis_container": "agom-s6-redis-" + "f" * 32,
+        "postgres_container_id": "1" * 64,
+        "redis_container_id": "2" * 64,
+        "network_id": "3" * 64,
+        "log_path": output_root / "refresh.log",
+    }
+    with pytest.raises(CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_COMMAND_INVALID"):
+        run_candidate_market_graph_refresh(docker_argv=widened, **kwargs)
+
+    bad_report = output_directory / "current-market-graph-refresh.json"
+
+    def wrong_identity_run(_command, *args, **run_kwargs):
+        bad_report.write_text(
+            json.dumps(
+                {
+                    "schema": "release.s6-isolated-market-graph-refresh.v1",
+                    "outcome": "success",
+                    "candidate_sha": candidate_sha,
+                    "attempt_id": "9" * 32,
+                    "attempt_plan_sha256": "d" * 64,
+                    "database": "agom_release_rehearsal_" + "e" * 32,
+                    "task_id": "s6-market-refresh-" + "9" * 32,
+                }
+            ),
+            encoding="utf-8",
+        )
+        bad_report.chmod(0o600)
+        run_kwargs["stdout"].write(b"finished\n")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(snapshot_module.subprocess, "run", wrong_identity_run)
+    with pytest.raises(CandidateSourceSnapshotError, match="S6_GRAPH_REFRESH_RECEIPT_INVALID"):
+        run_candidate_market_graph_refresh(docker_argv=command, **kwargs)
 
 
 @pytest.mark.parametrize(

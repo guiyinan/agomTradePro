@@ -37,10 +37,31 @@
         "operational_script",
         "operational_dispatch_edge"
       ],
-      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "evidence": "planner v3-bound fresh S6 preparation with default-false isolated market graph opt-in; exporter calls reverify the sealed candidate source receipt before each mode",
       "path": "scripts/prepare_release_rehearsal_attempt.sh",
       "status": "active_public",
       "target": "fresh S6 attempt preparation"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal planner v3-bound S6 CLI; provider refresh is restricted to the disposable attempt database and runs before read-only exporters",
+      "path": "scripts/refresh_s6_isolated_market_graph.py",
+      "status": "active_public",
+      "target": "fresh S6 isolated market graph advance"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal S6 receipt projection and live graph verifier; emits no receipt unless Task Monitor and current publication evidence agree",
+      "path": "scripts/s6_isolated_market_graph_receipt.py",
+      "status": "active_public",
+      "target": "S6 isolated market graph receipt verification"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "internal planner v3-bound S6 source sealer and final prepare-receipt validator; validates only isolated exports and emits no provider calls",
+      "path": "scripts/prepare_s6_candidate_source_snapshot.py",
+      "status": "active_public",
+      "target": "fresh S6 candidate snapshot and prepare receipt validation"
     },
     {
       "category": "operational_script",
