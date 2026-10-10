@@ -3497,3 +3497,31 @@ PostgreSQL 五组 CI。只有同一 SHA 五组全绿且 official artifact 全部
 Consistency、Fast Feedback 与 Publication PostgreSQL 也只能作为失败诊断，不能作为下一候选证据。fresh S6、部署及生产刷新停止线均不变。
 
 下一片是否可开始：可以提交台账并 push，新 SHA 必须从头运行五组 CI；同 SHA 五组全绿前不得 reserve fresh S6。
+
+##### 2026-10-10 S6 密封候选 verifier 禁止 bytecode 写入整改
+
+完成项：候选 `c16aa4f7fa8cbf4b908157899ccaa0309612fe21` 的 Architecture `38019559510`、Security
+`38019559509`、Consistency `38019559492`、Fast Feedback `38019559495` 与 Publication PostgreSQL
+`38019585404` 全部通过；官方 artifact `11657079797` 的 API SHA-256 为
+`32889b92bb346126dd88b1bc05d401b2ab46c9c8f14533d6b1e9cb958a118c34`。八个 JUnit 文件共 98 个 testcase，
+全部 58 个 `REQUIRED_POSTGRESQL_TESTS` 身份出现，0 skipped / 0 failure / 0 error；其中 financial-capacity 13 项、
+financial-slice 12 项、Account final-revalidation 8 项及 5,001 member soak 均由该 exact SHA 实证。
+
+fresh attempt `6ef2bf3cc10d4e38ae05ba41d06126ce` 因操作者未在 reserve 后写入受控 `inputs-private`，在 preflight 以
+`S6_FRESH_BOOTSTRAP_INPUTS_INVALID` fail closed；attempt `12ff55b972af41f9aa64a7a7f84ee919` 补齐临时输入后又以
+`S6_CANDIDATE_SOURCE_VERIFY_FAILED` fail closed。两次均未创建隔离数据库/Redis、未调用 provider、未构建或部署，目录与安全诊断保留且禁止
+resume。第二次的直接证据是密封树中新增了 `scripts/__pycache__/rehearsal_checkpoint.cpython-312.pyc`：root 运行普通 `python3`
+导入 candidate verifier 时仍可在 `0550/0440` 树中生成 bytecode，随后 descriptor 复核正确拒绝该新增项。提交 `98a3f38c2` 只把该调用改为
+`python3 -B`，保持 receipt、权限、哈希和稳定错误码不变，并补 wrapper 契约与 POSIX 零 bytecode 反例；没有手工删除失败 attempt 中的污染文件，
+也没有放宽权限检查。
+
+测试计数：prepare/source 聚焦回归 `28 passed / 6 skipped`，6 个 skip 均为 Windows 缺少 POSIX mode、symlink、fchown 或 bash 能力，
+未计作通过；Black、isort、Ruff、`bash -n`、Data Center 唯一投影连续 write/check、governance consistency 0 violations、全仓 mypy
+debt ceiling `0 errors in 0 files` 与 `git diff --check` 通过。wrapper 为 954 非空行，1,000 行门槛未放宽。
+
+未验证风险与停止线：`98a3f38c2` 与本节台账组成的新 HEAD 尚未由五组 exact-SHA CI 验证，Linux 零 bytecode 回归须以新 Fast Feedback
+实证；上一候选的五组成功和 artifact 不得拼接使用。新的 fresh S6、同镜像部署与只读联合 UAT 尚未开始。生产 full-market 任务禁止重跑，
+两个周期入口保持 disabled；production financial refresh 仍须系统内双审批、有效 full-scope ceiling 与新的显式授权，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头运行五组 CI。只有同一 SHA 五组全绿且官方 PostgreSQL artifact 身份完整，
+才可重新 reserve fresh attempt；必须先注入受控临时输入，禁止 `--resume`、复用旧 receipt/image 或清理失败证据。
