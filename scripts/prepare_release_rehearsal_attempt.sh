@@ -883,9 +883,12 @@ for name in expected:
 def read_env(name):
     values = {}
     for line in (inputs / name).read_text(encoding="utf-8").splitlines():
-        key, separator, value = line.partition("=")
-        require(bool(separator) and key not in values, "S6_PRIVATE_ENVIRONMENT_INVALID")
-        values[key] = value
+        variable_name, separator, value = line.partition("=")
+        if not separator or variable_name in values:
+            raise SystemExit(
+                "S6_PREPARE_BLOCKED code=S6_PRIVATE_ENVIRONMENT_INVALID"
+            )
+        values[variable_name] = value
     return values
 provider = read_env("provider.env")
 provider_allowlist = {
