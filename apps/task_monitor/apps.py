@@ -18,6 +18,7 @@ class TaskMonitorConfig(AppConfig):
         """应用就绪时的初始化"""
         import logging
 
+        import apps.task_monitor.application.tasks  # noqa: F401
         from apps.task_monitor.application.operational_alerts import (
             record_operational_alert,
         )

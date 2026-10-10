@@ -102,7 +102,6 @@ def test_current_task_attempt_identity_requires_matching_started_record(
     [
         (None, _record(), None),
         (_request(task_id=None), _record(), None),
-        (_request(attempt_id=None), _record(), None),
         (_request(task_id=" bad"), _record(), None),
         (_request(attempt_id="x" * 161), _record(), None),
         (_request(), None, None),
@@ -130,6 +129,24 @@ def test_current_task_attempt_identity_fails_closed(
         get_current_task_attempt_identity()
 
     assert captured.value.code == "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"
+
+
+def test_current_task_attempt_identity_rejects_missing_prerun_marker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing signal-generated marker must remain a hard identity failure."""
+
+    repository = _patch_identity_context(
+        monkeypatch,
+        request=_request(attempt_id=None),
+        record=_record(),
+    )
+
+    with pytest.raises(CurrentTaskAttemptIdentityUnavailable) as captured:
+        get_current_task_attempt_identity()
+
+    assert captured.value.code == "CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE"
+    repository.get_by_task_id.assert_not_called()
 
 
 def test_retry_and_duplicate_request_markers_cannot_claim_another_attempt(

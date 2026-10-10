@@ -115,6 +115,10 @@ Interface Serializer 可重复提供更友好的 HTTP 错误，但不能作为�
 - Prometheus 指标使用 `success / partial / noop / blocked / failed` 标签；
 - 老任务没有结构化返回载荷时暂按历史成功口径处理，迁移后应显式发布 `outcome`。
 
+`TaskMonitorConfig.ready()` 必须导入生命周期信号所在的任务模块，保证 `django.setup()` 后的进程内
+`Task.apply()` 同样创建 STARTED 记录并绑定 attempt identity。`record_pending_task` 只记录异步排队状态，不能替代
+`task_prerun`；缺少信号生成的 marker 时，attempt identity 校验仍须失败关闭。
+
 ## Task Monitor orphan reconciliation
 
 `cleanup_old_task_records` 每日维护时可协调已开始但遗失终态信号的任务。普通 HTTP GET、页面查询和 MCP 查询保持只读，不得触发协调。保留期清理不能将旧 `pending` 或 `started` 行直接改成 timeout；`pending` 的 Celery `PENDING` 状态无法区分仍在 broker 排队与任务已遗失，因此不推断其为 orphan。
