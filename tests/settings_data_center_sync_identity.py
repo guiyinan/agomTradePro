@@ -12,6 +12,13 @@ class IsolatedAccountConfig(AppConfig):
     label = "account"
 
 
+class IsolatedTaskMonitorConfig(AppConfig):
+    """Register Task Monitor models without production startup side effects."""
+
+    name = "apps.task_monitor"
+    label = "task_monitor"
+
+
 SECRET_KEY = "data-center-sync-identity-test"
 BASE_DIR = Path(__file__).resolve().parent.parent
 INSTALLED_APPS = [
@@ -21,7 +28,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
+    "django_celery_beat",
     "tests.settings_data_center_sync_identity.IsolatedAccountConfig",
+    "tests.settings_data_center_sync_identity.IsolatedTaskMonitorConfig",
     "tests.support.isolated_simulated_trading_app.apps.IsolatedSimulatedTradingConfig",
     "apps.data_center",
 ]
@@ -33,7 +42,12 @@ DATABASES = {
 }
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-MIGRATION_MODULES = {"account": None, "data_center": None, "simulated_trading": None}
+MIGRATION_MODULES = {
+    "account": None,
+    "data_center": None,
+    "simulated_trading": None,
+    "task_monitor": None,
+}
 MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
