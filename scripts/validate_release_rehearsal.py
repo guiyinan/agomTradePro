@@ -143,6 +143,7 @@ REQUIRED_POSTGRESQL_TESTS = (
     "tests.component.account.test_account_authority_final_revalidator_v3_postgres::test_postgres_generation_fenced_graph_uow_reuses_outer_transaction",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_connected_database_identity_returns_real_postgres_address_without_cidr",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_market_rehearsal_database_enforces_read_only_on_provider_write",
+    "tests.component.data_center.test_publication_read_snapshot_postgres::test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snapshot",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_outer_read_only_snapshot_keeps_gate_and_rows_consistent_after_concurrent_commit",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_nested_read_committed_locks_remain_until_outer_unit_of_work_ends",
     "tests.component.data_center.test_publication_read_snapshot_postgres::test_nested_read_committed_locks_dataset_contract_insert_until_outer_unit_of_work_ends",

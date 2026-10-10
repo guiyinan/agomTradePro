@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import importlib
 import io
@@ -17,10 +18,11 @@ import tempfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Literal, Protocol, cast
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 SOURCE_ROOT = Path("/candidate-src")
 INPUT_ROOT = Path("/candidate-inputs")
@@ -29,6 +31,16 @@ _CANDIDATE_SHA = re.compile(r"[0-9a-f]{40}\Z")
 _TREE_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _MODULE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\Z")
 _MODES = frozenset({"production", "universe", "contract"})
+_CORE_MARKET_DATASETS = frozenset(
+    {
+        "equity.price.bar",
+        "equity.quote.snapshot",
+        "equity.valuation.fact",
+    }
+)
+_PRICE_DATASET = "equity.price.bar"
+_PRICE_FACT_TABLE = "data_center_price_bar"
+_FULL_MARKET_TASK_NAME = "data_center.refresh_full_market_publications"
 _REQUIRED_SOURCE_FILES = (
     "manage.py",
     "scripts/export_s6_rehearsal_inputs.py",
@@ -41,7 +53,12 @@ _REQUIRED_SOURCE_FILES = (
     "apps/data_center/application/market_provider_rehearsal.py",
     "apps/data_center/application/target_date_universe_scope.py",
     "apps/data_center/target_date_universe_composition.py",
+    "apps/data_center/infrastructure/publication_fact_identity.py",
+    "apps/data_center/infrastructure/candidate_raw_audit_manifest_models.py",
+    "apps/data_center/infrastructure/publication_member_store.py",
+    "apps/data_center/infrastructure/publication_rollback_models.py",
     "apps/data_center/infrastructure/rehearsal_identity.py",
+    "apps/task_monitor/infrastructure/models.py",
 )
 _CANDIDATE_MODULES = (
     "scripts.run_release_rehearsal",
@@ -53,8 +70,13 @@ _CANDIDATE_MODULES = (
     "apps.data_center.application.market_provider_rehearsal",
     "apps.data_center.application.target_date_universe_scope",
     "apps.data_center.target_date_universe_composition",
+    "apps.data_center.infrastructure.publication_fact_identity",
+    "apps.data_center.infrastructure.candidate_raw_audit_manifest_models",
+    "apps.data_center.infrastructure.publication_member_store",
+    "apps.data_center.infrastructure.publication_rollback_models",
     "apps.data_center.infrastructure.rehearsal_identity",
     "apps.data_center.infrastructure.models",
+    "apps.task_monitor.infrastructure.models",
 )
 
 Mode = Literal["production", "universe", "contract"]
@@ -332,33 +354,35 @@ def _prepare_candidate_imports(runtime: Path, settings_module: str) -> None:
 
 
 def _validate_database_state(value: object, expected_database: str) -> None:
-    """Require the exact PostgreSQL database and read-only transaction defaults."""
+    """Require the exact PostgreSQL database and repeatable read-only transaction."""
 
     if (
         not isinstance(value, tuple)
-        or len(value) != 3
+        or len(value) != 4
         or not all(isinstance(item, str) for item in value)
         or value[0] != expected_database
         or value[1] != "on"
         or value[2] != "on"
+        or value[3] != "repeatable read"
     ):
         raise ExportBlocked("S6_DATABASE_READ_ONLY_GUARD_FAILED")
 
 
 @contextmanager
 def _read_only_database(expected_database: str) -> Iterator[None]:
-    """Pin one Django database transaction read-only before any mode query runs."""
+    """Pin one repeatable read-only snapshot before any mode query runs."""
 
     from django.db import connection, transaction
 
     with transaction.atomic():
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SET TRANSACTION READ ONLY")
+                cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
                 cursor.execute(
                     "SELECT current_database(), "
                     "current_setting('transaction_read_only'), "
-                    "current_setting('default_transaction_read_only')"
+                    "current_setting('default_transaction_read_only'), "
+                    "current_setting('transaction_isolation')"
                 )
                 state = cast(tuple[object, ...] | None, cursor.fetchone())
         except Exception as exc:
@@ -710,10 +734,500 @@ def _validate_universe_summary(summary: Mapping[str, object]) -> None:
         raise ExportBlocked("S6_UNIVERSE_SUMMARY_INVALID")
 
 
-def _export_universe(config: ExportConfig) -> None:
-    """Resolve the latest completed session and export its dynamic A-share scope."""
+def _validate_current_market_publication_target(
+    pointer_rows: Sequence[Mapping[str, object]],
+    publication_rows: Sequence[Mapping[str, object]],
+    member_rows: Sequence[Mapping[str, object]],
+    price_rows: Sequence[Mapping[str, object]],
+    manifest_rows: Sequence[Mapping[str, object]],
+    task_results: Sequence[Mapping[str, object]],
+) -> date:
+    """Return the producer target bound to one exact current publication graph."""
 
-    from apps.data_center.application.market_calendar import latest_completed_cn_market_session
+    pointers: dict[str, Mapping[str, object]] = {}
+    activation_ids: set[str] = set()
+    for row in pointer_rows:
+        dataset_key = row.get("dataset_key")
+        publication_id = row.get("publication_id")
+        publication_hash = row.get("publication_hash")
+        activation_id = row.get("activation_id")
+        if (
+            not isinstance(dataset_key, str)
+            or dataset_key not in _CORE_MARKET_DATASETS
+            or dataset_key in pointers
+            or publication_id is None
+            or not isinstance(publication_hash, str)
+            or not publication_hash
+            or not isinstance(activation_id, str)
+            or not activation_id
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        pointers[dataset_key] = row
+        activation_ids.add(activation_id)
+    if set(pointers) != _CORE_MARKET_DATASETS or len(activation_ids) != 1:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    publications: dict[str, Mapping[str, object]] = {}
+    run_ids: set[object] = set()
+    published_at_values: set[datetime] = set()
+    for row in publication_rows:
+        dataset_key = row.get("dataset_key")
+        if (
+            not isinstance(dataset_key, str)
+            or dataset_key not in pointers
+            or dataset_key in publications
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        pointer = pointers[dataset_key]
+        as_of = row.get("as_of")
+        published_at = row.get("published_at")
+        members_sealed_at = row.get("members_sealed_at")
+        member_count = row.get("member_count")
+        coverage_requested_count = row.get("coverage_requested_count")
+        coverage_eligible_count = row.get("coverage_eligible_count")
+        coverage_selected_count = row.get("coverage_selected_count")
+        coverage_missing_count = row.get("coverage_missing_count")
+        scope_blocks = row.get("scope_blocks")
+        member_manifest_hash = row.get("member_manifest_hash")
+        run_id = row.get("run_id")
+        if (
+            row.get("publication_id") != pointer.get("publication_id")
+            or row.get("publication_hash") != pointer.get("publication_hash")
+            or row.get("publication_key") != "current"
+            or row.get("state") != "published"
+            or row.get("must_not_use_for_decision") is not False
+            or row.get("computed_publication_hash") != row.get("publication_hash")
+            or not isinstance(member_count, int)
+            or isinstance(member_count, bool)
+            or member_count <= 0
+            or coverage_selected_count != member_count
+            or isinstance(coverage_requested_count, bool)
+            or not isinstance(coverage_requested_count, int)
+            or isinstance(coverage_eligible_count, bool)
+            or not isinstance(coverage_eligible_count, int)
+            or isinstance(coverage_missing_count, bool)
+            or not isinstance(coverage_missing_count, int)
+            or coverage_requested_count <= 0
+            or coverage_selected_count != coverage_eligible_count
+            or cast(int, coverage_selected_count) + coverage_missing_count
+            != coverage_requested_count
+            or not isinstance(scope_blocks, list)
+            or len(scope_blocks) != coverage_missing_count
+            or not isinstance(member_manifest_hash, str)
+            or _TREE_SHA.fullmatch(member_manifest_hash) is None
+            or not isinstance(as_of, datetime)
+            or as_of.tzinfo is None
+            or as_of.utcoffset() is None
+            or not isinstance(published_at, datetime)
+            or published_at.tzinfo is None
+            or published_at.utcoffset() is None
+            or not isinstance(members_sealed_at, datetime)
+            or members_sealed_at.tzinfo is None
+            or members_sealed_at.utcoffset() is None
+            or run_id is None
+            or as_of > published_at
+            or members_sealed_at > published_at
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        publications[dataset_key] = row
+        run_ids.add(run_id)
+        published_at_values.add(published_at)
+    if (
+        set(publications) != _CORE_MARKET_DATASETS
+        or len(run_ids) != 1
+        or len(published_at_values) != 1
+    ):
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    manifests: dict[str, Mapping[str, object]] = {}
+    task_attempt_ids: set[str] = set()
+    for row in manifest_rows:
+        dataset_key = row.get("dataset_key")
+        task_attempt_id = row.get("task_attempt_id")
+        if (
+            not isinstance(dataset_key, str)
+            or dataset_key not in publications
+            or dataset_key in manifests
+            or row.get("publication_key") != "current"
+            or row.get("publication_id") != publications[dataset_key].get("publication_id")
+            or row.get("publication_hash") != publications[dataset_key].get("publication_hash")
+            or str(row.get("run_id")) != str(publications[dataset_key].get("run_id"))
+            or not isinstance(task_attempt_id, str)
+            or not task_attempt_id.strip()
+            or isinstance(row.get("raw_audit_count"), bool)
+            or not isinstance(row.get("raw_audit_count"), int)
+            or cast(int, row["raw_audit_count"]) <= 0
+            or not isinstance(row.get("raw_audit_hash"), str)
+            or _TREE_SHA.fullmatch(cast(str, row["raw_audit_hash"])) is None
+            or not isinstance(row.get("manifest_hash"), str)
+            or _TREE_SHA.fullmatch(cast(str, row["manifest_hash"])) is None
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        manifests[dataset_key] = row
+        task_attempt_ids.add(task_attempt_id)
+    if set(manifests) != _CORE_MARKET_DATASETS or len(task_attempt_ids) != 1:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    price_publication = publications[_PRICE_DATASET]
+    price_publication_id = price_publication["publication_id"]
+    price_member_count = price_publication["member_count"]
+    members_by_fact: dict[str, Mapping[str, object]] = {}
+    for member in member_rows:
+        fact_pk = member.get("fact_pk")
+        if (
+            member.get("publication_id") != price_publication_id
+            or member.get("dataset_key") != _PRICE_DATASET
+            or member.get("fact_table") != _PRICE_FACT_TABLE
+            or not isinstance(fact_pk, str)
+            or not fact_pk.isascii()
+            or not fact_pk.isdecimal()
+            or fact_pk.startswith("0")
+            or fact_pk in members_by_fact
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        members_by_fact[fact_pk] = member
+    if len(members_by_fact) != price_member_count:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    if price_publication.get("computed_member_manifest_hash") != price_publication.get(
+        "member_manifest_hash"
+    ):
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    target_dates: set[date] = set()
+    seen_price_facts: set[str] = set()
+    identity_fields = (
+        "natural_key",
+        "source",
+        "source_record_id",
+        "observed_at",
+        "raw_payload_hash",
+        "quality_status",
+        "revision_number",
+        "fact_content_hash",
+    )
+    for price in price_rows:
+        fact_pk = price.get("fact_pk")
+        selected_member = members_by_fact.get(fact_pk) if isinstance(fact_pk, str) else None
+        bar_date = price.get("bar_date")
+        if (
+            selected_member is None
+            or fact_pk in seen_price_facts
+            or not isinstance(bar_date, date)
+            or isinstance(bar_date, datetime)
+            or price.get("freq") != "1d"
+            or price.get("adjustment") != "none"
+            or any(selected_member.get(field) != price.get(field) for field in identity_fields)
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        target_dates.add(bar_date)
+        seen_price_facts.add(cast(str, fact_pk))
+    if seen_price_facts != set(members_by_fact) or len(target_dates) != 1:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    target_date = next(iter(target_dates))
+    from apps.data_center.domain.market_time import (
+        cn_market_date_from_observation,
+        cn_market_session_close_utc,
+    )
+
+    if price_publication.get("as_of") != cn_market_session_close_utc(target_date):
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    for publication in publications.values():
+        as_of = cast(datetime, publication["as_of"])
+        if cn_market_date_from_observation(as_of) != target_date:
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+
+    publication_ids = {str(publication["publication_id"]) for publication in publications.values()}
+    total_member_count = sum(
+        cast(int, publication["member_count"]) for publication in publications.values()
+    )
+    run_id = str(next(iter(run_ids)))
+    expected_activation_id = str(
+        uuid5(NAMESPACE_URL, f"agomtradepro:current-market-activation:{run_id}")
+    )
+    if activation_ids != {expected_activation_id}:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    if len(task_results) != 1:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    result = task_results[0]
+    result_publication_ids = result.get("publication_ids")
+    result_datasets = result.get("datasets")
+    try:
+        producer_target = date.fromisoformat(cast(str, result.get("target_trade_date")))
+    except (TypeError, ValueError):
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID") from None
+    if (
+        producer_target.isoformat() != result.get("target_trade_date")
+        or producer_target != target_date
+        or result.get("outcome") != "success"
+        or result.get("success") is not True
+        or result.get("publication_updated") is not True
+        or result.get("run_id") != run_id
+        or result.get("publication_run_id") != run_id
+        or result.get("_task_status") != "success"
+        or result.get("_task_attempt_id") != next(iter(task_attempt_ids))
+        or result.get("failed") != 0
+        or not isinstance(result.get("requested"), int)
+        or isinstance(result.get("requested"), bool)
+        or cast(int, result["requested"]) <= 0
+        or result.get("succeeded") != result.get("requested")
+        or result.get("published_members") != total_member_count
+        or not isinstance(result_publication_ids, list)
+        or {item for item in result_publication_ids if isinstance(item, str)} != publication_ids
+        or len(result_publication_ids) != len(publication_ids)
+        or not isinstance(result_datasets, list)
+        or len(result_datasets) != len(publications)
+    ):
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    dataset_summaries = {
+        item.get("dataset_key"): item
+        for item in result_datasets
+        if isinstance(item, dict) and isinstance(item.get("dataset_key"), str)
+    }
+    if set(dataset_summaries) != _CORE_MARKET_DATASETS:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    for dataset_key, publication in publications.items():
+        summary = dataset_summaries[dataset_key]
+        if (
+            summary.get("publication_id") != str(publication["publication_id"])
+            or summary.get("publication_hash") != publication["publication_hash"]
+            or summary.get("member_count") != publication["member_count"]
+            or summary.get("as_of") != cast(datetime, publication["as_of"]).isoformat()
+            or summary.get("published_at")
+            != cast(datetime, publication["published_at"]).isoformat()
+            or summary.get("requested_asset_count") != publication["coverage_requested_count"]
+            or summary.get("covered_asset_count") != publication["coverage_selected_count"]
+            or summary.get("missing_asset_count") != publication["coverage_missing_count"]
+            or summary.get("outcome")
+            != ("success" if publication["coverage_missing_count"] == 0 else "partial")
+        ):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    return target_date
+
+
+def _parse_task_result(raw_result: object) -> dict[str, object] | None:
+    """Parse the two bounded Task Monitor encodings without executing input."""
+
+    if not isinstance(raw_result, str) or not raw_result or len(raw_result) > 1_000_000:
+        return None
+    parsed: object
+    try:
+        parsed = json.loads(raw_result)
+    except json.JSONDecodeError:
+        try:
+            parsed = ast.literal_eval(raw_result)
+        except (SyntaxError, ValueError):
+            return None
+    if not isinstance(parsed, dict) or any(not isinstance(key, str) for key in parsed):
+        return None
+    return cast(dict[str, object], parsed)
+
+
+def _current_market_publication_target_date() -> date:
+    """Read a provider-free target from exact production publication evidence."""
+
+    from apps.data_center.application.publication_utils import (
+        member_reference,
+        publication_hash,
+        publication_member_manifest_hash,
+    )
+    from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
+        CandidateRawAuditManifestModel,
+    )
+    from apps.data_center.infrastructure.models import PriceBarModel
+    from apps.data_center.infrastructure.publication_member_store import (
+        publication_fact_content_hashes,
+    )
+    from apps.data_center.infrastructure.publication_models import (
+        CanonicalPublicationModel,
+        CanonicalPublicationPointerModel,
+        PublicationMemberModel,
+    )
+    from apps.task_monitor.infrastructure.models import TaskExecutionModel
+
+    pointer_rows: list[dict[str, object]] = [
+        dict(row)
+        for row in CanonicalPublicationPointerModel._default_manager.filter(
+            dataset_key__in=_CORE_MARKET_DATASETS,
+            publication_key="current",
+        ).values(
+            "dataset_key",
+            "publication_id",
+            "publication_hash",
+            "activation_id",
+        )
+    ]
+    publication_ids: tuple[UUID, ...] = tuple(
+        cast(UUID, row["publication_id"])
+        for row in pointer_rows
+        if isinstance(row.get("publication_id"), UUID)
+    )
+    publication_rows: list[dict[str, object]] = [
+        dict(row)
+        for row in CanonicalPublicationModel._default_manager.filter(
+            publication_id__in=publication_ids,
+        ).values(
+            "dataset_key",
+            "publication_key",
+            "publication_id",
+            "publication_hash",
+            "state",
+            "must_not_use_for_decision",
+            "member_count",
+            "coverage_selected_count",
+            "member_manifest_hash",
+            "policy_version",
+            "scope_blocks",
+            "coverage_requested_count",
+            "coverage_eligible_count",
+            "coverage_missing_count",
+            "as_of",
+            "published_at",
+            "members_sealed_at",
+            "run_id",
+        )
+    ]
+    price_publications = [
+        row for row in publication_rows if row.get("dataset_key") == _PRICE_DATASET
+    ]
+    members = []
+    price_rows: list[dict[str, object]] = []
+    task_results: list[Mapping[str, object]] = []
+    manifest_rows: list[dict[str, object]] = []
+    if len(price_publications) == 1:
+        price_publication = price_publications[0]
+        price_publication_id = price_publication.get("publication_id")
+        if not isinstance(price_publication_id, UUID):
+            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+        members = list(
+            PublicationMemberModel._default_manager.filter(
+                publication_id=price_publication_id,
+                dataset_key=_PRICE_DATASET,
+            ).order_by("natural_key")
+        )
+        domain_members = tuple(member.to_domain() for member in members)
+        try:
+            fact_hashes = publication_fact_content_hashes(domain_members)
+            price_publication["computed_member_manifest_hash"] = publication_member_manifest_hash(
+                domain_members,
+                policy_identity=cast(str, price_publication["policy_version"]),
+            )
+            fact_pks = [int(member.fact_pk) for member in members]
+        except (AttributeError, TypeError, ValueError):
+            fact_hashes = {}
+            fact_pks = []
+        facts = PriceBarModel._default_manager.in_bulk(fact_pks)
+        from apps.data_center.infrastructure.publication_fact_identity import (
+            build_publication_fact_identity,
+        )
+
+        for fact_pk, fact in facts.items():
+            identity = build_publication_fact_identity(_PRICE_DATASET, fact)
+            price_rows.append(
+                {
+                    "fact_pk": str(fact_pk),
+                    "bar_date": fact.bar_date,
+                    "freq": fact.freq,
+                    "adjustment": fact.adjustment,
+                    "natural_key": identity.natural_key,
+                    "source": identity.source,
+                    "source_record_id": identity.source_record_id,
+                    "observed_at": identity.observed_at,
+                    "raw_payload_hash": identity.raw_payload_hash,
+                    "quality_status": identity.quality_status,
+                    "revision_number": identity.revision_number,
+                    "fact_content_hash": fact_hashes.get((_PRICE_FACT_TABLE, str(fact_pk))),
+                }
+            )
+        publication_objects = {
+            str(item.publication_id): item
+            for item in CanonicalPublicationModel._default_manager.filter(
+                publication_id__in=publication_ids
+            )
+        }
+        for publication_row in publication_rows:
+            publication_id = publication_row.get("publication_id")
+            if not isinstance(publication_id, UUID):
+                raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+            publication_object = publication_objects.get(str(publication_id))
+            publication_members = (
+                domain_members
+                if publication_row.get("dataset_key") == _PRICE_DATASET
+                else tuple(
+                    item.to_domain()
+                    for item in PublicationMemberModel._default_manager.filter(
+                        publication_id=publication_id
+                    ).order_by("natural_key")
+                )
+            )
+            if publication_object is not None:
+                publication_row["computed_publication_hash"] = publication_hash(
+                    tuple(member_reference(member) for member in publication_members),
+                    policy_identity=cast(str, publication_row["policy_version"]),
+                    scope_blocks=publication_object.to_domain().scope_blocks,
+                )
+        manifest_rows = [
+            dict(row)
+            for row in CandidateRawAuditManifestModel._default_manager.filter(
+                publication_id__in=publication_ids
+            ).values(
+                "publication_id",
+                "publication_hash",
+                "run_id",
+                "dataset_key",
+                "publication_key",
+                "task_attempt_id",
+                "raw_audit_count",
+                "raw_audit_hash",
+                "manifest_hash",
+            )
+        ]
+        run_id = price_publication.get("run_id")
+        if run_id is not None:
+            task_rows = TaskExecutionModel._default_manager.filter(
+                task_name=_FULL_MARKET_TASK_NAME,
+                status="success",
+                result__contains=str(run_id),
+            ).values("task_id", "attempt_id", "status", "result")
+            for task_row in task_rows:
+                parsed_result = _parse_task_result(task_row.get("result"))
+                if isinstance(parsed_result, dict) and parsed_result.get(
+                    "publication_run_id"
+                ) == str(run_id):
+                    parsed_result["_task_id"] = task_row.get("task_id")
+                    parsed_result["_task_attempt_id"] = task_row.get("attempt_id")
+                    parsed_result["_task_status"] = task_row.get("status")
+                    task_results.append(cast(Mapping[str, object], parsed_result))
+    member_rows = [
+        {
+            "publication_id": member.publication_id,
+            "dataset_key": member.dataset_key,
+            "natural_key": member.natural_key,
+            "source": member.source,
+            "source_record_id": member.source_record_id,
+            "fact_table": member.fact_table,
+            "fact_pk": member.fact_pk,
+            "observed_at": member.observed_at,
+            "raw_payload_hash": member.raw_payload_hash,
+            "quality_status": member.quality_status,
+            "revision_number": member.revision_number,
+            "fact_content_hash": member.fact_content_hash,
+        }
+        for member in members
+    ]
+    return _validate_current_market_publication_target(
+        cast(Sequence[Mapping[str, object]], pointer_rows),
+        cast(Sequence[Mapping[str, object]], publication_rows),
+        member_rows,
+        price_rows,
+        manifest_rows,
+        task_results,
+    )
+
+
+def _export_universe(config: ExportConfig) -> None:
+    """Export the dynamic A-share scope bound to current formal publications."""
+
     from apps.data_center.application.market_provider_rehearsal import rehearsal_digest
     from apps.data_center.target_date_universe_composition import (
         build_target_date_a_share_universe_scope,
@@ -723,9 +1237,7 @@ def _export_universe(config: ExportConfig) -> None:
     unit_value = _read_json_object(INPUT_ROOT / "unit-contract.json", 65_536)
     _validate_frozen_inputs(identities_value, unit_value, config.candidate_sha)
     with _read_only_database(config.expected_database):
-        target_date = latest_completed_cn_market_session(datetime.now(UTC))
-        if target_date is None:
-            raise ExportBlocked("S6_TARGET_SESSION_UNAVAILABLE")
+        target_date = _current_market_publication_target_date()
         scope = build_target_date_a_share_universe_scope(target_date)
         codes = tuple(scope.requested_codes)
         if not codes:

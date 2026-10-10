@@ -17,7 +17,7 @@ from threading import Barrier
 from time import monotonic
 from types import SimpleNamespace
 from urllib.parse import unquote, urlsplit
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import psycopg
 import pytest
@@ -93,6 +93,7 @@ from apps.data_center.application.publication_utils import (
     member_reference,
     publication_hash,
     publication_member_from_reference,
+    publication_member_manifest_hash,
 )
 from apps.data_center.application.query_services import query_published_valuation_facts
 from apps.data_center.application.sync_use_cases import (
@@ -102,6 +103,7 @@ from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
     CoverageSnapshot,
+    PublicationFactReference,
     PublicationMember,
     PublicationState,
 )
@@ -134,6 +136,7 @@ from apps.data_center.infrastructure._provider_adapter_akshare import (
 from apps.data_center.infrastructure.candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
     CandidateRawAuditManifestModel,
+    _allow_candidate_manifest_fixture_restore,
 )
 from apps.data_center.infrastructure.candidate_raw_audit_manifest_repository import (
     DjangoCandidateRawAuditManifestRepository,
@@ -218,6 +221,7 @@ from apps.data_center.infrastructure.publication_read_snapshot import (
     consistent_publication_read,
 )
 from apps.data_center.infrastructure.valuation_fact_repository import ValuationFactRepository
+from apps.task_monitor.infrastructure.models import TaskExecutionModel
 from core.exceptions import DataFetchError
 from core.integration.data_center_audit import (
     DataPublicationManifestAuditObservation,
@@ -364,6 +368,7 @@ def _actual_publication_pg_schema(django_db_blocker) -> Iterator[_PGProbeFactory
         PublicationMemberModel,
         SystemAuditEventModel,
         SystemAuditOutboxModel,
+        TaskExecutionModel,
     )
     models = (*_ACCOUNT_SCHEMA_MODELS, AccountAuthorityGenerationModel, *publication_models)
     created = []
@@ -495,6 +500,7 @@ def actual_publication_pg(_actual_publication_pg_schema) -> Iterator[_PGProbeFac
             PublicationMemberModel,
             SystemAuditEventModel,
             SystemAuditOutboxModel,
+            TaskExecutionModel,
         )
         full_expected = {
             model._meta.db_table
@@ -546,6 +552,242 @@ def test_financial_capacity_pg_build_identity_uses_runtime_reader(
     binding_source = binding_source_type()
 
     assert binding_source._build_identity_source.source_commit() == "f" * 40
+
+
+def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snapshot(
+    actual_publication_pg: _PGProbeFactory,
+) -> None:
+    """S6 freezes the producer target without calendar egress or raw-table latest reads."""
+
+    from apps.data_center.domain.market_time import cn_market_session_close_utc
+    from scripts import export_s6_rehearsal_inputs as exporter
+
+    target_date = date(2026, 9, 30)
+    run_id = uuid4()
+    activation_id = str(uuid5(NAMESPACE_URL, f"agomtradepro:current-market-activation:{run_id}"))
+    attempt_id = uuid4().hex
+    policy_identity = f"p2:component:{'a' * 64}"
+    published_at = datetime(2026, 10, 6, 10, 34, tzinfo=UTC)
+    price_rows = [
+        PriceBarModel.objects.create(
+            asset_code=asset_code,
+            bar_date=target_date,
+            freq="1d",
+            adjustment="none",
+            open=Decimal("10"),
+            high=Decimal("11"),
+            low=Decimal("9"),
+            close=Decimal("10.5"),
+            volume=Decimal("1000"),
+            amount=Decimal("10500"),
+            source="component",
+            source_record_id=f"component:{asset_code}:{target_date.isoformat()}",
+            raw_payload_hash=hashlib.sha256(asset_code.encode("ascii")).hexdigest(),
+            quality_status="accepted",
+            revision_number=1,
+            ingested_run_id=run_id,
+        )
+        for asset_code in ("000001.SZ", "600000.SH")
+    ]
+    price_publication_id = str(uuid4())
+    price_members = tuple(
+        publication_member_from_reference(
+            publication_fact_reference_for_dataset(row, dataset_key="equity.price.bar"),
+            member_id=str(uuid4()),
+            publication_id=price_publication_id,
+            dataset_key="equity.price.bar",
+        )
+        for row in price_rows
+    )
+    quote_publication_id = str(uuid4())
+    valuation_publication_id = str(uuid4())
+    quote_members = (
+        publication_member_from_reference(
+            PublicationFactReference(
+                natural_key="000001.SZ:2026-09-30:quote:component",
+                source="component",
+                source_record_id="quote:000001.SZ:2026-09-30",
+                fact_table="data_center_quote_snapshot",
+                fact_pk="1",
+                observed_at=cn_market_session_close_utc(target_date),
+                raw_payload_hash="d" * 64,
+                fact_content_hash="e" * 64,
+            ),
+            member_id=str(uuid4()),
+            publication_id=quote_publication_id,
+            dataset_key="equity.quote.snapshot",
+        ),
+    )
+    valuation_members = (
+        publication_member_from_reference(
+            PublicationFactReference(
+                natural_key="000001.SZ:2026-09-30:valuation:component",
+                source="component",
+                source_record_id="valuation:000001.SZ:2026-09-30",
+                fact_table="data_center_valuation_fact",
+                fact_pk="1",
+                observed_at=datetime(2026, 9, 30, 8, 15, tzinfo=UTC),
+                raw_payload_hash="f" * 64,
+                fact_content_hash="1" * 64,
+            ),
+            member_id=str(uuid4()),
+            publication_id=valuation_publication_id,
+            dataset_key="equity.valuation.fact",
+        ),
+    )
+    members_by_dataset = {
+        "equity.price.bar": price_members,
+        "equity.quote.snapshot": quote_members,
+        "equity.valuation.fact": valuation_members,
+    }
+    publication_ids: list[str] = []
+    dataset_summaries: list[dict[str, object]] = []
+    publications: list[CanonicalPublicationModel] = []
+    for dataset_key, publication_id, as_of in (
+        (
+            "equity.price.bar",
+            price_publication_id,
+            cn_market_session_close_utc(target_date),
+        ),
+        (
+            "equity.quote.snapshot",
+            quote_publication_id,
+            cn_market_session_close_utc(target_date),
+        ),
+        (
+            "equity.valuation.fact",
+            valuation_publication_id,
+            datetime(2026, 9, 30, 8, 15, tzinfo=UTC),
+        ),
+    ):
+        dataset_members = members_by_dataset[dataset_key]
+        member_count = len(dataset_members)
+        publication_digest = publication_hash(
+            tuple(member_reference(member) for member in dataset_members),
+            policy_identity=policy_identity,
+        )
+        manifest_hash = publication_member_manifest_hash(
+            dataset_members,
+            policy_identity=policy_identity,
+        )
+        publication_ids.append(publication_id)
+        publication = CanonicalPublicationModel.objects.create(
+            publication_id=publication_id,
+            dataset_key=dataset_key,
+            publication_key="current",
+            policy_version=policy_identity,
+            state=PublicationState.PUBLISHED.value,
+            selected_source="component",
+            publication_hash=publication_digest,
+            member_manifest_hash=manifest_hash,
+            member_count=member_count,
+            coverage_requested_count=member_count,
+            coverage_eligible_count=member_count,
+            coverage_selected_count=member_count,
+            as_of=as_of,
+            published_at=published_at,
+            members_sealed_at=published_at - timedelta(seconds=1),
+            must_not_use_for_decision=False,
+            run_id=run_id,
+        )
+        publications.append(publication)
+        CanonicalPublicationPointerModel.objects.create(
+            dataset_key=dataset_key,
+            publication_key="current",
+            publication_id=publication_id,
+            publication_hash=publication_digest,
+            activation_id=activation_id,
+        )
+        dataset_summaries.append(
+            {
+                "dataset_key": dataset_key,
+                "publication_id": publication_id,
+                "publication_hash": publication_digest,
+                "member_count": member_count,
+                "requested_asset_count": member_count,
+                "covered_asset_count": member_count,
+                "missing_asset_count": 0,
+                "outcome": "success",
+                "as_of": as_of.isoformat(),
+                "published_at": published_at.isoformat(),
+                "run_id": str(run_id),
+                "publication_run_id": str(run_id),
+            }
+        )
+    PublicationMemberModel.objects.bulk_create(
+        [
+            PublicationMemberModel(
+                member_id=member.member_id,
+                publication_id=member.publication_id,
+                dataset_key=member.dataset_key,
+                natural_key=member.natural_key,
+                source=member.source,
+                source_record_id=member.source_record_id,
+                fact_table=member.fact_table,
+                fact_pk=member.fact_pk,
+                observed_at=member.observed_at,
+                raw_payload_hash=member.raw_payload_hash,
+                quality_status=member.quality_status,
+                revision_number=member.revision_number,
+                available_at=member.available_at,
+                fetched_at=member.fetched_at,
+                source_published_at=member.source_published_at,
+                raw_payload_scope=member.raw_payload_scope,
+                fact_content_hash=member.fact_content_hash,
+            )
+            for dataset_members in members_by_dataset.values()
+            for member in dataset_members
+        ]
+    )
+    with _allow_candidate_manifest_fixture_restore():
+        for index, publication in enumerate(publications, start=1):
+            CandidateRawAuditManifestModel(
+                manifest_id=uuid4(),
+                manifest_version="1",
+                publication_id=publication.publication_id,
+                publication_hash=publication.publication_hash,
+                run_id=run_id,
+                dataset_key=publication.dataset_key,
+                publication_key="current",
+                task_attempt_id=attempt_id,
+                raw_audit_count=1,
+                raw_audit_hash=f"{index}" * 64,
+                manifest_hash=f"{index + 3}" * 64,
+                created_at=published_at,
+            ).save_base(raw=True, force_insert=True)
+    TaskExecutionModel.objects.create(
+        task_id=str(uuid4()),
+        attempt_id=attempt_id,
+        task_name="data_center.refresh_full_market_publications",
+        status="success",
+        result=json.dumps(
+            {
+                "outcome": "success",
+                "success": True,
+                "publication_updated": True,
+                "run_id": str(run_id),
+                "publication_run_id": str(run_id),
+                "target_trade_date": target_date.isoformat(),
+                "requested": 2,
+                "succeeded": 2,
+                "failed": 0,
+                "published_members": 4,
+                "publication_ids": publication_ids,
+                "datasets": dataset_summaries,
+            },
+            sort_keys=True,
+        ),
+    )
+
+    database_name = str(connection.settings_dict["NAME"])
+    with connection.cursor() as cursor:
+        cursor.execute("SET default_transaction_read_only = on")
+    try:
+        with exporter._read_only_database(database_name):
+            assert exporter._current_market_publication_target_date() == target_date
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SET default_transaction_read_only = off")
 
 
 @pytest.fixture
