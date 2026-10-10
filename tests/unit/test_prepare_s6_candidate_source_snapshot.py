@@ -1001,6 +1001,12 @@ def test_sealed_candidate_helper_clis_disable_bytecode_writes(tmp_path: Path) ->
     project_scripts = Path(__file__).resolve().parents[2] / "scripts"
     for name in ("prepare_s6_candidate_source_snapshot.py", "rehearsal_checkpoint.py"):
         shutil.copy2(project_scripts / name, scripts / name)
+    shared = candidate / "shared"
+    shared.mkdir()
+    shutil.copy2(
+        Path(__file__).resolve().parents[2] / "shared" / "runtime_log_paths.py",
+        shared / "runtime_log_paths.py",
+    )
 
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(candidate)

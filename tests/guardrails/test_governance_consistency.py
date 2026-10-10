@@ -102,7 +102,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
     assert governance_docs["missing_tokens"] == []
 
     architecture_ruleset = sections["architecture_ruleset"]["data"]
-    assert architecture_ruleset["rules_version"] == "2026-06-30.v8"
+    assert architecture_ruleset["rules_version"] == "2026-10-09.v9"
     assert architecture_ruleset["boundary_rule_count"] > 0
     assert architecture_ruleset["audit_rule_count"] > 0
     assert architecture_ruleset["duplicate_rule_ids"] == []
