@@ -3700,7 +3700,7 @@ pointer 共享 activation `19d9a93e-55b6-5b8e-882d-8f3160f560dc`，Task Monitor 
 artifact 包含新增 target-date 节点及全部既有 required identity 且零 skip/failure/error，才可从最新生产只读快照 reserve 新 fresh S6；
 禁止 `--resume` 或复用历史 receipt/image。S6 十阶段与 release validator 全部通过后，只能部署 receipt 绑定的同 SHA 预构建镜像。
 
-##### 2026-10-10 Publication PostgreSQL 隔离 Task Monitor composition 收口
+##### 2026-10-10 Publication PostgreSQL 隔离 composition 与事实回读收口
 
 完成项：候选 `eb4c9767caf8cc29b347d5db7a4ae7410e597e10` 的 Architecture `38038196485`、Security
 `38038196474` 与 Consistency `38038196475` 已通过，但 Publication PostgreSQL `38038196480` 在
@@ -3713,12 +3713,20 @@ target-date 业务断言：新增 production-composition 节点首次把真实 `
 `django_celery_beat`，并将 `task_monitor` 迁移交给该 PostgreSQL fixture 的显式 schema 建表清单。修复没有修改生产模型、workflow、
 测试选择或 required identity，也没有跳过新增节点；同一 exact workflow 命令在本地已能完整收集测试，不再出现 app-label 错误。
 
+包含上述修复的候选 `43507ec55248595d4e907b510682014863997301` 已由 Architecture `38038952136`、Security
+`38038952149` 与 Consistency `38038952167` 通过，并在 Publication PostgreSQL `38038952128` 实际执行到新增节点：其余 50 项通过，
+target-date 节点以稳定码 `S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID` fail closed。第二层根因是 fixture 在 `INSERT`
+PriceBar 后直接用未回读的 Python 对象生成 `fact_content_hash`；PostgreSQL 按列精度规范化 Decimal 后，exporter 从数据库读取的事实行
+哈希与该内存态哈希不同。提交 `2a1843e20` 要求 fixture 按主键从数据库重新读取已持久化行后才生成 publication member，与真实发布路径
+一致；严格 content-hash 绑定保持不变。失败 run `38038952128` 同样不得重跑或与后续候选拼接。
+
 测试计数：exporter/validator 单元回归 `171 passed / 1 skipped`；Publication PostgreSQL exact 命令本地收集成功，因 Windows 未提供
 显式 disposable PostgreSQL 为 `51 skipped / 6 deselected`，这些 skip 不计作通过。Black、isort、Ruff、`git diff --check` 与全仓
 mypy debt ceiling `0 errors in 0 files` 通过；本片未修改生产 Python，因此无增量生产 mypy 文件列表。
 
-未验证风险与停止线：隔离 composition 和新增 target-date 节点仍必须由包含本片与本节台账的新 exact-SHA Linux official artifact
-实跑，全部 required identity 必须零 skip/failure/error。失败 run `38038196480` 禁止重跑或作为后续证据。fresh S6、同镜像部署与只读
+未验证风险与停止线：隔离 composition、持久化事实回读和新增 target-date 节点仍必须由包含本片与本节台账的新 exact-SHA Linux
+official artifact 实跑，全部 required identity 必须零 skip/failure/error。失败 runs `38038196480`、`38038952128` 禁止重跑或作为
+后续证据。fresh S6、同镜像部署与只读
 联合 UAT 尚未开始；生产 full-market 任务禁止重跑，两个周期入口保持 disabled。production financial refresh 的 full-scope ceiling、
 系统内独立 owner/reviewer approval 与新明确授权停止线不变。
 
