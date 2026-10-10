@@ -3667,3 +3667,35 @@ financial refresh 仍须 verified full-scope ceiling、系统内两个独立认�
 下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头绑定 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。五组全绿且官方 artifact 全部 required identity 零 skip/failure/error 后，才可由 planner 原子 reserve
 全新 attempt；fresh S6 禁止 `--resume`，完整十阶段与 release validator 通过后只能部署 receipt 绑定的同 SHA 预构建镜像。
+
+##### 2026-10-10 S6 target-date authority 与 internal-network prepare 收口
+
+完成项：候选 `f7229ecee492ae288aed9c03e0df49b82158ab64` 的 fresh attempts 依次在 runner 前暴露三条独立环境边界：
+`522b02...` 从非 Git 密封 source 调用 planner，稳定码 `S6_PREPARE_WORKSPACE_UNAVAILABLE`；`bc215f...` 在既有 24 GiB
+门槛下以 `S6_DOCKER_DISK_HEADROOM_INSUFFICIENT` 正确阻断，确认无 active build 后只清理未使用 cache/image，使可用空间恢复约
+28 GiB；`11fa71b43e504660b2f77a6ff7a31d28` 已从最新生产只读快照恢复隔离 PostgreSQL，但 `universe` exporter 在
+internal network 内调用 provider-backed 市场日历，因无 Tushare/Akshare 出口返回 `S6_TARGET_SESSION_UNAVAILABLE`。三次均未启动
+runner、构建、部署或生产写；失败目录与诊断保留，disposable runtime 只在确认退出后精确清理，禁止 resume。
+
+提交 `fe85403a9` 删除 prepare 对 provider calendar 和主机当前时间的依赖。target date 现在在一个已验证的 PostgreSQL
+`REPEATABLE READ READ ONLY` 快照中，由三类 current pointer、publication header/member/scope block、精确 PriceBar、
+CandidateRawAuditManifest 与 Task Monitor 结果共同证明；task attempt、run、确定性 activation、publication ID/hash、member seal、
+事实 content hash、source time、15:00 close 和 coverage 摘要全部一致才返回。Task Monitor 同时安全支持 bounded JSON 与历史 literal
+编码。生产现状的 price 5572 requested / 5561 selected / 11 missing 仅在 11 个 scope blocks 与 publication hash 精确闭合时允许，
+未写死证券、未放宽 coverage，也不会因有证据的停牌范围阻断整个系统。新的真实 PostgreSQL production-composition 节点已加入
+`REQUIRED_POSTGRESQL_TESTS`。
+
+测试计数：exporter/validator 单元回归 `171 passed / 1 skipped`；唯一 skip 为 Windows 未启用 disposable PostgreSQL，未计作通过。
+修改的两个生产脚本分别通过增量 mypy，均为 `0 regressions`；全仓 mypy debt ceiling 为 `0 errors in 0 files`。Black、isort、Ruff、
+`git diff --check` 和 Data Center entrypoint 唯一生成器 check 通过，投影仍为 1,322 entries、无手工差异。生产只读核查确认当前三个
+pointer 共享 activation `19d9a93e-55b6-5b8e-882d-8f3160f560dc`，Task Monitor attempt
+`709a571d92f7474f8bc001268bd59050` 与三份 manifest 一致，price 11 个 scope blocks 与 coverage 对账闭合；该核查未写生产。
+
+未验证风险与停止线：新增 PostgreSQL 节点必须由新 exact-SHA official artifact 实跑且零 skip/failure/error；本地 Windows skip 不能替代。
+新逻辑尚未在 fresh S6 internal network 中实证，六类已知环境契约仍不能证明未知类别穷尽。不得重跑 production full-market task
+`bcb3e00f-538e-420d-b179-428c40082f43`；两个周期入口保持 disabled。production financial refresh 仍须有效 full-scope ceiling、
+系统内独立 owner/reviewer approval 与新的明确授权，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push，以含代码与台账的新 exact SHA 从头运行五组 CI。只有五组全绿、official PostgreSQL
+artifact 包含新增 target-date 节点及全部既有 required identity 且零 skip/failure/error，才可从最新生产只读快照 reserve 新 fresh S6；
+禁止 `--resume` 或复用历史 receipt/image。S6 十阶段与 release validator 全部通过后，只能部署 receipt 绑定的同 SHA 预构建镜像。

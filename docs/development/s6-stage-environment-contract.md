@@ -21,6 +21,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 | `72de41d46b7242de9789cc0f8ce9d32c` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，前缀已完成至 `github_ci_evidence`。CI 证据目录/文件由 root 生成，非 root 候选只读挂载时不可读。 | 文件树必须无 symlink/特殊文件，并以 descriptor 复核 group 与 `0550/0440` 密封状态；财报阶段挂载前再次只读复核。 |
 | `ebe16fb787094b45957b16e17dfd771a` | `prepare-status.json` 为 exit 127，候选阶段未启动；远端 wrapper 含 CR 字节。 | 所有经 SSH/pipe 传输且随后执行或解析的文本必须 UTF-8、无 BOM/NUL/CR，并通过重复 `--transport-input` 显式登记。 |
 | `5caf4f22e0264b3f9a9d67a06432f655` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，生产快照当时缺 provider 3 的两条财报 egress 规则。 | 候选侧必须在 provider I/O 前复用持久化 `preview_route`，逐一验证 provider row × dataset × host × deployment region。 |
+| `11fa71b43e504660b2f77a6ff7a31d28` | fresh prepare 已恢复最新生产只读快照，但 `universe` exporter 在 internal Docker network 内调用 provider-backed 市场日历，Tushare/Akshare 均无出口，最终 `S6_TARGET_SESSION_UNAVAILABLE`。 | prepare 的 target date 必须由生产者已封存的 current publication graph 推导；禁止依赖 provider 出网、主机 wall clock、`date.today()` 或原始表 `MAX(date)`。 |
 
 上述只读证据来自 VPS 历史 attempt；目录没有被修改或删除。
 
@@ -41,6 +42,20 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
    不允许以构建后清理全局 Docker cache 代替容量准入。可用内存至少 512 MiB，timeout 层级合法、时钟带时区，隔离 PostgreSQL
    `clock_timestamp()` 与应用时钟差不超过 5 秒。
 6. **外部状态**：冻结 provider settings、N=1/2N=2 财报预算、隔离 DB/Redis 身份、CI run 和两个生产周期入口的 disabled 状态。
+
+## Prepare target-date authority
+
+`universe` exporter 在单个 PostgreSQL `REPEATABLE READ READ ONLY` 事务中读取三类 `current` pointer、精确 publication header、
+`CandidateRawAuditManifest`、Task Monitor 结果、价格 publication members 与其 `PriceBar` 事实。三类 pointer 必须共享从 publication run ID
+确定性派生的 activation ID；manifest 必须共享同一个 task attempt，并与成功 Task Monitor 的 run、attempt、publication IDs、hashes、
+member counts、source timestamps 和 dataset coverage 摘要逐项一致。Task Monitor 的 bounded JSON 与历史 Python literal 两种文本编码均只用
+安全解析器读取，malformed/truncated 结果失败关闭。
+
+价格 target date 只允许来自上述 publication 精确选中的、内容 hash 一致的 `1d/none` 价格事实的唯一 `bar_date`，且 publication
+`as_of` 必须等于中国市场 15:00 收盘对应的 UTC 时点。11 个停牌证券之类的动态缺口只有在 publication scope blocks、coverage 计数、
+publication hash 与 Task Monitor dataset summary 全部一致时才允许作为解释明确的 partial dataset；不得写死证券或把未解释缺口吞成成功。
+该读取不访问 provider、不排队任务、不写建议，也不以数据年龄门槛替代 producer evidence。任一图节点缺失或漂移统一返回
+`S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID`，外层保留候选 universe export 的稳定阻断语义。
 
 ## 候选迁移阶段
 
