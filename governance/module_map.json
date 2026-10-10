@@ -22,7 +22,7 @@
           "imports": 1
         },
         "audit": {
-          "imports": 27
+          "imports": 30
         },
         "backtest": {
           "imports": 2
@@ -2278,7 +2278,7 @@
       },
       "depends_on": {
         "account": {
-          "imports": 27,
+          "imports": 30,
           "target_layers": [
             "account_actor_authority_capture_composition",
             "account_owner_assignment_evidence_v5_composition",
