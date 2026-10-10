@@ -30,10 +30,20 @@ PROPOSAL_ROOT = TEST_PATH.parents[2]
 COLLECTOR_SCRIPT = PROPOSAL_ROOT / "scripts/collect_release_regression_evidence.py"
 SHARED_VALIDATOR = PROPOSAL_ROOT / "scripts/validate_release_rehearsal.py"
 CANDIDATE_SHA = "a" * 40
-UNIVERSE_SHA = "b" * 64
+UNIVERSE_CODES = ["000001.SZ"]
+UNIVERSE_SHA = hashlib.sha256(
+    json.dumps(
+        UNIVERSE_CODES,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode()
+).hexdigest()
 REPOSITORY = "agomtradepro/agomTradePro"
 RUN_ID = 36069605796
 IMAGE_ID = "sha256:" + "c" * 64
+RELEASE_TAG = "20261010093000"
+IMAGE_TAG = f"agomtradepro-web:{RELEASE_TAG}"
 IDENTITIES = [
     {
         "role": "quote",
@@ -421,6 +431,22 @@ def test_collector_report_satisfies_bundle_identity_contract(
                     ),
                 }
             )
+        if kind == "full_universe_capacity":
+            report_payload.update(
+                {
+                    "asset_codes": UNIVERSE_CODES,
+                    "universe_count": len(UNIVERSE_CODES),
+                    "measured_asset_count": len(UNIVERSE_CODES),
+                }
+            )
+        if kind == "akshare_financial_slice":
+            report_payload["provider_identities"] = IDENTITIES
+        if kind == "financial_scope_capacity":
+            report_payload["release_universe"] = {
+                "asset_count": len(UNIVERSE_CODES),
+                "asset_codes": UNIVERSE_CODES,
+                "sha256": UNIVERSE_SHA,
+            }
         report_path.write_text(json.dumps(report_payload, sort_keys=True), encoding="utf-8")
         reports[kind] = report_path
 
@@ -434,6 +460,8 @@ def test_collector_report_satisfies_bundle_identity_contract(
         provider_settings_raw_file_sha256=POLICY_SETTINGS_RAW_SHA256,
         provider_settings_canonical_payload_sha256=POLICY_SETTINGS_CANONICAL_SHA256,
         candidate_image_id=IMAGE_ID,
+        release_tag=RELEASE_TAG,
+        image_tag=IMAGE_TAG,
     )
 
     assert manifest_path.is_file()

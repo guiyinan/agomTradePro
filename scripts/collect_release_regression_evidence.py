@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import math
 import re
@@ -11,14 +12,9 @@ import sys
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import Any, NoReturn, cast
 
-if TYPE_CHECKING:
-    from scripts import validate_release_rehearsal as validator
-elif __package__:
-    from . import validate_release_rehearsal as validator
-else:
-    import validate_release_rehearsal as validator
+validator: Any = None
 
 REPORT_KIND = "candidate_regression_evidence"
 REPORT_FILENAME = "candidate-regression-evidence.json"
@@ -29,6 +25,19 @@ PENDING_GATES = (
     "isolated_write_rehearsal",
 )
 ARTIFACTS_ENDPOINT = "https://api.github.com/repos/{repository}/actions/runs/{run_id}/artifacts"
+
+
+def _load_validator() -> Any:
+    """Load the full validator only after command-line parsing has completed."""
+    global validator
+    if validator is None:
+        module_name = (
+            f"{__package__}.validate_release_rehearsal"
+            if __package__
+            else "validate_release_rehearsal"
+        )
+        validator = importlib.import_module(module_name)
+    return validator
 
 
 def _fail(code: str) -> NoReturn:
@@ -194,8 +203,8 @@ def _write_blocked(directory: Path, code: str) -> None:
 
 def _error_code(exc: Exception) -> str:
     """Map an exception to an allowlisted diagnostic code."""
-    if isinstance(exc, validator.RehearsalValidationError):
-        return exc.code
+    if validator is not None and isinstance(exc, validator.RehearsalValidationError):
+        return cast(str, exc.code)
     if isinstance(exc, FileExistsError):
         return "REHEARSAL_OUTPUT_DIRECTORY_EXISTS"
     if isinstance(exc, OSError):
@@ -224,6 +233,7 @@ def collect_candidate_regression_evidence(
     to compare before/after identities and let the validator independently
     reverify exact official bytes.
     """
+    _load_validator()
     target_date, max_age = _parse_inputs(
         candidate_sha=candidate_sha,
         target_trade_date=target_trade_date,
