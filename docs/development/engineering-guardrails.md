@@ -176,8 +176,9 @@ pre-commit install --hook-type pre-commit --hook-type pre-push
 3. `black`
 4. `isort`
 
-`pre-push` 依次执行 `python scripts/data_center_architecture_inventory.py` 和
-`python scripts/data_center_entrypoint_inventory.py`，用唯一生成器校验两个 Data Center 治理投影。
+`pre-push` 依次执行 `python scripts/check_module_map.py`、
+`python scripts/data_center_architecture_inventory.py` 和
+`python scripts/data_center_entrypoint_inventory.py`，用唯一生成器校验模块图和两个 Data Center 治理投影。
 architecture inventory 的引用位置只保留路径与语义内容；entrypoint inventory 的入口身份使用稳定业务语义；
 源码行号和 GitHub Actions step 的展示名不得进入治理身份。移动代码、插入空行或重命名 step 不应产生投影变化，
 新增、删除或更换真实引用/入口仍必须运行对应生成器的 `--write` 并提交投影。钩子只检查、不自动改写工作树；

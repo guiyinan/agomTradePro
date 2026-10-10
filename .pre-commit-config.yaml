@@ -18,6 +18,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: module-map-projection
+        name: check generated module map projection
+        entry: python scripts/check_module_map.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       - id: data-center-architecture-inventory
         name: check generated Data Center architecture inventory
         entry: python scripts/data_center_architecture_inventory.py
