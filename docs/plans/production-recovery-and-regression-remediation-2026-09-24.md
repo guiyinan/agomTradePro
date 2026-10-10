@@ -3790,3 +3790,28 @@ refresh、两个周期入口和普通用户凭据停止线不变。
 下一片是否可开始：可以提交本节台账并 push；新 exact SHA 必须从头绑定 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。五组全绿且 official artifact required identities 零 skip/failure/error 后，才可执行受控恢复；任何用于前移正式
 graph 的生产任务必须是新的显式任务且只允许一次，随后重新从最新生产只读快照执行 fresh S6，禁止 `--resume`。
+
+##### 2026-10-10 最终候选治理投影与可靠性字典前移门禁
+
+完成项：候选 `40b450f2b669cc04921c394ef0d6a53b2d03ef08` 的 Security `38049909445` 通过；Architecture
+`38049909428` 因 module map 漂移失败，Consistency `38049909424` 因 audit authority 新增动态 block reason 未登记失败，故该 SHA
+立即失去候选资格。Publication PostgreSQL `38049909426` 已取消，Fast Feedback `38049909452` 已提交取消请求；旧 run 均禁止重跑或与
+后续结果拼接。Architecture 根因是 `740ef29e8` 增加三条 `account → audit` import 后没有运行模块图唯一生成器；提交
+`ef822cc20` 仅用 `python scripts/build_module_map.py` 生成 `account.depended_by.audit` 与
+`audit.depends_on.account` 的 27→30 计数变化。Consistency 根因是同一提交新增管理命令稳定码和两个动态输出边界却未同步 reliability registry；
+提交 `5ee9f502f` 登记 `renewal_transaction_rejected` 及 recovery/renewal 的收敛 allowlist，不扩大允许字符或未知错误透传。
+
+为把同类投影错误前移到开发机，提交 `ec731270f` 将 `python scripts/check_module_map.py` 加入仓库既有 pre-push hook，和两个 Data
+Center 投影检查一起执行，并同步工程门禁文档。钩子仍只检查、不自动改写工作树；生成投影仍只能调用唯一生成器。
+
+测试计数：module map write/check 通过，`modules=44 / edges=210`；reliability ownership guard 通过，`statuses=7 / reasons=16`；
+Data Center architecture inventory 与 entrypoint inventory 直接执行通过，entrypoint 总数 1,322；`git diff --check` 通过。本机 Python
+环境未安装 `pre_commit` 包，无法执行 `pre-commit validate-config/run`，因此没有把该命令记作通过；三个 hook 的实际 entry 命令已逐一直接
+执行，YAML hook 装载仍须由新 Linux CI 实证。
+
+未验证风险与停止线：上述三个提交与本节台账组成的新 SHA 尚未运行五组 CI；旧候选的 Security 成功不能复用。pre-push 只有在开发者按文档
+安装 hook 后才会本地执行，远端 Architecture/Consistency 仍是强制 fail-closed 兜底。fresh S6、部署、正式 graph 前移和只读联合 UAT
+均未开始；production financial refresh 与两个周期入口停止线不变。
+
+下一片是否可开始：可以提交台账并 push，以新 exact SHA 从头运行五组 CI。五组全绿且 official PostgreSQL artifact required identities
+零 skip/failure/error 前不得 reserve fresh S6 或部署。
