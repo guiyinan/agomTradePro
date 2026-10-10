@@ -24,6 +24,7 @@ SELECT pg_catalog.format(
     'ALTER ROLE %I PASSWORD %L', 'agomtradepro_s6_exporter', :'exporter_password'
 )
 \gexec
+REVOKE TEMPORARY ON DATABASE :"database" FROM PUBLIC;
 GRANT CONNECT ON DATABASE :"database" TO agomtradepro_s6_exporter;
 GRANT USAGE ON SCHEMA public TO agomtradepro_s6_exporter;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO agomtradepro_s6_exporter;

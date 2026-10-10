@@ -85,6 +85,11 @@ def test_prepare_reorders_to_isolated_snapshot_and_exporter_network() -> None:
     assert '"$candidate_source/scripts/postgres_s6_exporter_role_bootstrap.sql"' in source
     assert "agomtradepro_s6_exporter" in exporter_role_sql
     assert "default_transaction_read_only = 'on'" in exporter_role_sql
+    assert 'REVOKE TEMPORARY ON DATABASE :"database" FROM PUBLIC' in exporter_role_sql
+    assert exporter_role_sql.index(
+        'REVOKE TEMPORARY ON DATABASE :"database" FROM PUBLIC'
+    ) < exporter_role_sql.index("has_database_privilege")
+    assert "current_database(), 'TEMP'" in exporter_role_sql
     assert (
         "GRANT SELECT ON ALL TABLES IN SCHEMA public TO agomtradepro_s6_exporter"
         in exporter_role_sql
