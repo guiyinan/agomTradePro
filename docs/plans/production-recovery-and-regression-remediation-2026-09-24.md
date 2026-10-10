@@ -3815,3 +3815,43 @@ Data Center architecture inventory 与 entrypoint inventory 直接执行通过�
 
 下一片是否可开始：可以提交台账并 push，以新 exact SHA 从头运行五组 CI。五组全绿且 official PostgreSQL artifact required identities
 零 skip/failure/error 前不得 reserve fresh S6 或部署。
+
+##### 2026-10-10 S6 隔离 current market graph 前移解环
+
+完成项：候选 `e90f8140bee20582edbdc1cab5052e960dafbc10` 的 Architecture `38050583246`、Security
+`38050583289`、Consistency `38050583297`、Fast Feedback `38050583278` 与 Publication PostgreSQL
+`38050638140` 已全部通过；官方 PostgreSQL artifact `11668884855` 的 API SHA-256 为
+`0ad9c99321ef479e25a0c2104c438faba51e604b6d1b3b4761c5a0c8ddcb897d`，八份 JUnit 共 `99 tests`，全部
+`59` 个 required identity 出现，financial slice、Account outer-fence 与 5,001-member soak 均为 0 skip/failure/error。
+标准部署入口随后正确拒绝没有 fresh S6 receipt 的候选，未改生产；旧 bundle 仅绑定 bundle manifest、没有 S6 handoff receipt，未被
+当作 break-glass 使用。只读审计确认仓库不存在受治理的 S6 豁免部署路径。
+
+提交 `8545685149fca78417ed38a6f4383cdcb6b9aca2` 将 attempt plan 升为 v3，新增默认关闭、必须在 plan 中显式绑定的
+`advance_isolated_market_graph`。启用后，tracked prepare 只在从最新生产只读快照恢复出的 disposable PostgreSQL/Redis/network 上，
+用 exact candidate source 和当前不可变执行镜像依赖运行一次真实 full-market Task Monitor 任务；候选代码同时校验实际数据库名/host、
+容器和 network 不可变 ID、唯一网络成员及执行镜像。成功 receipt 绑定 candidate/attempt/plan、规范业务 outcome 与
+`requested/succeeded/failed/stored`、Task Monitor attempt、target trade date、run/activation、三份 current pointer/publication、
+重算 member manifest/publication/fact hash 以及最早/最晚 source time。universe 与 contract exporter 在只读事务中重新读取完整 graph 并
+逐项重建 receipt；任何任务、身份、日期、哈希、文件集合或权限漂移均 fail closed，失败不生成成功 prepare receipt。默认 opt-out 不运行
+provider、不写 graph、不增加 receipt。未放宽 future-date、15:00 close、freshness、coverage、audit、source 或任何请求/查询门槛。
+
+长 final-validation heredoc 已下沉到受测 Python helper，prepare wrapper 保持 `985` 个非空行，未越过 1,000 行门槛。Data Center
+operational ownership、planner v3 证据、S6 环境契约与唯一 entrypoint 投影均已同步；生成投影为 `1,328 entries`，其中
+`848 active_public / 337 adjacent_operational / 5 candidate-review / 138 compatibility`，legacy direct/wrapper 均为 0。
+
+测试计数：最终核心五文件回归为 `87 passed / 11 skipped`；11 项均为 Windows 无法实证的 POSIX directory symlink、file mode、
+mount mode、descriptor、Linux bash `-u`、POSIX Python bytecode 与 snapshot mode，未计作通过。inventory/legacy 治理回归为
+`32 passed`。五个修改的生产脚本分别通过增量 mypy，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、
+`py_compile`、`bash -n`、唯一 entrypoint projection stale check、legacy checker 与 `git diff --check` 均通过。Windows 重复整包运行
+曾分别出现一次临时 Git clone `HEAD_UNAVAILABLE` 与 `STATUS_UNAVAILABLE`，对应测试隔离重跑均通过；同一最终工作树另有完整核心整包
+全绿证据，Linux CI 仍须复核这些主机相关路径。
+
+未验证风险与停止线：本 opt-in 尚未在真实 Linux Docker、VPS、真实 provider 与 fresh S6 中实证，不能据本地测试宣称解环完成；六类已知
+环境契约仍不能证明未知类别穷尽。新提交尚未绑定五组 exact-SHA CI，旧候选 `e90f8140b` 的成功证据不得拼接。失败 production
+full-market task `8b960102-a668-48c7-b9f1-5261d526569c` 禁止重跑；新的生产 full-market 写入只能在同 SHA fresh S6 与 receipt-bound
+部署通过后，按用户现有授权执行一次新 task。两个周期入口继续 disabled。production financial refresh 仍须 verified full-scope
+capacity、系统内两个独立认证 owner/reviewer 事件和有效 ceiling；聊天授权不能替代这些系统事实。
+
+下一片是否可开始：可以提交本节台账并 push，以包含实现和台账的新 exact SHA 从头运行 Architecture、Security、Consistency、Fast
+Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部 required identity 为零 skip/failure/error，才可从
+最新生产只读快照 reserve 一个启用 `advance_isolated_market_graph` 的 fresh attempt；禁止 `--resume` 或复用旧 receipt/image。
