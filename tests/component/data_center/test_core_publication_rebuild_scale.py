@@ -87,7 +87,15 @@ def test_full_market_publication_dry_run_has_bounded_query_budget(mocker) -> Non
     assert datasets["equity.quote.snapshot"]["member_count"] == 5557
     assert datasets["equity.price.bar"]["member_count"] == 5557
     assert datasets["equity.valuation.fact"]["member_count"] == 5557
-    assert datasets["equity.financial.fact"]["member_count"] == 0
+    assert payload["deferred_publications"] == [
+        {
+            "attempted": False,
+            "blocked_reason": "financial_capacity_receipt_required",
+            "dataset_key": "equity.financial.fact",
+            "must_not_use_for_decision": True,
+            "outcome": "blocked",
+        }
+    ]
     assert len(queries) <= 8
     assert all(
         not query["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE", "REPLACE"))

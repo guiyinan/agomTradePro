@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -69,16 +69,17 @@ def _binding(environment: str = "isolated") -> FinancialCapacityBinding:
 def _payload(binding: FinancialCapacityBinding, *, production: bool = False) -> dict[str, object]:
     """Build a pre-reviewed record-shaped payload without creating a governance row."""
 
+    now = datetime.now(UTC)
     payload: dict[str, object] = {
         "approval_id": "review:financial-capacity:unit-test",
         "approved_by": "owner:financial-data",
-        "approved_at": "2026-10-08T00:00:00+00:00",
+        "approved_at": (now - timedelta(days=1)).isoformat(),
         "approval_receipt_sha256": "6" * 64,
         "binding": binding.to_dict(),
         "manifest_sha256": "1" * 64,
         "maximum_slices": 1,
         "maximum_provider_requests": 2,
-        "expires_at": "2026-10-09T00:00:00+00:00",
+        "expires_at": (now + timedelta(days=1)).isoformat(),
         "approved": True,
     }
     if production:
@@ -130,7 +131,8 @@ def test_capacity_record_rejects_approval_after_expiry(production: bool) -> None
     stage = "production" if production else "qualification"
     environment = "production" if production else "isolated"
     payload = _payload(_binding(environment), production=production)
-    payload["approved_at"] = "2026-10-10T00:00:00+00:00"
+    expires_at = datetime.fromisoformat(str(payload["expires_at"]))
+    payload["approved_at"] = (expires_at + timedelta(seconds=1)).isoformat()
 
     with pytest.raises(FinancialCapacityWorkflowError, match="must not be later than expiry"):
         parse_financial_capacity_governance_record(stage=stage, record=payload)
