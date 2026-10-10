@@ -3855,3 +3855,23 @@ capacity、系统内两个独立认证 owner/reviewer 事件和有效 ceiling；
 下一片是否可开始：可以提交本节台账并 push，以包含实现和台账的新 exact SHA 从头运行 Architecture、Security、Consistency、Fast
 Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部 required identity 为零 skip/failure/error，才可从
 最新生产只读快照 reserve 一个启用 `advance_isolated_market_graph` 的 fresh attempt；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-10 S6 final validation Linux fixture 契约修复
+
+完成项：候选 `cb8fb84d71149ffa979d209029b530bc8c88d519` 的 Architecture `38057645883`、Security
+`38057645891` 与 Consistency `38057645939` 通过，但 Fast Feedback `38057645886` 在 Python 3.11 与 3.13 的同一 targeted suite
+各自稳定复现 3 项失败，因此该 SHA 失去候选资格，已通过结果不得与后续 SHA 拼接。根因不是生产隔离环境失效：POSIX-only fixture
+用随机 attempt 生成 v3 plan 后，仍把 PostgreSQL/Redis 容器名与数据库名写死为旧测试值，导致 final validator 在目标断言之前正确报
+`S6_ISOLATED_DATABASE_ENVIRONMENT_INVALID`；另一个反例新增 `unexpected.json` 后未设置 `0600`，先触发文件 mode 校验而非预期的
+file-set 校验。修复让 fixture 完全读取 plan 生成的资源身份，并让多余文件反例先满足既有 mode 前置不变量；生产校验顺序与门槛未改。
+
+测试计数：本地相关回归 `33 passed / 9 skipped`，其中 9 项为 Windows 无法验证的 POSIX mode/symlink/bash 行为，未计作 Linux 通过；
+聚焦文件回归 `10 passed / 3 skipped`。全仓 mypy debt ceiling 为 `0 errors in 0 files`，Black、isort、Ruff 与 `git diff --check`
+通过。本片仅修改测试 fixture 与本台账，没有生产 Python 改动。
+
+未验证风险与停止线：三项 POSIX-only 修复仍须由新 exact-SHA Linux Fast Feedback 实跑；失败 run `38057645886` 禁止重跑。
+Publication PostgreSQL `38057688557` 即使单独完成也不能与后续候选拼接。fresh S6、部署、一次新生产 full-market 与联合 UAT 尚未开始；
+旧 task `8b960102-a668-48c7-b9f1-5261d526569c` 禁止重跑，两个周期入口保持 disabled，production financial refresh 停止线不变。
+
+下一片是否可开始：可以将测试 fixture 与本节台账作为一个独立修复提交并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿并完成
+official PostgreSQL artifact identity 核验后，才可 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。

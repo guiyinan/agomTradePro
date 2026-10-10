@@ -435,12 +435,13 @@ def _final_validation_context(
         "DJANGO_SETTINGS_MODULE=core.settings.production\n", encoding="utf-8"
     )
     (inputs / "isolated-postgres.env").write_text(
-        "POSTGRES_HOST=s6_test_postgres\nPOSTGRES_DB=s6_test_database\n"
-        "REDIS_HOST=s6_test_redis\nREDIS_URL=redis://s6_test_redis:6379/0\n",
+        f"POSTGRES_HOST={plan['postgres_container']}\nPOSTGRES_DB={plan['database']}\n"
+        f"REDIS_HOST={plan['redis_container']}\n"
+        f"REDIS_URL=redis://{plan['redis_container']}:6379/0\n",
         encoding="utf-8",
     )
     (inputs / "isolated-migrator.env").write_text(
-        "POSTGRES_HOST=s6_test_postgres\nPOSTGRES_DB=s6_test_database\n",
+        f"POSTGRES_HOST={plan['postgres_container']}\nPOSTGRES_DB={plan['database']}\n",
         encoding="utf-8",
     )
     for name in ("provider.env", "isolated-postgres.env", "isolated-migrator.env"):
@@ -685,7 +686,9 @@ def test_final_validation_helper_rejects_unexpected_export_without_receipt(
 
     context = _final_validation_context(tmp_path)
     try:
-        (context.exports / "unexpected.json").write_text("{}\n", encoding="utf-8")
+        unexpected = context.exports / "unexpected.json"
+        unexpected.write_text("{}\n", encoding="utf-8")
+        unexpected.chmod(0o600)
         with pytest.raises(CandidateSourceSnapshotError, match="S6_EXPORT_FILE_SET_INVALID"):
             validate_final_prepare_receipt(context)
         assert not (context.inputs.parent / "prepare-receipt.json").exists()
