@@ -625,19 +625,25 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
     quote_publication_id = str(uuid4())
     valuation_publication_id = str(uuid4())
     quote_observed_at = cn_market_session_close_utc(target_date)
-    quote_row = QuoteSnapshotModel.objects.create(
-        asset_code="000001.SZ",
-        snapshot_at=quote_observed_at,
-        fetched_at=quote_observed_at + timedelta(minutes=1),
-        current_price=Decimal("10.5"),
-        source="component",
-        source_record_id="quote:000001.SZ:2026-09-30",
-        raw_payload_hash="d" * 64,
-        quality_status="accepted",
-        revision_number=1,
-        ingested_run_id=run_id,
+    quote_rows = [
+        QuoteSnapshotModel.objects.create(
+            asset_code=asset_code,
+            snapshot_at=quote_observed_at,
+            fetched_at=quote_observed_at + timedelta(minutes=1),
+            current_price=Decimal("10.5"),
+            source="component",
+            source_record_id=f"quote:{asset_code}:{target_date.isoformat()}",
+            raw_payload_hash=hashlib.sha256(f"quote:{asset_code}".encode("ascii")).hexdigest(),
+            quality_status="accepted",
+            revision_number=1,
+            ingested_run_id=run_id,
+        )
+        for asset_code in ("000001.SZ", "600000.SH")
+    ]
+    quote_rows = list(
+        QuoteSnapshotModel.objects.filter(pk__in=[row.pk for row in quote_rows]).order_by("pk")
     )
-    quote_members = (
+    quote_members = tuple(
         publication_member_from_reference(
             publication_fact_reference_for_dataset(
                 quote_row,
@@ -646,24 +652,31 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
             member_id=str(uuid4()),
             publication_id=quote_publication_id,
             dataset_key="equity.quote.snapshot",
-        ),
+        )
+        for quote_row in quote_rows
     )
     valuation_observed_at = datetime(2026, 9, 30, 8, 15, tzinfo=UTC)
-    valuation_row = ValuationFactModel.objects.create(
-        asset_code="000001.SZ",
-        val_date=target_date,
-        pe_ttm=Decimal("12.5"),
-        source="component",
-        observed_at=valuation_observed_at,
-        available_at=valuation_observed_at,
-        fetched_at=valuation_observed_at + timedelta(minutes=1),
-        source_record_id="valuation:000001.SZ:2026-09-30",
-        raw_payload_hash="f" * 64,
-        quality_status="accepted",
-        revision_number=1,
-        ingested_run_id=run_id,
+    valuation_rows = [
+        ValuationFactModel.objects.create(
+            asset_code=asset_code,
+            val_date=target_date,
+            pe_ttm=Decimal("12.5"),
+            source="component",
+            observed_at=valuation_observed_at,
+            available_at=valuation_observed_at,
+            fetched_at=valuation_observed_at + timedelta(minutes=1),
+            source_record_id=f"valuation:{asset_code}:{target_date.isoformat()}",
+            raw_payload_hash=hashlib.sha256(f"valuation:{asset_code}".encode("ascii")).hexdigest(),
+            quality_status="accepted",
+            revision_number=1,
+            ingested_run_id=run_id,
+        )
+        for asset_code in ("000001.SZ", "600000.SH")
+    ]
+    valuation_rows = list(
+        ValuationFactModel.objects.filter(pk__in=[row.pk for row in valuation_rows]).order_by("pk")
     )
-    valuation_members = (
+    valuation_members = tuple(
         publication_member_from_reference(
             publication_fact_reference_for_dataset(
                 valuation_row,
@@ -672,7 +685,8 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
             member_id=str(uuid4()),
             publication_id=valuation_publication_id,
             dataset_key="equity.valuation.fact",
-        ),
+        )
+        for valuation_row in valuation_rows
     )
     published_at = timezone.now()
     members_by_dataset = {
@@ -749,6 +763,8 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
                 "covered_asset_count": member_count,
                 "missing_asset_count": 0,
                 "outcome": "success",
+                "policy_identity": policy_identity,
+                "scope_blocks": [],
                 "as_of": as_of.isoformat(),
                 "published_at": published_at.isoformat(),
                 "run_id": str(run_id),
@@ -805,16 +821,31 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
             {
                 "outcome": "success",
                 "success": True,
+                "phase": "completed",
                 "publication_updated": True,
+                "must_not_use_for_decision": False,
                 "run_id": str(run_id),
                 "publication_run_id": str(run_id),
                 "target_trade_date": target_date.isoformat(),
                 "requested": 2,
                 "succeeded": 2,
                 "failed": 0,
-                "published_members": 4,
+                "stored": 4,
+                "count_unit": "valuation_asset",
+                "stored_count_unit": "fact_row",
+                "operation_requested": 1,
+                "operation_succeeded": 1,
+                "operation_failed": 0,
+                "requested_asset_count": 2,
+                "succeeded_asset_count": 2,
+                "failed_asset_count": 0,
+                "missing_asset_codes": [],
+                "published_members": 6,
                 "publication_ids": publication_ids,
                 "datasets": dataset_summaries,
+                "scope_blocks": [],
+                "quote_scope_blocks": [],
+                "excluded_non_trading_codes": [],
             },
             sort_keys=True,
         ),
