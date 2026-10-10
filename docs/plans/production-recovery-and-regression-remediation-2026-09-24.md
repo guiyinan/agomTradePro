@@ -3896,3 +3896,37 @@ production financial refresh 停止线不变。
 
 下一片是否可开始：可以提交本生产边界修复、测试与台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official
 PostgreSQL artifact 的 required identities 全部零 skip/failure/error，才可 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-10 S6 只读候选运行时日志目录契约修复
+
+完成项：候选 `f81f9d468ada2bf7cdd584b2a43939a9bf83be3e` 的 Architecture `38059890766`、Security
+`38059890777`、Consistency `38059890770`、Fast Feedback `38059890796` 与 Publication PostgreSQL
+`38059922855` 全部通过；官方 PostgreSQL artifact `11672653638` 共 `99 tests`，全部 `59` 个 required identity
+出现，financial slice、Account outer-fence 与 5,001-member soak 均为 0 skip/failure/error。fresh S6 attempt
+`df56fa16294b4f04b6dd0d09821c37e3` 随后在 prepare 的 isolated current graph refresh 前以稳定码
+`S6_GRAPH_REFRESH_COMMAND_FAILED` / `S6_GRAPH_REFRESH_RUNTIME_FAILED` fail closed，未生成 prepare receipt、未启动十阶段 runner，
+生产 Task Monitor 没有对应 task，current pointers 与两个 disabled 周期入口均未改变。失败 status SHA-256 为
+`590bf48f70707906dd7ba4a115643630e2b18f19caee15aed6d85d424601a8c1`；attempt 目录与诊断保留，disposable
+PostgreSQL/Redis/network/volume 在确认进程退出后按精确 namespace 清理。
+
+根因是候选源码和根文件系统按契约只读挂载时，`django.setup()` 仍在生产设置导入阶段无条件计算 Celery 文件日志路径，尝试创建
+`/candidate-src/logs`，因此在 Task Monitor/provider I/O 之前触发 `PermissionError`。提交 `41932f71b` 增加通用
+`AGOM_LOG_DIR` 契约：未设置时生产默认行为保持不变；S6 runner、candidate export 与 isolated graph refresh 显式使用既有
+`/tmp` tmpfs 下的 `/tmp/agomtradepro/logs`，继续保持 candidate source 和 root filesystem 只读。统一 stage environment
+preflight 对全部候选阶段检查环境值、Celery worker/beat 路径、可写目录，以及启用 `LOG_TO_FILE` 时的 Django file handlers；问题以
+`REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID` 加入聚合结果，后续网络、身份、时钟和外部状态检查仍继续执行。
+
+测试计数：核心定向回归 `90 passed / 9 skipped`，日志路径与 preflight 补充回归 `20 passed`，契约矩阵回归 `1 passed`；9 个 skip
+均为本机 Windows 无法验证的 POSIX/Linux 行为，未计作 Linux 通过。7 个修改的生产 Python 文件增量 mypy 为 0 issues /
+0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、module-map write/check 与
+`git diff --check` 通过，模块投影保持 `44 modules / 210 edges`、无生成差异。
+
+未验证风险与停止线：该修复尚未在 Linux Docker 与 fresh S6 中实证，`/tmp` tmpfs、非 root UID 创建日志目录和统一 preflight
+必须由新 exact-SHA 五组 CI 与 fresh prepare/runner 验证；六类已知环境契约仍不能证明未知类别穷尽。失败 attempt 禁止 resume，旧
+receipt/image 不得复用。生产 full-market 旧任务均禁止重跑；新的生产 full-market 仅在同 SHA fresh S6、receipt-bound 部署通过后，
+按现有授权执行一次。两个周期入口保持 disabled。production financial refresh 仍须 verified full-scope capacity、系统内两个独立认证
+owner/reviewer 事件和有效 ceiling；聊天授权不能替代这些系统事实。
+
+下一片是否可开始：可以提交本节台账并 push，以包含实现与台账的新 exact SHA 从头运行 Architecture、Security、Consistency、
+Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部 required identity 零 skip/failure/error，才可从
+最新生产只读快照 reserve 新 fresh S6；禁止 `--resume` 或复用历史 receipt/image。
