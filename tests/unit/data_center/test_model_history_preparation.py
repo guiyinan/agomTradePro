@@ -279,6 +279,121 @@ def test_partial_batch_audits_only_returned_members_and_caches_the_exact_empty_m
     assert len(client.calls) == 2
 
 
+def test_batch_joins_only_daily_keys_and_ignores_factor_only_members():
+    class MixedDailyAndFactorRows(Client):
+        def daily(self, **kwargs):
+            return super().daily(**kwargs).iloc[:1]
+
+    audit = AuditRecorder()
+    client = MixedDailyAndFactorRows()
+    source = TushareModelMarketSource(
+        client,
+        source="configured_vendor",
+        provider_id=17,
+        history_fetch_audit=audit,
+    )
+
+    source.prepare_stock_history(CODES, DAY, DAY)
+
+    assert tuple(row.asset_code for row in source.stock_history(CODES[0], DAY, DAY)) == (CODES[0],)
+    assert source.stock_history(CODES[1], DAY, DAY) == ()
+    assert audit.failures == []
+    fetches = source.drain_model_history_prepared_fetches()
+    assert len(fetches) == 1
+    assert fetches[0].asset_codes == CODES
+    assert tuple(row.asset_code for row in fetches[0].rows) == (CODES[0],)
+
+
+def test_batch_caches_no_price_when_factors_exist_without_daily_rows():
+    class FactorOnly(Client):
+        def daily(self, **kwargs):
+            self.calls.append(("daily", kwargs))
+            return pd.DataFrame(
+                columns=["ts_code", "trade_date", "open", "high", "low", "close", "vol", "pct_chg"]
+            )
+
+        def adj_factor(self, **kwargs):
+            self.calls.append(("factor", kwargs))
+            return pd.DataFrame(
+                [
+                    {"ts_code": CODES[0], "trade_date": "20260918", "adj_factor": 0},
+                    {"ts_code": CODES[0], "trade_date": "20260918", "adj_factor": 2},
+                    {"ts_code": CODES[1], "trade_date": "20260918", "adj_factor": 2},
+                ]
+            )
+
+    audit = AuditRecorder()
+    client = FactorOnly()
+    source = TushareModelMarketSource(
+        client,
+        source="configured_vendor",
+        provider_id=17,
+        history_fetch_audit=audit,
+    )
+
+    source.prepare_stock_history(CODES, DAY, DAY)
+
+    assert all(source.has_prepared_model_history(code, DAY, DAY) for code in CODES)
+    assert all(source.stock_history(code, DAY, DAY) == () for code in CODES)
+    assert audit.failures == []
+    fetches = source.drain_model_history_prepared_fetches()
+    assert len(fetches) == 1
+    assert fetches[0].asset_codes == CODES
+    assert fetches[0].rows == ()
+    assert len(client.calls) == 2
+
+
+@pytest.mark.parametrize(
+    ("factor_mode", "expected_code"),
+    [
+        ("missing", "MODEL_MARKET_BATCH_FACTORS_MISSING"),
+        ("duplicate", "MODEL_MARKET_BATCH_DUPLICATE_FACTOR"),
+        ("invalid", "MODEL_MARKET_BATCH_FACTORS_MISSING"),
+    ],
+)
+def test_batch_requires_exactly_one_valid_factor_for_every_daily_key(
+    factor_mode: str, expected_code: str
+):
+    class InvalidFactorCoverage(Client):
+        def adj_factor(self, **kwargs):
+            frame = super().adj_factor(**kwargs)
+            if factor_mode == "missing":
+                return frame.iloc[1:]
+            if factor_mode == "duplicate":
+                return pd.concat([frame, frame.iloc[:1]], ignore_index=True)
+            frame.loc[0, "adj_factor"] = 0
+            return frame
+
+    audit = AuditRecorder()
+    source = TushareModelMarketSource(
+        InvalidFactorCoverage(),
+        source="configured_vendor",
+        provider_id=17,
+        history_fetch_audit=audit,
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        source.prepare_stock_history(CODES, DAY, DAY)
+
+    assert caught.value.code == expected_code
+    assert audit.successes == []
+    assert len(audit.failures) == 1
+    assert audit.failures[0][2].code == expected_code
+    assert all(not source.has_prepared_model_history(code, DAY, DAY) for code in CODES)
+
+
+def test_single_asset_fetch_fails_closed_when_a_daily_key_has_no_factor():
+    class MissingFactor(Client):
+        def adj_factor(self, **kwargs):
+            self.calls.append(("factor", kwargs))
+            return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
+
+    with pytest.raises(DataFetchError) as caught:
+        TushareModelMarketSource(MissingFactor()).stock_history(CODES[0], DAY, DAY)
+
+    assert caught.value.code == "MODEL_MARKET_PROVIDER_FACTORS_MISSING"
+
+
 def test_provider_fetch_failure_retains_its_own_failed_audit():
     class Broken(Client):
         def daily(self, **kwargs):
@@ -479,7 +594,13 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
 
         def adj_factor(self, **kwargs):
             self.calls.append(("factor", kwargs))
-            return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
+            return pd.DataFrame(
+                [
+                    {"ts_code": "000001.SZ", "trade_date": "20260918", "adj_factor": 1},
+                    {"ts_code": "000001.SZ", "trade_date": "20260918", "adj_factor": 2},
+                    {"ts_code": "000002.SZ", "trade_date": "20260918", "adj_factor": 0},
+                ]
+            )
 
         def trade_cal(self, **kwargs):
             self.calls.append(("calendar", kwargs))
@@ -530,6 +651,76 @@ def test_empty_session_raw_audit_is_request_scoped_and_transported_to_full_marke
     assert len([call for call in client.calls if call[0] == "daily"]) == 1
     assert len([call for call in client.calls if call[0] == "factor"]) == 1
     assert client.suspension_calls == len(asset_codes)
+
+
+@pytest.mark.parametrize(
+    ("factor_mode", "expected_factor_code"),
+    [
+        ("missing", "MODEL_MARKET_SESSION_FACTORS_MISSING"),
+        ("duplicate", "MODEL_MARKET_SESSION_DUPLICATE_FACTOR"),
+        ("invalid", "MODEL_MARKET_SESSION_FACTORS_MISSING"),
+    ],
+)
+def test_session_batch_fails_closed_when_a_daily_key_lacks_one_valid_factor(
+    factor_mode: str, expected_factor_code: str
+):
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 202))
+
+    class InvalidSessionFactorCoverage(Client):
+        def daily(self, **kwargs):
+            self.calls.append(("daily", kwargs))
+            assert kwargs == {"trade_date": DAY.strftime("%Y%m%d")}
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": asset_codes[0],
+                        "trade_date": DAY.strftime("%Y%m%d"),
+                        "open": 10,
+                        "high": 11,
+                        "low": 9,
+                        "close": 10,
+                        "vol": 100,
+                        "pct_chg": 0,
+                    }
+                ]
+            )
+
+        def adj_factor(self, **kwargs):
+            self.calls.append(("factor", kwargs))
+            assert kwargs == {"trade_date": DAY.strftime("%Y%m%d")}
+            if factor_mode == "missing":
+                return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
+            row = {
+                "ts_code": asset_codes[0],
+                "trade_date": DAY.strftime("%Y%m%d"),
+                "adj_factor": 0 if factor_mode == "invalid" else 2,
+            }
+            if factor_mode == "duplicate":
+                return pd.DataFrame([row, row])
+            return pd.DataFrame([row])
+
+        def trade_cal(self, **kwargs):
+            self.calls.append(("calendar", kwargs))
+            return pd.DataFrame([{"cal_date": DAY.strftime("%Y%m%d"), "is_open": "1"}])
+
+    audit = AuditRecorder()
+    client = InvalidSessionFactorCoverage()
+    source = TushareModelMarketSource(
+        client,
+        source="tushare",
+        provider_id=17,
+        history_fetch_audit=audit,
+    )
+
+    with pytest.raises(DataFetchError) as caught:
+        source.prepare_stock_history(asset_codes, DAY, DAY)
+
+    assert caught.value.code == "MODEL_MARKET_SESSION_INCOMPLETE"
+    assert len(audit.failures) == 1
+    assert audit.failures[0][2].code == expected_factor_code
+    assert audit.successes == []
+    assert not source.has_prepared_model_history(asset_codes[0], DAY, DAY)
+    assert len(client.calls) == 3
 
 
 def test_unadvertised_cache_route_fails_closed_without_fabricating_lineage():
@@ -884,7 +1075,30 @@ def test_empty_provider_batch_is_audited_once_and_suspension_error_is_reused():
 
         def adj_factor(self, **kwargs):
             self.calls.append(("factor", kwargs))
-            return pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
+            requested_codes = str(kwargs["ts_code"]).split(",")
+            factor_rows = [
+                {
+                    "ts_code": code,
+                    "trade_date": "20260918",
+                    "adj_factor": 1,
+                }
+                for code in requested_codes
+            ]
+            factor_rows.extend(
+                [
+                    {
+                        "ts_code": requested_codes[0],
+                        "trade_date": "20260918",
+                        "adj_factor": 0,
+                    },
+                    {
+                        "ts_code": requested_codes[0],
+                        "trade_date": "20260918",
+                        "adj_factor": 2,
+                    },
+                ]
+            )
+            return pd.DataFrame(factor_rows)
 
         def trade_cal(self, **kwargs):
             self.calls.append(("calendar", kwargs))
@@ -915,19 +1129,22 @@ def test_empty_provider_batch_is_audited_once_and_suspension_error_is_reused():
         (ModelMarketRoute("tushare", source, source_type="tushare", provider_id=17),), audit
     )
 
-    service.prepare_stock_history((CODES[0],), DAY, DAY)
-    with pytest.raises(DataFetchError) as first:
-        service.stock_history(CODES[0], DAY, DAY)
-    calls_after_first = tuple(client.calls)
-    with pytest.raises(DataFetchError) as second:
-        service.stock_history(CODES[0], DAY, DAY)
+    service.prepare_stock_history(CODES, DAY, DAY)
+    for code in CODES:
+        with pytest.raises(DataFetchError) as first:
+            service.stock_history(code, DAY, DAY)
+        calls_after_first = tuple(client.calls)
+        with pytest.raises(DataFetchError) as second:
+            service.stock_history(code, DAY, DAY)
 
-    assert first.value.code == second.value.code == "MODEL_MARKET_SUSPENDED"
+        assert first.value.code == second.value.code == "MODEL_MARKET_SUSPENDED"
+        assert tuple(client.calls) == calls_after_first
+
     assert len(audit.successes) == 1
+    assert audit.successes[0][1] == CODES
     assert audit.successes[0][2] == ()
     assert audit.failures == []
-    assert tuple(client.calls) == calls_after_first
-    assert client.suspension_calls == 1
+    assert client.suspension_calls == len(CODES)
     assert service.take_model_history_audit_references() == (
         RawAuditReference(
             raw_audit_id="raw-1",

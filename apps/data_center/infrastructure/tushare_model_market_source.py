@@ -82,10 +82,11 @@ class TushareModelMarketSource:
         if daily.empty:
             return ()
         factors = self._fetch_stock_adj_factor([asset_code], start_date, end_date)
-        frame = daily.merge(
-            factors[["ts_code", "trade_date", "adj_factor"]],
-            on=["ts_code", "trade_date"],
-            how="left",
+        frame = self._join_daily_factor_rows(
+            daily,
+            factors,
+            duplicate_code="MODEL_MARKET_PROVIDER_DUPLICATE_FACTOR",
+            missing_code="MODEL_MARKET_PROVIDER_FACTORS_MISSING",
         )
         return self._rows(frame, volume_multiplier=100.0)
 
@@ -186,19 +187,6 @@ class TushareModelMarketSource:
                 for code in batch:
                     self._prepared[(code, start_date, end_date)] = ()
                 continue
-            if daily.empty != factors.empty:
-                preparation_error = DataFetchError(
-                    "Provider price and adjustment responses disagree",
-                    code="MODEL_MARKET_BATCH_FACTORS_MISSING",
-                )
-                self._record_preparation_failure(
-                    batch,
-                    start_date,
-                    end_date,
-                    request_details=request_details,
-                    error=preparation_error,
-                )
-                raise preparation_error
             if len(daily) >= 4800 or len(factors) >= 4800:
                 preparation_error = DataFetchError(
                     "Provider response may be truncated",
@@ -213,7 +201,9 @@ class TushareModelMarketSource:
                 )
                 raise preparation_error
             required = {"ts_code", "trade_date", "adj_factor"}
-            if not required.issubset(factors.columns) or "ts_code" not in daily.columns:
+            if not required.issubset(factors.columns) or (
+                not daily.empty and "ts_code" not in daily.columns
+            ):
                 preparation_error = DataFetchError(
                     "Provider response schema is incomplete",
                     code="MODEL_MARKET_BATCH_SCHEMA_INVALID",
@@ -226,24 +216,23 @@ class TushareModelMarketSource:
                     error=preparation_error,
                 )
                 raise preparation_error
+            if daily.empty:
+                self._record_preparation_success(
+                    batch,
+                    start_date,
+                    end_date,
+                    (),
+                    request_details=request_details,
+                )
+                for code in batch:
+                    self._prepared[(code, start_date, end_date)] = ()
+                continue
             factor_frame = factors.copy()
+            factor_frame["ts_code"] = factor_frame["ts_code"].map(_normalize_tushare_code)
             factor_frame["trade_date"] = pd.to_datetime(
                 factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
             )
             factor_frame["adj_factor"] = pd.to_numeric(factor_frame["adj_factor"], errors="coerce")
-            if factor_frame.duplicated(["ts_code", "trade_date"]).any():
-                preparation_error = DataFetchError(
-                    "Provider response contains duplicate adjustment rows",
-                    code="MODEL_MARKET_BATCH_DUPLICATE_FACTOR",
-                )
-                self._record_preparation_failure(
-                    batch,
-                    start_date,
-                    end_date,
-                    request_details=request_details,
-                    error=preparation_error,
-                )
-                raise preparation_error
             batch_rows: list[ModelDailyBar] = []
             prepared_rows: dict[tuple[str, date, date], tuple[ModelDailyBar, ...]] = {
                 (code, start_date, end_date): () for code in batch
@@ -257,12 +246,22 @@ class TushareModelMarketSource:
                 )
                 if normalized.empty:
                     continue
-                joined = normalized.merge(
-                    factor_frame.loc[factor_frame["ts_code"] == code, list(required)],
-                    on=["ts_code", "trade_date"],
-                    how="left",
-                    validate="many_to_one",
-                )
+                try:
+                    joined = self._join_daily_factor_rows(
+                        normalized,
+                        factor_frame.loc[factor_frame["ts_code"] == code, list(required)],
+                        duplicate_code="MODEL_MARKET_BATCH_DUPLICATE_FACTOR",
+                        missing_code="MODEL_MARKET_BATCH_FACTORS_MISSING",
+                    )
+                except DataFetchError as preparation_error:
+                    self._record_preparation_failure(
+                        batch,
+                        start_date,
+                        end_date,
+                        request_details=request_details,
+                        error=preparation_error,
+                    )
+                    raise
                 normalized_rows = self._rows(joined, volume_multiplier=100.0)
                 prepared_rows[(code, start_date, end_date)] = normalized_rows
                 batch_rows.extend(normalized_rows)
@@ -351,18 +350,6 @@ class TushareModelMarketSource:
                     )
                     successful_sessions += 1
                     continue
-                if daily.empty != factors.empty:
-                    self._record_preparation_failure(
-                        asset_codes,
-                        day,
-                        day,
-                        request_details=request_details,
-                        error=DataFetchError(
-                            "Provider session price and adjustment responses disagree",
-                            code="MODEL_MARKET_SESSION_FACTORS_MISSING",
-                        ),
-                    )
-                    continue
                 # Reject an endpoint that ignored the single-session parameter.
                 if (
                     not daily.empty
@@ -382,8 +369,20 @@ class TushareModelMarketSource:
                         ),
                     )
                     continue
-                requested_daily = daily.loc[daily["ts_code"].isin(asset_codes)]
-                requested_factors = factors.loc[factors["ts_code"].isin(asset_codes)]
+                if daily.empty:
+                    requested_daily = pd.DataFrame(columns=["ts_code", "trade_date"])
+                else:
+                    daily_frame = daily.copy()
+                    daily_frame["ts_code"] = daily_frame["ts_code"].map(_normalize_tushare_code)
+                    requested_daily = daily_frame.loc[daily_frame["ts_code"].isin(asset_codes)]
+                if factors.empty:
+                    requested_factors = pd.DataFrame(
+                        columns=["ts_code", "trade_date", "adj_factor"]
+                    )
+                else:
+                    factor_frame = factors.copy()
+                    factor_frame["ts_code"] = factor_frame["ts_code"].map(_normalize_tushare_code)
+                    requested_factors = factor_frame.loc[factor_frame["ts_code"].isin(asset_codes)]
                 daily_frames = [requested_daily] if not requested_daily.empty else []
                 factor_frames = [requested_factors] if not requested_factors.empty else []
                 daily_frame = (
@@ -396,18 +395,6 @@ class TushareModelMarketSource:
                     if factor_frames
                     else pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"])
                 )
-                if factor_frame.duplicated(["ts_code", "trade_date"]).any():
-                    self._record_preparation_failure(
-                        asset_codes,
-                        day,
-                        day,
-                        request_details=request_details,
-                        error=DataFetchError(
-                            "Provider session contains duplicate adjustment rows",
-                            code="MODEL_MARKET_SESSION_DUPLICATE_FACTOR",
-                        ),
-                    )
-                    continue
                 factor_frame["trade_date"] = pd.to_datetime(
                     factor_frame["trade_date"], format="%Y%m%d", errors="coerce"
                 )
@@ -416,6 +403,7 @@ class TushareModelMarketSource:
                 )
                 factor_groups = dict(iter(factor_frame.groupby("ts_code")))
                 current_rows: list[ModelDailyBar] = []
+                factor_error: DataFetchError | None = None
                 for code, frame in daily_frame.groupby("ts_code"):
                     normalized = self._normalize_daily_frame(
                         frame,
@@ -423,16 +411,32 @@ class TushareModelMarketSource:
                         start_date=day,
                         end_date=day,
                     )
-                    factors_for_code = factor_groups.get(code)
-                    if normalized.empty or factors_for_code is None:
+                    if normalized.empty:
                         continue
-                    joined = normalized.merge(
-                        factors_for_code[["ts_code", "trade_date", "adj_factor"]],
-                        on=["ts_code", "trade_date"],
-                        how="left",
-                        validate="many_to_one",
+                    factors_for_code = factor_groups.get(
+                        code,
+                        pd.DataFrame(columns=["ts_code", "trade_date", "adj_factor"]),
                     )
+                    try:
+                        joined = self._join_daily_factor_rows(
+                            normalized,
+                            factors_for_code[["ts_code", "trade_date", "adj_factor"]],
+                            duplicate_code="MODEL_MARKET_SESSION_DUPLICATE_FACTOR",
+                            missing_code="MODEL_MARKET_SESSION_FACTORS_MISSING",
+                        )
+                    except DataFetchError as error:
+                        factor_error = error
+                        break
                     current_rows.extend(self._rows(joined, volume_multiplier=100.0))
+                if factor_error is not None:
+                    self._record_preparation_failure(
+                        asset_codes,
+                        day,
+                        day,
+                        request_details=request_details,
+                        error=factor_error,
+                    )
+                    continue
                 self._record_preparation_success(
                     asset_codes,
                     day,
@@ -531,6 +535,37 @@ class TushareModelMarketSource:
     def trade_days(self, start_date: date, end_date: date) -> tuple[date, ...]:
         """Read the exchange calendar without manufacturing weekdays."""
         return tuple(sorted(set(self._fetch_trade_days(start_date, end_date))))
+
+    @staticmethod
+    def _join_daily_factor_rows(
+        daily_rows: PandasDataFrame,
+        factor_rows: PandasDataFrame,
+        *,
+        duplicate_code: str,
+        missing_code: str,
+    ) -> PandasDataFrame:
+        """Join only daily keys and require one finite, positive factor for each."""
+        keys = ["ts_code", "trade_date"]
+        daily_keys = daily_rows.loc[:, keys].drop_duplicates()
+        matching_factors = factor_rows.merge(daily_keys, on=keys, how="inner")
+        if matching_factors.duplicated(keys).any():
+            raise DataFetchError(
+                "Provider returned duplicate adjustment factors for a price row",
+                code=duplicate_code,
+            )
+        joined = daily_rows.merge(
+            matching_factors.loc[:, [*keys, "adj_factor"]],
+            on=keys,
+            how="left",
+            validate="many_to_one",
+        )
+        factor_values = pd.to_numeric(joined["adj_factor"], errors="coerce")
+        if not np.isfinite(factor_values).all() or (factor_values <= 0).any():
+            raise DataFetchError(
+                "Provider price row lacks one finite, positive adjustment factor",
+                code=missing_code,
+            )
+        return joined
 
     def trading_calendar_evidence(
         self, start_date: date, end_date: date
