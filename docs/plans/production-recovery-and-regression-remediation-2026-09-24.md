@@ -3608,3 +3608,33 @@ disabled；production financial refresh 的系统双审批、full-scope ceiling 
 
 下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头运行五组 CI。全部通过且 official PostgreSQL artifact 身份完整后，
 才可重新上传精确候选、由 planner reserve 全新 attempt 并运行 tracked prepare；禁止复用本次 receipt、isolated runtime 或 image。
+
+##### 2026-10-10 S6 provider identity 完整图单一契约收口
+
+完成项：候选 `61e9ce6a192ed769afa5b4aa424a050f96864baf` 的五组 exact-SHA CI 与 official PostgreSQL artifact
+已通过，但 fresh attempt `587d6055090a46eb8314680f24ea8734` 在 runner 启动前以
+`S6_PRODUCTION_EXPORT_INVALID` fail closed。该 attempt 已越过密封候选、全入口零 bytecode、最新生产只读 dump、隔离
+PostgreSQL restore、普通角色与 exporter role bootstrap；production exporter 成功输出三个完整 provider identity。真实 graph 中
+`quote` 与 `valuation` 的 `deployment_region` 按规范为 `null`，唯一 `akshare_financial_route:3` 为 `unknown`。prepare wrapper 的
+production 与 final validation 却重复要求每行 region 均为 truthy，和唯一 identity parser 的合法契约冲突；现有 POSIX fixture 也只有一行
+region，无法代表真实 graph。
+
+提交 `15abb90c4` 将“核心 identity + 恰好一个 financial route”的完整图解析提升到
+`parse_complete_rehearsal_identities` 单一规范函数，exporter、production validation 与 final validation 全部复用；wrapper 两次导入候选
+契约均使用 `python3 -B`，不重新引入 sealed tree bytecode。正向 fixture 改为真实三行结构，并增加缺少/重复 financial route、普通 identity
+错误携带 region、financial route region 缺失及 wrapper 稳定错误码反例；没有给 quote/valuation 合成区域，也没有放宽 provider identity、
+freshness、coverage、audit 或请求门槛。
+
+测试计数：identity/exporter/prepare 聚焦回归 `35 passed / 2 skipped`；两项 skip 为本地 Windows 无法提供的 POSIX 文件 mode 与 bash
+实证，未计作通过。修改的两个生产 Python 文件增量 mypy 为 `0 regressions`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、
+Ruff、`bash -n`、`git diff --check` 与 Data Center 唯一投影重新生成/check（1,322 entries，无投影差异）通过。wrapper 为 960 个非空行，
+未扩大 1,000 行门槛。失败状态文件 SHA-256 为
+`00395c45112c879f4ae28f2c15f88c31e9fdcb5c8ab074b45b3f672d5a94a1d9`；runner、构建与部署均未开始。确认 prepare 退出后已清除临时
+凭据、临时 export、精确隔离 PostgreSQL/Redis/network/volume 与候选 workspace，失败 root、状态、日志及 source receipt 继续保留。
+
+未验证风险与停止线：该代码提交与本节台账组成的新 HEAD 尚未由五组 exact-SHA CI 验证；Linux final validation 与完整 fresh S6 仍须重新
+实证，不能引用上一 SHA 或失败 attempt 的前缀结果。六类已知环境契约不能证明未知类别已穷尽。生产 full-market 任务禁止重跑，两个周期入口
+保持 disabled；production financial refresh 仍须 verified full-scope ceiling、系统内两个独立认证 owner/reviewer 事件与新的显式授权。
+
+下一片是否可开始：可以提交本节台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official PostgreSQL artifact 的全部
+required identity 零 skip/failure/error 后，才可原子 reserve 新 fresh attempt；禁止 `--resume`、复用旧 receipt/image 或在 CI 前启动 S6。
