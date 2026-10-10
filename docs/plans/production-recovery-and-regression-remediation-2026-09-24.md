@@ -3449,3 +3449,37 @@ Account outer-fence 与 5,001 member soak 身份全部零 skip/failure/error。f
 
 下一片是否可开始：可以提交本节台账并 push 新最终 SHA，从头绑定五组 CI。只有同一 SHA 五组全绿并核验官方 PostgreSQL artifact
 后，才可由 planner v2 从最新生产只读快照创建 fresh S6；禁止复用旧 run、receipt、image 或 `--resume`。
+
+##### 2026-10-10 Fresh S6 tracked prepare 与候选导出隔离收口
+
+完成项：前一候选 `95ff7d454e415576f3549e8d1a1e6a7a6569ed52` 的五组 exact-SHA CI 与 official PostgreSQL artifact
+均通过，但在进入 fresh S6 前发现仓库只有 candidate source snapshot helper，没有完整、受版本控制的 prepare wrapper/exporter；使用远端临时脚本会继续
+复制历史 attempt 的 CR 字节、权限、生产网络和环境变量假设，因此该 SHA 不再作为 S6 候选。提交 `79d4434a3` 新增 planner v2-bound
+`prepare_release_rehearsal_attempt.sh` 与三模式 `export_s6_rehearsal_inputs.py`：先恢复最新生产只读快照到隔离 PostgreSQL，再创建无 membership、
+无写权限、`default_transaction_read_only=on` 的专用 exporter role；候选 exporter 只加入仅连接该隔离 PostgreSQL 的 internal prepare network，
+不接生产网络或 Redis。执行镜像固定为当前生产 Web 的 immutable image ID，只提供依赖运行时；候选身份继续由 exact SHA、密封 source tree 与 receipt
+绑定，候选镜像仍由后续 S6 build 独立生成和验证。
+
+生产 Web 环境不再整体复制给候选代码：后续真实 provider 阶段的 `provider.env` 只保留 Tushare、部署区域和显式 proxy 白名单；三次 exporter
+单独使用新生成 Django/encryption key 与隔离只读 PG 凭据的 `prepare-export.env`。候选导出 helper 进一步拒绝可变 image tag、额外挂载、重复/不安全
+tmpfs、错误 network、image 后 option 和相互重叠的 host paths。原内嵌 final validation 的 `follow_sylinks` 拼写错误已修复，并新增实际执行该
+Python 段的 POSIX 反例。只读 exporter role SQL 拆为独立文件，使新 wrapper 保持 `951` 非空行，没有扩大 1,000 行门槛。Data Center
+operational lifecycle、唯一 entrypoint 投影和 CI test selection 已同步；投影为 `1,322` entries，其中 `845 active_public / 337
+adjacent_operational / 2 candidate-review / 138 compatibility`，scanner 与治理状态语义未修改。
+
+测试计数：planner/source/exporter/wrapper/test-selection/entrypoint 聚焦回归 `139 passed / 7 skipped`；skip 为 Windows 缺少 POSIX mode、
+symlink/fchown/bash 等环境能力，未计作通过。Luna Max 在 WSL POSIX 临时树实际执行 final-validation Python 成功，但 WSL 未安装 pytest，未补装依赖。
+修改的 4 个生产 Python 文件增量 mypy 为 `0 regressions`，全仓 debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、py_compile、
+`bash -n`、Data Center 唯一投影连续 write/check、governance consistency（0 violations）和 `git diff --check` 通过。
+
+未验证风险与停止线：新 prepare 仍未在 Linux Docker/VPS 上实证真实 UID/GID、internal network membership、PostgreSQL role privilege、快照恢复和
+失败资源保留，必须由新 exact-SHA CI 与 fresh S6 证明。候选 snapshot 同时携带 verifier 与 exporter；当前信任模型依赖候选已通过 exact-SHA
+评审和 CI，不能据此安全执行任意未评审代码，未来如扩大信任范围须使用 candidate 外的 operator-owned verifier。六类已知环境契约不证明未知类别
+已穷尽。失败 attempt `e6e6d5962d9443e19b90b4b7614c95ee` 保留原始证据且禁止 resume。生产 full-market 任务禁止重跑，两个周期入口保持
+disabled；production financial refresh 仍须 verified full-scope capacity import、系统内两个独立认证 owner/reviewer 事件、有效 ceiling 与新的
+显式授权，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push，以新 HEAD 从头绑定 Architecture、Security、Consistency、Fast Feedback 与 Publication
+PostgreSQL 五组 CI。只有同一 SHA 五组全绿且 official artifact 全部 required identities 零 skip/failure/error 后，才可由 planner v2
+原子 reserve 全新 attempt 并运行 tracked prepare；fresh S6 禁止 `--resume`，完整十阶段与 release validator 通过后只能部署 receipt 绑定的
+同 SHA 预构建镜像。
