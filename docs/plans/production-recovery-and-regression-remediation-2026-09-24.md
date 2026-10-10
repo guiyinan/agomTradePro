@@ -3398,3 +3398,29 @@ production financial refresh 仍须系统内两个独立认证 owner/reviewer �
 下一片是否可开始：可以提交本节台账并 push 新 exact SHA，从头绑定五组 CI。五组全绿且 official artifact 身份完整后，才可从最新生产
 只读快照原子预留 fresh S6，重新导出全部输入并禁止 `--resume`；完整十阶段与 release validator 通过后只能部署 receipt 绑定的同 SHA
 预构建镜像。
+
+##### 2026-10-10 S6 pre-runner candidate source 权限与身份门禁
+
+完成项：fresh S6 attempt `e6e6d5962d9443e19b90b4b7614c95ee` 在 runner 启动前失败；候选 exporter 读取
+root-owned `0700` workspace 时触发 `PermissionError`，随后远端 wrapper 在 `set -u` 下将 `$mode_FAILED` 解释为不存在的
+`mode_FAILED` 变量，遮蔽原始稳定码。该 attempt 未启动 runner、未创建隔离 PostgreSQL/Redis、未构建或部署，原目录和诊断继续保留，
+禁止 `--resume`。提交 `eb3e95dcb` 将 attempt plan 升为 v2：fresh `--reserve` 必须提供 exact clean workspace 与 candidate GID，
+planner 从 candidate commit 的 Git blobs 创建独立 source snapshot，拒绝 symlink/gitlink/特殊项、ignored/untracked 与脏工作区，
+只对快照复用 descriptor-based `seal_container_input_tree` 密封 `0550/0440`，不递归修改原 clone。每次 exporter 前重新核对
+candidate/tree/receipt/GID/mode、精确 candidate image、非 root UID:GID 和唯一 `/candidate-src:ro` mount；Docker 参数只允许出现在
+image 之前，拒绝 `--mount` 和未登记 option。shell 兼容路径复用受测 helper 返回大写稳定码，不再自行拼接变量名。
+
+测试计数：planner、candidate-source 与 test-selection 聚焦回归 `86 passed / 5 skipped`；5 个 skip 均为 Windows 无法提供的 POSIX
+mode/symlink/fchown/bash 实证，未计作通过。修改的 3 个生产 Python 文件增量 mypy 为 0 regressions，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map `44 modules / 210 edges` 均通过。Data Center inventory
+stale-check 保持 `1,313 entries`，未修改 scanner、治理规则或生成投影；该 S6 工具不被伪装为 Data Center entrypoint。
+
+未验证风险与停止线：本地 Windows 未证明 root-owned `0700` clone 到非 root container 的真实跨 UID/GID读取、descriptor group seal、
+Linux symlink/special-file 故障注入或 bash helper；必须由新 exact-SHA Linux CI 与 fresh S6 实证。receipt 是 candidate/tree/permission
+的防漂移绑定，不能对抗拥有 attempt root 写权限的 root 主机管理员；attempt root 的主机权限和不可变证据链仍是信任边界。新 HEAD 尚未
+五组 CI 全绿，不能引用旧 SHA 的成功结果。生产 full-market task 禁止重跑，两个周期入口保持 disabled；production financial refresh
+仍须系统内两个独立认证 owner/reviewer 事件和有效 full-scope ceiling，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push 新 exact SHA，从头绑定 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。只有同一 SHA 五组全绿、official artifact 所有必需节点零 skip/failure/error，才可用 planner v2 预留全新
+attempt，并以 tracked exporter 跑完整 fresh S6；禁止复用旧 receipt/image 或 `--resume`。
