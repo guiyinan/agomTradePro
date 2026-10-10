@@ -3638,3 +3638,32 @@ Ruff、`bash -n`、`git diff --check` 与 Data Center 唯一投影重新生成/c
 
 下一片是否可开始：可以提交本节台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official PostgreSQL artifact 的全部
 required identity 零 skip/failure/error 后，才可原子 reserve 新 fresh attempt；禁止 `--resume`、复用旧 receipt/image 或在 CI 前启动 S6。
+
+##### 2026-10-10 Fast Feedback 身份证据、时间与发布契约收口
+
+完成项：候选 `b94b9d3005bfb7baa7535ab5d4a1800e4e498677` 的 Architecture `38030247738`、Security
+`38030247930`、Consistency `38030247751` 与 Publication PostgreSQL `38030247906` 通过；官方 artifact
+`11662142782` 的 API SHA-256 为 `6a1280b5835e8009329e99cf7d0fd8899b553d4dfd8cd58a7a550d93d0630ba6`，八个 JUnit
+共 98 项，全部 58 个 required identity 出现且 0 skip/failure/error。但 Fast Feedback `38030247743` 在 Python 3.11/3.13
+同时出现相同六项失败，因此旧 SHA 不得进入 S6，也不得重跑旧 run。独立审计将失败归为三类：多个证据写入点使用 dataclass
+`asdict`，把核心 identity 的可选 region 重新写成 `null`；两处 financial fixture 没有必需 region；容量审批 fixture 固定在
+2026-10-09 到期，且 core publication 规模测试仍把已由 receipt-gated workflow 接管的 financial lane 当作通用 dataset。
+
+提交 `031f73bf8` 增加 `rehearsal_identities_payload` 单一规范序列化入口，并让 identity verification、provider export、market
+rehearsal、policy parity、response replay、financial slice、scope discovery 与主 release runner 全部复用；核心 identity 省略 region，
+financial route 保留真实 region，digest 与 validator 继续使用同一 canonical shape。提交 `06b0eddfd` 将容量测试改为相对当前 UTC
+时钟，并让规模测试断言明确的 `financial_capacity_receipt_required` deferred lane；生产的审批有效期和 financial fail-closed 门禁均未修改。
+
+测试计数：原六个失败节点修复后 `6 passed`。相关 11 个测试文件扩大回归为 `145 passed / 1 skipped`，唯一 skip 是 Windows
+无法实证的 POSIX snapshot mode；release runner 与 validator 回归为 `260 passed / 3 skipped`，三项 skip 为 Windows 缺少 POSIX
+file/directory symlink 与 ownership/mode 注入，均未计作通过。修改的八个生产 Python 文件增量 mypy 为 `0 regressions`，全仓
+mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：上述两个提交和本节台账组成的新 HEAD 尚未由五组 exact-SHA CI 验证；旧 SHA 的四组成功与 PostgreSQL artifact
+不得拼接。Linux 对 canonical identity 图、Fast Feedback 双 Python、official PostgreSQL required nodes、fresh S6 十阶段及 release
+validator 仍须重新实证。六类已知环境契约不能证明未知类别穷尽。生产 full-market 任务禁止重跑，两个周期入口保持 disabled；production
+financial refresh 仍须 verified full-scope ceiling、系统内两个独立认证 owner/reviewer 事件和新的显式授权，聊天授权不替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头绑定 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。五组全绿且官方 artifact 全部 required identity 零 skip/failure/error 后，才可由 planner 原子 reserve
+全新 attempt；fresh S6 禁止 `--resume`，完整十阶段与 release validator 通过后只能部署 receipt 绑定的同 SHA 预构建镜像。
