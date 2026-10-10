@@ -42,6 +42,18 @@ def test_wrapper_consumes_only_a_reserved_v2_plan_and_plan_bound_source() -> Non
     assert "--verify-only" in source
 
 
+def test_python_heredoc_failure_branches_do_not_use_line_continuations() -> None:
+    source = _wrapper_text()
+
+    for line in source.splitlines():
+        if "<<'PY'" in line:
+            assert not line.rstrip().endswith("\\")
+
+    assert "<<'PY' || fail S6_PROVIDER_ENV_CAPTURE_INVALID" in source
+    assert "<<'PY' || fail S6_CANDIDATE_INPUT_TREE_INVALID" in source
+    assert "<<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED" in source
+
+
 def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_argv() -> None:
     source = _wrapper_text()
 

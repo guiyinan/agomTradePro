@@ -383,8 +383,7 @@ production_database_actual="$(docker exec "$production_postgres" sh -eu -c \
   sh "$expected_production_database" 2>/dev/null)" || fail S6_PRODUCTION_DATABASE_UNAVAILABLE
 test "$production_database_actual" = "$expected_production_database" \
   || fail S6_PRODUCTION_DATABASE_IDENTITY_MISMATCH
-python3 - "$web_container" "$inputs/provider.env" "$inputs/.production-encryption-key" <<'PY' \
-  || fail S6_PROVIDER_ENV_CAPTURE_INVALID
+python3 - "$web_container" "$inputs/provider.env" "$inputs/.production-encryption-key" <<'PY' || fail S6_PROVIDER_ENV_CAPTURE_INVALID
 import json, os, re, subprocess, sys
 from pathlib import Path
 
@@ -722,8 +721,7 @@ PY
 verify_candidate_files() {
   local directory="$1"
   shift
-  python3 - "$directory" "$candidate_uid" "$candidate_gid" "$@" <<'PY' \\
-    || fail S6_CANDIDATE_INPUT_TREE_INVALID
+  python3 - "$directory" "$candidate_uid" "$candidate_gid" "$@" <<'PY' || fail S6_CANDIDATE_INPUT_TREE_INVALID
 import os, stat, sys
 from pathlib import Path
 root = Path(sys.argv[1])
@@ -836,8 +834,7 @@ python3 - "$inputs" "$export_root" "$sha" "$db" "$net" "$pg" "$redis" \
   "$namespace" "$evidence_dir" "$provider_settings_export_path" \
   "$provider_identities_export_path" "$candidate_source_receipt" \
   "$execution_image" "$prepare_receipt" "$runner_receipt" "$runner_python" \
-  "$requirements_sha256" "$candidate_uid" "$candidate_gid" <<'PY' \
-  || fail S6_PREPARE_FINAL_VALIDATION_FAILED
+  "$requirements_sha256" "$candidate_uid" "$candidate_gid" <<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED
 import datetime, hashlib, json, os, re, stat, sys
 from pathlib import Path
 (
