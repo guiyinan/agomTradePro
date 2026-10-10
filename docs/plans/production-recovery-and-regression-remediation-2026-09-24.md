@@ -3950,3 +3950,42 @@ consistency 测试仍断言 `architecture_rules.json` 的旧 `2026-06-30.v8`，�
 
 下一片是否可开始：可以提交本节台账并 push，以新 HEAD 从头绑定五组 exact-SHA CI。只有五组全绿且 official PostgreSQL artifact
 required identities 零 skip/failure/error，才可 reserve fresh S6。
+
+##### 2026-10-11 S6 Task Monitor cold-start 生命周期注册整改
+
+完成项：最终候选 `aa90c757cf1db244a05909b6a36659023a0f6c4b` 的五组 exact-SHA CI 已全部通过：Architecture
+`38064566004`、Security `38064566015`、Consistency `38064566013`、Fast Feedback `38064566011`
+与 Publication PostgreSQL `38064603900`。官方 PostgreSQL artifact `11675022058` 共 `99 tests`，全部
+`59` 个 required identity 出现，financial slice、Account outer-fence 与 5,001-member soak 均为 0 skip/failure/error。
+fresh S6 attempt `f586ec470d544f97a904943a53e664cf` 已越过只读日志目录门禁并完成生产快照向隔离 PostgreSQL 的恢复，
+随后在 `candidate_exports` 的 isolated current graph refresh 以 `S6_GRAPH_REFRESH_COMMAND_FAILED` /
+`CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE` / `S6_GRAPH_REFRESH_TASK_MONITOR_INVALID` fail closed；未生成 prepare
+receipt、未启动十阶段 runner，也没有生产或 provider 写入。`prepare-status.json` SHA-256 为
+`b14d22caa0e92ac21a0980493cc2b75021623b71f1bb6fcd5accd07e1c75d1e1`，两份 graph 日志 SHA-256 分别为
+`79c87e9bce0d748b1e0351cd195e118e71f6c74d1f4734eb11b3b0624967b3f2` 与
+`f5a2dfa0df507fc38ed23b3bf83251806f66b5e546ad0fb80163b7ded1f6b477`。隔离数据库只读对账确认该 task 的
+Task Monitor 行数为 0，排除终态漂移或 attempt 不匹配。
+
+根因是 S6 候选 CLI 仅执行 `django.setup()` 后直接对 canonical full-market task 调用 eager `Task.apply()`；Task Monitor 的
+`task_prerun` / `task_postrun` receiver 原来只依赖 Celery 延迟 autodiscovery 导入，在这种 cold-start 组合中没有注册，因此
+Celery request 有 task id，却没有 STARTED 行和 signal 生成的 attempt marker。提交 `972aa5ce9` 由
+`TaskMonitorConfig.ready()` 显式注册同一生命周期模块；没有伪造 identity、绕过 Task Monitor 或修改 identity getter 的 fail-closed
+语义。新增独立进程契约实际执行 eager `Task.apply()`，证明任务体前已写 STARTED 并可读取 canonical identity，postrun 后同一
+attempt 原子前移为 SUCCESS；缺少 prerun marker 的反例仍返回 `CURRENT_TASK_ATTEMPT_IDENTITY_UNAVAILABLE`。
+
+测试计数：Task Monitor signal、identity 与业务 outcome 聚焦回归 `49 passed`；Celery task contracts 为
+`95 registered / 21 exemptions / 24 governed files`。修改的生产 Python 文件增量 mypy 为 0 issues / 0 regressions，
+全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。完整
+`tests/unit/task_monitor` 宽回归曾运行超过 90 秒且无终态后被中断，未记作通过；其影响由聚焦 49 项、新 exact-SHA CI 与 fresh S6
+继续覆盖。
+
+未验证风险与停止线：启动期显式注册尚未在新 exact-SHA Linux CI、真实 S6 Docker cold-start 和 isolated graph refresh 中实证；
+失败 attempt 必须保留诊断且禁止 resume。确认无相关进程后只能按精确 namespace 清理其 disposable PostgreSQL/Redis/network/volume。
+生产 full-market 历史任务全部禁止重跑；新生产 full-market 仍只允许在同 SHA fresh S6 与 receipt-bound 部署通过后按现有授权执行一次。
+两个周期入口保持 disabled。production financial refresh 仍须 verified full-scope capacity、系统内两个独立认证 owner/reviewer 事件与
+有效 ceiling，聊天授权不能替代这些事实。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `972aa5ce9` 与本台账的新 exact SHA 从头运行 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact required identities 全部零
+skip/failure/error，才可清理上述精确 disposable namespace，并从最新生产只读快照 reserve 新 fresh S6；禁止 `--resume` 或复用
+旧 receipt/image。
