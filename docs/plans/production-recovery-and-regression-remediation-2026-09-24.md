@@ -3578,3 +3578,33 @@ receipt/tree 复核必然 fail closed。Consistency `38023868925`、Fast Feedbac
 
 下一片是否可开始：可以提交本节台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official artifact 所有 required
 identity 零 skip/failure/error 后，才可由 planner 原子 reserve 新 attempt；禁止 `--resume`、复用旧 receipt/image 或在 CI 前启动 S6。
+
+##### 2026-10-10 S6 prepare Python here-doc 失败分支收口
+
+完成项：候选 `aeb4ada8d0259f914dd087887f003fa19b84022b` 的 Architecture `38024566876`、Security
+`38024566891`、Consistency `38024566888`、Fast Feedback `38024566907` 与 Publication PostgreSQL
+`38024578526` 全部通过。官方 artifact `11659523776`（API SHA-256
+`70c2c3abbed10581fe21b26d9032bb23f4eb68a99e130f7ea861b00b19c8be33`）绑定同一 SHA；八个 JUnit 共 98 项，
+全部 58 个 required identity 出现，0 skipped / 0 failure / 0 error，其中 financial-capacity 13 项、financial-slice 12 项、
+Account final-revalidation 8 项与 5,001 member soak 均通过。
+
+fresh attempt `c8584269d6ed4383be1886719d426e91` 通过密封候选/零 bytecode、runner runtime、最新生产只读 dump、隔离
+PostgreSQL restore、普通角色与 exporter role bootstrap；production exporter 也以非 root `1000:1000` 成功生成四个受控文件，随后
+wrapper 以 `S6_PRODUCTION_EXPORT_INVALID` fail closed。根因不是导出内容：`verify_candidate_files` 的 Python here-doc header 末尾存在两个
+反斜杠，令下一物理行 `|| fail S6_CANDIDATE_INPUT_TREE_INVALID` 成为 Python stdin 第一行并触发 `IndentationError`。提交
+`510cd4c4c` 将 provider env capture、candidate file verification 和 final validation 三处 here-doc 失败分支全部绑定到 header 同一物理行，
+并新增门禁禁止任何 Python here-doc header 以反斜杠续行；没有删减校验或放宽稳定错误码。
+
+测试计数：prepare/source 聚焦回归 `29 passed / 6 skipped`，6 个 skip 均为 Windows 缺少 POSIX mode、symlink、fchown 或 bash
+能力，未计作通过。Black、isort、Ruff、`bash -n`、Data Center 唯一投影连续 write/check（1,322 entries）、全仓 mypy debt ceiling
+`0 errors in 0 files` 与 `git diff --check` 通过；未修改生产 Python，因此无增量生产 mypy 文件列表。失败 attempt 未进入 S6 runner、构建或
+部署；`prepare-status.json` SHA-256 为 `818f0ec269f2062716b403fb5939b6674ac5e08fb94b6b5b44ad03c2cfa6da3b`。
+确认 prepare PID 退出后已清除该 attempt 的临时凭据、provider export 目录、精确隔离 PostgreSQL/Redis/network/volume 和旧候选工作区；
+失败 root、状态、日志及 candidate receipt 保留，磁盘可用约 26 GiB。
+
+未验证风险与停止线：`510cd4c4c` 与本节台账组成的新 HEAD 尚未由五组 exact-SHA CI 验证；修正后的三处 shell here-doc 必须由
+Linux CI 与新 fresh S6 实证。上一候选五组成功不得拼接，失败 attempt 禁止 resume。生产 full-market 任务禁止重跑，两个周期入口保持
+disabled；production financial refresh 的系统双审批、full-scope ceiling 和新明确授权停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头运行五组 CI。全部通过且 official PostgreSQL artifact 身份完整后，
+才可重新上传精确候选、由 planner reserve 全新 attempt 并运行 tracked prepare；禁止复用本次 receipt、isolated runtime 或 image。
