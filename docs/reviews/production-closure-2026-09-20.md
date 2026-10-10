@@ -994,3 +994,25 @@ artifact audit 与 successful audit 也均为 0。代码部署不等于真实 re
 结构化证据见 [生产 revision d3fdbd6f1c 只读重验](../deployment/production-closure-revalidation-2026-10-09-d3fdbd6f1c.json)，原始探针、输出和哈希清单
 见同名 `-raw.zip`。registry v194 → v195；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
 DATA-18 继续 active。本轮验证没有部署、直接 provider 调用、生产写入、profile 激活或 Publication 切换。
+
+
+## 生产 revision d3fdbd6f1c 只读重验（2026-10-10）
+
+生产仍运行 `d3fdbd6f1c` / `20261008050500`；探针采集时 `dev/next-development` HEAD 为 `d7bebd95c`，生产落后
+101 个提交。公网 health、db health、ready 为 200，decision-ready 为 503，release-identity 为 403。profile v19
+仍绑定 `9c77c51182`，exact identity 继续 P0 阻断；authority 已由 1/1/1 回退为 0/1/0，actor source 到期，owner head 仍有效。
+
+活动指针与上一份证据一致：quote、valuation 均为 5,572/5,572；price 为 5,561/5,572、缺 11；
+financial 仍无 current pointer，历史 published membership 为 80。生产源码已包含 owner-approved AKShare
+source-time contract、精确 matcher、provider verifier 与 retained-evidence verifier；但只读聚合显示 487,624 条
+financial facts 中 announced_at、decision_evidence、source_time_witness 均为 0，source-time claim、bound claim、
+artifact audit 与 successful audit 也均为 0。代码部署不等于真实 retained sample 或生产验收。
+
+两个未传 `--execute` 的预检仍在 financial decision evidence guard 失败关闭并报告
+`mutations_performed=false`。受保护监控与上一份封存证据一致，凭据/匿名请求均为 401，认证仍失败，
+TUI-02 仍不能建立首样本或观察时钟。numeric tolerance registry 仍为待 owner approval、
+零 policy。
+
+结构化证据见 [生产 revision d3fdbd6f1c 只读重验](../deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json)，原始探针、输出和哈希清单
+见同名 `-raw.zip`。registry v195 → v196；DATA-02、EVID-01/02、AUD-03 状态不变，TUI-02 与
+DATA-18 继续 active。本轮验证没有部署、直接 provider 调用、生产写入、profile 激活或 Publication 切换。
