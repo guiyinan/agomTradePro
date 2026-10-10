@@ -199,3 +199,46 @@ def test_projection_preserves_lowercase_business_codes_and_rejects_diagnostic_te
         projection = project_task_business_result(json.dumps({"error_code": message}))
         assert projection.error_code is None
         assert projection.stable_error_code is None
+
+
+def test_business_projection_preserves_bounded_publication_policy_identity() -> None:
+    """Versioned publication identities survive while oversized values fail closed."""
+
+    import json
+
+    policy_identity = "p2:" + ("v" * 40) + ":" + ("a" * 64)
+    accepted = project_task_business_result(
+        json.dumps(
+            {
+                "datasets": [
+                    {
+                        "dataset_key": "equity.price.bar",
+                        "policy_identity": policy_identity,
+                        "policy_version": policy_identity,
+                    }
+                ]
+            }
+        )
+    )
+
+    assert accepted.datasets is not None
+    assert accepted.datasets[0].policy_identity == policy_identity
+    assert accepted.datasets[0].policy_version == policy_identity
+
+    rejected = project_task_business_result(
+        json.dumps(
+            {
+                "datasets": [
+                    {
+                        "dataset_key": "equity.price.bar",
+                        "policy_identity": "p" * 129,
+                        "policy_version": "v" * 129,
+                    }
+                ]
+            }
+        )
+    )
+
+    assert rejected.datasets is not None
+    assert rejected.datasets[0].policy_identity is None
+    assert rejected.datasets[0].policy_version is None

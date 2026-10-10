@@ -25,6 +25,7 @@ _SAFE_DIAGNOSTIC_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:+-]{0,127}$")
 _SAFE_ERROR_CODE = re.compile(
     r"^(?:[A-Z][A-Z0-9]*(?:[_.:-][A-Z0-9]+)*|[a-z][a-z0-9]*(?:_[a-z0-9]+)+)$"
 )
+PUBLICATION_POLICY_IDENTITY_MAX_LENGTH = 128
 _TECHNICAL_ERROR_NAMES = frozenset(
     {
         "DataFetchError",
@@ -257,8 +258,12 @@ def _publication_datasets(
     for item in raw[:3]:
         if not isinstance(item, Mapping):
             continue
-        policy_identity = _safe_diagnostic_token(item.get("policy_identity"), limit=64)
-        policy_version = _safe_diagnostic_token(item.get("policy_version"), limit=64)
+        policy_identity = _safe_diagnostic_token(
+            item.get("policy_identity"), limit=PUBLICATION_POLICY_IDENTITY_MAX_LENGTH
+        )
+        policy_version = _safe_diagnostic_token(
+            item.get("policy_version"), limit=PUBLICATION_POLICY_IDENTITY_MAX_LENGTH
+        )
         if policy_identity is None:
             policy_identity = policy_version
         if policy_version is None:

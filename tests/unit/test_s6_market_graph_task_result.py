@@ -13,6 +13,7 @@ from apps.data_center.application import s6_market_graph_task_result as contract
 
 _RUN_ID = "11111111-1111-4111-8111-111111111111"
 _TARGET = "2026-10-09"
+_POLICY_IDENTITY = "p2:" + ("v" * 40) + ":" + ("a" * 64)
 _DATASETS = (
     "equity.price.bar",
     "equity.quote.snapshot",
@@ -34,7 +35,7 @@ def _block(dataset_key: str, publication_id: str) -> dict[str, object]:
         "target_trade_date": _TARGET,
         "source": "tushare",
         "publication_run_id": _RUN_ID,
-        "policy_version": f"p2:{dataset_key}:policy",
+        "policy_version": _POLICY_IDENTITY,
         "publication_id": publication_id,
     }
     if dataset_key != "equity.valuation.fact":
@@ -52,7 +53,7 @@ def _publication(dataset_key: str, index: int, *, partial: bool) -> dict[str, ob
         "dataset_key": dataset_key,
         "publication_id": publication_id,
         "publication_key": "current",
-        "policy_version": f"p2:{dataset_key}:policy",
+        "policy_version": _POLICY_IDENTITY,
         "selected_source": "tushare",
         "publication_hash": str(index) * 64,
         "member_count": member_count,
@@ -318,6 +319,37 @@ def test_contract_accepts_actual_task_monitor_projection_for_dynamic_partial() -
         target_trade_date=_TARGET,
         run_id=_RUN_ID,
     )
+
+
+def test_task_monitor_projection_drops_oversized_policy_identity_and_contract_rejects() -> None:
+    """An oversized policy identity cannot cross Task Monitor into S6 evidence."""
+
+    from apps.task_monitor.application.tasks import _serialize_task_result
+
+    publications, result = _graph(partial=True)
+    oversized = "p" * 129
+    for publication in publications:
+        publication["policy_version"] = oversized
+        blocks = cast(list[dict[str, object]], publication["scope_blocks"])
+        for block in blocks:
+            block["policy_version"] = oversized
+    summaries = cast(list[dict[str, object]], result["datasets"])
+    for summary in summaries:
+        summary["policy_identity"] = oversized
+    result["provider_diagnostics"] = ["sensitive" * 2_000]
+
+    projected = cast(dict[str, object], json.loads(_serialize_task_result(result)))
+
+    assert projected["result_projection"] == "bounded_business_fields"
+    projected_datasets = cast(list[dict[str, object]], projected["datasets"])
+    assert all("policy_identity" not in item for item in projected_datasets)
+    with pytest.raises(contract.MarketGraphTaskResultError, match="task dataset summary differs"):
+        contract.validate_market_graph_task_result(
+            projected,
+            publications,
+            target_trade_date=_TARGET,
+            run_id=_RUN_ID,
+        )
 
 
 def test_contract_rejects_boolean_count_alias() -> None:

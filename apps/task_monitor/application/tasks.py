@@ -29,6 +29,7 @@ from apps.operational_readiness.management.commands.run_personal_readiness_daily
 )
 from apps.task_monitor.application.backup_tasks import backup_database_task as backup_database_task
 from apps.task_monitor.application.backup_tasks import verify_backup_task as verify_backup_task
+from apps.task_monitor.application.dtos import PUBLICATION_POLICY_IDENTITY_MAX_LENGTH
 from apps.task_monitor.application.orphan_reconciliation import (
     ReconcileOrphanedTaskRecordsUseCase,
     TaskOrphanReconciliationResult,
@@ -230,10 +231,12 @@ def _project_publication_dataset(value: Any) -> dict[str, object] | None:
         if text_value is not None:
             projected[key] = text_value
     policy_identity = _safe_result_text(
-        value.get("policy_identity") or value.get("policy_version"), limit=64
+        value.get("policy_identity") or value.get("policy_version"),
+        limit=PUBLICATION_POLICY_IDENTITY_MAX_LENGTH,
     )
     policy_version = _safe_result_text(
-        value.get("policy_version") or value.get("policy_identity"), limit=64
+        value.get("policy_version") or value.get("policy_identity"),
+        limit=PUBLICATION_POLICY_IDENTITY_MAX_LENGTH,
     )
     if policy_identity is not None:
         projected["policy_identity"] = policy_identity

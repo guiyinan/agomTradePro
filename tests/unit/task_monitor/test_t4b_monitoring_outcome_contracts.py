@@ -463,6 +463,7 @@ def test_postrun_preserves_bounded_publication_evidence_from_oversized_success(
         "20d9591d-d4ed-46b4-bb24-f49338e3be3d",
         "82a45361-7c5d-4b22-b303-7fb24488ec1c",
     )
+    policy_identity = "p2:" + ("v" * 40) + ":" + ("a" * 64)
     datasets = [
         {
             "dataset_key": dataset_key,
@@ -472,7 +473,7 @@ def test_postrun_preserves_bounded_publication_evidence_from_oversized_success(
             "requested_asset_count": 5_572,
             "covered_asset_count": 5_572,
             "missing_asset_count": 0,
-            "policy_identity": "market-policy-v1",
+            "policy_identity": policy_identity,
             "as_of": "2026-10-05",
             "published_at": "2026-10-05T09:00:00+08:00",
             "run_id": "market-run-20261005",
@@ -553,8 +554,8 @@ def test_postrun_preserves_bounded_publication_evidence_from_oversized_success(
     )
     assert all(item["publication_hash"] for item in response["datasets"])
     assert all(item["member_count"] == 5_572 for item in response["datasets"])
-    assert all(item["policy_identity"] == "market-policy-v1" for item in response["datasets"])
-    assert all(item["policy_version"] == "market-policy-v1" for item in response["datasets"])
+    assert all(item["policy_identity"] == policy_identity for item in response["datasets"])
+    assert all(item["policy_version"] == policy_identity for item in response["datasets"])
     assert all(item["as_of"] == "2026-10-05" for item in response["datasets"])
     assert all(item["run_id"] == "market-run-20261005" for item in response["datasets"])
 
