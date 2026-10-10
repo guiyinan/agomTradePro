@@ -3525,3 +3525,31 @@ debt ceiling `0 errors in 0 files` 与 `git diff --check` 通过。wrapper 为 9
 
 下一片是否可开始：可以提交本节台账并 push，新 exact SHA 从头运行五组 CI。只有同一 SHA 五组全绿且官方 PostgreSQL artifact 身份完整，
 才可重新 reserve fresh attempt；必须先注入受控临时输入，禁止 `--resume`、复用旧 receipt/image 或清理失败证据。
+
+##### 2026-10-10 S6 exporter PUBLIC TEMPORARY 权限收口
+
+完成项：候选 `cccdf08eb9d81fe5537e5597a5dc664f361ae57d` 的 Architecture `38021915074`、Security
+`38021915067`、Consistency `38021915080`、Fast Feedback `38021915102` 与 Publication PostgreSQL
+`38021929534` 全部通过；官方 artifact `11657914288` 的 API SHA-256 为
+`a47b5868bc71802b082f15a1b8b81b3756547ece46a74eb42341abda4c2c9adb`，98 个 testcase 覆盖全部 58 个 required identity，
+0 skipped / 0 failure / 0 error。fresh attempt `92a6f6b7dfde445d89ca42c32cb555d5` 已通过 sealed candidate verifier、生产只读 dump、
+隔离 PostgreSQL restore 和普通角色 bootstrap，随后在 exporter role bootstrap 以 `S6_ISOLATED_EXPORTER_ROLE_BOOTSTRAP_FAILED`
+正确 fail closed；尚未执行 candidate exporter、真实 provider、S6 runner、构建或部署。
+
+只读诊断证明 `agomtradepro_s6_exporter` 为 LOGIN/NOINHERIT、无 membership、无 database CREATE、无 schema CREATE，但通过 PostgreSQL
+默认 `PUBLIC` grant 获得 database TEMP，故现有 guard 正确报告 write-capable privilege。提交 `fcc335f70` 在 disposable S6 database 上于
+exporter grant/guard 前执行 `REVOKE TEMPORARY ON DATABASE :"database" FROM PUBLIC`，保留 TEMP/CREATE/table-write/membership 全部 guard，
+没有把 TEMP 从阻断条件删除。独立真实 PostgreSQL 16 容器执行同一 SQL 后验证 CREATE=false、TEMP=false、schema CREATE=false、membership=0，
+普通 SELECT 成功且 `CREATE TEMP TABLE` 失败。失败 attempt 的状态与阶段日志保留；临时 token/password 和精确 plan-bound PostgreSQL、Redis、
+network、volume 在确认 prepare 退出后移除，没有触碰生产资源。
+
+测试计数：prepare/source 聚焦回归 `28 passed / 6 skipped`，6 个 Windows POSIX capability skip 未计作通过；真实 PostgreSQL exporter
+contract `1 pass`。Black、isort、Ruff、`bash -n`、Data Center 唯一投影连续 write/check、全仓 mypy debt ceiling
+`0 errors in 0 files` 与 `git diff --check` 通过；未修改生产 Python，因此无增量生产 mypy 文件列表。
+
+未验证风险与停止线：`fcc335f70` 与本节台账组成的新 HEAD 尚未由五组 exact-SHA CI 验证；撤销 `PUBLIC TEMPORARY` 后完整 migration、
+十阶段和 release validator 必须由下一次 fresh S6 实证，不能引用失败 attempt 的前缀结果。生产 full-market 任务禁止重跑，两个周期入口保持
+disabled；production financial refresh 的系统双审批、full-scope ceiling 和新明确授权停止线不变。
+
+下一片是否可开始：可以提交台账并 push，新 exact SHA 从头运行五组 CI；全部通过并核验 official artifact 后，重新 reserve fresh attempt，
+禁止 `--resume` 或复用本次 isolated runtime。完整 S6 成功前不得部署。
