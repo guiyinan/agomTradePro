@@ -589,6 +589,9 @@ def test_s6_target_date_uses_exact_current_price_members_in_repeatable_read_snap
         )
         for asset_code in ("000001.SZ", "600000.SH")
     ]
+    price_rows = list(
+        PriceBarModel.objects.filter(pk__in=[row.pk for row in price_rows]).order_by("pk")
+    )
     price_publication_id = str(uuid4())
     price_members = tuple(
         publication_member_from_reference(
