@@ -3875,3 +3875,24 @@ Publication PostgreSQL `38057688557` 即使单独完成也不能与后续候选�
 
 下一片是否可开始：可以将测试 fixture 与本节台账作为一个独立修复提交并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿并完成
 official PostgreSQL artifact identity 核验后，才可 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-10 S6 provider identity 数组读取边界修复
+
+完成项：候选 `25670aa084b7ae147879bd7bef9205677a5f07ee` 的 Architecture `38058767487`、Security
+`38058767436` 与 Consistency `38058767434` 通过，但 Fast Feedback `38058767433` 在 Python 3.11 和 3.13 各自稳定失败 2 项；
+该 SHA 不得进入 S6，已通过结果不得拼接。前一片修复已让验证越过动态 database/container 与 mode 前置不变量，随后暴露真实生产边界缺陷：
+final validator 复用只接受 JSON object 的 `_read_validation_json` 读取 `provider-identities.json` 数组，因此任何合法完整身份数组都会以
+`S6_PROVIDER_IDENTITIES_INVALID` fail closed。修复新增有界的 JSON array reader，保持 symlink/regular-file/UTF-8/JSON shape 拒绝语义，
+provider identity 仍交由唯一 complete-graph parser 校验；同时增加数组正例和 object 反例。没有放宽身份、来源或 S6 门槛。
+
+测试计数：prepare/snapshot 相关回归 `35 passed / 9 skipped`；9 项均为本机 Windows 无法覆盖的 POSIX mode、symlink 与 bash 行为，
+未计作 Linux 通过。修改的生产 Python 文件增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：完整 final receipt happy path 与 graph-run drift 反例仍须由新 exact-SHA Linux Fast Feedback 实证；失败 run
+`38058767433` 禁止重跑。该 SHA 的 Publication PostgreSQL `38058817071` 不得与后续结果拼接。fresh S6、部署、一次新生产
+full-market 与联合 UAT 尚未开始；旧 task `8b960102-a668-48c7-b9f1-5261d526569c` 禁止重跑，两个周期入口保持 disabled，
+production financial refresh 停止线不变。
+
+下一片是否可开始：可以提交本生产边界修复、测试与台账并 push，以新 exact SHA 从头运行五组 CI。只有五组全绿且 official
+PostgreSQL artifact 的 required identities 全部零 skip/failure/error，才可 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。

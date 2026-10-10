@@ -19,6 +19,7 @@ from scripts.plan_release_rehearsal_attempt import build_attempt_plan
 from scripts.prepare_s6_candidate_source_snapshot import (
     CandidateSourceSnapshotError,
     _FinalPrepareValidation,
+    _read_validation_json_list,
     validate_final_prepare_receipt,
 )
 
@@ -29,6 +30,26 @@ EXPORTER_ROLE_BOOTSTRAP = PROJECT_ROOT / "scripts" / "postgres_s6_exporter_role_
 
 def _wrapper_text() -> str:
     return WRAPPER.read_text(encoding="utf-8")
+
+
+def test_final_validation_json_list_reader_preserves_identity_array(tmp_path: Path) -> None:
+    """The provider identity boundary accepts arrays without coercing them to objects."""
+
+    path = tmp_path / "provider-identities.json"
+    payload: list[object] = [{"role": "quote"}, {"role": "valuation"}]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert _read_validation_json_list(path, "S6_PROVIDER_IDENTITIES_INVALID") == payload
+
+
+def test_final_validation_json_list_reader_rejects_object(tmp_path: Path) -> None:
+    """The provider identity boundary fails closed when the JSON shape is not an array."""
+
+    path = tmp_path / "provider-identities.json"
+    path.write_text(json.dumps({"role": "quote"}), encoding="utf-8")
+
+    with pytest.raises(CandidateSourceSnapshotError, match="S6_PROVIDER_IDENTITIES_INVALID"):
+        _read_validation_json_list(path, "S6_PROVIDER_IDENTITIES_INVALID")
 
 
 def test_wrapper_consumes_only_a_reserved_v3_plan_and_plan_bound_source() -> None:

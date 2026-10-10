@@ -132,6 +132,22 @@ def _read_validation_json(path: Path, error_code: str) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
+def _read_validation_json_list(path: Path, error_code: str) -> list[object]:
+    """Read one regular JSON array at the final validation boundary."""
+
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise CandidateSourceSnapshotError(error_code)
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except CandidateSourceSnapshotError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise CandidateSourceSnapshotError(error_code) from exc
+    if not isinstance(value, list):
+        raise CandidateSourceSnapshotError(error_code)
+    return cast(list[object], value)
+
+
 def _read_validation_env(inputs: Path, name: str) -> dict[str, str]:
     """Read a private env file while rejecting duplicate or malformed keys."""
 
@@ -340,7 +356,7 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
     settings = _read_validation_json(
         exports / "provider-settings.json", "S6_PROVIDER_SETTINGS_INVALID"
     )
-    identities_value = _read_validation_json(
+    identities_value = _read_validation_json_list(
         exports / "provider-identities.json", "S6_PROVIDER_IDENTITIES_INVALID"
     )
     unit = _read_validation_json(exports / "unit-contract.json", "S6_UNIT_CONTRACT_INVALID")
@@ -349,7 +365,7 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
     )
     universe = _read_validation_json(exports / "universe-summary.json", "S6_UNIVERSE_SCOPE_INVALID")
     _validation_require(bool(settings), "S6_PROVIDER_SETTINGS_INVALID")
-    if not isinstance(identities_value, list) or not identities_value:
+    if not identities_value:
         raise CandidateSourceSnapshotError("S6_PROVIDER_IDENTITIES_INVALID")
     try:
         parse_complete_rehearsal_identities(identities_value)
@@ -466,16 +482,17 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
             and task_result.get("publication_run_id") == graph_receipt.get("run_id"),
             "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
         )
+        task_result_map = cast(dict[str, object], task_result)
         task_counts = tuple(
-            task_result.get(name) for name in ("requested", "succeeded", "failed", "stored")
+            task_result_map.get(name) for name in ("requested", "succeeded", "failed", "stored")
         )
-        requested, succeeded, failed, stored = task_counts
         _validation_require(
-            all(isinstance(value, int) and not isinstance(value, bool) for value in task_counts)
-            and requested > 0
-            and succeeded == requested
-            and failed == 0
-            and stored > 0,
+            all(isinstance(value, int) and not isinstance(value, bool) for value in task_counts),
+            "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
+        )
+        requested, succeeded, failed, stored = cast(tuple[int, int, int, int], task_counts)
+        _validation_require(
+            requested > 0 and succeeded == requested and failed == 0 and stored > 0,
             "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
         )
         run_id = graph_receipt.get("run_id")
@@ -541,6 +558,7 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
         )
         pointer_items = cast(list[dict[str, object]], graph_pointers)
         publication_items = cast(list[dict[str, object]], graph_publications)
+        member_hash_map = cast(dict[str, object], member_hashes)
         pointer_map = {cast(str, item["dataset_key"]): item for item in pointer_items}
         for publication in publication_items:
             dataset_key = publication.get("dataset_key")
@@ -553,7 +571,7 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
                 and publication.get("publication_id") == pointer.get("publication_id")
                 and publication.get("publication_hash") == pointer.get("publication_hash")
                 and publication.get("member_manifest_hash")
-                == member_hashes.get(cast(str, dataset_key))
+                == member_hash_map.get(cast(str, dataset_key))
                 and pointer.get("activation_id") == activation_id,
                 "S6_GRAPH_REFRESH_GRAPH_INVALID",
             )
