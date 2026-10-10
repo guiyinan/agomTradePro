@@ -3733,3 +3733,60 @@ official artifact 实跑，全部 required identity 必须零 skip/failure/error
 下一片是否可开始：可以提交本节台账并 push，以新 HEAD 从头绑定五组 exact-SHA CI。仅当五组全绿且 official PostgreSQL artifact
 包含新增 target-date、financial slice、Account outer-fence 与 5,001-member soak 等全部 required identity，且零 skip/failure/error，
 才可从最新生产只读快照 reserve fresh S6；禁止 `--resume` 或复用旧 receipt/image。
+
+##### 2026-10-10 Audit authority 恢复与新一轮全市场终态取证
+
+完成项：候选 `f468ba12bf4e7ef3bd48d68edfb4f41c9df0a7fd` 的 Architecture `38039435803`、Security
+`38039435698`、Consistency `38039435594`、Fast Feedback `38039435679` 与 Publication PostgreSQL
+`38039435680` 全部通过；官方 PostgreSQL artifact `11665701122` 的 API SHA-256 为
+`95cb9e3d149e94f59d4bb832a47534cdcf28759a4860b996b0a89714fd8e712f`，八份 JUnit 共 99 项且 required financial slice、Account outer-fence 与 5,001-member soak 节点均为
+0 skipped / 0 failure / 0 error。fresh S6 attempt
+`8fbbf7c258aa42879f14cce9b2fdb378` 在 `provider_probe` 以稳定码 `REHEARSAL_RESPONSE_FUTURE_DATE`
+正确 fail closed：正式 current publication graph 仍绑定 `2026-09-30`，实时腾讯响应已晚于该 target；没有保留 provider artifact、
+没有构建、部署或生产写，provider probe 诊断 SHA-256 为
+`2824ce5afa6afe1ed33238df907896b6e8d9887ed3cc08d0ee52d3e54eeca94c`，失败 attempt 保留且禁止 resume。
+
+生产 audit authority 已按既有 session-protected 流程重新采集真实 raw authority sources，并完成新的系统审计权限恢复；当前 profile 为 v20，
+有效期至 `2026-10-23T15:50:47.606393+00:00`，证据根目录为
+`/opt/agomtradepro/rehearsals/audit-authority-recovery-20261010`。提交 `740ef29e8` 在写入前新增 consumed-envelope、
+predecessor/CAS 与 actor snapshot 只读预检，保留事务内 first-winner 竞争校验；旧已消费 envelope 继续禁止复用。
+
+在 authority、lease、队列、周期入口 disabled 与目标交易日 `2026-10-09` 全部通过后，仅投递一次新的显式 full-market task
+`8b960102-a668-48c7-b9f1-5261d526569c`，attempt `146099a2faad4841b0c25329f9af3e4a`，dispatch receipt
+SHA-256 `7af9db9f497dc60134192787f27d9077e13128b65a7111196e1dfd43fcb945f6`。任务技术终态为 success，但规范业务终态为
+partial：`requested/succeeded/failed/stored=5573/0/5573/5573`，publication `0/1`、`publication_updated=false`，
+稳定码 `MODEL_MARKET_BATCH_FACTORS_MISSING`；lease 已释放，三个 current pointer 未切换。终态业务证据 SHA-256 为
+`f31646b50e07aed3c3d8d1155ea9bcfb6721a311a3730197ab2473401a9725dd`，current pointer 证据 SHA-256 为
+`722dd3f3a07656d3769b393be25dcc1122cc6a8653e271037afef480ad02fb18`。该 task 禁止再次投递或重跑。
+
+测试计数：`740ef29e8` 的 audit authority 聚焦回归 `44 passed`；四个修改的生产 Python 文件增量 mypy 为
+0 issues / 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`，Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：生产仍运行旧 revision，正式 graph 未前移，因此 decision runtime 继续按保护阻断。当前 financial publication 仍是
+legacy policy identity；production financial refresh 必须具备 verified full-scope capacity、系统内两个独立认证 owner/reviewer 事件与
+新的显式授权，聊天授权不替代这些事实。两个周期入口继续 disabled。不得重跑上述 full-market task，也不得用未来日期放宽、合成 source time
+或旧 receipt 绕过 S6 target-date 约束。
+
+下一片是否可开始：可以修复本次真实 provider 契约根因并以新 exact SHA 从头运行五组 CI；全部通过后再选择不削弱未来日期保护的恢复路径。
+
+##### 2026-10-10 行情日线与复权因子方向性覆盖契约整改
+
+完成项：生产只读探针确认本次 14 个动态缺失报价证券在目标日 `daily_row_count=0`，但 `adj_factor` 返回 14 行；两组已知证券探针同时证明
+多代码 daily/factor 路由本身可用。根因是批量与 session 准备把“daily 与 adj_factor 必须同时为空或同时非空”错误建模为对称不变量。
+提交 `b85aeaf9f` 改为方向性覆盖：只对实际 daily `(ts_code, trade_date)` 键要求恰好一个有限且大于零的复权因子；没有对应 daily
+键的额外 factor 行不参与校验。daily 非空而因子缺失、重复、非有限或非正仍 fail closed，并保留原稳定业务码、审计、停牌证据查询与缓存语义；
+没有写死证券、增加 fallback、扩大 timeout/retry 或放宽 coverage。
+
+测试计数：provider 与行情发布相关五个测试文件合计 `185 passed`，覆盖代码批次、全市场 session、混合 daily/factor、factor-only、
+daily key 因子缺失/重复/无效以及经 `ModelMarketDataService` 查询停牌并复用 `MODEL_MARKET_SUSPENDED` 的端到端反例。修改的生产文件
+增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与
+`git diff --check` 通过。
+
+未验证风险与停止线：本片尚未经过 exact-SHA 五组 CI、真实 provider fresh S6 或生产同镜像验证；上一候选的 CI 成功不能拼接使用。
+失败 full-market task `8b960102-a668-48c7-b9f1-5261d526569c` 禁止重跑。正式 current graph 仍停在
+`2026-09-30`，新的 fresh S6 会继续正确拒绝晚于 target 的 provider 响应，不能通过放宽 future-date guard 解决。production financial
+refresh、两个周期入口和普通用户凭据停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push；新 exact SHA 必须从头绑定 Architecture、Security、Consistency、Fast Feedback 与
+Publication PostgreSQL。五组全绿且 official artifact required identities 零 skip/failure/error 后，才可执行受控恢复；任何用于前移正式
+graph 的生产任务必须是新的显式任务且只允许一次，随后重新从最新生产只读快照执行 fresh S6，禁止 `--resume`。
