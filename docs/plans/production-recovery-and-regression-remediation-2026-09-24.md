@@ -4080,3 +4080,37 @@ production financial refresh 停止线不变。
 
 下一片是否可开始：可以提交本节台账并 push，以包含 `bb9c87d70` 与本台账的新 exact SHA 从头运行五组 CI；五组全绿前不得
 reserve fresh S6。
+
+##### 2026-10-11 Task Monitor 版本化发布策略身份投影整改
+
+完成项：候选 `8ca3b5767cb2b45fe1b559e334cab47cf428726f` 的 Architecture `38081001965`、Security
+`38081002003`、Consistency `38081001989`、Fast Feedback `38081001975` 与 Publication PostgreSQL
+`38081001979` 全部通过；官方 artifact `11680671886` 的 8 份 JUnit 共 `99 tests`，全部 `59` 个 required
+identity 出现且为 0 skip/failure/error。fresh S6 attempt `b89ae410e99e42c6ab2de15b3f460437` 在隔离库完成
+evidence-qualified market graph refresh：业务结果 `outcome=partial`，资产
+`requested/succeeded/failed/stored=5573/5559/14/11132`，operation `113/113/0`，publication updated，发布
+`16691` 个 member；14 个缺口均为动态全日停牌证据，三个 current pointer 在隔离库使用同一 run/activation 原子切换。prepare 随后在
+`candidate_exports` 以 `S6_GRAPH_REFRESH_GRAPH_INVALID` fail closed，未生成成功 receipt、未启动十阶段 runner、未部署或产生生产写。
+
+隔离库只读诊断确认三份 current publication 的 active policy、member/fact/publication hash、raw-audit manifest、run/activation 和
+coverage 全部一致；真实 Task Monitor 持久化结果却缺少 dataset `policy_identity`。根因是 Task Monitor 写入投影与读取 DTO 各自把
+publication policy identity/version 限为 64 字符，而合法版本化身份为
+`p2:<最多 40 字符 policy_version>:<64 字符 SHA-256>`，最长 108 字符，持久化模型边界为 128。字段被安全过滤器静默丢弃后，S6
+任务结果校验正确报 `task dataset summary differs`。提交 `416c125af24db93fc5f9a0b6f9dd4fb49d99cbee` 统一写入和读取边界为
+128，保留 token 字符 allowlist 与超长 fail-closed 语义；没有削弱 S6 validator、active-policy 复核或任何业务门槛。
+
+测试计数：红测试在修复前稳定为 `3 failed / 45 passed`；修复后定向回归 `49 passed`，较宽的 Task Monitor、S6 task-result 与
+current-publication rebuild 回归 `181 passed`。正例使用最大 108 字符合法身份，覆盖
+`Task Monitor serialize → persisted projection → DTO/API` 与 `Task Monitor serialize → S6 validator`；129 字符反例证明写入投影删除
+字段且 S6 fail closed。两个生产文件增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 全部通过。
+
+未验证风险与停止线：本修复尚未经过新 exact-SHA 五组 CI、Linux fresh S6 或 receipt-bound 部署。失败 attempt 的证据继续保留并
+禁止 `--resume`，其成功业务 refresh 不能替代完整 S6 receipt。生产 full-market 历史任务禁止重跑；新生产 full-market 只能在新
+exact SHA 五组 CI、fresh S6 十阶段、release validator 和同镜像部署全部通过后按现有授权执行一次。两个周期入口保持 disabled。
+production financial refresh 仍须 verified full-scope capacity、系统内两个独立认证 owner/reviewer 事件和有效 ceiling；聊天授权不替代
+这些事实。六类环境契约仍不能证明未知类别穷尽。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `416c125af` 与本台账的新 exact SHA 从头运行 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。五组全绿且官方 artifact 的全部 required identity 零
+skip/failure/error 后，才可从最新生产只读快照 reserve 新 fresh S6；禁止复用旧 receipt/image。
