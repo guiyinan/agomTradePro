@@ -153,6 +153,8 @@ class TestSelectTests(unittest.TestCase):
             "tests/unit/test_manage_vps_migrations.py",
             "tests/unit/test_rehearsal_stage_environment.py",
             "tests/unit/test_plan_release_rehearsal_attempt.py",
+            "tests/unit/test_export_s6_rehearsal_inputs.py",
+            "tests/unit/test_prepare_release_rehearsal_attempt.py",
             "tests/unit/test_build_release_rehearsal_manifest.py",
             "tests/unit/test_validate_release_rehearsal.py",
             "tests/unit/test_vps_web_watchdog.py",
@@ -166,6 +168,9 @@ class TestSelectTests(unittest.TestCase):
             "scripts/run_release_rehearsal.py",
             "scripts/manage_vps_migrations.py",
             "scripts/plan_release_rehearsal_attempt.py",
+            "scripts/postgres_s6_exporter_role_bootstrap.sql",
+            "scripts/export_s6_rehearsal_inputs.py",
+            "scripts/prepare_release_rehearsal_attempt.sh",
             "scripts/rehearsal_checkpoint.py",
             "shared/release_rehearsal_stage_environment.py",
             "scripts/build_release_rehearsal_manifest.py",
@@ -178,6 +183,13 @@ class TestSelectTests(unittest.TestCase):
                 self.assertIn("deployment", modules)
                 selected = set(select_tests_func(modules, changed, "logic_guardrails"))
                 self.assertTrue(required <= selected)
+
+    def test_unrelated_script_does_not_select_fresh_prepare_wrapper_contract(self):
+        changed = ["scripts/unrelated_local_maintenance.sh"]
+        modules = get_changed_modules(changed)
+        selected = set(select_tests_func(modules, changed, "logic_guardrails"))
+        self.assertNotIn("deployment", modules)
+        self.assertNotIn("tests/unit/test_prepare_release_rehearsal_attempt.py", selected)
 
     def test_select_tests_with_no_changes(self):
         """无变更时返回全量测试（保守策略）"""

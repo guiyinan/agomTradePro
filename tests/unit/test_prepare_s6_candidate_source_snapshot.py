@@ -19,6 +19,8 @@ from scripts.prepare_s6_candidate_source_snapshot import (
     verify_candidate_source_snapshot,
 )
 
+EXECUTION_IMAGE_ID = "sha256:" + "a" * 64
+
 
 def _git(workspace: Path, *arguments: str) -> str:
     """Run a Git command for a temporary candidate workspace."""
@@ -70,6 +72,92 @@ def _prepare(
         container_gid=gid,
     )
     return destination, receipt
+
+
+_PREPARE_NETWORK = "agom-s6-network-" + "b" * 32 + "-prepare"
+
+
+def _export_bindings(output_root: Path) -> tuple[Path, Path, Path]:
+    """Create the exact private input, output, and execution-env paths."""
+
+    input_directory = output_root / "candidate-inputs"
+    output_directory = output_root / "candidate-exports"
+    execution_env = output_root / "prepare-export.env"
+    input_directory.mkdir()
+    output_directory.mkdir()
+    execution_env.write_text("DJANGO_SETTINGS_MODULE=core.settings.production\n", encoding="utf-8")
+    return input_directory, output_directory, execution_env
+
+
+def _valid_export_argv(
+    *,
+    destination: Path,
+    input_directory: Path,
+    output_directory: Path,
+    execution_env: Path,
+    candidate_sha: str,
+    mode: str = "production",
+    user_arguments: list[str] | None = None,
+    execution_image: str = EXECUTION_IMAGE_ID,
+) -> list[str]:
+    """Return the only Docker argv shape accepted by the export verifier."""
+
+    gid = os.getgid() if os.name == "posix" else 0
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--read-only",
+        "--user",
+        *(user_arguments if user_arguments is not None else [f"1000:{gid}"]),
+        "--network",
+        _PREPARE_NETWORK,
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,mode=1777,size=2147483648",
+        "--env-file",
+        str(execution_env.resolve()),
+        "-e",
+        f"S6_EXPECTED_CANDIDATE={candidate_sha}",
+        "-e",
+        "S6_EXPECTED_DB=isolated_snapshot",
+        "-e",
+        "S6_NETWORK=agom-s6-network-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "-e",
+        "S6_DATABASE=agom_release_rehearsal_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "-e",
+        "S6_PG_CONTAINER=agom-s6-postgres-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "-e",
+        "S6_REDIS_CONTAINER=agom-s6-redis-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "-e",
+        "PGOPTIONS=-c default_transaction_read_only=on -c transaction_read_only=on",
+        "-v",
+        f"{destination.resolve()}:/candidate-src:ro",
+        "-v",
+        f"{input_directory.resolve()}:/candidate-inputs:ro",
+        "-v",
+        f"{output_directory.resolve()}:/candidate-output:rw",
+        "--entrypoint",
+        "python",
+        execution_image,
+        "/candidate-src/scripts/export_s6_rehearsal_inputs.py",
+        mode,
+    ]
+
+
+def _run_export_kwargs(
+    *,
+    input_directory: Path,
+    output_directory: Path,
+    execution_env: Path,
+) -> dict[str, object]:
+    """Return shared exact binding arguments for ``run_candidate_export``."""
+
+    return {
+        "input_directory": input_directory,
+        "output_directory": output_directory,
+        "execution_env_file": execution_env,
+        "docker_network": _PREPARE_NETWORK,
+    }
 
 
 def test_snapshot_uses_exact_clean_source_and_seals_only_the_copy(tmp_path: Path) -> None:
@@ -170,19 +258,15 @@ def test_candidate_export_reverifies_then_runs_structured_docker_argv(
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
     log_path = output_root / "candidate-export-production.log"
-    docker_argv = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{destination.resolve()}:/candidate-src:ro",
-        "--user",
-        f"1000:{os.getgid() if os.name == 'posix' else 0}",
-        "candidate-image",
-        "/candidate-exporter.py",
-        "production",
-    ]
+    docker_argv = _valid_export_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+    )
     real_run = subprocess.run
     calls: list[list[str]] = []
 
@@ -202,14 +286,61 @@ def test_candidate_export_reverifies_then_runs_structured_docker_argv(
         candidate_sha=candidate_sha,
         container_gid=os.getgid() if os.name == "posix" else 0,
         container_uid=1000,
-        candidate_image="candidate-image",
+        execution_image=EXECUTION_IMAGE_ID,
         log_path=log_path,
+        **_run_export_kwargs(
+            input_directory=input_directory,
+            output_directory=output_directory,
+            execution_env=execution_env,
+        ),
     )
 
     assert calls == [docker_argv]
     assert log_path.read_bytes() == b"safe test exporter log\n"
     if os.name == "posix":
         assert stat.S_IMODE(log_path.stat().st_mode) & 0o077 == 0
+
+
+@pytest.mark.parametrize(
+    "execution_image",
+    ["candidate:latest", "sha256:short", "SHA256:" + "a" * 64],
+)
+def test_candidate_export_rejects_mutable_or_malformed_execution_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    execution_image: str,
+) -> None:
+    from scripts import prepare_s6_candidate_source_snapshot as snapshot_module
+
+    workspace, candidate_sha = _workspace(tmp_path)
+    output_root = tmp_path / "attempt"
+    destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+
+    def docker_must_not_run(*_args, **_kwargs):
+        raise AssertionError("docker must not run with a mutable execution image")
+
+    monkeypatch.setattr(snapshot_module.subprocess, "run", docker_must_not_run)
+    with pytest.raises(
+        CandidateSourceSnapshotError,
+        match="S6_CANDIDATE_EXPORT_EXECUTION_IMAGE_INVALID",
+    ):
+        run_candidate_export(
+            mode="production",
+            docker_argv=["docker", "run", execution_image, "true"],
+            destination=destination,
+            receipt_path=receipt_path,
+            candidate_sha=candidate_sha,
+            container_gid=os.getgid() if os.name == "posix" else 0,
+            container_uid=1000,
+            execution_image=execution_image,
+            log_path=output_root / "candidate-export-production.log",
+            **_run_export_kwargs(
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+            ),
+        )
 
 
 def test_candidate_export_maps_nonzero_to_a_stable_mode_code(
@@ -221,18 +352,15 @@ def test_candidate_export_maps_nonzero_to_a_stable_mode_code(
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
     log_path = output_root / "candidate-export-production.log"
-    docker_argv = [
-        "docker",
-        "run",
-        "-v",
-        f"{destination.resolve()}:/candidate-src:ro",
-        "--user",
-        f"1000:{os.getgid() if os.name == 'posix' else 0}",
-        "candidate-image",
-        "/candidate-exporter.py",
-        "production",
-    ]
+    docker_argv = _valid_export_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+    )
     real_run = subprocess.run
 
     def mock_run(command, *args, **kwargs):
@@ -254,8 +382,13 @@ def test_candidate_export_maps_nonzero_to_a_stable_mode_code(
             candidate_sha=candidate_sha,
             container_gid=os.getgid() if os.name == "posix" else 0,
             container_uid=1000,
-            candidate_image="candidate-image",
+            execution_image=EXECUTION_IMAGE_ID,
             log_path=log_path,
+            **_run_export_kwargs(
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+            ),
         )
     assert log_path.read_bytes() == b"private exporter details\n"
 
@@ -269,8 +402,8 @@ def test_candidate_export_blocks_permission_drift_before_docker(
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
     (destination / "scripts" / "candidate.py").chmod(0o640)
-    log_path = output_root / "candidate-export-production.log"
 
     def docker_must_not_run(*_args, **_kwargs):
         raise AssertionError("docker must not run after source snapshot drift")
@@ -282,36 +415,31 @@ def test_candidate_export_blocks_permission_drift_before_docker(
     ):
         run_candidate_export(
             mode="production",
-            docker_argv=[
-                "docker",
-                "run",
-                "-v",
-                f"{destination.resolve()}:/candidate-src:ro",
-                "--user",
-                f"1000:{os.getgid() if os.name == 'posix' else 0}",
-                "candidate-image",
-                "/candidate-exporter.py",
-                "production",
-            ],
+            docker_argv=_valid_export_argv(
+                destination=destination,
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+                candidate_sha=candidate_sha,
+            ),
             destination=destination,
             receipt_path=receipt_path,
             candidate_sha=candidate_sha,
             container_gid=os.getgid() if os.name == "posix" else 0,
             container_uid=1000,
-            candidate_image="candidate-image",
-            log_path=log_path,
+            execution_image=EXECUTION_IMAGE_ID,
+            log_path=output_root / "candidate-export-production.log",
+            **_run_export_kwargs(
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+            ),
         )
-    assert not log_path.exists()
 
 
 @pytest.mark.parametrize(
     "user_arguments",
-    [
-        [],
-        ["--user", "0:0"],
-        ["--user", "1001:0"],
-        ["--user", "1000:0", "--user", "1000:0"],
-    ],
+    [[], ["0:0"], ["1001:0"], ["1000:0", "--user", "1000:0"]],
 )
 def test_candidate_export_requires_unique_non_root_bound_user(
     tmp_path: Path,
@@ -323,26 +451,26 @@ def test_candidate_export_requires_unique_non_root_bound_user(
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
-    log_path = output_root / "candidate-export-production.log"
-    expected_gid = os.getgid() if os.name == "posix" else 0
-    docker_argv = [
-        "docker",
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+    docker_argv = _valid_export_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+        user_arguments=user_arguments,
+    )
+
+    monkeypatch.setattr(
+        snapshot_module.subprocess,
         "run",
-        "-v",
-        f"{destination.resolve()}:/candidate-src:ro",
-        *user_arguments,
-        "candidate-image",
-        "/candidate-exporter.py",
-        "production",
-    ]
-
-    def docker_must_not_run(*_args, **_kwargs):
-        raise AssertionError("docker must not run without the bound non-root exporter identity")
-
-    monkeypatch.setattr(snapshot_module.subprocess, "run", docker_must_not_run)
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("docker must not run without the bound non-root identity")
+        ),
+    )
     with pytest.raises(
         CandidateSourceSnapshotError,
-        match="S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID",
+        match="S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID|S6_CANDIDATE_EXPORT_COMMAND_INVALID",
     ):
         run_candidate_export(
             mode="production",
@@ -350,94 +478,133 @@ def test_candidate_export_requires_unique_non_root_bound_user(
             destination=destination,
             receipt_path=receipt_path,
             candidate_sha=candidate_sha,
-            container_gid=expected_gid,
+            container_gid=os.getgid() if os.name == "posix" else 0,
             container_uid=1000,
-            candidate_image="candidate-image",
-            log_path=log_path,
+            execution_image=EXECUTION_IMAGE_ID,
+            log_path=output_root / "candidate-export-production.log",
+            **_run_export_kwargs(
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+            ),
         )
-    assert not log_path.exists()
 
 
-def test_candidate_export_rejects_docker_options_after_the_image(
+@pytest.mark.parametrize(
+    ("mutation", "error_code"),
+    [
+        ("extra_volume", "S6_CANDIDATE_EXPORT_SOURCE_MOUNT_INVALID"),
+        ("unsafe_tmpfs", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
+        ("wrong_network", "S6_CANDIDATE_EXPORT_ENVIRONMENT_INVALID"),
+        ("post_image_option", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
+        ("unexpected_image", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
+    ],
+)
+def test_candidate_export_rejects_argv_bypass(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    error_code: str,
 ) -> None:
     from scripts import prepare_s6_candidate_source_snapshot as snapshot_module
 
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
-    log_path = output_root / "candidate-export-production.log"
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+    docker_argv = _valid_export_argv(
+        destination=destination,
+        input_directory=input_directory,
+        output_directory=output_directory,
+        execution_env=execution_env,
+        candidate_sha=candidate_sha,
+    )
+    image_index = docker_argv.index(EXECUTION_IMAGE_ID)
+    if mutation == "extra_volume":
+        docker_argv[image_index:image_index] = ["-v", "/:/host:ro"]
+    elif mutation == "unsafe_tmpfs":
+        docker_argv[docker_argv.index("/tmp:rw,nosuid,nodev,mode=1777,size=2147483648")] = (
+            "/tmp:rw,size=4g"
+        )
+    elif mutation == "wrong_network":
+        docker_argv[docker_argv.index(_PREPARE_NETWORK)] = "agom-s6-network-other-prepare"
+    elif mutation == "post_image_option":
+        docker_argv[image_index + 1 : image_index + 1] = ["--user", "1000:0"]
+    else:
+        docker_argv[image_index:image_index] = ["unexpected-image"]
 
-    def docker_must_not_run(*_args, **_kwargs):
-        raise AssertionError("docker must not run when identity options follow the image")
-
-    monkeypatch.setattr(snapshot_module.subprocess, "run", docker_must_not_run)
-    with pytest.raises(
-        CandidateSourceSnapshotError,
-        match="S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID",
-    ):
+    monkeypatch.setattr(
+        snapshot_module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("docker must not run after argv contract drift")
+        ),
+    )
+    with pytest.raises(CandidateSourceSnapshotError, match=error_code):
         run_candidate_export(
             mode="production",
-            docker_argv=[
-                "docker",
-                "run",
-                "candidate-image",
-                "--user",
-                f"1000:{os.getgid() if os.name == 'posix' else 0}",
-                "-v",
-                f"{destination.resolve()}:/candidate-src:ro",
-                "/candidate-exporter.py",
-                "production",
-            ],
+            docker_argv=docker_argv,
             destination=destination,
             receipt_path=receipt_path,
             candidate_sha=candidate_sha,
             container_gid=os.getgid() if os.name == "posix" else 0,
             container_uid=1000,
-            candidate_image="candidate-image",
-            log_path=log_path,
+            execution_image=EXECUTION_IMAGE_ID,
+            log_path=output_root / "candidate-export-production.log",
+            **_run_export_kwargs(
+                input_directory=input_directory,
+                output_directory=output_directory,
+                execution_env=execution_env,
+            ),
         )
-    assert not log_path.exists()
 
 
-def test_candidate_export_rejects_an_unexpected_image_before_the_bound_image(
+@pytest.mark.parametrize("overlap", ["source_output", "input_output", "env_output"])
+def test_candidate_export_rejects_overlapping_host_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    overlap: str,
 ) -> None:
     from scripts import prepare_s6_candidate_source_snapshot as snapshot_module
 
     workspace, candidate_sha = _workspace(tmp_path)
     output_root = tmp_path / "attempt"
     destination, receipt_path = _prepare(workspace, candidate_sha, output_root)
+    input_directory, output_directory, execution_env = _export_bindings(output_root)
+    if overlap == "source_output":
+        output_directory = destination
+    elif overlap == "input_output":
+        output_directory = input_directory
+    else:
+        execution_env = output_directory / "prepare-export.env"
+        execution_env.write_text(
+            "DJANGO_SETTINGS_MODULE=core.settings.production\n", encoding="utf-8"
+        )
 
-    def docker_must_not_run(*_args, **_kwargs):
-        raise AssertionError("docker must not run with an earlier unbound image")
-
-    monkeypatch.setattr(snapshot_module.subprocess, "run", docker_must_not_run)
+    monkeypatch.setattr(
+        snapshot_module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("docker must not run with overlapping host paths")
+        ),
+    )
     with pytest.raises(
         CandidateSourceSnapshotError,
-        match="S6_CANDIDATE_EXPORT_COMMAND_INVALID",
+        match="S6_CANDIDATE_EXPORT_PATH_INVALID",
     ):
         run_candidate_export(
             mode="production",
-            docker_argv=[
-                "docker",
-                "run",
-                "--user",
-                f"1000:{os.getgid() if os.name == 'posix' else 0}",
-                "-v",
-                f"{destination.resolve()}:/candidate-src:ro",
-                "unexpected-image",
-                "candidate-image",
-                "/candidate-exporter.py",
-            ],
+            docker_argv=["docker", "run", EXECUTION_IMAGE_ID, "true"],
             destination=destination,
             receipt_path=receipt_path,
             candidate_sha=candidate_sha,
             container_gid=os.getgid() if os.name == "posix" else 0,
             container_uid=1000,
-            candidate_image="candidate-image",
+            execution_image=EXECUTION_IMAGE_ID,
+            input_directory=input_directory,
+            output_directory=output_directory,
+            execution_env_file=execution_env,
+            docker_network=_PREPARE_NETWORK,
             log_path=output_root / "candidate-export-production.log",
         )
 

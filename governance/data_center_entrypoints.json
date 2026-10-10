@@ -12,31 +12,31 @@
       "current_data_surface": 73,
       "dynamic_import_edge": 13,
       "management_command": 47,
-      "management_command_edge": 62,
+      "management_command_edge": 65,
       "mcp_tool": 40,
       "migration_evidence": 14,
-      "operational_dispatch_edge": 70,
-      "operational_script": 34,
+      "operational_dispatch_edge": 72,
+      "operational_script": 36,
       "orchestration_entry": 17,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 14,
+      "script": 15,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 87,
+      "test_evidence": 88,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 836,
+      "active_public": 845,
       "adjacent_operational": 337,
       "candidate-review": 2,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1313
+    "total": 1322
   },
   "entries": [
     {
@@ -7001,6 +7001,36 @@
     },
     {
       "category": "management_command_edge",
+      "evidence": "call_command resolves to apps/data_center/management/commands/export_provider_settings_snapshot.py",
+      "id": "management_command_edge:scripts/export_s6_rehearsal_inputs.py:export_provider_settings_snapshot:semantic:apps/data_center/management/commands/export_provider_settings_snapshot.py",
+      "locator": "semantic:apps/data_center/management/commands/export_provider_settings_snapshot.py",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "symbol": "export_provider_settings_snapshot",
+      "target": "apps/data_center/management/commands/export_provider_settings_snapshot.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "call_command resolves to apps/data_center/management/commands/export_rehearsal_provider_identities.py",
+      "id": "management_command_edge:scripts/export_s6_rehearsal_inputs.py:export_rehearsal_provider_identities:semantic:apps/data_center/management/commands/export_rehearsal_provider_identities.py",
+      "locator": "semantic:apps/data_center/management/commands/export_rehearsal_provider_identities.py",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "symbol": "export_rehearsal_provider_identities",
+      "target": "apps/data_center/management/commands/export_rehearsal_provider_identities.py"
+    },
+    {
+      "category": "management_command_edge",
+      "evidence": "call_command resolves to apps/data_center/management/commands/preflight_full_market_publication.py",
+      "id": "management_command_edge:scripts/export_s6_rehearsal_inputs.py:preflight_full_market_publication:semantic:apps/data_center/management/commands/preflight_full_market_publication.py",
+      "locator": "semantic:apps/data_center/management/commands/preflight_full_market_publication.py",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "symbol": "preflight_full_market_publication",
+      "target": "apps/data_center/management/commands/preflight_full_market_publication.py"
+    },
+    {
+      "category": "management_command_edge",
       "evidence": "call_command resolves to apps/equity/management/commands/init_equity_config.py",
       "id": "management_command_edge:scripts/init_equity_config.py:init_equity_config:semantic:apps/equity/management/commands/init_equity_config.py",
       "locator": "semantic:apps/equity/management/commands/init_equity_config.py",
@@ -8021,6 +8051,26 @@
     },
     {
       "category": "operational_dispatch_edge",
+      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "id": "operational_dispatch_edge:scripts/prepare_release_rehearsal_attempt.sh:pg_dump:token:pg_dump",
+      "locator": "token:pg_dump",
+      "path": "scripts/prepare_release_rehearsal_attempt.sh",
+      "status": "active_public",
+      "symbol": "pg_dump",
+      "target": "fresh S6 attempt preparation"
+    },
+    {
+      "category": "operational_dispatch_edge",
+      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "id": "operational_dispatch_edge:scripts/prepare_release_rehearsal_attempt.sh:pg_restore:token:pg_restore",
+      "locator": "token:pg_restore",
+      "path": "scripts/prepare_release_rehearsal_attempt.sh",
+      "status": "active_public",
+      "symbol": "pg_restore",
+      "target": "fresh S6 attempt preparation"
+    },
+    {
+      "category": "operational_dispatch_edge",
       "evidence": "canonical migration, isolated PostgreSQL restore, and release rehearsal verification tooling",
       "id": "operational_dispatch_edge:scripts/record_data01_restore_evidence.py:pg_restore:token:pg_restore",
       "locator": "token:pg_restore",
@@ -8451,6 +8501,16 @@
     },
     {
       "category": "operational_script",
+      "evidence": "sealed-candidate S6 input exporter constrained to an isolated read-only PostgreSQL snapshot",
+      "id": "operational_script:scripts/export_s6_rehearsal_inputs.py:__main__:",
+      "locator": "",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "fresh S6 read-only input export"
+    },
+    {
+      "category": "operational_script",
       "evidence": "canonical allow-listed migrate, flush, and loaddata runner; validates the migrator-to-owner role and scopes candidate-manifest fixture restore capability to loaddata",
       "id": "operational_script:scripts/manage_vps_migrations.py:__main__:",
       "locator": "",
@@ -8498,6 +8558,16 @@
       "status": "adjacent_operational",
       "symbol": "__main__",
       "target": "scripts/deploy-on-vps.sh,scripts/remote_build_deploy_vps.py,scripts/vps-backup.sh,scripts/vps-restore.sh"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "id": "operational_script:scripts/prepare_release_rehearsal_attempt.sh:__main__:",
+      "locator": "",
+      "path": "scripts/prepare_release_rehearsal_attempt.sh",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": "fresh S6 attempt preparation"
     },
     {
       "category": "operational_script",
@@ -11231,6 +11301,16 @@
     },
     {
       "category": "script",
+      "evidence": "reviewed sealed-candidate S6 exporter using public Data Center management commands and bounded identity helpers",
+      "id": "script:scripts/export_s6_rehearsal_inputs.py:__main__:",
+      "locator": "",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "symbol": "__main__",
+      "target": ""
+    },
+    {
+      "category": "script",
       "evidence": "reviewed deployment runner with one scoped Data Center candidate-manifest fixture restore capability import",
       "id": "script:scripts/manage_vps_migrations.py:__main__:",
       "locator": "",
@@ -13022,6 +13102,16 @@
     {
       "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
+      "id": "test_evidence:tests/unit/test_prepare_release_rehearsal_attempt.py:test_prepare_release_rehearsal_attempt:",
+      "locator": "",
+      "path": "tests/unit/test_prepare_release_rehearsal_attempt.py",
+      "status": "active_public",
+      "symbol": "test_prepare_release_rehearsal_attempt",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_remote_build_deploy_vps.py:test_remote_build_deploy_vps:",
       "locator": "",
       "path": "tests/unit/test_remote_build_deploy_vps.py",
@@ -13183,7 +13273,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 35,
+    "operational_governance_rules": 38,
     "runtime_config_keys": 45
   },
   "source_contracts": [

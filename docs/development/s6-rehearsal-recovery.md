@@ -32,11 +32,50 @@ python scripts/plan_release_rehearsal_attempt.py \
 receipt 不包含源码或秘密，记录 candidate SHA、快照 tree SHA-256、receipt 内容 SHA-256、GID 和密封模式。每次 Docker exporter 启动前，必须使用同一 CLI 的
 `--run-export`（或先用 `--verify-only` 做额外只读检查）；`--run-export` 会再次校验 receipt SHA、tree digest、candidate、GID 和 descriptor mode，
 并验证只读挂载恰好指向 `/candidate-src`。每条 exporter argv 必须且只能在 Docker image 之前包含与镜像身份一致的非 root
-`--user <container-uid>:<candidate-GID>`，同时传入正数 `--container-uid` 和精确 `--candidate-image`；生产 Dockerfile 当前将 `appuser` 固定为 UID 1000。
+`--user <container-uid>:<candidate-GID>`，同时传入正数 `--container-uid` 和不可变的
+`--execution-image sha256:<64 hex>`。该镜像只提供 prepare 阶段的依赖运行时，当前取自已部署生产 Web 容器的精确 image ID；
+候选代码身份由只读 source snapshot 与 receipt 绑定，不能把 execution image 记作候选镜像。候选镜像随后由 S6 build 阶段生成，
+继续接受独立的 revision/image/receipt 校验。export manifest 必须分别记录 execution image ID、candidate SHA、source tree digest
+和每个输出摘要。生产 Dockerfile 当前将 `appuser` 固定为 UID 1000。
 导出 stdout/stderr 进入 attempt 私有日志文件，命令只向 wrapper 返回稳定错误码：
 `S6_CANDIDATE_EXPORT_PRODUCTION_FAILED`、`S6_CANDIDATE_EXPORT_UNIVERSE_FAILED` 或
 `S6_CANDIDATE_EXPORT_CONTRACT_FAILED`。Shell wrapper 应直接消费 CLI 错误码；兼容 wrapper 必须 source
 `scripts/shared/s6_candidate_export_failure.sh`，禁止自行拼接 `$mode_FAILED`。
+
+## Fresh prepare wrapper v2
+
+planner `--reserve` 已生成只读 `attempt-plan.json`、候选源码快照和 receipt 后，执行：
+
+```bash
+bash scripts/prepare_release_rehearsal_attempt.sh --plan-file <reserved-attempt>/attempt-plan.json
+```
+
+wrapper 只接受 planner v2 的规范字节和 plan 内资源/path，不会自行 reserve，也不会删除或回滚 reservation。
+当前 checkout 必须是 plan 绑定的 exact clean candidate；`<reserved-attempt>/inputs-private` 预先只放置权限为
+`0700` 的目录及 `0600` 的 `runner.env`、`vps-password.txt`。失败会保留 attempt、日志和安全状态，供诊断；需要重试时应 reserve 新 attempt。
+
+生产 Web 容器的 immutable `sha256:<64 hex>` image ID 只作为 exporter 依赖运行时记录；每个 mode 都由快照 helper
+通过 `--run-export` 在挂载前复核 source receipt/tree，并传入唯一的非 root `--user UID:GID`。wrapper 先用 Web 容器内的
+只读事务查询当前数据库名，再与生产 PostgreSQL 的 `current_database()` 交叉核对；它只对该生产库执行 `pg_dump`，并恢复到
+plan 绑定的独立 PostgreSQL 容器和 volume。候选 exporter 在三个 mode 启动前才加入独立 `--internal` prepare network；该网络只连接
+隔离 PostgreSQL 的 attempt 派生只读别名，不连接生产网络或 Redis。隔离快照上引导的 `agomtradepro_s6_exporter` 角色没有写权限，
+每个 exporter 事务还强制 `default_transaction_read_only=on` 与 `transaction_read_only=on`。
+
+生产 Web 的 `Config.Env` 只在内存中解析。`provider.env` 只保留后续 S6 provider 阶段的明确白名单：Tushare token/URL/request mode、
+部署区域、显式 HTTP(S) proxy 和 `DJANGO_SETTINGS_MODULE`；生产 `SECRET_KEY`、数据库 DSN、Redis 配置及未知 token/API key 不进入该文件。
+`prepare-export.env` 与 `provider.env` 分离，只包含新生成的 rehearsal Django/encryption key 和连接隔离只读数据库所需字段；三次 exporter
+只挂载前者，不接收 provider token、真实生产加密密钥或 Redis 环境。后续 `isolated-postgres.env` / `isolated-migrator.env` 才组合
+隔离 DB/Redis 身份、provider 白名单和需要读取快照加密数据的 production encryption key。三个 exporter 成功后 wrapper 断开隔离 PG
+并删除 prepare network；失败会保留 attempt、容器、volume、网络与诊断供调查，不回滚 planner reservation。
+
+`production`、`universe`、`contract` 三个 mode 重新生成/交叉验证 settings、identities、unit contract、动态 universe 摘要及 runner
+参数契约。安全 `prepare-status.json` 与 `prepare-receipt.json` 记录 execution image ID、候选 source/output 摘要、prepare network/PG alias
+及稳定阶段状态，不写入环境变量或密钥值。
+
+该流程的信任边界是已经通过 exact-SHA 代码评审和 CI 的候选：source snapshot 内同时包含 exporter 与 snapshot verifier，因此它不能作为
+执行任意不受信代码的独立沙箱。若将来允许未评审候选进入 S6，必须把 verifier 固定到候选之外的 operator-owned 工具链。当前单元测试也不能
+替代 Linux Docker 的真实 UID/GID、internal network、PostgreSQL privilege 和失败资源保留验证；这些能力仍须由下一次 fresh S6 实证。
+六类环境契约覆盖的是已知假设，不证明未知环境类别已经穷尽。
 
 该门禁仅适用于新的 fresh attempt；不得为历史 attempt 追加成功 receipt，或据此改变其状态。
 

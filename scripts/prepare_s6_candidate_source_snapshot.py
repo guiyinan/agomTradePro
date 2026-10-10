@@ -30,11 +30,28 @@ from scripts.rehearsal_checkpoint import (
 
 _CANDIDATE_SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _TREE_SHA_RE = re.compile(r"[0-9a-f]{64}\Z")
+_EXECUTION_IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _EXPORT_FAILURE_CODES = {
     "production": "S6_CANDIDATE_EXPORT_PRODUCTION_FAILED",
     "universe": "S6_CANDIDATE_EXPORT_UNIVERSE_FAILED",
     "contract": "S6_CANDIDATE_EXPORT_CONTRACT_FAILED",
 }
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    """Return whether ``path`` is inside ``parent`` without filesystem access."""
+
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    """Return whether either resolved directory contains the other."""
+
+    return _is_relative_to(left, right) or _is_relative_to(right, left)
 
 
 class CandidateSourceReceipt(TypedDict):
@@ -432,20 +449,51 @@ def run_candidate_export(
     candidate_sha: str,
     container_gid: int,
     container_uid: int,
-    candidate_image: str,
+    execution_image: str,
+    input_directory: Path,
+    output_directory: Path,
+    execution_env_file: Path,
+    docker_network: str,
     log_path: Path,
 ) -> None:
-    """Reverify the sealed source immediately before a structured Docker export call."""
+    """Run sealed candidate code in one immutable dependency execution image."""
     error_code = _EXPORT_FAILURE_CODES.get(mode)
     if error_code is None:
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_MODE_INVALID")
     if isinstance(container_uid, bool) or not isinstance(container_uid, int) or container_uid <= 0:
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID")
     if (
-        not isinstance(candidate_image, str)
-        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:@-]{0,511}", candidate_image) is None
+        not isinstance(execution_image, str)
+        or _EXECUTION_IMAGE_ID_RE.fullmatch(execution_image) is None
     ):
-        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_IMAGE_INVALID")
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_EXECUTION_IMAGE_INVALID")
+    if (
+        not isinstance(docker_network, str)
+        or re.fullmatch(r"agom-s6-network-[a-z0-9-]+-prepare", docker_network) is None
+    ):
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_NETWORK_INVALID")
+    try:
+        resolved_input = input_directory.resolve(strict=True)
+        resolved_output = output_directory.resolve(strict=True)
+        resolved_env = execution_env_file.resolve(strict=True)
+        resolved_source = destination.resolve(strict=True)
+        if (
+            input_directory.is_symlink()
+            or output_directory.is_symlink()
+            or execution_env_file.is_symlink()
+            or not resolved_input.is_dir()
+            or not resolved_output.is_dir()
+            or not resolved_env.is_file()
+            or _paths_overlap(resolved_source, resolved_input)
+            or _paths_overlap(resolved_source, resolved_output)
+            or _paths_overlap(resolved_input, resolved_output)
+            or _is_relative_to(resolved_env, resolved_output)
+        ):
+            raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_PATH_INVALID")
+    except CandidateSourceSnapshotError:
+        raise
+    except OSError as exc:
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_PATH_INVALID") from exc
     verify_candidate_source_snapshot(
         destination=destination,
         receipt_path=receipt_path,
@@ -463,36 +511,39 @@ def run_candidate_export(
     image_positions = [
         index
         for index, argument in enumerate(docker_argv[2:], start=2)
-        if argument == candidate_image
+        if argument == execution_image
     ]
     if len(image_positions) != 1:
-        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_IMAGE_INVALID")
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_EXECUTION_IMAGE_INVALID")
     image_index = image_positions[0]
     docker_options = docker_argv[2:image_index]
 
-    expected_mount = f"{destination.resolve(strict=True)}:/candidate-src:ro"
+    expected_mount = f"{resolved_source}:/candidate-src:ro"
     docker_users: list[str] = []
     volume_values: list[str] = []
-    flag_options = {"--rm", "--read-only", "--init"}
+    env_file_values: list[str] = []
+    entrypoint_values: list[str] = []
+    network_values: list[str] = []
+    tmpfs_values: list[str] = []
+    environment_values: list[str] = []
+    flags: list[str] = []
+    flag_options = {"--rm", "--read-only"}
     value_options = {
         "--env-file",
         "--entrypoint",
-        "--label",
-        "--name",
         "--network",
-        "--security-opt",
+        "--tmpfs",
         "--user",
         "--volume",
-        "--workdir",
         "-e",
         "-u",
         "-v",
-        "-w",
     }
     index = 0
     while index < len(docker_options):
         argument = docker_options[index]
         if argument in flag_options:
+            flags.append(argument)
             index += 1
             continue
         if argument == "--mount" or argument.startswith("--mount="):
@@ -505,6 +556,16 @@ def run_candidate_export(
                 docker_users.append(value)
             elif argument in {"--volume", "-v"}:
                 volume_values.append(value)
+            elif argument == "--env-file":
+                env_file_values.append(value)
+            elif argument == "--entrypoint":
+                entrypoint_values.append(value)
+            elif argument == "--network":
+                network_values.append(value)
+            elif argument == "--tmpfs":
+                tmpfs_values.append(value)
+            elif argument == "-e":
+                environment_values.append(value)
             index += 2
             continue
         matched_option = next(
@@ -521,6 +582,14 @@ def run_candidate_export(
                 docker_users.append(value)
             elif matched_option == "--volume":
                 volume_values.append(value)
+            elif matched_option == "--env-file":
+                env_file_values.append(value)
+            elif matched_option == "--entrypoint":
+                entrypoint_values.append(value)
+            elif matched_option == "--network":
+                network_values.append(value)
+            elif matched_option == "--tmpfs":
+                tmpfs_values.append(value)
             index += 1
             continue
         if argument.startswith("-u") and len(argument) > 2:
@@ -530,13 +599,46 @@ def run_candidate_export(
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_COMMAND_INVALID")
     if docker_users != [f"{container_uid}:{container_gid}"]:
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_CONTAINER_IDENTITY_INVALID")
-    candidate_source_mounts = [
-        value
-        for value in volume_values
-        if len(value.split(":")) >= 2 and value.split(":")[-2] == "/candidate-src"
+    expected_volumes = [
+        expected_mount,
+        f"{resolved_input}:/candidate-inputs:ro",
+        f"{resolved_output}:/candidate-output:rw",
     ]
-    if candidate_source_mounts != [expected_mount]:
+    expected_environment_keys = {
+        "PGOPTIONS",
+        "S6_DATABASE",
+        "S6_EXPECTED_CANDIDATE",
+        "S6_EXPECTED_DB",
+        "S6_NETWORK",
+        "S6_PG_CONTAINER",
+        "S6_REDIS_CONTAINER",
+    }
+    environment: dict[str, str] = {}
+    for value in environment_values:
+        key, separator, content = value.partition("=")
+        if not separator or key in environment:
+            raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_ENVIRONMENT_INVALID")
+        environment[key] = content
+    if volume_values != expected_volumes:
         raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_SOURCE_MOUNT_INVALID")
+    if (
+        env_file_values != [str(resolved_env)]
+        or network_values != [docker_network]
+        or set(environment) != expected_environment_keys
+        or environment.get("S6_EXPECTED_CANDIDATE") != candidate_sha
+        or environment.get("PGOPTIONS")
+        != "-c default_transaction_read_only=on -c transaction_read_only=on"
+        or any(not value for key, value in environment.items() if key != "PGOPTIONS")
+    ):
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_ENVIRONMENT_INVALID")
+    if (
+        flags != ["--rm", "--read-only"]
+        or entrypoint_values != ["python"]
+        or tmpfs_values != ["/tmp:rw,nosuid,nodev,mode=1777,size=2147483648"]
+        or docker_argv[image_index + 1 :]
+        != ["/candidate-src/scripts/export_s6_rehearsal_inputs.py", mode]
+    ):
+        raise CandidateSourceSnapshotError("S6_CANDIDATE_EXPORT_COMMAND_INVALID")
 
     try:
         log_parent = log_path.parent.resolve(strict=True)
@@ -668,7 +770,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--container-gid", type=int, required=True)
     parser.add_argument("--container-uid", type=int)
-    parser.add_argument("--candidate-image")
+    parser.add_argument("--execution-image")
+    parser.add_argument("--input-directory", type=Path)
+    parser.add_argument("--output-directory", type=Path)
+    parser.add_argument("--execution-env-file", type=Path)
+    parser.add_argument("--docker-network")
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--run-export", action="store_true")
     parser.add_argument("--export-mode")
@@ -688,7 +794,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 candidate_sha=args.candidate_sha,
                 container_gid=args.container_gid,
                 container_uid=args.container_uid if args.container_uid is not None else 0,
-                candidate_image=args.candidate_image or "",
+                execution_image=args.execution_image or "",
+                input_directory=args.input_directory or Path(""),
+                output_directory=args.output_directory or Path(""),
+                execution_env_file=args.execution_env_file or Path(""),
+                docker_network=args.docker_network or "",
                 log_path=args.log_path,
             )
             receipt = _load_receipt(args.receipt)

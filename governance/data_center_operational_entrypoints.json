@@ -33,6 +33,29 @@
       "status": "active_public"
     },
     {
+      "category": [
+        "operational_script",
+        "operational_dispatch_edge"
+      ],
+      "evidence": "planner v2-bound fresh S6 preparation; exporter calls reverify the sealed candidate source receipt before each mode",
+      "path": "scripts/prepare_release_rehearsal_attempt.sh",
+      "status": "active_public",
+      "target": "fresh S6 attempt preparation"
+    },
+    {
+      "category": "operational_script",
+      "evidence": "sealed-candidate S6 input exporter constrained to an isolated read-only PostgreSQL snapshot",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public",
+      "target": "fresh S6 read-only input export"
+    },
+    {
+      "category": "script",
+      "evidence": "reviewed sealed-candidate S6 exporter using public Data Center management commands and bounded identity helpers",
+      "path": "scripts/export_s6_rehearsal_inputs.py",
+      "status": "active_public"
+    },
+    {
       "category": "operational_script",
       "evidence": "candidate-bound S6 release evidence manifest builder; script import remains under candidate review",
       "path": "scripts/build_release_rehearsal_manifest.py",
@@ -175,6 +198,7 @@
         "tests/unit/test_backup_delivery_secret_ownership.py",
         "tests/unit/test_backup_vps_postgres.py",
         "tests/unit/test_build_release_rehearsal_manifest.py",
+        "tests/unit/test_prepare_release_rehearsal_attempt.py",
         "tests/unit/test_data_center_entrypoint_inventory.py",
         "tests/unit/test_data_center_0085_rollback_compatibility.py",
         "tests/unit/test_deploy_vps_verify.py",
