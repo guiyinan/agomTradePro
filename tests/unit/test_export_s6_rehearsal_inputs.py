@@ -353,6 +353,9 @@ def _current_market_rows() -> tuple[
                 "publication_id": publication_id,
                 "publication_hash": publication_hash,
                 "computed_publication_hash": publication_hash,
+                "_active_policy_evidence_validated": True,
+                "policy_version": f"p2:{dataset_key}:policy",
+                "selected_source": "tushare",
                 "state": "published",
                 "must_not_use_for_decision": False,
                 "member_count": 2,
@@ -418,13 +421,25 @@ def _current_market_rows() -> tuple[
         {
             "outcome": "success",
             "success": True,
+            "phase": "completed",
             "publication_updated": True,
+            "must_not_use_for_decision": False,
             "run_id": run_id,
             "publication_run_id": run_id,
             "target_trade_date": "2026-10-09",
             "requested": 2,
             "succeeded": 2,
             "failed": 0,
+            "stored": 4,
+            "count_unit": "valuation_asset",
+            "stored_count_unit": "fact_row",
+            "operation_requested": 6,
+            "operation_succeeded": 6,
+            "operation_failed": 0,
+            "requested_asset_count": 2,
+            "succeeded_asset_count": 2,
+            "failed_asset_count": 0,
+            "missing_asset_codes": [],
             "published_members": 6,
             "publication_ids": publication_ids,
             "datasets": [
@@ -437,6 +452,8 @@ def _current_market_rows() -> tuple[
                     "covered_asset_count": publication["coverage_selected_count"],
                     "missing_asset_count": publication["coverage_missing_count"],
                     "outcome": "success",
+                    "scope_blocks": publication["scope_blocks"],
+                    "policy_identity": publication["policy_version"],
                     "as_of": publication["as_of"].isoformat(),
                     "published_at": publication["published_at"].isoformat(),
                     "run_id": run_id,
@@ -444,6 +461,9 @@ def _current_market_rows() -> tuple[
                 }
                 for publication in publications
             ],
+            "scope_blocks": [],
+            "quote_scope_blocks": [],
+            "excluded_non_trading_codes": [],
             "_task_id": "task-1",
             "_task_attempt_id": "attempt-1",
             "_task_status": "success",
@@ -477,14 +497,34 @@ def test_current_market_target_accepts_manifest_bound_scope_block() -> None:
     price_publication["scope_blocks"] = [
         {
             "asset_code": "000002.SZ",
-            "reason_code": "suspended_on_target_date",
+            "reason_code": "price_full_day_suspension",
             "target_trade_date": "2026-10-09",
+            "source": "tushare",
+            "publication_run_id": "run-1",
+            "policy_version": price_publication["policy_version"],
+            "publication_id": price_publication["publication_id"],
+            "evidence_source": "tushare.suspend_d",
         }
     ]
     price_summary = task_results[0]["datasets"][0]
     price_summary["requested_asset_count"] = 3
     price_summary["missing_asset_count"] = 1
     price_summary["outcome"] = "partial"
+    price_summary["scope_blocks"] = price_publication["scope_blocks"]
+    task_results[0]["scope_blocks"] = price_publication["scope_blocks"]
+    for publication, summary in zip(publications[1:], task_results[0]["datasets"][1:], strict=True):
+        publication["member_count"] = 3
+        publication["coverage_requested_count"] = 3
+        publication["coverage_eligible_count"] = 3
+        publication["coverage_selected_count"] = 3
+        summary["member_count"] = 3
+        summary["requested_asset_count"] = 3
+        summary["covered_asset_count"] = 3
+    task_results[0]["requested"] = 3
+    task_results[0]["succeeded"] = 3
+    task_results[0]["requested_asset_count"] = 3
+    task_results[0]["succeeded_asset_count"] = 3
+    task_results[0]["published_members"] = 8
 
     assert exporter._validate_current_market_publication_target(
         pointers,
@@ -503,6 +543,7 @@ def test_current_market_target_accepts_manifest_bound_scope_block() -> None:
         "activation_drift",
         "hash_drift",
         "computed_hash_drift",
+        "active_policy_evidence_missing",
         "before_close",
         "run_drift",
         "unsealed",
@@ -533,6 +574,8 @@ def test_current_market_target_fails_closed_for_incomplete_or_stale_graph(
         publications[-1]["publication_hash"] = "different"
     elif mutation == "computed_hash_drift":
         publications[-1]["computed_publication_hash"] = "different"
+    elif mutation == "active_policy_evidence_missing":
+        publications[-1].pop("_active_policy_evidence_validated")
     elif mutation == "before_close":
         publications[0]["as_of"] = datetime(2026, 10, 9, 6, 55, tzinfo=UTC)
     elif mutation == "run_drift":

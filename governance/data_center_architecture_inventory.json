@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5493,
+    "current_surface_references": 5504,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9861,6 +9861,50 @@
     {
       "path": "apps/data_center/application/retention_tasks.py",
       "text": "\"\"\"Check current filesystem pressure before another mutating batch.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "\"\"\"Require task statistics to exactly describe an evidenced current graph."
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "\"\"\"The task result does not exactly describe a usable current graph.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "\"\"\"Validate and project one current-publication scope block.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "_integer(summary.get(count_field))"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "if summary.get(field) != publication[field]:"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "publication.get(\"publication_key\") != \"current\""
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "raise MarketGraphTaskResultError(\"task dataset summary differs\")"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "raise MarketGraphTaskResultError(\"task dataset summary set is incomplete\")"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "raise MarketGraphTaskResultError(\"task publication summary differs\")"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "raise MarketGraphTaskResultError(\"task publication summary differs\")"
+    },
+    {
+      "path": "apps/data_center/application/s6_market_graph_task_result.py",
+      "text": "summary = summaries[dataset_key]"
     },
     {
       "path": "apps/data_center/application/sync_market_use_cases.py",

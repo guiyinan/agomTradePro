@@ -23,6 +23,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from apps.data_center.application.s6_market_graph_task_result import (
+    MarketGraphTaskResultError,
+    validate_market_graph_task_result,
+)
 from scripts.rehearsal_checkpoint import (
     seal_container_input_tree,
     tree_digest,
@@ -477,25 +481,25 @@ def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str
             "S6_GRAPH_REFRESH_TASK_MONITOR_INVALID",
         )
         task_result = graph_receipt.get("task_result")
+        graph_publications = graph_receipt.get("publications")
+        graph_run_id = graph_receipt.get("run_id")
         _validation_require(
             isinstance(task_result, dict)
-            and task_result.get("outcome") == "success"
-            and task_result.get("publication_run_id") == graph_receipt.get("run_id"),
+            and isinstance(graph_publications, list)
+            and all(isinstance(item, dict) for item in graph_publications)
+            and isinstance(graph_run_id, str),
             "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
         )
         task_result_map = cast(dict[str, object], task_result)
-        task_counts = tuple(
-            task_result_map.get(name) for name in ("requested", "succeeded", "failed", "stored")
-        )
-        _validation_require(
-            all(isinstance(value, int) and not isinstance(value, bool) for value in task_counts),
-            "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
-        )
-        requested, succeeded, failed, stored = cast(tuple[int, int, int, int], task_counts)
-        _validation_require(
-            requested > 0 and succeeded == requested and failed == 0 and stored > 0,
-            "S6_GRAPH_REFRESH_TASK_RESULT_INVALID",
-        )
+        try:
+            validate_market_graph_task_result(
+                task_result_map,
+                cast(list[dict[str, object]], graph_publications),
+                target_trade_date=cast(str, target_trade_date),
+                run_id=cast(str, graph_run_id),
+            )
+        except MarketGraphTaskResultError as exc:
+            raise CandidateSourceSnapshotError("S6_GRAPH_REFRESH_TASK_RESULT_INVALID") from exc
         run_id = graph_receipt.get("run_id")
         activation_id = graph_receipt.get("activation_id")
         _validation_require(

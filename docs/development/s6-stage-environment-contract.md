@@ -56,10 +56,22 @@ member counts、source timestamps 和 dataset coverage 摘要逐项一致。Task
 安全解析器读取，malformed/truncated 结果失败关闭。
 
 价格 target date 只允许来自上述 publication 精确选中的、内容 hash 一致的 `1d/none` 价格事实的唯一 `bar_date`，且 publication
-`as_of` 必须等于中国市场 15:00 收盘对应的 UTC 时点。11 个停牌证券之类的动态缺口只有在 publication scope blocks、coverage 计数、
-publication hash 与 Task Monitor dataset summary 全部一致时才允许作为解释明确的 partial dataset；不得写死证券或把未解释缺口吞成成功。
+`as_of` 必须等于中国市场 15:00 收盘对应的 UTC 时点。动态缺口只有在 publication scope blocks、coverage 计数、
+publication hash 与 Task Monitor dataset summary 全部一致时才允许作为解释明确的 partial dataset；不得写死证券数量、证券代码或把未解释缺口吞成成功。
 该读取不访问 provider、不排队任务、不写建议，也不以数据年龄门槛替代 producer evidence。任一图节点缺失或漂移统一返回
 `S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID`，外层保留候选 universe export 的稳定阻断语义。
+
+隔离图前移的 Task Monitor 结果允许两种规范形态：没有缺口时为 `success`，存在证据化缺口时为 `partial` 且
+`success=true`。两者都必须满足任务技术状态成功、`phase=completed`、`publication_updated=true`、
+`must_not_use_for_decision=false`、所有 operation 成功以及资产计数守恒。三个 publication 必须绑定同一 target/run/activation，
+通过当前活动版本化 policy、不可变 member/fact hash 与完整来源证据校验。行情和报价缺口只接受目标日全天停牌原因及非空
+`evidence_source`；估值缺口只接受 `valuation_source_data_unavailable`。顶层 `failed` 精确等于报价停牌与估值缺失证券的并集；
+价格单独缺口仍由价格 publication 自身 scope block 解释，不重复计入估值口径的顶层失败数。receipt 只投影完成这些复核所需的
+有界脱敏字段，prepare、producer target exporter 与 live receipt rebuild 共用同一校验器；任何 scope、policy、date、source、
+publication、run、hash、summary 或计数漂移继续 fail closed。
+当 Task Monitor 因 10,000 字符上限使用 `bounded_business_fields` 投影时，逐证券缺口数组不作为完整证据；S6 必须从三份
+current Publication 的不可变 scope blocks 重建缺口集合，并仍逐项复核 active policy、member/fact hash、Task Monitor 的
+资产/operation 计数、Publication 身份与 dataset 摘要。安全投影缺少任一必需标量时继续 fail closed，不允许把裁剪当成空缺口。
 
 默认 fresh prepare 仍直接复用恢复快照中的 current graph。planner v3 可在 reserve 时显式选择
 `--advance-isolated-market-graph`；该选择随 plan hash 绑定 attempt。wrapper 只在隔离角色 bootstrap 后、只读 exporter 前，

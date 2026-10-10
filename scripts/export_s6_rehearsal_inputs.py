@@ -46,6 +46,7 @@ _REQUIRED_SOURCE_FILES = (
     "scripts/export_s6_rehearsal_inputs.py",
     "scripts/run_release_rehearsal.py",
     "scripts/s6_isolated_market_graph_receipt.py",
+    "apps/data_center/application/s6_market_graph_task_result.py",
     "scripts/validate_release_rehearsal.py",
     "apps/data_center/management/commands/export_provider_settings_snapshot.py",
     "apps/data_center/management/commands/export_rehearsal_provider_identities.py",
@@ -65,6 +66,7 @@ _CANDIDATE_MODULES = (
     "scripts.run_release_rehearsal",
     "scripts.validate_release_rehearsal",
     "scripts.s6_isolated_market_graph_receipt",
+    "apps.data_center.application.s6_market_graph_task_result",
     "apps.data_center.management.commands.export_provider_settings_snapshot",
     "apps.data_center.management.commands.export_rehearsal_provider_identities",
     "apps.data_center.management.commands.preflight_full_market_publication",
@@ -811,6 +813,11 @@ def _validate_current_market_publication_target(
 ) -> date:
     """Return the producer target bound to one exact current publication graph."""
 
+    from apps.data_center.application.s6_market_graph_task_result import (
+        MarketGraphTaskResultError,
+        validate_market_graph_task_result,
+    )
+
     pointers: dict[str, Mapping[str, object]] = {}
     activation_ids: set[str] = set()
     for row in pointer_rows:
@@ -863,6 +870,7 @@ def _validate_current_market_publication_target(
             or row.get("publication_key") != "current"
             or row.get("state") != "published"
             or row.get("must_not_use_for_decision") is not False
+            or row.get("_active_policy_evidence_validated") is not True
             or row.get("computed_publication_hash") != row.get("publication_hash")
             or not isinstance(member_count, int)
             or isinstance(member_count, bool)
@@ -1017,8 +1025,6 @@ def _validate_current_market_publication_target(
     if len(task_results) != 1:
         raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
     result = task_results[0]
-    result_publication_ids = result.get("publication_ids")
-    result_datasets = result.get("datasets")
     try:
         producer_target = date.fromisoformat(cast(str, result.get("target_trade_date")))
     except (TypeError, ValueError):
@@ -1026,49 +1032,21 @@ def _validate_current_market_publication_target(
     if (
         producer_target.isoformat() != result.get("target_trade_date")
         or producer_target != target_date
-        or result.get("outcome") != "success"
-        or result.get("success") is not True
-        or result.get("publication_updated") is not True
-        or result.get("run_id") != run_id
-        or result.get("publication_run_id") != run_id
         or result.get("_task_status") != "success"
         or result.get("_task_attempt_id") != next(iter(task_attempt_ids))
-        or result.get("failed") != 0
-        or not isinstance(result.get("requested"), int)
-        or isinstance(result.get("requested"), bool)
-        or cast(int, result["requested"]) <= 0
-        or result.get("succeeded") != result.get("requested")
-        or result.get("published_members") != total_member_count
-        or not isinstance(result_publication_ids, list)
-        or {item for item in result_publication_ids if isinstance(item, str)} != publication_ids
-        or len(result_publication_ids) != len(publication_ids)
-        or not isinstance(result_datasets, list)
-        or len(result_datasets) != len(publications)
     ):
         raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
-    dataset_summaries = {
-        item.get("dataset_key"): item
-        for item in result_datasets
-        if isinstance(item, dict) and isinstance(item.get("dataset_key"), str)
-    }
-    if set(dataset_summaries) != _CORE_MARKET_DATASETS:
+    if total_member_count <= 0 or not publication_ids:
         raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
-    for dataset_key, publication in publications.items():
-        summary = dataset_summaries[dataset_key]
-        if (
-            summary.get("publication_id") != str(publication["publication_id"])
-            or summary.get("publication_hash") != publication["publication_hash"]
-            or summary.get("member_count") != publication["member_count"]
-            or summary.get("as_of") != cast(datetime, publication["as_of"]).isoformat()
-            or summary.get("published_at")
-            != cast(datetime, publication["published_at"]).isoformat()
-            or summary.get("requested_asset_count") != publication["coverage_requested_count"]
-            or summary.get("covered_asset_count") != publication["coverage_selected_count"]
-            or summary.get("missing_asset_count") != publication["coverage_missing_count"]
-            or summary.get("outcome")
-            != ("success" if publication["coverage_missing_count"] == 0 else "partial")
-        ):
-            raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+    try:
+        validate_market_graph_task_result(
+            result,
+            tuple(publications.values()),
+            target_trade_date=target_date.isoformat(),
+            run_id=run_id,
+        )
+    except MarketGraphTaskResultError as exc:
+        raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID") from exc
     return target_date
 
 
@@ -1093,6 +1071,9 @@ def _parse_task_result(raw_result: object) -> dict[str, object] | None:
 def _current_market_publication_target_date() -> date:
     """Read a provider-free target from exact production publication evidence."""
 
+    from apps.data_center.application.current_publication_evidence import (
+        current_publication_evidence_blocked_reason,
+    )
     from apps.data_center.application.publication_utils import (
         member_reference,
         publication_hash,
@@ -1110,7 +1091,12 @@ def _current_market_publication_target_date() -> date:
         CanonicalPublicationPointerModel,
         PublicationMemberModel,
     )
+    from apps.data_center.infrastructure.publication_policy_repository import (
+        PublicationPolicyRepository,
+    )
     from apps.task_monitor.infrastructure.models import TaskExecutionModel
+
+    policy_repository = PublicationPolicyRepository()
 
     pointer_rows: list[dict[str, object]] = [
         dict(row)
@@ -1140,6 +1126,7 @@ def _current_market_publication_target_date() -> date:
             "publication_hash",
             "state",
             "must_not_use_for_decision",
+            "selected_source",
             "member_count",
             "coverage_selected_count",
             "member_manifest_hash",
@@ -1213,8 +1200,9 @@ def _current_market_publication_target_date() -> date:
             )
         }
         for publication_row in publication_rows:
+            dataset_key = publication_row.get("dataset_key")
             publication_id = publication_row.get("publication_id")
-            if not isinstance(publication_id, UUID):
+            if not isinstance(dataset_key, str) or not isinstance(publication_id, UUID):
                 raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
             publication_object = publication_objects.get(str(publication_id))
             publication_members = (
@@ -1227,12 +1215,34 @@ def _current_market_publication_target_date() -> date:
                     ).order_by("natural_key")
                 )
             )
-            if publication_object is not None:
+            if publication_object is None:
+                raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+            try:
+                domain_publication = publication_object.to_domain()
+                publication_fact_hashes = publication_fact_content_hashes(publication_members)
+                active_policy = policy_repository.get_active(dataset_key)
+                published_at = domain_publication.published_at
+                blocked_reason = (
+                    "publication_knowledge_unavailable"
+                    if published_at is None
+                    else current_publication_evidence_blocked_reason(
+                        domain_publication,
+                        policy=active_policy,
+                        members=publication_members,
+                        fact_content_hashes=publication_fact_hashes,
+                        knowledge_cutoff=published_at,
+                    )
+                )
                 publication_row["computed_publication_hash"] = publication_hash(
                     tuple(member_reference(member) for member in publication_members),
                     policy_identity=cast(str, publication_row["policy_version"]),
-                    scope_blocks=publication_object.to_domain().scope_blocks,
+                    scope_blocks=domain_publication.scope_blocks,
                 )
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID") from exc
+            if blocked_reason is not None:
+                raise ExportBlocked("S6_CURRENT_MARKET_PUBLICATION_TARGET_INVALID")
+            publication_row["_active_policy_evidence_validated"] = True
         manifest_rows = [
             dict(row)
             for row in CandidateRawAuditManifestModel._default_manager.filter(

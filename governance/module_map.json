@@ -4963,6 +4963,11 @@
           "get_runtime_macro_index_metadata_map",
           "get_runtime_macro_publication_lags"
         ],
+        "application/s6_market_graph_task_result.py": [
+          "MarketGraphTaskResultError",
+          "project_market_graph_task_result",
+          "validate_market_graph_task_result"
+        ],
         "application/sync_identity.py": [
           "IssueSyncExecutionIdentityCommand",
           "IssueSyncExecutionIdentityUseCase",
@@ -5102,7 +5107,7 @@
         ]
       },
       "layers": {
-        "application": 135,
+        "application": 136,
         "domain": 35,
         "infrastructure": 179,
         "interface": 19,

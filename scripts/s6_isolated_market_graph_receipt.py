@@ -15,6 +15,12 @@ from pathlib import Path
 from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
+from apps.data_center.application.s6_market_graph_task_result import (
+    MarketGraphTaskResultError,
+    project_market_graph_task_result,
+    validate_market_graph_task_result,
+)
+
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _SHA1_RE = re.compile(r"[0-9a-f]{40}\Z")
 _CORE_DATASETS = (
@@ -70,39 +76,6 @@ def _parse_task_result(raw_result: object) -> dict[str, object] | None:
     if not isinstance(parsed, dict) or any(not isinstance(key, str) for key in parsed):
         return None
     return cast(dict[str, object], parsed)
-
-
-def _valid_business_result(result: Mapping[str, object], *, task_id: str, attempt_id: str) -> bool:
-    """Require a successful normalized full-market result and exact Task Monitor identity."""
-
-    requested = result.get("requested")
-    succeeded = result.get("succeeded")
-    failed = result.get("failed")
-    stored = result.get("stored")
-    return (
-        result.get("_task_id") == task_id
-        and result.get("_task_attempt_id") == attempt_id
-        and result.get("_task_status") == "success"
-        and result.get("outcome") == "success"
-        and result.get("success") is True
-        and result.get("publication_updated") is True
-        and isinstance(result.get("publication_run_id"), str)
-        and bool(result.get("publication_run_id"))
-        and isinstance(result.get("target_trade_date"), str)
-        and _is_canonical_date(cast(str, result.get("target_trade_date")))
-        and isinstance(requested, int)
-        and not isinstance(requested, bool)
-        and requested > 0
-        and isinstance(succeeded, int)
-        and not isinstance(succeeded, bool)
-        and succeeded == requested
-        and isinstance(failed, int)
-        and not isinstance(failed, bool)
-        and failed == 0
-        and isinstance(stored, int)
-        and not isinstance(stored, bool)
-        and stored > 0
-    )
 
 
 def _is_canonical_date(value: str) -> bool:
@@ -341,7 +314,11 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
             "_task_status": "success",
         }
     )
-    if not _valid_business_result(parsed_result, task_id=task_id, attempt_id=task_attempt_id):
+    if (
+        parsed_result.get("_task_id") != task_id
+        or parsed_result.get("_task_attempt_id") != task_attempt_id
+        or parsed_result.get("_task_status") != "success"
+    ):
         raise MarketGraphReceiptError("S6_GRAPH_REFRESH_TASK_RESULT_INVALID")
 
     try:
@@ -379,6 +356,7 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
             "publication_id",
             "publication_key",
             "policy_version",
+            "selected_source",
             "publication_hash",
             "member_manifest_hash",
             "member_count",
@@ -402,6 +380,9 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
     fact_hashes: dict[str, str] = {}
     computed_publication_hashes: dict[str, str] = {}
     source_times: list[datetime] = []
+    from apps.data_center.application.current_publication_evidence import (
+        current_publication_evidence_blocked_reason,
+    )
     from apps.data_center.application.publication_utils import (
         member_reference,
         publication_hash,
@@ -410,6 +391,11 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
     from apps.data_center.infrastructure.publication_member_store import (
         publication_fact_content_hashes,
     )
+    from apps.data_center.infrastructure.publication_policy_repository import (
+        PublicationPolicyRepository,
+    )
+
+    policy_repository = PublicationPolicyRepository()
 
     for publication in publications:
         dataset_key = cast(str, publication.get("dataset_key"))
@@ -433,6 +419,23 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
         except (AttributeError, TypeError, ValueError) as exc:
             raise MarketGraphReceiptError("S6_GRAPH_REFRESH_GRAPH_INVALID") from exc
         if len(computed_fact_contents) != len(domain_members):
+            raise MarketGraphReceiptError("S6_GRAPH_REFRESH_GRAPH_INVALID")
+        try:
+            active_policy = policy_repository.get_active(dataset_key)
+        except (TypeError, ValueError) as exc:
+            raise MarketGraphReceiptError("S6_GRAPH_REFRESH_GRAPH_INVALID") from exc
+        published_at = domain_publication.published_at
+        if (
+            published_at is None
+            or current_publication_evidence_blocked_reason(
+                domain_publication,
+                policy=active_policy,
+                members=domain_members,
+                fact_content_hashes=computed_fact_contents,
+                knowledge_cutoff=published_at,
+            )
+            is not None
+        ):
             raise MarketGraphReceiptError("S6_GRAPH_REFRESH_GRAPH_INVALID")
         fact_rows: list[dict[str, object]] = []
         for domain_member, projected_member in zip(domain_members, projected_members, strict=True):
@@ -489,6 +492,15 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
         publication_hashes=computed_publication_hashes,
         run_id=result_run_id,
     )
+    try:
+        validate_market_graph_task_result(
+            parsed_result,
+            cast(Sequence[Mapping[str, object]], publications),
+            target_trade_date=target_text,
+            run_id=result_run_id,
+        )
+    except MarketGraphTaskResultError as exc:
+        raise MarketGraphReceiptError("S6_GRAPH_REFRESH_TASK_RESULT_INVALID") from exc
 
     source_time_min = min(source_times).isoformat()
     source_time_max = max(source_times).isoformat()
@@ -509,6 +521,7 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
                 "publication_id",
                 "publication_key",
                 "policy_version",
+                "selected_source",
                 "publication_hash",
                 "member_manifest_hash",
                 "member_count",
@@ -537,14 +550,7 @@ def capture_current_market_graph(*, context: Mapping[str, str], task_id: str) ->
         "task_result_sha256": hashlib.sha256(
             cast(str, task_row["result"]).encode("utf-8")
         ).hexdigest(),
-        "task_result": {
-            "outcome": parsed_result["outcome"],
-            "requested": parsed_result["requested"],
-            "succeeded": parsed_result["succeeded"],
-            "failed": parsed_result["failed"],
-            "stored": parsed_result["stored"],
-            "publication_run_id": parsed_result["publication_run_id"],
-        },
+        "task_result": project_market_graph_task_result(parsed_result),
         "run_id": parsed_result["publication_run_id"],
         "activation_id": normalized_pointers[0]["activation_id"] if normalized_pointers else None,
         "target_trade_date": target_text,
