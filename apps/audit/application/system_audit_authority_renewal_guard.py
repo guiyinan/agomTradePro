@@ -29,7 +29,9 @@ _STABLE_REASON_CODES = frozenset(
         "authority_lease_invalid",
         "authority_lease_unavailable",
         "authority_readers_invalid",
+        "authority_renewal_envelope_consumed",
         "authority_renewal_failed",
+        "authority_renewal_predecessor_changed",
         "authority_renewal_rejected",
         "authority_renewal_result_invalid",
         "authority_selector_invalid",
@@ -41,6 +43,8 @@ _STABLE_REASON_CODES = frozenset(
         "renewal_request_not_found",
         "renewal_request_unavailable",
         "renewal_result_invalid",
+        "recovery_envelope_consumed",
+        "recovery_identity_conflict",
     }
 )
 
@@ -249,10 +253,21 @@ def run_system_audit_authority_renewal_guard(
     reason_code = result.get("block_reason_code") or result.get("reason_code")
     if type(reason_code) is not str or not reason_code:
         reason_code = "authority_renewal_rejected"
+    if reason_code in {
+        "authority_renewal_envelope_consumed",
+        "authority_renewal_predecessor_changed",
+    }:
+        message = "自动续期请求的授权身份或前序版本已变化，已保持阻断。"
+    elif reason_code == "recovery_envelope_consumed":
+        message = "恢复请求的目标身份已被使用，已保持阻断。"
+    elif reason_code == "recovery_identity_conflict":
+        message = "恢复请求与已登记身份冲突，已保持阻断。"
+    else:
+        message = "自动续期未获得有效的底层审批证据，已保持阻断。"
     return _blocked(
         active,
         reason_code=reason_code,
-        message="自动续期未获得有效的底层审批证据，已保持阻断。",
+        message=message,
         metadata={"seconds_remaining": max(0.0, remaining)},
     )
 

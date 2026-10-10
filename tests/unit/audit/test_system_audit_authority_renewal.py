@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import apps.audit.management.commands.renew_system_audit_authority as renewal_command
 from apps.audit.application.system_audit_authority_renewal import (
     RenewSystemAuditAuthority,
     SystemAuditAuthorityRenewalUnavailable,
@@ -202,3 +206,118 @@ def test_renewal_service_rejects_substituted_actor_before_owner_write() -> None:
     with pytest.raises(SystemAuditAuthorityRenewalUnavailable) as error:
         renewal.execute(parsed.renewal)
     assert error.value.reason_code == "actor_capture_type_invalid"
+
+
+def _bound_request() -> dict[str, object]:
+    value = _request()
+    profile = value["profile"]
+    assert type(profile) is dict
+    digest = "a" * 64
+    profile.update(
+        {
+            "expected_active_profile_id": "profile:active",
+            "expected_active_profile_version": 1,
+            "expected_active_profile_hash": digest,
+            "expected_active_snapshot_hash": digest,
+        }
+    )
+    return value
+
+
+class _AuthorityIdentityReader:
+    """Expose the existing Authority V3 exact-winner and head read contract."""
+
+    def __init__(self, winner: object | None, head: object | None) -> None:
+        self._winner = winner
+        self._head = head
+
+    def get_winner(self, **selectors: object) -> object | None:
+        del selectors
+        return self._winner
+
+    def get_head(self, **selectors: object) -> object | None:
+        del selectors
+        return self._head
+
+
+def _install_authority_reader(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    winner: object | None = None,
+    head: object | None = None,
+) -> None:
+    monkeypatch.setattr(
+        renewal_command,
+        "DjangoOwnerTenantAuthorityV3Repository",
+        lambda **_kwargs: _AuthorityIdentityReader(winner, head),
+    )
+
+
+@pytest.mark.parametrize(
+    ("winner", "head", "expected"),
+    [
+        (object(), None, "authority_renewal_envelope_consumed"),
+        (
+            None,
+            SimpleNamespace(
+                authority=SimpleNamespace(authority_version="v3.1", content_hash="a" * 64)
+            ),
+            None,
+        ),
+        (
+            None,
+            SimpleNamespace(
+                authority=SimpleNamespace(authority_version="v3.0", content_hash="a" * 64)
+            ),
+            "authority_renewal_predecessor_changed",
+        ),
+        (None, None, "authority_renewal_predecessor_changed"),
+    ],
+)
+def test_renewal_preflight_checks_exact_successor_and_expected_predecessor(
+    monkeypatch: pytest.MonkeyPatch,
+    winner: object | None,
+    head: object | None,
+    expected: str | None,
+) -> None:
+    request = parse_system_audit_authority_renewal_request(
+        json.dumps(_request(), separators=(",", ":")).encode()
+    )
+    _install_authority_reader(monkeypatch, winner=winner, head=head)
+
+    result = renewal_command._preflight_renewal(request)
+
+    assert result.block_reason_code == expected
+
+
+@pytest.mark.parametrize("execute", [False, True])
+def test_consumed_renewal_envelope_blocks_before_actor_capture_or_write(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    execute: bool,
+) -> None:
+    request_path = tmp_path / "renewal.json"
+    request_path.write_text(json.dumps(_bound_request()), encoding="utf-8")
+    _install_authority_reader(monkeypatch, winner=object())
+    monkeypatch.setattr(renewal_command.transaction, "atomic", lambda **_kwargs: nullcontext())
+    actor_captures: list[str] = []
+
+    def fail_if_captured(**_kwargs: object) -> None:
+        actor_captures.append("capture")
+        raise AssertionError("consumed renewal envelope must block before actor capture")
+
+    monkeypatch.setattr(
+        renewal_command,
+        "build_account_actor_authority_capture",
+        fail_if_captured,
+    )
+    outputs: list[dict[str, object]] = []
+    command = renewal_command.Command()
+    monkeypatch.setattr(command, "_write", outputs.append)
+
+    command.handle(input=str(request_path), execute=execute)
+
+    assert outputs[0]["outcome"] == "blocked"
+    assert outputs[0]["mode"] == ("execute" if execute else "dry_run")
+    assert outputs[0]["block_reason_code"] == "authority_renewal_envelope_consumed"
+    assert actor_captures == []

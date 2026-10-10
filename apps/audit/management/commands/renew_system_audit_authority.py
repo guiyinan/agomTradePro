@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -17,6 +18,9 @@ from apps.account.account_actor_authority_capture_composition import (
 )
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
+)
+from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
+    DjangoOwnerTenantAuthorityV3Repository,
 )
 from apps.account.owner_tenant_authority_v3_composition import (
     OwnerTenantAuthorityV3Facade,
@@ -96,13 +100,21 @@ class Command(BaseCommand):
             raise CommandError("renewal request could not be validated") from error
 
         if not execute:
+            try:
+                preflight = _preflight_renewal(request)
+            except (AgomTradeProException, DatabaseError, OSError, TypeError, ValueError):
+                self._write(_blocked_payload("dry_run", "authority_renewal_preflight_unavailable"))
+                return
+            if preflight.block_reason_code is not None:
+                self._write(_blocked_payload("dry_run", preflight.block_reason_code))
+                return
             self._write(
                 {
                     "outcome": "noop",
                     "mode": "dry_run",
                     "authority_persisted": False,
                     "runtime_enabled": False,
-                    "reason": "request_validated_only",
+                    "reason": "request_and_identity_slots_validated",
                     "database_alias": request.database_alias,
                     "actor_source_id": request.renewal.actor_capture.source_id,
                     "actor_source_version": request.renewal.actor_capture.source_version,
@@ -117,17 +129,21 @@ class Command(BaseCommand):
         if request.database_alias != "default":
             raise CommandError("System Audit renewal currently requires the default database alias")
         try:
-            actor_capture = build_account_actor_authority_capture(
-                recorder_service_id=request.actor_recorder_service_id,
-                validity_period=request.actor_validity_period,
-                using=request.database_alias,
-            )
-            renewal = RenewSystemAuditAuthority(
-                actor_capture=actor_capture,
-                owner_factory=_OwnerFactory(request),
-                clock=timezone.now,
-            )
             with transaction.atomic(using=request.database_alias):
+                preflight = _preflight_renewal(request)
+                if preflight.block_reason_code is not None:
+                    self._write(_blocked_payload("execute", preflight.block_reason_code))
+                    return
+                actor_capture = build_account_actor_authority_capture(
+                    recorder_service_id=request.actor_recorder_service_id,
+                    validity_period=request.actor_validity_period,
+                    using=request.database_alias,
+                )
+                renewal = RenewSystemAuditAuthority(
+                    actor_capture=actor_capture,
+                    owner_factory=_OwnerFactory(request),
+                    clock=timezone.now,
+                )
                 renewed = renewal.execute(request.renewal)
                 selector = _selector_payload(renewed.selector)
                 profile = _activate_runtime_successor(request.profile, selector)
@@ -138,7 +154,7 @@ class Command(BaseCommand):
                     "mode": "execute",
                     "authority_persisted": False,
                     "runtime_enabled": False,
-                    "blocked_reason": error.reason_code,
+                    "block_reason_code": error.reason_code,
                 }
             )
             return
@@ -150,7 +166,7 @@ class Command(BaseCommand):
                     "mode": "execute",
                     "authority_persisted": False,
                     "runtime_enabled": False,
-                    "blocked_reason": "renewal_transaction_rejected",
+                    "block_reason_code": "renewal_transaction_rejected",
                 }
             )
             return
@@ -177,6 +193,48 @@ class Command(BaseCommand):
         """Write one stable secret-free JSON result."""
 
         self.stdout.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
+
+
+@dataclass(frozen=True, slots=True)
+class _RenewalPreflight:
+    """Carry one stable blocker from the read-only Authority V3 checks."""
+
+    block_reason_code: str | None
+
+
+def _blocked_payload(mode: str, reason_code: str) -> dict[str, object]:
+    """Return a stable secret-free renewal blocker without selectors."""
+
+    return {
+        "outcome": "blocked",
+        "mode": mode,
+        "authority_persisted": False,
+        "runtime_enabled": False,
+        "block_reason_code": reason_code,
+    }
+
+
+def _preflight_renewal(request: SystemAuditAuthorityRenewalInput) -> _RenewalPreflight:
+    """Check the exact successor slot and expected predecessor before capture."""
+
+    command = request.renewal.owner_successor
+    repository = DjangoOwnerTenantAuthorityV3Repository(using=request.database_alias)
+    as_of = timezone.now()
+    winner = repository.get_winner(
+        authority_id=command.authority_id,
+        authority_version=command.authority_version,
+        as_of=as_of,
+    )
+    if winner is not None:
+        return _RenewalPreflight("authority_renewal_envelope_consumed")
+    head = repository.get_head(authority_id=command.authority_id, as_of=as_of)
+    if (
+        head is None
+        or head.authority.authority_version != command.predecessor_version
+        or head.authority.content_hash != command.expected_predecessor_content_hash
+    ):
+        return _RenewalPreflight("authority_renewal_predecessor_changed")
+    return _RenewalPreflight(None)
 
 
 def _require_execution_bindings(request: SystemAuditAuthorityRenewalInput) -> None:

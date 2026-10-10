@@ -10,14 +10,25 @@ from pathlib import Path
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-_RENEWAL_EXECUTOR_REASONS = frozenset(
+_AUTHORITY_BLOCK_REASONS = frozenset(
     {
-        "renewal_command_failed",
-        "renewal_request_not_configured",
-        "renewal_request_not_found",
-        "renewal_request_unavailable",
-        "renewal_result_invalid",
+        "authority_renewal_envelope_consumed",
+        "authority_renewal_predecessor_changed",
     }
+)
+_RECOVERY_BLOCK_REASONS = frozenset({"recovery_envelope_consumed", "recovery_identity_conflict"})
+_PASSTHROUGH_BLOCK_REASONS = _AUTHORITY_BLOCK_REASONS | _RECOVERY_BLOCK_REASONS
+_RENEWAL_EXECUTOR_REASONS = (
+    frozenset(
+        {
+            "renewal_command_failed",
+            "renewal_request_not_configured",
+            "renewal_request_not_found",
+            "renewal_request_unavailable",
+            "renewal_result_invalid",
+        }
+    )
+    | _PASSTHROUGH_BLOCK_REASONS
 )
 
 
@@ -60,6 +71,15 @@ def execute_configured_system_audit_authority_renewal() -> dict[str, object]:
     outcome = payload.get("outcome")
     if outcome not in {"success", "noop", "blocked", "failed"}:
         return _blocked("renewal_result_invalid")
+    if outcome == "blocked":
+        reason_code = (
+            payload.get("block_reason_code")
+            or payload.get("blocked_reason")
+            or payload.get("reason_code")
+        )
+        if type(reason_code) is str and reason_code in _PASSTHROUGH_BLOCK_REASONS:
+            return _blocked(reason_code)
+        return _blocked("renewal_command_failed")
     return {str(key): value for key, value in payload.items()}
 
 

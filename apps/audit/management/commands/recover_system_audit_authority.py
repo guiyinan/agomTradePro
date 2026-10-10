@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
@@ -39,6 +39,9 @@ from apps.account.application.owner_tenant_authority_v3 import (
 from apps.account.domain.account_owner_assignment_actor_authority_source_v3 import (
     AccountOwnerAssignmentActorAuthoritySourceV3,
 )
+from apps.account.domain.account_owner_assignment_evidence_v5 import (
+    AccountOwnerAssignmentEvidenceV5,
+)
 from apps.account.domain.account_owner_assignment_provenance_receipt_v5 import (
     AccountOwnerAssignmentProvenanceReceiptV5,
 )
@@ -53,6 +56,9 @@ from apps.account.infrastructure.account_owner_assignment_provenance_receipt_v5_
 )
 from apps.account.infrastructure.account_owner_assignment_subject_v5_repository import (
     DjangoAccountOwnerAssignmentSubjectV5Repository,
+)
+from apps.account.infrastructure.owner_tenant_authority_v3_repository import (
+    DjangoOwnerTenantAuthorityV3Repository,
 )
 from apps.account.owner_tenant_authority_v3_composition import (
     build_owner_tenant_authority_v3_facade,
@@ -102,11 +108,19 @@ class Command(BaseCommand):
             raise CommandError("System Audit recovery is restricted to production")
         _require_profile_predecessor(request)
         if not execute:
+            try:
+                preflight = _preflight_recovery(request)
+            except (AgomTradeProException, DatabaseError, OSError, TypeError, ValueError):
+                self._write(_blocked_payload("dry_run", "recovery_preflight_unavailable"))
+                return
+            if preflight.block_reason_code is not None:
+                self._write(_blocked_payload("dry_run", preflight.block_reason_code))
+                return
             self._write(
                 {
                     "outcome": "noop",
                     "mode": "dry_run",
-                    "reason": "request_validated_only",
+                    "reason": "request_and_identity_slots_validated",
                     "authority_persisted": False,
                     "runtime_enabled": False,
                     "predecessor_evidence_id": (
@@ -119,18 +133,14 @@ class Command(BaseCommand):
             return
         try:
             with transaction.atomic(using="default"):
-                result = _execute_recovery(request)
+                preflight = _preflight_recovery(request)
+                if preflight.block_reason_code is not None:
+                    self._write(_blocked_payload("execute", preflight.block_reason_code))
+                    return
+                result = _execute_recovery(request, preflight.predecessor)
         except (AgomTradeProException, DatabaseError, OSError, TypeError, ValueError) as error:
             del error
-            self._write(
-                {
-                    "outcome": "blocked",
-                    "mode": "execute",
-                    "authority_persisted": False,
-                    "runtime_enabled": False,
-                    "blocked_reason": "recovery_transaction_rejected",
-                }
-            )
+            self._write(_blocked_payload("execute", "recovery_transaction_rejected"))
             return
         self._write({"outcome": "success", "mode": "execute", **result})
 
@@ -138,23 +148,97 @@ class Command(BaseCommand):
         self.stdout.write(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
 
 
-def _execute_recovery(request: SystemAuditAuthorityRecoveryInput) -> dict[str, object]:
-    """Append the assignment and authority successors, then activate Audit."""
+@dataclass(frozen=True, slots=True)
+class _RecoveryPreflight:
+    """Carry the exact predecessor and an optional stable identity blocker."""
+
+    predecessor: AccountOwnerAssignmentEvidenceV5
+    block_reason_code: str | None
+
+
+def _blocked_payload(mode: str, reason_code: str) -> dict[str, object]:
+    """Return a stable secret-free recovery blocker without selector details."""
+
+    return {
+        "outcome": "blocked",
+        "mode": mode,
+        "authority_persisted": False,
+        "runtime_enabled": False,
+        "block_reason_code": reason_code,
+    }
+
+
+def _preflight_recovery(request: SystemAuditAuthorityRecoveryInput) -> _RecoveryPreflight:
+    """Read every target identity before actor capture or any recovery write."""
 
     base = request.renewal
     old_selector = base.renewal.owner_successor
-    previous = GetExactAccountOwnerAssignmentEvidenceV5(
+    as_of = timezone.now()
+    predecessor = GetExactAccountOwnerAssignmentEvidenceV5(
         DjangoAccountOwnerAssignmentEvidenceV5Repository(using=base.database_alias)
     ).execute(
         GetExactAccountOwnerAssignmentEvidenceV5Command(
             evidence_id=old_selector.assignment_evidence_id,
             evidence_version=old_selector.assignment_evidence_version,
             expected_content_hash=old_selector.expected_assignment_evidence_content_hash,
-            as_of=timezone.now(),
+            as_of=as_of,
         )
     )
-    if previous is None:
+    if predecessor is None:
         raise ValueError("predecessor Evidence V5 is unavailable")
+
+    receipt = DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository(
+        using=base.database_alias
+    ).get_winner(
+        receipt_id=predecessor.subject.receipt.receipt_id,
+        receipt_version=request.receipt_version,
+        as_of=as_of,
+    )
+    subject = DjangoAccountOwnerAssignmentSubjectV5Repository(using=base.database_alias).get_winner(
+        subject_id=request.subject_id,
+        subject_version=request.subject_version,
+        as_of=as_of,
+    )
+    evidence = DjangoAccountOwnerAssignmentEvidenceV5Repository(
+        using=base.database_alias
+    ).get_winner(
+        evidence_id=predecessor.evidence_id,
+        evidence_version=request.evidence_version,
+        as_of=as_of,
+    )
+    authority_repository = DjangoOwnerTenantAuthorityV3Repository(using=base.database_alias)
+    authority = authority_repository.get_winner(
+        authority_id=request.authority_id,
+        authority_version=request.authority_version,
+        as_of=as_of,
+    )
+    authority_head = authority_repository.get_head(
+        authority_id=request.authority_id,
+        as_of=as_of,
+    )
+    occupied = (
+        receipt is not None,
+        subject is not None,
+        evidence is not None,
+        authority is not None,
+    )
+    if all(occupied):
+        reason_code = "recovery_envelope_consumed"
+    elif any(occupied) or authority_head is not None:
+        reason_code = "recovery_identity_conflict"
+    else:
+        reason_code = None
+    return _RecoveryPreflight(predecessor, reason_code)
+
+
+def _execute_recovery(
+    request: SystemAuditAuthorityRecoveryInput,
+    predecessor: AccountOwnerAssignmentEvidenceV5,
+) -> dict[str, object]:
+    """Append the assignment and authority successors, then activate Audit."""
+
+    base = request.renewal
+    previous = predecessor
 
     actor = build_account_actor_authority_capture(
         recorder_service_id=base.actor_recorder_service_id,

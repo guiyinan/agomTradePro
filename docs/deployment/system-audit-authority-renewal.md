@@ -38,6 +38,13 @@ session keys, API tokens, or provider secrets.  The actor capture selectors
 must refer to fresh raw authentication, User, and RBAC sources already
 published by the authenticated Account authority publisher.
 
+Both dry-run and execute read the Authority V3 successor slot and current head
+before actor capture.  An occupied successor identity returns
+`authority_renewal_envelope_consumed`; a missing or changed predecessor returns
+`authority_renewal_predecessor_changed`.  The scheduled adapter keeps these
+stable codes and the guard emits a critical alert without forwarding dynamic
+diagnostics.
+
 Execution performs the following steps in one PostgreSQL transaction:
 
 1. capture the fresh actor authority source;
@@ -60,14 +67,24 @@ python manage.py recover_system_audit_authority --input <recovery.json> --execut
 ```
 
 Recovery is also dry-run by default and uses the renewal envelope plus fresh
-receipt, subject, Evidence V5, and Authority V3 identities.  It appends a new
-provenance receipt and Evidence V5 successor, issues a fresh Authority V3 root
-against that successor, and activates the runtime in the same PostgreSQL
-transaction.  Evidence roots keep their original canonical hashes; successors
-bind the exact predecessor content hash.  Repository CAS requires both account
-and underlying mappings to name the same head, so history cannot be overwritten,
-forked, or backfilled.  A failed profile activation rolls the entire recovery
-back.
+receipt, subject, Evidence V5, and Authority V3 identities.  Both dry-run and
+execute read the exact predecessor and check all four target identities before
+actor capture or any write.  A fully occupied envelope returns
+`block_reason_code=recovery_envelope_consumed`; a partial or incompatible
+identity collision returns `recovery_identity_conflict`.  These results are
+secret-free and do not capture an actor or change state.  Use fresh successor
+identities for a new recovery attempt; the preflight never manufactures or
+reuses approval evidence.
+
+After the preflight passes, recovery appends a new provenance receipt and
+Evidence V5 successor, issues a fresh Authority V3 root against that successor,
+and activates the runtime in the same PostgreSQL transaction.  Evidence roots
+keep their original canonical hashes; successors bind the exact predecessor
+content hash.  Repository CAS requires both account and underlying mappings to
+name the same head, so history cannot be overwritten, forked, or backfilled.  A
+failed profile activation rolls the entire recovery back.  The scheduled
+renewal adapter preserves the recovery blocker codes and the guard raises a
+critical alert with the stable code while redacting dynamic diagnostics.
 
 The periodic guard continues to use ordinary Authority V3 renewal while the
 Evidence V5 lease is current.  Operators must run recovery only after that

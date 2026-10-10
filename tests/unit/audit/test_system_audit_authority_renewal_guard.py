@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from apps.audit.application.system_audit_authority_renewal_guard import (
     SystemAuditAuthorityLease,
     SystemAuditAuthorityRenewalGuardDependencies,
@@ -106,3 +108,41 @@ def test_guard_normalizes_unknown_dynamic_renewal_reason() -> None:
 
     assert result["block_reason_code"] == "authority_renewal_rejected"
     assert alerts[0]["reason_code"] == "authority_renewal_rejected"
+
+
+@pytest.mark.parametrize(
+    "reason_code",
+    [
+        "authority_renewal_envelope_consumed",
+        "authority_renewal_predecessor_changed",
+        "recovery_envelope_consumed",
+        "recovery_identity_conflict",
+    ],
+)
+def test_guard_preserves_envelope_codes_and_alerts_without_details(reason_code: str) -> None:
+    """An exhausted or conflicting envelope remains a stable operational blocker."""
+
+    alerts: list[tuple[str, str, dict[str, object]]] = []
+    dependencies = SystemAuditAuthorityRenewalGuardDependencies(
+        read_lease=lambda: SystemAuditAuthorityLease(
+            mode="required",
+            outbox_enabled=True,
+            valid_until=NOW + timedelta(minutes=30),
+        ),
+        execute_renewal=lambda: {
+            "outcome": "blocked",
+            "block_reason_code": reason_code,
+        },
+        publish_alert=lambda level, title, metadata: alerts.append((level, title, metadata)),
+        clock=lambda: NOW,
+        renewal_window=timedelta(hours=1),
+    )
+
+    result = run_system_audit_authority_renewal_guard(dependencies)
+
+    assert result["outcome"] == "blocked"
+    assert result["block_reason_code"] == reason_code
+    assert alerts[0][0] == "critical"
+    assert alerts[0][2]["reason_code"] == reason_code
+    assert "message" in alerts[0][2]
+    assert not any("secret" in str(value).lower() for value in alerts[0][2].values())
