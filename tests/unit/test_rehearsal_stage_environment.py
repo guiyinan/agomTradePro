@@ -258,6 +258,36 @@ def test_each_category_fails_closed(
     assert any(item["category"] == category and item["code"] == expected_code for item in issues)
 
 
+def test_candidate_runtime_log_directory_issue_blocks_filesystem_stage_cell(
+    tmp_path: Path,
+) -> None:
+    inputs = replace(
+        _inputs(tmp_path),
+        dynamic_issues=(
+            StageEnvironmentIssue(
+                "filesystem",
+                "REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID",
+                ("provider_probe",),
+            ),
+        ),
+    )
+
+    report = evaluate_stage_environment(inputs)
+
+    cell = next(
+        item
+        for item in report["matrix"]
+        if item["stage"] == "provider_probe" and item["category"] == "filesystem"
+    )
+    assert report["outcome"] == "blocked"
+    assert cell == {
+        "stage": "provider_probe",
+        "category": "filesystem",
+        "outcome": "blocked",
+        "codes": ["REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID"],
+    }
+
+
 def _with_cr_transport(value: StageEnvironmentInputs, root: Path) -> StageEnvironmentInputs:
     path = root / "prepare-crlf.sh"
     path.write_bytes(b"#!/bin/sh\r\nset -eu\r\n")
@@ -348,6 +378,8 @@ def test_runner_stages_and_documented_matrix_are_registered() -> None:
     document = Path("docs/development/s6-stage-environment-contract.md").read_text(encoding="utf-8")
 
     assert set(STAGES).issubset(CONTRACT_STAGES)
+    assert "AGOM_LOG_DIR=/tmp/agomtradepro/logs" in document
+    assert "REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID" in document
     for stage in CONTRACT_STAGES:
         assert f"| `{stage}` |" in document
     for category in CATEGORIES:

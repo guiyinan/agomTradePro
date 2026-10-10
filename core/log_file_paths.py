@@ -7,6 +7,8 @@ from collections.abc import MutableMapping
 from datetime import UTC, datetime
 from pathlib import Path
 
+from shared.runtime_log_paths import RUNTIME_LOG_DIRECTORY_ENV
+
 RUNSERVER_LOG_TIMESTAMP_ENV = "DJANGO_RUNSERVER_LOG_TIMESTAMP"
 DEVELOPMENT_LOG_MAX_MB_ENV = "DJANGO_DEV_LOG_MAX_MB"
 DEVELOPMENT_LOG_BACKUP_COUNT_ENV = "DJANGO_DEV_LOG_BACKUP_COUNT"
@@ -36,16 +38,24 @@ def get_or_create_runserver_log_timestamp(
     return timestamp
 
 
-def get_project_log_dir(base_dir: str | Path) -> Path:
-    """Ensure and return the project-local log directory."""
-    log_dir = Path(base_dir) / "logs"
+def get_project_log_dir(
+    base_dir: str | Path,
+    env: MutableMapping[str, str] | None = None,
+) -> Path:
+    """Ensure and return the configured log directory or project-local default."""
+    env_map = env if env is not None else os.environ
+    configured_directory = env_map.get(RUNTIME_LOG_DIRECTORY_ENV, "").strip()
+    log_dir = Path(configured_directory) if configured_directory else Path(base_dir) / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
 
 
-def get_development_log_dir(base_dir: str | Path) -> Path:
-    """Ensure and return the project-local development log directory."""
-    return get_project_log_dir(base_dir)
+def get_development_log_dir(
+    base_dir: str | Path,
+    env: MutableMapping[str, str] | None = None,
+) -> Path:
+    """Ensure and return the configured development log directory."""
+    return get_project_log_dir(base_dir, env=env)
 
 
 def _get_positive_int(
@@ -110,7 +120,7 @@ def get_runserver_log_path(
 ) -> Path:
     """Build the timestamped log file path for the current development server startup."""
     timestamp = get_or_create_runserver_log_timestamp(env=env, now=now)
-    return get_project_log_dir(base_dir) / f"django-dev-{timestamp}.log"
+    return get_project_log_dir(base_dir, env=env) / f"django-dev-{timestamp}.log"
 
 
 def _get_process_log_file_name(prefix: str, pid: int | None = None) -> str:
@@ -119,17 +129,25 @@ def _get_process_log_file_name(prefix: str, pid: int | None = None) -> str:
     return f"{prefix}-{process_id}.log"
 
 
-def get_celery_worker_log_path(base_dir: str | Path, pid: int | None = None) -> Path:
+def get_celery_worker_log_path(
+    base_dir: str | Path,
+    pid: int | None = None,
+    env: MutableMapping[str, str] | None = None,
+) -> Path:
     """Build a process-local Celery worker log path safe for Windows rotation."""
-    return get_project_log_dir(base_dir) / _get_process_log_file_name(
+    return get_project_log_dir(base_dir, env=env) / _get_process_log_file_name(
         CELERY_WORKER_LOG_FILE_PREFIX,
         pid=pid,
     )
 
 
-def get_celery_beat_log_path(base_dir: str | Path, pid: int | None = None) -> Path:
+def get_celery_beat_log_path(
+    base_dir: str | Path,
+    pid: int | None = None,
+    env: MutableMapping[str, str] | None = None,
+) -> Path:
     """Build a process-local Celery beat log path safe for Windows rotation."""
-    return get_project_log_dir(base_dir) / _get_process_log_file_name(
+    return get_project_log_dir(base_dir, env=env) / _get_process_log_file_name(
         CELERY_BEAT_LOG_FILE_PREFIX,
         pid=pid,
     )

@@ -22,6 +22,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 | `ebe16fb787094b45957b16e17dfd771a` | `prepare-status.json` 为 exit 127，候选阶段未启动；远端 wrapper 含 CR 字节。 | 所有经 SSH/pipe 传输且随后执行或解析的文本必须 UTF-8、无 BOM/NUL/CR，并通过重复 `--transport-input` 显式登记。 |
 | `5caf4f22e0264b3f9a9d67a06432f655` | prepare 完成；runner 在 `akshare_financial_slice` 阻断，生产快照当时缺 provider 3 的两条财报 egress 规则。 | 候选侧必须在 provider I/O 前复用持久化 `preview_route`，逐一验证 provider row × dataset × host × deployment region。 |
 | `11fa71b43e504660b2f77a6ff7a31d28` | fresh prepare 已恢复最新生产只读快照，但 `universe` exporter 在 internal Docker network 内调用 provider-backed 市场日历，Tushare/Akshare 均无出口，最终 `S6_TARGET_SESSION_UNAVAILABLE`。 | prepare 的 target date 必须由生产者已封存的 current publication graph 推导；禁止依赖 provider 出网、主机 wall clock、`date.today()` 或原始表 `MAX(date)`。 |
+| `df56fa16294b4f04b6dd0d09821c37e3` | graph refresh 容器以只读根文件系统和只读 candidate-source 启动；`django.setup()` 前生产设置仍尝试在 `/candidate-src/logs` 建目录，导致 prepare 失败且没有 Task Monitor 行。 | 生产日志目录遵守 `AGOM_LOG_DIR`；S6 candidate 运行时统一指向 `/tmp/agomtradepro/logs`，prepare 只读容器使用现有 `/tmp` tmpfs。统一候选 stage environment preflight 在 filesystem 类校验环境值、Celery 路径和目录可写性，覆盖全部阶段。 |
 | 新增 opt-in 设计（尚待下一次 Linux fresh S6 实证） | production snapshot 的 publication graph 日期落后于实时 provider response context 时，fresh probe 可能以 `REHEARSAL_RESPONSE_FUTURE_DATE` 阻断。 | planner v3 提供默认关闭的 `--advance-isolated-market-graph`；只有明确启用后才在恢复后的 disposable PostgreSQL/Redis 上运行候选 full-market Task Monitor task，并在只读 exporter 中重读验证完整 receipt。该流程不连生产 DB，不放宽目标日期、新鲜度或 15:00 规则；运行失败不产生成功 prepare receipt。 |
 
 上述只读证据来自 VPS 历史 attempt；目录没有被修改或删除。
@@ -32,7 +33,9 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 `identity_and_secrets`、`resources_and_time`、`external_state`。
 
 1. **文件系统**：所有 mount/source/output 必须是预期的 regular file/directory；拒绝 symlink、device、socket 和替换后的 inode；
-   候选输入树在 POSIX 使用 descriptor 复核属组与 mode。
+   候选输入树在 POSIX 使用 descriptor 复核属组与 mode。所有 candidate 运行时统一设置 `AGOM_LOG_DIR=/tmp/agomtradepro/logs`；
+   prepare 的只读容器使用现有 `/tmp` tmpfs，runner stage 容器使用其本地 `/tmp`。候选侧 preflight 逐阶段验证配置值、
+   Celery worker/beat 日志路径和目录可写性。
 2. **传输编码**：显式登记的 SSH/pipe 输入、env、JSON 和冻结快照必须为非空 UTF-8，且不含 BOM、NUL、CR/CRLF。
 3. **网络出口**：模型行情路由复用 `provider_policy_and_routes`；财报路由复用
    `_require_akshare_financial_egress_routes`，后者调用持久化 `preview_route` 和公开
@@ -109,6 +112,7 @@ container ID、连接的实际数据库身份和 `agomtradepro_migrator` session
 ## 稳定码与聚合语义
 
 - 宿主静态问题：`REHEARSAL_STAGE_FILESYSTEM_ENTRY_INVALID`、
+  候选运行日志目录问题：`REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID`、
   `REHEARSAL_STAGE_TRANSFER_ENCODING_INVALID`、
   `REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID`、
   `REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING`、

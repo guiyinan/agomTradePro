@@ -107,6 +107,7 @@ def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_ar
     assert '--execution-env-file "$inputs/prepare-export.env"' in source
     assert '--docker-network "$prepare_network"' in source
     assert "--tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=2147483648" in source
+    assert "-e AGOM_LOG_DIR=/tmp/agomtradepro/logs" in source
     assert 'helper_argv+=("--docker-arg=$docker_argument")' in source
     assert '"$candidate_input_staging:/candidate-inputs:ro"' in source
     assert '"$export_root:/candidate-output:rw"' in source

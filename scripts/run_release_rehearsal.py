@@ -52,6 +52,7 @@ from shared.release_rehearsal_stage_environment import (
     parse_docker_build_observation,
     parse_dynamic_issues,
 )
+from shared.runtime_log_paths import READ_ONLY_RUNTIME_LOG_DIRECTORY, RUNTIME_LOG_DIRECTORY_ENV
 
 
 class _Checkpoint(Protocol):
@@ -1344,6 +1345,8 @@ def _docker_command(
         args.extend(("--env", f"{key}={value}"))
     args.extend(
         (
+            "--env",
+            f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}",
             "--env",
             f"AGOM_CANDIDATE_IMAGE_ID={identity.candidate_image_id}",
             "--env",

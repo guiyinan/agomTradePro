@@ -4,6 +4,7 @@ Django production settings for AgomTradePro project.
 
 import logging
 import os
+from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -13,6 +14,7 @@ from core.log_file_paths import (
     get_celery_log_max_bytes,
     get_celery_worker_log_path,
 )
+from shared.runtime_log_paths import RUNTIME_LOG_DIRECTORY_ENV
 
 
 def _validate_secret_key() -> str:
@@ -269,10 +271,16 @@ celery_worker_handlers = ["console", "in_memory", "celery_worker_file"]
 celery_beat_handlers = ["console", "in_memory", "celery_beat_file"]
 
 if LOG_TO_FILE:
-    os.makedirs("/var/log/agomtradepro", exist_ok=True)
+    configured_log_directory = os.environ.get(RUNTIME_LOG_DIRECTORY_ENV, "").strip()
+    file_log_directory = (
+        Path(configured_log_directory)
+        if configured_log_directory
+        else Path("/var/log/agomtradepro")
+    )
+    file_log_directory.mkdir(parents=True, exist_ok=True)
     handlers["file"] = {
         "class": "logging.handlers.RotatingFileHandler",
-        "filename": "/var/log/agomtradepro/django.log",
+        "filename": str(file_log_directory / "django.log"),
         "maxBytes": 1024 * 1024 * 100,
         "backupCount": 10,
         "formatter": "structured",
@@ -280,7 +288,7 @@ if LOG_TO_FILE:
     }
     handlers["file_json"] = {
         "class": "logging.handlers.RotatingFileHandler",
-        "filename": "/var/log/agomtradepro/django.json.log",
+        "filename": str(file_log_directory / "django.json.log"),
         "maxBytes": 1024 * 1024 * 100,
         "backupCount": 10,
         "formatter": "structured",

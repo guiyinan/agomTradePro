@@ -28,6 +28,7 @@ from scripts.rehearsal_checkpoint import (
     tree_digest,
     verify_container_input_tree,
 )
+from shared.runtime_log_paths import READ_ONLY_RUNTIME_LOG_DIRECTORY, RUNTIME_LOG_DIRECTORY_ENV
 
 _CANDIDATE_SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 _TREE_SHA_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -1187,6 +1188,7 @@ def run_candidate_export(
         f"{resolved_output}:/candidate-output:rw",
     ]
     expected_environment_keys = {
+        RUNTIME_LOG_DIRECTORY_ENV,
         "PGOPTIONS",
         "S6_ADVANCE_ISOLATED_MARKET_GRAPH",
         "S6_ATTEMPT_ID",
@@ -1215,6 +1217,7 @@ def run_candidate_export(
         or network_values != [docker_network]
         or set(environment) != expected_environment_keys
         or environment.get("S6_EXPECTED_CANDIDATE") != candidate_sha
+        or environment.get(RUNTIME_LOG_DIRECTORY_ENV) != READ_ONLY_RUNTIME_LOG_DIRECTORY
         or environment.get("S6_ADVANCE_ISOLATED_MARKET_GRAPH") not in {"0", "1"}
         or re.fullmatch(r"[0-9a-f]{32}", environment.get("S6_ATTEMPT_ID", "")) is None
         or re.fullmatch(r"[0-9a-f]{64}", environment.get("S6_ATTEMPT_PLAN_SHA256", "")) is None
@@ -1371,6 +1374,8 @@ def run_candidate_market_graph_refresh(
         "/tmp:rw,nosuid,nodev,mode=1777,size=2147483648",
         "--env-file",
         str(resolved_env),
+        "-e",
+        f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}",
         "-e",
         "S6_GRAPH_REFRESH_ENABLED=1",
         "-v",

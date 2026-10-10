@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.utils import timezone
@@ -33,7 +34,8 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     load_rehearsal_identities,
     verify_configured_rehearsal_identities,
 )
-from shared.release_rehearsal_stage_environment import SCHEMA
+from shared.release_rehearsal_stage_environment import CONTRACT_STAGES, SCHEMA
+from shared.runtime_log_paths import READ_ONLY_RUNTIME_LOG_DIRECTORY, RUNTIME_LOG_DIRECTORY_ENV
 
 _MODEL_MARKET_STAGES = (
     "provider_probe",
@@ -77,6 +79,7 @@ class Command(BaseCommand):
         ):
             raise CommandError("REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID")
         issues: list[dict[str, object]] = []
+        self._check_runtime_log_directory(issues)
         self._check_model_market_routes(settings_path, issues)
         self._check_financial_contract(identities_path, issues)
         self._check_clock(issues)
@@ -94,6 +97,40 @@ class Command(BaseCommand):
                 os.fsync(stream.fileno())
         except OSError as exc:
             raise CommandError("REHEARSAL_STAGE_DYNAMIC_PREFLIGHT_INPUT_INVALID") from exc
+
+    def _check_runtime_log_directory(self, issues: list[dict[str, object]]) -> None:
+        """Require every candidate stage to direct file handlers to writable tmpfs."""
+        try:
+            configured_directory = os.environ.get(RUNTIME_LOG_DIRECTORY_ENV, "").strip()
+            log_directory = Path(READ_ONLY_RUNTIME_LOG_DIRECTORY)
+            worker_log = Path(settings.CELERY_WORKER_LOG_FILE)
+            beat_log = Path(settings.CELERY_BEAT_LOG_FILE)
+            if (
+                configured_directory != READ_ONLY_RUNTIME_LOG_DIRECTORY
+                or worker_log.parent != log_directory
+                or beat_log.parent != log_directory
+                or log_directory.is_symlink()
+                or not log_directory.is_dir()
+                or not os.access(log_directory, os.W_OK | os.X_OK)
+            ):
+                raise ValueError
+            log_to_file = getattr(settings, "LOG_TO_FILE", False)
+            if not isinstance(log_to_file, bool):
+                raise ValueError
+            if log_to_file:
+                handlers = settings.LOGGING["handlers"]
+                for handler_name in ("file", "file_json"):
+                    handler = handlers[handler_name]
+                    filename = handler.get("filename")
+                    if not isinstance(filename, str) or Path(filename).parent != log_directory:
+                        raise ValueError
+        except (AttributeError, OSError, TypeError, ValueError):
+            self._append(
+                issues,
+                "filesystem",
+                "REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID",
+                tuple(CONTRACT_STAGES),
+            )
 
     @staticmethod
     def _append(

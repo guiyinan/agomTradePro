@@ -11,6 +11,80 @@ import pytest
 from django.core.management.base import CommandError, OutputWrapper
 
 from apps.data_center.management.commands import preflight_s6_stage_environment as command
+from shared.runtime_log_paths import RUNTIME_LOG_DIRECTORY_ENV
+
+
+def _configure_runtime_log_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    log_directory = tmp_path / "runtime-logs"
+    log_directory.mkdir()
+    monkeypatch.setattr(command, "READ_ONLY_RUNTIME_LOG_DIRECTORY", str(log_directory))
+    monkeypatch.setenv(RUNTIME_LOG_DIRECTORY_ENV, str(log_directory))
+    monkeypatch.setattr(
+        command,
+        "settings",
+        SimpleNamespace(
+            CELERY_WORKER_LOG_FILE=log_directory / "worker.log",
+            CELERY_BEAT_LOG_FILE=log_directory / "beat.log",
+            LOG_TO_FILE=False,
+        ),
+    )
+    return log_directory
+
+
+def test_candidate_preflight_rejects_project_local_or_unwritable_log_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_directory = _configure_runtime_log_directory(monkeypatch, tmp_path)
+    monkeypatch.setenv(RUNTIME_LOG_DIRECTORY_ENV, str(tmp_path / "candidate-source" / "logs"))
+    issues: list[dict[str, object]] = []
+
+    command.Command()._check_runtime_log_directory(issues)
+
+    assert issues == [
+        {
+            "category": "filesystem",
+            "code": "REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID",
+            "stages": list(command.CONTRACT_STAGES),
+        }
+    ]
+    assert log_directory.is_dir()
+
+
+def test_candidate_preflight_accepts_the_configured_writable_runtime_log_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _configure_runtime_log_directory(monkeypatch, tmp_path)
+    issues: list[dict[str, object]] = []
+
+    command.Command()._check_runtime_log_directory(issues)
+
+    assert issues == []
+
+
+def test_candidate_preflight_checks_optional_django_file_handlers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_directory = _configure_runtime_log_directory(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        command,
+        "settings",
+        SimpleNamespace(
+            CELERY_WORKER_LOG_FILE=log_directory / "worker.log",
+            CELERY_BEAT_LOG_FILE=log_directory / "beat.log",
+            LOG_TO_FILE=True,
+            LOGGING={
+                "handlers": {
+                    "file": {"filename": str(log_directory / "django.log")},
+                    "file_json": {"filename": str(log_directory / "django.json.log")},
+                }
+            },
+        ),
+    )
+    issues: list[dict[str, object]] = []
+
+    command.Command()._check_runtime_log_directory(issues)
+
+    assert issues == []
 
 
 class _BrokenConnection:
@@ -30,6 +104,7 @@ class _BrokenPeriodicTask:
 def test_candidate_preflight_aggregates_safe_codes_after_independent_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _configure_runtime_log_directory(monkeypatch, tmp_path)
     settings_path = tmp_path / "provider-settings.json"
     settings_path.write_text("{}\n", encoding="utf-8", newline="\n")
     identities_path = tmp_path / "provider-identities.json"
@@ -94,6 +169,7 @@ def test_candidate_preflight_aggregates_safe_codes_after_independent_failures(
 def test_candidate_preflight_reports_missing_provider_identity_and_keeps_checking(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    _configure_runtime_log_directory(monkeypatch, tmp_path)
     settings_path = tmp_path / "provider-settings.json"
     settings_path.write_text("{}\n", encoding="utf-8", newline="\n")
     identities_path = tmp_path / "provider-identities.json"

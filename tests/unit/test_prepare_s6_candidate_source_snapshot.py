@@ -19,6 +19,7 @@ from scripts.prepare_s6_candidate_source_snapshot import (
     run_candidate_market_graph_refresh,
     verify_candidate_source_snapshot,
 )
+from shared.runtime_log_paths import READ_ONLY_RUNTIME_LOG_DIRECTORY, RUNTIME_LOG_DIRECTORY_ENV
 
 EXECUTION_IMAGE_ID = "sha256:" + "a" * 64
 
@@ -123,6 +124,8 @@ def _valid_export_argv(
         "--env-file",
         str(execution_env.resolve()),
         "-e",
+        f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}",
+        "-e",
         f"S6_EXPECTED_CANDIDATE={candidate_sha}",
         "-e",
         "S6_EXPECTED_DB=agom_release_rehearsal_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -205,6 +208,8 @@ def _valid_refresh_argv(
         "/tmp:rw,nosuid,nodev,mode=1777,size=2147483648",
         "--env-file",
         str(execution_env.resolve()),
+        "-e",
+        f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}",
         "-e",
         "S6_GRAPH_REFRESH_ENABLED=1",
         "-v",
@@ -728,6 +733,7 @@ def test_candidate_export_requires_unique_non_root_bound_user(
     [
         ("extra_volume", "S6_CANDIDATE_EXPORT_SOURCE_MOUNT_INVALID"),
         ("unsafe_tmpfs", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
+        ("missing_runtime_log_directory", "S6_CANDIDATE_EXPORT_ENVIRONMENT_INVALID"),
         ("wrong_network", "S6_CANDIDATE_EXPORT_ENVIRONMENT_INVALID"),
         ("post_image_option", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
         ("unexpected_image", "S6_CANDIDATE_EXPORT_COMMAND_INVALID"),
@@ -759,6 +765,11 @@ def test_candidate_export_rejects_argv_bypass(
         docker_argv[docker_argv.index("/tmp:rw,nosuid,nodev,mode=1777,size=2147483648")] = (
             "/tmp:rw,size=4g"
         )
+    elif mutation == "missing_runtime_log_directory":
+        env_index = docker_argv.index(
+            f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}"
+        )
+        del docker_argv[env_index - 1 : env_index + 1]
     elif mutation == "wrong_network":
         docker_argv[docker_argv.index(_PREPARE_NETWORK)] = "agom-s6-network-other-prepare"
     elif mutation == "post_image_option":

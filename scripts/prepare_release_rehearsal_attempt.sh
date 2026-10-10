@@ -714,6 +714,7 @@ run_candidate_export() {
     --network "$prepare_network"
     --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=2147483648
     --env-file "$inputs/prepare-export.env"
+    -e AGOM_LOG_DIR=/tmp/agomtradepro/logs
     -e "S6_EXPECTED_CANDIDATE=$sha"
     -e "S6_EXPECTED_DB=$db"
     -e "S6_NETWORK=$net" -e "S6_DATABASE=$db"
@@ -786,6 +787,7 @@ run_candidate_market_graph_refresh() {
     --network "$net"
     --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=2147483648
     --env-file "$inputs/isolated-postgres.env"
+    -e AGOM_LOG_DIR=/tmp/agomtradepro/logs
     -e S6_GRAPH_REFRESH_ENABLED=1
     -v "$candidate_source:/candidate-src:ro"
     -v "$candidate_input_staging:/candidate-inputs:ro"

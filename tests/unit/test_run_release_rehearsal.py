@@ -42,6 +42,7 @@ from scripts.run_release_rehearsal import (
     run_release_rehearsal,
     verify_evidence_handoff_receipt,
 )
+from shared.runtime_log_paths import READ_ONLY_RUNTIME_LOG_DIRECTORY, RUNTIME_LOG_DIRECTORY_ENV
 from tests.unit.financial_scope_capacity_fixtures import write_financial_scope_capacity_fixture
 
 CANDIDATE_SHA = "a" * 40
@@ -1755,6 +1756,14 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         command = next(item for item in runner.commands if item.label == label)
         assert command.env["AGOM_CANDIDATE_IMAGE_ID"] == IMAGE_ID
         assert command.env["AGOM_RELEASE_MANIFEST_PATH"].endswith("candidate-release-manifest.json")
+        docker_environment = {
+            command.argv[index + 1]
+            for index, value in enumerate(command.argv[:-1])
+            if value == "--env"
+        }
+        assert (
+            f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}" in docker_environment
+        )
         assert IMAGE_ID in command.argv
         if label != "provider_probe":
             output_index = command.argv.index("--output-dir")
