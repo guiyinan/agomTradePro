@@ -4057,3 +4057,26 @@ full-scope capacity、双人认证 owner/reviewer 事件和有效 ceiling 停止
 
 下一片是否可开始：可以提交本节台账并 push，以包含 `ff29ec526` 与本台账的新 exact SHA 从头运行五组 CI。只有五组全绿且官方
 PostgreSQL artifact 的全部 59 个 required identity 为 0 skip/failure/error，才可 reserve fresh S6。
+
+##### 2026-10-11 Publication PostgreSQL ORM 规范值与任务结果夹具收口
+
+完成项：候选 `74371b7523cca8b3cb3a1b6ed423e21ddbb55196` 的 Architecture `38080519843` 与 Security
+`38080519809` 已通过，但 Publication PostgreSQL `38080519838` 在同一目标节点再次稳定失败
+（`50 passed / 1 failed / 6 deselected`），因此该 SHA 失去候选资格，全部结果禁止与后续 SHA 拼接。使用本机临时 SQLite 测试库复刻
+相同三类持久化记录并保留唯一生产校验器后，精确定位到两类旧夹具漂移：一是 `Decimal("12.5")` 等 Python 输入在 ORM 回读后规范化为
+数据库精度，旧夹具却在回读前封存 member hash，正确触发 `publication_member_fact_changed`；二是旧 Task Monitor 结果缺少当前规范要求的
+phase、count unit、operation/asset 统计、决策可用性、dataset policy/scope 摘要，且 quote/valuation 只构造一个 member，却声称请求两个
+资产。提交 `bb9c87d70` 让 quote/valuation 与 price 一样先从数据库回读规范值再封存证据，三类均构造两个真实资产，并让 Task Monitor
+结果与 publication coverage、policy identity、scope、member 总数完全一致。临时诊断文件已删除，生产代码与门槛未改。
+
+测试计数：本地临时 SQLite 复刻完整越过三类 active policy、member、fact hash 与 normalized task-result 校验，`1 passed`；正式相关
+单元回归 `55 passed / 1 skipped`。目标 PostgreSQL 测试在本机仍因未启用专用 loopback PostgreSQL 而 `1 skipped`，不计作通过。
+修改测试文件的 Black、isort、Ruff 与 `git diff --check` 通过；本片没有生产 Python 改动。
+
+未验证风险与停止线：SQLite 复刻不能替代真实 PostgreSQL 精度、事务快照和锁语义，新 exact-SHA Publication PostgreSQL 必须完整通过，
+且官方 artifact 全部 59 个 required identity 必须零 skip/failure/error。失败 run `38080519838` 禁止重跑，候选
+`74371b752` 的成功或仍运行结果全部作废。fresh S6、部署和生产任务仍不得开始；失败 S6 attempt 禁止 resume，两个周期入口与
+production financial refresh 停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `bb9c87d70` 与本台账的新 exact SHA 从头运行五组 CI；五组全绿前不得
+reserve fresh S6。
