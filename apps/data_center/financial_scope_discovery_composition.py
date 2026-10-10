@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -46,6 +46,7 @@ from apps.data_center.infrastructure.financial_scope_discovery_reader import (
 from apps.data_center.infrastructure.provider_state_repositories import RawAuditRepository
 from apps.data_center.infrastructure.rehearsal_identity import (
     configured_akshare_financial_identity,
+    rehearsal_identity_dict,
 )
 from apps.data_center.infrastructure.s6_rehearsal_artifact_root import (
     validate_s6_rehearsal_artifact_root,
@@ -77,7 +78,7 @@ def build_financial_scope_discovery_binding(
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_PROVIDER_IDENTITY_INVALID")
     contract = load_financial_scope_discovery_contract()
     identity = configured_akshare_financial_identity(provider_id=provider.id)
-    identity_sha256 = _canonical_sha256(asdict(identity))
+    identity_sha256 = _canonical_sha256(rehearsal_identity_dict(identity))
     return FinancialScopeDiscoveryBinding(
         candidate_sha=candidate_sha,
         provider_id=provider.id,

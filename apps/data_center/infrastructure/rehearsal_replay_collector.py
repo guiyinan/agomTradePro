@@ -20,7 +20,11 @@ from .market_rehearsal_runner import (
     market_rehearsal_source_digest,
     verify_candidate_release_image,
 )
-from .rehearsal_identity import parse_rehearsal_identities, rehearsal_identities_digest
+from .rehearsal_identity import (
+    parse_rehearsal_identities,
+    rehearsal_identities_digest,
+    rehearsal_identities_payload,
+)
 from .rehearsal_response_replay import (
     ReplayResponse,
     ReplayUnitContract,
@@ -772,7 +776,7 @@ def collect_response_replay(
         "schema": "release.real-response-unit-replay.v1",
         "kind": "real_response_unit_replay",
         "evidence_mode": "real_provider",
-        "provider_identities": [asdict(identity) for identity in identities],
+        "provider_identities": rehearsal_identities_payload(identities),
         "source_tree_sha256": source_digest,
         "candidate_source_attestation": source_attestation,
         "started_at": started.isoformat(),

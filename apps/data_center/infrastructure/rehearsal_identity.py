@@ -6,7 +6,7 @@ import hashlib
 import importlib.metadata
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -175,6 +175,14 @@ def rehearsal_identity_dict(identity: RehearsalProviderIdentity) -> dict[str, ob
     if identity.deployment_region is not None:
         value["deployment_region"] = identity.deployment_region
     return value
+
+
+def rehearsal_identities_payload(
+    identities: Iterable[RehearsalProviderIdentity],
+) -> list[dict[str, object]]:
+    """Serialize a provider identity graph with the canonical optional-field policy."""
+
+    return [rehearsal_identity_dict(identity) for identity in identities]
 
 
 def configured_rehearsal_identity(*, provider_id: int, role: str) -> RehearsalProviderIdentity:
@@ -372,9 +380,7 @@ def verify_configured_rehearsal_identities(
 ) -> tuple[RehearsalProviderIdentity, ...]:
     """Fail closed unless supplied identities equal the live non-secret identities."""
 
-    checked = parse_rehearsal_identities(
-        [rehearsal_identity_dict(identity) for identity in identities]
-    )
+    checked = parse_rehearsal_identities(rehearsal_identities_payload(identities))
     actual = tuple(
         configured_rehearsal_identity(provider_id=identity.provider_id, role=identity.role)
         for identity in checked

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, cast
 
@@ -24,6 +23,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     model_market_route_role,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
     rehearsal_identity_matches_adapter_source,
 )
 
@@ -96,14 +96,13 @@ def build_rehearsal_provider_identity_snapshot(
     if financial_identity.role != akshare_financial_route_role(financial_provider_ids[0]):
         raise ValueError("REHEARSAL_AKSHARE_FINANCIAL_PROVIDER_INVALID")
     return parse_rehearsal_identities(
-        [
-            asdict(identity)
-            for identity in (
+        rehearsal_identities_payload(
+            (
                 *core,
                 *(routes[key] for key in sorted(routes)),
                 financial_identity,
             )
-        ]
+        )
     )
 
 
@@ -147,7 +146,7 @@ class Command(BaseCommand):
                 code = "REHEARSAL_PROVIDER_IDENTITY_UNAVAILABLE"
             raise CommandError(code) from None
 
-        payload = [asdict(identity) for identity in identities]
+        payload = rehearsal_identities_payload(identities)
         encoded = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode()
         output = options.get("output")
         if output is None:

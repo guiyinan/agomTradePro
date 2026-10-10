@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, replace
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -48,6 +48,7 @@ from apps.data_center.infrastructure.financial_source_time_matchers import (
 from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
 )
 from core.exceptions import DataFetchError
 from scripts import validate_release_rehearsal as release_validator
@@ -66,6 +67,7 @@ def _identities() -> tuple[RehearsalProviderIdentity, ...]:
             "akshare_financial",
             f"akshare-financial-v1-requests-2.32.5-contract-{contract.contract_sha256[:12]}",
             "akshare-financial-route-v1",
+            "unknown",
         ),
     )
 
@@ -287,7 +289,7 @@ def test_financial_report_producer_emits_validator_compatible_fake_stage_evidenc
     identity_digest = rehearsal_identities_digest(identities)
     identity_path = tmp_path / "provider-identities.json"
     identity_path.write_text(
-        json.dumps([asdict(identity) for identity in identities]),
+        json.dumps(rehearsal_identities_payload(identities)),
         encoding="utf-8",
     )
     provider = cast(ProviderConfig, SimpleNamespace(id=19, name="AKShare Financial"))

@@ -8,7 +8,7 @@ import os
 import re
 import tempfile
 import xml.etree.ElementTree as ET
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import cast
@@ -82,6 +82,8 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     akshare_financial_route_role,
     load_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
+    rehearsal_identity_dict,
     verify_configured_rehearsal_identities,
 )
 from core.exceptions import DataFetchError
@@ -229,7 +231,7 @@ def collect_akshare_financial_slice_rehearsal(
         "candidate_source_attestation": identity_attestation,
         "target_trade_date": target_trade_date.isoformat(),
         "universe_sha256": universe_sha256,
-        "provider_identities": [asdict(identity) for identity in identities],
+        "provider_identities": rehearsal_identities_payload(identities),
         "provider_identities_sha256": provider_identities_sha256,
         "evidence_mode": "isolated_postgresql_redis_real_provider",
         "started_at": started_at.isoformat(),
@@ -256,11 +258,15 @@ def collect_akshare_financial_slice_rehearsal(
             "source_type": "akshare",
             "frozen_identity_role": provider_identity.role,
             "frozen_identity_source": provider_identity.source,
-            "frozen_route_identity_sha256": _canonical_sha256(asdict(provider_identity)),
+            "frozen_route_identity_sha256": _canonical_sha256(
+                rehearsal_identity_dict(provider_identity)
+            ),
         },
         "financial_route": {
-            "provider_route_identity": asdict(provider_identity),
-            "provider_route_identity_sha256": _canonical_sha256(asdict(provider_identity)),
+            "provider_route_identity": rehearsal_identity_dict(provider_identity),
+            "provider_route_identity_sha256": _canonical_sha256(
+                rehearsal_identity_dict(provider_identity)
+            ),
             "endpoint": akshare_notice_date_match_contract().endpoint,
             "source_time_contract": akshare_notice_date_match_contract().to_dict(),
         },

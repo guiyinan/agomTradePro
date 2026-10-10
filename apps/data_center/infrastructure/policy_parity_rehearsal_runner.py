@@ -15,7 +15,6 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -29,6 +28,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     load_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
     rehearsal_identity_matches_adapter_source,
 )
 
@@ -150,7 +150,7 @@ def collect_production_policy_parity(
         "target_trade_date": target_trade_date.isoformat(),
         "universe_sha256": universe_sha256,
         "provider_identities_sha256": provider_identities_sha256,
-        "provider_identities": [asdict(identity) for identity in provider_identities],
+        "provider_identities": rehearsal_identities_payload(provider_identities),
         "outcome": "success",
         "evidence_mode": POLICY_PARITY_EVIDENCE_MODE,
         "started_at": started.isoformat(),

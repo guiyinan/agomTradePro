@@ -494,7 +494,9 @@ def _fixture(
         "target_trade_date": DATE,
         "stored": 0,
         "publication_updated": False,
-        "provider_identities": [asdict(identity) for identity in identities],
+        "provider_identities": modules["rehearsal_identity"].rehearsal_identities_payload(
+            identities
+        ),
         "provider_identities_sha256": digest,
         "asset_codes": list(universe),
         "universe_count": len(universe),
@@ -840,7 +842,7 @@ def test_collector_failures_never_write_success_report(modules, tmp_path, monkey
 
 def test_public_identity_input_rejects_secret_extras_and_bool_ids(modules):
     identity = modules["rehearsal_identity"]
-    values = [asdict(item) for item in _identities(modules)]
+    values = identity.rehearsal_identities_payload(_identities(modules))
     values[0]["api_key"] = "must-never-be-read"
     with pytest.raises(ValueError):
         identity.parse_rehearsal_identities(values)

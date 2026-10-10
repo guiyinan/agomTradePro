@@ -71,6 +71,7 @@ def test_export_includes_each_real_failover_route_once(monkeypatch: pytest.Monke
             source="akshare_financial",
             version="akshare-financial-v1-requests-2.32.5",
             endpoint_id=f"akshare-financial-{provider_id}",
+            deployment_region="unknown",
         ),
     )
 
@@ -106,6 +107,7 @@ def test_command_writes_bounded_snapshot_and_refuses_overwrite(
             "akshare_financial",
             "akshare-financial-v1-requests-2.32.5",
             "akshare-financial-4",
+            "unknown",
         ),
     )
     monkeypatch.setattr(

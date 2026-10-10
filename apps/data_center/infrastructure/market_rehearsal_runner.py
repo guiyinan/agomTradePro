@@ -10,7 +10,6 @@ import subprocess
 import time
 from collections.abc import Callable
 from contextlib import nullcontext
-from dataclasses import asdict
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal, Protocol, runtime_checkable
@@ -42,6 +41,7 @@ from .rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
     rehearsal_identity_matches_adapter_source,
     verify_configured_rehearsal_identities,
 )
@@ -301,7 +301,7 @@ def run_market_provider_rehearsal(
     identities: dict[str, RehearsalProviderIdentity] = {}
     identity_digest = ""
     if provider_identities is not None:
-        checked = parse_rehearsal_identities([asdict(value) for value in provider_identities])
+        checked = parse_rehearsal_identities(rehearsal_identities_payload(provider_identities))
         identities = {identity.role: identity for identity in checked}
         if identities["quote"].source != "tushare" or identities["valuation"].source not in {
             "tushare",
@@ -745,7 +745,7 @@ def run_market_provider_rehearsal(
         "valuation_sample": list(valuation_sample),
         "valuation_sample_sha256": rehearsal_digest(valuation_sample),
         "quote_provider_id": quote_provider_id,
-        "provider_identities": [asdict(identity) for identity in (provider_identities or ())],
+        "provider_identities": rehearsal_identities_payload(provider_identities or ()),
         "provider_identities_sha256": identity_digest,
         "response_retention_enabled": response_store is not None,
         "valuation_provider_id": valuation_provider_id,

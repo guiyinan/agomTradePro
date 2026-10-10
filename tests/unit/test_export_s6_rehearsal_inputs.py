@@ -13,7 +13,7 @@ import pytest
 from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     rehearsal_identities_digest,
-    rehearsal_identity_dict,
+    rehearsal_identities_payload,
 )
 from scripts import export_s6_rehearsal_inputs as exporter
 
@@ -38,7 +38,7 @@ def _identities() -> tuple[RehearsalProviderIdentity, ...]:
 def _identity_payload() -> list[dict[str, object]]:
     """Serialize the test identities as the production exporter does."""
 
-    return [rehearsal_identity_dict(identity) for identity in _identities()]
+    return rehearsal_identities_payload(_identities())
 
 
 def _unit_contract(candidate_sha: str) -> dict[str, object]:

@@ -195,6 +195,30 @@ def test_complete_identity_graph_allows_region_only_on_financial_route() -> None
     assert [item.deployment_region for item in parsed] == [None, None, "unknown"]
 
 
+def test_identity_payload_uses_one_canonical_optional_region_shape() -> None:
+    """Every S6 evidence writer omits absent regions and retains the financial one."""
+
+    identities = (
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1"),
+        RehearsalProviderIdentity("valuation", 3, "tencent", "v1", "endpoint-v2"),
+        RehearsalProviderIdentity(
+            "akshare_financial_route:3",
+            3,
+            "akshare_financial",
+            "v1",
+            "endpoint-v3",
+            "unknown",
+        ),
+    )
+
+    payload = identity.rehearsal_identities_payload(identities)
+
+    assert "deployment_region" not in payload[0]
+    assert "deployment_region" not in payload[1]
+    assert payload[2]["deployment_region"] == "unknown"
+    assert identity.parse_complete_rehearsal_identities(payload) == identities
+
+
 @pytest.mark.parametrize("financial_provider_ids", [(), (3, 4)])
 def test_complete_identity_graph_requires_exactly_one_financial_route(
     financial_provider_ids: tuple[int, ...],

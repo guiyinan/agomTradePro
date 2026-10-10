@@ -37,6 +37,7 @@ from apps.data_center.infrastructure.rehearsal_identity import (
     RehearsalProviderIdentity,
     parse_rehearsal_identities,
     rehearsal_identities_digest,
+    rehearsal_identities_payload,
 )
 from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
 from shared.release_rehearsal_stage_environment import (
@@ -1265,7 +1266,7 @@ def _write_identity(
     unit_path = input_dir / "provider-unit-contract.json"
     _write_json(
         identity_path,
-        {**asdict(identity), "provider_identities": [asdict(i) for i in identities]},
+        {**asdict(identity), "provider_identities": rehearsal_identities_payload(identities)},
         read_only=True,
     )
     _write_json(
