@@ -3424,3 +3424,26 @@ Linux symlink/special-file 故障注入或 bash helper；必须由新 exact-SHA 
 下一片是否可开始：可以提交本节台账并 push 新 exact SHA，从头绑定 Architecture、Security、Consistency、Fast Feedback 与
 Publication PostgreSQL。只有同一 SHA 五组全绿、official artifact 所有必需节点零 skip/failure/error，才可用 planner v2 预留全新
 attempt，并以 tracked exporter 跑完整 fresh S6；禁止复用旧 receipt/image 或 `--resume`。
+
+##### 2026-10-10 发布证据采集器可移植性与 manifest 契约同步
+
+完成项：候选 `62fad0029e515a44677d0139c256259008313244` 的 Architecture `38012120114`、Security
+`38012120040`、Consistency `38012120029` 与 Publication PostgreSQL `38012182166` 通过，但 Fast Feedback
+`38012120112` 在 Python 3.11/3.13 同时以相同两项失败，故该 SHA 不得进入 S6。根因一是 `build_manifest` 已要求
+`release_tag/image_tag` 和冻结 universe/provider identity 图，跨模块 collector 契约测试仍构造旧形态 fixture；根因二是 validator
+后来新增共享 stage-environment 依赖后，collector 仍在 argparse 之前导入完整 validator，使隔离目录中的 `--help` 因缺少
+`shared` 包而失败。提交 `0fda9b76a` 补齐完整冻结身份 fixture，并将 validator 动态导入延迟到参数解析后的真实采集入口；
+`--help` 保持无运行时副作用，真实采集和直接函数调用仍加载同一个严格 validator，加载或校验失败继续返回稳定 blocked 结果。
+
+测试计数：collector 与 manifest 聚焦回归 `34 passed / 1 skipped`，其中 1 个 skip 是 Windows 无法执行的 POSIX 文件模式反例，
+未计作通过；collector 独立回归 `16 passed`。完整 no-database Fast suite 为 `4,041 passed`，耗时 44.74 秒，低于 120 秒预算。
+修改的生产 Python 文件增量 mypy 为 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与
+`git diff --check` 通过。
+
+未验证风险与停止线：延迟导入与 fixture 同步必须由包含本节台账的新 exact SHA Linux Fast Feedback 实证；上一 SHA 的四组成功和
+Publication PostgreSQL artifact 不得拼接。新的 Publication PostgreSQL 仍须重新证明 required financial-capacity、financial slice、
+Account outer-fence 与 5,001 member soak 身份全部零 skip/failure/error。fresh S6、同镜像部署、只读联合 UAT 与普通用户流程尚未开始；
+生产 full-market 禁止重跑、两个周期入口保持 disabled，financial refresh 仍须系统内双审批和有效 full-scope ceiling。
+
+下一片是否可开始：可以提交本节台账并 push 新最终 SHA，从头绑定五组 CI。只有同一 SHA 五组全绿并核验官方 PostgreSQL artifact
+后，才可由 planner v2 从最新生产只读快照创建 fresh S6；禁止复用旧 run、receipt、image 或 `--resume`。
