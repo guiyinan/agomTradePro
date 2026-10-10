@@ -75,6 +75,8 @@ def test_all_export_modes_reverify_the_sealed_snapshot_with_structured_docker_ar
     assert 's6_candidate_export_failure_code "$mode"' in source
     assert "$mode_FAILED" not in source
     assert 'python3 -B "$candidate_source_helper" "${helper_argv[@]}"' in source
+    assert source.count("parse_complete_rehearsal_identities") == 4
+    assert 'row.get("deployment_region") for row in identities' not in source
 
 
 def test_prepare_reorders_to_isolated_snapshot_and_exporter_network() -> None:
@@ -257,6 +259,84 @@ def test_filtered_and_exporter_environments_execute_with_secret_negative_cases(
     assert isolated["SECRET_KEY"] == "fresh-rehearsal-secret-key"
 
 
+@pytest.mark.parametrize(("financial_region", "expected_code"), [("unknown", 0), (None, 1)])
+def test_production_export_validation_uses_complete_identity_contract(
+    tmp_path: Path,
+    financial_region: str | None,
+    expected_code: int,
+) -> None:
+    source = _wrapper_text()
+    validation_start = source.index("run_candidate_export production")
+    body_start = source.index("import json, sys\n", validation_start)
+    body_end = source.index("\nPY\n", body_start)
+    body = source[body_start:body_end]
+    candidate_sha = "c" * 40
+    settings_path = tmp_path / "provider-settings.json"
+    identities_path = tmp_path / "provider-identities.json"
+    unit_path = tmp_path / "unit-contract.json"
+    settings_path.write_text(json.dumps({"provider": "test"}), encoding="utf-8")
+    identities_path.write_text(
+        json.dumps(
+            [
+                {
+                    "role": "quote",
+                    "provider_id": 2,
+                    "source": "tushare",
+                    "version": "v1",
+                    "endpoint_id": "quote-endpoint",
+                    "deployment_region": None,
+                },
+                {
+                    "role": "valuation",
+                    "provider_id": 3,
+                    "source": "tencent",
+                    "version": "v1",
+                    "endpoint_id": "valuation-endpoint",
+                    "deployment_region": None,
+                },
+                {
+                    "role": "akshare_financial_route:3",
+                    "provider_id": 3,
+                    "source": "akshare_financial",
+                    "version": "v1",
+                    "endpoint_id": "financial-endpoint",
+                    "deployment_region": financial_region,
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    unit_path.write_text(
+        json.dumps(
+            {
+                "schema": "release.provider-unit-contract.v1",
+                "candidate_sha": candidate_sha,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-",
+            str(settings_path),
+            str(identities_path),
+            str(unit_path),
+            candidate_sha,
+            str(PROJECT_ROOT),
+        ],
+        input=body,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == expected_code
+    if expected_code:
+        assert "S6_PROVIDER_IDENTITIES_INVALID" in result.stderr
+
+
 @pytest.mark.skipif(os.name != "posix", reason="final validation requires POSIX file modes")
 def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_path: Path) -> None:
     source = _wrapper_text()
@@ -273,7 +353,32 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
     exports.mkdir(mode=0o700)
     names = {
         "provider-settings.json": {"candidate_sha": "c" * 40},
-        "provider-identities.json": [{"deployment_region": "test"}],
+        "provider-identities.json": [
+            {
+                "role": "quote",
+                "provider_id": 2,
+                "source": "tushare",
+                "version": "v1",
+                "endpoint_id": "quote-endpoint",
+                "deployment_region": None,
+            },
+            {
+                "role": "valuation",
+                "provider_id": 3,
+                "source": "tencent",
+                "version": "v1",
+                "endpoint_id": "valuation-endpoint",
+                "deployment_region": None,
+            },
+            {
+                "role": "akshare_financial_route:3",
+                "provider_id": 3,
+                "source": "akshare_financial",
+                "version": "v1",
+                "endpoint_id": "financial-endpoint",
+                "deployment_region": "unknown",
+            },
+        ],
         "unit-contract.json": {"candidate_sha": "c" * 40},
         "provider-policy-preflight.json": {"outcome": "pass"},
         "universe-summary.json": {
@@ -360,6 +465,7 @@ def test_final_validation_python_executes_against_a_private_attempt_tree(tmp_pat
         requirements_sha,
         str(owner.st_uid),
         str(owner.st_gid),
+        str(PROJECT_ROOT),
     ]
 
     result = subprocess.run(

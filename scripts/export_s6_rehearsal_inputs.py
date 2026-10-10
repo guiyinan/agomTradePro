@@ -455,24 +455,6 @@ def _publish_outputs(outputs: Mapping[str, bytes]) -> None:
         _write_new(OUTPUT_ROOT / name, payload)
 
 
-def _validate_identity_completeness(identities: Sequence[_ProviderIdentity]) -> None:
-    """Require core identities and exactly one explicit financial route identity."""
-
-    roles: list[str] = []
-    financial_regions: list[str] = []
-    for identity in identities:
-        role = identity.role
-        region = identity.deployment_region
-        source = identity.source
-        roles.append(role)
-        if role.startswith("akshare_financial_route:"):
-            if source != "akshare_financial" or not isinstance(region, str) or not region:
-                raise ExportBlocked("S6_PROVIDER_IDENTITY_INVALID")
-            financial_regions.append(region)
-    if "quote" not in roles or "valuation" not in roles or len(financial_regions) != 1:
-        raise ExportBlocked("S6_PROVIDER_IDENTITY_INVALID")
-
-
 def _unit_contract_payload(
     *,
     candidate_sha: str,
@@ -513,14 +495,13 @@ def _validate_frozen_inputs(
     """Parse all identities and verify their candidate-bound unit contract."""
 
     from apps.data_center.infrastructure.rehearsal_identity import (
-        parse_rehearsal_identities,
+        parse_complete_rehearsal_identities,
         rehearsal_identities_digest,
     )
     from scripts import validate_release_rehearsal as validator
 
     try:
-        identities = parse_rehearsal_identities(identities_value)
-        _validate_identity_completeness(cast(tuple[_ProviderIdentity, ...], identities))
+        identities = parse_complete_rehearsal_identities(identities_value)
         digest = rehearsal_identities_digest(identities)
         valuation = next(identity for identity in identities if identity.role == "valuation")
     except ExportBlocked:
@@ -561,7 +542,7 @@ def _export_production(config: ExportConfig) -> None:
 
     from apps.data_center.infrastructure.models import ProviderConfigModel
     from apps.data_center.infrastructure.rehearsal_identity import (
-        parse_rehearsal_identities,
+        parse_complete_rehearsal_identities,
         rehearsal_identities_digest,
     )
     from scripts import validate_release_rehearsal as validator
@@ -609,8 +590,7 @@ def _export_production(config: ExportConfig) -> None:
                 stderr=io.StringIO(),
             )
             identities_value = _read_json(identities_path, 16_384)
-            identities = parse_rehearsal_identities(identities_value)
-            _validate_identity_completeness(cast(tuple[_ProviderIdentity, ...], identities))
+            identities = parse_complete_rehearsal_identities(identities_value)
             identities_digest = rehearsal_identities_digest(identities)
             valuation = next(identity for identity in identities if identity.role == "valuation")
             expected_contracts = (

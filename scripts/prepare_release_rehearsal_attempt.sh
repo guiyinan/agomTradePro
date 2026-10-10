@@ -761,17 +761,21 @@ copy_candidate_input() {
 run_candidate_export production || fail S6_CANDIDATE_EXPORT_PRODUCTION_FAILED
 verify_candidate_files "$export_root" provider-settings.json provider-identities.json \
   unit-contract.json provider-policy-preflight.json || fail S6_PRODUCTION_EXPORT_INVALID
-python3 - "$export_root/provider-settings.json" "$export_root/provider-identities.json" \
-  "$export_root/unit-contract.json" "$sha" <<'PY' || fail S6_PRODUCTION_EXPORT_INVALID
+python3 -B - "$export_root/provider-settings.json" "$export_root/provider-identities.json" \
+  "$export_root/unit-contract.json" "$sha" "$candidate_source" <<'PY' || fail S6_PRODUCTION_EXPORT_INVALID
 import json, sys
 from pathlib import Path
 settings, identities, unit = [json.loads(Path(path).read_text(encoding="utf-8")) for path in sys.argv[1:4]]
+sys.path.insert(0, sys.argv[5])
+from apps.data_center.infrastructure.rehearsal_identity import parse_complete_rehearsal_identities
 if not isinstance(settings, dict) or not settings:
     raise SystemExit("S6_PREPARE_BLOCKED code=S6_PROVIDER_SETTINGS_INVALID")
 if not isinstance(identities, list) or not identities:
     raise SystemExit("S6_PREPARE_BLOCKED code=S6_PROVIDER_IDENTITIES_INVALID")
-if any(not isinstance(row, dict) or not row.get("deployment_region") for row in identities):
-    raise SystemExit("S6_PREPARE_BLOCKED code=S6_PROVIDER_DEPLOYMENT_REGION_INVALID")
+try:
+    parse_complete_rehearsal_identities(identities)
+except ValueError:
+    raise SystemExit("S6_PREPARE_BLOCKED code=S6_PROVIDER_IDENTITIES_INVALID") from None
 if not isinstance(unit, dict) or unit.get("schema") != "release.provider-unit-contract.v1" or unit.get("candidate_sha") != sys.argv[4]:
     raise SystemExit("S6_PREPARE_BLOCKED code=S6_UNIT_CONTRACT_INVALID")
 PY
@@ -829,12 +833,12 @@ if docker network inspect "$prepare_network" >/dev/null 2>&1; then
 fi
 
 phase=final_validation
-python3 - "$inputs" "$export_root" "$sha" "$db" "$net" "$pg" "$redis" \
+python3 -B - "$inputs" "$export_root" "$sha" "$db" "$net" "$pg" "$redis" \
   "$prepare_network" "$prepare_alias" \
   "$namespace" "$evidence_dir" "$provider_settings_export_path" \
   "$provider_identities_export_path" "$candidate_source_receipt" \
   "$execution_image" "$prepare_receipt" "$runner_receipt" "$runner_python" \
-  "$requirements_sha256" "$candidate_uid" "$candidate_gid" <<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED
+  "$requirements_sha256" "$candidate_uid" "$candidate_gid" "$candidate_source" <<'PY' || fail S6_PREPARE_FINAL_VALIDATION_FAILED
 import datetime, hashlib, json, os, re, stat, sys
 from pathlib import Path
 (
@@ -842,8 +846,10 @@ from pathlib import Path
     prepare_network, prepare_alias, namespace,
     evidence_dir, settings_path, identities_path, source_receipt_path, image_id,
     prepare_receipt_path, runner_receipt_path, runner_python, requirements_sha,
-    uid_text, gid_text,
+    uid_text, gid_text, candidate_source,
 ) = sys.argv[1:]
+sys.path.insert(0, candidate_source)
+from apps.data_center.infrastructure.rehearsal_identity import parse_complete_rehearsal_identities
 inputs, exports = Path(inputs_text), Path(exports_text)
 uid, gid = int(uid_text), int(gid_text)
 expected = {
@@ -908,7 +914,10 @@ policy = json.loads((exports / "provider-policy-preflight.json").read_text(encod
 universe = json.loads((exports / "universe-summary.json").read_text(encoding="utf-8"))
 require(isinstance(settings, dict) and bool(settings), "S6_PROVIDER_SETTINGS_INVALID")
 require(isinstance(identities, list) and bool(identities), "S6_PROVIDER_IDENTITIES_INVALID")
-require(all(isinstance(row, dict) and row.get("deployment_region") for row in identities), "S6_PROVIDER_DEPLOYMENT_REGION_INVALID")
+try:
+    parse_complete_rehearsal_identities(identities)
+except ValueError:
+    require(False, "S6_PROVIDER_IDENTITIES_INVALID")
 require(isinstance(unit, dict) and unit.get("candidate_sha") == candidate, "S6_UNIT_CONTRACT_INVALID")
 require(isinstance(policy, dict) and policy.get("outcome") == "pass", "S6_PROVIDER_POLICY_PREFLIGHT_INVALID")
 date_value, count, universe_sha = universe.get("target_trade_date"), universe.get("universe_count"), universe.get("universe_sha256")

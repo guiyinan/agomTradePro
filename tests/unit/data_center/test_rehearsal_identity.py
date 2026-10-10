@@ -176,6 +176,72 @@ def test_route_identity_role_must_bind_its_provider_id() -> None:
         identity.parse_rehearsal_identities(financial_values)
 
 
+def test_complete_identity_graph_allows_region_only_on_financial_route() -> None:
+    values = [
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity("valuation", 3, "tencent", "v1", "endpoint-v2").__dict__,
+        RehearsalProviderIdentity(
+            "akshare_financial_route:3",
+            3,
+            "akshare_financial",
+            "v1",
+            "endpoint-v3",
+            "unknown",
+        ).__dict__,
+    ]
+
+    parsed = identity.parse_complete_rehearsal_identities(values)
+
+    assert [item.deployment_region for item in parsed] == [None, None, "unknown"]
+
+
+@pytest.mark.parametrize("financial_provider_ids", [(), (3, 4)])
+def test_complete_identity_graph_requires_exactly_one_financial_route(
+    financial_provider_ids: tuple[int, ...],
+) -> None:
+    values = [
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity("valuation", 3, "tencent", "v1", "endpoint-v2").__dict__,
+    ]
+    values.extend(
+        RehearsalProviderIdentity(
+            f"akshare_financial_route:{provider_id}",
+            provider_id,
+            "akshare_financial",
+            "v1",
+            f"financial-endpoint-{provider_id}",
+            "unknown",
+        ).__dict__
+        for provider_id in financial_provider_ids
+    )
+
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_INVALID"):
+        identity.parse_complete_rehearsal_identities(values)
+
+
+@pytest.mark.parametrize("invalid_role", ["quote", "akshare_financial_route:3"])
+def test_identity_graph_rejects_region_on_wrong_role_or_missing_on_financial(
+    invalid_role: str,
+) -> None:
+    values = [
+        RehearsalProviderIdentity("quote", 2, "tushare", "v1", "endpoint-v1").__dict__,
+        RehearsalProviderIdentity("valuation", 3, "tencent", "v1", "endpoint-v2").__dict__,
+        RehearsalProviderIdentity(
+            "akshare_financial_route:3",
+            3,
+            "akshare_financial",
+            "v1",
+            "financial-endpoint",
+            "unknown",
+        ).__dict__,
+    ]
+    target = next(value for value in values if value["role"] == invalid_role)
+    target["deployment_region"] = "wrong-region" if invalid_role == "quote" else None
+
+    with pytest.raises(ValueError, match="REHEARSAL_PROVIDER_IDENTITY_INVALID"):
+        identity.parse_complete_rehearsal_identities(values)
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("field", "value"),

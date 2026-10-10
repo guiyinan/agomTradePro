@@ -100,6 +100,22 @@ def parse_rehearsal_identities(value: object) -> tuple[RehearsalProviderIdentity
     return tuple(identities)
 
 
+def parse_complete_rehearsal_identities(
+    value: object,
+) -> tuple[RehearsalProviderIdentity, ...]:
+    """Parse the complete S6 graph, including one financial route identity."""
+
+    identities = parse_rehearsal_identities(value)
+    financial_routes = tuple(
+        identity
+        for identity in identities
+        if identity.role.startswith(_AKSHARE_FINANCIAL_ROUTE_ROLE_PREFIX)
+    )
+    if len(financial_routes) != 1:
+        raise ValueError("REHEARSAL_PROVIDER_IDENTITY_INVALID")
+    return identities
+
+
 def model_market_route_role(provider_id: int) -> str:
     """Return the canonical frozen-identity role for one model-market route."""
 
