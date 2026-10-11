@@ -7,7 +7,9 @@ import json
 import os
 import shutil
 import stat
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Callable
@@ -2373,19 +2375,10 @@ def test_container_input_tree_recheck_rejects_mode_drift(tmp_path: Path) -> None
         verify_container_input_tree(root, gid, RehearsalBlocked)
 
 
-def test_failed_container_stage_seals_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.skipif(os.name != "posix", reason="POSIX stage mode contract")
+def test_failed_container_stage_seals_directory(tmp_path: Path) -> None:
     destination = tmp_path / "stage"
     destination.mkdir()
-    calls: list[int] = []
-    original_chmod = Path.chmod
-
-    def record_chmod(path: Path, mode: int) -> None:
-        calls.append(mode)
-        original_chmod(path, mode)
-
-    monkeypatch.setattr(Path, "chmod", record_chmod)
     gid = os.getgid() if hasattr(os, "getgid") else 1000
 
     with pytest.raises(RehearsalBlocked, match="S6_STAGE_COMMAND_FAILED"):
@@ -2400,7 +2393,262 @@ def test_failed_container_stage_seals_directory(
             container_gid=gid,
         )
 
-    assert calls[-1] == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o750
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX group ownership contract")
+def test_container_stage_prepares_and_seals_declared_output_subdirectory(
+    tmp_path: Path,
+) -> None:
+    """A host-created output directory is group-writable only while its stage runs."""
+
+    destination = tmp_path / "stage"
+    output = destination / "output"
+    output.mkdir(parents=True)
+    gid = os.getgid()
+
+    class InspectingRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            metadata = output.stat()
+            assert metadata.st_gid == gid
+            assert stat.S_IMODE(metadata.st_mode) == 0o2770
+            (output / "stage-report.json").write_text("{}", encoding="utf-8")
+            return CommandResult(returncode=0)
+
+    result = _invoke_container_stage(
+        InspectingRunner(),
+        argv=("candidate",),
+        root=tmp_path,
+        label="financial_scope_capacity",
+        timeout=1,
+        env={},
+        artifact_dir=destination,
+        container_gid=gid,
+        writable_subdirectories=("output",),
+    )
+
+    assert result.returncode == 0
+    assert (output / "stage-report.json").is_file()
+    assert output.stat().st_gid == gid
+    assert stat.S_IMODE(output.stat().st_mode) == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o750
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX directory descriptors required")
+def test_container_stage_writable_output_supports_non_root_container_user(
+    tmp_path: Path,
+) -> None:
+    """Exercise a precreated host output directory as a non-root container identity."""
+
+    is_root = hasattr(os, "geteuid") and os.geteuid() == 0
+    base = (
+        Path(tempfile.mkdtemp(prefix="s6-nonroot-output-", dir=tempfile.gettempdir()))
+        if is_root
+        else tmp_path
+    )
+    if is_root:
+        base.chmod(0o755)
+    destination = base / "stage"
+    output = destination / "output"
+    output.mkdir(parents=True)
+    container_uid = 65534 if is_root else os.geteuid()
+    container_gid = 65534 if is_root else os.getgid()
+
+    class NonRootWriter:
+        def run(self, command: Command) -> CommandResult:
+            assert command.artifact_dir == destination
+            metadata = output.stat()
+            assert metadata.st_gid == container_gid
+            assert stat.S_IMODE(metadata.st_mode) == 0o2770
+
+            def drop_privileges() -> None:
+                os.setgroups([])
+                os.setgid(container_gid)
+                os.setuid(container_uid)
+
+            target = output / "container-owned-report.json"
+            process = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys; Path(sys.argv[1]).write_text('{}')",
+                    str(target),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                preexec_fn=drop_privileges if is_root else None,
+            )
+            return CommandResult(
+                returncode=process.returncode,
+                stdout=process.stdout,
+                stderr=process.stderr,
+            )
+
+    try:
+        result = _invoke_container_stage(
+            NonRootWriter(),
+            argv=("candidate",),
+            root=base,
+            label="financial_scope_capacity",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=container_gid,
+            writable_subdirectories=("output",),
+        )
+        assert result.returncode == 0
+        assert (output / "container-owned-report.json").is_file()
+        assert stat.S_IMODE(output.stat().st_mode) == 0o750
+    finally:
+        if is_root:
+            shutil.rmtree(base)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX ownership failure injection")
+def test_container_stage_rejects_unwritable_output_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ownership setup failure blocks before a container can touch stage output."""
+
+    destination = tmp_path / "stage"
+    output = destination / "output"
+    output.mkdir(parents=True)
+    output_identity = (output.stat().st_dev, output.stat().st_ino)
+    original_fchown = os.fchown
+    runner = FakeRunner()
+
+    def deny_output_chown(descriptor: int, uid: int, gid: int) -> None:
+        metadata = os.fstat(descriptor)
+        if (metadata.st_dev, metadata.st_ino) == output_identity:
+            raise PermissionError("sensitive ownership diagnostic")
+        original_fchown(descriptor, uid, gid)
+
+    monkeypatch.setattr(rehearsal.os, "fchown", deny_output_chown)
+    gid = os.getgid()
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            runner,
+            argv=("candidate",),
+            root=tmp_path,
+            label="financial_scope_capacity",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=gid,
+            writable_subdirectories=("output",),
+        )
+
+    assert exc_info.value.code == "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED"
+    assert not runner.commands
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o750
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX descriptor sealing contract")
+def test_container_stage_seals_original_output_after_path_replacement(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "stage"
+    output = destination / "output"
+    output.mkdir(parents=True)
+    original_identity = (output.stat().st_dev, output.stat().st_ino)
+    moved = destination / "moved-output"
+
+    class ReplacingRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            assert stat.S_IMODE(destination.stat().st_mode) == 0o2750
+            output.rename(moved)
+            output.mkdir()
+            return CommandResult(returncode=0)
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            ReplacingRunner(),
+            argv=("candidate",),
+            root=tmp_path,
+            label="financial_scope_capacity",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=os.getgid(),
+            writable_subdirectories=("output",),
+        )
+
+    assert exc_info.value.code == "S6_ARTIFACT_DIRECTORY_CHANGED"
+    assert (moved.stat().st_dev, moved.stat().st_ino) == original_identity
+    assert stat.S_IMODE(moved.stat().st_mode) == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o750
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX partial ownership rollback")
+def test_container_stage_seals_output_when_prepare_chmod_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "stage"
+    output = destination / "output"
+    output.mkdir(parents=True)
+    output_identity = (output.stat().st_dev, output.stat().st_ino)
+    original_fchmod = os.fchmod
+    runner = FakeRunner()
+
+    def fail_output_writable_mode(descriptor: int, mode: int) -> None:
+        metadata = os.fstat(descriptor)
+        if (metadata.st_dev, metadata.st_ino) == output_identity and mode == 0o2770:
+            raise PermissionError("sensitive chmod diagnostic")
+        original_fchmod(descriptor, mode)
+
+    monkeypatch.setattr(rehearsal.os, "fchmod", fail_output_writable_mode)
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            runner,
+            argv=("candidate",),
+            root=tmp_path,
+            label="financial_scope_capacity",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=os.getgid(),
+            writable_subdirectories=("output",),
+        )
+
+    assert exc_info.value.code == "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED"
+    assert not runner.commands
+    assert stat.S_IMODE(output.stat().st_mode) == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o750
+
+
+def test_container_stage_rejects_symlinked_declared_output(tmp_path: Path) -> None:
+    destination = tmp_path / "stage"
+    destination.mkdir()
+    target = tmp_path / "target"
+    target.mkdir()
+    output = destination / "output"
+    try:
+        output.symlink_to(target, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable")
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke_container_stage(
+            runner,
+            argv=("candidate",),
+            root=tmp_path,
+            label="financial_scope_capacity",
+            timeout=1,
+            env={},
+            artifact_dir=destination,
+            container_gid=os.getgid() if hasattr(os, "getgid") else 1000,
+            writable_subdirectories=("output",),
+        )
+
+    assert exc_info.value.code == "S6_ARTIFACT_DIRECTORY_INVALID"
+    assert not runner.commands
 
 
 @pytest.mark.parametrize(

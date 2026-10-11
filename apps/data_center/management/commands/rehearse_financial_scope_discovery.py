@@ -149,7 +149,8 @@ class Command(BaseCommand):
                 _write_exclusive_json(receipt_path, capacity_receipt)
         except Exception as exc:
             code = _stable_rehearsal_code(exc)
-            _write_safe_failure_report(report_path, candidate_sha=candidate_sha, code=code)
+            if not _write_safe_failure_report(report_path, candidate_sha=candidate_sha, code=code):
+                code = "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_EVIDENCE_WRITE_FAILED"
             raise CommandError(code) from None
 
         result = report["result"]
@@ -503,11 +504,23 @@ def _encoded_json(payload: dict[str, object]) -> bytes:
     )
 
 
-def _write_safe_failure_report(path: Path, *, candidate_sha: str, code: str) -> None:
-    """Preserve one stable, secret-free stage failure if output is safely writable."""
+def _write_safe_failure_report(path: Path, *, candidate_sha: str, code: str) -> bool:
+    """Preserve a safe failure report or indicate that the evidence path is unavailable."""
 
-    if path.exists() or path.is_symlink() or not path.parent.is_dir() or path.parent.is_symlink():
-        return
+    if path.is_symlink() or not path.parent.is_dir() or path.parent.is_symlink():
+        return False
+    try:
+        path_metadata = path.lstat()
+    except OSError:
+        path_metadata = None
+    if path_metadata is not None:
+        if not stat.S_ISREG(path_metadata.st_mode):
+            return False
+        return _existing_failure_report_matches(
+            path,
+            candidate_sha=candidate_sha,
+            code=code,
+        )
     payload: dict[str, object] = {
         "schema": "release.financial-scope-discovery.v1",
         "kind": "financial_scope_discovery",
@@ -520,7 +533,42 @@ def _write_safe_failure_report(path: Path, *, candidate_sha: str, code: str) -> 
     try:
         _write_exclusive_json(path, payload)
     except OSError:
-        return
+        return False
+    return True
+
+
+def _existing_failure_report_matches(path: Path, *, candidate_sha: str, code: str) -> bool:
+    """Confirm an immutable existing report is the exact blocked evidence requested."""
+
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 64 * 1024:
+                return False
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                raw = stream.read(64 * 1024 + 1)
+            if len(raw) > 64 * 1024:
+                return False
+            payload = json.loads(raw.decode("utf-8"))
+        finally:
+            os.close(descriptor)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    expected_candidate = candidate_sha if _CANDIDATE_SHA.fullmatch(candidate_sha) else None
+    return (
+        isinstance(payload, dict)
+        and payload.get("schema") == "release.financial-scope-discovery.v1"
+        and payload.get("kind") == "financial_scope_discovery"
+        and payload.get("candidate_sha") == expected_candidate
+        and payload.get("outcome") == "blocked"
+        and payload.get("error_codes") == [code]
+        and payload.get("fact_writes") == 0
+        and payload.get("publication_writes") == 0
+    )
 
 
 def _stable_rehearsal_code(exc: BaseException) -> str:

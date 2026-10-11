@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import importlib
 import importlib.metadata
@@ -172,11 +173,18 @@ class CancellableCommandRunner(CommandRunner, Protocol):
         """Stop all active commands after an operator interruption."""
 
 
-class _Chown(Protocol):
-    """Portable callable shape for POSIX ownership changes."""
+class _FChown(Protocol):
+    """Callable shape for descriptor-based POSIX group ownership changes."""
 
-    def __call__(self, path: str | bytes | os.PathLike[str], uid: int, gid: int) -> None:
-        """Change one filesystem entry's owner/group."""
+    def __call__(self, descriptor: int, uid: int, gid: int) -> None:
+        """Change one opened filesystem entry's owner/group."""
+
+
+class _FChmod(Protocol):
+    """Callable shape for descriptor-based POSIX permission changes."""
+
+    def __call__(self, descriptor: int, mode: int) -> None:
+        """Change permissions on one opened filesystem entry."""
 
 
 class SubprocessRunner:
@@ -694,8 +702,9 @@ def _invoke_container_stage(
     env: Mapping[str, str],
     artifact_dir: Path,
     container_gid: int,
+    writable_subdirectories: Sequence[str] = (),
 ) -> CommandResult:
-    """Grant only the candidate group write access, then seal the evidence directory."""
+    """Grant candidate-group access to declared outputs, then seal their directories."""
 
     if artifact_dir.is_symlink() or not artifact_dir.is_dir():
         raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
@@ -712,18 +721,44 @@ def _invoke_container_stage(
     else:
         initial = artifact_dir.stat()
     identity = (initial.st_dev, initial.st_ino)
+    writable_identities: dict[str, tuple[tuple[int, int], int]] = {}
+    changed = False
+    seal_error_code: str | None = None
     try:
         if os.name == "posix":
-            chown = cast(_Chown | None, getattr(os, "chown", None))
-            if chown is None:
+            fchown = cast(_FChown | None, getattr(os, "fchown", None))
+            fchmod = cast(_FChmod | None, getattr(os, "fchmod", None))
+            if fchown is None or fchmod is None or directory_fd is None:
                 raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_UNAVAILABLE")
-            chown(artifact_dir, -1, container_gid)
-            artifact_dir.chmod(0o2770)
-            writable = artifact_dir.stat()
-            if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != 0o2770:
+            try:
+                fchown(directory_fd, -1, container_gid)
+                # A stage with writable children needs to prevent the container group
+                # from replacing those children through the parent directory.
+                parent_mode = 0o2750 if writable_subdirectories else 0o2770
+                fchmod(directory_fd, parent_mode)
+            except OSError as exc:
+                raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+            writable = os.fstat(directory_fd)
+            if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != parent_mode:
                 raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+            for relative in writable_subdirectories:
+                writable_identities[relative] = _prepare_container_writable_subdirectory(
+                    directory_fd,
+                    relative,
+                    container_gid=container_gid,
+                    label=label,
+                )
         else:
+            # This path-based fallback exists for local Windows tests. The production
+            # S6 runner requires POSIX descriptor/no-follow semantics and Linux CI.
             artifact_dir.chmod(0o770)
+            for relative in writable_subdirectories:
+                child_identity = _prepare_path_writable_subdirectory(
+                    artifact_dir,
+                    relative,
+                    label=label,
+                )
+                writable_identities[relative] = (child_identity, -1)
         return _invoke(
             runner,
             argv=argv,
@@ -741,13 +776,270 @@ def _invoke_container_stage(
         except OSError:
             pass
         try:
-            if not changed:
-                artifact_dir.chmod(0o750)
+            for relative, (child_identity, child_fd) in writable_identities.items():
+                try:
+                    if os.name == "posix":
+                        if directory_fd is None:
+                            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+                        _seal_container_writable_subdirectory(
+                            directory_fd,
+                            relative,
+                            expected_identity=child_identity,
+                            descriptor=child_fd,
+                            label=label,
+                        )
+                    else:
+                        _seal_path_writable_subdirectory(
+                            artifact_dir,
+                            relative,
+                            expected_identity=child_identity,
+                            label=label,
+                        )
+                except RehearsalBlocked as exc:
+                    seal_error_code = exc.code
+                finally:
+                    if os.name == "posix":
+                        try:
+                            os.close(child_fd)
+                        except OSError:
+                            seal_error_code = "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED"
+            try:
+                if os.name == "posix":
+                    if directory_fd is None:
+                        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+                    fchmod = cast(_FChmod | None, getattr(os, "fchmod", None))
+                    if fchmod is None:
+                        raise OSError("descriptor chmod unavailable")
+                    fchmod(directory_fd, 0o750)
+                    sealed_root = os.fstat(directory_fd)
+                    if stat.S_IMODE(sealed_root.st_mode) != 0o750:
+                        raise OSError("stage directory seal verification failed")
+                else:
+                    artifact_dir.chmod(0o750)
+            except OSError:
+                seal_error_code = "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED"
         finally:
             if directory_fd is not None:
                 os.close(directory_fd)
         if changed:
             raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        if seal_error_code is not None:
+            raise RehearsalBlocked(label, seal_error_code)
+
+
+_DIRECTORY_FLAGS = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+
+
+def _prepare_container_writable_subdirectory(
+    root_fd: int,
+    relative: str,
+    *,
+    container_gid: int,
+    label: str,
+) -> tuple[tuple[int, int], int]:
+    """Create or open one safe stage child and grant only the candidate group write access."""
+
+    _validate_stage_child_name(relative, label=label)
+    descriptor: int | None = None
+    expected_identity: tuple[int, int] | None = None
+    try:
+        try:
+            metadata = os.stat(relative, dir_fd=root_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            try:
+                os.mkdir(relative, 0o2770, dir_fd=root_fd)
+            except FileExistsError:
+                pass
+            metadata = os.stat(relative, dir_fd=root_fd, follow_symlinks=False)
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+        descriptor = os.open(relative, _DIRECTORY_FLAGS, dir_fd=root_fd)
+    except RehearsalBlocked:
+        raise
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID") from exc
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISDIR(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            metadata.st_dev,
+            metadata.st_ino,
+        ):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        expected_identity = (opened.st_dev, opened.st_ino)
+        try:
+            fchown = cast(_FChown | None, getattr(os, "fchown", None))
+            fchmod = cast(_FChmod | None, getattr(os, "fchmod", None))
+            if fchown is None or fchmod is None:
+                raise OSError("descriptor permissions unavailable")
+            fchown(descriptor, -1, container_gid)
+            fchmod(descriptor, 0o2770)
+        except OSError as exc:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+        writable = os.fstat(descriptor)
+        if writable.st_gid != container_gid or stat.S_IMODE(writable.st_mode) != 0o2770:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+        return ((writable.st_dev, writable.st_ino), descriptor)
+    except RehearsalBlocked:
+        try:
+            if expected_identity is not None:
+                _seal_failed_container_writable_subdirectory(
+                    descriptor,
+                    expected_identity=expected_identity,
+                    label=label,
+                )
+        finally:
+            os.close(descriptor)
+        raise
+    except OSError as exc:
+        try:
+            if expected_identity is not None:
+                _seal_failed_container_writable_subdirectory(
+                    descriptor,
+                    expected_identity=expected_identity,
+                    label=label,
+                )
+        finally:
+            os.close(descriptor)
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+
+
+def _seal_failed_container_writable_subdirectory(
+    descriptor: int,
+    *,
+    expected_identity: tuple[int, int] | None,
+    label: str,
+) -> None:
+    """Roll back a partially prepared child through its already-open descriptor."""
+
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            expected_identity is not None
+            and (metadata.st_dev, metadata.st_ino) != expected_identity
+        ):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        fchmod = cast(_FChmod | None, getattr(os, "fchmod", None))
+        if fchmod is None:
+            raise OSError("descriptor chmod unavailable")
+        fchmod(descriptor, 0o750)
+        sealed = os.fstat(descriptor)
+        if stat.S_IMODE(sealed.st_mode) != 0o750:
+            raise OSError("stage child rollback verification failed")
+    except OSError as exc:
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+
+
+def _seal_container_writable_subdirectory(
+    root_fd: int,
+    relative: str,
+    *,
+    expected_identity: tuple[int, int],
+    descriptor: int,
+    label: str,
+) -> None:
+    """Seal one child directory through its descriptor after validating its identity."""
+
+    _validate_stage_child_name(relative, label=label)
+    try:
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != expected_identity:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        try:
+            fchmod = cast(_FChmod | None, getattr(os, "fchmod", None))
+            if fchmod is None:
+                raise OSError("descriptor chmod unavailable")
+            fchmod(descriptor, 0o750)
+        except OSError as exc:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+        sealed = os.fstat(descriptor)
+        if (sealed.st_dev, sealed.st_ino) != expected_identity or stat.S_IMODE(
+            sealed.st_mode
+        ) != 0o750:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+        try:
+            path_metadata = os.stat(relative, dir_fd=root_fd, follow_symlinks=False)
+        except OSError as exc:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED") from exc
+        if (
+            not stat.S_ISDIR(path_metadata.st_mode)
+            or (
+                path_metadata.st_dev,
+                path_metadata.st_ino,
+            )
+            != expected_identity
+        ):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+    except OSError as exc:
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+
+
+def _prepare_path_writable_subdirectory(
+    root: Path,
+    relative: str,
+    *,
+    label: str,
+) -> tuple[int, int]:
+    """Portable path-based counterpart used when directory descriptors are unavailable."""
+
+    _validate_stage_child_name(relative, label=label)
+    path = root / relative
+    try:
+        if path.is_symlink():
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+        try:
+            path.mkdir(mode=0o770)
+        except FileExistsError:
+            pass
+        if path.is_symlink() or not path.is_dir():
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
+        path.chmod(0o770)
+        metadata = path.lstat()
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED")
+        return (metadata.st_dev, metadata.st_ino)
+    except RehearsalBlocked:
+        raise
+    except OSError as exc:
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_OWNERSHIP_FAILED") from exc
+
+
+def _seal_path_writable_subdirectory(
+    root: Path,
+    relative: str,
+    *,
+    expected_identity: tuple[int, int],
+    label: str,
+) -> None:
+    """Seal a portable child directory only when its identity still matches."""
+
+    _validate_stage_child_name(relative, label=label)
+    path = root / relative
+    try:
+        if path.is_symlink():
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        metadata = path.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or (metadata.st_dev, metadata.st_ino) != expected_identity
+        ):
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+        path.chmod(0o750)
+        sealed = path.lstat()
+        if not stat.S_ISDIR(sealed.st_mode) or (sealed.st_dev, sealed.st_ino) != expected_identity:
+            raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED")
+    except RehearsalBlocked:
+        raise
+    except OSError as exc:
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_CHANGED") from exc
+
+
+def _validate_stage_child_name(relative: str, *, label: str) -> None:
+    """Reject path traversal and nested path syntax at the writable stage boundary."""
+
+    if not relative or relative in {".", ".."} or "/" in relative or "\\" in relative:
+        raise RehearsalBlocked(label, "S6_ARTIFACT_DIRECTORY_INVALID")
 
 
 def _candidate_container_gid(runner: CommandRunner, root: Path, image_id: str) -> int:
@@ -3085,6 +3377,7 @@ def _run_release_rehearsal(
                 },
                 artifact_dir=financial_scope_capacity_dir,
                 container_gid=container_gid,
+                writable_subdirectories=("output",),
             )
         financial_scope_capacity_path = (
             financial_scope_capacity_dir / financial_scope_capacity_spec.report_name
