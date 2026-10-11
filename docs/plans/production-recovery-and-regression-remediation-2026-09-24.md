@@ -4301,3 +4301,32 @@ disabled，production financial refresh 的 full-scope capacity、双独立认�
 下一片是否可开始：可以提交本节台账并 push，以包含 `f6d5d5587` 的新 exact SHA 从头启动 Architecture、Security、
 Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official PostgreSQL artifact 的全部 required identity 为
 0 skip/failure/error，才可从最新生产只读快照创建 fresh S6；禁止复用旧 run、receipt、镜像或使用 `--resume`。
+
+##### 2026-10-11 gitleaks 扫描器与 allowlist 解析契约收口
+
+完成项：候选 `c91cc2c9c261a15edd01f420eb2013680b5c3bd9` 的五组 workflow_dispatch exact-SHA CI 已全部通过：
+Architecture `38129410358`、Security `38129414622`、Consistency `38129418529`、Fast Feedback
+`38129422104` 与 Publication PostgreSQL `38129425917`。但独立安全复核发现 `.gitleaks.toml` 使用的是 8.25.0 才引入的多组顶层
+`[[allowlists]]` 语法，而 workflow 由 action 隐式选择 gitleaks 8.24.3；因此两个 TUI 内容哈希只因上一片追加的精确 fingerprint 才通过，
+原本声明的路径/行窄规则实际上没有被当前解析器执行。为避免把配置失效藏在历史指纹后，`c91cc2c9c` 不再作为最终候选，其五组结果不得与
+后续 SHA 拼接。
+
+提交 `df87f6732` 将三组 `generic-api-key` 窄规则改为 8.24.3 已支持的 `[[rules.allowlists]]`，并在 Security workflow 显式固定
+`GITLEAKS_VERSION=8.24.3`，同时准确记录 action 对 push/PR 使用事件范围、对 release workflow_dispatch/schedule 使用完整历史的契约。
+两条 TUI runtime manifest 精确 fingerprint 已删除，确保真正由 path + full-line regex 的 AND 条件放行；其余六条已人工分类的历史项仍只
+使用 commit/path/rule/line 精确 fingerprint，没有扩大扫描面。
+
+测试计数：使用官方 checksum 验证的 gitleaks 8.24.3 构造两个独立单提交仓库；精确
+`config/tui/agomtui-runtime.manifest.json` 内容哈希 fixture 为 `0 findings / exit 0`，相同内容放到其他路径为
+`1 finding / exit 2`。删除两条 TUI fingerprint 后，真实仓库完整历史复验为
+`4019 commits scanned / 307.54 MB / 0 findings`。workflow/config/ignore 的 `git diff --check` 通过。本片没有生产 Python 改动，
+不适用增量生产 mypy。
+
+未验证风险与停止线：workflow 修改仍须由新的 exact-SHA Security run 证明实际下载 8.24.3、读取 rule-scoped allowlist 并完成
+full-history；本地 canary 和历史扫描不能替代 GitHub runner。新的 scanner 版本不得隐式漂移，升级必须连同配置契约和正反 canary 重新评审。
+fresh S6、部署和生产刷新仍不得开始；历史失败 attempt 继续禁止 resume/复用。两个周期入口保持 disabled，production financial
+refresh 的 full-scope capacity、双独立认证 approval 与有效 ceiling 停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `df87f6732` 的新 exact SHA 从头运行五组 workflow_dispatch CI。只有
+五组全绿、Security 的完整历史为零未分类 finding，且 official PostgreSQL artifact 全部 required identity 为 0
+skip/failure/error，才可从最新生产只读快照创建 fresh S6。
