@@ -4240,3 +4240,37 @@ full-scope capacity、双独立认证 approval 与有效 ceiling 停止线不变
 
 下一片是否可开始：可以提交并 push 本节台账，以包含 `c33851c0b` 的新 exact SHA 从头运行五组 CI；五组全绿且 official
 PostgreSQL artifact 全部 required identity 零 skip/failure/error 后，才可从最新生产只读快照创建新的 fresh S6。
+
+##### 2026-10-11 S6 GitHub CI 凭据启动契约与稳定错误码整改
+
+完成项：最终候选 `ef6cc1491a84141a2fd72929fe38975a9ca1620b` 的五组 exact-SHA CI 与 official PostgreSQL artifact
+已全绿，但 fresh attempt `66fea871abdb402abbac24bb944d6884` 仅完成 build、镜像身份、隔离迁移、provider probe、response replay、
+全市场容量、生产策略 parity 与隔离 PostgreSQL 写共 8 段；`github_ci_evidence` 随后因 runner 进程未继承受控
+`runner.env` 中的 GitHub token 而以内部 `REHEARSAL_GITHUB_TOKEN_UNAVAILABLE` 阻断。collector 旧 CLI 又输出非机器契约文本，
+外层因此把真实稳定码降格为 `S6_STAGE_COMMAND_FAILED`。该 attempt 已 exit 2，证据保留并禁止 resume/复用/重跑；没有部署或生产写。
+随后 reserve 的 fresh attempt `cb9cb4a07e8b4381b4e9e69a0e020345` 在发现候选代码仍缺启动前门禁后，于 prepare 的只读快照阶段
+主动终止，wrapper exit 143；没有启动 candidate runner，根目录与诊断保留，一次性隔离资源已释放，禁止复用。
+
+整改把 GitHub 凭据纳入统一环境契约：S6 在 `build_only` 前从显式 `GITHUB_TOKEN`/`GH_TOKEN` 读取单行 ASCII token，使用最终
+collector 将收到的同一枚 token 对精确 repository/actions run 执行 30 秒、1 MiB 上限的认证只读 GET，并核对 repository、run ID
+与 candidate head SHA。token 仅驻留 runner 内存；`SubprocessRunner` 默认删除 ambient GitHub token，只有
+`github_ci_evidence` 命令显式获得已验证 token。prebuild evidence 只记录 verified/blocked、source kind 与非敏感 run identity，
+其 SHA 继续进入最终 stage-environment report；release validator 重新绑定 candidate/repository/run。缺失、格式错误、认证或权限失败
+分别形成稳定 `REHEARSAL_GITHUB_*` 缺口码并在构建前聚合阻断。collector 的失败输出改为严格
+`{"outcome":"blocked","code":"..."}` 两字段 JSON，runner 可原样保留 allowlisted 稳定码，不再以宽松子串提取。
+
+测试计数：stage environment、collector、runner 与 release validator 联合回归为 `316 passed / 10 skipped`；10 个 skip 均为本机
+Windows 无法执行的 POSIX permission/symlink/bash 契约，未计作 Linux 通过。新增正反例覆盖缺失 token、控制字节/坏格式、认证探针失败、
+精确 endpoint 与 Authorization header、run identity 篡改、token 仅注入 CI collector、ambient token 不传给其他子进程、秘密不进入报告，
+以及 collector 两字段 JSON 到 runner 的稳定码传递。四个修改的生产 Python 文件增量 mypy 为 0 issues / 0 regressions，全仓 mypy
+debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：本整改尚未由新 exact-SHA 五组 Linux CI 或 fresh S6 实证；本机 Windows skip 不能替代 Linux 权限证据。
+GitHub 认证探针只覆盖当前已知的 token 可达性、权限与 run identity，不能证明未知环境类别已穷尽。attempt `66fea871...` 与
+`cb9cb4a0...` 均禁止 resume、复用或拼接证据；旧 CI、镜像和已完成阶段不能作为部署 receipt。两个周期入口保持 disabled；历史
+production full-market task 禁止重跑。production financial refresh 仍须 verified full-scope capacity receipt、系统内两个独立认证
+owner/reviewer 事件与有效 ceiling，聊天授权不能替代这些事实；不得放宽任何既有时间、请求、覆盖率、freshness、audit 或来源门槛。
+
+下一片是否可开始：可以把本整改和本节台账提交并 push，以新 exact SHA 从头运行 Architecture、Security、Consistency、Fast
+Feedback 与 Publication PostgreSQL。只有五组全绿、official artifact 全部 required identity 零 skip/failure/error 后，才可从最新
+生产只读快照 reserve 新 fresh S6；runner 必须由 exact-clean workspace 启动且禁止 `--resume`。
