@@ -1884,15 +1884,23 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         receipt["provider_settings_canonical_payload_sha256"]
         == settings_identity["provider_settings_canonical_payload_sha256"]
     )
-    for directory in (
+    sealed_directories = (
         "provider-probe",
         "response-replay",
         "full-universe-capacity",
         "production-policy-parity",
         "isolated-postgresql",
-    ):
-        writable_mode = 0o2770 if os.name == "posix" else 0o770
-        assert chmod_calls[directory] == [writable_mode, 0o750]
+    )
+    if os.name == "posix":
+        for directory in sealed_directories:
+            assert stat.S_IMODE((config.output_dir / directory).stat().st_mode) == 0o750
+        assert (
+            stat.S_IMODE((config.output_dir / "financial-scope-capacity" / "output").stat().st_mode)
+            == 0o750
+        )
+    else:
+        for directory in sealed_directories:
+            assert chmod_calls[directory] == [0o770, 0o750]
 
 
 def test_isolated_database_migration_noop_is_valid_evidence(tmp_path: Path) -> None:
