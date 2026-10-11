@@ -390,7 +390,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=args.output_dir,
         )
     except Exception as exc:
-        print(f"blocked: {_error_code(exc)}", file=sys.stderr)
+        print(
+            json.dumps(
+                {"outcome": "blocked", "code": _error_code(exc)},
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
         return 2
     print(
         json.dumps(

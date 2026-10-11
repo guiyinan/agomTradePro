@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import stat
 from collections.abc import Mapping, Sequence
@@ -48,6 +49,9 @@ ALLOWED_ISSUE_CODES = frozenset(
         "REHEARSAL_STAGE_RUNTIME_LOG_DIRECTORY_INVALID",
         "REHEARSAL_STAGE_TRANSFER_ENCODING_INVALID",
         "REHEARSAL_STAGE_IDENTITY_OR_SECRET_CONTRACT_INVALID",
+        "REHEARSAL_GITHUB_TOKEN_UNAVAILABLE",
+        "REHEARSAL_GITHUB_TOKEN_FORMAT_INVALID",
+        "REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED",
         "REHEARSAL_STAGE_RUNNER_DEPENDENCY_MISSING",
         "REHEARSAL_DOCKER_BUILDER_POLICY_INVALID",
         "REHEARSAL_STAGE_DISK_HEADROOM_INSUFFICIENT",
@@ -303,6 +307,7 @@ class StageEnvironmentInputs:
     task_deadline_seconds: float
     lock_wait_limit_seconds: float
     missing_runtime_dependencies: tuple[str, ...] = ()
+    stage_identity_issues: tuple[StageEnvironmentIssue, ...] = ()
     dynamic_issues: tuple[StageEnvironmentIssue, ...] = ()
     minimum_free_disk_bytes: int = MINIMUM_FREE_DISK_BYTES
     docker_build_policy: DockerBuildPolicy | None = None
@@ -371,7 +376,27 @@ def _identity_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIss
                 stages=("build_only",),
             )
         )
+    issues.extend(inputs.stage_identity_issues)
     return issues
+
+
+def github_token_from_environment(
+    environ: Mapping[str, str] | None = None,
+) -> str:
+    """Return the explicit GitHub token without consulting interactive CLI state."""
+
+    values = os.environ if environ is None else environ
+    return values.get("GITHUB_TOKEN", "") or values.get("GH_TOKEN", "")
+
+
+def github_token_format_valid(token: str) -> bool:
+    """Validate only the non-secret shape required by the S6 GitHub evidence stage."""
+
+    return (
+        20 <= len(token) <= 512
+        and token.isascii()
+        and all(33 <= ord(character) <= 126 for character in token)
+    )
 
 
 def _resource_issues(inputs: StageEnvironmentInputs) -> list[StageEnvironmentIssue]:
@@ -533,6 +558,8 @@ __all__ = [
     "StageEnvironmentInputs",
     "StageEnvironmentIssue",
     "evaluate_stage_environment",
+    "github_token_format_valid",
+    "github_token_from_environment",
     "load_docker_build_policy",
     "parse_docker_build_observation",
     "parse_docker_build_policy",

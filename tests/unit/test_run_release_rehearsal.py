@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.request
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -80,6 +81,7 @@ PROVIDER_IDENTITIES: list[dict[str, object]] = [
         "deployment_region": "isolated-test",
     },
 ]
+REAL_LOAD_GITHUB_RUN_IDENTITY = rehearsal._load_github_run_identity
 
 
 @pytest.fixture(autouse=True)
@@ -93,6 +95,17 @@ def _pinned_release_runner_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
         rehearsal.importlib.metadata,
         "version",
         lambda name: rehearsal.REQUIRED_PARAMIKO_VERSION if name == "paramiko" else original(name),
+    )
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_" + "a" * 36)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.setattr(
+        rehearsal,
+        "_load_github_run_identity",
+        lambda repository, run_id, token: {
+            "id": run_id,
+            "head_sha": CANDIDATE_SHA,
+            "repository": {"full_name": repository},
+        },
     )
 
 
@@ -264,7 +277,12 @@ class FakeRunner:
             if command.artifact_dir.exists():
                 return CommandResult(
                     returncode=2,
-                    stderr="blocked: REHEARSAL_OUTPUT_DIRECTORY_EXISTS",
+                    stderr=json.dumps(
+                        {
+                            "outcome": "blocked",
+                            "code": "REHEARSAL_OUTPUT_DIRECTORY_EXISTS",
+                        }
+                    ),
                 )
             self._create_stage_report(command)
         elif command.label in {
@@ -1073,6 +1091,162 @@ def test_prebuild_preflight_rejects_missing_runner_dependency(
     ]
 
 
+def test_prebuild_preflight_rejects_missing_github_token_before_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN")
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    report = json.loads(
+        (
+            config.output_dir
+            / "stage-environment-preflight"
+            / "prebuild-stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert report["issues"] == [
+        {
+            "category": "identity_and_secrets",
+            "code": "REHEARSAL_GITHUB_TOKEN_UNAVAILABLE",
+            "stages": ["github_ci_evidence"],
+        }
+    ]
+
+
+def test_github_credential_probe_uses_authenticated_exact_run_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    class Response:
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, limit: int) -> bytes:
+            observed["limit"] = limit
+            return json.dumps(
+                {
+                    "id": GITHUB_RUN_ID,
+                    "head_sha": CANDIDATE_SHA,
+                    "repository": {"full_name": GITHUB_REPOSITORY},
+                }
+            ).encode()
+
+    def urlopen(request: urllib.request.Request, timeout: int) -> Response:
+        observed["url"] = request.full_url
+        observed["authorization"] = request.get_header("Authorization")
+        observed["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(rehearsal.urllib.request, "urlopen", urlopen)
+
+    payload = REAL_LOAD_GITHUB_RUN_IDENTITY(
+        GITHUB_REPOSITORY,
+        GITHUB_RUN_ID,
+        "future_token_" + "x" * 32,
+    )
+
+    assert payload["head_sha"] == CANDIDATE_SHA
+    assert observed == {
+        "url": (f"https://api.github.com/repos/{GITHUB_REPOSITORY}/actions/runs/{GITHUB_RUN_ID}"),
+        "authorization": "Bearer future_token_" + "x" * 32,
+        "timeout": 30,
+        "limit": 1_048_577,
+    }
+
+
+def test_prebuild_preflight_rejects_malformed_github_token_before_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "not-a-github-token")
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    report = json.loads(
+        (
+            config.output_dir
+            / "stage-environment-preflight"
+            / "prebuild-stage-environment-preflight.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert report["issues"] == [
+        {
+            "category": "identity_and_secrets",
+            "code": "REHEARSAL_GITHUB_TOKEN_FORMAT_INVALID",
+            "stages": ["github_ci_evidence"],
+        }
+    ]
+
+
+def test_prebuild_preflight_rejects_unusable_github_token_without_leaking_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    secret = "future_token_" + "z" * 32
+    monkeypatch.setenv("GITHUB_TOKEN", secret)
+
+    def unavailable(_repository: str, _run_id: int, _token: str) -> dict[str, object]:
+        raise ValueError("REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED")
+
+    monkeypatch.setattr(rehearsal, "_load_github_run_identity", unavailable)
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    report_path = (
+        config.output_dir
+        / "stage-environment-preflight"
+        / "prebuild-stage-environment-preflight.json"
+    )
+    report_raw = report_path.read_text(encoding="utf-8")
+    report = json.loads(report_raw)
+    assert report["issues"][0]["code"] == "REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED"
+    assert report["observations"]["github_ci_credentials"]["status"] == "blocked"
+    assert secret not in report_raw
+
+
+def test_verified_github_token_is_injected_only_into_ci_collector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token = "future_token_" + "q" * 32
+    monkeypatch.setenv("GITHUB_TOKEN", token)
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = FakeRunner()
+
+    run_release_rehearsal(config, runner=runner)
+
+    ci_command = next(
+        command for command in runner.commands if command.label == "github_ci_evidence"
+    )
+    assert ci_command.env["GITHUB_TOKEN"] == token
+    assert all(
+        "GITHUB_TOKEN" not in command.env
+        for command in runner.commands
+        if command.label != "github_ci_evidence"
+    )
+    prebuild_raw = (
+        config.output_dir
+        / "stage-environment-preflight"
+        / "prebuild-stage-environment-preflight.json"
+    ).read_text(encoding="utf-8")
+    assert token not in prebuild_raw
+
+
 def test_prebuild_preflight_rejects_unpatched_runner_dependency(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1378,6 +1552,51 @@ def test_process_diagnostics_keep_categories_without_private_output(tmp_path: Pa
     )
     assert active["active_count"] == 0
     assert active["active_commands"] == []
+
+
+def test_subprocess_runner_does_not_inherit_github_tokens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "ambient-github-token")
+    monkeypatch.setenv("GH_TOKEN", "ambient-gh-token")
+    runner = SubprocessRunner()
+    absent = runner.run(
+        Command(
+            (
+                sys.executable,
+                "-c",
+                (
+                    "import os,sys; "
+                    "sys.exit(0 if 'GITHUB_TOKEN' not in os.environ "
+                    "and 'GH_TOKEN' not in os.environ else 7)"
+                ),
+            ),
+            tmp_path,
+            {},
+            10,
+            "without-github-token",
+        )
+    )
+    explicit = runner.run(
+        Command(
+            (
+                sys.executable,
+                "-c",
+                (
+                    "import os,sys; sys.exit(0 if "
+                    "os.environ.get('GITHUB_TOKEN') == 'explicit-child-token' "
+                    "and 'GH_TOKEN' not in os.environ else 8)"
+                ),
+            ),
+            tmp_path,
+            {"GITHUB_TOKEN": "explicit-child-token"},
+            10,
+            "with-github-token",
+        )
+    )
+
+    assert absent.returncode == 0
+    assert explicit.returncode == 0
 
 
 def test_parallel_command_progress_keeps_each_active_invocation_and_heartbeats(
@@ -2305,7 +2524,7 @@ def test_preoccupied_ci_evidence_directory_fails_closed_without_overwrite(
     runner = PreoccupyingRunner()
     config = _config(tmp_path, root=_fake_checkout(tmp_path))
 
-    with pytest.raises(RehearsalBlocked, match="S6_STAGE_COMMAND_FAILED"):
+    with pytest.raises(RehearsalBlocked, match="REHEARSAL_OUTPUT_DIRECTORY_EXISTS"):
         run_release_rehearsal(config, runner=runner)
 
     ci_dir = config.output_dir / "github-ci-evidence"

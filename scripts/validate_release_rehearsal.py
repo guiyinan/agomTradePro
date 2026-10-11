@@ -30,6 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from shared.release_rehearsal_stage_environment import (
+    github_token_from_environment,
     load_docker_build_policy,
     parse_docker_build_observation,
 )
@@ -416,7 +417,7 @@ def _sha256(path: Path) -> str:
 
 
 def _github_token() -> str:
-    token = os.environ.get("GITHUB_TOKEN", "").strip() or os.environ.get("GH_TOKEN", "").strip()
+    token = github_token_from_environment()
     if token:
         return token
     try:
@@ -820,7 +821,13 @@ def _validate_stage_environment_matrix(
         _fail("REHEARSAL_STAGE_ENVIRONMENT_OBSERVATIONS_INVALID")
 
 
-def _validate_stage_environment_preflight(report: dict[str, Any], report_root: Path) -> None:
+def _validate_stage_environment_preflight(
+    report: dict[str, Any],
+    report_root: Path,
+    expected_candidate: str,
+    expected_github_repository: str,
+    expected_github_run_id: int,
+) -> None:
     """Bind both host prebuild and candidate runtime environment gates into release evidence."""
 
     categories, stages, minimum_disk, minimum_prebuild_disk, minimum_memory = (
@@ -854,6 +861,26 @@ def _validate_stage_environment_preflight(report: dict[str, Any], report_root: P
         or prebuild_observations.get("docker_build_policy") != docker_build_policy.to_dict()
     ):
         _fail("REHEARSAL_STAGE_ENVIRONMENT_DOCKER_BUILDER_INVALID")
+    github_credentials = prebuild_observations.get("github_ci_credentials")
+    if not isinstance(github_credentials, dict) or set(github_credentials) != {
+        "status",
+        "source",
+        "repository",
+        "run_id",
+        "head_sha",
+    }:
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_GITHUB_CREDENTIALS_INVALID")
+    github_payload = cast(dict[str, object], github_credentials)
+    if (
+        github_payload.get("status") != "verified"
+        or github_payload.get("source") != "explicit_environment"
+        or github_payload.get("repository") != expected_github_repository
+        or github_payload.get("run_id") != expected_github_run_id
+        or github_payload.get("head_sha") != expected_candidate
+        or report.get("github_repository") != expected_github_repository
+        or report.get("github_run_id") != expected_github_run_id
+    ):
+        _fail("REHEARSAL_STAGE_ENVIRONMENT_GITHUB_CREDENTIALS_INVALID")
     try:
         parse_docker_build_observation(report.get("docker_builder"), docker_build_policy)
     except ValueError:
@@ -3221,6 +3248,9 @@ def validate_release_rehearsal(
     _validate_stage_environment_preflight(
         loaded_reports["stage_environment_preflight"],
         report_paths["stage_environment_preflight"].parent,
+        expected_candidate,
+        expected_github_repository,
+        expected_github_run_id,
     )
     return {
         "outcome": "success",

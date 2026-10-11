@@ -331,6 +331,11 @@ def _assert_blocked(output_dir: Path, capsys: pytest.CaptureFixture[str]) -> Non
     captured = capsys.readouterr()
     assert "Authorization" not in captured.err
     assert "secret-rehearsal-test" not in captured.err
+    diagnostic = json.loads(captured.err)
+    assert diagnostic == {
+        "code": blocked["error_code"],
+        "outcome": "blocked",
+    }
     assert "secret-rehearsal-test" not in (output_dir / "collection-blocked.json").read_text(
         encoding="utf-8"
     )

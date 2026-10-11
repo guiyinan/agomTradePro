@@ -1028,6 +1028,13 @@ def _build_evidence(
     prebuild_payload = stage_environment_payload(STAGE_ENVIRONMENT_CONTRACT_STAGES[:2], "pass")
     prebuild_payload["observations"]["free_disk_bytes"] = 25 * 1024 * 1024 * 1024
     prebuild_payload["observations"]["minimum_free_disk_bytes"] = 24 * 1024 * 1024 * 1024
+    prebuild_payload["observations"]["github_ci_credentials"] = {
+        "status": "verified",
+        "source": "explicit_environment",
+        "repository": GITHUB_REPOSITORY,
+        "run_id": GITHUB_RUN_ID,
+        "head_sha": CANDIDATE,
+    }
     prebuild_digest = _write_json(
         prebuild_path,
         prebuild_payload,
@@ -1041,6 +1048,8 @@ def _build_evidence(
         "path": prebuild_path.name,
         "sha256": prebuild_digest,
     }
+    stage_environment["github_repository"] = GITHUB_REPOSITORY
+    stage_environment["github_run_id"] = GITHUB_RUN_ID
     stage_environment["docker_builder"] = {
         "builder_mode": "legacy",
         "daemon_endpoint": "unix:///var/run/docker.sock",
@@ -1548,6 +1557,23 @@ def test_validator_rejects_incomplete_prebuild_environment_matrix(tmp_path: Path
         _validate(manifest, now)
 
     assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_MATRIX_INVALID"
+
+
+def test_validator_rejects_unbound_github_credential_preflight(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["stage_environment_preflight"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    prebuild_path = tmp_path / report["prebuild_report"]["path"]
+    prebuild = json.loads(prebuild_path.read_text(encoding="utf-8"))
+    prebuild["observations"]["github_ci_credentials"]["run_id"] = GITHUB_RUN_ID + 1
+    report["prebuild_report"]["sha256"] = _write_json(prebuild_path, prebuild)
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_STAGE_ENVIRONMENT_GITHUB_CREDENTIALS_INVALID"
 
 
 @pytest.mark.parametrize(

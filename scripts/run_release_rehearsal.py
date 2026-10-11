@@ -20,6 +20,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import AbstractContextManager
@@ -49,6 +51,8 @@ from shared.release_rehearsal_stage_environment import (
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
+    github_token_format_valid,
+    github_token_from_environment,
     load_docker_build_policy,
     parse_docker_build_observation,
     parse_dynamic_issues,
@@ -304,6 +308,8 @@ class SubprocessRunner:
     def run(self, command: Command) -> CommandResult:
         """Run one command and convert launch errors to a failed result."""
         environment = os.environ.copy()
+        environment.pop("GITHUB_TOKEN", None)
+        environment.pop("GH_TOKEN", None)
         environment.update(command.env)
         started = time.monotonic()
         invocation_id = uuid4().hex
@@ -2199,7 +2205,88 @@ def _missing_release_runner_dependencies() -> tuple[str, ...]:
     return () if version == REQUIRED_PARAMIKO_VERSION else ("paramiko",)
 
 
-def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
+def _load_github_run_identity(
+    repository: str,
+    run_id: int,
+    token: str,
+) -> dict[str, object]:
+    """Read one authenticated GitHub Actions run without exposing response details."""
+
+    url = f"https://api.github.com/repos/{repository}/actions/runs/{run_id}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "AgomTradePro-release-rehearsal-preflight",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    request.add_unredirected_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read(1_048_577)
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
+        raise ValueError("REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED") from exc
+    if not raw or len(raw) > 1_048_576:
+        raise ValueError("REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED")
+    try:
+        payload: object = json.loads(raw)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED")
+    return cast(dict[str, object], payload)
+
+
+def _preflight_github_ci_credentials(
+    config: RehearsalConfig,
+    candidate_sha: str,
+) -> tuple[str, dict[str, object], tuple[StageEnvironmentIssue, ...]]:
+    """Verify the exact CI run with the token that will be passed to the collector."""
+
+    token = github_token_from_environment()
+    observation: dict[str, object] = {
+        "status": "blocked",
+        "source": "explicit_environment",
+        "repository": config.github_repository,
+        "run_id": config.github_run_id,
+        "head_sha": candidate_sha,
+    }
+    if not token:
+        code = "REHEARSAL_GITHUB_TOKEN_UNAVAILABLE"
+    elif not github_token_format_valid(token):
+        code = "REHEARSAL_GITHUB_TOKEN_FORMAT_INVALID"
+    else:
+        try:
+            payload = _load_github_run_identity(
+                config.github_repository,
+                config.github_run_id,
+                token,
+            )
+        except ValueError:
+            code = "REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED"
+        else:
+            repository = payload.get("repository")
+            if (
+                payload.get("id") == config.github_run_id
+                and payload.get("head_sha") == candidate_sha
+                and isinstance(repository, dict)
+                and repository.get("full_name") == config.github_repository
+            ):
+                return token, {**observation, "status": "verified"}, ()
+            code = "REHEARSAL_GITHUB_CREDENTIAL_PREFLIGHT_FAILED"
+    issue = StageEnvironmentIssue(
+        category="identity_and_secrets",
+        code=code,
+        stages=("github_ci_evidence",),
+    )
+    return "", observation, (issue,)
+
+
+def _run_prebuild_stage_environment_preflight(
+    config: RehearsalConfig,
+    candidate_sha: str,
+) -> str:
     """Reject static build/identity assumptions before an expensive remote build."""
 
     isolated_values = _parse_env_file(config.isolated_postgres_env_file)
@@ -2240,6 +2327,10 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
         config.unit_contract_path,
         *config.transport_input_paths,
     )
+    github_token, github_observation, github_issues = _preflight_github_ci_credentials(
+        config,
+        candidate_sha,
+    )
     report = evaluate_stage_environment(
         StageEnvironmentInputs(
             stages=("build_only", "docker_identity"),
@@ -2262,10 +2353,14 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
             task_deadline_seconds=config.task_deadline_seconds,
             lock_wait_limit_seconds=config.lock_wait_limit_seconds,
             missing_runtime_dependencies=missing_runtime_dependencies,
+            stage_identity_issues=github_issues,
             minimum_free_disk_bytes=MINIMUM_PREBUILD_FREE_DISK_BYTES,
             docker_build_policy=docker_build_policy,
         )
     )
+    observations = report.get("observations")
+    if isinstance(observations, dict):
+        observations["github_ci_credentials"] = github_observation
     preflight_dir = config.output_dir / "stage-environment-preflight"
     preflight_dir.mkdir(exist_ok=True)
     atomic_json(preflight_dir / "prebuild-stage-environment-preflight.json", report)
@@ -2282,6 +2377,7 @@ def _run_prebuild_stage_environment_preflight(config: RehearsalConfig) -> None:
         raise RehearsalBlocked(
             "stage_environment_preflight", "REHEARSAL_STAGE_ENVIRONMENT_PREFLIGHT_FAILED"
         )
+    return github_token
 
 
 def _available_memory_bytes() -> int:
@@ -2480,6 +2576,8 @@ def _run_stage_environment_preflight(
             "target_trade_date": identity.target_trade_date,
             "universe_sha256": identity.universe_sha256,
             "provider_identities_sha256": identity.provider_identities_sha256,
+            "github_repository": config.github_repository,
+            "github_run_id": config.github_run_id,
             "evidence_mode": "read_only_environment_contract",
             "docker_builder": docker_builder_observation.to_dict(),
             "started_at": started_at.isoformat(),
@@ -2978,7 +3076,7 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     "preflight",
                     None,
                 )
-                _run_prebuild_stage_environment_preflight(config)
+                github_token = _run_prebuild_stage_environment_preflight(config, candidate)
                 _preflight_environment(config, active)
             except RehearsalBlocked as exc:
                 _status(
@@ -3000,7 +3098,13 @@ def run_release_rehearsal(config: RehearsalConfig, *, runner: CommandRunner | No
                     "S6_RUN_INTERRUPTED",
                 )
                 raise
-            return _run_release_rehearsal(config, checkpoint, inputs, runner=active)
+            return _run_release_rehearsal(
+                config,
+                checkpoint,
+                inputs,
+                runner=active,
+                github_token=github_token,
+            )
     except ValueError as exc:
         code = str(exc)
         if not re.fullmatch(r"S6_(?:CHECKPOINT|RUN)_[A-Z_]+", code):
@@ -3016,6 +3120,7 @@ def _run_release_rehearsal(
     inputs: RehearsalInputs,
     *,
     runner: CommandRunner,
+    github_token: str,
 ) -> Path:
     """Execute S6 in fixed order and emit a non-authorizing evidence handoff receipt."""
     active = runner or SubprocessRunner()
@@ -3295,6 +3400,7 @@ def _run_release_rehearsal(
                 env={
                     "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
                     "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                    "GITHUB_TOKEN": github_token,
                 },
                 artifact_dir=ci_dir,
             )

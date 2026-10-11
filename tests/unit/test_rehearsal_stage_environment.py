@@ -22,10 +22,25 @@ from shared.release_rehearsal_stage_environment import (
     StageEnvironmentInputs,
     StageEnvironmentIssue,
     evaluate_stage_environment,
+    github_token_format_valid,
+    github_token_from_environment,
     load_docker_build_policy,
     parse_docker_build_observation,
     parse_docker_build_policy,
 )
+
+
+def test_github_token_environment_contract_accepts_only_explicit_supported_shapes() -> None:
+    assert github_token_from_environment({"GITHUB_TOKEN": "ghp_" + "a" * 36}) == ("ghp_" + "a" * 36)
+    assert github_token_from_environment({"GH_TOKEN": "github_pat_" + "b" * 24}) == (
+        "github_pat_" + "b" * 24
+    )
+    assert github_token_format_valid("ghp_" + "a" * 36)
+    assert github_token_format_valid("github_pat_" + "b" * 24)
+    assert github_token_format_valid("future_token_" + "c" * 24)
+    assert not github_token_format_valid("")
+    assert not github_token_format_valid("not-a-github-token")
+    assert not github_token_format_valid("ghp_" + "a" * 20 + "\r\n")
 
 
 def _inputs(tmp_path: Path) -> StageEnvironmentInputs:
