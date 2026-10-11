@@ -577,6 +577,11 @@ def _stable_rehearsal_code(exc: BaseException) -> str:
     code = getattr(exc, "code", "")
     if isinstance(code, str) and code in FINANCIAL_SCOPE_DISCOVERY_ERROR_CODES:
         return f"REHEARSAL_{code}"
+    if code in {
+        "REHEARSAL_ARTIFACT_ROOT_DATABASE_INVALID",
+        "REHEARSAL_ARTIFACT_ROOT_PATH_INVALID",
+    }:
+        return "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID"
     return "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_FAILED"
 
 

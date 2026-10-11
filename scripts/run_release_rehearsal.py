@@ -130,6 +130,8 @@ STAGES = (
     "release_validator",
 )
 REQUIRED_PARAMIKO_VERSION = "5.0.0"
+_CONTAINER_TEMP_ROOT = "/tmp"
+_FINANCIAL_SCOPE_CONTAINER_OUTPUT_DIR = f"{_CONTAINER_TEMP_ROOT}/agom-s6-financial-scope-stage"
 _INSECURE_DJANGO_SECRET_KEY_PATTERNS = (
     "django-insecure",
     "change-this",
@@ -1862,9 +1864,9 @@ def _stage_specs(
         "--expected-database-host",
         config.isolated_database_host,
         "--artifact-root",
-        f"/run/agom/stage/output/{scope_artifact_root}",
+        f"{_FINANCIAL_SCOPE_CONTAINER_OUTPUT_DIR}/{scope_artifact_root}",
         "--output-dir",
-        "/run/agom/stage/output",
+        _FINANCIAL_SCOPE_CONTAINER_OUTPUT_DIR,
     )
     return (
         StageSpec(
@@ -1921,6 +1923,7 @@ def _stage_specs(
             "output/financial-full-scope-capacity.json",
             financial_scope_capacity,
             (config.provider_env_file, config.isolated_postgres_env_file),
+            environment=(("TMPDIR", _CONTAINER_TEMP_ROOT),),
         ),
     )
 
@@ -3448,10 +3451,18 @@ def _run_release_rehearsal(
 
         financial_scope_capacity_spec = specs[6]
         capacity_report_path = capacity_dir / "output" / "full-universe-capacity.json"
+        financial_scope_output_dir = financial_scope_capacity_dir / "output"
         financial_scope_capacity_spec = replace(
             financial_scope_capacity_spec,
             mounts=financial_scope_capacity_spec.mounts
-            + ((capacity_report_path, "/run/agom/release-universe-capacity.json", True),),
+            + (
+                (capacity_report_path, "/run/agom/release-universe-capacity.json", True),
+                (
+                    financial_scope_output_dir,
+                    _FINANCIAL_SCOPE_CONTAINER_OUTPUT_DIR,
+                    False,
+                ),
+            ),
         )
         stage = financial_scope_capacity_spec.name
         _status(status_path, "running", completed, stage, None)
@@ -3459,8 +3470,7 @@ def _run_release_rehearsal(
         if not checkpoint.done(stage):
             checkpoint.prepare(stage, (financial_scope_capacity_dir,), resume=config.resume)
             financial_scope_capacity_dir.mkdir(exist_ok=True)
-            output_dir = financial_scope_capacity_dir / "output"
-            output_dir.mkdir(exist_ok=True)
+            financial_scope_output_dir.mkdir(exist_ok=True)
             scope_argv = _docker_command(
                 identity,
                 config.docker_network,

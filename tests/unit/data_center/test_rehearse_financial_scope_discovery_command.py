@@ -8,6 +8,7 @@ from django.core.management.base import CommandError
 
 from apps.data_center.application.financial_scope_capacity_receipt import canonical_sha256
 from apps.data_center.management.commands import rehearse_financial_scope_discovery
+from core.exceptions import DataFetchError
 
 
 def test_blocked_discovery_preserves_report_without_capacity_receipt(
@@ -285,3 +286,22 @@ def test_release_universe_report_rejects_one_asset_against_frozen_two_asset_dige
             target_trade_date="2026-10-09",
             universe_sha256=canonical_sha256(["000001.SZ", "000002.SZ"]),
         )
+
+
+@pytest.mark.parametrize(
+    "source_code",
+    [
+        "REHEARSAL_ARTIFACT_ROOT_DATABASE_INVALID",
+        "REHEARSAL_ARTIFACT_ROOT_PATH_INVALID",
+    ],
+)
+def test_artifact_root_failures_map_to_allowlisted_financial_scope_code(
+    source_code: str,
+) -> None:
+    """Keep artifact isolation failures stable without exposing their diagnostics."""
+
+    error = DataFetchError("private filesystem diagnostic", code=source_code)
+
+    assert rehearse_financial_scope_discovery._stable_rehearsal_code(error) == (
+        "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID"
+    )

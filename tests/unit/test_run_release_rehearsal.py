@@ -1999,6 +1999,27 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     )
     assert "/run/agom/provider-settings.json" in parity_command.argv
     assert "/run/agom/provider-identities.json" in parity_command.argv
+    financial_scope_command = next(
+        item for item in runner.commands if item.label == "financial_scope_capacity"
+    )
+    financial_scope_temp_root = "/tmp"
+    financial_scope_output_dir = f"{financial_scope_temp_root}/agom-s6-financial-scope-stage"
+    artifact_root_index = financial_scope_command.argv.index("--artifact-root")
+    output_dir_index = financial_scope_command.argv.index("--output-dir")
+    assert financial_scope_command.argv[artifact_root_index + 1].startswith(
+        f"{financial_scope_output_dir}/agom-s6-financial-scope-"
+    )
+    assert financial_scope_command.argv[output_dir_index + 1] == financial_scope_output_dir
+    assert f"TMPDIR={financial_scope_temp_root}" in {
+        financial_scope_command.argv[index + 1]
+        for index, value in enumerate(financial_scope_command.argv[:-1])
+        if value == "--env"
+    }
+    expected_output_mount = (
+        f"{(financial_scope_command.artifact_dir / 'output').resolve()}:"
+        f"{financial_scope_output_dir}:rw"
+    )
+    assert expected_output_mount in financial_scope_command.argv
     receipt = verify_evidence_handoff_receipt(receipt_path)
     assert receipt["candidate_sha"] == CANDIDATE_SHA
     assert receipt["candidate_image_id"] == IMAGE_ID

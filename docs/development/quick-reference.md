@@ -108,7 +108,9 @@ python3 -m venv <attempt-root>/runner-venv
 - S6 另要求 `financial_scope_capacity` 全范围证据：它在带 release guard 的 disposable PostgreSQL 中，按 scope-discovery
   pre-egress owner event 对每只活跃证券做两类独立读取，封存来源报告、全量预算、财报 universe 与证据/artifact ledger 摘要；
   它只写隔离 raw capture/audit 与加密 artifact，`fact_writes` 和 `publication_writes` 必须为零。该 hash graph 不是加密签名，
-  也不替代生产 `data_owner`、独立 reviewer 或生产 owner ceiling；市场容量报告和 N=1 财报 slice 都不能替代它。
+  也不替代生产 `data_owner`、独立 reviewer 或生产 owner ceiling；市场容量报告和 N=1 财报 slice 都不能替代它。该阶段把同一
+  宿主 output 目录额外绑定到候选容器 `/tmp` 下的专用 stage 路径，并固定 `TMPDIR=/tmp`；artifact root 必须位于该临时根下；runner 仍从原 stage output 读取、密封并打包
+  相同 inode。路径或隔离数据库契约不符会以稳定的 raw-artifact 阻断码失败关闭，不得把普通 stage mount 放宽成通用 artifact root。
 - 将全新 S6 release bundle 复制到生产受控入口后，可用
   `python manage.py import_financial_scope_capacity_receipt --bundle-dir <release-root> --actor <superuser>`
   只读重验候选、provider/universe、完整 hash/artifact graph 和生产双人 review/owner ceiling，并追加一条 production import ledger；
