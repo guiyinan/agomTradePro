@@ -7,6 +7,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -949,6 +950,34 @@ def test_snapshot_maps_group_seal_failure_to_stable_code(
             container_gid=os.getgid(),
         )
     assert not (output_root / "receipt.json").exists()
+
+
+def test_candidate_snapshot_help_does_not_require_application_package(tmp_path: Path) -> None:
+    candidate = tmp_path / "candidate-source"
+    scripts = candidate / "scripts"
+    scripts.mkdir(parents=True)
+    project_root = Path(__file__).resolve().parents[2]
+    for name in ("prepare_s6_candidate_source_snapshot.py", "rehearsal_checkpoint.py"):
+        shutil.copy2(project_root / "scripts" / name, scripts / name)
+    shared = candidate / "shared"
+    shared.mkdir()
+    shutil.copy2(
+        project_root / "shared" / "runtime_log_paths.py",
+        shared / "runtime_log_paths.py",
+    )
+
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(candidate)
+    result = subprocess.run(
+        [sys.executable, str(scripts / "prepare_s6_candidate_source_snapshot.py"), "--help"],
+        cwd=candidate,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.skipif(

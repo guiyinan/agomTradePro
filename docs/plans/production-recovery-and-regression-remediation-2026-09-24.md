@@ -4155,3 +4155,29 @@ capacity receipt、两个独立认证 owner/reviewer 事件与有效 ceiling；�
 下一片是否可开始：可以把 collector、真实六字段回归与本节台账作为一个独立修复提交并 push，以新 HEAD 从头运行五组 exact-SHA CI。
 只有五组全绿且 official PostgreSQL artifact 全部 59 个 required identity 零 skip/failure/error，才可从最新生产只读快照 reserve
 新的 fresh S6；禁止重跑旧 run、复用失败 attempt 或使用 `--resume`。
+
+##### 2026-10-11 S6 密封候选 CLI 延迟依赖加载整改
+
+完成项：候选 `9dc505e9c7c31a2be1261b3e681427f013457acf` 的 Architecture `38102939829`、Security
+`38102939820`、Consistency `38102939825` 与 Publication PostgreSQL `38103003045` 通过，但 Fast Feedback
+`38102939815` 在 Python 3.11/3.13 的同一 POSIX 契约失败，因此该 SHA 失去候选资格，四组成功结果不得与后续 SHA 拼接，失败
+run 禁止重跑。失败节点为 `test_sealed_candidate_helper_clis_disable_bytecode_writes`：新加入的完整 market graph 任务结果校验器被
+`prepare_s6_candidate_source_snapshot.py` 在模块顶层导入，使密封候选 CLI 在解析 `--help` 或进入预期的安全失败路径前先要求存在完整
+`apps` 包；最小密封 helper fixture 因而稳定报 `ModuleNotFoundError: apps`。修复把该业务校验器与既有 rehearsal identity 一样只在
+`validate_final_prepare_receipt` 真正执行时延迟加载，CLI 参数解析、帮助和前置安全失败路径不再无条件耦合 Application 包，最终 receipt
+仍调用同一共享校验器且 fail closed。新增跨平台最小候选回归，直接证明没有 `apps` 包时 `--help` 可用；原 POSIX `-B`、零
+`__pycache__`/`.pyc` 契约保持不变并继续由 Linux CI 实证。
+
+测试计数：候选 helper 聚焦回归 `25 passed / 6 skipped`；6 个 skip 均为本机 Windows 无法验证的 POSIX/Linux 行为，未计作通过。
+修改的生产脚本增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与
+`git diff --check` 通过。S6 runner/manifest/collector/validator 的较宽回归为 `412 passed / 15 skipped`；15 个 skip 均为本机
+Windows 无法执行的 POSIX/Linux 契约，未计作通过，必须由新 Linux CI/S6 覆盖。
+
+未验证风险与停止线：原 POSIX bytecode 契约尚未由包含本修复的新 exact-SHA Linux Fast Feedback 实证；候选
+`9dc505e9c` 的 PostgreSQL 成功结果也不能替代失败的 Fast Feedback。fresh S6、部署与生产任务均不得开始。历史失败 attempt 和
+run 禁止 resume/重跑或拼接证据；两个周期入口保持 disabled。production financial refresh 仍须系统记录的 verified full-scope
+capacity receipt、两个独立认证 owner/reviewer 事件与有效 ceiling，聊天授权不能替代这些事实。
+
+下一片是否可开始：较宽回归、格式与类型门禁全部完成后，可以把本修复、回归与台账作为独立 commit 推送，并以新 HEAD 从头绑定
+Architecture、Security、Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部
+required identity 零 skip/failure/error，才可 reserve fresh S6；禁止重跑旧 run。

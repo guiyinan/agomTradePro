@@ -23,10 +23,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from apps.data_center.application.s6_market_graph_task_result import (
-    MarketGraphTaskResultError,
-    validate_market_graph_task_result,
-)
 from scripts.rehearsal_checkpoint import (
     seal_container_input_tree,
     tree_digest,
@@ -223,6 +219,10 @@ def _canonical_attempt_plan(
 def validate_final_prepare_receipt(context: _FinalPrepareValidation) -> dict[str, object]:
     """Validate all staged S6 inputs and write the immutable prepare receipt."""
 
+    from apps.data_center.application.s6_market_graph_task_result import (
+        MarketGraphTaskResultError,
+        validate_market_graph_task_result,
+    )
     from apps.data_center.infrastructure.rehearsal_identity import (
         parse_complete_rehearsal_identities,
     )
