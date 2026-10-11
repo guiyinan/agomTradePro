@@ -4181,3 +4181,39 @@ capacity receipt、两个独立认证 owner/reviewer 事件与有效 ceiling，�
 下一片是否可开始：较宽回归、格式与类型门禁全部完成后，可以把本修复、回归与台账作为独立 commit 推送，并以新 HEAD 从头绑定
 Architecture、Security、Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 的全部
 required identity 零 skip/failure/error，才可 reserve fresh S6；禁止重跑旧 run。
+
+##### 2026-10-11 S6 financial scope 非 root 输出与失败证据密封整改
+
+完成项：候选 `bef573d266e7228c78ebef1e6fe0ddcb9aa30d3f` 的五组 exact-SHA CI 全绿，fresh S6 attempt
+`d630f969c8e8447ca9884e3e0c185663` 完成 build、镜像身份、隔离数据库迁移、真实 provider probe、response replay、
+全市场容量、生产策略 parity、隔离 PostgreSQL 写、GitHub CI evidence 与 AKShare N=1 财报切片共十个阶段；随后
+`financial_scope_capacity` 在 42.331 秒内以 `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_FAILED` fail closed，runner exit 2。
+没有 release manifest、handoff receipt、部署或生产写，失败 attempt 保留且禁止 resume/复用。安全诊断只记录稳定码、返回码与
+stdout/stderr 字节数，不记录 provider 响应或凭据。
+
+根因是 runner 以宿主 root 预建 `financial-scope-capacity/output` 为 `root:root 0755`，旧
+`_invoke_container_stage` 只把 stage 顶层目录切为候选 GID 的 `2770`；候选镜像以非 root UID/GID 运行，无法在既有
+`output` 子目录写 report。命令捕获异常后又尝试向同一路径写安全失败报告，第二次写入同样失败且原实现静默吞掉该错误，因此外层只能
+得到泛化码。提交 `8740720e3` 为 runner 增加声明式可写直接子目录：POSIX 下使用 descriptor、`O_NOFOLLOW`、inode identity、
+`fchown`/`fchmod` 将 `output` 临时绑定候选 GID 与 `2770`，同时把父 stage 设为 `2750` 阻止候选组替换子目录；child fd
+保持到 `finally`，无论成功、命令失败、部分 chmod 失败或路径替换均先密封原 inode 为 `0750`，再核对名字与 inode，顶层目录也恢复
+`0750`。Windows path fallback 只服务本地测试，生产 S6 仍要求 Linux descriptor 语义。财报命令的 failure-report fallback 现在只有在
+已有文件确为同候选、同稳定码的 blocked 零写报告时才接受；成功、旧候选、冲突、symlink、特殊文件或不可写路径统一返回
+`REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_EVIDENCE_WRITE_FAILED`，不泄露原异常文本。
+
+测试计数：runner 与 management command 聚焦回归 `125 passed / 10 skipped`；10 个 skip 均为本地 Windows 无法执行的
+POSIX descriptor、ownership、symlink 或 bash 行为，未计作 Linux 通过。新增正反例覆盖宿主预建 output、非 root 写入、不可写
+目录、symlink、运行期路径替换后原 inode 密封、`fchown` 后 `fchmod` 失败回滚，以及已有 success/旧候选/匹配 blocked report
+语义。两个修改的生产 Python 文件增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map（`44 modules / 210 edges`）、Data Center
+architecture inventory（`5504` references）与 entrypoint inventory（`1328` entries）通过，治理投影由唯一生成器复核且无内容差异。
+
+未验证风险与停止线：POSIX 非 root、fd 生命周期和路径替换反例尚未由包含本修复的新 Linux CI 实证；本地 Windows skip 不能作为
+通过。失败 attempt `d630f969c8e8447ca9884e3e0c185663` 的十个已完成阶段、镜像与旧 CI 证据不得拼接成部署收据，也不得
+`--resume`。必须以包含本节台账的新 exact SHA 从头运行五组 CI；五组全绿且 official PostgreSQL artifact 全部 required identity
+零 skip/failure/error 后，才可从最新生产只读快照 reserve 新 fresh S6。两个周期入口继续 disabled；生产 full-market 历史任务禁止
+重跑。production financial refresh 仍须 verified full-scope capacity receipt、系统内两个独立认证 owner/reviewer 事件和有效
+ceiling，聊天授权不能替代这些事实。
+
+下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 启动五组 CI。只有 Linux 权限反例、五组 CI、fresh S6 十阶段、
+financial scope capacity、release validator 与 handoff receipt 全部通过后，才可执行 receipt-bound 同镜像部署。
