@@ -4330,3 +4330,39 @@ refresh 的 full-scope capacity、双独立认证 approval 与有效 ceiling 停
 下一片是否可开始：可以提交本节台账并 push，以包含 `df87f6732` 的新 exact SHA 从头运行五组 workflow_dispatch CI。只有
 五组全绿、Security 的完整历史为零未分类 finding，且 official PostgreSQL artifact 全部 required identity 为 0
 skip/failure/error，才可从最新生产只读快照创建 fresh S6。
+
+##### 2026-10-11 S6 financial scope 临时 artifact mount 契约整改
+
+完成项：最终候选 `dd7a25683b31d6cac7a0701ac9554012b9d6950f` 的五组 workflow_dispatch exact-SHA CI 与 official
+PostgreSQL artifact 已全绿。fresh attempt `320c6c18713440989945843f60b296e2` 的 prepare 成功，隔离 market graph 业务结果为
+`outcome=partial`、`requested/succeeded/failed/stored=5573/5569/4/11142`；runner 随后通过 build、镜像身份、隔离迁移、provider
+probe、response replay、全市场容量、生产策略 parity、隔离 PostgreSQL 写、GitHub CI evidence 与 AKShare N=1 财报切片共十段，
+但 `financial_scope_capacity` 在 42.722 秒以 `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_FAILED` fail closed，runner exit 2。没有
+manifest、handoff receipt、部署或生产写；终态 run-status、blocked diagnostic 与安全 failure report 已保留，该 attempt 禁止
+resume、复用或重跑。
+
+只读证据确认 runner 把 `--artifact-root` 传为 `/run/agom/stage/output/agom-s6-financial-scope-*`，而候选应用的
+`validate_s6_rehearsal_artifact_root` 只允许 `tempfile.gettempdir()`（容器 `/tmp`）子路径，因此在 provider discovery 和 artifact
+创建前确定性抛出 `REHEARSAL_ARTIFACT_ROOT_PATH_INVALID`；命令旧 stable mapper 未识别该基础设施码，才降格为泛化失败码。提交
+`39be6c446` 只为 `financial_scope_capacity` 把同一宿主 `output` inode 额外挂载到容器
+`/tmp/agom-s6-financial-scope-stage`，显式固定 `TMPDIR=/tmp`，并把 `--output-dir` 与新建 artifact root 放在该专用 mount 下；原
+`/run/agom/stage` mount、descriptor/inode 密封和 bundle 相对路径均保持不变，没有放宽 artifact-root validator。隔离数据库或路径
+校验失败只精确映射为 allowlisted `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID`，未知异常仍返回泛化码且不泄露诊断。
+
+测试计数：artifact-root、management command 与 runner 聚焦回归为 `136 passed / 10 skipped`；release manifest、validator、CI
+collector、runner 与两项财报契约联合回归为 `311 passed / 11 skipped`。skip 均为本机 Windows 无法执行的 POSIX/Linux 契约，未计作
+通过。新增正反例覆盖专用 `/tmp` mount、artifact/output 同父路径、同一宿主 output 的双 mount、`TMPDIR` 固定、temp root 内路径
+通过、root 外路径 fail closed，以及两种 artifact isolation 错误到安全稳定码的精确映射。两个修改的生产 Python 文件增量 mypy 为
+0 issues / 0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map
+（`44 modules / 210 edges`）与 Data Center entrypoint inventory（`1328` entries）通过，entrypoint 投影由唯一生成器临时重建并逐字节一致。
+
+未验证风险与停止线：本修复尚未由新 exact-SHA Linux CI 或 fresh S6 真实 Docker/provider 阶段实证；已知六类契约不能证明未知环境
+类别穷尽。失败 attempt `320c6c18...` 的前十段成功证据不得与新 run 拼接，也不得 `--resume`。必须重新从最新生产只读快照创建
+fresh attempt；五组新 CI、official artifact、完整 S6、release validator 与 handoff receipt 全部通过前禁止部署。两个周期入口保持
+disabled，历史 production full-market task 禁止重跑。production financial refresh 仍须系统记录的 verified full-scope capacity
+receipt、两个独立认证 owner/reviewer 事件与有效 ceiling；聊天授权不能替代这些事实，任何既有 freshness、coverage、audit、source、
+15:00 close、`SIGNAL_WEAK`、请求、查询或文件阈值均不得放宽。
+
+下一片是否可开始：可以提交并 push 本节台账，以包含 `39be6c446` 与本台账的新 exact SHA 从头运行 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿、official PostgreSQL artifact 全部 required identity 为
+0 skip/failure/error 后，才可从最新生产只读快照 reserve 全新 S6；禁止复用旧 receipt、镜像、attempt 或 run。
