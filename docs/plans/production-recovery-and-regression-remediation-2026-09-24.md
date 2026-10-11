@@ -4344,8 +4344,8 @@ resume、复用或重跑。
 只读证据确认 runner 把 `--artifact-root` 传为 `/run/agom/stage/output/agom-s6-financial-scope-*`，而候选应用的
 `validate_s6_rehearsal_artifact_root` 只允许 `tempfile.gettempdir()`（容器 `/tmp`）子路径，因此在 provider discovery 和 artifact
 创建前确定性抛出 `REHEARSAL_ARTIFACT_ROOT_PATH_INVALID`；命令旧 stable mapper 未识别该基础设施码，才降格为泛化失败码。提交
-`39be6c446` 只为 `financial_scope_capacity` 把同一宿主 `output` inode 额外挂载到容器
-`/tmp/agom-s6-financial-scope-stage`，显式固定 `TMPDIR=/tmp`，并把 `--output-dir` 与新建 artifact root 放在该专用 mount 下；原
+`39be6c446` 只为 `financial_scope_capacity` 把同一宿主 `output` inode 额外挂载到容器 `TMPDIR` 下名为
+`agom-s6-financial-scope-stage` 的专用路径，显式固定系统临时根，并把 `--output-dir` 与新建 artifact root 放在该 mount 下；原
 `/run/agom/stage` mount、descriptor/inode 密封和 bundle 相对路径均保持不变，没有放宽 artifact-root validator。隔离数据库或路径
 校验失败只精确映射为 allowlisted `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID`，未知异常仍返回泛化码且不泄露诊断。
 
@@ -4366,3 +4366,21 @@ receipt、两个独立认证 owner/reviewer 事件与有效 ceiling；聊天授�
 下一片是否可开始：可以提交并 push 本节台账，以包含 `39be6c446` 与本台账的新 exact SHA 从头运行 Architecture、Security、
 Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿、official PostgreSQL artifact 全部 required identity 为
 0 skip/failure/error 后，才可从最新生产只读快照 reserve 全新 S6；禁止复用旧 receipt、镜像、attempt 或 run。
+
+##### 2026-10-11 S6 临时路径文档路由误报收口
+
+完成项：候选 `eb12dd7d8056ff67e4ed7e89afdd8fe46d530d79` 的 Architecture `38143783534`、Security
+`38143782186`、Fast Feedback `38143785755` 与 Publication PostgreSQL `38143782740` 已通过，但 Consistency
+`38143783012` 在 `check_doc_route_sdk_consistency.py` 报 2 个 `missing_route`，因此该 SHA 失去候选资格，四组成功结果不得与后续
+SHA 拼接，失败 run 禁止重跑。两条均来自本节台账和环境契约文档中的容器绝对临时文件路径；文档路由扫描器按既有规则把以斜杠开头的
+多段文本解释为 Django URL。生产实现、测试和 S6 artifact 路径契约没有失败。
+
+整改仅把两处说明改为等价的语义表达：容器 `TMPDIR` 下名为 `agom-s6-financial-scope-stage` 的专用子路径；没有修改扫描规则、
+baseline、生产代码、mount 参数或任何 S6 门槛。以同一 consistency 命令本地复验，要求 0 个新增 issue；`git diff --check` 也必须通过。
+
+未验证风险与停止线：文档改写不替代新 exact-SHA 五组 CI，也不改变上一节列出的 Linux fresh S6 未验证风险。失败 run
+`38143783012` 禁止重跑；候选 `eb12dd7d8` 的其余成功结果作废。历史失败 attempt 继续禁止 resume/复用，两个周期入口保持
+disabled，production financial refresh 的 full-scope capacity、双独立认证 approval 与有效 ceiling 停止线不变。
+
+下一片是否可开始：本地 Consistency 与 diff 门禁通过后，可以提交并 push 本文档修复，以新 exact SHA 从头运行五组 CI；五组全绿前
+不得 reserve fresh S6。
