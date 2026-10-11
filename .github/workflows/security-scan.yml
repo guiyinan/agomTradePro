@@ -4,7 +4,8 @@
 # - Bandit: HIGH-severity findings fail the build (MEDIUM logged as warnings).
 # - Dependencies: safety + pip-audit against requirements-dev.txt; any known
 #   vulnerability fails the build. Tool/parse errors are fail-closed.
-# - Secrets: gitleaks full-history scan; any leak fails the build.
+# - Secrets: gitleaks scans the event range for push/PR and full history for
+#   release dispatch/schedule; any leak fails the build.
 # - npm: `npm audit --audit-level=high` against the root package-lock.json.
 
 name: Security Scan
@@ -248,12 +249,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # gitleaks scans full history
+          # The action selects an event-specific range. Full history must be
+          # available for release workflow_dispatch and scheduled scans.
+          fetch-depth: 0
 
       - name: Run gitleaks
         uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Keep the scanner/parser contract explicit. The repository uses
+          # rule-scoped allowlists supported and reviewed at this version.
+          GITLEAKS_VERSION: '8.24.3'
 
   npm-audit:
     name: npm Dependency Audit

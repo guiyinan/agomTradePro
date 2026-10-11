@@ -118,7 +118,3 @@ e3c3511c8a5a042ae09cb01d1ed4e89afc548bb0:config/tui/agomtui-runtime.manifest.jso
 9097e6c04b7277457711212f1179de5ea515298a:docs/deployment/evid09-postcompat-live-image-action-preflight-deny-2026-09-15-891c40c57.json:generic-api-key:9
 5bc9a28ac736e51dca6a5af7f92feee4717740c5:tests/unit/test_evid09_web_only_image_exercise.py:generic-api-key:266
 5bc9a28ac736e51dca6a5af7f92feee4717740c5:scripts/evid09_web_only_action.py:generic-api-key:38
-
-# Generated TUI source-content SHA-256 values, not credentials.
-4c68444fd69be5b4c62ed43a5b6a019d00ebbe7c:config/tui/agomtui-runtime.manifest.json:generic-api-key:90
-4c68444fd69be5b4c62ed43a5b6a019d00ebbe7c:config/tui/agomtui-runtime.manifest.json:generic-api-key:107
