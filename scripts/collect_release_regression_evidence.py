@@ -91,15 +91,10 @@ def _read_provider_identities(path: Path) -> tuple[list[dict[str, object]], str]
         if not isinstance(item, dict):
             _fail("REHEARSAL_PROVIDER_IDENTITY_INPUT_INVALID")
         identity = cast(dict[str, object], item)
-        identities.append(
-            {
-                "endpoint_id": identity["endpoint_id"],
-                "provider_id": identity["provider_id"],
-                "role": identity["role"],
-                "source": identity["source"],
-                "version": identity["version"],
-            }
-        )
+        # The shared validator has already accepted every row against its exact
+        # public allowlist. Preserve that complete canonical row so optional identity
+        # dimensions remain bound to the digest as the contract evolves.
+        identities.append(dict(identity))
     return identities, digest
 
 

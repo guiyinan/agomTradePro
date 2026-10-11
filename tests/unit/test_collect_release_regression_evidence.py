@@ -59,6 +59,14 @@ IDENTITIES = [
         "version": "v1",
         "endpoint_id": "valuation",
     },
+    {
+        "role": "akshare_financial_route:12",
+        "provider_id": 12,
+        "source": "akshare_financial",
+        "version": "v1",
+        "endpoint_id": "financial",
+        "deployment_region": "test-region",
+    },
 ]
 PROVIDER_DIGEST = hashlib.sha256(
     json.dumps(IDENTITIES, sort_keys=True, separators=(",", ":")).encode()
@@ -343,6 +351,7 @@ def test_collects_validated_candidate_only_report_and_exact_junit_bytes(
     )
     assert report["kind"] == "candidate_regression_evidence"
     assert report["outcome"] == "success"
+    assert report["provider_identities"] == IDENTITIES
     assert report["provider_identities_sha256"] == PROVIDER_DIGEST
     assert report["release_ready"] is False
     assert set(report["remaining_release_gates"]) == {

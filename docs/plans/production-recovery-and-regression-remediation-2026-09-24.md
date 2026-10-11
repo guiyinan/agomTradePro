@@ -4114,3 +4114,44 @@ production financial refresh 仍须 verified full-scope capacity、系统内两�
 下一片是否可开始：可以提交本节台账并 push，以包含 `416c125af` 与本台账的新 exact SHA 从头运行 Architecture、Security、
 Consistency、Fast Feedback 与 Publication PostgreSQL。五组全绿且官方 artifact 的全部 required identity 零
 skip/failure/error 后，才可从最新生产只读快照 reserve 新 fresh S6；禁止复用旧 receipt/image。
+
+##### 2026-10-11 S6 CI evidence provider identity 完整投影整改
+
+完成项：最终候选 `cb5154d352834ad6189228dc826fb49260272ae8` 的五组 exact-SHA CI 全部通过：Architecture
+`38088433577`、Security `38088433578`、Consistency `38088433594`、Fast Feedback `38088433583` 与
+Publication PostgreSQL `38088459383`；官方 artifact `11683247470` 共 `99 tests`，全部 `59` 个 required
+identity 出现且为 0 skip/failure/error。首次 attempt `3a0d85f0fc2349f097ca9a3d5acfd6fd` 的 prepare 已成功，但
+operator 错从密封 candidate source 启动 runner，`S6_LAUNCHER_PROVENANCE_INVALID` 在 inputs 前正确阻断；没有 S6 stage、provider、
+数据库或生产写，诊断保留且该 attempt 禁止复用。随后 fresh attempt `e5ab3249e1664b5ca66a28f81b16c556` 从最新生产只读
+快照完成 prepare，目标交易日 `2026-10-09`、动态 universe `5573`，provider policy/route preflight 通过；runner 由 exact-clean
+planner workspace 启动且禁止 `--resume`。
+
+第二个 attempt 已完成 build、镜像身份、隔离数据库迁移、真实 provider probe、response replay、全市场容量、生产策略 parity 与隔离
+PostgreSQL 写入共 8 个阶段。全市场容量实测 `5573` 个资产，`5559` 个目标交易日有效行情，14 个动态排除项均有全日停牌证据；valuation
+为 `5573/5573`、覆盖率 1.0，内存、锁、provider quota 和 task deadline 均在原硬门槛内。随后 `github_ci_evidence` 在官方 JUnit
+已下载后以 `REHEARSAL_PROVIDER_IDENTITY_INVALID` / `S6_STAGE_COMMAND_FAILED` fail closed，未进入财报 slice、bundle、release
+validator 或部署。终态 run-status、checkpoint、blocked diagnostic、full-universe receipt 与 provider probe SHA-256 分别为
+`87cb058a311b38177505ffdf03ee797b3b550816d89c6c110db09de4b8698a32`、
+`1bcfd03e694d71456505778c3cd7bfff44d640ed9105576a7de10b4f599bc10b`、
+`26d7b99e401b6508df2571ac1a1b2152a9d38e8ba8e59a777bb7e23292272719`、
+`e1e207838e7d5b44f33879f1f24f5244035a719661bc855881cbc8a7700458ab` 与
+`1e6032089db09b8cb9337e2e1adac2aaf34e18219b1211ad8932f74d8d04d1bd`。确认 runner 退出并密封散列后，仅删除该 attempt
+精确 namespace 的 disposable PostgreSQL/Redis/network/volume，attempt 根目录与全部证据保留。
+
+根因是 `collect_release_regression_evidence.py` 先用完整 frozen provider identity 计算摘要，随后为报告另造五字段投影，丢弃财报路由
+合法且必需的 `deployment_region`；shared validator 对报告中的同一 identity/digest 重验时因此正确拒绝。修复不再复制第二套字段
+allowlist：输入经唯一 shared validator 完整校验后，collector 保留其完整 canonical row，使可选身份维度仍与摘要绑定。新增真实三角色
+fixture（quote、valuation、`akshare_financial_route:<provider_id>`）和 `deployment_region` roundtrip 断言；修复前红测试稳定为
+`1 failed`，修复后 collector 整文件 `16 passed`，S6 runner/validator/manifest 较宽回归 `278 passed / 4 skipped`。4 个 skip
+均为本机 Windows 无法执行的 POSIX mode/symlink/bash 行为，未计作 Linux 通过。修改的生产脚本增量 mypy 为 0 issues /
+0 regressions，全仓 mypy debt ceiling 为 `0 errors in 0 files`；Black、isort、Ruff 与 `git diff --check` 通过。
+
+未验证风险与停止线：本修复尚未进入新 exact-SHA Linux CI 或 fresh S6，Windows 的 4 个 POSIX skip 必须由新 CI/S6 覆盖。两个失败
+attempt 均禁止 `--resume`，其已完成阶段、镜像或 CI 下载不得拼接为部署证据；只有新的完整十阶段、release validator 与 handoff
+receipt 才可授权同镜像部署。生产 full-market 历史任务禁止重跑；receipt-bound 部署通过后只按用户现有授权投递一次新的显式
+production full-market refresh。两个周期入口保持 disabled。production financial refresh 仍须系统记录的 verified full-scope
+capacity receipt、两个独立认证 owner/reviewer 事件与有效 ceiling；聊天授权不能替代这些事实。
+
+下一片是否可开始：可以把 collector、真实六字段回归与本节台账作为一个独立修复提交并 push，以新 HEAD 从头运行五组 exact-SHA CI。
+只有五组全绿且 official PostgreSQL artifact 全部 59 个 required identity 零 skip/failure/error，才可从最新生产只读快照 reserve
+新的 fresh S6；禁止重跑旧 run、复用失败 attempt 或使用 `--resume`。
