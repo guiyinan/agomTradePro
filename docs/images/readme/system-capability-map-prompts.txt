@@ -1,0 +1,42 @@
+# AgomTradePro system capability map generation prompts
+
+Tool: built-in image_gen
+
+## Chinese original
+
+Use case: infographic-diagram.
+Asset type: high quality commercial product capability map for the GitHub README of AgomTradePro, a self-hosted personal investment research platform.
+Create ONE finished, premium business-style infographic, wide landscape 16:9 approximately 2560x1440, clean readable Chinese typography, suitable for display at 1100px wide. Polished consulting / enterprise fintech product brochure aesthetic. Off-white background, dark navy headings, muted teal accents, restrained blue and warm amber accent per stage. Generous whitespace, precise aligned grid, thin connecting lines, simple sophisticated outline icons, rounded white cards, subtle soft shadows. No isometric illustration, no decorative stock price chart, no gradients that reduce contrast, no marketing claims, no return percentages.
+Audience: unfamiliar visitors who need to understand what the software does. This is a functional overview, not an engineering dependency diagram.
+Layout:
+Top left brand title exactly "AgomTradePro". Immediately below a prominent Chinese title exactly "系统功能全景". Subtitle exactly "从数据与研究，到可追溯的投资决策".
+A slim full-width top bar labeled "用户与集成入口", with four equally spaced small icon/label groups: "初始化向导", "研究工作台", "终端操作台", "Python SDK · MCP".
+Middle occupying 55% of image: four equally sized cards arranged left to right with crisp horizontal arrows between cards. Each card has a large 01/02/03/04 stage number, a short colored top accent, an outline icon, a bold stage heading and four clearly separated rows. Use these exact labels and no extra prose:
+01 heading "数据底座", rows "行情与财报" / "宏观与政策数据" / "标准化与版本发布" / "质量校验与数据容灾".
+02 heading "研究分析", rows "宏观象限与政策研判" / "估值与因子分析" / "AI 选股与舆情分析" / "回测与情景研究".
+03 heading "决策控制", rows "信号与证伪条件" / "宏观与风险闸门" / "策略与仓位规则" / "预检与人工审批".
+04 heading "执行复盘", rows "模拟交易" / "组合与持仓跟踪" / "实时监控与告警" / "审计与绩效归因".
+Below the four cards draw one thin feedback line from right to left with a small label exactly "复盘反馈", communicating learning back to research without line crossings.
+Bottom: two spacious horizontal support bands stacked, both spanning all four stages, visually subordinate to stage headings but clearly legible.
+Band 1 heading "AI 协作" followed by 4 text segments: "模型与提示词管理" / "能力目录" / "任务编排" / "提案 → 审批 → 执行".
+Band 2 heading "运行保障" followed by 4 text segments: "全局配置" / "任务监控" / "权限与审计" / "生产就绪验证".
+A tiny but readable footer exactly "功能关系示意 · 实际可用范围以配置与就绪状态为准".
+All text must be exact as given, correctly formed Simplified Chinese glyphs, large enough to read, no typos or duplicated labels. Use editorial hierarchy, avoid dense paragraph text. Keep every label inside cards and generous canvas margins. Do not include implementation filenames, HTTP endpoints, app source module names, database schemas, server addresses, or code. A finished polished product diagram, not a screenshot of an editing app.
+
+## English localization
+
+Use case: text-localization.
+Edit the referenced AgomTradePro capability infographic into an English version. Preserve its polished white/navy/teal/blue/amber enterprise style, icons, four-column structure, aligned rows, arrows, feedback line and two bottom support bands. Preserve AgomTradePro brand. Landscape 16:9. Fit English text naturally, allowing modest text size or column spacing adjustments so every label remains comfortably readable at README width. No new business features or claims.
+Replace every Chinese text with exactly these English labels:
+Title "系统功能全景" -> "System Capability Map".
+Subtitle -> "From data and research to traceable investment decisions".
+Top bar heading -> "Access & Integrations"; its four items "Setup Wizard", "Research Workspace", "Terminal Console", "Python SDK · MCP".
+01 stage heading "Data Foundation"; four rows "Market & Financial Data", "Macro & Policy Data", "Standardization & Publications", "Quality Checks & Failover".
+02 heading "Research & Analysis"; rows "Macro Regimes & Policy", "Valuation & Factor Analysis", "AI Scoring & Sentiment", "Backtesting & Scenarios".
+03 heading "Decision Controls"; rows "Signals & Invalidation", "Macro & Risk Gates", "Strategy & Position Rules", "Pre-checks & Human Approval".
+04 heading "Execution & Review"; rows "Paper Trading", "Portfolio & Position Tracking", "Monitoring & Alerts", "Audit & Attribution".
+Feedback line text "Review Feedback".
+Bottom band 1 heading "AI Collaboration"; items "Models & Prompts", "Capability Catalog", "Task Orchestration", "Proposal → Approval → Execution".
+Bottom band 2 heading "Operations"; items "Configuration", "Task Monitoring", "Access & Audit", "Readiness Validation".
+Footer "Functional overview · Availability depends on configuration and readiness".
+No Chinese text must remain. No labels missing, no clipped words, no duplicate labels. The labels are descriptive capabilities, not production acceptance claims. Keep only the provided text.

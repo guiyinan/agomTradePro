@@ -16,7 +16,7 @@
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-[Overview](#overview) · [Screenshots](#screenshots) · [Quick Start](#quick-start) · [AI Integration](#ai-native-integration) · [Project Status](#project-status) · [Docs](#documentation)
+[Overview](#overview) · [Capability Map](#system-capability-map) · [Screenshots](#screenshots) · [Quick Start](#quick-start) · [AI Integration](#ai-native-integration) · [Project Status](#project-status) · [Docs](#documentation)
 
 </div>
 
@@ -36,6 +36,14 @@ AI assistants can query data and prepare proposals; execution goes through the s
 
 > **Disclaimer**<br>
 > This project is for **personal research and system experimentation only**. It does not represent the investment views of any institution and **does not constitute investment advice**.
+
+---
+
+## System Capability Map
+
+![AgomTradePro capability map: data foundation, research and analysis, decision controls, execution and review, supported by AI collaboration and operations](docs/images/readme/system-capability-map-en-v1.png)
+
+Read the main workflow from left to right. The two bands below support every stage with AI collaboration and operations. This map describes functional relationships; see [Project Status](#project-status) for current availability.
 
 ---
 
