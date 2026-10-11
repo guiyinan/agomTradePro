@@ -4217,3 +4217,26 @@ ceiling，聊天授权不能替代这些事实。
 
 下一片是否可开始：可以提交并 push 本节台账，以新 exact SHA 启动五组 CI。只有 Linux 权限反例、五组 CI、fresh S6 十阶段、
 financial scope capacity、release validator 与 handoff receipt 全部通过后，才可执行 receipt-bound 同镜像部署。
+
+##### 2026-10-11 S6 descriptor 密封端到端测试适配整改
+
+完成项：候选 `5501081921816a46e3ff7cbc4a27136deddc6f36` 的 Architecture `38114946838`、Security
+`38114946840`、Consistency `38114946844` 与 Publication PostgreSQL `38114946845` 已通过，但 Fast Feedback
+`38114946841` 在 Python 3.11/3.13 的同一测试稳定失败，因此该 SHA 失去候选资格，四组成功结果禁止与后续 SHA 拼接。失败不是
+financial scope 生产实现回退：`test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handoff` 仍只监控
+`Path.chmod` 调用，而上一片已把 Linux stage 目录密封切换为 descriptor-based `os.fchmod`；测试因此在 POSIX 上得到
+`KeyError: provider-probe`，没有观察真实最终 mode。提交 `c33851c0b` 让 Linux 端到端测试直接读取五个既有 stage 目录和新
+`financial-scope-capacity/output` 的最终 mode，并要求全部为 `0750`；Windows 保留原 path fallback 调用断言。实现、扫描规则、
+业务门槛与 S6 runner 均未改动。
+
+测试计数：GitHub Fast Feedback 两个 Python 版本均为 `3700 passed / 79 skipped / 1 failed`，唯一失败节点和堆栈一致；官方
+Publication PostgreSQL 的所有阶段已通过。修复后本地目标回归 `1 passed`，Black、isort、Ruff 与 `git diff --check` 通过；本片
+只修改测试与台账，没有生产 Python 改动，因此不重复运行生产 mypy 门禁。
+
+未验证风险与停止线：新的 POSIX 最终 mode 断言仍须由新 exact-SHA Linux Fast Feedback 实证；Windows 本地结果不能替代该证据。
+失败 run `38114946841` 禁止重跑，候选 `550108192` 的其余成功结果全部作废。fresh S6、部署与生产刷新不得开始；旧 attempt
+`d630f969c8e8447ca9884e3e0c185663` 继续禁止 resume/复用。两个周期入口保持 disabled，production financial refresh 的
+full-scope capacity、双独立认证 approval 与有效 ceiling 停止线不变。
+
+下一片是否可开始：可以提交并 push 本节台账，以包含 `c33851c0b` 的新 exact SHA 从头运行五组 CI；五组全绿且 official
+PostgreSQL artifact 全部 required identity 零 skip/failure/error 后，才可从最新生产只读快照创建新的 fresh S6。
