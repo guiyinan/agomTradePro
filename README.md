@@ -26,6 +26,21 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-10-11
+
+- 任务监控补齐冷启动时的 Celery 生命周期信号注册，避免任务已执行但监控状态未更新；S6 市场数据图会逐阶段核验业务结果和发布证据，只有证据支持的部分结果才能继续后续流程。
+- 发布预演进一步收紧候选身份与文件输出契约：统一版本化 provider / policy 身份，隔离只读源码与可写日志，使用目录描述符密封阶段输出；GitHub CI 凭据在阶段启动前预检，缺失或无效时明确阻断。详见 [S6 阶段环境契约](docs/development/s6-stage-environment-contract.md)。
+- 安全扫描固定 gitleaks 版本并校验 allowlist 解析契约；发布候选手动 CI 扫描完整 Git 历史，已分类的历史误报采用精确指纹，TUI 内容摘要采用路径与完整行同时匹配的窄规则。
+- 财报全范围同步与正式发布增加容量回执、冻结范围、请求预算和审批绑定；这些是仓库能力，真实生产验收仍须通过同候选 CI、完整 fresh S6 和部署后对账。整改范围、回归记录和剩余项见 [生产恢复计划](docs/plans/production-recovery-and-regression-remediation-2026-09-24.md)。
+
+### 2026-10-10
+
+- [生产只读复核](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) 记录生产仍运行 `d3fdbd6f1` / release `20261008050500`：health、数据库 health 和 ready 均为 200，decision-ready 仍为 503。报价与估值各覆盖 5,572 个成员，日线缺 11 个成员，财报尚无 current Publication；候选身份、审计授权、来源时间证据和受保护监控认证仍有阻断，尚未完成生产恢复验收。
+
+### 2026-10-04
+
+- 财报已接受经 owner 批准的日期精度契约：公告日 T 的上海零点仅表示日历日起点，次日零点才可进入日级决策；不会冒充 provider 的精确发布时间，也不会改写历史 degraded 数据。原始响应留存、同来源行级绑定、发布完整性与生产验收仍必须满足。详见 [日期精度决策记录](docs/plans/data02-date-only-precision-decision-2026-10-04.md)。
+
 ### 2026-09-25
 
 - 行情、日线、估值和财报事实采用不可变修订：已经进入 Publication 的事实不会再被后续同步原地覆盖；新数据追加 revision，历史 Publication 继续绑定原始行和内容摘要，避免后台更新造成已发布成员校验失效。
@@ -361,6 +376,7 @@ AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板�
 - 用户工作流主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动 + TUI Operator / MCP 治理中心
 - AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
 - 生产运行闭环继续完善：价格流、WebSocket、告警订阅、受控事件回放、任务监控与 readiness 证据已进入统一治理链路
+- 生产决策就绪仍受门禁阻断；最近留存的 [2026-10-10 只读证据](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) 显示基础健康正常，但数据覆盖、财报证据、身份与审计验收尚未收口。仓库更新和 main 同步不代表生产部署完成
 - 模块职责进一步独立：估值引擎与生产就绪验收分别收口到 `valuation` 和 `operational_readiness`
 - 架构治理保持硬约束：App 级双向依赖、循环组件、大文件治理豁免与生产 mypy 新增债务当前均为零，并由 CI 锁定
 - 仍在持续完善：更多 public demo 场景、README/文档国际化、AgomTUI 可移植性与运维自动化
@@ -1045,7 +1061,7 @@ REST API 路径：OpenAPI 快照
 
 欢迎贡献！提交 PR 前请阅读[开发规范](docs/development/outsourcing-work-guidelines.md)。
 
-当前治理阶段以 `dev/next-development` 为集成主线：短期 `dev/*` 分支从这里切出并合回这里；完成集成回归后，再将同一提交快进到稳定展示分支 `main`。分支命名与提交要求见 [Git 工作流](docs/GIT_WORKFLOW.md)。
+日常开发直接在唯一长期开发分支 `dev/next-development` 完成，不同事项拆成独立 commit；除非另有明确要求，不再创建短期 `dev/*` 或 `codex/*` 分支。验证并获得发布授权后，再将同一提交同步到稳定展示分支 `main`；生产部署按独立发布契约执行。分支与提交要求见 [Git 工作流](docs/GIT_WORKFLOW.md)。
 
 ```bash
 # 格式化

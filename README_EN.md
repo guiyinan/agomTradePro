@@ -26,6 +26,21 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-10-11
+
+- Task monitoring now registers Celery lifecycle signals on cold start so execution state is recorded from the first task. The S6 market-data graph validates each stage's business outcome and publication evidence; partial results can proceed only when the evidence supports them.
+- Release rehearsal now preserves versioned provider / policy identities, separates sealed source files from writable logs, seals stage outputs through directory descriptors, and checks GitHub CI credentials before the stage starts. Missing or invalid credentials block the run. See the [S6 stage environment contract](docs/development/s6-stage-environment-contract.md).
+- Security scanning pins the gitleaks version and verifies its allowlist syntax. Manually dispatched release-candidate CI scans the full Git history; classified historical findings use exact fingerprints, while TUI content digests require both a matching path and a matching full line.
+- Full-scope financial synchronization and publication now bind capacity receipts, frozen scope, request budgets, and approvals. These repository capabilities still require CI, a complete fresh S6 rehearsal, and post-deployment reconciliation for the same candidate. The [production recovery plan](docs/plans/production-recovery-and-regression-remediation-2026-09-24.md) records regression evidence and remaining work.
+
+### 2026-10-10
+
+- The retained [read-only production review](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) records production at `d3fdbd6f1` / release `20261008050500`: health, database health, and ready return 200, while decision-ready remains 503. Quotes and valuations each cover 5,572 members; daily prices are missing 11 members, and financial data has no current Publication. Candidate identity, audit authority, source-time evidence, and protected monitoring authentication still block production recovery acceptance.
+
+### 2026-10-04
+
+- An owner-approved financial date-precision contract now treats Shanghai midnight on announcement day T as a calendar-day boundary and makes the fact available for daily decisions at midnight on T+1. It does not claim an exact provider timestamp or rewrite historical degraded facts. Retained raw responses, same-provider row binding, publication integrity, and production acceptance remain required. See the [date-precision decision](docs/plans/data02-date-only-precision-decision-2026-10-04.md).
+
 ### 2026-09-25
 
 - Quote, price-bar, valuation, and financial facts now use immutable revisions. A fact already pinned by a Publication is never updated in place; corrections append a revision while historical Publications keep their original row and content digest.
@@ -238,6 +253,7 @@ If what you want is not “another dashboard” but “a base for building your 
 - The primary user flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage + TUI Operator / MCP Governance Center
 - AI-native surfaces are already in place: **governed MCP, Agents SDK Terminal, Agent Runtime, Capability Catalog**
 - The production operations loop keeps expanding: price streams, WebSockets, alert subscriptions, controlled event replay, task monitoring, and readiness evidence now share a governed path
+- Production decision readiness remains blocked. The latest retained [October 10 read-only evidence](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) shows healthy infrastructure but unresolved coverage, financial evidence, identity, and audit acceptance. Repository updates and main synchronization do not establish production deployment
 - Module ownership is more explicit: valuation and production-readiness acceptance now live in `valuation` and `operational_readiness`
 - Architecture governance remains strict: app-level bidirectional dependencies, cycle components, and large-file exemptions are all currently at zero
 - Still being improved: more public demo paths, README/docs internationalization, AgomTUI portability, and operations automation
@@ -947,7 +963,7 @@ Documentation files: docs/INDEX.md
 
 Contributions are welcome! Please read the [development guidelines](docs/development/outsourcing-work-guidelines.md) before submitting PRs.
 
-During the current governance phase, `dev/next-development` is the integration line: short-lived `dev/*` branches start from and merge back into it, while the same tested commit is later fast-forwarded to the stable public `main` branch. See the [Git workflow](docs/GIT_WORKFLOW.md) for naming and commit conventions.
+Daily development takes place directly on the sole long-lived development branch, `dev/next-development`, with separate commits for separate changes. Additional `dev/*` or `codex/*` branches require an explicit request. After validation and release authorization, the same commit is synchronized to the stable public `main` branch; production deployment follows its separate release contract. See the [Git workflow](docs/GIT_WORKFLOW.md) for branch and commit conventions.
 
 ```bash
 # Format
