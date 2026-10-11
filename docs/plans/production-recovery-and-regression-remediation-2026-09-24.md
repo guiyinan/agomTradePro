@@ -4274,3 +4274,30 @@ owner/reviewer 事件与有效 ceiling，聊天授权不能替代这些事实；
 下一片是否可开始：可以把本整改和本节台账提交并 push，以新 exact SHA 从头运行 Architecture、Security、Consistency、Fast
 Feedback 与 Publication PostgreSQL。只有五组全绿、official artifact 全部 required identity 零 skip/failure/error 后，才可从最新
 生产只读快照 reserve 新 fresh S6；runner 必须由 exact-clean workspace 启动且禁止 `--resume`。
+
+##### 2026-10-11 exact-SHA Security 全历史误报基线收口
+
+完成项：候选 `7c6b018e4b0aaee34171473d2f158481f804e1d3` 的 Architecture `38128639645` 已通过，但 Security
+`38128646980` 的 Bandit、dependency audit 与 npm audit 通过后，gitleaks job 在完整历史扫描中报告 8 条
+`generic-api-key`，因此该 SHA 失去候选资格；其余仍运行或随后通过的结果均不得与后续 SHA 拼接，失败 run 禁止重跑。根因不是上一片
+新增的 GitHub token fixture：上一轮 Security `38116101168` 由 `push` 事件触发，gitleaks-action 只扫描
+`c33851c0b^..ef6cc1491` 两个提交；本轮 exact-SHA 由 `workflow_dispatch` 触发，按 action 的事件契约执行
+`git log -p -U0 --full-history --all`，首次把最近尚未分类的历史误报纳入同一门禁。
+
+8 条 finding 已逐项从 SARIF 和原始提交复核，分别为三个 S6 稳定校验错误码、一个公开 SSH host-key fingerprint、两个固定 EVID-09
+操作标识和两个生成 TUI source-content SHA-256，不是凭据。提交 `f6d5d5587` 只在 `.gitleaksignore` 增加
+`commit:path:rule:line` 精确指纹；没有增加路径、规则或正则级豁免，也没有关闭、缩小或改写 full-history 扫描。使用与 CI 相同且通过官方
+checksum 验证的 gitleaks `8.24.3` 在当前完整历史重新执行，结果为 `4017 commits scanned / 307.54 MB / no leaks found`。
+
+测试计数：本片安全门禁复验为 1 次完整历史扫描、4017 个提交、8 条已分类误报、0 条未分类 finding；`.gitleaksignore` 的
+`git diff --check` 通过。本片只修改安全扫描基线与台账，没有生产 Python 改动，因此不适用增量生产 mypy；上一片生产代码的增量 mypy
+与全仓 debt ceiling 结果继续有效，但不能代替新 exact-SHA 五组 CI。
+
+未验证风险与停止线：gitleaks-action 对 `push` 与 `workflow_dispatch` 使用不同扫描范围，普通 push 成功不能替代 release
+候选的 dispatch 全历史证据；新的 exact SHA 必须重新运行完整五组 CI。精确指纹只覆盖已人工分类的原提交，任一内容在新提交重新出现仍会
+阻断。fresh S6、部署和生产刷新继续禁止开始；attempt `66fea871...` 与 `cb9cb4a0...` 继续禁止 resume/复用。两个周期入口保持
+disabled，production financial refresh 的 full-scope capacity、双独立认证 approval 与有效 ceiling 停止线不变。
+
+下一片是否可开始：可以提交本节台账并 push，以包含 `f6d5d5587` 的新 exact SHA 从头启动 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official PostgreSQL artifact 的全部 required identity 为
+0 skip/failure/error，才可从最新生产只读快照创建 fresh S6；禁止复用旧 run、receipt、镜像或使用 `--resume`。
