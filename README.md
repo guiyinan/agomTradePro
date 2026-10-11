@@ -6,19 +6,739 @@
 
 ### 别在错误的宏观环境里下注，哪怕你的逻辑是对的。
 
-**一个 AI-native 的个人投资研究底座：为 AI 提供数据基础与决策框架，把宏观判断、策略纪律、Agent 能力和执行工作流放进同一个系统里。**
+**一个可自行部署的个人投研平台：宏观分析、投资信号、模拟交易与 AI 协作，在同一个系统里完成。**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-governed-brightgreen.svg)](#测试)
+[![Tests](https://img.shields.io/badge/tests-governed-brightgreen.svg)](#运行测试)
 [![Architecture](https://img.shields.io/badge/架构-DDD-purple.svg)](#架构)
 [![MCP Tools](https://img.shields.io/badge/MCP_工具-governed-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-[快速开始](#快速开始) · [为什么做这个](#为什么做这个) · [为什么值得-fork--star](#为什么值得-fork--star) · [架构](#架构) · [AI 集成](#ai-原生集成) · [截图](#截图) · [文档](docs/INDEX.md)
+[项目简介](#项目简介) · [截图](#截图) · [快速开始](#快速开始) · [AI 集成](#ai-原生集成) · [项目状态](#项目状态) · [文档](#文档)
 
 </div>
+
+---
+
+## 项目简介
+
+AgomTradePro 把行情数据、宏观分析、投资信号、审批、模拟交易和决策记录放在一个可自行部署的平台里。你可以通过浏览器操作，也可以用 Python SDK 或 MCP 工具连接 AI 助手。
+
+一个典型的使用流程是：
+
+1. **先看环境**：查看增长、通胀和政策情况。系统将“增长 × 通胀”的宏观分类称为 **Regime（宏观象限）**。
+2. **再形成观点**：研究标的，记录投资理由，并明确什么条件出现时应推翻这个判断。
+3. **审核并跟踪**：运行配置好的检查，审核提案，通过模拟交易和决策记录持续复盘。
+
+AI 助手可以查询数据、整理分析和提出方案，执行经过系统的审批与审计流程。第一次访问可以先看下方截图，再按“快速开始”运行本地实例。
+
+> **免责声明**<br>
+> 本项目仅用于**个人研究与系统实验**，不代表任何机构的投资观点，**不构成任何投资建议**。
+
+---
+
+## 适合谁用
+
+- **个人投资者** —— 想用系统化纪律替代情绪化操作
+- **量化开发者** —— 想把宏观分析、信号规则和策略研究接入自己的工作流
+- **AI/LLM 爱好者** —— 想构建有护栏的投资 Agent，而不是裸奔的 GPT wrapper
+- **金融学生** —— 用真实代码学习宏观驱动的投资框架
+
+---
+
+## 截图
+
+<details open>
+<summary><b>研究总览（Dashboard）</b></summary>
+
+![Dashboard](docs/images/readme/dashboard_logged_in.png)
+
+*经典 Dashboard 将账户、宏观状态、决策信息、AI 选股与工作流聚合在同一屏。*
+
+</details>
+
+<details>
+<summary><b>系统初始化向导（Setup Wizard）</b></summary>
+
+![Setup Wizard](docs/images/readme/setup_wizard.png)
+
+*第一次启动即可完成密钥自动生成、管理员创建、AI Provider 和数据源配置，无需手动编辑 .env 文件。*
+
+</details>
+
+<details>
+<summary><b>Terminal CLI（原生 AI 交互界面）</b></summary>
+
+![Terminal CLI](docs/images/readme/terminal_cli.png)
+
+*不是“附带一个聊天框”，而是面向操作流设计的 CLI：命令、上下文、会话、能力路由都在一个终端界面里。*
+
+</details>
+
+<details>
+<summary><b>原生 MCP Tools 管理页</b></summary>
+
+![MCP Tools](docs/images/readme/mcp_tools.png)
+
+*系统内建 MCP 工具目录、Schema 检视、Terminal/Routing 开关，不是后贴一层 API wrapper。*
+
+</details>
+
+---
+
+## 功能一览
+
+### 核心系统
+
+| 模块 | 做什么 |
+|------|--------|
+| **Regime 引擎** | 从增长/通胀指标计算当前宏观象限，Z-score 标准化 |
+| **Policy 闸门** | 追踪财政/货币政策事件，评估对风险偏好的影响 |
+| **信号管理器** | 创建、验证、追踪投资信号，强制要求证伪逻辑 |
+| **决策工作流** | 预检 → 审批 → 执行流水线，带频率约束 |
+| **估值引擎** | 估值快照、价格带、质量与新鲜度规则 |
+| **回测引擎** | 历史验证，支持 Brinson 归因分析 |
+| **审计系统** | 事后复盘，完整决策链路追踪和绩效归因 |
+
+### 组合与执行
+
+| 模块 | 做什么 |
+|------|--------|
+| **模拟交易** | 模拟盘交易，保证金追踪，每日巡检 |
+| **实时监控** | 实时价格流、WebSocket、价格预警与订阅管理 |
+| **策略系统** | 数据库驱动的仓位规则，按组合绑定策略 |
+| **板块轮动** | 基于 Regime 的板块配置建议 |
+| **生产就绪验收** | 调度状态、readiness 证据、连续窗口验收与修复命令 |
+
+### AI 与智能分析
+
+| 模块 | 做什么 |
+|------|--------|
+| **Alpha 评分** | AI 选股评分，4 层降级（Qlib → 缓存 → 简单 → ETF） |
+| **因子管理** | 因子计算、IC/ICIR 评估 |
+| **对冲策略** | 期货对冲计算和组合保护 |
+| **舆情闸门** | 新闻/舆情分析作为额外风险过滤 |
+
+### 数据源
+
+| 数据源 | 覆盖范围 |
+|--------|----------|
+| **Tushare Pro** | A 股行情、SHIBOR、指数数据 |
+| **AKShare** | 宏观指标（PMI、CPI、M2、GDP 等） |
+| **QMT Local** | 本地终端行情接入与运行时探针 |
+| **自动容灾** | 主备切换，1% 容差验证 |
+
+---
+
+## 项目状态
+
+> 这个项目已经可以运行、可以演示、可以继续扩展，但**仍处于积极开发中**。<br>
+> 当前仓库的**前端呈现和部分操作逻辑仍在持续修改**。<br>
+> 现阶段更准确的理解方式是：它正在逐步形成一个**给 AI 使用的数据基础和决策框架**，而不是已经完全冻结的成品 SaaS；公开仓库后续也会继续更新界面、交互流、监控能力和相关文档。
+
+- 核心宏观准入链路已可用：Regime / Policy / Signal / 审批 / 执行 / 审计
+- 用户工作流主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动 + TUI Operator / MCP 治理中心
+- AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
+- 生产运行闭环继续完善：价格流、WebSocket、告警订阅、受控事件回放、任务监控与 readiness 证据已进入统一治理链路
+- 生产决策就绪仍受门禁阻断；最近留存的 [2026-10-10 只读证据](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) 显示基础健康正常，但数据覆盖、财报证据、身份与审计验收尚未收口。仓库更新和 main 同步不代表生产部署完成
+- 模块职责进一步独立：估值引擎与生产就绪验收分别收口到 `valuation` 和 `operational_readiness`
+- 架构治理保持硬约束：App 级双向依赖、循环组件、大文件治理豁免与生产 mypy 新增债务当前均为零，并由 CI 锁定
+- 仍在持续完善：更多 public demo 场景、README/文档国际化、AgomTUI 可移植性与运维自动化
+
+---
+
+## 快速开始
+
+### Windows 一键启动（推荐）
+
+1. 运行根目录 `install.bat`（自动创建 venv、安装最小运行依赖、生成本地 `.env` 与安全密钥）
+2. 运行根目录 `start.bat`，选择 `Quick Start`
+3. 打开 `http://localhost:8000/setup/` 完成安装向导
+
+> 本地虚拟环境目录默认叫 `agomtradepro/`，在 `.gitignore` 里，**不会提交到 git**。
+>
+> 如果你是仓库贡献者而不是普通体验用户，可改用 `install.bat --dev` 安装 pytest / Playwright / mypy 等开发工具。
+
+### 手动安装（Windows / Linux / Mac）
+
+#### 前置条件
+
+- Python 3.11+
+
+#### 安装
+
+```bash
+# 克隆
+git clone https://github.com/guiyinan/agomTradePro.git
+cd agomTradePro
+
+# 创建虚拟环境
+python -m venv agomtradepro
+source agomtradepro/bin/activate  # Linux/Mac
+# 或: agomtradepro\Scripts\activate  # Windows
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 生成本地 .env 和安全密钥
+python manage.py bootstrap_local_env
+
+# 数据库初始化
+python manage.py migrate
+
+# 启动开发服务器
+python manage.py runserver
+
+# 访问 http://localhost:8000/setup/ 完成安装向导
+```
+
+安装向导会引导你完成：
+1. **自动生成安全密钥** — `SECRET_KEY` 和 `AGOMTRADEPRO_ENCRYPTION_KEY` 如果未配置，向导会自动生成并写入 `.env`
+2. 创建管理员账户
+3. 配置 AI 服务商（可选）— API Key 使用 Fernet 加密存储
+4. 配置数据源（可选）
+
+> 本地首次体验默认就是 `SQLite + 同步任务`，不需要 PostgreSQL、Redis 或 Docker。
+>
+> 想用可编辑安装也可以，仓库现在支持：
+>
+> ```bash
+> pip install -e .
+> # 或开发模式
+> pip install -e ".[dev]"
+> ```
+
+<details>
+<summary>可选初始化、安装排错、SDK 安装与测试</summary>
+
+### 初始化系统数据（可选）
+
+如果你想一键初始化内置配置、模板、调度默认值、RSS 源、策略参数等冷启动数据，优先运行：
+
+```bash
+python manage.py bootstrap_cold_start
+
+# 如果需要同时做网络依赖的数据修复/同步，再显式开启：
+python manage.py bootstrap_cold_start --with-macro-sync --with-decision-repair
+```
+
+`init_all` 仍保留为旧版轻量初始化入口，但覆盖范围比 `bootstrap_cold_start` 小；新环境和部署脚本应优先使用 `bootstrap_cold_start`。
+
+部署到 Docker / PostgreSQL / Redis 的场景不属于首次启动主路径，单独参考 `deploy/` 和 `docs/deployment/`。
+
+### 初次安装容易踩坑
+
+#### 1. `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`
+
+**通常不需要手动设置。** 安装向导和 Docker entrypoint 都会自动生成。
+
+如果你想手动设置，可以用以下命令生成：
+
+```bash
+# Django SECRET_KEY
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# 数据加密密钥（Fernet）
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+然后写入 `.env`：
+
+```env
+SECRET_KEY=your-own-django-secret-key
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+```
+
+#### 2. `DATABASE_URL`
+
+本地快速体验不需要 `DATABASE_URL`。
+
+- 复制 `.env.example` 后直接 `migrate`，项目会默认使用根目录下的 SQLite
+- 如果后续确实要切 PostgreSQL，再按部署文档单独配置即可
+
+#### 3. `REDIS_URL` / Celery
+
+Redis 不是本地首次体验的强制依赖。
+
+- 本地没有配置 `REDIS_URL` 时，Celery 会退化为同步执行模式
+- 如果你要体验完整异步任务、worker、beat，再去配置 Redis
+
+#### 4. 首次只想跑起来，最小可用配置
+
+运行 `python manage.py bootstrap_local_env` 后，你甚至不需要手工改任何密钥：
+
+```bash
+python manage.py bootstrap_local_env
+python manage.py migrate
+python manage.py runserver
+# 访问 http://localhost:8000/setup/ → 点击"开始"即可
+```
+
+如果你想跳过向导手动配置，最少确认这几项：
+
+```env
+SECRET_KEY=your-own-django-secret-key
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
+
+### 安装 SDK（可选）
+
+```bash
+cd sdk
+pip install -e ".[dev]"
+```
+
+### 运行测试
+
+```bash
+pytest tests/ -v --cov=apps
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
+```
+
+</details>
+
+---
+
+## AI 原生集成
+
+### Python SDK
+
+```python
+from agomtradepro import AgomTradeProClient
+
+client = AgomTradeProClient(
+    base_url="http://localhost:8000",
+    api_token="your_token"
+)
+
+# 现在是什么宏观 Regime？
+regime = client.regime.get_current()
+print(f"当前 Regime: {regime.dominant_regime}")  # 比如 "Recovery"
+
+# 这个标的现在能交易吗？
+check = client.signal.check_eligibility(
+    asset_code="000001.SH",
+    logic_desc="PMI 连续回升，经济复苏"
+)
+
+# 创建信号（必须包含证伪条件）
+if check["is_eligible"]:
+    signal = client.signal.create(
+        asset_code="000001.SH",
+        logic_desc="PMI 连续回升，经济复苏",
+        invalidation_logic="PMI 跌破 50 且连续 2 月低于前值",
+        invalidation_threshold=49.5
+    )
+```
+
+### MCP Server —— 给 AI Agent 用
+
+把 AgomTradePro 接入 Claude Code、Cursor 或任何支持 MCP 的 AI：
+
+```json
+{
+  "mcpServers": {
+    "agomtradepro": {
+      "command": "python",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "env": {
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token"
+      }
+    }
+  }
+}
+```
+
+然后直接跟 AI 对话：
+
+```
+你：   "现在宏观环境怎么样？我能加仓权益吗？"
+
+Claude: [调用 get_current_regime] → 滞胀（增长 ↓，通胀 ↑）
+        [调用 get_policy_status] → 货币政策偏紧
+
+        "当前处于滞胀 Regime，货币政策偏紧。这是防御性环境，
+         加仓权益与 Regime 信号相悖。建议等待 Regime 转换，
+         或者考虑对冲仓位。"
+```
+
+**MCP 工具体系**不是只覆盖几个查询接口，而是横跨宏观、政策、信号、回测、账户、组合、交易、AI 能力目录、终端命令、运行时编排、系统配置等多个系统面向。
+
+最近这轮 MCP 契约收口，建议额外记住三点：
+
+- `get_dashboard_alpha_candidates(..., pool_mode=...)` 与 `trigger_dashboard_alpha_refresh(..., pool_mode=...)` 现在都支持显式账户池模式
+- 读取 Alpha 候选时必须先检查返回里的 `contract.recommendation_ready` 与 `contract.must_not_treat_as_recommendation`
+- `get_pulse_current()` 返回 canonical `/api/pulse/current/` JSON；当当前 Regime 只能解析为 `Unknown` 时，后端会保留最近有效快照，而不是把战术上下文直接覆盖成未知状态
+
+### AI 决策工作流
+
+```
+AI Agent 提出交易建议
+        ↓
+系统自动预检（Regime 闸门 → Policy 闸门 → 频率检查）
+        ↓
+生成提案，包含完整上下文
+        ↓
+人类审核，批准或驳回
+        ↓
+受保护的执行，全程审计
+```
+
+AI 负责分析速度。人类负责执行判断。全链路可追溯。
+
+---
+
+## 它解决什么问题
+
+### 1. 信息过载 → 结构化宏观情报
+
+PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹没在噪音里。AgomTradePro 从多个数据源采集宏观数据，标准化处理，用 Kalman/HP 滤波提取趋势，最终浓缩成一个清晰的答案：**我们现在处于哪个 Regime？**
+
+| Regime | 增长 | 通胀 | 应对策略 |
+|--------|------|------|----------|
+| **复苏 Recovery** | ↑ | ↓ | 进攻，加仓权益 |
+| **过热 Overheat** | ↑ | ↑ | 精选，注意通胀风险 |
+| **滞胀 Stagflation** | ↓ | ↑ | 防御，减仓观望 |
+| **通缩 Deflation** | ↓ | ↓ | 等待，保留现金 |
+
+不用猜了。不用听各路大V互相矛盾。一个宏观状态，用真实数据计算。
+
+### 2. 情绪化交易 → 系统化纪律
+
+每一笔交易在执行前都必须过关：
+
+```
+你的想法 → Regime 闸门 → Policy 闸门 → 信号验证 → 审批 → 执行
+               ↓              ↓              ↓
+          "宏观环境        "政策面         "这个信号有
+           支持吗？"      配合吗？"       证伪条件吗？"
+```
+
+- **没有证伪逻辑的信号不能创建** —— 你必须在入场前定义"什么情况下我是错的"
+- **敌对 Regime 下不能交易** —— 系统会物理阻止你
+- **决策频率约束** —— 防止过度交易和 FOMO
+- **完整审计链** —— 每一个决策都有记录，事后可复盘
+
+这不是建议，这是**纪律的执行基础设施**。
+
+### 3. 手动流程 → AI 原生自动化
+
+不是后期加个 API 就叫 AI。AgomTradePro 从底层为 AI Agent 时代而设计：
+
+- **Python SDK** — 覆盖正式服务模块的编程接口
+- **MCP Server** — 通过统一 core tools 和 capability registry 接入 Claude、Cursor 或任何支持 MCP 的 AI
+- **Terminal CLI** — 终端风格的 AI 交互界面
+- **Agent Runtime** — 任务编排，支持 提案 → 审批 → 执行 全生命周期
+
+你的 AI Agent 可以检查宏观环境、评估信号、提出交易建议 —— 但执行仍需要人类审批。**AI 的速度，人类的判断。**
+
+---
+
+## 架构
+
+业务模块按 Domain、Application、Infrastructure、Interface 四层划分职责。模块边界与开发规则见 [架构文档](docs/architecture/)。
+
+<details>
+<summary>系统全景图、模块职责与治理细节</summary>
+
+### 系统全景图
+
+```mermaid
+flowchart TB
+    SOURCE["外部数据源<br/>Tushare · AKShare · QMT · RSS"]
+
+    subgraph ACCESS["用户与集成入口"]
+        direction LR
+        SETUP["setup_wizard<br/>首次安装与初始化"]
+        DASH["dashboard<br/>研究与决策总览"]
+        TUI["terminal<br/>TUI / AI 操作台"]
+        OPENAPI["HTTP API · Python SDK · MCP"]
+    end
+
+    subgraph AI["AI 能力与 Agent 编排"]
+        direction LR
+        PROVIDER["ai_provider<br/>模型服务与密钥"]
+        PROMPT["prompt<br/>Prompt 模板"]
+        AGENT["agent_runtime<br/>任务编排与审批执行"]
+        CAPABILITY["ai_capability<br/>能力目录与统一路由"]
+    end
+
+    subgraph DATA["数据与事件底座"]
+        direction LR
+        CONFIG["config_center<br/>全局运行时配置"]
+        DATA_CENTER["data_center<br/>接入、标准化与 canonical 真源"]
+        MACRO["macro<br/>宏观同步与领域语义"]
+        MARKET["equity · fund · sector<br/>证券、基金与板块数据"]
+        REALTIME["realtime<br/>实时价格、WebSocket 与告警"]
+        EVENT_SENTIMENT["events · sentiment<br/>事件与舆情"]
+    end
+
+    subgraph RESEARCH["研究与分析"]
+        direction LR
+        REGIME["regime<br/>增长 × 通胀象限"]
+        POLICY["policy<br/>财政 / 货币政策档位"]
+        PULSE["pulse<br/>战术指标与转折预警"]
+        FACTOR_ALPHA["factor · alpha<br/>因子评估与 AI 选股"]
+        ASSET_VALUATION["asset_analysis · valuation<br/>通用分析、估值快照与价格带"]
+        ROTATION_HEDGE["rotation · hedge<br/>板块轮动与组合对冲"]
+        BACKTEST["backtest<br/>历史验证与策略评估"]
+    end
+
+    subgraph DECISION["信号、约束与策略"]
+        direction LR
+        SIGNAL["signal<br/>投资逻辑与证伪条件"]
+        GATES["beta_gate · alpha_trigger<br/>宏观闸门与离散触发"]
+        RHYTHM["decision_rhythm<br/>决策频率、工作区与审批"]
+        RISK["risk_center<br/>风险规则与状态"]
+        STRATEGY["strategy<br/>策略编排与仓位规则"]
+        FILTER["filter<br/>旧筛选兼容面（已弃用）"]
+    end
+
+    subgraph EXECUTION["账户、执行与复盘"]
+        direction LR
+        ACCOUNT["account<br/>账户身份与持仓视图"]
+        TRADING["simulated_trading<br/>模拟交易与自动执行"]
+        SHARE["share<br/>决策快照与分享"]
+        AUDIT["audit<br/>审计、归因与复盘"]
+    end
+
+    subgraph OPS["异步任务与生产就绪"]
+        direction LR
+        TASKS["task_monitor<br/>Celery 任务与调度状态"]
+        READINESS["operational_readiness<br/>证据、连续窗口验收与修复"]
+    end
+
+    SOURCE --> DATA_CENTER
+    DATA_CENTER --> MACRO
+    DATA_CENTER --> MARKET
+    DATA_CENTER --> REALTIME
+    DATA_CENTER --> EVENT_SENTIMENT
+
+    MACRO --> REGIME
+    MACRO --> POLICY
+    REGIME --> PULSE
+    MARKET --> FACTOR_ALPHA
+    MARKET --> ASSET_VALUATION
+    MARKET --> ROTATION_HEDGE
+    EVENT_SENTIMENT --> POLICY
+    EVENT_SENTIMENT --> SIGNAL
+
+    FACTOR_ALPHA --> SIGNAL
+    ASSET_VALUATION --> SIGNAL
+    REGIME --> GATES
+    POLICY --> GATES
+    SIGNAL --> GATES
+    GATES --> RHYTHM
+    PULSE --> RHYTHM
+    RISK --> RHYTHM
+    RHYTHM --> STRATEGY
+    ROTATION_HEDGE --> STRATEGY
+    BACKTEST --> STRATEGY
+    FILTER -.->|兼容迁移| ASSET_VALUATION
+
+    STRATEGY --> TRADING
+    TRADING --> ACCOUNT
+    RHYTHM --> SHARE
+    ACCOUNT --> AUDIT
+    STRATEGY --> AUDIT
+    AUDIT -.->|反馈| BACKTEST
+
+    SETUP --> CONFIG
+    SETUP --> PROVIDER
+    DASH --> DATA_CENTER
+    DASH --> RHYTHM
+    TUI --> AGENT
+    OPENAPI --> CAPABILITY
+    PROVIDER --> AGENT
+    PROMPT --> AGENT
+    AGENT --> CAPABILITY
+    CAPABILITY --> DATA_CENTER
+    CAPABILITY --> RHYTHM
+    CAPABILITY --> STRATEGY
+
+    CONFIG -.->|运行时配置| DATA_CENTER
+    CONFIG -.->|运行时配置| AGENT
+    CONFIG -.->|风险参数| RISK
+    REALTIME -.->|异步任务| TASKS
+    TRADING -.->|异步任务| TASKS
+    AGENT -.->|异步任务| TASKS
+    TASKS --> READINESS
+    DATA_CENTER -.->|数据质量证据| READINESS
+    REALTIME -.->|运行状态| READINESS
+    READINESS -.->|验收结果| DASH
+```
+
+实线表示主数据流和决策执行链，虚线表示配置、异步任务、治理证据或兼容关系。
+
+这意味着你 Fork 之后，不必推翻重写，只需要沿着现有边界继续加能力。
+
+### 1. 业务架构：模块化投资底座
+
+- **宏观层**：`macro`、`regime`、`policy` 负责回答“现在是什么环境”
+- **决策层**：`signal`、`beta_gate`、`alpha_trigger`、`decision_rhythm` 负责回答“现在该不该做”
+- **执行层**：`strategy`、`simulated_trading`、`realtime` 负责回答“怎么执行、怎么跟踪”
+- **分析层**：`valuation`、`backtest`、`audit`、`factor`、`rotation`、`hedge` 负责回答“值不值得、为什么有效、哪里错了”
+- **平台层**：`data_center`、`config_center`、`risk_center`、`task_monitor`、`operational_readiness` 负责统一数据、配置、风险与运行证据
+- **AI 层**：`terminal`、`agent_runtime`、`ai_capability`、`prompt`、`ai_provider` 负责回答“怎么让 Agent 真正接进来”
+
+### 2. 技术架构：严格 DDD 四层
+
+核心业务严格按照四层拆分，不把金融规则塞进视图、模型或脚本里：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Interface 层      │ REST API、Admin UI、序列化          │
+├─────────────────────┼───────────────────────────────────┤
+│  Application 层    │ 用例编排、Celery 任务、DTO         │
+├─────────────────────┼───────────────────────────────────┤
+│  Infrastructure 层 │ Django ORM、API 适配器、仓储       │
+├─────────────────────┼───────────────────────────────────┤
+│  Domain 层         │ 实体、规则、服务                    │
+│  （纯 Python）      │ 禁止 Django、Pandas、NumPy        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**为什么这对 Fork 很重要：**
+
+- 你可以只替换数据源，不动领域规则
+- 你可以只换前端/UI，不动策略内核
+- 你可以只接入自己的 Agent，不动审批与审计链
+- 你可以把某个模块单独拿出去复用，而不是连根拔整个项目
+
+### 3. 治理护栏：全仓扫描 + 增量拦截
+
+架构约束不是只写在文档里。当前仓库同时使用两类检查：
+
+- **增量门禁**：`Architecture Layer Guard` 扫描本次变更，新增 Domain / Application / Interface 越层依赖会直接失败
+- **全仓治理检查**：`scripts/check_governance_consistency.py` 对治理基线健康度、治理说明文档、MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、架构规则集健康度、依赖预算基线健康度、CI 门禁挂载、`core/integration` 历史桥接债务、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
+- **Domain 纯净性**：`scripts/verify_architecture.py` 拦截 Domain 层 import Django、Pandas、NumPy、Requests 和数据源客户端
+- **依赖图门禁**：`scripts/check_module_cycles.py` 现在以全仓 `0` 个 app 级循环组件为硬基线，同时锁定跨 app import edge、全局单模块最大出边/入边和逐 app 出边/入边预算
+- **Application 装配规则**：application 层统一经 `infrastructure/providers.py` 或 `core/integration/*` 取 concrete 实现，不再直接 import `infrastructure.repositories`
+- **shared 边界**：`shared/` 只保留技术组件、算法、密钥和兼容解析，不再定义业务 Django Model
+- **历史债务 baseline**：`governance/governance_baseline.json` 记录当前可接受状态；清债前不让历史问题阻断所有开发，但任何新增或倒退都会被 CI 拦住
+
+细节见 [架构与治理 CI 护栏说明](docs/governance/ARCHITECTURE_GUARDRAILS.md)。
+
+### 4. AI 架构：不是外挂，而是内建
+
+- **MCP Server** 直接暴露系统能力给 Claude、Cursor、Codex 这一类 Agent
+- **Terminal CLI** 提供面向操作的 AI 交互界面，而不是单纯聊天窗
+- **Capability Catalog** 统一管理路由、工具、Schema、开关
+- **Agent Runtime** 把“提案 → 预检 → 审批 → 执行”这条链真正系统化
+
+这部分是整个仓库最适合 public 展示、也最容易让人想 Fork 的地方，因为它天然适合二次开发。
+
+### 5. 当前状态
+
+- **核心结构已稳定**：足够支撑继续加模块
+- **产品表面已成型**：足够让别人一眼看懂这不是 toy project
+- **细节仍在迭代**：所以现在正是适合关注、参与、Fork 的阶段
+
+</details>
+
+---
+
+## 技术栈
+
+| 层级 | 技术选型 |
+|------|----------|
+| **后端** | Python 3.11+、Django 5.x、DRF |
+| **数据库** | SQLite（开发）/ PostgreSQL（生产） |
+| **任务队列** | Celery + Redis |
+| **数据处理** | Pandas、NumPy、Statsmodels |
+| **可视化** | Streamlit、Plotly |
+| **前端** | Django Templates + HTMX |
+| **AI 集成** | MCP Server、Python SDK |
+| **测试** | Pytest（当前规模口径见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)）、Playwright（E2E） |
+
+---
+
+## 项目规模
+
+```
+业务模块 / MCP 工具 / 静态测试函数：机器唯一真源为 governance/governance_baseline.json
+治理字段解释：docs/governance/SYSTEM_BASELINE.md
+REST API 路径：OpenAPI 快照
+文档文件：docs/INDEX.md
+```
+
+---
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| **[上手手册](docs/QUICK_START.md)** | 从零到跑模拟盘的操作指南 |
+| **[系统规格书](docs/SYSTEM_SPECIFICATION.md)** | 完整技术 + 功能规格 |
+| **[SDK 参考](sdk/README.md)** | Python SDK 和 MCP Server 指南 |
+| **[架构设计](docs/architecture/)** | DDD 设计、模块依赖关系 |
+| **[文档索引](docs/INDEX.md)** | 全部文档导航 |
+
+---
+
+## 为什么做这个
+
+最近金融市场波动很大。很多时候，真正让人难受的不是单次涨跌，而是**你明明在持续看信息、持续思考，却还是越来越困惑**。
+
+这个项目最早不是从“我要做个平台”开始的，而是从一个更直接的问题开始的：
+
+> **如果我是那个被宏观、政策、情绪、噪音反复扰动的人，我能不能先给自己造一套解释系统？**
+
+大部分散户亏钱，不是因为选股差，而是因为**在错误的时间出手**。
+
+- 你买了好股票 —— **但正值滞胀周期**
+- 你执行了好策略 —— **但政策正在收紧**
+- 你看到了明确信号 —— **但脚下的宏观地基正在移动**
+
+**结果是什么？** 逻辑正确，世界不对。亏钱。
+
+AgomTradePro 只相信一个原则：
+
+> **"不要在错误的宏观世界里，用正确的逻辑下注。"**
+
+它是一个**宏观守门员** —— 在你每一笔投资决策执行之前，先用 Regime（增长 × 通胀象限）和 Policy（政策档位）过滤一遍。它不预测价格，它阻止错误。
+
+---
+
+## 为什么值得 Fork / Star
+
+如果你在找的不是一个“又一个股票分析页面”，而是一套**能继续长出策略、Agent、执行工作流的底座**，这个项目值得你点开、Fork，甚至长期跟。
+
+- **它不是 demo 站，而是一套可运行的投资系统骨架**：登录、配置、分析、决策、审批、执行、审计已经串起来了
+- **它不是 AI wrapper，而是 AI-native**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都在系统内部，不靠外面硬接
+- **它不是单点脚本，而是可扩展架构**：多业务模块、DDD 四层、明确边界，适合继续长功能
+- **它不是“只能作者自己维护”的代码**：模块拆分清楚，文档量够大，适合二开、Fork、做私有策略内核
+- **它有明显的产品感**：Setup Wizard、Dashboard、CLI、MCP 管理台都已经能展示“这是个系统”，而不是一堆脚本拼盘
+
+如果这些方向和你一致，这个仓库最适合的使用方式通常是：
+
+1. 先 `Star`，持续关注功能演进
+2. 再 `Fork`，把它改造成你自己的宏观/策略/Agent 基础设施
+3. 最后按你的交易逻辑或研究框架，把模块继续长出来
+
+---
+
+## 参与贡献
+
+欢迎贡献！提交 PR 前请阅读[开发规范](docs/development/outsourcing-work-guidelines.md)。
+
+日常开发直接在唯一长期开发分支 `dev/next-development` 完成，不同事项拆成独立 commit；除非另有明确要求，不再创建短期 `dev/*` 或 `codex/*` 分支。验证并获得发布授权后，再将同一提交同步到稳定展示分支 `main`；生产部署按独立发布契约执行。分支与提交要求见 [Git 工作流](docs/GIT_WORKFLOW.md)。
+
+```bash
+# 格式化
+black . && isort . && ruff check .
+
+# 类型检查
+mypy apps/ --strict
+
+# 测试（Domain 层覆盖率 ≥ 90%）
+pytest tests/ -v --cov=apps
+```
 
 ---
 
@@ -40,6 +760,9 @@
 ### 2026-10-04
 
 - 财报已接受经 owner 批准的日期精度契约：公告日 T 的上海零点仅表示日历日起点，次日零点才可进入日级决策；不会冒充 provider 的精确发布时间，也不会改写历史 degraded 数据。原始响应留存、同来源行级绑定、发布完整性与生产验收仍必须满足。详见 [日期精度决策记录](docs/plans/data02-date-only-precision-decision-2026-10-04.md)。
+
+<details>
+<summary>历史更新（9 月 25 日及以前）</summary>
 
 ### 2026-09-25
 
@@ -346,189 +1069,7 @@
 - 同一天优先追加到当日条目，不重复刷屏
 - 超过一周的重要变化应沉淀到 [`CHANGELOG.md`](CHANGELOG.md)
 
----
-
-> **免责声明**  
-> 本项目仅用于**个人研究与系统实验**，不代表任何机构的投资观点，**不构成任何投资建议**。
-
----
-
-## 先说重点
-
-AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板”的差异，不在于多几个图表，而在于它从一开始就是按“**构建自己的 AI 研究底座**”来设计的。
-
-- **AI-native，不是后贴 AI**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都是系统内建能力
-- **不是单页工具，而是一套研究与决策底座**：宏观、政策、信号、审批、执行、审计在一个闭环里
-- **适合继续长自己的能力**：你可以把它 Fork 成自己的宏观研究台、Agent 投研平台、策略实验底座
-- **作者工作流本身就是 AI-assisted**：这个项目的大量构建与迭代，直接使用了 **Claude Code / Codex** 这样的 agentic coding workflow 去推进
-
-如果你关心的不是“再看一个 dashboard”，而是“怎么搭一个属于自己的 AI 研究基础设施”，这个项目会更对路。
-
----
-
-## 项目状态
-
-> 这个项目已经可以运行、可以演示、可以继续扩展，但**仍处于积极开发中**。  
-> 当前仓库的**前端呈现和部分操作逻辑仍在持续修改**。  
-> 现阶段更准确的理解方式是：它正在逐步形成一个**给 AI 使用的数据基础和决策框架**，而不是已经完全冻结的成品 SaaS；公开仓库后续也会继续更新界面、交互流、监控能力和相关文档。
-
-- 核心宏观准入链路已可用：Regime / Policy / Signal / 审批 / 执行 / 审计
-- 用户工作流主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动 + TUI Operator / MCP 治理中心
-- AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
-- 生产运行闭环继续完善：价格流、WebSocket、告警订阅、受控事件回放、任务监控与 readiness 证据已进入统一治理链路
-- 生产决策就绪仍受门禁阻断；最近留存的 [2026-10-10 只读证据](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) 显示基础健康正常，但数据覆盖、财报证据、身份与审计验收尚未收口。仓库更新和 main 同步不代表生产部署完成
-- 模块职责进一步独立：估值引擎与生产就绪验收分别收口到 `valuation` 和 `operational_readiness`
-- 架构治理保持硬约束：App 级双向依赖、循环组件、大文件治理豁免与生产 mypy 新增债务当前均为零，并由 CI 锁定
-- 仍在持续完善：更多 public demo 场景、README/文档国际化、AgomTUI 可移植性与运维自动化
-
----
-
-## 快速开始
-
-### Windows 一键启动（推荐）
-
-1. 运行根目录 `install.bat`（自动创建 venv、安装最小运行依赖、生成本地 `.env` 与安全密钥）
-2. 运行根目录 `start.bat`，选择 `Quick Start`
-3. 打开 `http://localhost:8000/setup/` 完成安装向导
-
-> 本地虚拟环境目录默认叫 `agomtradepro/`，在 `.gitignore` 里，**不会提交到 git**。
->
-> 如果你是仓库贡献者而不是普通体验用户，可改用 `install.bat --dev` 安装 pytest / Playwright / mypy 等开发工具。
-
-### 手动安装（Windows / Linux / Mac）
-
-#### 前置条件
-
-- Python 3.11+
-
-#### 安装
-
-```bash
-# 克隆
-git clone https://github.com/guiyinan/agomTradePro.git
-cd agomTradePro
-
-# 创建虚拟环境
-python -m venv agomtradepro
-source agomtradepro/bin/activate  # Linux/Mac
-# 或: agomtradepro\Scripts\activate  # Windows
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 生成本地 .env 和安全密钥
-python manage.py bootstrap_local_env
-
-# 数据库初始化
-python manage.py migrate
-
-# 启动开发服务器
-python manage.py runserver
-
-# 访问 http://localhost:8000/setup/ 完成安装向导
-```
-
-安装向导会引导你完成：
-1. **自动生成安全密钥** — `SECRET_KEY` 和 `AGOMTRADEPRO_ENCRYPTION_KEY` 如果未配置，向导会自动生成并写入 `.env`
-2. 创建管理员账户
-3. 配置 AI 服务商（可选）— API Key 使用 Fernet 加密存储
-4. 配置数据源（可选）
-
-> 本地首次体验默认就是 `SQLite + 同步任务`，不需要 PostgreSQL、Redis 或 Docker。
->
-> 想用可编辑安装也可以，仓库现在支持：
->
-> ```bash
-> pip install -e .
-> # 或开发模式
-> pip install -e ".[dev]"
-> ```
-
-### 初始化系统数据（可选）
-
-如果你想一键初始化内置配置、模板、调度默认值、RSS 源、策略参数等冷启动数据，优先运行：
-
-```bash
-python manage.py bootstrap_cold_start
-
-# 如果需要同时做网络依赖的数据修复/同步，再显式开启：
-python manage.py bootstrap_cold_start --with-macro-sync --with-decision-repair
-```
-
-`init_all` 仍保留为旧版轻量初始化入口，但覆盖范围比 `bootstrap_cold_start` 小；新环境和部署脚本应优先使用 `bootstrap_cold_start`。
-
-部署到 Docker / PostgreSQL / Redis 的场景不属于首次启动主路径，单独参考 `deploy/` 和 `docs/deployment/`。
-
-### 初次安装容易踩坑
-
-#### 1. `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`
-
-**通常不需要手动设置。** 安装向导和 Docker entrypoint 都会自动生成。
-
-如果你想手动设置，可以用以下命令生成：
-
-```bash
-# Django SECRET_KEY
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-
-# 数据加密密钥（Fernet）
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-然后写入 `.env`：
-
-```env
-SECRET_KEY=your-own-django-secret-key
-AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
-```
-
-#### 2. `DATABASE_URL`
-
-本地快速体验不需要 `DATABASE_URL`。
-
-- 复制 `.env.example` 后直接 `migrate`，项目会默认使用根目录下的 SQLite
-- 如果后续确实要切 PostgreSQL，再按部署文档单独配置即可
-
-#### 3. `REDIS_URL` / Celery
-
-Redis 不是本地首次体验的强制依赖。
-
-- 本地没有配置 `REDIS_URL` 时，Celery 会退化为同步执行模式
-- 如果你要体验完整异步任务、worker、beat，再去配置 Redis
-
-#### 4. 首次只想跑起来，最小可用配置
-
-运行 `python manage.py bootstrap_local_env` 后，你甚至不需要手工改任何密钥：
-
-```bash
-python manage.py bootstrap_local_env
-python manage.py migrate
-python manage.py runserver
-# 访问 http://localhost:8000/setup/ → 点击"开始"即可
-```
-
-如果你想跳过向导手动配置，最少确认这几项：
-
-```env
-SECRET_KEY=your-own-django-secret-key
-AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
-
-### 安装 SDK（可选）
-
-```bash
-cd sdk
-pip install -e ".[dev]"
-```
-
-### 运行测试
-
-```bash
-pytest tests/ -v --cov=apps
-pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
-```
+</details>
 
 ---
 
@@ -548,531 +1089,6 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
   <b>小红书号：agomliou</b><br>
   <sub>小红书日更开发日记</sub>
 </p>
-
----
-
-## 为什么做这个
-
-最近金融市场波动很大。很多时候，真正让人难受的不是单次涨跌，而是**你明明在持续看信息、持续思考，却还是越来越困惑**。
-
-这个项目最早不是从“我要做个平台”开始的，而是从一个更直接的问题开始的：
-
-> **如果我是那个被宏观、政策、情绪、噪音反复扰动的人，我能不能先给自己造一套解释系统？**
-
-大部分散户亏钱，不是因为选股差，而是因为**在错误的时间出手**。
-
-- 你买了好股票 —— **但正值滞胀周期**
-- 你执行了好策略 —— **但政策正在收紧**
-- 你看到了明确信号 —— **但脚下的宏观地基正在移动**
-
-**结果是什么？** 逻辑正确，世界不对。亏钱。
-
-AgomTradePro 只相信一个原则：
-
-> **"不要在错误的宏观世界里，用正确的逻辑下注。"**
-
-它是一个**宏观守门员** —— 在你每一笔投资决策执行之前，先用 Regime（增长 × 通胀象限）和 Policy（政策档位）过滤一遍。它不预测价格，它阻止错误。
-
----
-
-## 为什么值得 Fork / Star
-
-如果你在找的不是一个“又一个股票分析页面”，而是一套**能继续长出策略、Agent、执行工作流的底座**，这个项目值得你点开、Fork，甚至长期跟。
-
-- **它不是 demo 站，而是一套可运行的投资系统骨架**：登录、配置、分析、决策、审批、执行、审计已经串起来了
-- **它不是 AI wrapper，而是 AI-native**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都在系统内部，不靠外面硬接
-- **它不是单点脚本，而是可扩展架构**：多业务模块、DDD 四层、明确边界，适合继续长功能
-- **它不是“只能作者自己维护”的代码**：模块拆分清楚，文档量够大，适合二开、Fork、做私有策略内核
-- **它有明显的产品感**：Setup Wizard、Dashboard、CLI、MCP 管理台都已经能展示“这是个系统”，而不是一堆脚本拼盘
-
-如果这些方向和你一致，这个仓库最适合的使用方式通常是：
-
-1. 先 `Star`，持续关注功能演进
-2. 再 `Fork`，把它改造成你自己的宏观/策略/Agent 基础设施
-3. 最后按你的交易逻辑或研究框架，把模块继续长出来
-
----
-
-## 它解决什么问题
-
-### 1. 信息过载 → 结构化宏观情报
-
-PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹没在噪音里。AgomTradePro 从多个数据源采集宏观数据，标准化处理，用 Kalman/HP 滤波提取趋势，最终浓缩成一个清晰的答案：**我们现在处于哪个 Regime？**
-
-| Regime | 增长 | 通胀 | 应对策略 |
-|--------|------|------|----------|
-| **复苏 Recovery** | ↑ | ↓ | 进攻，加仓权益 |
-| **过热 Overheat** | ↑ | ↑ | 精选，注意通胀风险 |
-| **滞胀 Stagflation** | ↓ | ↑ | 防御，减仓观望 |
-| **通缩 Deflation** | ↓ | ↓ | 等待，保留现金 |
-
-不用猜了。不用听各路大V互相矛盾。一个宏观状态，用真实数据计算。
-
-### 2. 情绪化交易 → 系统化纪律
-
-每一笔交易在执行前都必须过关：
-
-```
-你的想法 → Regime 闸门 → Policy 闸门 → 信号验证 → 审批 → 执行
-               ↓              ↓              ↓
-          "宏观环境        "政策面         "这个信号有
-           支持吗？"      配合吗？"       证伪条件吗？"
-```
-
-- **没有证伪逻辑的信号不能创建** —— 你必须在入场前定义"什么情况下我是错的"
-- **敌对 Regime 下不能交易** —— 系统会物理阻止你
-- **决策频率约束** —— 防止过度交易和 FOMO
-- **完整审计链** —— 每一个决策都有记录，事后可复盘
-
-这不是建议，这是**纪律的执行基础设施**。
-
-### 3. 手动流程 → AI 原生自动化
-
-不是后期加个 API 就叫 AI。AgomTradePro 从底层为 AI Agent 时代而设计：
-
-- **Python SDK** — 覆盖正式服务模块的编程接口
-- **MCP Server** — 通过统一 core tools 和 capability registry 接入 Claude、Cursor 或任何支持 MCP 的 AI
-- **Terminal CLI** — 终端风格的 AI 交互界面
-- **Agent Runtime** — 任务编排，支持 提案 → 审批 → 执行 全生命周期
-
-你的 AI Agent 可以检查宏观环境、评估信号、提出交易建议 —— 但执行仍需要人类审批。**AI 的速度，人类的判断。**
-
----
-
-## 截图
-
-<details>
-<summary><b>登录后的系统主界面（Dashboard）</b></summary>
-
-![Dashboard](docs/images/readme/dashboard_logged_in.png)
-
-*登录后第一眼就是投资指挥中心：账户、宏观状态、决策平面、AI 选股与工作流都聚合在同一屏。*
-
-</details>
-
-<details>
-<summary><b>系统初始化向导（Setup Wizard）</b></summary>
-
-![Setup Wizard](docs/images/readme/setup_wizard.png)
-
-*第一次启动即可完成密钥自动生成、管理员创建、AI Provider 和数据源配置，无需手动编辑 .env 文件。*
-
-</details>
-
-<details>
-<summary><b>Terminal CLI（原生 AI 交互界面）</b></summary>
-
-![Terminal CLI](docs/images/readme/terminal_cli.png)
-
-*不是“附带一个聊天框”，而是面向操作流设计的 CLI：命令、上下文、会话、能力路由都在一个终端界面里。*
-
-</details>
-
-<details>
-<summary><b>原生 MCP Tools 管理页</b></summary>
-
-![MCP Tools](docs/images/readme/mcp_tools.png)
-
-*系统内建 MCP 工具目录、Schema 检视、Terminal/Routing 开关，不是后贴一层 API wrapper。*
-
-</details>
-
----
-
-## 功能一览
-
-### 核心系统
-| 模块 | 做什么 |
-|------|--------|
-| **Regime 引擎** | 从增长/通胀指标计算当前宏观象限，Z-score 标准化 |
-| **Policy 闸门** | 追踪财政/货币政策事件，评估对风险偏好的影响 |
-| **信号管理器** | 创建、验证、追踪投资信号，强制要求证伪逻辑 |
-| **决策工作流** | 预检 → 审批 → 执行流水线，带频率约束 |
-| **估值引擎** | 估值快照、价格带、质量与新鲜度规则 |
-| **回测引擎** | 历史验证，支持 Brinson 归因分析 |
-| **审计系统** | 事后复盘，完整决策链路追踪和绩效归因 |
-
-### 组合与执行
-| 模块 | 做什么 |
-|------|--------|
-| **模拟交易** | 模拟盘交易，保证金追踪，每日巡检 |
-| **实时监控** | 实时价格流、WebSocket、价格预警与订阅管理 |
-| **策略系统** | 数据库驱动的仓位规则，按组合绑定策略 |
-| **板块轮动** | 基于 Regime 的板块配置建议 |
-| **生产就绪验收** | 调度状态、readiness 证据、连续窗口验收与修复命令 |
-
-### AI 与智能分析
-| 模块 | 做什么 |
-|------|--------|
-| **Alpha 评分** | AI 选股评分，4 层降级（Qlib → 缓存 → 简单 → ETF） |
-| **因子管理** | 因子计算、IC/ICIR 评估 |
-| **对冲策略** | 期货对冲计算和组合保护 |
-| **舆情闸门** | 新闻/舆情分析作为额外风险过滤 |
-
-### 数据源
-| 数据源 | 覆盖范围 |
-|--------|----------|
-| **Tushare Pro** | A 股行情、SHIBOR、指数数据 |
-| **AKShare** | 宏观指标（PMI、CPI、M2、GDP 等） |
-| **QMT Local** | 本地终端行情接入与运行时探针 |
-| **自动容灾** | 主备切换，1% 容差验证 |
-
----
-
-## 架构
-
-AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投资操作系统**”的思路来设计：
-
-### 系统全景图
-
-```mermaid
-flowchart TB
-    SOURCE["外部数据源<br/>Tushare · AKShare · QMT · RSS"]
-
-    subgraph ACCESS["用户与集成入口"]
-        direction LR
-        SETUP["setup_wizard<br/>首次安装与初始化"]
-        DASH["dashboard<br/>研究与决策总览"]
-        TUI["terminal<br/>TUI / AI 操作台"]
-        OPENAPI["HTTP API · Python SDK · MCP"]
-    end
-
-    subgraph AI["AI 能力与 Agent 编排"]
-        direction LR
-        PROVIDER["ai_provider<br/>模型服务与密钥"]
-        PROMPT["prompt<br/>Prompt 模板"]
-        AGENT["agent_runtime<br/>任务编排与审批执行"]
-        CAPABILITY["ai_capability<br/>能力目录与统一路由"]
-    end
-
-    subgraph DATA["数据与事件底座"]
-        direction LR
-        CONFIG["config_center<br/>全局运行时配置"]
-        DATA_CENTER["data_center<br/>接入、标准化与 canonical 真源"]
-        MACRO["macro<br/>宏观同步与领域语义"]
-        MARKET["equity · fund · sector<br/>证券、基金与板块数据"]
-        REALTIME["realtime<br/>实时价格、WebSocket 与告警"]
-        EVENT_SENTIMENT["events · sentiment<br/>事件与舆情"]
-    end
-
-    subgraph RESEARCH["研究与分析"]
-        direction LR
-        REGIME["regime<br/>增长 × 通胀象限"]
-        POLICY["policy<br/>财政 / 货币政策档位"]
-        PULSE["pulse<br/>战术指标与转折预警"]
-        FACTOR_ALPHA["factor · alpha<br/>因子评估与 AI 选股"]
-        ASSET_VALUATION["asset_analysis · valuation<br/>通用分析、估值快照与价格带"]
-        ROTATION_HEDGE["rotation · hedge<br/>板块轮动与组合对冲"]
-        BACKTEST["backtest<br/>历史验证与策略评估"]
-    end
-
-    subgraph DECISION["信号、约束与策略"]
-        direction LR
-        SIGNAL["signal<br/>投资逻辑与证伪条件"]
-        GATES["beta_gate · alpha_trigger<br/>宏观闸门与离散触发"]
-        RHYTHM["decision_rhythm<br/>决策频率、工作区与审批"]
-        RISK["risk_center<br/>风险规则与状态"]
-        STRATEGY["strategy<br/>策略编排与仓位规则"]
-        FILTER["filter<br/>旧筛选兼容面（已弃用）"]
-    end
-
-    subgraph EXECUTION["账户、执行与复盘"]
-        direction LR
-        ACCOUNT["account<br/>账户身份与持仓视图"]
-        TRADING["simulated_trading<br/>模拟交易与自动执行"]
-        SHARE["share<br/>决策快照与分享"]
-        AUDIT["audit<br/>审计、归因与复盘"]
-    end
-
-    subgraph OPS["异步任务与生产就绪"]
-        direction LR
-        TASKS["task_monitor<br/>Celery 任务与调度状态"]
-        READINESS["operational_readiness<br/>证据、连续窗口验收与修复"]
-    end
-
-    SOURCE --> DATA_CENTER
-    DATA_CENTER --> MACRO
-    DATA_CENTER --> MARKET
-    DATA_CENTER --> REALTIME
-    DATA_CENTER --> EVENT_SENTIMENT
-
-    MACRO --> REGIME
-    MACRO --> POLICY
-    REGIME --> PULSE
-    MARKET --> FACTOR_ALPHA
-    MARKET --> ASSET_VALUATION
-    MARKET --> ROTATION_HEDGE
-    EVENT_SENTIMENT --> POLICY
-    EVENT_SENTIMENT --> SIGNAL
-
-    FACTOR_ALPHA --> SIGNAL
-    ASSET_VALUATION --> SIGNAL
-    REGIME --> GATES
-    POLICY --> GATES
-    SIGNAL --> GATES
-    GATES --> RHYTHM
-    PULSE --> RHYTHM
-    RISK --> RHYTHM
-    RHYTHM --> STRATEGY
-    ROTATION_HEDGE --> STRATEGY
-    BACKTEST --> STRATEGY
-    FILTER -.->|兼容迁移| ASSET_VALUATION
-
-    STRATEGY --> TRADING
-    TRADING --> ACCOUNT
-    RHYTHM --> SHARE
-    ACCOUNT --> AUDIT
-    STRATEGY --> AUDIT
-    AUDIT -.->|反馈| BACKTEST
-
-    SETUP --> CONFIG
-    SETUP --> PROVIDER
-    DASH --> DATA_CENTER
-    DASH --> RHYTHM
-    TUI --> AGENT
-    OPENAPI --> CAPABILITY
-    PROVIDER --> AGENT
-    PROMPT --> AGENT
-    AGENT --> CAPABILITY
-    CAPABILITY --> DATA_CENTER
-    CAPABILITY --> RHYTHM
-    CAPABILITY --> STRATEGY
-
-    CONFIG -.->|运行时配置| DATA_CENTER
-    CONFIG -.->|运行时配置| AGENT
-    CONFIG -.->|风险参数| RISK
-    REALTIME -.->|异步任务| TASKS
-    TRADING -.->|异步任务| TASKS
-    AGENT -.->|异步任务| TASKS
-    TASKS --> READINESS
-    DATA_CENTER -.->|数据质量证据| READINESS
-    REALTIME -.->|运行状态| READINESS
-    READINESS -.->|验收结果| DASH
-```
-
-实线表示主数据流和决策执行链，虚线表示配置、异步任务、治理证据或兼容关系。
-
-这意味着你 Fork 之后，不必推翻重写，只需要沿着现有边界继续加能力。
-
-### 1. 业务架构：模块化投资底座
-
-- **宏观层**：`macro`、`regime`、`policy` 负责回答“现在是什么环境”
-- **决策层**：`signal`、`beta_gate`、`alpha_trigger`、`decision_rhythm` 负责回答“现在该不该做”
-- **执行层**：`strategy`、`simulated_trading`、`realtime` 负责回答“怎么执行、怎么跟踪”
-- **分析层**：`valuation`、`backtest`、`audit`、`factor`、`rotation`、`hedge` 负责回答“值不值得、为什么有效、哪里错了”
-- **平台层**：`data_center`、`config_center`、`risk_center`、`task_monitor`、`operational_readiness` 负责统一数据、配置、风险与运行证据
-- **AI 层**：`terminal`、`agent_runtime`、`ai_capability`、`prompt`、`ai_provider` 负责回答“怎么让 Agent 真正接进来”
-
-### 2. 技术架构：严格 DDD 四层
-
-核心业务严格按照四层拆分，不把金融规则塞进视图、模型或脚本里：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Interface 层      │ REST API、Admin UI、序列化          │
-├─────────────────────┼───────────────────────────────────┤
-│  Application 层    │ 用例编排、Celery 任务、DTO         │
-├─────────────────────┼───────────────────────────────────┤
-│  Infrastructure 层 │ Django ORM、API 适配器、仓储       │
-├─────────────────────┼───────────────────────────────────┤
-│  Domain 层         │ 实体、规则、服务                    │
-│  （纯 Python）      │ 禁止 Django、Pandas、NumPy        │
-└─────────────────────────────────────────────────────────┘
-```
-
-**为什么这对 Fork 很重要：**
-
-- 你可以只替换数据源，不动领域规则
-- 你可以只换前端/UI，不动策略内核
-- 你可以只接入自己的 Agent，不动审批与审计链
-- 你可以把某个模块单独拿出去复用，而不是连根拔整个项目
-
-### 3. 治理护栏：全仓扫描 + 增量拦截
-
-架构约束不是只写在文档里。当前仓库同时使用两类检查：
-
-- **增量门禁**：`Architecture Layer Guard` 扫描本次变更，新增 Domain / Application / Interface 越层依赖会直接失败
-- **全仓治理检查**：`scripts/check_governance_consistency.py` 对治理基线健康度、治理说明文档、MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、架构规则集健康度、依赖预算基线健康度、CI 门禁挂载、`core/integration` 历史桥接债务、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
-- **Domain 纯净性**：`scripts/verify_architecture.py` 拦截 Domain 层 import Django、Pandas、NumPy、Requests 和数据源客户端
-- **依赖图门禁**：`scripts/check_module_cycles.py` 现在以全仓 `0` 个 app 级循环组件为硬基线，同时锁定跨 app import edge、全局单模块最大出边/入边和逐 app 出边/入边预算
-- **Application 装配规则**：application 层统一经 `infrastructure/providers.py` 或 `core/integration/*` 取 concrete 实现，不再直接 import `infrastructure.repositories`
-- **shared 边界**：`shared/` 只保留技术组件、算法、密钥和兼容解析，不再定义业务 Django Model
-- **历史债务 baseline**：`governance/governance_baseline.json` 记录当前可接受状态；清债前不让历史问题阻断所有开发，但任何新增或倒退都会被 CI 拦住
-
-细节见 [架构与治理 CI 护栏说明](docs/governance/ARCHITECTURE_GUARDRAILS.md)。
-
-### 4. AI 架构：不是外挂，而是内建
-
-- **MCP Server** 直接暴露系统能力给 Claude、Cursor、Codex 这一类 Agent
-- **Terminal CLI** 提供面向操作的 AI 交互界面，而不是单纯聊天窗
-- **Capability Catalog** 统一管理路由、工具、Schema、开关
-- **Agent Runtime** 把“提案 → 预检 → 审批 → 执行”这条链真正系统化
-
-这部分是整个仓库最适合 public 展示、也最容易让人想 Fork 的地方，因为它天然适合二次开发。
-
-### 5. 当前状态
-
-- **核心结构已稳定**：足够支撑继续加模块
-- **产品表面已成型**：足够让别人一眼看懂这不是 toy project
-- **细节仍在迭代**：所以现在正是适合关注、参与、Fork 的阶段
-
----
-
-## AI 原生集成
-
-### Python SDK
-
-```python
-from agomtradepro import AgomTradeProClient
-
-client = AgomTradeProClient(
-    base_url="http://localhost:8000",
-    api_token="your_token"
-)
-
-# 现在是什么宏观 Regime？
-regime = client.regime.get_current()
-print(f"当前 Regime: {regime.dominant_regime}")  # 比如 "Recovery"
-
-# 这个标的现在能交易吗？
-check = client.signal.check_eligibility(
-    asset_code="000001.SH",
-    logic_desc="PMI 连续回升，经济复苏"
-)
-
-# 创建信号（必须包含证伪条件）
-if check["is_eligible"]:
-    signal = client.signal.create(
-        asset_code="000001.SH",
-        logic_desc="PMI 连续回升，经济复苏",
-        invalidation_logic="PMI 跌破 50 且连续 2 月低于前值",
-        invalidation_threshold=49.5
-    )
-```
-
-### MCP Server —— 给 AI Agent 用
-
-把 AgomTradePro 接入 Claude Code、Cursor 或任何支持 MCP 的 AI：
-
-```json
-{
-  "mcpServers": {
-    "agomtradepro": {
-      "command": "python",
-      "args": ["-m", "agomtradepro_mcp.server"],
-      "env": {
-        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
-        "AGOMTRADEPRO_API_TOKEN": "your_token"
-      }
-    }
-  }
-}
-```
-
-然后直接跟 AI 对话：
-
-```
-你：   "现在宏观环境怎么样？我能加仓权益吗？"
-
-Claude: [调用 get_current_regime] → 滞胀（增长 ↓，通胀 ↑）
-        [调用 get_policy_status] → 货币政策偏紧
-
-        "当前处于滞胀 Regime，货币政策偏紧。这是防御性环境，
-         加仓权益与 Regime 信号相悖。建议等待 Regime 转换，
-         或者考虑对冲仓位。"
-```
-
-**MCP 工具体系**不是只覆盖几个查询接口，而是横跨宏观、政策、信号、回测、账户、组合、交易、AI 能力目录、终端命令、运行时编排、系统配置等多个系统面向。
-
-最近这轮 MCP 契约收口，建议额外记住三点：
-
-- `get_dashboard_alpha_candidates(..., pool_mode=...)` 与 `trigger_dashboard_alpha_refresh(..., pool_mode=...)` 现在都支持显式账户池模式
-- 读取 Alpha 候选时必须先检查返回里的 `contract.recommendation_ready` 与 `contract.must_not_treat_as_recommendation`
-- `get_pulse_current()` 返回 canonical `/api/pulse/current/` JSON；当当前 Regime 只能解析为 `Unknown` 时，后端会保留最近有效快照，而不是把战术上下文直接覆盖成未知状态
-
-### AI 决策工作流
-
-```
-AI Agent 提出交易建议
-        ↓
-系统自动预检（Regime 闸门 → Policy 闸门 → 频率检查）
-        ↓
-生成提案，包含完整上下文
-        ↓
-人类审核，批准或驳回
-        ↓
-受保护的执行，全程审计
-```
-
-AI 负责分析速度。人类负责执行判断。全链路可追溯。
-
----
-
----
-
-## 技术栈
-
-| 层级 | 技术选型 |
-|------|----------|
-| **后端** | Python 3.11+、Django 5.x、DRF |
-| **数据库** | SQLite（开发）/ PostgreSQL（生产） |
-| **任务队列** | Celery + Redis |
-| **数据处理** | Pandas、NumPy、Statsmodels |
-| **可视化** | Streamlit、Plotly |
-| **前端** | Django Templates + HTMX |
-| **AI 集成** | MCP Server、Python SDK |
-| **测试** | Pytest（当前规模口径见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)）、Playwright（E2E） |
-
----
-
-## 项目规模
-
-```
-业务模块 / MCP 工具 / 静态测试函数：机器唯一真源为 governance/governance_baseline.json
-治理字段解释：docs/governance/SYSTEM_BASELINE.md
-REST API 路径：OpenAPI 快照
-文档文件：docs/INDEX.md
-```
-
----
-
-## 文档
-
-| 文档 | 说明 |
-|------|------|
-| **[上手手册](docs/QUICK_START.md)** | 从零到跑模拟盘的操作指南 |
-| **[系统规格书](docs/SYSTEM_SPECIFICATION.md)** | 完整技术 + 功能规格 |
-| **[SDK 参考](sdk/README.md)** | Python SDK 和 MCP Server 指南 |
-| **[架构设计](docs/architecture/)** | DDD 设计、模块依赖关系 |
-| **[文档索引](docs/INDEX.md)** | 全部文档导航 |
-
----
-
-## 适合谁用
-
-- **个人投资者** —— 想用系统化纪律替代情绪化操作
-- **量化开发者** —— 需要一个生产级的宏观叠加层来增强策略
-- **AI/LLM 爱好者** —— 想构建有护栏的投资 Agent，而不是裸奔的 GPT wrapper
-- **金融学生** —— 用真实代码学习宏观驱动的投资框架
-
----
-
-## 参与贡献
-
-欢迎贡献！提交 PR 前请阅读[开发规范](docs/development/outsourcing-work-guidelines.md)。
-
-日常开发直接在唯一长期开发分支 `dev/next-development` 完成，不同事项拆成独立 commit；除非另有明确要求，不再创建短期 `dev/*` 或 `codex/*` 分支。验证并获得发布授权后，再将同一提交同步到稳定展示分支 `main`；生产部署按独立发布契约执行。分支与提交要求见 [Git 工作流](docs/GIT_WORKFLOW.md)。
-
-```bash
-# 格式化
-black . && isort . && ruff check .
-
-# 类型检查
-mypy apps/ --strict
-
-# 测试（Domain 层覆盖率 ≥ 90%）
-pytest tests/ -v --cov=apps
-```
 
 ---
 

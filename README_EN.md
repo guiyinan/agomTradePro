@@ -6,247 +6,136 @@
 
 ### Stop Trading Against the Macro. Start Trading With Discipline.
 
-**An AI-native personal research foundation that gives AI a data foundation and decision framework, bringing macro judgment, strategy discipline, agent capabilities, and execution workflows into one system.**
+**A self-hosted investment research platform for macro analysis, investment signals, paper trading, and AI-assisted workflows.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-governed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-governed-brightgreen.svg)](#tests)
 [![Architecture](https://img.shields.io/badge/architecture-DDD-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-governed-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-[Quick Start](#quick-start) · [Why This Exists](#why-this-exists) · [Why Fork / Star](#why-fork--star) · [Architecture](#architecture) · [AI Integration](#ai-native-integration) · [Screenshots](#screenshots) · [Docs](docs/INDEX.md)
+[Overview](#overview) · [Screenshots](#screenshots) · [Quick Start](#quick-start) · [AI Integration](#ai-native-integration) · [Project Status](#project-status) · [Docs](#documentation)
 
 </div>
 
 ---
 
-## What's New
+## Overview
 
-> This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+AgomTradePro brings market data, macro analysis, investment signals, approvals, paper trading, and decision records into one platform you can run yourself. You can use its browser interface or connect an AI assistant through the Python SDK and MCP tools.
 
-### 2026-10-11
+A typical research workflow is:
 
-- Task monitoring now registers Celery lifecycle signals on cold start so execution state is recorded from the first task. The S6 market-data graph validates each stage's business outcome and publication evidence; partial results can proceed only when the evidence supports them.
-- Release rehearsal now preserves versioned provider / policy identities, separates sealed source files from writable logs, seals stage outputs through directory descriptors, and checks GitHub CI credentials before the stage starts. Missing or invalid credentials block the run. See the [S6 stage environment contract](docs/development/s6-stage-environment-contract.md).
-- Security scanning pins the gitleaks version and verifies its allowlist syntax. Manually dispatched release-candidate CI scans the full Git history; classified historical findings use exact fingerprints, while TUI content digests require both a matching path and a matching full line.
-- Full-scope financial synchronization and publication now bind capacity receipts, frozen scope, request budgets, and approvals. These repository capabilities still require CI, a complete fresh S6 rehearsal, and post-deployment reconciliation for the same candidate. The [production recovery plan](docs/plans/production-recovery-and-regression-remediation-2026-09-24.md) records regression evidence and remaining work.
+1. **Understand the environment** — review growth, inflation, and policy conditions. The system calls the growth × inflation classification a **Regime**.
+2. **Define an investment idea** — research an asset and record the conditions that would invalidate the idea.
+3. **Review and track it** — run the configured checks, review the proposal, and follow paper trades and decision records.
 
-### 2026-10-10
+AI assistants can query data and prepare proposals; execution goes through the system's approval and audit workflow. For a first visit, browse the screenshots below, then follow Quick Start to run a local instance.
 
-- The retained [read-only production review](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) records production at `d3fdbd6f1` / release `20261008050500`: health, database health, and ready return 200, while decision-ready remains 503. Quotes and valuations each cover 5,572 members; daily prices are missing 11 members, and financial data has no current Publication. Candidate identity, audit authority, source-time evidence, and protected monitoring authentication still block production recovery acceptance.
-
-### 2026-10-04
-
-- An owner-approved financial date-precision contract now treats Shanghai midnight on announcement day T as a calendar-day boundary and makes the fact available for daily decisions at midnight on T+1. It does not claim an exact provider timestamp or rewrite historical degraded facts. Retained raw responses, same-provider row binding, publication integrity, and production acceptance remain required. See the [date-precision decision](docs/plans/data02-date-only-precision-decision-2026-10-04.md).
-
-### 2026-09-25
-
-- Quote, price-bar, valuation, and financial facts now use immutable revisions. A fact already pinned by a Publication is never updated in place; corrections append a revision while historical Publications keep their original row and content digest.
-- Ordinary Alpha and decision-workspace reads no longer enqueue inference or write recommendations. Refreshes require an explicit action, and task monitoring exposes the active phase, business `outcome`, safe error code, and requested/succeeded/failed/stored counts.
-- SDK and MCP contracts now preserve signal pagination, unclassified policy/manual-review semantics, and decision-runtime blockers. Upstream `block_reason_code/block_reason` fields reach investors as bounded safe diagnostics instead of collapsing into a generic HTTP error.
-- Tushare SDK traffic follows its single Data API URL protocol. Endpoints and credentials remain in Data Center / Config Center and deployment configuration, outside Git. A candidate-bound, database-read-only live-provider rehearsal samples 50 stocks by default and records coverage, clocks, HTTP receipts, and zero-write evidence.
-- Financial publication remains fail closed when the provider supplies only an announcement date without a verifiable source-native timestamp. The system reports `financial_available_at_missing` / `financial_source_evidence_incomplete` and never substitutes fetch time or claims the data is decision-ready.
-- China-market dates now require source-bound, complete exchange-calendar evidence for every calendar day in the requested window. Truncated, missing, conflicting, or unavailable calendars block the decision path instead of treating weekdays or holidays as sessions.
-- SDK status retries preserve the final business response. Repeated 503 responses still carry `decision_runtime_blocked`, `blocked_reason`, and decision-safety fields through MCP instead of collapsing to `HTTP unknown`.
-
-### 2026-09-23
-
-- The database is the source of truth for production Tushare settings: `data_center_provider_config` stores the endpoint and `tushare_request_mode`, while Config Center stores the Tushare token encrypted. VPS environment variables remain only for bootstrap, standalone diagnostics, and compatibility fallback when the database is unavailable; database settings take precedence, and credentials are never committed to Git.
-- VPS UAT verified the Tushare `trade_cal` probe, the Qlib `csi300` runtime refresh, and Alpha write-back of 30 scores, all at the `2026-09-23` data date. Full-market publication remains fail-closed because the audit runtime is not enabled, so this UAT does not establish complete automatic scheduling or decision-data recovery.
-
-### 2026-09-20
-
-- The Alpha data chain now validates historical volume units and price adjustments, refreshes full-market quotes and valuations in batches, and checks Qlib concurrency and trading-suspension evidence. Explicit data blocks stop downstream inference dispatch while preserving source dates and stable reasons.
-- Alpha pages and the TUI workbench show background refresh failures, missing data, and actual source dates even when results are cached or empty. Missing volume and insufficient signal strength are surfaced explicitly.
-- [VPS recovery verification](docs/reviews/vps-full-market-recovery-2026-09-19.md): September 18 quotes and valuations each cover 5,565 stocks; model inputs account for 5,553 tradable stocks and 12 verified full-day suspensions. All six manually triggered account inference jobs succeeded, producing 180 finite scores without cache fallback. Context reads for 30 candidates improved from 141.12 to 9.06 seconds, with volume available for all 30 and full publication integrity checks retained.
-- Automatic recovery remains unverified: audit runtime configuration and service identity, financial source timestamps, and publication coverage still block parts of the flow. The next natural scheduled inference cycle is due for verification on September 21. Successful manual inference does not establish complete recovery of decision data or automatic refresh.
-
-### 2026-08-12
-
-- The July 30–August 12 cycle was a substantial governance and capability build-out: Git records **616 commits across 2,076 changed files**, spanning data reliability, configuration and secrets, research evidence, portfolio research, runtime safety, CI, and documentation; the items below summarize the actual workstreams rather than only the final cleanup commits
-- The Data Center reliability control plane is now systematic: Publication/member binding, PIT/as-of semantics, source observation clocks, freshness, failover provenance, shadow reconciliation, retention/capacity, A-share backfill, and sync snapshots are auditable sources of truth; current/latest consumers across Dashboard, SDK, MCP, Equity, Fund, Macro, Sentiment, Strategy, and Alpha are publication-bound and fail closed when evidence is missing
-- Config Center is now the owner of runtime configuration and secrets: provider credentials, runtime profiles, backup-delivery secrets, failover parameters, and Qlib runtime have been moved away from Account/SystemSettings and legacy compatibility paths, with old admin writes, script entrypoints, implicit defaults, and plaintext credential fallbacks constrained by migrations and CI guards
-- Strategy Research R1–R8 software slices advanced together: Forecast Baseline, Market Structure, Macro Factor, Macro Risk, Fixed Income, State Model, Scenario/Calibration/Analogy/Path definitions, receipts, runners, Promotion/lifecycle, monitoring, rollback, audit, and research-control preflights were implemented; production mutation remains controlled and missing real Publications, owner data, or consumers still yields explicit BLOCKED outcomes
-- Reproducible evidence across Portfolio, Broker, and Research was strengthened through canonical portfolio snapshots, optimization input receipts, rolling macro risk, fixed-income outcomes, broker reconciliation, 11-metric monitoring raw facts, and family lifecycle ledgers with exact PIT reads, append-only persistence, content seals, winner/fork detection, and rollback protection
-- Operations and delivery were hardened with PostgreSQL migration/rollback/restore evidence, complete canonical-schema and migration-marker deployment gates, bounded VPS backup downloads over SFTP, raw archive/retention safety plans, and automated separation of no-database, component, and migration test tiers
-- User and automation surfaces also progressed: QMT/Tushare relay onboarding, provider activation in TUI, A-share sentiment awareness, MCP route identity/audit signatures/evidence contracts, and governed Celery business `outcome` plus requested/succeeded/failed/stored counts were added or tightened
-- Dependency and maintainability debt was structurally closed: the static app graph remains at `0` bidirectional dependencies and `0` cycle components, cross-app composition uses owner-provided factories or neutral `core/integration/*` boundaries, and large-file, production mypy, Data Center, Qlib, and legacy-config regressions are locked by Architecture, Consistency, Security, and Fast Feedback on Python 3.11/3.13
-- Completed plans have been archived out of `docs/plans/`, while remaining real-data, Publication, Promotion, and consumer wiring work stays visible in team tracking memos; merged short-lived `dev/*` branches were removed so `dev/next-development` remains the sole development integration line
-
-### 2026-07-30
-
-- Repository branches have been consolidated: verified governance, TUI migration, and quality-remediation work now converges on `dev/next-development`, with `main` fast-forwarded to the same tested commit; the two long-lived lines remain stable `main` and continuously governed `dev/next-development`
-- Production Python type debt and large-file remediation allowances are now at zero, while cross-platform mypy, architecture-boundary, governance-consistency, and automation gates have been reconciled across Windows and Linux CI
-- Web → TUI migration evidence, rollback points, and release preflight checks are now consolidated; Celery batch tasks also publish normalized business `outcome` contracts so monitoring no longer relies on Celery runtime status alone
-
-### 2026-07-21
-
-- TUI information architecture is now consolidated into an independent, versioned configuration source of truth; task-screen navigation, default actions, and contextual behavior share the same IA rules, backed by static-contract, accessibility, and security gates
-- VPS deployment now publishes and verifies TUI metadata together with the release, reducing drift between application code, the runtime manifest, and the published operation graph
-- MCP write-evidence checks are now generalized, while Alpha API, remote-dependency, and seed-migration tests have been isolated to make Nightly and CI more reliable in offline and replay scenarios
-
-### 2026-07-20
-
-- Maintainability stages R2 and R3-lite are closed out: a dedicated `valuation` module now owns valuation entities, rules, use cases, and repositories while preserving the existing Decision Rhythm integration surface
-- Readiness evidence, acceptance checks, scheduler state, and management commands have moved into the dedicated `operational_readiness` module; legacy `task_monitor` paths remain as compatibility forwarders
-- UAT and production paths received a focused hardening pass covering Regime, Dashboard, and Rotation API contracts, market-data freshness, unit governance, PostgreSQL 16 backup tooling, daily backup scheduling, and stronger CI/security gates
-
-### 2026-07-19
-
-- Macro reads now converge on the canonical macro fact source of truth, so Regime calculation, CPI projections, and deployment checks share the same governance boundary; Regime calculation also supports read-only environments
-- Large-file and single-owner remediation is effectively closed: Account ORM, Audit, Policy, Strategy, Equity, Data Center, and Decision Rhythm hot spots were split by responsibility, and the large-file exemption list is now empty
-- Data-provider abstractions, mypy module exemptions, and test isolation were tightened further, improving repeatability across fast-feedback CI and Data Center regression suites
-
-### 2026-07-18
-
-- TUI Workbench completed a user-facing remediation pass with operational navigation, contextual row actions, and regression coverage across narrow, wide, embedded-host, and accessibility layouts
-- Agent MCP execution, Terminal provider routing, and MCP welcome/self-service contracts were hardened further, including support for ingesting remote MCP audit evidence
-- VPS hot-update verification and realtime routing contracts are more robust, while Data Center use cases and Decision Rhythm models were split further to reduce large-file maintenance cost
-
-### 2026-07-17
-
-- The SQLite → PostgreSQL migration path now preserves all app data, macro-source provenance, and configuration through streaming migration, without triggering extra provisioning while fixtures are being migrated
-- Production Realtime now delivers over WebSockets and routes its page entry through TUI Workbench; the MCP self-service page and global TUI layout also gained fixed contracts and regression gates
-- A verified VPS PostgreSQL workflow now creates custom-format backups, downloads them over SFTP, and checks SHA-256 integrity; remote deployment streaming and TLS hostname validation were hardened in the same pass
-
-### 2026-07-05
-
-- `0.8.0` is now the formal public release line, with version/build metadata unified across code, docs, README, and agent guidance as `0.8.0-build.20260705`
-- `task_monitor`, readiness evidence, and VPS runtime verification are now documented as a standard operations loop with fixed commands, evidence files, and pass criteria
-- The formal production database recommendation is now locked to `PostgreSQL`; `SQLite` remains for local development, demos, and explicit migration/diagnostic paths
-- TUI runtime metadata patches are now split by responsibility, reducing the risk concentrated in `tui_metadata_repository.py`
-
-### 2026-05-14
-
-- Equity Detail chart defaults are now derived from real market sessions, so intraday, post-close, and non-trading-time visits all fall back to the correct completed trading day instead of a not-yet-closed or future date
-
-### 2026-05-13
-
-- A dedicated `config_center` module and Qlib training console are now in place, consolidating training config, runtime summaries, management entrypoints, and related API/SDK/MCP capabilities into one configuration surface
-- Qlib token permissions were tightened, with matching updates across the MCP guide, config-center pages, and access control; the equity detail loading path was also unblocked so the page degrades more safely when some local context is missing
-
-### 2026-05-12
-
-- Data Center now supports on-demand hydration, giving equity and related read paths a clearer fetch-and-audit route when canonical source data is missing locally
-- Pulse macro freshness repair and Factor calculation-result page cleanup landed in the same pass, improving reliability across research-facing screens
-
-### 2026-05-10
-
-- Workspace Snapshot and Task Monitor scheduler-console pages are now available, making periodic jobs, snapshot refreshes, and scheduler state easier to inspect after setup
-- MCP onboarding and startup welcome context are now built in, so first-time AI-agent integration surfaces available capabilities, config entrypoints, and usage hints earlier
-
-### 2026-05-02
-
-- Another architecture-governance pass is now closed out: remaining cross-module `infrastructure` reach-through in paths such as `ai_provider`, `data_center`, `equity`, and `policy` has been pushed further behind app-owned providers and `core/integration/*`
-- Runtime bridges and test-safe provider paths are stable again, so `runtime_settings`, `runtime_benchmarks`, and related `signal` reads no longer depend on brittle legacy bridge wiring in test or degraded environments
-- CI quality gates were tightened again: the repo now includes `ci-fast-feedback.yml`, `scripts/select_quality_targets.py`, and `.pre-commit-config.yaml`, with the `rc-gate` and architecture-guardrail rules/docs updated in the same pass; the GitHub Actions Node 20 shim warnings were removed too
-
-### 2026-05-01
-
-- The Alpha exit loop backend is now in place, giving decision-rhythm, signal-query, auto-trading execution, and task-dispatch flows one end-to-end exit-advice path backed by new regression coverage
-- Dashboard exit-chain entry points are now unified: the homepage workflow, Decision Workspace sidebar, Alpha history/detail panel, and metrics/stock APIs all route through consistent query and interface-service boundaries instead of oversized mixed views
-- Workspace compatibility also improved in this pass: non-numeric workspace account ids no longer break the flow, the Decision/Simulated Trading module cycle has been split, and production static-asset handling is more robust after cleaning out redundant vendored frontend bundles
-
-### 2026-04-30
-
-- `main` is aligned again with the latest CI-green development line, so the public branch now includes the async task-visibility fixes across Alpha, Dashboard, Policy, and Data Center flows
-- Key async entrypoints that already return a `task_id` now write an early `task_monitor` record before the worker actually picks the task up, removing the "task was queued but temporarily invisible" blind spot
-- A focused regression entrypoint, `python scripts/run_alpha_ops_regression.py`, now covers Alpha ops, Dashboard Alpha refresh, Policy RSS fetch, and Data Center decision reliability repair for task visibility and provider-alert semantics
-- Nightly/default integration regression is now explicitly split from `live_required`, `optional_runtime`, and `diagnostic` suites, so contributors can run the default automated path without accidentally pulling in live-server, worker, or script-style diagnostics
-
-### 2026-04-29
-
-- Macro MCP/SDK access is now officially consolidated under `data_center`: the public macro tool family is `data_center_*`, and indicator/unit-rule governance is directly exposed through MCP/HTTP
-- Macro-governance and MCP docs are kept aligned with the current local registered MCP tool snapshot by the governance check
-
-### 2026-04-28
-
-- Alpha / Qlib Ops Console V1 is now in place: there are dedicated inference-management and Qlib runtime-data pages, with read access for staff and manual actions reserved for superusers
-- This ops-console pass and the CI-stability fixes did not change the external MCP contract: SDK / MCP tool names, parameter schemas, canonical API paths, and RBAC semantics remain unchanged
-- `tests/integration/test_alpha_stress.py` now runs offline by default so ETF fallback no longer drifts into live `akshare` requests on GitHub Actions; the latest push CI and Nightly are green again
-
-### 2026-04-27
-
-- The final cross-app cleanup around `strategy` and `asset_analysis` is now closed out: asset-pool lookup, name resolution, and screening assembly now flow through application facades and the shared registry instead of a bridge module plus cross-app ORM reach-through
-- A batch of silent Domain / Application fallback branches now emits explicit logs, so the system can keep its degraded-path behavior without hiding operational failures
-- GitHub Actions Nightly is green again; this pass fixed the duplicate `tests/unit` collection conflict, Strategy execution behavior when the investable pool has not been prewarmed yet, and the outdated parameter signature used by the Decision Workspace AI invalidation-draft endpoint
-- `main` and `dev/next-development` are aligned again to the same commit, so the public branch and active development branch now reflect the same state
-
-### 2026-04-24
-
-- Repository-wide governance checks are now in place: `governance/governance_baseline.json`, `scripts/check_governance_consistency.py`, and the CI workflow now lock historical debt while blocking regressions in module shape, MCP counts, docs links, AppConfig placement, and Application-layer pandas/numpy imports
-- The architecture-debt remediation line has landed on `main`: multiple Interface / Application hot paths now route through application interface services, repository providers, and infrastructure repositories instead of touching ORM or infrastructure directly
-- Contract drift in Alpha recommendations, Decision readiness, Data Center sync, and Share snapshot JSON serialization has been repaired, and the related guardrail and integration tests now match the current implementation
-- `main` and `dev/next-development` are aligned to the same commit, with the latest push CI and Nightly green across unit, API, integration, app-local, guardrail, architecture report, and Playwright smoke stages
-
-### 2026-04-05
-
-- The financial datasource page has been consolidated into a unified datasource center, so public providers, licensed providers, local-terminal providers, and pending configs now live in one workbench
-- Macro datasource management now includes built-in connection testing, with page-level probes and log output for sources such as Tushare, AKShare, and QMT
-- The old `market_data` provider surface has been folded back into the unified datasource center, keeping config-center and provider-inventory views aligned
-- The `macro` layer-boundary regressions have been repaired, and GitHub Actions is back to green on both `Architecture Layer Guard` and `Logic Guardrails`
-
-### 2026-04-04
-
-- The equity detail page now includes a technical-chart surface with daily/intraday data support and matching API contracts
-- Equity detail context is richer than before, with clearer market-state, source, and technical context alongside valuation and fundamentals
-- When the local Qlib runtime is unavailable, the Alpha path now reuses the latest valid cache instead of collapsing to an empty result
-- The settings center, admin-facing surfaces, MCP tools page, docs management, and server-log views have been visually unified into a more consistent management shell
-
-### 2026-04-03
-
-- RSS fetching no longer hangs on uncontrolled timeouts, and RSS source configuration now exposes timeout / retry / RSSHub / proxy fields in the UI
-- Default RSS seed sources have been refreshed to working feed URLs, so demo environments no longer depend on broken `rsshub.app` defaults
-- Development `runserver` logs are now persisted to files, making local startup/debug review much easier
-
-### 2026-03-30
-
-- Alpha reliability is now explicit end to end: Dashboard, API, and MCP all surface whether the current recommendation uses cached data, whether it was forward-filled, and which signal date is actually being shown
-- When local Qlib data is stale, the system no longer pretends the result is fresh; it returns a clear `degraded` state with a user-visible reliability notice
-- The Qlib runtime soft switch remains database-driven, and the live database path settings have now been written back explicitly instead of relying only on runtime fallback
-- The pytest collection baseline now covers both `tests/` and `apps/*/tests`, and UAT summary generation is based on real JUnit XML instead of placeholder parsing
-- Playwright regression now supports a "production DB snapshot + isolated server" path so real-data browser verification can run without writing into the live `db.sqlite3`
-
-### 2026-03-24
-
-- The full Regime Navigator + Pulse redesign rollout is now closed out across Dashboard, Decision Workspace, and the Regime page
-- Dashboard navigation has been tightened, and `beta_gate`, `alpha_trigger`, and `decision_rhythm` are no longer exposed as standalone primary homepage entries
-- The Regime page now includes a historical `Regime + Pulse + Action` layered time-series chart
-- The Dashboard now supports optional browser-level Pulse transition notifications
-- SDK, MCP, and docs are aligned around `decision_workflow.get_funnel_context(trade_id, backtest_id)` and `client.pulse.*`
-
-### Maintenance Rule
-
-- Only record changes that matter to users, integrators, or fork maintainers
-- Keep the same-day updates under the same date instead of creating noise
-- Anything important beyond one week should be moved into [`CHANGELOG.md`](CHANGELOG.md)
-
----
-
-> **Disclaimer**  
+> **Disclaimer**<br>
 > This project is for **personal research and system experimentation only**. It does not represent the investment views of any institution and **does not constitute investment advice**.
 
 ---
 
-## The Core Difference
+## Who Is This For?
 
-AgomTradePro is not trying to be just another quant dashboard, AI stock demo, or market data UI. It is built as a way to **construct your own AI-native research foundation**.
+- **Individual investors** who want systematic discipline instead of emotional trading
+- **Quant developers** who want to connect macro analysis, signal rules, and strategy research to their workflows
+- **AI/LLM enthusiasts** who want to build investment agents with proper guardrails
+- **Finance students** learning macro-driven investment frameworks with real code
 
-- **AI-native, not AI-added-later**: MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
-- **Not a single-purpose tool, but a research and decision substrate**: macro, policy, signal, approval, execution, and audit are connected end to end
-- **Designed to be extended**: you can fork it into your own macro lab, agent-driven research platform, or strategy infrastructure
-- **Built with agentic coding workflows**: a meaningful part of the project was shaped using **Claude Code and Codex** as part of the actual development loop
+---
 
-If what you want is not “another dashboard” but “a base for building your own AI research stack,” this project is aimed at that problem.
+## Screenshots
+
+<details open>
+<summary><b>Research Overview (Dashboard)</b></summary>
+
+![Dashboard](docs/images/readme/dashboard_logged_in.png)
+
+*The classic Dashboard brings accounts, macro conditions, decision context, AI stock analysis, and workflow status into one screen.*
+
+</details>
+
+<details>
+<summary><b>Setup Wizard</b></summary>
+
+![Setup Wizard](docs/images/readme/setup_wizard.png)
+
+*First launch auto-generates security keys, creates admin, and configures AI provider and data sources — no manual .env editing required.*
+
+</details>
+
+<details>
+<summary><b>Terminal CLI</b></summary>
+
+![Terminal CLI](docs/images/readme/terminal_cli.png)
+
+*Not just a chat box. This is an operations-oriented CLI surface with commands, context, session state, and AI interaction built into the product.*
+
+</details>
+
+<details>
+<summary><b>Native MCP Tools Console</b></summary>
+
+![MCP Tools](docs/images/readme/mcp_tools.png)
+
+*Built-in MCP catalog, schema inspection, and terminal/routing switches. This makes the MCP story feel native rather than bolted on.*
+
+</details>
+
+---
+
+## Features
+
+### Core System
+
+| Module | What It Does |
+|--------|-------------|
+| **Regime Engine** | Determines current macro regime from growth/inflation indicators with Z-score normalization |
+| **Policy Gate** | Tracks fiscal/monetary policy events and their impact on risk appetite |
+| **Signal Manager** | Creates, validates, and tracks investment signals with mandatory invalidation logic |
+| **Decision Workflow** | Pre-check → approval → execution pipeline with rhythm constraints |
+| **Valuation Engine** | Valuation snapshots, price bands, quality rules, and freshness checks |
+| **Backtest Engine** | Historical validation with Brinson attribution analysis |
+| **Audit System** | Post-trade review with full decision trace and performance attribution |
+
+### Portfolio & Execution
+
+| Module | What It Does |
+|--------|-------------|
+| **Simulated Trading** | Paper trading with margin tracking and daily inspection |
+| **Real-time Monitor** | Live price streams, WebSockets, price alerts, and subscription management |
+| **Strategy System** | DB-driven position rules, strategy binding per portfolio |
+| **Sector Rotation** | Regime-based sector allocation recommendations |
+| **Operational Readiness** | Scheduler state, readiness evidence, continuous-window acceptance, and repair commands |
+
+### AI & Smart Analysis
+
+| Module | What It Does |
+|--------|-------------|
+| **Alpha Scoring** | AI stock scoring with 4-layer degradation (Qlib → Cache → Simple → ETF) |
+| **Factor Management** | Factor calculation, IC/ICIR evaluation |
+| **Hedge Strategies** | Futures hedging calculation and portfolio protection |
+| **Sentiment Gate** | News/sentiment analysis as additional risk filter |
+
+### Data Sources
+
+| Source | Coverage |
+|--------|----------|
+| **Tushare Pro** | A-share market data, SHIBOR, index data |
+| **AKShare** | Macro indicators (PMI, CPI, M2, GDP, etc.) |
+| **QMT Local** | Local terminal market access and runtime probing |
+| **Failover** | Auto-switch with 1% tolerance validation |
 
 ---
 
 ## Project Status
 
-> This project is already runnable and demo-ready, but it is **still under active development**.  
-> The current repository's **frontend presentation and parts of the operational flow are still being revised**.  
+> This project is already runnable and demo-ready, but it is **still under active development**.<br>
+> The current repository's **frontend presentation and parts of the operational flow are still being revised**.<br>
 > The more accurate way to read it right now is as a system that is gradually becoming a **data foundation and decision framework for AI**, rather than a frozen SaaS product; public updates will continue refining the UI, interaction flow, monitoring, and documentation.
 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
@@ -313,6 +202,9 @@ The setup wizard will guide you through:
 
 > A first local run defaults to `SQLite + synchronous tasks`. You do not need PostgreSQL, Redis, or Docker just to get the system running.
 
+<details>
+<summary>Optional initialization and tests</summary>
+
 ### Optional System Initialization
 
 If you want to seed built-in configuration and template data, run:
@@ -329,53 +221,92 @@ pytest tests/ -v --cov=apps
 pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
 ```
 
----
-
-## Contact
-
-If you want to discuss the project's direction or follow-up iterations, you can reach me on WeChat: `Uncleliou`
+</details>
 
 ---
 
-## Why This Exists
+## AI-Native Integration
 
-Financial markets have been moving hard. What becomes exhausting is not just volatility itself, but the feeling that **you keep reading more, thinking more, and still become more confused**.
+### Python SDK
 
-This project did not start from “let's build a platform.” It started from a simpler question:
+```python
+from agomtradepro import AgomTradeProClient
 
-> **If I am the confused participant in a noisy market, can I build a system that explains the environment to myself before I act?**
+client = AgomTradeProClient(
+    base_url="http://localhost:8000",
+    api_token="your_token"
+)
 
-Most retail investors lose money not because their stock picks are bad, but because they trade at the wrong time.
+# What macro regime are we in right now?
+regime = client.regime.get_current()
+print(f"Regime: {regime.dominant_regime}")  # e.g., "Recovery"
 
-- You buy quality stocks — **during stagflation**
-- You follow a solid strategy — **while policy is tightening**
-- You see a clear signal — **but the macro regime is shifting under your feet**
+# Can I even trade this asset right now?
+check = client.signal.check_eligibility(
+    asset_code="000001.SH",
+    logic_desc="PMI rising, economic recovery"
+)
 
-**The result?** Correct logic, wrong world. Loss.
+# Create a signal (with mandatory invalidation logic)
+if check["is_eligible"]:
+    signal = client.signal.create(
+        asset_code="000001.SH",
+        logic_desc="PMI rising, economic recovery",
+        invalidation_logic="PMI falls below 50 for 2 consecutive months",
+        invalidation_threshold=49.5
+    )
+```
 
-AgomTradePro is built on one principle:
+### MCP Server for AI Agents
 
-> **"Don't bet in the wrong macroeconomic world, even with correct logic."**
+Connect AgomTradePro to Claude Code, Cursor, or any MCP-compatible AI:
 
-It acts as a **macro gatekeeper** — filtering every investment decision through regime analysis (growth × inflation quadrants) and policy state before you can act. It doesn't predict prices. It prevents mistakes.
+```json
+{
+  "mcpServers": {
+    "agomtradepro": {
+      "command": "python",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "env": {
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token"
+      }
+    }
+  }
+}
+```
 
----
+Then just talk to your AI:
 
-## Why Fork / Star
+```
+You:    "What's the current macro regime? Should I add to my equity position?"
 
-If you're looking for more than "yet another stock dashboard" and want a **base that can keep growing into strategy logic, agent tooling, and execution workflows**, this repo is worth following.
+Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
+        [calls get_policy_status] → Tight monetary policy
 
-- **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
-- **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
-- **It is not a one-off script pile**: multiple business modules with explicit DDD boundaries make it suitable for long-term extension
-- **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
-- **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
+        "The macro regime is Stagflation with tight policy. This is a
+         defensive environment. Adding equity exposure would go against
+         the regime signal. Consider waiting for regime transition or
+         look at hedge positions instead."
+```
 
-For most people, the best way to use this repo is:
+**The MCP tool surface** does not just expose a few query endpoints. It spans macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
-1. `Star` it to follow the roadmap
-2. `Fork` it as your own macro / strategy / agent infrastructure base
-3. Extend the modules around your own trading logic or research workflow
+### Decision Workflow via AI
+
+```
+AI Agent proposes trade
+        ↓
+System runs pre-check (regime gate, policy gate, rhythm check)
+        ↓
+Proposal created with full context
+        ↓
+Human reviews and approves/rejects
+        ↓
+Guarded execution with audit trail
+```
+
+AI speed for analysis. Human judgment for execution. Full traceability for review.
 
 ---
 
@@ -422,89 +353,12 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 
 ---
 
-## Screenshots
-
-<details>
-<summary><b>Logged-in Dashboard</b></summary>
-
-![Dashboard](docs/images/readme/dashboard_logged_in.png)
-
-*The first screen after login shows the system as an operating console: accounts, macro state, decision plane, AI stock analysis, and workflow status in one place.*
-
-</details>
-
-<details>
-<summary><b>Setup Wizard</b></summary>
-
-![Setup Wizard](docs/images/readme/setup_wizard.png)
-
-*First launch auto-generates security keys, creates admin, and configures AI provider and data sources — no manual .env editing required.*
-
-</details>
-
-<details>
-<summary><b>Terminal CLI</b></summary>
-
-![Terminal CLI](docs/images/readme/terminal_cli.png)
-
-*Not just a chat box. This is an operations-oriented CLI surface with commands, context, session state, and AI interaction built into the product.*
-
-</details>
-
-<details>
-<summary><b>Native MCP Tools Console</b></summary>
-
-![MCP Tools](docs/images/readme/mcp_tools.png)
-
-*Built-in MCP catalog, schema inspection, and terminal/routing switches. This makes the MCP story feel native rather than bolted on.*
-
-</details>
-
----
-
-## Features
-
-### Core System
-| Module | What It Does |
-|--------|-------------|
-| **Regime Engine** | Determines current macro regime from growth/inflation indicators with Z-score normalization |
-| **Policy Gate** | Tracks fiscal/monetary policy events and their impact on risk appetite |
-| **Signal Manager** | Creates, validates, and tracks investment signals with mandatory invalidation logic |
-| **Decision Workflow** | Pre-check → approval → execution pipeline with rhythm constraints |
-| **Valuation Engine** | Valuation snapshots, price bands, quality rules, and freshness checks |
-| **Backtest Engine** | Historical validation with Brinson attribution analysis |
-| **Audit System** | Post-trade review with full decision trace and performance attribution |
-
-### Portfolio & Execution
-| Module | What It Does |
-|--------|-------------|
-| **Simulated Trading** | Paper trading with margin tracking and daily inspection |
-| **Real-time Monitor** | Live price streams, WebSockets, price alerts, and subscription management |
-| **Strategy System** | DB-driven position rules, strategy binding per portfolio |
-| **Sector Rotation** | Regime-based sector allocation recommendations |
-| **Operational Readiness** | Scheduler state, readiness evidence, continuous-window acceptance, and repair commands |
-
-### AI & Smart Analysis
-| Module | What It Does |
-|--------|-------------|
-| **Alpha Scoring** | AI stock scoring with 4-layer degradation (Qlib → Cache → Simple → ETF) |
-| **Factor Management** | Factor calculation, IC/ICIR evaluation |
-| **Hedge Strategies** | Futures hedging calculation and portfolio protection |
-| **Sentiment Gate** | News/sentiment analysis as additional risk filter |
-
-### Data Sources
-| Source | Coverage |
-|--------|----------|
-| **Tushare Pro** | A-share market data, SHIBOR, index data |
-| **AKShare** | Macro indicators (PMI, CPI, M2, GDP, etc.) |
-| **QMT Local** | Local terminal market access and runtime probing |
-| **Failover** | Auto-switch with 1% tolerance validation |
-
----
-
 ## Architecture
 
-AgomTradePro is not a bundle of pages and APIs. It is designed more like an **investment operating system**:
+Business modules use four layers: Domain, Application, Infrastructure, and Interface. See the [architecture documentation](docs/architecture/) for module boundaries and development rules.
+
+<details>
+<summary>System diagram, module responsibilities, and governance details</summary>
 
 ### System Overview
 
@@ -695,94 +549,51 @@ This is one of the strongest reasons to fork the project: the AI layer is native
 - **Product surfaces are mature enough** to show that this is not a toy project
 - **Plenty is still evolving**, which makes this a good time to watch, fork, and build on top of it
 
+</details>
+
 ---
 
-## AI-Native Integration
+## Tech Stack
 
-### Python SDK
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.11+, Django 5.x, DRF |
+| **Database** | SQLite (dev) / PostgreSQL (prod) |
+| **Task Queue** | Celery + Redis |
+| **Data Processing** | Pandas, NumPy, Statsmodels |
+| **Visualization** | Streamlit, Plotly |
+| **Frontend** | Django Templates + HTMX |
+| **AI Integration** | MCP Server, Python SDK |
+| **Testing** | Pytest (current scope is tracked in [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)), Playwright (E2E) |
 
-```python
-from agomtradepro import AgomTradeProClient
+---
 
-client = AgomTradeProClient(
-    base_url="http://localhost:8000",
-    api_token="your_token"
-)
-
-# What macro regime are we in right now?
-regime = client.regime.get_current()
-print(f"Regime: {regime.dominant_regime}")  # e.g., "Recovery"
-
-# Can I even trade this asset right now?
-check = client.signal.check_eligibility(
-    asset_code="000001.SH",
-    logic_desc="PMI rising, economic recovery"
-)
-
-# Create a signal (with mandatory invalidation logic)
-if check["is_eligible"]:
-    signal = client.signal.create(
-        asset_code="000001.SH",
-        logic_desc="PMI rising, economic recovery",
-        invalidation_logic="PMI falls below 50 for 2 consecutive months",
-        invalidation_threshold=49.5
-    )
-```
-
-### MCP Server for AI Agents
-
-Connect AgomTradePro to Claude Code, Cursor, or any MCP-compatible AI:
-
-```json
-{
-  "mcpServers": {
-    "agomtradepro": {
-      "command": "python",
-      "args": ["-m", "agomtradepro_mcp.server"],
-      "env": {
-        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
-        "AGOMTRADEPRO_API_TOKEN": "your_token"
-      }
-    }
-  }
-}
-```
-
-Then just talk to your AI:
+## Project Stats
 
 ```
-You:    "What's the current macro regime? Should I add to my equity position?"
-
-Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
-        [calls get_policy_status] → Tight monetary policy
-
-        "The macro regime is Stagflation with tight policy. This is a
-         defensive environment. Adding equity exposure would go against
-         the regime signal. Consider waiting for regime transition or
-         look at hedge positions instead."
+Business modules / MCP tools / static test functions: the only machine source of truth is `governance/governance_baseline.json`; `docs/governance/SYSTEM_BASELINE.md` is a narrative index only.
+REST API paths: OpenAPI snapshot
+Documentation files: docs/INDEX.md
 ```
 
-**The MCP tool surface** does not just expose a few query endpoints. It spans macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
+---
 
-### Decision Workflow via AI
+## Documentation
 
-```
-AI Agent proposes trade
-        ↓
-System runs pre-check (regime gate, policy gate, rhythm check)
-        ↓
-Proposal created with full context
-        ↓
-Human reviews and approves/rejects
-        ↓
-Guarded execution with audit trail
-```
-
-AI speed for analysis. Human judgment for execution. Full traceability for review.
+| Document | Description |
+|----------|-------------|
+| **[Quick Start Guide](docs/QUICK_START.md)** | From zero to running in production |
+| **[System Specification](docs/SYSTEM_SPECIFICATION.md)** | Complete technical + functional spec |
+| **[SDK Reference](sdk/README.md)** | Python SDK and MCP server guide |
+| **[Architecture Guide](docs/architecture/)** | DDD design, module dependencies |
+| **[Doc Index](docs/INDEX.md)** | Full documentation navigation |
 
 ---
 
 ## Manual Setup Details
+
+<details>
+<summary>Extended setup, Docker, troubleshooting, and SDK installation</summary>
 
 ### Prerequisites
 
@@ -911,51 +722,49 @@ pytest tests/ -v --cov=apps
 pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
 ```
 
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.11+, Django 5.x, DRF |
-| **Database** | SQLite (dev) / PostgreSQL (prod) |
-| **Task Queue** | Celery + Redis |
-| **Data Processing** | Pandas, NumPy, Statsmodels |
-| **Visualization** | Streamlit, Plotly |
-| **Frontend** | Django Templates + HTMX |
-| **AI Integration** | MCP Server, Python SDK |
-| **Testing** | Pytest (current scope is tracked in [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)), Playwright (E2E) |
+</details>
 
 ---
 
-## Project Stats
+## Why This Exists
 
-```
-Business modules / MCP tools / static test functions: the only machine source of truth is `governance/governance_baseline.json`; `docs/governance/SYSTEM_BASELINE.md` is a narrative index only.
-REST API paths: OpenAPI snapshot
-Documentation files: docs/INDEX.md
-```
+Financial markets have been moving hard. What becomes exhausting is not just volatility itself, but the feeling that **you keep reading more, thinking more, and still become more confused**.
+
+This project did not start from “let's build a platform.” It started from a simpler question:
+
+> **If I am the confused participant in a noisy market, can I build a system that explains the environment to myself before I act?**
+
+Most retail investors lose money not because their stock picks are bad, but because they trade at the wrong time.
+
+- You buy quality stocks — **during stagflation**
+- You follow a solid strategy — **while policy is tightening**
+- You see a clear signal — **but the macro regime is shifting under your feet**
+
+**The result?** Correct logic, wrong world. Loss.
+
+AgomTradePro is built on one principle:
+
+> **"Don't bet in the wrong macroeconomic world, even with correct logic."**
+
+It acts as a **macro gatekeeper** — filtering every investment decision through regime analysis (growth × inflation quadrants) and policy state before you can act. It doesn't predict prices. It prevents mistakes.
 
 ---
 
-## Documentation
+## Why Fork / Star
 
-| Document | Description |
-|----------|-------------|
-| **[Quick Start Guide](docs/QUICK_START.md)** | From zero to running in production |
-| **[System Specification](docs/SYSTEM_SPECIFICATION.md)** | Complete technical + functional spec |
-| **[SDK Reference](sdk/README.md)** | Python SDK and MCP server guide |
-| **[Architecture Guide](docs/architecture/)** | DDD design, module dependencies |
-| **[Doc Index](docs/INDEX.md)** | Full documentation navigation |
+If you're looking for more than "yet another stock dashboard" and want a **base that can keep growing into strategy logic, agent tooling, and execution workflows**, this repo is worth following.
 
----
+- **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
+- **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
+- **It is not a one-off script pile**: multiple business modules with explicit DDD boundaries make it suitable for long-term extension
+- **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
+- **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
 
-## Who Is This For?
+For most people, the best way to use this repo is:
 
-- **Individual investors** who want systematic discipline instead of emotional trading
-- **Quant developers** who need a production-grade macro overlay for their strategies
-- **AI/LLM enthusiasts** who want to build investment agents with proper guardrails
-- **Finance students** learning macro-driven investment frameworks with real code
+1. `Star` it to follow the roadmap
+2. `Fork` it as your own macro / strategy / agent infrastructure base
+3. Extend the modules around your own trading logic or research workflow
 
 ---
 
@@ -979,6 +788,220 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 
 ---
 
+## What's New
+
+> This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-10-11
+
+- Task monitoring now registers Celery lifecycle signals on cold start so execution state is recorded from the first task. The S6 market-data graph validates each stage's business outcome and publication evidence; partial results can proceed only when the evidence supports them.
+- Release rehearsal now preserves versioned provider / policy identities, separates sealed source files from writable logs, seals stage outputs through directory descriptors, and checks GitHub CI credentials before the stage starts. Missing or invalid credentials block the run. See the [S6 stage environment contract](docs/development/s6-stage-environment-contract.md).
+- Security scanning pins the gitleaks version and verifies its allowlist syntax. Manually dispatched release-candidate CI scans the full Git history; classified historical findings use exact fingerprints, while TUI content digests require both a matching path and a matching full line.
+- Full-scope financial synchronization and publication now bind capacity receipts, frozen scope, request budgets, and approvals. These repository capabilities still require CI, a complete fresh S6 rehearsal, and post-deployment reconciliation for the same candidate. The [production recovery plan](docs/plans/production-recovery-and-regression-remediation-2026-09-24.md) records regression evidence and remaining work.
+
+### 2026-10-10
+
+- The retained [read-only production review](docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json) records production at `d3fdbd6f1` / release `20261008050500`: health, database health, and ready return 200, while decision-ready remains 503. Quotes and valuations each cover 5,572 members; daily prices are missing 11 members, and financial data has no current Publication. Candidate identity, audit authority, source-time evidence, and protected monitoring authentication still block production recovery acceptance.
+
+### 2026-10-04
+
+- An owner-approved financial date-precision contract now treats Shanghai midnight on announcement day T as a calendar-day boundary and makes the fact available for daily decisions at midnight on T+1. It does not claim an exact provider timestamp or rewrite historical degraded facts. Retained raw responses, same-provider row binding, publication integrity, and production acceptance remain required. See the [date-precision decision](docs/plans/data02-date-only-precision-decision-2026-10-04.md).
+
+<details>
+<summary>Earlier updates (September 25 and before)</summary>
+
+### 2026-09-25
+
+- Quote, price-bar, valuation, and financial facts now use immutable revisions. A fact already pinned by a Publication is never updated in place; corrections append a revision while historical Publications keep their original row and content digest.
+- Ordinary Alpha and decision-workspace reads no longer enqueue inference or write recommendations. Refreshes require an explicit action, and task monitoring exposes the active phase, business `outcome`, safe error code, and requested/succeeded/failed/stored counts.
+- SDK and MCP contracts now preserve signal pagination, unclassified policy/manual-review semantics, and decision-runtime blockers. Upstream `block_reason_code/block_reason` fields reach investors as bounded safe diagnostics instead of collapsing into a generic HTTP error.
+- Tushare SDK traffic follows its single Data API URL protocol. Endpoints and credentials remain in Data Center / Config Center and deployment configuration, outside Git. A candidate-bound, database-read-only live-provider rehearsal samples 50 stocks by default and records coverage, clocks, HTTP receipts, and zero-write evidence.
+- Financial publication remains fail closed when the provider supplies only an announcement date without a verifiable source-native timestamp. The system reports `financial_available_at_missing` / `financial_source_evidence_incomplete` and never substitutes fetch time or claims the data is decision-ready.
+- China-market dates now require source-bound, complete exchange-calendar evidence for every calendar day in the requested window. Truncated, missing, conflicting, or unavailable calendars block the decision path instead of treating weekdays or holidays as sessions.
+- SDK status retries preserve the final business response. Repeated 503 responses still carry `decision_runtime_blocked`, `blocked_reason`, and decision-safety fields through MCP instead of collapsing to `HTTP unknown`.
+
+### 2026-09-23
+
+- The database is the source of truth for production Tushare settings: `data_center_provider_config` stores the endpoint and `tushare_request_mode`, while Config Center stores the Tushare token encrypted. VPS environment variables remain only for bootstrap, standalone diagnostics, and compatibility fallback when the database is unavailable; database settings take precedence, and credentials are never committed to Git.
+- VPS UAT verified the Tushare `trade_cal` probe, the Qlib `csi300` runtime refresh, and Alpha write-back of 30 scores, all at the `2026-09-23` data date. Full-market publication remains fail-closed because the audit runtime is not enabled, so this UAT does not establish complete automatic scheduling or decision-data recovery.
+
+### 2026-09-20
+
+- The Alpha data chain now validates historical volume units and price adjustments, refreshes full-market quotes and valuations in batches, and checks Qlib concurrency and trading-suspension evidence. Explicit data blocks stop downstream inference dispatch while preserving source dates and stable reasons.
+- Alpha pages and the TUI workbench show background refresh failures, missing data, and actual source dates even when results are cached or empty. Missing volume and insufficient signal strength are surfaced explicitly.
+- [VPS recovery verification](docs/reviews/vps-full-market-recovery-2026-09-19.md): September 18 quotes and valuations each cover 5,565 stocks; model inputs account for 5,553 tradable stocks and 12 verified full-day suspensions. All six manually triggered account inference jobs succeeded, producing 180 finite scores without cache fallback. Context reads for 30 candidates improved from 141.12 to 9.06 seconds, with volume available for all 30 and full publication integrity checks retained.
+- Automatic recovery remains unverified: audit runtime configuration and service identity, financial source timestamps, and publication coverage still block parts of the flow. The next natural scheduled inference cycle is due for verification on September 21. Successful manual inference does not establish complete recovery of decision data or automatic refresh.
+
+### 2026-08-12
+
+- The July 30–August 12 cycle was a substantial governance and capability build-out: Git records **616 commits across 2,076 changed files**, spanning data reliability, configuration and secrets, research evidence, portfolio research, runtime safety, CI, and documentation; the items below summarize the actual workstreams rather than only the final cleanup commits
+- The Data Center reliability control plane is now systematic: Publication/member binding, PIT/as-of semantics, source observation clocks, freshness, failover provenance, shadow reconciliation, retention/capacity, A-share backfill, and sync snapshots are auditable sources of truth; current/latest consumers across Dashboard, SDK, MCP, Equity, Fund, Macro, Sentiment, Strategy, and Alpha are publication-bound and fail closed when evidence is missing
+- Config Center is now the owner of runtime configuration and secrets: provider credentials, runtime profiles, backup-delivery secrets, failover parameters, and Qlib runtime have been moved away from Account/SystemSettings and legacy compatibility paths, with old admin writes, script entrypoints, implicit defaults, and plaintext credential fallbacks constrained by migrations and CI guards
+- Strategy Research R1–R8 software slices advanced together: Forecast Baseline, Market Structure, Macro Factor, Macro Risk, Fixed Income, State Model, Scenario/Calibration/Analogy/Path definitions, receipts, runners, Promotion/lifecycle, monitoring, rollback, audit, and research-control preflights were implemented; production mutation remains controlled and missing real Publications, owner data, or consumers still yields explicit BLOCKED outcomes
+- Reproducible evidence across Portfolio, Broker, and Research was strengthened through canonical portfolio snapshots, optimization input receipts, rolling macro risk, fixed-income outcomes, broker reconciliation, 11-metric monitoring raw facts, and family lifecycle ledgers with exact PIT reads, append-only persistence, content seals, winner/fork detection, and rollback protection
+- Operations and delivery were hardened with PostgreSQL migration/rollback/restore evidence, complete canonical-schema and migration-marker deployment gates, bounded VPS backup downloads over SFTP, raw archive/retention safety plans, and automated separation of no-database, component, and migration test tiers
+- User and automation surfaces also progressed: QMT/Tushare relay onboarding, provider activation in TUI, A-share sentiment awareness, MCP route identity/audit signatures/evidence contracts, and governed Celery business `outcome` plus requested/succeeded/failed/stored counts were added or tightened
+- Dependency and maintainability debt was structurally closed: the static app graph remains at `0` bidirectional dependencies and `0` cycle components, cross-app composition uses owner-provided factories or neutral `core/integration/*` boundaries, and large-file, production mypy, Data Center, Qlib, and legacy-config regressions are locked by Architecture, Consistency, Security, and Fast Feedback on Python 3.11/3.13
+- Completed plans have been archived out of `docs/plans/`, while remaining real-data, Publication, Promotion, and consumer wiring work stays visible in team tracking memos; merged short-lived `dev/*` branches were removed so `dev/next-development` remains the sole development integration line
+
+### 2026-07-30
+
+- Repository branches have been consolidated: verified governance, TUI migration, and quality-remediation work now converges on `dev/next-development`, with `main` fast-forwarded to the same tested commit; the two long-lived lines remain stable `main` and continuously governed `dev/next-development`
+- Production Python type debt and large-file remediation allowances are now at zero, while cross-platform mypy, architecture-boundary, governance-consistency, and automation gates have been reconciled across Windows and Linux CI
+- Web → TUI migration evidence, rollback points, and release preflight checks are now consolidated; Celery batch tasks also publish normalized business `outcome` contracts so monitoring no longer relies on Celery runtime status alone
+
+### 2026-07-21
+
+- TUI information architecture is now consolidated into an independent, versioned configuration source of truth; task-screen navigation, default actions, and contextual behavior share the same IA rules, backed by static-contract, accessibility, and security gates
+- VPS deployment now publishes and verifies TUI metadata together with the release, reducing drift between application code, the runtime manifest, and the published operation graph
+- MCP write-evidence checks are now generalized, while Alpha API, remote-dependency, and seed-migration tests have been isolated to make Nightly and CI more reliable in offline and replay scenarios
+
+### 2026-07-20
+
+- Maintainability stages R2 and R3-lite are closed out: a dedicated `valuation` module now owns valuation entities, rules, use cases, and repositories while preserving the existing Decision Rhythm integration surface
+- Readiness evidence, acceptance checks, scheduler state, and management commands have moved into the dedicated `operational_readiness` module; legacy `task_monitor` paths remain as compatibility forwarders
+- UAT and production paths received a focused hardening pass covering Regime, Dashboard, and Rotation API contracts, market-data freshness, unit governance, PostgreSQL 16 backup tooling, daily backup scheduling, and stronger CI/security gates
+
+### 2026-07-19
+
+- Macro reads now converge on the canonical macro fact source of truth, so Regime calculation, CPI projections, and deployment checks share the same governance boundary; Regime calculation also supports read-only environments
+- Large-file and single-owner remediation is effectively closed: Account ORM, Audit, Policy, Strategy, Equity, Data Center, and Decision Rhythm hot spots were split by responsibility, and the large-file exemption list is now empty
+- Data-provider abstractions, mypy module exemptions, and test isolation were tightened further, improving repeatability across fast-feedback CI and Data Center regression suites
+
+### 2026-07-18
+
+- TUI Workbench completed a user-facing remediation pass with operational navigation, contextual row actions, and regression coverage across narrow, wide, embedded-host, and accessibility layouts
+- Agent MCP execution, Terminal provider routing, and MCP welcome/self-service contracts were hardened further, including support for ingesting remote MCP audit evidence
+- VPS hot-update verification and realtime routing contracts are more robust, while Data Center use cases and Decision Rhythm models were split further to reduce large-file maintenance cost
+
+### 2026-07-17
+
+- The SQLite → PostgreSQL migration path now preserves all app data, macro-source provenance, and configuration through streaming migration, without triggering extra provisioning while fixtures are being migrated
+- Production Realtime now delivers over WebSockets and routes its page entry through TUI Workbench; the MCP self-service page and global TUI layout also gained fixed contracts and regression gates
+- A verified VPS PostgreSQL workflow now creates custom-format backups, downloads them over SFTP, and checks SHA-256 integrity; remote deployment streaming and TLS hostname validation were hardened in the same pass
+
+### 2026-07-05
+
+- `0.8.0` is now the formal public release line, with version/build metadata unified across code, docs, README, and agent guidance as `0.8.0-build.20260705`
+- `task_monitor`, readiness evidence, and VPS runtime verification are now documented as a standard operations loop with fixed commands, evidence files, and pass criteria
+- The formal production database recommendation is now locked to `PostgreSQL`; `SQLite` remains for local development, demos, and explicit migration/diagnostic paths
+- TUI runtime metadata patches are now split by responsibility, reducing the risk concentrated in `tui_metadata_repository.py`
+
+### 2026-05-14
+
+- Equity Detail chart defaults are now derived from real market sessions, so intraday, post-close, and non-trading-time visits all fall back to the correct completed trading day instead of a not-yet-closed or future date
+
+### 2026-05-13
+
+- A dedicated `config_center` module and Qlib training console are now in place, consolidating training config, runtime summaries, management entrypoints, and related API/SDK/MCP capabilities into one configuration surface
+- Qlib token permissions were tightened, with matching updates across the MCP guide, config-center pages, and access control; the equity detail loading path was also unblocked so the page degrades more safely when some local context is missing
+
+### 2026-05-12
+
+- Data Center now supports on-demand hydration, giving equity and related read paths a clearer fetch-and-audit route when canonical source data is missing locally
+- Pulse macro freshness repair and Factor calculation-result page cleanup landed in the same pass, improving reliability across research-facing screens
+
+### 2026-05-10
+
+- Workspace Snapshot and Task Monitor scheduler-console pages are now available, making periodic jobs, snapshot refreshes, and scheduler state easier to inspect after setup
+- MCP onboarding and startup welcome context are now built in, so first-time AI-agent integration surfaces available capabilities, config entrypoints, and usage hints earlier
+
+### 2026-05-02
+
+- Another architecture-governance pass is now closed out: remaining cross-module `infrastructure` reach-through in paths such as `ai_provider`, `data_center`, `equity`, and `policy` has been pushed further behind app-owned providers and `core/integration/*`
+- Runtime bridges and test-safe provider paths are stable again, so `runtime_settings`, `runtime_benchmarks`, and related `signal` reads no longer depend on brittle legacy bridge wiring in test or degraded environments
+- CI quality gates were tightened again: the repo now includes `ci-fast-feedback.yml`, `scripts/select_quality_targets.py`, and `.pre-commit-config.yaml`, with the `rc-gate` and architecture-guardrail rules/docs updated in the same pass; the GitHub Actions Node 20 shim warnings were removed too
+
+### 2026-05-01
+
+- The Alpha exit loop backend is now in place, giving decision-rhythm, signal-query, auto-trading execution, and task-dispatch flows one end-to-end exit-advice path backed by new regression coverage
+- Dashboard exit-chain entry points are now unified: the homepage workflow, Decision Workspace sidebar, Alpha history/detail panel, and metrics/stock APIs all route through consistent query and interface-service boundaries instead of oversized mixed views
+- Workspace compatibility also improved in this pass: non-numeric workspace account ids no longer break the flow, the Decision/Simulated Trading module cycle has been split, and production static-asset handling is more robust after cleaning out redundant vendored frontend bundles
+
+### 2026-04-30
+
+- `main` is aligned again with the latest CI-green development line, so the public branch now includes the async task-visibility fixes across Alpha, Dashboard, Policy, and Data Center flows
+- Key async entrypoints that already return a `task_id` now write an early `task_monitor` record before the worker actually picks the task up, removing the "task was queued but temporarily invisible" blind spot
+- A focused regression entrypoint, `python scripts/run_alpha_ops_regression.py`, now covers Alpha ops, Dashboard Alpha refresh, Policy RSS fetch, and Data Center decision reliability repair for task visibility and provider-alert semantics
+- Nightly/default integration regression is now explicitly split from `live_required`, `optional_runtime`, and `diagnostic` suites, so contributors can run the default automated path without accidentally pulling in live-server, worker, or script-style diagnostics
+
+### 2026-04-29
+
+- Macro MCP/SDK access is now officially consolidated under `data_center`: the public macro tool family is `data_center_*`, and indicator/unit-rule governance is directly exposed through MCP/HTTP
+- Macro-governance and MCP docs are kept aligned with the current local registered MCP tool snapshot by the governance check
+
+### 2026-04-28
+
+- Alpha / Qlib Ops Console V1 is now in place: there are dedicated inference-management and Qlib runtime-data pages, with read access for staff and manual actions reserved for superusers
+- This ops-console pass and the CI-stability fixes did not change the external MCP contract: SDK / MCP tool names, parameter schemas, canonical API paths, and RBAC semantics remain unchanged
+- `tests/integration/test_alpha_stress.py` now runs offline by default so ETF fallback no longer drifts into live `akshare` requests on GitHub Actions; the latest push CI and Nightly are green again
+
+### 2026-04-27
+
+- The final cross-app cleanup around `strategy` and `asset_analysis` is now closed out: asset-pool lookup, name resolution, and screening assembly now flow through application facades and the shared registry instead of a bridge module plus cross-app ORM reach-through
+- A batch of silent Domain / Application fallback branches now emits explicit logs, so the system can keep its degraded-path behavior without hiding operational failures
+- GitHub Actions Nightly is green again; this pass fixed the duplicate `tests/unit` collection conflict, Strategy execution behavior when the investable pool has not been prewarmed yet, and the outdated parameter signature used by the Decision Workspace AI invalidation-draft endpoint
+- `main` and `dev/next-development` are aligned again to the same commit, so the public branch and active development branch now reflect the same state
+
+### 2026-04-24
+
+- Repository-wide governance checks are now in place: `governance/governance_baseline.json`, `scripts/check_governance_consistency.py`, and the CI workflow now lock historical debt while blocking regressions in module shape, MCP counts, docs links, AppConfig placement, and Application-layer pandas/numpy imports
+- The architecture-debt remediation line has landed on `main`: multiple Interface / Application hot paths now route through application interface services, repository providers, and infrastructure repositories instead of touching ORM or infrastructure directly
+- Contract drift in Alpha recommendations, Decision readiness, Data Center sync, and Share snapshot JSON serialization has been repaired, and the related guardrail and integration tests now match the current implementation
+- `main` and `dev/next-development` are aligned to the same commit, with the latest push CI and Nightly green across unit, API, integration, app-local, guardrail, architecture report, and Playwright smoke stages
+
+### 2026-04-05
+
+- The financial datasource page has been consolidated into a unified datasource center, so public providers, licensed providers, local-terminal providers, and pending configs now live in one workbench
+- Macro datasource management now includes built-in connection testing, with page-level probes and log output for sources such as Tushare, AKShare, and QMT
+- The old `market_data` provider surface has been folded back into the unified datasource center, keeping config-center and provider-inventory views aligned
+- The `macro` layer-boundary regressions have been repaired, and GitHub Actions is back to green on both `Architecture Layer Guard` and `Logic Guardrails`
+
+### 2026-04-04
+
+- The equity detail page now includes a technical-chart surface with daily/intraday data support and matching API contracts
+- Equity detail context is richer than before, with clearer market-state, source, and technical context alongside valuation and fundamentals
+- When the local Qlib runtime is unavailable, the Alpha path now reuses the latest valid cache instead of collapsing to an empty result
+- The settings center, admin-facing surfaces, MCP tools page, docs management, and server-log views have been visually unified into a more consistent management shell
+
+### 2026-04-03
+
+- RSS fetching no longer hangs on uncontrolled timeouts, and RSS source configuration now exposes timeout / retry / RSSHub / proxy fields in the UI
+- Default RSS seed sources have been refreshed to working feed URLs, so demo environments no longer depend on broken `rsshub.app` defaults
+- Development `runserver` logs are now persisted to files, making local startup/debug review much easier
+
+### 2026-03-30
+
+- Alpha reliability is now explicit end to end: Dashboard, API, and MCP all surface whether the current recommendation uses cached data, whether it was forward-filled, and which signal date is actually being shown
+- When local Qlib data is stale, the system no longer pretends the result is fresh; it returns a clear `degraded` state with a user-visible reliability notice
+- The Qlib runtime soft switch remains database-driven, and the live database path settings have now been written back explicitly instead of relying only on runtime fallback
+- The pytest collection baseline now covers both `tests/` and `apps/*/tests`, and UAT summary generation is based on real JUnit XML instead of placeholder parsing
+- Playwright regression now supports a "production DB snapshot + isolated server" path so real-data browser verification can run without writing into the live `db.sqlite3`
+
+### 2026-03-24
+
+- The full Regime Navigator + Pulse redesign rollout is now closed out across Dashboard, Decision Workspace, and the Regime page
+- Dashboard navigation has been tightened, and `beta_gate`, `alpha_trigger`, and `decision_rhythm` are no longer exposed as standalone primary homepage entries
+- The Regime page now includes a historical `Regime + Pulse + Action` layered time-series chart
+- The Dashboard now supports optional browser-level Pulse transition notifications
+- SDK, MCP, and docs are aligned around `decision_workflow.get_funnel_context(trade_id, backtest_id)` and `client.pulse.*`
+
+### Maintenance Rule
+
+- Only record changes that matter to users, integrators, or fork maintainers
+- Keep the same-day updates under the same date instead of creating noise
+- Anything important beyond one week should be moved into [`CHANGELOG.md`](CHANGELOG.md)
+
+</details>
+
+---
+
+## Contact
+
+If you want to discuss the project's direction or follow-up iterations, you can reach me on WeChat: `Uncleliou`
+
+---
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) for details.
@@ -992,4 +1015,3 @@ Apache License 2.0 — see [LICENSE](LICENSE) for details.
 *Built with frustration from too many "correct logic, wrong timing" losses.*
 
 </div>
-
