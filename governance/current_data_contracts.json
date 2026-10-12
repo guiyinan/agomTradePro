@@ -5334,7 +5334,8 @@
         "apps/data_center/application/full_market_refresh_orchestration.py": [
           "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
           "dependencies.latest_closed_market_session(timezone.now())",
-          "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
+          "except DataFetchError as exc:",
+          "\"error_code\": exc.code",
           "returned_asset_codes=result.stored_asset_codes",
           "valuation_seed.returned_asset_codes",
           "valuation_seed.succeeded_asset_codes",
