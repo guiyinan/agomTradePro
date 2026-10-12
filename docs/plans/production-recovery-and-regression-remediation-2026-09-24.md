@@ -4465,3 +4465,13 @@ official PostgreSQL artifact 的全部 required identity 为 0 missing/skip/fail
 未验证风险与停止线：本修复尚未由 Linux CI 或 fresh S6 实证；17:05 是现有生产 full-market 周期入口的已治理边界，但不能证明所有 provider 在每个交易日都按时完成，后续真实 provider 仍须 fail closed。已知六类环境契约不能证明未知类别已经穷尽，未知类别风险继续保留。失败 attempt `9e03b4ea...` 的证据不得与后续 run 拼接；新 exact SHA 的五组 CI、official artifact、fresh S6、release validator 与 handoff receipt 全绿前禁止部署。两个周期入口保持 disabled，历史 production full-market task 禁止重跑；production financial refresh 的 full-scope receipt、两个独立认证 owner/reviewer 事件与有效 ceiling 停止线不变。
 
 下一片是否可开始：完成本片格式、治理、mypy 与回归门禁后，可以独立提交并 push，以新 exact SHA 从头运行五组 workflow_dispatch CI。只有五组全绿且 official artifact 全部 required identity 为 0 missing/skip/failure/error，并且时间已进入 provider-ready 窗口，才可从最新生产只读快照 reserve 全新 S6；禁止 `--resume`。当前结论仍为“部分通过/仍有阻断”。
+
+##### 2026-10-12 current-data 治理投影定位收口
+
+完成项：候选 `725f6a3327f61650e739f13818a54528f7406b85` 的 Architecture `38207985038` 与 Security `38207987949` 已通过，但 Consistency `38207990692` 在 current-data freshness contract 检查中失败，因此该 SHA 失去候选资格，两个成功结果不得与后续 SHA 拼接；仍在运行的 Fast Feedback `38207993721` 与 Publication PostgreSQL `38207996997` 已取消，不重跑旧 run。失败不是生产实现回归：治理清单错误地要求 `full_market_refresh_orchestration.py` 包含由 `market_calendar.py` 定义的稳定码字面量，而 orchestrator 按设计只捕获并透传 `DataFetchError.code`。
+
+整改只修正治理投影的职责定位：calendar 文件继续要求精确 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY`，orchestrator 文件改为要求 `except DataFetchError as exc:` 与 `error_code: exc.code` 两个真实实现标记。扫描规则、生产代码、provider-ready 边界和全部业务门槛均未修改。`python scripts/check_current_data_contracts.py` 现为 `73 surfaces / OK`，JSON 解析与 `git diff --check` 通过。
+
+未验证风险与停止线：该投影修复仍须新 exact-SHA Consistency run 验证；本地通过不能替代 GitHub runner。上一候选全部结果作废，失败与取消 run 禁止复用。未知类别风险、fresh S6、部署、周期入口及 production financial refresh 停止线保持不变。
+
+下一片是否可开始：可以单独提交并 push 治理投影与本节台账，再以新 exact SHA 从头运行五组 workflow_dispatch CI；五组全绿及 official PostgreSQL artifact 独立核验前不得启动 fresh S6。
