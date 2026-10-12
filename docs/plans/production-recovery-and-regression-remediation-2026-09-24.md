@@ -4453,3 +4453,15 @@ entrypoint inventory（`1330` entries）通过，治理投影无改动。
 下一片是否可开始：可以提交并 push 本次契约同步，以新 exact SHA 从头运行五组 workflow_dispatch CI。只有五组全绿并独立核验
 official PostgreSQL artifact 的全部 required identity 为 0 missing/skip/failure/error 后，才可从最新生产只读快照创建全新 S6；
 禁止 `--resume`，当前结论仍为“部分通过/仍有阻断”。
+
+##### 2026-10-12 S6 full-market provider-ready 时间窗准入
+
+完成项：最终候选 `0c153d33210de7072272d3a590057fe9990dadd4` 的五组 workflow_dispatch exact-SHA CI 与 official PostgreSQL artifact 已全绿。fresh attempt `9e03b4ea1ec1426f9fc498ce426d1312` 的 candidate-source 密封成功并恢复最新生产只读快照，但 prepare 在交易日 13:16 执行 `advance_isolated_market_graph` 时以 `CURRENT_VALUATION_SCOPE_INCOMPLETE` fail closed。隔离 Task Monitor 记录 `requested/succeeded/failed/stored=5573/0/5573/0`，没有 prepare receipt、runner、manifest、handoff receipt、部署或生产写；隔离资源与失败证据已保留，该 attempt 禁止 resume、复用或重跑。
+
+只读根因确认：S6 target 仍是最近完整闭市日 `2026-10-09`，而 Tencent current valuation 在 2026-10-12 交易日盘中返回 `20261012` 来源时间；精确 target-date 规则正确丢弃全部盘中结果。此前周末 fresh attempt 可以使用最近闭市日，因此该假设未被覆盖。这是 producer 调度窗口契约缺失，不是 provider 容量不足。整改以 `market_calendar` 为唯一真源，共享已有 full-market 周期入口的中国市场 17:05 provider-ready 边界；交易日边界前返回 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY`，orchestrator 在 universe/provider/fact/publication I/O 前生成规范 blocked、零写结果。17:05 起允许当日闭市 session，周末和休市日仍可使用最近已就绪 session。没有改写 target date、接受盘中估值、扩大 retry/timeout 或放宽 freshness、coverage、audit、source 与 15:00 close 门槛。
+
+测试计数：market calendar 与 full-market publication refresh 聚焦回归为 `114 passed`。新增正反例覆盖交易时段、15:00 后至 17:05 前、精确 17:05、非交易日，以及 stable code 传播且 universe/provider I/O 为零。`current_data_contracts.json` 已登记共享时间边界、稳定码、生产文件和两条 required test；治理、格式、mypy 与完整 exact-SHA CI 结果以本节后续提交验证为准。
+
+未验证风险与停止线：本修复尚未由 Linux CI 或 fresh S6 实证；17:05 是现有生产 full-market 周期入口的已治理边界，但不能证明所有 provider 在每个交易日都按时完成，后续真实 provider 仍须 fail closed。已知六类环境契约不能证明未知类别已经穷尽，未知类别风险继续保留。失败 attempt `9e03b4ea...` 的证据不得与后续 run 拼接；新 exact SHA 的五组 CI、official artifact、fresh S6、release validator 与 handoff receipt 全绿前禁止部署。两个周期入口保持 disabled，历史 production full-market task 禁止重跑；production financial refresh 的 full-scope receipt、两个独立认证 owner/reviewer 事件与有效 ceiling 停止线不变。
+
+下一片是否可开始：完成本片格式、治理、mypy 与回归门禁后，可以独立提交并 push，以新 exact SHA 从头运行五组 workflow_dispatch CI。只有五组全绿且 official artifact 全部 required identity 为 0 missing/skip/failure/error，并且时间已进入 provider-ready 窗口，才可从最新生产只读快照 reserve 全新 S6；禁止 `--resume`。当前结论仍为“部分通过/仍有阻断”。
