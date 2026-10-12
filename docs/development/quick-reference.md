@@ -25,6 +25,13 @@
 
 ## 核心命令
 
+### 本地目录卫生
+
+- 一次性代理脚本、下载产物和工具缓存统一放在 `.tmp/<任务名>/`；不要在根目录新增 `.codex-*` 或 `.pytest_tmp*`。
+- pytest 默认临时目录为 `.tmp/pytest`，缓存为 `.tmp/pytest-cache`；并行运行须分别指定独立的 `--basetemp=.tmp/<任务名>/pytest`。
+- 需要保留的测试、审计和部署产物放在 `artifacts/<任务名>/`。清理前保留数据库、源码副本、补丁和证据，确认没有进程占用；`.codex/config.toml`、正式虚拟环境与 Linux wheel 缓存应保留。
+- `.gitignore` 管理提交范围，`.dockerignore` 管理构建上下文；两者不会自动删除本地文件。清理归档位于 `artifacts/workspace-hygiene/`，通过同目录 manifest 查询原路径和 SHA-256。
+
 ### 发布收口 / readiness 验收
 
 ```bash
