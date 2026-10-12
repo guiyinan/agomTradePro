@@ -4475,3 +4475,13 @@ official PostgreSQL artifact 的全部 required identity 为 0 missing/skip/fail
 未验证风险与停止线：该投影修复仍须新 exact-SHA Consistency run 验证；本地通过不能替代 GitHub runner。上一候选全部结果作废，失败与取消 run 禁止复用。未知类别风险、fresh S6、部署、周期入口及 production financial refresh 停止线保持不变。
 
 下一片是否可开始：可以单独提交并 push 治理投影与本节台账，再以新 exact SHA 从头运行五组 workflow_dispatch CI；五组全绿及 official PostgreSQL artifact 独立核验前不得启动 fresh S6。
+
+##### 2026-10-12 Data Center 生成投影同步收口
+
+完成项：候选 `c815379cf55dc5508498cfbad71fc27b62a620c0` 的 Architecture `38208322583` 与 Security `38208325225` 已通过，但 Consistency `38208328072` 和 Fast Feedback `38208330983` 均在唯一生成器的 architecture inventory check 中发现投影过期，因此该 SHA 失去候选资格，成功结果不得与后续 SHA 拼接；仍在运行的 Publication PostgreSQL `38208333888` 已取消。根因是上一片新增 `market_calendar` current surface 并移动 management command 行号后，只更新了 module map 与 current-data contract，遗漏了两个派生投影。
+
+整改不修改扫描规则：严格使用 `python scripts/data_center_architecture_inventory.py --write` 与 `python scripts/data_center_entrypoint_inventory.py --write` 重建唯一生成投影。architecture inventory 仅新增两个 current-surface 文本并把计数 `5504→5506`；entrypoint inventory 总数仍为 `1330`，仅把 current contract source files `118→119` 并移动两个 scheduler writer 行号。两个生成器的无 `--write` check、module map、current-data `73 surfaces`、全仓 governance `0 violations` 与 `git diff --check` 均须通过后才提交。
+
+未验证风险与停止线：生成投影同步仍须新 exact-SHA Consistency 与 Fast Feedback 实证；本地生成器逐字节一致不能替代 GitHub runner。旧候选成功/失败/取消结果全部作废且禁止复用。未知类别、fresh S6、部署、周期入口和 production financial refresh 停止线不变。
+
+下一片是否可开始：可以将两个生成投影单独提交并补录本节台账，再以新 exact SHA 从头运行五组 workflow_dispatch CI；五组全绿和 official PostgreSQL artifact 独立核验前不得启动 fresh S6。
