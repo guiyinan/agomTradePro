@@ -4376,6 +4376,9 @@
           "ScopeDiscoveryRequest",
           "independently_review_financial_scope_candidate"
         ],
+        "application/financial_scope_s6_authorization.py": [
+          "build_s6_personal_system_authorization_record"
+        ],
         "application/financial_slice_sync.py": [
           "FinancialAnnouncementSlice",
           "FinancialSliceEvidenceVerifier",
@@ -5107,11 +5110,11 @@
         ]
       },
       "layers": {
-        "application": 136,
+        "application": 137,
         "domain": 35,
         "infrastructure": 179,
         "interface": 19,
-        "management": 40,
+        "management": 41,
         "root": 21
       },
       "orm_models": {

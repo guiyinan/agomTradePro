@@ -28,6 +28,7 @@ REQUIRED_SCHEMAS = {
     "financial_scope_capacity": "release.financial-scope-capacity.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "isolated_database_migrations": "release.isolated-database-migrations.v1",
+    "financial_scope_authorization": "release.financial-scope-authorization.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 COMMIT_RE = re.compile(r"[0-9a-f]{40}")
@@ -318,6 +319,16 @@ def build_manifest(
     ):
         raise ValueError("REHEARSAL_BUNDLE_FINANCIAL_SCOPE_BINDING_INVALID")
     _validate_isolated_database_migrations(loaded["isolated_database_migrations"])
+    authorization = loaded["financial_scope_authorization"]
+    if (
+        authorization.get("evidence_mode") != "isolated_personal_system_owner_authorization"
+        or authorization.get("provider_request_count") != 0
+        or authorization.get("fact_writes") != 0
+        or authorization.get("publication_writes") != 0
+        or authorization.get("production_writes") != 0
+        or authorization.get("production_manifest_review_satisfied") is not False
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_FINANCIAL_SCOPE_AUTHORIZATION_INVALID")
     parity = loaded["production_policy_parity"]
     settings = parity.get("provider_settings")
     if not isinstance(settings, dict) or any(not isinstance(key, str) for key in settings):
@@ -389,6 +400,7 @@ def main() -> int:
     parser.add_argument("--financial-scope-capacity", required=True, type=Path)
     parser.add_argument("--stage-environment-preflight", required=True, type=Path)
     parser.add_argument("--isolated-database-migrations", required=True, type=Path)
+    parser.add_argument("--financial-scope-authorization", required=True, type=Path)
     parser.add_argument("--candidate-regression-evidence", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--candidate-sha", required=True)

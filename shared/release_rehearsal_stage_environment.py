@@ -31,6 +31,7 @@ CONTRACT_STAGES = (
     "build_only",
     "docker_identity",
     "isolated_database_migrations",
+    "financial_scope_authorization",
     "provider_probe",
     "response_replay",
     "full_universe_capacity",

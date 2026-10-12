@@ -112,6 +112,55 @@ def _reports(tmp_path: Path) -> dict[str, Path]:
                 "asset_codes": UNIVERSE_CODES,
                 "sha256": UNIVERSE,
             }
+        if kind == "financial_scope_authorization":
+            report_payload.update(
+                {
+                    "evidence_mode": "isolated_personal_system_owner_authorization",
+                    "candidate_source_attestation": "image_release_manifest",
+                    "database": {
+                        "vendor": "postgresql",
+                        "scope": "disposable",
+                        "release_rehearsal_guard": True,
+                        "name": "agom_release_rehearsal_attempt_1234",
+                        "host": "agom-s6-postgres-attempt-1234",
+                        "isolation_attestation_sha256": "7" * 64,
+                    },
+                    "authorization": {
+                        "mode": "personal_system_owner",
+                        "approval_id": "scope-approval-1",
+                        "owner_event_id": "scope-event-1",
+                        "approved_by": "admin",
+                        "recorded_by": "s6.personal-system-operator",
+                        "approval_receipt_sha256": "4" * 64,
+                        "record_sha256": "8" * 64,
+                        "approved_at": "2026-09-24T23:40:00+00:00",
+                        "expires_at": "2026-09-25T23:40:00+00:00",
+                    },
+                    "binding": {
+                        "candidate_sha": CANDIDATE,
+                        "provider_id": 13,
+                        "provider_name": "akshare",
+                        "provider_identity_sha256": "1" * 64,
+                        "contract_id": "financial-contract",
+                        "contract_version": "v1",
+                        "contract_sha256": "2" * 64,
+                        "parser_id": "financial-parser",
+                        "parser_sha256": "3" * 64,
+                        "deployment_region": "ap-east-1",
+                    },
+                    "universe": {"asset_count": 1, "sha256": UNIVERSE},
+                    "budget": {
+                        "maximum_logical_requests": 2,
+                        "maximum_physical_attempts": 4,
+                        "maximum_rows_per_asset": 200,
+                    },
+                    "provider_request_count": 0,
+                    "fact_writes": 0,
+                    "publication_writes": 0,
+                    "production_writes": 0,
+                    "production_manifest_review_satisfied": False,
+                }
+            )
         if kind == "isolated_database_migrations":
             report_payload.pop("artifact")
             pending = [

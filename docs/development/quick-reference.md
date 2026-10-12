@@ -82,12 +82,24 @@ python manage.py preflight_full_market_publication \
 #    receipt 会被 validate_release_rehearsal.py 拒绝
 python3 -m venv <attempt-root>/runner-venv
 <attempt-root>/runner-venv/bin/python -m pip install -r requirements-ops.txt
+read -rsp 'S6 financial scope owner password: ' AGOM_SCOPE_PASSWORD; echo
+exec 3< <(printf '%s\n' "$AGOM_SCOPE_PASSWORD")
+unset AGOM_SCOPE_PASSWORD
 <attempt-root>/runner-venv/bin/python scripts/run_release_rehearsal.py ... \
   --provider-settings-json provider-settings.json \
   --isolated-migrator-env-file isolated-migrator.env \
+  --financial-scope-owner <现有active-superuser> \
+  --financial-scope-owner-password-fd 3 \
   --transport-input isolated-migrator.env \
-  --transport-input prepare-wrapper.sh --transport-input provider.env
+  --transport-input prepare-wrapper.sh --transport-input provider.env \
+  3<&3
+exec 3<&-
 ```
+
+启动 wrapper 应按上例把 owner 密码留在未导出的 shell 变量中，通过匿名 pipe 暂存到 fd 3，并在 runner 启动前立即清空变量。
+密码不得进入 argv、环境变量、普通文件、日志、checkpoint 或 release evidence，也不要粘贴到聊天中。
+该 fd 只在 `isolated_database_migrations` 成功后消费一次，并且必须是已关闭写端的匿名 pipe；runner 对读取设置 30 秒硬截止。
+认证失败、输入格式错误或 pipe 未结束时，在任何 provider stage 之前失败关闭，旧 attempt 不得恢复或重跑。
 
 - 快照必须在每次 S6 启动前从目标环境重新导出。S6 会冻结并校验该导出文件的原始文件摘要与
   canonical payload 摘要，但 parity 段不会再次读取实时 Config Center；导出后若策略发生修改，
@@ -106,6 +118,12 @@ python3 -m venv <attempt-root>/runner-venv
   成功后 launcher 必须立即用 runtime URL 执行只读 preflight，确认同一 database/container/image 且无 pending migrations；该步骤不迁移生产库。
 - 旧 attempt 若以 `REHEARSAL_WRITE_MIGRATIONS_PENDING` 阻断，不能手工应用候选 migrations 再用 `--resume` 补证据。新候选必须使用
   fresh attempt 和新的 disposable 数据库；迁移阶段若超时或提交结果未知，保留失败 attempt 并重新准备新隔离数据库，不自动重放。
+- `financial_scope_authorization` 紧随候选迁移和 runtime DB 只读复核执行。个人系统 owner 以现有 active superuser 交互认证；自动化操作身份固定记录为
+  `s6.personal-system-operator`，不伪造第二名人类。授权精确绑定 candidate/image、provider identity、contract/parser、deployment region、
+  完整 universe 与 `2N/4N/200` ceiling，只写 disposable PostgreSQL，并在 provider 出网前由 runner 复核。报告明确
+  `production_manifest_review_satisfied=false`。若通用恢复机制遇到已完成的授权 checkpoint，也必须先从当前隔离数据库只读重验未撤销、
+  未过期且全部绑定不变，失败时不得进入 provider stage；发布证据 validator 还会把授权数据库身份与迁移、财报切片及 scope discovery
+  报告交叉核对。该授权不替代生产 financial publication 需要的独立 owner/reviewer 双事件和有效 ceiling。
 - 全新 S6 还会执行 `akshare_financial_slice`：它要求隔离 PostgreSQL/Redis 和 provider identities
   快照中的唯一 `akshare_financial_route`，从隔离快照的 AKShare `announced_at` 或 `available_at`
   动态选取一个请求 asset/date。旧日期只是不可信请求种子；只有这次精确 asset/date 的双原件、

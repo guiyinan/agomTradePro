@@ -148,6 +148,7 @@ class FakeRunner:
         self.migration_pending_before = migration_pending_before
         self.migration_applied = migration_applied
         self.commands: list[Command] = []
+        self.financial_authorization_payload: dict[str, object] | None = None
 
     def run(self, command: Command) -> CommandResult:
         """Simulate Git, Docker, producer, bundle and validator commands."""
@@ -291,6 +292,7 @@ class FakeRunner:
             "full_universe_capacity",
             "production_policy_parity",
             "isolated_postgresql_write",
+            "financial_scope_authorization",
             "akshare_financial_slice",
             "financial_scope_capacity",
         }:
@@ -371,6 +373,96 @@ class FakeRunner:
                 provider_digest = _provider_digest()
         if command.label == self.wrong_identity_label:
             image_value = f"sha256:{'d' * 64}"
+        if command.label == "financial_scope_authorization":
+            verify_existing = "--verify-existing" in command.argv
+            if verify_existing:
+                assert command.stdin_text is None
+                assert "-i" not in command.argv
+            else:
+                assert command.stdin_text == "owner-password-for-test\n"
+                assert "-i" in command.argv
+            financial_identity = next(
+                item for item in PROVIDER_IDENTITIES if item["source"] == "akshare_financial"
+            )
+            binding = {
+                "candidate_sha": CANDIDATE_SHA,
+                "provider_id": financial_identity["provider_id"],
+                "provider_name": "akshare",
+                "provider_identity_sha256": hashlib.sha256(
+                    json.dumps(financial_identity, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest(),
+                "contract_id": "financial-contract",
+                "contract_version": "v1",
+                "contract_sha256": "2" * 64,
+                "parser_id": "financial-parser",
+                "parser_sha256": "3" * 64,
+                "deployment_region": financial_identity["deployment_region"],
+            }
+            now = datetime.now(UTC).replace(microsecond=0)
+            payload = {
+                "schema": "release.financial-scope-authorization.v1",
+                "kind": "financial_scope_authorization",
+                "outcome": "success",
+                "evidence_mode": "isolated_personal_system_owner_authorization",
+                "candidate_sha": CANDIDATE_SHA,
+                "candidate_image_id": image_value,
+                "candidate_source_attestation": "image_release_manifest",
+                "target_trade_date": TRADE_DATE,
+                "universe_sha256": UNIVERSE_SHA256,
+                "provider_identities_sha256": provider_digest,
+                "started_at": now.isoformat(),
+                "finished_at": now.isoformat(),
+                "database": {
+                    "vendor": "postgresql",
+                    "scope": "disposable",
+                    "release_rehearsal_guard": True,
+                    "name": "agom_release_rehearsal_abcdefghij",
+                    "host": "agom-s6-postgres-abcdefghij",
+                    "isolation_attestation_sha256": "7" * 64,
+                },
+                "authorization": {
+                    "mode": "personal_system_owner",
+                    "approval_id": "scope-approval-1",
+                    "owner_event_id": "scope-event-1",
+                    "approved_by": "admin",
+                    "recorded_by": "s6.personal-system-operator",
+                    "approval_receipt_sha256": "4" * 64,
+                    "record_sha256": "8" * 64,
+                    "approved_at": now.isoformat(),
+                    "expires_at": (now + timedelta(hours=1)).isoformat(),
+                },
+                "binding": binding,
+                "universe": {"asset_count": 1, "sha256": UNIVERSE_SHA256},
+                "budget": {
+                    "maximum_logical_requests": 2,
+                    "maximum_physical_attempts": 4,
+                    "maximum_rows_per_asset": 200,
+                },
+                "provider_request_count": 0,
+                "fact_writes": 0,
+                "publication_writes": 0,
+                "production_writes": 0,
+                "production_manifest_review_satisfied": False,
+            }
+            if verify_existing:
+                if self.financial_authorization_payload is None:
+                    recorded_paths = list(
+                        command.artifact_dir.parent.glob(
+                            "*/financial_scope_authorization/financial-scope-authorization.json"
+                        )
+                    )
+                    assert len(recorded_paths) == 1
+                    self.financial_authorization_payload = json.loads(
+                        recorded_paths[0].read_text(encoding="utf-8")
+                    )
+                payload = json.loads(json.dumps(self.financial_authorization_payload))
+                payload["started_at"] = now.isoformat()
+                payload["finished_at"] = now.isoformat()
+            else:
+                self.financial_authorization_payload = json.loads(json.dumps(payload))
+            report_path = command.artifact_dir / "financial-scope-authorization.json"
+            report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+            return
         if command.label == "financial_scope_capacity":
             write_financial_scope_capacity_fixture(
                 command.artifact_dir / "output",
@@ -398,6 +490,7 @@ class FakeRunner:
             "isolated_postgresql_write": "output/isolated-write-rehearsal.json",
             "github_ci_evidence": "candidate-regression-evidence.json",
             "akshare_financial_slice": "output/akshare-financial-slice.json",
+            "financial_scope_authorization": "financial-scope-authorization.json",
             "financial_scope_capacity": "output/financial-full-scope-capacity.json",
         }
         kinds = {
@@ -407,6 +500,7 @@ class FakeRunner:
             "isolated_postgresql_write": "isolated_write_rehearsal",
             "github_ci_evidence": "candidate_regression_evidence",
             "akshare_financial_slice": "akshare_financial_slice",
+            "financial_scope_authorization": "financial_scope_authorization",
             "financial_scope_capacity": "financial_scope_capacity",
         }
         payload: dict[str, object] = {
@@ -482,6 +576,7 @@ class FakeRunner:
                 "isolated_postgresql_write": "isolated_postgresql",
                 "github_ci_evidence": "candidate_ci",
                 "akshare_financial_slice": "isolated_postgresql_redis_real_provider",
+                "financial_scope_authorization": ("isolated_personal_system_owner_authorization"),
                 "financial_scope_capacity": "isolated_full_scope_financial_capture",
             }[command.label]
         report_path = command.artifact_dir / filenames[command.label]
@@ -498,6 +593,7 @@ class FakeRunner:
                 "production_policy_parity": "--production-policy-parity",
                 "isolated_write_rehearsal": "--isolated-write-rehearsal",
                 "akshare_financial_slice": "--akshare-financial-slice",
+                "financial_scope_authorization": "--financial-scope-authorization",
                 "financial_scope_capacity": "--financial-scope-capacity",
                 "stage_environment_preflight": "--stage-environment-preflight",
                 "isolated_database_migrations": "--isolated-database-migrations",
@@ -609,6 +705,9 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
     )
     transport_input = tmp_path / "prepare-s6.sh"
     transport_input.write_text("#!/bin/sh\nset -eu\n", encoding="utf-8", newline="\n")
+    secret_read_fd, secret_write_fd = os.pipe()
+    os.write(secret_write_fd, b"owner-password-for-test\n")
+    os.close(secret_write_fd)
     return RehearsalConfig(
         root=root,
         output_dir=tmp_path / "rehearsal-run",
@@ -638,7 +737,27 @@ def _config(tmp_path: Path, *, root: Path) -> RehearsalConfig:
         lock_wait_limit_seconds=10.0,
         github_repository=GITHUB_REPOSITORY,
         github_run_id=GITHUB_RUN_ID,
+        financial_scope_owner="admin",
+        financial_scope_owner_password_fd=secret_read_fd,
     )
+
+
+def _fresh_owner_credential(config: RehearsalConfig) -> RehearsalConfig:
+    """Return the same test config with a newly inherited one-shot credential fd."""
+
+    secret_read_fd, secret_write_fd = os.pipe()
+    os.write(secret_write_fd, b"owner-password-for-test\n")
+    os.close(secret_write_fd)
+    return replace(config, financial_scope_owner_password_fd=secret_read_fd)
+
+
+def _owner_credential(raw: bytes) -> int:
+    """Return a readable descriptor containing exact test bytes."""
+
+    secret_read_fd, secret_write_fd = os.pipe()
+    os.write(secret_write_fd, raw)
+    os.close(secret_write_fd)
+    return secret_read_fd
 
 
 def test_launcher_must_come_from_selected_checkout(tmp_path: Path) -> None:
@@ -737,6 +856,7 @@ def test_rehearsal_accepts_frozen_failover_route_identities(tmp_path: Path) -> N
     "failed_stage",
     [
         "docker_load",
+        "financial_scope_authorization",
         "provider_probe",
         "response_replay",
         "full_universe_capacity",
@@ -757,11 +877,15 @@ def test_resume_reuses_verified_prefix_without_rebuilding(
     with pytest.raises(RehearsalBlocked):
         run_release_rehearsal(config, runner=first)
     second = FakeRunner()
-    receipt = run_release_rehearsal(replace(config, resume=True), runner=second)
+    resume_config = replace(config, resume=True)
+    if failed_stage == "financial_scope_authorization":
+        resume_config = _fresh_owner_credential(resume_config)
+    receipt = run_release_rehearsal(resume_config, runner=second)
     assert verify_evidence_handoff_receipt(receipt)["candidate_sha"] == CANDIDATE_SHA
     assert "build_only" not in second.labels
     assert failed_stage in second.labels
     stages = [
+        "financial_scope_authorization",
         "provider_probe",
         "response_replay",
         "full_universe_capacity",
@@ -774,7 +898,58 @@ def test_resume_reuses_verified_prefix_without_rebuilding(
         "release_validator",
     ]
     if failed_stage in stages:
-        assert not set(stages[: stages.index(failed_stage)]) & set(second.labels)
+        reusable_prefix = set(stages[: stages.index(failed_stage)]) - {
+            "financial_scope_authorization"
+        }
+        assert not reusable_prefix & set(second.labels)
+        if "financial_scope_authorization" in stages[: stages.index(failed_stage)]:
+            revalidation = next(
+                command
+                for command in second.commands
+                if command.label == "financial_scope_authorization"
+            )
+            assert "--verify-existing" in revalidation.argv
+            assert revalidation.stdin_text is None
+
+
+def test_resume_revalidates_authorization_before_provider_egress(tmp_path: Path) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    with pytest.raises(RehearsalBlocked):
+        run_release_rehearsal(config, runner=FakeRunner(fail_label="provider_probe"))
+
+    class RevokedAuthorizationRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            if command.label == "financial_scope_authorization" and "--verify-existing" in (
+                command.argv
+            ):
+                return CommandResult(
+                    returncode=1,
+                    stderr=(
+                        "CommandError: " "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_READBACK_FAILED"
+                    ),
+                )
+            return super().run(command)
+
+    resumed = RevokedAuthorizationRunner()
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        run_release_rehearsal(replace(config, resume=True), runner=resumed)
+
+    assert exc_info.value.code == "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_READBACK_FAILED"
+    assert "provider_probe" not in resumed.labels
+
+
+def test_owner_credential_pipe_with_open_writer_times_out() -> None:
+    read_fd, write_fd = os.pipe()
+    try:
+        os.write(write_fd, b"owner-password-for-test\n")
+        with pytest.raises(
+            RehearsalBlocked,
+            match="S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_UNAVAILABLE",
+        ):
+            rehearsal._read_secret_fd(read_fd, timeout_seconds=0.01)
+    finally:
+        os.close(write_fd)
+        os.close(read_fd)
 
 
 def test_resume_rejects_changed_artifact_before_commands(tmp_path: Path) -> None:
@@ -1910,7 +2085,19 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         "preflight_database"
     )
     assert runner.labels.index("preflight_database") < runner.labels.index("provider_probe")
+    assert runner.labels.index("preflight_database") < runner.labels.index(
+        "financial_scope_authorization"
+    )
+    assert runner.labels.index("financial_scope_authorization") < runner.labels.index(
+        "provider_probe"
+    )
+    authorization_command = next(
+        item for item in runner.commands if item.label == "financial_scope_authorization"
+    )
+    assert "owner-password-for-test" not in " ".join(authorization_command.argv)
+    assert "owner-password-for-test" not in json.dumps(dict(authorization_command.env))
     expected_stages = [
+        "financial_scope_authorization",
         "provider_probe",
         "response_replay",
         "full_universe_capacity",
@@ -1923,15 +2110,16 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
         "release_validator",
     ]
     observed_stages = [label for label in runner.labels if label in expected_stages]
-    assert observed_stages[0] == "provider_probe"
-    assert observed_stages[1] == "full_universe_capacity"
+    assert observed_stages[0] == "financial_scope_authorization"
+    assert observed_stages[1] == "provider_probe"
+    assert observed_stages[2] == "full_universe_capacity"
     # The remaining group members run concurrently after capacity measurement.
-    assert set(observed_stages[2:5]) == {
+    assert set(observed_stages[3:6]) == {
         "response_replay",
         "production_policy_parity",
         "isolated_postgresql_write",
     }
-    assert observed_stages[5:] == [
+    assert observed_stages[6:] == [
         "github_ci_evidence",
         "akshare_financial_slice",
         "financial_scope_capacity",
@@ -1986,7 +2174,7 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
             f"{RUNTIME_LOG_DIRECTORY_ENV}={READ_ONLY_RUNTIME_LOG_DIRECTORY}" in docker_environment
         )
         assert IMAGE_ID in command.argv
-        if label != "provider_probe":
+        if label not in {"provider_probe", "financial_scope_authorization"}:
             output_index = command.argv.index("--output-dir")
             assert command.argv[output_index + 1] == "/run/agom/stage/output"
             assert (command.artifact_dir / "output").is_dir()
@@ -2141,6 +2329,50 @@ def test_rehearsal_runs_ordered_stages_and_emits_non_authorizing_evidence_handof
     else:
         for directory in sealed_directories:
             assert chmod_calls[directory] == [0o770, 0o750]
+
+
+def test_invalid_owner_credential_blocks_before_authorization_or_provider(
+    tmp_path: Path,
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    config = replace(
+        config,
+        financial_scope_owner_password_fd=_owner_credential(b"one\ntwo\n"),
+    )
+    runner = FakeRunner()
+
+    with pytest.raises(
+        RehearsalBlocked,
+        match="S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_INVALID",
+    ):
+        run_release_rehearsal(config, runner=runner)
+
+    assert "financial_scope_authorization" not in runner.labels
+    assert "provider_probe" not in runner.labels
+
+
+def test_owner_credential_regular_file_descriptor_is_rejected_before_build(
+    tmp_path: Path,
+) -> None:
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    credential_path = tmp_path / "forbidden-owner-credential"
+    credential_path.write_text("owner-password-for-test\n", encoding="utf-8")
+    runner = FakeRunner()
+
+    with credential_path.open("rb") as credential:
+        config = replace(
+            config,
+            financial_scope_owner_password_fd=credential.fileno(),
+        )
+        with pytest.raises(
+            RehearsalBlocked,
+            match="S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_DESCRIPTOR_INVALID",
+        ):
+            run_release_rehearsal(config, runner=runner)
+
+    assert "build_only" not in runner.labels
+    assert "financial_scope_authorization" not in runner.labels
+    assert "provider_probe" not in runner.labels
 
 
 def test_isolated_database_migration_noop_is_valid_evidence(tmp_path: Path) -> None:
@@ -2966,6 +3198,40 @@ def test_failed_stage_preserves_exact_validator_json_code(tmp_path: Path) -> Non
         )
 
     assert exc_info.value.code == stable_code
+
+
+@pytest.mark.parametrize(
+    ("stable_code", "expected"),
+    [
+        (
+            "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_BINDING_INVALID",
+            "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_BINDING_INVALID",
+        ),
+        ("REHEARSAL_UNRELATED_SECRET_CODE", "S6_STAGE_COMMAND_FAILED"),
+    ],
+)
+def test_financial_scope_authorization_only_exposes_allowlisted_codes(
+    tmp_path: Path,
+    stable_code: str,
+    expected: str,
+) -> None:
+    class AuthorizationFailureRunner(FakeRunner):
+        def run(self, command: Command) -> CommandResult:
+            return CommandResult(
+                returncode=1,
+                stderr=f"CommandError: {stable_code}",
+            )
+
+    with pytest.raises(RehearsalBlocked) as exc_info:
+        _invoke(
+            AuthorizationFailureRunner(),
+            argv=("authorize",),
+            root=tmp_path,
+            label="financial_scope_authorization",
+            timeout=1,
+        )
+
+    assert exc_info.value.code == expected
 
 
 def test_failed_capacity_stage_extracts_machine_code_alongside_diagnostics(

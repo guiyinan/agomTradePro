@@ -113,11 +113,22 @@ STABLE_REHEARSAL_DOCKER_BUILD_ERROR_CODE = re.compile(
     r"|REHEARSAL_DOCKER_BUILD_FAILED|REHEARSAL_DOCKER_ENGINE_PREFLIGHT_FAILED)(?=[:\s]|$)"
 )
 STABLE_REHEARSAL_CODE_VALUE = re.compile(r"REHEARSAL_[A-Z0-9_]{3,96}")
+FINANCIAL_SCOPE_AUTHORIZATION_ERROR_CODES = frozenset(
+    {
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_ALREADY_EXISTS",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_AUTHENTICATION_FAILED",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_BINDING_INVALID",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_FAILED",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INPUT_INVALID",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_READBACK_FAILED",
+    }
+)
 IMAGE_NAME = "agomtradepro-web"
 MIGRATION_COMMAND_RESULT_SCHEMA = "release.s6-isolated-database-migration-result.v1"
 MIGRATION_REPORT_SCHEMA = "release.isolated-database-migrations.v1"
 STAGES = (
     "isolated_database_migrations",
+    "financial_scope_authorization",
     "provider_probe",
     "response_replay",
     "full_universe_capacity",
@@ -132,6 +143,7 @@ STAGES = (
 REQUIRED_PARAMIKO_VERSION = "5.0.0"
 _CONTAINER_TEMP_ROOT = "/tmp"
 _FINANCIAL_SCOPE_CONTAINER_OUTPUT_DIR = f"{_CONTAINER_TEMP_ROOT}/agom-s6-financial-scope-stage"
+_SECRET_READ_TIMEOUT_SECONDS = 30.0
 _INSECURE_DJANGO_SECRET_KEY_PATTERNS = (
     "django-insecure",
     "change-this",
@@ -153,6 +165,7 @@ class Command:
     timeout_seconds: float
     label: str
     artifact_dir: Path | None = None
+    stdin_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -326,6 +339,7 @@ class SubprocessRunner:
                 env=environment,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE if command.stdin_text is not None else subprocess.DEVNULL,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
@@ -339,6 +353,7 @@ class SubprocessRunner:
             with self._active_lock:
                 self._active_processes[process.pid] = process
             try:
+                pending_input = command.stdin_text
                 with process:
                     while True:
                         if self._cancelled.is_set():
@@ -358,10 +373,12 @@ class SubprocessRunner:
                         remaining = command.timeout_seconds - (time.monotonic() - started)
                         try:
                             stdout, stderr = process.communicate(
-                                timeout=max(0.001, min(5, remaining))
+                                input=pending_input, timeout=max(0.001, min(5, remaining))
                             )
+                            pending_input = None
                             break
                         except subprocess.TimeoutExpired as exc:
+                            pending_input = None
                             self._progress(
                                 command,
                                 invocation_id,
@@ -495,6 +512,8 @@ class RehearsalConfig:
     lock_wait_limit_seconds: float
     github_repository: str
     github_run_id: int
+    financial_scope_owner: str
+    financial_scope_owner_password_fd: int
     max_age_hours: float = 24.0
     build_timeout_seconds: int = 3600
     stage_timeout_seconds: int = 3600
@@ -547,6 +566,7 @@ class StageSpec:
     retain_responses: bool = False
     mounts: tuple[tuple[Path, str, bool], ...] = ()
     environment: tuple[tuple[str, str], ...] = ()
+    stdin_open: bool = False
 
 
 @dataclass(frozen=True)
@@ -592,6 +612,83 @@ def _read_file(path: Path, maximum: int = 16_777_216) -> bytes:
         return read_regular_file(path.parent, path.name, maximum)
     except RehearsalFileReadError as exc:
         raise ValueError("S6_INPUT_FILE_INVALID") from exc
+
+
+def _read_secret_fd(
+    descriptor: int,
+    *,
+    timeout_seconds: float = _SECRET_READ_TIMEOUT_SECONDS,
+) -> str:
+    """Consume one bounded UTF-8 secret from a caller-owned inherited descriptor."""
+
+    if type(descriptor) is not int or descriptor < 3 or timeout_seconds <= 0:
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_UNAVAILABLE",
+        )
+    chunks: list[bytes] = []
+    total = 0
+    deadline = time.monotonic() + timeout_seconds
+    previous_blocking: bool | None = None
+    get_blocking = cast(Callable[[int], bool], vars(os)["get_blocking"])
+    set_blocking = cast(Callable[[int, bool], None], vars(os)["set_blocking"])
+    try:
+        previous_blocking = get_blocking(descriptor)
+        set_blocking(descriptor, False)
+        while total <= 1025:
+            if time.monotonic() >= deadline:
+                raise RehearsalBlocked(
+                    "financial_scope_authorization",
+                    "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_UNAVAILABLE",
+                )
+            try:
+                chunk = os.read(descriptor, min(1026 - total, 256))
+            except BlockingIOError:
+                time.sleep(min(0.01, max(deadline - time.monotonic(), 0.0)))
+                continue
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+    except OSError as exc:
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_UNAVAILABLE",
+        ) from exc
+    finally:
+        if previous_blocking is not None:
+            try:
+                set_blocking(descriptor, previous_blocking)
+            except OSError:
+                pass
+    raw = b"".join(chunks)
+    if not raw or len(raw) > 1025 or b"\x00" in raw or not raw.endswith(b"\n"):
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_INVALID",
+        )
+    try:
+        secret = raw[:-1].decode("utf-8")
+    except UnicodeError as exc:
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_INVALID",
+        ) from exc
+    if not secret or "\r" in secret or "\n" in secret:
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_INVALID",
+        )
+    return secret
+
+
+def _secret_descriptor_is_anonymous_pipe(descriptor: int) -> bool:
+    """Return whether a credential descriptor is an inherited anonymous pipe."""
+
+    try:
+        return stat.S_ISFIFO(os.fstat(descriptor).st_mode)
+    except OSError:
+        return False
 
 
 def _write_json(path: Path, payload: Mapping[str, object], *, read_only: bool = False) -> None:
@@ -669,9 +766,20 @@ def _invoke(
     timeout: float,
     env: Mapping[str, str] | None = None,
     artifact_dir: Path | None = None,
+    stdin_text: str | None = None,
 ) -> CommandResult:
     """Run one stage and expose only an unambiguous stable rehearsal error code."""
-    result = runner.run(Command(tuple(argv), root, env or {}, timeout, label, artifact_dir))
+    result = runner.run(
+        Command(
+            tuple(argv),
+            root,
+            env or {},
+            timeout,
+            label,
+            artifact_dir,
+            stdin_text,
+        )
+    )
     if result.returncode:
         output = result.stdout + "\n" + result.stderr
         safe_codes = set(STABLE_REHEARSAL_CODE.findall(output))
@@ -691,6 +799,8 @@ def _invoke(
                 and STABLE_REHEARSAL_CODE_VALUE.fullmatch(code) is not None
             ):
                 safe_codes.add(code)
+        if label == "financial_scope_authorization":
+            safe_codes.intersection_update(FINANCIAL_SCOPE_AUTHORIZATION_ERROR_CODES)
         code = (
             "S6_STAGE_TIMEOUT"
             if result.returncode == 124
@@ -711,6 +821,7 @@ def _invoke_container_stage(
     artifact_dir: Path,
     container_gid: int,
     writable_subdirectories: Sequence[str] = (),
+    stdin_text: str | None = None,
 ) -> CommandResult:
     """Grant candidate-group access to declared outputs, then seal their directories."""
 
@@ -775,6 +886,7 @@ def _invoke_container_stage(
             timeout=timeout,
             env=env,
             artifact_dir=artifact_dir,
+            stdin_text=stdin_text,
         )
     finally:
         changed = True
@@ -1322,6 +1434,8 @@ def _validate_inputs(
         or config.quote_provider_id <= 0
         or config.valuation_provider_id <= 0
         or config.github_run_id <= 0
+        or re.fullmatch(r"[A-Za-z0-9_.@+-]{1,150}", config.financial_scope_owner) is None
+        or config.financial_scope_owner_password_fd < 3
         or config.provider_request_limit <= 0
         or config.provider_window_seconds <= 0
         or config.task_deadline_seconds <= 0
@@ -1334,6 +1448,11 @@ def _validate_inputs(
         or not 0 < config.max_age_hours <= 168
     ):
         raise ValueError("S6_INPUT_INVALID")
+    if not _secret_descriptor_is_anonymous_pipe(config.financial_scope_owner_password_fd):
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_CREDENTIAL_DESCRIPTOR_INVALID",
+        )
     resource_suffixes = (
         config.isolated_database_name.removeprefix("agom_release_rehearsal_"),
         config.isolated_database_host.removeprefix("agom-s6-postgres-"),
@@ -1639,6 +1758,8 @@ def _docker_command(
         "--network",
         network,
     ]
+    if stage.stdin_open:
+        args.append("-i")
     for env_file in env_files:
         args.extend(("--env-file", str(env_file.resolve())))
     for key, value in stage.environment:
@@ -2062,7 +2183,12 @@ def _checkpoint_binding(
     """Bind all semantic inputs without storing environment secrets in the journal."""
     values: dict[str, object] = {"candidate_sha": candidate}
     for key, value in asdict(config).items():
-        if key in {"resume", "password_file", "build_timeout_seconds"}:
+        if key in {
+            "resume",
+            "password_file",
+            "build_timeout_seconds",
+            "financial_scope_owner_password_fd",
+        }:
             continue
         if isinstance(value, Path):
             if key in {"root", "output_dir"}:
@@ -2936,6 +3062,246 @@ def _write_isolated_database_migration_report(
     _clear_migration_marker(run_dir / "migration-in-progress.json")
 
 
+def _validate_financial_scope_authorization_report(
+    report: Mapping[str, object],
+    *,
+    identity: Identity,
+    config: RehearsalConfig,
+) -> None:
+    """Require an exact disposable owner event without treating it as manifest review."""
+
+    database = report.get("database")
+    authorization = report.get("authorization")
+    universe = report.get("universe")
+    budget = report.get("budget")
+    binding = report.get("binding")
+    universe_count = universe.get("asset_count") if isinstance(universe, Mapping) else None
+    if (
+        report.get("schema") != "release.financial-scope-authorization.v1"
+        or report.get("kind") != "financial_scope_authorization"
+        or report.get("outcome") != "success"
+        or report.get("evidence_mode") != "isolated_personal_system_owner_authorization"
+        or report.get("candidate_sha") != identity.candidate_sha
+        or report.get("candidate_image_id") != identity.candidate_image_id
+        or report.get("target_trade_date") != identity.target_trade_date
+        or report.get("universe_sha256") != identity.universe_sha256
+        or report.get("provider_identities_sha256") != identity.provider_identities_sha256
+        or not isinstance(database, Mapping)
+        or database.get("vendor") != "postgresql"
+        or database.get("scope") != "disposable"
+        or database.get("release_rehearsal_guard") is not True
+        or database.get("name") != config.isolated_database_name
+        or database.get("host") != config.isolated_database_host
+        or SHA.fullmatch(str(database.get("isolation_attestation_sha256") or "")) is None
+        or not isinstance(authorization, Mapping)
+        or authorization.get("mode") != "personal_system_owner"
+        or authorization.get("approved_by") != config.financial_scope_owner
+        or authorization.get("recorded_by") != "s6.personal-system-operator"
+        or SHA.fullmatch(str(authorization.get("approval_receipt_sha256") or "")) is None
+        or SHA.fullmatch(str(authorization.get("record_sha256") or "")) is None
+        or not isinstance(universe, Mapping)
+        or universe.get("sha256") != identity.universe_sha256
+        or type(universe_count) is not int
+        or universe_count <= 0
+        or not isinstance(budget, Mapping)
+        or budget.get("maximum_logical_requests") != universe_count * 2
+        or budget.get("maximum_physical_attempts") != universe_count * 4
+        or budget.get("maximum_rows_per_asset") != 200
+        or not isinstance(binding, Mapping)
+        or SHA.fullmatch(str(binding.get("provider_identity_sha256") or "")) is None
+        or report.get("provider_request_count") != 0
+        or report.get("fact_writes") != 0
+        or report.get("publication_writes") != 0
+        or report.get("production_writes") != 0
+        or report.get("production_manifest_review_satisfied") is not False
+    ):
+        raise RehearsalBlocked(
+            "financial_scope_authorization",
+            "S6_FINANCIAL_SCOPE_AUTHORIZATION_REPORT_INVALID",
+        )
+
+
+def _financial_scope_authorization_spec(
+    config: RehearsalConfig,
+    identity: Identity,
+    *,
+    report_name: str,
+    verify_existing: bool,
+) -> StageSpec:
+    """Render the shared create-or-revalidate authorization command contract."""
+
+    mode = ("--verify-existing",) if verify_existing else ("--password-stdin",)
+    return StageSpec(
+        name="financial_scope_authorization",
+        report_name=report_name,
+        argv=(
+            "python",
+            "manage.py",
+            "authorize_s6_financial_scope_discovery",
+            "--candidate-sha",
+            identity.candidate_sha,
+            "--target-trade-date",
+            identity.target_trade_date,
+            "--release-universe-sha256",
+            identity.universe_sha256,
+            "--provider-identities",
+            "/run/agom/provider-identities.json",
+            "--provider-identities-sha256",
+            identity.provider_identities_sha256,
+            "--expected-database-name",
+            config.isolated_database_name,
+            "--expected-database-host",
+            config.isolated_database_host,
+            "--owner",
+            config.financial_scope_owner,
+            *mode,
+            "--output",
+            f"/run/agom/stage/{report_name}",
+        ),
+        env_files=(config.isolated_postgres_env_file,),
+        environment=(("DJANGO_SETTINGS_MODULE", "core.settings.production"),),
+        stdin_open=not verify_existing,
+    )
+
+
+def _authorization_reports_match(
+    recorded: Mapping[str, object],
+    observed: Mapping[str, object],
+) -> bool:
+    """Compare immutable authorization facts while allowing observation timestamps to change."""
+
+    excluded = {"started_at", "finished_at"}
+    return {key: value for key, value in recorded.items() if key not in excluded} == {
+        key: value for key, value in observed.items() if key not in excluded
+    }
+
+
+def _run_financial_scope_authorization(
+    config: RehearsalConfig,
+    runner: CommandRunner,
+    identity: Identity,
+    identity_path: Path,
+    manifest_path: Path,
+    provider_path: Path,
+    run_dir: Path,
+    container_gid: int,
+    checkpoint: _Checkpoint,
+) -> Path:
+    """Import and re-read the owner event before the first provider stage."""
+
+    stage = "financial_scope_authorization"
+    stage_dir = run_dir / stage
+    report_path = stage_dir / "financial-scope-authorization.json"
+    if checkpoint.done(stage):
+        try:
+            report = _object(
+                json.loads(_read_file(report_path)),
+                "S6_FINANCIAL_SCOPE_AUTHORIZATION_REPORT_INVALID",
+            )
+        except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            raise RehearsalBlocked(
+                stage, "S6_FINANCIAL_SCOPE_AUTHORIZATION_REPORT_INVALID"
+            ) from exc
+        _validate_financial_scope_authorization_report(report, identity=identity, config=config)
+        revalidation_dir = run_dir.parent / f".s6-authorization-revalidation-{uuid4().hex}"
+        revalidation_dir.mkdir(mode=0o750)
+        revalidation_path = revalidation_dir / "financial-scope-authorization.json"
+        spec = _financial_scope_authorization_spec(
+            config,
+            identity,
+            report_name=revalidation_path.name,
+            verify_existing=True,
+        )
+        try:
+            _invoke_container_stage(
+                runner,
+                argv=_docker_command(
+                    identity,
+                    config.docker_network,
+                    spec.env_files,
+                    identity_path,
+                    manifest_path,
+                    provider_path,
+                    revalidation_dir,
+                    spec,
+                ),
+                root=config.root,
+                label=stage,
+                timeout=config.stage_timeout_seconds,
+                env={
+                    "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                    "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+                },
+                artifact_dir=revalidation_dir,
+                container_gid=container_gid,
+            )
+            observed = _report(revalidation_path, identity, image_bound=True)
+            _validate_financial_scope_authorization_report(
+                observed,
+                identity=identity,
+                config=config,
+            )
+            if not _authorization_reports_match(report, observed):
+                raise RehearsalBlocked(
+                    stage,
+                    "S6_FINANCIAL_SCOPE_AUTHORIZATION_REVALIDATION_MISMATCH",
+                )
+            if set(revalidation_dir.iterdir()) != {revalidation_path}:
+                raise RehearsalBlocked(
+                    stage,
+                    "S6_FINANCIAL_SCOPE_AUTHORIZATION_REVALIDATION_MISMATCH",
+                )
+        finally:
+            if revalidation_path.is_file() and not revalidation_path.is_symlink():
+                revalidation_path.unlink()
+            try:
+                revalidation_dir.rmdir()
+            except OSError:
+                pass
+        return report_path
+
+    checkpoint.prepare(stage, (stage_dir,), resume=config.resume)
+    stage_dir.mkdir(exist_ok=True)
+    _assert_candidate(runner, config.root, identity.candidate_sha)
+    secret = _read_secret_fd(config.financial_scope_owner_password_fd)
+    spec = _financial_scope_authorization_spec(
+        config,
+        identity,
+        report_name=report_path.name,
+        verify_existing=False,
+    )
+    try:
+        _invoke_container_stage(
+            runner,
+            argv=_docker_command(
+                identity,
+                config.docker_network,
+                spec.env_files,
+                identity_path,
+                manifest_path,
+                provider_path,
+                stage_dir,
+                spec,
+            ),
+            root=config.root,
+            label=stage,
+            timeout=config.stage_timeout_seconds,
+            env={
+                "AGOM_CANDIDATE_IMAGE_ID": identity.candidate_image_id,
+                "AGOM_RELEASE_MANIFEST_PATH": str(manifest_path),
+            },
+            artifact_dir=stage_dir,
+            container_gid=container_gid,
+            stdin_text=secret + "\n",
+        )
+    finally:
+        secret = ""
+    report = _report(report_path, identity, image_bound=True)
+    _validate_financial_scope_authorization_report(report, identity=identity, config=config)
+    checkpoint.complete(stage, (stage_dir,))
+    return report_path
+
+
 def _run_parallel_stage_member(
     runner: CommandRunner,
     *,
@@ -3254,6 +3620,21 @@ def _run_release_rehearsal(
             )
         completed.append("isolated_database_migrations")
 
+        stage = "financial_scope_authorization"
+        _status(status_path, "running", completed, stage, None)
+        financial_scope_authorization_path = _run_financial_scope_authorization(
+            config,
+            active,
+            identity,
+            identity_path,
+            manifest_path,
+            provider_path,
+            run_dir,
+            container_gid,
+            checkpoint,
+        )
+        completed.append(stage)
+
         path_values: dict[str, Path] = {
             "provider_dir": provider_dir,
             "unit_path": unit_path,
@@ -3529,6 +3910,8 @@ def _run_release_rehearsal(
             str(run_dir / "stage-environment-preflight" / "stage-environment-preflight.json"),
             "--isolated-database-migrations",
             str(run_dir / "isolated_database_migrations" / "isolated-database-migrations.json"),
+            "--financial-scope-authorization",
+            str(financial_scope_authorization_path),
             "--candidate-regression-evidence",
             str(ci_path),
             "--output-dir",
@@ -3763,6 +4146,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--lock-wait-limit-seconds", type=float, required=True)
     parser.add_argument("--github-repository", required=True)
     parser.add_argument("--github-run-id", type=int, required=True)
+    parser.add_argument("--financial-scope-owner", required=True)
+    parser.add_argument("--financial-scope-owner-password-fd", type=int, required=True)
     parser.add_argument("--max-age-hours", type=float, default=24.0)
     parser.add_argument("--build-timeout-seconds", type=int, default=3600)
     parser.add_argument("--stage-timeout-seconds", type=int, default=3600)
@@ -3803,6 +4188,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         lock_wait_limit_seconds=args.lock_wait_limit_seconds,
         github_repository=args.github_repository,
         github_run_id=args.github_run_id,
+        financial_scope_owner=args.financial_scope_owner,
+        financial_scope_owner_password_fd=args.financial_scope_owner_password_fd,
         max_age_hours=args.max_age_hours,
         build_timeout_seconds=args.build_timeout_seconds,
         stage_timeout_seconds=args.stage_timeout_seconds,

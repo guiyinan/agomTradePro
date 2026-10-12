@@ -906,8 +906,8 @@ def _build_evidence(
                 "vendor": "postgresql",
                 "scope": "disposable",
                 "release_rehearsal_guard": True,
-                "host": "agom-s6-postgres-run-01",
-                "name": "agom_release_rehearsal_run01",
+                "host": "agom-s6-postgres-financial-scope",
+                "name": "agom_release_rehearsal_financial_scope",
                 "identity_sha256": hashlib.sha256(b"financial-database").hexdigest(),
             },
             "redis": {
@@ -1069,8 +1069,8 @@ def _build_evidence(
     isolated_database_migrations.update(
         {
             "candidate_source_attestation": "image_release_manifest",
-            "database_name": "agom_release_rehearsal_attempt_1234",
-            "database_host": "agom-s6-postgres-attempt-1234",
+            "database_name": "agom_release_rehearsal_financial_scope",
+            "database_host": "agom-s6-postgres-financial-scope",
             "database_address": "172.20.0.3",
             "database_port": 5432,
             "database_container_id": "e" * 64,
@@ -1123,6 +1123,59 @@ def _build_evidence(
             "kind": "financial_scope_capacity",
             "path": financial_scope_capacity_path.relative_to(tmp_path).as_posix(),
             "sha256": financial_scope_capacity_digest,
+        }
+    )
+    scope_source = json.loads(
+        (financial_scope_capacity_path.parent / "financial-scope-discovery.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    financial_scope_authorization = {
+        "schema": "release.financial-scope-authorization.v1",
+        "kind": "financial_scope_authorization",
+        "outcome": "success",
+        "evidence_mode": "isolated_personal_system_owner_authorization",
+        "candidate_sha": CANDIDATE,
+        "candidate_image_id": IMAGE_ID,
+        "candidate_source_attestation": "image_release_manifest",
+        "target_trade_date": TARGET_DATE,
+        "universe_sha256": UNIVERSE,
+        "provider_identities_sha256": PROVIDER_DIGEST,
+        "started_at": "2026-09-24T23:40:00+00:00",
+        "finished_at": "2026-09-24T23:41:00+00:00",
+        "database": scope_source["database"],
+        "authorization": {
+            "mode": "personal_system_owner",
+            "approval_id": "scope-approval-1",
+            "owner_event_id": "scope-event-1",
+            "approved_by": "admin",
+            "recorded_by": "s6.personal-system-operator",
+            "approval_receipt_sha256": "4" * 64,
+            "record_sha256": "8" * 64,
+            "approved_at": "2026-09-24T23:40:00+00:00",
+            "expires_at": "2026-09-25T23:40:00+00:00",
+        },
+        "binding": scope_source["binding"],
+        "universe": {"asset_count": len(ASSET_CODES), "sha256": UNIVERSE},
+        "budget": {
+            "maximum_logical_requests": len(ASSET_CODES) * 2,
+            "maximum_physical_attempts": len(ASSET_CODES) * 4,
+            "maximum_rows_per_asset": 200,
+        },
+        "provider_request_count": 0,
+        "fact_writes": 0,
+        "publication_writes": 0,
+        "production_writes": 0,
+        "production_manifest_review_satisfied": False,
+    }
+    authorization_path = tmp_path / "financial_scope_authorization.json"
+    authorization_digest = _write_json(authorization_path, financial_scope_authorization)
+    reports["financial_scope_authorization"] = authorization_path
+    references.append(
+        {
+            "kind": "financial_scope_authorization",
+            "path": authorization_path.relative_to(tmp_path).as_posix(),
+            "sha256": authorization_digest,
         }
     )
     manifest = tmp_path / "manifest.json"
@@ -1255,7 +1308,7 @@ def test_validator_accepts_complete_candidate_bound_evidence(tmp_path: Path) -> 
 
     assert result["outcome"] == "success"
     assert result["candidate_sha"] == CANDIDATE
-    assert len(result["validated_reports"]) == 9
+    assert len(result["validated_reports"]) == 10
 
 
 @pytest.mark.parametrize(
@@ -1525,6 +1578,62 @@ def test_validator_accepts_noop_candidate_migration_evidence(tmp_path: Path) -> 
     _replace_report(manifest, report_path, report)
 
     assert _validate(manifest, now)["outcome"] == "success"
+
+
+@pytest.mark.parametrize(
+    ("report_kind", "field", "value"),
+    [
+        (
+            "financial_scope_authorization",
+            "host",
+            "agom-s6-postgres-other-attempt",
+        ),
+        (
+            "isolated_database_migrations",
+            "database_host",
+            "agom-s6-postgres-other-attempt",
+        ),
+        (
+            "akshare_financial_slice",
+            "host",
+            "agom-s6-postgres-other-attempt",
+        ),
+    ],
+)
+def test_validator_cross_binds_authorization_database_identity(
+    tmp_path: Path,
+    report_kind: str,
+    field: str,
+    value: str,
+) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports[report_kind]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if report_kind == "isolated_database_migrations":
+        report[field] = value
+    else:
+        report["database"][field] = value
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_SOURCE_MISMATCH"
+
+
+def test_validator_rejects_expired_scope_authorization(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    report_path = reports["financial_scope_authorization"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["authorization"]["expires_at"] = now.isoformat()
+    _replace_report(manifest, report_path, report)
+
+    with pytest.raises(validator.RehearsalValidationError) as exc_info:
+        _validate(manifest, now)
+
+    assert exc_info.value.code == "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INVALID"
 
 
 def test_validator_rejects_nonpassing_stage_environment_matrix(tmp_path: Path) -> None:

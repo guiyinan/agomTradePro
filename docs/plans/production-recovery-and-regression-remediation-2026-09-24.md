@@ -4384,3 +4384,44 @@ disabled，production financial refresh 的 full-scope capacity、双独立认�
 
 下一片是否可开始：本地 Consistency 与 diff 门禁通过后，可以提交并 push 本文档修复，以新 exact SHA 从头运行五组 CI；五组全绿前
 不得 reserve fresh S6。
+
+##### 2026-10-12 个人系统 S6 财报 scope-discovery 独立授权准入
+
+完成项：候选 `f5ae31e04912d80d3e6bb28090b4a2e07e2e3bc3` 的五组 exact-SHA CI 与 official PostgreSQL artifact
+已全绿，fresh attempt `71a2067d44934a31accdea5f020aa95a` 的 prepare 成功并通过前十阶段；随后
+`financial_scope_capacity` 在 41.588 秒以 `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_AUTHORIZATION_REQUIRED` fail closed。
+安全报告确认 provider request、physical attempt、fact/publication/raw-audit write 均为 0；没有 manifest、handoff receipt、部署或生产写。
+该 attempt 完整保留且禁止 resume、复用或重跑。
+
+只读根因确认：候选迁移会在 disposable PostgreSQL 创建 scope-discovery 治理表，但当前生产旧 schema 没有该表，也没有可随只读快照
+带入的授权记录；生产只有一个 active superuser，原先把 recorder 和 owner 都解释为不同人类 superuser 会让个人系统无法完成隔离
+scope discovery。系统 owner 已于 2026-10-12 明确授权个人系统的隔离 S6 scope discovery。整改没有伪造第二名人类：现有 active
+superuser 通过匿名 pipe 交互认证并记录为真实 `approved_by`，自动化操作身份固定为非人类
+`s6.personal-system-operator`。授权只写迁移后的 disposable PostgreSQL，精确绑定 candidate/image、provider identity、
+contract/parser、deployment region、完整动态 universe 与 `2N/4N/200` ceiling，并明确
+`production_manifest_review_satisfied=false`；任何 provider stage 只能在授权写入和只读回读通过后开始。
+
+安全收口：owner 密码只接受写端已关闭的匿名 pipe，不接受普通文件，读取上限 1 KiB 且有 30 秒硬截止；密码不进入 argv、环境变量、
+日志、checkpoint 或 release evidence。授权阶段只透传六个明确 allowlist 稳定码，未知 `REHEARSAL_*` 文本降格为通用失败。恢复机制
+遇到已完成授权 checkpoint 时，在任何 provider 出网前以候选命令只读重验当前数据库记录仍未撤销、未过期并与原报告完全一致；失败
+立即阻断。最终 validator 还会把授权数据库 name/host/隔离 attestation 与迁移、AKShare N=1 财报切片及 full-scope discovery
+报告交叉绑定，并拒绝已过期授权。Luna 独立只读审计提出的一个 P1 与两个 P2 均已按上述方式修复。
+
+测试计数：runner、manifest、validator、统一环境 preflight、授权 builder/command 联合回归为 `346 passed / 11 skipped`；11 个
+skip 均为本机 Windows 无法执行的 POSIX permission/symlink/bash 契约，未计作 Linux 通过。新增正反例覆盖匿名 pipe 与普通文件、
+未关闭写端超时、凭据不进入 argv/env、授权稳定码 allowlist、恢复前数据库重验失败且零 provider 调用、过期授权、授权/迁移/切片/
+scope-discovery 数据库身份篡改。六个修改的生产 Python 文件增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt ceiling 为
+`0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map（`44 modules / 210 edges`）、Data Center
+entrypoint inventory（`1330` entries）与治理一致性门禁通过。治理投影只由唯一生成器重建。
+
+未验证风险与停止线：本授权入口尚未由新 exact-SHA Linux CI 或任何 fresh S6 实证；已知六类环境契约不能证明未知环境类别穷尽。
+必须由用户在交互终端亲自输入现有 superuser 密码，代理不得获取、持久化或代造凭据。失败 attempt `71a2067d...` 的十个已完成
+阶段、镜像和旧 CI 不得拼接为部署证据。个人系统独立授权只解除隔离 scope-discovery 的预出网死锁，不解除 production financial
+publication 的 verified full-scope capacity receipt、两个独立认证 owner/reviewer 事件与有效 ceiling；production financial refresh
+继续禁止。两个周期入口保持 disabled，历史 production full-market task 禁止重跑，所有 freshness、coverage、audit、source、15:00
+close、`SIGNAL_WEAK`、请求、查询和文件阈值保持不变。
+
+下一片是否可开始：可以把实现、测试、文档、生成治理投影和本节台账分层提交并 push，以新 exact SHA 从头运行 Architecture、Security、
+Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 全部 required identity 为 0
+skip/failure/error 后，才可从最新生产只读快照创建全新 S6；禁止 `--resume`。fresh S6 全绿、release validator 与 handoff receipt
+完成前禁止部署，结论仍为“部分通过/仍有阻断”。

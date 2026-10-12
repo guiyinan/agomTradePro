@@ -93,6 +93,7 @@ REQUIRED_REPORT_SCHEMAS = {
     "financial_scope_capacity": "release.financial-scope-capacity.v1",
     "stage_environment_preflight": "release.s6-stage-environment-preflight.v1",
     "isolated_database_migrations": "release.isolated-database-migrations.v1",
+    "financial_scope_authorization": "release.financial-scope-authorization.v1",
     "candidate_regression_evidence": "release.candidate-regression-evidence.v1",
 }
 REQUIRED_EVIDENCE_MODES = {
@@ -104,6 +105,7 @@ REQUIRED_EVIDENCE_MODES = {
     "financial_scope_capacity": "isolated_full_scope_financial_capture",
     "stage_environment_preflight": "read_only_environment_contract",
     "isolated_database_migrations": "isolated_postgresql_migrations",
+    "financial_scope_authorization": "isolated_personal_system_owner_authorization",
     "candidate_regression_evidence": "candidate_ci",
 }
 IMAGE_BOUND_REPORTS = frozenset(
@@ -116,6 +118,7 @@ IMAGE_BOUND_REPORTS = frozenset(
         "financial_scope_capacity",
         "stage_environment_preflight",
         "isolated_database_migrations",
+        "financial_scope_authorization",
     }
 )
 PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
@@ -124,6 +127,7 @@ PROVIDER_IDENTITY_DIGEST_ONLY_REPORTS = frozenset(
         "isolated_write_rehearsal",
         "stage_environment_preflight",
         "isolated_database_migrations",
+        "financial_scope_authorization",
         "financial_scope_capacity",
     }
 )
@@ -923,6 +927,97 @@ def _validate_isolated_database_migrations(report: dict[str, Any]) -> None:
     pending_before, pending_after, applied_migrations = migration_lists
     if pending_after or applied_migrations != pending_before:
         _fail("REHEARSAL_DATABASE_MIGRATION_PENDING_INVALID")
+
+
+def _validate_financial_scope_authorization(
+    report: dict[str, Any],
+    *,
+    scope_report_path: Path,
+    migration_report: dict[str, Any],
+    financial_slice_report: dict[str, Any],
+    now: datetime,
+) -> None:
+    """Bind the pre-egress owner event to the later full-scope source report."""
+
+    database = report.get("database")
+    authorization = report.get("authorization")
+    binding = report.get("binding")
+    universe = report.get("universe")
+    budget = report.get("budget")
+    if (
+        not isinstance(database, dict)
+        or database.get("vendor") != "postgresql"
+        or database.get("scope") != "disposable"
+        or database.get("release_rehearsal_guard") is not True
+        or DATABASE_NAME_PATTERN.fullmatch(str(database.get("name") or "")) is None
+        or DATABASE_HOST_PATTERN.fullmatch(str(database.get("host") or "")) is None
+        or SHA256_PATTERN.fullmatch(str(database.get("isolation_attestation_sha256") or "")) is None
+        or not isinstance(authorization, dict)
+        or authorization.get("mode") != "personal_system_owner"
+        or authorization.get("recorded_by") != "s6.personal-system-operator"
+        or not isinstance(authorization.get("approved_by"), str)
+        or not authorization.get("approved_by")
+        or not isinstance(authorization.get("approval_id"), str)
+        or not authorization.get("approval_id")
+        or not isinstance(authorization.get("owner_event_id"), str)
+        or not authorization.get("owner_event_id")
+        or SHA256_PATTERN.fullmatch(str(authorization.get("approval_receipt_sha256") or "")) is None
+        or SHA256_PATTERN.fullmatch(str(authorization.get("record_sha256") or "")) is None
+        or not isinstance(binding, dict)
+        or type(binding.get("provider_id")) is not int
+        or cast(int, binding.get("provider_id")) <= 0
+        or SHA256_PATTERN.fullmatch(str(binding.get("provider_identity_sha256") or "")) is None
+        or SHA256_PATTERN.fullmatch(str(binding.get("contract_sha256") or "")) is None
+        or SHA256_PATTERN.fullmatch(str(binding.get("parser_sha256") or "")) is None
+        or not isinstance(universe, dict)
+        or universe.get("sha256") != report.get("universe_sha256")
+        or type(universe.get("asset_count")) is not int
+        or cast(int, universe.get("asset_count")) <= 0
+        or not isinstance(budget, dict)
+        or budget.get("maximum_logical_requests") != cast(int, universe.get("asset_count")) * 2
+        or budget.get("maximum_physical_attempts") != cast(int, universe.get("asset_count")) * 4
+        or budget.get("maximum_rows_per_asset") != 200
+        or report.get("provider_request_count") != 0
+        or report.get("fact_writes") != 0
+        or report.get("publication_writes") != 0
+        or report.get("production_writes") != 0
+        or report.get("production_manifest_review_satisfied") is not False
+    ):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INVALID")
+    approved_at = _parse_datetime(
+        authorization.get("approved_at"),
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INVALID",
+    )
+    expires_at = _parse_datetime(
+        authorization.get("expires_at"),
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INVALID",
+    )
+    if expires_at <= approved_at or approved_at > now or now >= expires_at:
+        _fail("REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INVALID")
+    source = _read_json(
+        scope_report_path.parent / "financial-scope-discovery.json",
+        "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_SOURCE_INVALID",
+    )
+    source_authorization = source.get("authorization")
+    source_binding = source.get("binding")
+    source_database = source.get("database")
+    financial_slice_database = financial_slice_report.get("database")
+    if (
+        source_authorization
+        != {
+            "approval_id": authorization.get("approval_id"),
+            "owner_event_id": authorization.get("owner_event_id"),
+            "owner_receipt_sha256": authorization.get("approval_receipt_sha256"),
+        }
+        or source_binding != binding
+        or source_database != database
+        or migration_report.get("database_name") != database.get("name")
+        or migration_report.get("database_host") != database.get("host")
+        or not isinstance(financial_slice_database, dict)
+        or financial_slice_database.get("name") != database.get("name")
+        or financial_slice_database.get("host") != database.get("host")
+    ):
+        _fail("REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_SOURCE_MISMATCH")
 
 
 def _is_ip_address(value: object) -> bool:
@@ -3244,6 +3339,13 @@ def validate_release_rehearsal(
         frozen_provider_identities=normalized_provider_identities,
         now=observed_now,
         max_age=timedelta(hours=max_age_hours),
+    )
+    _validate_financial_scope_authorization(
+        loaded_reports["financial_scope_authorization"],
+        scope_report_path=report_paths["financial_scope_capacity"],
+        migration_report=loaded_reports["isolated_database_migrations"],
+        financial_slice_report=loaded_reports["akshare_financial_slice"],
+        now=observed_now,
     )
     _validate_stage_environment_preflight(
         loaded_reports["stage_environment_preflight"],
