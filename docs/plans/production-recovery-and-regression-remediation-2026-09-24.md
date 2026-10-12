@@ -4485,3 +4485,36 @@ official PostgreSQL artifact 的全部 required identity 为 0 missing/skip/fail
 未验证风险与停止线：生成投影同步仍须新 exact-SHA Consistency 与 Fast Feedback 实证；本地生成器逐字节一致不能替代 GitHub runner。旧候选成功/失败/取消结果全部作废且禁止复用。未知类别、fresh S6、部署、周期入口和 production financial refresh 停止线不变。
 
 下一片是否可开始：可以将两个生成投影单独提交并补录本节台账，再以新 exact SHA 从头运行五组 workflow_dispatch CI；五组全绿和 official PostgreSQL artifact 独立核验前不得启动 fresh S6。
+
+##### 2026-10-13 S6 financial identity 区域字段哈希收口
+
+完成项：最终候选 `9f375c79a1800fe1fc439484ac602a97216e71c4` 的五组 workflow_dispatch exact-SHA CI 与
+official PostgreSQL artifact 已全绿。fresh attempt `bed6930cfeb847bf85b4c838f69a4897` 的 prepare 成功，隔离
+market graph 为 `5573/5565/8/11138`，runner 随后完成 `build_only`、`docker_identity`、隔离迁移、owner 授权、
+provider probe/replay、全市场容量、生产策略一致性、隔离 PostgreSQL 写、GitHub CI 证据和 AKShare 财报切片共 11 个阶段；
+`financial_scope_capacity` 最终以 `REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_PROVIDER_IDENTITY_INVALID` fail closed。
+失败报告确认 `authorization=null`、完整 universe 绑定为 5573，provider logical/physical request 与
+artifact/raw-audit/fact/publication write 全部为 0；没有 manifest、handoff receipt、部署或生产写。该 attempt 证据保留，
+禁止 resume、复用或重跑。
+
+只读根因确认：冻结的 AKShare financial route identity、隔离数据库 provider row、owner 授权记录与 binding 均完全一致，
+identity SHA 为 `af7a3636d42db3c5c3c5816ac57c9cac79cd0f0e784014457bbeef12c92592d5`。binding 通过共享
+`rehearsal_identity_dict` 把必需的 `deployment_region=unknown` 纳入 canonical hash；reader preflight 却手写了旧五字段投影，
+遗漏 `deployment_region`，因此真实 S6 的区域绑定必然被误判。授权阶段校验完整 identity 但不执行 reader egress preflight，
+所以缺陷只在 full-scope 阶段暴露。修复提交 `cc65ab6cd` 删除重复手写投影，统一复用共享 canonical serializer；没有修改
+provider route、region、contract/parser、授权、预算或任何阈值。回归用例先以带区域字段 identity 复现失败，再验证修复后通过。
+
+验证结果：financial scope governance/command/identity 联合回归 `31 passed`；release runner 与 manifest bootstrap 回归
+`147 passed / 10 skipped`，10 个 skip 均为本机 Windows 不具备的 POSIX 契约，未计作 Linux 通过。Black、isort、Ruff、
+`git diff --check`、增量 mypy（0 issues / 0 regressions）、全仓 mypy debt ceiling（`0 errors in 0 files`）、module map
+（`44 modules / 210 edges`）、current-data（`73 surfaces`）与 governance（0 violations）均通过。
+
+未验证风险与停止线：修复仍须新 exact-SHA 五组 Linux CI 和 official PostgreSQL artifact 实证；旧候选的成功 CI、失败 S6
+阶段、镜像和授权事件不得与新 SHA 拼接。新五组全绿后只能从最新生产只读快照创建全新 S6，禁止 `--resume`。fresh S6、
+release validator 与 handoff receipt 全绿前禁止部署；两个周期入口保持 disabled，production financial refresh 的 full-scope
+receipt、两个独立认证 owner/reviewer 事件与有效 ceiling 停止线不变。所有 freshness、coverage、audit、source、15:00 close、
+`SIGNAL_WEAK`、请求、查询、文件和容量阈值保持不变。
+
+下一片是否可开始：提交并 push 本节台账后，以新的 exact SHA 从头运行 Architecture、Security、Consistency、Fast Feedback
+与 Publication PostgreSQL。任一失败先保留诊断并修根因，禁止重跑失败 run 或拼接旧结果；五组全绿并独立核验 official
+artifact 的全部 required identity 为 0 missing/skip/failure/error 后，才可 reserve 全新 S6。
