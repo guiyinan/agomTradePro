@@ -4425,3 +4425,31 @@ close、`SIGNAL_WEAK`、请求、查询和文件阈值保持不变。
 Consistency、Fast Feedback 与 Publication PostgreSQL。只有五组全绿且 official artifact 全部 required identity 为 0
 skip/failure/error 后，才可从最新生产只读快照创建全新 S6；禁止 `--resume`。fresh S6 全绿、release validator 与 handoff receipt
 完成前禁止部署，结论仍为“部分通过/仍有阻断”。
+
+##### 2026-10-12 S6 owner 参数导出契约与 bundle fixture 收口
+
+完成项：候选 `42d45dff2b5bb08b0f19a2249c61d8ffd53cfc2e` 的 Architecture `38202116505`、Security
+`38202125140`、Consistency `38202137211` 与 Publication PostgreSQL `38202216807` 已通过，但 Fast Feedback
+`38202207199` 在 Python 3.11 与 3.13 的 `Run targeted pytest suite` 同步失败，因此该 SHA 失去候选资格，四组成功结果不得与
+后续 SHA 拼接，失败 run 禁止重跑。失败包含两个确定性契约遗漏：prepare 使用的 `export_s6_rehearsal_inputs` 仍按旧 runner CLI
+生成诊断 argv，没有携带新增的 `--financial-scope-owner` 与 `--financial-scope-owner-password-fd`，真实 parser 因缺少必填参数拒绝；
+candidate regression collector 的 bundle identity fixture 也没有登记新增授权报告必须保持的零 provider/零业务写与
+`production_manifest_review_satisfied=false` 用途边界。授权实现、认证门槛与 release validator 本身没有失败。
+
+整改只同步现有契约：exporter 的诊断 argv 使用不可用于认证的 owner 占位标识和整数 FD 占位，并在 parse 后精确断言两个字段；
+它不读取凭据、不启动 runner，也不把密码写入任何输入。collector fixture 补齐授权报告的 evidence mode、四项零副作用计数与
+production manifest review 未满足标记。没有放宽 owner 认证、匿名 pipe、授权时效、预算或任何业务阈值。
+
+测试计数：两个失败用例红绿复验为 `2 passed`；相关两个测试文件全量为 `52 passed / 1 skipped`，唯一 skip 是 Windows 无法执行的
+POSIX source permission 契约，未计作 Linux 通过。修改的生产 exporter 增量 mypy 为 0 issues / 0 regressions，全仓 mypy debt
+ceiling 为 `0 errors in 0 files`；Black、isort、Ruff、`git diff --check`、module map（`44 modules / 210 edges`）与 Data Center
+entrypoint inventory（`1330` entries）通过，治理投影无改动。
+
+未验证风险与停止线：本修复仍须由新 exact-SHA Linux Fast Feedback 实证，且上一候选的四组成功结果全部作废；本地 Windows skip
+不能替代 Linux 权限证据。fresh S6 尚未开始，个人系统 owner 仍须在最终候选五组 CI 全绿后通过交互终端亲自输入现有 superuser
+密码。旧失败 attempts、CI、镜像与阶段证据继续禁止 resume、复用或拼接；production financial refresh 的 full-scope receipt、
+两个独立认证 owner/reviewer 事件与有效 ceiling 停止线不变。
+
+下一片是否可开始：可以提交并 push 本次契约同步，以新 exact SHA 从头运行五组 workflow_dispatch CI。只有五组全绿并独立核验
+official PostgreSQL artifact 的全部 required identity 为 0 missing/skip/failure/error 后，才可从最新生产只读快照创建全新 S6；
+禁止 `--resume`，当前结论仍为“部分通过/仍有阻断”。

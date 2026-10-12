@@ -155,6 +155,8 @@ class _RunnerNamespace(Protocol):
     valuation_provider_id: int
     github_repository: str
     github_run_id: int
+    financial_scope_owner: str
+    financial_scope_owner_password_fd: int
 
 
 def _blocked(code: str) -> int:
@@ -1484,6 +1486,10 @@ def _build_runner_argv(
         "diagnostic/rehearsal",
         "--github-run-id",
         "1",
+        "--financial-scope-owner",
+        "diagnostic-owner",
+        "--financial-scope-owner-password-fd",
+        "3",
     ]
 
 
@@ -1528,6 +1534,8 @@ def _assert_runner_argv(
         or args.valuation_provider_id != valuation_id
         or args.github_repository != "diagnostic/rehearsal"
         or args.github_run_id != 1
+        or args.financial_scope_owner != "diagnostic-owner"
+        or args.financial_scope_owner_password_fd != 3
     ):
         raise ExportBlocked("S6_RUNNER_ARGV_CONTRACT_INVALID")
 

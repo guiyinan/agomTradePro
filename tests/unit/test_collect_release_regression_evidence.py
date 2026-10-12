@@ -461,6 +461,17 @@ def test_collector_report_satisfies_bundle_identity_contract(
                 "asset_codes": UNIVERSE_CODES,
                 "sha256": UNIVERSE_SHA,
             }
+        if kind == "financial_scope_authorization":
+            report_payload.update(
+                {
+                    "evidence_mode": "isolated_personal_system_owner_authorization",
+                    "provider_request_count": 0,
+                    "fact_writes": 0,
+                    "publication_writes": 0,
+                    "production_writes": 0,
+                    "production_manifest_review_satisfied": False,
+                }
+            )
         report_path.write_text(json.dumps(report_payload, sort_keys=True), encoding="utf-8")
         reports[kind] = report_path
 
