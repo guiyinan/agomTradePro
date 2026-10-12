@@ -7,7 +7,7 @@ import pytest
 from apps.data_center.application import market_calendar
 from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from apps.data_center.domain.model_market_data import TradingCalendarEvidence
-from core.exceptions import ConfigurationError
+from core.exceptions import ConfigurationError, DataFetchError
 from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 
 
@@ -42,6 +42,67 @@ def test_post_close_readiness_skips_extended_holiday(monkeypatch) -> None:
     )
 
     assert resolved == date(2026, 9, 30)
+
+
+@pytest.mark.parametrize(
+    "local_now",
+    (
+        datetime(2026, 10, 12, 13, 0, tzinfo=CN_MARKET_TIMEZONE),
+        datetime(2026, 10, 12, 16, 59, tzinfo=CN_MARKET_TIMEZONE),
+    ),
+    ids=("open-session", "post-close-provider-delay"),
+)
+def test_full_market_session_waits_for_provider_ready_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    local_now: datetime,
+) -> None:
+    """Full-market refresh does not mix an intraday source with an older target."""
+
+    monkeypatch.setattr(
+        market_calendar,
+        "_open_sessions_for",
+        lambda _now: (date(2026, 10, 9), date(2026, 10, 12)),
+    )
+
+    with pytest.raises(
+        DataFetchError,
+        match="Full-market providers are not ready",
+    ) as exc_info:
+        market_calendar.latest_full_market_provider_ready_session(local_now)
+
+    assert exc_info.value.code == "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
+
+
+def test_full_market_session_opens_at_provider_ready_boundary(monkeypatch) -> None:
+    """The target becomes eligible at the shared 17:05 China-market boundary."""
+
+    monkeypatch.setattr(
+        market_calendar,
+        "_open_sessions_for",
+        lambda _now: (date(2026, 10, 9), date(2026, 10, 12)),
+    )
+
+    resolved = market_calendar.latest_full_market_provider_ready_session(
+        datetime(2026, 10, 12, 17, 5, tzinfo=CN_MARKET_TIMEZONE)
+    )
+
+    assert resolved == date(2026, 10, 12)
+
+
+def test_full_market_session_remains_available_on_non_session_day(monkeypatch) -> None:
+    """A weekend may still rehearse the latest provider-ready closed session."""
+
+    monkeypatch.setattr(
+        market_calendar,
+        "_open_sessions_for",
+        lambda _now: (date(2026, 10, 9),),
+    )
+
+    resolved = market_calendar.latest_full_market_provider_ready_session(
+        datetime(2026, 10, 11, 13, 0, tzinfo=CN_MARKET_TIMEZONE)
+    )
+
+    assert resolved == date(2026, 10, 9)
 
 
 def test_calendar_unavailable_fails_closed(monkeypatch) -> None:

@@ -4531,6 +4531,7 @@
           "latest_closed_cn_market_session",
           "latest_cn_market_session_ready_after",
           "latest_completed_cn_market_session",
+          "latest_full_market_provider_ready_session",
           "load_cn_market_calendar_evidence",
           "load_open_cn_market_sessions"
         ],

@@ -1627,6 +1627,52 @@ def test_task_calendar_unavailable_is_blocked(monkeypatch):
     assert result["stored"] == 0
 
 
+def test_task_provider_window_blocks_before_market_provider_io(monkeypatch):
+    """An intraday run fails closed before universe or valuation provider access."""
+
+    from types import SimpleNamespace
+
+    from apps.data_center.application import tasks
+    from core.exceptions import DataFetchError
+
+    def provider_window_not_ready(_now):
+        raise DataFetchError(
+            "provider window not ready",
+            code="CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
+        )
+
+    monkeypatch.setattr(tasks, "get_active_provider_id_by_source", lambda _: 3)
+    monkeypatch.setattr(tasks, "latest_closed_cn_market_session", provider_window_not_ready)
+    monkeypatch.setattr(tasks, "make_backfill_sync_quote_use_case", lambda: SimpleNamespace())
+    monkeypatch.setattr(
+        tasks, "make_backfill_sync_current_valuation_batch_use_case", lambda: SimpleNamespace()
+    )
+    monkeypatch.setattr(
+        tasks, "make_core_current_publication_rebuild_use_case", lambda **_: SimpleNamespace()
+    )
+    monkeypatch.setattr(
+        tasks,
+        "sync_active_a_share_universe",
+        lambda: pytest.fail("provider window must precede universe provider access"),
+    )
+
+    result = tasks.refresh_full_market_publications_task.run()
+
+    assert result == {
+        "outcome": "blocked",
+        "success": False,
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "stored": 0,
+        "blocked_reason": "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
+        "error_code": "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
+        "errors": ["CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"],
+        "must_not_use_for_decision": True,
+        "publication_updated": False,
+    }
+
+
 @pytest.mark.parametrize(
     ("activation_failure", "expected_code"),
     [

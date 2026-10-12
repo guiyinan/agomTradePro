@@ -85,7 +85,9 @@ from .interface_services import (
     make_sync_market_thermometer_inputs_use_case,
     refresh_decision_quote_snapshots,
 )
-from .market_calendar import latest_closed_cn_market_session
+from .market_calendar import (
+    latest_full_market_provider_ready_session as latest_closed_cn_market_session,
+)
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .public import (
     get_active_provider_id_by_source,

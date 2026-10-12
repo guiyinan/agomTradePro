@@ -11,11 +11,12 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
+from apps.data_center.application.market_calendar import FULL_MARKET_PROVIDER_READY_AFTER
+
 _models = importlib.import_module("django_celery_beat.models")
 CrontabSchedule: Any = _models.CrontabSchedule
 PeriodicTask: Any = _models.PeriodicTask
 
-FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)
 CN_MARKET_SCHEDULE_TIMEZONE = "Asia/Shanghai"
 
 

@@ -4815,6 +4815,7 @@
         "apps/data_center/domain/publication_evidence.py",
         "apps/data_center/application/full_market_task_support.py",
         "apps/data_center/application/full_market_refresh_orchestration.py",
+        "apps/data_center/application/market_calendar.py",
         "apps/data_center/application/data02_task_authority.py",
         "apps/data_center/application/financial_refresh_lease.py",
         "apps/data_center/application/financial_capacity_contracts.py",
@@ -5333,6 +5334,7 @@
         "apps/data_center/application/full_market_refresh_orchestration.py": [
           "created_by=f\"celery.full_market_refresh:{authority.actor_id}\"",
           "dependencies.latest_closed_market_session(timezone.now())",
+          "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
           "returned_asset_codes=result.stored_asset_codes",
           "valuation_seed.returned_asset_codes",
           "valuation_seed.succeeded_asset_codes",
@@ -5535,10 +5537,15 @@
           "key != \"publication_id\"",
           "def current_publication_id_for_hash("
         ],
+        "apps/data_center/application/market_calendar.py": [
+          "FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)",
+          "def latest_full_market_provider_ready_session(",
+          "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
+        ],
         "apps/data_center/management/commands/setup_full_market_publications.py": [
           "--quote-source\", choices=(\"akshare\", \"tushare\"), default=\"tushare\"",
           "--valuation-source\", choices=(\"akshare\", \"tushare\"), default=\"akshare\"",
-          "FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)",
+          "from apps.data_center.application.market_calendar import FULL_MARKET_PROVIDER_READY_AFTER",
           "CN_MARKET_SCHEDULE_TIMEZONE = \"Asia/Shanghai\"",
           "time(hour, minute) < FULL_MARKET_PROVIDER_READY_AFTER",
           "timezone=CN_MARKET_SCHEDULE_TIMEZONE"
@@ -6803,6 +6810,16 @@
           "case": "repair_reports_partial_market_success_and_financial_lane_block",
           "test_file": "tests/unit/data_center/test_current_fact_remediation_command.py",
           "test_function": "test_current_fact_repair_executes_with_explicit_operator"
+        },
+        {
+          "case": "full_market_provider_window_blocks_before_provider_io",
+          "test_file": "tests/unit/data_center/test_market_publication_refresh.py",
+          "test_function": "test_task_provider_window_blocks_before_market_provider_io"
+        },
+        {
+          "case": "full_market_provider_window_uses_shared_ready_boundary",
+          "test_file": "tests/unit/data_center/test_market_calendar.py",
+          "test_function": "test_full_market_session_waits_for_provider_ready_boundary"
         }
       ]
     },

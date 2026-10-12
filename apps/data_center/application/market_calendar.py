@@ -25,6 +25,7 @@ from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 logger = logging.getLogger(__name__)
 CALENDAR_LOOKBACK_DAYS = 45
 MAX_SESSION_GAP_DAYS = 14
+FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)
 
 
 @lru_cache(maxsize=32)
@@ -120,7 +121,33 @@ def latest_cn_market_session_ready_after(now: datetime, *, ready_after: time) ->
     return max(eligible) if eligible else None
 
 
+def latest_full_market_provider_ready_session(now: datetime) -> date | None:
+    """Return the closed session only after all full-market providers are ready.
+
+    During an open session the live Tencent valuation endpoint reports the
+    current intraday date while the canonical target is still the previous
+    close.  Between close and the configured provider-ready boundary, the
+    Tushare full-session frame can still be incomplete.  Both windows must
+    fail closed before the full-market task performs provider or fact writes.
+    """
+
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("market clock must be timezone-aware")
+    sessions = _open_sessions_for(now)
+    if not sessions:
+        return None
+    local_now = now.astimezone(CN_MARKET_TIMEZONE)
+    if local_now.date() in sessions and local_now.time() < FULL_MARKET_PROVIDER_READY_AFTER:
+        raise DataFetchError(
+            "Full-market providers are not ready for the current session",
+            code="CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
+        )
+    return _latest_closed_session(now, open_sessions=sessions)
+
+
 __all__ = [
+    "FULL_MARKET_PROVIDER_READY_AFTER",
+    "latest_full_market_provider_ready_session",
     "latest_closed_cn_market_session",
     "latest_cn_market_session_ready_after",
     "latest_completed_cn_market_session",

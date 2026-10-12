@@ -129,7 +129,22 @@ def run_full_market_publication_refresh(
             "blocked_reason": error_code,
             "publication_updated": False,
         }
-    target_date = dependencies.latest_closed_market_session(timezone.now())
+    try:
+        target_date = dependencies.latest_closed_market_session(timezone.now())
+    except DataFetchError as exc:
+        return {
+            "outcome": TaskBusinessOutcome.BLOCKED.value,
+            "success": False,
+            "requested": 0,
+            "succeeded": 0,
+            "failed": 0,
+            "stored": 0,
+            "blocked_reason": exc.code,
+            "error_code": exc.code,
+            "errors": [exc.code],
+            "must_not_use_for_decision": True,
+            "publication_updated": False,
+        }
     if target_date is None:
         return {
             "outcome": "blocked",
