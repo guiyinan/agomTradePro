@@ -5291,7 +5291,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=118",
+      "evidence": "governed current-data contract; source_files=119",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -11201,7 +11201,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 123",
+      "evidence": "database-backed Beat schedule writer at line 124",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:financial-current-publication-refresh",
       "locator": "financial-current-publication-refresh",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",
@@ -11211,7 +11211,7 @@
     },
     {
       "category": "scheduler_writer",
-      "evidence": "database-backed Beat schedule writer at line 94",
+      "evidence": "database-backed Beat schedule writer at line 95",
       "id": "scheduler_writer:apps/data_center/management/commands/setup_full_market_publications.py:PeriodicTask:full-market-current-publications",
       "locator": "full-market-current-publications",
       "path": "apps/data_center/management/commands/setup_full_market_publications.py",

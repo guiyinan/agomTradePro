@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5504,
+    "current_surface_references": 5506,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8888,6 +8888,10 @@
     },
     {
       "path": "apps/data_center/application/market_calendar.py",
+      "text": "\"Full-market providers are not ready for the current session\","
+    },
+    {
+      "path": "apps/data_center/application/market_calendar.py",
       "text": "\"\"\"Resolve the latest closed session from provider calendar evidence.\"\"\""
     },
     {
@@ -8897,6 +8901,10 @@
     {
       "path": "apps/data_center/application/market_calendar.py",
       "text": "\"\"\"Resolve the latest exchange session whose post-close readiness time passed.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/market_calendar.py",
+      "text": "current intraday date while the canonical target is still the previous"
     },
     {
       "path": "apps/data_center/application/market_publication_refresh.py",
