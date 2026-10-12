@@ -50,6 +50,7 @@ reports/security/safety-requirements.json
 
 # Type checking
 .mypy_cache/
+/.mypy_cache_*/
 .dmypy.json
 dmypy.json
 .pyre/
@@ -148,3 +149,5 @@ docs/xiaohongshu-draft-2026-04-24.md
 /artifacts
 /pytest-tmp-s6-recovery
 /.codex-*
+/htmlcov-unit/
+/.coverage.*

@@ -86,6 +86,24 @@ screenshots/
 .claude/
 .codex_tmp/
 .codex-test-deps/
+.codex/
+.codex-*
+.pytest_*/
+pytest-tmp/
+.mypy_cache*/
+.ruff_cache/
+htmlcov-unit/
+.coverage.*
+.tmp/
+.tmp_*/
+.tmp-*/
+artifacts/
+backups/
+reports/
+output/
+debug/
+test_screenshots/
+tmp/
 
 # Project docs not required at runtime
 docs/
