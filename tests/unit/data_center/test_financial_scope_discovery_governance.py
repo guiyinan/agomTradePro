@@ -27,7 +27,10 @@ from apps.data_center.infrastructure.models import (
     FinancialCapacityGovernanceRecordModel,
     FinancialCapacityOwnerApprovalEventModel,
 )
-from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
+from apps.data_center.infrastructure.rehearsal_identity import (
+    RehearsalProviderIdentity,
+    rehearsal_identity_dict,
+)
 
 
 def _authorization_payload(
@@ -201,16 +204,11 @@ def test_scope_discovery_reader_uses_the_shared_exact_route_preflight(
         source="akshare_financial",
         version="fixture-v1",
         endpoint_id="fixture-endpoint",
+        deployment_region="isolated-test",
     )
     identity_sha256 = hashlib.sha256(
         json.dumps(
-            {
-                "role": identity.role,
-                "provider_id": identity.provider_id,
-                "source": identity.source,
-                "version": identity.version,
-                "endpoint_id": identity.endpoint_id,
-            },
+            rehearsal_identity_dict(identity),
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")

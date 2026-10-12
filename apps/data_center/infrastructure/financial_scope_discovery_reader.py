@@ -55,6 +55,7 @@ from apps.data_center.infrastructure.financial_source_time_matchers import (
 )
 from apps.data_center.infrastructure.rehearsal_identity import (
     configured_akshare_financial_identity,
+    rehearsal_identity_dict,
 )
 from core.exceptions import DataFetchError
 
@@ -132,13 +133,7 @@ class AkshareFinancialScopeDiscoveryReader:
             )
         identity = configured_akshare_financial_identity(provider_id=binding.provider_id)
         identity_bytes = json.dumps(
-            {
-                "role": identity.role,
-                "provider_id": identity.provider_id,
-                "source": identity.source,
-                "version": identity.version,
-                "endpoint_id": identity.endpoint_id,
-            },
+            rehearsal_identity_dict(identity),
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
