@@ -223,6 +223,8 @@ Tushare `daily_basic` 的直连传输同时对实际 HTTP response bytes 计算 
 
 [Tushare `daily_basic` 官方文档](https://tushare.pro/document/2?doc_id=32)给出的更新窗口为交易日 15:00～17:00。正式收盘的 `observed_at` 仍表示北京时间 15:00；全市场 current Publication 的 17:05 是任务触发时点，默认安排在提供方完整截面窗口之后。`setup_full_market_publications` 的 `--hour/--minute` 是固定按 `Asia/Shanghai` 解释的全市场交易日时刻，人工配置也必须不早于北京时间 17:05；该 Cron 固定使用中国市场时区，不随 Django `TIME_ZONE` 或夏令时变化。独立的财务刷新任务仍使用 Django `TIME_ZONE`。不能通过提前触发把 provider 尚未发布的数据解释成收盘事实。提前人工触发时若当日截面仍为空，必须保持旧 Publication 并返回 `CURRENT_VALUATION_SCOPE_UNAVAILABLE`，不能退回前一日并伪装成当期成功。响应完成时点继续记录为独立的 `available_at` / `fetched_at`。
 
+按需检测与上述“生成当日 current Publication”的周期任务使用不同的目标日选择窗口。交易日北京时间 09:15 前，Tencent 尚未进入当日集合竞价观测窗口，精确返回的仍是上一已完成交易日；此时 full-market producer 可以选择上一已就绪交易日，并继续用事实中的源日期、15:00 收盘时点、完整覆盖和原始响应证据逐项验证。09:15 起至 17:05 前必须在 universe/provider/fact/publication I/O 前以 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 零写阻断，不能把当日盘中快照重标成昨日数据；17:05 起才选择当日。周末和休市日仍可全天选择最近已就绪交易日。该窗口只增加对昨日不可变截面的清晨检测机会，不改变正式 Cron 的 17:05 触发时点。
+
 Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和历史日线在进入 Domain 前必须分别转换为股和元；完整收盘行情缺少成交量或成交额时不得物化为可发布日线。真实响应候选门禁必须同时重放 `close`、`vol`、`amount` 并与在线标准化事实逐项相等，原始值或规范值缺失、非有限、负数、单位或倍率不符都必须失败关闭。最终发布门禁从绑定的逐资产 observation 和单位合同原件重新计算，不能只信 `units_verified` 布尔值或只用价格一致性替代成交量与成交额量纲验证。
 
 全市场行情快照必须按 `trade_date` 批量读取 Tushare `daily` 截面，并在有限的最近自然日窗口内寻找每只请求资产的最近完整交易日。禁止按股票逐只调用 `daily`，否则全市场任务会把一次发布放大为数千次外部请求并耗尽时限或配额。候选响应回执相应绑定 `full_market_trade_date` 范围；授权错误必须向任务层传播并形成可见阻断，不能被空列表掩盖。

@@ -5539,6 +5539,7 @@
           "def current_publication_id_for_hash("
         ],
         "apps/data_center/application/market_calendar.py": [
+          "FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM = time(9, 15)",
           "FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)",
           "def latest_full_market_provider_ready_session(",
           "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
@@ -6821,6 +6822,11 @@
           "case": "full_market_provider_window_uses_shared_ready_boundary",
           "test_file": "tests/unit/data_center/test_market_calendar.py",
           "test_function": "test_full_market_session_waits_for_provider_ready_boundary"
+        },
+        {
+          "case": "full_market_provider_window_allows_previous_session_before_rollover",
+          "test_file": "tests/unit/data_center/test_market_calendar.py",
+          "test_function": "test_full_market_session_uses_previous_ready_session_before_provider_rollover"
         }
       ]
     },

@@ -24,7 +24,7 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 | `11fa71b43e504660b2f77a6ff7a31d28` | fresh prepare 已恢复最新生产只读快照，但 `universe` exporter 在 internal Docker network 内调用 provider-backed 市场日历，Tushare/Akshare 均无出口，最终 `S6_TARGET_SESSION_UNAVAILABLE`。 | prepare 的 target date 必须由生产者已封存的 current publication graph 推导；禁止依赖 provider 出网、主机 wall clock、`date.today()` 或原始表 `MAX(date)`。 |
 | `df56fa16294b4f04b6dd0d09821c37e3` | graph refresh 容器以只读根文件系统和只读 candidate-source 启动；`django.setup()` 前生产设置仍尝试在 `/candidate-src/logs` 建目录，导致 prepare 失败且没有 Task Monitor 行。 | 生产日志目录遵守 `AGOM_LOG_DIR`；S6 candidate 运行时统一指向 `/tmp/agomtradepro/logs`，prepare 只读容器使用现有 `/tmp` tmpfs。统一候选 stage environment preflight 在 filesystem 类校验环境值、Celery 路径和目录可写性，覆盖全部阶段。 |
 | 新增 opt-in 设计（尚待下一次 Linux fresh S6 实证） | production snapshot 的 publication graph 日期落后于实时 provider response context 时，fresh probe 可能以 `REHEARSAL_RESPONSE_FUTURE_DATE` 阻断。 | planner v3 提供默认关闭的 `--advance-isolated-market-graph`；只有明确启用后才在恢复后的 disposable PostgreSQL/Redis 上运行候选 full-market Task Monitor task，并在只读 exporter 中重读验证完整 receipt。该流程不连生产 DB，不放宽目标日期、新鲜度或 15:00 规则；运行失败不产生成功 prepare receipt。 |
-| `9e03b4ea1ec1426f9fc498ce426d1312` | fresh prepare 在交易日 13:16 进入隔离 full-market refresh，目标仍是上一闭市日 `2026-10-09`；Tencent 估值响应已携带当日盘中日期，按精确目标日规则全部丢弃，任务以 `CURRENT_VALUATION_SCOPE_INCOMPLETE` 阻断，`requested/succeeded/failed/stored=5573/0/5573/0`。 | full-market producer 与周期任务共用中国市场 17:05 provider-ready 边界。交易日边界前以 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 在 universe/provider/fact 写入前失败关闭；周末和休市日仍可使用最近已就绪闭市日。不得改写目标日、接受盘中估值或扩大 retry。 |
+| `9e03b4ea1ec1426f9fc498ce426d1312` | fresh prepare 在交易日 13:16 进入隔离 full-market refresh，目标仍是上一闭市日 `2026-10-09`；Tencent 估值响应已携带当日盘中日期，按精确目标日规则全部丢弃，任务以 `CURRENT_VALUATION_SCOPE_INCOMPLETE` 阻断，`requested/succeeded/failed/stored=5573/0/5573/0`。 | full-market producer 使用中国市场 provider 日期窗口：交易日 09:15 前可验证上一已就绪闭市日；09:15 至 17:05 以 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 在 universe/provider/fact 写入前失败关闭；17:05 后验证当日，周末和休市日验证最近已就绪闭市日。不得改写目标日、接受盘中估值或扩大 retry。 |
 
 上述只读证据来自 VPS 历史 attempt；目录没有被修改或删除。
 
@@ -45,8 +45,8 @@ release manifest、release validator 和 handoff receipt；缺失、摘要不匹
 5. **资源与时间**：后续证据阶段继续要求至少 12 GiB；昂贵构建前另要求至少 24 GiB，其中 12 GiB 是构建保留量，确保构建完成后仍有
    12 GiB 供 provider、数据库、bundle 与 validator 阶段使用。两个阈值均写入 release policy 和报告观察值，由 validator 对账；
    不允许以构建后清理全局 Docker cache 代替容量准入。可用内存至少 512 MiB，timeout 层级合法、时钟带时区，隔离 PostgreSQL
-   `clock_timestamp()` 与应用时钟差不超过 5 秒。full-market producer 在中国市场交易日 17:05 前必须以
-   `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 阻断，避免把当日盘中 provider 响应与上一闭市日 target 混合。
+   `clock_timestamp()` 与应用时钟差不超过 5 秒。full-market producer 在中国市场交易日 09:15 前可选择上一已就绪闭市日；
+   09:15 至 17:05 必须以 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 阻断，避免把当日盘中 provider 响应与上一闭市日 target 混合。
 6. **外部状态**：冻结 provider settings、N=1/2N=2 财报预算、隔离 DB/Redis 身份、CI run 和两个生产周期入口的 disabled 状态。
 
 ## Prepare target-date authority
@@ -82,9 +82,10 @@ runtime PostgreSQL role、同 attempt 的 Redis/容器/network/image 身份。�
 所以该 opt-in 有额外调用成本。成功 receipt 必须包含任务规范 outcome 与 `requested/succeeded/failed/stored`、Task Monitor attempt、
 run/activation、三个 pointer/publication header、重算 member/fact hash、source-time min/max 和 target date；只读 `universe` 与
 `contract` exporter 再针对 live isolated graph 复核 receipt 与 universe target date。失败时不封存成功 receipt。
-隔离图前移复用 full-market producer 的唯一 provider-ready 解析器：交易日 17:05 前不选择上一闭市日继续请求，而是在 universe、
-行情、估值、事实和 publication 写入前以稳定码失败关闭。该边界同时覆盖 15:00 收盘后仍可能尚未形成完整 session frame 的短窗口；
-它不改变 publication 的精确 target date，也不把盘中值降格接受为上一闭市日证据。
+隔离图前移复用 full-market producer 的唯一 provider-ready 解析器：交易日 09:15 前选择上一已就绪闭市日，事实仍须逐项通过
+精确源日期与 15:00 收盘时点验证；09:15 至 17:05 在 universe、行情、估值、事实和 publication 写入前以稳定码失败关闭。
+该阻断同时覆盖盘中和 15:00 收盘后仍可能尚未形成完整 session frame 的窗口；它不改变 publication 的精确 target date，
+也不把盘中值降格接受为上一闭市日证据。
 上述操作不改变 provider probe 的 freshness/date/15:00 阈值，不在生产 DB 执行，并不新增 release manifest 的 required report；
 实际 Linux Docker 和真实 provider 运行仍须由下一次 fresh S6 验证。
 

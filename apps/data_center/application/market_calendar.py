@@ -25,6 +25,7 @@ from core.integration.data_center_audit import SystemAuditCompositionUnavailable
 logger = logging.getLogger(__name__)
 CALENDAR_LOOKBACK_DAYS = 45
 MAX_SESSION_GAP_DAYS = 14
+FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM = time(9, 15)
 FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)
 
 
@@ -122,13 +123,14 @@ def latest_cn_market_session_ready_after(now: datetime, *, ready_after: time) ->
 
 
 def latest_full_market_provider_ready_session(now: datetime) -> date | None:
-    """Return the closed session only after all full-market providers are ready.
+    """Return the latest session whose full-market provider frame is exact.
 
-    During an open session the live Tencent valuation endpoint reports the
-    current intraday date while the canonical target is still the previous
-    close.  Between close and the configured provider-ready boundary, the
-    Tushare full-session frame can still be incomplete.  Both windows must
-    fail closed before the full-market task performs provider or fact writes.
+    Before the current session starts producing observations, Tencent still
+    exposes the previous completed session and that exact date is safe to
+    rehearse.  From call auction through the configured provider-ready
+    boundary, its current-session response cannot be mixed with the previous
+    close and the new full-session frame may still be incomplete.  That window
+    fails closed before the full-market task performs provider or fact writes.
     """
 
     if now.tzinfo is None or now.utcoffset() is None:
@@ -137,7 +139,12 @@ def latest_full_market_provider_ready_session(now: datetime) -> date | None:
     if not sessions:
         return None
     local_now = now.astimezone(CN_MARKET_TIMEZONE)
-    if local_now.date() in sessions and local_now.time() < FULL_MARKET_PROVIDER_READY_AFTER:
+    if (
+        local_now.date() in sessions
+        and FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM
+        <= local_now.time()
+        < FULL_MARKET_PROVIDER_READY_AFTER
+    ):
         raise DataFetchError(
             "Full-market providers are not ready for the current session",
             code="CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY",
@@ -146,6 +153,7 @@ def latest_full_market_provider_ready_session(now: datetime) -> date | None:
 
 
 __all__ = [
+    "FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM",
     "FULL_MARKET_PROVIDER_READY_AFTER",
     "latest_full_market_provider_ready_session",
     "latest_closed_cn_market_session",

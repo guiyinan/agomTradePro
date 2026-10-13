@@ -47,10 +47,11 @@ def test_post_close_readiness_skips_extended_holiday(monkeypatch) -> None:
 @pytest.mark.parametrize(
     "local_now",
     (
+        datetime(2026, 10, 12, 9, 15, tzinfo=CN_MARKET_TIMEZONE),
         datetime(2026, 10, 12, 13, 0, tzinfo=CN_MARKET_TIMEZONE),
         datetime(2026, 10, 12, 16, 59, tzinfo=CN_MARKET_TIMEZONE),
     ),
-    ids=("open-session", "post-close-provider-delay"),
+    ids=("provider-rollover", "open-session", "post-close-provider-delay"),
 )
 def test_full_market_session_waits_for_provider_ready_boundary(
     monkeypatch: pytest.MonkeyPatch,
@@ -71,6 +72,32 @@ def test_full_market_session_waits_for_provider_ready_boundary(
         market_calendar.latest_full_market_provider_ready_session(local_now)
 
     assert exc_info.value.code == "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
+
+
+@pytest.mark.parametrize(
+    "local_now",
+    (
+        datetime(2026, 10, 12, 0, 0, tzinfo=CN_MARKET_TIMEZONE),
+        datetime(2026, 10, 12, 7, 30, tzinfo=CN_MARKET_TIMEZONE),
+        datetime(2026, 10, 12, 9, 14, 59, tzinfo=CN_MARKET_TIMEZONE),
+    ),
+    ids=("midnight", "pre-open", "before-provider-rollover"),
+)
+def test_full_market_session_uses_previous_ready_session_before_provider_rollover(
+    monkeypatch: pytest.MonkeyPatch,
+    local_now: datetime,
+) -> None:
+    """Before Tencent starts the current session, yesterday remains exact provider data."""
+
+    monkeypatch.setattr(
+        market_calendar,
+        "_open_sessions_for",
+        lambda _now: (date(2026, 10, 9), date(2026, 10, 12)),
+    )
+
+    resolved = market_calendar.latest_full_market_provider_ready_session(local_now)
+
+    assert resolved == date(2026, 10, 9)
 
 
 def test_full_market_session_opens_at_provider_ready_boundary(monkeypatch) -> None:
