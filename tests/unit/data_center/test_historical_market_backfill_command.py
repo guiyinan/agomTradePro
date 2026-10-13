@@ -1,5 +1,6 @@
 """Command safety tests for exact-date historical market-fact backfills."""
 
+from contextlib import contextmanager
 from datetime import date
 from io import StringIO
 from types import SimpleNamespace
@@ -94,6 +95,14 @@ def test_historical_market_backfill_advances_partial_batches_and_reports_final_p
         ]
     )
     monkeypatch.setattr(module.backfill_active_a_share_core_data_batch_task, "run", run)
+    entered: list[bool] = []
+
+    @contextmanager
+    def _cache_scope():
+        entered.append(True)
+        yield
+
+    monkeypatch.setattr(module, "cache_tushare_historical_session_frames", _cache_scope)
 
     with pytest.raises(CommandError, match="unresolved provider rows"):
         call_command(
@@ -106,6 +115,7 @@ def test_historical_market_backfill_advances_partial_batches_and_reports_final_p
         )
 
     assert run.call_count == 2
+    assert entered == [True]
     assert run.call_args_list[0].kwargs["universe_hash"] == ""
     assert run.call_args_list[1].kwargs["universe_hash"] == universe_hash
     assert all(call.kwargs["historical_market_date"] == "2026-07-31" for call in run.call_args_list)

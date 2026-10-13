@@ -374,6 +374,49 @@ def test_historical_session_prices_use_one_full_market_request(
     assert bars[0].amount == 200000
 
 
+def test_historical_session_cache_fetches_full_market_once_across_batches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, str]] = []
+
+    class _Pro:
+        def daily(self, **kwargs: str) -> pd.DataFrame:
+            calls.append(kwargs)
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": code,
+                        "trade_date": "20260731",
+                        "open": 10,
+                        "high": 12,
+                        "low": 9,
+                        "close": 11,
+                        "vol": 100,
+                        "amount": 200,
+                    }
+                    for code in ("000001.SZ", "600000.SH")
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+    with tushare_gateway.cache_tushare_historical_session_frames():
+        first = tushare_gateway.TushareGateway(provider_id=7).get_historical_prices_for_session(
+            ["000001.SZ"],
+            date(2026, 7, 31),
+        )
+        second = tushare_gateway.TushareGateway(provider_id=7).get_historical_prices_for_session(
+            ["600000.SH"],
+            date(2026, 7, 31),
+        )
+
+    assert calls == [{"trade_date": "20260731"}]
+    assert [bar.asset_code for bar in first] == ["000001.SZ"]
+    assert [bar.asset_code for bar in second] == ["600000.SH"]
+
+
 def test_history_authorization_failure_does_not_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
