@@ -8123,16 +8123,20 @@
       "text": "and publication.publication_key == \"current\""
     },
     {
-      "path": "apps/data_center/application/core_data_backfill.py",
+      "path": "apps/data_center/application/core_data_backfill_contracts.py",
       "text": "\"\"\"Publish complete current snapshots or raise without partial commit.\"\"\""
     },
     {
-      "path": "apps/data_center/application/core_data_backfill.py",
+      "path": "apps/data_center/application/core_data_backfill_execution.py",
       "text": "\"error\": \"latest completed China market session is unavailable\","
     },
     {
-      "path": "apps/data_center/application/core_data_backfill.py",
+      "path": "apps/data_center/application/core_data_backfill_execution.py",
       "text": "error_message=\"latest completed China market session is unavailable\","
+    },
+    {
+      "path": "apps/data_center/application/core_data_backfill_task_support.py",
+      "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
       "path": "apps/data_center/application/current_fact_remediation.py",
@@ -9935,12 +9939,8 @@
       "text": "publication_key = \"current\""
     },
     {
-      "path": "apps/data_center/application/sync_market_use_cases.py",
+      "path": "apps/data_center/application/sync_quote_use_case.py",
       "text": "publication_key = \"current\""
-    },
-    {
-      "path": "apps/data_center/application/tasks.py",
-      "text": "Current domain sync DTOs expose ``stored_count`` only, so the durable"
     },
     {
       "path": "apps/data_center/application/tasks.py",

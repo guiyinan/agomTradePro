@@ -405,9 +405,9 @@ def test_historical_market_backfill_stores_available_rows_without_publication(
     assert quote_request.require_exact_asset_codes is False
     publication_factory.assert_not_called()
     coordinator.execute.assert_not_called()
-    idempotency_key = _patch_control_plane_repositories["batch"].save.call_args.args[
-        0
-    ].idempotency_key
+    idempotency_key = (
+        _patch_control_plane_repositories["batch"].save.call_args.args[0].idempotency_key
+    )
     assert ":date=2026-07-31:" in idempotency_key
 
 

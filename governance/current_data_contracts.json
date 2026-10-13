@@ -3945,6 +3945,7 @@
         "apps/data_center/application/sync_use_cases.py",
         "apps/data_center/application/sync_valuation_sector_use_cases.py",
         "apps/data_center/application/sync_market_use_cases.py",
+        "apps/data_center/application/sync_quote_use_case.py",
         "apps/data_center/application/sync_macro_use_cases.py",
         "apps/data_center/application/interface_services.py",
         "apps/data_center/application/interface_services_decision_sync.py",
@@ -4033,14 +4034,6 @@
         ],
         "apps/data_center/application/sync_valuation_sector_use_cases.py": [
           "publication_publisher: PublishValuationBatchUseCase | None = None",
-          "self._publication_publisher.execute("
-        ],
-        "apps/data_center/application/sync_market_use_cases.py": [
-          "publication_publisher: PublishPriceBarBatchUseCase | None = None",
-          "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
-          "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
-          "publication publisher and quality recorder must be configured together",
-          "quality_recorder.execute(",
           "self._publication_publisher.execute("
         ],
         "apps/data_center/application/sync_macro_use_cases.py": [
@@ -4163,6 +4156,20 @@
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py": [
           "ensure_ascii=False, sort_keys=True",
           "hashlib.sha256(encoded).hexdigest()"
+        ],
+        "apps/data_center/application/sync_market_use_cases.py": [
+          "publication_publisher: PublishPriceBarBatchUseCase | None = None",
+          "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
+          "publication publisher and quality recorder must be configured together",
+          "quality_recorder.execute(",
+          "self._publication_publisher.execute("
+        ],
+        "apps/data_center/application/sync_quote_use_case.py": [
+          "publication_publisher: PublishQuoteSnapshotBatchUseCase | None = None",
+          "publication_quality_recorder: DataPublicationQualityRecorder | None = None",
+          "publication publisher and quality recorder must be configured together",
+          "quality_recorder.execute(",
+          "self._publication_publisher.execute("
         ]
       },
       "required_tests": [
@@ -4774,6 +4781,7 @@
         "apps/data_center/application/dtos.py",
         "apps/data_center/application/quote_session_prefetch.py",
         "apps/data_center/application/sync_market_use_cases.py",
+        "apps/data_center/application/sync_quote_use_case.py",
         "apps/data_center/application/current_valuation_sync.py",
         "apps/data_center/application/current_publication_candidate.py",
         "apps/data_center/application/current_publication_staging.py",
@@ -4808,6 +4816,9 @@
         "apps/data_center/infrastructure/financial_response_artifact_repository.py",
         "apps/data_center/application/interface_services_decision_sync.py",
         "apps/data_center/application/core_data_backfill.py",
+        "apps/data_center/application/core_data_backfill_contracts.py",
+        "apps/data_center/application/core_data_backfill_scope.py",
+        "apps/data_center/application/core_data_backfill_execution.py",
         "apps/data_center/infrastructure/publication_fact_identity.py",
         "apps/data_center/infrastructure/publication_fact_legacy_payload.py",
         "apps/data_center/infrastructure/publication_fact_evidence.py",
@@ -4918,17 +4929,6 @@
           "returned_asset_codes: tuple[str, ...] = ()",
           "require_decision_evidence: bool = True",
           "require_decision_evidence must remain enabled"
-        ],
-        "apps/data_center/application/sync_market_use_cases.py": [
-          "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)",
-          "if request.require_exact_asset_codes:",
-          "returned_asset_codes=[quote.asset_code for quote in quotes]",
-          "def prepare_session(",
-          "def execute_prefetched_session_batch(",
-          "quote_session_universe_sha256",
-          "quote_session_raw_response_sha256s",
-          "quote_session_eligible_codes",
-          "quote_session_excluded_codes"
         ],
         "apps/data_center/application/quote_session_prefetch.py": [
           "def prepare_quote_session(",
@@ -5160,37 +5160,6 @@
         ],
         "apps/data_center/application/interface_services_decision_sync.py": [
           "artifact_verifier=verify_retained_financial_response_artifact"
-        ],
-        "apps/data_center/application/core_data_backfill.py": [
-          "rebuild_current_publications",
-          "current_publication_rebuild_failed",
-          "checkpoint = {**checkpoint, \"complete\": False}",
-          "active-a-share-universe.v1",
-          "expected_universe_hash and expected_universe_hash != observed_universe_hash",
-          "\"authority\": services.authority_binding.to_checkpoint()",
-          "services.revalidate_authority(services.current_time())",
-          "quote_result.stored_asset_codes",
-          "valuation_result.succeeded_asset_codes",
-          "valuation_result.returned_asset_codes",
-          "class BackfillItemAttemptStore(Protocol):",
-          "item_attempt_evidence_failed",
-          "SyncItemAttemptPhase.PUBLICATION",
-          "publication_evidence_hash",
-          "evidence_hash=publication_evidence_hash",
-          "provider_asset_identity_mismatch",
-          "len({attempt.attempt_id for attempt in attempts}) != len(attempts)",
-          "attempt.started_at != started_at",
-          "def persist_finished_attempts(",
-          "completion_specs:",
-          "persist_finished_attempts(completed_attempts)",
-          "services.publication_evidence_hash(\n                    rebuild_result,\n                    len(asset_codes),",
-          "financial_use_case.prepare_for_write(",
-          "financial_use_case.execute_prepared(",
-          "financial_source_evidence_required",
-          "pending_financial_attempts",
-          "deferred_publications[0].blocked_reason",
-          "FINANCIAL_CAPACITY_RECEIPT_REQUIRED.lower()",
-          "\"stage\": result_stage"
         ],
         "apps/data_center/infrastructure/publication_fact_identity.py": [
           "build_publication_fact_identity",
@@ -5670,6 +5639,52 @@
         ],
         "apps/data_center/application/publication_sync.py": [
           "require_generic_publication_lane(self.dataset_key)"
+        ],
+        "apps/data_center/application/sync_quote_use_case.py": [
+          "stored_asset_codes=tuple(quote.asset_code for quote in correlated_quotes)",
+          "if request.require_exact_asset_codes:",
+          "returned_asset_codes=[quote.asset_code for quote in quotes]",
+          "def prepare_session(",
+          "def execute_prefetched_session_batch(",
+          "quote_session_universe_sha256",
+          "quote_session_raw_response_sha256s",
+          "quote_session_eligible_codes",
+          "quote_session_excluded_codes"
+        ],
+        "apps/data_center/application/core_data_backfill_execution.py": [
+          "rebuild_current_publications",
+          "current_publication_rebuild_failed",
+          "checkpoint = {**checkpoint, \"complete\": False}",
+          "services.revalidate_authority(services.current_time())",
+          "quote_result.stored_asset_codes",
+          "valuation_result.succeeded_asset_codes",
+          "valuation_result.returned_asset_codes",
+          "item_attempt_evidence_failed",
+          "SyncItemAttemptPhase.PUBLICATION",
+          "publication_evidence_hash",
+          "evidence_hash=publication_evidence_hash",
+          "provider_asset_identity_mismatch",
+          "len({attempt.attempt_id for attempt in attempts}) != len(attempts)",
+          "attempt.started_at != started_at",
+          "def persist_finished_attempts(",
+          "completion_specs:",
+          "persist_finished_attempts(completed_attempts)",
+          "services.publication_evidence_hash(\n                    rebuild_result,\n                    len(asset_codes),",
+          "financial_use_case.prepare_for_write(",
+          "financial_use_case.execute_prepared(",
+          "financial_source_evidence_required",
+          "pending_financial_attempts",
+          "deferred_publications[0].blocked_reason",
+          "FINANCIAL_CAPACITY_RECEIPT_REQUIRED.lower()",
+          "\"stage\": result_stage"
+        ],
+        "apps/data_center/application/core_data_backfill_scope.py": [
+          "active-a-share-universe.v1",
+          "expected_universe_hash and expected_universe_hash != observed_universe_hash",
+          "\"authority\": services.authority_binding.to_checkpoint()"
+        ],
+        "apps/data_center/application/core_data_backfill_contracts.py": [
+          "class BackfillItemAttemptStore(Protocol):"
         ]
       },
       "required_tests": [

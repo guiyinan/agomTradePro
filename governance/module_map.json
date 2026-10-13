@@ -4024,13 +4024,19 @@
           "publication_rollback_evidence_content_hash",
           "require_generic_publication_lane"
         ],
-        "application/core_data_backfill.py": [
+        "application/core_data_backfill_contracts.py": [
           "BackfillItemAttemptStore",
           "CoreDataBackfillServices",
           "PersistBackfillControlPlane",
           "PublicationEvidenceHash",
-          "RebuildCurrentPublications",
+          "RebuildCurrentPublications"
+        ],
+        "application/core_data_backfill_execution.py": [
           "run_active_a_share_core_data_backfill_batch"
+        ],
+        "application/core_data_backfill_scope.py": [
+          "PreparedCoreBackfillScope",
+          "prepare_core_backfill_scope"
         ],
         "application/current_fact_remediation.py": [
           "CompletedSessionPriceBarPreview",
@@ -4998,12 +5004,14 @@
           "SyncMacroUseCase"
         ],
         "application/sync_market_use_cases.py": [
-          "SyncPriceUseCase",
-          "SyncQuoteUseCase"
+          "SyncPriceUseCase"
         ],
         "application/sync_news_capital_use_cases.py": [
           "SyncCapitalFlowUseCase",
           "SyncNewsUseCase"
+        ],
+        "application/sync_quote_use_case.py": [
+          "SyncQuoteUseCase"
         ],
         "application/sync_transaction.py": [
           "DataCenterSyncAuditWriter",
@@ -5117,7 +5125,7 @@
         ]
       },
       "layers": {
-        "application": 138,
+        "application": 143,
         "domain": 35,
         "infrastructure": 179,
         "interface": 19,

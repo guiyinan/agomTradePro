@@ -5291,7 +5291,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=121",
+      "evidence": "governed current-data contract; source_files=125",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.core_current_publication_rebuild:Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "locator": "Active A-share quote/price/valuation/financial full-universe current publication rebuild and fact remediation",
       "path": "governance/current_data_contracts.json",
@@ -5471,7 +5471,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=35",
+      "evidence": "governed current-data contract; source_files=36",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.publication_writer_atomicity:Canonical publication writer and member snapshot commit",
       "locator": "Canonical publication writer and member snapshot commit",
       "path": "governance/current_data_contracts.json",
