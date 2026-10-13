@@ -276,9 +276,7 @@ def test_mcp_readiness_detects_invalid_factor_weights(monkeypatch) -> None:
     monkeypatch.setattr(f"{module}.RotationConfigModel", SimpleNamespace(_default_manager=manager))
     monkeypatch.setattr(
         f"{module}.get_asset_repository_port",
-        lambda: SimpleNamespace(
-            list_active=lambda: [SimpleNamespace(asset_type=AssetType.STOCK)]
-        ),
+        lambda: SimpleNamespace(list_active=lambda: [SimpleNamespace(asset_type=AssetType.STOCK)]),
     )
     monkeypatch.setattr(
         f"{module}.FactorPortfolioConfigModel",
@@ -621,7 +619,9 @@ def test_mcp_macro_seed_handles_absent_and_present_source(monkeypatch) -> None:
 
     monkeypatch.setattr(f"{module}.get_macro_fact_series", lambda *args, **kwargs: [])
     saved: list[list[object]] = []
-    monkeypatch.setattr(f"{module}.save_macro_facts", lambda facts: saved.append(facts) or len(facts))
+    monkeypatch.setattr(
+        f"{module}.save_macro_facts", lambda facts: saved.append(facts) or len(facts)
+    )
     assert command._ensure_macro_smoke_indicator() == 0
 
     responses = iter(
