@@ -324,7 +324,11 @@ def test_cold_start_handle_runs_optional_work_and_is_idempotent(monkeypatch) -> 
     ]
     for name in model_names:
         monkeypatch.setattr(f"{module}.{name}", ready_model)
-    monkeypatch.setattr(command, "_scheduler_defaults_ready", lambda: True)
+    monkeypatch.setattr(
+        command,
+        "_scheduler_defaults_ready",
+        lambda *, require_protected_disabled=False: True,
+    )
     monkeypatch.setattr(command, "_policy_sentiment_gate_defaults_ready", lambda: True)
     monkeypatch.setattr(command, "_authoritative_rss_sources_ready", lambda: True)
     monkeypatch.setattr(command, "_macro_indicator_governance_ready", lambda: True)
@@ -389,7 +393,11 @@ def test_cold_start_handle_applies_missing_steps_and_skips_command_errors(monkey
     ]
     for name in model_names:
         monkeypatch.setattr(f"{module}.{name}", missing_model)
-    monkeypatch.setattr(command, "_scheduler_defaults_ready", lambda: False)
+    monkeypatch.setattr(
+        command,
+        "_scheduler_defaults_ready",
+        lambda *, require_protected_disabled=False: False,
+    )
     monkeypatch.setattr(command, "_policy_sentiment_gate_defaults_ready", lambda: False)
     monkeypatch.setattr(command, "_authoritative_rss_sources_ready", lambda: False)
     monkeypatch.setattr(command, "_macro_indicator_governance_ready", lambda: False)

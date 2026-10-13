@@ -261,7 +261,7 @@ def test_market_index_returns_use_injected_repository_without_remote_hydration(
     repository.bulk_upsert.assert_not_called()
 
 
-def test_market_index_returns_use_data_center_failover_and_persist_normalized_bars(
+def test_market_index_returns_use_data_center_failover_without_consumer_persistence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from apps.data_center.infrastructure.model_market_wiring import build_model_market_service
@@ -297,6 +297,7 @@ def test_market_index_returns_use_data_center_failover_and_persist_normalized_ba
     primary = SimpleNamespace(
         provider_name=lambda: "primary-route",
         provider_source=lambda: "tushare",
+        provider_id=lambda: 1,
         model_market_source=lambda **_kwargs: primary,
         stock_history=lambda *_args: (),
         index_history=primary_index_history,
@@ -306,6 +307,7 @@ def test_market_index_returns_use_data_center_failover_and_persist_normalized_ba
     backup = SimpleNamespace(
         provider_name=lambda: "backup-route",
         provider_source=lambda: "akshare",
+        provider_id=lambda: 2,
         model_market_source=lambda **_kwargs: backup,
         stock_history=lambda *_args: (),
         index_history=backup_index_history,
@@ -331,10 +333,7 @@ def test_market_index_returns_use_data_center_failover_and_persist_normalized_ba
     }
     primary_index_history.assert_called_once_with(index_code, start_date, end_date)
     backup_index_history.assert_called_once_with(index_code, start_date, end_date)
-    persisted = repository.bulk_upsert.call_args.args[0]
-    assert [bar.asset_code for bar in persisted] == [index_code, index_code]
-    assert [bar.bar_date for bar in persisted] == [start_date, end_date]
-    assert all(bar.adjustment is PriceAdjustment.NONE for bar in persisted)
+    repository.bulk_upsert.assert_not_called()
 
 
 @pytest.mark.parametrize(
