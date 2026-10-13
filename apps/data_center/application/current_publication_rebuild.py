@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from apps.data_center.domain.control_plane import (
     CanonicalPublication,
@@ -744,12 +744,26 @@ class CoreCurrentPublicationRebuildUseCase:
             )
 
 
+def deferred_publication_lanes_from_result(
+    result: object,
+) -> tuple[DeferredCurrentPublicationLane, ...]:
+    """Narrow one rebuild result's externally owned publication lanes."""
+
+    value = getattr(result, "deferred_publications", ())
+    if not isinstance(value, tuple) or any(
+        type(item) is not DeferredCurrentPublicationLane for item in value
+    ):
+        raise ValueError("deferred publication lane evidence is invalid")
+    return cast(tuple[DeferredCurrentPublicationLane, ...], value)
+
+
 __all__ = [
     "CoreCurrentPublicationPreview",
     "CoreCurrentPublicationRebuildResult",
     "CoreCurrentPublicationRebuildUseCase",
     "CurrentPublicationCandidateRepositoryProtocol",
     "DeferredCurrentPublicationLane",
+    "deferred_publication_lanes_from_result",
     "FINANCIAL_CAPACITY_RECEIPT_REQUIRED",
     "FinancialPublicationLaneRequiredError",
     "CurrentPublicationCandidateSnapshot",

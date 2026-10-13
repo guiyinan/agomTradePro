@@ -738,7 +738,9 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
 
         config, provider = self._get_provider(request.provider_id)
         provider_name = provider.provider_name()
-        request_params: Mapping[str, object] = {"asset_codes": list(request.asset_codes)}
+        request_params: dict[str, object] = {"asset_codes": list(request.asset_codes)}
+        if request.target_trade_date is not None:
+            request_params["target_trade_date"] = request.target_trade_date.isoformat()
         started_at = self._clock.now()
         try:
             if request.target_trade_date is not None:

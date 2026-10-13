@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from apps.data_center.domain.control_plane import (
     SyncItemAttempt,
@@ -17,14 +17,23 @@ from apps.data_center.domain.control_plane import (
 from core.exceptions import InvalidInputError
 from shared.domain.task_outcomes import TaskBusinessOutcome
 
-from .backfill_control_plane import backfill_control_plane_ids, backfill_execution_token
+from .backfill_control_plane import (
+    BackfillAuthorityBinding,
+    backfill_control_plane_ids,
+    backfill_execution_token,
+)
 from .batch_identity import ProviderAssetIdentityError
 from .current_publication_rebuild import (
     FINANCIAL_CAPACITY_RECEIPT_REQUIRED,
     DeferredCurrentPublicationLane,
+    deferred_publication_lanes_from_result,
 )
 from .current_valuation_sync import SyncCurrentValuationBatchUseCase
 from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
+from .historical_market_backfill import (
+    build_partial_terminal_attempts,
+    require_historical_universe_evidence,
+)
 from .sync_use_cases import (
     PreparedFinancialSync,
     SyncFinancialUseCase,
@@ -129,28 +138,6 @@ class PublicationEvidenceHash(Protocol):
         """Return a canonical SHA-256 for committed Publication evidence."""
 
 
-@dataclass(frozen=True, slots=True)
-class BackfillAuthorityBinding:
-    """Server-issued authority identity persisted with every batch checkpoint."""
-
-    actor_id: str
-    tenant_id: str
-    owner_id: str
-    content_hash: str
-    valid_until: datetime
-
-    def to_checkpoint(self) -> dict[str, str]:
-        """Return the immutable, non-secret authority checkpoint projection."""
-
-        return {
-            "actor_id": self.actor_id,
-            "tenant_id": self.tenant_id,
-            "owner_id": self.owner_id,
-            "content_hash": self.content_hash,
-            "valid_until": self.valid_until.isoformat(),
-        }
-
-
 @dataclass(frozen=True)
 class CoreDataBackfillServices:
     """Injected ports and use-case factories for one backfill batch."""
@@ -170,6 +157,7 @@ class CoreDataBackfillServices:
     item_attempt_store: BackfillItemAttemptStore
     authority_binding: BackfillAuthorityBinding
     revalidate_authority: Callable[[datetime], bool]
+    universe_evidence: Callable[[], Mapping[str, object]] | None = None
 
 
 def run_active_a_share_core_data_backfill_batch(
@@ -183,8 +171,17 @@ def run_active_a_share_core_data_backfill_batch(
     expected_universe_hash: str,
     started_at: datetime,
     services: CoreDataBackfillServices,
+    historical_market_date: date | None = None,
 ) -> dict[str, Any]:
     """Run one validated, resumable active-A-share core-data batch."""
+
+    historical_market_only = historical_market_date is not None
+    universe_evidence: Mapping[str, object] = {}
+    if historical_market_date is not None:
+        universe_evidence = require_historical_universe_evidence(
+            historical_market_date,
+            services.universe_evidence,
+        )
 
     if expected_universe_hash and (
         len(expected_universe_hash) != 64
@@ -358,7 +355,11 @@ def run_active_a_share_core_data_backfill_batch(
             "checkpoint": blocked_checkpoint,
         }
 
-    end_date = services.latest_completed_market_session(services.current_time())
+    end_date = (
+        historical_market_date
+        if historical_market_date is not None
+        else services.latest_completed_market_session(services.current_time())
+    )
     if end_date is None:
         failed_count = len(batch_codes)
         blocked_checkpoint = {**checkpoint, "complete": False}
@@ -389,11 +390,13 @@ def run_active_a_share_core_data_backfill_batch(
             "stored": 0,
             "checkpoint": blocked_checkpoint,
         }
-    start_date = end_date - timedelta(days=validated_history_days)
+    start_date = (
+        end_date if historical_market_only else end_date - timedelta(days=validated_history_days)
+    )
     quote_use_case = services.make_sync_quote_use_case()
     price_use_case = services.make_sync_price_use_case()
     valuation_batch_use_case = services.make_sync_valuation_batch_use_case()
-    financial_use_case = services.make_sync_financial_use_case()
+    financial_use_case = None if historical_market_only else services.make_sync_financial_use_case()
     authority_current = True
 
     def authority_allows_next_write() -> bool:
@@ -406,7 +409,7 @@ def run_active_a_share_core_data_backfill_batch(
 
     domain_counts: dict[str, dict[str, int]] = {
         name: {
-            "requested": len(batch_codes),
+            "requested": 0 if historical_market_only and name == "financial" else len(batch_codes),
             "succeeded": 0,
             "failed": 0,
             "blocked": 0,
@@ -421,6 +424,7 @@ def run_active_a_share_core_data_backfill_batch(
     execution_token = backfill_execution_token(idempotency_key)
     financial_attempts: list[SyncItemAttempt] = []
     terminal_attempt_ids: set[str] = set()
+    retryable_failure_detected = False
 
     def begin_attempts(
         phase: SyncItemAttemptPhase,
@@ -501,6 +505,22 @@ def run_active_a_share_core_data_backfill_batch(
             ]
         except Exception:
             return False
+        return persist_finished_attempts(terminal_attempts)
+
+    def finish_partial_attempts(
+        attempts: list[SyncItemAttempt],
+        *,
+        succeeded_asset_codes: set[str],
+        missing_error_code: str,
+    ) -> bool:
+        """Persist per-asset terminal evidence for an incomplete historical batch."""
+
+        terminal_attempts = build_partial_terminal_attempts(
+            attempts,
+            succeeded_asset_codes=succeeded_asset_codes,
+            missing_error_code=missing_error_code,
+            finished_at=services.current_time(),
+        )
         return persist_finished_attempts(terminal_attempts)
 
     def item_evidence_blocked_response() -> dict[str, Any]:
@@ -623,35 +643,59 @@ def run_active_a_share_core_data_backfill_batch(
             response["error"] = reason
         return response
 
-    financial_attempts, financial_evidence_ready = begin_attempts(
-        SyncItemAttemptPhase.FINANCIAL,
-        batch_codes,
-    )
-    if not financial_evidence_ready:
-        return item_evidence_blocked_response()
     prepared_financial: dict[str, PreparedFinancialSync] = {}
-    for asset_code in batch_codes:
-        if not authority_allows_next_write():
-            if not finish_attempts(
-                financial_attempts,
-                state=SyncItemAttemptState.BLOCKED,
-                error_code="authority_changed_or_expired",
-            ):
-                return item_evidence_blocked_response()
-            return financial_prepare_terminal_response(
-                outcome=TaskBusinessOutcome.BLOCKED,
-                reason="authority_changed_or_expired",
-            )
-        try:
-            prepared_financial[asset_code] = financial_use_case.prepare_for_write(
-                SyncFinancialRequest(
-                    provider_id=provider_id,
-                    asset_code=asset_code,
-                    periods=validated_periods,
+    if not historical_market_only:
+        financial_attempts, financial_evidence_ready = begin_attempts(
+            SyncItemAttemptPhase.FINANCIAL,
+            batch_codes,
+        )
+        if not financial_evidence_ready:
+            return item_evidence_blocked_response()
+        if financial_use_case is None:  # pragma: no cover - narrowed by mode
+            raise RuntimeError("financial use case is unavailable")
+        for asset_code in batch_codes:
+            if not authority_allows_next_write():
+                if not finish_attempts(
+                    financial_attempts,
+                    state=SyncItemAttemptState.BLOCKED,
+                    error_code="authority_changed_or_expired",
+                ):
+                    return item_evidence_blocked_response()
+                return financial_prepare_terminal_response(
+                    outcome=TaskBusinessOutcome.BLOCKED,
+                    reason="authority_changed_or_expired",
                 )
-            )
-        except InvalidInputError as exc:
-            if exc.code != "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
+            try:
+                prepared_financial[asset_code] = financial_use_case.prepare_for_write(
+                    SyncFinancialRequest(
+                        provider_id=provider_id,
+                        asset_code=asset_code,
+                        periods=validated_periods,
+                    )
+                )
+            except InvalidInputError as exc:
+                if exc.code != "FINANCIAL_SOURCE_EVIDENCE_REQUIRED":
+                    if not finish_attempts(
+                        financial_attempts,
+                        state=SyncItemAttemptState.FAILED,
+                        error_code="financial_prepare_failed",
+                    ):
+                        return item_evidence_blocked_response()
+                    return financial_prepare_terminal_response(
+                        outcome=TaskBusinessOutcome.FAILED,
+                        reason="financial_prepare_failed",
+                    )
+                if not finish_attempts(
+                    financial_attempts,
+                    state=SyncItemAttemptState.BLOCKED,
+                    error_code="financial_source_evidence_required",
+                ):
+                    return item_evidence_blocked_response()
+                return financial_prepare_terminal_response(
+                    outcome=TaskBusinessOutcome.BLOCKED,
+                    reason="financial_source_evidence_required",
+                )
+            except Exception:
                 if not finish_attempts(
                     financial_attempts,
                     state=SyncItemAttemptState.FAILED,
@@ -662,27 +706,6 @@ def run_active_a_share_core_data_backfill_batch(
                     outcome=TaskBusinessOutcome.FAILED,
                     reason="financial_prepare_failed",
                 )
-            if not finish_attempts(
-                financial_attempts,
-                state=SyncItemAttemptState.BLOCKED,
-                error_code="financial_source_evidence_required",
-            ):
-                return item_evidence_blocked_response()
-            return financial_prepare_terminal_response(
-                outcome=TaskBusinessOutcome.BLOCKED,
-                reason="financial_source_evidence_required",
-            )
-        except Exception:
-            if not finish_attempts(
-                financial_attempts,
-                state=SyncItemAttemptState.FAILED,
-                error_code="financial_prepare_failed",
-            ):
-                return item_evidence_blocked_response()
-            return financial_prepare_terminal_response(
-                outcome=TaskBusinessOutcome.FAILED,
-                reason="financial_prepare_failed",
-            )
 
     quote_attempts, quote_evidence_ready = begin_attempts(
         SyncItemAttemptPhase.QUOTE,
@@ -705,7 +728,8 @@ def run_active_a_share_core_data_backfill_batch(
                 SyncQuoteRequest(
                     provider_id=provider_id,
                     asset_codes=batch_codes,
-                    require_exact_asset_codes=True,
+                    require_exact_asset_codes=not historical_market_only,
+                    target_trade_date=historical_market_date,
                 )
             )
             published_total += services.published_count_from_result(quote_result)
@@ -714,24 +738,52 @@ def run_active_a_share_core_data_backfill_batch(
                 str(asset_code or "").strip().upper()
                 for asset_code in quote_result.stored_asset_codes
             )
-            if (
+            invalid_quote_identities = (
                 any(not asset_code for asset_code in quote_asset_codes)
-                or quote_stored != len(batch_codes)
                 or len(set(quote_asset_codes)) != len(quote_asset_codes)
-                or len(quote_asset_codes) != len(batch_codes)
-                or set(quote_asset_codes) != set(batch_codes)
+                or not set(quote_asset_codes).issubset(batch_codes)
+                or quote_stored != len(quote_asset_codes)
+            )
+            if invalid_quote_identities or (
+                not historical_market_only
+                and (
+                    quote_stored != len(batch_codes)
+                    or len(quote_asset_codes) != len(batch_codes)
+                    or set(quote_asset_codes) != set(batch_codes)
+                )
             ):
                 raise ValueError("quote batch asset identities are incomplete")
+            quote_succeeded_codes = set(quote_asset_codes)
+            quote_missing_codes = set(batch_codes) - quote_succeeded_codes
             domain_counts["quote"]["stored"] = quote_stored
-            domain_counts["quote"]["succeeded"] = min(quote_stored, len(batch_codes))
-            domain_counts["quote"]["failed"] = max(len(batch_codes) - quote_stored, 0)
-            if not finish_attempts(
-                quote_attempts,
-                state=SyncItemAttemptState.SUCCEEDED,
-                stored_count=1,
-            ):
+            domain_counts["quote"]["succeeded"] = len(quote_succeeded_codes)
+            domain_counts["quote"]["failed"] = len(quote_missing_codes)
+            failed_asset_codes.update(quote_missing_codes)
+            for asset_code in sorted(quote_missing_codes)[:20]:
+                errors.append(
+                    {
+                        "domain": "quote",
+                        "asset_code": asset_code,
+                        "error": "historical_row_missing",
+                    }
+                )
+            quote_attempts_finished = (
+                finish_partial_attempts(
+                    quote_attempts,
+                    succeeded_asset_codes=quote_succeeded_codes,
+                    missing_error_code="historical_row_missing",
+                )
+                if historical_market_only
+                else finish_attempts(
+                    quote_attempts,
+                    state=SyncItemAttemptState.SUCCEEDED,
+                    stored_count=1,
+                )
+            )
+            if not quote_attempts_finished:
                 return item_evidence_blocked_response()
     except Exception as error:
+        retryable_failure_detected = True
         error_code = (
             "provider_asset_identity_mismatch"
             if isinstance(error, ProviderAssetIdentityError)
@@ -770,7 +822,7 @@ def run_active_a_share_core_data_backfill_batch(
                 provider_id=provider_id,
                 asset_codes=batch_codes,
                 as_of_date=end_date,
-                require_exact_asset_codes=True,
+                require_exact_asset_codes=not historical_market_only,
             )
             published_total += services.published_count_from_result(valuation_result)
             valuation_succeeded_codes = tuple(
@@ -781,18 +833,27 @@ def run_active_a_share_core_data_backfill_batch(
                 str(asset_code or "").strip().upper()
                 for asset_code in valuation_result.returned_asset_codes
             )
-            if (
+            invalid_valuation_identities = (
                 any(
                     not asset_code
                     for asset_code in (*valuation_succeeded_codes, *valuation_returned)
                 )
-                or int(valuation_result.stored_count) != len(batch_codes)
                 or len(set(valuation_succeeded_codes)) != len(valuation_succeeded_codes)
-                or len(valuation_succeeded_codes) != len(batch_codes)
-                or set(valuation_succeeded_codes) != set(batch_codes)
                 or len(set(valuation_returned)) != len(valuation_returned)
-                or len(valuation_returned) != len(batch_codes)
-                or set(valuation_returned) != set(batch_codes)
+                or not set(valuation_succeeded_codes).issubset(batch_codes)
+                or not set(valuation_returned).issubset(batch_codes)
+                or set(valuation_succeeded_codes) != set(valuation_returned)
+                or int(valuation_result.stored_count) != len(valuation_returned)
+            )
+            if invalid_valuation_identities or (
+                not historical_market_only
+                and (
+                    int(valuation_result.stored_count) != len(batch_codes)
+                    or len(valuation_succeeded_codes) != len(batch_codes)
+                    or set(valuation_succeeded_codes) != set(batch_codes)
+                    or len(valuation_returned) != len(batch_codes)
+                    or set(valuation_returned) != set(batch_codes)
+                )
             ):
                 raise ValueError("valuation batch asset identities are incomplete")
             valuation_succeeded = set(valuation_succeeded_codes)
@@ -803,15 +864,31 @@ def run_active_a_share_core_data_backfill_batch(
             failed_asset_codes.update(valuation_missing)
             for asset_code in sorted(valuation_missing)[:20]:
                 errors.append(
-                    {"domain": "valuation", "asset_code": asset_code, "error": "zero_output"}
+                    {
+                        "domain": "valuation",
+                        "asset_code": asset_code,
+                        "error": (
+                            "historical_row_missing" if historical_market_only else "zero_output"
+                        ),
+                    }
                 )
-            if not finish_attempts(
-                valuation_attempts,
-                state=SyncItemAttemptState.SUCCEEDED,
-                stored_count=1,
-            ):
+            valuation_attempts_finished = (
+                finish_partial_attempts(
+                    valuation_attempts,
+                    succeeded_asset_codes=valuation_succeeded,
+                    missing_error_code="historical_row_missing",
+                )
+                if historical_market_only
+                else finish_attempts(
+                    valuation_attempts,
+                    state=SyncItemAttemptState.SUCCEEDED,
+                    stored_count=1,
+                )
+            )
+            if not valuation_attempts_finished:
                 return item_evidence_blocked_response()
     except Exception as error:
+        retryable_failure_detected = True
         error_code = (
             "provider_asset_identity_mismatch"
             if isinstance(error, ProviderAssetIdentityError)
@@ -827,10 +904,10 @@ def run_active_a_share_core_data_backfill_batch(
         ):
             return item_evidence_blocked_response()
 
-    for domain_name, phase in (
-        ("price", SyncItemAttemptPhase.PRICE),
-        ("financial", SyncItemAttemptPhase.FINANCIAL),
-    ):
+    phase_plan = [("price", SyncItemAttemptPhase.PRICE)]
+    if not historical_market_only:
+        phase_plan.append(("financial", SyncItemAttemptPhase.FINANCIAL))
+    for domain_name, phase in phase_plan:
         if domain_name == "financial":
             phase_attempts = financial_attempts
         else:
@@ -870,6 +947,8 @@ def run_active_a_share_core_data_backfill_batch(
                             )
                         )
                     else:
+                        if financial_use_case is None:  # pragma: no cover - narrowed by mode
+                            raise RuntimeError("financial use case is unavailable")
                         result = financial_use_case.execute_prepared(prepared_financial[asset_code])
                     published_total += services.published_count_from_result(result)
                     stored_count = int(result.stored_count)
@@ -898,6 +977,7 @@ def run_active_a_share_core_data_backfill_batch(
                             "zero_output",
                         )
             except Exception:
+                retryable_failure_detected = True
                 domain_counts[domain_name]["failed"] += 1
                 failed_asset_codes.add(asset_code)
                 if len(errors) < 20:
@@ -942,9 +1022,10 @@ def run_active_a_share_core_data_backfill_batch(
     # feed, so use the asset-specific domains to distinguish a genuine
     # zero-output failure from a partial batch; a quote-only write is not a
     # completed core-data asset.
-    asset_domain_stored_total = sum(
-        domain_counts[name]["stored"] for name in ("price", "valuation", "financial")
+    asset_domain_names = (
+        ("price", "valuation") if historical_market_only else ("price", "valuation", "financial")
     )
+    asset_domain_stored_total = sum(domain_counts[name]["stored"] for name in asset_domain_names)
     if asset_domain_stored_total == 0 and failed_total > 0:
         outcome = TaskBusinessOutcome.FAILED
     elif failed_total > 0:
@@ -954,7 +1035,11 @@ def run_active_a_share_core_data_backfill_batch(
     else:
         outcome = TaskBusinessOutcome.SUCCESS
 
-    if outcome is not TaskBusinessOutcome.SUCCESS:
+    if outcome is not TaskBusinessOutcome.SUCCESS and not (
+        historical_market_only
+        and outcome is TaskBusinessOutcome.PARTIAL
+        and not retryable_failure_detected
+    ):
         checkpoint = {
             **checkpoint,
             "next_offset": validated_offset,
@@ -979,7 +1064,11 @@ def run_active_a_share_core_data_backfill_batch(
                 "error": "authority_changed_or_expired",
             }
         )
-    if outcome is TaskBusinessOutcome.SUCCESS and checkpoint["complete"] is True:
+    if (
+        not historical_market_only
+        and outcome is TaskBusinessOutcome.SUCCESS
+        and checkpoint["complete"] is True
+    ):
         publication_attempts, publication_evidence_ready = begin_attempts(
             SyncItemAttemptPhase.PUBLICATION,
             asset_codes,
@@ -1015,7 +1104,7 @@ def run_active_a_share_core_data_backfill_batch(
                     asset_codes=asset_codes,
                     published_at=services.current_time(),
                 )
-                deferred_publications = _deferred_publication_lanes(rebuild_result)
+                deferred_publications = deferred_publication_lanes_from_result(rebuild_result)
                 rebuild_published_count = services.published_count_from_result(rebuild_result)
                 publication_evidence_hash = services.publication_evidence_hash(
                     rebuild_result,
@@ -1130,7 +1219,11 @@ def run_active_a_share_core_data_backfill_batch(
             deferred_publications[0].to_dict() if deferred_publications else None
         ),
         "deferred_publications": [item.to_dict() for item in deferred_publications],
-        "must_not_use_for_decision": bool(deferred_publications),
+        "must_not_use_for_decision": historical_market_only or bool(deferred_publications),
+        "mode": "historical_market_facts" if historical_market_only else "core_data",
+        "target_trade_date": end_date.isoformat() if historical_market_only else None,
+        "universe_evidence": dict(universe_evidence) if historical_market_only else None,
+        "current_publication_changed": False if historical_market_only else published_total > 0,
         "source": normalized_source,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
@@ -1144,16 +1237,3 @@ def run_active_a_share_core_data_backfill_batch(
         "errors": errors,
         "checkpoint": checkpoint,
     }
-
-
-def _deferred_publication_lanes(
-    result: object,
-) -> tuple[DeferredCurrentPublicationLane, ...]:
-    """Narrow the rebuild result's externally owned publication lanes."""
-
-    value = getattr(result, "deferred_publications", ())
-    if not isinstance(value, tuple) or any(
-        type(item) is not DeferredCurrentPublicationLane for item in value
-    ):
-        raise ValueError("deferred publication lane evidence is invalid")
-    return cast(tuple[DeferredCurrentPublicationLane, ...], value)

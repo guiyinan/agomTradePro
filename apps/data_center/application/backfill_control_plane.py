@@ -2,7 +2,31 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
 from uuid import NAMESPACE_URL, uuid5
+
+
+@dataclass(frozen=True, slots=True)
+class BackfillAuthorityBinding:
+    """Server-issued authority identity persisted with every batch checkpoint."""
+
+    actor_id: str
+    tenant_id: str
+    owner_id: str
+    content_hash: str
+    valid_until: datetime
+
+    def to_checkpoint(self) -> dict[str, str]:
+        """Return the immutable, non-secret authority checkpoint projection."""
+
+        return {
+            "actor_id": self.actor_id,
+            "tenant_id": self.tenant_id,
+            "owner_id": self.owner_id,
+            "content_hash": self.content_hash,
+            "valid_until": self.valid_until.isoformat(),
+        }
 
 
 def backfill_control_plane_ids(idempotency_key: str) -> tuple[str, str]:
@@ -19,4 +43,8 @@ def backfill_execution_token(idempotency_key: str) -> str:
     return str(uuid5(NAMESPACE_URL, f"agomtradepro:sync-execution:{idempotency_key}"))
 
 
-__all__ = ["backfill_control_plane_ids", "backfill_execution_token"]
+__all__ = [
+    "BackfillAuthorityBinding",
+    "backfill_control_plane_ids",
+    "backfill_execution_token",
+]

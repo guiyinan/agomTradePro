@@ -213,6 +213,14 @@ UTC 时刻重新计算完整任务授权窗口。配置缺失、identity/actor/r
 
 2026-09-29 全市场 point-in-time universe：`refresh_full_market_publications_task` 保留本次同步的当前 active 候选 count/hash，并将目标交易日 eligible universe 作为独立 requested scope；只有带 `list_date_evidence_status=verified` 与非空来源、且 `list_date > target_trade_date` 的资产才可排除，目标日当天上市资产应纳入。未知、冲突或无来源日期继续计入 requested，普通 provider 缺行仍按未解决缺口阻断。目标日 scope 的候选、requested、排除证据和未知日期证据分别进入结果审计字段；`full_universe_capacity_runner` 与 `market_rehearsal_runner` 使用相同 Application resolver 和同一证据口径，release validator 校验两份容量 receipt 一致。
 
+2026-10-13 历史市场事实回填：`backfill_active_a_share_core_data_batch_task` 的显式
+`historical_market_date` 模式只写目标日 quote、valuation、price 事实及对应 raw audit/item-attempt/control-plane
+证据。目标日必须是 provider calendar 证明的已完成交易日，并绑定 target-date universe、幂等键与批次身份；checkpoint
+冻结 requested universe hash 与 authority；financial
+requested 固定为 0，禁止 current Publication rebuild。provider 返回的真实缺行按资产记录为 partial 且不缩小 requested；
+稳定缺行批次可以前移 checkpoint 以继续完整 universe，provider 异常、authority 漂移或证据失败不得前移。结果固定发布
+`must_not_use_for_decision=true`、`current_publication_changed=false`，历史事实存在不等于 current decision publication 已就绪。
+
 2026-10-05 全市场 task-wide fail-fast lease：所有人工和 Beat 调用共用
 `data_center.refresh_full_market_publications` task 入口。入口在任何 provider、fact 写入或 Publication
 动作前，以 cache 原子 `add` 争取唯一 owner lease；已持有时立即返回 `outcome=noop`、四项零计数和稳定

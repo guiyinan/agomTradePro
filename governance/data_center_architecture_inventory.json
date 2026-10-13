@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5508,
+    "current_surface_references": 5514,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9947,6 +9947,10 @@
       "text": "\"\"\"Require the same current authority before advancing the checkpoint.\"\"\""
     },
     {
+      "path": "apps/data_center/application/tasks.py",
+      "text": "raise ValueError(\"historical_market_date must be before the current China date\")"
+    },
+    {
       "path": "apps/data_center/application/valuation_publication.py",
       "text": "current = self._publications.get_current(self.dataset_key, normalized_key)"
     },
@@ -11857,6 +11861,26 @@
     {
       "path": "apps/data_center/management/commands/audit_on_demand_coverage.py",
       "text": "for item in summary[\"issues\"][:sample_size]:"
+    },
+    {
+      "path": "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "text": "\"A-share trading date without financial or current-publication writes.\""
+    },
+    {
+      "path": "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "text": "\"\"\"Run an authority-bound fact-only backfill without current publication changes.\"\"\""
+    },
+    {
+      "path": "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "text": "raise CommandError(\"--target-trade-date must be before the current China date\")"
+    },
+    {
+      "path": "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "text": "self.stdout.write(json.dumps(summary, ensure_ascii=False, sort_keys=True))"
+    },
+    {
+      "path": "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
+      "text": "summary = {"
     },
     {
       "path": "apps/data_center/management/commands/import_financial_scope_capacity_receipt.py",

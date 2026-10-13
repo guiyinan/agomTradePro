@@ -369,6 +369,26 @@ def test_quote_session_prefetch_provider_rejection_is_audited_and_propagated() -
     assert writer.fetch[-1].outcome is AuditOutcome.FAILED
 
 
+def test_explicit_historical_quote_session_audits_target_trade_date() -> None:
+    """A direct historical fact write retains the exact requested session in RawAudit."""
+
+    target_date = date(2026, 8, 27)
+    provider = _Provider([_quote()])
+    use_case, _uow, _writer, _facts, raw, _quality_recorder = _build([], provider=provider)
+
+    result = use_case.execute(
+        SyncQuoteRequest(
+            provider_id=1,
+            asset_codes=["000001.SZ"],
+            target_trade_date=target_date,
+        )
+    )
+
+    assert result.status == "success"
+    assert provider.session_calls == [(("000001.SZ",), target_date)]
+    assert raw.rows[-1].request_params["target_trade_date"] == "2026-08-27"
+
+
 def test_prefetched_quote_sync_keeps_verified_suspensions_out_of_fact_batches() -> None:
     """Audited writes can consume available rows while rejecting excluded rows."""
 

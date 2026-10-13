@@ -38,6 +38,7 @@ from apps.data_center.domain.control_plane import (
     SyncRun,
     SyncRunStatus,
 )
+from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from apps.data_center.publication_candidate_activation_composition import (
     build_production_current_market_publication_bundle,
 )
@@ -58,9 +59,8 @@ from . import full_market_task_support as market_task
 from . import market_publication_refresh as market_publication_services
 from . import public as public_services
 from .archive_tasks import verify_archive_manifest_task  # noqa: F401
-from .backfill_control_plane import backfill_control_plane_ids
+from .backfill_control_plane import BackfillAuthorityBinding, backfill_control_plane_ids
 from .core_data_backfill import (
-    BackfillAuthorityBinding,
     CoreDataBackfillServices,
     run_active_a_share_core_data_backfill_batch,
 )
@@ -77,6 +77,7 @@ from .data02_task_authority import (
     same_data02_task_authority_is_current as _same_data02_task_authority_is_current,
 )
 from .full_market_refresh_orchestration import run_full_market_publication_refresh
+from .historical_market_backfill import target_date_universe_evidence
 from .interface_services import (
     make_backfill_sync_current_valuation_batch_use_case,
     make_backfill_sync_financial_use_case,
@@ -87,6 +88,9 @@ from .interface_services import (
 )
 from .market_calendar import (
     latest_full_market_provider_ready_session as latest_closed_cn_market_session,
+)
+from .market_calendar import (
+    load_open_cn_market_sessions,
 )
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 from .public import (
@@ -571,6 +575,7 @@ def _backfill_idempotency_key(
     history_days: object,
     financial_periods: object,
     authority_content_hash: object = "",
+    historical_market_date: object = "",
 ) -> str:
     """Build a bounded, deterministic key for one requested backfill window.
 
@@ -593,6 +598,7 @@ def _backfill_idempotency_key(
             f"history_days={history_days!r}",
             f"financial_periods={financial_periods!r}",
             f"authority_content_hash={authority_content_hash!r}",
+            f"historical_market_date={historical_market_date!r}",
         )
     )
     digest = hashlib.sha256(material.encode("utf-8", errors="replace")).hexdigest()[:16]
@@ -601,6 +607,8 @@ def _backfill_idempotency_key(
         f"offset={str(offset)[:24]}:"
         f"window={str(batch_size)[:24]}"
     )
+    if historical_market_date:
+        visible += f":date={str(historical_market_date)[:10]}"
     return f"{visible}:{digest}"
 
 
@@ -881,6 +889,7 @@ def backfill_active_a_share_core_data_batch_task(
     financial_periods: int = 8,
     operator: str = "",
     universe_hash: str = "",
+    historical_market_date: str = "",
 ) -> dict[str, Any]:
     """Backfill one resumable active-A-share core-data batch."""
 
@@ -940,6 +949,19 @@ def backfill_active_a_share_core_data_batch_task(
             raise ValueError("universe_hash must be an exact lowercase sha256 digest")
         if validated_offset > 0 and not normalized_universe_hash:
             raise ValueError("universe_hash is required when offset is nonzero")
+        if not isinstance(historical_market_date, str):
+            raise ValueError("historical_market_date must be an ISO date string")
+        normalized_historical_market_date = historical_market_date.strip()
+        if normalized_historical_market_date != historical_market_date:
+            raise ValueError("historical_market_date must be canonical")
+        parsed_historical_market_date: date | None = None
+        if normalized_historical_market_date:
+            parsed_historical_market_date = date.fromisoformat(normalized_historical_market_date)
+            if parsed_historical_market_date.isoformat() != normalized_historical_market_date:
+                raise ValueError("historical_market_date must be canonical")
+            current_cn_date = started_at.astimezone(CN_MARKET_TIMEZONE).date()
+            if parsed_historical_market_date >= current_cn_date:
+                raise ValueError("historical_market_date must be before the current China date")
     except ValueError as exc:
         checkpoint = {
             "offset": 0,
@@ -968,6 +990,52 @@ def backfill_active_a_share_core_data_batch_task(
         return authority_failure
     if authority is None:  # pragma: no cover - narrowed by the failure branch
         raise RuntimeError("authority preflight returned no context")
+    historical_scope = None
+    historical_universe_evidence: dict[str, object] = {}
+    if parsed_historical_market_date is not None:
+        try:
+            open_sessions = load_open_cn_market_sessions(
+                parsed_historical_market_date,
+                parsed_historical_market_date,
+            )
+        except (DataFetchError, OSError, PermissionError, RuntimeError, TypeError, ValueError):
+            return {
+                "success": False,
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "stage": "historical_market_calendar",
+                "blocked_reason": "historical_market_calendar_unavailable",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "checkpoint": {
+                    "offset": validated_offset,
+                    "next_offset": validated_offset,
+                    "total_assets": 0,
+                    "complete": False,
+                    "target_trade_date": parsed_historical_market_date.isoformat(),
+                },
+            }
+        if parsed_historical_market_date not in open_sessions:
+            return {
+                "success": False,
+                "outcome": TaskBusinessOutcome.BLOCKED.value,
+                "stage": "historical_market_calendar",
+                "blocked_reason": "historical_market_date_is_not_open_session",
+                "requested": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stored": 0,
+                "checkpoint": {
+                    "offset": validated_offset,
+                    "next_offset": validated_offset,
+                    "total_assets": 0,
+                    "complete": False,
+                    "target_trade_date": parsed_historical_market_date.isoformat(),
+                },
+            }
+        historical_scope = build_target_date_a_share_universe_scope(parsed_historical_market_date)
+        historical_universe_evidence = target_date_universe_evidence(historical_scope)
     authority_binding = BackfillAuthorityBinding(
         actor_id=authority.actor_id,
         tenant_id=authority.tenant_id,
@@ -999,6 +1067,11 @@ def backfill_active_a_share_core_data_batch_task(
         validated_history_days,
         validated_periods,
         authority.authority_content_hash,
+        (
+            parsed_historical_market_date.isoformat()
+            if parsed_historical_market_date is not None
+            else ""
+        ),
     )
 
     def revalidate_authority(as_of: datetime) -> bool:
@@ -1019,8 +1092,13 @@ def backfill_active_a_share_core_data_batch_task(
         idempotency_key=idempotency_key,
         expected_universe_hash=normalized_universe_hash,
         started_at=started_at,
+        historical_market_date=parsed_historical_market_date,
         services=CoreDataBackfillServices(
-            list_active_stock_codes=list_active_stock_codes_for_backfill,
+            list_active_stock_codes=(
+                (lambda: list(historical_scope.requested_codes))
+                if historical_scope is not None
+                else list_active_stock_codes_for_backfill
+            ),
             get_active_provider_id=get_active_provider_id_by_source,
             latest_completed_market_session=latest_completed_cn_market_session,
             current_time=timezone.now,
@@ -1046,6 +1124,9 @@ def backfill_active_a_share_core_data_batch_task(
             item_attempt_store=get_backfill_item_attempt_store(),
             authority_binding=authority_binding,
             revalidate_authority=revalidate_authority,
+            universe_evidence=(
+                (lambda: historical_universe_evidence) if historical_scope is not None else None
+            ),
         ),
     )
 

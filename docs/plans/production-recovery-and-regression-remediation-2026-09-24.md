@@ -4528,3 +4528,27 @@ artifact 的全部 required identity 为 0 missing/skip/failure/error 后，才�
 验证结果：market calendar 与 full-market publication refresh 聚焦回归 `118 passed`；正式周期入口组件回归 `16 passed`；current-data 全清单为 `317 passed / 14 skipped`，skip 均为本机 Windows 缺少的 PostgreSQL/POSIX 环境。Black、isort、Ruff、current-data `73 surfaces`、module map `44 modules / 210 edges`、Data Center architecture inventory、架构规则与 delta、governance `0 violations`、增量 mypy `0 regressions` 和全仓 debt ceiling `0 errors` 均通过。
 
 旧 attempts `bed6930cfeb847bf85b4c838f69a4897` 与 `4063e1b8237e47b9a23f30322796cc16` 继续保留原始失败证据，禁止 resume、复用或重跑。该代码变更必须形成新 exact SHA，从头完成五组 workflow_dispatch CI、official PostgreSQL artifact 独立核验和 fresh S6；此前 `c36e8c6b4fd457a08b59e7d63e9d148e2d28c6ed` 的成功 CI 不能与新候选拼接。清晨窗口没有证明 provider 会在所有日期稳定保留昨日截面，真实 provider 若提前切日仍由精确日期门禁失败关闭。
+
+##### 2026-10-13 显式交易日历史市场事实回填
+
+能力缺口确认：生产自动任务错过交易日后，旧 `backfill_active_a_share_core_data` 只能解析运行时最近完成日，并混合 financial
+准备与 current Publication 重建；`repair_active_a_share_current_facts` 又在盘中拒绝解析最近完成日。两者都不能安全表达“只补
+某个已完成交易日的 quote/valuation/price 历史事实”。生产只读快照对 `2026-10-12` 仅有 price 299、quote 2、valuation 0；
+零写 provider 预检虽取得 Tushare quote `5565/5573`、valuation `5561/5573`，但它既不是 S6，也不能冒充正式 Tencent current
+valuation route 或部署凭证。
+
+本片在现有受审 core-data batch 上增加显式 `historical_market_date` 模式，并新增默认 dry-run 的
+`backfill_historical_a_share_market_facts` 命令。入口只接受早于当前中国日期、且 provider calendar 明确标为 open session 的日期；
+目标日 universe 使用现有 target-date resolver 冻结 count/hash。execute 仍要求 server-issued DATA-02 operator/authority，目标日期
+进入幂等键和批次身份，checkpoint 冻结 requested universe hash 与 authority；每批保留 requested/succeeded/failed/stored、逐资产 item-attempt、raw audit 与真实缺行稳定码。该模式
+只复用已有 quote、valuation、price fact writers：quote 显式携带 target date，price 窗口固定为目标日，financial requested 恒为 0，
+也不调用 current Publication rebuild。稳定缺行可以作为 partial 继续推进后续批次；provider 异常、authority 漂移和证据写失败保持
+checkpoint 不前移。结果固定 `must_not_use_for_decision=true` 与 `current_publication_changed=false`，历史事实回填不会自动解锁
+decision runtime。
+
+当前验证：既有与新增 core backfill/command 单测 `52 passed`；Black、isort、Ruff、Celery task contract、current-data contract 与
+增量 mypy 已通过。尚待完成 module-map 生成投影、全仓 debt ceiling、治理检查和最新生产只读快照的隔离 PostgreSQL
+`2026-10-12` 演练。隔离演练通过前禁止生产写；最终代码形成新 exact SHA 后，`84b02b89ca5a946ef3a55512e4f28ddb51b56378`
+的 CI 仅作历史证据，必须重新运行五组 exact-SHA CI、独立核验 official PostgreSQL artifact，再创建 fresh S6，禁止 `--resume`。
+两个周期入口继续 disabled；production financial refresh 的 full-scope receipt、两个独立认证 owner/reviewer 事件与有效 ceiling
+停止线不变。

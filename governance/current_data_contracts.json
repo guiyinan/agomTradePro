@@ -4833,8 +4833,10 @@
         "apps/data_center/application/tasks.py",
         "apps/data_center/application/market_publication_refresh.py",
         "apps/data_center/management/commands/backfill_active_a_share_core_data.py",
+        "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py",
         "apps/data_center/management/commands/setup_full_market_publications.py",
         "apps/data_center/application/backfill_control_plane.py",
+        "apps/data_center/application/historical_market_backfill.py",
         "apps/data_center/domain/control_plane.py",
         "apps/data_center/infrastructure/backfill_item_attempt_store.py",
         "apps/data_center/infrastructure/control_plane_repositories.py",
@@ -5163,7 +5165,6 @@
           "rebuild_current_publications",
           "current_publication_rebuild_failed",
           "checkpoint = {**checkpoint, \"complete\": False}",
-          "class BackfillAuthorityBinding:",
           "active-a-share-universe.v1",
           "expected_universe_hash and expected_universe_hash != observed_universe_hash",
           "\"authority\": services.authority_binding.to_checkpoint()",
@@ -5382,9 +5383,23 @@
           "operator=operator",
           "universe_hash=universe_hash"
         ],
+        "apps/data_center/management/commands/backfill_historical_a_share_market_facts.py": [
+          "--target-trade-date",
+          "mode\": \"historical_market_facts",
+          "current_publication_changed\": False",
+          "must_not_use_for_decision\": True",
+          "historical_market_date=target_trade_date.isoformat()"
+        ],
         "apps/data_center/application/backfill_control_plane.py": [
+          "class BackfillAuthorityBinding:",
           "def backfill_control_plane_ids(",
           "def backfill_execution_token("
+        ],
+        "apps/data_center/application/historical_market_backfill.py": [
+          "historical-market-universe.v1",
+          "def require_historical_universe_evidence(",
+          "def build_partial_terminal_attempts(",
+          "def target_date_universe_evidence("
         ],
         "apps/data_center/infrastructure/backfill_item_attempt_store.py": [
           "class DjangoBackfillItemAttemptStore:",

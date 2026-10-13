@@ -24,6 +24,7 @@ from apps.data_center.domain.control_plane import (
     SyncItemAttemptPhase,
     SyncItemAttemptState,
 )
+from apps.data_center.domain.market_time import CN_MARKET_TIMEZONE
 from core.exceptions import InvalidInputError
 
 AUTHORITY_HASH = "a" * 64
@@ -207,6 +208,7 @@ def _patch_backfill_dependencies(
     valuation_returned_codes=None,
     financial_evidence_blocked_asset=None,
     captured_use_cases=None,
+    historical_market: bool = False,
 ):
     mocker.patch(
         "apps.data_center.application.tasks.list_active_stock_codes_for_backfill",
@@ -220,6 +222,21 @@ def _patch_backfill_dependencies(
         "apps.data_center.application.tasks.latest_completed_cn_market_session",
         return_value=date(2026, 7, 31),
     )
+    if historical_market:
+        mocker.patch(
+            "apps.data_center.application.tasks.load_open_cn_market_sessions",
+            return_value=(date(2026, 7, 31),),
+        )
+        mocker.patch(
+            "apps.data_center.application.tasks.build_target_date_a_share_universe_scope",
+            return_value=SimpleNamespace(
+                target_date=date(2026, 7, 31),
+                candidate_codes=("000001.SZ", "002156.SZ"),
+                requested_codes=("000001.SZ", "002156.SZ"),
+                excluded_not_yet_listed=(),
+                unknown_listing_date_codes=(),
+            ),
+        )
 
     def _use_case(domain):
         use_case = mocker.Mock()
@@ -233,7 +250,7 @@ def _patch_backfill_dependencies(
             if failure == (domain, asset_code):
                 raise RuntimeError("provider failure")
             count = (
-                len(request.asset_codes)
+                len(request.asset_codes if quote_asset_codes is None else quote_asset_codes)
                 if domain == "quote"
                 else (stored_count_by_asset or {}).get((domain, asset_code), stored_count)
             )
@@ -281,9 +298,14 @@ def _patch_backfill_dependencies(
                 require_exact_asset_codes=False,
             ):
                 del provider_id, as_of_date
-                assert require_exact_asset_codes is True
+                assert require_exact_asset_codes is (not historical_market)
                 succeeded = [code for code in asset_codes if failure != ("valuation", code)]
-                count = len(succeeded) if stored_count else 0
+                returned = (
+                    tuple(succeeded)
+                    if valuation_returned_codes is None
+                    else tuple(valuation_returned_codes)
+                )
+                count = len(returned) if stored_count else 0
                 return SimpleNamespace(
                     stored_count=count,
                     succeeded_asset_codes=(
@@ -295,11 +317,7 @@ def _patch_backfill_dependencies(
                         if stored_count
                         else []
                     ),
-                    returned_asset_codes=(
-                        tuple(succeeded)
-                        if valuation_returned_codes is None
-                        else tuple(valuation_returned_codes)
-                    ),
+                    returned_asset_codes=(returned),
                 )
 
             use_case.execute.side_effect = _execute_current_batch
@@ -331,6 +349,104 @@ def _patch_backfill_dependencies(
         return_value=coordinator,
     )
     return factory, coordinator
+
+
+def test_historical_market_backfill_stores_available_rows_without_publication(
+    mocker,
+    _patch_control_plane_repositories,
+) -> None:
+    """Exact-date mode advances a partial batch while preserving missing identities."""
+
+    use_cases = {}
+    publication_factory, coordinator = _patch_backfill_dependencies(
+        mocker,
+        historical_market=True,
+        quote_asset_codes=["000001.SZ"],
+        valuation_succeeded_codes=["000001.SZ"],
+        valuation_returned_codes=["000001.SZ"],
+        captured_use_cases=use_cases,
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(
+        batch_size=2,
+        operator="service:data02",
+        historical_market_date="2026-07-31",
+    )
+
+    assert result["outcome"] == "partial"
+    assert result["mode"] == "historical_market_facts"
+    assert result["target_trade_date"] == "2026-07-31"
+    assert result["start_date"] == result["end_date"] == "2026-07-31"
+    assert result["domains"]["financial"] == {
+        "requested": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "blocked": 0,
+        "stored": 0,
+    }
+    assert result["domains"]["quote"]["failed"] == 1
+    assert result["domains"]["valuation"]["failed"] == 1
+    assert result["checkpoint"]["next_offset"] == 2
+    assert result["checkpoint"]["complete"] is True
+    assert result["published"] == 0
+    assert result["current_publication_changed"] is False
+    assert result["must_not_use_for_decision"] is True
+    assert any(
+        item
+        == {
+            "domain": "quote",
+            "asset_code": "002156.SZ",
+            "error": "historical_row_missing",
+        }
+        for item in result["errors"]
+    )
+    quote_request = use_cases["quote"].execute.call_args.args[0]
+    assert quote_request.target_trade_date == date(2026, 7, 31)
+    assert quote_request.require_exact_asset_codes is False
+    publication_factory.assert_not_called()
+    coordinator.execute.assert_not_called()
+    idempotency_key = _patch_control_plane_repositories["batch"].save.call_args.args[
+        0
+    ].idempotency_key
+    assert ":date=2026-07-31:" in idempotency_key
+
+
+def test_historical_market_backfill_does_not_advance_retryable_provider_failure(
+    mocker,
+) -> None:
+    """A provider exception is retryable and cannot be consumed as a stable missing row."""
+
+    _patch_backfill_dependencies(
+        mocker,
+        historical_market=True,
+        failure=("price", "002156.SZ"),
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(
+        batch_size=2,
+        operator="service:data02",
+        historical_market_date="2026-07-31",
+    )
+
+    assert result["outcome"] == "partial"
+    assert result["checkpoint"]["next_offset"] == 0
+    assert result["checkpoint"]["complete"] is False
+
+
+def test_historical_market_backfill_rejects_current_china_date_before_provider_access(
+    mocker,
+) -> None:
+    provider = mocker.patch("apps.data_center.application.tasks.get_active_provider_id_by_source")
+    today = datetime.now(UTC).astimezone(CN_MARKET_TIMEZONE).date().isoformat()
+
+    result = backfill_active_a_share_core_data_batch_task.run(
+        operator="service:data02",
+        historical_market_date=today,
+    )
+
+    assert result["outcome"] == "failed"
+    assert result["stage"] == "input"
+    provider.assert_not_called()
 
 
 def test_backfill_batch_rejects_invalid_input_before_repository_access(

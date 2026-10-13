@@ -3975,6 +3975,7 @@
           "resolve_unique_exact_asset_name"
         ],
         "application/backfill_control_plane.py": [
+          "BackfillAuthorityBinding",
           "backfill_control_plane_ids",
           "backfill_execution_token"
         ],
@@ -4024,7 +4025,6 @@
           "require_generic_publication_lane"
         ],
         "application/core_data_backfill.py": [
-          "BackfillAuthorityBinding",
           "BackfillItemAttemptStore",
           "CoreDataBackfillServices",
           "PersistBackfillControlPlane",
@@ -4074,7 +4074,8 @@
           "CurrentPublicationCandidateRepositoryProtocol",
           "CurrentPublicationRebuildUseCase",
           "DeferredCurrentPublicationLane",
-          "TargetDatePublicationObservationProbeProtocol"
+          "TargetDatePublicationObservationProbeProtocol",
+          "deferred_publication_lanes_from_result"
         ],
         "application/current_publication_staging.py": [
           "CandidateRawAuditMetadataResolverProtocol",
@@ -4438,6 +4439,11 @@
           "task_attempt_identity_failure",
           "valuation_partial_policy_allows",
           "valuation_scope_incomplete_failure"
+        ],
+        "application/historical_market_backfill.py": [
+          "build_partial_terminal_attempts",
+          "require_historical_universe_evidence",
+          "target_date_universe_evidence"
         ],
         "application/interface_services.py": [
           "fetch_latest_prices",
@@ -5111,11 +5117,11 @@
         ]
       },
       "layers": {
-        "application": 137,
+        "application": 138,
         "domain": 35,
         "infrastructure": 179,
         "interface": 19,
-        "management": 41,
+        "management": 42,
         "root": 21
       },
       "orm_models": {
