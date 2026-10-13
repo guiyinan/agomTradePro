@@ -4518,3 +4518,13 @@ receipt、两个独立认证 owner/reviewer 事件与有效 ceiling 停止线不
 下一片是否可开始：提交并 push 本节台账后，以新的 exact SHA 从头运行 Architecture、Security、Consistency、Fast Feedback
 与 Publication PostgreSQL。任一失败先保留诊断并修根因，禁止重跑失败 run 或拼接旧结果；五组全绿并独立核验 official
 artifact 的全部 required identity 为 0 missing/skip/failure/error 后，才可 reserve 全新 S6。
+
+##### 2026-10-13 S6 上一交易日清晨检测窗口
+
+只读核验确认生产三类 current Publication 仍绑定 `2026-09-30`，因此不能以 `advance_isolated_market_graph=false` 将其冒充 `2026-10-12` 检测输入。北京时间清晨对生产相同 Tencent 估值入口的零写探测返回精确观测日 `2026-10-12`，证明交易日开盘前 provider 仍提供上一已完成交易日，而现有 calendar 门禁把午夜至 17:05 全部拒绝，范围过宽。
+
+候选将 full-market provider 日期窗口收窄为三段：交易日 09:15 前选择上一已就绪交易日；09:15 至 17:05 在 universe/provider/fact/publication I/O 前继续以 `CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY` 零写阻断；17:05 后选择当日。周末和休市日保持全天选择最近已就绪交易日。事实源日期、15:00 close、完整 coverage、raw audit、provider route、freshness 和 release receipt 门槛均未改变；正式周期入口仍只允许配置在 17:05 或之后。
+
+验证结果：market calendar 与 full-market publication refresh 聚焦回归 `118 passed`；正式周期入口组件回归 `16 passed`；current-data 全清单为 `317 passed / 14 skipped`，skip 均为本机 Windows 缺少的 PostgreSQL/POSIX 环境。Black、isort、Ruff、current-data `73 surfaces`、module map `44 modules / 210 edges`、Data Center architecture inventory、架构规则与 delta、governance `0 violations`、增量 mypy `0 regressions` 和全仓 debt ceiling `0 errors` 均通过。
+
+旧 attempts `bed6930cfeb847bf85b4c838f69a4897` 与 `4063e1b8237e47b9a23f30322796cc16` 继续保留原始失败证据，禁止 resume、复用或重跑。该代码变更必须形成新 exact SHA，从头完成五组 workflow_dispatch CI、official PostgreSQL artifact 独立核验和 fresh S6；此前 `c36e8c6b4fd457a08b59e7d63e9d148e2d28c6ed` 的成功 CI 不能与新候选拼接。清晨窗口没有证明 provider 会在所有日期稳定保留昨日截面，真实 provider 若提前切日仍由精确日期门禁失败关闭。
