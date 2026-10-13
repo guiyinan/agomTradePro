@@ -23,7 +23,7 @@ from .current_publication_rebuild import (
     DeferredCurrentPublicationLane,
     deferred_publication_lanes_from_result,
 )
-from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest, SyncResult
+from .dtos import SyncFinancialRequest, SyncPriceRequest, SyncQuoteRequest
 from .historical_market_backfill import (
     build_partial_terminal_attempts,
     require_historical_universe_evidence,
@@ -663,6 +663,30 @@ def run_active_a_share_core_data_backfill_batch(
             if not item_evidence_ready:
                 return item_evidence_blocked_response()
         attempts_by_asset = {attempt.asset_code: attempt for attempt in phase_attempts}
+        historical_price_codes: set[str] | None = None
+        historical_price_error: Exception | None = None
+        if historical_market_only and domain_name == "price":
+            try:
+                if authority_allows_next_write():
+                    batch_result = price_use_case.execute_session_batch(
+                        provider_id=provider_id,
+                        asset_codes=batch_codes,
+                        target_trade_date=end_date,
+                    )
+                    returned = tuple(
+                        str(code or "").strip().upper() for code in batch_result.stored_asset_codes
+                    )
+                    if (
+                        any(not code for code in returned)
+                        or len(set(returned)) != len(returned)
+                        or not set(returned).issubset(batch_codes)
+                        or int(batch_result.stored_count) != len(returned)
+                    ):
+                        raise ValueError("historical price batch identities are incomplete")
+                    historical_price_codes = set(returned)
+                    published_total += services.published_count_from_result(batch_result)
+            except Exception as error:
+                historical_price_error = error
         completion_specs: list[tuple[SyncItemAttempt, SyncItemAttemptState, int, str]] = []
         for asset_code in batch_codes:
             completion_key: tuple[SyncItemAttemptState, int, str]
@@ -684,8 +708,11 @@ def run_active_a_share_core_data_backfill_batch(
                         "authority_changed_or_expired",
                     )
                 else:
-                    result: SyncResult
-                    if domain_name == "price":
+                    if historical_market_only and domain_name == "price":
+                        if historical_price_error is not None:
+                            raise historical_price_error
+                        stored_count = int(asset_code in (historical_price_codes or set()))
+                    elif domain_name == "price":
                         result = price_use_case.execute(
                             SyncPriceRequest(
                                 provider_id=provider_id,
@@ -698,8 +725,9 @@ def run_active_a_share_core_data_backfill_batch(
                         if financial_use_case is None:  # pragma: no cover - narrowed by mode
                             raise RuntimeError("financial use case is unavailable")
                         result = financial_use_case.execute_prepared(prepared_financial[asset_code])
-                    published_total += services.published_count_from_result(result)
-                    stored_count = int(result.stored_count)
+                    if not (historical_market_only and domain_name == "price"):
+                        published_total += services.published_count_from_result(result)
+                        stored_count = int(result.stored_count)
                     domain_counts[domain_name]["stored"] += stored_count
                     if stored_count > 0:
                         domain_counts[domain_name]["succeeded"] += 1

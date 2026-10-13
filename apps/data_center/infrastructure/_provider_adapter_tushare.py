@@ -741,6 +741,40 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             for bar in bars
         ]
 
+    def fetch_price_history_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[PriceBar]:
+        """Fetch one exact stock session through the provider's full-market endpoint."""
+
+        from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+        gateway = TushareGateway(
+            token=self._config.api_key,
+            http_url=self._config.http_url,
+            request_mode=self._configured_request_mode(),
+            source_name=self.provider_name(),
+            provider_id=self._config.id,
+            deployment_region=_deployment_region(),
+            dataset_key="equity.price.bar",
+        )
+        bars = gateway.get_historical_prices_for_session(asset_codes, target_trade_date)
+        return [
+            PriceBar(
+                asset_code=bar.asset_code,
+                bar_date=bar.trade_date,
+                open=bar.open,
+                high=bar.high,
+                low=bar.low,
+                close=bar.close,
+                volume=float(bar.volume) if bar.volume is not None else None,
+                amount=bar.amount,
+                source=str(bar.source or self.provider_source()).strip(),
+            )
+            for bar in bars
+        ]
+
     def fetch_quote_snapshots(self, asset_codes: list[str]) -> list[QuoteSnapshot]:
         """Resolve an authoritative completed session before reading the batch."""
         from apps.data_center.application.market_calendar import (

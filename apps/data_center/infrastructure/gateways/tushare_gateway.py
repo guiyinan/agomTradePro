@@ -420,6 +420,70 @@ class TushareGateway(MarketGatewayProtocol):
             logger.exception("Tushare 历史 K 线获取失败: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 
+    def get_historical_prices_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[HistoricalPriceBar]:
+        """Fetch one full-market stock session and narrow it to the requested scope."""
+
+        requested = {
+            normalized
+            for code in asset_codes
+            if (normalized := _normalize_asset_code(code)) is not None
+        }
+        if len(requested) != len(asset_codes):
+            raise ValueError("historical session asset scope is invalid")
+        try:
+            pro = cast(_TushareProClientProtocol, self._create_client())
+            frame = pro.daily(trade_date=target_trade_date.strftime("%Y%m%d"))
+            if frame is None or frame.empty:
+                raise TushareError(
+                    "目标交易日的历史行情数据尚未可用",
+                    code="TUSHARE_DATA_NOT_YET_AVAILABLE",
+                )
+            bars: list[HistoricalPriceBar] = []
+            for _, row in frame.iterrows():
+                asset_code = _normalize_asset_code(str(row.get("ts_code") or ""))
+                trade_date = _parse_compact_date(str(row.get("trade_date") or ""))
+                prices = tuple(
+                    safe_float(row.get(field)) for field in ("open", "high", "low", "close")
+                )
+                if (
+                    asset_code not in requested
+                    or trade_date != target_trade_date
+                    or any(value is None or value <= 0 for value in prices)
+                ):
+                    continue
+                open_price, high_price, low_price, close_price = cast(
+                    tuple[float, float, float, float], prices
+                )
+                if high_price < max(
+                    open_price, high_price, low_price, close_price
+                ) or low_price > min(open_price, high_price, low_price, close_price):
+                    continue
+                volume = safe_float(row.get("vol"))
+                amount = safe_float(row.get("amount"))
+                bars.append(
+                    HistoricalPriceBar(
+                        asset_code=asset_code,
+                        trade_date=trade_date,
+                        open=open_price,
+                        high=high_price,
+                        low=low_price,
+                        close=close_price,
+                        volume=int(volume * 100) if volume is not None and volume >= 0 else None,
+                        amount=amount * 1000 if amount is not None and amount >= 0 else None,
+                        source="tushare",
+                    )
+                )
+            logger.info(
+                "Tushare 历史交易日批量行情: 请求 %d 只, 成功 %d 只", len(requested), len(bars)
+            )
+            return bars
+        except (TushareRelayAuthorizationError, TushareError):
+            raise
+
     @staticmethod
     def _to_tushare_code(code: str) -> str:
         """纯数字代码转 Tushare 格式"""

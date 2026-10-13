@@ -266,6 +266,25 @@ def _patch_backfill_dependencies(
             return SimpleNamespace(stored_count=count)
 
         use_case.execute.side_effect = _execute
+        if domain == "price":
+
+            def _execute_session_batch(*, provider_id, asset_codes, target_trade_date):
+                del provider_id
+                assert historical_market is True
+                assert target_trade_date == date(2026, 7, 31)
+                if failure is not None and failure[0] == "price":
+                    raise RuntimeError("provider failure")
+                returned = tuple(
+                    code
+                    for code in asset_codes
+                    if (stored_count_by_asset or {}).get((domain, code), stored_count)
+                )
+                return SimpleNamespace(
+                    stored_count=len(returned),
+                    stored_asset_codes=returned,
+                )
+
+            use_case.execute_session_batch.side_effect = _execute_session_batch
         if domain == "financial":
 
             def _prepare_for_write(request):
@@ -403,6 +422,8 @@ def test_historical_market_backfill_stores_available_rows_without_publication(
     quote_request = use_cases["quote"].execute.call_args.args[0]
     assert quote_request.target_trade_date == date(2026, 7, 31)
     assert quote_request.require_exact_asset_codes is False
+    use_cases["price"].execute_session_batch.assert_called_once()
+    use_cases["price"].execute.assert_not_called()
     publication_factory.assert_not_called()
     coordinator.execute.assert_not_called()
     idempotency_key = (

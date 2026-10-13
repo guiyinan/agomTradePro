@@ -4552,3 +4552,9 @@ decision runtime。
 的 CI 仅作历史证据，必须重新运行五组 exact-SHA CI、独立核验 official PostgreSQL artifact，再创建 fresh S6，禁止 `--resume`。
 两个周期入口继续 disabled；production financial refresh 的 full-scope receipt、两个独立认证 owner/reviewer 事件与有效 ceiling
 停止线不变。
+
+隔离 PostgreSQL 首批 execute 进一步暴露了吞吐根因：旧 price 路径按资产调用 Tushare 历史接口，受 provider 频率限制时，全市场
+5573 只预计需要数日，无法形成可执行的恢复窗口。修复后 price writer 通过可选的 session-batch provider capability 对显式交易日仅发起
+一次全市场 `daily(trade_date=...)` 请求，再按冻结 universe 收窄并原子写入 fact/raw audit；每只资产仍保留独立成功或真实缺行证据，
+quote、valuation、current producer、financial 与 Publication 语义不变。该优化必须形成新的 exact SHA 并重新完成五组 CI、official artifact
+核验和全新隔离演练；旧候选及首批 `49/50` 的 partial 结果只保留为诊断证据，不得续跑或拼接。

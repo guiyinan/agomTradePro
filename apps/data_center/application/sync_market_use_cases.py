@@ -21,6 +21,7 @@ from apps.data_center.domain.protocols import (
     ProviderConfigRepositoryProtocol,
     ProviderRegistryProtocol,
     RawAuditRepositoryProtocol,
+    SessionPriceBatchProviderProtocol,
 )
 from apps.data_center.domain.raw_audit_manifest import validate_raw_audit_source_type
 from core.exceptions import DataFetchError
@@ -187,6 +188,72 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             request_params=request_params,
             bars=bars,
             started_at=started_at,
+        )
+        return result
+
+    def execute_session_batch(
+        self,
+        *,
+        provider_id: int,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> SyncResult:
+        """Fetch and atomically persist one explicit historical trading session."""
+
+        if (
+            not asset_codes
+            or len(set(asset_codes)) != len(asset_codes)
+            or any(not code or code != code.strip().upper() for code in asset_codes)
+        ):
+            raise DataFetchError(
+                "Historical price batch scope is invalid",
+                code="HISTORICAL_PRICE_BATCH_SCOPE_INVALID",
+            )
+        config, provider = self._get_provider(provider_id)
+        provider_name = provider.provider_name()
+        request_params: Mapping[str, object] = {
+            "asset_count": len(asset_codes),
+            "asset_codes_sha256": asset_code_scope_sha256(tuple(asset_codes)),
+            "target_trade_date": target_trade_date.isoformat(),
+        }
+        started_at = self._clock.now()
+        try:
+            if not isinstance(provider, SessionPriceBatchProviderProtocol):
+                raise DataFetchError(
+                    "Provider does not support session price batches",
+                    code="HISTORICAL_PRICE_BATCH_UNAVAILABLE",
+                )
+            bars = provider.fetch_price_history_for_session(asset_codes, target_trade_date)
+            bars = [
+                dataclasses.replace(bar, source=str(bar.source or config.source_type).strip())
+                for bar in bars
+            ]
+            returned = [bar.asset_code for bar in bars]
+            if (
+                len(set(returned)) != len(returned)
+                or not set(returned).issubset(asset_codes)
+                or any(bar.bar_date != target_trade_date for bar in bars)
+            ):
+                raise DataFetchError(
+                    "Historical price batch identities are invalid",
+                    code="HISTORICAL_PRICE_BATCH_IDENTITY_INVALID",
+                )
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as error:
+            self._commit_price_fetch_failure(
+                config=config,
+                provider_name=provider_name,
+                request_params=request_params,
+                started_at=started_at,
+                error=error,
+            )
+            raise
+        result, _binding = self._commit_price_fetch_success(
+            config=config,
+            provider_name=provider_name,
+            request_params=request_params,
+            bars=bars,
+            started_at=started_at,
+            expected_count=len(bars),
         )
         return result
 
@@ -614,6 +681,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 publication_id=publication.publication_id if publication is not None else None,
                 publication_version=publication.policy_version if publication is not None else None,
                 publication_hash=publication.publication_hash if publication is not None else None,
+                stored_asset_codes=tuple(sorted({bar.asset_code for bar in bars})),
             ),
             binding,
         )

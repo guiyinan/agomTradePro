@@ -326,6 +326,54 @@ def test_history_empty_and_exception_use_tencent_fallback(
     assert len(fallback) == 2
 
 
+def test_historical_session_prices_use_one_full_market_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, str]] = []
+
+    class _Pro:
+        def daily(self, **kwargs: str) -> pd.DataFrame:
+            calls.append(kwargs)
+            return pd.DataFrame(
+                [
+                    {
+                        "ts_code": "000001.SZ",
+                        "trade_date": "20260731",
+                        "open": 10,
+                        "high": 12,
+                        "low": 9,
+                        "close": 11,
+                        "vol": 100,
+                        "amount": 200,
+                    },
+                    {
+                        "ts_code": "600000.SH",
+                        "trade_date": "20260731",
+                        "open": 8,
+                        "high": 9,
+                        "low": 7,
+                        "close": 8.5,
+                        "vol": 50,
+                        "amount": 75,
+                    },
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.create_tushare_pro_client",
+        lambda **_kwargs: _Pro(),
+    )
+    bars = tushare_gateway.TushareGateway().get_historical_prices_for_session(
+        ["000001.SZ", "002156.SZ"],
+        date(2026, 7, 31),
+    )
+
+    assert calls == [{"trade_date": "20260731"}]
+    assert [bar.asset_code for bar in bars] == ["000001.SZ"]
+    assert bars[0].volume == 10000
+    assert bars[0].amount == 200000
+
+
 def test_history_authorization_failure_does_not_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -160,6 +160,17 @@ class SessionQuoteBatchProviderProtocol(Protocol):
 
 
 @runtime_checkable
+class SessionPriceBatchProviderProtocol(Protocol):
+    """Optional provider capability for one-request historical session prices."""
+
+    def fetch_price_history_for_session(
+        self,
+        asset_codes: list[str],
+        target_trade_date: date,
+    ) -> list[PriceBar]: ...
+
+
+@runtime_checkable
 class ProviderRegistryProtocol(Protocol):
     """Canonical construction, lookup, routing, and health contract."""
 

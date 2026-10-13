@@ -118,6 +118,17 @@ class _Provider:
             raise self.error
         return list(self.bars)
 
+    def fetch_price_history_for_session(
+        self, asset_codes: list[str], target_trade_date: date
+    ) -> list[PriceBar]:
+        if self.error is not None:
+            raise self.error
+        return [
+            bar
+            for bar in self.bars
+            if bar.asset_code in asset_codes and bar.bar_date == target_trade_date
+        ]
+
 
 class _ProviderRepository:
     def __init__(self, events: list[str]) -> None:
@@ -386,6 +397,25 @@ def test_success_correlates_price_raw_audit_publication_and_both_events_in_one_u
     events = [*uow.events]
     assert events[0] == "begin"
     assert events[-1] == "commit"
+
+
+def test_session_batch_persists_partial_scope_with_exact_stored_identities() -> None:
+    first = _bar()
+    second = dataclasses.replace(first, asset_code="000002.SZ")
+    use_case, _uow, writer, facts, raw, _quality = _build([first, second])
+
+    result = use_case.execute_session_batch(
+        provider_id=1,
+        asset_codes=["000001.SZ", "002156.SZ"],
+        target_trade_date=date(2026, 8, 26),
+    )
+
+    assert result.stored_count == 1
+    assert result.stored_asset_codes == ("000001.SZ",)
+    assert [bar.asset_code for bar in facts.saved] == ["000001.SZ"]
+    assert raw.rows[0].request_params["asset_count"] == 2
+    assert raw.rows[0].request_params["target_trade_date"] == "2026-08-26"
+    assert writer.fetch[0].row_count == 1
 
 
 def test_noop_writes_fetch_noop_and_no_publication() -> None:
