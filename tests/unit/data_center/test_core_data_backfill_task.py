@@ -373,6 +373,7 @@ def _patch_backfill_dependencies(
 def test_historical_market_backfill_stores_available_rows_without_publication(
     mocker,
     _patch_control_plane_repositories,
+    _patch_current_authority,
 ) -> None:
     """Exact-date mode advances a partial batch while preserving missing identities."""
 
@@ -424,12 +425,43 @@ def test_historical_market_backfill_stores_available_rows_without_publication(
     assert quote_request.require_exact_asset_codes is False
     use_cases["price"].execute_session_batch.assert_called_once()
     use_cases["price"].execute.assert_not_called()
+    assert _patch_current_authority.call_count == 6
     publication_factory.assert_not_called()
     coordinator.execute.assert_not_called()
     idempotency_key = (
         _patch_control_plane_repositories["batch"].save.call_args.args[0].idempotency_key
     )
     assert ":date=2026-07-31:" in idempotency_key
+
+
+def test_historical_market_batch_revalidates_authority_per_write_boundary(
+    mocker,
+    _patch_current_authority,
+) -> None:
+    """Session-batch completion must not revalidate authority once per asset."""
+
+    asset_codes = tuple(f"{index:06d}.SZ" for index in range(1, 201))
+    _patch_backfill_dependencies(mocker, historical_market=True)
+    mocker.patch(
+        "apps.data_center.application.tasks.build_target_date_a_share_universe_scope",
+        return_value=SimpleNamespace(
+            target_date=date(2026, 7, 31),
+            candidate_codes=asset_codes,
+            requested_codes=asset_codes,
+            excluded_not_yet_listed=(),
+            unknown_listing_date_codes=(),
+        ),
+    )
+
+    result = backfill_active_a_share_core_data_batch_task.run(
+        batch_size=len(asset_codes),
+        operator="service:data02",
+        historical_market_date="2026-07-31",
+    )
+
+    assert result["outcome"] == "success"
+    assert result["requested"] == len(asset_codes)
+    assert _patch_current_authority.call_count == 6
 
 
 def test_historical_market_backfill_does_not_advance_retryable_provider_failure(

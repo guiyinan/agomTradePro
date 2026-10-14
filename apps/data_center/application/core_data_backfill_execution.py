@@ -687,11 +687,21 @@ def run_active_a_share_core_data_backfill_batch(
                     published_total += services.published_count_from_result(batch_result)
             except Exception as error:
                 historical_price_error = error
+        historical_price_completion_authorized = (
+            authority_allows_next_write()
+            if historical_market_only and domain_name == "price"
+            else None
+        )
         completion_specs: list[tuple[SyncItemAttempt, SyncItemAttemptState, int, str]] = []
         for asset_code in batch_codes:
             completion_key: tuple[SyncItemAttemptState, int, str]
             try:
-                if not authority_allows_next_write():
+                write_authorized = (
+                    historical_price_completion_authorized
+                    if historical_price_completion_authorized is not None
+                    else authority_allows_next_write()
+                )
+                if not write_authorized:
                     domain_counts[domain_name]["failed"] += 1
                     failed_asset_codes.add(asset_code)
                     if len(errors) < 20:
