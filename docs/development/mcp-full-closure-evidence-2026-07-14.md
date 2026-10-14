@@ -2,6 +2,15 @@
 
 Date: 2026-07-14
 
+> Historical acceptance record for the candidate and criteria below. It does not
+> establish today's default tool budget, zero legacy implementations or current
+> production acceptance. Current counts come from
+> [governance_baseline.json](../../governance/governance_baseline.json); unreplaced
+> legacy decisions come from
+> [legacy_dispositions.py](../../sdk/agomtradepro_mcp/legacy_dispositions.py).
+> Continuing maintenance is scoped by the
+> [scripts, docs and MCP governance plan](../plans/scripts-docs-mcp-governance-plan-2026-10-14.md).
+
 Branch: `dev/feat-mcp-full-closure`
 
 Pull request: [#2](https://github.com/guiyinan/agomTradePro/pull/2)
@@ -22,7 +31,7 @@ come only from `governance/governance_baseline.json`.
 | 6 | Verified | `tests/integration/test_realtime_price_delivery.py::test_real_polling_delivers_one_price_and_one_single_fire_alert` runs the real `PricePollingService` through `ChannelPriceNotifier` to an authenticated `WebsocketCommunicator`. |
 | 7 | Verified | The same delivery test receives one `alert.triggered`, polls again, receives only `price.update`, and proves no second alert event. Owner isolation is separately covered by WebSocket and REST tests. |
 | 8 | Verified | Event Replay domain/service/API/repository/migration and MCP registry suite: **22 passed**. Tests prove registered targets only, preview without handler execution, succeeded/skipped/failed accounting, sanitized failures, idempotent replay, and conflict without a second handler call. |
-| 9 | Verified | `governance/governance_baseline.json` records `unsupported_legacy_contract_count: 0`; owner replacement tests cover Realtime and Events, while the default top-level MCP tool budget remains seven. |
+| 9 | Verified | At this acceptance checkpoint, `governance/governance_baseline.json` recorded `unsupported_legacy_contract_count: 0`; owner replacement tests covered Realtime and Events, and the default top-level MCP surface had seven tools. These are historical measurements, not current limits or a claim that all legacy implementations were removed. |
 | 10 | Verified | MCP governance checks, consistency check, architecture layer guards for Python 3.11/3.13, structure audit, and local guardrails all pass. The machine baseline is `2026-07-14.v129`. |
 | 11 | Verified | Real-browser acceptance used an administrator and ordinary user. It exercised owner-scoped alert/subscription creation, staff replay preview/commit/result, ordinary-user denial, and the split MCP access/governance journeys. Masked role/navigation/error evidence is in `output/playwright/tui-capability-router-audit/`; secret-bearing session snapshots and temporary users/data were removed after acceptance. |
 | 12 | Verified | Operations and rollback are documented in `docs/development/quick-reference.md` and `docs/integration/realtime_data_system.md`. The TUI redesign audit records completed/incomplete/verified/unverified scope and explicitly retains production proxy, scale, and complete WCAG as non-goal risks. No required acceptance item is unverified. |

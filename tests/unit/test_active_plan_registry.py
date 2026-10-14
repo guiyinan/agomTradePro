@@ -109,20 +109,41 @@ def _write_fixture_repository(root: Path) -> tuple[Path, Path]:
 
 
 def test_repository_active_plan_registry_is_closed_world() -> None:
+    """Verify registry coverage without copying changing inventory counts."""
     module = _load_module()
+    registry_path = REPO_ROOT / "governance" / "active_plan_registry.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
     report = module.evaluate_registry(
         REPO_ROOT,
-        REPO_ROOT / "governance" / "active_plan_registry.json",
+        registry_path,
         REPO_ROOT / "docs" / "plans" / "README.md",
     )
 
     assert report.violation_count == 0, report.violations
-    assert report.workstream_count == 10
-    assert report.primary_plan_count == 19
-    assert report.supporting_document_count == 33
-    assert report.review_queue_count == 1
-    assert report.closure_unit_count == 56
-    assert report.registered_path_count == report.active_path_count == 53
+    documents = [
+        document for workstream in registry["workstreams"] for document in workstream["documents"]
+    ]
+    registered_paths = [document["path"] for document in documents] + [
+        review["path"] for review in registry["review_queue"]
+    ]
+    plan_root = REPO_ROOT / "docs" / "plans"
+    actual_paths = {
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in plan_root.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in {".md", ".csv"}
+        and path != plan_root / "README.md"
+    }
+    assert len(registered_paths) == len(set(registered_paths))
+    assert set(registered_paths) == actual_paths
+    assert report.workstream_count == len(registry["workstreams"])
+    assert report.primary_plan_count == sum(document["role"] == "primary" for document in documents)
+    assert report.supporting_document_count == sum(
+        document["role"] != "primary" for document in documents
+    )
+    assert report.review_queue_count == len(registry["review_queue"])
+    assert report.closure_unit_count == len(registry["closure_backlog"]["units"])
+    assert report.registered_path_count == report.active_path_count == len(actual_paths)
 
 
 def test_registry_rejects_unregistered_active_plan(tmp_path: Path):

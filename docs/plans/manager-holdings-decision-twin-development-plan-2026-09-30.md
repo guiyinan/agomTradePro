@@ -6,6 +6,8 @@
 > 项目定位：Manager Holdings / Behavior Replication。Decision Twin 是候选研究方向，不是已经成立的能力。
 > 授权顺序：Plan review → 单独批准 3—5 人日 Probe → Probe review → 单独决定是否批准 MVP。
 
+> 文档登记整理（2026-10-14）：原 review_queue 截止日期为 2026-10-10，尚无留存审查结论；现转入机器注册表的 `manager-holdings-plan-review` / `MHD-01` 待审查单元。没有顺延原期限，也未批准 Probe、MVP 或开发。
+
 ## Executive Summary
 
 **我们究竟要预测什么？** 在一个明确的 `prediction_time`，使用当时已公开且可验证的信息，预测特定经理管理的特定基金在下一指定报告期末将公开披露的持仓状态变化。主研究采用完整股票持仓的半年度间隔；季度 Top10 是独立辅助任务。输出包括可观察净数量变化的概率、新增持仓候选排名和受约束的研究合成组合。标签不等于真实成交指令，期末不变也不等于未交易。

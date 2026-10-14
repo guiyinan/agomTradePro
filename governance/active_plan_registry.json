@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-10.v196",
-  "updated_at": "2026-10-10",
+  "version": "2026-10-14.v197",
+  "updated_at": "2026-10-14",
   "execution_focus": {
     "unit_id": "DATA-18",
     "allowed_parallel_execution_modes": [
@@ -190,7 +190,7 @@
       "priority": "P0",
       "owner": "terminal+operational_readiness",
       "status": "production_validation",
-      "next_gate": "TUI-02 remains active but BLOCKED by verified candidate/monitoring drift. At 2026-09-20T15:10:06Z current release is 20260920184626 / source 439468482; Web image ad885af0fbb5904f389cbe469403fd758901e0f4b62e88e0c8dab34e52315d71 started 11:07:43Z and Prometheus started 11:07:59Z. Old monitoring probe returns DENY: Web candidate changed after first sample. Old 2026-09-30T07:31:34.667Z is invalid for this candidate. Recovery requires official deployment attestation, clean-tree candidate rebind and actual new retained sample plus 14 days; current artifact remains historical. Then collect structured defects, 101-task telemetry, backup/review and genuine role-bound owner attestations; --require-allow must ALLOW before Classic cleanup. Existing daily heartbeat was updated, no duplicate created. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md Current-candidate retained source read-only query returned HTTP 401 on 2026-09-20; no accepted first sample or new eligibility instant. Restore governed protected-query authentication and prove HTTP 200 plus real candidate-bound source before official rebind. Evidence: docs/deployment/production-closure-retained-source-denial-2026-09-20.json Fresh 2026-09-22 repository-24fa0ed90 protected monitoring remains HTTP 401 with and without the root-only credential, so no retained sample or TUI-02 window can be bound. Evidence: docs/deployment/production-closure-revalidation-2026-09-22-24fa0ed90.json.",
+      "next_gate": "TUI-02 remains active and blocked by candidate/monitoring drift. Rebind the manifest-backed candidate through canonical cutover and deployment evidence, obtain a real protected-query retained sample, and satisfy the same-candidate observation, UAT, rollback and approval gates before Classic cleanup. Frozen cutover identity is read from config/tui/migration/web_to_tui_cutover_evidence.v1.json; live release and window validity require current production evidence. Historical dated revalidation reports remain evidence of their own observation times only.",
       "documents": [
         {
           "path": "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
@@ -332,20 +332,42 @@
           "role": "primary"
         }
       ]
-    }
-  ],
-  "review_queue": [
+    },
     {
-      "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
+      "id": "repository-maintenance-governance",
+      "title": "Scripts, documentation and legacy MCP maintenance governance",
+      "category": "governance",
+      "priority": "P1",
+      "owner": "Repository Owner / Governance / SDK / MCP",
+      "status": "active",
+      "next_gate": "GOV-03 documentation cleanup is completed with registry/governance/route checks, 11 focused tests and local-link verification recorded in docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md section 11. Next is the planned GOV-04 script ownership/risk/test audit. GOV-05/06/07 remain planned; implementation must enter the single repository focus when scheduled. Preserve pre-existing production states and candidate bindings.",
+      "documents": [
+        {
+          "path": "docs/plans/scripts-docs-mcp-governance-plan-2026-10-14.md",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "manager-holdings-plan-review",
+      "title": "Manager Holdings plan review before any feasibility probe",
+      "category": "research-planning",
+      "priority": "P2",
       "owner": "research+fund+data_center",
-      "status": "review_required",
-      "review_by": "2026-10-10",
-      "disposition": "Review the plan before separately approving any data feasibility probe or MVP implementation."
+      "status": "active",
+      "next_gate": "The 2026-10-10 review-queue deadline elapsed without a retained review decision. MHD-01 is a planned governance review unit, not an implementation authorization. Review or archive the draft with an explicit owner decision before separately approving any feasibility probe or MVP. The queue is transferred to this explicit workstream; no deadline extension, review approval or development start is implied.",
+      "documents": [
+        {
+          "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
+          "role": "primary"
+        }
+      ]
     }
   ],
+  "review_queue": [],
   "closure_backlog": {
-    "version": "2026-09-29.v61",
-    "legacy_unchecked_count": 136,
+    "version": "2026-10-14.v62",
+    "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
       "strategy-research-production": 37,
@@ -356,7 +378,9 @@
       "ai-native-release": 0,
       "qmt-live-bridge": 11,
       "tui-usability-governance": 0,
-      "index-dividend-thermometer": 0
+      "index-dividend-thermometer": 0,
+      "repository-maintenance-governance": 0,
+      "manager-holdings-plan-review": 6
     },
     "legacy_sources": [
       {
@@ -416,6 +440,13 @@
         "closure_unit_ids": [
           "QMT-01",
           "QMT-02"
+        ]
+      },
+      {
+        "path": "docs/plans/manager-holdings-decision-twin-development-plan-2026-09-30.md",
+        "unchecked_count": 6,
+        "closure_unit_ids": [
+          "MHD-01"
         ]
       }
     ],
@@ -1489,6 +1520,80 @@
         "title": "Implement index dividend thermometer R1 base scope with versioned rules and TUI primary task",
         "depends_on": [],
         "exit_gate": "R1 base version (DY/PE/PB, dividend spread, 5y/10y percentiles, temperature with explanation, history chart and 12-month table, signal falsification loop) passes failing-first tests, data-source probes prove real 000922/H00922 coverage, R2 enhancements stay explicitly incomplete when data is missing, and the feature does not bypass decision gates or the DATA-18 recovery focus."
+      },
+      {
+        "id": "GOV-03",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "governance",
+        "status": "completed",
+        "title": "Document navigation cleanup and maintenance governance plan",
+        "depends_on": [],
+        "exit_gate": "Navigation and historical links remain reachable; current status points to machine sources; candidate consistency and document/registry checks pass; verification limits are recorded. No production gate is promoted."
+      },
+      {
+        "id": "GOV-04",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "governance",
+        "status": "planned",
+        "title": "Audit script ownership, callers, risk and failure-test evidence",
+        "depends_on": [
+          "GOV-03"
+        ],
+        "exit_gate": "Every high-risk script has an owner, input/output/exit contract, caller inventory and executed failure evidence or explicit test gap. Report binds candidate, denominator, exclusions and the first bounded remediation batch."
+      },
+      {
+        "id": "GOV-05",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Repair critical script failure handling and establish measured coverage",
+        "depends_on": [
+          "GOV-04"
+        ],
+        "exit_gate": "Selected release/evidence tools reject missing, malformed, stale and failed inputs in meaningful CLI tests; legitimate success remains accepted. Independent coverage and CI test-selection wiring are measured and governed without lowering existing baselines."
+      },
+      {
+        "id": "GOV-06",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Consolidate proven script duplication and review obsolete entrypoints",
+        "depends_on": [
+          "GOV-05"
+        ],
+        "exit_gate": "Selected rules have one tested owner implementation; CLI and callers remain compatible; retired diagnostics have recoverable provenance; architecture, type and applicable projection checks pass."
+      },
+      {
+        "id": "GOV-07",
+        "workstream_id": "repository-maintenance-governance",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Review legacy MCP dispositions and retire evidence-backed batches",
+        "depends_on": [
+          "GOV-03"
+        ],
+        "exit_gate": "Legacy dispositions, replacements and external consumers are reviewed with observed or explicitly unverified usage. Eligible batches migrate with contract parity, guarded discovery and rollback evidence; retained items have owner, rationale and review triggers. No mechanical zero-legacy target."
+      },
+      {
+        "id": "MHD-01",
+        "workstream_id": "manager-holdings-plan-review",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "governance",
+        "status": "planned",
+        "title": "Resolve expired Manager Holdings draft review without authorizing implementation",
+        "depends_on": [],
+        "exit_gate": "A retained owner review decision explicitly accepts, revises or archives the draft. Any feasibility probe and MVP remain separately authorized decisions; no provider access, implementation or production change follows merely from plan registration."
       }
     ]
   }

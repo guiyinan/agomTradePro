@@ -1,7 +1,8 @@
 # AgomTradePro System Baseline Narrative Index
 
 > **Version**: `0.8.0`
-> **Baseline date**: `2026-07-05`
+> **Release baseline date**: `2026-07-05`
+> **Narrative reviewed**: `2026-10-14`
 > **Document role**: Narrative index only; it is not a second governance baseline
 > **Machine source of truth**: `governance/governance_baseline.json`
 > **Authority rule**: If narrative text and machine data differ, the machine baseline and its consistency checks prevail
@@ -22,10 +23,10 @@
 | Metric | Value | Source |
 |------|------|------|
 | **System version** | `0.8.0` | `core/version.py` |
-| **Build** | `20260705` | `core/version.py` |
+| **Build** | See version metadata | [../VERSION.md](../VERSION.md) / `core/version.py` |
 | **Release state** | Formal public release | release closure `0.8.0` |
 | **Repo state** | Active development continues after `0.8.0` | branch/docs posture |
-| **Business modules** | See machine baseline | `governance/governance_baseline.json` |
+| **Business modules** | See machine baseline and generated module map | `governance/governance_baseline.json` / `governance/module_map.json` |
 | **MCP tools** | See machine baseline | `governance/governance_baseline.json` |
 | **Static test functions** | See machine baseline | `governance/governance_baseline.json` |
 | **`core/integration` app infrastructure imports** | See governance ratchet | `governance/governance_baseline.json` |
@@ -113,12 +114,17 @@ quote pre-refresh -> daily readiness evidence -> readiness window validation
 
 ### 5.3 Production-stability meaning
 
-For `0.8.0`, “production ready” means:
+The `0.8.0` release defines the recommended stack, repeatable readiness evidence,
+operator-readable scheduler/runtime verification and diagnostic commands. These
+are release capabilities, not acceptance of a currently deployed environment.
 
-- a recommended production stack is explicit
-- readiness evidence is repeatable
-- scheduler/runtime verification is operator-readable
-- failures can be diagnosed from standard commands and evidence artifacts
+Production acceptance requires evidence bound to the actual candidate,
+configuration, environment and observation window. Readiness and decision gates
+must be assessed independently; passing health or repository CI does not clear
+DATA, Evidence, Audit, TUI or execution blockers. Current closure-unit status and
+the repository execution focus are read from
+[active_plan_registry.json](../../governance/active_plan_registry.json), with
+observations retained under [deployment evidence](../deployment/README.md).
 
 ## 6. Governance baseline
 
@@ -131,18 +137,20 @@ For `0.8.0`, “production ready” means:
 
 ### 6.2 Large-file posture
 
-Large historical Python files are governed by `governance_baseline.json`.
+The non-empty line limit, permitted exceptions and any remediation metadata are
+read from `governance/governance_baseline.json`. An older narrative describing a
+temporary allowance cannot grant one after the machine registry removes it.
 
-For `0.8.0`, TUI runtime metadata mutations are no longer concentrated in a single oversized repository file; runtime screen patches, injected metadata, and action patches are split into dedicated infrastructure modules.
-The result-model follow-up is now split between a base helper and specialized business-facing helpers, so `apps/terminal/application/tui_workbench_result_models.py` is back under the repository large-file limit and no longer needs a temporary allowance.
-The remaining identity-and-access runtime injection bundle is still temporarily governed by the machine large-file allowance while the next split step is queued. The current allowance must be read from `governance/governance_baseline.json`.
+TUI runtime metadata was split during release and follow-up remediation; those
+records explain the history. Current file size and exception validity are
+established by the governance checker, not a retained prose list of pending splits.
 
 ## 7. Testing posture
 
 ### 7.1 Scale baseline
 
 - Static governed test functions: see `governance/governance_baseline.json`
-- Module coverage baseline: see `governance/governance_baseline.json`
+- Line/branch coverage thresholds and governed scopes: see [testing_quality_baseline.json](../../governance/testing_quality_baseline.json) and [coverage governance](../development/ci/coverage-governance.md)
 - Full `pytest` collection/execution remains a runtime fact, not a hard-coded doc number
 
 ### 7.2 Release-closure verification
@@ -162,4 +170,4 @@ See:
 ---
 
 **Maintainer**: AgomTradePro Team
-**Last updated**: `2026-07-12`
+**Last updated**: `2026-10-14`
