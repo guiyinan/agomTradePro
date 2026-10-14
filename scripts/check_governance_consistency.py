@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 import json
 import re
 import sys
@@ -20,6 +21,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "apps"
@@ -30,6 +32,12 @@ ARCHITECTURE_RULES = REPO_ROOT / "governance" / "architecture_rules.json"
 MODULE_CYCLE_ALLOWLIST = REPO_ROOT / "governance" / "module_cycle_allowlist.json"
 ARCHITECTURE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "architecture-layer-guard.yml"
 CONSISTENCY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "consistency-check.yml"
+DATA_CENTER_ARCHITECTURE_INVENTORY_SCRIPT = (
+    REPO_ROOT / "scripts" / "data_center_architecture_inventory.py"
+)
+DATA_CENTER_ARCHITECTURE_INVENTORY_ARTIFACT = (
+    REPO_ROOT / "governance" / "data_center_architecture_inventory.json"
+)
 PRODUCTION_PYTHON_ROOTS = (
     "apps",
     "core",
@@ -1183,6 +1191,7 @@ def check_ci_governance_wiring() -> tuple[list[Violation], dict]:
         "scripts/check_decision_write_surface_freeze.py",
         "scripts/check_evidence_output_surfaces.py",
         "scripts/check_mcp_evidence_output_surfaces.py",
+        "scripts/data_center_architecture_inventory.py",
         "scripts/check_governance_consistency.py",
         "--baseline governance/governance_baseline.json",
         "--write-report reports/consistency/governance-consistency.json",
@@ -1196,6 +1205,65 @@ def check_ci_governance_wiring() -> tuple[list[Violation], dict]:
         "consistency_workflow": display_path(CONSISTENCY_WORKFLOW),
         "architecture_required_token_count": len(architecture_tokens),
         "consistency_required_token_count": len(consistency_tokens),
+    }
+
+
+def _load_data_center_architecture_inventory_module() -> ModuleType:
+    """Load the deterministic inventory generator without importing Django."""
+
+    spec = importlib.util.spec_from_file_location(
+        "governance_data_center_architecture_inventory",
+        DATA_CENTER_ARCHITECTURE_INVENTORY_SCRIPT,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("data center architecture inventory generator is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_data_center_architecture_inventory_projection() -> tuple[list[Violation], dict]:
+    """Require the committed Data Center inventory to match a fresh static scan."""
+
+    path_label = display_path(DATA_CENTER_ARCHITECTURE_INVENTORY_ARTIFACT)
+    if not DATA_CENTER_ARCHITECTURE_INVENTORY_ARTIFACT.exists():
+        return [
+            Violation(
+                "data_center_architecture_inventory_missing",
+                path_label,
+                "Generate the deterministic inventory before committing.",
+            )
+        ], {"artifact": path_label, "current": False, "counts": {}}
+
+    try:
+        module = _load_data_center_architecture_inventory_module()
+        fresh_payload = module.build_inventory()
+        expected = module._canonical_json(fresh_payload)
+        actual = DATA_CENTER_ARCHITECTURE_INVENTORY_ARTIFACT.read_text(encoding="utf-8")
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return [
+            Violation(
+                "data_center_architecture_inventory_unavailable",
+                path_label,
+                f"Could not verify the deterministic inventory: {type(exc).__name__}.",
+            )
+        ], {"artifact": path_label, "current": False, "counts": {}}
+
+    violations = []
+    if actual != expected:
+        violations.append(
+            Violation(
+                "data_center_architecture_inventory_stale",
+                path_label,
+                "Run python scripts/data_center_architecture_inventory.py --write.",
+            )
+        )
+    counts = fresh_payload.get("counts", {}) if isinstance(fresh_payload, dict) else {}
+    return violations, {
+        "artifact": path_label,
+        "generator": display_path(DATA_CENTER_ARCHITECTURE_INVENTORY_SCRIPT),
+        "current": not violations,
+        "counts": counts,
     }
 
 
@@ -1595,6 +1663,10 @@ def build_report(baseline: dict) -> dict:
         ("architecture_ruleset", check_architecture_ruleset_health),
         ("module_dependency_baseline", check_module_dependency_baseline_health),
         ("ci_governance_wiring", check_ci_governance_wiring),
+        (
+            "data_center_architecture_inventory",
+            check_data_center_architecture_inventory_projection,
+        ),
         (
             "application_third_party_imports",
             lambda: check_application_third_party_baseline(baseline),
