@@ -219,7 +219,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             return _single(
                 tuple(
                     value
-                    for _, value in self._world(cutoff).subjects
+                    for _, value in self._world().subjects
                     if (value.subject_id, value.subject_version) == (subject_id, subject_version)
                     and value.requested_at <= cutoff
                 )
@@ -235,7 +235,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             return _single(
                 tuple(
                     record
-                    for _, record in self._world(cutoff).evidence
+                    for _, record in self._world().evidence
                     if (record.evidence.evidence_id, record.evidence.evidence_version)
                     == (evidence_id, evidence_version)
                     and record.evidence.recorded_at <= cutoff
@@ -272,7 +272,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             return _head(
                 tuple(
                     record
-                    for _, record in self._world(cutoff).evidence
+                    for _, record in self._world().evidence
                     if record.evidence.recorded_at <= cutoff
                     and (
                         record.evidence.subject.binding.account_namespace_claim,
@@ -298,7 +298,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             return _head(
                 tuple(
                     record
-                    for _, record in self._world(cutoff).evidence
+                    for _, record in self._world().evidence
                     if record.evidence.recorded_at <= cutoff
                     and (
                         record.evidence.subject.binding.underlying_unified_account_namespace_claim,
@@ -337,7 +337,7 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
             )
         self._lock_world(evidence.policy.policy_id)
         with self.read_phase():
-            world = self._world(recorded_at)
+            world = self._world()
             subjects = tuple(row for row, value in world.subjects if value == evidence.subject)
             if len(subjects) != 1:
                 raise AccountOwnerAssignmentEvidenceV5Conflict(
@@ -467,13 +467,10 @@ class DjangoAccountOwnerAssignmentEvidenceV5Repository:
         lock_account_owner_assignment_evidence_v5_sources(using=self._using, policy_id=policy_id)
 
     @reuse_immutable_read("assignment-evidence-v5-world")
-    def _world(self, as_of: datetime) -> _World:
+    def _world(self) -> _World:
+        """Restore one complete immutable world for the active read phase."""
+
         self._postgresql()
-        cutoff = _aware(as_of)
-        if cutoff > self.now():
-            raise AccountOwnerAssignmentEvidenceV5Unavailable(
-                "future assignment Evidence V5 as_of is forbidden"
-            )
         try:
             subjects = []
             for row in (

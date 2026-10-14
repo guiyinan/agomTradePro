@@ -14,6 +14,7 @@ from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import connections
 from django.db.migrations.state import ProjectState
+from django.test.utils import CaptureQueriesContext
 
 from apps.account.application.account_owner_assignment_actor_authority_v3 import (
     CurrentAccountActorAuthorityV3,
@@ -331,6 +332,48 @@ def test_evidence_v5_repository_replay_exact_heads_and_tamper(
             f"UPDATE {table} SET record_seal = %s",
             [record_seal],
         )
+
+
+@pytest.mark.django_db(transaction=True, databases="__all__")
+def test_read_phase_reuses_complete_evidence_world_across_cutoffs(
+    evidence_v5_alias: str,
+) -> None:
+    """Distinct selectors and cutoffs reuse one fully verified immutable graph."""
+
+    expected = _seed(evidence_v5_alias)
+    evidence = expected.evidence
+    repository = DjangoAccountOwnerAssignmentEvidenceV5Repository(
+        using=evidence_v5_alias, clock=_Clock()
+    )
+    with repository.atomic():
+        repository.append_root(
+            expected,
+            expected_account_head_hash=None,
+            expected_underlying_head_hash=None,
+            recorded_at=evidence.recorded_at,
+        )
+
+    binding = evidence.subject.binding
+    with repository.read_phase():
+        assert (
+            repository.get_winner(
+                evidence_id=evidence.evidence_id,
+                evidence_version=evidence.evidence_version,
+                as_of=evidence.recorded_at,
+            )
+            == expected
+        )
+        with CaptureQueriesContext(connections[evidence_v5_alias]) as queries:
+            assert (
+                repository.get_account_head(
+                    account_namespace=binding.account_namespace_claim,
+                    account_id=binding.account_id_claim,
+                    as_of=_Clock().now(),
+                )
+                == expected
+            )
+
+    assert len(queries) == 0
 
 
 @pytest.mark.django_db(transaction=True, databases="__all__")

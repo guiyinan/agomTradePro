@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.account.application.canonical_account_ownership_reobservation_v1 import (
     PersistedCanonicalAccountOwnershipReobservationV1,
@@ -35,6 +36,7 @@ from apps.account.infrastructure.canonical_account_ownership_reobservation_v1_re
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from tests.component.account.test_canonical_account_creation_consumption_repository import (
     _append_pair,
     _seed_v2_foreign_evidence,
@@ -176,6 +178,40 @@ def test_closed_world_model_tamper_fails_before_unrelated_selector() -> None:
             observation_version="v9",
             as_of=_at(30),
         )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stabilized_phase_reuses_complete_world_across_distinct_cutoffs() -> None:
+    """A second cutoff must filter the same fully restored immutable world."""
+
+    value = _reobservation()
+    _seed_parents(value)
+    repository = DjangoCanonicalAccountOwnershipReobservationV1Repository(clock=_Clock())
+    expected = PersistedCanonicalAccountOwnershipReobservationV1(value)
+    with repository.atomic():
+        repository.append(expected, recorded_at=value.recorded_at)
+
+    with immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                observation_id=value.observation_id,
+                observation_version=value.observation_version,
+                as_of=_at(29),
+            )
+            == expected
+        )
+        with CaptureQueriesContext(connection) as queries:
+            assert (
+                repository.get_exact_by_hash(
+                    observation_id=value.observation_id,
+                    observation_version=value.observation_version,
+                    expected_content_hash=value.content_hash,
+                    as_of=_at(30),
+                )
+                == expected
+            )
+
+    assert len(queries) == 0
 
 
 def test_helper_keeps_the_domain_value_exact() -> None:

@@ -62,6 +62,7 @@ from apps.account.infrastructure.physical_account_row_observation_v2_models impo
 from apps.account.infrastructure.physical_account_row_observation_v2_repository import (
     DjangoPhysicalAccountRowObservationV2Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class DjangoCanonicalAccountOwnershipReobservationV1Unavailable(
@@ -514,8 +515,8 @@ class DjangoCanonicalAccountOwnershipReobservationV1Repository:
                 "ownership re-observation canonical payload cannot be restored"
             ) from error
         try:
-            binding_row = self._binding_row(model.binding_id)
-            physical_row = self._physical_row(model.current_physical_id)
+            binding_row = model.binding
+            physical_row = model.current_physical
             binding = self._restore_binding(record.reobservation, binding_row)
             physical = self._restore_physical(record.reobservation, physical_row)
             self._prove_physical_head(record.reobservation, physical)
@@ -541,36 +542,17 @@ class DjangoCanonicalAccountOwnershipReobservationV1Repository:
             )
         return record
 
-    def _binding_row(self, primary_key: int) -> CanonicalAccountCreationBindingV2Model:
-        """Fetch one Binding-v2 foreign row through this repository alias."""
-
-        try:
-            return CanonicalAccountCreationBindingV2Model._base_manager.using(self._using).get(
-                pk=primary_key
-            )
-        except CanonicalAccountCreationBindingV2Model.DoesNotExist as error:
-            raise DjangoCanonicalAccountOwnershipReobservationV1Corruption(
-                "ownership re-observation Binding-v2 foreign row is missing"
-            ) from error
-
-    def _physical_row(self, primary_key: int) -> PhysicalAccountRowObservationV2Model:
-        """Fetch one Physical-v2 foreign row through this repository alias."""
-
-        try:
-            return PhysicalAccountRowObservationV2Model._base_manager.using(self._using).get(
-                pk=primary_key
-            )
-        except PhysicalAccountRowObservationV2Model.DoesNotExist as error:
-            raise DjangoCanonicalAccountOwnershipReobservationV1Corruption(
-                "ownership re-observation Physical-v2 foreign row is missing"
-            ) from error
-
+    @reuse_immutable_read("canonical-ownership-reobservation-v1-restored-records")
     def _restored_records(
         self, *, lock: bool
     ) -> tuple[PersistedCanonicalAccountOwnershipReobservationV1, ...]:
         """Restore the complete re-observation table before applying selectors."""
 
-        query = CanonicalAccountOwnershipReobservationV1Model._base_manager.using(self._using).all()
+        query = (
+            CanonicalAccountOwnershipReobservationV1Model._base_manager.using(self._using)
+            .select_related("binding", "current_physical")
+            .all()
+        )
         if lock:
             query = query.select_for_update()
         rows = tuple(query.order_by("recorded_at", "pk"))

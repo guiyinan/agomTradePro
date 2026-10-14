@@ -173,7 +173,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
         """Return the immutable identity winner knowable at ``as_of``."""
 
         self._cutoff(as_of)
-        world = self._world(as_of)
+        world = self._world()
         matches = tuple(
             record
             for _, record in world
@@ -194,7 +194,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
         """Return exact historical identity/content evidence without TTL filtering."""
 
         self._cutoff(as_of)
-        world = self._world(as_of)
+        world = self._world()
         anchors = tuple(
             record
             for _, record in world
@@ -226,7 +226,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
         """Return the final logical head visible at ``as_of``, including expiry."""
 
         self._cutoff(as_of)
-        world = self._world(as_of)
+        world = self._world()
         chain = _chain(tuple(item for item in world if item[1].receipt.receipt_id == receipt_id))
         visible = tuple(item for item in chain if item[1].receipt.recorded_at <= as_of)
         return visible[-1][1] if visible else None
@@ -265,7 +265,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
         self._lock_receipt_chain(receipt.receipt_id)
         self._restore_parents(receipt, policy_row, binding_row, reobservation_row)
 
-        world = self._world(cutoff)
+        world = self._world()
         anchors = tuple(
             item
             for item in world
@@ -340,7 +340,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
             ):
                 model.save(force_insert=True, using=self._using)
         except IntegrityError as error:
-            after = self._world(cutoff)
+            after = self._world()
             replay = tuple(
                 item[1]
                 for item in after
@@ -353,7 +353,7 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
             raise DjangoAccountOwnerAssignmentProvenanceReceiptV5Conflict(
                 "ReceiptV5 concurrent first winner differs"
             ) from error
-        restored = self._world(recorded_at)
+        restored = self._world()
         exact = tuple(
             item[1]
             for item in restored
@@ -574,14 +574,10 @@ class DjangoAccountOwnerAssignmentProvenanceReceiptV5Repository:
             )
 
     @reuse_immutable_read("assignment-provenance-receipt-v5-world")
-    def _world(self, as_of: datetime) -> tuple[_Row, ...]:
-        """Restore every ReceiptV5 row and validate every chain before selection."""
+    def _world(self) -> tuple[_Row, ...]:
+        """Restore every ReceiptV5 row once before cutoff-specific selection."""
 
         self._postgresql()
-        if not _is_aware(as_of):
-            raise DjangoAccountOwnerAssignmentProvenanceReceiptV5Unavailable(
-                "ReceiptV5 as_of must be timezone-aware"
-            )
         try:
             rows = tuple(
                 AccountOwnerAssignmentProvenanceReceiptV5Model._base_manager.using(

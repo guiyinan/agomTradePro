@@ -295,7 +295,6 @@ class DjangoPhysicalAccountRowObservationV2Repository:
         )
         return _restore_full_chain(chain) if chain else None
 
-    @reuse_immutable_read("physical-account-row-v2-visible-records")
     def _visible_records(
         self,
         *,
@@ -304,12 +303,22 @@ class DjangoPhysicalAccountRowObservationV2Repository:
     ) -> tuple[PersistedPhysicalAccountRowObservationV2, ...]:
         """Restore the full table before trusting any selector header."""
 
+        records = self._restored_records(lock=lock)
+        return tuple(record for record in records if record.observation.recorded_at <= as_of)
+
+    @reuse_immutable_read("physical-account-row-v2-restored-records")
+    def _restored_records(
+        self,
+        *,
+        lock: bool,
+    ) -> tuple[PersistedPhysicalAccountRowObservationV2, ...]:
+        """Restore the complete immutable table once per stabilized read phase."""
+
         queryset = PhysicalAccountRowObservationV2Model._default_manager.using(self._using).all()
         if lock:
             queryset = queryset.select_for_update()
         rows = list(queryset.order_by("recorded_at", "pk"))
-        restored = tuple(self._restore(row) for row in rows)
-        return tuple(record for record in restored if record.observation.recorded_at <= as_of)
+        return tuple(self._restore(row) for row in rows)
 
     def _require_cutoff(self, as_of: datetime) -> None:
         _require_aware(as_of, "physical account-row v2 as_of")

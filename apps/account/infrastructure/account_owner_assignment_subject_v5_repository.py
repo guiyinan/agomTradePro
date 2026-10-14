@@ -131,7 +131,7 @@ class DjangoAccountOwnerAssignmentSubjectV5Repository:
         return next(
             (
                 record
-                for _, record in self._world(cutoff)
+                for _, record in self._world()
                 if (record.subject.subject_id, record.subject.subject_version)
                 == (subject_id, subject_version)
                 and record.subject.requested_at <= cutoff
@@ -152,7 +152,7 @@ class DjangoAccountOwnerAssignmentSubjectV5Repository:
         cutoff = self._cutoff(as_of)
         anchors = tuple(
             record
-            for _, record in self._world(cutoff)
+            for _, record in self._world()
             if (
                 record.subject.subject_id == subject_id
                 and record.subject.subject_version == subject_version
@@ -431,10 +431,12 @@ class DjangoAccountOwnerAssignmentSubjectV5Repository:
             ) from error
 
     @reuse_immutable_read("assignment-subject-v5-world")
-    def _world(self, as_of: datetime) -> tuple[
+    def _world(self) -> tuple[
         tuple[AccountOwnerAssignmentSubjectV5Model, PersistedAccountOwnerAssignmentSubjectV5],
         ...,
     ]:
+        """Restore the complete immutable world independently of read cutoffs."""
+
         self._postgresql()
         try:
             rows = tuple(

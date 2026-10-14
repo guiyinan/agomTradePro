@@ -241,7 +241,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         self._cutoff(as_of)
         matches = tuple(
             record
-            for _, record in self._restore_world(as_of).roots
+            for _, record in self._restore_world().roots
             if (
                 record.authority.authority_id,
                 record.authority.authority_version,
@@ -303,7 +303,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         return _head(
             tuple(
                 item
-                for item in self._restore_world(as_of).roots
+                for item in self._restore_world().roots
                 if item[1].authority.authority_id == authority_id
                 and item[1].authority.recorded_at <= as_of
             ),
@@ -320,7 +320,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         return _head(
             tuple(
                 item
-                for item in self._restore_world(as_of).roots
+                for item in self._restore_world().roots
                 if item[1].authority.assignment_evidence_content_hash == assignment_content_hash
                 and item[1].authority.recorded_at <= as_of
             ),
@@ -336,7 +336,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         self._cutoff(as_of)
         matches = tuple(
             record
-            for _, record in self._restore_world(as_of).revocations
+            for _, record in self._restore_world().revocations
             if record.revocation.authority_content_hash == authority_content_hash
             and record.revocation.recorded_at <= as_of
         )
@@ -367,7 +367,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
                     "owner tenant authority v3 predecessor selector differs"
                 )
         self._lock_world(authority.policy.policy_id)
-        world = self._restore_world(recorded_at)
+        world = self._restore_world()
         collisions = tuple(
             (row, existing)
             for row, existing in world.roots
@@ -516,7 +516,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
                 "owner tenant authority v3 revocation selector differs"
             )
         self._require_append_clock(recorded_at, revocation.recorded_at)
-        initial = self._restore_world(recorded_at)
+        initial = self._restore_world()
         roots = tuple(
             item
             for item in initial.roots
@@ -532,7 +532,7 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
             )
         root = roots[0][1]
         self._lock_world(root.authority.policy.policy_id)
-        world = self._restore_world(recorded_at)
+        world = self._restore_world()
         current_roots = tuple(
             item
             for item in world.roots
@@ -675,14 +675,10 @@ class DjangoOwnerTenantAuthorityV3Repository(OwnerTenantAuthorityV3Repository):
         lock_owner_tenant_authority_v3_sources(using=self._using, policy_id=policy_id)
 
     @reuse_immutable_read("owner-tenant-authority-v3-world")
-    def _restore_world(self, as_of: datetime) -> _World:
-        """Restore every root, revocation, parent, and sealed ledger field."""
+    def _restore_world(self) -> _World:
+        """Restore every root, revocation, parent, and sealed ledger field once."""
 
         self._postgresql()
-        if not _is_aware(as_of):
-            raise OwnerTenantAuthorityV3Unavailable(
-                "owner tenant authority v3 restore cutoff must be timezone-aware"
-            )
         try:
             root_rows = tuple(
                 OwnerTenantAuthorityV3Model._default_manager.using(self._using).order_by("pk")
