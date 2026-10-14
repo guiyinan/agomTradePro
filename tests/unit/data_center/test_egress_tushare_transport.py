@@ -12,7 +12,11 @@ from apps.data_center.application import egress_service
 from apps.data_center.application.financial_response_artifact import (
     RetainedFinancialResponsePayload,
 )
-from apps.data_center.domain.egress_routing import EgressRouteDecision, EgressStrategy
+from apps.data_center.domain.egress_routing import (
+    EgressRequestContext,
+    EgressRouteDecision,
+    EgressStrategy,
+)
 from apps.data_center.domain.financial_response_artifact import FinancialResponseArtifactRef
 from apps.data_center.domain.financial_response_evidence import (
     FinancialRequestScope,
@@ -439,3 +443,132 @@ def test_configured_sdk_endpoint_keeps_single_post_url_without_an_egress_rule(
     assert session.post.call_args.args[0] == settings.http_url
     assert session.post.call_args.kwargs["json"]["api_name"] == "daily"
     sdk.query.assert_not_called()
+
+
+def test_operation_cache_reuses_full_market_tables_across_batch_dataset_clients(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One operation reaches each full-market endpoint once across all batches."""
+
+    settings = tushare_client.TushareRuntimeSettings(
+        token="test-private-token",
+        http_url="https://market.example.com/pro",
+        request_mode="unified_relay",
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "resolve_tushare_runtime_settings",
+        lambda **_kwargs: settings,
+    )
+    session = Mock()
+    session.headers = {}
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+    monkeypatch.setattr(
+        egress_service,
+        "preview_route",
+        Mock(
+            return_value=EgressRouteDecision(
+                rule_id=5,
+                strategy=EgressStrategy.FIXED,
+                candidates=(9,),
+                reason="matched_rule",
+            )
+        ),
+    )
+
+    def _provider_response(*_args: object, **kwargs: object) -> dict[str, object]:
+        body = kwargs["json_body"]
+        assert isinstance(body, dict)
+        assert body["api_name"] in {"daily", "daily_basic"}
+        return {
+            "code": 0,
+            "data": {
+                "fields": ["ts_code", "trade_date", "close"],
+                "items": [["000001.SZ", "20261013", 12.3]],
+            },
+        }
+
+    execute = Mock(side_effect=_provider_response)
+    monkeypatch.setattr(egress_service, "execute_provider_request", execute)
+    stats = tushare_client.TushareFullMarketCacheStats()
+
+    with tushare_client.cache_tushare_full_market_trade_date_queries(stats):
+        quote_client = tushare_client.create_tushare_pro_client(
+            provider_id=3,
+            deployment_region="overseas",
+            dataset_key="equity.quote.snapshot",
+        )
+        price_client = tushare_client.create_tushare_pro_client(
+            provider_id=3,
+            deployment_region="overseas",
+            dataset_key="equity.price.bar",
+        )
+        valuation_client = tushare_client.create_tushare_pro_client(
+            provider_id=3,
+            deployment_region="overseas",
+            dataset_key="equity.valuation.fact",
+        )
+        quote_client.daily(trade_date="20261013")
+        price_client.daily(trade_date="20261013")
+        valuation_client.daily_basic(trade_date="20261013")
+        valuation_client.daily_basic(trade_date="20261013")
+
+    assert execute.call_count == 2
+    assert stats.provider_queries == {"daily": 1, "daily_basic": 1}
+    assert stats.cache_hits == {"daily": 1, "daily_basic": 1}
+
+
+def test_operation_cache_does_not_cross_distinct_governed_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dataset-specific routes cannot share a cached full-market response."""
+
+    settings = tushare_client.TushareRuntimeSettings(
+        token="test-private-token",
+        http_url="https://market.example.com/pro",
+        request_mode="unified_relay",
+    )
+    monkeypatch.setattr(
+        tushare_client,
+        "resolve_tushare_runtime_settings",
+        lambda **_kwargs: settings,
+    )
+    session = Mock()
+    session.headers = {}
+    monkeypatch.setattr(tushare_client, "_create_requests_session", lambda: session)
+
+    def _route(context: EgressRequestContext) -> EgressRouteDecision:
+        dataset_key = context.dataset_key
+        rule_id = 5 if dataset_key == "equity.quote.snapshot" else 6
+        return EgressRouteDecision(
+            rule_id=rule_id,
+            strategy=EgressStrategy.FIXED,
+            candidates=(9,),
+            reason="matched_rule",
+        )
+
+    monkeypatch.setattr(egress_service, "preview_route", _route)
+    execute = Mock(
+        return_value={
+            "code": 0,
+            "data": {
+                "fields": ["ts_code", "trade_date", "close"],
+                "items": [["000001.SZ", "20261013", 12.3]],
+            },
+        }
+    )
+    monkeypatch.setattr(egress_service, "execute_provider_request", execute)
+    stats = tushare_client.TushareFullMarketCacheStats()
+
+    with tushare_client.cache_tushare_full_market_trade_date_queries(stats):
+        for dataset_key in ("equity.quote.snapshot", "equity.price.bar"):
+            client = tushare_client.create_tushare_pro_client(
+                provider_id=3,
+                deployment_region="overseas",
+                dataset_key=dataset_key,
+            )
+            client.daily(trade_date="20261013")
+
+    assert execute.call_count == 2
+    assert stats.provider_queries == {"daily": 2}
+    assert stats.cache_hits == {}

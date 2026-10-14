@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5515,
+    "current_surface_references": 5516,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11625,6 +11625,10 @@
     {
       "path": "apps/data_center/infrastructure/tushare_a_share_provider.py",
       "text": "\"\"\"Request all current-listed A-shares and normalize their listing dates.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/tushare_client.py",
+      "text": "\"\"\"Return a cached session table only when its current route is identical.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/tushare_model_market_source.py",

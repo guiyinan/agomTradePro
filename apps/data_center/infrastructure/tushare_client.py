@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import partial
 from hashlib import sha256
@@ -34,6 +36,51 @@ from shared.config.tushare import (
 
 PandasDataFrame = Any
 pd = cast(Any, import_module("pandas"))
+
+FullMarketCacheKey = tuple[str, str, str, str]
+FullMarketResponseCache = dict[FullMarketCacheKey, PandasDataFrame]
+
+_FULL_MARKET_RESPONSE_CACHE: ContextVar[FullMarketResponseCache | None] = ContextVar(
+    "tushare_full_market_response_cache",
+    default=None,
+)
+_FULL_MARKET_RESPONSE_STATS: ContextVar[TushareFullMarketCacheStats | None] = ContextVar(
+    "tushare_full_market_response_stats",
+    default=None,
+)
+
+
+@dataclass(slots=True)
+class TushareFullMarketCacheStats:
+    """Count provider queries and operation-cache hits by Tushare endpoint."""
+
+    provider_queries: dict[str, int] = field(default_factory=dict)
+    cache_hits: dict[str, int] = field(default_factory=dict)
+
+    def record_provider_query(self, api_name: str) -> None:
+        """Record one call that reached the configured provider client."""
+
+        self.provider_queries[api_name] = self.provider_queries.get(api_name, 0) + 1
+
+    def record_cache_hit(self, api_name: str) -> None:
+        """Record one full-market response served from the operation cache."""
+
+        self.cache_hits[api_name] = self.cache_hits.get(api_name, 0) + 1
+
+
+@contextmanager
+def cache_tushare_full_market_trade_date_queries(
+    stats: TushareFullMarketCacheStats,
+) -> Iterator[None]:
+    """Cache exact full-market daily tables for one explicitly bounded operation."""
+
+    cache_token = _FULL_MARKET_RESPONSE_CACHE.set({})
+    stats_token = _FULL_MARKET_RESPONSE_STATS.set(stats)
+    try:
+        yield
+    finally:
+        _FULL_MARKET_RESPONSE_STATS.reset(stats_token)
+        _FULL_MARKET_RESPONSE_CACHE.reset(cache_token)
 
 
 @dataclass(frozen=True)
@@ -181,6 +228,72 @@ def _is_full_market_trade_date_query(api_name: str, params: Mapping[str, object]
         and re.fullmatch(r"[0-9]{8}", trade_date) is not None
         and not (isinstance(asset_code, str) and asset_code.strip())
     )
+
+
+def _operation_cache_key(
+    *,
+    route_identity: str,
+    api_name: str,
+    fields: str,
+    params: Mapping[str, object],
+) -> FullMarketCacheKey | None:
+    """Return a collision-free key for the exact session reads used by backfill."""
+
+    if not _is_full_market_trade_date_query(api_name, params):
+        return None
+    if set(params) - {"trade_date", "ts_code"}:
+        return None
+    trade_date = cast(str, params["trade_date"])
+    return route_identity, api_name, fields, trade_date
+
+
+class _OperationCachedTushareClient:
+    """Reuse immutable full-market responses inside one explicit operation scope."""
+
+    def __init__(self, client: object, *, direct_route_identity: str) -> None:
+        self._client = client
+        self._direct_route_identity = direct_route_identity
+
+    def query(self, api_name: str, fields: str = "", **params: object) -> PandasDataFrame:
+        """Return a cached session table only when its current route is identical."""
+
+        cache = _FULL_MARKET_RESPONSE_CACHE.get()
+        stats = _FULL_MARKET_RESPONSE_STATS.get()
+        if cache is None or stats is None:
+            return cast(Any, self._client).query(api_name, fields=fields, **params)
+        route_identity = self._route_identity(api_name)
+        key = _operation_cache_key(
+            route_identity=route_identity,
+            api_name=api_name,
+            fields=fields,
+            params=params,
+        )
+        if key is None:
+            return cast(Any, self._client).query(api_name, fields=fields, **params)
+        cached = cache.get(key)
+        if cached is not None:
+            stats.record_cache_hit(api_name)
+            return cached
+        stats.record_provider_query(api_name)
+        frame = cast(Any, self._client).query(api_name, fields=fields, **params)
+        if self._route_identity(api_name) == route_identity:
+            cache[key] = frame
+        return frame
+
+    def _route_identity(self, api_name: str) -> str:
+        """Resolve the governed route used for one endpoint at call time."""
+
+        resolver = getattr(self._client, "_operation_cache_route_identity", None)
+        if callable(resolver):
+            return cast(str, resolver(api_name))
+        return self._direct_route_identity
+
+    def __getattr__(self, api_name: str) -> Any:
+        """Expose Tushare endpoint names through the standard dynamic API."""
+
+        if api_name.startswith("_"):
+            raise AttributeError(api_name)
+        return partial(self.query, api_name)
 
 
 def _empty_trade_date_error(api_name: str, trade_date: object) -> TushareError:
@@ -472,6 +585,30 @@ class _UnifiedRelayClient:
         )
         return preview_route(context).rule_id is not None
 
+    def _operation_cache_route_identity(self, api_name: str) -> str:
+        """Return a stable identity for the live route used by one endpoint."""
+
+        target_url = self._operation_cache_target_url(api_name)
+        token_digest = sha256(self._token.encode("utf-8")).hexdigest()
+        if self._provider_id is None:
+            return f"direct:{target_url}:{token_digest}"
+        from apps.data_center.application.egress_service import preview_route
+
+        context = EgressRequestContext(
+            provider_id=self._provider_id,
+            dataset_key=self._dataset_key or f"tushare.{api_name}",
+            target_url=target_url,
+            deployment_region=self._deployment_region,
+        )
+        route = preview_route(context)
+        route_key = f"rule:{route.rule_id}" if route.rule_id is not None else "direct"
+        return f"{route_key}:{target_url}:{token_digest}"
+
+    def _operation_cache_target_url(self, api_name: str) -> str:
+        """Return the physical endpoint addressed by one logical API call."""
+
+        return self._http_url
+
     def _request_through_egress(
         self,
         target_url: str,
@@ -593,6 +730,11 @@ class _RestPathClient(_UnifiedRelayClient):
         columns, items = _validated_provider_table(data, api_name=api_name, params=params)
         return _provider_frame(items, columns, artifact_reference)
 
+    def _operation_cache_target_url(self, api_name: str) -> str:
+        """Return the REST resource endpoint addressed by one API call."""
+
+        return self._http_url.rstrip("/") + "/" + api_name.replace("_", "-")
+
 
 class _RoutedSdkClient(_UnifiedRelayClient):
     """Check live routing rules before each SDK-shaped provider query."""
@@ -713,7 +855,7 @@ def create_tushare_pro_client(
             if settings.request_mode == TUSHARE_REQUEST_MODE_REST_PATH
             else _UnifiedRelayClient
         )
-        return client_type(
+        client = client_type(
             token=settings.token,
             http_url=settings.http_url,
             provider_id=provider_id,
@@ -721,6 +863,7 @@ def create_tushare_pro_client(
             dataset_key=dataset_key,
             financial_response_handler=financial_response_handler,
         )
+        return _operation_cached_client(client, settings)
 
     if provider_id is None:
         _append_custom_endpoint_to_no_proxy(settings.http_url)
@@ -731,11 +874,11 @@ def create_tushare_pro_client(
     pro = ts.pro_api(settings.token)
     configured = configure_tushare_pro_client(pro, settings.http_url)
     if provider_id is None:
-        return configured
+        return _operation_cached_client(configured, settings)
     sdk_url = _validated_http_url(cast(_TushareDataApi, configured)._DataApi__http_url)
     if sdk_url is None:
         raise ValueError("Tushare SDK endpoint is unavailable")
-    return _RoutedSdkClient(
+    client = _RoutedSdkClient(
         sdk_client=configured,
         token=settings.token,
         http_url=sdk_url,
@@ -745,13 +888,29 @@ def create_tushare_pro_client(
         dataset_key=dataset_key,
         financial_response_handler=financial_response_handler,
     )
+    return _operation_cached_client(client, settings)
+
+
+def _operation_cached_client(client: object, settings: TushareRuntimeSettings) -> object:
+    """Wrap a client only while an explicit full-market cache scope is active."""
+
+    if _FULL_MARKET_RESPONSE_CACHE.get() is None:
+        return client
+    token_digest = sha256(settings.token.encode("utf-8")).hexdigest()
+    target_url = settings.http_url or "official-sdk"
+    return _OperationCachedTushareClient(
+        client,
+        direct_route_identity=f"direct:{target_url}:{token_digest}",
+    )
 
 
 __all__ = [
+    "TushareFullMarketCacheStats",
     "TushareFinancialResponseHandler",
     "TushareRelayAuthorizationError",
     "TushareRuntimeSettings",
     "TushareResponseEvidence",
+    "cache_tushare_full_market_trade_date_queries",
     "configure_tushare_pro_client",
     "create_tushare_pro_client",
     "resolve_tushare_runtime_settings",

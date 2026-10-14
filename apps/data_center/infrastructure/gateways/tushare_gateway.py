@@ -21,8 +21,10 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.tushare_client import (
+    TushareFullMarketCacheStats,
     TushareRelayAuthorizationError,
     TushareResponseEvidence,
+    cache_tushare_full_market_trade_date_queries,
     create_tushare_pro_client,
 )
 from apps.data_center.infrastructure.tushare_replay_parser import _safe_decimal as _safe_decimal
@@ -57,14 +59,18 @@ _HISTORICAL_SESSION_FRAME_CACHE: ContextVar[HistoricalSessionFrameCache | None] 
 
 
 @contextmanager
-def cache_tushare_historical_session_frames() -> Iterator[None]:
+def cache_tushare_historical_session_frames(
+    stats: TushareFullMarketCacheStats | None = None,
+) -> Iterator[TushareFullMarketCacheStats]:
     """Reuse each full-market Tushare session response within one explicit operation."""
 
-    token = _HISTORICAL_SESSION_FRAME_CACHE.set({})
-    try:
-        yield
-    finally:
-        _HISTORICAL_SESSION_FRAME_CACHE.reset(token)
+    operation_stats = stats or TushareFullMarketCacheStats()
+    with cache_tushare_full_market_trade_date_queries(operation_stats):
+        token = _HISTORICAL_SESSION_FRAME_CACHE.set({})
+        try:
+            yield operation_stats
+        finally:
+            _HISTORICAL_SESSION_FRAME_CACHE.reset(token)
 
 
 def build_tushare_stock_adapter() -> object | None:

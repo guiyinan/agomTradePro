@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 from django.core.management import CommandError, call_command
 
+from apps.data_center.infrastructure.tushare_client import TushareFullMarketCacheStats
 from apps.data_center.management.commands import backfill_historical_a_share_market_facts as module
 
 
@@ -100,7 +101,7 @@ def test_historical_market_backfill_advances_partial_batches_and_reports_final_p
     @contextmanager
     def _cache_scope():
         entered.append(True)
-        yield
+        yield TushareFullMarketCacheStats()
 
     monkeypatch.setattr(module, "cache_tushare_historical_session_frames", _cache_scope)
 

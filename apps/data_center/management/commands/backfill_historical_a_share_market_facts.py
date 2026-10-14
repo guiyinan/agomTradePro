@@ -90,7 +90,7 @@ class Command(BaseCommand):
         aggregate_succeeded = 0
         aggregate_failed = 0
         aggregate_stored = 0
-        with cache_tushare_historical_session_frames():
+        with cache_tushare_historical_session_frames() as provider_stats:
             while True:
                 result = backfill_active_a_share_core_data_batch_task.run(
                     offset=offset,
@@ -128,6 +128,12 @@ class Command(BaseCommand):
                         "stored": aggregate_stored,
                         "published": 0,
                         "partial_batches": partial_batches,
+                        "provider_full_market_queries": dict(
+                            sorted(provider_stats.provider_queries.items())
+                        ),
+                        "provider_full_market_cache_hits": dict(
+                            sorted(provider_stats.cache_hits.items())
+                        ),
                         "current_publication_changed": False,
                         "must_not_use_for_decision": True,
                     }
