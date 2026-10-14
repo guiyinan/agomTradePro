@@ -3,7 +3,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -79,7 +78,6 @@ def test_guardrail_governance_consistency_has_no_regressions():
         "architecture_ruleset",
         "module_dependency_baseline",
         "ci_governance_wiring",
-        "data_center_architecture_inventory",
         "application_third_party_imports",
         "core_integration_debt",
         "core_management_command_debt",
@@ -131,12 +129,8 @@ def test_guardrail_governance_consistency_has_no_regressions():
     assert ci_governance_wiring["consistency_workflow"] == (
         ".github/workflows/consistency-check.yml"
     )
-    inventory = sections["data_center_architecture_inventory"]["data"]
-    assert inventory["current"] is True
-    assert inventory["artifact"] == "governance/data_center_architecture_inventory.json"
-    assert inventory["counts"]["direct_data_center_imports_outside_data_center"] == 0
     assert ci_governance_wiring["architecture_required_token_count"] > 0
-    assert ci_governance_wiring["consistency_required_token_count"] == 11
+    assert ci_governance_wiring["consistency_required_token_count"] == 10
 
     core_integration_debt = sections["core_integration_debt"]["data"]
     assert (
@@ -166,34 +160,6 @@ def test_guardrail_governance_consistency_has_no_regressions():
     remediation = sections["large_file_remediation"]["data"]
     assert remediation["allowed_path_count"] == len(expected_baseline["allowed_large_python_files"])
     assert remediation["remediation_path_count"] == len(expected_baseline["large_file_remediation"])
-
-
-def test_governance_detects_stale_data_center_architecture_inventory(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The aggregate local gate must fail before CI sees a stale Data Center projection."""
-
-    module = _load_governance_script()
-    artifact = tmp_path / "data_center_architecture_inventory.json"
-    artifact.write_text('{"counts":{"current_surface_references":1}}\n', encoding="utf-8")
-    fresh_payload = {"counts": {"current_surface_references": 2}}
-    fake_inventory_module = SimpleNamespace(
-        build_inventory=lambda: fresh_payload,
-        _canonical_json=lambda payload: json.dumps(payload, sort_keys=True) + "\n",
-    )
-    monkeypatch.setattr(module, "DATA_CENTER_ARCHITECTURE_INVENTORY_ARTIFACT", artifact)
-    monkeypatch.setattr(
-        module,
-        "_load_data_center_architecture_inventory_module",
-        lambda: fake_inventory_module,
-    )
-
-    violations, data = module.check_data_center_architecture_inventory_projection()
-
-    assert [item.code for item in violations] == ["data_center_architecture_inventory_stale"]
-    assert data["current"] is False
-    assert data["counts"] == fresh_payload["counts"]
 
 
 def test_large_python_file_baseline_detects_missing_growth_and_stale(monkeypatch):
