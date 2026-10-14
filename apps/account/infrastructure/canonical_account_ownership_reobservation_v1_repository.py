@@ -324,7 +324,12 @@ class DjangoCanonicalAccountOwnershipReobservationV1Repository:
                 "concurrent ownership re-observation first winner differs"
             ) from error
 
-        restored = self._restore(model)
+        persisted_model = (
+            CanonicalAccountOwnershipReobservationV1Model._base_manager.using(self._using)
+            .select_related("binding", "current_physical")
+            .get(pk=_required_pk(model, "ownership re-observation"))
+        )
+        restored = self._restore(persisted_model)
         if restored != checked:
             raise DjangoCanonicalAccountOwnershipReobservationV1Corruption(
                 "ownership re-observation append restore mismatch"
