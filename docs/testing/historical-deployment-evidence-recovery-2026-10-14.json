@@ -1,0 +1,293 @@
+{
+  "schema": "historical-deployment-evidence-recovery.v1",
+  "recorded_at": "2026-10-14T09:28:02.389939+00:00",
+  "status": "complete",
+  "scope": "Recover historical 2026-08-29 evidence, not a new production acceptance run",
+  "source": {
+    "kind": "local_git_stash_untracked_snapshot",
+    "stash_commit": "f5d2134108ef4e6f2c9add4e620cdcf09a2e5c52",
+    "untracked_files_commit": "6ae0954c622459a35e6b0a0a4e37540528c80f57",
+    "historical_candidate_commit": "09269c14db1024584913081db49919085f34d008",
+    "historical_release": "20260829163806",
+    "stash_applied": false,
+    "stash_modified": false
+  },
+  "recovery_counts": {
+    "requested_reports": 7,
+    "supporting_original_captures": 4,
+    "original_checksum_sidecars": 5
+  },
+  "files": [
+    {
+      "path": "docs/deployment/release-candidate-deployment-2026-08-29-09269c14.json",
+      "role": "requested_report",
+      "bytes": 8171,
+      "sha256": "8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6",
+      "expected_sha256": "8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6",
+      "expected_hash_source": "historical document",
+      "source_git_blob_sha256": "8e7646b373812739d621bc2afdac5a9ed648936d9e48d07f1618f2e18d7108d6",
+      "source_git_bytes": 8171,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true
+    },
+    {
+      "path": "docs/deployment/evid-01-authority-inventory/23/23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f.json",
+      "role": "requested_report",
+      "bytes": 1838,
+      "sha256": "23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f",
+      "expected_sha256": "23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f",
+      "expected_hash_source": "content-addressed filename",
+      "source_git_blob_sha256": "23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f",
+      "source_git_bytes": 1838,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true,
+      "original_checksum_sidecar": "docs/deployment/evid-01-authority-inventory/23/23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f.sha256"
+    },
+    {
+      "path": "docs/deployment/evid-02-head-audit/67/67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad.json",
+      "role": "requested_report",
+      "bytes": 871,
+      "sha256": "67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad",
+      "expected_sha256": "67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad",
+      "expected_hash_source": "content-addressed filename",
+      "source_git_blob_sha256": "67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad",
+      "source_git_bytes": 871,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true,
+      "original_checksum_sidecar": "docs/deployment/evid-02-head-audit/67/67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad.sha256"
+    },
+    {
+      "path": "docs/deployment/strat-01-owner-ledger-inventory/65/65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79.json",
+      "role": "requested_report",
+      "bytes": 2213,
+      "sha256": "65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79",
+      "expected_sha256": "65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79",
+      "expected_hash_source": "content-addressed filename",
+      "source_git_blob_sha256": "65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79",
+      "source_git_bytes": 2213,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true,
+      "original_checksum_sidecar": "docs/deployment/strat-01-owner-ledger-inventory/65/65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79.sha256"
+    },
+    {
+      "path": "docs/deployment/aud03-operational-observation/34/34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262.json",
+      "role": "requested_report",
+      "bytes": 2652,
+      "sha256": "34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262",
+      "expected_sha256": "34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262",
+      "expected_hash_source": "content-addressed filename",
+      "source_git_blob_sha256": "34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262",
+      "source_git_bytes": 2652,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true,
+      "original_checksum_sidecar": "docs/deployment/aud03-operational-observation/34/34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262.sha256"
+    },
+    {
+      "path": "docs/deployment/data01-current-backup-restore-2026-08-29-09269c14.json",
+      "role": "requested_report",
+      "bytes": 291178,
+      "sha256": "d7c438ebfdb239cba629c97e96a2e987a15b945abb3cd552501151a2f87020ca",
+      "expected_sha256": "d7c438ebfdb239cba629c97e96a2e987a15b945abb3cd552501151a2f87020ca",
+      "expected_hash_source": "historical document",
+      "source_git_blob_sha256": "7de5d601dbd03c2c6cd617768cd7763cb19609e11b1eb3030317127d646d599d",
+      "source_git_bytes": 282959,
+      "byte_recovery": "original_crlf_restored_from_git_normalized_lf",
+      "git_clean_filter_preserves_bytes": true
+    },
+    {
+      "path": "docs/deployment/data01-isolated-restore/a8/a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121.json",
+      "role": "requested_report",
+      "bytes": 211259,
+      "sha256": "a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121",
+      "expected_sha256": "a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121",
+      "expected_hash_source": "content-addressed filename",
+      "source_git_blob_sha256": "a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121",
+      "source_git_bytes": 211259,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true,
+      "original_checksum_sidecar": "docs/deployment/data01-isolated-restore/a8/a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121.sha256"
+    },
+    {
+      "path": "docs/deployment/evid-01-authority-inventory-snapshot-2026-08-29-09269c14.json",
+      "role": "supporting_original_capture",
+      "bytes": 1871,
+      "sha256": "76d5869179a70a46491966a65a2c44741e77bf9fa09a83b6645dbc9591857081",
+      "expected_sha256": "76d5869179a70a46491966a65a2c44741e77bf9fa09a83b6645dbc9591857081",
+      "expected_hash_source": "Git snapshot and associated source-payload binding",
+      "source_git_blob_sha256": "76d5869179a70a46491966a65a2c44741e77bf9fa09a83b6645dbc9591857081",
+      "source_git_bytes": 1871,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true
+    },
+    {
+      "path": "docs/deployment/evid-02-select-only-vps-snapshot-2026-08-29-09269c14.json",
+      "role": "supporting_original_capture",
+      "bytes": 511,
+      "sha256": "7c673362c1d439cacb1bed7203b05de9fd56090c1e5ee1b60a87ec2c717b6793",
+      "expected_sha256": "7c673362c1d439cacb1bed7203b05de9fd56090c1e5ee1b60a87ec2c717b6793",
+      "expected_hash_source": "Git snapshot and associated source-payload binding",
+      "source_git_blob_sha256": "7c673362c1d439cacb1bed7203b05de9fd56090c1e5ee1b60a87ec2c717b6793",
+      "source_git_bytes": 511,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true
+    },
+    {
+      "path": "docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json",
+      "role": "supporting_original_capture",
+      "bytes": 2372,
+      "sha256": "263f9813715e5577b1423d04f9409f10ad03ced5c1bd6fa9c021345cd68253c7",
+      "expected_sha256": "263f9813715e5577b1423d04f9409f10ad03ced5c1bd6fa9c021345cd68253c7",
+      "expected_hash_source": "Git snapshot and associated source-payload binding",
+      "source_git_blob_sha256": "263f9813715e5577b1423d04f9409f10ad03ced5c1bd6fa9c021345cd68253c7",
+      "source_git_bytes": 2372,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true
+    },
+    {
+      "path": "docs/deployment/aud03-operational-observation-select-only-2026-08-29-09269c14.json",
+      "role": "supporting_original_capture",
+      "bytes": 2023,
+      "sha256": "969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff",
+      "expected_sha256": "969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff",
+      "expected_hash_source": "Git snapshot and associated source-payload binding",
+      "source_git_blob_sha256": "969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff",
+      "source_git_bytes": 2023,
+      "byte_recovery": "exact_git_blob",
+      "git_clean_filter_preserves_bytes": true
+    }
+  ],
+  "offline_recorder_reproduction": [
+    {
+      "unit": "EVID-01",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "scripts/record_evid_01_authority_inventory.py",
+        "--input",
+        "docs/deployment/evid-01-authority-inventory-snapshot-2026-08-29-09269c14.json"
+      ],
+      "exit_code": 0,
+      "expected_artifact_sha256": "23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f",
+      "actual": {
+        "artifact_sha256": "23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f",
+        "authority_ready": false,
+        "outcome": "blocked_zero_seed_authority",
+        "production_claim": false,
+        "production_ready": false,
+        "runtime_enablement": "not_authorized",
+        "written": false
+      }
+    },
+    {
+      "unit": "EVID-02",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "scripts/record_evid_02_head_audit.py",
+        "--input",
+        "docs/deployment/evid-02-select-only-vps-snapshot-2026-08-29-09269c14.json",
+        "--input-format",
+        "select-only"
+      ],
+      "exit_code": 0,
+      "expected_artifact_sha256": "67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad",
+      "actual": {
+        "artifact_sha256": "67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad",
+        "capture": {
+          "candidate_commit": "09269c14db1024584913081db49919085f34d008",
+          "candidate_release": "20260829163806",
+          "database_alias": "default",
+          "environment": "production",
+          "query_digest": "5210ae0eb068e07384d594efb5159ca32d2521c1fab567909090d093b350e466",
+          "read_mode": "select_only"
+        },
+        "human_approval_status": "not_collected",
+        "input_payload_sha256": "7c673362c1d439cacb1bed7203b05de9fd56090c1e5ee1b60a87ec2c717b6793",
+        "production_claim": false,
+        "production_ready": false,
+        "runtime_enablement": "not_authorized",
+        "written": false
+      }
+    },
+    {
+      "unit": "STRAT-01",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "scripts/record_strat_01_owner_inventory.py",
+        "--input",
+        "docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json"
+      ],
+      "exit_code": 0,
+      "expected_artifact_sha256": "65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79",
+      "actual": {
+        "artifact_sha256": "65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79",
+        "outcome": "zero_seed",
+        "production_claim": false,
+        "production_ready": false,
+        "runtime_enablement": "not_authorized",
+        "written": false
+      }
+    },
+    {
+      "unit": "AUD-03",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "scripts/record_aud03_operational_observation_evidence.py",
+        "--input",
+        "docs/deployment/aud03-operational-observation-select-only-2026-08-29-09269c14.json"
+      ],
+      "exit_code": 0,
+      "expected_artifact_sha256": "34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262",
+      "actual": {
+        "archive_integrity_mismatch_count": 0,
+        "artifact_sha256": "34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262",
+        "evidence_scope": "aud03_external_operational_observation",
+        "missing_section_count": 4,
+        "production_claim": false,
+        "production_ready": false,
+        "runtime_enablement": "not_authorized",
+        "source_payload_sha256": "969a2313d6360a8df59aa33d9c8b49df6621a964fef96e95c51dae30afeb60ff",
+        "written": false
+      }
+    },
+    {
+      "unit": "DATA-01",
+      "command": [
+        "python",
+        "-X",
+        "utf8",
+        "scripts/record_data01_restore_evidence.py",
+        "--input",
+        "docs/deployment/data01-current-backup-restore-2026-08-29-09269c14.json"
+      ],
+      "exit_code": 0,
+      "expected_artifact_sha256": "a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121",
+      "actual": {
+        "artifact_sha256": "a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121",
+        "evidence_scope": "isolated_restore_only",
+        "isolated_restore_verified": true,
+        "production_claim": false,
+        "production_ready": false,
+        "runtime_enablement": "not_authorized",
+        "source_payload_sha256": "d7c438ebfdb239cba629c97e96a2e987a15b945abb3cd552501151a2f87020ca",
+        "written": false
+      }
+    }
+  ],
+  "limitations": [
+    "This recovery verifies original bytes, historical identity/source bindings and deterministic recorder reproduction; it does not re-run the past production deployment or database restore.",
+    "Historical DENY, zero-seed, missing approval and unavailable Audit sections remain exactly as recorded.",
+    "One raw restore report required CRLF restoration from its Git-normalized LF blob; the result matches both the historical 291178-byte size and independently documented full SHA-256."
+  ],
+  "production_claim": false,
+  "production_ready": false,
+  "runtime_enablement": "not_authorized",
+  "production_operations_performed": false,
+  "governance_states_changed": false
+}

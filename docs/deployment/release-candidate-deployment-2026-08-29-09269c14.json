@@ -1,0 +1,214 @@
+{
+  "schema": "release-candidate-deployment-acceptance.v1",
+  "captured_at": "2026-08-29T09:06:02.347631Z",
+  "environment": "production",
+  "candidate": {
+    "source_commit": "09269c14db1024584913081db49919085f34d008",
+    "release_tag": "20260829163806",
+    "release_dir": "/opt/agomtradepro/releases/source-20260829163806",
+    "image_tag": "agomtradepro-web:20260829163806",
+    "image_id": "sha256:08650701deaa8286c5818a9ed1ba15d96f740fcc646d38e56d0a979c413884da",
+    "source_mode": "source-upload",
+    "runtime_identity": {
+      "status": "verified",
+      "runtime_match": true,
+      "must_not_trust_for_release": false,
+      "app_version": "0.8.0"
+    },
+    "binding": {
+      "version": "web-to-tui-candidate-binding.v1",
+      "matrix_sha256": "e3027671d02d876c9f4b38b9d86395d45e26c0f2b344eb0646086be31869cd5d",
+      "graph_sha256": "63be10ee25bb73c87861c18cc92355938fd7abc096c33852bf5f904d4db532a2",
+      "schema_version": "tui-metadata.v3",
+      "runtime_version": "0.2.0",
+      "runtime_build_id": "agomtui-runtime-0.2.0+7b2efaff4f9a",
+      "runtime_manifest_sha256": "bfa8eeb81da5165414a882f77f3333268847f217f858925a40597d720548e6fe"
+    }
+  },
+  "previous_production": {
+    "source_commit": "45d7616d3c38a86853104f93dbd3f13bd9a48838",
+    "release_tag": "20260826135953",
+    "image_id": "sha256:c481bb88ac6547165bdebcd34573a6f0d69b042c93ce37136b8ea3b160a1ce66"
+  },
+  "pre_deploy_backup": {
+    "created_under_exact_authorization": true,
+    "remote_archive": "/opt/agomtradepro/backups/database/postgres-20260829T083336Z.dump",
+    "local_archive": "backups/vps-postgres/postgres-20260829T083336Z.dump",
+    "bytes": 146273315,
+    "sha256": "a5c77b8c6af13c5f61a3ca7e3fa9437b0bf23b03b049eb758abaf8ef94e2b30a",
+    "remote_pg_restore_list": "passed",
+    "sftp_size_match": "passed",
+    "local_sha256_match": "passed",
+    "remote_retention_pruning": false,
+    "restore_performed": false
+  },
+  "deployment": {
+    "mode": "controlled_clean_worktree_source_upload_upgrade",
+    "clean_worktree_commit_verified": true,
+    "data_volumes_preserved": true,
+    "include_sqlite": false,
+    "wipe_docker": false,
+    "wipe_volumes": false,
+    "celery_enabled": true,
+    "decision_repair_requested": false,
+    "deployment_hook_backup_skipped_after_external_verified_backup": true,
+    "schema_migration": {
+      "applied": [
+        "audit.0013_systemauditdeliveryreceipt"
+      ],
+      "created_table": "audit_system_delivery_receipt",
+      "canonical_schema_check": "passed",
+      "unapplied_migrations_after_deploy": 0
+    },
+    "deployment_owned_database_sync": {
+      "data_center_catalog": {
+        "contracts": 10,
+        "bindings": 15,
+        "policies": 10,
+        "owners": 10
+      },
+      "mcp_capability_catalog": {
+        "source": "mcp_tool",
+        "discovered": 707,
+        "created": 368,
+        "updated": 339,
+        "disabled": 0,
+        "errors": 0
+      },
+      "tui_metadata": {
+        "registry_id": 30,
+        "status": "published",
+        "backend_version": "20260829163806",
+        "source_hash": "68fc19962de486a2382584ec416a2a90dcffa08c35fcc9afa3c255d3f5850d72",
+        "active_source_hash_matched": true
+      },
+      "cold_start_bootstrap": {
+        "applied": 0,
+        "skipped": 19
+      },
+      "macro_governance_checks": {
+        "indicator_governance_updated": 0,
+        "fact_unit_normalization_updated": 0,
+        "dry_run": true
+      },
+      "periodic_task_configuration": "completed"
+    },
+    "automatic_rollback_enabled": true,
+    "rollback_performed": false,
+    "rollback_scope_limitation": "Application release, containers, current symlink and TUI metadata only; database migration and deployment-owned database writes are not automatically reversed."
+  },
+  "build_and_report": {
+    "build_started_at": "2026-08-29T08:40:25Z",
+    "build_finished_at": "2026-08-29T08:53:43Z",
+    "local_report": "dist/remote-build-reports/remote-build-report-20260829163806.json",
+    "report_bytes": 3320,
+    "report_sha256": "d4242627520340128f78579b7fa624f5df22aeb8a4f4dbae12523ee8532867de"
+  },
+  "independent_verifier": {
+    "expected_commit": "09269c14db1024584913081db49919085f34d008",
+    "outcome": "passed",
+    "automatic_rollback_armed": true,
+    "checks": {
+      "caddy_tls": "passed",
+      "health": "passed",
+      "containers": "passed",
+      "django_deploy_check": "passed_with_1_silenced_issue",
+      "migrations": "passed",
+      "canonical_data_center_schema": "passed",
+      "tui_registry": "passed_registry_30",
+      "qlib_identity": "pyqlib=0.9.7; wrong_qlib=absent; python3.11 module",
+      "release_identity": "passed",
+      "backup_and_secret_permissions": "passed",
+      "resources": "passed",
+      "healthcheck": "passed",
+      "celery_worker": "running",
+      "celery_beat": "running",
+      "celery_ping": "1 node online"
+    }
+  },
+  "public_probes": {
+    "/api/health/": {
+      "http_status": 200,
+      "bytes": 62,
+      "sha256": "84db5015cac929f1fc84aad0c6c212b034bb453515d3dfd60a1aed3b97eac50b",
+      "status": "ok"
+    },
+    "/api/ready/": {
+      "http_status": 200,
+      "bytes": 11007,
+      "sha256": "274911973dbb6ec4f61deee1852177688cadc6cd17f1f9cd418bef9c91cb966d",
+      "status": "ok",
+      "checks": {
+        "database": "ok",
+        "redis": "ok",
+        "celery": "ok",
+        "celery_workers": 1,
+        "critical_data": "ok",
+        "decision_data": "ok",
+        "decision_data_must_not_use_for_decision": false
+      }
+    },
+    "/api/audit/health/": {
+      "http_status": 200,
+      "bytes": 1171,
+      "sha256": "464357a647c956cdbcbf24d663629d7e04f77d720f899a3eef369bd1cddf0d71",
+      "overall_status": "OK",
+      "operation_logs": 563,
+      "failures": 0,
+      "outbox_pending": 0,
+      "outbox_due_pending": 0,
+      "outbox_claimed": 0,
+      "outbox_expired_claimed": 0,
+      "outbox_failed": 0,
+      "outbox_delivered": 0
+    },
+    "/api/decision-ready/": {
+      "http_status": 503,
+      "bytes": 14627,
+      "sha256": "abc5f3d4341d7ae6ffa013ad84e3373324cc842799943d18382d25596f92d842",
+      "status": "blocked",
+      "must_not_use_for_decision": true,
+      "runtime_state": {
+        "status": "blocked",
+        "block_reason_code": "decision_runtime_blocked",
+        "reason": "MCP audit evidence write failed during final acceptance"
+      },
+      "core_coverage": {
+        "status": "incomplete",
+        "block_reason_code": "core_data_coverage_incomplete"
+      },
+      "provider_capabilities": {
+        "status": "blocked",
+        "block_reason_code": "decision_provider_capabilities_unhealthy"
+      }
+    },
+    "/api/tui/": {
+      "http_status": 403,
+      "bytes": 61,
+      "sha256": "c65bef74297615126656a101e44c654a66e04c61d4936c40643db8ce487152bd",
+      "status": "authentication_required"
+    }
+  },
+  "release_decision": {
+    "deployment_identity_verified": true,
+    "candidate_bound": true,
+    "m5_readiness": "DENY",
+    "observation_window_started": false,
+    "capacity_ready": false,
+    "runtime_enablement": "not_authorized",
+    "remaining_gates": [
+      "candidate-bound role browser UAT and production write receipts",
+      "candidate-bound defect and telemetry observation window",
+      "production registry backup/restore and rollback drill",
+      "provider, capacity and chaos acceptance",
+      "owner and independent reviewer approvals"
+    ]
+  },
+  "limitations": [
+    "The authorized deployment, backup creation, migration, service switch and verifier completed; no rollback was needed.",
+    "No SQLite restore, Docker or volume wipe, decision repair, authority seed, business backfill, runtime-state clear, queued-runtime enablement, capacity increase, load generation or fault injection was performed.",
+    "Automatic rollback would not reverse the applied database migration or deployment-owned catalog, registry and periodic-task writes.",
+    "Healthy runtime and a verified immutable identity do not satisfy role UAT, durable Evidence authority, 14-day telemetry, restore/RTO/RPO, live rollback or human approval gates.",
+    "Decision readiness remains fail-closed and must_not_use_for_decision=true."
+  ]
+}

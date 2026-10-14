@@ -155,3 +155,17 @@ docs/testing/data02-financial-source-time-independent-verifier-2026-09-22.json t
 docs/testing/data02-financial-source-time-independent-verifier-2026-09-22.json.sha256 text eol=lf
 docs/deployment/production-closure-revalidation-2026-09-23-77531f42d.json text eol=lf
 docs/deployment/production-closure-revalidation-2026-09-23-77531f42d.json.sha256 text eol=lf
+
+# Recovered historical evidence: preserve exact hash-bound bytes, including original CRLF.
+docs/deployment/release-candidate-deployment-2026-08-29-09269c14.json -text
+docs/deployment/evid-01-authority-inventory/23/23bbda2b41c8fc22e6cb27b74b9f3f35ea1ad59dfdb9a69125aca9702787693f.json -text
+docs/deployment/evid-02-head-audit/67/67edbdc604cd60e25980b0bf89566f99e9314e2b937919bdeba88a7cfc900dad.json -text
+docs/deployment/strat-01-owner-ledger-inventory/65/65fb8e2f45db6ddcea7bc19e4b96accf41764598644fd8b37d9abcec0e864a79.json -text
+docs/deployment/aud03-operational-observation/34/34f3b1a70283c491a9fbc8a20c4686e5d51315bac8be3cb5ead34bc2f07d2262.json -text
+docs/deployment/data01-current-backup-restore-2026-08-29-09269c14.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/deployment/data01-isolated-restore/a8/a8da9c326c130ec5be19acbc525382178c258075c6aa55531e86c560552bb121.json -text
+docs/deployment/evid-01-authority-inventory-snapshot-2026-08-29-09269c14.json -text
+docs/deployment/evid-02-select-only-vps-snapshot-2026-08-29-09269c14.json -text
+docs/deployment/strat-01-owner-ledger-readonly-recheck-2026-08-29-09269c14.json -text
+docs/deployment/aud03-operational-observation-select-only-2026-08-29-09269c14.json -text
+docs/testing/historical-deployment-evidence-recovery-2026-10-14.json text eol=lf
