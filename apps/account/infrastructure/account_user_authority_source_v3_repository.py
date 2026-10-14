@@ -37,6 +37,7 @@ from apps.account.infrastructure.account_user_authority_source_v3_codec import (
     decode_account_user_authority_source_v3,
     encode_account_user_authority_source_v3,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class AccountUserAuthoritySourceV3Clock(Protocol):
@@ -302,6 +303,7 @@ class DjangoAccountUserAuthoritySourceV3Repository:
             raise AccountActorAuthorityRawSourceV3Conflict("anchor root claim differs")
         return anchor
 
+    @reuse_immutable_read("user-authority-source-v3-closed-world")
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
         """Load the closed ledger world while locking only nullable-safe row targets."""
 

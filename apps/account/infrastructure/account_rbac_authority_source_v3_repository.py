@@ -37,6 +37,7 @@ from apps.account.infrastructure.account_rbac_authority_source_v3_codec import (
     decode_account_rbac_authority_source_v3,
     encode_account_rbac_authority_source_v3,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class AccountRbacAuthoritySourceV3Clock(Protocol):
@@ -300,6 +301,7 @@ class DjangoAccountRbacAuthoritySourceV3Repository:
             raise AccountActorAuthorityRawSourceV3Conflict("RBAC anchor claim differs")
         return anchor
 
+    @reuse_immutable_read("rbac-authority-source-v3-closed-world")
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
         """Load the closed ledger world while locking only nullable-safe row targets."""
 

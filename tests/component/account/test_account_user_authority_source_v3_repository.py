@@ -11,6 +11,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_s
 django.setup()
 
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
     AccountActorAuthorityRawSourceV3Conflict,
@@ -30,6 +31,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_user_authority_source_v3_repository import (
     DjangoAccountUserAuthoritySourceV3Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from tests.support.isolated_schema import isolated_schema
 from tests.unit.account.test_account_user_authority_source_v3 import _source, _successor
 
@@ -90,6 +92,42 @@ def test_root_exact_replay_and_pit_are_zero_seed_and_permanent() -> None:
         )
         == stored
     )
+
+
+def test_read_phase_reuses_user_closed_world_and_new_phase_reloads() -> None:
+    repository = _repository()
+    source = _source()
+    with repository.atomic():
+        stored = repository.append(_record(source), expected_predecessor_hash=None, recorded_at=NOW)
+
+    with immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                source_id=source.identity.source_id,
+                source_version=source.identity.source_version,
+                as_of=NOW,
+            )
+            == stored
+        )
+        with CaptureQueriesContext(connection) as reused:
+            assert (
+                repository.get_current_head(
+                    source_id=source.identity.source_id,
+                    as_of=NOW + timedelta(minutes=1),
+                )
+                == stored
+            )
+        assert len(reused) == 0
+
+    with immutable_read_snapshot(), CaptureQueriesContext(connection) as reloaded:
+        assert (
+            repository.get_current_head(
+                source_id=source.identity.source_id,
+                as_of=NOW + timedelta(minutes=1),
+            )
+            == stored
+        )
+    assert len(reloaded) > 0
 
 
 def test_successor_and_deactivated_final_head_never_fall_back() -> None:

@@ -145,6 +145,7 @@ class DjangoAccountActorAuthorityInputBundleProviderV3(ExactActorAuthorityInputB
         self._repositories_factory = (
             repositories_factory or DjangoAccountActorAuthorityRawSourceRepositoriesFactoryV3()
         )
+        self._read_repositories: AccountActorAuthorityRawSourceRepositoriesV3 | None = None
 
     def get_exact_current(
         self,
@@ -179,8 +180,7 @@ class DjangoAccountActorAuthorityInputBundleProviderV3(ExactActorAuthorityInputB
         connection = _connection_for_alias(self._using)
         try:
             snapshot = self._snapshot(connection)
-            repositories = self._repositories_factory.build(using=self._using)
-            _require_repository_bundle(repositories, self._using)
+            repositories = self._repositories()
             with snapshot:
                 context = GetCurrentAccountAuthenticationContextSourceV3(
                     repositories.authentication
@@ -216,6 +216,16 @@ class DjangoAccountActorAuthorityInputBundleProviderV3(ExactActorAuthorityInputB
 
         _require_postgresql_outer_connection(connection, self._using)
         return _provider_snapshot(self._using, connection)
+
+    def _repositories(self) -> AccountActorAuthorityRawSourceRepositoriesV3:
+        """Return one stable read-only repository bundle for operation-scoped reuse."""
+
+        repositories = self._read_repositories
+        if repositories is None:
+            repositories = self._repositories_factory.build(using=self._using)
+            _require_repository_bundle(repositories, self._using)
+            self._read_repositories = repositories
+        return repositories
 
 
 def _selectors(

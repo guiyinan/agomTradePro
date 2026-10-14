@@ -37,6 +37,7 @@ from apps.account.infrastructure.account_authentication_context_source_v3_codec 
     decode_account_authentication_context_source_v3,
     encode_account_authentication_context_source_v3,
 )
+from apps.account.infrastructure.immutable_read_snapshot import reuse_immutable_read
 
 
 class AccountAuthenticationContextSourceV3Clock(Protocol):
@@ -285,6 +286,7 @@ class DjangoAccountAuthenticationContextSourceV3Repository:
             raise AccountActorAuthorityRawSourceV3Conflict("anchor claim differs")
         return anchor
 
+    @reuse_immutable_read("authentication-context-source-v3-closed-world")
     def _closed_world(self, *, lock: bool, permitted_empty_anchor: int | None = None) -> _World:
         """Load the closed ledger world while locking only nullable-safe row targets."""
 

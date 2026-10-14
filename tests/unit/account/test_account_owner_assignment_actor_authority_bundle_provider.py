@@ -181,6 +181,30 @@ def test_projects_exact_current_sources_in_one_read_only_repeatable_read_snapsho
     assert atomic.entered == atomic.exited == 1
 
 
+def test_reuses_one_repository_bundle_across_read_phases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context, user, rbac = _sources()
+    connection = _Connection()
+    atomic = _Atomic()
+    factory = _Factory()
+    _patch_runtime(
+        monkeypatch,
+        connection=connection,
+        atomic=atomic,
+        context=context,
+        user=user,
+        rbac=rbac,
+    )
+    provider = _provider(factory)
+
+    assert provider.get_exact_current(**_kwargs(context, user, rbac)) is not None
+    assert provider.get_exact_current(**_kwargs(context, user, rbac)) is not None
+
+    assert factory.calls == ["default"]
+    assert atomic.entered == atomic.exited == 2
+
+
 def test_empty_or_non_current_ledger_never_becomes_authority(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

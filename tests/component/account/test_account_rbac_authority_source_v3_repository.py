@@ -11,6 +11,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_s
 django.setup()
 
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
     AccountActorAuthorityRawSourceV3Conflict,
@@ -36,6 +37,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_rbac_authority_source_v3_repository import (
     DjangoAccountRbacAuthoritySourceV3Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from tests.support.isolated_schema import isolated_schema
 
 NOW = datetime(2026, 8, 14, 12, tzinfo=UTC)
@@ -81,6 +83,42 @@ def _source(
 
 def _record(source: AccountRbacAuthoritySourceV3) -> PersistedAccountRbacAuthoritySourceV3:
     return PersistedAccountRbacAuthoritySourceV3(source, RECORDER)
+
+
+def test_read_phase_reuses_rbac_closed_world_and_new_phase_reloads() -> None:
+    repository = DjangoAccountRbacAuthoritySourceV3Repository(clock=_Clock())
+    source = _source()
+    with repository.atomic():
+        stored = repository.append(_record(source), expected_predecessor_hash=None, recorded_at=NOW)
+
+    with immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                source_id=source.identity.source_id,
+                source_version=source.identity.source_version,
+                as_of=NOW,
+            )
+            == stored
+        )
+        with CaptureQueriesContext(connection) as reused:
+            assert (
+                repository.get_current_head(
+                    source_id=source.identity.source_id,
+                    as_of=NOW + timedelta(minutes=1),
+                )
+                == stored
+            )
+        assert len(reused) == 0
+
+    with immutable_read_snapshot(), CaptureQueriesContext(connection) as reloaded:
+        assert (
+            repository.get_current_head(
+                source_id=source.identity.source_id,
+                as_of=NOW + timedelta(minutes=1),
+            )
+            == stored
+        )
+    assert len(reloaded) > 0
 
 
 @pytest.fixture(autouse=True)

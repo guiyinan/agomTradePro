@@ -11,6 +11,7 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings_account_actor_authority_s
 django.setup()
 
 from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.account.application.account_actor_authority_raw_source_primitives_v3 import (
     AccountActorAuthorityRawSourceV3Conflict,
@@ -30,6 +31,7 @@ from apps.account.infrastructure.account_actor_authority_raw_source_models_v3 im
 from apps.account.infrastructure.account_authentication_context_source_v3_repository import (
     DjangoAccountAuthenticationContextSourceV3Repository,
 )
+from shared.infrastructure.immutable_read_snapshot import immutable_read_snapshot
 from tests.support.isolated_schema import isolated_schema
 from tests.unit.account.test_account_authentication_context_source_v3 import (
     NOW,
@@ -181,6 +183,40 @@ def test_every_read_restores_whole_table_and_detects_scalar_tamper() -> None:
             source_version=source.identity.source_version,
             as_of=source.clock.recorded_at,
         )
+
+
+def test_read_phase_reuses_authentication_closed_world_and_new_phase_reloads() -> None:
+    repository = _repository()
+    source, record = _append_root(repository)
+
+    with immutable_read_snapshot():
+        assert (
+            repository.get_winner(
+                source_id=source.identity.source_id,
+                source_version=source.identity.source_version,
+                as_of=source.clock.recorded_at,
+            )
+            == record
+        )
+        with CaptureQueriesContext(connection) as reused:
+            assert (
+                repository.get_current_head(
+                    source_id=source.identity.source_id,
+                    as_of=source.clock.recorded_at + timedelta(minutes=1),
+                )
+                == record
+            )
+        assert len(reused) == 0
+
+    with immutable_read_snapshot(), CaptureQueriesContext(connection) as reloaded:
+        assert (
+            repository.get_current_head(
+                source_id=source.identity.source_id,
+                as_of=source.clock.recorded_at + timedelta(minutes=1),
+            )
+            == record
+        )
+    assert len(reloaded) > 0
 
 
 def test_private_uow_is_nonnested_and_failed_append_rolls_back_anchor() -> None:
