@@ -4540,6 +4540,7 @@
           "PublishMacroBatchUseCase"
         ],
         "application/market_calendar.py": [
+          "isolated_s6_full_market_provider_session",
           "latest_closed_cn_market_session",
           "latest_cn_market_session_ready_after",
           "latest_completed_cn_market_session",

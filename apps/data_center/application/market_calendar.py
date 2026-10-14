@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 
@@ -27,6 +30,31 @@ CALENDAR_LOOKBACK_DAYS = 45
 MAX_SESSION_GAP_DAYS = 14
 FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM = time(9, 15)
 FULL_MARKET_PROVIDER_READY_AFTER = time(17, 5)
+_ISOLATED_S6_FULL_MARKET_TARGET: ContextVar[tuple[date, datetime] | None] = ContextVar(
+    "isolated_s6_full_market_target",
+    default=None,
+)
+
+
+@contextmanager
+def isolated_s6_full_market_provider_session(
+    target_session: date,
+    *,
+    triggered_at: datetime,
+) -> Iterator[None]:
+    """Temporarily bind one provider-ready session for an isolated S6 refresh."""
+
+    if type(target_session) is not date:
+        raise ValueError("isolated S6 target session must be a date")
+    if triggered_at.tzinfo is None or triggered_at.utcoffset() is None:
+        raise ValueError("isolated S6 trigger clock must be timezone-aware")
+    if _ISOLATED_S6_FULL_MARKET_TARGET.get() is not None:
+        raise RuntimeError("isolated S6 target session is already bound")
+    token = _ISOLATED_S6_FULL_MARKET_TARGET.set((target_session, triggered_at))
+    try:
+        yield
+    finally:
+        _ISOLATED_S6_FULL_MARKET_TARGET.reset(token)
 
 
 @lru_cache(maxsize=32)
@@ -139,6 +167,23 @@ def latest_full_market_provider_ready_session(now: datetime) -> date | None:
     if not sessions:
         return None
     local_now = now.astimezone(CN_MARKET_TIMEZONE)
+    isolated_binding = _ISOLATED_S6_FULL_MARKET_TARGET.get()
+    if isolated_binding is not None:
+        isolated_target, triggered_at = isolated_binding
+        triggered_local = triggered_at.astimezone(CN_MARKET_TIMEZONE)
+        cutoff = (
+            triggered_local.date()
+            if triggered_local.time() >= FULL_MARKET_PROVIDER_READY_AFTER
+            else triggered_local.date() - timedelta(days=1)
+        )
+        ready_sessions = tuple(session for session in sessions if session <= cutoff)
+        latest_ready_session = max(ready_sessions) if ready_sessions else None
+        if isolated_target != latest_ready_session:
+            raise DataFetchError(
+                "The isolated S6 target is not the latest provider-ready session",
+                code="ISOLATED_S6_MARKET_SESSION_NOT_READY",
+            )
+        return isolated_target
     if (
         local_now.date() in sessions
         and FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM
@@ -155,6 +200,7 @@ def latest_full_market_provider_ready_session(now: datetime) -> date | None:
 __all__ = [
     "FULL_MARKET_CURRENT_SESSION_OBSERVATION_FROM",
     "FULL_MARKET_PROVIDER_READY_AFTER",
+    "isolated_s6_full_market_provider_session",
     "latest_full_market_provider_ready_session",
     "latest_closed_cn_market_session",
     "latest_cn_market_session_ready_after",

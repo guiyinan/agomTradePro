@@ -7,7 +7,8 @@ import argparse
 import os
 import re
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -28,6 +29,7 @@ _KNOWN_FAILURE_CODES = frozenset(
         "S6_GRAPH_REFRESH_DATABASE_IDENTITY_INVALID",
         "S6_GRAPH_REFRESH_IDENTITY_INVALID",
         "S6_GRAPH_REFRESH_CANDIDATE_SOURCE_INVALID",
+        "S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE",
     }
 )
 
@@ -112,6 +114,19 @@ def _is_within(path: Path, root: Path) -> bool:
     return True
 
 
+def _require_isolated_target_session(
+    now: datetime,
+    *,
+    resolver: Callable[[datetime], date | None],
+) -> date:
+    """Return the latest ready session or fail before the isolated task runs."""
+
+    target_session = resolver(now)
+    if target_session is None:
+        raise ValueError("S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE")
+    return target_session
+
+
 def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     """Run the real Task Monitor task, then publish its verified graph receipt."""
 
@@ -137,6 +152,11 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     if not row or row[0] != args.database or row[1] != "off" or row[2] != "off":
         return _blocked("S6_GRAPH_REFRESH_DATABASE_IDENTITY_INVALID")
 
+    from apps.data_center.application.market_calendar import (
+        FULL_MARKET_PROVIDER_READY_AFTER,
+        isolated_s6_full_market_provider_session,
+        latest_cn_market_session_ready_after,
+    )
     from apps.data_center.application.tasks import refresh_full_market_publications_task
     from scripts.s6_isolated_market_graph_receipt import (
         MarketGraphReceiptError,
@@ -158,11 +178,23 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     ):
         return _blocked("S6_GRAPH_REFRESH_CANDIDATE_IMPORT_INVALID")
 
+    triggered_at = datetime.now(UTC)
+    target_session = _require_isolated_target_session(
+        triggered_at,
+        resolver=lambda now: latest_cn_market_session_ready_after(
+            now,
+            ready_after=FULL_MARKET_PROVIDER_READY_AFTER,
+        ),
+    )
     try:
-        result = refresh_full_market_publications_task.apply(
-            task_id=args.task_id,
-            throw=False,
-        )
+        with isolated_s6_full_market_provider_session(
+            target_session,
+            triggered_at=triggered_at,
+        ):
+            result = refresh_full_market_publications_task.apply(
+                task_id=args.task_id,
+                throw=False,
+            )
     except Exception:
         return _blocked("S6_GRAPH_REFRESH_TASK_EXECUTION_FAILED")
     if result.state != "SUCCESS" or not isinstance(result.result, dict):

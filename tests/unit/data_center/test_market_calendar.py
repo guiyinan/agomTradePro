@@ -116,6 +116,112 @@ def test_full_market_session_opens_at_provider_ready_boundary(monkeypatch) -> No
     assert resolved == date(2026, 10, 12)
 
 
+def test_isolated_s6_uses_previous_ready_session_during_provider_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An isolated S6 run may rehearse yesterday while production remains blocked."""
+
+    sessions = (date(2026, 10, 9), date(2026, 10, 12))
+    local_now = datetime(2026, 10, 12, 13, 0, tzinfo=CN_MARKET_TIMEZONE)
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", lambda _now: sessions)
+
+    target_session = market_calendar.latest_cn_market_session_ready_after(
+        local_now,
+        ready_after=market_calendar.FULL_MARKET_PROVIDER_READY_AFTER,
+    )
+    with market_calendar.isolated_s6_full_market_provider_session(
+        target_session,
+        triggered_at=local_now,
+    ):
+        resolved = market_calendar.latest_full_market_provider_ready_session(local_now)
+
+    assert resolved == date(2026, 10, 9)
+    with pytest.raises(DataFetchError) as exc_info:
+        market_calendar.latest_full_market_provider_ready_session(local_now)
+    assert exc_info.value.code == "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
+
+
+def test_isolated_s6_uses_current_session_at_provider_ready_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The isolated S6 target advances to today exactly at 17:05 China time."""
+
+    sessions = (date(2026, 10, 9), date(2026, 10, 12))
+    local_now = datetime(2026, 10, 12, 17, 5, tzinfo=CN_MARKET_TIMEZONE)
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", lambda _now: sessions)
+
+    target_session = market_calendar.latest_cn_market_session_ready_after(
+        local_now,
+        ready_after=market_calendar.FULL_MARKET_PROVIDER_READY_AFTER,
+    )
+    with market_calendar.isolated_s6_full_market_provider_session(
+        target_session,
+        triggered_at=local_now,
+    ):
+        resolved = market_calendar.latest_full_market_provider_ready_session(local_now)
+
+    assert resolved == date(2026, 10, 12)
+
+
+def test_isolated_s6_rejects_a_target_other_than_latest_ready_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicit isolated override cannot select stale or future session evidence."""
+
+    sessions = (date(2026, 10, 8), date(2026, 10, 9), date(2026, 10, 12))
+    local_now = datetime(2026, 10, 12, 13, 0, tzinfo=CN_MARKET_TIMEZONE)
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", lambda _now: sessions)
+
+    with market_calendar.isolated_s6_full_market_provider_session(
+        date(2026, 10, 8),
+        triggered_at=local_now,
+    ):
+        with pytest.raises(DataFetchError) as exc_info:
+            market_calendar.latest_full_market_provider_ready_session(local_now)
+
+    assert exc_info.value.code == "ISOLATED_S6_MARKET_SESSION_NOT_READY"
+
+
+def test_isolated_s6_target_resets_after_refresh_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed isolated refresh cannot leak its target into later production work."""
+
+    sessions = (date(2026, 10, 9), date(2026, 10, 12))
+    local_now = datetime(2026, 10, 12, 13, 0, tzinfo=CN_MARKET_TIMEZONE)
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", lambda _now: sessions)
+
+    with pytest.raises(RuntimeError, match="simulated refresh failure"):
+        with market_calendar.isolated_s6_full_market_provider_session(
+            date(2026, 10, 9),
+            triggered_at=local_now,
+        ):
+            raise RuntimeError("simulated refresh failure")
+
+    with pytest.raises(DataFetchError) as exc_info:
+        market_calendar.latest_full_market_provider_ready_session(local_now)
+    assert exc_info.value.code == "CURRENT_MARKET_PROVIDER_WINDOW_NOT_READY"
+
+
+def test_isolated_s6_keeps_trigger_time_target_across_ready_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A run triggered before 17:05 keeps yesterday if execution crosses 17:05."""
+
+    sessions = (date(2026, 10, 9), date(2026, 10, 12))
+    triggered_at = datetime(2026, 10, 12, 17, 4, 59, tzinfo=CN_MARKET_TIMEZONE)
+    task_now = datetime(2026, 10, 12, 17, 5, 1, tzinfo=CN_MARKET_TIMEZONE)
+    monkeypatch.setattr(market_calendar, "_open_sessions_for", lambda _now: sessions)
+
+    with market_calendar.isolated_s6_full_market_provider_session(
+        date(2026, 10, 9),
+        triggered_at=triggered_at,
+    ):
+        resolved = market_calendar.latest_full_market_provider_ready_session(task_now)
+
+    assert resolved == date(2026, 10, 9)
+
+
 def test_full_market_session_remains_available_on_non_session_day(monkeypatch) -> None:
     """A weekend may still rehearse the latest provider-ready closed session."""
 
