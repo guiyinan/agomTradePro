@@ -176,4 +176,9 @@ publication。完整覆盖、双份原文、双份审计、请求 ceiling 和最
 
 本次修改只修复工具链。Windows 本地回归不代表远端 Linux、真实 provider、生产 PostgreSQL 或生产部署已经验收；上线仍由发布候选的正常验收流程负责。
 
+依赖审计对 `GHSA-8pqf-f4m5-798g / CVE-2026-106454` 使用精确临时例外。公告只影响 Twisted 的认证 IMAP
+`LIST/LSUB` 通配符解析；项目经 Daphne 使用 Twisted 的 HTTP/WebSocket 能力，不提供 `twisted.mail` 或 IMAP listener，且截至
+2026-10-16 上游尚未发布包含已合并修复的版本。Security workflow 在执行例外前扫描生产代码；一旦引入 Twisted mail、IMAP4
+server/factory 或相关 mailbox 入口便失败关闭。上游发布修复版本后，应升级依赖投影并删除该例外及非暴露扫描。
+
 2026-09-27 本地证据：启动器/validator/bundle/部署入口/CI 选测组合 260 passed、3 skipped；补充阶段前缀与数据库预检实参验证后的启动器回归 57 passed、1 skipped；冻结代码后的启动器与部署入口回归 115 passed、2 skipped。跳过项均为 Windows 无符号链接创建权限。三份生产 Python 文件联合增量 mypy 为 0 回归，全库债务检查为 0 errors；模块地图和全库治理一致性通过。未执行真实 provider 或生产写入。

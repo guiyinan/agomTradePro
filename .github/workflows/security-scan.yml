@@ -186,9 +186,27 @@ jobs:
           # affected path is deserialization of trusted cached content rather than
           # a repo-owned unsafe loading entrypoint, so we keep an explicit, narrow
           # ignore here instead of failing every push on an untriageable advisory.
+          #
+          # GHSA-8pqf-f4m5-798g / CVE-2026-106454 is confined to an authenticated
+          # Twisted IMAP server's LIST/LSUB wildcard parser. Twisted is installed
+          # transitively for Daphne's HTTP/WebSocket server; this repository does
+          # not expose twisted.mail or an IMAP listener, and no patched Twisted
+          # release exists yet. Fail closed if that non-exposure assumption changes,
+          # then keep the advisory ignore exact until a fixed release is available.
+          if rg -n \
+            --glob '*.py' \
+            --glob '!tests/**' \
+            --glob '!scripts/**' \
+            '(twisted\.mail|from[[:space:]]+twisted[[:space:]]+import[[:space:]]+mail|imap4|IMAP4(Server|Factory)|listMailboxes)' \
+            apps config shared manage.py; then
+            echo '::error::Twisted IMAP usage invalidates the GHSA-8pqf-f4m5-798g non-exposure exception.'
+            exit 1
+          fi
+
           pip-audit \
             -r requirements-dev.txt \
             --ignore-vuln PYSEC-2024-277 \
+            --ignore-vuln GHSA-8pqf-f4m5-798g \
             --format json \
             --output reports/security/pip-audit-report.json \
             2>/dev/null || true
