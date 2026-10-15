@@ -72,10 +72,10 @@ class FinancialScopeManifestReviewSource(Protocol):
 
 
 class FinancialScopeDiscoveryUniverseSource(Protocol):
-    """Read the complete current active securities universe without side effects."""
+    """Read the complete securities universe for the request's frozen scope."""
 
     def get_active_asset_codes(self) -> tuple[str, ...]:
-        """Return all active supported securities in canonical order."""
+        """Return every eligible supported security in canonical order."""
         ...
 
 

@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -35,7 +35,6 @@ from apps.data_center.infrastructure.financial_response_body_store import (
 )
 from apps.data_center.infrastructure.financial_scope_discovery_governance import (
     DjangoFinancialScopeDiscoveryAuthorizationSource,
-    DjangoFinancialScopeDiscoveryUniverseSource,
     DjangoFinancialScopeManifestReviewSource,
 )
 from apps.data_center.infrastructure.financial_scope_discovery_reader import (
@@ -51,6 +50,9 @@ from apps.data_center.infrastructure.rehearsal_identity import (
 from apps.data_center.infrastructure.s6_rehearsal_artifact_root import (
     validate_s6_rehearsal_artifact_root,
 )
+from apps.data_center.target_date_universe_composition import (
+    build_target_date_a_share_universe_scope,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +61,26 @@ class FinancialScopeDiscoveryComposition:
 
     use_case: FinancialScopeDiscoveryUseCase
     isolation_attestation_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class TargetDateFinancialScopeDiscoveryUniverseSource:
+    """Re-read the active A-share universe eligible on one frozen target date."""
+
+    target_trade_date: date
+
+    def __post_init__(self) -> None:
+        """Reject datetimes and other ambiguous target-date values."""
+
+        if not isinstance(self.target_trade_date, date) or isinstance(
+            self.target_trade_date, datetime
+        ):
+            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CONTRACT_INVALID")
+
+    def get_active_asset_codes(self) -> tuple[str, ...]:
+        """Return the target-date requested universe, re-reading drift evidence."""
+
+        return build_target_date_a_share_universe_scope(self.target_trade_date).requested_codes
 
 
 def build_financial_scope_discovery_binding(
@@ -100,6 +122,7 @@ def make_financial_scope_discovery_use_case(
     expected_database_name: str,
     expected_database_host: str,
     artifact_storage_root: Path,
+    target_trade_date: date,
     environment: Literal["development", "test", "staging", "production"] | None = None,
 ) -> FinancialScopeDiscoveryComposition:
     """Compose the isolated-only discovery workflow from existing egress and audit ports."""
@@ -152,11 +175,12 @@ def make_financial_scope_discovery_use_case(
         artifact_repository=repository,
         maximum_body_bytes=runtime.max_body_bytes,
     )
+    universe_source = TargetDateFinancialScopeDiscoveryUniverseSource(target_trade_date)
     return FinancialScopeDiscoveryComposition(
         use_case=FinancialScopeDiscoveryUseCase(
             reader=reader,
             authorization_source=DjangoFinancialScopeDiscoveryAuthorizationSource(),
-            universe_source=DjangoFinancialScopeDiscoveryUniverseSource(),
+            universe_source=universe_source,
         ),
         isolation_attestation_sha256=isolation_attestation_sha256,
     )
@@ -204,6 +228,7 @@ def _required_text(payload: dict[str, object], key: str) -> str:
 
 __all__ = [
     "FinancialScopeDiscoveryComposition",
+    "TargetDateFinancialScopeDiscoveryUniverseSource",
     "build_financial_scope_discovery_binding",
     "make_financial_scope_discovery_use_case",
 ]

@@ -1,6 +1,7 @@
 """Tests for the isolated financial scope discovery management command."""
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ def test_blocked_discovery_preserves_report_without_capacity_receipt(
         }
     }
     writes: list[str] = []
+    observed_target_dates: list[date] = []
     builder_called = False
 
     def record_write(path: Path, payload: dict[str, object]) -> None:
@@ -31,6 +33,12 @@ def test_blocked_discovery_preserves_report_without_capacity_receipt(
         nonlocal builder_called
         builder_called = True
         raise AssertionError("blocked source reports cannot produce a capacity receipt")
+
+    def run_discovery(**kwargs: object) -> dict[str, object]:
+        target_trade_date = kwargs.get("target_trade_date")
+        assert isinstance(target_trade_date, date)
+        observed_target_dates.append(target_trade_date)
+        return report
 
     monkeypatch.setattr(
         rehearse_financial_scope_discovery,
@@ -50,7 +58,7 @@ def test_blocked_discovery_preserves_report_without_capacity_receipt(
     monkeypatch.setattr(
         rehearse_financial_scope_discovery,
         "_run_discovery",
-        lambda **kwargs: report,
+        run_discovery,
     )
     monkeypatch.setattr(
         rehearse_financial_scope_discovery,
@@ -81,6 +89,7 @@ def test_blocked_discovery_preserves_report_without_capacity_receipt(
         )
 
     assert writes == ["financial-scope-discovery.json"]
+    assert observed_target_dates == [date(2026, 10, 9)]
     assert not builder_called
 
 

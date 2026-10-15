@@ -32,6 +32,7 @@ from apps.data_center.domain.financial_scope_discovery import (
     FinancialScopeDiscoveryError,
 )
 from apps.data_center.financial_scope_discovery_composition import (
+    TargetDateFinancialScopeDiscoveryUniverseSource,
     build_financial_scope_discovery_binding,
     make_financial_scope_discovery_use_case,
 )
@@ -40,9 +41,6 @@ from apps.data_center.infrastructure.akshare_financial_slice_rehearsal import (
 )
 from apps.data_center.infrastructure.financial_capacity_build_identity import (
     FileFinancialCapacityBuildIdentitySource,
-)
-from apps.data_center.infrastructure.financial_scope_discovery_governance import (
-    DjangoFinancialScopeDiscoveryUniverseSource,
 )
 from apps.data_center.infrastructure.models import ProviderConfigModel
 from apps.data_center.infrastructure.rehearsal_identity import (
@@ -125,6 +123,7 @@ class Command(BaseCommand):
             )
             report = _run_discovery(
                 candidate_sha=candidate_sha,
+                target_trade_date=date.fromisoformat(target_trade_date),
                 provider_identities_path=provider_identities,
                 provider_identities_sha256=provider_identities_sha256,
                 release_universe_capacity_report=release_universe_capacity_report,
@@ -173,6 +172,7 @@ class Command(BaseCommand):
 def _run_discovery(
     *,
     candidate_sha: str,
+    target_trade_date: date,
     provider_identities_path: Path,
     provider_identities_sha256: str,
     release_universe_capacity_report: Path,
@@ -225,8 +225,11 @@ def _run_discovery(
         expected_database_name=expected_database_name,
         expected_database_host=expected_database_host,
         artifact_storage_root=artifact_root,
+        target_trade_date=target_trade_date,
     )
-    universe = DjangoFinancialScopeDiscoveryUniverseSource().get_active_asset_codes()
+    universe = TargetDateFinancialScopeDiscoveryUniverseSource(
+        target_trade_date
+    ).get_active_asset_codes()
     if universe != expected_release_asset_codes:
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_INVALID")
     result = use_case.use_case.execute(

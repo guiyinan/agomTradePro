@@ -1,6 +1,7 @@
 """Secret-input and owner authentication contracts for the S6 authorization command."""
 
 import io
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -83,3 +84,16 @@ def test_owner_authentication_fails_closed_for_non_superuser(
         match="REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_AUTHENTICATION_FAILED",
     ):
         command._authenticate_owner(owner="admin", password="owner-password")
+
+
+def test_target_trade_date_parser_requires_canonical_iso_date() -> None:
+    """Reject ambiguous target dates before any owner credential is read."""
+
+    assert command._parse_target_trade_date("2026-10-14") == date(2026, 10, 14)
+
+    for value in ("2026-10-14T00:00:00", "2026/10/14", ""):
+        with pytest.raises(
+            command._AuthorizationFailure,
+            match="REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INPUT_INVALID",
+        ):
+            command._parse_target_trade_date(value)

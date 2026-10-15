@@ -8,7 +8,7 @@ import os
 import re
 import sys
 from argparse import ArgumentParser
-from datetime import UTC, timedelta
+from datetime import UTC, date, timedelta
 from pathlib import Path
 from typing import Protocol, cast
 from uuid import uuid4
@@ -29,6 +29,7 @@ from apps.data_center.domain.financial_scope_discovery import (
     universe_sha256,
 )
 from apps.data_center.financial_scope_discovery_composition import (
+    TargetDateFinancialScopeDiscoveryUniverseSource,
     build_financial_scope_discovery_binding,
 )
 from apps.data_center.infrastructure.akshare_financial_slice_rehearsal import (
@@ -39,7 +40,6 @@ from apps.data_center.infrastructure.financial_capacity_build_identity import (
 )
 from apps.data_center.infrastructure.financial_scope_discovery_governance import (
     DjangoFinancialScopeDiscoveryAuthorizationSource,
-    DjangoFinancialScopeDiscoveryUniverseSource,
 )
 from apps.data_center.infrastructure.models import (
     FinancialCapacityGovernanceRecordModel,
@@ -121,6 +121,7 @@ class Command(BaseCommand):
                 owner=owner,
                 output=output,
             )
+            parsed_target_trade_date = _parse_target_trade_date(target_trade_date)
             source_commit = FileFinancialCapacityBuildIdentitySource(
                 Path(settings.AGOM_BUILD_IDENTITY_PATH)
             ).source_commit()
@@ -154,7 +155,9 @@ class Command(BaseCommand):
                 provider=provider_row.to_domain(),
                 candidate_sha=candidate_sha,
             )
-            asset_codes = DjangoFinancialScopeDiscoveryUniverseSource().get_active_asset_codes()
+            asset_codes = TargetDateFinancialScopeDiscoveryUniverseSource(
+                parsed_target_trade_date
+            ).get_active_asset_codes()
             if universe_sha256(asset_codes) != release_universe_sha256:
                 raise _AuthorizationFailure(
                     "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_BINDING_INVALID"
@@ -310,6 +313,20 @@ class _AuthorizationFailure(RuntimeError):
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
+
+
+def _parse_target_trade_date(value: str) -> date:
+    """Parse one canonical ISO target date before reading owner credentials."""
+
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        raise _AuthorizationFailure(
+            "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INPUT_INVALID"
+        ) from None
+    if parsed.isoformat() != value:
+        raise _AuthorizationFailure("REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_INPUT_INVALID")
+    return parsed
 
 
 def _validate_static_inputs(
