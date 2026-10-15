@@ -605,9 +605,22 @@ class EgressHttpTransport:
                         decode=decode_json_bytes,
                         max_bytes=max_response_bytes,
                     )
-                except (FinancialResponseCaptureError, AttributeError, TypeError, ValueError):
+                except FinancialResponseCaptureError as exc:
                     return _financial_capture_error_result(
-                        started, status_code=response.status_code
+                        started,
+                        status_code=response.status_code,
+                        retryable=exc.code
+                        in {
+                            "FINANCIAL_RESPONSE_DECODE_FAILED",
+                            "FINANCIAL_RESPONSE_READ_FAILED",
+                            "FINANCIAL_RESPONSE_TRUNCATED",
+                        },
+                    )
+                except (AttributeError, TypeError, ValueError):
+                    return _financial_capture_error_result(
+                        started,
+                        status_code=response.status_code,
+                        retryable=False,
                     )
                 _shared_state.success(state_key)
                 return (
@@ -749,7 +762,10 @@ def _financial_scope_error_result() -> (
 
 
 def _financial_capture_error_result(
-    started: float, *, status_code: int | None
+    started: float,
+    *,
+    status_code: int | None,
+    retryable: bool,
 ) -> tuple[EgressTransportResult, CapturedFinancialResponse[object] | None]:
     """Project every capture failure to one stable, redacted egress result."""
 
@@ -760,7 +776,7 @@ def _financial_capture_error_result(
             message="金融响应证据捕获失败。",
             status_code=status_code,
             latency_ms=round((time.monotonic() - started) * 1000, 3),
-            retryable=False,
+            retryable=retryable,
         ),
         None,
     )

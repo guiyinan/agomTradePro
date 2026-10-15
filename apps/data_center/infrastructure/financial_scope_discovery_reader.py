@@ -17,6 +17,9 @@ from django.conf import settings
 
 from apps.data_center.application.egress_service import (
     FinancialResponseAttemptBudget,
+    FinancialResponseRequestFailed,
+    FinancialResponseValidationResult,
+    FinancialResponseValidatorProtocol,
     execute_financial_response_request,
 )
 from apps.data_center.domain.egress_routing import EgressRequestContext
@@ -71,6 +74,38 @@ _DATASET_KEYS = (
     FINANCIAL_FACT_DATASET_KEY,
     FINANCIAL_SOURCE_TIME_DATASET_KEY,
 )
+_RETENTION_ATTEMPTS = 2
+
+
+class _ScopeResponseValidator(FinancialResponseValidatorProtocol):
+    """Parse one provider page and expose only a sanitized retry decision."""
+
+    def __init__(self, *, asset_code: str, maximum_rows: int) -> None:
+        """Bind the exact asset and row ceiling for one logical request."""
+
+        self._asset_code = asset_code
+        self._maximum_rows = maximum_rows
+        self.rows: tuple[FinancialScopeDiscoveryRow, ...] | None = None
+        self.error_code: str | None = None
+
+    def __call__(self, raw_body: bytes) -> FinancialResponseValidationResult:
+        """Accept complete provider rows or request one bounded transient retry."""
+
+        try:
+            self.rows = _parse_provider_rows(
+                raw_body,
+                asset_code=self._asset_code,
+                maximum_rows=self._maximum_rows,
+            )
+        except FinancialScopeDiscoveryError as exc:
+            self.rows = None
+            self.error_code = exc.code
+            return FinancialResponseValidationResult(
+                accepted=False,
+                retryable=exc.code != "FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED",
+            )
+        self.error_code = None
+        return FinancialResponseValidationResult(accepted=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,6 +287,10 @@ class AkshareFinancialScopeDiscoveryReader:
             "st": _ANNOUNCEMENT_FIELD,
             "sr": -1,
         }
+        validator = _ScopeResponseValidator(
+            asset_code=asset_code,
+            maximum_rows=maximum_rows,
+        )
         try:
             captured = execute_financial_response_request(
                 context,
@@ -264,16 +303,24 @@ class AkshareFinancialScopeDiscoveryReader:
                 response_scope=declared_scope,
                 max_attempts=2,
                 attempt_budget=attempt_budget,
+                validator=validator,
             )
             if len(captured.raw_body) > self._maximum_body_bytes:
                 raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-            rows = _parse_provider_rows(
-                captured.raw_body,
-                asset_code=asset_code,
-                maximum_rows=maximum_rows,
-            )
+            rows = validator.rows
+            if rows is None:
+                raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
         except FinancialScopeDiscoveryError:
             raise
+        except FinancialResponseRequestFailed as exc:
+            if (
+                exc.code == "EGRESS_FINANCIAL_RESPONSE_VALIDATION_FAILED"
+                and validator.error_code is not None
+            ):
+                raise FinancialScopeDiscoveryError(validator.error_code) from None
+            raise FinancialScopeDiscoveryError(
+                "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+            ) from None
         except (DataFetchError, OSError, RuntimeError, TimeoutError, TypeError, ValueError):
             raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
@@ -308,48 +355,62 @@ class AkshareFinancialScopeDiscoveryReader:
         body = captured.body
         evidence = captured.evidence
         attempts = captured.physical_request_attempts
-        try:
-            retained = self._repository.retain(
-                capture_id=capture_id,
-                evidence=evidence,
-                body=body,
-                provider_name=AKSHARE_PROVIDER_NAME,
-                request_params={
-                    "endpoint": AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
-                    "method": "GET",
-                    "params": {
-                        "type": _DATA_QUERY_TYPE,
-                        "sty": f"{_ASSET_FIELD},{_PERIOD_FIELD},{_ANNOUNCEMENT_FIELD}",
-                        "filter": f'({_ASSET_FIELD}="{asset_code}")',
-                        "p": _PAGE_NUMBER,
-                        "ps": 200,
-                        "st": _ANNOUNCEMENT_FIELD,
-                        "sr": -1,
-                    },
-                },
-                row_count=len(rows),
-                provider_id=binding.provider_id,
-                run_id=self._run_id,
-            )
-        except Exception as exc:
-            if getattr(exc, "reference", None) is not None:
+        request_params: dict[str, object] = {
+            "endpoint": AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
+            "method": "GET",
+            "params": {
+                "type": _DATA_QUERY_TYPE,
+                "sty": f"{_ASSET_FIELD},{_PERIOD_FIELD},{_ANNOUNCEMENT_FIELD}",
+                "filter": f'({_ASSET_FIELD}="{asset_code}")',
+                "p": _PAGE_NUMBER,
+                "ps": 200,
+                "st": _ANNOUNCEMENT_FIELD,
+                "sr": -1,
+            },
+        }
+        retained = None
+        retain_error: Exception | None = None
+        for _attempt in range(_RETENTION_ATTEMPTS):
+            try:
+                retained = self._repository.retain(
+                    capture_id=capture_id,
+                    evidence=evidence,
+                    body=body,
+                    provider_name=AKSHARE_PROVIDER_NAME,
+                    request_params=request_params,
+                    row_count=len(rows),
+                    provider_id=binding.provider_id,
+                    run_id=self._run_id,
+                )
+                break
+            except Exception as exc:
+                retain_error = exc
+        if retained is None:
+            if retain_error is not None and getattr(retain_error, "reference", None) is not None:
                 raise FinancialScopeDiscoveryError(
                     "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID",
                     artifact_writes=1,
                 ) from None
             raise FinancialScopeDiscoveryError(
-                "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID"
-            ) from None
-        try:
-            orphan = self._repository.inspect_orphan(retained.reference)
-            retained_body = self._repository.read(retained.reference)
-        except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
-            raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID",
-                artifact_writes=1,
-                audit_writes=1,
             ) from None
-        if not orphan.body_verified or orphan.audit != retained.audit or orphan.audit is None:
+        orphan = None
+        retained_body: bytes | None = None
+        for _attempt in range(_RETENTION_ATTEMPTS):
+            try:
+                candidate_orphan = self._repository.inspect_orphan(retained.reference)
+                candidate_body = self._repository.read(retained.reference)
+            except (DataFetchError, OSError, RuntimeError, TypeError, ValueError):
+                continue
+            if (
+                candidate_orphan.body_verified
+                and candidate_orphan.audit == retained.audit
+                and candidate_orphan.audit is not None
+            ):
+                orphan = candidate_orphan
+                retained_body = candidate_body
+                break
+        if orphan is None or retained_body is None:
             raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID",
                 artifact_writes=1,

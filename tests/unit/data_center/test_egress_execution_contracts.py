@@ -1,5 +1,6 @@
 """Real application orchestration for bounded provider reads and redacted audit."""
 
+from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -165,6 +166,84 @@ def test_capacity_financial_capture_does_not_retry_a_second_route_candidate(
     assert calls[0].kwargs["egress_id"] is None
     assert calls[0].kwargs["attempt"] == 1
     assert audit.record.call_count == 1
+
+
+def test_financial_response_retries_validation_on_same_persisted_direct_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A direct rule gets one bounded retry when captured provider content is transiently invalid."""
+
+    rule = EgressRouteRule(
+        rule_id=8,
+        provider_id=17,
+        dataset_key="equity.financial.fact",
+        domain_pattern="data.example.com",
+        deployment_region="test-region",
+        strategy=EgressStrategy.DIRECT,
+        fixed_egress_id=None,
+        priority=1,
+        enabled=True,
+    )
+    repository = Mock()
+    repository.list.return_value = (rule,)
+    transport = Mock()
+    transport.request_financial_response.side_effect = [
+        (
+            service.EgressTransportResult(outcome="success", status_code=200),
+            SimpleNamespace(payload={}, evidence=Mock(), raw_body=b"invalid"),
+        ),
+        (
+            service.EgressTransportResult(outcome="success", status_code=200),
+            SimpleNamespace(payload={}, evidence=Mock(), raw_body=b"valid"),
+        ),
+    ]
+    audit = Mock()
+    monkeypatch.setattr(service, "_rule_repository", repository)
+    monkeypatch.setattr(service, "_transport", transport)
+    monkeypatch.setattr(service, "_audit_writer", audit)
+    context = EgressRequestContext(
+        provider_id=17,
+        dataset_key="equity.financial.fact",
+        target_url="https://data.example.com/financial",
+        deployment_region="test-region",
+    )
+    request_id = uuid4()
+
+    result = service.execute_financial_response_request(
+        context,
+        request_id=request_id,
+        method="GET",
+        params={"filter": "bounded"},
+        json_body=None,
+        headers=None,
+        request_scope=FinancialRequestScope(
+            provider_name="akshare",
+            dataset_key="equity.financial.fact",
+            asset_code="000001.SZ",
+            period_limit=200,
+        ),
+        response_scope=FinancialResponseScope(
+            asset_codes=("000001.SZ",),
+            period_ends=(),
+            row_count=0,
+        ),
+        max_attempts=2,
+        validator=lambda body: service.FinancialResponseValidationResult(
+            accepted=body == b"valid",
+            retryable=True,
+        ),
+    )
+
+    calls = transport.request_financial_response.call_args_list
+    assert result.raw_body == b"valid"
+    assert result.physical_request_attempts == 2
+    assert [call.kwargs["egress_id"] for call in calls] == [None, None]
+    assert [call.kwargs["attempt"] for call in calls] == [1, 2]
+    assert [call.kwargs["request_id"] for call in calls] == [request_id, request_id]
+    assert [call.kwargs["outcome"] for call in audit.record.call_args_list] == [
+        "failed",
+        "success",
+    ]
 
 
 def test_financial_response_reserves_before_send_and_enforces_shared_physical_cap(

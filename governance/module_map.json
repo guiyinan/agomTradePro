@@ -4228,6 +4228,8 @@
           "FinancialResponseCaptureProtocol",
           "FinancialResponseCaptureResult",
           "FinancialResponseRequestFailed",
+          "FinancialResponseValidationResult",
+          "FinancialResponseValidatorProtocol",
           "configure_egress_audit_writer",
           "configure_egress_rule_repository",
           "configure_egress_transport",

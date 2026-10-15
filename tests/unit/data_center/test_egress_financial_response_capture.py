@@ -279,26 +279,28 @@ def test_financial_capture_rejects_body_over_transport_limit(monkeypatch) -> Non
 
 
 @pytest.mark.parametrize(
-    ("body", "headers", "fail_read"),
+    ("body", "headers", "fail_read", "retryable"),
     [
-        (b'{"value":NaN}', {"Content-Length": "13"}, False),
-        (b'{"value":1,"value":2}', {"Content-Length": "21"}, False),
-        (b'{"value":1}', {"Content-Length": "99"}, False),
-        (b'{"value":1}', {"Content-Encoding": "GZip"}, False),
-        (b'{"value":1}', {"Content-Length": "-1"}, False),
+        (b'{"value":NaN}', {"Content-Length": "13"}, False, True),
+        (b'{"value":1,"value":2}', {"Content-Length": "21"}, False, True),
+        (b'{"value":1}', {"Content-Length": "99"}, False, True),
+        (b'{"value":1}', {"Content-Encoding": "GZip"}, False, False),
+        (b'{"value":1}', {"Content-Length": "-1"}, False, False),
         (
             b'{"value":1}',
             {"Content-Length": "11", "content-length": "11"},
             False,
+            False,
         ),
-        (b'{"value":1}', {}, True),
+        (b'{"value":1}', {}, True, True),
     ],
 )
-def test_financial_capture_failures_are_sanitized_nonretryable_and_cleanup(
+def test_financial_capture_failures_are_sanitized_classified_and_cleanup(
     monkeypatch,
     body: bytes,
     headers: Mapping[str, str],
     fail_read: bool,
+    retryable: bool,
 ) -> None:
     """Capture validation never exposes body details and always releases its slot."""
 
@@ -312,7 +314,7 @@ def test_financial_capture_failures_are_sanitized_nonretryable_and_cleanup(
 
     assert result.outcome == "failed"
     assert result.error_code == "EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED"
-    assert result.retryable is False
+    assert result.retryable is retryable
     assert captured is None
     assert "private upstream detail" not in result.message
     assert response.closed is True

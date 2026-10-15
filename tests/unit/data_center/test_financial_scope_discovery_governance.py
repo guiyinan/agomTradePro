@@ -382,6 +382,53 @@ def test_scope_discovery_reader_uses_provider_supported_asset_filter_grammar(
     }
 
 
+def test_scope_response_validator_retries_provider_error_then_accepts_rows() -> None:
+    """An HTTP-200 provider error is transient, while valid scoped rows are retained."""
+
+    validator = reader_module._ScopeResponseValidator(
+        asset_code="000001.SZ",
+        maximum_rows=200,
+    )
+
+    rejected = validator(b'{"success":false,"code":9501,"result":null}')
+    accepted = validator(
+        b'{"success":true,"code":0,"result":{"count":1,"data":['
+        b'{"SECUCODE":"000001.SZ","REPORT_DATE":"2026-09-30",'
+        b'"NOTICE_DATE":"2026-10-15"}]}}'
+    )
+
+    assert rejected.accepted is False
+    assert rejected.retryable is True
+    assert accepted.accepted is True
+    assert validator.error_code is None
+    assert validator.rows is not None
+    assert validator.rows[0].asset_code == "000001.SZ"
+
+
+def test_scope_response_validator_keeps_truncation_nonretryable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A response above the governed row ceiling remains an immediate blocker."""
+
+    monkeypatch.setattr(
+        reader_module,
+        "_parse_provider_rows",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED")
+        ),
+    )
+    validator = reader_module._ScopeResponseValidator(
+        asset_code="000001.SZ",
+        maximum_rows=200,
+    )
+
+    result = validator(b"redacted")
+
+    assert result.accepted is False
+    assert result.retryable is False
+    assert validator.error_code == "FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED"
+
+
 def test_scope_discovery_reader_validates_retained_dataset_key_at_schema_path() -> None:
     """Retention accepts the governed request_scope dataset key and records exact grammar."""
 
@@ -470,3 +517,93 @@ def test_scope_discovery_reader_validates_retained_dataset_key_at_schema_path() 
             "sr": -1,
         },
     }
+
+
+def test_scope_discovery_reader_retries_idempotent_retention_and_verification() -> None:
+    """One transient retain and verification miss reuse the same immutable capture."""
+
+    body = b'{"result":{"data":[]}}'
+    body_sha256 = hashlib.sha256(body).hexdigest()
+    capture_id = uuid4()
+    dataset_key = "equity.financial.source-time"
+    evidence = SimpleNamespace(response_completed_at=datetime(2026, 10, 15, 7, 0, tzinfo=UTC))
+    reference = SimpleNamespace(body_sha256=body_sha256, evidence=evidence)
+    audit = SimpleNamespace(
+        capability="financial",
+        status="ok",
+        redacted=True,
+        raw_audit_id=42,
+        extra={
+            "financial_response_artifact": {
+                "provider_id": 19,
+                "capture_id": str(capture_id),
+                "body_sha256": body_sha256,
+                "request_scope": {"dataset_key": dataset_key},
+            }
+        },
+    )
+
+    class _CommittedArtifactError(RuntimeError):
+        def __init__(self) -> None:
+            super().__init__("transient audit acknowledgement failure")
+            self.reference = reference
+
+    class _Repository:
+        retain_calls = 0
+        inspect_calls = 0
+
+        def retain(self, **_kwargs: object) -> object:
+            self.retain_calls += 1
+            if self.retain_calls == 1:
+                raise _CommittedArtifactError()
+            return SimpleNamespace(reference=reference, audit=audit)
+
+        def inspect_orphan(self, _reference: object) -> object:
+            self.inspect_calls += 1
+            if self.inspect_calls == 1:
+                return SimpleNamespace(body_verified=False, audit=None)
+            return SimpleNamespace(body_verified=True, audit=audit)
+
+        def read(self, _reference: object) -> bytes:
+            return body
+
+    repository = _Repository()
+    discovery_reader = object.__new__(reader_module.AkshareFinancialScopeDiscoveryReader)
+    discovery_reader._repository = repository
+    discovery_reader._run_id = uuid4()
+    binding = FinancialScopeDiscoveryBinding(
+        candidate_sha="a" * 40,
+        provider_id=19,
+        provider_name="akshare",
+        provider_identity_sha256="b" * 64,
+        contract_id="akshare.financial-scope.latest-notice",
+        contract_version="2026-10-09.v1",
+        contract_sha256="c" * 64,
+        parser_id="akshare-financial-scope-parser.v1",
+        parser_sha256="d" * 64,
+        deployment_region="isolated-test",
+    )
+    captured = reader_module._PendingCapture(
+        capture_id=capture_id,
+        body=body,
+        evidence=evidence,
+        rows=(
+            reader_module.FinancialScopeDiscoveryRow(
+                asset_code="000001.SZ",
+                period_end=date(2026, 9, 30),
+                announcement_date=date(2026, 10, 15),
+            ),
+        ),
+        physical_request_attempts=1,
+    )
+
+    result = discovery_reader._retain(
+        binding=binding,
+        asset_code="000001.SZ",
+        dataset_key=dataset_key,
+        captured=captured,
+    )
+
+    assert result.raw_audit_id == 42
+    assert repository.retain_calls == 2
+    assert repository.inspect_calls == 2

@@ -144,6 +144,12 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 3. 使用候选镜像验证隔离 PostgreSQL 实际连接身份及迁移图，在 provider 请求之前阻断未迁移数据库。数据库查询运行在 PostgreSQL `REPEATABLE READ, READ ONLY` 事务中；任何写入尝试由数据库以 SQLSTATE `25006` 拒绝并映射为 `REHEARSAL_WRITE_PREFLIGHT_READ_ONLY_VIOLATION`。此检查不执行 migrate、不初始化 catalog、不写入业务数据。第一次运行需要先取得候选镜像才能做该精确检查。
 4. 真实 provider probe 仍是权威链路验证，沿用真实 payload 和预算；不新增简化 smoke 请求冒充真实请求，也不为预检重复消耗一轮 provider 配额。
 
+`financial_scope_capacity` 的每个逻辑请求最多使用两次物理发送，计入 owner 授权绑定的全局 ceiling。持久化的单一 direct/fixed
+路由可在 DNS、连接、响应读取/截断、JSON 解码或 provider HTTP 200 错误 envelope 等瞬时失败后重试同一路由；双候选路由仍按
+候选顺序尝试。超出行数上限、身份/范围错误、权限拒绝和第二次失败继续 fail-closed。加密原文与 RawAudit 使用同一 capture ID
+做最多两次幂等留存，并对已提交引用做最多两次读回核验；重试不得增加 artifact/RawAudit 基数，也不得写入 financial fact 或
+publication。完整覆盖、双份原文、双份审计、请求 ceiling 和最终 validator 门槛保持不变。
+
 已成功且产物完整的 provider 阶段不会在续跑时重复调用。未成功的 provider 阶段没有可复用的成功证据，显式 `--resume` 会在保留失败产物后重新执行该阶段并再次消耗受控配额；必须先确认原失败根因已修复且剩余配额可用。执行器不会自动循环续跑。
 
 相同输出目录使用 OS 文件锁，进程退出会释放；不要删除锁文件来绕过活动运行。未完成目录会移入 `failed-attempts` 的唯一子目录后重试，历史失败产物不覆盖。已完成运行拒绝再次续跑。

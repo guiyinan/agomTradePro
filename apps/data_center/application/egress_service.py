@@ -177,6 +177,22 @@ class FinancialResponseCaptureProtocol(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class FinancialResponseValidationResult:
+    """Sanitized provider-specific validation decision for captured bytes."""
+
+    accepted: bool
+    retryable: bool = False
+
+
+class FinancialResponseValidatorProtocol(Protocol):
+    """Validate captured bytes before the routed request is accepted."""
+
+    def __call__(self, raw_body: bytes) -> FinancialResponseValidationResult:
+        """Return a bounded decision without exposing provider response content."""
+        ...
+
+
 class FinancialResponseAttemptBudget:
     """Reserve a fixed number of routed financial transport attempts before send."""
 
@@ -454,6 +470,7 @@ def execute_financial_response_request(
     response_scope: FinancialResponseScope,
     max_attempts: int = 2,
     attempt_budget: FinancialResponseAttemptBudget | None = None,
+    validator: FinancialResponseValidatorProtocol | None = None,
 ) -> FinancialResponseCaptureProtocol:
     """Run one allowlisted financial request and retain its raw-body capture.
 
@@ -498,7 +515,8 @@ def execute_financial_response_request(
     )
     attempts_observed = 0
     active_attempt_budget = attempt_budget or FinancialResponseAttemptBudget(max_attempts)
-    for attempt_number, egress_id in enumerate(route.candidates[:max_attempts], start=1):
+    candidates = _financial_attempt_candidates(route, max_attempts=max_attempts)
+    for attempt_number, egress_id in enumerate(candidates, start=1):
         if not active_attempt_budget.reserve():
             raise FinancialResponseRequestFailed(
                 "金融请求已达到物理发送次数上限。",
@@ -525,19 +543,42 @@ def execute_financial_response_request(
                 observed_attempts=None,
             ) from exc
         attempts_observed = attempt_number
+        if result.outcome == "success" and captured is not None:
+            validation = (
+                validator(captured.raw_body)
+                if validator is not None
+                else FinancialResponseValidationResult(accepted=True)
+            )
+            if not isinstance(validation, FinancialResponseValidationResult):
+                validation = FinancialResponseValidationResult(accepted=False)
+            if not validation.accepted:
+                result = EgressTransportResult(
+                    outcome="failed",
+                    error_code="EGRESS_FINANCIAL_RESPONSE_VALIDATION_FAILED",
+                    message="金融响应内容校验失败。",
+                    status_code=result.status_code,
+                    latency_ms=result.latency_ms,
+                    retryable=validation.retryable,
+                )
+            else:
+                _record_attempt(
+                    context,
+                    route,
+                    request_id,
+                    _diagnostic_attempt(result, attempt_number, egress_id),
+                )
+                return FinancialResponseCaptureResult(
+                    payload=captured.payload,
+                    evidence=captured.evidence,
+                    raw_body=captured.raw_body,
+                    physical_request_attempts=attempts_observed,
+                )
         _record_attempt(
             context,
             route,
             request_id,
             _diagnostic_attempt(result, attempt_number, egress_id),
         )
-        if result.outcome == "success" and captured is not None:
-            return FinancialResponseCaptureResult(
-                payload=captured.payload,
-                evidence=captured.evidence,
-                raw_body=captured.raw_body,
-                physical_request_attempts=attempts_observed,
-            )
         last = result
         if not result.retryable:
             break
@@ -546,6 +587,19 @@ def execute_financial_response_request(
         code=last.error_code or "EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
         observed_attempts=attempts_observed,
     )
+
+
+def _financial_attempt_candidates(
+    route: EgressRouteDecision,
+    *,
+    max_attempts: int,
+) -> tuple[int | None, ...]:
+    """Return bounded candidates, repeating a persisted single route for retry."""
+
+    candidates = route.candidates[:max_attempts]
+    if len(candidates) == 1 and max_attempts == 2:
+        return (candidates[0], candidates[0])
+    return candidates
 
 
 def _diagnostic_attempt(
@@ -887,6 +941,8 @@ __all__ = [
     "FinancialResponseAttemptBudget",
     "FinancialResponseCaptureProtocol",
     "FinancialResponseRequestFailed",
+    "FinancialResponseValidationResult",
+    "FinancialResponseValidatorProtocol",
     "get_egress_transport",
     "list_endpoints",
     "list_rules",
