@@ -3,7 +3,7 @@
     "by_category": {
       "admin_surface": 16,
       "agent_skill": 3,
-      "application_consumer": 159,
+      "application_consumer": 160,
       "beat_schedule": 61,
       "capability_runtime": 25,
       "celery_dispatch_edge": 18,
@@ -16,27 +16,27 @@
       "mcp_tool": 40,
       "migration_evidence": 14,
       "operational_dispatch_edge": 72,
-      "operational_script": 39,
+      "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
       "rest_url": 72,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
-      "script": 18,
+      "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
       "test_evidence": 88,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 851,
-      "adjacent_operational": 337,
+      "active_public": 852,
+      "adjacent_operational": 339,
       "candidate-review": 5,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1331
+    "total": 1334
   },
   "entries": [
     {
@@ -1817,6 +1817,16 @@
       "path": "scripts/evid09_target_current_db_readonly_runtime.py",
       "status": "active_public",
       "symbol": "get_published_market_news",
+      "target": ""
+    },
+    {
+      "category": "application_consumer",
+      "evidence": "canonical Data Center Application Public Port import",
+      "id": "application_consumer:scripts/run_s6_prepare_preflight.py:get_active_provider_id_by_source:semantic:get_active_provider_id_by_source",
+      "locator": "semantic:get_active_provider_id_by_source",
+      "path": "scripts/run_s6_prepare_preflight.py",
+      "status": "active_public",
+      "symbol": "get_active_provider_id_by_source",
       "target": ""
     },
     {
@@ -5371,7 +5381,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=10",
+      "evidence": "governed current-data contract; source_files=11",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.market_provider_rehearsal:Read-only live provider probe, retained response replay, policy-qualified valuation gaps and full-universe capacity bind source clocks, units, batch scope and stable missing reasons; this evidence is not release approval",
       "locator": "Read-only live provider probe, retained response replay, policy-qualified valuation gaps and full-universe capacity bind source clocks, units, batch scope and stable missing reasons; this evidence is not release approval",
       "path": "governance/current_data_contracts.json",
@@ -8661,6 +8671,16 @@
     },
     {
       "category": "operational_script",
+      "evidence": "bounded zero-write S6 prepare diagnostic after focused unit contracts; uses canonical target-session provider batches in a read-only PostgreSQL transaction and produces no release receipt",
+      "id": "operational_script:scripts/run_s6_prepare_preflight.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_s6_prepare_preflight.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "S6 prepare fast feedback before fresh attempt reservation"
+    },
+    {
+      "category": "operational_script",
       "evidence": "internal S6 receipt projection and live graph verifier; emits no receipt unless Task Monitor and current publication evidence agree",
       "id": "operational_script:scripts/s6_isolated_market_graph_receipt.py:__main__:",
       "locator": "",
@@ -11481,6 +11501,16 @@
     },
     {
       "category": "script",
+      "evidence": "bounded zero-write S6 prepare diagnostic after focused unit contracts; uses canonical target-session provider batches in a read-only PostgreSQL transaction and produces no release receipt",
+      "id": "script:scripts/run_s6_prepare_preflight.py:__main__:",
+      "locator": "",
+      "path": "scripts/run_s6_prepare_preflight.py",
+      "status": "adjacent_operational",
+      "symbol": "__main__",
+      "target": "S6 prepare fast feedback before fresh attempt reservation"
+    },
+    {
+      "category": "script",
       "evidence": "static Data Center reference; explicit owner review required",
       "id": "script:scripts/s6_isolated_market_graph_receipt.py:__main__:",
       "locator": "",
@@ -13363,7 +13393,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 73,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 41,
+    "operational_governance_rules": 42,
     "runtime_config_keys": 45
   },
   "source_contracts": [

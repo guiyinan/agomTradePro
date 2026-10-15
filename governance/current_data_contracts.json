@@ -7576,9 +7576,17 @@
         "apps/data_center/infrastructure/rehearsal_replay_collector.py",
         "apps/data_center/infrastructure/full_universe_capacity_runner.py",
         "apps/data_center/management/commands/rehearse_market_providers.py",
+        "scripts/run_s6_prepare_preflight.py",
         "scripts/validate_release_rehearsal.py"
       ],
       "required_markers": {
+        "scripts/run_s6_prepare_preflight.py": [
+          "SET TRANSACTION READ ONLY",
+          "cn_market_session_close_utc(target)",
+          "source_observed_at",
+          "S6_PREFLIGHT_VALUATION_SAMPLE_INCOMPLETE",
+          "must_not_use_for_decision"
+        ],
         "apps/data_center/infrastructure/market_rehearsal_runner.py": [
           "REPEATABLE READ, READ ONLY",
           "REHEARSAL_REAL_RESPONSE_MISSING",
@@ -7618,6 +7626,21 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "prepare_diagnostic_read_only_before_provider",
+          "test_file": "tests/unit/test_s6_prepare_preflight.py",
+          "test_function": "test_live_sets_postgres_read_only_before_calendar_and_provider"
+        },
+        {
+          "case": "prepare_diagnostic_rejects_wrong_session_or_missing_source_clock",
+          "test_file": "tests/unit/test_s6_prepare_preflight.py",
+          "test_function": "test_valuation_failure_stops_before_quote"
+        },
+        {
+          "case": "prepare_diagnostic_failed_tests_prevent_provider",
+          "test_file": "tests/unit/test_s6_prepare_preflight.py",
+          "test_function": "test_failed_focused_tests_prevent_provider_process"
+        },
         {
           "case": "real_clock_and_coverage",
           "test_file": "tests/unit/data_center/test_market_provider_rehearsal.py",

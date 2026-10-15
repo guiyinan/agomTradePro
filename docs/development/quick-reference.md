@@ -49,6 +49,32 @@ agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 
 ### 发布预检与 S6 策略快照
 
+日常修改 S6 prepare 路由时，先运行下面的快速反馈，再冻结正式候选。默认只运行精确单测；
+`--live` 才访问当前 Django 环境配置的真实 provider，且必须显式指定预计的 S6 目标日：
+
+```bash
+# 无 provider 请求：prepare 路由、交易日窗口、Tushare session batch 和治理出口契约
+python -m scripts.run_s6_prepare_preflight
+
+# 在可读取 provider 配置与目标日 universe 的 PostgreSQL 环境中执行零写诊断
+python -m scripts.run_s6_prepare_preflight --live --target-date <YYYY-MM-DD> \
+  --sample-size 10 --timeout 120
+```
+
+live 模式仍先跑上述单测，通过后才启动独立 provider 进程。它复用 prepare 的 provider 选择、
+最近 provider-ready session 与目标日 universe，要求目标日精确一致；在 PostgreSQL 只读事务中
+最多调用一次估值 session batch 和一次行情 session batch，默认抽样 10 只、上限 50 只。
+抽样按完整 universe 排序后均匀选取；缺行、重复、越界或非目标日 15:00 来源时间均阻断，
+估值失败时不再请求行情。provider 进程默认 120 秒截止（可设 1–300 秒），诊断入口不重跑失败进程；
+provider 内部出口重试仍遵循原配置，并受该进程总时限约束。
+底层 session 接口可能仍下载全市场响应；这里减少的是写入、后续阶段和失败等待，不承诺缩小上游响应。
+JSON 保留实际来源时间与抽样覆盖率，始终标明 `release_approval=false`、
+`must_not_use_for_decision=true`；单测默认独立 SQLite 环境，live 进程使用调用方 Django 配置。
+
+诊断不 reserve attempt、不创建隔离库、不生成 receipt，也不重跑已封存的历史全量回填验收。
+抽样通过不能证明全市场覆盖率或完整 S6 已通过。正式候选仍需同 SHA 的五组 CI 和 official artifact，
+再使用新 checkout、新数据库、新 attempt 从 prepare 完整执行；不得拼接旧 SHA 或复用失败 attempt。
+
 ```bash
 # 0. 为每次全新 S6 原子预留独立 attempt；同 SHA 重试也必须使用新的 attempt ID
 python scripts/plan_release_rehearsal_attempt.py \

@@ -43,6 +43,16 @@
       "target": "fresh S6 attempt preparation"
     },
     {
+      "category": [
+        "script",
+        "operational_script"
+      ],
+      "evidence": "bounded zero-write S6 prepare diagnostic after focused unit contracts; uses canonical target-session provider batches in a read-only PostgreSQL transaction and produces no release receipt",
+      "path": "scripts/run_s6_prepare_preflight.py",
+      "status": "adjacent_operational",
+      "target": "S6 prepare fast feedback before fresh attempt reservation"
+    },
+    {
       "category": "operational_script",
       "evidence": "internal planner v3-bound S6 CLI; provider refresh is restricted to the disposable attempt database and runs before read-only exporters",
       "path": "scripts/refresh_s6_isolated_market_graph.py",

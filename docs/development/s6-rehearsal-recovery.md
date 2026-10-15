@@ -4,6 +4,15 @@
 
 ## 操作方式
 
+需要排查 prepare 的目标日或 provider 路由时，先在开发 checkout 运行
+`python -m scripts.run_s6_prepare_preflight`。需真实响应时，在目标 PostgreSQL 只读环境加
+`--live --target-date <YYYY-MM-DD> --sample-size 10 --timeout 120`；精确单测失败时不会发起 provider
+探测，估值抽样失败时不会再请求行情。用法、调用预算与抽样边界见
+[快速参考](quick-reference.md#发布预检与-s6-策略快照)。该步骤不创建 attempt、数据库或 receipt，
+不会进入 release bundle 的 required reports；不能替代正式全市场门禁或复用失败 attempt。
+诊断通过后，冻结候选仍须同 SHA 的完整 CI、official artifact、新 checkout、新数据库及从 prepare
+开始的完整 fresh S6。已封存的历史全量回填属于独立验收，不随本诊断重跑。
+
 每次全新 S6 先由仓库内规划器分配独立 attempt。省略 `--attempt-id` 时生成 UUID4；输出的 root、evidence、
 PostgreSQL/Redis/network/volume/database 和 provider export 临时路径必须作为本次 prepare 与 launcher 的唯一输入，
 不得从上一轮脚本做字符串替换：
