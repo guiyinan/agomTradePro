@@ -14,6 +14,7 @@ from django.core.management import call_command
 from django.test import override_settings
 from django.utils import timezone
 
+from apps.data_center.application.egress_service import FinancialResponseAttemptBudget
 from apps.data_center.application.financial_scope_discovery_governance import (
     parse_financial_scope_discovery_authorization,
 )
@@ -323,3 +324,58 @@ def test_scope_discovery_reader_maps_route_preflight_failure_to_stable_blocker(
         discovery_reader.preflight(binding=binding)
 
     assert caught.value.code == "FINANCIAL_SCOPE_DISCOVERY_EGRESS_ROUTE_REQUIRED"
+
+
+def test_scope_discovery_reader_uses_provider_supported_asset_filter_grammar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The full-universe request uses EastMoney's required double-quoted asset value."""
+
+    observed_params: dict[str, object] = {}
+
+    def reject_after_recording(
+        _context: object,
+        **kwargs: object,
+    ) -> object:
+        params = kwargs.get("params")
+        assert isinstance(params, dict)
+        observed_params.update(params)
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED")
+
+    monkeypatch.setattr(
+        reader_module,
+        "execute_financial_response_request",
+        reject_after_recording,
+    )
+    discovery_reader = object.__new__(reader_module.AkshareFinancialScopeDiscoveryReader)
+    binding = FinancialScopeDiscoveryBinding(
+        candidate_sha="a" * 40,
+        provider_id=19,
+        provider_name="akshare",
+        provider_identity_sha256="b" * 64,
+        contract_id="akshare.financial-scope.latest-notice",
+        contract_version="2026-10-09.v1",
+        contract_sha256="c" * 64,
+        parser_id="akshare-financial-scope-parser.v1",
+        parser_sha256="d" * 64,
+        deployment_region="isolated-test",
+    )
+
+    with pytest.raises(FinancialScopeDiscoveryError):
+        discovery_reader._capture_one(
+            binding=binding,
+            asset_code="000001.SZ",
+            dataset_key="equity.financial.fact",
+            maximum_rows=200,
+            attempt_budget=FinancialResponseAttemptBudget(1),
+        )
+
+    assert observed_params == {
+        "type": "RPT_F10_FINANCE_MAINFINADATA",
+        "sty": "SECUCODE,REPORT_DATE,NOTICE_DATE",
+        "filter": '(SECUCODE="000001.SZ")',
+        "p": 1,
+        "ps": 200,
+        "st": "NOTICE_DATE",
+        "sr": -1,
+    }

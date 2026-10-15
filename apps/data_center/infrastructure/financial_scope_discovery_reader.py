@@ -246,7 +246,7 @@ class AkshareFinancialScopeDiscoveryReader:
         params: dict[str, object] = {
             "type": _DATA_QUERY_TYPE,
             "sty": f"{_ASSET_FIELD},{_PERIOD_FIELD},{_ANNOUNCEMENT_FIELD}",
-            "filter": f"({_ASSET_FIELD}='{asset_code}')",
+            "filter": f'({_ASSET_FIELD}="{asset_code}")',
             "p": _PAGE_NUMBER,
             "ps": maximum_rows,
             "st": _ANNOUNCEMENT_FIELD,
