@@ -27,3 +27,9 @@ def test_require_isolated_target_session_blocks_without_provider_evidence() -> N
 
     with pytest.raises(ValueError, match="S6_GRAPH_REFRESH_TARGET_SESSION_UNAVAILABLE"):
         launcher._require_isolated_target_session(now, resolver=lambda _now: None)
+
+
+def test_isolated_refresh_uses_target_session_capable_provider_route() -> None:
+    """An intraday rehearsal must not source yesterday from a live-only quote route."""
+
+    assert launcher._isolated_task_kwargs() == {"source": "tushare"}

@@ -23,6 +23,7 @@ _POSTGRES_CONTAINER_RE = re.compile(r"agom-s6-postgres-[a-f0-9]{32}\Z")
 _REDIS_CONTAINER_RE = re.compile(r"agom-s6-redis-[a-f0-9]{32}\Z")
 _REPORT = Path("/candidate-output/current-market-graph-refresh.json")
 _CANDIDATE_SOURCE = Path("/candidate-src")
+_ISOLATED_PROVIDER_SOURCE = "tushare"
 _KNOWN_FAILURE_CODES = frozenset(
     {
         "S6_GRAPH_REFRESH_ENVIRONMENT_INVALID",
@@ -127,6 +128,12 @@ def _require_isolated_target_session(
     return target_session
 
 
+def _isolated_task_kwargs() -> dict[str, str]:
+    """Use the full-session provider route that can reproduce the locked target date."""
+
+    return {"source": _ISOLATED_PROVIDER_SOURCE}
+
+
 def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
     """Run the real Task Monitor task, then publish its verified graph receipt."""
 
@@ -193,6 +200,7 @@ def _run(args: argparse.Namespace, environ: dict[str, str]) -> int:
         ):
             result = refresh_full_market_publications_task.apply(
                 task_id=args.task_id,
+                kwargs=_isolated_task_kwargs(),
                 throw=False,
             )
     except Exception:
