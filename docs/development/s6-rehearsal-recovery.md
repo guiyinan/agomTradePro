@@ -150,6 +150,21 @@ python scripts/run_release_rehearsal.py <原有完整参数> --resume
 做最多两次幂等留存，并对已提交引用做最多两次读回核验；重试不得增加 artifact/RawAudit 基数，也不得写入 financial fact 或
 publication。完整覆盖、双份原文、双份审计、请求 ceiling 和最终 validator 门槛保持不变。
 
+目标地址预检中的 `EGRESS_DNS_TIMEOUT`、`EGRESS_DNS_CONCURRENCY_LIMIT` 与 `EGRESS_DNS_ERROR` 也必须把
+`retryable` 传回原调用方，在相同的两次 ceiling 内重新解析、校验并固定公开地址。非法 URL、私网地址、未允许的目标和配置错误
+继续立即阻断；不能因 DNS 重试跳过 SSRF、TLS 身份、地址固定或共享出网预算。
+
+2026-10-16 失败现场复核：attempt `9a06ad1e68e340138b749b2d7025dd84` 完成前 11/14 阶段后，scope capture
+为 `5576/5497/79`，物理尝试 11138，原文/RawAudit 各 11020，fact/publication 写入为零。逐请求顺序与 5510 个已留存
+fact capture UUID 交叉核对后，51 个两次 provider 校验失败的资产中，42 个响应含历史 `NOTICE_DATE=null`，9 个券商响应含
+`1900-01-01 00:05:43` 占位日期；另有 14 次 fact DNS 预检失败及 1 次 source-time DNS 失败未进入第二次尝试。全部已留存
+原文的只读复核可重建 5510 个资产的 capture pair，其中 13 个在 asset-item 校验处阻断：最新公告日为 2026-10-16，按既有
+date-only 契约要到北京时间 2026-10-17 00:00 才可用。不能把这 13 个阻断继续解释为留存后即时读回抖动。
+
+这些数据缺陷不是重试可解决的错误。现行完整历史行日期校验、空值拒绝和可用时间门槛保持失败关闭；没有新的来源补全证据或
+明确批准的新查询/验收契约，不得再次 reserve 全量 attempt，也不得删行、缩小资产分母或伪造公告时间来通过验收。失败原文的
+只读诊断不属于新 attempt 的成功证据。
+
 已成功且产物完整的 provider 阶段不会在续跑时重复调用。未成功的 provider 阶段没有可复用的成功证据，显式 `--resume` 会在保留失败产物后重新执行该阶段并再次消耗受控配额；必须先确认原失败根因已修复且剩余配额可用。执行器不会自动循环续跑。
 
 相同输出目录使用 OS 文件锁，进程退出会释放；不要删除锁文件来绕过活动运行。未完成目录会移入 `failed-attempts` 的唯一子目录后重试，历史失败产物不覆盖。已完成运行拒绝再次续跑。

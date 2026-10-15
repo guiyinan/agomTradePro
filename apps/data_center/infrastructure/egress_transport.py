@@ -456,12 +456,17 @@ class EgressHttpTransport:
         try:
             target = _validate_public_target(context.target_url)
         except EgressRoutingError as exc:
+            retryable = exc.code in {
+                "EGRESS_DNS_TIMEOUT",
+                "EGRESS_DNS_CONCURRENCY_LIMIT",
+                "EGRESS_DNS_ERROR",
+            }
             return (
                 EgressTransportResult(
                     outcome="blocked",
                     error_code=exc.code,
-                    message="目标地址未通过安全校验。",
-                    retryable=False,
+                    message="目标地址解析暂时不可用。" if retryable else "目标地址未通过安全校验。",
+                    retryable=retryable,
                 ),
                 None,
             )

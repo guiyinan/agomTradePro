@@ -15,6 +15,7 @@ from apps.config_center.domain.egress import EgressEndpoint
 from apps.data_center.application.egress_service import EgressTransportResult
 from apps.data_center.domain.egress_routing import EgressRequestContext
 from apps.data_center.infrastructure import egress_transport as transport_module
+from apps.data_center.infrastructure.egress_target import PublicTargetError
 
 
 def _context() -> EgressRequestContext:
@@ -26,6 +27,38 @@ def _context() -> EgressRequestContext:
         target_url="https://data.example.com/history",
         deployment_region="overseas_vps",
     )
+
+
+@pytest.mark.parametrize(
+    ("error_code", "retryable"),
+    [
+        ("EGRESS_DNS_TIMEOUT", True),
+        ("EGRESS_DNS_CONCURRENCY_LIMIT", True),
+        ("EGRESS_DNS_ERROR", True),
+        ("EGRESS_PRIVATE_TARGET", False),
+        ("EGRESS_INVALID_URL", False),
+        ("EGRESS_TARGET_NOT_ALLOWED", False),
+    ],
+)
+def test_target_preflight_retries_only_transient_dns_failures(
+    monkeypatch: pytest.MonkeyPatch, error_code: str, retryable: bool
+) -> None:
+    """DNS availability failures use the caller's budget while unsafe targets stay blocked."""
+
+    def reject_target(_url: str) -> None:
+        raise PublicTargetError("sanitized test failure", code=error_code)
+
+    session_factory = Mock()
+    monkeypatch.setattr(transport_module, "_validate_public_target", reject_target)
+    monkeypatch.setattr(transport_module.requests, "Session", session_factory)
+
+    result, payload = _request_payload(transport_module.EgressHttpTransport(), _context())
+
+    assert result.outcome == "blocked"
+    assert result.error_code == error_code
+    assert result.retryable is retryable
+    assert payload is None
+    session_factory.assert_not_called()
 
 
 def _endpoint() -> EgressEndpoint:
