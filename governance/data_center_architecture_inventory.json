@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5516,
+    "current_surface_references": 5515,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8757,10 +8757,6 @@
     {
       "path": "apps/data_center/application/financial_scope_capacity_receipt.py",
       "text": "summary = _mapping(result.get(\"candidate\"), \"S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE\")"
-    },
-    {
-      "path": "apps/data_center/application/financial_scope_manifest_bootstrap.py",
-      "text": "\"\"\"Read the complete current active securities universe without side effects.\"\"\""
     },
     {
       "path": "apps/data_center/application/financial_slice_sync.py",
