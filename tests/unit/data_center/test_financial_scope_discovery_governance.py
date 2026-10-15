@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -378,4 +379,94 @@ def test_scope_discovery_reader_uses_provider_supported_asset_filter_grammar(
         "ps": 200,
         "st": "NOTICE_DATE",
         "sr": -1,
+    }
+
+
+def test_scope_discovery_reader_validates_retained_dataset_key_at_schema_path() -> None:
+    """Retention accepts the governed request_scope dataset key and records exact grammar."""
+
+    body = b'{"result":{"data":[]}}'
+    body_sha256 = hashlib.sha256(body).hexdigest()
+    capture_id = uuid4()
+    dataset_key = "equity.financial.fact"
+    evidence = SimpleNamespace(response_completed_at=datetime(2026, 10, 15, 7, 0, tzinfo=UTC))
+    reference = SimpleNamespace(body_sha256=body_sha256, evidence=evidence)
+    audit = SimpleNamespace(
+        capability="financial",
+        status="ok",
+        redacted=True,
+        raw_audit_id=41,
+        extra={
+            "financial_response_artifact": {
+                "provider_id": 19,
+                "capture_id": str(capture_id),
+                "body_sha256": body_sha256,
+                "request_scope": {"dataset_key": dataset_key},
+            }
+        },
+    )
+
+    class _Repository:
+        request_params: object | None = None
+
+        def retain(self, **kwargs: object) -> object:
+            self.request_params = kwargs["request_params"]
+            return SimpleNamespace(reference=reference, audit=audit)
+
+        def inspect_orphan(self, _reference: object) -> object:
+            return SimpleNamespace(body_verified=True, audit=audit)
+
+        def read(self, _reference: object) -> bytes:
+            return body
+
+    repository = _Repository()
+    discovery_reader = object.__new__(reader_module.AkshareFinancialScopeDiscoveryReader)
+    discovery_reader._repository = repository
+    discovery_reader._run_id = uuid4()
+    binding = FinancialScopeDiscoveryBinding(
+        candidate_sha="a" * 40,
+        provider_id=19,
+        provider_name="akshare",
+        provider_identity_sha256="b" * 64,
+        contract_id="akshare.financial-scope.latest-notice",
+        contract_version="2026-10-09.v1",
+        contract_sha256="c" * 64,
+        parser_id="akshare-financial-scope-parser.v1",
+        parser_sha256="d" * 64,
+        deployment_region="isolated-test",
+    )
+    captured = reader_module._PendingCapture(
+        capture_id=capture_id,
+        body=body,
+        evidence=evidence,
+        rows=(
+            reader_module.FinancialScopeDiscoveryRow(
+                asset_code="000001.SZ",
+                period_end=date(2026, 9, 30),
+                announcement_date=date(2026, 10, 15),
+            ),
+        ),
+        physical_request_attempts=1,
+    )
+
+    result = discovery_reader._retain(
+        binding=binding,
+        asset_code="000001.SZ",
+        dataset_key=dataset_key,
+        captured=captured,
+    )
+
+    assert result.dataset_key == dataset_key
+    assert repository.request_params == {
+        "endpoint": reader_module.AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
+        "method": "GET",
+        "params": {
+            "type": "RPT_F10_FINANCE_MAINFINADATA",
+            "sty": "SECUCODE,REPORT_DATE,NOTICE_DATE",
+            "filter": '(SECUCODE="000001.SZ")',
+            "p": 1,
+            "ps": 200,
+            "st": "NOTICE_DATE",
+            "sr": -1,
+        },
     }

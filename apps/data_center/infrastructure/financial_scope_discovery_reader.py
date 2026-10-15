@@ -320,7 +320,7 @@ class AkshareFinancialScopeDiscoveryReader:
                     "params": {
                         "type": _DATA_QUERY_TYPE,
                         "sty": f"{_ASSET_FIELD},{_PERIOD_FIELD},{_ANNOUNCEMENT_FIELD}",
-                        "filter": f"({_ASSET_FIELD}='{asset_code}')",
+                        "filter": f'({_ASSET_FIELD}="{asset_code}")',
                         "p": _PAGE_NUMBER,
                         "ps": 200,
                         "st": _ANNOUNCEMENT_FIELD,
@@ -356,15 +356,19 @@ class AkshareFinancialScopeDiscoveryReader:
                 audit_writes=1,
             )
         audit_link = retained.audit.extra.get("financial_response_artifact")
+        audit_request_scope = (
+            audit_link.get("request_scope") if isinstance(audit_link, Mapping) else None
+        )
         if (
             retained.audit.capability != "financial"
             or retained.audit.status != "ok"
             or retained.audit.redacted is not True
             or not isinstance(audit_link, Mapping)
+            or not isinstance(audit_request_scope, Mapping)
             or audit_link.get("provider_id") != binding.provider_id
             or audit_link.get("capture_id") != str(capture_id)
             or audit_link.get("body_sha256") != retained.reference.body_sha256
-            or audit_link.get("dataset_key") != dataset_key
+            or audit_request_scope.get("dataset_key") != dataset_key
         ):
             raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID",
