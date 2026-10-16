@@ -22,6 +22,7 @@ from apps.data_center.application.publication_policy_activation import (
     PublishedCurrentMetadata,
 )
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
+from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 from apps.data_center.publication_policy_activation_composition import (
     get_publication_policy_activation_use_case,
 )
@@ -186,6 +187,15 @@ def _policy(
         raise CommandError(f"{context}.policy_version must be non-empty text")
     if "active" in row and require_active and _required_bool(row, "active", context) is not True:
         raise CommandError(f"{context}.active must be true in expected state")
+    codec_raw = row.get("member_codec_version")
+    if codec_raw is not None and type(codec_raw) is not str:
+        raise CommandError(f"{context}.member_codec_version must be text or null")
+    try:
+        codec = CalendarNullableMemberCodecVersion(codec_raw) if codec_raw is not None else None
+    except ValueError as exc:
+        raise CommandError(f"{context}.member_codec_version is not supported") from exc
+    if codec is not None and policy_version == "legacy":
+        raise CommandError(f"{context}.member_codec_version requires a versioned policy")
     return PublicationPolicy(
         dataset=contract,
         minimum_coverage_ratio=_required_float(row, "minimum_coverage_ratio", context),
@@ -194,6 +204,7 @@ def _policy(
         required_evidence=tuple(cast(str, item) for item in evidence),
         retention_days=_required_int(row, "retention_days", context),
         policy_version=policy_version,
+        member_codec_version=codec,
     )
 
 

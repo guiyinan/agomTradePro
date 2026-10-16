@@ -1,4 +1,4 @@
-"""SQLite proof that publication rollback and required audit are atomic."""
+"""ORM proof that publication rollback and required audit are atomic."""
 
 from __future__ import annotations
 
@@ -45,7 +45,9 @@ from apps.data_center.infrastructure.publication_rollback_models import (
 )
 from tests.support.isolated_schema import isolated_schema
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(
+    transaction=True, available_apps=["apps.data_center", "apps.audit"]
+)
 
 NOW = datetime.now(UTC)
 SCOPE = AuditScopeRef("tenant:research", "owner:test")

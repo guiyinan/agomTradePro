@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：585
-- 字段数：9001
+- 模型数：588
+- 字段数：9038
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -4598,6 +4598,8 @@
 | `decision_critical` | `BooleanField` |  |  | False |  |  |
 | `fields` | `JSONField` |  |  | list |  |  |
 | `freshness_seconds` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `execution_freshness_seconds` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `calendar_response_max_age_seconds` | `PositiveBigIntegerField` | 是 |  |  |  |  |
 | `comparable_group` | `CharField` |  |  |  |  |  |
 | `active` | `BooleanField` |  |  | True |  |  |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
@@ -4635,6 +4637,7 @@
 | `contract_version` | `CharField` |  |  |  |  |  |
 | `schema_version` | `CharField` |  |  |  |  |  |
 | `policy_version` | `CharField` |  |  | legacy |  |  |
+| `member_codec_version` | `CharField` | 是 |  |  |  |  |
 | `minimum_coverage_ratio` | `FloatField` |  |  |  |  |  |
 | `allow_partial` | `BooleanField` |  |  | False |  |  |
 | `conflict_action` | `CharField` |  |  |  |  |  |
@@ -4815,6 +4818,29 @@
 | `revision_number` | `PositiveSmallIntegerField` |  |  | 1 |  |  |
 | `ingested_run_id` | `UUIDField` | 是 |  |  |  |  |
 
+### ExchangeCalendarSnapshotFactModel
+
+- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
+- 数据表：`data_center_exchange_calendar_snapshot_fact`
+- 说明：Append-only complete daily calendar bound to one retained raw response.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `snapshot_id` | `UUIDField` |  |  | uuid.uuid4 |  |  |
+| `raw_payload` | `OneToOneField` |  |  |  |  | RawPayloadModel |
+| `raw_payload_hash` | `CharField` |  | 是 |  |  |  |
+| `exchange` | `CharField` |  |  |  |  |  |
+| `coverage_start` | `DateField` |  |  |  |  |  |
+| `coverage_end` | `DateField` |  |  |  |  |  |
+| `days` | `JSONField` |  |  |  |  |  |
+| `provider_name` | `CharField` |  |  |  |  |  |
+| `raw_reference` | `JSONField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  |  |  |  |  |
+| `first_seen_at` | `DateTimeField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `source_published_at` | `DateTimeField` | 是 |  |  |  |  |
+| `record_digest` | `CharField` |  | 是 |  |  |  |
+
 ### FinancialSourceTimeAuditClaimModel
 
 - 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
@@ -4826,6 +4852,44 @@
 | `capture_id` | `UUIDField` |  |  |  |  |  |
 | `audit` | `OneToOneField` | 是 |  |  |  | RawAuditModel |
 | `created_at` | `DateTimeField` |  |  |  |  |  |
+
+### InstrumentReferenceMappingModel
+
+- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
+- 数据表：`data_center_instrument_reference_mapping`
+- 说明：Append-only versioned mapping content with first-knowledge seal.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mapping_record_id` | `UUIDField` |  |  |  |  |  |
+| `mapping_id` | `CharField` |  |  |  |  |  |
+| `mapping_version` | `CharField` |  |  |  |  |  |
+| `source_crosswalk_id` | `CharField` |  |  |  |  |  |
+| `source_crosswalk_version` | `CharField` |  |  |  |  |  |
+| `source_crosswalk_hash` | `CharField` |  |  |  |  |  |
+| `content` | `JSONField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `record_digest` | `CharField` |  | 是 |  |  |  |
+
+### InstrumentReferenceSnapshotModel
+
+- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
+- 数据表：`data_center_instrument_reference_snapshot`
+- 说明：Append-only whole source batch with exact mapping and audit identities.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `snapshot_id` | `UUIDField` |  |  |  |  |  |
+| `run_id` | `UUIDField` |  |  |  |  |  |
+| `mapping_record` | `ForeignKey` |  |  |  |  | InstrumentReferenceMappingModel |
+| `snapshot_payload` | `JSONField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `record_digest` | `CharField` |  | 是 |  |  |  |
+| `round_count` | `PositiveIntegerField` |  |  |  |  |  |
+| `occurrence_count` | `PositiveIntegerField` |  |  |  |  |  |
+| `record_count` | `PositiveIntegerField` |  |  |  |  |  |
 
 ### MarketThermometerConfigModel
 

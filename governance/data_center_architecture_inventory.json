@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5545,
+    "current_surface_references": 5579,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8103,6 +8103,18 @@
       "text": "\"\"\"Register the Realtime latest-price provider.\"\"\""
     },
     {
+      "path": "apps/data_center/application/calendar_audit_read_authority.py",
+      "text": "\"\"\"Return a digest of the current locked permission/grant observation.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_audit_read_authority.py",
+      "text": "\"\"\"Return the current lock-time permission verification instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_authority.py",
+      "text": "\"\"\"Hold current session, identity, and permission witnesses until exit.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/config_summary_service.py",
       "text": "\"\"\"Register the data-center config-summary repository.\"\"\""
     },
@@ -8284,10 +8296,6 @@
     },
     {
       "path": "apps/data_center/application/current_publication_candidate.py",
-      "text": "\"\"\"Static identity for one full-universe current publication.\"\"\""
-    },
-    {
-      "path": "apps/data_center/application/current_publication_candidate.py",
       "text": "raise ValueError(\"Current publication candidate coverage identity is inconsistent\")"
     },
     {
@@ -8400,6 +8408,10 @@
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "\"\"\"Build immutable current or execution-key snapshots at exact scope coverage.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Port selecting the decision-current canonical facts for an asset universe.\"\"\""
     },
     {
@@ -8409,10 +8421,6 @@
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "\"\"\"Publish all datasets in one transaction or leave all current rows intact.\"\"\""
-    },
-    {
-      "path": "apps/data_center/application/current_publication_rebuild.py",
-      "text": "\"\"\"Publish one immutable current snapshot only at exact universe coverage.\"\"\""
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
@@ -8444,7 +8452,19 @@
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "if publication_key not in {\"current\", \"execution\"}:"
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "if self.publication_key != \"current\":"
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "publication_key = \"current\""
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "publication_key: str = \"current\","
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
@@ -8485,6 +8505,10 @@
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
       "text": "raise ValueError(\"Scope exclusions are unsupported for this current dataset\")"
+    },
+    {
+      "path": "apps/data_center/application/current_publication_rebuild.py",
+      "text": "requires_official_close = self.publication_key == \"current\" and ("
     },
     {
       "path": "apps/data_center/application/current_publication_rebuild.py",
@@ -8637,6 +8661,50 @@
     {
       "path": "apps/data_center/application/dtos.py",
       "text": "\"\"\"Result of one current-valuation batch sync.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/exchange_calendar.py",
+      "text": "\"\"\"Persist one exact source response without activating it as current.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/exchange_calendar.py",
+      "text": "\"\"\"Resolve exact immutable evidence; never select a latest/current row.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_activation.py",
+      "text": "\"\"\"Return one fresh exact current execution quote or a typed block.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_activation.py",
+      "text": "raise ExecutionQuoteResumeError(\"current Account authority alias differs\")"
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_activation.py",
+      "text": "raise ExecutionQuoteResumeError(\"current execution decision read differs\")"
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_activation.py",
+      "text": "raise ExecutionQuoteResumeError(\"current execution decision read is blocked\") from error"
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_pointer_rollback.py",
+      "text": "\"\"\"Capture current production Account authority after rollback preflight.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/execution_quote_pointer_rollback.py",
+      "text": "raise ExecutionQuotePointerRollbackError(\"rollback target is already current\")"
+    },
+    {
+      "path": "apps/data_center/application/execution_quotes.py",
+      "text": "Contract selection is current-active, so ``as_of`` does not make catalog"
+    },
+    {
+      "path": "apps/data_center/application/execution_quotes.py",
+      "text": "\"\"\"Typed use case for exact current-publication execution quote reads.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/execution_quotes.py",
+      "text": "raise ValueError(\"Execution quote contract resolution must identify current catalog\")"
     },
     {
       "path": "apps/data_center/application/financial_capacity_models.py",
@@ -9216,10 +9284,6 @@
     },
     {
       "path": "apps/data_center/application/public_published_queries.py",
-      "text": "\"\"\"Return the freshness-validated gate for a current publication.\"\"\""
-    },
-    {
-      "path": "apps/data_center/application/public_published_queries.py",
       "text": "\"\"\"Return valuation-covered assets from the current publication members only.\"\"\""
     },
     {
@@ -9304,7 +9368,7 @@
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
-      "text": "\"\"\"Activate the three current market publications in one complete-fence UOW.\"\"\""
+      "text": "\"\"\"Accept only the existing three-current set or one execution quote.\"\"\""
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
@@ -9316,11 +9380,11 @@
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
-      "text": "\"\"\"One exact candidate and current-pointer CAS within a group activation.\"\"\""
+      "text": "\"\"\"One exact activation shape for full-market current or execution quotes.\"\"\""
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
-      "text": "\"\"\"One indivisible fixed market current set: price, quote, and valuation.\"\"\""
+      "text": "\"\"\"One exact candidate and current-pointer CAS within a group activation.\"\"\""
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
@@ -9332,19 +9396,15 @@
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
+      "text": "\"activation accepts only the full current market set or one execution quote\""
+    },
+    {
+      "path": "apps/data_center/application/publication_activation.py",
       "text": "\"current market publication requires atomic group activation\""
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
-      "text": "\"market group activation contract only accepts current publications\""
-    },
-    {
-      "path": "apps/data_center/application/publication_activation.py",
-      "text": "\"market group activation contract requires current price, quote, and valuation\""
-    },
-    {
-      "path": "apps/data_center/application/publication_activation.py",
-      "text": "if any(item.publication_key != \"current\" for item in self.candidates):"
+      "text": "and all(item.publication_key == \"current\" for item in self.candidates)"
     },
     {
       "path": "apps/data_center/application/publication_activation.py",
@@ -9740,10 +9800,6 @@
     },
     {
       "path": "apps/data_center/application/query_services.py",
-      "text": "\"\"\"Return a freshness-validated gate for one current publication.\"\"\""
-    },
-    {
-      "path": "apps/data_center/application/query_services.py",
       "text": "\"\"\"Return data-center summary counts for operational diagnostics.\"\"\""
     },
     {
@@ -9999,6 +10055,10 @@
       "text": "self._publications.list_members(current.publication_id),"
     },
     {
+      "path": "apps/data_center/calendar_audit_read_authority_composition.py",
+      "text": "\"\"\"Hold current read-permission witnesses while the caller reads its exact stream."
+    },
+    {
       "path": "apps/data_center/composition.py",
       "text": "\"\"\"Compose the canonical same-UOW current-valuation fact sync writer.\"\"\""
     },
@@ -10031,8 +10091,20 @@
       "text": "summary: str"
     },
     {
+      "path": "apps/data_center/domain/execution_quotes.py",
+      "text": "raise ValueError(\"Execution quote contract resolution must identify current catalog\")"
+    },
+    {
+      "path": "apps/data_center/domain/execution_quotes.py",
+      "text": "the current active catalog row; ``queried_at`` does not make that lookup PIT."
+    },
+    {
       "path": "apps/data_center/domain/financial_scope_discovery.py",
       "text": "\"\"\"Latest source-native announcement date and its two capture proofs.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/instrument_reference_snapshot.py",
+      "text": "\"\"\"Return the latest local response completion, never an upstream timestamp.\"\"\""
     },
     {
       "path": "apps/data_center/domain/market_time.py",
@@ -10147,6 +10219,26 @@
       "text": "\"\"\"Current active A-share candidates partitioned by target-date listing evidence.\"\"\""
     },
     {
+      "path": "apps/data_center/execution_quote_composition.py",
+      "text": "The active contract selection is current configuration, not point-in-time"
+    },
+    {
+      "path": "apps/data_center/execution_quote_composition.py",
+      "text": "\"\"\"Read the execution pointer and current active catalog TTL gate.\"\"\""
+    },
+    {
+      "path": "apps/data_center/execution_quote_pointer_rollback_composition.py",
+      "text": "\"\"\"Capture the current complete production Account graph on the same alias.\"\"\""
+    },
+    {
+      "path": "apps/data_center/execution_quote_publication_composition.py",
+      "text": "\"\"\"Adapt a verify-only Audit port to activation's same-current replay seam.\"\"\""
+    },
+    {
+      "path": "apps/data_center/execution_quote_publication_composition.py",
+      "text": "\"\"\"Read one quote through the exact current execution gate and TTL contract.\"\"\""
+    },
+    {
       "path": "apps/data_center/full_market_publication_preflight_composition.py",
       "text": "\"\"\"Compose the production current-market bundle without staging anything.\"\"\""
     },
@@ -10217,6 +10309,30 @@
     {
       "path": "apps/data_center/infrastructure/cache_warmup_queries.py",
       "text": "\"\"\"Return the latest fact for each indicator, capped for cache warmup.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "\"\"\"Return the current application instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "\"\"\"Return the current timezone-aware instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "current = self._clock.now()"
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "if current >= self._expires_at:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "if not _is_aware_utc(current) or current < self._last_verified_at:"
+    },
+    {
+      "path": "apps/data_center/infrastructure/calendar_publication_authority_repository.py",
+      "text": "self._last_verified_at = current"
     },
     {
       "path": "apps/data_center/infrastructure/config_summary_repository.py",
@@ -10879,6 +10995,26 @@
       "text": "self._local_counts[key] = current - 1"
     },
     {
+      "path": "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py",
+      "text": "\"\"\"Fenced rollback for the dedicated execution quote current pointer.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py",
+      "text": "\"\"\"Require exact same-scope source states and all current-pointer CAS fields.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py",
+      "text": "\"rollback current publication or operation chronology is invalid\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/execution_quote_repository.py",
+      "text": "\"\"\"Exact ORM reader for quote facts selected by a current publication.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/execution_quote_repository.py",
+      "text": "\"\"\"Read and verify the exact latest member without converting Decimals.\"\"\""
+    },
+    {
       "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
       "text": "summary = models.TextField(blank=True)"
     },
@@ -11433,10 +11569,6 @@
     {
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
       "text": "\"\"\"Lock and validate the full group before writing any current state.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
-      "text": "\"\"\"Validate and switch all three current market publications atomically.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/publication_group_activation_repository.py",
@@ -21605,6 +21737,10 @@
     {
       "path": "core/integration/bound_single_owner_policy_publication.py",
       "text": "return current if current == self.expected else None"
+    },
+    {
+      "path": "core/integration/calendar_publication_audit_reader.py",
+      "text": "\"\"\"Bind a current locked Data Center reader principal to Audit selectors.\"\"\""
     },
     {
       "path": "core/integration/canonical_account_creation.py",

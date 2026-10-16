@@ -737,6 +737,250 @@ class RawPayloadModel(models.Model):
         )
 
 
+class ExchangeCalendarSnapshotFactModel(models.Model):
+    """Append-only complete daily calendar bound to one retained raw response."""
+
+    snapshot_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    raw_payload = models.OneToOneField(
+        RawPayloadModel,
+        on_delete=models.PROTECT,
+        related_name="exchange_calendar_snapshot_fact",
+    )
+    raw_payload_hash = models.CharField(max_length=128, unique=True, db_index=True)
+    exchange = models.CharField(max_length=32, db_index=True)
+    coverage_start = models.DateField()
+    coverage_end = models.DateField()
+    days = models.JSONField()
+    provider_name = models.CharField(max_length=100, db_index=True)
+    raw_reference = models.JSONField()
+    content_hash = models.CharField(max_length=71, db_index=True)
+    first_seen_at = models.DateTimeField(db_index=True)
+    recorded_at = models.DateTimeField(db_index=True)
+    source_published_at = models.DateTimeField(null=True, blank=True)
+    record_digest = models.CharField(max_length=71, unique=True)
+
+    class Meta:
+        db_table = "data_center_exchange_calendar_snapshot_fact"
+        permissions = [
+            ("publish_exchange_calendar", "Can publish exchange calendar snapshots"),
+            (
+                "view_exchange_calendar_publication_audit",
+                "Can view exchange calendar publication audit events",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["exchange", "coverage_start", "coverage_end"]),
+            models.Index(fields=["exchange", "recorded_at"]),
+        ]
+        ordering = ["-recorded_at", "snapshot_id"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Keep source snapshots append-only after their first durable write."""
+
+        if not self._state.adding:
+            raise ValidationError("Exchange calendar snapshot facts are append-only.")
+        if self.raw_payload_hash != self.raw_payload.payload_hash:
+            raise ValidationError("Exchange calendar snapshot raw payload identity differs.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Preserve exact calendar source and knowledge-time evidence."""
+
+        raise ValidationError("Exchange calendar snapshot facts are append-only.")
+
+
+class _InstrumentReferenceAppendOnlyQuerySet(models.QuerySet[_MODEL_T]):
+    """Read-capable queryset that prevents bulk changes to sealed snapshots."""
+
+    def update(self, **kwargs: object) -> NoReturn:
+        """Reject query-wide updates that bypass record seals."""
+
+        del kwargs
+        raise ValidationError("Instrument reference records are append-only.")
+
+    def delete(self) -> NoReturn:
+        """Reject query-wide deletion of source history."""
+
+        raise ValidationError("Instrument reference records are append-only.")
+
+    def _raw_delete(self, using: str | None) -> NoReturn:
+        """Reject Django's internal cascade-delete shortcut."""
+
+        del using
+        raise ValidationError("Instrument reference records are append-only.")
+
+    def bulk_update(
+        self,
+        objs: Iterable[_MODEL_T],
+        fields: Iterable[str],
+        batch_size: int | None = None,
+    ) -> NoReturn:
+        """Reject bulk mutation that would invalidate stored seals."""
+
+        del objs, fields, batch_size
+        raise ValidationError("Instrument reference records are append-only.")
+
+    def bulk_create(
+        self,
+        objs: Iterable[_MODEL_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
+        """Reject query-level inserts that could bypass seal checks or upsert rows."""
+
+        del objs, batch_size, ignore_conflicts, update_conflicts, update_fields, unique_fields
+        raise ValidationError("Instrument reference records require repository persistence.")
+
+
+class _InstrumentReferenceAppendOnlyManager(models.Manager[_MODEL_T]):
+    """Expose exact reads and row-wise inserts, but no bulk mutation shortcut."""
+
+    def get_queryset(self) -> _InstrumentReferenceAppendOnlyQuerySet[_MODEL_T]:
+        """Return a queryset with mutation shortcuts disabled."""
+
+        return _InstrumentReferenceAppendOnlyQuerySet(self.model, using=self._db)
+
+    def bulk_create(
+        self,
+        objs: Iterable[_MODEL_T],
+        batch_size: int | None = None,
+        ignore_conflicts: bool = False,
+        update_conflicts: bool = False,
+        update_fields: Collection[str] | None = None,
+        unique_fields: Collection[str] | None = None,
+    ) -> NoReturn:
+        """Require inserts to pass model and repository seal validation."""
+
+        del objs, batch_size, ignore_conflicts, update_conflicts, update_fields, unique_fields
+        raise ValidationError("Instrument reference records require repository persistence.")
+
+    def bulk_update(
+        self,
+        objs: Iterable[_MODEL_T],
+        fields: Iterable[str],
+        batch_size: int | None = None,
+    ) -> NoReturn:
+        """Reject bulk mutation that would invalidate stored seals."""
+
+        del objs, fields, batch_size
+        raise ValidationError("Instrument reference records are append-only.")
+
+
+class InstrumentReferenceMappingModel(models.Model):
+    """Append-only versioned mapping content with first-knowledge seal."""
+
+    mapping_record_id = models.UUIDField(primary_key=True, editable=False)
+    mapping_id = models.CharField(max_length=128)
+    mapping_version = models.CharField(max_length=128)
+    source_crosswalk_id = models.CharField(max_length=128)
+    source_crosswalk_version = models.CharField(max_length=128)
+    source_crosswalk_hash = models.CharField(max_length=64)
+    content = models.JSONField()
+    content_hash = models.CharField(max_length=71)
+    recorded_at = models.DateTimeField(db_index=True)
+    record_digest = models.CharField(max_length=71, unique=True)
+
+    objects = _InstrumentReferenceAppendOnlyManager["InstrumentReferenceMappingModel"]()
+
+    class Meta:
+        db_table = "data_center_instrument_reference_mapping"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mapping_id", "mapping_version"],
+                name="dc_instrument_mapping_version_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["recorded_at"], name="dc_instmap_recorded_idx"),
+            models.Index(
+                fields=["source_crosswalk_id", "source_crosswalk_version"],
+                name="dc_instmap_crosswalk_idx",
+            ),
+        ]
+        ordering = ["-recorded_at", "mapping_record_id"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Reject update paths and stale instances that reuse an existing identity."""
+
+        if args:
+            raise ValidationError("Instrument reference mappings require keyword-only inserts.")
+        if kwargs.pop("force_update", False) or kwargs.pop("update_fields", None) is not None:
+            raise ValidationError("Instrument reference mappings are append-only.")
+        if not self._state.adding:
+            raise ValidationError("Instrument reference mappings are append-only.")
+        if (
+            self.mapping_record_id
+            and type(self)._base_manager.filter(pk=self.mapping_record_id).exists()
+        ):
+            raise ValidationError("Instrument reference mappings are append-only.")
+        kwargs.pop("force_insert", None)
+        kwargs["force_insert"] = True
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Preserve the exact mapping version and its first knowledge time."""
+
+        raise ValidationError("Instrument reference mappings are append-only.")
+
+
+class InstrumentReferenceSnapshotModel(models.Model):
+    """Append-only whole source batch with exact mapping and audit identities."""
+
+    snapshot_id = models.UUIDField(primary_key=True, editable=False)
+    run_id = models.UUIDField(db_index=True)
+    mapping_record = models.ForeignKey(
+        InstrumentReferenceMappingModel,
+        on_delete=models.PROTECT,
+        related_name="instrument_reference_snapshots",
+    )
+    snapshot_payload = models.JSONField()
+    content_hash = models.CharField(max_length=71, unique=True)
+    recorded_at = models.DateTimeField(db_index=True)
+    record_digest = models.CharField(max_length=71, unique=True)
+    round_count = models.PositiveIntegerField()
+    occurrence_count = models.PositiveIntegerField()
+    record_count = models.PositiveIntegerField()
+
+    objects = _InstrumentReferenceAppendOnlyManager["InstrumentReferenceSnapshotModel"]()
+
+    class Meta:
+        db_table = "data_center_instrument_reference_snapshot"
+        indexes = [
+            models.Index(fields=["run_id", "recorded_at"], name="dc_instrun_recorded_idx"),
+            models.Index(fields=["mapping_record", "recorded_at"], name="dc_instmap_snap_idx"),
+        ]
+        ordering = ["-recorded_at", "snapshot_id"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(round_count__gt=0), name="dc_inst_round_pos"),
+            models.CheckConstraint(
+                condition=models.Q(occurrence_count__gt=0), name="dc_inst_occurrence_pos"
+            ),
+        ]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Reject update paths and stale instances that reuse an existing identity."""
+
+        if args:
+            raise ValidationError("Instrument reference snapshots require keyword-only inserts.")
+        if kwargs.pop("force_update", False) or kwargs.pop("update_fields", None) is not None:
+            raise ValidationError("Instrument reference snapshots are append-only.")
+        if not self._state.adding:
+            raise ValidationError("Instrument reference snapshots are append-only.")
+        if self.snapshot_id and type(self)._base_manager.filter(pk=self.snapshot_id).exists():
+            raise ValidationError("Instrument reference snapshots are append-only.")
+        kwargs.pop("force_insert", None)
+        kwargs["force_insert"] = True
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        """Preserve the exact complete source batch and its record seal."""
+
+        raise ValidationError("Instrument reference snapshots are append-only.")
+
+
 class SchemaFingerprintModel(models.Model):
     """Observed provider schema signature and evolution evidence."""
 

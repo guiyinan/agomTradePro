@@ -20,6 +20,7 @@ from apps.data_center.composition import (
     get_publication_policy_repository,
 )
 from apps.data_center.domain.contracts import (
+    MAX_CATALOG_TTL_SECONDS,
     DataOwnerRegistration,
     DatasetContract,
     DatasetFieldContract,
@@ -27,6 +28,7 @@ from apps.data_center.domain.contracts import (
     ProviderBinding,
     PublicationPolicy,
 )
+from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 
 
 def _read_object(path: Path) -> dict[str, object]:
@@ -81,6 +83,20 @@ def _as_int(value: object, context: str) -> int:
         except ValueError as exc:
             raise CommandError(f"{context} must be an integer") from exc
     raise CommandError(f"{context} must be an integer")
+
+
+def _as_execution_ttl(value: object, context: str) -> int:
+    """Parse execution TTL as a positive signed-64-bit JSON integer."""
+
+    return _as_catalog_ttl(value, context)
+
+
+def _as_catalog_ttl(value: object, context: str) -> int:
+    """Parse an explicit catalog TTL as a positive signed-64-bit JSON integer."""
+
+    if type(value) is not int or value <= 0 or value > MAX_CATALOG_TTL_SECONDS:
+        raise CommandError(f"{context} must be a positive signed 64-bit integer")
+    return value
 
 
 def _as_float(value: object, context: str) -> float:
@@ -163,6 +179,22 @@ def _load_contracts(path: Path) -> list[DatasetContract]:
                     if row.get("comparable_group") is not None
                     else None
                 ),
+                execution_freshness_seconds=(
+                    _as_execution_ttl(
+                        row["execution_freshness_seconds"],
+                        f"{context}.execution_freshness_seconds",
+                    )
+                    if row.get("execution_freshness_seconds") is not None
+                    else None
+                ),
+                calendar_response_max_age_seconds=(
+                    _as_catalog_ttl(
+                        row["calendar_response_max_age_seconds"],
+                        f"{context}.calendar_response_max_age_seconds",
+                    )
+                    if row.get("calendar_response_max_age_seconds") is not None
+                    else None
+                ),
             )
         )
     return result
@@ -223,6 +255,15 @@ def _load_policies(
         policy_version = row.get("policy_version", "legacy")
         if not isinstance(policy_version, str):
             raise CommandError(f"{context}.policy_version must be text")
+        codec_raw = row.get("member_codec_version")
+        if codec_raw is not None and type(codec_raw) is not str:
+            raise CommandError(f"{context}.member_codec_version must be text or null")
+        try:
+            codec = CalendarNullableMemberCodecVersion(codec_raw) if codec_raw is not None else None
+        except ValueError as exc:
+            raise CommandError(f"{context}.member_codec_version is not supported") from exc
+        if codec is not None and policy_version == "legacy":
+            raise CommandError(f"{context}.member_codec_version requires a versioned policy")
         result.append(
             PublicationPolicy(
                 dataset=contract.key,
@@ -235,6 +276,7 @@ def _load_policies(
                 required_evidence=tuple(str(item) for item in evidence),
                 retention_days=_as_int(row.get("retention_days", 0), f"{context}.retention_days"),
                 policy_version=policy_version,
+                member_codec_version=codec,
             )
         )
     return result

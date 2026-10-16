@@ -1,0 +1,112 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T15:16:27.396190+00:00",
+  "scope": "Explicit policy member-codec binding and session/permission publisher-principal prerequisite only. No publisher, read-authority provider or instrument snapshot acceptance.",
+  "production_source_sha256": {
+    "apps/data_center/application/calendar_publication_authority.py": "403ae9e547aae9000c295e02a00a0d2c4ddc29d3c6f861ae77abbddcb284ea3a",
+    "apps/data_center/interface/calendar_publication_session_adapter.py": "86eb4fb390eeff8e4c3a5a4992a45a8e1ce4f32bba7c82efa1b2c76915c0f865",
+    "apps/data_center/infrastructure/calendar_publication_authority_repository.py": "778c6debd24e33eaf26f085b60b05208e13827a2a053c459284fd342e466d99c",
+    "apps/data_center/calendar_publication_authority_composition.py": "f332601e5c34b3580b738b9fac61a8897581cef00e1c9d01c36a9e5755dc94a5",
+    "apps/data_center/domain/contracts.py": "1d77b6b368bf18e8b6f3a41524ee6a6327833038a46d60076be5ef99a0bf5ac7",
+    "apps/data_center/domain/publication_policy_identity.py": "5e3e19f19db44892e2eeca204ab6150d1a8914e71cba02df222f0e4f0101d20c",
+    "apps/data_center/domain/publication_evidence.py": "046d3e504e01a2e237f7eba6a3f0e171594b5071187887a29f504fbd1e4c3128",
+    "apps/data_center/application/publication_utils.py": "7f38c7ab5860bc128c8559063b37a2ef67c0a7a3343cba7b4899769fdf08fa21",
+    "apps/data_center/infrastructure/catalog_models.py": "c5ab70b4b08d2cca45b339f8ebf970720a6273c8f03fa77c9db554712186a3bd",
+    "apps/data_center/infrastructure/publication_policy_repository.py": "63a6bfc4762d115c57a038f711239e2ff315321bad8c75dcf14b4cdc15facfba",
+    "apps/data_center/infrastructure/market_rehearsal_runner.py": "bbf21f36dc9ede95e2ac3c889aac67c8f6a178eedb309ffcaff26154f88a318b",
+    "apps/data_center/interface/admin.py": "db8cb927e9fc9ab2b1445f133e3bdd5960a9a5940960b060e6f5356a635dde23",
+    "apps/data_center/management/commands/initialize_data_center_catalog.py": "471207626d921487b8dba05aca76e01506d8ddd890526fb13d440776e5ba56b3",
+    "apps/data_center/management/commands/activate_publication_policies.py": "fc6db6806a13295a6d9e1683958207013335d1beb2954a4738cb4ef18de6a710",
+    "apps/data_center/migrations/0102_calendar_member_codec_policy.py": "7eb715ebef99c09bdbbeeb1c9f5962c4ffae95d54199195f0b729b7f37c54dc1",
+    "apps/data_center/migrations/0103_calendar_publication_permissions.py": "00fb4057c5687ac3cd4032372fd66cfbf729e0437d6f81ae393d841f3cd6b02e"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_calendar_publication_authority.py": "3569c7cdffdcc470481796d785868cc419523214af8c70e47d97d6de0639c97c",
+    "tests/component/data_center/test_calendar_publication_authority.py": "0c5680ad58d74000770e5d86853c7a9b6a0538a63244fcbb8ec49fa02e9be360",
+    "tests/component/data_center/test_calendar_authority_clock_boundaries.py": "dc5c2f57178c60623461dc5d4b72e13189727692b6db107d940657c3d48d5f83",
+    "tests/component/data_center/test_calendar_authority_revocation_postgres.py": "077bcefe7ab0e52e01dc7cf5cc4fd0ca7a77ccc4ccd3e9c0947fa618edcf86e8",
+    "tests/component/data_center/test_calendar_policy_codec_repository.py": "64e3ec42ba8eb7e358019ba94fcadbc951091905413e393561e8c4e87463996f",
+    "tests/unit/data_center/test_calendar_policy_codec_binding.py": "0036ac2733be2abab35467548e9d1c6d8d458e6b53f638e746f2e284fe0b4caf",
+    "tests/unit/data_center/test_calendar_nullable_member_codec.py": "d4e37a16a3a90b3cae3d838ade8e2fab3fd021de2858579881b427534506dde1"
+  },
+  "fixture_dependency_only_sha256": {
+    "apps/data_center/migrations/0101_instrument_reference_snapshot.py": "8e6e8b39120de8dd325f27d398201d66f0fb5ee33d43adc4d847d0b7b52a21ce"
+  },
+  "raw_evidence_sha256": {
+    "calendar-policy-codec-binding-red.txt": "5d1d06c25125c2760375ebed29081a6411dd8f29fc82661611d5b4096f721158",
+    "calendar-policy-codec-binding-unit-first.txt": "56cfd566e48660f8dcbb340d88aa99db05e822c5bf516f457f78dbbc4a089027",
+    "calendar-policy-codec-binding-root-combined-final.txt": "854e8a275f8438536529a299078b9ca57ddd9a0c1698e4167781964f0570b3e0",
+    "calendar-policy-codec-binding-domain-supplement.txt": "30d12b7420de06ccf3f0de23380f162bc97fe6947ad42c87c29fc49a3d21a154",
+    "calendar-policy-codec-binding-domain-coverage.json": "cde242edabb4c88b3e9264d696dcdea955ef482516d32509f47714e2a9af16d7",
+    "calendar-policy-codec-binding-domain-coverage-final.json": "78a889d8ab6220a05174c82d54c26649b5f1f2e916e258ed3f17a2196d9d779b",
+    "calendar-policy-codec-binding-feature-coverage.txt": "099ff3601e77f2c3aca9c31b13391666a3289c12a200eb8ec923e521973e2cb7",
+    "calendar-policy-codec-binding-mypy-first.txt": "2d639d44f0606586de6077e1257ecf843407b057a3d01f59e64ff11742e58f15",
+    "calendar-policy-codec-binding-mypy-second.txt": "e0a8b96522d610af2cd7a571c3360510050882f3e6d7f99240225a93d02348bc",
+    "policy-codec-unbound-baseline.txt": "de09c8f6892fd1f4b12cec9bd6da42821cb86e02e8fce34709ea0fef8a5aa60a",
+    "calendar-policy-codec-binding-independent-vector.txt": "087e4c284e00056e7bc3fdc65ae53f21f59ecd88ddec9f9dd87a5bfa263f9bfd",
+    "migration-calendar-policy-codec-sqlite.txt": "76d66d133cb9185319c6c3bb1b6430ea445c9a897ecfb4d47e2356280dfb6c97",
+    "migration-calendar-policy-codec-native.txt": "47148ae13e07f0589b29dc605bbb32d558ffc0e6fc324bc6c882195ed1392a04",
+    "calendar-authority-clock-root-red.txt": "600eb588db47d1928280e958919e103f535b239b1ae5c87363113525b6f86a40",
+    "calendar-authority-clock-root-red-source.py.txt": "90bdd3662fa68999077c1d818fb155d2599f29890df1c21e845e57122ac19840",
+    "calendar-authority-thread-root-red.txt": "0b2b40fe667c1f1f2b7a699c6300639164c4f25f91f2534f593a40bfb98aeac7",
+    "calendar-authority-thread-root-red-source.py.txt": "266936b13b28d9437f16bb0b070ebabe37e12313353c00d10910e53910265b3f",
+    "pytest-calendar-authority-final-4.txt": "5a03d3f37358e70c254cdf9bb76380a66e033219379e09c37fbe6fc4dbe85a4f",
+    "pytest-calendar-authority-native-root-first.txt": "19c49cf80f6bad116bade649980fae67360fc0ed15574e1da13c7c4c606ae2bb",
+    "calendar-authority-native-root-coverage.json": "d1deef211ac510c49fccd64e9650fd0fb9519dc0815c6c04b20c6cabc465011e",
+    "calendar-authority-root-incremental-mypy.txt": "3fbd8281856ab7351acb81214ce6b1c9ab4bd26e2ed26d2995c306a1aa11a800",
+    "native-test-apply-reference-authority-0101-0103.txt": "a08a43c337989397a6d33c7cf0105933a33365d9b6599d8dcfebfb06da9fd628",
+    "native-test-reference-permissions-current-state.txt": "c08101d0c8475f150896c47edbbb2812fe25add5e55dc7b8900013bf6e9e5d16",
+    "calendar-permissions-migration-preview.txt": "8efb0883ae125ea1e3e9d67b65261165717b80978e3349fbe7456d35e3d7540e",
+    "calendar-permissions-migration-generate.txt": "13c55ccca4996ce872f8c7e2fdad828fc1ae41b66599294dc7d595a02571f915",
+    "reference-authority-migration-drift.txt": "93e6e2d5be3c054add80c0f19101608803f7ca8a7df1fa41f76bbb9a1f570f4a"
+  },
+  "results": {
+    "policy_binding_sqlite": "304 passed in 127.50s; later Domain-only supplement21 passed in1.30s, overlaps the earlier suite and is not added as unique tests.",
+    "policy_domain_feature_coverage": {
+      "PublicationPolicy_AST_class": {
+        "statements": [
+          45,
+          45
+        ],
+        "branches": [
+          24,
+          24
+        ]
+      },
+      "publication_policy_identity_module": {
+        "statements": [
+          13,
+          13
+        ],
+        "branches": [
+          2,
+          2
+        ]
+      }
+    },
+    "policy_mypy": "10 production files, zero regressions and zero legacy errors observed after shared model startup repair.",
+    "authority_root_mypy": "4 production files, zero regressions and zero legacy errors observed.",
+    "authority_agent_sqlite": "28 passed, 3 PostgreSQL-only skipped; full development_sqlite settings.",
+    "root_native_combination": "58 passed in162.79s / no skips. Authority unit/component, four Root clock/thread regressions, six Root ordered PostgreSQL revocations,21 policy-codec ORM tests.",
+    "revocation_proof": "Six actual two-connection scenarios, direct/group-permission/group-membership in both serialization orders. pg_blocking_pids observed exact blocker/waiter; future errors rethrown. Three additional nowait row-lock checks.",
+    "owned_fixture": "541/578 -> exact frozen0101/0102/0103 ->544 migrations/580 ordinary tables. Reused by pytest --reuse-db --no-migrations; no full historical replay.",
+    "permission_metadata": "Standard Django current-registry create_permissions for Data Center only: two custom definitions, zero direct/group grants; unrelated post_migrate seed hooks not invoked.",
+    "permission_probe_failure": "Initial QA helper used only one app target's historical registry, whose ContentType still contained obsolete name field; three migrations had already applied. Corrected metadata-only helper asserted544/580 and exact applied nodes, used current full registry and did not replay migrations. This is a test-harness failure, not a production migration rejection.",
+    "migration0102": "Actual operations up/down/up on isolated SQLite and PostgreSQL based on frozen0100 historical model state; old fields intact, new field NULL, unknown/empty/legacy bindings rejected. Reverse loses the new codec binding.",
+    "migration_drift": "makemigrations --check --dry-run: No changes detected."
+  },
+  "guarantees_tested": [
+    "Old unbound policy bytes/hash/identity unchanged; explicit codec is immutable policy decision content using publication-policy-v2.",
+    "Calendar hash/validator require exact policy-bound codec, ordinary evidence validator rejects calendar-bound policy; both JSON command parsers preserve binding.",
+    "Only actual DRF SessionAuthentication POST with CSRF produces a claim; database session/user/exact direct or group grants are locked and revalidated without staff/superuser/Account shortcuts.",
+    "Owned outer transaction, same alias routes, active user/session auth hash/backend/expiry, nondecreasing UTC and owner-thread lifetime; final normal-exit validation rolls back callback writes on expiry/rollback.",
+    "Session key excluded from repr/output; actor attribution denotes authenticated user account, not physical human presence."
+  ],
+  "limits": [
+    "No formal calendar publisher/pointer/outbox integration or user route; authorization callback-write proof does not replace publisher atomicity tests.",
+    "Current Django grant rows have no historical validity interval. Audit event as_of must not be interpreted as past authorization proof; live read-provider design remains pending.",
+    "0101 fixture application is structural only; source snapshot/immutable ORM guards are independently under review and are not accepted here.",
+    "No full-candidate final type/debt/format/architecture/projection acceptance for later concurrent audit/source changes.",
+    "No real provider/production/grants/research promotion/Evidence/broker action or ASH-02/ASH-03/Goal completion."
+  ]
+}

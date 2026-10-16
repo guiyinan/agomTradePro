@@ -587,6 +587,12 @@ class TushareModelMarketSource:
             )
         states: dict[date, bool] = {}
         for row in frame.to_dict("records"):
+            row_exchange = row.get("exchange")
+            if row_exchange is not None and row_exchange != "SSE":
+                raise DataFetchError(
+                    "Trading calendar response exchange does not match the SSE request",
+                    code="MODEL_MARKET_CALENDAR_EXCHANGE_MISMATCH",
+                )
             parsed = pd.to_datetime(row.get("cal_date"), format="%Y%m%d", errors="coerce")
             if pd.isna(parsed):
                 raise DataFetchError(

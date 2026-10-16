@@ -135,6 +135,38 @@ class DjangoCandidateRawAuditManifestRepository(CandidateRawAuditManifestReposit
         )
         return self._read_header_and_members(header) if header is not None else None
 
+    def list_for_execution_resume(
+        self,
+        *,
+        run_id: str,
+        task_attempt_id: str,
+    ) -> tuple[CandidateRawAuditManifest, ...]:
+        """Return at most two exact execution manifests to detect run/task ambiguity."""
+
+        run_uuid = _parse_uuid(run_id, "run_id")
+        if (
+            type(task_attempt_id) is not str
+            or not task_attempt_id
+            or len(task_attempt_id) > 160
+            or any(
+                character
+                not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:/-"
+                for character in task_attempt_id
+            )
+        ):
+            raise CandidateRawAuditManifestError("task_attempt_id is invalid")
+        headers = tuple(
+            CandidateRawAuditManifestModel._default_manager.using(self._using)
+            .filter(
+                run_id=run_uuid,
+                task_attempt_id=task_attempt_id,
+                dataset_key="equity.quote.snapshot",
+                publication_key="execution",
+            )
+            .order_by("manifest_id")[:2]
+        )
+        return tuple(self._read_header_and_members(header) for header in headers)
+
     @transaction.atomic
     def validate(self, publication_id: str) -> CandidateRawAuditManifest:
         """Re-read publication and every referenced RawAudit row, failing closed on drift."""

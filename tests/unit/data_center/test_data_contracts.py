@@ -1,6 +1,7 @@
 """Unit tests for the canonical data-center evidence contracts."""
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import pytest
 
@@ -165,6 +166,27 @@ def test_dataset_contract_rejects_reversed_field_range() -> None:
                     maximum=1.0,
                 ),
             ),
+        )
+
+
+@pytest.mark.parametrize("value", [0, -1, True, 1.5, "5", 2**63])
+def test_dataset_contract_rejects_invalid_execution_freshness_seconds(value: object) -> None:
+    with pytest.raises(ValueError, match="execution_freshness_seconds"):
+        DatasetContract(
+            key=_dataset(),
+            owner="data-platform",
+            frequency="intraday",
+            decision_critical=True,
+            fields=(
+                DatasetFieldContract(
+                    name="snapshot_at",
+                    value_type="datetime",
+                    unit=None,
+                    nullable=False,
+                    zero_allowed=False,
+                ),
+            ),
+            execution_freshness_seconds=cast(int | None, value),
         )
 
 

@@ -307,7 +307,7 @@ class RawAuditRepository:
             or int(raw_audit_id) <= 0
         ):
             return None
-        model = RawAuditModel.objects.filter(pk=int(raw_audit_id)).first()
+        model = RawAuditModel.objects.using("default").filter(pk=int(raw_audit_id)).first()
         return self._from_model(model) if model is not None else None
 
     def get_recent(

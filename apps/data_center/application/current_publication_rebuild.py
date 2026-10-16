@@ -47,6 +47,16 @@ class CurrentPublicationCandidateRepositoryProtocol(Protocol):
         """Return deterministic current fact references for the requested assets."""
 
 
+class ExecutionPublicationCandidateGuardProtocol(Protocol):
+    """Verify an execution quote candidate against active catalog versions."""
+
+    def validate_execution_candidate(
+        self,
+        candidate: CurrentPublicationCandidateSnapshot,
+    ) -> None:
+        """Reject policy/catalog/fact version drift before candidate persistence."""
+
+
 @runtime_checkable
 class TargetDatePublicationObservationProbeProtocol(Protocol):
     """Port proving whether requested assets have persisted observations on one date."""
@@ -70,7 +80,7 @@ class _CurrentPublicationSelection:
 
 
 class CurrentPublicationRebuildUseCase:
-    """Publish one immutable current snapshot only at exact universe coverage."""
+    """Build immutable current or execution-key snapshots at exact scope coverage."""
 
     publication_key = "current"
 
@@ -81,12 +91,22 @@ class CurrentPublicationRebuildUseCase:
         candidate_repository: CurrentPublicationCandidateRepositoryProtocol,
         publication_repository: CanonicalPublicationRepositoryPort,
         policy_repository: PublicationPolicyRepositoryProtocol,
+        publication_key: str = "current",
+        execution_candidate_guard: ExecutionPublicationCandidateGuardProtocol | None = None,
     ) -> None:
+        if publication_key not in {"current", "execution"}:
+            raise ValueError("Unsupported canonical publication key")
+        if publication_key == "execution" and dataset.dataset_key != "equity.quote.snapshot":
+            raise ValueError("Execution publication key is reserved for equity quotes")
+        if publication_key == "execution" and execution_candidate_guard is None:
+            raise ValueError("Execution quote candidate requires an active-version guard")
         self.dataset = dataset
         self._candidates = candidate_repository
         self._publications = publication_repository
         self._policies = policy_repository
         self._publisher = PublishCanonicalDatasetUseCase(publication_repository)
+        self.publication_key = publication_key
+        self._execution_candidate_guard = execution_candidate_guard
 
     def preview(
         self,
@@ -152,7 +172,7 @@ class CurrentPublicationRebuildUseCase:
             policy_uses_versioned_evidence=policy.uses_versioned_evidence,
             run_id=run_id,
         )
-        return build_current_publication_candidate_snapshot(
+        candidate = build_current_publication_candidate_snapshot(
             dataset=self.dataset,
             publication_key=self.publication_key,
             asset_codes=selection.asset_codes,
@@ -164,6 +184,12 @@ class CurrentPublicationRebuildUseCase:
             scope_exclusions=exclusions,
             suspension_scope_allowed=suspension_scope_allowed,
         )
+        if self.publication_key == "execution":
+            guard = self._execution_candidate_guard
+            if guard is None:
+                raise ValueError("Execution quote candidate requires an active-version guard")
+            guard.validate_execution_candidate(candidate)
+        return candidate
 
     def execute(
         self,
@@ -175,6 +201,9 @@ class CurrentPublicationRebuildUseCase:
         required_observation_date: date | None = None,
     ) -> CanonicalPublication:
         """Build and atomically publish a complete current member snapshot."""
+
+        if self.publication_key != "current":
+            raise ValueError("Execution quote candidates require fenced group activation")
 
         self.validate_execution_lane()
 
@@ -434,9 +463,12 @@ class CurrentPublicationRebuildUseCase:
                 and reference_date != required_observation_date
             ):
                 continue
-            requires_official_close = self.dataset.dataset_key == "equity.quote.snapshot" or (
-                self.dataset.dataset_key == "equity.price.bar"
-                and required_observation_date is not None
+            requires_official_close = self.publication_key == "current" and (
+                self.dataset.dataset_key == "equity.quote.snapshot"
+                or (
+                    self.dataset.dataset_key == "equity.price.bar"
+                    and required_observation_date is not None
+                )
             )
             if requires_official_close:
                 if reference.observed_at < cn_market_session_close_utc(observation_date):

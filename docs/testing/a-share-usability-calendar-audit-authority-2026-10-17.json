@@ -1,0 +1,198 @@
+{
+  "checkpoint_schema_version": 1,
+  "recorded_at": "2026-10-16T16:04:37.369586+00:00",
+  "goal_status": "active",
+  "scope": "ASH-02 current session/grant publisher and audit-reader authorization plus closed Calendar v1 Audit/outbox prerequisites",
+  "production_source_sha256": {
+    "apps/data_center/application/calendar_publication_authority.py": "403ae9e547aae9000c295e02a00a0d2c4ddc29d3c6f861ae77abbddcb284ea3a",
+    "apps/data_center/application/calendar_audit_read_authority.py": "19d140b6575a2699723abd313538e8927182289c92c6c256e98363633c609316",
+    "apps/data_center/interface/calendar_session_request_claim.py": "196e4fe00c2cdc4d33cdaa31861d393bd625e2d050d11f3bbfb89d27bb71dc68",
+    "apps/data_center/interface/calendar_publication_session_adapter.py": "f031b52f6ea6771261886e5b507d5347f16f68cdd028dfe3806832b2febca8e7",
+    "apps/data_center/interface/calendar_audit_reader_session_adapter.py": "ae9e2fca71fcf518fd2f8aa7d16bebff2f8f523e3769c9f9d24e176e59a4522e",
+    "apps/data_center/infrastructure/calendar_publication_authority_repository.py": "08f314b01070cbf3d3680203ba9a91eafe65abaaf54ec41dc6eebb93d18fc6a8",
+    "apps/data_center/calendar_publication_authority_composition.py": "f332601e5c34b3580b738b9fac61a8897581cef00e1c9d01c36a9e5755dc94a5",
+    "apps/data_center/calendar_audit_read_authority_composition.py": "9c9d084b9acd4bb3ecc31b0f3db8f9409c9686630b1418c6ba6982d9cfef89e7",
+    "core/integration/calendar_publication_audit_reader.py": "e0ecfb4b2a873ebf463cb12650ca750dda9c880ce1ddb38a98d28c3008e8662b",
+    "apps/audit/domain/calendar_publication_audit.py": "6d0eef158c3f23ca68696c0e3e0bc5a925afc33829f6cb18a96e637fc49031bb",
+    "apps/audit/application/calendar_publication_audit.py": "70e335fa1f24c76d00a154bba8bb0245453afa76e1657b37cecaa5d2cb0fbe2a",
+    "apps/audit/infrastructure/system_audit_repository.py": "91c436e12bd043490a5602848c4bbe3c7011608dceb351296bbe6f3165f6fb68",
+    "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py": "e6401445d4c7bb2033665d4f6c3e9850c1b551533fad0983b6a571323f5bfb06"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_calendar_publication_authority.py": "3569c7cdffdcc470481796d785868cc419523214af8c70e47d97d6de0639c97c",
+    "tests/unit/data_center/test_calendar_audit_read_authority.py": "94a7a641156704565d168e7703525d35e90f67838e619d05824dec1ea819e7d7",
+    "tests/unit/audit/test_calendar_publication_audit.py": "cb7c7c21f14e1b08214ce9625629271333c4dafe6f246d0f253bd2d4e7710f3e",
+    "tests/component/data_center/test_calendar_publication_authority.py": "0c5680ad58d74000770e5d86853c7a9b6a0538a63244fcbb8ec49fa02e9be360",
+    "tests/component/data_center/test_calendar_audit_reader_authority.py": "4b2b26f99f87902c7be53790cd25d3de79220d7451eac81671f49ba9578c6094",
+    "tests/component/data_center/test_calendar_authority_clock_boundaries.py": "fddce7443dff60ee803d821bd8f9c73200aebd608bc74315db3c3a69998d6706",
+    "tests/component/data_center/test_calendar_authority_revocation_postgres.py": "05ffd8b2f593a862ca67eae2dc755ca26acc64ee7d22a9ec2aac94b6cebdc0dc",
+    "tests/component/data_center/test_calendar_policy_codec_repository.py": "64e3ec42ba8eb7e358019ba94fcadbc951091905413e393561e8c4e87463996f",
+    "tests/component/audit/test_calendar_publication_audit.py": "4d88b7286abab68d6c8d23b0dd886b82e829b24df6b43c90433e644d10f16421",
+    "tests/unit/audit/test_system_audit_event.py": "640e53d1f5cb95b030c9011c8381ce3cd4102ef7d9af9be1b1d759d57224bc51",
+    "tests/unit/audit/test_system_audit_event_outbox.py": "47c5558645df02eb00ec5b0fdd8571a841fc303013e7a32e89e0e1e397078247",
+    "tests/unit/audit/test_system_audit_outbox_dispatcher.py": "8ea3568a22436fd50ccd54bbaa2fb6d519dbcf49e5582d76e09d2d5abf727a8b",
+    "tests/unit/audit/test_system_audit_outbox_unit_of_work.py": "cdf0d0dc731b8e752cdae439260877459211e3f3cc1bb1f5070e2b6543809f52",
+    "tests/component/audit/test_system_audit_repository.py": "a5826cd5904d7b123da53ea95b049a23e6247a22007ea81d98910da9f0a832ce",
+    "tests/component/audit/test_system_audit_event_outbox_coordinator.py": "cefb89c6aa363b347e0e30be730e3b503b3ff8c93eed9db6f7952e42dbc84dc0"
+  },
+  "raw_artifact_sha256": {
+    "calendar-audit-authority-native-root-final.txt": "501704d3044d588df683a5cbc1f2a4e7c1e1298464f9dee5a9b14c256be53573",
+    "calendar-audit-authority-native-root-final-sources.json": "e11a4916ccdc9bd5f2e9789b01d0f98b81ac6c2ed07669f897e8bdef70015806",
+    "calendar-audit-authority-native-root-final-coverage.json": "87ea9583ac6e50175281e3f2bd142d9e59033c62d9542c06fdba5b5a98103111",
+    "pytest-calendar-audit-reader-authority-red-concise.txt": "a971d8b8ce8cf60b52f2c586cc67850a4ebf8a2d7f6f6b59536f73122f37cbea",
+    "pytest-calendar-audit-reader-regression-sqlite-1.txt": "3802acc12eeb20ba6848c8995d9df3821d184afde05bf2f7ef840f686562aa24",
+    "pytest-calendar-audit-reader-regression-sqlite-fixed-1.txt": "f3cf98df9cd37abc0fcc54d21cdd6b3e73c801e0b2fe4c818a3a03e8c043331b",
+    "pytest-calendar-authority-unit-final-2.txt": "e3643e204f7c2df9cba0f0c632c492407b7f020d1de160087817e37cdcef3050",
+    "calendar-audit-live-permission-red.txt": "d58557c06b4cb1fbd0a1e58d9055231f8326edb58d80cda1600d8a4e38f1c96d",
+    "calendar-audit-exact-selector-red-2.txt": "eb99bc8ab5ff674c39bf354260e8e353f0cd856f9d153b152d359228b4eb4365",
+    "calendar-audit-target-future-clock-red.txt": "7c1dcc3c87ab61ce9d0fc0c631ea0c542aaac47b15eb397697a2450decacfdf3",
+    "calendar-audit-live-unit-final-4.txt": "d14b1b132c5b5b189256684b06f13ca979d8d436776b733aec5310cb5b48842d",
+    "calendar-audit-live-component-final-4.txt": "04e434733aac322f4a6b1358738a2eed1d473124f15a930245d7fbb63888f67f",
+    "django-check-calendar-audit-reader.txt": "f87ceb15410bde28ff826ce26228e0576558258fa64d145847921a593a61ee63"
+  },
+  "verification": {
+    "root_native_postgresql": {
+      "passed": 205,
+      "skipped": 0,
+      "seconds": 331.38,
+      "test_files": 15,
+      "production_files": 13,
+      "source_changed_during_run": []
+    },
+    "native_fixture": {
+      "applied_migrations": 544,
+      "ordinary_tables": 580,
+      "full_history_replay_this_run": false,
+      "reuse_db": true,
+      "no_migrations": true
+    },
+    "twelve_actual_two_backend_ordered_revocations": "publisher/read x direct grant/group permission/group membership x authority-first/revoke-first; observed exact pg_blocking_pids, callback transaction markers only",
+    "sqlite_agent_combined": {
+      "passed": 107,
+      "postgresql_only_skipped": 9,
+      "seconds": 59.35,
+      "older_test_scope_before_extra_root_read_revocations": true
+    },
+    "agent_later_authority_units": {
+      "passed": 36,
+      "overlaps_combined": true
+    },
+    "agent_audit_units_and_components": {
+      "unit_passed": 39,
+      "component_passed": 13,
+      "overlaps_native": true
+    },
+    "domain_coverage": {
+      "covered_statements": 276,
+      "statements": 282,
+      "covered_branches": 78,
+      "branches": 84
+    },
+    "all_measured_module_summaries": {
+      "apps/audit/application/calendar_publication_audit.py": {
+        "covered_lines": 332,
+        "num_statements": 392,
+        "percent_covered": 80.99173553719008,
+        "percent_covered_display": "81",
+        "missing_lines": 60,
+        "excluded_lines": 42,
+        "num_branches": 92,
+        "num_partial_branches": 30,
+        "covered_branches": 60,
+        "missing_branches": 32
+      },
+      "apps/audit/domain/calendar_publication_audit.py": {
+        "covered_lines": 276,
+        "num_statements": 282,
+        "percent_covered": 96.72131147540983,
+        "percent_covered_display": "97",
+        "missing_lines": 6,
+        "excluded_lines": 0,
+        "num_branches": 84,
+        "num_partial_branches": 6,
+        "covered_branches": 78,
+        "missing_branches": 6
+      },
+      "apps/data_center/application/calendar_audit_read_authority.py": {
+        "covered_lines": 86,
+        "num_statements": 92,
+        "percent_covered": 92.72727272727273,
+        "percent_covered_display": "93",
+        "missing_lines": 6,
+        "excluded_lines": 0,
+        "num_branches": 18,
+        "num_partial_branches": 2,
+        "covered_branches": 16,
+        "missing_branches": 2
+      },
+      "apps/data_center/application/calendar_publication_authority.py": {
+        "covered_lines": 76,
+        "num_statements": 80,
+        "percent_covered": 93.87755102040816,
+        "percent_covered_display": "94",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "num_branches": 18,
+        "num_partial_branches": 2,
+        "covered_branches": 16,
+        "missing_branches": 2
+      },
+      "apps/data_center/infrastructure/calendar_publication_authority_repository.py": {
+        "covered_lines": 237,
+        "num_statements": 264,
+        "percent_covered": 85.49382716049382,
+        "percent_covered_display": "85",
+        "missing_lines": 27,
+        "excluded_lines": 0,
+        "num_branches": 60,
+        "num_partial_branches": 20,
+        "covered_branches": 40,
+        "missing_branches": 20
+      },
+      "apps/data_center/interface/calendar_session_request_claim.py": {
+        "covered_lines": 48,
+        "num_statements": 56,
+        "percent_covered": 78.94736842105263,
+        "percent_covered_display": "79",
+        "missing_lines": 8,
+        "excluded_lines": 0,
+        "num_branches": 20,
+        "num_partial_branches": 8,
+        "covered_branches": 12,
+        "missing_branches": 8
+      },
+      "core/integration/calendar_publication_audit_reader.py": {
+        "covered_lines": 23,
+        "num_statements": 25,
+        "percent_covered": 88.88888888888889,
+        "percent_covered_display": "89",
+        "missing_lines": 2,
+        "excluded_lines": 0,
+        "num_branches": 2,
+        "num_partial_branches": 1,
+        "covered_branches": 1,
+        "missing_branches": 1
+      }
+    },
+    "django_system_check": "full-settings project interpreter reported zero issues"
+  },
+  "failure_provenance": [
+    "Root authored two rollback-only transaction tests. Agent's preserved shared SQLite run actually failed both (104 passed/9 skipped/2 failed), then assert_live and normal-exit guards were repaired. Root's separate initial SQLite setup was interrupted before tests; it is not independent red evidence.",
+    "Exact-selector actual red showed unrelated damaged Audit rows blocked a global table scan; the Calendar selector now restores only the exact target candidate rows.",
+    "Another actual red showed SQL as_of filtering hid a damaged target row moved into the future; complete target canonical/chain validation now precedes PIT prefix selection.",
+    "Earlier publisher-only 58-test source checkpoint remains immutable proof for its old hashes; this 205-test checkpoint binds the shared refactor's new hashes."
+  ],
+  "accepted_boundaries": [
+    "Closed PUBLISH/AUDIT_READ purposes share lock/session validation, with fixed POST+CSRF and GET adapters. Raw session keys stay out of repr/equality and authority hashes.",
+    "Current actual Django user/session/ContentType/Permission/direct/group witnesses on one alias authorize reads; event as_of does not claim historical grant availability.",
+    "Lease owner thread, UTC monotonic clock, session expiry and rollback-only state are checked through normal context exit; an original callback exception is preserved.",
+    "Calendar-only scope=None v1 events require the complete exact contract. Event/outbox append and exact replay, target selector and preserved generic Audit/hash contracts are tested.",
+    "An actual Calendar dispatcher journey reached the internal durable receipt sink with scope=None. External consumers and enabled production runtime are unverified."
+  ],
+  "not_accepted": [
+    "No formal Calendar publication pointer/event/outbox/source/policy atomic composition, production route, default provider or active publication consumer.",
+    "No real grant seeds, production deployment/migration/provider calls, research promotion, Evidence or broker rollout.",
+    "ASH-02, original ASH-01 regressions, ASH-03 and overall Goal remain open. Planned/not_wired event registration is not production acceptance.",
+    "Whole-candidate final governance/projection/type/debt verification is tracked separately from this bounded behavioral checkpoint."
+  ]
+}

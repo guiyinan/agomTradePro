@@ -1,0 +1,44 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T17:15:21.999476+00:00",
+  "scope": "Execution quote candidate timing is distinct from day-end current publication timing; existing current 15:00 guard is retained.",
+  "production_source_sha256": {
+    "apps/data_center/application/current_publication_rebuild.py": "3d2eb52d5b0767d8873630c9809bb68f4b7a3dfe30aa76fdcf529652b0bdc4d8"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_current_publication_rebuild.py": "628cfc2764665c8c288209db444049116989bc6f55887161b29d24b8d4e95a06",
+    "tests/unit/data_center/test_execution_quotes.py": "57f79b1014df2765772a588038acffb897c999173e082c352db3c7809cb308ff",
+    "tests/component/data_center/test_execution_quote_activation_workflow.py": "c90be7cf4c6411a0881b554b85fdaf1c4eafd32dcc2fb783c76c1c794279d59e",
+    "tests/component/data_center/test_execution_quote_pointer_rollback.py": "29fe76376a00ebb93c124a91f21e465eab2f3fb5e76c12f2226d04faff9f3144",
+    "tests/component/data_center/test_execution_quote_pointer_rollback_clock.py": "9deb00cf074e05fbc86b7861af3ec0d61b41f009b05c657e98d6596d80e74c7c"
+  },
+  "artifacts": {
+    "artifacts/a-share-usability/ash02/pytest-execution-close-red.txt": "313cdeae74d9ba3ac83239c5aa921742db6c4451c94a2c4b6de8789f324fb5dd",
+    "artifacts/a-share-usability/ash02/pytest-execution-close-unit-final.txt": "d3a59b64cc09477e97ecf4312d3629a622fa620883ae2cd3a3b98aa7338db08f",
+    "artifacts/a-share-usability/ash02/pytest-execution-close-component-final.txt": "6cb27a05bfba78470fb43936ed897d02f92d3e6b40c81d286107f6afa9c1fdd2",
+    "artifacts/a-share-usability/ash02/mypy-execution-close.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/execution-quote-lane-root-format.txt": "dbd4e0d81ff4008f480bfc2e7f8847f0622793ff95fdf2ca27704a2bf6499a7c",
+    "artifacts/a-share-usability/ash02/execution-quote-lane-native-root-final.txt": "806cfd2a66fb499e6e76b6b19238542dc68c382d7217d83c804b3aa407765164",
+    "artifacts/a-share-usability/ash02/execution-quote-lane-native-root-final-sources.json": "9c527125794d59f8b9691509c1408cb00b590b83bf3cc7a64a6a5a796912fc3d",
+    "artifacts/a-share-usability/ash02/phased-data-center-dc-index-1.txt": "3d6e647874641fd99bb1bd9944d59c27fba5d4c76edfb12212fd353214466544"
+  },
+  "verification": {
+    "failure_provenance": "Isolated phase-four export actually failed 20 tests (541 passed/24 PG-only skipped): eighteen staging/rollback tests hit the current-close guard; two query mocks supplied object() without the real policy dataset. A separate preserved fixed-clock red preceded the production condition change.",
+    "unit": "85 passed across current rebuild and execution quote contracts.",
+    "sqlite_components": "20 passed, 1 native-PG-only skipped.",
+    "native_postgresql": "106 passed / 107.40 seconds / no skips across the five exact target files; all 125 frozen production hashes and five test hashes unchanged during the run.",
+    "database_fixture": "Existing isolated localhost PostgreSQL16 fixture with 544 applied migrations, --reuse-db --no-migrations; not an empty historical replay or production database.",
+    "incremental_mypy": "One changed production file; 0 regressions.",
+    "root_format": "Black, isort and Ruff checked the three changed Python files; recorded exit0 for each."
+  },
+  "accepted_boundaries": [
+    "Execution candidates still require an explicit execution key, quote dataset, active-version guard and nonfuture source evidence. Activation/resume/rollback retain source TTL and current authority checks.",
+    "Default current candidates still reject China morning/midnight observations and accept the exact official close boundary; deterministic clocks prevent time-of-day-dependent proof.",
+    "The existing component fixtures were not moved to an after-close clock to hide the execution lane defect."
+  ],
+  "not_accepted": [
+    "No production provider, live rollout, CI/S6 or real Account authority graph acceptance.",
+    "No formal calendar publisher, legacy simulated consumer switch, broker order evidence integration or ASH stage closure.",
+    "Other bounded checkpoints retain their original byte/hash windows; this local source checkpoint is not a release-SHA substitution."
+  ]
+}

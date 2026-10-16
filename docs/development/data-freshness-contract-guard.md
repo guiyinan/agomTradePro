@@ -1,5 +1,9 @@
 # 当前数据新鲜度契约与 CI 门禁
 
+2026-10-16 A 股 v2 候选评估登记 `risk_center.a_share_execution_submission_v2`：阶段及盘口与嵌套市场证据共享真实源时间窗，规则/市场均从同一账户和知识截止点读取；缺少 v2 来源不回退至 v1，不用计算时刻刷新旧事实。新的外层 hash 不替换嵌套 v1 hash，也不构成下单授权。候选算法与 Application 的本地通过不能替代 Agent、可信 Provider 和正式发布验收。
+
+独立 Agent v2 校验器在服务端截止点和本地提交时重验源窗口、阶段及价格范围；共享算法由 `scripts/build_qmt_price_submission_projection.py` 生成，Consistency Check 运行 `--check` 拒绝字节漂移。心跳中声明的 schema 能力按每次已接收心跳替换，缺失时清空；它只说明所声明的解析能力，不能证明源新鲜、当前权限或执行就绪。
+
 ## 目标
 
 2026-09-19 补充：模型原始行情参考必须排除前复权/后复权记录；网关复权标记和成交量单位应传递至 canonical 存储，不能以 none 默认值掩盖调整口径。Alpha 定时入口遇到明确数据阻断应停止投递子推理。旧库错标记录不随代码自动改写。
@@ -125,6 +129,14 @@ matcher 路由键，也不能提供 parser-only fallback；未精确登记的 co
 
 QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重试时保持不变，VPS 仅接收授权标的，stale 快照不能截断备用源；批次落库不等同于全 universe current Publication 激活。
 
+ASH-02 的 `data_center.exchange_calendar_reference` 登记精确日历快照的知识时间及能力边界，
+不声明 current/fresh。`first_seen_at` 是本机完整收到响应，`recorded_at` 是首次写入事实；
+两者均不晚于查询 `known_at`，重试不能刷新。上游发布时间没有明确来源时保留空值。
+快照返回 `publication_status=unpublished`、两个不可用于决策/执行标记及
+`exchange_calendar_unpublished_reference`；这些派生标记不改变原事实摘要。后续开市日只在
+完整明确的自然日覆盖范围内查找，范围不足必须阻断，不能用周末算术、跨交易所日历或
+最新一行补出执行证据。正式 Publication 引用及普通模拟消费者的接线另行验收。
+
 新增任何当前数据读取时，按顺序完成：
 
 1. 在 Domain/DTO 中定义 observation 与 freshness 约束；
@@ -153,6 +165,17 @@ QMT 整体桥登记为 `data_center.qmt_bridge_observations`：源时间在重�
 - 决策运行门的三项严格预检、候选绑定 compare-and-set 激活、激活后复验与失败自动 re-block；禁止以裸 `active` 状态写入替代该流程。
 
 受管范围应随新的决策数据面增加，只能扩展，不能静默删除。
+
+### A 股执行约束的源时间与提交重验
+
+登记 `risk_center.a_share_execution_constraints` 覆盖 Risk owner-read 规则评估与独立 Agent
+重验。规则、日历、市场和股份分别保留源观测/可用/失效时刻；评估知识截止点不能代替
+源时间。缺失配置、未来可用、过期或未知状态均阻断；Agent 同时校验服务端 `as_of` 和
+本地实际提交时刻，不因服务端曾返回 `ALLOWED` 而跳过时效检查。
+
+这一内部可交易性合同通过 `DENIED` 和稳定原因码失败关闭，不授予账户权限或正式执行
+能力；公开任务界面的当前可用标志、完整价格笼子、实际 source adapter 和生产门禁仍按
+[实施计划](../plans/a-share-usability-implementation-plan-2026-10-16.md)独立验收。
 
 
 ### 2026-09-09 Pulse 持久化快照读取
@@ -276,8 +299,9 @@ Tushare `daily` 的源字段 `vol` 为手、`amount` 为千元。行情快照和
 证券保留局部说明，其他 eligible 证券继续可用。
 
 该 15:00 完成会话门适用于正式全市场 current Publication rebuild。盘中报价的
-`PublishQuoteSnapshotBatchUseCase` 是独立实时发布路径，可按其实时契约在收盘前发布 current quote；
-两条路径具有不同的发布语义。
+`PublishQuoteSnapshotBatchUseCase` 是独立盘中候选持久化路径，可在收盘前形成 PUBLISHED 对象；
+仅有该对象不证明 `current` 指针已经激活。消费者仍须通过当前指针、活动政策和完整内容校验。
+正式盘中激活及其审计/回滚验收尚不能由候选持久化测试代替。
 
 2026-09-29 全市场 point-in-time universe 契约：active universe 同步报告保留当前候选全集的原始 count/hash；正式全市场刷新和 S6 容量预演按同一目标日解析器派生 requested scope，并分别记录候选全集、目标日 requested、明确排除及未知上市日期的 count/hash。只有 `AssetMaster.list_date` 带有 `list_date_evidence_status=verified` 和非空 `list_date_source`，且日期晚于目标日时，才可作为 `not_yet_listed` 排除；等于目标日应纳入。无来源的历史日期、冲突/未知元数据以及普通 provider 缺行均继续留在 requested scope，provider 缺行不能充当未上市证据。Tushare `stock_basic.list_date` 为主证据；明显无效的 `19700101` 由 `new_share.issue_date` 交叉补正，其中 `issue_date` 表示上市日，`ipo_date` 表示申购日。AKShare 未提供日期时必须保留 AssetMaster 已有日期和来源元数据；元数据补充失败不得破坏当前 active membership 同步，但没有可验证排除证据的目标日缺口仍应阻断。
 
@@ -287,3 +311,39 @@ Publication 之前返回带稳定业务码的零写入 `noop`；cache lease 不�
 正常及异常结束释放匹配 owner 的 lease，进程崩溃由 6,000 秒有界 TTL 自动恢复。现有 5,700 秒 task hard
 limit 与 6,300 秒 authority window 保持原值；TTL 必须严格大于 hard limit 且小于 authority window。
 该 lease 只协调这一全市场 task 的多个入口，不改变 freshness、coverage、audit、lineage 或 publication 门槛。
+
+### 2026-10-16 精确发布报价读取
+
+`apps.data_center.application.public.get_execution_quote` 通过既有 Publication snapshot 上下文读取
+活动 `equity.quote.snapshot/execution` 指针的精确成员及事实，不以证券的最新未发布事实补缺，
+不回退到日终研究使用的 `current` 指针。
+返回持久化 Decimal、源 `snapshot_at`、`fetched_at`、Publication/成员哈希、政策身份和查询截止点；
+已完成会话豁免不能延长此入口的 `snapshot_at + DatasetContract.execution_freshness_seconds`。
+缺指针、政策、成员、源证据、哈希不一致、未来或过期数据均失败关闭，原政策阻断原因保留。
+
+执行 TTL 是 DatasetContract 的独立可空配置，没有业务默认值；缺值拒绝读取。
+结果携带合同/schema 版本和 `current_active_not_point_in_time`，明确合同读取为当前配置，
+不是历史合同或指针回放。配置和读取的组件复核尚在进行，未因此获得发布或执行验收。
+空买卖盘表示 UNKNOWN，不能解释为明确无报价；QMT bridge 的自报可用标记不能授予来源可信性。
+本入口不证明交易日、停复牌、板块、交易阶段、涨跌幅边界或账户权限，也不激活指针或授权下单。
+公开契约和测试边界见 [精确报价读取](../api/a-share-execution-quote-read.md)。
+
+### 2026-10-16 V3 结算配置的知识截止点
+
+`risk_center.application.execution_settlement_v3.ReadEffectiveExecutionSettlementV3UseCase`
+读取同一规则表中的 V3 配置包和原始数据库 `recorded_at`。这个配置目录具有显式系统知识截止点，
+不同于执行报价当前活动 Dataset Contract 的 `current_active_not_point_in_time` 语义。
+V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久化查询列一致；不能用嵌套 V1 的较宽窗口。
+`recorded_at`、所有来源可获得时间及最新来源观测均不得晚于 `as_of`；最早和最新观测分别保留，
+不能以较新字段掩盖旧来源。所有来源在包失效前仍不可获得的组合必须在构造或导入时拒绝。
+
+缺记录发布 unavailable，类型、范围、hash 或时间不一致失败关闭；V1/V2 读取遇到 V3 不自动降级。
+退役在本系统已知且生效后才影响读取，恢复使用新包版本。该合同只验证来源绑定的规则配置，
+不证明市场事实新鲜、交易日历完整或股份已结算，也不解除研究或正式执行门禁。
+字段与验收边界见 [V3 结算参数合同](../api/a-share-execution-settlement-v3.md)。
+
+### 2026-10-16 日历响应 TTL 与证券来源时间
+
+日历 `calendar_response_max_age_seconds` 是独立的可空版本化配置，不继承 execution TTL 或研究 freshness；同一 Dataset Contract 版本不能原地补值或改值。纯日历发布窗口从原响应 `first_seen_at` 计算 expiry，新发布时间不能刷新旧响应；首次发布和前向 supersede 使用半开窗，rollback/reinstatement 尚无可读取合同。该窗口本身不证明正式发布或操作权限。详见[日历响应有效期](../api/a-share-calendar-response-age.md)。
+
+证券 `stock_basic` 来源保留精确请求、完整代码、上市/退市日期和 RawAudit occurrence。供应商未提供的 `source_observed_at/source_available_at` 保持 None，不能从响应完成、入库或调用时间补齐。来源候选固定发布禁止决策与执行标记；名录状态不能替代盘中交易状态，也不能作为历史全量 PIT 名录。每次实际响应单独绑定数据库生成的 RawAudit ID，同 body 去重不允许合并调用身份。详见[证券名录来源合同](../api/a-share-instrument-reference-source.md)。

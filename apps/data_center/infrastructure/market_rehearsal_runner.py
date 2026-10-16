@@ -30,7 +30,10 @@ from apps.data_center.domain.protocols import (
     CurrentValuationBatchProviderProtocol,
     SessionQuoteBatchProviderProtocol,
 )
-from apps.data_center.domain.publication_policy_identity import publication_policy_content_hash
+from apps.data_center.domain.publication_policy_identity import (
+    publication_policy_content_hash,
+    publication_policy_content_payload,
+)
 from apps.data_center.target_date_universe_composition import (
     build_target_date_a_share_universe_scope,
 )
@@ -169,18 +172,7 @@ def verify_candidate_release_image(root: Path, candidate_sha: str) -> tuple[str,
 def canonical_publication_policy_evidence(policy: PublicationPolicy) -> dict[str, object]:
     """Return JSON-safe canonical content, digest and identity for a publication policy."""
 
-    content: dict[str, object] = {
-        "encoding": "publication-policy-v1",
-        "dataset_key": policy.dataset.value,
-        "contract_version": policy.dataset.contract_version,
-        "schema_version": policy.dataset.schema_version,
-        "policy_version": policy.policy_version,
-        "minimum_coverage_ratio": float(policy.minimum_coverage_ratio),
-        "allow_partial": policy.allow_partial,
-        "conflict_action": policy.conflict_action,
-        "required_evidence": list(policy.required_evidence),
-        "retention_days": policy.retention_days,
-    }
+    content = publication_policy_content_payload(policy)
     content_hash = publication_policy_content_hash(policy)
     return {
         "content": content,

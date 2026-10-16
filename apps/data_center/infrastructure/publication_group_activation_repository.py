@@ -1,8 +1,8 @@
-"""Infrastructure for atomic quote, price, and valuation group activation."""
+"""Infrastructure for exact full-market or execution-quote activation."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Final, cast
 from uuid import UUID
 
@@ -15,6 +15,7 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationAuthorityLease,
     PublicationActivationError,
     PublicationActivationGroupAuditWriter,
+    PublicationActivationGroupCandidate,
     PublicationActivationGroupRequest,
     PublicationActivationManifestAuditWrite,
     publication_activation_lease_from_complete_graph,
@@ -31,8 +32,12 @@ from apps.data_center.domain.control_plane import (
 )
 from apps.data_center.domain.raw_audit_manifest import CandidateRawAuditManifestError
 
+from .execution_quote_freshness import validate_execution_quote_member_freshness
 from .publication_fact_identity import publication_fact_model_registry
-from .publication_fact_write_lock import acquire_publication_fact_activation_locks
+from .publication_fact_write_lock import (
+    acquire_execution_catalog_activation_lock,
+    acquire_publication_fact_activation_locks,
+)
 from .publication_group_activation_evidence import (
     PublicationGroupActivationEvidenceRepository,
 )
@@ -52,7 +57,7 @@ _CANDIDATE_STATES: Final[frozenset[str]] = frozenset(
 
 
 class DjangoPublicationActivationGroupRepository:
-    """Validate and switch all three current market publications atomically."""
+    """Validate and switch a supported publication scope atomically."""
 
     def __init__(self, *, using: str = _DEFAULT_ALIAS) -> None:
         """Bind group activation to the Account fence's database alias."""
@@ -75,10 +80,11 @@ class DjangoPublicationActivationGroupRepository:
         authority_fence: PublicationActivationAuthorityFence,
         authority_proof: object,
     ) -> tuple[CanonicalPublication, ...]:
-        """Atomically activate price, quote, and valuation under one Account fence."""
+        """Atomically activate the request's exact publication scope under Account authority."""
 
         if type(request) is not PublicationActivationGroupRequest:
             raise PublicationActivationError("group activation request is invalid")
+        _revalidate_group_activation_request(request)
         connection = connections[self._using]
         if connection.in_atomic_block:
             raise PublicationActivationError("group activation cannot join an ambient transaction")
@@ -128,6 +134,14 @@ class DjangoPublicationActivationGroupRepository:
             )
         if lease.checked_at >= lease.valid_until or timezone.now() >= lease.valid_until:
             raise PublicationActivationError("complete authority lease expired")
+
+        if request.is_execution_quote_activation:
+            try:
+                acquire_execution_catalog_activation_lock(using=self._using)
+            except DatabaseError as error:
+                raise PublicationActivationError(
+                    "execution Dataset Contract activation fence is unavailable"
+                ) from error
 
         fact_registry = publication_fact_model_registry()
         try:
@@ -391,9 +405,11 @@ class DjangoPublicationActivationGroupRepository:
                 raise PublicationActivationError("group candidate publication hash drifted")
             validated_publications[candidate_id] = publication
 
-        manifests_by_publication, observations_by_id = PublicationGroupActivationEvidenceRepository(
-            using=self._using
-        ).validate(
+        (
+            manifests_by_publication,
+            observations_by_id,
+            execution_freshness_seconds,
+        ) = PublicationGroupActivationEvidenceRepository(using=self._using).validate(
             request=request,
             publications=validated_publications,
             members_by_id=members_by_id,
@@ -403,6 +419,19 @@ class DjangoPublicationActivationGroupRepository:
             activation_at=activation_at,
             lease=lease,
         )
+
+        execution_pre_audit_at: datetime | None = None
+        if execution_freshness_seconds is not None:
+            execution_pre_audit_at = self._execution_activation_clock(
+                lease,
+                not_before=activation_at,
+            )
+            self._validate_execution_quote_freshness(
+                members_by_id,
+                request=request,
+                execution_freshness_seconds=execution_freshness_seconds,
+                as_of=execution_pre_audit_at,
+            )
 
         PublicationGroupActivationStateWriter().switch_group_publications(
             request=request,
@@ -425,10 +454,84 @@ class DjangoPublicationActivationGroupRepository:
                 for item in request.candidates
             ),
         )
+        if execution_freshness_seconds is not None:
+            if execution_pre_audit_at is None:
+                raise PublicationActivationError("execution activation pre-audit clock is missing")
+            execution_post_audit_at = self._execution_activation_clock(
+                lease,
+                not_before=execution_pre_audit_at,
+            )
+            self._validate_execution_quote_freshness(
+                members_by_id,
+                request=request,
+                execution_freshness_seconds=execution_freshness_seconds,
+                as_of=execution_post_audit_at,
+            )
         return tuple(
             candidates_by_id[item.candidate_publication_id].to_domain()
             for item in request.candidates
         )
+
+    @staticmethod
+    def _execution_activation_clock(
+        lease: PublicationActivationAuthorityLease,
+        *,
+        not_before: datetime,
+    ) -> datetime:
+        """Return a monotonic UTC instant still inside the complete Account lease."""
+
+        now = timezone.now()
+        if (
+            type(now) is not datetime
+            or now.tzinfo is None
+            or now.utcoffset() is None
+            or now.utcoffset() != timedelta(0)
+            or type(not_before) is not datetime
+            or not_before.tzinfo is None
+            or not_before.utcoffset() is None
+        ):
+            raise PublicationActivationError(
+                "execution activation clock must be an aware UTC instant"
+            )
+        try:
+            now_utc = now.astimezone(UTC)
+            not_before_utc = not_before.astimezone(UTC)
+            checked_at_utc = lease.checked_at.astimezone(UTC)
+            valid_until_utc = lease.valid_until.astimezone(UTC)
+        except (OverflowError, TypeError, ValueError) as error:
+            raise PublicationActivationError(
+                "execution activation clock cannot be normalized to UTC"
+            ) from error
+        if now_utc < checked_at_utc or now_utc < not_before_utc or now_utc >= valid_until_utc:
+            raise PublicationActivationError(
+                "execution activation clock moved outside the complete Account lease"
+            )
+        return now_utc
+
+    @staticmethod
+    def _validate_execution_quote_freshness(
+        members_by_id: dict[str, tuple[PublicationMember, ...]],
+        *,
+        request: PublicationActivationGroupRequest,
+        execution_freshness_seconds: int,
+        as_of: datetime,
+    ) -> None:
+        """Check every execution quote source at one validated UTC instant."""
+
+        candidate = request.candidates[0]
+        try:
+            validate_execution_quote_member_freshness(
+                tuple(
+                    member.observed_at
+                    for member in members_by_id[candidate.candidate_publication_id]
+                ),
+                as_of=as_of,
+                execution_freshness_seconds=execution_freshness_seconds,
+            )
+        except (OverflowError, TypeError, ValueError) as error:
+            raise PublicationActivationError(
+                "execution quote candidate evidence exceeded its freshness TTL"
+            ) from error
 
     @staticmethod
     def _validate_candidate_shape(
@@ -527,6 +630,27 @@ def _publication_member_from_values(values: tuple[object, ...]) -> PublicationMe
         raw_payload_scope=cast(str, raw_payload_scope),
         fact_content_hash=cast(str, fact_content_hash),
     )
+
+
+def _revalidate_group_activation_request(
+    request: PublicationActivationGroupRequest,
+) -> None:
+    """Repeat frozen request and candidate checks before opening authority scope."""
+
+    candidates = request.candidates
+    if not isinstance(candidates, tuple):
+        raise PublicationActivationError("group activation candidates must be a tuple")
+    for candidate in candidates:
+        if type(candidate) is not PublicationActivationGroupCandidate:
+            raise PublicationActivationError("group activation contains an invalid candidate")
+        candidate.__post_init__()
+    request.__post_init__()
+    if request.is_execution_quote_activation and (
+        len(candidates) != 1
+        or candidates[0].dataset_key != "equity.quote.snapshot"
+        or candidates[0].publication_key != "execution"
+    ):
+        raise PublicationActivationError("execution activation scope is invalid")
 
 
 __all__ = ["DjangoPublicationActivationGroupRepository"]

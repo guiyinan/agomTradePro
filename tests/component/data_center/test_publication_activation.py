@@ -83,7 +83,9 @@ from core.integration.data_center_audit import (
 )
 from tests.component.data_center.test_current_publication_evidence_gate import _published_snapshot
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(
+    transaction=True, available_apps=["apps.data_center", "apps.audit"]
+)
 
 
 class _AuditWriter(DjangoPublicationActivationAuditWriter):
@@ -922,7 +924,10 @@ def test_group_activation_request_identifies_fixed_current_market_contract() -> 
         )
     )
 
-    with pytest.raises(PublicationActivationError, match="market group activation contract"):
+    with pytest.raises(
+        PublicationActivationError,
+        match="full current market set or one execution quote",
+    ):
         PublicationActivationGroupRequest(
             activation_id="activation-fixed-market-contract",
             candidates=candidates,

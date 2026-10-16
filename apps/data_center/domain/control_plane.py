@@ -143,6 +143,18 @@ def _require_sha256(value: str, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a lowercase sha256 digest")
 
 
+def _require_prefixed_sha256(value: str, field_name: str) -> None:
+    """Require the calendar snapshot's distinct ``sha256:`` digest form."""
+
+    if (
+        type(value) is not str
+        or len(value) != 71
+        or not value.startswith("sha256:")
+        or any(character not in "0123456789abcdef" for character in value[7:])
+    ):
+        raise ValueError(f"{field_name} must be a sha256:-prefixed lowercase digest")
+
+
 @dataclass(frozen=True)
 class SyncRun:
     """Auditable, resumable execution of one dataset ingestion request."""
@@ -705,6 +717,107 @@ class PublicationMember:
             raise ValueError("PublicationMember.revision_number must be positive")
 
 
+class CalendarNullableMemberCodecVersion(StrEnum):
+    """Explicit codec versions for calendar members with unknown source times."""
+
+    V1 = "calendar-nullable-member-v1"
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarPublicationMemberReference:
+    """Hash input that keeps the calendar row hash separate from snapshot seals.
+
+    This value is an in-memory calendar codec identity only, not a discriminator
+    on ``PublicationPolicy``. It does not add persistence support or make an
+    unpublished calendar snapshot publishable; a future publisher needs an
+    explicit persisted policy-to-codec binding. The calendar source has no
+    upstream observation, availability or publication clock, so those fields
+    must remain ``None``; the local fetch time stays in its own field.
+    """
+
+    member: PublicationMember
+    snapshot_content_hash: str
+    snapshot_record_digest: str
+    codec_version: CalendarNullableMemberCodecVersion
+
+    def __post_init__(self) -> None:
+        """Reject mismatched versions, time invention and digest-domain substitution."""
+
+        self._validate_state()
+
+    def _validate_state(self) -> None:
+        """Validate the complete nested value again before producing a payload."""
+
+        if type(self.codec_version) is not CalendarNullableMemberCodecVersion:
+            raise TypeError("calendar codec_version must be a supported enum value")
+        if self.codec_version is not CalendarNullableMemberCodecVersion.V1:
+            raise ValueError("calendar codec_version is not supported")
+        if type(self.member) is not PublicationMember:
+            raise TypeError("calendar member must be a PublicationMember")
+        for field_name in (
+            "member_id",
+            "publication_id",
+            "dataset_key",
+            "natural_key",
+            "source",
+            "source_record_id",
+            "fact_table",
+            "fact_pk",
+        ):
+            value = getattr(self.member, field_name)
+            if type(value) is not str or not value.strip():
+                raise ValueError(f"calendar member {field_name} is invalid")
+        if type(self.member.revision_number) is not int or self.member.revision_number < 1:
+            raise ValueError("calendar member revision_number must be a positive integer")
+        for field_name in ("raw_payload_hash", "quality_status", "raw_payload_scope"):
+            if type(getattr(self.member, field_name)) is not str:
+                raise TypeError(f"calendar member {field_name} must be text")
+        if any(
+            getattr(self.member, field_name) is not None
+            for field_name in ("observed_at", "available_at", "source_published_at")
+        ):
+            raise ValueError("calendar source timestamps must remain unavailable")
+        if self.member.fetched_at is not None:
+            if not isinstance(self.member.fetched_at, datetime):
+                raise TypeError("calendar member fetched_at must be a datetime or None")
+            _require_aware(self.member.fetched_at, "calendar member fetched_at")
+        if type(self.member.fact_content_hash) is not str:
+            raise TypeError("calendar fact_content_hash must be text")
+        _require_sha256(self.member.fact_content_hash, "calendar fact_content_hash")
+        _require_prefixed_sha256(self.snapshot_content_hash, "snapshot_content_hash")
+        _require_prefixed_sha256(self.snapshot_record_digest, "snapshot_record_digest")
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the exact versioned calendar member payload used in its hash."""
+
+        self._validate_state()
+        member = self.member
+        return {
+            "codec_version": self.codec_version.value,
+            "dataset_key": member.dataset_key,
+            "member": {
+                "natural_key": member.natural_key,
+                "source": member.source,
+                "source_record_id": member.source_record_id,
+                "fact_table": member.fact_table,
+                "fact_pk": member.fact_pk,
+                "observed_at": None,
+                "raw_payload_hash": member.raw_payload_hash,
+                "quality_status": member.quality_status,
+                "revision_number": member.revision_number,
+                "available_at": None,
+                "fetched_at": (
+                    member.fetched_at.isoformat() if member.fetched_at is not None else None
+                ),
+                "source_published_at": None,
+                "raw_payload_scope": member.raw_payload_scope,
+                "fact_content_hash": member.fact_content_hash,
+            },
+            "snapshot_content_hash": self.snapshot_content_hash,
+            "snapshot_record_digest": self.snapshot_record_digest,
+        }
+
+
 @dataclass(frozen=True)
 class PublicationRollback:
     """Explicit operator evidence for restoring a prior publication."""
@@ -729,6 +842,8 @@ class PublicationRollback:
 
 __all__ = [
     "CanonicalPublication",
+    "CalendarNullableMemberCodecVersion",
+    "CalendarPublicationMemberReference",
     "CoverageSnapshot",
     "PublicationMember",
     "PublicationRollback",

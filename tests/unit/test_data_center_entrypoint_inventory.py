@@ -180,17 +180,18 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
 
     _inventory, payload = inventory_payload
 
-    candidate_entries = [
-        entry for entry in payload["entries"] if entry["status"] == "candidate-review"
+    candidate_script_entries = [
+        entry
+        for entry in payload["entries"]
+        if entry["status"] == "candidate-review" and entry["category"] == "script"
     ]
-    assert [entry["path"] for entry in candidate_entries if entry["category"] == "script"] == [
+    assert [entry["path"] for entry in candidate_script_entries] == [
         "scripts/build_release_rehearsal_manifest.py",
         "scripts/prepare_s6_candidate_source_snapshot.py",
         "scripts/refresh_s6_isolated_market_graph.py",
         "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
-    assert all(entry["category"] == "script" for entry in candidate_entries)
     for path in (
         "scripts/build_release_rehearsal_manifest.py",
         "scripts/prepare_s6_candidate_source_snapshot.py",
@@ -223,6 +224,40 @@ def test_data_center_script_imports_remain_candidate_review_after_registration(
         "scripts/s6_isolated_market_graph_receipt.py",
         "scripts/validate_release_rehearsal.py",
     ]
+
+
+def test_phase_four_candidate_surfaces_remain_unapproved(
+    inventory_payload: tuple[ModuleType, dict[str, object]],
+) -> None:
+    """Keep new dynamic-import and PostgreSQL evidence surfaces visible for review."""
+
+    _inventory, payload = inventory_payload
+    expected_identities = (
+        (
+            "dynamic_import_edge",
+            "apps/data_center/interface/calendar_session_request_claim.py",
+            "import_string",
+        ),
+        (
+            "test_evidence",
+            "tests/component/data_center/test_calendar_authority_revocation_postgres.py",
+            "test_calendar_authority_revocation_postgres",
+        ),
+        (
+            "test_evidence",
+            "tests/component/data_center/test_instrument_reference_retry_postgres.py",
+            "test_instrument_reference_retry_postgres",
+        ),
+    )
+    entries_by_identity = {
+        (entry["category"], entry["path"], entry["symbol"]): entry for entry in payload["entries"]
+    }
+
+    for identity in expected_identities:
+        entry = entries_by_identity.get(identity)
+        assert entry is not None, identity
+        assert entry["status"] == "candidate-review"
+        assert entry["evidence"]
 
 
 def test_management_command_discovery_ignores_generated_and_agent_temp_trees(

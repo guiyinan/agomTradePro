@@ -97,6 +97,7 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 from apps.data_center.domain.reconciliation import ReconciliationEvidence, ReconciliationReport
+from apps.data_center.execution_quote_composition import get_execution_quote
 
 
 def get_macro_projection_repository_port() -> MacroProjectionRepositoryProtocol:
@@ -986,6 +987,7 @@ __all__ = [
     "get_akshare_module_port",
     "get_current_publication",
     "get_current_publication_freshness_gate",
+    "get_execution_quote",
     "get_decision_publication_gate",
     "list_active_data_owner_registrations",
     "list_active_dataset_contracts",

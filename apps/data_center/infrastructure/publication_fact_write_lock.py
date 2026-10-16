@@ -18,6 +18,8 @@ from shared.infrastructure.postgres_advisory_lock import (
     derive_scoped_advisory_lock_id,
 )
 
+from .catalog_models import DatasetContractModel
+
 _DEFAULT_ALIAS: Final[str] = "default"
 _LOCK_TIMEOUT_MILLISECONDS: Final[int] = 5_000
 _TABLE_LOCK_DOMAIN: Final[str] = "data-center.publication-fact-table"
@@ -86,6 +88,26 @@ def acquire_publication_fact_activation_locks(
         _acquire_exclusive_plan(cursor, plan)
     _restore_lock_timeout(connection, previous_timeout)
     return table_names
+
+
+def acquire_execution_catalog_activation_lock(*, using: str = _DEFAULT_ALIAS) -> None:
+    """Fence active Dataset Contract inserts and updates during execution activation.
+
+    PostgreSQL's table-level SHARE lock conflicts with catalog writers' ROW
+    EXCLUSIVE lock, so a second active contract cannot appear between the
+    locked catalog check and pointer activation. SQLite retains its normal
+    outer-transaction behavior and does not claim this PostgreSQL guarantee.
+    """
+
+    connection = connections[using]
+    _require_atomic(connection, using=using)
+    if connection.vendor != "postgresql":
+        return
+    previous_timeout = _bounded_lock_timeout(connection)
+    quoted_table = connection.ops.quote_name(DatasetContractModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(f"LOCK TABLE {quoted_table} IN SHARE MODE")
+    _restore_lock_timeout(connection, previous_timeout)
 
 
 def _require_atomic(connection: BaseDatabaseWrapper, *, using: str) -> None:
@@ -173,6 +195,7 @@ def _acquire_exclusive_plan(cursor: CursorWrapper, plan: Iterable[ScopedAdvisory
 
 
 __all__ = [
+    "acquire_execution_catalog_activation_lock",
     "acquire_publication_fact_activation_locks",
     "publication_fact_write_lock",
 ]

@@ -30,7 +30,7 @@ _EVIDENCE_ASSET_CODE_LIMIT = 20
 
 @dataclass(frozen=True)
 class CurrentPublicationDataset:
-    """Static identity for one full-universe current publication."""
+    """Static dataset and fact-table identity for a canonical publication."""
 
     dataset_key: str
     fact_table: str

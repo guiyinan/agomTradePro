@@ -71,6 +71,12 @@ class DjangoPublicationActivationRepository:
             raise ValueError("publication activation currently requires the default database alias")
         self._using = using
 
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared by activation and its complete-fence UOW."""
+
+        return self._using
+
     @transaction.atomic
     def stage_candidate_with_members(
         self,

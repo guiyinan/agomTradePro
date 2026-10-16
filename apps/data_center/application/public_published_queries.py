@@ -52,10 +52,18 @@ from apps.data_center.publication_read_composition import publication_snapshot
 def get_current_publication_freshness_gate(
     dataset_key: str,
     publication_key: str,
+    *,
+    as_of: datetime | None = None,
+    asset_code: str | None = None,
 ) -> dict[str, object] | None:
-    """Return the freshness-validated gate for a current publication."""
+    """Return a freshness-validated gate at an optional knowledge cutoff."""
 
-    return get_current_publication_gate(dataset_key, publication_key)
+    return get_current_publication_gate(
+        dataset_key,
+        publication_key,
+        as_of=as_of,
+        asset_code=asset_code,
+    )
 
 
 @publication_snapshot()

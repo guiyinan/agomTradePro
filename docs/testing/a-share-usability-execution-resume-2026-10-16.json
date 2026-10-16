@@ -1,0 +1,71 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T12:06:07.753850+00:00",
+  "scope": "ASH-02 completed-only execution activation resume; shared execution clock and C Core composition; not stage exit",
+  "production_source_sha256": {
+    "apps/audit/application/data_publication_audit.py": "4a5e66b454bd3a1287d43762ef7beb236feeb44289a8f6a65d08fee37102f87c",
+    "apps/audit/application/repository_provider.py": "0aeb69b480e1915adc62642e025cd77d20e447d473f93094df012e2f01b2912b",
+    "apps/audit/infrastructure/publication_activation_audit_writer.py": "970deb7567fffb5018bdb11608d062cd73efaf5e12fc4cea9cc96876e7f2e2dc",
+    "apps/audit/infrastructure/system_audit_outbox_runtime.py": "6aab3fd4cd691e6e7c744e411ee0ff6b612a6a2f71742759eee9bef7aee8e302",
+    "apps/data_center/application/execution_quote_activation.py": "91c86730a7ee529598070a34e8d58881f1f612abd43b8168ebf9a0a8660a4625",
+    "apps/data_center/execution_quote_publication_composition.py": "bc572f1464e19852f8d8e8a4ec5fcd2ae0b7fd2385d70265e067481fcf079bbc",
+    "apps/data_center/infrastructure/candidate_raw_audit_manifest_repository.py": "797af37e1eb67ad35b43a3927bb2f5e8b89a2ee40ebe10fbd93ca7e7443c1300",
+    "apps/data_center/infrastructure/publication_group_activation_repository.py": "cfb827ca28c0df7d3e18a2116b9d93576789d73471d04587f458328e9b4173f3",
+    "core/integration/data_center_audit.py": "ef67978ffb94556165c2515e55d5354be9a2f9b07427a66f530fae2070041df2",
+    "apps/data_center/execution_quote_pointer_rollback_composition.py": "d1b642ac08a0b8550031512459eb0d3bfda0dc3fa63c5ddb4e5a2cf7e679d47b",
+    "core/integration/data_center_execution_quote_rollback_audit.py": "f7da5deed96381d246c18da1a7899050e2e479c11ec43a71fb2ad8c6a5866741"
+  },
+  "test_source_sha256": {
+    "tests/component/data_center/test_execution_quote_activation_workflow.py": "c90be7cf4c6411a0881b554b85fdaf1c4eafd32dcc2fb783c76c1c794279d59e",
+    "tests/component/data_center/test_execution_quote_activation_clock.py": "d3ea1b1a7933f5e990041bb5f579084734e571c94abba63b5103e63950d97cce",
+    "tests/component/data_center/test_publication_activation.py": "53a26af2929eda9e38169b00a14da0513b4044afd2cd659fba77f3459784c31a",
+    "tests/component/data_center/test_execution_quote_pointer_rollback.py": "29fe76376a00ebb93c124a91f21e465eab2f3fb5e76c12f2226d04faff9f3144",
+    "tests/component/data_center/test_execution_quote_pointer_rollback_clock.py": "9deb00cf074e05fbc86b7861af3ec0d61b41f009b05c657e98d6596d80e74c7c"
+  },
+  "raw_log_sha256": {
+    "pytest-ash02-resume-red.stdout.txt": "e6169111f3b95cfa8c5675bf3e1ac600cd084bdbaeb4f3fa3a1e7741457587a1",
+    "pytest-ash02-resume-green6.stdout.txt": "a3726f59d67aa555b34b90b779e0f7c932f5b8f3eba2154bef472fc3889b4121",
+    "pytest-ash02-resume-compat3.stdout.txt": "50157da91815cb590283b8da06de21d9d5df5596311f9339751c56292e29d4d2",
+    "pytest-ash02-resume-mypy.stdout.txt": "d46010533958418bec3fe8c45c5a2480cc3d45b649e7ba99aae1f9c287aafc1f",
+    "pytest-activation-audit-clock-red.txt": "826d21dee1cbc4d1936cf9ba03699d5cdd344b9cfcae9599aa90da16e8044fa8",
+    "pytest-resume-c-native-interrupted-unscoped.txt": "d07ad3508fb31b743670bbf2bb29c7086910c06cb072e3eb4300d167a03a8e92",
+    "pytest-publication-pg-flush-diagnostic.txt": "d899f73c9e69e5a06e6b131a03a1b5e21b2cde50e619d024e6e4844a6fa2429a",
+    "reset-native-before-resume-c.txt": "f5de20e7285755e2375003ed956da2ad53acc5c06b4291654a69d9ae12b3f431",
+    "reapply-calendar-after-test-fixture-reset.txt": "a824d74b624ec68e07f2a2d3a758a358066633a50d3b8ec03853a4df60f3f2d1",
+    "pytest-resume-c-native-final.txt": "6932015938f0df5dc49976606728d401c9dc0cdb1865bddbf18f90f84b88bb5b",
+    "cycles-before-slice-freeze.json": "e1ddcf37fa10530fa6ceb0bdf1d20f75d49f3fa3321929867b84efa7878f07ed",
+    "cycles-after-c-bridge-fix.json": "342e1cc52338528631ee7ff91c653675503c1cf99032f7f33edc78a904caaa3a",
+    "mypy-c-composition-cycle-fix.txt": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+  },
+  "results": {
+    "resume_initial_red": "5 failed / 5 passed; missing resume API/types; raw stdout only, no historical test-source snapshot claimed",
+    "sqlite_focused": "13 passed, 2 native-PostgreSQL-only skips",
+    "sqlite_compatibility": "94 passed in 94.39s",
+    "root_audit_boundary_red": "2 genuine native PostgreSQL failures in 14.81s: in-lease clock retreat and lease expiry while source TTL remains fresh",
+    "native_combined": "108 passed in 346.27s; resume/new activation/C/legacy current/quotes/catalog/two-connection races",
+    "native_setup": "Named Goal-owned database rebuilt from clean 537-migration template; exact calendar 0099 applied to 538; --reuse-db --no-migrations; unfinished simulated_trading.0024 excluded",
+    "strict_module_cycles": "206 edges, 0 bidirectional pairs, 0 cyclic components; no allowlist/budget changes",
+    "incremental_types": "Resume 9 production files and Root C composition 2 files, zero regressions; final whole-candidate check pending"
+  },
+  "failures_preserved": [
+    "First combined run was interrupted after unscoped legacy test teardown caused cascading errors; never counted as a pass.",
+    "Independent -x diagnostic: 1 passed / 1 teardown error, PostgreSQL account authority generation singleton constraint.",
+    "Legacy test now scopes cleanup to Data Center/Audit; no production trigger was disabled; clean fixture rebuilt before rerun.",
+    "C direct Data Center-to-Audit composition imports caused 207-edge cycle; capability factory/type/alias checks moved unchanged to existing Core bridge."
+  ],
+  "guarantees_tested": [
+    "Exact singleton run/task manifest, persisted PUBLISHED identity and full current pointer epoch; staged candidates with no original durable CAS remain blocked.",
+    "Audit verify-only path reconstructs original canonical event and verifies actual event/outbox; missing or altered evidence is corruption, never repaired.",
+    "Current complete authority/scope, contract/policy/fact consistency, original source TTL and final execution-quote read remain required.",
+    "Execution-only pre-write and post-Audit UTC checks enforce nondecreasing time and current lease bounds; fresh source does not extend authority.",
+    "Old full-market current behavior and C rollback remain compatible after neutral Core composition refactor."
+  ],
+  "limits": [
+    "Controlled complete-authority test seam, not real production Account graph acceptance.",
+    "No provider call, production DB access, deployment or broker order.",
+    "No resume of incomplete CANDIDATE and no reconstruction of unstored original CAS intent.",
+    "Calendar governed publication, fee applicability, simulated UoW and old consumer switches remain pending.",
+    "Final combined types, architecture delta, freshness and generated projections await all active source slices freezing.",
+    "Agent reported isort pass but named raw isort log was absent; Root final formatter checks must provide current evidence."
+  ]
+}

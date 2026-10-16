@@ -250,6 +250,9 @@ class DatasetContractRepositoryProtocol(Protocol):
 
     def list_active(self) -> list[DatasetContract]: ...
     def get_active(self, dataset_key: str) -> DatasetContract | None: ...
+    def get_active_for_execution(self, dataset_key: str) -> DatasetContract | None:
+        """Return one active contract or reject ambiguous execution configuration."""
+
     def save(self, contract: DatasetContract) -> DatasetContract: ...
 
 

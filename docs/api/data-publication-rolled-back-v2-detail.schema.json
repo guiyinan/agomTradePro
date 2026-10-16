@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "data.publication.rolled_back.v2 event detail",
+  "description": "Pointer rollback detail. The enclosing SystemAuditEvent binds scope, event hashes, time and evidence references. Legacy historical rollback retains its v1 detail and hash.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "publication_key",
+    "publication_hash",
+    "rollback_id",
+    "rollback_content_hash",
+    "previous_publication_id",
+    "previous_publication_version",
+    "previous_publication_hash",
+    "previous_pointer_activation_id"
+  ],
+  "properties": {
+    "publication_key": {"type": "string", "minLength": 1, "maxLength": 300},
+    "publication_hash": {"$ref": "#/$defs/sha256"},
+    "rollback_id": {"$ref": "#/$defs/uuid"},
+    "rollback_content_hash": {"$ref": "#/$defs/sha256"},
+    "previous_publication_id": {"$ref": "#/$defs/uuid"},
+    "previous_publication_version": {"type": "string", "minLength": 1, "maxLength": 300},
+    "previous_publication_hash": {"$ref": "#/$defs/sha256"},
+    "previous_pointer_activation_id": {"$ref": "#/$defs/uuid"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "uuid": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}
+  }
+}

@@ -194,6 +194,156 @@ def _use_case(
     )
 
 
+class _RecordingExecutionCandidateGuard:
+    def __init__(self) -> None:
+        self.candidates: list[object] = []
+
+    def validate_execution_candidate(self, candidate: object) -> None:
+        self.candidates.append(candidate)
+
+
+@pytest.mark.parametrize(
+    ("observed_at", "published_at"),
+    [
+        (
+            datetime(2026, 10, 15, 16, 0, tzinfo=UTC),  # 00:00 China time
+            datetime(2026, 10, 15, 16, 1, tzinfo=UTC),
+        ),
+        (
+            datetime(2026, 10, 16, 2, 0, tzinfo=UTC),  # 10:00 China time
+            datetime(2026, 10, 16, 2, 1, tzinfo=UTC),
+        ),
+        (
+            datetime(2026, 10, 16, 7, 0, tzinfo=UTC),  # exactly 15:00 China time
+            datetime(2026, 10, 16, 7, 1, tzinfo=UTC),
+        ),
+    ],
+)
+def test_execution_quote_candidate_accepts_exact_nonfuture_source_times(
+    observed_at: datetime,
+    published_at: datetime,
+) -> None:
+    """Execution quote candidates use exact source/guard checks, not current close timing."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    reference = _reference("600000.SH", "execution-time", dataset=dataset, observed_at=observed_at)
+    guard = _RecordingExecutionCandidateGuard()
+    use_case = CurrentPublicationRebuildUseCase(
+        dataset=dataset,
+        candidate_repository=_CandidateRepository([reference]),
+        publication_repository=_PublicationRepository(),
+        policy_repository=_PolicyRepository(),
+        publication_key="execution",
+        execution_candidate_guard=guard,
+    )
+
+    candidate = use_case.prepare_candidate(
+        asset_codes=("600000.SH",),
+        published_at=published_at,
+    )
+
+    assert candidate.references == (reference,)
+    assert guard.candidates == [candidate]
+
+
+@pytest.mark.parametrize(
+    "observed_at",
+    [
+        datetime(2026, 10, 15, 16, 0, tzinfo=UTC),  # 00:00 China time
+        datetime(2026, 10, 16, 2, 0, tzinfo=UTC),  # 10:00 China time
+    ],
+)
+def test_current_quote_candidate_still_rejects_source_before_china_close(
+    observed_at: datetime,
+) -> None:
+    """The current publication lane still requires the official China close."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    reference = _reference("600000.SH", "same-source", dataset=dataset, observed_at=observed_at)
+
+    with pytest.raises(ValueError, match="before the official China-market close"):
+        _use_case(dataset, [reference]).prepare_candidate(
+            asset_codes=("600000.SH",),
+            published_at=datetime(2026, 10, 16, 7, 1, tzinfo=UTC),
+        )
+
+
+def test_current_quote_candidate_accepts_source_at_official_close_boundary() -> None:
+    """The current close guard is inclusive at 15:00 China time."""
+
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    reference = _reference(
+        "600000.SH",
+        "close-boundary",
+        dataset=dataset,
+        observed_at=datetime(2026, 10, 16, 7, 0, tzinfo=UTC),
+    )
+
+    candidate = _use_case(dataset, [reference]).prepare_candidate(
+        asset_codes=("600000.SH",),
+        published_at=datetime(2026, 10, 16, 7, 1, tzinfo=UTC),
+    )
+
+    assert candidate.references == (reference,)
+
+
+def test_execution_quote_candidate_still_rejects_future_source_time() -> None:
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+    reference = _reference(
+        "600000.SH",
+        "future-source",
+        dataset=dataset,
+        observed_at=datetime(2026, 10, 16, 2, 0, tzinfo=UTC),
+    )
+    use_case = CurrentPublicationRebuildUseCase(
+        dataset=dataset,
+        candidate_repository=_CandidateRepository([reference]),
+        publication_repository=_PublicationRepository(),
+        policy_repository=_PolicyRepository(),
+        publication_key="execution",
+        execution_candidate_guard=_RecordingExecutionCandidateGuard(),
+    )
+
+    with pytest.raises(ValueError, match="future observation"):
+        use_case.prepare_candidate(
+            asset_codes=("600000.SH",),
+            published_at=datetime(2026, 10, 16, 1, 59, tzinfo=UTC),
+        )
+
+
+def test_execution_quote_candidate_requires_active_version_guard() -> None:
+    dataset = CurrentPublicationDataset(
+        dataset_key="equity.quote.snapshot",
+        fact_table="data_center_quote_snapshot",
+        created_by="ops.current_publication_rebuild",
+    )
+
+    with pytest.raises(ValueError, match="active-version guard"):
+        CurrentPublicationRebuildUseCase(
+            dataset=dataset,
+            candidate_repository=_CandidateRepository([]),
+            publication_repository=_PublicationRepository(),
+            policy_repository=_PolicyRepository(),
+            publication_key="execution",
+        )
+
+
 def test_candidate_preparation_and_legacy_execute_share_identical_snapshot_content() -> None:
     """Fence-external preparation and legacy publication use one candidate builder."""
 

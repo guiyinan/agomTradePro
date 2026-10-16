@@ -18,6 +18,7 @@ def publication_gate_metadata(
         "publication_id": publication.publication_id,
         "dataset_key": getattr(publication, "dataset_key", requested_dataset_key),
         "publication_key": getattr(publication, "publication_key", requested_publication_key),
+        "publication_hash": publication.publication_hash,
         "published_at": publication.published_at.isoformat() if publication.published_at else None,
         "as_of": publication_as_of.isoformat() if publication_as_of else None,
         "must_not_use_for_decision": publication.must_not_use_for_decision,

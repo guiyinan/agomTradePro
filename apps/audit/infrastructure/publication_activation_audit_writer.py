@@ -6,10 +6,16 @@ from datetime import datetime
 
 from apps.audit.application.data_publication_audit import (
     AppendDataPublicationAuditObservationUseCase,
+    VerifyDataPublicationManifestGroupUseCase,
 )
+from apps.audit.application.system_audit_event_outbox import SystemAuditEventOutboxCorruption
 from apps.audit.domain.system_audit_event import AuditScopeRef
 from apps.audit.infrastructure.system_audit_event_outbox_coordinator import (
     DjangoSystemAuditEventOutboxCoordinator,
+)
+from apps.audit.infrastructure.system_audit_repository import (
+    SystemAuditCorruption,
+    SystemAuditUnavailable,
 )
 from apps.data_center.application.publication_activation import (
     PublicationActivationAuditWriter,
@@ -125,4 +131,71 @@ class DjangoPublicationActivationAuditWriter(
         )
 
 
-__all__ = ["DjangoPublicationActivationAuditWriter"]
+class DjangoPublicationActivationAuditVerifier:
+    """Read and validate an already committed execution activation audit pair."""
+
+    def __init__(
+        self,
+        coordinator: DjangoSystemAuditEventOutboxCoordinator,
+    ) -> None:
+        """Bind read-only completion checks to the canonical same-alias coordinator."""
+
+        if not isinstance(coordinator, DjangoSystemAuditEventOutboxCoordinator):
+            raise TypeError(
+                "publication activation verification requires the canonical coordinator"
+            )
+        self._coordinator = coordinator
+        self._use_case = VerifyDataPublicationManifestGroupUseCase(coordinator)
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias used by the exact event/outbox selectors."""
+
+        return self._coordinator.database_alias
+
+    def verify_manifest_group_required(
+        self,
+        *,
+        request: PublicationActivationGroupRequest,
+        writes: tuple[PublicationActivationManifestAuditWrite, ...],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Verify only a single completed execution quote and never append or repair."""
+
+        candidate_ids = tuple(item.candidate_publication_id for item in request.candidates)
+        if (
+            not request.is_execution_quote_activation
+            or len(candidate_ids) != 1
+            or len(writes) != 1
+            or tuple(write.publication.publication_id for write in writes) != candidate_ids
+        ):
+            raise ValueError("completion verification requires one exact execution quote")
+        write = writes[0]
+        write.__post_init__()
+        if (
+            write.publication.state.value != "published"
+            or write.publication.dataset_key != "equity.quote.snapshot"
+            or write.publication.publication_key != "execution"
+            or write.manifest.publication_id != write.publication.publication_id
+            or write.manifest.publication_hash != write.publication.publication_hash
+            or write.manifest.run_id != write.publication.run_id
+            or write.manifest.dataset_key != write.publication.dataset_key
+            or write.manifest.publication_key != write.publication.publication_key
+            or write.observation.publication_id != write.publication.publication_id
+            or write.observation.manifest_id != write.manifest.manifest_id
+            or write.observation.manifest_hash != write.manifest.manifest_hash
+            or write.observation.recorded_at != write.publication.published_at
+            or write.observation.run_id != write.publication.run_id
+        ):
+            raise ValueError("completion audit evidence differs from the exact publication")
+        try:
+            return self._use_case.execute_manifest_group_in_caller_transaction((write.observation,))
+        except (SystemAuditCorruption, SystemAuditUnavailable) as error:
+            raise SystemAuditEventOutboxCorruption(
+                "completed Audit evidence cannot be restored in its original scope"
+            ) from error
+
+
+__all__ = [
+    "DjangoPublicationActivationAuditVerifier",
+    "DjangoPublicationActivationAuditWriter",
+]

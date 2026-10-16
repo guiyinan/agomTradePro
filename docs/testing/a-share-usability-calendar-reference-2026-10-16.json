@@ -1,0 +1,74 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T11:30:02.307708+00:00",
+  "scope": "ASH-02 exact unpublished exchange-calendar reference; not stage exit",
+  "production_source_sha256": {
+    "apps/data_center/domain/exchange_calendar.py": "9030bd4bd464402ef00f18f681ea8f7b904a2619559438018eb6c5b37410fa4b",
+    "apps/data_center/application/exchange_calendar.py": "b6e6ad24e74c0de321b7ecf320aa44ee3609dd216c0b02177998136b82aa1070",
+    "apps/data_center/infrastructure/exchange_calendar_source_evidence.py": "56d09caee07ab0f85073bd4936069fd7c7a419ca01cfebf9afe94a0a2f661519",
+    "apps/data_center/infrastructure/tushare_exchange_calendar_source.py": "e5b53994833e31a82efa0c82133972a3279d83dd214e77ea007e6bc892480e3d",
+    "apps/data_center/infrastructure/exchange_calendar_repository.py": "d08d3c8ebc3859b637a555e9c2bc64b3ecd7deeb88ae7c4109a2a51d81642d60",
+    "apps/data_center/infrastructure/fact_and_operational_models.py": "a6409954f29ad86462f7cf90694c474059f55266fae7a85547fa74b696a5b37c",
+    "apps/data_center/infrastructure/models.py": "d57347c5fa400d4c8bcb21a85a2c314b6973f54793749f3b89713ca7255f41fb",
+    "apps/data_center/infrastructure/tushare_model_market_source.py": "e23fb64af04d5e9dad42550fa42ac17f1615cb3028575aa05e78effdfcd7e4a7",
+    "apps/data_center/migrations/0099_exchange_calendar_snapshot.py": "ec237e2001098b3f97011a1e0724c943fb2a008eb7fbce2476c0f69a9d0a9d43"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_exchange_calendar_snapshot.py": "2d932dcbab7da9af4815d8454dc0ff15a85089b6389154688a99db26aedc70c5",
+    "tests/unit/data_center/test_tushare_exchange_calendar_source.py": "3bb52050f21a3f2c4de6b2d279a39454f5fad1a066ac7cc4ac9eb83b0f0cdb45",
+    "tests/component/data_center/test_exchange_calendar_snapshot_repository.py": "50cb462ba265605e3b367da60a37014fd060879ad907f8378a572826a52ef9ed",
+    "tests/component/data_center/test_exchange_calendar_http_workflow.py": "0c2b85a6c0cc475bc9da4e11ef9c4f08f1a5ee0cbeabdab7372254776fcf1395",
+    "tests/component/data_center/test_exchange_calendar_concurrency.py": "f75ff5a5b690b052e89ca69f1b62cada5e64b0852834353c4b9c89d43c10efda"
+  },
+  "raw_log_sha256": {
+    "pytest-calendar-reference-capability-red.txt": "ba9e88a755cacccf607744173c1b7645b142d5a336d8339e8456791235d2d8ef",
+    "pytest-calendar-unit-final-2.txt": "a642d72495430f5c03bbbac9fbd3cd910255ee59274f4765f38ceaed6c5b79d4",
+    "pytest-calendar-component-final.txt": "0ad7dffe1429be6e774ef49dd69a9db2500076ac31d76ca9c8e04b3caa468f95",
+    "pytest-calendar-native-final.txt": "0d2eebdc624e69efb2c4bede7b9a2da53d8f4e00b2e015f5f0d62dde0f24fddb",
+    "native-test-schema-after-calendar.txt": "d91ad55ea6c068a1912775d1d0ec1efadb1bf21a220f18d537d6c7de96a2dddb",
+    "mypy-calendar-final-2.txt": "3dcc2b03ede346698db5ad7d1699e8ab37ed54cc019fe7ec2be04295e1bb6d60",
+    "makemigrations-calendar-final.txt": "e7ca9a8029b1320f3792cee4c19a3249a46d8515d8864ade6ae2ff7fd3008d5b"
+  },
+  "red": "Root HTTP journey found absent machine-readable unpublished/no-decision/no-execution capability markers.",
+  "results": {
+    "unit": "26 passed",
+    "sqlite_current_schema": "6 passed; explicit development_sqlite --no-migrations",
+    "native_postgresql": "33 passed in 29.90s; 26 unit plus 7 real DB cases including two-connection first writer",
+    "native_fixture_schema": {
+      "database": "test_ash_quality_native",
+      "migration_count": 538,
+      "new_migrations": [
+        [
+          "data_center",
+          "0099_exchange_calendar_snapshot"
+        ]
+      ],
+      "ordinary_table_count": 578
+    },
+    "native_fixture_setup": "--reuse-db --no-migrations against prior fully migrated 538 fixture; unfinalized simulated_trading.0024 deliberately not applied",
+    "domain_line_coverage": {
+      "covered": 246,
+      "total": 250
+    },
+    "domain_branch_coverage": {
+      "covered": 85,
+      "total": 88
+    },
+    "incremental_mypy": "8 production Python files, zero regressions",
+    "migration_model_projection": "makemigrations --check --dry-run no changes at the calendar checkpoint; not final ledger migration acceptance"
+  },
+  "guarantees_tested": [
+    "Real HTTP client/response retention/raw repository/calendar source/ingest/exact read/next-session journey with outbound HTTP only replaced.",
+    "Full natural-day coverage, explicit venue and source states, previous-open chain, no filtered or cross-venue response accepted.",
+    "First response-completion time and first fact-recorded time are separate; exact replay and concurrent first writers preserve one fact identity and clock.",
+    "Exact source/body/request/fact/record binding and both local knowledge cutoffs; next session never extrapolates coverage.",
+    "Explicit unpublished and no-decision/no-execution output flags outside immutable content and record digests."
+  ],
+  "limits": [
+    "No governed Publication or production current/execution calendar input; simulated-trade calendar owner cannot consume the reference alone.",
+    "Date-level calendar is not evidence of intraday phase, security tradability, price bands or account permission.",
+    "No real provider call, production database access, deployment or broker order.",
+    "Normal simulated-consumer UoW, consumer switches and original T+1/odd-lot regression acceptance remain pending.",
+    "Final combined type/architecture/governance/module/model projections remain pending after active slices freeze."
+  ]
+}

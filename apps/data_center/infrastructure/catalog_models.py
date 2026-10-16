@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from django.db import models
 
 from apps.data_center.domain.contracts import (
+    MAX_CATALOG_TTL_SECONDS,
     DataOwnerRegistration,
     DatasetContract,
     DatasetFieldContract,
@@ -19,6 +20,7 @@ from apps.data_center.domain.contracts import (
     ProviderBinding,
     PublicationPolicy,
 )
+from apps.data_center.domain.control_plane import CalendarNullableMemberCodecVersion
 
 
 def _dataset_key(
@@ -69,6 +71,8 @@ class DatasetContractModel(models.Model):
     decision_critical = models.BooleanField(default=False, db_index=True)
     fields = models.JSONField(default=list)
     freshness_seconds = models.PositiveBigIntegerField(null=True, blank=True)
+    execution_freshness_seconds = models.PositiveBigIntegerField(null=True, blank=True)
+    calendar_response_max_age_seconds = models.PositiveBigIntegerField(null=True, blank=True)
     comparable_group = models.CharField(max_length=120, blank=True)
     active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -82,6 +86,22 @@ class DatasetContractModel(models.Model):
                 fields=["dataset_key", "contract_version", "schema_version"],
                 name="dc_dataset_contract_version_unique",
             ),
+            models.CheckConstraint(
+                condition=models.Q(execution_freshness_seconds__isnull=True)
+                | (
+                    models.Q(execution_freshness_seconds__gte=1)
+                    & models.Q(execution_freshness_seconds__lte=MAX_CATALOG_TTL_SECONDS)
+                ),
+                name="dc_dataset_execution_ttl_range_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(calendar_response_max_age_seconds__isnull=True)
+                | (
+                    models.Q(calendar_response_max_age_seconds__gte=1)
+                    & models.Q(calendar_response_max_age_seconds__lte=MAX_CATALOG_TTL_SECONDS)
+                ),
+                name="dc_dataset_calendar_age_ttl_valid",
+            ),
         ]
         indexes = [
             models.Index(fields=["dataset_key", "active"]),
@@ -91,6 +111,14 @@ class DatasetContractModel(models.Model):
     def to_domain(self) -> DatasetContract:
         """Convert a persisted contract to its validated domain value."""
 
+        execution_ttl = self.execution_freshness_seconds
+        if execution_ttl is not None and type(execution_ttl) is not int:
+            raise ValueError("DatasetContractModel.execution_freshness_seconds must be an integer")
+        calendar_age_ttl = self.calendar_response_max_age_seconds
+        if calendar_age_ttl is not None and type(calendar_age_ttl) is not int:
+            raise ValueError(
+                "DatasetContractModel.calendar_response_max_age_seconds must be an integer"
+            )
         return DatasetContract(
             key=_dataset_key(self.dataset_key, self.contract_version, self.schema_version),
             owner=self.owner,
@@ -101,6 +129,8 @@ class DatasetContractModel(models.Model):
                 int(self.freshness_seconds) if self.freshness_seconds is not None else None
             ),
             comparable_group=self.comparable_group or None,
+            execution_freshness_seconds=execution_ttl,
+            calendar_response_max_age_seconds=calendar_age_ttl,
         )
 
 
@@ -162,6 +192,7 @@ class DatasetPublicationPolicyModel(models.Model):
     contract_version = models.CharField(max_length=40)
     schema_version = models.CharField(max_length=40)
     policy_version = models.CharField(max_length=40, default="legacy")
+    member_codec_version = models.CharField(max_length=48, null=True, blank=True)
     minimum_coverage_ratio = models.FloatField()
     allow_partial = models.BooleanField(default=False)
     conflict_action = models.CharField(max_length=40)
@@ -189,6 +220,14 @@ class DatasetPublicationPolicyModel(models.Model):
                 & models.Q(minimum_coverage_ratio__lte=1.0),
                 name="dc_dataset_policy_coverage_ratio_valid",
             ),
+            models.CheckConstraint(
+                condition=models.Q(member_codec_version__isnull=True)
+                | (
+                    models.Q(member_codec_version="calendar-nullable-member-v1")
+                    & ~models.Q(policy_version="legacy")
+                ),
+                name="dc_dataset_policy_member_codec_valid",
+            ),
         ]
         indexes = [models.Index(fields=["dataset_key", "active"])]
 
@@ -198,6 +237,9 @@ class DatasetPublicationPolicyModel(models.Model):
         evidence = self.required_evidence
         if not isinstance(evidence, list):
             raise ValueError("Publication policy required_evidence must be a list")
+        codec = self.member_codec_version
+        if codec is not None and type(codec) is not str:
+            raise ValueError("Publication policy member_codec_version must be text or NULL")
         return PublicationPolicy(
             dataset=_dataset_key(self.dataset_key, self.contract_version, self.schema_version),
             minimum_coverage_ratio=float(self.minimum_coverage_ratio),
@@ -206,6 +248,9 @@ class DatasetPublicationPolicyModel(models.Model):
             required_evidence=tuple(str(item) for item in evidence),
             retention_days=int(self.retention_days),
             policy_version=self.policy_version,
+            member_codec_version=(
+                CalendarNullableMemberCodecVersion(codec) if codec is not None else None
+            ),
         )
 
 

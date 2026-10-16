@@ -9,7 +9,9 @@ from datetime import datetime
 from typing import Final, Protocol, cast
 
 from apps.audit.application.system_audit_event_outbox import (
+    ExactSystemAuditOutboxWinner,
     SystemAuditEventOutboxCommit,
+    SystemAuditEventOutboxCorruption,
     SystemAuditEventOutboxWriter,
 )
 from apps.audit.domain.system_audit_event import (
@@ -357,6 +359,12 @@ class _TargetedDataPublicationAuditWriter(Protocol):
         stream_heads: dict[str, SystemAuditEvent],
     ) -> tuple[SystemAuditEventOutboxCommit, ...]:
         """Append a prevalidated event group and its outbox rows."""
+
+    def get_exact_outbox_winner_targeted(
+        self,
+        event: SystemAuditEvent,
+    ) -> ExactSystemAuditOutboxWinner | None:
+        """Read the existing exact outbox row without inserting or repairing it."""
 
 
 def build_data_publication_audit_event(
@@ -857,6 +865,106 @@ class AppendDataPublicationAuditObservationUseCase:
         return self.execute(observation)
 
 
+class VerifyDataPublicationManifestGroupUseCase:
+    """Verify an already committed manifest audit group without changing it."""
+
+    __slots__ = ("_writer",)
+
+    def __init__(self, writer: DataPublicationAuditEventOutboxWriter) -> None:
+        """Bind verification to the canonical same-alias event/outbox coordinator."""
+
+        self._writer = writer
+
+    @property
+    def database_alias(self) -> str:
+        """Return the database alias shared by event and outbox reads."""
+
+        return self._writer.database_alias
+
+    def execute_manifest_group_in_caller_transaction(
+        self,
+        observations: tuple[DataPublicationManifestAuditObservation, ...],
+    ) -> tuple[SystemAuditEventOutboxCommit, ...]:
+        """Rebuild and compare each existing event/outbox winner in the caller UOW."""
+
+        if (
+            not observations
+            or any(
+                type(item) is not DataPublicationManifestAuditObservation for item in observations
+            )
+            or len({item.dataset_key for item in observations}) != len(observations)
+        ):
+            raise ValueError("manifest publication audit verification group is invalid")
+        recorded_at = observations[0].recorded_at
+        scope = observations[0].scope
+        if scope is None or any(
+            item.recorded_at != recorded_at or item.scope != scope for item in observations
+        ):
+            raise ValueError("manifest publication audit verification clock or scope differs")
+        caller_owned_atomic = getattr(self._writer, "caller_owned_atomic", None)
+        if not callable(caller_owned_atomic):
+            raise ValueError("writer does not expose caller-owned publication audit UOW")
+        required = (
+            "lock_streams",
+            "get_activation_group_state_targeted",
+            "get_exact_outbox_winner_targeted",
+        )
+        if not all(callable(getattr(self._writer, name, None)) for name in required):
+            raise ValueError("writer does not expose exact read-only publication audit selectors")
+        targeted_writer = cast(_TargetedDataPublicationAuditWriter, self._writer)
+        identities = tuple(
+            (_stable_manifest_event_id(item), _EVENT_VERSION) for item in observations
+        )
+        stream_ids = tuple(f"data.publication:{item.dataset_key}" for item in observations)
+        with caller_owned_atomic():
+            targeted_writer.lock_streams(stream_ids)
+            winners, _heads = targeted_writer.get_activation_group_state_targeted(
+                identities=identities,
+                stream_ids=stream_ids,
+                as_of=recorded_at,
+                scope=scope,
+            )
+            commits: list[SystemAuditEventOutboxCommit] = []
+            for observation, identity in zip(observations, identities, strict=True):
+                winner = winners.get(identity)
+                if winner is None:
+                    raise SystemAuditEventOutboxCorruption(
+                        "completed manifest audit event is missing"
+                    )
+                expected = build_data_publication_manifest_audit_event(
+                    observation,
+                    sequence_no=winner.sequence_no,
+                    predecessor_hash=winner.predecessor_hash,
+                )
+                if winner != expected:
+                    raise SystemAuditEventOutboxCorruption(
+                        "completed manifest audit event differs from its original evidence"
+                    )
+                outbox = targeted_writer.get_exact_outbox_winner_targeted(expected)
+                if outbox is None:
+                    raise SystemAuditEventOutboxCorruption(
+                        "completed manifest audit outbox row is missing"
+                    )
+                if (
+                    outbox.event != expected
+                    or outbox.event_id != expected.event_id
+                    or outbox.idempotency_key != expected.idempotency_key
+                    or outbox.payload_hash != expected.content_hash
+                ):
+                    raise SystemAuditEventOutboxCorruption(
+                        "completed manifest audit outbox differs from its event winner"
+                    )
+                commits.append(
+                    SystemAuditEventOutboxCommit(
+                        event=expected,
+                        outbox_id=outbox.outbox_id,
+                        event_id=outbox.event_id,
+                        idempotency_key=outbox.idempotency_key,
+                    )
+                )
+        return tuple(commits)
+
+
 __all__ = [
     "AppendDataPublicationAuditObservationUseCase",
     "DataPublicationAuditEventOutboxWriter",
@@ -864,6 +972,7 @@ __all__ = [
     "DataPublicationManifestAuditObservation",
     "DataPublicationRawAuditManifestReference",
     "DataPublicationAuditScopeProvider",
+    "VerifyDataPublicationManifestGroupUseCase",
     "build_data_publication_manifest_audit_event",
     "build_data_publication_audit_event",
 ]

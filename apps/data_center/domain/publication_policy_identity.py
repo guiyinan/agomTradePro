@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from .contracts import PublicationPolicy
 
 
-def publication_policy_content_hash(policy: PublicationPolicy) -> str:
-    """Hash every decision field, independently of database row update times."""
+def publication_policy_content_payload(policy: PublicationPolicy) -> dict[str, object]:
+    """Return exact policy decision content, preserving unbound v1 encoding."""
 
     payload: dict[str, object] = {
         "encoding": "publication-policy-v1",
@@ -25,7 +25,20 @@ def publication_policy_content_hash(policy: PublicationPolicy) -> str:
         "required_evidence": list(policy.required_evidence),
         "retention_days": policy.retention_days,
     }
+    if policy.member_codec_version is not None:
+        payload["encoding"] = "publication-policy-v2"
+        payload["member_codec_version"] = policy.member_codec_version.value
+    return payload
+
+
+def publication_policy_content_hash(policy: PublicationPolicy) -> str:
+    """Hash every decision field, independently of database row update times."""
+
     raw = json.dumps(
-        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        publication_policy_content_payload(policy),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()

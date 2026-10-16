@@ -103,6 +103,16 @@ def get_data_publication_activation_audit_writer(*, environment: str, using: str
     return build_writer(environment=environment, using=using)
 
 
+def get_data_publication_activation_audit_verifier(*, environment: str, using: str) -> Any:
+    """Build the read-only verifier for one completed execution activation."""
+
+    from apps.audit.application.repository_provider import (
+        get_publication_activation_audit_verifier as build_verifier,
+    )
+
+    return build_verifier(environment=environment, using=using)
+
+
 def get_data_reliability_audit_writers(*, environment: str, using: str) -> Any:
     """Build the canonical Audit writer bundle at the composition boundary."""
 
@@ -190,6 +200,7 @@ __all__ = [
     "SystemAuditReaderContext",
     "get_data_conflict_audit_writer",
     "get_data_publication_activation_audit_writer",
+    "get_data_publication_activation_audit_verifier",
     "get_data_publication_rollback_audit_writer",
     "get_data_reliability_audit_writers",
     "get_data_repair_audit_writer",

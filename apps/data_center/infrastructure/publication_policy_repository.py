@@ -78,6 +78,11 @@ class PublicationPolicyRepository:
                     "conflict_action": policy.conflict_action,
                     "required_evidence": list(policy.required_evidence),
                     "retention_days": policy.retention_days,
+                    "member_codec_version": (
+                        policy.member_codec_version.value
+                        if policy.member_codec_version is not None
+                        else None
+                    ),
                     "active": True,
                 },
             )

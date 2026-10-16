@@ -510,6 +510,9 @@ class DatasetContractAdmin(TypedModelAdmin[DatasetContractModel]):
         "schema_version",
         "owner",
         "decision_critical",
+        "freshness_seconds",
+        "execution_freshness_seconds",
+        "calendar_response_max_age_seconds",
         "active",
         "updated_at",
     )
@@ -524,6 +527,8 @@ class DatasetContractAdmin(TypedModelAdmin[DatasetContractModel]):
         "decision_critical",
         "fields",
         "freshness_seconds",
+        "execution_freshness_seconds",
+        "calendar_response_max_age_seconds",
         "comparable_group",
         "active",
         "created_at",
@@ -584,6 +589,7 @@ class DatasetPublicationPolicyAdmin(TypedModelAdmin[DatasetPublicationPolicyMode
     list_display = (
         "dataset_key",
         "contract_version",
+        "member_codec_version",
         "minimum_coverage_ratio",
         "allow_partial",
         "conflict_action",

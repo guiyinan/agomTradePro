@@ -11,7 +11,7 @@ from apps.data_center.application.publication_activation import (
     PublicationActivationError,
     PublicationActivationGroupRequest,
 )
-from apps.data_center.domain.contracts import PublicationPolicy
+from apps.data_center.domain.contracts import DatasetContract, PublicationPolicy
 from apps.data_center.domain.control_plane import CanonicalPublication, PublicationMember
 from apps.data_center.domain.entities import raw_audit_content_hash
 from apps.data_center.domain.publication_evidence import validate_publication_evidence
@@ -34,8 +34,9 @@ from core.integration.data_center_audit import (
 from .candidate_raw_audit_manifest_models import (
     CandidateRawAuditManifestMemberModel,
 )
-from .catalog_models import DatasetPublicationPolicyModel
+from .catalog_models import DatasetContractModel, DatasetPublicationPolicyModel
 from .fact_and_operational_models import RawAuditModel
+from .models import QuoteSnapshotModel
 from .provider_state_repositories import RawAuditRepository
 from .publication_models import CanonicalPublicationModel
 
@@ -66,6 +67,7 @@ class PublicationGroupActivationEvidenceRepository:
     ) -> tuple[
         dict[str, CandidateRawAuditManifest],
         dict[str, DataPublicationManifestAuditObservation],
+        int | None,
     ]:
         """Validate all locked evidence before any pointer or publication write."""
 
@@ -76,6 +78,9 @@ class PublicationGroupActivationEvidenceRepository:
             fact_ingested_runs=fact_ingested_runs,
         )
         policies = self._lock_group_policies(request)
+        execution_contract = (
+            self._lock_execution_quote_contract() if request.is_execution_quote_activation else None
+        )
         observations: dict[str, DataPublicationManifestAuditObservation] = {}
         for item in request.candidates:
             candidate_id = item.candidate_publication_id
@@ -83,6 +88,8 @@ class PublicationGroupActivationEvidenceRepository:
             manifest = manifests[candidate_id]
             policy = policies[item.dataset_key]
             try:
+                if execution_contract is not None and policy.dataset != execution_contract.key:
+                    raise ValueError("execution quote catalog and policy versions differ")
                 if policy.identity != publication.policy_version:
                     raise ValueError("publication active policy changed")
                 validate_publication_snapshot_policy(
@@ -99,6 +106,12 @@ class PublicationGroupActivationEvidenceRepository:
                 raise PublicationActivationError(
                     "group publication policy or freshness evidence drifted"
                 ) from error
+            if execution_contract is not None:
+                self._validate_execution_quote_fact_versions(
+                    members_by_id[candidate_id],
+                    contract_version=execution_contract.key.contract_version,
+                    schema_version=execution_contract.key.schema_version,
+                )
             recorded_at = (
                 candidates_by_id[candidate_id].published_at
                 if same_current_by_id[candidate_id]
@@ -112,7 +125,77 @@ class PublicationGroupActivationEvidenceRepository:
                 recorded_at=recorded_at,
                 lease=lease,
             )
-        return manifests, observations
+        return (
+            manifests,
+            observations,
+            (
+                execution_contract.execution_freshness_seconds
+                if execution_contract is not None
+                else None
+            ),
+        )
+
+    def _lock_execution_quote_contract(self) -> DatasetContract:
+        """Lock one exact active quote contract and require its execution TTL."""
+
+        rows = list(
+            DatasetContractModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(dataset_key="equity.quote.snapshot", active=True)
+            .order_by("id")[:2]
+        )
+        if len(rows) != 1:
+            raise PublicationActivationError(
+                "execution quote active contract is missing or ambiguous"
+            )
+        try:
+            contract = rows[0].to_domain()
+        except (TypeError, ValueError) as error:
+            raise PublicationActivationError(
+                "execution quote active contract is invalid"
+            ) from error
+        if contract.execution_freshness_seconds is None:
+            raise PublicationActivationError("execution quote freshness TTL is missing")
+        return contract
+
+    def _validate_execution_quote_fact_versions(
+        self,
+        members: tuple[PublicationMember, ...],
+        *,
+        contract_version: str,
+        schema_version: str,
+    ) -> None:
+        """Require every locked quote fact row to carry the active catalog version."""
+
+        if not members or any(
+            member.fact_table != "data_center_quote_snapshot" for member in members
+        ):
+            raise PublicationActivationError("execution quote candidate fact table is invalid")
+        fact_ids: list[int] = []
+        for member in members:
+            raw_id = member.fact_pk
+            if (
+                not raw_id.isascii()
+                or not raw_id.isdecimal()
+                or raw_id.startswith("0")
+                or str(int(raw_id)) != raw_id
+            ):
+                raise PublicationActivationError("execution quote candidate fact id is invalid")
+            fact_ids.append(int(raw_id))
+        rows = list(
+            QuoteSnapshotModel._default_manager.using(self._using)
+            .select_for_update()
+            .filter(pk__in=fact_ids)
+            .order_by("pk")
+        )
+        versions_by_id = {row.pk: (row.contract_version, row.schema_version) for row in rows}
+        if len(rows) != len(fact_ids) or any(
+            versions_by_id.get(fact_id) != (contract_version, schema_version)
+            for fact_id in fact_ids
+        ):
+            raise PublicationActivationError(
+                "execution quote candidate fact version differs from its active contract"
+            )
 
     def _lock_and_validate_group_manifests(
         self,

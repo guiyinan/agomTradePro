@@ -516,11 +516,11 @@
         "publication_id",
         "evidence_ref"
       ],
-      "detail_schema": "data.publication.rolled_back.v1",
+      "detail_schema": "data.publication.rolled_back.v2",
       "reason_codes": [
         "publication_rolled_back"
       ],
-      "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
+      "test_contract": "tests/component/data_center/test_execution_quote_pointer_rollback.py::test_execution_pointer_rollback_restores_exact_snapshot_and_audit"
     },
     {
       "event_type": "data.decision_read.blocked",

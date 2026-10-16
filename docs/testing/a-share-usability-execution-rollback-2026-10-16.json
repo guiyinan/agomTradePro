@@ -1,0 +1,48 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T11:06:16.958446+00:00",
+  "scope": "ASH-02 C execution quote pointer rollback; not stage exit",
+  "production_source_sha256": {
+    "apps/audit/application/data_publication_rollback_audit.py": "bd4229781243768757248ec0bbae4a14f26d112778b0c8b49c1f790ef7fc8620",
+    "apps/data_center/application/execution_quote_pointer_rollback.py": "5a15c4bcc1c8b45687cee15251518d22585ebcf7695d862ad50c47bf65a33dc9",
+    "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py": "852dd6ae557431b2d97e86f0f0fc5732e71fe000efec68a5fe14192c0fc78e53",
+    "apps/data_center/execution_quote_pointer_rollback_composition.py": "ad2f3301b11a03d41e19323e989dfcab5fdc6d2bf2414cff007e0536e0d85c9a",
+    "core/integration/data_center_execution_quote_rollback_audit.py": "6ce88d73a1a43e9e2e7858e94d34312ea646854d6a6bc30f0a902f57afd32f2a"
+  },
+  "test_source_sha256": {
+    "tests/component/data_center/test_execution_quote_pointer_rollback.py": "29fe76376a00ebb93c124a91f21e465eab2f3fb5e76c12f2226d04faff9f3144",
+    "tests/component/data_center/test_execution_quote_pointer_rollback_clock.py": "9deb00cf074e05fbc86b7861af3ec0d61b41f009b05c657e98d6596d80e74c7c",
+    "tests/component/data_center/test_publication_rollback_audit_transaction.py": "e32c1f6943c78c4cdc18f68f5c109fdb6db5d4357971424d4e723b282a481950",
+    "tests/unit/data_center/test_execution_quote_rollback_detail_schema.py": "f21cfa3a6c0bb942e6f11eb05c77ec1b0e7d2fd95a5547d1f845af6f25d71034"
+  },
+  "raw_log_sha256": {
+    "pytest-pointer-rollback-clock-red.txt": "bb15a65c03cca97091a6781daf4f7879570683cd8bdbff0ccb6f0c801b642ade",
+    "pytest-pointer-rollback-audit-clock-red.txt": "ce77eaf3794f92d478504dc626a531806db3444103af7e48ea4c3a9f961f6e64",
+    "pytest-pointer-rollback-clock-fix-sqlite.txt": "8ba33786cceb86ca1f286ddc23c74e98b0aade5d1dccd816001542cf8687c9e8",
+    "pytest-pointer-rollback-legacy-combined-final.txt": "22d8e6510def91a82935611a9f74128903a054cc3c67bba5e3d6da45b1541569",
+    "pytest-pointer-rollback-native-final.txt": "f3fd9156f1a1bbcbb4600e460d3c3169b0d2eb94c92f681c006f594e3273fbed",
+    "native-test-schema-after-c.txt": "d91ad55ea6c068a1912775d1d0ec1efadb1bf21a220f18d537d6c7de96a2dddb"
+  },
+  "red": "Post-Audit clock retreat within authority window was accepted; two real PostgreSQL failures preserved, final test uses actual Audit boundary.",
+  "results": {
+    "sqlite_clock_and_c": "7 passed, 1 PostgreSQL-only skip; current schema --no-migrations",
+    "sqlite_legacy_combined": "31 passed, 1 PostgreSQL-only skip",
+    "native_postgresql": "43 passed in 74.13s; C, independent clock, legacy, JSON schema and registry",
+    "native_migration_count": 538,
+    "native_ordinary_table_count": 578,
+    "new_migration_in_test_fixture": "data_center.0099_exchange_calendar_snapshot"
+  },
+  "guarantees_tested": [
+    "Exact target/current/pointer activation epoch, original source hash/time preservation.",
+    "Required canonical Audit/event/outbox commit in caller-owned transaction; missing outbox replay is corruption, not repaired.",
+    "Post-Audit source TTL and nondecreasing UTC clock; failed check rolls back pointer, publications, rollback row, event and outbox.",
+    "Two real PostgreSQL connections serialize competing CAS operations.",
+    "Legacy historical rollback retains v1 detail and does not move current pointer; new pointer rollback binds prior epoch in v2."
+  ],
+  "limits": [
+    "Controlled complete-authority and scope test seams; no genuine production Account authority acceptance.",
+    "No provider call, deployment, production database access or broker order.",
+    "Applying calendar migration in the test fixture is not calendar-source functional acceptance.",
+    "Activation wrapper resume, source/consumer integration and final combined quality gates remain pending."
+  ]
+}

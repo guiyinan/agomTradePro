@@ -2411,6 +2411,7 @@
           "DataPublicationAuditScopeProvider",
           "DataPublicationManifestAuditObservation",
           "DataPublicationRawAuditManifestReference",
+          "VerifyDataPublicationManifestGroupUseCase",
           "build_data_publication_audit_event",
           "build_data_publication_manifest_audit_event"
         ],
@@ -2546,6 +2547,7 @@
           "get_data_quality_audit_writer",
           "get_data_reliability_audit_writers",
           "get_data_repair_audit_writer",
+          "get_publication_activation_audit_verifier",
           "get_publication_activation_audit_writer",
           "get_system_audit_authority_renewal_guard_dependencies",
           "get_system_audit_event_repository",
@@ -4031,6 +4033,18 @@
           "resolve_portfolio_alpha_scope",
           "run_alpha_score_prediction_now"
         ],
+        "application/calendar_audit_read_authority.py": [
+          "AuthorizeCalendarAuditReaderUseCase",
+          "CalendarAuditReaderAuthorityRepositoryPort",
+          "CalendarAuditReaderSessionRequestProof",
+          "LockedCalendarAuditReaderPrincipal"
+        ],
+        "application/calendar_publication_authority.py": [
+          "AuthorizeCalendarPublisherUseCase",
+          "CalendarPublisherAuthorityRepositoryPort",
+          "CalendarPublisherSessionRequestProof",
+          "LockedCalendarPublisherPrincipal"
+        ],
         "application/candidate_raw_audit_manifest.py": [
           "CandidateRawAuditManifestRepositoryProtocol",
           "CandidateRawAuditManifestService"
@@ -4115,6 +4129,7 @@
           "CurrentPublicationCandidateRepositoryProtocol",
           "CurrentPublicationRebuildUseCase",
           "DeferredCurrentPublicationLane",
+          "ExecutionPublicationCandidateGuardProtocol",
           "TargetDatePublicationObservationProbeProtocol",
           "deferred_publication_lanes_from_result"
         ],
@@ -4274,6 +4289,7 @@
           "diagnose_route",
           "execute_financial_response_request",
           "execute_provider_request",
+          "execute_provider_response_request",
           "get_egress_transport",
           "list_endpoints",
           "list_rules",
@@ -4299,6 +4315,52 @@
           "MaterializeEvaluationActualManifestCommand",
           "RegisterEvaluationActualSource",
           "RegisterEvaluationActualSourceCommand"
+        ],
+        "application/exchange_calendar.py": [
+          "ExchangeCalendarNextSession",
+          "ExchangeCalendarSnapshotRepositoryPort",
+          "ExchangeCalendarSnapshotSourcePort",
+          "IngestExchangeCalendarSnapshotUseCase",
+          "ReadExchangeCalendarSnapshotUseCase",
+          "ReadNextExchangeCalendarSessionUseCase"
+        ],
+        "application/execution_quote_activation.py": [
+          "ExecutionQuoteAuthorityCapture",
+          "ExecutionQuoteAuthorityCaptureFactory",
+          "ExecutionQuoteCompletedManifestReader",
+          "ExecutionQuotePointerEpoch",
+          "ExecutionQuotePointerEpochReader",
+          "ExecutionQuotePointerReader",
+          "ExecutionQuotePublicationActivationBundle",
+          "ExecutionQuotePublicationActivationError",
+          "ExecutionQuoteResumeCandidate",
+          "ExecutionQuoteResumeCandidateReader",
+          "ExecutionQuoteResumeCorruption",
+          "ExecutionQuoteResumeError",
+          "ExecutionQuoteSnapshotReader",
+          "resume_completed_execution_quote_activation",
+          "stage_and_activate_execution_quote_candidate"
+        ],
+        "application/execution_quote_pointer_rollback.py": [
+          "ExecutionQuotePointerRollbackAuditObservation",
+          "ExecutionQuotePointerRollbackAuditReceipt",
+          "ExecutionQuotePointerRollbackAuditWriter",
+          "ExecutionQuotePointerRollbackAuthorityCapture",
+          "ExecutionQuotePointerRollbackAuthorityCaptureFactory",
+          "ExecutionQuotePointerRollbackBundle",
+          "ExecutionQuotePointerRollbackCommand",
+          "ExecutionQuotePointerRollbackError",
+          "ExecutionQuotePointerRollbackRepository",
+          "ExecutionQuotePointerRollbackResult",
+          "rollback_execution_quote_pointer"
+        ],
+        "application/execution_quotes.py": [
+          "ExecutionQuoteBlockReason",
+          "ExecutionQuoteFactReader",
+          "ExecutionQuotePublicationGate",
+          "ExecutionQuotePublicationGateReader",
+          "ExecutionQuoteUnavailable",
+          "GetExecutionQuoteUseCase"
         ],
         "application/fact_query_use_cases.py": [
           "QueryCapitalFlowsUseCase",
@@ -4489,6 +4551,17 @@
           "build_partial_terminal_attempts",
           "require_historical_universe_evidence",
           "target_date_universe_evidence"
+        ],
+        "application/instrument_reference_snapshot.py": [
+          "GetInstrumentReferenceSnapshotUseCase",
+          "InstrumentReferenceSnapshotRepositoryPort",
+          "SaveInstrumentReferenceMappingUseCase",
+          "SaveInstrumentReferenceSnapshotUseCase"
+        ],
+        "application/instrument_reference_source.py": [
+          "InstrumentReferenceAuditOccurrence",
+          "InstrumentReferenceAuditOccurrenceReceipt",
+          "InstrumentReferenceAuditOccurrenceWriterPort"
         ],
         "application/interface_services.py": [
           "fetch_latest_prices",
@@ -4700,6 +4773,12 @@
         "application/provider_health_recorder.py": [
           "persist_provider_health_metric"
         ],
+        "application/provider_response_payload.py": [
+          "ProviderResponsePayloadReference",
+          "ProviderResponsePayloadRepositoryPort",
+          "ProviderResponsePayloadRetentionError",
+          "RetainProviderResponsePayloadUseCase"
+        ],
         "application/public.py": [
           "backfill_asset_master_codes_port",
           "build_provider_registry_port",
@@ -4880,6 +4959,7 @@
           "SectorMembershipPublicationCandidateRepositoryProtocol"
         ],
         "application/publication_utils.py": [
+          "calendar_publication_hash",
           "current_publication_id_for_hash",
           "member_reference",
           "publication_hash",
@@ -5165,12 +5245,12 @@
         ]
       },
       "layers": {
-        "application": 143,
-        "domain": 35,
-        "infrastructure": 179,
-        "interface": 19,
+        "application": 152,
+        "domain": 41,
+        "infrastructure": 190,
+        "interface": 22,
         "management": 42,
-        "root": 21
+        "root": 26
       },
       "orm_models": {
         "infrastructure/models.py": [

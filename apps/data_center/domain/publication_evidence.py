@@ -9,7 +9,12 @@ from datetime import datetime
 from typing import Final
 
 from .contracts import KNOWN_PUBLICATION_EVIDENCE_KEYS, PublicationPolicy
-from .control_plane import PublicationFactReference, PublicationMember
+from .control_plane import (
+    CalendarNullableMemberCodecVersion,
+    CalendarPublicationMemberReference,
+    PublicationFactReference,
+    PublicationMember,
+)
 
 _SHA256_RE: Final[re.Pattern[str]] = re.compile(r"[0-9a-f]{64}")
 _RAW_PAYLOAD_SCOPES: Final[frozenset[str]] = frozenset(
@@ -54,12 +59,86 @@ def validate_publication_evidence(
 
     if not isinstance(policy, PublicationPolicy):
         raise TypeError("policy must be a PublicationPolicy")
+    if policy.member_codec_version is not None:
+        raise ValueError("ordinary publication evidence cannot use a calendar member codec")
     _require_aware(published_at, "published_at")
     if knowledge_cutoff is not None:
         _require_aware(knowledge_cutoff, "knowledge_cutoff")
     if not evidence:
         raise ValueError("publication evidence cannot be empty")
 
+    _validate_evidence_views(
+        policy,
+        tuple(_view(item) for item in evidence),
+        published_at=published_at,
+        knowledge_cutoff=knowledge_cutoff,
+    )
+
+
+def validate_calendar_publication_evidence(
+    policy: PublicationPolicy,
+    evidence: Sequence[CalendarPublicationMemberReference],
+    *,
+    codec_version: CalendarNullableMemberCodecVersion,
+    published_at: datetime,
+    knowledge_cutoff: datetime | None = None,
+) -> None:
+    """Validate calendar members against an explicit policy-bound codec.
+
+    This check alone does not provide source authority or publication activation.
+    """
+
+    if not isinstance(policy, PublicationPolicy):
+        raise TypeError("policy must be a PublicationPolicy")
+    _require_aware(published_at, "published_at")
+    if knowledge_cutoff is not None:
+        _require_aware(knowledge_cutoff, "knowledge_cutoff")
+    if not policy.uses_versioned_evidence:
+        raise ValueError("calendar nullable members require a versioned publication policy")
+    if type(codec_version) is not CalendarNullableMemberCodecVersion:
+        raise TypeError("calendar codec_version must be a supported enum value")
+    if codec_version is not CalendarNullableMemberCodecVersion.V1:
+        raise ValueError("calendar codec_version is not supported")
+    if policy.member_codec_version is not codec_version:
+        raise ValueError("calendar policy must explicitly bind the requested member codec")
+    if not isinstance(evidence, Sequence) or isinstance(evidence, (str, bytes, bytearray)):
+        raise TypeError("calendar publication evidence must be a sequence")
+    if not evidence:
+        raise ValueError("calendar publication evidence cannot be empty")
+    if any(
+        key in policy.required_evidence for key in ("observed_at", "available_at", "published_at")
+    ):
+        raise ValueError("calendar policy cannot require unavailable source timestamps")
+
+    views: list[_EvidenceView] = []
+    for item in evidence:
+        if type(item) is not CalendarPublicationMemberReference:
+            raise TypeError("calendar evidence must contain calendar member references")
+        if item.codec_version is not codec_version:
+            raise ValueError("calendar evidence codec_version differs from the requested version")
+        if item.member.dataset_key != policy.dataset.value:
+            raise ValueError("calendar member dataset_key differs from the publication policy")
+        item.to_payload()
+        views.append(_view(item.member))
+    _validate_evidence_views(
+        policy,
+        tuple(views),
+        published_at=published_at,
+        knowledge_cutoff=knowledge_cutoff,
+    )
+
+
+def _validate_evidence_views(
+    policy: PublicationPolicy,
+    views: Sequence[_EvidenceView],
+    *,
+    published_at: datetime,
+    knowledge_cutoff: datetime | None,
+) -> None:
+    """Apply shared quality, clock, required-key and digest checks to typed views."""
+
+    if not views:
+        raise ValueError("publication evidence cannot be empty")
     required_keys = tuple(policy.required_evidence)
     unknown_keys = set(required_keys) - KNOWN_PUBLICATION_EVIDENCE_KEYS
     if unknown_keys:
@@ -67,9 +146,8 @@ def validate_publication_evidence(
     if len(set(required_keys)) != len(required_keys):
         raise ValueError("publication evidence policy contains duplicate keys")
 
-    for item in evidence:
-        view = _view(item)
-        _validate_quality(view.quality_status)
+    for view in views:
+        validate_publication_quality_status(view.quality_status)
         _validate_timestamps(view, published_at, knowledge_cutoff)
         for key in required_keys:
             _require_key(view, key)
@@ -114,8 +192,8 @@ def _view(item: PublicationEvidenceItem) -> _EvidenceView:
     raise TypeError("publication evidence must contain references or members")
 
 
-def _validate_quality(value: str) -> None:
-    """Accept only quality states that are safe for a decision publication."""
+def validate_publication_quality_status(value: str) -> None:
+    """Accept only quality states recognized by the publication evidence gate."""
 
     if value not in _PUBLISHABLE_QUALITY:
         raise ValueError("publication evidence quality is not publishable")
@@ -195,4 +273,9 @@ def _require_aware(value: datetime, field_name: str) -> None:
         raise ValueError(f"publication evidence {field_name} must be timezone-aware")
 
 
-__all__ = ["PublicationEvidenceItem", "validate_publication_evidence"]
+__all__ = [
+    "PublicationEvidenceItem",
+    "validate_calendar_publication_evidence",
+    "validate_publication_evidence",
+    "validate_publication_quality_status",
+]

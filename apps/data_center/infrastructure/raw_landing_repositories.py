@@ -26,6 +26,12 @@ def _uuid(value: str) -> UUID:
 class RawLandingRepository:
     """Hash-addressed raw landing repository."""
 
+    @property
+    def unit_of_work_key(self) -> str:
+        """Identify the fixed database alias used for exact raw-payload reads."""
+
+        return "django:default"
+
     @transaction.atomic
     def save(self, payload: RawPayload) -> RawPayload:
         """Create immutable raw bytes or return an exactly identical retry."""
@@ -63,7 +69,11 @@ class RawLandingRepository:
     def get_by_id(self, payload_id: str) -> RawPayload | None:
         """Return one raw payload by its immutable identifier."""
 
-        model = RawPayloadModel._default_manager.filter(payload_id=_uuid(payload_id)).first()
+        model = (
+            RawPayloadModel._default_manager.using("default")
+            .filter(payload_id=_uuid(payload_id))
+            .first()
+        )
         return model.to_domain() if model is not None else None
 
     def list_expired(

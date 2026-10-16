@@ -9,6 +9,7 @@ from django.db import transaction
 from apps.data_center.domain.contracts import (
     DataOwnerRegistration,
     DatasetContract,
+    DatasetContractAmbiguousError,
     ProviderBinding,
 )
 
@@ -50,10 +51,45 @@ class DatasetContractRepository:
         )
         return row.to_domain() if row is not None else None
 
+    def get_active_for_execution(self, dataset_key: str) -> DatasetContract | None:
+        """Return one active execution contract or reject an ambiguous catalog."""
+
+        rows = list(
+            DatasetContractModel._default_manager.filter(
+                dataset_key=dataset_key.strip(), active=True
+            ).order_by("id")[:2]
+        )
+        if len(rows) > 1:
+            raise DatasetContractAmbiguousError("execution_catalog_contract_ambiguous")
+        return rows[0].to_domain() if rows else None
+
     def save(self, contract: DatasetContract) -> DatasetContract:
         """Upsert a contract and supersede older versions for its dataset."""
 
         with transaction.atomic():
+            existing_version = (
+                DatasetContractModel._default_manager.select_for_update()
+                .filter(
+                    dataset_key=contract.key.value,
+                    contract_version=contract.key.contract_version,
+                    schema_version=contract.key.schema_version,
+                )
+                .first()
+            )
+            if (
+                existing_version is not None
+                and existing_version.execution_freshness_seconds
+                != contract.execution_freshness_seconds
+            ):
+                raise ValueError("execution_freshness_seconds requires a new contract version")
+            if (
+                existing_version is not None
+                and existing_version.calendar_response_max_age_seconds
+                != contract.calendar_response_max_age_seconds
+            ):
+                raise ValueError(
+                    "calendar_response_max_age_seconds requires a new contract version"
+                )
             DatasetContractModel._default_manager.filter(
                 dataset_key=contract.key.value,
                 active=True,
@@ -63,31 +99,45 @@ class DatasetContractRepository:
             ).update(
                 active=False
             )
+            defaults = {
+                "owner": contract.owner,
+                "frequency": contract.frequency,
+                "decision_critical": contract.decision_critical,
+                "fields": [
+                    {
+                        "name": field.name,
+                        "type": field.value_type,
+                        "unit": field.unit,
+                        "nullable": field.nullable,
+                        "zero_allowed": field.zero_allowed,
+                        "minimum": field.minimum,
+                        "maximum": field.maximum,
+                    }
+                    for field in contract.fields
+                ],
+                "freshness_seconds": contract.freshness_seconds,
+                "comparable_group": contract.comparable_group or "",
+                "active": True,
+            }
             row, _created = DatasetContractModel._default_manager.update_or_create(
                 dataset_key=contract.key.value,
                 contract_version=contract.key.contract_version,
                 schema_version=contract.key.schema_version,
-                defaults={
-                    "owner": contract.owner,
-                    "frequency": contract.frequency,
-                    "decision_critical": contract.decision_critical,
-                    "fields": [
-                        {
-                            "name": field.name,
-                            "type": field.value_type,
-                            "unit": field.unit,
-                            "nullable": field.nullable,
-                            "zero_allowed": field.zero_allowed,
-                            "minimum": field.minimum,
-                            "maximum": field.maximum,
-                        }
-                        for field in contract.fields
-                    ],
-                    "freshness_seconds": contract.freshness_seconds,
-                    "comparable_group": contract.comparable_group or "",
-                    "active": True,
+                defaults=defaults,
+                create_defaults={
+                    **defaults,
+                    "execution_freshness_seconds": contract.execution_freshness_seconds,
+                    "calendar_response_max_age_seconds": (
+                        contract.calendar_response_max_age_seconds
+                    ),
                 },
             )
+            if row.execution_freshness_seconds != contract.execution_freshness_seconds:
+                raise ValueError("execution_freshness_seconds requires a new contract version")
+            if row.calendar_response_max_age_seconds != contract.calendar_response_max_age_seconds:
+                raise ValueError(
+                    "calendar_response_max_age_seconds requires a new contract version"
+                )
         return row.to_domain()
 
 

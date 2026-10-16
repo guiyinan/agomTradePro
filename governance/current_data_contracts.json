@@ -8172,6 +8172,359 @@
           "test_function": "test_v3_retirement_audits_outer_identity_and_preserves_nested_rule_on_forward_rollback"
         }
       ]
+    },
+    {
+      "id": "data_center.execution_quote",
+      "surface": "Exact execution-key quote read, activation, completed-only resume and rollback: explicit source TTL, current catalog identity, knowledge cutoffs, monotonic post-Audit clock and live lease; exact existing Audit/Outbox, no current fallback or evidence repair; no execution authority",
+      "source_files": [
+        "apps/data_center/application/execution_quotes.py",
+        "apps/data_center/infrastructure/execution_quote_repository.py",
+        "apps/data_center/execution_quote_composition.py",
+        "apps/data_center/infrastructure/execution_quote_freshness.py",
+        "apps/data_center/infrastructure/publication_group_activation_repository.py",
+        "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py",
+        "apps/data_center/application/execution_quote_activation.py",
+        "apps/data_center/execution_quote_publication_composition.py",
+        "apps/audit/application/data_publication_audit.py"
+      ],
+      "required_markers": {
+        "apps/data_center/application/execution_quotes.py": [
+          "snapshot_at",
+          "freshness_deadline",
+          "publication_blocked_reason",
+          "ExecutionQuoteBlockReason.FUTURE_EVIDENCE",
+          "ExecutionQuoteBlockReason.STALE",
+          "gate.publication_key != \"execution\"",
+          "execution_freshness_seconds",
+          "CURRENT_ACTIVE_CONTRACT_RESOLUTION"
+        ],
+        "apps/data_center/infrastructure/execution_quote_repository.py": [
+          "publication_hash",
+          "fact_content_hash",
+          "snapshot_at"
+        ],
+        "apps/data_center/execution_quote_composition.py": [
+          "@publication_snapshot(\"equity.quote.snapshot\")",
+          "as_of=as_of",
+          "asset_code=asset_code"
+        ],
+        "apps/data_center/infrastructure/execution_quote_freshness.py": [
+          "validate_execution_quote_member_freshness",
+          "observed_at_utc + timedelta",
+          "deadline"
+        ],
+        "apps/data_center/infrastructure/publication_group_activation_repository.py": [
+          "execution_freshness_seconds",
+          "_validate_execution_quote_freshness",
+          "_execution_activation_clock",
+          "execution_pre_audit_at",
+          "not_before=execution_pre_audit_at",
+          "now_utc < checked_at_utc or now_utc < not_before_utc or now_utc >= valid_until_utc",
+          "as_of=execution_post_audit_at"
+        ],
+        "apps/data_center/infrastructure/execution_quote_pointer_rollback_repository.py": [
+          "knowledge_cutoff=lease.checked_at",
+          "pre_audit_checked_at",
+          "now < pre_audit_checked_at or now < receipt_recorded_at",
+          "require_execution_freshness=True"
+        ],
+        "apps/data_center/application/execution_quote_activation.py": [
+          "resume_completed_execution_quote_activation",
+          "len(manifests) != 1",
+          "EXECUTION_QUOTE_RESUME_CORRUPT",
+          "candidate_publication_id=publication.publication_id"
+        ],
+        "apps/data_center/execution_quote_publication_composition.py": [
+          "_CompletedExecutionQuoteAuditAdapter",
+          "pointer.updated_at != self._expected_epoch.updated_at",
+          "read-only Audit verifier is unavailable"
+        ],
+        "apps/audit/application/data_publication_audit.py": [
+          "class VerifyDataPublicationManifestGroupUseCase",
+          "completed manifest audit outbox row is missing",
+          "get_exact_outbox_winner_targeted(expected)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "preserves_exact_price_and_unknown_bbo",
+          "test_file": "tests/unit/data_center/test_execution_quotes.py",
+          "test_function": "test_execution_quote_keeps_decimal_precision_and_unknown_bbo"
+        },
+        {
+          "case": "cannot_read_after_cutoff_or_ttl",
+          "test_file": "tests/unit/data_center/test_execution_quotes.py",
+          "test_function": "test_execution_quote_rejects_historical_query_after_publication_or_ttl"
+        },
+        {
+          "case": "published_object_requires_active_pointer",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_requires_execution_pointer_after_publication_is_persisted"
+        },
+        {
+          "case": "unpublished_asset_is_not_latest_fallback",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_does_not_leak_an_unpublished_asset_fact"
+        },
+        {
+          "case": "fact_mutation_is_blocked",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_blocks_fact_mutation_after_publication"
+        },
+        {
+          "case": "completed_session_does_not_extend_source_ttl",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_blocks_completed_session_waiver_after_intraday_ttl"
+        },
+        {
+          "case": "qmt_self_report_cannot_grant_trust",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_blocks_qmt_bridge_even_if_extra_claims_decision_ready"
+        },
+        {
+          "case": "execution_pointer_is_exclusive",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_does_not_fall_back_to_current_pointer"
+        },
+        {
+          "case": "execution_ttl_has_no_research_fallback",
+          "test_file": "tests/component/data_center/test_execution_quote_repository.py",
+          "test_function": "test_execution_quote_does_not_fall_back_to_research_freshness_without_execution_ttl"
+        },
+        {
+          "case": "rollback_does_not_refresh_source_time",
+          "test_file": "tests/component/data_center/test_execution_quote_pointer_rollback.py",
+          "test_function": "test_execution_pointer_rollback_preserves_no_source_time_refresh"
+        },
+        {
+          "case": "rollback_expiry_after_audit_rolls_back",
+          "test_file": "tests/component/data_center/test_execution_quote_pointer_rollback.py",
+          "test_function": "test_execution_pointer_rollback_rechecks_target_ttl_after_required_audit"
+        },
+        {
+          "case": "rollback_clock_cannot_retreat_inside_lease",
+          "test_file": "tests/component/data_center/test_execution_quote_pointer_rollback_clock.py",
+          "test_function": "test_pointer_rollback_rejects_clock_regression_after_audit"
+        },
+        {
+          "case": "activation_post_audit_monotonicity_and_live_lease",
+          "test_file": "tests/component/data_center/test_execution_quote_activation_clock.py",
+          "test_function": "test_activation_rechecks_monotonic_clock_and_lease_after_actual_audit"
+        },
+        {
+          "case": "resume_rechecks_original_source_ttl_at_equality",
+          "test_file": "tests/component/data_center/test_execution_quote_activation_workflow.py",
+          "test_function": "test_resume_rechecks_execution_ttl_at_the_exact_deadline"
+        },
+        {
+          "case": "resume_current_authority_scope_not_historical_completion",
+          "test_file": "tests/component/data_center/test_execution_quote_activation_workflow.py",
+          "test_function": "test_resume_blocks_when_current_authority_scope_differs_from_completion"
+        },
+        {
+          "case": "resume_missing_outbox_is_corruption_never_repair",
+          "test_file": "tests/component/data_center/test_execution_quote_activation_workflow.py",
+          "test_function": "test_resume_reports_missing_outbox_as_corruption_without_repairing_it"
+        },
+        {
+          "case": "resume_incomplete_candidate_cannot_reconstruct_cas",
+          "test_file": "tests/component/data_center/test_execution_quote_activation_workflow.py",
+          "test_function": "test_resume_blocks_a_staged_candidate_without_a_durable_activation_cas"
+        }
+      ]
+    },
+    {
+      "id": "data_center.exchange_calendar_reference",
+      "surface": "Exact unpublished exchange-calendar reference and next-session lookup; no current or execution authority",
+      "source_files": [
+        "apps/data_center/domain/exchange_calendar.py",
+        "apps/data_center/application/exchange_calendar.py",
+        "apps/data_center/infrastructure/exchange_calendar_source_evidence.py",
+        "apps/data_center/infrastructure/exchange_calendar_repository.py",
+        "apps/data_center/infrastructure/tushare_exchange_calendar_source.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/exchange_calendar.py": [
+          "\"publication_status\": \"unpublished\"",
+          "\"must_not_use_for_decision\": True",
+          "\"must_not_execute\": True",
+          "\"blocked_reason\": \"exchange_calendar_unpublished_reference\"",
+          "EXCHANGE_CALENDAR_NEXT_SESSION_UNCOVERED"
+        ],
+        "apps/data_center/application/exchange_calendar.py": [
+          "snapshot.first_seen_at > known_at or snapshot.recorded_at > known_at",
+          "EXCHANGE_CALENDAR_SNAPSHOT_NOT_KNOWN",
+          "EXCHANGE_CALENDAR_SOURCE_SCOPE_MISMATCH"
+        ],
+        "apps/data_center/infrastructure/exchange_calendar_repository.py": [
+          "recorded_at = timezone.now().astimezone(UTC)",
+          "recorded_at__lte=known_at",
+          "first_seen_at__lte=known_at",
+          "EXCHANGE_CALENDAR_SNAPSHOT_IMMUTABLE_CONFLICT"
+        ],
+        "apps/data_center/infrastructure/exchange_calendar_source_evidence.py": [
+          "first_seen_at=raw_reference.response_completed_at",
+          "source_published_at=None",
+          "EXCHANGE_CALENDAR_RAW_REFERENCE_MISMATCH"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "retained_http_to_exact_fact_preserves_clock_and_reference_only_capability",
+          "test_file": "tests/component/data_center/test_exchange_calendar_http_workflow.py",
+          "test_function": "test_http_capture_to_exact_calendar_and_next_session"
+        },
+        {
+          "case": "both_local_knowledge_times_required",
+          "test_file": "tests/component/data_center/test_exchange_calendar_snapshot_repository.py",
+          "test_function": "test_exact_read_requires_both_first_seen_and_recorded_cutoffs"
+        },
+        {
+          "case": "replay_does_not_refresh_recorded_time",
+          "test_file": "tests/component/data_center/test_exchange_calendar_snapshot_repository.py",
+          "test_function": "test_first_write_and_exact_replay_preserve_recorded_knowledge_time"
+        },
+        {
+          "case": "next_open_date_never_extrapolates_coverage",
+          "test_file": "tests/unit/data_center/test_exchange_calendar_snapshot.py",
+          "test_function": "test_exact_reference_and_next_session_fail_closed_outside_explicit_coverage"
+        },
+        {
+          "case": "filtered_response_not_accepted_as_complete",
+          "test_file": "tests/unit/data_center/test_tushare_exchange_calendar_source.py",
+          "test_function": "test_tushare_source_rejects_filtered_raw_request_even_if_rows_look_complete"
+        },
+        {
+          "case": "two_connection_first_write_preserves_one_clock_and_identity",
+          "test_file": "tests/component/data_center/test_exchange_calendar_concurrency.py",
+          "test_function": "test_concurrent_first_write_returns_one_immutable_snapshot"
+        }
+      ]
+    },
+    {
+      "id": "data_center.calendar_response_age_window",
+      "surface": "Explicit immutable calendar response TTL and pure half-open window; not a publication or authority proof",
+      "source_files": [
+        "apps/data_center/domain/contracts.py",
+        "apps/data_center/domain/calendar_publication_window.py",
+        "apps/data_center/infrastructure/catalog_models.py",
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/contracts.py": [
+          "calendar_response_max_age_seconds"
+        ],
+        "apps/data_center/domain/calendar_publication_window.py": [
+          "self.snapshot.first_seen_at + timedelta(",
+          "self.published_at < self.snapshot.recorded_at",
+          "CALENDAR_WINDOW_EXPIRED_AT_PUBLICATION",
+          "CALENDAR_WINDOW_LIFECYCLE_UNSUPPORTED",
+          "self.published_at <= as_of < self.valid_until"
+        ],
+        "apps/data_center/infrastructure/catalog_runtime_repositories.py": [
+          "calendar_response_max_age_seconds requires a new contract version"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "new_publication_cannot_refresh_response_age",
+          "test_file": "tests/unit/data_center/test_calendar_publication_window.py",
+          "test_function": "test_window_anchors_first_seen_and_uses_a_half_open_response_age_window"
+        },
+        {
+          "case": "unsupported_reinstatement_or_rollback_rejected",
+          "test_file": "tests/unit/data_center/test_calendar_publication_window.py",
+          "test_function": "test_window_rejects_unsupported_publication_lifecycle"
+        },
+        {
+          "case": "execution_and_calendar_ttls_are_independent",
+          "test_file": "tests/unit/data_center/test_catalog_runtime.py",
+          "test_function": "test_catalog_loader_keeps_calendar_response_ttl_separate_and_optional"
+        },
+        {
+          "case": "real_first_writer_does_not_rewrite_same_version",
+          "test_file": "tests/component/data_center/test_calendar_response_ttl_concurrency.py",
+          "test_function": "test_concurrent_first_creation_cannot_replace_calendar_response_ttl"
+        }
+      ]
+    },
+    {
+      "id": "data_center.instrument_reference_source_only",
+      "surface": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; always unpublished and blocked for decision/execution",
+      "source_files": [
+        "apps/data_center/domain/instrument_reference_source.py",
+        "apps/data_center/application/instrument_reference_source.py",
+        "apps/data_center/infrastructure/tushare_instrument_reference_source.py",
+        "apps/data_center/domain/instrument_reference_snapshot.py",
+        "apps/data_center/application/instrument_reference_snapshot.py",
+        "apps/data_center/infrastructure/instrument_reference_snapshot_repository.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/instrument_reference_source.py": [
+          "def source_observed_at(self) -> None:",
+          "def source_available_at(self) -> None:",
+          "def must_not_use_for_decision(self) -> bool:",
+          "def must_not_execute(self) -> bool:",
+          "INSTRUMENT_REFERENCE_SOURCE_ONLY_NOT_DECISION_READY",
+          "INSTRUMENT_REFERENCE_RECORD_COUNT_MISMATCH"
+        ],
+        "apps/data_center/infrastructure/tushare_instrument_reference_source.py": [
+          "status=\"ok\"",
+          "get_by_id(",
+          "run_id=run_id",
+          "ingested_run_id=ingested_run_id",
+          "INSTRUMENT_REFERENCE_RUN_ID_INVALID"
+        ],
+        "apps/data_center/domain/instrument_reference_snapshot.py": [
+          "def source_observed_at(self) -> None:",
+          "def source_available_at(self) -> None:",
+          "def must_not_use_for_decision(self) -> bool:",
+          "def must_not_execute(self) -> bool:",
+          "INSTRUMENT_REFERENCE_SOURCE_ONLY_NOT_DECISION_READY"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "only_http_replaced_real_payload_and_audit_orm",
+          "test_file": "tests/component/data_center/test_instrument_reference_http_workflow.py",
+          "test_function": "test_http_to_retained_body_and_exact_raw_audit_occurrences"
+        },
+        {
+          "case": "explicit_scope_and_no_fabricated_upstream_time",
+          "test_file": "tests/unit/data_center/test_tushare_instrument_reference_source.py",
+          "test_function": "test_source_requests_every_explicit_exchange_and_status_and_preserves_unknown_times"
+        },
+        {
+          "case": "identical_body_has_distinct_occurrence_identity",
+          "test_file": "tests/unit/data_center/test_tushare_instrument_reference_source.py",
+          "test_function": "test_identical_body_occurrences_get_distinct_raw_audit_ids_and_redacted_requests"
+        },
+        {
+          "case": "caller_owned_run_required_before_provider_call",
+          "test_file": "tests/unit/data_center/test_tushare_instrument_reference_source.py",
+          "test_function": "test_source_requires_caller_owned_uuid_run_ids_before_provider_call"
+        },
+        {
+          "case": "raw_body_reparsed_before_source_seal",
+          "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
+          "test_function": "test_repository_reparses_raw_body_before_sealing_candidate_facts"
+        },
+        {
+          "case": "multi_round_empty_source_scope_is_preserved",
+          "test_file": "tests/unit/data_center/test_instrument_reference_snapshot.py",
+          "test_function": "test_snapshot_preserves_empty_scope_and_same_run_fetch_rounds"
+        },
+        {
+          "case": "concurrent_mapping_retry_preserves_first_receipt",
+          "test_file": "tests/component/data_center/test_instrument_reference_retry_postgres.py",
+          "test_function": "test_same_mapping_version_retry_returns_original_receipt_after_concurrent_commit"
+        },
+        {
+          "case": "source_evidence_alias_router_split_blocks",
+          "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
+          "test_function": "test_repository_rejects_database_router_that_splits_raw_payload_evidence"
+        }
+      ]
     }
   ]
 }

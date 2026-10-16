@@ -896,6 +896,9 @@ from . import sync_item_attempt_models as _sync_item_attempt_models  # noqa: E40
 
 ArchiveManifestModel = _split_models.ArchiveManifestModel
 CapitalFlowFactModel = _split_models.CapitalFlowFactModel
+ExchangeCalendarSnapshotFactModel = _split_models.ExchangeCalendarSnapshotFactModel
+InstrumentReferenceMappingModel = _split_models.InstrumentReferenceMappingModel
+InstrumentReferenceSnapshotModel = _split_models.InstrumentReferenceSnapshotModel
 FinancialSourceTimeAuditClaimModel = _split_models.FinancialSourceTimeAuditClaimModel
 MarketThermometerConfigModel = _split_models.MarketThermometerConfigModel
 MarketThermometerSnapshotModel = _split_models.MarketThermometerSnapshotModel

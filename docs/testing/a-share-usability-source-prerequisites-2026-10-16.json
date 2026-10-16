@@ -1,0 +1,63 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T10:56:52.800589+00:00",
+  "scope": "ASH-02 raw provider retention and bounded post-format regressions; C pending",
+  "source_sha256": {
+    "apps/data_center/domain/provider_response.py": "2f2d80673ace13ec81d6b05d55af308557a77ecd394effd516a64f1d0cff2c8c",
+    "apps/data_center/application/provider_response_payload.py": "048005cc0cc1a6bde7c274842f3d4b74de3d0729b54ada61bcce1a18bce9b7d8",
+    "apps/data_center/infrastructure/provider_response_capture.py": "d96d85a26b0747fc776502176c581fbf17f2d3dc26b73377ab72e05374831da4",
+    "apps/data_center/application/egress_service.py": "179ae99416b6a859d79a0440d96d57fa5f609aa78e9fa061d62cb01853c7750e",
+    "apps/data_center/infrastructure/egress_transport.py": "eb9ab5748159f4d0fc260bb6f416cb85c61e30021493ff1d508188f6f0d18f53",
+    "apps/data_center/infrastructure/tushare_client.py": "8afe9fb59151e3c501320923b9d94f05b5743a9e42aa5b8094ea9c63e618f15b",
+    "qmt_agent/executor.py": "12d21c90405dc00a85944c8c98fecfd80293c2e2e53382f4c981ca1a02dce84a"
+  },
+  "raw_log_sha256": {
+    "pytest-provider-response-compat-final.txt": "f07afe200a406486921bfe3c23b5bf5043519f61847faeaa4e2c9c4cbdf28a08",
+    "pytest-provider-response-key-native-final.txt": "7336449980772f9f7f2db77188ea0c8998a7c300d9759e35f1c9d859f0b906e6",
+    "provider-key-secret-red.txt": "95ebf552f10404d55bc07e750058753e97f9a9852051628284c76641bec8522d",
+    "provider-key-secret-green.txt": "fdc1447480c93544223ac885e0f3a955d91d1fec0ffc3883d0306ef817cdb276",
+    "pytest-tushare-float-binding-red.txt": "6e54fcafbce5de8728dd42fb5a78f1a24f9c11aaef2b34fc2ff791fe4c8a2044",
+    "pytest-tushare-float-binding-green.txt": "1bb88c9ce4d88a70002d077efecc6872af18fcc5022ead9a9574cf53405adfa4",
+    "coverage-tushare-response-domain-frozen.txt": "0702967bc4df9c238ddc387552c1e9a70f03d2257f81aa91c6d38f79ada9d5d8",
+    "mypy-provider-response-final3.txt": "03fd710911c2d785f138604504fcf8562562a6de27768946b368de05a42dba1d",
+    "provider-key-secret-mypy.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "mypy-incremental-combined-b-raw.txt": "cee94004b643cea67641cc46801ba021acb143cf6e72cc2593e107310ace1c90",
+    "mypy-debt-after-b.txt": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "pytest-b-import-fix-native-final.txt": "52d884b84f0bd4ffe8bd87090b0f74c8deb8fae97d27469ad442470477d01240",
+    "pytest-agent-source-docstrings.txt": "2f7e9401f2f7551ee8a2321da785315dc605328e2192e8e72239030ed06113d5"
+  },
+  "results": {
+    "transport_and_default_compatibility": "104 passed; preceding retention-key fix and documentation-only changes",
+    "retention_key_red": "1 failed: original body wrongly retained a known secret in a JSON key",
+    "retention_sqlite": "32 passed; current-schema --no-migrations",
+    "retention_native_postgresql": "32 passed in 18.21s; includes four real RawLandingRepository tests",
+    "post_format_b_native_postgresql": "67 passed in 99.90s",
+    "agent_source_docstring_regression": "86 passed",
+    "incremental_mypy_combined": "70 files, zero regressions; before C integration",
+    "incremental_mypy_final_retention_fix": "1 file, zero regressions",
+    "full_mypy_debt": "0 errors / 0 files; pre-C checkpoint, not final combined acceptance",
+    "provider_response_domain_lines": {
+      "covered": 156,
+      "total": 163
+    },
+    "provider_response_domain_branches": {
+      "covered": 77,
+      "total": 84
+    }
+  },
+  "environment": {
+    "python": "project agomtradepro virtual environment",
+    "postgresql": "isolated local 16.15 fixture; 537 historical migrations completed",
+    "external_provider_calls": false,
+    "production_database_access": false,
+    "deployment": false,
+    "broker_submission": false
+  },
+  "limits": [
+    "This is not a whole-candidate or stage-exit acceptance report.",
+    "No calendar/security/state fact or normal simulated-trade UoW is accepted by these results.",
+    "Source acquisition time is not an upstream observation/publication time.",
+    "No genuine Account authority or positive broker lease/ACK journey accepted.",
+    "C clock-regression red is being repaired; final combined quality checks remain required."
+  ]
+}

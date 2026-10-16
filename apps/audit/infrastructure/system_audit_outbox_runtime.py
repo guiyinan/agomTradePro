@@ -85,7 +85,10 @@ from .system_audit_outbox_repository import DjangoSystemAuditOutboxRepository
 from .system_audit_outbox_unit_of_work import DjangoSystemAuditOutboxUnitOfWork
 
 if TYPE_CHECKING:
-    from .publication_activation_audit_writer import DjangoPublicationActivationAuditWriter
+    from .publication_activation_audit_writer import (
+        DjangoPublicationActivationAuditVerifier,
+        DjangoPublicationActivationAuditWriter,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -471,6 +474,56 @@ def build_publication_activation_audit_writer(
     from .publication_activation_audit_writer import DjangoPublicationActivationAuditWriter
 
     return DjangoPublicationActivationAuditWriter(coordinator)
+
+
+def build_publication_activation_audit_verifier(
+    *, environment: str = "production", using: str = "default"
+) -> DjangoPublicationActivationAuditVerifier:
+    """Build the read-only completion verifier after the canonical runtime gate."""
+
+    alias = _validated_alias(using)
+    composition = _build_system_audit_runtime_composition(
+        environment=environment,
+        using=alias,
+    )
+    try:
+        composition_alias = composition.database_alias
+        coordinator = composition.event_outbox_coordinator
+    except (AttributeError, TypeError):
+        raise SystemAuditCompositionUnavailable(
+            "publication activation audit composition is unavailable",
+            reason_code="composition_not_wired",
+        ) from None
+    if composition_alias != alias:
+        raise SystemAuditCompositionUnavailable(
+            "publication activation audit composition uses a different database alias",
+            reason_code="composition_alias_mismatch",
+        )
+    if not isinstance(coordinator, DjangoSystemAuditEventOutboxCoordinator):
+        raise SystemAuditCompositionUnavailable(
+            "publication activation audit coordinator is unavailable",
+            reason_code="composition_not_wired",
+        )
+    if coordinator.database_alias != alias:
+        raise SystemAuditCompositionUnavailable(
+            "publication activation audit coordinator uses a different database alias",
+            reason_code="composition_alias_mismatch",
+        )
+    required = (
+        "caller_owned_atomic",
+        "lock_streams",
+        "get_activation_group_state_targeted",
+        "get_exact_outbox_winner_targeted",
+    )
+    if not all(callable(getattr(coordinator, method_name, None)) for method_name in required):
+        raise SystemAuditCompositionUnavailable(
+            "publication activation audit read contract is unavailable",
+            reason_code="composition_not_wired",
+        )
+
+    from .publication_activation_audit_writer import DjangoPublicationActivationAuditVerifier
+
+    return DjangoPublicationActivationAuditVerifier(coordinator)
 
 
 def build_data_validation_audit_writer(

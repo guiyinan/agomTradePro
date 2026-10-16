@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import re
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Final, Protocol
+from typing import Final, Protocol, cast
 from uuid import UUID
 
 from apps.audit.application.system_audit_event_outbox import (
+    ExactSystemAuditOutboxWinner,
     SystemAuditEventOutboxCommit,
+    SystemAuditEventOutboxConflict,
+    SystemAuditEventOutboxCorruption,
     SystemAuditEventOutboxWriter,
 )
 from apps.audit.domain.system_audit_event import (
@@ -94,6 +98,7 @@ class DataPublicationRollbackAuditObservation:
     recorded_at: datetime
     outcome: AuditOutcome
     scope: AuditScopeRef | None = None
+    previous_pointer_activation_id: str | None = None
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -127,6 +132,8 @@ class DataPublicationRollbackAuditObservation:
             raise ValueError("occurred_at cannot be after recorded_at")
         if self.scope is not None and not isinstance(self.scope, AuditScopeRef):
             raise TypeError("scope must be an AuditScopeRef")
+        if self.previous_pointer_activation_id is not None:
+            _require_uuid(self.previous_pointer_activation_id, "previous_pointer_activation_id")
 
 
 def _stable_event_id(observation: DataPublicationRollbackAuditObservation) -> str:
@@ -183,6 +190,57 @@ class DataPublicationRollbackAuditEventOutboxWriter(SystemAuditEventOutboxWriter
         """Return the scoped stream head used for predecessor CAS."""
 
 
+class _ExactRollbackAuditWriter(Protocol):
+    """Narrow caller-owned selectors required by pointer rollback."""
+
+    @property
+    def database_alias(self) -> str:
+        """Return the alias shared with the Data Center transaction."""
+
+    def caller_owned_atomic(self) -> AbstractContextManager[None]:
+        """Bind Audit operations to an existing outermost transaction."""
+
+    def lock_stream(self, stream_id: str) -> None:
+        """Serialize one Audit stream before reading its head."""
+
+    def get_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read one exact event winner under the caller's transaction."""
+
+    def get_current_head_targeted(
+        self,
+        *,
+        stream_id: str,
+        as_of: datetime,
+        scope: AuditScopeRef | None = None,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Read and lock one stream head at the recorded cutoff."""
+
+    def get_exact_outbox_winner_targeted(
+        self, event: SystemAuditEvent
+    ) -> ExactSystemAuditOutboxWinner | None:
+        """Read the exact outbox row paired with a canonical event."""
+
+    def append_and_enqueue_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        scope: AuditScopeRef | None = None,
+        identity_winner: SystemAuditEvent | None = None,
+        stream_head: SystemAuditEvent | None = None,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append the event and outbox in the active caller-owned UOW."""
+
+
 def build_data_publication_rollback_audit_event(
     observation: DataPublicationRollbackAuditObservation,
     *,
@@ -206,6 +264,8 @@ def build_data_publication_rollback_audit_event(
         "previous_publication_version": observation.previous_publication_version,
         "previous_publication_hash": observation.previous_publication_hash,
     }
+    if observation.previous_pointer_activation_id is not None:
+        detail["previous_pointer_activation_id"] = observation.previous_pointer_activation_id
     return SystemAuditEvent.create(
         event_id=_stable_event_id(observation),
         event_version=_EVENT_VERSION,
@@ -263,7 +323,11 @@ def build_data_publication_rollback_audit_event(
                 observation.previous_publication_hash,
             ),
         ),
-        detail_schema="data.publication.rolled_back.v1",
+        detail_schema=(
+            "data.publication.rolled_back.v2"
+            if observation.previous_pointer_activation_id is not None
+            else "data.publication.rolled_back.v1"
+        ),
         detail=detail,
         stream_id=_stream_id(observation),
         sequence_no=sequence_no,
@@ -345,6 +409,164 @@ class AppendDataPublicationRollbackAuditObservationUseCase:
         """Write one observation through the canonical append use case."""
 
         return self.execute(observation)
+
+    def execute_in_caller_transaction(
+        self,
+        observation: DataPublicationRollbackAuditObservation,
+        *,
+        exact_replay: bool,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append or exactly verify both records in the caller's outer transaction."""
+
+        if type(observation) is not DataPublicationRollbackAuditObservation:
+            raise TypeError("observation must be a DataPublicationRollbackAuditObservation")
+        if type(exact_replay) is not bool:
+            raise TypeError("exact_replay must be bool")
+        if observation.scope is None:
+            raise ValueError("caller-owned rollback audit requires an explicit authority scope")
+        writer = self._writer
+        required = (
+            "caller_owned_atomic",
+            "lock_stream",
+            "get_winner_targeted",
+            "get_current_head_targeted",
+            "get_exact_outbox_winner_targeted",
+            "append_and_enqueue_targeted",
+        )
+        if not all(callable(getattr(writer, name, None)) for name in required):
+            raise ValueError("writer does not expose exact caller-owned rollback Audit")
+        candidate_writer = cast(_ExactRollbackAuditWriter, writer)
+        stream_id = _stream_id(observation)
+        event_id = _stable_event_id(observation)
+        try:
+            with candidate_writer.caller_owned_atomic():
+                candidate_writer.lock_stream(stream_id)
+                winner = candidate_writer.get_winner_targeted(
+                    event_id=event_id,
+                    event_version=_EVENT_VERSION,
+                    as_of=observation.recorded_at,
+                    lock=True,
+                )
+                if exact_replay:
+                    return self._verify_exact_replay(observation, candidate_writer, winner)
+                if winner is not None:
+                    raise SystemAuditEventOutboxCorruption(
+                        "rollback identity already has an Audit event"
+                    )
+                return self._append_exact_first(observation, candidate_writer)
+        except (SystemAuditEventOutboxConflict, SystemAuditEventOutboxCorruption):
+            raise
+
+    @staticmethod
+    def _append_exact_first(
+        observation: DataPublicationRollbackAuditObservation,
+        writer: _ExactRollbackAuditWriter,
+    ) -> SystemAuditEventOutboxCommit:
+        """Append the first canonical event and prove its matching outbox exists."""
+
+        scope = observation.scope
+        if scope is None:
+            raise SystemAuditEventOutboxCorruption("rollback Audit scope is missing")
+        stream_id = _stream_id(observation)
+        head = writer.get_current_head_targeted(
+            stream_id=stream_id,
+            as_of=observation.recorded_at,
+            scope=scope,
+            lock=True,
+        )
+        sequence_no = head.sequence_no + 1 if head is not None else 1
+        predecessor_hash = head.content_hash if head is not None else None
+        event = build_data_publication_rollback_audit_event(
+            observation,
+            sequence_no=sequence_no,
+            predecessor_hash=predecessor_hash,
+        )
+        if writer.get_exact_outbox_winner_targeted(event) is not None:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback outbox exists without its event winner"
+            )
+        commit = writer.append_and_enqueue_targeted(
+            event,
+            expected_predecessor_hash=event.predecessor_hash,
+            recorded_at=event.recorded_at,
+            scope=scope,
+            identity_winner=None,
+            stream_head=head,
+        )
+        if type(commit) is not SystemAuditEventOutboxCommit or commit.event != event:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback Audit writer substituted the first event"
+            )
+        outbox = writer.get_exact_outbox_winner_targeted(event)
+        if type(outbox) is not ExactSystemAuditOutboxWinner:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback Audit event has no exact outbox winner"
+            )
+        if (
+            outbox.event != event
+            or outbox.outbox_id != commit.outbox_id
+            or outbox.event_id != commit.event_id
+            or outbox.idempotency_key != commit.idempotency_key
+            or outbox.payload_hash != event.content_hash
+        ):
+            raise SystemAuditEventOutboxCorruption(
+                "rollback Audit commit and persisted outbox differ"
+            )
+        return commit
+
+    @staticmethod
+    def _verify_exact_replay(
+        observation: DataPublicationRollbackAuditObservation,
+        writer: _ExactRollbackAuditWriter,
+        winner: SystemAuditEvent | None,
+    ) -> SystemAuditEventOutboxCommit:
+        """Return only a complete matching historical event/outbox pair."""
+
+        if type(winner) is not SystemAuditEvent:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay has no deterministic Audit event"
+            )
+        try:
+            winner.validate_hashes()
+        except (TypeError, ValueError) as error:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay event failed hash validation"
+            ) from error
+        expected = build_data_publication_rollback_audit_event(
+            observation,
+            sequence_no=winner.sequence_no,
+            predecessor_hash=winner.predecessor_hash,
+        )
+        if winner != expected:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay event differs from the exact operation"
+            )
+        outbox = writer.get_exact_outbox_winner_targeted(expected)
+        if type(outbox) is not ExactSystemAuditOutboxWinner:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay event has no exact outbox winner"
+            )
+        try:
+            ExactSystemAuditOutboxWinner.__post_init__(outbox)
+        except (TypeError, ValueError) as error:
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay outbox failed integrity validation"
+            ) from error
+        if (
+            outbox.event != expected
+            or outbox.event_id != expected.event_id
+            or outbox.idempotency_key != expected.idempotency_key
+            or outbox.payload_hash != expected.content_hash
+        ):
+            raise SystemAuditEventOutboxCorruption(
+                "rollback replay event and outbox are not an exact pair"
+            )
+        return SystemAuditEventOutboxCommit(
+            event=expected,
+            outbox_id=outbox.outbox_id,
+            event_id=outbox.event_id,
+            idempotency_key=outbox.idempotency_key,
+        )
 
 
 __all__ = [

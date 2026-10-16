@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     )
     from apps.audit.infrastructure.failure_counter import AuditFailureCounter
     from apps.audit.infrastructure.publication_activation_audit_writer import (
+        DjangoPublicationActivationAuditVerifier,
         DjangoPublicationActivationAuditWriter,
     )
     from apps.audit.infrastructure.system_audit_outbox_repository import (
@@ -266,6 +267,21 @@ def get_publication_activation_audit_writer(
     )
 
     return build_publication_activation_audit_writer(
+        environment=environment,
+        using=using,
+    )
+
+
+def get_publication_activation_audit_verifier(
+    *, environment: str = "production", using: str = "default"
+) -> DjangoPublicationActivationAuditVerifier:
+    """Return a read-only verifier for an existing execution activation audit pair."""
+
+    from apps.audit.infrastructure.system_audit_outbox_runtime import (
+        build_publication_activation_audit_verifier,
+    )
+
+    return build_publication_activation_audit_verifier(
         environment=environment,
         using=using,
     )

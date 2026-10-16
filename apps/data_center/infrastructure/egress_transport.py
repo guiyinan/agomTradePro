@@ -28,6 +28,10 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseBodyScope,
     FinancialResponseScope,
 )
+from apps.data_center.domain.provider_response import (
+    ProviderResponseCapture,
+    ProviderResponseTransport,
+)
 from apps.data_center.infrastructure.egress_target import (
     PreparedPublicTarget,
     prepare_public_target,
@@ -38,6 +42,11 @@ from apps.data_center.infrastructure.financial_response_capture import (
     RawFinancialResponseProtocol,
     capture_financial_response,
     decode_json_bytes,
+)
+from apps.data_center.infrastructure.provider_response_capture import (
+    ProviderResponseCaptureError,
+    ProviderResponseHttpProtocol,
+    capture_provider_response_body,
 )
 from core.integration.config_center_egress import (
     EgressEndpoint,
@@ -362,6 +371,57 @@ class EgressHttpTransport:
         )
         return result, cast(CapturedFinancialResponse[object] | None, payload)
 
+    def request_provider_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+    ) -> tuple[EgressTransportResult, ProviderResponseCapture | None]:
+        """Capture one exact non-financial response on an identity-coded route."""
+
+        del request_id
+        capture_headers = dict(headers or {})
+        accept_encoding = next(
+            (
+                value
+                for key, value in capture_headers.items()
+                if key.casefold() == "accept-encoding"
+            ),
+            None,
+        )
+        if accept_encoding is not None and accept_encoding.strip().casefold() != "identity":
+            return (
+                EgressTransportResult(
+                    outcome="blocked",
+                    error_code="EGRESS_PROVIDER_RESPONSE_ENCODING_UNSUPPORTED",
+                    message="原始响应捕获只接受 identity 编码。",
+                    retryable=False,
+                ),
+                None,
+            )
+        capture_headers["Accept-Encoding"] = "identity"
+        result, payload = self._request_once(
+            context,
+            egress_id=egress_id,
+            attempt=attempt,
+            method=method,
+            params=params,
+            json_body=json_body,
+            headers=capture_headers,
+            expect_json=True,
+            max_response_bytes=self._max_response_bytes,
+            capture_provider_response=True,
+        )
+        if isinstance(payload, ProviderResponseCapture):
+            return result, payload
+        return result, None
+
     def should_route_history(self, *, provider_id: int, deployment_region: str) -> bool:
         """Return whether an explicit rule owns EastMoney history transport."""
 
@@ -437,6 +497,7 @@ class EgressHttpTransport:
         allow_disabled_endpoint: bool = False,
         financial_request_scope: FinancialRequestScope | None = None,
         financial_response_scope: FinancialResponseScope | None = None,
+        capture_provider_response: bool = False,
     ) -> tuple[EgressTransportResult, object | None]:
         """Perform one request after target, circuit, and concurrency checks."""
 
@@ -453,6 +514,16 @@ class EgressHttpTransport:
             )
         if (financial_request_scope is None) != (financial_response_scope is None):
             return _financial_scope_error_result()
+        if capture_provider_response and financial_request_scope is not None:
+            return (
+                EgressTransportResult(
+                    outcome="blocked",
+                    error_code="EGRESS_RESPONSE_CAPTURE_MODE_CONFLICT",
+                    message="响应捕获模式冲突。",
+                    retryable=False,
+                ),
+                None,
+            )
         try:
             target = _validate_public_target(context.target_url)
         except EgressRoutingError as exc:
@@ -636,6 +707,39 @@ class EgressHttpTransport:
                         retryable=False,
                     ),
                     captured,
+                )
+            if capture_provider_response:
+                try:
+                    captured_provider = capture_provider_response_body(
+                        cast(ProviderResponseHttpProtocol, response),
+                        transport=ProviderResponseTransport.EGRESS,
+                        max_bytes=max_response_bytes,
+                    )
+                except ProviderResponseCaptureError as exc:
+                    retryable = exc.code in {
+                        "PROVIDER_RESPONSE_BODY_READ_FAILED",
+                        "PROVIDER_RESPONSE_BODY_TRUNCATED",
+                    }
+                    return (
+                        EgressTransportResult(
+                            outcome="failed",
+                            error_code=exc.code,
+                            message="Provider 原始响应捕获失败。",
+                            status_code=response.status_code,
+                            latency_ms=round((time.monotonic() - started) * 1000, 3),
+                            retryable=retryable,
+                        ),
+                        None,
+                    )
+                _shared_state.success(state_key)
+                return (
+                    EgressTransportResult(
+                        outcome="success",
+                        status_code=response.status_code,
+                        latency_ms=round((time.monotonic() - started) * 1000, 3),
+                        retryable=False,
+                    ),
+                    captured_provider,
                 )
             payload = (
                 _read_bounded_json(response, max_bytes=max_response_bytes) if expect_json else None

@@ -1,0 +1,89 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T14:26:46.808375+00:00",
+  "scope": "Calendar nullable member in-memory codec only; no persisted policy discriminator, publication or stage exit",
+  "production_source_sha256": {
+    "apps/data_center/domain/control_plane.py": "c8e6293e4966bb3550328b3b6a8120781dcb2a0d74b153c52f0c777021d6f426",
+    "apps/data_center/domain/publication_evidence.py": "e2dc363c2f1f636ae4f439c37344372c2105ad901d8768a9a71ef2d91b5813ff",
+    "apps/data_center/application/publication_utils.py": "5013d19c3a13e4bd60e4a43d47ee689b326a848da0e11ad747f83cce1f87120e"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_calendar_nullable_member_codec.py": "be8c3d252bd76f549f091011bd91c49244976b2bec069150ae3286ebcb03e6af",
+    "tests/unit/data_center/test_publication_policy_identity.py": "fd3e500bf358b059e14c81f8e988e7d6d37a9eccf380718c35410d5a8ceeaeb9",
+    "tests/unit/data_center/test_publication_hash_v2.py": "0ef2557edc206fe38398a67b8ed43abb265f7ad3bf723633947871a763ded716",
+    "tests/unit/data_center/test_publication_evidence.py": "ac6fa7492b0566bc76ae6361cc6dfdca20a534911855cd11a45bc2e0c3275fd8",
+    "tests/unit/data_center/test_control_plane_publication_evidence.py": "d1f29a6a5fd445c1fd49abdccd192dc7c17a6e148a9ac543b11e8e87898dd717"
+  },
+  "raw_log_sha256": {
+    "calendar-nullable-codec-baseline-before.txt": "06a659b0408de5be323b5e35a057502ef641eb620a320ca3c2932231292b98f0",
+    "calendar-nullable-codec-red.txt": "05e048606ba440339ccc15d7687cca640b7b8048487b6cbd5ac99c2fdf95abdf",
+    "calendar-nullable-codec-v1-vector.txt": "3c717f971f9a0afd9926c0f3a206829db82a73f89c252d2cd966acfc25ee7d58",
+    "calendar-nullable-codec-final-v2.txt": "47d3e2cbb224343cffe48633f1cdf70378c07a80c5047933e93a3a0037d8c371",
+    "calendar-codec-supplement-black.txt": "59eb072df6cede0c1b085c9cc085ba2e09ae4303e8ccb249050fe82d1b5eb378",
+    "calendar-codec-supplement-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "calendar-codec-supplement-ruff.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "source-fee-wave-postformat-mypy.txt": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+  },
+  "coverage_json_sha256": "381722420ae6d72d8142a0924300f664725f477a538f5d429c71e4d3a4857f74",
+  "results": {
+    "red": "6 failed / 2 passed; missing API, actual original stdout retained",
+    "final": "81 passed in 2.08s, explicit development_sqlite",
+    "feature_domain_coverage": {
+      "member_dto": {
+        "symbols": [
+          "_require_prefixed_sha256",
+          "CalendarNullableMemberCodecVersion",
+          "CalendarPublicationMemberReference"
+        ],
+        "ast_spans": [
+          [
+            146,
+            155
+          ],
+          [
+            720,
+            723
+          ],
+          [
+            727,
+            818
+          ]
+        ],
+        "statements": [
+          45,
+          45
+        ],
+        "branches": [
+          26,
+          26
+        ]
+      },
+      "calendar_validator": {
+        "symbols": [
+          "validate_calendar_publication_evidence"
+        ],
+        "ast_spans": [
+          [
+            76,
+            125
+          ]
+        ],
+        "statements": [
+          29,
+          29
+        ],
+        "branches": [
+          24,
+          24
+        ]
+      }
+    }
+  },
+  "limits": [
+    "No persisted PublicationPolicy calendar-codec discriminator; explicit dedicated API use is not publisher qualification.",
+    "No activation/registry/pointer/authority/consumer wiring; ordinary member/hash path remains strict.",
+    "Feature coverage does not assert whole historical control_plane module coverage.",
+    "Unknown source clocks remain None; snapshot content/record digests differ from member fact row digest.",
+    "No production/provider/broker action, ASH-02/ASH-03 or Goal completion."
+  ]
+}

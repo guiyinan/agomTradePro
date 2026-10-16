@@ -9,8 +9,8 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 77,
-      "dynamic_import_edge": 13,
+      "current_data_surface": 81,
+      "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
       "mcp_tool": 40,
@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 88,
+      "test_evidence": 90,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 856,
+      "active_public": 860,
       "adjacent_operational": 339,
-      "candidate-review": 5,
+      "candidate-review": 8,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1338
+    "total": 1345
   },
   "entries": [
     {
@@ -5291,6 +5291,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.calendar_response_age_window:Explicit immutable calendar response TTL and pure half-open window; not a publication or authority proof",
+      "locator": "Explicit immutable calendar response TTL and pure half-open window; not a publication or authority proof",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.calendar_response_age_window",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.close_and_nav_fallbacks:UnifiedPriceService daily close and fund NAV fallback chain",
       "locator": "UnifiedPriceService daily close and fund NAV fallback chain",
@@ -5317,6 +5327,26 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.data02_successor_checkpoint_scope_v2",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.exchange_calendar_reference:Exact unpublished exchange-calendar reference and next-session lookup; no current or execution authority",
+      "locator": "Exact unpublished exchange-calendar reference and next-session lookup; no current or execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.exchange_calendar_reference",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=9",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.execution_quote:Exact execution-key quote read, activation, completed-only resume and rollback: explicit source TTL, current catalog identity, knowledge cutoffs, monotonic post-Audit clock and live lease; exact existing Audit/Outbox, no current fallback or evidence repair; no execution authority",
+      "locator": "Exact execution-key quote read, activation, completed-only resume and rollback: explicit source TTL, current catalog identity, knowledge cutoffs, monotonic post-Audit clock and live lease; exact existing Audit/Outbox, no current fallback or evidence repair; no execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.execution_quote",
       "target": ""
     },
     {
@@ -5377,6 +5407,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.financial_source_time_independent_verifier",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=6",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.instrument_reference_source_only:Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; always unpublished and blocked for decision/execution",
+      "locator": "Exact stock-basic source occurrences and immutable multi-round snapshots with unknown upstream clocks; always unpublished and blocked for decision/execution",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.instrument_reference_source_only",
       "target": ""
     },
     {
@@ -5968,6 +6008,16 @@
       "status": "adjacent_operational",
       "symbol": "import_module",
       "target": "tushare"
+    },
+    {
+      "category": "dynamic_import_edge",
+      "evidence": "runtime-selected import target requires explicit registry review",
+      "id": "dynamic_import_edge:apps/data_center/interface/calendar_session_request_claim.py:import_string:semantic:dynamic-import",
+      "locator": "semantic:dynamic-import",
+      "path": "apps/data_center/interface/calendar_session_request_claim.py",
+      "status": "candidate-review",
+      "symbol": "import_string",
+      "target": "dynamic-import"
     },
     {
       "category": "dynamic_import_edge",
@@ -12691,6 +12741,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_calendar_authority_revocation_postgres.py:test_calendar_authority_revocation_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_calendar_authority_revocation_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_calendar_authority_revocation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/data_center/test_candidate_raw_audit_manifest.py:test_candidate_raw_audit_manifest:",
       "locator": "",
@@ -12727,6 +12787,16 @@
       "path": "tests/component/data_center/test_financial_fact_repository_postgres_provenance.py",
       "status": "active_public",
       "symbol": "test_financial_fact_repository_postgres_provenance",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_instrument_reference_retry_postgres.py:test_instrument_reference_retry_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_instrument_reference_retry_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_instrument_reference_retry_postgres",
       "target": ""
     },
     {
@@ -13431,7 +13501,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 77,
+    "current_data_contracts": 81,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 42,
     "runtime_config_keys": 45

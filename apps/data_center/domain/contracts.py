@@ -17,9 +17,11 @@ from typing import Final, Generic, TypeVar
 
 from shared.domain.reliability import ReliabilityContract, ReliabilityStatus
 
+from .control_plane import CalendarNullableMemberCodecVersion
 from .publication_policy_identity import publication_policy_content_hash
 
 T = TypeVar("T")
+MAX_CATALOG_TTL_SECONDS: Final[int] = 9_223_372_036_854_775_807
 
 KNOWN_PUBLICATION_EVIDENCE_KEYS: Final[frozenset[str]] = frozenset(
     {
@@ -391,6 +393,8 @@ class DatasetContract:
     fields: tuple[DatasetFieldContract, ...]
     freshness_seconds: int | None = None
     comparable_group: str | None = None
+    execution_freshness_seconds: int | None = None
+    calendar_response_max_age_seconds: int | None = None
 
     def __post_init__(self) -> None:
         if not self.owner.strip() or not self.frequency.strip():
@@ -399,6 +403,26 @@ class DatasetContract:
             raise ValueError("DatasetContract.fields cannot be empty")
         if self.freshness_seconds is not None and self.freshness_seconds <= 0:
             raise ValueError("DatasetContract.freshness_seconds must be positive")
+        if self.execution_freshness_seconds is not None and (
+            type(self.execution_freshness_seconds) is not int
+            or self.execution_freshness_seconds <= 0
+            or self.execution_freshness_seconds > MAX_CATALOG_TTL_SECONDS
+        ):
+            raise ValueError(
+                "DatasetContract.execution_freshness_seconds must fit a positive 64-bit integer"
+            )
+        if self.calendar_response_max_age_seconds is not None and (
+            type(self.calendar_response_max_age_seconds) is not int
+            or self.calendar_response_max_age_seconds <= 0
+            or self.calendar_response_max_age_seconds > MAX_CATALOG_TTL_SECONDS
+        ):
+            raise ValueError(
+                "DatasetContract.calendar_response_max_age_seconds must fit a positive 64-bit integer"
+            )
+
+
+class DatasetContractAmbiguousError(ValueError):
+    """Raised when an execution read cannot choose one active contract safely."""
 
 
 @dataclass(frozen=True)
@@ -456,6 +480,7 @@ class PublicationPolicy:
     required_evidence: tuple[str, ...]
     retention_days: int
     policy_version: str = "legacy"
+    member_codec_version: CalendarNullableMemberCodecVersion | None = None
 
     @property
     def uses_versioned_evidence(self) -> bool:
@@ -479,6 +504,16 @@ class PublicationPolicy:
         return f"p2:{self.policy_version}:{self.content_hash}"
 
     def __post_init__(self) -> None:
+        """Validate policy decisions without inferring a codec for old versions."""
+
+        if self.member_codec_version is not None:
+            if (
+                type(self.member_codec_version) is not CalendarNullableMemberCodecVersion
+                or self.member_codec_version is not CalendarNullableMemberCodecVersion.V1
+            ):
+                raise ValueError("PublicationPolicy.member_codec_version is not supported")
+            if not self.uses_versioned_evidence:
+                raise ValueError("A member codec requires a versioned publication policy")
         if (
             not self.policy_version
             or len(self.policy_version) > 40
@@ -510,11 +545,13 @@ __all__ = [
     "DataEnvelope",
     "DataOwnerRegistration",
     "DatasetContract",
+    "DatasetContractAmbiguousError",
     "DatasetFieldContract",
     "DatasetKey",
     "FetchOutcome",
     "FetchResult",
     "KNOWN_PUBLICATION_EVIDENCE_KEYS",
+    "MAX_CATALOG_TTL_SECONDS",
     "NaturalKey",
     "ObservationTime",
     "PublicationDecision",

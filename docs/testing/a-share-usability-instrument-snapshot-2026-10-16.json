@@ -1,0 +1,155 @@
+{
+  "checkpoint_schema_version": 1,
+  "recorded_at": "2026-10-16T15:53:30.873260+00:00",
+  "goal_status": "active",
+  "scope": "ASH-02 immutable source-only instrument-reference snapshot and explicit mapping; bounded acceptance",
+  "production_source_sha256": {
+    "apps/data_center/domain/instrument_reference_snapshot.py": "43451780145043d72e647945cfd9491e0d35515ce185b1638d4611e18b20d276",
+    "apps/data_center/application/instrument_reference_snapshot.py": "cd4e7005d6e929f237d33957ce4a8ab3889ffc1bdf3d04c6de0aeb7b5521c0f6",
+    "apps/data_center/infrastructure/instrument_reference_snapshot_repository.py": "fbaa97f42d619ec5343b2fc5ffcde7e1501cb5422f4c4a262412c3f60de88fd6",
+    "apps/data_center/infrastructure/instrument_reference_snapshot_runtime.py": "b4ba59327857a2079ad4533d98b07686b0975ba4928b874b810da4d08e3bb1b1",
+    "apps/data_center/infrastructure/fact_and_operational_models.py": "2aa37a07f01cc1fa65b89a38ab5acfecf73ad94798a5fc2d41dba95a4507c5e7",
+    "apps/data_center/infrastructure/models.py": "1fff13851010d9a642f954a132c9aa05085417c3f040a6ad38ddbbdcf4d6c776",
+    "apps/data_center/infrastructure/raw_landing_repositories.py": "752db33c026248c0e5898e2c0b288e6726d67968e59fae0609838970a4c1704b",
+    "apps/data_center/infrastructure/provider_state_repositories.py": "3d76d162e391f2558119a4a9c17b68d43a0c0a5c3bfc1b21eb31aabd45cd8904",
+    "apps/data_center/migrations/0101_instrument_reference_snapshot.py": "6cbd32a2947947d1069fa1179d73929b492320fcbc6ecfdcba7722596cb49596"
+  },
+  "final_test_source_sha256": {
+    "tests/unit/data_center/test_instrument_reference_snapshot.py": "b74bfa16489b994b0a9a8482e6b112e123c205f78b0451649c70907b51309650",
+    "tests/unit/data_center/test_instrument_reference_source_domain.py": "f0f05a686e89bdb10be517e7a65fb3f39b9433247f44a5745d23f02704e006ec",
+    "tests/unit/data_center/test_tushare_instrument_reference_source.py": "057c630d888dbfc4e0010acd7ede8cc3f132526313b25f47d2a688c65424fa3f",
+    "tests/unit/data_center/test_provider_response_payload.py": "38c42429b90ea2605ba7995e8c7546dfcb6ace7279c52d7f77f0b26ac949658a",
+    "tests/unit/data_center/test_tushare_provider_response_capture.py": "656a40e57042b1516282062ab60103cd793906869e8d3c214a57dd6a8a6fe100",
+    "tests/unit/data_center/test_provider_response_payload_key_redaction.py": "d2dafc68245bcdbfb6881167ef7047d111d17e5049035b5eed3602bb5d3325cb",
+    "tests/component/data_center/test_instrument_reference_snapshot_repository.py": "6b90a9b00533a6131ba4c490bde9aefeec4aa2196421e8d5d90a170710c67beb",
+    "tests/component/data_center/test_instrument_reference_retry_postgres.py": "5e8f258244433151121038798497cb7f1f9da2a9b5af65cf07de220f61f453ed",
+    "tests/component/data_center/test_instrument_reference_orm_guards.py": "3c74b9a44ec902c06e8096797cf7a701ae9b413590cff9b0cf82c5b1142b7457",
+    "tests/component/data_center/test_instrument_reference_http_workflow.py": "4a2ce25f9a09cdc7987f2635624e9cc8e2da9baae2b583229235bf80a5ac9241",
+    "tests/component/data_center/test_provider_response_payload_repository.py": "893763c8de42697caaa2340ce2ca47b5273ab096b0446688ec3f6a644f4cd8b1"
+  },
+  "raw_artifact_sha256": {
+    "instrument-reference-orm-root-red.txt": "eef10ed90f49399b5776d7e51161dcb69cdb7727ae5a0c7367a73ac59d0a8435",
+    "instrument-reference-orm-root-corrected-red.txt": "4e3ae6cc69d46e342f41c342541b85522075210d7f4cd1a7492d92c778734b99",
+    "instrument-reference-native-retry-root-red.txt": "763dd15568fab7fc6082ec05c8fbd890fcef0950f6f8cf071582e8b03e4443bf",
+    "instrument-reference-native-root-final.txt": "b35623134685b062d84a79038e4abbc33ceea6a7a24257e53429ae285dd1daa1",
+    "instrument-reference-native-root-final-sources.json": "4fd4619eece8a7635aab43d038e3187c7ee4c461a1522915c6d332d838f3c602",
+    "instrument-reference-native-repository-final-sha.txt": "7ccaf3d061dc84f703a46c8f22e329789772abc365cb893ccc12d2d69bbdf4da",
+    "instrument-reference-orm-root-final-sqlite-nomigrations.txt": "5e7e11bf78a08458cee0ab564fde7d10d3a5074217f5470404f9aae8e9ee2ccd",
+    "instrument-reference-native-root-domain-coverage.json": "6ff01a7659c3b94a1c9e2efe81b4b99f507cb82d380afc3175dafe5f98251371",
+    "instrument-reference-coverage-report-scope-note.txt": "44df06142064f5347b1f4eb74175ee6750fa6d2c473dbacbab00401d553ff960",
+    "root-targeted-sqlite-setup-interrupted.txt": "eff92994bf86fe35ac8fa6b904a0d4f78b3f2f759f6c9c8fa046ebfb49217ce8",
+    "migration-instrument-reference-sqlite.txt": "96d24f5aadd4a8a97fdd420072369a7fcfe0e7885659ca1b08381bdaa0afdca8",
+    "migration-instrument-reference-native.txt": "b6648f3356ded605550a206a1c91de4b388011d120f121ceb8b18fcf8b53d8ce",
+    "migration-instrument-reference-sqlite-final.txt": "96d24f5aadd4a8a97fdd420072369a7fcfe0e7885659ca1b08381bdaa0afdca8",
+    "migration-instrument-reference-native-final.txt": "b6648f3356ded605550a206a1c91de4b388011d120f121ceb8b18fcf8b53d8ce",
+    "instrument-reference-0101-format-equivalence.json": "9f642777753d550456b18e0d66145b8a10a37a6a1155c1df48a7fd0fd72a31e5",
+    "pytest-instrument-reference-final-final.txt": "9a561f0db4e74a4b53a68490fbae9acba79287aa16d7b7198c551d6bc48db94c",
+    "pytest-instrument-reference-repository-final-test-hash.txt": "52797633b7e9d080d4bd0e6c3ae22b64473d6da31f99d228ba569c450f62f2fb",
+    "mypy-instrument-reference-freeze.txt": "d46010533958418bec3fe8c45c5a2480cc3d45b649e7ba99aae1f9c287aafc1f",
+    "instrument-reference-root-final-black.txt": "0e686d38f4a2da59084cafc6e810ac8d6d96364a48f3207a35db3eccf9250ca5",
+    "instrument-reference-root-final-2-black.txt": "2837e82d50d6d2b68fa040b971f079b071393a5a5844420bf46201d10bfda19d",
+    "instrument-reference-root-final-2-isort.txt": "035ca6b56af2995411f2d51f02e6d5bf490d9449a0068e04ce0574b070954366",
+    "instrument-reference-root-final-2-ruff.txt": "942f5bc808e980eed9a0ee94e8530269198c83c1b23d21b8633b08f7de2b4d78"
+  },
+  "verification": {
+    "sqlite_agent_combined": {
+      "passed": 146,
+      "skipped": 0
+    },
+    "postgres_root_combined": {
+      "passed": 151,
+      "skipped": 0,
+      "seconds": 134.39,
+      "files": 11
+    },
+    "postgres_root_final_repository_test_sha": {
+      "passed": 11,
+      "seconds": 49.78,
+      "overlaps_combined": true
+    },
+    "root_sqlite_orm_only": {
+      "passed": 4,
+      "seconds": 11.92,
+      "overlaps_combined": true
+    },
+    "postgres_two_actual_backend_retry_races": 2,
+    "root_orm_guard_cases": 4,
+    "independent_failure_evidence": {
+      "corrected_orm_guard_red": 4,
+      "postgres_exact_retry_red": 2
+    },
+    "domain_coverage": {
+      "covered_statements": 417,
+      "statements": 420,
+      "covered_branches": 147,
+      "branches": 150
+    },
+    "coverage_file_summaries": {
+      "apps/data_center/application/instrument_reference_snapshot.py": {
+        "covered_lines": 22,
+        "num_statements": 24,
+        "percent_covered": 91.66666666666667,
+        "percent_covered_display": "91.7",
+        "missing_lines": 2,
+        "excluded_lines": 0,
+        "num_branches": 0,
+        "num_partial_branches": 0,
+        "covered_branches": 0,
+        "missing_branches": 0
+      },
+      "apps/data_center/domain/instrument_reference_snapshot.py": {
+        "covered_lines": 417,
+        "num_statements": 420,
+        "percent_covered": 98.94736842105263,
+        "percent_covered_display": "98.9",
+        "missing_lines": 3,
+        "excluded_lines": 0,
+        "num_branches": 150,
+        "num_partial_branches": 3,
+        "covered_branches": 147,
+        "missing_branches": 3
+      },
+      "apps/data_center/infrastructure/instrument_reference_snapshot_repository.py": {
+        "covered_lines": 170,
+        "num_statements": 207,
+        "percent_covered": 77.41935483870968,
+        "percent_covered_display": "77.4",
+        "missing_lines": 37,
+        "excluded_lines": 0,
+        "num_branches": 72,
+        "num_partial_branches": 22,
+        "covered_branches": 46,
+        "missing_branches": 26
+      }
+    },
+    "incremental_mypy": "nine source files, zero regressions, zero observed legacy errors",
+    "migration": "actual 0101 operations up/down/up on separate disposable SQLite and PostgreSQL databases based on frozen historical 0100 state",
+    "native_fixture": {
+      "applied_migrations": 544,
+      "ordinary_tables": 580,
+      "reuse_db": true,
+      "no_migrations": true,
+      "full_history_replay_this_run": false
+    }
+  },
+  "provenance_notes": [
+    "All nine production hashes were unchanged during the 151-test native run. One repository test file was import-formatted during that window; it was revalidated separately on PostgreSQL at its final SHA. No sum of overlapping counts is claimed.",
+    "Later root formatting check found 0101 was not Black-clean. Root saved its original bytes and proved exact AST equality after Black. Eight runtime hashes stayed unchanged; migration was reprobed on both engines at its new SHA. The original native source-window migration SHA is preserved separately.",
+    "The native test wrapper exited nonzero after successful pytest because coverage parallel data needed exact-file combine. A broad empty JSON report was stopped; the bounded nonempty coverage JSON was generated from the preserved exact suffix data file.",
+    "Two earlier Root SQLite targeted commands inadvertently enabled full migration setup and were interrupted before tests completed. Their empty stdout is neither red nor green evidence.",
+    "ORM interleaving probes synchronously insert a competing row after a genuine absence read in autocommit. They are separate from the two real PostgreSQL backend exact-retry tests.",
+    "Migration probes use synthetic seals and prove DDL constraints, not Domain or retained-response authenticity. Reverse drops both new tables and records."
+  ],
+  "capabilities": [
+    "Complete same-run multi-round occurrence preservation, including zero-row source scopes and repeated retained bodies with distinct RawAudit identities.",
+    "Explicit versioned crosswalk, exchange-to-Rule.market and exact exchange/source-market-to-board mappings; conflicting classification remains blocked.",
+    "Exact stored RawAudit/RawPayload validation and retained-body reparsing on save/read; repository-owned first-record seals and immutable exact retries.",
+    "Default-alias-only evidence composition with explicit exact-ID reads and actual router read/write validation."
+  ],
+  "not_accepted": [
+    "No formal publication, freshness or PIT current reader, AssetMaster update, real provider configuration, production write, migration or deployment.",
+    "No intraday suspension/ST/price-band evidence, old-consumer switch, ASH-01 exit, ASH-03 exit or Goal completion.",
+    "Append-only protections cover normal ORM ports, not privileged direct SQL or a database immutability trigger.",
+    "Whole-candidate final type/debt/architecture/projection checks remain a later combined checkpoint."
+  ]
+}

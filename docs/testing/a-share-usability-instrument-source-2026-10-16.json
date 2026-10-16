@@ -1,0 +1,66 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T13:37:40.788985+00:00",
+  "scope": "ASH-02 source-only instrument identity/listing reference and exact RawAudit occurrences; no immutable fact/publication or stage exit",
+  "production_source_sha256": {
+    "apps/data_center/domain/instrument_reference_source.py": "5db30e6473f45fb2d78e5ae6df83ac7ab457173d30a2789c2bdc4ee83c034db6",
+    "apps/data_center/application/instrument_reference_source.py": "4ccf2fcbc7bf4eee08a5fe7413331d4257f3f8fc6664de80bc42ea67a88c8c6d",
+    "apps/data_center/infrastructure/tushare_instrument_reference_source.py": "f7b07642e20496513a80b0bcd02f2046910afe00dfbb7e51afccf283f030ef85"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_instrument_reference_source_domain.py": "f0f05a686e89bdb10be517e7a65fb3f39b9433247f44a5745d23f02704e006ec",
+    "tests/unit/data_center/test_tushare_instrument_reference_source.py": "057c630d888dbfc4e0010acd7ede8cc3f132526313b25f47d2a688c65424fa3f",
+    "tests/component/data_center/test_instrument_reference_http_workflow.py": "4a2ce25f9a09cdc7987f2635624e9cc8e2da9baae2b583229235bf80a5ac9241"
+  },
+  "raw_log_sha256": {
+    "pytest-instrument-domain-mutability-red.txt": "0b36315d4e01ae14b7bd519974230b815a594577bea23b340b68de140dbccb72",
+    "pytest-instrument-source-contract-red.txt": "136013c98f2f1ee40c6ccb7b61ea96c69ddc339cc5402257e60f1cc5b5726a82",
+    "pytest-instrument-source-unit-green.txt": "aa7fd4b4620783fbb838acaf500c0bed18845d8d17fa323b5efe74e76b697def",
+    "pytest-instrument-http-sqlite-root.txt": "a783dd3b606cea7efae0f9722c5edb698af9eff3f62360810a33d7e92b9c119a",
+    "pytest-instrument-http-pg-root.txt": "0344f40419a4bccaf32c2d6758023ba6b79b663726b0c165d843744774be3026",
+    "mypy-instrument-source-root.txt": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+    "mypy-debt-instrument-concurrent-fee-failure.txt": "b401ff359e409eda75a1eeda1814fd528a012a7f783e06aaa853a5a31f90232c",
+    "black-instrument-source-root.txt": "7f71b86ed914f0506f920b5cce4cb3ac305729e9cd0ab03bcb2cd635e3e61ce4",
+    "isort-instrument-source-root.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ruff-instrument-source-root.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "current-contracts-calendar-instrument.txt": "ccf516480bd48073ebcc90dcf7f5f0f74af2142e5c92990459d0dbd3f91227e0"
+  },
+  "coverage_json_sha256": "194149a5ee50ecffa321fadda340b28cad4876fc95dd38de6aee569e1e7f3447",
+  "results": {
+    "source_unit": "70 passed in 0.92s",
+    "root_sqlite_http_orm": "1 passed in 14.08s; explicit development_sqlite --no-migrations current ORM schema",
+    "root_native_postgresql_http_orm": "1 passed in 8.23s; reused 540-migration/578-table fixture, --no-migrations, before fee 0025",
+    "domain_coverage": {
+      "statements": [
+        244,
+        245
+      ],
+      "branches": [
+        91,
+        92
+      ],
+      "combined_report_percent": 99.40652818991099
+    },
+    "root_incremental_mypy": "3 production files; zero regressions and zero legacy errors observed",
+    "root_format": "6 slice production/test files pass Black/isort/Ruff",
+    "freshness_manifest": "82 surfaces including calendar response-age and source-only instrument contracts",
+    "whole_production_mypy": "not accepted for this combined candidate: real concurrent Fee V2 errors retained; no debt baseline increase"
+  },
+  "guarantees_tested": [
+    "Explicit exchange/status Cartesian request scope, seven exact fields and versioned exchange/full-code-suffix crosswalk; no code-prefix/board inference.",
+    "Only retained actual response bodies are parsed, with exact RawPayload reference/hash/request validation; DataFrame contents cannot replace raw evidence.",
+    "Caller-owned UUID run/ingested-run IDs; generated occurrence IDs are correlation only, not fabricated owner run identities.",
+    "Real HTTP client, retention, RawPayload ORM and RawAudit ORM exercised with outbound HTTP alone replaced; 10 actual calls, 10 exact audit IDs, 3 deduplicated body hashes, legal ok status and model full_clean.",
+    "Each occurrence has exact row count and unique audit/occurrence identity; unknown upstream observation/publication clocks remain None, dates remain dates.",
+    "Source-only candidate always publishes no-decision/no-execution flags and a stable blocking reason.",
+    "Actual negative tests caught mutable outer containers, malformed hashes, invalid RawAudit status, count mismatch and duplicate occurrence identity; original failures are retained."
+  ],
+  "limits": [
+    "No AssetMaster updates, immutable instrument snapshot model, canonical execution board mapping, formal publication or consumer switch.",
+    "Current stock_basic listing statuses do not prove intraday suspension/tradability, historical full universe, price bands or ST status.",
+    "Zero-row responses are raw call evidence only; generic nonempty formal publication manifest constraints remain unchanged.",
+    "The RawAudit adapter is deliberately default-alias only; no cross-alias audit guarantee.",
+    "No real provider invocation, production database mutation, deployment, research promotion or broker order.",
+    "No ASH-02/ASH-03 or Goal completion; source facts/publication and formal calendar authority remain future gates."
+  ]
+}

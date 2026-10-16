@@ -10,7 +10,10 @@ from datetime import datetime
 from typing import Final
 from uuid import NAMESPACE_URL, uuid5
 
+from apps.data_center.domain.contracts import PublicationPolicy
 from apps.data_center.domain.control_plane import (
+    CalendarNullableMemberCodecVersion,
+    CalendarPublicationMemberReference,
     PublicationFactReference,
     PublicationMember,
     PublicationScopeBlock,
@@ -32,6 +35,10 @@ def publication_hash(
     envelope and binds all frozen evidence metadata to the digest.
     """
 
+    if not isinstance(references, Sequence) or isinstance(references, (str, bytes, bytearray)):
+        raise TypeError("publication references must be a sequence")
+    if any(type(reference) is not PublicationFactReference for reference in references):
+        raise TypeError("publication_hash requires PublicationFactReference values")
     if policy_identity is None:
         if scope_blocks:
             raise ValueError("legacy publication hashes cannot contain scope blocks")
@@ -73,6 +80,59 @@ def publication_hash(
     return hashlib.sha256(encoded).hexdigest()
 
 
+def calendar_publication_hash(
+    references: Sequence[CalendarPublicationMemberReference],
+    *,
+    policy: PublicationPolicy,
+    codec_version: CalendarNullableMemberCodecVersion,
+) -> str:
+    """Hash calendar members under an explicit nullable-time codec version.
+
+    The supplied versioned policy must explicitly bind this codec. The calendar
+    encoding label and version are part of the digest; the ordinary
+    ``publication_hash`` path remains separate and rejects this nullable DTO.
+    """
+
+    if not isinstance(policy, PublicationPolicy):
+        raise TypeError("policy must be a PublicationPolicy")
+    if not policy.uses_versioned_evidence:
+        raise ValueError("calendar nullable members require a versioned publication policy")
+    if type(codec_version) is not CalendarNullableMemberCodecVersion:
+        raise TypeError("calendar codec_version must be a supported enum value")
+    if codec_version is not CalendarNullableMemberCodecVersion.V1:
+        raise ValueError("calendar codec_version is not supported")
+    if policy.member_codec_version is not codec_version:
+        raise ValueError("calendar policy must explicitly bind the requested member codec")
+    if not isinstance(references, Sequence) or isinstance(references, (str, bytes, bytearray)):
+        raise TypeError("calendar publication references must be a sequence")
+    if not references:
+        raise ValueError("calendar publication references cannot be empty")
+
+    members: list[dict[str, object]] = []
+    for reference in references:
+        if type(reference) is not CalendarPublicationMemberReference:
+            raise TypeError("calendar publication hash requires calendar member references")
+        if reference.codec_version is not codec_version:
+            raise ValueError("calendar reference codec_version differs from the requested version")
+        if reference.member.dataset_key != policy.dataset.value:
+            raise ValueError("calendar member dataset_key differs from the publication policy")
+        members.append(reference.to_payload())
+    payload: dict[str, object] = {
+        "encoding": "publication-evidence-calendar-nullable-v1",
+        "policy_identity": policy.identity,
+        "codec_version": codec_version.value,
+        "members": members,
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def current_publication_id_for_hash(
     dataset_key: str,
     publication_key: str,
@@ -98,6 +158,8 @@ def current_publication_id_for_hash(
 def member_reference(member: PublicationMember) -> PublicationFactReference:
     """Restore one typed hash input from a frozen publication member."""
 
+    if type(member) is not PublicationMember:
+        raise TypeError("member_reference requires a PublicationMember")
     if member.observed_at is None:
         raise ValueError("published member requires observed_at")
     return PublicationFactReference(
@@ -204,6 +266,7 @@ def _timestamp(value: datetime | None) -> str | None:
 
 
 __all__ = [
+    "calendar_publication_hash",
     "current_publication_id_for_hash",
     "member_reference",
     "publication_member_manifest_hash",

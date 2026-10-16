@@ -52,8 +52,10 @@ from apps.data_center.composition import (
     get_sector_membership_repository,
     get_valuation_fact_repository,
 )
+from apps.data_center.domain.contracts import DatasetContractAmbiguousError, PublicationPolicy
 from apps.data_center.domain.entities import CapitalFlowFact
 from apps.data_center.domain.enums import AssetType, MarketExchange
+from apps.data_center.domain.execution_quotes import CURRENT_ACTIVE_CONTRACT_RESOLUTION
 from apps.data_center.domain.market_time import cn_market_date_from_observation
 from apps.data_center.publication_read_composition import publication_snapshot
 from core.exceptions import DataFetchError
@@ -353,6 +355,13 @@ def _publication_gate(
         requested_dataset_key=dataset_key,
         requested_publication_key=publication_key,
     )
+    if publication_key == "execution":
+        gate.update(
+            contract_version="",
+            schema_version="",
+            contract_resolution=CURRENT_ACTIVE_CONTRACT_RESOLUTION,
+            execution_freshness_seconds=None,
+        )
     if publication.dataset_key != dataset_key or publication.publication_key != publication_key:
         gate.update(
             must_not_use_for_decision=True,
@@ -361,11 +370,13 @@ def _publication_gate(
         )
         return gate
     reference = now or datetime.now(UTC)
+    active_policy: PublicationPolicy | None = None
     try:
         members = tuple(repository.list_members(publication.publication_id))
+        active_policy = get_publication_policy_repository().get_active(dataset_key)
         evidence_reason = current_publication_evidence_blocked_reason(
             publication,
-            policy=get_publication_policy_repository().get_active(dataset_key),
+            policy=active_policy,
             members=members,
             fact_content_hashes=repository.get_fact_content_hashes(members),
             knowledge_cutoff=reference,
@@ -379,8 +390,49 @@ def _publication_gate(
             freshness_status="unverified",
         )
         return gate
-    contract = get_dataset_contract_repository().get_active(dataset_key)
-    max_age_seconds = contract.freshness_seconds if contract is not None else None
+    try:
+        contract_repository = get_dataset_contract_repository()
+        if publication_key == "execution":
+            contract = contract_repository.get_active_for_execution(dataset_key)
+        else:
+            contract = contract_repository.get_active(dataset_key)
+    except DatasetContractAmbiguousError:
+        if publication_key != "execution":
+            raise
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="execution_catalog_contract_ambiguous",
+            freshness_status="invalid",
+        )
+        return gate
+    except (OverflowError, TypeError, ValueError):
+        if publication_key != "execution":
+            raise
+        gate.update(
+            must_not_use_for_decision=True,
+            blocked_reason="execution_catalog_contract_invalid",
+            freshness_status="invalid",
+        )
+        return gate
+    if publication_key == "execution":
+        if active_policy is None or (
+            contract is not None and contract.key != active_policy.dataset
+        ):
+            gate.update(
+                must_not_use_for_decision=True,
+                blocked_reason="execution_contract_policy_version_mismatch",
+                freshness_status="invalid",
+            )
+            return gate
+        max_age_seconds = contract.execution_freshness_seconds if contract is not None else None
+        gate.update(
+            contract_version=(contract.key.contract_version if contract is not None else ""),
+            schema_version=(contract.key.schema_version if contract is not None else ""),
+            contract_resolution=CURRENT_ACTIVE_CONTRACT_RESOLUTION,
+            execution_freshness_seconds=max_age_seconds,
+        )
+    else:
+        max_age_seconds = contract.freshness_seconds if contract is not None else None
     if max_age_seconds is None:
         gate.update(
             must_not_use_for_decision=True,
@@ -420,6 +472,7 @@ def _publication_gate(
     )
     if (
         freshness_gate.get("blocked_reason") == "canonical_publication_stale"
+        and publication_key != "execution"
         and dataset_key in {"equity.quote.snapshot", "equity.price.bar"}
         and oldest_observed_at is not None
         and oldest_observed_at.tzinfo is not None
@@ -438,10 +491,18 @@ def _publication_gate(
 def get_current_publication_gate(
     dataset_key: str,
     publication_key: str,
+    *,
+    as_of: datetime | None = None,
+    asset_code: str | None = None,
 ) -> dict[str, object] | None:
-    """Return a freshness-validated gate for one current publication."""
+    """Return a freshness-validated gate at an optional knowledge cutoff."""
 
-    return _publication_gate(dataset_key, publication_key)
+    return _publication_gate(
+        dataset_key,
+        publication_key,
+        now=as_of,
+        asset_code=asset_code,
+    )
 
 
 def get_publication_member_fact_pks(

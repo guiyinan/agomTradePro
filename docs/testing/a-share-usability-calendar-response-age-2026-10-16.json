@@ -1,0 +1,71 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T13:20:58.696586+00:00",
+  "scope": "ASH-02 explicit calendar response-age configuration and pure window; no formal publisher or stage exit",
+  "production_source_sha256": {
+    "apps/data_center/domain/contracts.py": "02f8bc7e062ff8fb06e77a2160df7a7f163ee21751d08294013e44a935ac6a26",
+    "apps/data_center/domain/calendar_publication_window.py": "5cf75b521df938c691324a1dbea84f60fe0dc7880d7fcc7ba7a9676c625a1442",
+    "apps/data_center/infrastructure/catalog_models.py": "9d2b5be86b7419e9704c68468cfbd2157f8f98228e684dbec06b73bffda63026",
+    "apps/data_center/infrastructure/catalog_runtime_repositories.py": "a790e0c41703aff49cc487dd5ed9ea28bfe67d45558ddac288f2b514636cec7e",
+    "apps/data_center/management/commands/initialize_data_center_catalog.py": "476baea36ebbd81a03f58bfd1866f41c8cd19c59ab6f8d96a887835d21b02d03",
+    "apps/data_center/interface/admin.py": "43030cc3a7d35719495bdeb0cf2ffd6fe8a2e324f010a8e21c60b08eb2513700",
+    "apps/data_center/migrations/0100_datasetcontract_calendar_response_age.py": "c1475d7f339b7ebfbe17af88dd61fc5c4495179d77a0bcb23585255f5daa137c"
+  },
+  "test_source_sha256": {
+    "tests/unit/data_center/test_catalog_runtime.py": "51f23043a908e525ffcaf78de9fbe6a110fd3deefeab269d090444f3178084db",
+    "tests/unit/data_center/test_calendar_publication_window.py": "2e220f37febcc6090dd55adebc27bf35275c95c3c23fa90376ce020fc663d426",
+    "tests/component/data_center/test_calendar_response_ttl_concurrency.py": "ed053dc73c6f50a4a1cc0ad3e4d30309c93cdc9ea34cb21b86407b3a130f1561",
+    "tests/unit/data_center/test_execution_quote_freshness.py": "294534163510220b683d2e217793fe3ac9ce5fdb52de00fbb6e80c5f445ecfc3",
+    "tests/component/data_center/test_execution_quote_repository.py": "5bd27edeb9d7b27ff6f244cbce1e773ed3dd7a322ccc3a45f287756493701234",
+    "tests/component/data_center/test_execution_catalog_concurrency.py": "5956cc963776af66360b84b57a7ecca8a6544155d8b07b7fa6929807929d44d7"
+  },
+  "raw_log_sha256": {
+    "pytest-calendar-contract-red.txt": "3bc2c2f7db7890f28b24ce194be1839af5581cd17a6b13f74efbebf107788e72",
+    "pytest-calendar-contract-green.txt": "a267985f0bd85b13ccc1d198036ac24bf9ad669190c72cc5d60a074b862625be",
+    "pytest-calendar-contract-final.txt": "6cce794699559638788235a7cf2e1734a0373472980be529cc04bc8bd2a806fe",
+    "pytest-calendar-window-coverage-final.txt": "45b971c50e2e28cb9fc6445133463c2f86d563f90682cdc900c4f0e37d3fa5b2",
+    "pytest-calendar-ttl-root-pg.txt": "28a6e7c85856fdd1a74084bd317f35d4062d3854c189b98ea5511ee5394ffef6",
+    "migration-calendar-ttl-sqlite.txt": "b9fa294c706909ca8ecb2f63fe6926937ea7e8b925bf9b54c2aa46cbc719c1d1",
+    "migration-calendar-ttl-native.txt": "3e3fa7e3bcf810629f517352de01665e9b4fe3f50d67518bbaa30a49e057f2d6",
+    "native-test-apply-calendar-ttl-0100.txt": "f20afc2050547aff8946f134645e69cca94a46589dd3eb951ab3dc81e350b8a7",
+    "mypy-calendar-response-age.txt": "aba46f44dee94a2295503f98855cd6897f386c186322451e55f6f491a2579545",
+    "mypy-calendar-response-age-final.txt": "3efee26fd1f446afb5a3190aaa5fed3ebe0cf82a47b8b307a39f7e34d4080737",
+    "mypy-debt-calendar-response-age.txt": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "format-calendar-response-age-final.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "makemigrations-calendar-response-age-check.txt": "e7ca9a8029b1320f3792cee4c19a3249a46d8515d8864ade6ae2ff7fd3008d5b"
+  },
+  "results": {
+    "root_native_postgresql": "94 passed in 88.38s; exact six test files listed by test_source_sha256",
+    "native_fixture": "540 applied migrations / 578 ordinary tables; --reuse-db --no-migrations; frozen data_center.0100 applied separately, unfinalized simulated_trading.0025 excluded",
+    "domain_coverage": {
+      "statements": [
+        84,
+        84
+      ],
+      "branches": [
+        29,
+        30
+      ]
+    },
+    "incremental_mypy": "7 production files, zero regressions",
+    "mypy_debt": "zero production errors; baseline unchanged",
+    "format": "Black/isort/Ruff passed for the slice",
+    "migration_check": "data_center --check --dry-run: no changes detected",
+    "minimal_migration_probes": "actual 0100 operations up/down/up on separate owned SQLite/PostgreSQL schemas; not full historical replay"
+  },
+  "guarantees_tested": [
+    "Nullable strict integer TTL is independent of execution freshness, has no seed/default rate and is immutable within one contract version.",
+    "Real PostgreSQL first-writer race: one version retains exactly one of two competing calendar TTLs; loser reports immutable conflict.",
+    "Pure half-open window expires from original snapshot.first_seen_at, not new publication time; forward supersede can only truncate it.",
+    "Unknown rollback/reinstatement, invalid clocks/TTLs, expired-at-publication and datetime overflow fail closed.",
+    "Migration preserves every legacy catalog field and execution TTL, initializes new TTL NULL, and rejects nonpositive database values."
+  ],
+  "evidence_limits": [
+    "The agent's retained final combined-suite log is a real Django-startup failure from parallel FeeConfigAdmin work; the earlier 67-pass stream was overwritten and is not asserted as a retained green log.",
+    "Root subsequently ran the combined catalog/window suite plus concurrency and quote compatibility on PostgreSQL: the retained 94-pass log is the current integration evidence.",
+    "Reverse migration drops the new TTL column and does not preserve newly configured TTL values.",
+    "The one uncovered branch is an enum fallthrough after all unsupported states were rejected; statement and branch counts are reported separately.",
+    "No formal calendar publication, nullable member codec, source-backed operator authorization, actual provider call, old consumer switch, production deployment or broker order.",
+    "Global checks and generated projections from the earlier UoW checkpoint do not prove the concurrently developing instrument/fee slices."
+  ]
+}

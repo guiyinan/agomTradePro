@@ -124,29 +124,32 @@ _GROUP_ACTIVATION_DATASETS = CURRENT_MARKET_PUBLICATION_DATASETS
 
 @dataclass(frozen=True, slots=True)
 class PublicationActivationGroupRequest:
-    """One indivisible fixed market current set: price, quote, and valuation."""
+    """One exact activation shape for full-market current or execution quotes."""
 
     activation_id: str
     candidates: tuple[PublicationActivationGroupCandidate, ...]
 
     def __post_init__(self) -> None:
-        """Require exactly one candidate for each supported market publication."""
+        """Accept only the existing three-current set or one execution quote."""
 
         _require_token(self.activation_id, "PublicationActivationGroupRequest.activation_id")
-        if not isinstance(self.candidates, tuple) or len(self.candidates) != 3:
-            raise PublicationActivationError(
-                "market group activation contract requires exactly three candidates"
-            )
+        if not isinstance(self.candidates, tuple):
+            raise PublicationActivationError("group activation candidates must be a tuple")
         if any(type(item) is not PublicationActivationGroupCandidate for item in self.candidates):
             raise PublicationActivationError("group activation contains an invalid candidate")
-        datasets = tuple(item.dataset_key for item in self.candidates)
-        if set(datasets) != _GROUP_ACTIVATION_DATASETS or len(set(datasets)) != 3:
+        current_market_shape = (
+            len(self.candidates) == 3
+            and {item.dataset_key for item in self.candidates} == _GROUP_ACTIVATION_DATASETS
+            and all(item.publication_key == "current" for item in self.candidates)
+        )
+        execution_quote_shape = (
+            len(self.candidates) == 1
+            and self.candidates[0].dataset_key == "equity.quote.snapshot"
+            and self.candidates[0].publication_key == "execution"
+        )
+        if not (current_market_shape or execution_quote_shape):
             raise PublicationActivationError(
-                "market group activation contract requires current price, quote, and valuation"
-            )
-        if any(item.publication_key != "current" for item in self.candidates):
-            raise PublicationActivationError(
-                "market group activation contract only accepts current publications"
+                "activation accepts only the full current market set or one execution quote"
             )
         scopes = tuple((item.dataset_key, item.publication_key) for item in self.candidates)
         identities = tuple(item.candidate_publication_id for item in self.candidates)
@@ -163,6 +166,12 @@ class PublicationActivationGroupRequest:
             )
         )
         object.__setattr__(self, "candidates", ordered)
+
+    @property
+    def is_execution_quote_activation(self) -> bool:
+        """Return whether this request names only the dedicated execution quote scope."""
+
+        return len(self.candidates) == 1 and self.candidates[0].publication_key == "execution"
 
 
 @dataclass(frozen=True, slots=True)
@@ -342,7 +351,7 @@ class PublicationActivationManifestAuditWrite:
 
 
 class PublicationActivationGroupRepository(Protocol):
-    """Infrastructure port for fixed quote, price, and valuation activation."""
+    """Infrastructure port for exact full-market or execution-quote activation."""
 
     def activate_candidate_group(
         self,
@@ -352,7 +361,7 @@ class PublicationActivationGroupRepository(Protocol):
         authority_fence: PublicationActivationAuthorityFence,
         authority_proof: object,
     ) -> tuple[CanonicalPublication, ...]:
-        """Validate and switch price, quote, and valuation as one fenced unit."""
+        """Validate and switch one supported activation shape as a fenced unit."""
 
 
 class PublicationActivationRepository(PublicationActivationGroupRepository, Protocol):
@@ -398,7 +407,7 @@ class ActivateCanonicalPublicationUseCase:
 
 
 class ActivateCanonicalPublicationGroupUseCase:
-    """Activate the three current market publications in one complete-fence UOW."""
+    """Activate one exact publication scope in a complete-fence UOW."""
 
     def __init__(self, repository: PublicationActivationGroupRepository) -> None:
         """Bind the use case to a group-capable publication repository."""

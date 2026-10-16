@@ -29688,6 +29688,26 @@
               "positional_args": []
             },
             {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "execution_freshness_seconds",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "calendar_response_max_age_seconds",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "CharField",
               "kwargs": {
                 "blank": true,
@@ -29724,7 +29744,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version'], name='dc_dataset_contract_version_unique')]",
+            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version'], name='dc_dataset_contract_version_unique'), models.CheckConstraint(condition=models.Q(execution_freshness_seconds__isnull=True) | models.Q(execution_freshness_seconds__gte=1) & models.Q(execution_freshness_seconds__lte=MAX_CATALOG_TTL_SECONDS), name='dc_dataset_execution_ttl_range_valid'), models.CheckConstraint(condition=models.Q(calendar_response_max_age_seconds__isnull=True) | models.Q(calendar_response_max_age_seconds__gte=1) & models.Q(calendar_response_max_age_seconds__lte=MAX_CATALOG_TTL_SECONDS), name='dc_dataset_calendar_age_ttl_valid')]",
             "db_table": "data_center_dataset_contract",
             "indexes": "[models.Index(fields=['dataset_key', 'active']), models.Index(fields=['owner', 'decision_critical'])]",
             "ordering": [
@@ -29894,6 +29914,17 @@
               "positional_args": []
             },
             {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 48,
+                "null": true
+              },
+              "name": "member_codec_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "FloatField",
               "name": "minimum_coverage_ratio",
               "positional_args": []
@@ -29955,7 +29986,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version', 'policy_version'], name='dc_dataset_policy_version_unique'), models.UniqueConstraint(fields=['dataset_key'], condition=models.Q(active=True), name='dc_dataset_policy_active_unique'), models.CheckConstraint(condition=models.Q(minimum_coverage_ratio__gte=0.0) & models.Q(minimum_coverage_ratio__lte=1.0), name='dc_dataset_policy_coverage_ratio_valid')]",
+            "constraints": "[models.UniqueConstraint(fields=['dataset_key', 'contract_version', 'schema_version', 'policy_version'], name='dc_dataset_policy_version_unique'), models.UniqueConstraint(fields=['dataset_key'], condition=models.Q(active=True), name='dc_dataset_policy_active_unique'), models.CheckConstraint(condition=models.Q(minimum_coverage_ratio__gte=0.0) & models.Q(minimum_coverage_ratio__lte=1.0), name='dc_dataset_policy_coverage_ratio_valid'), models.CheckConstraint(condition=models.Q(member_codec_version__isnull=True) | models.Q(member_codec_version='calendar-nullable-member-v1') & ~models.Q(policy_version='legacy'), name='dc_dataset_policy_member_codec_valid')]",
             "db_table": "data_center_dataset_publication_policy",
             "indexes": "[models.Index(fields=['dataset_key', 'active'])]",
             "ordering": [
@@ -31081,6 +31112,155 @@
           "bases": [
             "models.Model"
           ],
+          "class_name": "ExchangeCalendarSnapshotFactModel",
+          "docstring": "Append-only complete daily calendar bound to one retained raw response.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "default": "uuid.uuid4",
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "snapshot_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "exchange_calendar_snapshot_fact"
+              },
+              "name": "raw_payload",
+              "positional_args": [
+                "RawPayloadModel"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 128,
+                "unique": true
+              },
+              "name": "raw_payload_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 32
+              },
+              "name": "exchange",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "coverage_start",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "name": "coverage_end",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "days",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 100
+              },
+              "name": "provider_name",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "raw_reference",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 71
+              },
+              "name": "content_hash",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "first_seen_at",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "source_published_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "record_digest",
+              "positional_args": [],
+              "unique": true
+            }
+          ],
+          "meta": {
+            "db_table": "data_center_exchange_calendar_snapshot_fact",
+            "indexes": "[models.Index(fields=['exchange', 'coverage_start', 'coverage_end']), models.Index(fields=['exchange', 'recorded_at'])]",
+            "ordering": [
+              "-recorded_at",
+              "snapshot_id"
+            ],
+            "permissions": [
+              [
+                "publish_exchange_calendar",
+                "Can publish exchange calendar snapshots"
+              ],
+              [
+                "view_exchange_calendar_publication_audit",
+                "Can view exchange calendar publication audit events"
+              ]
+            ]
+          },
+          "source_file": "infrastructure/fact_and_operational_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
           "class_name": "FinancialSourceTimeAuditClaimModel",
           "docstring": "Own the single RawAudit identity for one source-time capture UUID.",
           "fields": [
@@ -31120,6 +31300,203 @@
             "db_table": "data_center_financial_source_time_audit_claim",
             "verbose_name": "Financial Source-Time Audit Claim",
             "verbose_name_plural": "Financial Source-Time Audit Claims"
+          },
+          "source_file": "infrastructure/fact_and_operational_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "InstrumentReferenceMappingModel",
+          "docstring": "Append-only versioned mapping content with first-knowledge seal.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "mapping_record_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "mapping_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "mapping_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_crosswalk_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 128
+              },
+              "name": "source_crosswalk_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64
+              },
+              "name": "source_crosswalk_hash",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "name": "content",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71
+              },
+              "name": "content_hash",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "record_digest",
+              "positional_args": [],
+              "unique": true
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=['mapping_id', 'mapping_version'], name='dc_instrument_mapping_version_uniq')]",
+            "db_table": "data_center_instrument_reference_mapping",
+            "indexes": "[models.Index(fields=['recorded_at'], name='dc_instmap_recorded_idx'), models.Index(fields=['source_crosswalk_id', 'source_crosswalk_version'], name='dc_instmap_crosswalk_idx')]",
+            "ordering": [
+              "-recorded_at",
+              "mapping_record_id"
+            ]
+          },
+          "source_file": "infrastructure/fact_and_operational_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "InstrumentReferenceSnapshotModel",
+          "docstring": "Append-only whole source batch with exact mapping and audit identities.",
+          "fields": [
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "editable": false,
+                "primary_key": true
+              },
+              "name": "snapshot_id",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "UUIDField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "run_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.PROTECT",
+                "related_name": "instrument_reference_snapshots"
+              },
+              "name": "mapping_record",
+              "positional_args": [
+                "InstrumentReferenceMappingModel"
+              ]
+            },
+            {
+              "field_type": "JSONField",
+              "name": "snapshot_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "content_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 71,
+                "unique": true
+              },
+              "name": "record_digest",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "round_count",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "occurrence_count",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "name": "record_count",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.CheckConstraint(condition=models.Q(round_count__gt=0), name='dc_inst_round_pos'), models.CheckConstraint(condition=models.Q(occurrence_count__gt=0), name='dc_inst_occurrence_pos')]",
+            "db_table": "data_center_instrument_reference_snapshot",
+            "indexes": "[models.Index(fields=['run_id', 'recorded_at'], name='dc_instrun_recorded_idx'), models.Index(fields=['mapping_record', 'recorded_at'], name='dc_instmap_snap_idx')]",
+            "ordering": [
+              "-recorded_at",
+              "snapshot_id"
+            ]
           },
           "source_file": "infrastructure/fact_and_operational_models.py"
         },

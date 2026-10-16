@@ -24,6 +24,7 @@ from apps.data_center.domain.financial_response_evidence import (
     FinancialResponseEvidence,
     FinancialResponseScope,
 )
+from apps.data_center.domain.provider_response import ProviderResponseCapture
 from core.exceptions import DataFetchError
 from core.integration.config_center_egress import (
     EgressEndpointSummary,
@@ -150,6 +151,21 @@ class EgressTransportProtocol(Protocol):
         response_scope: FinancialResponseScope,
     ) -> tuple[EgressTransportResult, FinancialResponseCaptureProtocol | None]:
         """Return one response whose exact bytes were captured before decoding."""
+        ...
+
+    def request_provider_response(
+        self,
+        context: EgressRequestContext,
+        *,
+        egress_id: int | None,
+        request_id: UUID,
+        attempt: int,
+        method: str,
+        params: Mapping[str, object] | None,
+        json_body: Mapping[str, object] | None,
+        headers: Mapping[str, str] | None,
+    ) -> tuple[EgressTransportResult, ProviderResponseCapture | None]:
+        """Return exact JSON body bytes for one non-financial provider response."""
         ...
 
 
@@ -455,6 +471,60 @@ def execute_provider_request(
             break
     raise DataFetchError(
         last.message or "出网请求失败。", code=last.error_code or "EGRESS_TRANSPORT_FAILED"
+    )
+
+
+def execute_provider_response_request(
+    context: EgressRequestContext,
+    *,
+    method: str = "GET",
+    params: Mapping[str, object] | None = None,
+    json_body: Mapping[str, object] | None = None,
+    headers: Mapping[str, str] | None = None,
+    max_attempts: int = 2,
+) -> ProviderResponseCapture:
+    """Capture one exact non-financial provider response through governed egress."""
+
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or not 1 <= max_attempts <= 2
+    ):
+        raise EgressRoutingError("max_attempts must be one or two")
+    if method not in {"GET", "POST"}:
+        raise EgressRoutingError("unsupported provider read method")
+    transport = _transport
+    if transport is None:
+        raise DataFetchError("出网传输尚未配置。", code="EGRESS_TRANSPORT_UNAVAILABLE")
+    route = preview_route(context)
+    request_id = uuid4()
+    last = EgressTransportResult(
+        outcome="blocked",
+        error_code="EGRESS_NO_CANDIDATE",
+        message="没有可用出口。",
+    )
+    for attempt_number, egress_id in enumerate(route.candidates[:max_attempts], start=1):
+        result, capture = transport.request_provider_response(
+            context,
+            egress_id=egress_id,
+            request_id=request_id,
+            attempt=attempt_number,
+            method=method,
+            params=params,
+            json_body=json_body,
+            headers=headers,
+        )
+        _record_attempt(
+            context, route, request_id, _diagnostic_attempt(result, attempt_number, egress_id)
+        )
+        if result.outcome == "success" and isinstance(capture, ProviderResponseCapture):
+            return capture
+        last = result
+        if not result.retryable:
+            break
+    raise DataFetchError(
+        last.message or "出网原始响应捕获失败。",
+        code=last.error_code or "EGRESS_PROVIDER_RESPONSE_CAPTURE_FAILED",
     )
 
 
