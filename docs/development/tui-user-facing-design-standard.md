@@ -23,6 +23,17 @@ executor forward only this named header; they do not accept arbitrary caller-sup
 Network failures and server failures offer “重试本次提交” without showing the technical key.
 This transport identity does not replace user confirmation, authentication or business authority.
 
+Actions that require a real browser session declare `session_auth_required: true`.
+This server-owned optional boolean defaults to `false`; the schema and metadata
+validator reject other types. The action-run endpoint resolves the validated,
+visible action and requires the exact DRF `SessionAuthentication`, an authenticated
+user and a nonempty database-backed session key before constructing its executor.
+Failure returns HTTP 403 with `tui_session_auth_required`. Audience, risk, client
+parameters and a token-authenticated staff user cannot satisfy this contract.
+The internal request factory disables CSRF checks, so the actual outer browser
+request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
+recheck their own live permissions and transaction-bound session authority.
+
 The executable contract lives in:
 
 - `config/tui/schema/tui_metadata.schema.v3.json`

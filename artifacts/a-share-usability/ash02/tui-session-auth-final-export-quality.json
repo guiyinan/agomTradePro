@@ -1,0 +1,162 @@
+{
+  "staged_source_tree": "a832a06a874603343f6131860d419dee0a74544f",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-tui-session-final-ewedpgfm",
+  "production": [
+    "apps/terminal/application/tui_metadata.py",
+    "apps/terminal/application/tui_workbench.py",
+    "apps/terminal/application/tui_workbench_catalog.py",
+    "apps/terminal/interface/api_views.py"
+  ],
+  "owned_tests": [
+    "tests/unit/test_tui_workbench.py",
+    "tests/unit/test_tui_metadata_compiler.py",
+    "tests/component/data_center/test_calendar_tui_session_auth.py",
+    "tests/component/test_tui_agent_action_bridge.py"
+  ],
+  "targets": [
+    "tests/unit/test_tui_workbench.py",
+    "tests/unit/test_tui_metadata_compiler.py",
+    "tests/component/data_center/test_calendar_tui_session_auth.py",
+    "tests/component/test_tui_agent_action_bridge.py",
+    "tests/unit/test_tui_actionability_contract.py",
+    "tests/unit/test_terminal_agent_service.py",
+    "sdk/tests/test_sdk/test_client.py",
+    "tests/unit/test_internal_ssl_redirect.py",
+    "tests/unit/terminal/test_tui_metadata_revalidation.py",
+    "tests/unit/terminal/test_tui_metadata_fallback.py",
+    "tests/unit/test_tui_metadata_patch_boundary.py",
+    "tests/unit/terminal/test_tui_information_architecture.py",
+    "tests/unit/terminal/test_tui_contract_guardrails.py",
+    "tests/unit/test_tui_static_contracts.py",
+    "tests/component/test_terminal_api.py",
+    "tests/api/test_terminal_api_edges.py",
+    "tests/unit/test_tui_runtime_manifest_contract.py"
+  ],
+  "source_sha256": {
+    "apps/terminal/application/tui_metadata.py": "d431be5ec42c3ec68cd9d63ef97d7b85db8ae33109ce2e21a2d5e627002c385b",
+    "apps/terminal/application/tui_workbench.py": "2d6ab19fe09a2669c629f2c2e0b3e59b08d8add144905488d2c067d36dc789db",
+    "apps/terminal/application/tui_workbench_catalog.py": "2a5ee6ed096a2919a004136785427e778257ccebb24d879cc93ff92420faff71",
+    "apps/terminal/interface/api_views.py": "433cc4baa0b3287604dff805c5246265b5383cc53fcb647ffdd227bbf6fd5be0",
+    "tests/unit/test_tui_workbench.py": "4a2331ba8ac0d473d32b619a168ad0a88b3435bfa1f02c9b6f17bdc64d6f337b",
+    "tests/unit/test_tui_metadata_compiler.py": "fbeccbceb0976174c33a17c8cf42b1affa3dfb46aa46c6272daf384c63e3bdc6",
+    "tests/component/data_center/test_calendar_tui_session_auth.py": "bc5956b97810b49f320fad9e6b889213059c44062733f25ee1ff0a26941f8139",
+    "tests/component/test_tui_agent_action_bridge.py": "be6f07a6fe4e110834592b7f3348ccf44ce69d37405a8c33ec78464d5cbdb585",
+    "tests/unit/test_tui_actionability_contract.py": "9b4bd8ff5807826f51f47136a3efeadd912f5632b7deed72790d4a0229a9d5db",
+    "tests/unit/test_terminal_agent_service.py": "56c06d0a84c8b1a4871bc54660728afac93c699e6cde76d14d67405c6f05854d",
+    "sdk/tests/test_sdk/test_client.py": "ed148d1a69787321fb5a9bb0dcd095da537b408458d22f74883deedde6b2e4b5",
+    "tests/unit/test_internal_ssl_redirect.py": "5826fa1f070f1403e7c832b68b745f03e515fec61faf7b2f0b1102986c380f13",
+    "tests/unit/terminal/test_tui_metadata_revalidation.py": "b5d5e332680b06cdf9c0b3259dface89b53605383f910c07be045c20c10cd720",
+    "tests/unit/terminal/test_tui_metadata_fallback.py": "16091bbbaa77a497b0d6361f23d2a990f31b1bef06010070f4d87db0650a63cd",
+    "tests/unit/test_tui_metadata_patch_boundary.py": "94dce889fd784fcc6a7898b3f76c00136f58b1141dcb7d69e737bc1f2b0375ba",
+    "tests/unit/terminal/test_tui_information_architecture.py": "072140625a4625bac7948da033e17e662801bda8aab9d525b4846da12b800620",
+    "tests/unit/terminal/test_tui_contract_guardrails.py": "43916744d27aa907ef52cf8cfc5d236563c760e68465cdb16ab591c5dc7ea1b0",
+    "tests/unit/test_tui_static_contracts.py": "c4cfc0a501fee5649d5d7651bbefe294c22d67f55e26de1c20f5e84577f042d2",
+    "tests/component/test_terminal_api.py": "ca3352ad9f8a3ebd86c5065fdff1017b837d7a5e6d46d537e3602a273e296dff",
+    "tests/api/test_terminal_api_edges.py": "a327a669271fb501f9990b3e5967794a10e71376386418103f3588166cbd816b",
+    "tests/unit/test_tui_runtime_manifest_contract.py": "3219269d998bc1786d1d886c08f2d84a08c7dcd8651fd54353ce6c8507cd5450"
+  },
+  "checked_modified_functions": [
+    {
+      "file": "apps/terminal/application/tui_metadata.py",
+      "function": "validate_tui_metadata"
+    },
+    {
+      "file": "apps/terminal/application/tui_metadata.py",
+      "function": "compact_tui_metadata_payload"
+    },
+    {
+      "file": "apps/terminal/application/tui_metadata.py",
+      "function": "_validate_governance_contract"
+    },
+    {
+      "file": "apps/terminal/application/tui_workbench.py",
+      "function": "action_requires_session_auth"
+    },
+    {
+      "file": "apps/terminal/application/tui_workbench_catalog.py",
+      "function": "_action_payload"
+    },
+    {
+      "file": "apps/terminal/interface/api_views.py",
+      "function": "_has_tui_session_authentication"
+    },
+    {
+      "file": "apps/terminal/interface/api_views.py",
+      "function": "post"
+    }
+  ],
+  "issues": [],
+  "coverage": {
+    "apps/terminal/application/tui_metadata.py": {
+      "covered_lines": 559,
+      "num_statements": 677,
+      "percent_covered": 79.62798937112488,
+      "percent_covered_display": "79.6",
+      "missing_lines": 118,
+      "excluded_lines": 5,
+      "num_branches": 452,
+      "num_partial_branches": 112,
+      "covered_branches": 340,
+      "missing_branches": 112
+    },
+    "apps/terminal/application/tui_workbench.py": {
+      "covered_lines": 278,
+      "num_statements": 302,
+      "percent_covered": 91.27358490566037,
+      "percent_covered_display": "91.3",
+      "missing_lines": 24,
+      "excluded_lines": 0,
+      "num_branches": 122,
+      "num_partial_branches": 11,
+      "covered_branches": 109,
+      "missing_branches": 13
+    },
+    "apps/terminal/application/tui_workbench_catalog.py": {
+      "covered_lines": 306,
+      "num_statements": 358,
+      "percent_covered": 83.46007604562737,
+      "percent_covered_display": "83.5",
+      "missing_lines": 52,
+      "excluded_lines": 13,
+      "num_branches": 168,
+      "num_partial_branches": 29,
+      "covered_branches": 133,
+      "missing_branches": 35
+    },
+    "apps/terminal/interface/api_views.py": {
+      "covered_lines": 235,
+      "num_statements": 274,
+      "percent_covered": 84.72222222222223,
+      "percent_covered_display": "84.7",
+      "missing_lines": 39,
+      "excluded_lines": 0,
+      "num_branches": 14,
+      "num_partial_branches": 3,
+      "covered_branches": 9,
+      "missing_branches": 5
+    }
+  },
+  "added_statement_coverage": {
+    "apps/terminal/application/tui_metadata.py": {
+      "added_executable": 4,
+      "covered": 4,
+      "missing_lines": []
+    },
+    "apps/terminal/application/tui_workbench.py": {
+      "added_executable": 3,
+      "covered": 3,
+      "missing_lines": []
+    },
+    "apps/terminal/application/tui_workbench_catalog.py": {
+      "added_executable": 0,
+      "covered": 0,
+      "missing_lines": []
+    },
+    "apps/terminal/interface/api_views.py": {
+      "added_executable": 9,
+      "covered": 9,
+      "missing_lines": []
+    }
+  },
+  "changed_during_run": []
+}

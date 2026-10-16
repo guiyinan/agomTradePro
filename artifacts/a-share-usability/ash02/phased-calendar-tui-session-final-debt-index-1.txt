@@ -1,0 +1,3 @@
+exported_source_tree=a832a06a874603343f6131860d419dee0a74544f
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-tui-session-final-ewedpgfm
+Full mypy debt ceiling passed: 0 errors in 0 files

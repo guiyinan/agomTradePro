@@ -4,14 +4,19 @@ from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
+from django.contrib.sessions.backends.db import SessionStore
 from django.db import OperationalError
 from django.utils import timezone
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 import apps.terminal.application.tui_workbench as tui_workbench_module
+import apps.terminal.interface.api_views as tui_api_views
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.config_center.application.runtime_public import activate_runtime_profile_patch
@@ -4015,6 +4020,7 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert "confirmation_required" not in action
     assert "requires_password" not in action
     assert "audit_required" not in action
+    assert "session_auth_required" not in action
     assert "sensitive_level" not in action
     assert "executor" not in action
     assert "task_tier" not in action
@@ -4031,12 +4037,165 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert restored_action["confirmation_required"] is False
     assert restored_action["requires_password"] is False
     assert restored_action["audit_required"] is False
+    assert restored_action["session_auth_required"] is False
     assert restored_action["sensitive_level"] == "none"
     assert restored_action["executor"] == ""
     assert restored_action["task_tier"] == "primary"
     assert restored_action["effect"] == "read"
     assert restored_action["submit_label"] == "查看"
     assert restored_action["module_key"] == "command-center"
+
+
+@pytest.mark.parametrize("invalid_value", ["false", 0, 1, None])
+def test_tui_metadata_session_auth_flag_requires_an_actual_boolean(invalid_value):
+    payload = _metadata_payload()
+    payload["actions"][0]["session_auth_required"] = invalid_value
+
+    with pytest.raises(TuiMetadataValidationError, match="session_auth_required"):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_session_auth_flag_defaults_false_and_preserves_true():
+    defaulted = validate_tui_metadata(_metadata_payload())
+    assert defaulted["actions"][0]["session_auth_required"] is False
+
+    protected = _metadata_payload()
+    protected["actions"][0]["session_auth_required"] = True
+    validated_protected = validate_tui_metadata(protected)
+    assert validated_protected["actions"][0]["session_auth_required"] is True
+    assert (
+        compact_tui_metadata_payload(validated_protected)["actions"][0]["session_auth_required"]
+        is True
+    )
+
+
+def test_tui_action_projection_exposes_server_session_auth_requirement(tui_user):
+    payload = _metadata_payload()
+    payload["actions"][0]["session_auth_required"] = True
+    service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository(payload))
+
+    projected = service.get_screen(
+        "command-center.overview",
+        include_technical_actions=True,
+        user=tui_user,
+    )["actions"][0]
+
+    assert projected["session_auth_required"] is True
+    assert service.action_requires_session_auth("sample.list", user=tui_user) is True
+
+
+def test_tui_action_session_gate_rejects_non_session_authenticator_before_executor(
+    tui_user, monkeypatch
+):
+    payload = _metadata_payload()
+    payload["actions"][0]["session_auth_required"] = True
+    repository = FakeMetadataRepository(payload)
+    executor_calls = []
+    executor_factory_calls = []
+
+    class RecordingExecutor:
+        def execute(self, **kwargs):
+            executor_calls.append(kwargs)
+            return {"status_code": 200, "payload": {"ok": True}}
+
+    monkeypatch.setattr(tui_api_views, "get_tui_metadata_repository", lambda: repository)
+
+    def build_executor():
+        executor_factory_calls.append(True)
+        return RecordingExecutor()
+
+    monkeypatch.setattr(tui_api_views, "get_tui_action_executor", build_executor)
+    monkeypatch.setattr(
+        tui_api_views,
+        "get_terminal_audit_repository",
+        lambda: FakeAuditRepository(),
+    )
+    request = APIRequestFactory().post(
+        "/api/terminal/tui/actions/sample.list/run/",
+        {"params": {}},
+        format="json",
+    )
+    force_authenticate(request, user=tui_user)
+
+    response = tui_api_views.TuiWorkbenchActionRunView.as_view()(
+        request,
+        action_key="sample.list",
+    )
+
+    assert response.status_code == 403
+    assert response.data["error_code"] == "tui_session_auth_required"
+    assert executor_factory_calls == []
+    assert executor_calls == []
+
+
+def test_tui_action_without_session_gate_keeps_existing_authenticator_behavior(
+    tui_user, monkeypatch
+):
+    repository = FakeMetadataRepository(_metadata_payload())
+    executor_calls = []
+    executor_factory_calls = []
+
+    class RecordingExecutor:
+        def execute(self, **kwargs):
+            executor_calls.append(kwargs)
+            return {"status_code": 200, "payload": {"ok": True}}
+
+    monkeypatch.setattr(tui_api_views, "get_tui_metadata_repository", lambda: repository)
+
+    def build_executor():
+        executor_factory_calls.append(True)
+        return RecordingExecutor()
+
+    monkeypatch.setattr(tui_api_views, "get_tui_action_executor", build_executor)
+    monkeypatch.setattr(
+        tui_api_views,
+        "get_terminal_audit_repository",
+        lambda: FakeAuditRepository(),
+    )
+    request = APIRequestFactory().post(
+        "/api/terminal/tui/actions/sample.list/run/",
+        {"params": {}},
+        format="json",
+    )
+    force_authenticate(request, user=tui_user)
+
+    response = tui_api_views.TuiWorkbenchActionRunView.as_view()(
+        request,
+        action_key="sample.list",
+    )
+
+    assert response.status_code == 200
+    assert executor_factory_calls == [True]
+    assert len(executor_calls) == 1
+
+
+@pytest.mark.parametrize(
+    "session",
+    [
+        None,
+        SessionStore(),
+        SimpleNamespace(session_key="session-key"),
+    ],
+    ids=["missing-session", "empty-session-key", "wrong-session-backend"],
+)
+def test_tui_session_auth_gate_requires_nonempty_database_session(session):
+    request = SimpleNamespace(
+        successful_authenticator=SessionAuthentication(),
+        user=SimpleNamespace(is_authenticated=True),
+        session=session,
+    )
+
+    assert tui_api_views._has_tui_session_authentication(request) is False
+
+
+def test_tui_session_auth_gate_accepts_nonempty_database_session():
+    request = SimpleNamespace(
+        successful_authenticator=SessionAuthentication(),
+        user=SimpleNamespace(is_authenticated=True),
+        session=SessionStore(session_key="session-key"),
+    )
+
+    assert tui_api_views._has_tui_session_authentication(request) is True
 
 
 def test_tui_metadata_governance_defaults_for_write_action():

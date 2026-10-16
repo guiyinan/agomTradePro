@@ -22,6 +22,17 @@ Generated evidence is intentionally separate from the generated operation graph:
 
 The compact graph may omit default action values such as `method: GET`, `risk: read`, empty `fields`, empty `view_model`, `raw_debug: true`, and inferable action `module_key`. Runtime and scripts must call `validate_tui_metadata()` before using the graph.
 
+The optional action flag `session_auth_required` also defaults to `false` and is
+omitted when false in compact metadata. It accepts only a boolean. Runtime action
+projections retain the normalized boolean; legacy readers treat its absence as
+false. Set it for operations whose owner requires a real browser session. The
+outer action-run endpoint enforces it before executor construction; it does not
+replace the owner's permission check. Validate the actual outer Session/CSRF and
+inner owner request together before accepting a protected workflow. Regenerate
+the runtime manifest with `npm run build:tui` after changing bound metadata
+sources, then verify `npm run check:tui`; a generated manifest is not metadata
+publication or release qualification.
+
 ## Schema-First Rule
 
 `config/tui/schema/tui_metadata.schema.v3.json` is the source of truth for the metadata shape. The validator in `apps/terminal/application/tui_metadata.py` applies the same contract before runtime load and before DB publish.

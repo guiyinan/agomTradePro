@@ -1,0 +1,31 @@
+{
+  "generator": "npm run build:tui in the exact-source export",
+  "old_manifest_sha256": "542a449c48e76314e5b6bdee55e6e9c5ea0a6a1c39421718125f90bfdd54b368",
+  "generated_manifest_sha256": "adb5b45933d7823c9b658ced3fa2a21ab26a3c30a5ddd8eedd763988f0381d99",
+  "bound_source_files": 104,
+  "all_current_worktree_bound_sources_match_lf_sha256": true,
+  "only_staged_generated_file": "config/tui/agomtui-runtime.manifest.json",
+  "normalized_bundle_checks": [
+    {
+      "path": "static/js/agomtui-runtime-core.js",
+      "raw_changed": false,
+      "lf_unchanged": true
+    },
+    {
+      "path": "static/js/tui-agomtradepro-adapter.js",
+      "raw_changed": false,
+      "lf_unchanged": true
+    },
+    {
+      "path": "static/js/tui-workbench.js",
+      "raw_changed": false,
+      "lf_unchanged": true
+    }
+  ],
+  "upstream_commit": "33ea2860b2d1917e930e83dc43118bdeeb762e6d",
+  "upstream_scope": "Existing source ancestor, not final candidate or release SHA",
+  "node_tests_before_rebuild": "68 passed using existing locked node_modules; no dependency install",
+  "build_and_check": "Both actual commands passed; manifest contract1passed",
+  "dependency_failure_first": "Initial isolated export had no node_modules and failed two Playwright module imports; junction to existing locked dependencies fixed availability",
+  "manifest_failure_first": "check:tui detected stale content hashes after the server metadata contract change; actual official build regenerated the manifest. Three bundle raw byte changes were CRLF normalization only and are not staged."
+}

@@ -1,0 +1,3 @@
+staged_source_tree=4cdfcb79a989d75717891888571e9ca710ddd265
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-tui-session-uaf285nj
+{"audited_field_count": 19, "graph_field_occurrence_count": 34, "internal_screen_locator_count": 0, "outcome": "ok", "passed": true, "raw_field_name_count": 0, "violations": []}

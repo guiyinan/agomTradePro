@@ -1,0 +1,11 @@
+{
+  "staged_source_tree": "ccf70ab13add84bea62c9dc49d749c6888fa90b3",
+  "derived_from": "4cdfcb79a989d75717891888571e9ca710ddd265",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\tui-auth-fixture-fixed-z6sr5urv\\source",
+  "changed_files": [
+    "tests/component/data_center/test_calendar_tui_session_auth.py"
+  ],
+  "reason": "Only test fixture: put passive owner paths under required /api/ prefix and exclude whole Account app from pytest flush; explicit AccountProfile/token fixture tables remain isolated",
+  "source_sha256": "0d8a069b2e3e13a5c828040f89781e20d7a6fefaed23c402a442d23656824e85",
+  "root_index_touched": false
+}

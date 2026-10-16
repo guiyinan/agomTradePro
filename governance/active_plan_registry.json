@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v224",
+  "version": "2026-10-17.v225",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan 19.31 bounded Calendar Session HTTP acceptance after c6deb6433: Native 81 passed, with 75 direct unit and 6 actual SessionAuthentication/CSRF APIClient components, 143 production sources frozen. Exact staged-source export 37d86ea3d60ea53643d8343a482146aebfc682e2 passed 485 unit/SQLite cases with 27 native-only skips; six production types/full debt zero, style/coverage/architecture/projections green. Original response-close assertion red retained as a test expectation. Full-type four-decorator-error red retained; typed alias fixed without changing view signatures/schema parameters and new Native/export gates rerun. Next gate: dedicated TUI task, owner-side preview handoff/default context and actual outer-to-inner session/CSRF/browser UAT, then ordinary simulated/backtest consumers. No JSON/hash pasting or UI-confirmation authorization. Calendar lifecycle promotion/blocked producer, production catalog/grants/seeds, qualified Provider/failover, RawAudit occurrence and instance-secret/rotation remain separate. ASH-02 sole focus; original ASH-01, complete ASH-02/03 and Goal stay open; DATA-18 gates ASH-11. No production/research/dispatch/Evidence/broker qualification; broker_order_evidence_integrated remains false.",
+      "next_gate": "Plan 19.32 bounded TUI real-session gate acceptance after 33ea2860b: exact-source a832a06a874603343f6131860d419dee0a74544f, 507 unit/SQLite passed with 6 native-only skips; six actual Native outer Session/CSRF and inner owner authority probes, not Calendar business/browser UAT. Four production incremental types and full debt zero; style, coverage, architecture, metadata, Node68/check and unchanged projections green. Legacy missing-flag KeyError fixed; fixture errors/local singleton repair preserved and not product failures. Runtime manifest generated officially, existing104-source LF bindings, no bundle change. Next separate fix: confirmed must be exact bool; existing string false coercion reproduced without DB. Then independently accept owner scope, central key/token original-TTL binding and dedicated Calendar workbench/browser task, followed by ordinary sim/backtest consumers. Future candidates not accepted by this batch. ASH-02 sole focus; original ASH-01, complete ASH-02/03 and Goal remain open; DATA-18 gates ASH-11. No production/research/Provider/failover/Evidence/dispatch/broker qualification; broker_order_evidence_integrated remains false.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

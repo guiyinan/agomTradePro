@@ -121,6 +121,22 @@ def test_v3_schema_requires_explicit_screen_audience() -> None:
     ]
 
 
+def test_v3_action_schema_declares_server_session_auth_flag_as_boolean() -> None:
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "config"
+            / "tui"
+            / "schema"
+            / "tui_metadata.schema.v3.json"
+        ).read_text(encoding="utf-8")
+    )
+    property_schema = schema["$defs"]["action"]["properties"]["session_auth_required"]
+
+    assert property_schema["type"] == "boolean"
+    assert property_schema["default"] is False
+
+
 def test_api_evidence_default_collects_all_safe_records(generator_module, monkeypatch):
     records = [
         {

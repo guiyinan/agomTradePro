@@ -241,6 +241,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("confirmation_required", _default_confirmation_required(action))
         action.setdefault("requires_password", False)
         action.setdefault("audit_required", _default_audit_required(action))
+        action.setdefault("session_auth_required", False)
         action.setdefault("sensitive_level", _default_sensitive_level(action))
         action.setdefault("executor", "")
         action.setdefault("task_group", "")
@@ -675,6 +676,8 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("requires_password", None)
         if action.get("audit_required") == _default_audit_required(action):
             action.pop("audit_required", None)
+        if action.get("session_auth_required") is False:
+            action.pop("session_auth_required", None)
         if action.get("sensitive_level") == _default_sensitive_level(action):
             action.pop("sensitive_level", None)
         if action.get("executor") == "":
@@ -852,7 +855,12 @@ def _validate_action_source(action: dict[str, Any]) -> None:
 
 
 def _validate_governance_contract(action: dict[str, Any]) -> None:
-    for key in ("confirmation_required", "requires_password", "audit_required"):
+    for key in (
+        "confirmation_required",
+        "requires_password",
+        "audit_required",
+        "session_auth_required",
+    ):
         if not isinstance(action.get(key), bool):
             raise TuiMetadataValidationError(
                 f"Action governance flag must be boolean: {action['key']}.{key}"

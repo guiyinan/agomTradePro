@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "4c515f00362169ac7646f9b7c172d6659fe72ea7",
-  "build_id": "agomtui-runtime-0.2.0+57a369891849",
+  "upstream_commit": "33ea2860b2d1917e930e83dc43118bdeeb762e6d",
+  "build_id": "agomtui-runtime-0.2.0+bb5e903f561b",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -11,7 +11,7 @@
     ]
   },
   "files": {
-    "config/tui/schema/tui_metadata.schema.v3.json": "38fef9fab15a69bbf5f555d775bd04cd5628669a79128954e5d0eea07a2c0794",
+    "config/tui/schema/tui_metadata.schema.v3.json": "c208bc3a44b113fc290b9687522b4440bbd4b81ec07b98e543033ea5b2ded35f",
     "frontend/agomtui-runtime/src/api.js": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
     "frontend/agomtui-runtime/src/dashboard-layout.js": "6409b08f5c7ce30033f35892925df059d8244ab3e43aa218349511b38b5649ee",
     "frontend/agomtui-runtime/src/events.js": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
@@ -35,7 +35,7 @@
     "apps/terminal/application/tui_metadata_constants.py": "372ef9a906b0f0723e03dd7f2a0235fd35dde6dcacb8a701ba4ba656041f804c",
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
     "apps/terminal/application/tui_metadata_filter_validation.py": "2e2bc9b3ee6fa28e9e81e8c669f682ed7de8cba4df4ea9a28120ab47c86e521e",
-    "apps/terminal/application/tui_metadata.py": "8a972e69899f7e38c56c6a78d4727f3eaa72e9d86602f23702299f90fa7532fa",
+    "apps/terminal/application/tui_metadata.py": "0ef840d352bc739fbb002c13f01fb10f7bc332c642ea7ce54a085ce044248ea7",
     "apps/terminal/infrastructure/tui_information_architecture.py": "ebc55b6c264fcf6cc817e5d3c808c0ae288a4568d3916e4148c199b08f831e04",
     "apps/terminal/infrastructure/tui_metadata_repository.py": "16f00f73341c8229f0ed043e16aee31163299351833653161852c359e875cc4c",
     "apps/terminal/infrastructure/tui_metadata_repository_helpers.py": "ebbc590053ee8ef193dd6fb6ebc08ff4919b7c315aae2d54b31a0e7ea3399434",

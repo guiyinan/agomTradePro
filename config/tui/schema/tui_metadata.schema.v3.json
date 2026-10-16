@@ -129,6 +129,7 @@
         "confirmation_required": { "type": "boolean" },
         "requires_password": { "type": "boolean" },
         "audit_required": { "type": "boolean" },
+        "session_auth_required": { "type": "boolean", "default": false },
         "sensitive_level": { "enum": ["none", "low", "medium", "high", "critical"] },
         "executor": { "type": "string" },
         "task_group": { "type": "string" },

@@ -1,0 +1,83 @@
+staged_source_tree=4cdfcb79a989d75717891888571e9ca710ddd265
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-tui-session-uaf285nj
+
+> agomtradepro@1.0.0 test:tui-js
+> node --test --test-concurrency=1 frontend/agomtui-runtime/tests/*.test.mjs frontend/agomtradepro-host/tests/*.test.mjs frontend/tui-workbench/tests/*.test.mjs
+
+✔ dashboard wires the shared chat widget instead of duplicate inline handlers (278.2059ms)
+✔ sendText feeds the shared widget's normal send path (98.4609ms)
+✔ home lane is read from explicit workflow metadata (243.8827ms)
+✔ home action copy does not hardcode workflow step count (5.1904ms)
+✔ home actions are filtered by server-published action keys (4.1696ms)
+✔ resume action presents a catalog label instead of an internal screen key (3.6752ms)
+✔ runtime urls support optimized bootstrap and legacy endpoints (0.8909ms)
+✔ client pagination activates only above the configured page size (0.244ms)
+✔ dashboard layout precedence is explicit metadata then host fallback then journey (0.264ms)
+✔ generic bundle does not contain AgomTradePro business identifiers (124.7783ms)
+✔ manifest integrity uses content hashes instead of the repository head (1.4605ms)
+✔ manifest content normalization is independent of checkout line endings (1.0529ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-tui-session-uaf285nj\frontend\tui-workbench\tests\classic-alpha-refresh.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.18.1
+✖ frontend\tui-workbench\tests\classic-alpha-refresh.test.mjs (664.79ms)
+✔ Classic policy row actions follow the event state in the all-events tab (51.5957ms)
+✔ workbench maintained sources stay split by responsibility (58.1018ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-tui-session-uaf285nj\frontend\tui-workbench\tests\workbench-browser.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.18.1
+✖ frontend\tui-workbench\tests\workbench-browser.test.mjs (298.599ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 14
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5271.2494
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\classic-alpha-refresh.test.mjs:1:1
+✖ frontend\tui-workbench\tests\classic-alpha-refresh.test.mjs (664.79ms)
+  'test failed'
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:1:1
+✖ frontend\tui-workbench\tests\workbench-browser.test.mjs (298.599ms)
+  'test failed'
+npm notice
+npm notice New major version of npm available! 11.10.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

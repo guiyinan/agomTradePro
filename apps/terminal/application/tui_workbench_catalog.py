@@ -449,6 +449,7 @@ class TuiWorkbenchCatalogMixin:
             "screen_key": action["screen_key"],
             "view_type": action["view_type"],
             "risk": action["risk"],
+            "session_auth_required": action.get("session_auth_required", False) is True,
             "confirmation_required": self._requires_confirmation(action),
             "fields": [
                 self._field_payload(

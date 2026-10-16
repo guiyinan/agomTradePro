@@ -73,6 +73,12 @@ def test_get_agent_action_schema_returns_governed_execution_metadata():
     assert result["fields"][0]["key"] == "asset_code"
 
 
+def test_legacy_action_without_session_auth_flag_preserves_existing_auth_policy():
+    service = TuiWorkbenchService(metadata_repository=_MetadataRepository())
+
+    assert service.action_requires_session_auth("account.positions", user=None) is False
+
+
 @pytest.mark.django_db
 def test_agent_action_search_and_schema_api_require_authenticated_user(
     client,

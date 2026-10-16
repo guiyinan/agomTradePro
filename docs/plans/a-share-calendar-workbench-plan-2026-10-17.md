@@ -33,7 +33,7 @@ TUI 目前没有日历 screen 或 action。现有管理员 Data Center screen `a
 
 ## Opaque preview token 与状态所有权
 
-现有数据库 SessionStore 方案不可接受：已验证的 Middleware 整行保存窗口会使锁内更新与并发请求互相覆盖。下一实现前必须先完成 token/key 契约决策。本计划优先考虑短期 opaque `preview_token`；完整 echo 如需保密，必须使用经过审定的认证加密，单纯签名不能隐藏内容。中心密钥能力、生命周期和 typed codec 尚未审定前，不实现或发出 token。暂不新增 secret store/业务表只是当前设计偏好，不构成强制边界；也不能用临时缓存绕开状态和重放契约。
+现有数据库 SessionStore 方案不可接受：已验证的 Middleware 整行保存窗口会使锁内更新与并发请求互相覆盖。后续候选已选择短期 opaque `preview_token`，复用现有 FieldEncryptionService 的认证加密，并将既有环境加密密钥接入中央 `get_secrets`；缺密钥必须明确阻断，不依赖加密器的配置回退。中央 accessor 的默认旧行为保留，显式 env-only 读取不得为获取加密密钥触发数据库或要求行情令牌。候选尚未作为工作台接线验收或发出真实 token，不新增秘密存储或业务表。独立审查已复现候选 codec 未独立核对原 TTL 的合同缺口；必须携带原 first-seen、按原 identity TTL 精确核对 expiry，并从完整服务器 preview 构造，才能接线。该候选尚无生产调用者，正式确认用例仍重新读取并校验源 TTL，不将此描述为已发生发布绕过。密钥轮换后清缓存或重启才生效，滚动期间不同 worker 可能持有不同 key；没有 key ring 或瞬时集群撤销保证。
 
 如果后续采用 `preview_token`，它只承载或定位原 preview 的精确输入，绝不授予发布权。token 必须绑定原始 `response_expires_at`、actor user ID、真实 session key 的不可逆摘要、DB alias、预览 scope/activation/CAS 和 token 版本；不得按当前时间延长 TTL。prepare 与 confirm 都标记 `session_auth_required`，并在真实 SessionAuthentication 外层保护下运行。confirm 时仍须重新获取当前 publisher principal，并复验 token、session/actor/alias、snapshot binding、preview 原 TTL、exact pointer CAS、catalog/policy/fact 身份和正式 Audit/Outbox。不能凭 token 绕过权限检查、重捕获或刷新 CAS；网络重试只能走已有同 activation 精确 replay。过期、session rotation、authority 撤销或 token 篡改都以 typed blocked/conflict 呈现。
 
@@ -73,4 +73,6 @@ TUI 目前没有日历 screen 或 action。现有管理员 Data Center screen `a
 
 仅回滚新增 TUI screen/actions/schema support、owner TUI adapter/composition 和 token codec 处理；不改变已存在的日历 HTTP 合约、Formal Publication/Pointer/Audit 代码，也不撤回已正式发布的日历。已生成但未过期的 token 是否仍可解析取决于后续获批的版本化 codec/key 退役契约，不能假设部署回滚会即时撤销 token。UI 回滚不能冒充正式 publication rollback。Calendar pointer rollback/reinstatement 当前尚未实现或验收；若将来需要恢复 pointer，必须另行设计、审查并验证正式 rollback/reinstatement 流程，不能声称已有受审流程。
 
-此计划不代表已接入浏览器、已测试该 TUI auth bridge、已发布当前 reference、已验证真实生产源或已获得 failover。验证合格后才可把该 task 标作已交付。
+基础认证门禁已有独立冻结验收：六项 Native PostgreSQL APIClient 组件执行真实外层 Session/CSRF、生产内部 executor 和 owner session/grant 校验，证明外层缺 CSRF、匿名、真实 token/internal 认证及撤权的拒绝边界。内部 request factory 仍关闭 CSRF；保护来自真实外层。该测试用只读 owner probe，没有采集/预览/确认/current 的完整工作台业务旅程。
+
+此计划不代表已接入 Calendar 浏览器任务、已发布当前 reference、已验证真实生产源或已获得 failover。scope、中央密钥及 token 的未暂存候选需各自经主代理验收；真实业务接线、浏览器主任务和普通消费者仍待完成，不能将基础门禁标作工作台交付。

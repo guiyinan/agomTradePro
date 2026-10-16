@@ -8,10 +8,12 @@ from collections.abc import Iterator
 from typing import Any, cast
 
 from django.conf import settings
+from django.contrib.sessions.backends.db import SessionStore
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError, ProgrammingError
 from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -571,6 +573,20 @@ def _tui_error_payload(
     }
 
 
+def _has_tui_session_authentication(request: Request) -> bool:
+    """Require exact DRF session auth and a non-empty Django DB session."""
+
+    session = getattr(request, "session", None)
+    session_key = getattr(session, "session_key", None)
+    return (
+        type(getattr(request, "successful_authenticator", None)) is SessionAuthentication
+        and getattr(request.user, "is_authenticated", False) is True
+        and type(session) is SessionStore
+        and type(session_key) is str
+        and bool(session_key.strip())
+    )
+
+
 class TuiWorkbenchScreenView(APIView):
     """Expose one renderable PC tools screen contract."""
 
@@ -724,13 +740,27 @@ class TuiWorkbenchActionRunView(APIView):
             return Response({"error": "提交标识无效。"}, status=status.HTTP_400_BAD_REQUEST)
         service = TuiWorkbenchService(
             metadata_repository=get_tui_metadata_repository(),
-            action_executor=get_tui_action_executor(),
+            action_executor=None,
             audit_repository=get_terminal_audit_repository(),
             require_audit_sink=True,
         )
         task_label = "当前任务"
         task_recovery_actions: list[dict[str, str]] = [{"label": "返回首页", "screen_key": "home"}]
         try:
+            if service.action_requires_session_auth(action_key, user=request.user) and (
+                not _has_tui_session_authentication(request)
+            ):
+                return Response(
+                    _tui_error_payload(
+                        request=request,
+                        error_code="tui_session_auth_required",
+                        title="请使用浏览器会话",
+                        detail="此任务只能通过已验证的浏览器会话执行。",
+                        recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                    ),
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            service.action_executor = get_tui_action_executor()
             error_context = service.get_action_error_context(action_key, user=request.user)
             task_label = str(error_context.get("label") or task_label)
             recovery_screen = str(error_context.get("screen_key") or "")

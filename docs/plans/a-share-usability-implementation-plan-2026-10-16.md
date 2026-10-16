@@ -825,3 +825,19 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 没有新模型或迁移。投影为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface、23 Audit event；入口 1355、REST 路由 76、candidate-review 11。本批不晋级两项 Calendar event 的 planned/not_wired 登记，也未接入完整 operational blocked-event producer。Native 与导出逐文件核验 LF/AST 等价，各自原始字节摘要独立，不合并为 release 或 CI/S6 身份。完整证据见[HTTP 检查点](../testing/a-share-usability-calendar-http-2026-10-17.json)。
 
 计划登记检查实际先报新工作台计划未登记，补为同 ASH-02 的 supporting 并纳入导航后，v224 / 74 单元 / 0 violations；没有新增 closure unit。详见[工作台阶段计划](a-share-calendar-workbench-plan-2026-10-17.md)，其中 Session blob 覆写窗口与预览交接的密钥/codec 决策门尚未验收。下一切片实现专用 TUI 任务及服务端预览状态交接，提供无业务默认值的初始配置概览、明确的采集范围、取消/陈旧预览/多窗口处理和浏览器主任务 UAT；不能让用户粘贴 JSON/hash，也不能将通用 UI confirmed 当发布授权。随后推进普通模拟/回测消费者。完整 ASH-02/03、原 ASH-01、DATA-18 对 ASH-11 的门禁与整体 Goal 继续开放；目录种子/授权、真实 Provider/failover、Calendar RawAudit occurrence/run、生产、研究晋级、外部 dispatch、Evidence 和券商资格均未通过，`broker_order_evidence_integrated()` 仍为 false。
+
+### 19.32 TUI 真实会话认证门禁独立验收
+
+HTTP 批 `33ea2860b` 后，本批只接受可选且严格布尔的 `session_auth_required` 元数据、服务端外层 action-run 门禁及其对应回归。缺省 false 并在 compact false 时省略；运行投影保留布尔，旧 metadata reader 对缺字段按 false。受保护动作在创建 executor 前核验精确 SessionAuthentication、已认证 user、真实 DB SessionStore 及非空 key，失败稳定返回 403/tui_session_auth_required；客户端参数、staff token 或 internal auth 不替代此条件。owner 仍须锁内重新验权。
+
+最终暂存源码树 `a832a06a874603343f6131860d419dee0a74544f` 的独立导出，17 份文件 **507 passed / 6 PostgreSQL-only skipped / 572.93 秒**。四生产文件增量 mypy 零回归，全生产债务 0 errors / 0 files，八个 Python 文件 Black/isort/Ruff 通过；7 个修改函数无标注/public docstring 缺项。增量架构四文件、52 新增行、boundary/audit 均零。覆盖为：`apps/terminal/application/tui_metadata.py`：559/677 语句、340/452 分支；`apps/terminal/application/tui_workbench.py`：278/302 语句、109/122 分支；`apps/terminal/application/tui_workbench_catalog.py`：306/358 语句、133/168 分支；`apps/terminal/interface/api_views.py`：235/274 语句、9/14 分支。新增可执行语句全部覆盖；不将含分支 combined coverage 当作语句覆盖率。
+
+主代理原生 PostgreSQL 六项组件 **6 passed / 14.27 秒**、无运行源码漂移。APIClient 实际启用 CSRF，并执行生产外层 action-run、内部 executor、owner Session claim 与锁内权限适配：有效 Session、缺 CSRF、匿名、真实 MultiToken、真实签名 internal auth、撤权边界均验证。有效 token/internal 身份在保护动作 dispatch 前拒绝，同凭据未标记动作保留既有行为。内部 APIRequestFactory 的 CSRF-disabled 属性明确断言；外层才是 CSRF 边界。owner 是无写入的测试 probe，没有 Calendar capture/preview/confirm/current 或浏览器主任务旅程。夹具复用 544 迁移，未从空重放。
+
+历史失败原件保留：旧 raw metadata reader 对缺可选字段发生 KeyError，改为缺省 false 后在最终源码完整复验；首次 Native 11 setup/teardown errors 来自错误 probe 前缀和 Account flush 夹具，随后 5 passed/1 failed 来自受限 registry 隐藏 account_profile。仅恢复本地测试库 migration0065 已有 singleton，保留触发器与 544 迁移；最终夹具使用完整 registry、显式 isolated schema，而不做全 Account flush。早期 source 471 passed/6 skipped 和额外 32 passed/2 failed 不作最终验收或累计唯一用例。
+
+四项 metadata 静态门禁、Node 通用 workbench 68 项及 check:tui 通过。初始导出缺 playwright 依赖、旧 manifest hash 失败均保留；复用现有锁定 node_modules 并实际 npm run build:tui，只有生成 manifest 变更，104 个绑定源按 LF 核验，三份 bundle 与 HEAD 相同。manifest upstream 是既有源码祖先，不是本候选发布身份。已有模块、字典、Audit、freshness 与 Data Center 入口投影 stale-check 通过，无新增模型、迁移或路由，不手改投影。
+
+只读复核另已确证既有 confirmed 字符串转换问题：JSON "false" 会被 bool 转为真，正常浏览器发送布尔值。该代码未在本认证切片修改；紧接独立修复并保留真实探针。scope、中央密钥、preview token 均属后续未暂存候选；token TTL 独立审查缺口待修，不混入本批。
+
+计划登记 v225，74 单元、ASH-02 仍为唯一集成焦点。完整检查点见[TUI 会话门禁](../testing/a-share-usability-tui-session-auth-2026-10-17.json)。下一批先修确认参数严格类型，再验收 owner scope/token、接专用工作台和浏览器 UAT，随后普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 门禁与整体 Goal 继续开放；真实 Provider/生产/研究/Evidence/外部 dispatch/券商资格未通过，broker_order_evidence_integrated 仍 false。

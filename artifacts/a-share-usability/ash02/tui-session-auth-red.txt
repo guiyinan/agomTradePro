@@ -1,0 +1,50 @@
+FFFFFFFFF                                                                [100%]
+================================== FAILURES ===================================
+_____ test_tui_action_projection_exposes_server_session_auth_requirement ______
+tests\unit\test_tui_workbench.py:4074: in test_tui_action_projection_exposes_server_session_auth_requirement
+    assert projected["session_auth_required"] is True
+E   KeyError: 'session_auth_required'
+_ test_tui_action_session_gate_rejects_non_session_authenticator_before_executor _
+tests\unit\test_tui_workbench.py:4114: in test_tui_action_session_gate_rejects_non_session_authenticator_before_executor
+    assert response.status_code == 403
+E   assert 200 == 403
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_____ test_v3_action_schema_declares_server_session_auth_flag_as_boolean ______
+tests\unit\test_tui_metadata_compiler.py:134: in test_v3_action_schema_declares_server_session_auth_flag_as_boolean
+    property_schema = schema["$defs"]["action"]["properties"]["session_auth_required"]
+E   KeyError: 'session_auth_required'
+_______ test_tui_metadata_compact_payload_round_trips_runtime_defaults ________
+tests\unit\test_tui_workbench.py:4036: in test_tui_metadata_compact_payload_round_trips_runtime_defaults
+    assert restored_action["session_auth_required"] is False
+E   KeyError: 'session_auth_required'
+____ test_tui_metadata_session_auth_flag_requires_an_actual_boolean[false] ____
+tests\unit\test_tui_workbench.py:4050: in test_tui_metadata_session_auth_flag_requires_an_actual_boolean
+    with pytest.raises(TuiMetadataValidationError, match="session_auth_required"):
+E   Failed: DID NOT RAISE <class 'apps.terminal.application.tui_metadata_filter_validation.TuiMetadataValidationError'>
+______ test_tui_metadata_session_auth_flag_requires_an_actual_boolean[0] ______
+tests\unit\test_tui_workbench.py:4050: in test_tui_metadata_session_auth_flag_requires_an_actual_boolean
+    with pytest.raises(TuiMetadataValidationError, match="session_auth_required"):
+E   Failed: DID NOT RAISE <class 'apps.terminal.application.tui_metadata_filter_validation.TuiMetadataValidationError'>
+______ test_tui_metadata_session_auth_flag_requires_an_actual_boolean[1] ______
+tests\unit\test_tui_workbench.py:4050: in test_tui_metadata_session_auth_flag_requires_an_actual_boolean
+    with pytest.raises(TuiMetadataValidationError, match="session_auth_required"):
+E   Failed: DID NOT RAISE <class 'apps.terminal.application.tui_metadata_filter_validation.TuiMetadataValidationError'>
+____ test_tui_metadata_session_auth_flag_requires_an_actual_boolean[None] _____
+tests\unit\test_tui_workbench.py:4050: in test_tui_metadata_session_auth_flag_requires_an_actual_boolean
+    with pytest.raises(TuiMetadataValidationError, match="session_auth_required"):
+E   Failed: DID NOT RAISE <class 'apps.terminal.application.tui_metadata_filter_validation.TuiMetadataValidationError'>
+____ test_tui_metadata_session_auth_flag_defaults_false_and_preserves_true ____
+tests\unit\test_tui_workbench.py:4056: in test_tui_metadata_session_auth_flag_defaults_false_and_preserves_true
+    assert defaulted["actions"][0]["session_auth_required"] is False
+E   KeyError: 'session_auth_required'
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_projection_exposes_server_session_auth_requirement
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_session_gate_rejects_non_session_authenticator_before_executor
+FAILED tests/unit/test_tui_metadata_compiler.py::test_v3_action_schema_declares_server_session_auth_flag_as_boolean
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_compact_payload_round_trips_runtime_defaults
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_session_auth_flag_requires_an_actual_boolean[false]
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_session_auth_flag_requires_an_actual_boolean[0]
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_session_auth_flag_requires_an_actual_boolean[1]
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_session_auth_flag_requires_an_actual_boolean[None]
+FAILED tests/unit/test_tui_workbench.py::test_tui_metadata_session_auth_flag_defaults_false_and_preserves_true
+9 failed in 17.68s

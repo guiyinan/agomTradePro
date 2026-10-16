@@ -1,0 +1,14 @@
+{
+  "scope": "Disposable localhost PostgreSQL test_ash_quality_native only; no production or base DB change",
+  "reason": "Initial TUI component erroneously allowed pytest-django to flush the whole Account app, including migration0065 singleton; corrected test available_apps excludes Account, while its two fixture models remain explicitly isolated",
+  "before": [],
+  "after": [
+    [
+      1,
+      0
+    ]
+  ],
+  "applied_migrations": 544,
+  "triggers_disabled": false,
+  "migrations_replayed": false
+}

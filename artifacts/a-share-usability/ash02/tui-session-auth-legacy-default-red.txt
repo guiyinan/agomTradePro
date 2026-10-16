@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ test_legacy_action_without_session_auth_flag_defaults_to_unrestricted ____
+tests\component\test_tui_agent_action_bridge.py:79: in test_legacy_action_without_session_auth_flag_defaults_to_unrestricted
+    assert service.action_requires_session_auth("account.positions", user=None) is False
+apps\terminal\application\tui_workbench.py:418: in action_requires_session_auth
+    return action is not None and action["session_auth_required"] is True
+E   KeyError: 'session_auth_required'
+=========================== short test summary info ===========================
+FAILED tests/component/test_tui_agent_action_bridge.py::test_legacy_action_without_session_auth_flag_defaults_to_unrestricted
+1 failed in 1.79s

@@ -1,0 +1,14 @@
+Frozen export uses a junction to the existing workspace node_modules; no install or dependency update.
+
+> agomtradepro@1.0.0 check:tui
+> node scripts/build-tui-runtime.mjs --check
+
+file:///D:/githv/agomTradePro-ash-index-qa-01a14268/ash-index-calendar-tui-session-uaf285nj/scripts/tui-runtime-manifest.mjs:34
+        throw new Error("TUI manifest content hashes are stale");
+              ^
+
+Error: TUI manifest content hashes are stale
+    at assertManifestIntegrity (file:///D:/githv/agomTradePro-ash-index-qa-01a14268/ash-index-calendar-tui-session-uaf285nj/scripts/tui-runtime-manifest.mjs:34:15)
+    at file:///D:/githv/agomTradePro-ash-index-qa-01a14268/ash-index-calendar-tui-session-uaf285nj/scripts/build-tui-runtime.mjs:175:5
+
+Node.js v24.18.1

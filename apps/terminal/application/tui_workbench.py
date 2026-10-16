@@ -406,6 +406,17 @@ class TuiWorkbenchService(
             "screen_key": str(action.get("screen_key") or ""),
         }
 
+    def action_requires_session_auth(
+        self,
+        action_key: str,
+        *,
+        user: object | None = None,
+    ) -> bool:
+        """Return the validated server metadata gate for one visible action."""
+
+        action = self._action_by_key(action_key, user=user)
+        return action is not None and action.get("session_auth_required", False) is True
+
     def _agent_action_summary(
         self,
         action: dict[str, Any],

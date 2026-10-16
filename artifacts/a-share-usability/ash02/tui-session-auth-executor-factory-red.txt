@@ -1,0 +1,12 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_tui_action_session_gate_rejects_non_session_authenticator_before_executor _
+tests\unit\test_tui_workbench.py:4126: in test_tui_action_session_gate_rejects_non_session_authenticator_before_executor
+    assert executor_factory_calls == []
+E   assert [True] == []
+E     
+E     Left contains one more item: True
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_session_gate_rejects_non_session_authenticator_before_executor
+1 failed in 13.83s
