@@ -1084,9 +1084,14 @@ custom_site.register([ModelC, ModelD])
     }
 
 
-def test_repository_pytest_temp_directories_never_enter_governance_inventory(
+@pytest.mark.parametrize(
+    "scratch_directory",
+    (".tmp", "pytest-tmp", ".codex_tmp", ".codex_internal"),
+)
+def test_repository_scratch_directories_never_enter_governance_inventory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    scratch_directory: str,
 ) -> None:
     inventory = _load_script()
     _write_source(
@@ -1096,8 +1101,8 @@ def test_repository_pytest_temp_directories_never_enter_governance_inventory(
     )
     _write_source(
         tmp_path,
-        "pytest-tmp/test_fixture/apps/data_center/management/commands/ghost.py",
-        "from django.core.management.base import BaseCommand\n",
+        f"{scratch_directory}/test_fixture/apps/data_center/management/commands/ghost.py",
+        "from apps.data_center.application.public import get_current_public_quote\n",
     )
     monkeypatch.setattr(inventory, "ROOT", tmp_path)
     inventory._tree.cache_clear()

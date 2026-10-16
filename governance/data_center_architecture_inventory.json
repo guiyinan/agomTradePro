@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5515,
+    "current_surface_references": 5545,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -5719,6 +5719,22 @@
       "text": "f\"Using latest data from {latest_snapshot.observed_at}\""
     },
     {
+      "path": "apps/audit/application/calendar_publication_audit.py",
+      "text": "\"\"\"Hold current permission locks across query and result verification."
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_audit.py",
+      "text": "\"\"\"Return the current lock-bound authority observation digest.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_audit.py",
+      "text": "\"\"\"Return the current lock-time permission verification instant.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_audit.py",
+      "text": "``_from_authority`` while holding the exact current permission lease. The"
+    },
+    {
       "path": "apps/audit/application/data_conflict_audit.py",
       "text": "raise ValueError(\"current and previous evidence identities must differ\")"
     },
@@ -5801,6 +5817,10 @@
     {
       "path": "apps/audit/application/data_validation_audit.py",
       "text": "raise ValueError(\"observation scope differs from current authority\")"
+    },
+    {
+      "path": "apps/audit/application/execution_rule_retirement_audit.py",
+      "text": "\"\"\"Read and lock the latest stream event visible at the cutoff.\"\"\""
     },
     {
       "path": "apps/audit/application/indicator_use_cases.py",
@@ -6245,6 +6265,10 @@
     {
       "path": "apps/audit/infrastructure/system_audit_repository.py",
       "text": "\"\"\"Return the current timezone-aware timestamp.\"\"\""
+    },
+    {
+      "path": "apps/audit/infrastructure/system_audit_repository.py",
+      "text": "\"\"\"Return the latest complete event in one exact dataset/exchange stream.\"\"\""
     },
     {
       "path": "apps/audit/infrastructure/system_audit_repository.py",
@@ -18091,6 +18115,10 @@
       "text": "\"summary\": {"
     },
     {
+      "path": "apps/risk_center/application/execution_submission_v2.py",
+      "text": "\"\"\"Return current owner evidence without substituting caller-supplied facts.\"\"\""
+    },
+    {
       "path": "apps/risk_center/application/scenario_dtos.py",
       "text": "\"\"\"Read projection for one definition and its latest eligible revision.\"\"\""
     },
@@ -18137,6 +18165,98 @@
     {
       "path": "apps/risk_center/application/trade_guard.py",
       "text": "violations.append(f\"{label} exceeded: current={value:.4f}, limit={numeric_limit:.4f}\")"
+    },
+    {
+      "path": "apps/risk_center/domain/execution_submission_v2.py",
+      "text": "\"latest\": self.latest.to_payload(),"
+    },
+    {
+      "path": "apps/risk_center/domain/execution_submission_v2.py",
+      "text": "latest: QuoteValue"
+    },
+    {
+      "path": "apps/risk_center/domain/execution_submission_v2.py",
+      "text": "latest=market.latest,"
+    },
+    {
+      "path": "apps/risk_center/domain/execution_submission_v2.py",
+      "text": "quote_values = (self.ask, self.bid, self.latest, self.previous_close)"
+    },
+    {
+      "path": "apps/risk_center/domain/execution_trading_constraints.py",
+      "text": "\"\"\"Evaluate one exact order against current rule, calendar, and market evidence."
+    },
+    {
+      "path": "apps/risk_center/domain/execution_trading_constraints.py",
+      "text": "\"\"\"Explicit current state of the exact security.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/execution_trading_constraints.py",
+      "text": "\"\"\"Explicit state of the current security price boundaries.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "BUY uses ask, bid, latest, then previous close. SELL uses bid, ask, latest,"
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "LATEST = \"LATEST\""
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "PriceQuoteSource.LATEST,"
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "PriceQuoteSource.LATEST,"
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "PriceQuoteSource.LATEST,"
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "PriceQuoteSource.LATEST: latest,"
+    },
+    {
+      "path": "apps/risk_center/domain/price_submission_range.py",
+      "text": "latest: QuoteValue,"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "\"\"\"Read the current aware timestamp through Django's configured timezone.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "\"\"\"Return the current aware timestamp in the application timezone.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "\"\"\"Return the current aware timestamp.\"\"\""
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "current = current.__cause__"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "current: BaseException | None = error"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "message = str(current).lower()"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "sqlite_code = getattr(current, \"sqlite_errorcode\", None)"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "sqlstate = getattr(current, \"sqlstate\", None)"
+    },
+    {
+      "path": "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+      "text": "while current is not None:"
     },
     {
       "path": "apps/risk_center/infrastructure/broker_order_execution_policy_repository.py",

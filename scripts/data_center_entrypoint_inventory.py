@@ -234,6 +234,7 @@ IGNORED_PATH_PARTS = frozenset(
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
+        ".tmp",
         ".venv",
         "__pycache__",
         "node_modules",

@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 74,
+      "current_data_surface": 77,
       "dynamic_import_edge": 13,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 853,
+      "active_public": 856,
       "adjacent_operational": 339,
       "candidate-review": 5,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1335
+    "total": 1338
   },
   "entries": [
     {
@@ -5757,6 +5757,36 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "regime.current_cache_warmup",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:risk_center.a_share_execution_constraints:Risk owner-read tradability evaluation and independent QMT Agent source-window revalidation; no execution authorization",
+      "locator": "Risk owner-read tradability evaluation and independent QMT Agent source-window revalidation; no execution authorization",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "risk_center.a_share_execution_constraints",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:risk_center.a_share_execution_settlement_v3_config:Source-bound immutable V3 parameter configuration at an exact system knowledge cutoff; no calendar, position release, research promotion or live execution authority",
+      "locator": "Source-bound immutable V3 parameter configuration at an exact system knowledge cutoff; no calendar, position release, research promotion or live execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "risk_center.a_share_execution_settlement_v3_config",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:risk_center.a_share_execution_submission_v2:Candidate v2 source-bound stage and price-cage evaluation over preserved v1 evidence; no live execution authority",
+      "locator": "Candidate v2 source-bound stage and price-cage evaluation over preserved v1 evidence; no live execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "risk_center.a_share_execution_submission_v2",
       "target": ""
     },
     {
@@ -13401,7 +13431,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 74,
+    "current_data_contracts": 77,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 42,
     "runtime_config_keys": 45
