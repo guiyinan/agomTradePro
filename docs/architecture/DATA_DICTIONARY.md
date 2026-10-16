@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：588
-- 字段数：9038
+- 字段数：9087
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13588,6 +13588,13 @@
 | `is_default` | `BooleanField` |  |  | False | 是否为默认配置 |  |
 | `is_active` | `BooleanField` |  |  | True | 是否启用 |  |
 | `description` | `TextField` |  |  |  | 配置说明 |  |
+| `fee_policy_id` | `CharField` | 是 |  |  |  |  |
+| `fee_policy_version` | `PositiveIntegerField` | 是 |  |  |  |  |
+| `fee_policy_account_scope` | `CharField` | 是 |  |  |  |  |
+| `fee_policy_effective_from` | `DateTimeField` | 是 |  |  |  |  |
+| `fee_policy_valid_until` | `DateTimeField` | 是 |  |  |  |  |
+| `fee_policy_transaction_cases` | `JSONField` | 是 |  |  |  |  |
+| `fee_policy_content_hash` | `CharField` | 是 |  |  |  |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 | `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
 
@@ -13742,6 +13749,8 @@
 | `price` | `DecimalField` |  |  |  | 成交价格(元) |  |
 | `amount` | `DecimalField` |  |  |  | 成交金额(元) |  |
 | `commission` | `DecimalField` |  |  | 0 | 手续费(元) |  |
+| `transfer_fee` | `DecimalField` | 是 |  |  | 过户费(元) |  |
+| `stamp_duty` | `DecimalField` | 是 |  |  | 印花税(元) |  |
 | `slippage` | `DecimalField` |  |  | 0 | 滑点损失(元) |  |
 | `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
 | `realized_pnl` | `DecimalField` | 是 |  |  | 已实现盈亏(元) |  |
@@ -13753,6 +13762,46 @@
 | `execution_time` | `DateTimeField` |  |  |  | 执行时间 |  |
 | `status` | `CharField` |  |  | pending | 订单状态 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
+| `idempotency_key` | `CharField` | 是 |  |  |  |  |
+| `request_payload_hash` | `CharField` | 是 |  |  |  |  |
+| `fee_config_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `fee_schedule_hash` | `CharField` | 是 |  |  |  |  |
+| `fee_schedule_snapshot` | `JSONField` | 是 |  |  |  |  |
+| `fee_precision_basis` | `CharField` | 是 |  |  |  |  |
+| `fee_calculation_purpose` | `CharField` | 是 |  |  |  |  |
+| `fee_rounding_policy` | `CharField` | 是 |  |  |  |  |
+| `settlement_status` | `CharField` | 是 |  |  |  |  |
+| `settlement_security_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_market` | `CharField` | 是 |  |  |  |  |
+| `settlement_board` | `CharField` | 是 |  |  |  |  |
+| `settlement_market_session` | `DateField` | 是 |  |  |  |  |
+| `settlement_lag_sessions` | `PositiveIntegerField` | 是 |  |  |  |  |
+| `settlement_bundle_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_bundle_version` | `CharField` | 是 |  |  |  |  |
+| `settlement_bundle_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_version` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `execution_rule_v2_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_date` | `DateField` | 是 |  |  |  |  |
+| `settlement_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_timezone` | `CharField` | 是 |  |  |  |  |
+| `settlement_released_at` | `DateTimeField` | 是 |  |  |  |  |
+| `settlement_release_session` | `DateField` | 是 |  |  |  |  |
+| `settlement_release_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_timezone` | `CharField` | 是 |  |  |  |  |
 
 ### UnifiedAccountCashFlowModel
 

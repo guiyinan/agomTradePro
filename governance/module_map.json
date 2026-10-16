@@ -9145,7 +9145,7 @@
           "imports": 2
         },
         "simulated_trading": {
-          "imports": 1
+          "imports": 2
         }
       },
       "depends_on": {
@@ -10306,9 +10306,10 @@
           ]
         },
         "risk_center": {
-          "imports": 1,
+          "imports": 2,
           "target_layers": [
-            "application"
+            "application",
+            "domain"
           ]
         },
         "share": {
@@ -10393,6 +10394,20 @@
           "build_decision_rhythm_exit_advisor",
           "register_decision_rhythm_exit_advisor_builder"
         ],
+        "application/execution_settlement_uow.py": [
+          "ExecuteSettlementBoundSimulatedTradeUseCase",
+          "ExecutionCalendarUnavailable",
+          "ExecutionFeePolicyReader",
+          "ExecutionFeeScheduleUnavailable",
+          "PublishedExecutionCalendarReader",
+          "ReleaseDueSimulatedSettlementsUseCase",
+          "SettlementV3RuleReader",
+          "SimulatedTradeExecutionBlocked",
+          "SimulatedTradeExecutionClock",
+          "SimulatedTradeExecutionInputError",
+          "SimulatedTradeExecutionRepository",
+          "SimulatedTradeIdempotencyConflict"
+        ],
         "application/facade.py": [
           "AccountOverview",
           "AccountRepositoryProtocol",
@@ -10402,6 +10417,14 @@
           "SimulatedTradingFacade",
           "StrategyBindingSummary",
           "get_simulated_trading_facade"
+        ],
+        "application/fee_policy_v2.py": [
+          "CreateFeePolicyVersionUseCase",
+          "FeePolicyVersionCommand",
+          "FeePolicyVersionConflict",
+          "FeePolicyVersionInputError",
+          "FeePolicyVersionRepository",
+          "FeePolicyVersionStorageUnavailable"
         ],
         "application/interface_services.py": [
           "AccountAccessResult",
@@ -10624,12 +10647,12 @@
         ]
       },
       "layers": {
-        "application": 29,
-        "domain": 7,
-        "infrastructure": 35,
+        "application": 31,
+        "domain": 9,
+        "infrastructure": 37,
         "interface": 15,
-        "management": 4,
-        "root": 10
+        "management": 5,
+        "root": 12
       },
       "orm_models": {
         "infrastructure/models.py": [

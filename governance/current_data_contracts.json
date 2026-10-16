@@ -8108,72 +8108,6 @@
       ]
     },
     {
-      "id": "risk_center.a_share_execution_settlement_v3_config",
-      "surface": "Source-bound immutable V3 parameter configuration at an exact system knowledge cutoff; no calendar, position release, research promotion or live execution authority",
-      "source_files": [
-        "apps/risk_center/domain/execution_settlement_v3.py",
-        "apps/risk_center/application/execution_settlement_v3.py",
-        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py"
-      ],
-      "required_markers": {
-        "apps/risk_center/domain/execution_settlement_v3.py": [
-          "bundle_id",
-          "bundle_version",
-          "latest_source_observed_at",
-          "oldest_source_observed_at",
-          "all bundle sources must be available before the intersected expiry"
-        ],
-        "apps/risk_center/application/execution_settlement_v3.py": [
-          "record.recorded_at <= as_of",
-          "bundle.latest_source_observed_at <= as_of",
-          "bundle.source_available_at <= as_of",
-          "bundle.effective_from <= as_of < bundle.valid_until",
-          "ExecutionSettlementV3Unavailable",
-          "ExecutionSettlementV3Corruption"
-        ],
-        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py": [
-          "_rule_header(",
-          "rule.bundle_id",
-          "rule.bundle_version",
-          "source_available_at = rule.source_available_at",
-          "ExecutionRuleVersionMismatch",
-          "recorded_at=visible[0].recorded_at"
-        ]
-      },
-      "required_tests": [
-        {
-          "case": "all_sources_available_before_intersection_expiry",
-          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
-          "test_function": "test_v3_rejects_source_availability_at_or_after_intersected_bundle_expiry"
-        },
-        {
-          "case": "separate_oldest_and_latest_source_clocks",
-          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
-          "test_function": "test_v3_keeps_distinct_oldest_and_latest_source_observation_clocks"
-        },
-        {
-          "case": "future_system_knowledge_or_source_blocked",
-          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
-          "test_function": "test_v3_read_use_case_blocks_future_knowledge_source_and_expired_windows"
-        },
-        {
-          "case": "outer_identity_intersection_and_local_recording_persisted",
-          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
-          "test_function": "test_v3_repository_stores_outer_identity_intersection_and_recorded_at"
-        },
-        {
-          "case": "no_implicit_v1_v2_downgrade",
-          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
-          "test_function": "test_v1_and_v2_readers_reject_v3_rows_without_unwrapping"
-        },
-        {
-          "case": "v3_lifecycle_uses_same_real_audit_transaction",
-          "test_file": "tests/unit/risk_center/test_ashare_execution_rule_lifecycle.py",
-          "test_function": "test_v3_retirement_audits_outer_identity_and_preserves_nested_rule_on_forward_rollback"
-        }
-      ]
-    },
-    {
       "id": "data_center.execution_quote",
       "surface": "Exact execution-key quote read, activation, completed-only resume and rollback: explicit source TTL, current catalog identity, knowledge cutoffs, monotonic post-Audit clock and live lease; exact existing Audit/Outbox, no current fallback or evidence repair; no execution authority",
       "source_files": [
@@ -8330,6 +8264,115 @@
           "case": "resume_incomplete_candidate_cannot_reconstruct_cas",
           "test_file": "tests/component/data_center/test_execution_quote_activation_workflow.py",
           "test_function": "test_resume_blocks_a_staged_candidate_without_a_durable_activation_cas"
+        }
+      ]
+    },
+    {
+      "id": "simulated_trading.account_execution_projection",
+      "surface": "Scoped legacy ledger quantity fidelity only; absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "source_files": [
+        "apps/simulated_trading/application/query_services.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/application/query_services.py": [
+          "get_account_execution_projection",
+          "getattr(position, \"available_quantity\", None)",
+          "available_quantity > quantity",
+          "Decimal(str(numeric_value)) != quantity",
+          "not broker settlement"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "persisted_sellable_is_distinct_from_total",
+          "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "test_function": "test_execution_projection_returns_persisted_available_quantity"
+        },
+        {
+          "case": "missing_sellable_has_no_total_fallback",
+          "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "test_function": "test_execution_projection_is_unavailable_when_available_quantity_is_missing"
+        },
+        {
+          "case": "float_conversion_cannot_increase_balance",
+          "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "test_function": "test_execution_projection_rejects_float_rounding_that_increases_quantity"
+        },
+        {
+          "case": "one_bad_position_blocks_complete_projection",
+          "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "test_function": "test_one_invalid_position_makes_the_whole_projection_unavailable"
+        },
+        {
+          "case": "account_and_user_scope_are_preserved",
+          "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "test_function": "test_execution_projection_preserves_user_and_account_scope"
+        }
+      ]
+    },
+    {
+      "id": "risk_center.a_share_execution_settlement_v3_config",
+      "surface": "Source-bound immutable V3 parameter configuration at an exact system knowledge cutoff; no calendar, position release, research promotion or live execution authority",
+      "source_files": [
+        "apps/risk_center/domain/execution_settlement_v3.py",
+        "apps/risk_center/application/execution_settlement_v3.py",
+        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/domain/execution_settlement_v3.py": [
+          "bundle_id",
+          "bundle_version",
+          "latest_source_observed_at",
+          "oldest_source_observed_at",
+          "all bundle sources must be available before the intersected expiry"
+        ],
+        "apps/risk_center/application/execution_settlement_v3.py": [
+          "record.recorded_at <= as_of",
+          "bundle.latest_source_observed_at <= as_of",
+          "bundle.source_available_at <= as_of",
+          "bundle.effective_from <= as_of < bundle.valid_until",
+          "ExecutionSettlementV3Unavailable",
+          "ExecutionSettlementV3Corruption"
+        ],
+        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py": [
+          "_rule_header(",
+          "rule.bundle_id",
+          "rule.bundle_version",
+          "source_available_at = rule.source_available_at",
+          "ExecutionRuleVersionMismatch",
+          "recorded_at=visible[0].recorded_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "all_sources_available_before_intersection_expiry",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_rejects_source_availability_at_or_after_intersected_bundle_expiry"
+        },
+        {
+          "case": "separate_oldest_and_latest_source_clocks",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_keeps_distinct_oldest_and_latest_source_observation_clocks"
+        },
+        {
+          "case": "future_system_knowledge_or_source_blocked",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_read_use_case_blocks_future_knowledge_source_and_expired_windows"
+        },
+        {
+          "case": "outer_identity_intersection_and_local_recording_persisted",
+          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
+          "test_function": "test_v3_repository_stores_outer_identity_intersection_and_recorded_at"
+        },
+        {
+          "case": "no_implicit_v1_v2_downgrade",
+          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
+          "test_function": "test_v1_and_v2_readers_reject_v3_rows_without_unwrapping"
+        },
+        {
+          "case": "v3_lifecycle_uses_same_real_audit_transaction",
+          "test_file": "tests/unit/risk_center/test_ashare_execution_rule_lifecycle.py",
+          "test_function": "test_v3_retirement_audits_outer_identity_and_preserves_nested_rule_on_forward_rollback"
         }
       ]
     },
@@ -8523,6 +8566,70 @@
           "case": "source_evidence_alias_router_split_blocks",
           "test_file": "tests/component/data_center/test_instrument_reference_snapshot_repository.py",
           "test_function": "test_repository_rejects_database_router_that_splits_raw_payload_evidence"
+        }
+      ]
+    },
+    {
+      "id": "simulated_trading.fee_policy_v2_temporal_scope",
+      "surface": "Exact-case immutable normal-simulation fee versions: local recorded knowledge and half-open validity; historical V1 receipt replay remains original-time only",
+      "source_files": [
+        "apps/simulated_trading/domain/execution_fee_policy_v2.py",
+        "apps/simulated_trading/application/fee_policy_v2.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/fee_policy_v2_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/execution_fee_policy_v2.py": [
+          "self.recorded_at <= as_of and self.effective_from <= as_of < self.valid_until",
+          "fee policy is not known and effective at as_of",
+          "fee policy contains duplicate exact cases"
+        ],
+        "apps/simulated_trading/infrastructure/fee_policy_v2_repository.py": [
+          "created_at__lte=as_of",
+          "fee_policy_valid_until__gt=as_of",
+          "connection.in_atomic_block or not connection.get_autocommit()",
+          "exact fee transaction cases cannot overlap in effective time"
+        ],
+        "apps/simulated_trading/application/execution_settlement_uow.py": [
+          "SimulatedFeePolicyV2.__post_init__(fee_policy)",
+          "fee_policy.validate_at(as_of)"
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+          "fee_policy_v2.validate_at(row.execution_time)",
+          "ExecutionFeeSchedule.from_payload(snapshot)"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "recorded_and_effective_cutoffs",
+          "test_file": "tests/unit/simulated_trading/test_execution_fee_policy_v2.py",
+          "test_function": "test_fee_policy_v2_rejects_expiry_and_a_knowledge_cutoff_before_recorded_time"
+        },
+        {
+          "case": "future_known_row_not_visible",
+          "test_file": "tests/component/simulated_trading/test_fee_policy_v2_repository.py",
+          "test_function": "test_repository_does_not_make_future_known_policy_visible"
+        },
+        {
+          "case": "same_case_windows_cannot_overlap",
+          "test_file": "tests/component/simulated_trading/test_fee_policy_v2_repository.py",
+          "test_function": "test_repository_rejects_exact_case_overlap_but_allows_adjacent_window"
+        },
+        {
+          "case": "legacy_receipt_uses_original_execution_time",
+          "test_file": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_legacy_v1_fee_snapshot_receipt_replays_after_policy_window_expires"
+        },
+        {
+          "case": "two_connection_overlap_race",
+          "test_file": "tests/component/simulated_trading/test_fee_policy_v2_concurrency.py",
+          "test_function": "test_concurrent_overlapping_cases_cannot_publish_two_policy_identities"
+        },
+        {
+          "case": "first_record_seal_cannot_be_deleted_by_stale_shell",
+          "test_file": "tests/component/simulated_trading/test_fee_policy_v2_immutable_instance.py",
+          "test_function": "test_post_save_shell_instance_cannot_delete_a_subsequently_sealed_version"
         }
       ]
     }

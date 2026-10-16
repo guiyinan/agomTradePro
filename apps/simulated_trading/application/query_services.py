@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
+from math import isfinite
 from typing import Any
 
 from apps.simulated_trading.application.ports import DailyNetValueRecord
@@ -158,10 +160,13 @@ def get_account_execution_projection(
     user_id: int,
     account_id: int,
 ) -> dict[str, Any] | None:
-    """Return the authoritative account/position inputs required by live risk checks.
+    """Return the scoped account projection required by live risk checks.
 
     This application facade intentionally hides ORM models from broker execution and
-    gives cross-app callers a stable, read-only projection.
+    gives cross-app callers a stable, read-only projection. Position quantities use
+    the persisted available balance; missing or inconsistent balances make the
+    complete projection unavailable. This ledger projection is not broker settlement
+    or reservation evidence.
     """
 
     account_repo = get_simulated_account_repository()
@@ -176,18 +181,23 @@ def get_account_execution_projection(
     )
     if account is None:
         return None
-    positions = [
-        {
-            "asset_code": position.asset_code,
-            "quantity": float(position.quantity or 0),
-            # The unified ledger does not currently expose a separate frozen
-            # quantity, so this is an account projection, not a broker fact.
-            "available_quantity": float(position.quantity or 0),
-            "current_price": float(position.current_price or 0),
-            "market_value": float(position.market_value or 0),
-        }
-        for position in position_repo.get_by_account(account.account_id)
-    ]
+    positions: list[dict[str, Any]] = []
+    for position in position_repo.get_by_account(account.account_id):
+        quantity = _execution_projection_quantity(position.quantity)
+        available_quantity = _execution_projection_quantity(
+            getattr(position, "available_quantity", None)
+        )
+        if quantity is None or available_quantity is None or available_quantity > quantity:
+            return None
+        positions.append(
+            {
+                "asset_code": position.asset_code,
+                "quantity": float(quantity),
+                "available_quantity": float(available_quantity),
+                "current_price": float(position.current_price or 0),
+                "market_value": float(position.market_value or 0),
+            }
+        )
     return {
         "account_id": int(account.account_id),
         "user_id": int(user_id),
@@ -198,6 +208,26 @@ def get_account_execution_projection(
         "total_position_value": float(account.current_market_value or 0),
         "positions": positions,
     }
+
+
+def _execution_projection_quantity(value: object) -> Decimal | None:
+    """Return one finite, nonnegative ledger quantity or mark it unavailable."""
+
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+        return None
+    try:
+        quantity = Decimal(str(value))
+        numeric_value = float(quantity)
+    except (InvalidOperation, OverflowError, TypeError, ValueError):
+        return None
+    if (
+        not quantity.is_finite()
+        or quantity < 0
+        or not isfinite(numeric_value)
+        or Decimal(str(numeric_value)) != quantity
+    ):
+        return None
+    return quantity
 
 
 def get_user_performance_payload(

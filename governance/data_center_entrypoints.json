@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 81,
+      "current_data_surface": 83,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 860,
+      "active_public": 862,
       "adjacent_operational": 339,
       "candidate-review": 8,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1345
+    "total": 1347
   },
   "entries": [
     {
@@ -5867,6 +5867,26 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "sentiment.current",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=1",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.account_execution_projection:Scoped legacy ledger quantity fidelity only; absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "locator": "Scoped legacy ledger quantity fidelity only; absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.account_execution_projection",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=5",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.fee_policy_v2_temporal_scope:Exact-case immutable normal-simulation fee versions: local recorded knowledge and half-open validity; historical V1 receipt replay remains original-time only",
+      "locator": "Exact-case immutable normal-simulation fee versions: local recorded knowledge and half-open validity; historical V1 receipt replay remains original-time only",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.fee_policy_v2_temporal_scope",
       "target": ""
     },
     {
@@ -13501,7 +13521,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 81,
+    "current_data_contracts": 83,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 42,
     "runtime_config_keys": 45

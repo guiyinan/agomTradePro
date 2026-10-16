@@ -85557,6 +85557,79 @@
               ]
             },
             {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "fee_policy_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_policy_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "fee_policy_account_scope",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_policy_effective_from",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_policy_valid_until",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_policy_transaction_cases",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "fee_policy_content_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "DateTimeField",
               "kwargs": {
                 "auto_now_add": true
@@ -85578,7 +85651,7 @@
             }
           ],
           "meta": {
-            "constraints": "[models.UniqueConstraint(fields=['asset_type'], condition=Q(is_default=True), name='uniq_default_fee_config_per_asset_type')]",
+            "constraints": "[models.UniqueConstraint(fields=['asset_type'], condition=Q(is_default=True), name='uniq_default_fee_config_per_asset_type'), models.UniqueConstraint(fields=['fee_policy_id', 'fee_policy_version'], condition=Q(fee_policy_id__isnull=False), name='uniq_sim_fee_policy_identity_v2'), models.CheckConstraint(condition=Q(fee_policy_id__isnull=True, fee_policy_version__isnull=True, fee_policy_account_scope__isnull=True, fee_policy_effective_from__isnull=True, fee_policy_valid_until__isnull=True, fee_policy_transaction_cases__isnull=True, fee_policy_content_hash__isnull=True) | Q(fee_policy_id__isnull=False, fee_policy_version__isnull=False, fee_policy_account_scope__isnull=False, fee_policy_effective_from__isnull=False, fee_policy_valid_until__isnull=False, fee_policy_transaction_cases__isnull=False, fee_policy_content_hash__isnull=False), name='sim_fee_policy_v2_complete_ck'), models.CheckConstraint(condition=Q(fee_policy_id__isnull=True) | Q(fee_policy_effective_from__lt=models.F('fee_policy_valid_until')), name='sim_fee_policy_v2_window_ck'), models.CheckConstraint(condition=Q(fee_policy_id__isnull=True) | Q(created_at__lt=models.F('fee_policy_valid_until')), name='sim_fee_policy_v2_known_window_ck')]",
             "db_table": "simulated_fee_config",
             "indexes": "[models.Index(fields=['asset_type', 'is_active']), models.Index(fields=['is_default', 'is_active'])]",
             "ordering": [
@@ -86862,6 +86935,34 @@
             {
               "field_type": "DecimalField",
               "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 10,
+                "null": true
+              },
+              "name": "transfer_fee",
+              "null": true,
+              "positional_args": [
+                "'过户费(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 10,
+                "null": true
+              },
+              "name": "stamp_duty",
+              "null": true,
+              "positional_args": [
+                "'印花税(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
                 "decimal_places": 2,
                 "default": 0,
                 "max_digits": 10
@@ -86997,11 +87098,455 @@
               "positional_args": [
                 "'创建时间'"
               ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "idempotency_key",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "request_payload_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_config_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "fee_schedule_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_schedule_snapshot",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "fee_precision_basis",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "fee_calculation_purpose",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 48,
+                "null": true
+              },
+              "name": "fee_rounding_policy",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "choices": [
+                  [
+                    "pending",
+                    "待结算"
+                  ],
+                  [
+                    "released",
+                    "已结算"
+                  ]
+                ],
+                "max_length": 12,
+                "null": true
+              },
+              "name": "settlement_status",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_security_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "settlement_market",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "settlement_board",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_market_session",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_lag_sessions",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_bundle_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_bundle_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_bundle_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_policy_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_policy_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "execution_rule_v2_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_release_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 36,
+                "null": true
+              },
+              "name": "settlement_calendar_snapshot_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_calendar_content_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_calendar_record_digest",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_calendar_publication_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_publication_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_evidence_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_timezone",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_released_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_release_session",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 36,
+                "null": true
+              },
+              "name": "settlement_release_calendar_snapshot_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_release_calendar_content_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_release_calendar_record_digest",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_release_calendar_publication_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_publication_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_evidence_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_timezone",
+              "null": true,
+              "positional_args": []
             }
           ],
           "meta": {
+            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), condition=Q(idempotency_key__isnull=False), name='sim_trade_account_idemp_uq'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True) | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False), name='sim_trade_idemp_pair_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, fee_config_id__isnull=True, fee_schedule_hash__isnull=True, fee_schedule_snapshot__isnull=True, fee_precision_basis__isnull=True, fee_calculation_purpose__isnull=True, fee_rounding_policy__isnull=True, settlement_market_session__isnull=True, settlement_security_id__isnull=True, settlement_market__isnull=True, settlement_board__isnull=True, settlement_lag_sessions__isnull=True, settlement_bundle_id__isnull=True, settlement_bundle_version__isnull=True, settlement_bundle_hash__isnull=True, settlement_policy_id__isnull=True, settlement_policy_version__isnull=True, settlement_policy_hash__isnull=True, execution_rule_v2_hash__isnull=True, settlement_calendar_snapshot_id__isnull=True, settlement_calendar_content_hash__isnull=True, settlement_calendar_record_digest__isnull=True, settlement_calendar_publication_id__isnull=True, settlement_calendar_publication_hash__isnull=True, settlement_calendar_policy_hash__isnull=True, settlement_calendar_evidence_hash__isnull=True, settlement_calendar_timezone__isnull=True) | Q(idempotency_key__isnull=False, fee_config_id__isnull=False, fee_schedule_hash__isnull=False, fee_schedule_snapshot__isnull=False, fee_precision_basis__isnull=False, fee_calculation_purpose__isnull=False, fee_rounding_policy__isnull=False, settlement_market_session__isnull=False, settlement_security_id__isnull=False, settlement_market__isnull=False, settlement_board__isnull=False, settlement_lag_sessions__isnull=False, settlement_bundle_id__isnull=False, settlement_bundle_version__isnull=False, settlement_bundle_hash__isnull=False, settlement_policy_id__isnull=False, settlement_policy_version__isnull=False, settlement_policy_hash__isnull=False, execution_rule_v2_hash__isnull=False, settlement_calendar_snapshot_id__isnull=False, settlement_calendar_content_hash__isnull=False, settlement_calendar_record_digest__isnull=False, settlement_calendar_publication_id__isnull=False, settlement_calendar_publication_hash__isnull=False, settlement_calendar_policy_hash__isnull=False, settlement_calendar_evidence_hash__isnull=False, settlement_calendar_timezone__isnull=False), name='sim_trade_uow_binding_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='sell', idempotency_key__isnull=False, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='pending', settlement_release_date__isnull=False, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='released', settlement_release_date__isnull=False, settlement_released_at__isnull=False, settlement_release_session__isnull=False, settlement_release_calendar_snapshot_id__isnull=False, settlement_release_calendar_content_hash__isnull=False, settlement_release_calendar_record_digest__isnull=False, settlement_release_calendar_publication_id__isnull=False, settlement_release_calendar_publication_hash__isnull=False, settlement_release_calendar_policy_hash__isnull=False, settlement_release_calendar_evidence_hash__isnull=False, settlement_release_calendar_timezone__isnull=False), name='sim_trade_settlement_release_ck')]",
             "db_table": "simulated_trade",
-            "indexes": "[models.Index(fields=['account', '-execution_date']), models.Index(fields=['asset_code', '-execution_date']), models.Index(fields=['-execution_date'])]",
+            "indexes": "[models.Index(fields=['account', '-execution_date']), models.Index(fields=['asset_code', '-execution_date']), models.Index(fields=['-execution_date']), models.Index(fields=['account', 'asset_code', 'settlement_status', 'settlement_market_session'], name='sim_trade_settle_due_ix')]",
             "ordering": [
               "-execution_date",
               "-execution_time"

@@ -328,6 +328,14 @@ limit 与 6,300 秒 authority window 保持原值；TTL 必须严格大于 hard 
 本入口不证明交易日、停复牌、板块、交易阶段、涨跌幅边界或账户权限，也不激活指针或授权下单。
 公开契约和测试边界见 [精确报价读取](../api/a-share-execution-quote-read.md)。
 
+### 2026-10-16 本地账户可卖数量投影
+
+`simulated_trading.application.query_services.get_account_execution_projection` 保留本地账本的
+`available_quantity`，不得由总持仓 `quantity` 推定。缺失、负数、非有限值、可卖量超过总量、
+或旧 float 输出无法精确往返的数量使整个投影不可用，账户和用户范围继续校验。
+该旧投影没有券商源时钟、结算批次完整性或委托预留证明；不得将查询时刻补成源时间，
+也不得直接将它升级为 v2 `SellPositionEvidence`。对应机器 surface 只登记这项有限的保真修复。
+
 ### 2026-10-16 V3 结算配置的知识截止点
 
 `risk_center.application.execution_settlement_v3.ReadEffectiveExecutionSettlementV3UseCase`

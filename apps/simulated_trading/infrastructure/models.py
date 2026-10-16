@@ -19,15 +19,16 @@ from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import models, router, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .simulated_account_row_source_models import SimulatedAccountRowSourceModel
-from .simulated_account_row_source_v2_models import SimulatedAccountRowSourceV2Model
-from .simulated_account_raw_observation_models import (
+# These model imports register their tables with Django's app registry.
+from .simulated_account_raw_observation_models import (  # noqa: F401
     SimulatedAccountRawObservationModel,
 )
+from .simulated_account_row_source_models import SimulatedAccountRowSourceModel  # noqa: F401
+from .simulated_account_row_source_v2_models import SimulatedAccountRowSourceV2Model  # noqa: F401
 
 
 class SimulatedAccountModel(models.Model):
@@ -239,6 +240,12 @@ class SimulatedTradeModel(models.Model):
 
     # 费用
     commission = models.DecimalField("手续费(元)", max_digits=10, decimal_places=2, default=0)
+    transfer_fee = models.DecimalField(
+        "过户费(元)", max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    stamp_duty = models.DecimalField(
+        "印花税(元)", max_digits=10, decimal_places=2, null=True, blank=True
+    )
     slippage = models.DecimalField("滑点损失(元)", max_digits=10, decimal_places=2, default=0)
     total_cost = models.DecimalField("总成本(元)", max_digits=15, decimal_places=2)
 
@@ -273,6 +280,64 @@ class SimulatedTradeModel(models.Model):
     # 元数据
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
 
+    # Exact metadata for the new settlement-bound normal-simulation UoW. Legacy
+    # and imported facts leave these columns NULL and are never backfilled.
+    idempotency_key = models.CharField(max_length=128, null=True, blank=True)
+    request_payload_hash = models.CharField(max_length=64, null=True, blank=True)
+    fee_config_id = models.PositiveBigIntegerField(null=True, blank=True)
+    fee_schedule_hash = models.CharField(max_length=64, null=True, blank=True)
+    fee_schedule_snapshot = models.JSONField(null=True, blank=True)
+    fee_precision_basis = models.CharField(max_length=32, null=True, blank=True)
+    fee_calculation_purpose = models.CharField(max_length=32, null=True, blank=True)
+    fee_rounding_policy = models.CharField(max_length=48, null=True, blank=True)
+    settlement_status = models.CharField(
+        max_length=12,
+        choices=[("pending", "待结算"), ("released", "已结算")],
+        null=True,
+        blank=True,
+    )
+    settlement_security_id = models.CharField(max_length=192, null=True, blank=True)
+    settlement_market = models.CharField(max_length=32, null=True, blank=True)
+    settlement_board = models.CharField(max_length=32, null=True, blank=True)
+    settlement_market_session = models.DateField(null=True, blank=True)
+    settlement_lag_sessions = models.PositiveIntegerField(null=True, blank=True)
+    settlement_bundle_id = models.CharField(max_length=192, null=True, blank=True)
+    settlement_bundle_version = models.CharField(max_length=192, null=True, blank=True)
+    settlement_bundle_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_policy_id = models.CharField(max_length=192, null=True, blank=True)
+    settlement_policy_version = models.CharField(max_length=192, null=True, blank=True)
+    settlement_policy_hash = models.CharField(max_length=64, null=True, blank=True)
+    execution_rule_v2_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_release_date = models.DateField(null=True, blank=True)
+    settlement_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)
+    settlement_calendar_content_hash = models.CharField(max_length=71, null=True, blank=True)
+    settlement_calendar_record_digest = models.CharField(max_length=71, null=True, blank=True)
+    settlement_calendar_publication_id = models.CharField(max_length=192, null=True, blank=True)
+    settlement_calendar_publication_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_calendar_evidence_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)
+    settlement_released_at = models.DateTimeField(null=True, blank=True)
+    settlement_release_session = models.DateField(null=True, blank=True)
+    settlement_release_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)
+    settlement_release_calendar_content_hash = models.CharField(
+        max_length=71, null=True, blank=True
+    )
+    settlement_release_calendar_record_digest = models.CharField(
+        max_length=71, null=True, blank=True
+    )
+    settlement_release_calendar_publication_id = models.CharField(
+        max_length=192, null=True, blank=True
+    )
+    settlement_release_calendar_publication_hash = models.CharField(
+        max_length=64, null=True, blank=True
+    )
+    settlement_release_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)
+    settlement_release_calendar_evidence_hash = models.CharField(
+        max_length=64, null=True, blank=True
+    )
+    settlement_release_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)
+
     class Meta:
         db_table = "simulated_trade"
         verbose_name = "模拟交易记录"
@@ -282,10 +347,176 @@ class SimulatedTradeModel(models.Model):
             models.Index(fields=["account", "-execution_date"]),
             models.Index(fields=["asset_code", "-execution_date"]),
             models.Index(fields=["-execution_date"]),
+            models.Index(
+                fields=["account", "asset_code", "settlement_status", "settlement_market_session"],
+                name="sim_trade_settle_due_ix",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("account", "idempotency_key"),
+                condition=Q(idempotency_key__isnull=False),
+                name="sim_trade_account_idemp_uq",
+            ),
+            models.CheckConstraint(
+                condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True)
+                | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False),
+                name="sim_trade_idemp_pair_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    idempotency_key__isnull=True,
+                    fee_config_id__isnull=True,
+                    fee_schedule_hash__isnull=True,
+                    fee_schedule_snapshot__isnull=True,
+                    fee_precision_basis__isnull=True,
+                    fee_calculation_purpose__isnull=True,
+                    fee_rounding_policy__isnull=True,
+                    settlement_market_session__isnull=True,
+                    settlement_security_id__isnull=True,
+                    settlement_market__isnull=True,
+                    settlement_board__isnull=True,
+                    settlement_lag_sessions__isnull=True,
+                    settlement_bundle_id__isnull=True,
+                    settlement_bundle_version__isnull=True,
+                    settlement_bundle_hash__isnull=True,
+                    settlement_policy_id__isnull=True,
+                    settlement_policy_version__isnull=True,
+                    settlement_policy_hash__isnull=True,
+                    execution_rule_v2_hash__isnull=True,
+                    settlement_calendar_snapshot_id__isnull=True,
+                    settlement_calendar_content_hash__isnull=True,
+                    settlement_calendar_record_digest__isnull=True,
+                    settlement_calendar_publication_id__isnull=True,
+                    settlement_calendar_publication_hash__isnull=True,
+                    settlement_calendar_policy_hash__isnull=True,
+                    settlement_calendar_evidence_hash__isnull=True,
+                    settlement_calendar_timezone__isnull=True,
+                )
+                | Q(
+                    idempotency_key__isnull=False,
+                    fee_config_id__isnull=False,
+                    fee_schedule_hash__isnull=False,
+                    fee_schedule_snapshot__isnull=False,
+                    fee_precision_basis__isnull=False,
+                    fee_calculation_purpose__isnull=False,
+                    fee_rounding_policy__isnull=False,
+                    settlement_market_session__isnull=False,
+                    settlement_security_id__isnull=False,
+                    settlement_market__isnull=False,
+                    settlement_board__isnull=False,
+                    settlement_lag_sessions__isnull=False,
+                    settlement_bundle_id__isnull=False,
+                    settlement_bundle_version__isnull=False,
+                    settlement_bundle_hash__isnull=False,
+                    settlement_policy_id__isnull=False,
+                    settlement_policy_version__isnull=False,
+                    settlement_policy_hash__isnull=False,
+                    execution_rule_v2_hash__isnull=False,
+                    settlement_calendar_snapshot_id__isnull=False,
+                    settlement_calendar_content_hash__isnull=False,
+                    settlement_calendar_record_digest__isnull=False,
+                    settlement_calendar_publication_id__isnull=False,
+                    settlement_calendar_publication_hash__isnull=False,
+                    settlement_calendar_policy_hash__isnull=False,
+                    settlement_calendar_evidence_hash__isnull=False,
+                    settlement_calendar_timezone__isnull=False,
+                ),
+                name="sim_trade_uow_binding_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    idempotency_key__isnull=True,
+                    settlement_status__isnull=True,
+                    settlement_release_date__isnull=True,
+                    settlement_released_at__isnull=True,
+                    settlement_release_session__isnull=True,
+                    settlement_release_calendar_snapshot_id__isnull=True,
+                    settlement_release_calendar_content_hash__isnull=True,
+                    settlement_release_calendar_record_digest__isnull=True,
+                    settlement_release_calendar_publication_id__isnull=True,
+                    settlement_release_calendar_publication_hash__isnull=True,
+                    settlement_release_calendar_policy_hash__isnull=True,
+                    settlement_release_calendar_evidence_hash__isnull=True,
+                    settlement_release_calendar_timezone__isnull=True,
+                )
+                | Q(
+                    action="sell",
+                    idempotency_key__isnull=False,
+                    settlement_status__isnull=True,
+                    settlement_release_date__isnull=True,
+                    settlement_released_at__isnull=True,
+                    settlement_release_session__isnull=True,
+                    settlement_release_calendar_snapshot_id__isnull=True,
+                    settlement_release_calendar_content_hash__isnull=True,
+                    settlement_release_calendar_record_digest__isnull=True,
+                    settlement_release_calendar_publication_id__isnull=True,
+                    settlement_release_calendar_publication_hash__isnull=True,
+                    settlement_release_calendar_policy_hash__isnull=True,
+                    settlement_release_calendar_evidence_hash__isnull=True,
+                    settlement_release_calendar_timezone__isnull=True,
+                )
+                | Q(
+                    action="buy",
+                    settlement_status="pending",
+                    settlement_release_date__isnull=False,
+                    settlement_released_at__isnull=True,
+                    settlement_release_session__isnull=True,
+                    settlement_release_calendar_snapshot_id__isnull=True,
+                    settlement_release_calendar_content_hash__isnull=True,
+                    settlement_release_calendar_record_digest__isnull=True,
+                    settlement_release_calendar_publication_id__isnull=True,
+                    settlement_release_calendar_publication_hash__isnull=True,
+                    settlement_release_calendar_policy_hash__isnull=True,
+                    settlement_release_calendar_evidence_hash__isnull=True,
+                    settlement_release_calendar_timezone__isnull=True,
+                )
+                | Q(
+                    action="buy",
+                    settlement_status="released",
+                    settlement_release_date__isnull=False,
+                    settlement_released_at__isnull=False,
+                    settlement_release_session__isnull=False,
+                    settlement_release_calendar_snapshot_id__isnull=False,
+                    settlement_release_calendar_content_hash__isnull=False,
+                    settlement_release_calendar_record_digest__isnull=False,
+                    settlement_release_calendar_publication_id__isnull=False,
+                    settlement_release_calendar_publication_hash__isnull=False,
+                    settlement_release_calendar_policy_hash__isnull=False,
+                    settlement_release_calendar_evidence_hash__isnull=False,
+                    settlement_release_calendar_timezone__isnull=False,
+                ),
+                name="sim_trade_settlement_release_ck",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.get_action_display()} {self.asset_name} x{self.quantity} @ {self.execution_date}"
+
+
+class FeeConfigQuerySet(models.QuerySet["FeeConfigModel"]):
+    """Prevent ORM bulk writes from rewriting immutable V2 policy rows."""
+
+    def update(self, **kwargs: Any) -> int:
+        """Allow mutable legacy updates but reject changes to strict versions."""
+
+        if self.filter(fee_policy_id__isnull=False).exists():
+            raise ValidationError("版本化模拟费率策略不可通过 QuerySet.update 修改")
+        if any(field_name.startswith("fee_policy_") for field_name in kwargs):
+            raise ValidationError("版本化模拟费率元数据只能由版本创建流程写入")
+        legacy_rows = self.filter(fee_policy_id__isnull=True)
+        return models.QuerySet.update(legacy_rows, **kwargs)
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        """Prevent bulk deletion of immutable V2 policy versions."""
+
+        if self.filter(fee_policy_id__isnull=False).exists():
+            raise ValidationError("版本化模拟费率策略不可通过 QuerySet.delete 删除")
+        legacy_rows = self.filter(fee_policy_id__isnull=True)
+        return models.QuerySet.delete(legacy_rows)
+
+
+FeeConfigManager = models.Manager.from_queryset(FeeConfigQuerySet)
 
 
 class FeeConfigModel(models.Model):
@@ -325,9 +556,21 @@ class FeeConfigModel(models.Model):
     is_active = models.BooleanField("是否启用", default=True, db_index=True)
     description = models.TextField("配置说明", blank=True)
 
+    # Exact-case V2 policy metadata. Legacy FeeConfig rows remain NULL here and
+    # are intentionally ineligible for the new settlement-bound execution path.
+    fee_policy_id = models.CharField(max_length=192, null=True, blank=True)
+    fee_policy_version = models.PositiveIntegerField(null=True, blank=True)
+    fee_policy_account_scope = models.CharField(max_length=32, null=True, blank=True)
+    fee_policy_effective_from = models.DateTimeField(null=True, blank=True)
+    fee_policy_valid_until = models.DateTimeField(null=True, blank=True)
+    fee_policy_transaction_cases = models.JSONField(null=True, blank=True)
+    fee_policy_content_hash = models.CharField(max_length=64, null=True, blank=True)
+
     # 元数据
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    objects = FeeConfigManager()
 
     class Meta:
         db_table = "simulated_fee_config"
@@ -343,6 +586,50 @@ class FeeConfigModel(models.Model):
                 fields=["asset_type"],
                 condition=Q(is_default=True),
                 name="uniq_default_fee_config_per_asset_type",
+            ),
+            models.UniqueConstraint(
+                fields=["fee_policy_id", "fee_policy_version"],
+                condition=Q(fee_policy_id__isnull=False),
+                name="uniq_sim_fee_policy_identity_v2",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        fee_policy_id__isnull=True,
+                        fee_policy_version__isnull=True,
+                        fee_policy_account_scope__isnull=True,
+                        fee_policy_effective_from__isnull=True,
+                        fee_policy_valid_until__isnull=True,
+                        fee_policy_transaction_cases__isnull=True,
+                        fee_policy_content_hash__isnull=True,
+                    )
+                    | Q(
+                        fee_policy_id__isnull=False,
+                        fee_policy_version__isnull=False,
+                        fee_policy_account_scope__isnull=False,
+                        fee_policy_effective_from__isnull=False,
+                        fee_policy_valid_until__isnull=False,
+                        fee_policy_transaction_cases__isnull=False,
+                        fee_policy_content_hash__isnull=False,
+                    )
+                ),
+                name="sim_fee_policy_v2_complete_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(fee_policy_id__isnull=True)
+                | Q(fee_policy_effective_from__lt=models.F("fee_policy_valid_until")),
+                name="sim_fee_policy_v2_window_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(fee_policy_id__isnull=True)
+                | Q(created_at__lt=models.F("fee_policy_valid_until")),
+                name="sim_fee_policy_v2_known_window_ck",
+            ),
+        ]
+        indexes += [
+            models.Index(
+                fields=["fee_policy_id", "fee_policy_effective_from", "fee_policy_valid_until"],
+                name="sim_fee_policy_window_idx",
             )
         ]
 
@@ -386,15 +673,55 @@ class FeeConfigModel(models.Model):
         """Validate and atomically switch the default fee configuration."""
 
         # Preserve raw Python types so direct ORM writes cannot coerce bool to 1.0.
+        using = kwargs.get("using")
+        if using is None:
+            using = router.db_for_write(type(self), instance=self)
+        kwargs["using"] = using
+        if self.pk is not None:
+            current_policy_id = (
+                FeeConfigModel._base_manager.using(using)
+                .filter(pk=self.pk)
+                .values_list("fee_policy_id", flat=True)
+                .first()
+            )
+            if current_policy_id is not None:
+                raise ValidationError("版本化模拟费率策略不可通过 Model.save 修改")
         self.clean()
         self.full_clean(validate_unique=False, validate_constraints=False)
-        with transaction.atomic():
+        with transaction.atomic(using=using):
             if self.is_default:
                 FeeConfigModel._default_manager.filter(
                     asset_type=self.asset_type,
                     is_default=True,
-                ).exclude(id=self.id).update(is_default=False)
+                ).using(using).exclude(id=self.id).update(is_default=False)
             super().save(*args, **kwargs)
+
+    def delete(
+        self,
+        using: str | None = None,
+        keep_parents: bool = False,
+    ) -> tuple[int, dict[str, int]]:
+        """Keep strict versions append-only while preserving legacy deletion."""
+
+        if self.pk is None:
+            raise ValueError("FeeConfigModel object cannot be deleted because its pk is None")
+        database = using or self._state.db or router.db_for_write(type(self), instance=self)
+        current_policy_id = (
+            FeeConfigModel._base_manager.using(database)
+            .filter(pk=self.pk)
+            .values_list("fee_policy_id", flat=True)
+            .first()
+        )
+        if current_policy_id is not None:
+            raise ValidationError("版本化模拟费率策略不可删除")
+        deleted, per_model = (
+            FeeConfigModel._default_manager.using(database)
+            .filter(pk=self.pk, fee_policy_id__isnull=True)
+            .delete()
+        )
+        if deleted:
+            self.pk = None
+        return deleted, per_model
 
 
 class DailyInspectionReportModel(models.Model):

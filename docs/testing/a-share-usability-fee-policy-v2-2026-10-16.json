@@ -1,0 +1,83 @@
+{
+  "schema": "a-share-usability.bounded-local-checkpoint.v1",
+  "recorded_at": "2026-10-16T14:26:46.832849+00:00",
+  "scope": "Exact-case simulated Fee V2 writer/preview and new UoW; existing consumers remain unswitched",
+  "production_source_sha256": {
+    "apps/simulated_trading/domain/execution_fee_policy_v2.py": "f7af32ed23cc8b30c00c94a2765c044de18546e6516ec9545ee9e5c0122a8592",
+    "apps/simulated_trading/domain/execution_settlement_uow.py": "bbedc41d09f5e9f4dcdb2ab09050220de6faf24799328494192860288a4f5afd",
+    "apps/simulated_trading/application/fee_policy_v2.py": "4c286af1b141e563f12930f4cb45d623e1f9999387cbdffa9ca3647511b2ae32",
+    "apps/simulated_trading/application/execution_settlement_uow.py": "5d18d10f6fa48cfbb270dc2cd69b058599c6aacf9b8b283c6e11e3269388c062",
+    "apps/simulated_trading/infrastructure/models.py": "f56bbd484bf8afed69d2efa459cde0976027901db739969da6702c9118ec084c",
+    "apps/simulated_trading/infrastructure/fee_policy_v2_repository.py": "8233161958eb815568b0214d9687fc716ba78a1106201185ac7afdb4e6c0e70d",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "ede217e88600d8c7cca4ae3bbdeda3262f7527b1f55ffdc13f25787142d499ff",
+    "apps/simulated_trading/management/commands/create_simulated_fee_policy_v2.py": "e22d4d317b00aa85d388f8dc5d18cf64e211cc1ea438e2ab4b161d1f86ef78a4",
+    "apps/simulated_trading/fee_policy_v2_composition.py": "4cc8e217428ddc66037fb114ef687aeb89b4e7412e911c7ae777c678103beb38",
+    "apps/simulated_trading/execution_settlement_composition.py": "48f656b6b0efab52d1c59c21e1d913827d173ef8edc779f1dbc2212650a54230",
+    "apps/simulated_trading/interface/admin.py": "648462b7b0d9292c772e7f73dc8299030ab3912392542959bce6a336ecffa938",
+    "apps/simulated_trading/migrations/0025_fee_policy_v2_contract.py": "e04d561e30c3641738c48cb95333aec15ef574b10528d20290aad142817c324a"
+  },
+  "test_source_sha256": {
+    "tests/unit/simulated_trading/test_execution_fee_policy_v2.py": "497413ad704281d5044f336580c584516ac84a0dc820e27ac58f2fdbd1fe76fd",
+    "tests/unit/simulated_trading/test_fee_policy_application_v2.py": "16329add3f6af65d6263addb3c5ad32e800f964cf46626691548f6e0b00c776f",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py": "8ed2725e23f422ecd96f26927f097b493239672c18b3533da07c63bf8ae25e21",
+    "tests/unit/simulated_trading/test_execution_settlement_composition.py": "5597573ca29ccfd3a32812258055d8d5e383a55466edec6daf7954b93d964d69",
+    "tests/component/simulated_trading/test_fee_policy_v2_repository.py": "5edcaa4ab4cd855a0b18592bc7060d6ffbf3afe413c50e94fd727ed4d17e1ee0",
+    "tests/component/simulated_trading/test_fee_policy_v2_immutable_instance.py": "34d45d11d83ebe7d7830c507a9b9b4c9520203112f2c8e353a3640c118663193",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "ef171a4d628be51a821ce77663ecb7aa776d4f27406ce8d71a3095ab2fcb688a",
+    "tests/component/simulated_trading/test_fee_policy_v2_concurrency.py": "a099bd9b0a9a4dbc6d1d88a443dcf1cb843fc4049dc2f4601bffbd48711ddf4b"
+  },
+  "raw_log_sha256": {
+    "pytest-fee-immutable-instance-red.txt": "3a6b4cc423a001914e8f6ed24d67f28e204483b553fcf68449cb812e61ca1282",
+    "pytest-fee-native-root-final.txt": "a6728a50983900580b95f0bf3f128820ae7f02eef5f1e921d119898a5c7dd278",
+    "migration-fee-v2-native-final.txt": "882186e393cc87f7bf4c53d7ec4a875b9a39a5be6a9bb99b22f2aa208dd4f484",
+    "migration-fee-v2-sqlite-final.txt": "12fb240c0f13fbe5fd36cc3335be61677465817531a850d7d96bd18199859658",
+    "native-test-apply-fee-v2-0025.txt": "6fcb997537495c876e7f3bfcf9deb60e47bdeeae6b9a852eb99176b180c72696",
+    "pytest-fee-v2-final5.txt": "6658ee3bbf19e05d7e5cbf344b6a3d828d7c8d29f5e46a8e13b24fa8498cfe57"
+  },
+  "coverage_json_sha256": "65744a58a7d4bd1f9a3d92ea94d35ec319ef20c10d596b575da7e1a538fe97c2",
+  "results": {
+    "root_postgresql": "111 passed / no skips in 307.31s across exact eight targets",
+    "agent_sqlite": "106 passed / 3 PostgreSQL-only skipped in 44.58s",
+    "domain_coverage": {
+      "apps\\simulated_trading\\domain\\execution_fee_policy_v2.py": {
+        "statements": [
+          161,
+          163
+        ],
+        "branches": [
+          56,
+          56
+        ]
+      },
+      "apps\\simulated_trading\\domain\\execution_settlement_uow.py": {
+        "statements": [
+          670,
+          703
+        ],
+        "branches": [
+          257,
+          272
+        ]
+      }
+    },
+    "concurrency": "Five actual PostgreSQL two-connection races: UoW idempotency/cash/available shares plus fee identity/overlap.",
+    "migration": "Actual isolated operations up/down/up on SQLite and PostgreSQL; old binary64 fees preserved, seven new metadata fields NULL, partial/duplicate/invalid windows rejected.",
+    "fixture": "Reused native PostgreSQL 16.15 fixture: 541 migrations / 578 ordinary tables, --reuse-db --no-migrations. Only frozen 0025 applied this slice, not full historical replay."
+  },
+  "guarantees_tested": [
+    "Explicit exact asset/market/board/side cases and component APPLIES/NOT_APPLICABLE, no default zero for unknowns.",
+    "Decimal.from_float preserves database binary64 truth; app compares exact Decimal values.",
+    "Explicit all-simulated-accounts scope; immutable version/window/hash/first recorded_at, old NULL metadata excluded.",
+    "CLI default manifest-only preview never calls repository; --apply with explicit alias creates/replays.",
+    "Stale post_save instance deletion regression fixed against database current identity; final bulk SQL filters legacy NULL rows and preserves Django delete signals.",
+    "Same-alias UoW commits fee receipt/cash/position/trade/pending settlement atomically, V1 history bytes/hash remain compatible."
+  ],
+  "limits": [
+    "Ordinary ORM guards are not database native immutable triggers; raw SQL/base QuerySet bypass is not an authorized management entry.",
+    "No early retirement; legacy is_active/is_default flags do not disable strict policies.",
+    "Synthetic migration hashes prove database constraints only, not runtime V2 validity.",
+    "No seeded actual fees/cases, account-specific policy, old consumer switch, live actual fee re-estimate or double deduction.",
+    "Formal calendar publisher/authority and joint original T+1/odd-lot acceptance remain open.",
+    "No production/provider/broker action or Goal completion."
+  ]
+}

@@ -8,9 +8,13 @@ Django Admin 配置：
 - 费率配置管理
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
+from django import forms
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.urls import URLPattern, URLResolver
 from django.utils.html import format_html
@@ -27,9 +31,9 @@ from apps.simulated_trading.models import (
     SimulatedTradeModel,
     UnifiedAccountCashFlowModel,
 )
+from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
 
 if TYPE_CHECKING:
-    FeeConfigAdminBase = admin.ModelAdmin[FeeConfigModel]
     SimulatedAccountAdminBase = admin.ModelAdmin[SimulatedAccountModel]
     SimulatedPositionAdminBase = admin.ModelAdmin[PositionModel]
     SimulatedTradeAdminBase = admin.ModelAdmin[SimulatedTradeModel]
@@ -43,7 +47,6 @@ if TYPE_CHECKING:
         AccountPositionValuationSnapshotModel
     ]
 else:
-    FeeConfigAdminBase = admin.ModelAdmin
     SimulatedAccountAdminBase = admin.ModelAdmin
     SimulatedPositionAdminBase = admin.ModelAdmin
     SimulatedTradeAdminBase = admin.ModelAdmin
@@ -54,8 +57,29 @@ else:
     AccountPositionValuationSnapshotAdminBase = admin.ModelAdmin
 
 
+class FeeConfigAdminForm(TypedModelForm[FeeConfigModel]):
+    """Legacy FeeConfig editor; strict V2 policy metadata is never form-written."""
+
+    class Meta:
+        model = FeeConfigModel
+        fields = (
+            "config_name",
+            "asset_type",
+            "commission_rate_buy",
+            "commission_rate_sell",
+            "min_commission",
+            "stamp_duty_rate",
+            "transfer_fee_rate",
+            "min_transfer_fee",
+            "slippage_rate",
+            "is_default",
+            "is_active",
+            "description",
+        )
+
+
 @admin.register(FeeConfigModel)
-class FeeConfigAdmin(FeeConfigAdminBase):
+class FeeConfigAdmin(TypedModelAdmin[FeeConfigModel]):
     """费率配置管理"""
 
     list_display = [
@@ -66,11 +90,26 @@ class FeeConfigAdmin(FeeConfigAdminBase):
         "commission_rate_sell_display",
         "stamp_duty_rate_display",
         "is_active",
+        "fee_policy_id",
+        "fee_policy_version",
+        "fee_policy_effective_from",
+        "fee_policy_valid_until",
         "created_at",
     ]
     list_filter = ["asset_type", "is_active"]
     search_fields = ["config_name", "description"]
     readonly_fields = ["id", "created_at", "updated_at"]
+    form = FeeConfigAdminForm
+
+    strict_policy_readonly_fields = (
+        "fee_policy_id",
+        "fee_policy_version",
+        "fee_policy_account_scope",
+        "fee_policy_effective_from",
+        "fee_policy_valid_until",
+        "fee_policy_transaction_cases",
+        "fee_policy_content_hash",
+    )
 
     fieldsets = (
         ("基础信息", {"fields": ("config_name", "asset_type", "description")}),
@@ -81,23 +120,78 @@ class FeeConfigAdmin(FeeConfigAdminBase):
         ),
         ("滑点", {"fields": ("slippage_rate",)}),
         ("状态", {"fields": ("is_active",)}),
+        (
+            "严格版本策略（由 create_simulated_fee_policy_v2 管理，后台只读）",
+            {
+                "fields": (
+                    "fee_policy_id",
+                    "fee_policy_version",
+                    "fee_policy_account_scope",
+                    "fee_policy_effective_from",
+                    "fee_policy_valid_until",
+                    "fee_policy_transaction_cases",
+                    "fee_policy_content_hash",
+                )
+            },
+        ),
         ("元信息", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: FeeConfigModel | None = None,
+    ) -> tuple[str, ...]:
+        """Keep strict rows entirely read-only and hide write authority in the form."""
+
+        if obj is not None and obj.fee_policy_id is not None:
+            return tuple(field.name for field in FeeConfigModel._meta.fields)
+        return tuple(
+            dict.fromkeys(
+                (*super().get_readonly_fields(request, obj), *self.strict_policy_readonly_fields)
+            )
+        )
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: FeeConfigModel | None = None,
+    ) -> bool:
+        """Allow legacy cleanup while protecting immutable strict policy versions."""
+
+        if obj is not None and obj.fee_policy_id is not None:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: FeeConfigModel,
+        form: forms.ModelForm[FeeConfigModel],
+        change: bool,
+    ) -> None:
+        """Require a persisted authenticated operator and preserve strict-row immutability."""
+
+        if not request.user.is_authenticated or request.user.pk is None:
+            raise PermissionDenied("费率配置写入要求已认证且具有持久身份的操作员")
+        if obj.fee_policy_id is not None:
+            raise PermissionDenied("严格 FeeConfig 版本只能通过应用管理命令创建")
+        super().save_model(request, obj, form, change)
 
     @admin.display(description="买入费率")
     def commission_rate_buy_display(self, obj: FeeConfigModel) -> str:
         """买入费率显示"""
-        return f"{obj.commission_rate_buy * 10000:.1f}%"
+        return f"{obj.commission_rate_buy * 100:g}%"
 
     @admin.display(description="卖出费率")
     def commission_rate_sell_display(self, obj: FeeConfigModel) -> str:
         """卖出费率显示"""
-        return f"{obj.commission_rate_sell * 10000:.1f}%"
+        return f"{obj.commission_rate_sell * 100:g}%"
 
     @admin.display(description="印花税率")
     def stamp_duty_rate_display(self, obj: FeeConfigModel) -> str:
         """印花税率显示"""
-        return f"{obj.stamp_duty_rate * 100:.1f}%"
+        return f"{obj.stamp_duty_rate * 100:g}%"
 
 
 @admin.register(SimulatedAccountModel)
