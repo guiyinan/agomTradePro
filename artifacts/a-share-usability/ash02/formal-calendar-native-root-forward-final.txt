@@ -1,0 +1,13 @@
+Dedicated local native PostgreSQL fixture previously verified with 544 migrations; reused without empty-history migration replay.
+..................F..........                                            [100%]
+================================== FAILURES ===================================
+__ test_real_session_publish_replay_read_after_revocation_and_replay_denial ___
+tests\component\data_center\test_formal_calendar_publication_postgres.py:681: in test_real_session_publish_replay_read_after_revocation_and_replay_denial
+    assert _counts() == (2, 2, 2, 1)
+E   assert (2, 1, 2, 2) == (2, 2, 2, 1)
+E     
+E     At index 1 diff: 1 != 2
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_formal_calendar_publication_postgres.py::test_real_session_publish_replay_read_after_revocation_and_replay_denial
+1 failed, 28 passed in 255.51s (0:04:15)

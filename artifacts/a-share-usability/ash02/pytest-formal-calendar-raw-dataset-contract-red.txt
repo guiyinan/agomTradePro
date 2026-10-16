@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____ test_formal_calendar_seal_rejects_raw_payload_from_another_dataset ______
+tests\unit\data_center\test_formal_calendar_raw_dataset_binding.py:117: in test_formal_calendar_seal_rejects_raw_payload_from_another_dataset
+    with pytest.raises(CalendarFormalPublicationError) as exc_info:
+E   Failed: DID NOT RAISE <class 'apps.data_center.domain.formal_exchange_calendar_publication.CalendarFormalPublicationError'>
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py::test_formal_calendar_seal_rejects_raw_payload_from_another_dataset
+1 failed in 1.39s

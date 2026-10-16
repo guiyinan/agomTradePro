@@ -248,6 +248,11 @@ def test_phase_four_candidate_surfaces_remain_unapproved(
             "tests/component/data_center/test_instrument_reference_retry_postgres.py",
             "test_instrument_reference_retry_postgres",
         ),
+        (
+            "test_evidence",
+            "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+            "test_formal_calendar_publication_postgres",
+        ),
     )
     entries_by_identity = {
         (entry["category"], entry["path"], entry["symbol"]): entry for entry in payload["entries"]

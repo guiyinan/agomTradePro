@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_missing_database_alias_raises_stable_calendar_storage_error _______
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\utils\connection.py:58: in __getitem__
+    return getattr(self._connections, alias)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\asgiref\local.py:121: in __getattr__
+    return getattr(storage, key)
+E   AttributeError: '_thread._local' object has no attribute 'formal-calendar-unconfigured-alias'
+
+During handling of the above exception, another exception occurred:
+tests\unit\data_center\test_formal_calendar_repository_alias.py:36: in test_missing_database_alias_raises_stable_calendar_storage_error
+    repository.read_current(query)
+apps\data_center\infrastructure\formal_exchange_calendar_publication_repository.py:379: in read_current
+    connection = self._connection()
+apps\data_center\infrastructure\formal_exchange_calendar_publication_repository.py:451: in _connection
+    return connections[self._using]
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\utils\connection.py:61: in __getitem__
+    raise self.exception_class(f"The connection '{alias}' doesn't exist.")
+E   django.utils.connection.ConnectionDoesNotExist: The connection 'formal-calendar-unconfigured-alias' doesn't exist.
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_formal_calendar_repository_alias.py::test_missing_database_alias_raises_stable_calendar_storage_error
+1 failed in 2.19s

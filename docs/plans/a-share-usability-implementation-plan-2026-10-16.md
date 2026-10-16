@@ -765,3 +765,19 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 仓储并未因此接受。其后另一冻结窗口的主代理原生 PostgreSQL 首跑 **16 passed / 5 failed**：CAS 和两种目录锁顺序通过，真实 Audit 因 fixture 的 formal dataset 与 RawPayload dataset 不同而严格拒绝。须修 fixture 并在 Domain 提前拒绝跨 dataset，不放宽 Audit v1。独立仓储审查还确认 forward 未校验旧 current 的 Audit，以及缺 pointer 时漏检仅剩 superseded 历史；这两项正在补真实失败测试和修复，不能用本段 148 项结果代替验收。
 
 原件及两套源码字节摘要见[Calendar Audit 适配检查点](../testing/a-share-usability-calendar-audit-bridge-2026-10-17.json)。导出、暂存与工作树仅声明 LF 规范化/AST 等价，不合并成同一发布 SHA；初次 Native 失败窗口另行保留。当前 84 freshness surface、23 Audit event、1,348 入口；Calendar 两项事件仍 planned/not_wired，无生产路由、外部 outbox 投递或券商能力启用。整体 Goal、ASH-01、ASH-02、完整 ASH-03 和模拟消费者迁移继续开放。
+
+### 19.28 正式日历仓储与同事务发布独立验收
+
+纯契约 `4cacfc065` 和 Audit 适配 `3a532e71a` 之后，本批只接受正式日历仓储、RawPayload dataset 提前校验及其直接回归。[内部合同](../api/a-share-formal-calendar-publication.md)复用既有快照、canonical publication/member/coverage/pointer，不加模型或迁移。发布、旧记录 supersession、完整 CAS、实际 Core/Audit event/outbox 以及 post-Audit lease/TTL 在一个调用方外层事务内提交或回滚。读取同样须有唯一外层事务，不能拿 today current pointer 冒充历史 PIT。
+
+失败优先检查修复了 forward 漏校验旧 current Audit、缺 pointer 但存在 superseded 历史仍被当作新范围、跨 dataset RawPayload 未提前拒绝，以及不存在数据库 alias 时漏出 Django 连接异常。Forward 可替换源 TTL 已过期的 current，但须验证旧 Audit 完整性，新源仍须新鲜。写入要求唯一 active 目录；读取按原发布绑定的精确版本重算，停用不自动撤销 pointer。合同只要求同一显式 alias，不要求字面名为 default；非参与目录字段也不是已绑定的全行指纹。
+
+主代理最终原生 PostgreSQL 四文件 **29 passed / 181.01 秒**，133 个生产文件与四份测试运行中无漂移。覆盖首次/forward CAS 实际 blocker、目录两种锁顺序、真实 Session 首发/重放/forward/新版本重放、撤权后普通读取及重放拒绝、pointer 写入后的 event/outbox 故障整体回滚，以及缺审计半件时阻断 replay 和 forward。CAS/目录竞争用契约 fake 隔离存储；真实会话与 Audit 联合场景不冒充完整 publisher 双连接授权竞争。夹具复用 544 个已应用迁移，未从空重放，也未访问生产或真实 Provider。
+
+实际暂存源码树 `e106155c380754db79cc84d4caf25729ff095837` 的独立导出，23 份 unit/SQLite 文件 **325 passed / 11 PostgreSQL-only skipped / 306.66 秒**；两生产文件增量 mypy 零回归，全生产债务 **0 errors / 0 files**，九个 Python 文件 Black/isort/Ruff 通过，74 个生产函数无标注或 public docstring 缺项。增量架构两文件、1,624 新增行，boundary/audit 均为 0。另一个重叠覆盖组合 **68 passed**，Domain **371/382 语句、144/148 分支**，不累计为独立测试数。
+
+仓储另以重叠的 **19 项**测试核对 Infrastructure 覆盖率：**381/520 语句**，达到专项规范 60% 门槛；这不冒充尚未提供的 Interface 用户旅程覆盖。
+
+首次 native 的 **16 passed / 5 failed** 源于 fixture formal/raw dataset 不一致，Audit 正确拒绝；修夹具和 Domain，而未放宽 Audit。后续 **28 passed / 1 failed** 是 Root 新增旅程测试写反既有计数 tuple 顺序，修正测试后才取得最终 29 项。各次 source hash、原始失败和中间绿色窗口独立保留，不改写历史。工作树/暂存/导出只证明 LF 规范化及 AST 等价，不合并成 release、CI/S6 字节身份。
+
+本批投影仍为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface、23 Audit event；入口为 1,349、candidate-review 为 9。新增 Native 测试仅是待审查 operational test evidence，其分类有专项回归；两项 Calendar event 仍 planned/not_wired。完整原件及限定见[正式日历仓储检查点](../testing/a-share-usability-formal-calendar-storage-2026-10-17.json)。计划登记 v221，整体 Goal、原 ASH-01、完整 ASH-02/ASH-03、普通模拟/回测消费者和真实 Provider/生产/券商验收均未退出；`broker_order_evidence_integrated()` 仍为 false。下一独立批开始采集/预览/确认/读取的 Application 操作契约，尚无 HTTP/TUI 用户入口。

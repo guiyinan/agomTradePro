@@ -307,6 +307,11 @@ class CalendarFormalPublicationSeal:
         expected_natural_key = calendar_snapshot_natural_key(
             snapshot.exchange, snapshot.coverage_start, snapshot.coverage_end
         )
+        if self.snapshot.candidate.raw_reference.dataset_key != self.dataset.value:
+            raise CalendarFormalPublicationError(
+                "CALENDAR_FORMAL_MEMBER_RAW_DATASET_MISMATCH",
+                "retained raw payload dataset differs from the active publication dataset",
+            )
         if (
             member.source_record_id != snapshot.snapshot_id
             or member.fact_pk != snapshot.snapshot_id

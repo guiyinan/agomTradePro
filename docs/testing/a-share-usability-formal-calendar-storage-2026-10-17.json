@@ -1,0 +1,187 @@
+{
+  "recorded_at": "2026-10-16T19:21:37.609513+00:00",
+  "stage": "ASH-02 formal Calendar storage and atomic same-alias publication",
+  "status": "bounded_local_storage_acceptance_only",
+  "exported_source_tree": "e106155c380754db79cc84d4caf25729ff095837",
+  "proof_scope": "Frozen staged-source export before regenerated projections and acceptance metadata; not final commit, release, CI or S6 identity.",
+  "native_tests": {
+    "passed": 29,
+    "seconds": 181.01,
+    "production_files": 133,
+    "test_files": 4,
+    "source_drift": [],
+    "fixture": "Dedicated local native PostgreSQL 16.15, 544 previously applied migrations; reused with no-migrations. Not an empty-history replay or production database."
+  },
+  "sqlite_and_unit_tests": {
+    "files": 23,
+    "passed": 325,
+    "postgresql_only_skipped": 11,
+    "seconds": 306.66,
+    "production_drift": []
+  },
+  "coverage": {
+    "tests": 68,
+    "overlaps_other_results": true,
+    "domain_statements": {
+      "covered": 371,
+      "total": 382
+    },
+    "domain_branches": {
+      "covered": 144,
+      "total": 148
+    }
+  },
+  "infrastructure_coverage": {
+    "tests": 19,
+    "overlaps_other_results": true,
+    "repository_statements": {
+      "covered": 381,
+      "total": 520
+    },
+    "repository_branches": {
+      "covered": 104,
+      "total": 176
+    },
+    "minimum_statement_fraction": 0.6
+  },
+  "mypy": {
+    "incremental_production_files": 2,
+    "new_errors": 0,
+    "full_errors": 0,
+    "full_error_files": 0,
+    "baseline_changed": false
+  },
+  "style_python_files": 9,
+  "function_contracts": {
+    "checked": 74,
+    "issues": []
+  },
+  "architecture": {
+    "files": 2,
+    "added_lines": 1624,
+    "boundary": 0,
+    "audit": 0
+  },
+  "source_sha256_exported": {
+    "apps/data_center/domain/formal_exchange_calendar_publication.py": "fdfed356106232c30aa4e2f21ee5405e5338d6916d24834b3853c8ecb7223d96",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "4f69365144ff0591dbc7cc1b2cd261f692d57b9872ac4601db4b41282e25a837",
+    "tests/component/data_center/test_formal_calendar_forward_integrity.py": "7ddaa7df8d4a9a4d187ea5839f3e93ba8aa4f20274e44e4b6b131582e5fa47c1",
+    "tests/component/data_center/test_formal_calendar_orphan_history.py": "f659af92bef9d499ea3b914cb52f85d487f8f4c773bccbce48fe8da23aa49473",
+    "tests/component/data_center/test_formal_calendar_publication_postgres.py": "e49583f40f54f15442f83970facbdd966cbb1fd5793bbb063fa8593333550a2f",
+    "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py": "1863a317bead3a9f1e93d94920962da6c287784fc88a853e15ca2666b30e3af1",
+    "tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py": "638016676ca266f1b552d4a44f6cdde33ac7be080149b227317f1c5b577dc987",
+    "tests/unit/data_center/test_formal_calendar_repository_alias.py": "08429bd5bd4ba2db62d7fc775a92ea7607a174a7fd64f5ee80ad5211b895b212",
+    "tests/unit/test_data_center_entrypoint_inventory.py": "9326e7085722e14fb93ae77242831102cec704d09e16011139ad5eaf58241ff0"
+  },
+  "source_sha256_staged": {
+    "apps/data_center/domain/formal_exchange_calendar_publication.py": "1a06ad84bbe6b81d686291d65d52ee5ec1a609fa6bf94f954843cd073004a7f9",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "db859c0035f9c5d7e911d569fbee9b078e8619b73e26d3963cde0b9e7e779990",
+    "tests/component/data_center/test_formal_calendar_forward_integrity.py": "2ee0d1df54b66b1f0a6f5ffdda1af08e4a075586c50f301d65d1c2b9dc96bc5f",
+    "tests/component/data_center/test_formal_calendar_orphan_history.py": "185a15dd34a2ec6ce213e31991f308bd5076c874afc419392ac37f8a9f7e3438",
+    "tests/component/data_center/test_formal_calendar_publication_postgres.py": "6c5fc78326972191626bdb25160369eb27b16ce8b07292cc59190befc018b68d",
+    "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py": "28ac666ab2795b0deff8436f4acb199e0f2dfb7948615d5396fbae4b5d0b59db",
+    "tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py": "d708c47faf3351b7bf7dc69d2754852bbc8310a4ec9ab7b24b9cd250cd87b948",
+    "tests/unit/data_center/test_formal_calendar_repository_alias.py": "0c2adbfbd3542855bac5b782cc7109d38d7d99a022e0a6a679aecdcd1f53844c",
+    "tests/unit/test_data_center_entrypoint_inventory.py": "9efa921abc7fbc6d91aefdecf58d1766ee264c3e76f52fc973275ab108d00567"
+  },
+  "source_equivalence": "LF-normalized exact bytes and equal Python ASTs for staged/exported/worktree runtime and changed tests. Raw source hashes remain separate; no release identity is inferred.",
+  "accepted": [
+    "Domain rejects cross-dataset RawPayload before Audit",
+    "one caller-owned transaction for canonical publication/member/coverage/pointer and actual Core/Audit event/outbox",
+    "first and forward full-CAS races with exact native blocker observations",
+    "both actual repository catalog lock orders",
+    "forward checks the old current Audit pair even when old source TTL expired",
+    "missing pointer plus any scope publication history blocks",
+    "real Session first/replay/forward/successor-replay/current/revocation flow",
+    "actual event or outbox failure after pointer write rolls back all formal writes",
+    "missing Audit half blocks both replay and forward without repair",
+    "unconfigured alias returns a stable typed error"
+  ],
+  "native_test_double_boundary": "CAS and catalog-lock tests use contract fakes for principal/Audit to isolate storage concurrency. Actual Session/Core/Audit happy path, rollback and half-pair tests use real repositories but are not claimed as two-connection full-publisher authorization races. Prior authority revocation races retain their own source window.",
+  "failure_history": [
+    "First repository red was missing-module setup, not a business failure.",
+    "Root forward red had three negative integrity counterexamples and one positive expired-current case whose observer assertion failed; do not label all four wrong accepts.",
+    "Root orphan-history red had two actual DID NOT RAISE failures.",
+    "Cross-dataset and missing-alias unit reds each reproduced one boundary defect.",
+    "First native window returned 16 passed/5 failed because a fixture used a different formal/raw dataset; Audit rejection was correct and was not relaxed.",
+    "Intermediate native window passed 29 before adding real positive forward assertions.",
+    "Next native window returned 28 passed/1 failed because Root reversed the existing count tuple order in its new test, not because production created wrong rows. Final corrected window passed 29.",
+    "Agent raw-dataset mypy stdout was captured output preserved afterward, not a separately recorded original file."
+  ],
+  "catalog_boundary": "Writes require exactly one active matching contract/policy. Current reads rebuild exact published versions without requiring them still active. Non-participating DatasetContract fields are not bound as a whole-row fingerprint, and deactivation is not implicit pointer retirement. A configured same alias is required, not an alias literally named default.",
+  "projections": {
+    "apps": 42,
+    "models": 588,
+    "fields": 9087,
+    "modules": 44,
+    "edges": 210,
+    "freshness_surfaces": 84,
+    "audit_events": 23,
+    "entrypoints": 1349,
+    "candidate_review": 9,
+    "new_candidate": "tests/component/data_center/test_formal_calendar_publication_postgres.py remains operational test evidence, never a production entrypoint"
+  },
+  "not_accepted": [
+    "operational capture/context/preview/confirm HTTP or TUI entrypoints",
+    "ordinary simulated/backtest consumers",
+    "original ASH-01, whole ASH-02 or whole ASH-03",
+    "actual Provider or production data qualification",
+    "external outbox consumption",
+    "release/CI/S6",
+    "research promotion, Evidence or broker activation"
+  ],
+  "calendar_audit_events_remain_planned_not_wired": true,
+  "broker_order_evidence_integrated": false,
+  "goal_complete": false,
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/formal-calendar-forward-integrity-root-red.txt": "8820fd68d2d5dbcbb121851c0646f1286565bc8079b3be379435602a538077ea",
+    "artifacts/a-share-usability/ash02/formal-calendar-forward-integrity-root-red-source.py.txt": "a425800b1f2721adb7ef59e2e3e7ce610851fbf849c3d7b61c3d551794033096",
+    "artifacts/a-share-usability/ash02/formal-calendar-orphan-history-root-red.txt": "1a458aa474ba190501dfe418c68d86280a85eb5242479954ac4818f380713ea0",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-integrity-root-green.txt": "19c0477b036f3232ae0fd207c74b4194799cb392d634b04c2acc2982df2c91ab",
+    "artifacts/a-share-usability/ash02/formal-calendar-repository-alias-root-red.txt": "969ec983d11424976a53c2db7b6d36266cace64eba267044b7c2ec7c40206c42",
+    "artifacts/a-share-usability/ash02/formal-calendar-repository-alias-root-green.txt": "7871da2dcf0d650ee1b945c9a665d4e92f9de77e641db7924caf0dd5475ff9a0",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-initial.txt": "981af9653c1223c7268515ae1443332b0585ed6639b056634a72ae49662d2588",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-initial-sources.json": "3ae6d2f84922c3427a0a10de37320de39dbe71b29a0067de2fcadfc8ee34001d",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-integrity-green.txt": "cbb0a250a93cf772db27b86b42b3dbc2b5e0ba5e83a80157536b475452471006",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-integrity-green-sources.json": "13bd882d18459b813a457b4ec33a2ea86f640cd854f45102a0f5692f95b37abb",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-forward-final.txt": "e7a6ff3431c92903edd989e5e27c3f42321d8d5a98b242a3b01c85c2e9760531",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-forward-final-sources.json": "57a46f7428f13852f55f29c2e1d52c8b57f521a9e34f8d6bb6cbf545e79c0199",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-final.txt": "ac989741276a792a6673a2489543c218d629eab391c5b965a5bfdf0cc5b10950",
+    "artifacts/a-share-usability/ash02/formal-calendar-native-root-final-sources.json": "e24ee77924f86b4b39ccaa6e8554b37556c3289a28e14f1f7dd255d8e2e297ec",
+    "artifacts/a-share-usability/ash02/pytest-calendar-formal-repository-red.txt": "72e76494421ce9a76db1fc389ec5812275c0131c96b1e6b1e90f3575ba12fb44",
+    "artifacts/a-share-usability/ash02/pytest-calendar-formal-repository-final.txt": "b7f8fde794acf17ce018fd8eed424c67deec89369fe80ed9963e473451b07aa0",
+    "artifacts/a-share-usability/ash02/mypy-calendar-formal-repository-final.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/pytest-formal-calendar-raw-dataset-contract-red.txt": "61a606dd9bd86032a8811d736eb235a40e28539b0684c6ff9bd8208cd1addc79",
+    "artifacts/a-share-usability/ash02/pytest-formal-calendar-raw-dataset-domain-green.txt": "41f02d9a25b17f846c4060ec6482f1fb1f22753aed9a43d9a1a97ea0066a4891",
+    "artifacts/a-share-usability/ash02/pytest-formal-calendar-raw-dataset-sqlite-repository.txt": "883bd7587ce6543d1f2f3cb45ae0b0402ae03dc439768a2c60f32b2686412143",
+    "artifacts/a-share-usability/ash02/mypy-formal-calendar-raw-dataset-domain-captured-stdout.txt": "cc9e776a672b8bd0bbc7e75fd5fd9a53fb879ae7a8db180951f95952d8dbef58",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-root-architecture-delta.txt": "b3e3c29fe4c4423a96838c1285c3833098c18d2d6c0cc1566cab207ae9f532be",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-root-architecture-final.txt": "0500d2d282d89845491c7a8d5c281fd024bd5b10ee710a169b6aa415491bb6aa",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-index-black.txt": "84b9efe87539186dc93860b3f3a897d1a12d9d88af87ec1dd653ef7f7d1eab58",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-index-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-index-ruff.txt": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-index-incremental-mypy.txt": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-index-bounded-quality.json": "c46d99f0460ccbbd6a0c7cf7f6f2b510c1eef7f3173d9f6bde5a67215e7b62c7",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-black.txt": "d0f4682f5d925920449708eabf2a12cf5e871ad1a03807d46c36dde14a185bb8",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-ruff.txt": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-incremental-mypy.txt": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-bounded-quality.json": "756a3bda688d68192ed9f8c8293cd29fee75fb5ba2d5c0540c986e85856aa227",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-coverage.txt": "67f86d0d34fdee6543ebc85ad627d9137ceaecf16977d2f2b759c496d4a5fcaa",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-coverage.json": "fa7417b7ee2d79ec12f988b979aa3c5b0fb98b1e98cdb28f2b8d5d5e0fbbed25",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-coverage-sources.json": "0d86a49cc9f0cd9c3ba573e62453d6481474f98ad3cc06e0f8902a4c789e2267",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-repository-coverage.txt": "af04ff735fe4db270aeae3dd08a4f30fa1bcf59ea72b5d463b968787d7911265",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-repository-coverage.json": "b74733753d3f33172511e25f289c7abe81bf1551586c1b6cf79a1c1a846f3987",
+    "artifacts/a-share-usability/ash02/formal-calendar-storage-final-index-repository-coverage-sources.json": "1c54a3a6abe828f14931100c82d86806d6a3cd4ab6c7d0a09a779cb542f56e16",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-index-projections-1.txt": "22fcfa2c6af5ddb0c0882e65c53d4911f9f81fb95572b041ff42eb2c9f2756e2",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-formal-calendar-storage-index-1.txt": "d0b9d195c7fb8c19d52ecf3220eaf42a3d7d72c1642dce3b940b4fd6aeb3cc27",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-formal-calendar-storage-index-1-sources.json": "1faa750e6dce33e6b8ab66019ef686945729610e5ee0ba3d51812e041d32f626",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-debt-index-1.txt": "530c829603d7c45301d05922066d079919dab0520f62b888631ed11209a2aa2a",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-debt-index-1-sources.json": "6c46aae393670bcfdd5fe9f9c85957d07af0a41f7f8379053dd4c766d48e1382",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-index-projections-2.txt": "0a73ad3f707d0f5863d4bca92d3721cc76d33b9458f47b6b991c03a2a6cfe365",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-formal-calendar-storage-index-2.txt": "64c4b9693274e8dc735bfaf679da0c6978a044b5419d30390835f157ac6cf5b3",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-formal-calendar-storage-index-2-sources.json": "d30a09326d9378f5c7d7de1b5fea1159affb5270ae971b46263d742794ae2585",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-debt-index-2.txt": "e94be6c064f27b387e76a8d100e04289a523a6564eee97f64ad8197e4aea11a6",
+    "artifacts/a-share-usability/ash02/phased-formal-calendar-storage-debt-index-2-sources.json": "e5de21914b3fe5da119dd0538a7d1bb12f1fed903793ff6e727c6fa563e325ae"
+  }
+}

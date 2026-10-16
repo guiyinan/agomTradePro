@@ -365,3 +365,9 @@ V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久�
 日历 `calendar_response_max_age_seconds` 是独立的可空版本化配置，不继承 execution TTL 或研究 freshness；同一 Dataset Contract 版本不能原地补值或改值。纯日历发布窗口从原响应 `first_seen_at` 计算 expiry，新发布时间不能刷新旧响应；首次发布和前向 supersede 使用半开窗，rollback/reinstatement 尚无可读取合同。该窗口本身不证明正式发布或操作权限。详见[日历响应有效期](../api/a-share-calendar-response-age.md)。
 
 证券 `stock_basic` 来源保留精确请求、完整代码、上市/退市日期和 RawAudit occurrence。供应商未提供的 `source_observed_at/source_available_at` 保持 None，不能从响应完成、入库或调用时间补齐。来源候选固定发布禁止决策与执行标记；名录状态不能替代盘中交易状态，也不能作为历史全量 PIT 名录。每次实际响应单独绑定数据库生成的 RawAudit ID，同 body 去重不允许合并调用身份。详见[证券名录来源合同](../api/a-share-instrument-reference-source.md)。
+
+### 2026-10-17 正式日历内部 current 仓储
+
+`data_center.formal_calendar_current_pointer_contract` 扩展到正式仓储：仅接受完整 current pointer，缺 pointer 但存在任意历史发布行时失败关闭。RawPayload dataset 必须与 seal dataset 完全相同；源响应 TTL 不因发布或重放刷新，post-Audit 再验 lease、单调时钟和半开 TTL。向前替换允许旧响应已过期，但必须核验旧 current 的精确 Audit event/outbox，且新来源仍新鲜；普通 current 参考读取不依赖旧发布人的当前授权。
+
+目录 SHARE fence 后先锁 RawPayload、再锁 snapshot 与发布记录；只加入调用方唯一外层事务，不开启嵌套事务。PostgreSQL 要求 READ COMMITTED，SQLite 使用无新增行的写保留。内部原生 PostgreSQL 验证不代表已提供 HTTP/TUI 发布入口、已切换模拟消费者或已取得执行授权；`must_not_execute` 仍为 true。详细边界见 `docs/api/a-share-formal-calendar-publication.md` 和实施计划 19.28。

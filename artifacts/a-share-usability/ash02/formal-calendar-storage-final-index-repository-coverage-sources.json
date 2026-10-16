@@ -1,0 +1,30 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py",
+    "tests/component/data_center/test_formal_calendar_forward_integrity.py",
+    "tests/component/data_center/test_formal_calendar_orphan_history.py",
+    "tests/unit/data_center/test_formal_calendar_repository_alias.py",
+    "--ds=core.settings.development_sqlite",
+    "--no-migrations",
+    "--basetemp=.tmp/pytest-repository-coverage",
+    "-q",
+    "--cov=apps.data_center.infrastructure.formal_exchange_calendar_publication_repository",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=json:D:\\githv\\agomTradePro\\artifacts\\a-share-usability\\ash02\\formal-calendar-storage-final-index-repository-coverage.json"
+  ],
+  "source_sha256": {
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "4f69365144ff0591dbc7cc1b2cd261f692d57b9872ac4601db4b41282e25a837",
+    "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py": "1863a317bead3a9f1e93d94920962da6c287784fc88a853e15ca2666b30e3af1",
+    "tests/component/data_center/test_formal_calendar_forward_integrity.py": "7ddaa7df8d4a9a4d187ea5839f3e93ba8aa4f20274e44e4b6b131582e5fa47c1",
+    "tests/component/data_center/test_formal_calendar_orphan_history.py": "f659af92bef9d499ea3b914cb52f85d487f8f4c773bccbce48fe8da23aa49473",
+    "tests/unit/data_center/test_formal_calendar_repository_alias.py": "08429bd5bd4ba2db62d7fc775a92ea7607a174a7fd64f5ee80ad5211b895b212"
+  },
+  "drift": [],
+  "exit": 0
+}

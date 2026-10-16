@@ -8635,10 +8635,11 @@
     },
     {
       "id": "data_center.formal_calendar_current_pointer_contract",
-      "surface": "Internal formal-calendar current-pointer contract; persistence, route and consumer acceptance remain separate; no source-observation or execution authority",
+      "surface": "Internal exact-current formal-calendar storage contract with same-transaction Audit integrity; HTTP/TUI entrypoints and ordinary consumers remain separate; no source-observation or execution authority",
       "source_files": [
         "apps/data_center/domain/formal_exchange_calendar_publication.py",
-        "apps/data_center/application/formal_exchange_calendar_publication.py"
+        "apps/data_center/application/formal_exchange_calendar_publication.py",
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -8648,7 +8649,8 @@
           "CALENDAR_CURRENT_POINTER_TIME_MISMATCH",
           "CALENDAR_FORMAL_CONFIGURATION_NOT_KNOWN",
           "CALENDAR_FORMAL_TTL_EXPIRED",
-          "calendar_formal_seals_have_same_evidence"
+          "calendar_formal_seals_have_same_evidence",
+          "CALENDAR_FORMAL_MEMBER_RAW_DATASET_MISMATCH"
         ],
         "apps/data_center/application/formal_exchange_calendar_publication.py": [
           "CALENDAR_PUBLICATION_FORWARD_TIME_INVALID",
@@ -8656,6 +8658,15 @@
           "CALENDAR_PUBLICATION_POST_AUDIT_TIME_INVALID",
           "CALENDAR_PUBLICATION_AUDIT_ACTOR_MISMATCH",
           "def must_not_execute(self) -> bool:"
+        ],
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": [
+          "CALENDAR_FORMAL_POINTER_MISSING",
+          "CALENDAR_FORMAL_PROPOSAL_MISMATCH",
+          "CALENDAR_FORMAL_TTL_EXPIRED",
+          "CALENDAR_FORMAL_AUDIT_INTEGRITY_INVALID",
+          "verify_published_integrity",
+          "_require_single_caller_transaction",
+          "_require_postgresql_read_committed"
         ]
       },
       "required_tests": [
@@ -8683,6 +8694,31 @@
           "case": "repository_uuid_assignment_preserves_all_evidence",
           "test_file": "tests/unit/data_center/test_formal_calendar_storage_identity.py",
           "test_function": "test_publisher_accepts_repository_assigned_uuids_with_unchanged_full_evidence"
+        },
+        {
+          "case": "reject_cross_dataset_raw_payload",
+          "test_file": "tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py",
+          "test_function": "test_formal_calendar_seal_rejects_raw_payload_from_another_dataset"
+        },
+        {
+          "case": "forward_requires_exact_old_audit_pair",
+          "test_file": "tests/component/data_center/test_formal_calendar_forward_integrity.py",
+          "test_function": "test_forward_rejects_unverified_old_pair_without_superseding_or_moving_pointer"
+        },
+        {
+          "case": "missing_pointer_with_historical_rows_is_corruption",
+          "test_file": "tests/component/data_center/test_formal_calendar_orphan_history.py",
+          "test_function": "test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope"
+        },
+        {
+          "case": "real_session_forward_replay_and_revocation",
+          "test_file": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+          "test_function": "test_real_session_publish_replay_read_after_revocation_and_replay_denial"
+        },
+        {
+          "case": "real_audit_half_pair_never_repaired",
+          "test_file": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+          "test_function": "test_real_audit_missing_half_blocks_replay_and_forward_without_repair"
         }
       ]
     }

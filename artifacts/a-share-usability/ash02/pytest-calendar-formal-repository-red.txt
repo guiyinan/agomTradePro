@@ -1,0 +1,39 @@
+FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+_ test_first_publish_rebuilds_source_and_current_read_verifies_exact_audit_pair _
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:417: in test_first_publish_rebuilds_source_and_current_read_verifies_exact_audit_pair
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+___________ test_missing_audit_integrity_pair_blocks_a_current_read ___________
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:461: in test_missing_audit_integrity_pair_blocks_a_current_read
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+__________ test_audit_failure_rolls_back_all_formal_publication_rows __________
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:487: in test_audit_failure_rolls_back_all_formal_publication_rows
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+____ test_post_audit_ttl_expiry_rolls_back_instead_of_resetting_source_age ____
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:511: in test_post_audit_ttl_expiry_rolls_back_instead_of_resetting_source_age
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+_ test_forward_publication_requires_a_later_pointer_clock_and_supersedes_atomically _
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:542: in test_forward_publication_requires_a_later_pointer_clock_and_supersedes_atomically
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+_ test_exact_replay_requires_existing_complete_pair_same_activation_and_actor _
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:594: in test_exact_replay_requires_existing_complete_pair_same_activation_and_actor
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+_____ test_ambiguous_active_contract_blocks_before_any_publication_write ______
+tests\component\data_center\test_formal_exchange_calendar_publication_repository.py:636: in test_ambiguous_active_contract_blocks_before_any_publication_write
+    from apps.data_center.infrastructure.formal_exchange_calendar_publication_repository import (
+E   ModuleNotFoundError: No module named 'apps.data_center.infrastructure.formal_exchange_calendar_publication_repository'
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_first_publish_rebuilds_source_and_current_read_verifies_exact_audit_pair
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_missing_audit_integrity_pair_blocks_a_current_read
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_audit_failure_rolls_back_all_formal_publication_rows
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_post_audit_ttl_expiry_rolls_back_instead_of_resetting_source_age
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_forward_publication_requires_a_later_pointer_clock_and_supersedes_atomically
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_exact_replay_requires_existing_complete_pair_same_activation_and_actor
+FAILED tests/component/data_center/test_formal_exchange_calendar_publication_repository.py::test_ambiguous_active_contract_blocks_before_any_publication_write
+7 failed in 19.12s

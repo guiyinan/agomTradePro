@@ -1,0 +1,29 @@
+{
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+    "tests/unit/data_center/test_formal_calendar_pointer_chronology.py",
+    "tests/unit/data_center/test_formal_calendar_storage_identity.py",
+    "tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py",
+    "--ds=core.settings.development_sqlite",
+    "--no-migrations",
+    "-q",
+    "--cov=apps.data_center.domain.formal_exchange_calendar_publication",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=json:D:\\githv\\agomTradePro\\artifacts\\a-share-usability\\ash02\\formal-calendar-storage-final-index-coverage.json"
+  ],
+  "source_sha256": {
+    "apps/data_center/domain/formal_exchange_calendar_publication.py": "fdfed356106232c30aa4e2f21ee5405e5338d6916d24834b3853c8ecb7223d96",
+    "tests/unit/data_center/test_formal_exchange_calendar_publication.py": "7d37fba5d0269f9cda411a5a0f373ea372e534f61ca3b0c59d76ddda2dc23192",
+    "tests/unit/data_center/test_formal_calendar_pointer_chronology.py": "f0c6887c6429c97008b0d0b518defc1de2854009554aa24fe50a43686ae5c441",
+    "tests/unit/data_center/test_formal_calendar_storage_identity.py": "3f81d1fe891a262319ad7553bc617595cb2a98065cb57b083b68658c3794ce56",
+    "tests/unit/data_center/test_formal_calendar_raw_dataset_binding.py": "638016676ca266f1b552d4a44f6cdde33ac7be080149b227317f1c5b577dc987"
+  },
+  "drift": [],
+  "exit": 0
+}

@@ -1,0 +1,14 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope[publish] _
+tests\component\data_center\test_formal_calendar_orphan_history.py:61: in test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope
+    with pytest.raises(DataFetchError) as caught:
+E   Failed: DID NOT RAISE <class 'core.exceptions.DataFetchError'>
+_ test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope[read] _
+tests\component\data_center\test_formal_calendar_orphan_history.py:61: in test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope
+    with pytest.raises(DataFetchError) as caught:
+E   Failed: DID NOT RAISE <class 'core.exceptions.DataFetchError'>
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_formal_calendar_orphan_history.py::test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope[publish]
+FAILED tests/component/data_center/test_formal_calendar_orphan_history.py::test_superseded_history_without_pointer_cannot_be_treated_as_a_new_scope[read]
+2 failed in 15.85s
