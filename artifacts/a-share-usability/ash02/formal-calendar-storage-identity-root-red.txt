@@ -1,0 +1,17 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_assigning_member_storage_uuids_does_not_turn_current_replay_into_forward _
+tests\unit\data_center\test_formal_calendar_storage_identity.py:45: in test_assigning_member_storage_uuids_does_not_turn_current_replay_into_forward
+    assert transition is CalendarPublicationTransition.EXACT_CURRENT_REPLAY
+E   AssertionError: assert <CalendarPublicationTransition.FORWARD_PUBLISH: 'forward_publish'> is <CalendarPublicationTransition.EXACT_CURRENT_REPLAY: 'exact_current_replay'>
+E    +  where <CalendarPublicationTransition.EXACT_CURRENT_REPLAY: 'exact_current_replay'> = CalendarPublicationTransition.EXACT_CURRENT_REPLAY
+_ test_publisher_accepts_repository_assigned_uuids_with_unchanged_full_evidence _
+tests\unit\data_center\test_formal_calendar_storage_identity.py:74: in test_publisher_accepts_repository_assigned_uuids_with_unchanged_full_evidence
+    actual = PublishExchangeCalendarSnapshotUseCase(_Writer(result)).execute(
+apps\data_center\application\formal_exchange_calendar_publication.py:320: in execute
+    raise CalendarFormalPublicationApplicationError(
+E   apps.data_center.application.formal_exchange_calendar_publication.CalendarFormalPublicationApplicationError: writer returned a different proposal or pointer scope
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_formal_calendar_storage_identity.py::test_assigning_member_storage_uuids_does_not_turn_current_replay_into_forward
+FAILED tests/unit/data_center/test_formal_calendar_storage_identity.py::test_publisher_accepts_repository_assigned_uuids_with_unchanged_full_evidence
+2 failed in 1.38s

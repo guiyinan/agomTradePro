@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 83,
+      "current_data_surface": 84,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 862,
+      "active_public": 863,
       "adjacent_operational": 339,
       "candidate-review": 8,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1347
+    "total": 1348
   },
   "entries": [
     {
@@ -5407,6 +5407,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.financial_source_time_independent_verifier",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=2",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Internal formal-calendar current-pointer contract; persistence, route and consumer acceptance remain separate; no source-observation or execution authority",
+      "locator": "Internal formal-calendar current-pointer contract; persistence, route and consumer acceptance remain separate; no source-observation or execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.formal_calendar_current_pointer_contract",
       "target": ""
     },
     {
@@ -13521,7 +13531,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 83,
+    "current_data_contracts": 84,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 42,
     "runtime_config_keys": 45

@@ -1,0 +1,13 @@
+
+=================================== ERRORS ====================================
+_ ERROR collecting tests/unit/data_center/test_calendar_policy_codec_binding.py _
+ImportError while importing test module 'D:\githv\agomTradePro\tests\unit\data_center\test_calendar_policy_codec_binding.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\unit\data_center\test_calendar_policy_codec_binding.py:21: in <module>
+    from apps.data_center.domain.publication_evidence import (
+E   ImportError: cannot import name 'calendar_publication_hash' from 'apps.data_center.domain.publication_evidence' (D:\githv\agomTradePro\apps\data_center\domain\publication_evidence.py)
+=========================== short test summary info ===========================
+ERROR tests/unit/data_center/test_calendar_policy_codec_binding.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 2.42s

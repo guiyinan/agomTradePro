@@ -4514,6 +4514,18 @@
           "FinancialSourceTimeContractReader",
           "FinancialSourceTimeEvidenceVerifier"
         ],
+        "application/formal_exchange_calendar_publication.py": [
+          "CalendarCurrentPublicationReaderPort",
+          "CalendarFormalPublicationApplicationError",
+          "CalendarFormalPublicationCommit",
+          "CalendarFormalPublicationRequest",
+          "CalendarFormalPublicationWriterPort",
+          "CalendarPublicationAuditPair",
+          "CurrentPublishedExchangeCalendar",
+          "PublishExchangeCalendarSnapshotUseCase",
+          "ReadCurrentExchangeCalendarPublicationQuery",
+          "ReadCurrentExchangeCalendarPublicationUseCase"
+        ],
         "application/full_market_publication_preflight.py": [
           "AuthorityCaptureProbeEvidence",
           "FullMarketPublicationPreflightPorts",
@@ -5245,8 +5257,8 @@
         ]
       },
       "layers": {
-        "application": 152,
-        "domain": 41,
+        "application": 153,
+        "domain": 42,
         "infrastructure": 190,
         "interface": 22,
         "management": 42,

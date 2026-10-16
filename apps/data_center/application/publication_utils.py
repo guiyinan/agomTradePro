@@ -18,6 +18,9 @@ from apps.data_center.domain.control_plane import (
     PublicationMember,
     PublicationScopeBlock,
 )
+from apps.data_center.domain.publication_evidence import (
+    calendar_publication_hash as _domain_calendar_publication_hash,
+)
 
 _POLICY_IDENTITY_RE: Final[re.Pattern[str]] = re.compile(r"p2:[^:\s]{1,40}:[0-9a-f]{64}")
 
@@ -93,44 +96,11 @@ def calendar_publication_hash(
     ``publication_hash`` path remains separate and rejects this nullable DTO.
     """
 
-    if not isinstance(policy, PublicationPolicy):
-        raise TypeError("policy must be a PublicationPolicy")
-    if not policy.uses_versioned_evidence:
-        raise ValueError("calendar nullable members require a versioned publication policy")
-    if type(codec_version) is not CalendarNullableMemberCodecVersion:
-        raise TypeError("calendar codec_version must be a supported enum value")
-    if codec_version is not CalendarNullableMemberCodecVersion.V1:
-        raise ValueError("calendar codec_version is not supported")
-    if policy.member_codec_version is not codec_version:
-        raise ValueError("calendar policy must explicitly bind the requested member codec")
-    if not isinstance(references, Sequence) or isinstance(references, (str, bytes, bytearray)):
-        raise TypeError("calendar publication references must be a sequence")
-    if not references:
-        raise ValueError("calendar publication references cannot be empty")
-
-    members: list[dict[str, object]] = []
-    for reference in references:
-        if type(reference) is not CalendarPublicationMemberReference:
-            raise TypeError("calendar publication hash requires calendar member references")
-        if reference.codec_version is not codec_version:
-            raise ValueError("calendar reference codec_version differs from the requested version")
-        if reference.member.dataset_key != policy.dataset.value:
-            raise ValueError("calendar member dataset_key differs from the publication policy")
-        members.append(reference.to_payload())
-    payload: dict[str, object] = {
-        "encoding": "publication-evidence-calendar-nullable-v1",
-        "policy_identity": policy.identity,
-        "codec_version": codec_version.value,
-        "members": members,
-    }
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return _domain_calendar_publication_hash(
+        references,
+        policy=policy,
+        codec_version=codec_version,
+    )
 
 
 def current_publication_id_for_hash(

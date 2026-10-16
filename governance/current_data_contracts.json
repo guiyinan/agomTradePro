@@ -8632,6 +8632,59 @@
           "test_function": "test_post_save_shell_instance_cannot_delete_a_subsequently_sealed_version"
         }
       ]
+    },
+    {
+      "id": "data_center.formal_calendar_current_pointer_contract",
+      "surface": "Internal formal-calendar current-pointer contract; persistence, route and consumer acceptance remain separate; no source-observation or execution authority",
+      "source_files": [
+        "apps/data_center/domain/formal_exchange_calendar_publication.py",
+        "apps/data_center/application/formal_exchange_calendar_publication.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/formal_exchange_calendar_publication.py": [
+          "calendar_response_max_age_seconds",
+          "CALENDAR_CURRENT_READ_HISTORY_UNSUPPORTED",
+          "CALENDAR_CURRENT_POINTER_NOT_KNOWN_AT_CUTOFF",
+          "CALENDAR_CURRENT_POINTER_TIME_MISMATCH",
+          "CALENDAR_FORMAL_CONFIGURATION_NOT_KNOWN",
+          "CALENDAR_FORMAL_TTL_EXPIRED",
+          "calendar_formal_seals_have_same_evidence"
+        ],
+        "apps/data_center/application/formal_exchange_calendar_publication.py": [
+          "CALENDAR_PUBLICATION_FORWARD_TIME_INVALID",
+          "CALENDAR_PUBLICATION_AUTHORITY_TIME_INVALID",
+          "CALENDAR_PUBLICATION_POST_AUDIT_TIME_INVALID",
+          "CALENDAR_PUBLICATION_AUDIT_ACTOR_MISMATCH",
+          "def must_not_execute(self) -> bool:"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "source_response_age_not_reset_by_publication",
+          "test_file": "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+          "test_function": "test_formal_record_uses_original_response_ttl_and_half_open_bounds"
+        },
+        {
+          "case": "current_pointer_not_historical_replay",
+          "test_file": "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+          "test_function": "test_current_read_blocks_superseded_history_and_noncurrent_pointer"
+        },
+        {
+          "case": "corrupt_pointer_activation_clock",
+          "test_file": "tests/unit/data_center/test_formal_calendar_pointer_chronology.py",
+          "test_function": "test_current_read_rejects_pointer_clock_different_from_publication"
+        },
+        {
+          "case": "forward_time_must_advance",
+          "test_file": "tests/unit/data_center/test_formal_calendar_pointer_chronology.py",
+          "test_function": "test_forward_commit_cannot_publish_at_or_before_old_pointer"
+        },
+        {
+          "case": "repository_uuid_assignment_preserves_all_evidence",
+          "test_file": "tests/unit/data_center/test_formal_calendar_storage_identity.py",
+          "test_function": "test_publisher_accepts_repository_assigned_uuids_with_unchanged_full_evidence"
+        }
+      ]
     }
   ]
 }

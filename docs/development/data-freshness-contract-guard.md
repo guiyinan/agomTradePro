@@ -137,6 +137,16 @@ ASH-02 的 `data_center.exchange_calendar_reference` 登记精确日历快照的
 完整明确的自然日覆盖范围内查找，范围不足必须阻断，不能用周末算术、跨交易所日历或
 最新一行补出执行证据。正式 Publication 引用及普通模拟消费者的接线另行验收。
 
+`data_center.formal_calendar_current_pointer_contract` 登记后续正式日历的纯契约切片。
+TTL 从原始响应的 `first_seen_at` 计算，未知的供应商 observation/availability/publication
+时间继续为空；新发布时钟不能刷新响应年龄。当前读取只接受精确指针的 `PUBLISHED`
+结果，不重建历史指针；pointer 更新时间必须与该次发布时刻一致，且配置、事实及指针
+均已在查询截止点被系统知悉。向前发布时钟必须严格晚于旧指针，重放则保留原时间及
+原操作者身份。成员行及 publication 行的存储 ID 不在既有证据编码内，数据库分配 ID 后
+仍比较其余全部值，而非只比较摘要字符串。本登记仅证明 Domain/Application 合同，
+Infrastructure 原子写入、Audit 完整性、路由和模拟消费者须分别验收；返回值继续
+`must_not_execute=True`，不构成源观测新鲜性、盘中状态或券商执行许可。
+
 新增任何当前数据读取时，按顺序完成：
 
 1. 在 Domain/DTO 中定义 observation 与 freshness 约束；

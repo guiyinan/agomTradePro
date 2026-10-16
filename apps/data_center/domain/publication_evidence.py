@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -23,6 +25,59 @@ _RAW_PAYLOAD_SCOPES: Final[frozenset[str]] = frozenset(
 _PUBLISHABLE_QUALITY: Final[frozenset[str]] = frozenset({"accepted", "valid", "verified"})
 
 PublicationEvidenceItem = PublicationFactReference | PublicationMember
+
+
+def calendar_publication_hash(
+    references: Sequence[CalendarPublicationMemberReference],
+    *,
+    policy: PublicationPolicy,
+    codec_version: CalendarNullableMemberCodecVersion,
+) -> str:
+    """Hash nullable calendar members under their explicit policy-bound codec.
+
+    This is the canonical Domain implementation shared by legacy Application
+    callers and formal calendar publication seals. Its payload encoding is
+    intentionally stable and separate from ordinary publication evidence.
+    """
+
+    if not isinstance(policy, PublicationPolicy):
+        raise TypeError("policy must be a PublicationPolicy")
+    if not policy.uses_versioned_evidence:
+        raise ValueError("calendar nullable members require a versioned publication policy")
+    if type(codec_version) is not CalendarNullableMemberCodecVersion:
+        raise TypeError("calendar codec_version must be a supported enum value")
+    if codec_version is not CalendarNullableMemberCodecVersion.V1:
+        raise ValueError("calendar codec_version is not supported")
+    if policy.member_codec_version is not codec_version:
+        raise ValueError("calendar policy must explicitly bind the requested member codec")
+    if not isinstance(references, Sequence) or isinstance(references, (str, bytes, bytearray)):
+        raise TypeError("calendar publication references must be a sequence")
+    if not references:
+        raise ValueError("calendar publication references cannot be empty")
+
+    members: list[dict[str, object]] = []
+    for reference in references:
+        if type(reference) is not CalendarPublicationMemberReference:
+            raise TypeError("calendar publication hash requires calendar member references")
+        if reference.codec_version is not codec_version:
+            raise ValueError("calendar reference codec_version differs from the requested version")
+        if reference.member.dataset_key != policy.dataset.value:
+            raise ValueError("calendar member dataset_key differs from the publication policy")
+        members.append(reference.to_payload())
+    payload: dict[str, object] = {
+        "encoding": "publication-evidence-calendar-nullable-v1",
+        "policy_identity": policy.identity,
+        "codec_version": codec_version.value,
+        "members": members,
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,6 +330,7 @@ def _require_aware(value: datetime, field_name: str) -> None:
 
 __all__ = [
     "PublicationEvidenceItem",
+    "calendar_publication_hash",
     "validate_calendar_publication_evidence",
     "validate_publication_evidence",
     "validate_publication_quality_status",

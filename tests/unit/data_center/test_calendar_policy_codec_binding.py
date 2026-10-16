@@ -19,6 +19,9 @@ from apps.data_center.domain.control_plane import (
     PublicationMember,
 )
 from apps.data_center.domain.publication_evidence import (
+    calendar_publication_hash as domain_calendar_publication_hash,
+)
+from apps.data_center.domain.publication_evidence import (
     validate_calendar_publication_evidence,
     validate_publication_evidence,
 )
@@ -171,19 +174,22 @@ def test_bound_calendar_policy_is_rejected_by_ordinary_evidence_validator() -> N
 
 def test_explicit_bound_policy_can_hash_and_validate_matching_calendar_member() -> None:
     reference = _calendar_reference()
+    policy = _calendar_policy()
     validate_calendar_publication_evidence(
-        _calendar_policy(),
+        policy,
         [reference],
         codec_version=CalendarNullableMemberCodecVersion.V1,
         published_at=NOW,
     )
-    assert (
-        len(
-            calendar_publication_hash(
-                [reference],
-                policy=_calendar_policy(),
-                codec_version=CalendarNullableMemberCodecVersion.V1,
-            )
-        )
-        == 64
+    application_hash = calendar_publication_hash(
+        [reference],
+        policy=policy,
+        codec_version=CalendarNullableMemberCodecVersion.V1,
     )
+    domain_hash = domain_calendar_publication_hash(
+        [reference],
+        policy=policy,
+        codec_version=CalendarNullableMemberCodecVersion.V1,
+    )
+    assert len(application_hash) == 64
+    assert application_hash == domain_hash

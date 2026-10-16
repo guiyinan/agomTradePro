@@ -1,0 +1,34 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+___ test_current_read_rejects_pointer_clock_different_from_publication[-1] ____
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:36: in test_current_read_rejects_pointer_clock_different_from_publication
+    with pytest.raises(CalendarFormalPublicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.domain.formal_exchange_calendar_publication.CalendarFormalPublicationError'>
+____ test_current_read_rejects_pointer_clock_different_from_publication[1] ____
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:36: in test_current_read_rejects_pointer_clock_different_from_publication
+    with pytest.raises(CalendarFormalPublicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.domain.formal_exchange_calendar_publication.CalendarFormalPublicationError'>
+___ test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas[-1] ____
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:47: in test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas
+    with pytest.raises(CalendarFormalPublicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.domain.formal_exchange_calendar_publication.CalendarFormalPublicationError'>
+____ test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas[1] ____
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:47: in test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas
+    with pytest.raises(CalendarFormalPublicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.domain.formal_exchange_calendar_publication.CalendarFormalPublicationError'>
+_______ test_forward_commit_cannot_publish_at_or_before_old_pointer[0] ________
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:75: in test_forward_commit_cannot_publish_at_or_before_old_pointer
+    with pytest.raises(CalendarFormalPublicationApplicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.formal_exchange_calendar_publication.CalendarFormalPublicationApplicationError'>
+_______ test_forward_commit_cannot_publish_at_or_before_old_pointer[1] ________
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:75: in test_forward_commit_cannot_publish_at_or_before_old_pointer
+    with pytest.raises(CalendarFormalPublicationApplicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.formal_exchange_calendar_publication.CalendarFormalPublicationApplicationError'>
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_current_read_rejects_pointer_clock_different_from_publication[-1]
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_current_read_rejects_pointer_clock_different_from_publication[1]
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas[-1]
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_replay_rejects_corrupted_pointer_clock_even_with_matching_cas[1]
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_forward_commit_cannot_publish_at_or_before_old_pointer[0]
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_forward_commit_cannot_publish_at_or_before_old_pointer[1]
+6 failed in 2.02s

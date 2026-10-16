@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import cast
@@ -14,6 +15,7 @@ from apps.data_center.domain import publication_evidence
 from apps.data_center.domain.contracts import DatasetKey, PublicationPolicy
 from apps.data_center.domain.control_plane import (
     CalendarNullableMemberCodecVersion,
+    CalendarPublicationMemberReference,
     PublicationFactReference,
     PublicationMember,
 )
@@ -223,8 +225,62 @@ def test_calendar_codec_roundtrips_null_times_and_binds_distinct_hashes() -> Non
     policy = _versioned_policy()
     validator(policy, [reference], codec_version=_codec_version(), published_at=NOW)
     digest = codec([reference], policy=policy, codec_version=_codec_version())
+    domain_codec = getattr(publication_evidence, "calendar_publication_hash", None)
+    assert callable(domain_codec), "canonical calendar hash must be available in Domain"
+    domain_digest = cast(Callable[..., str], domain_codec)(
+        [cast(CalendarPublicationMemberReference, reference)],
+        policy=policy,
+        codec_version=_codec_version(),
+    )
     # The payload codec is unchanged; explicit policy binding changes its policy identity.
     assert digest == "26114f8f9433d0faf66f8c764261c4b5151821cb339c3dd61ca0318b96c45d39"
+    assert domain_digest == digest
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_error"),
+    [
+        ("wrong_policy_type", TypeError),
+        ("legacy_policy", ValueError),
+        ("wrong_codec_type", TypeError),
+        ("empty_references", ValueError),
+        ("wrong_member_type", TypeError),
+    ],
+)
+def test_application_and_domain_calendar_hash_preserve_error_types(
+    case: str,
+    expected_error: type[Exception],
+) -> None:
+    domain_codec_value = getattr(publication_evidence, "calendar_publication_hash", None)
+    assert callable(domain_codec_value), "canonical calendar hash must be available in Domain"
+    domain_codec = cast(Callable[..., str], domain_codec_value)
+    reference = cast(
+        CalendarPublicationMemberReference,
+        _calendar_reference(codec_version=_codec_version()),
+    )
+    policy = _versioned_policy()
+    references = [reference]
+    codec_version = _codec_version()
+    if case == "wrong_policy_type":
+        policy = cast(PublicationPolicy, object())
+    elif case == "legacy_policy":
+        policy = replace(policy, member_codec_version=None)
+    elif case == "wrong_codec_type":
+        codec_version = cast(CalendarNullableMemberCodecVersion, "calendar-nullable-member-v1")
+    elif case == "empty_references":
+        references = []
+    elif case == "wrong_member_type":
+        references = [cast(CalendarPublicationMemberReference, object())]
+
+    def capture_error(function: Callable[..., str]) -> type[Exception]:
+        with pytest.raises((TypeError, ValueError)) as caught:
+            function(references, policy=policy, codec_version=codec_version)
+        return type(caught.value)
+
+    application_error = capture_error(publication_utils.calendar_publication_hash)
+    domain_error = capture_error(domain_codec)
+    assert application_error is expected_error
+    assert domain_error is application_error
 
 
 def test_calendar_codec_rejects_member_from_another_dataset() -> None:

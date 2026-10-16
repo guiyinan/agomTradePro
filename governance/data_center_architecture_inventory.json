@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5589,
+    "current_surface_references": 5617,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8863,6 +8863,70 @@
       "text": "return previous + current"
     },
     {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Bind the read use case to an explicit current-pointer reader.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Exact current publication and its validity checked at one cutoff."
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Exact-current pointer reader with no latest or historical fallback.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Request an exact current-pointer calendar read at an aware UTC cutoff.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Require an exact dataset/exchange scope without a latest fallback.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Require the persisted current winner and exact pointer to agree.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Require the returned commit to be current, exact, and still within TTL.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Return only the exact current pointer that remains effective at cutoff.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Return the pointer's exact current record, or None when no pointer exists.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Verified current publication, pointer, paired Audit receipt, and final clock.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"commit must identify the current published lifecycle\","
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"exact-current replay must preserve the complete expected pointer epoch\","
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"no exact current exchange-calendar publication is available\","
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"read requires a typed exact-current query\","
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "\"reader returned an invalid current calendar result\","
+    },
+    {
+      "path": "apps/data_center/application/formal_exchange_calendar_publication.py",
+      "text": "so the authority-owned outer transaction rolls back. An exact-current"
+    },
+    {
       "path": "apps/data_center/application/full_market_publication_preflight.py",
       "text": "\"\"\"Read and validate every current-pointer CAS pair without mutation.\"\"\""
     },
@@ -10101,6 +10165,54 @@
     {
       "path": "apps/data_center/domain/financial_scope_discovery.py",
       "text": "\"\"\"Latest source-native announcement date and its two capture proofs.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"CALENDAR_POINTER_CAS_MISMATCH\", \"current pointer differs from the supplied CAS token\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"CALENDAR_POINTER_TARGET_INVALID\", \"absent pointer cannot have a current winner\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"\"\"Validate a current-pointer read without claiming historical pointer replay.\"\"\""
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"a current publication cannot have a superseded_at time\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"current calendar response-age window is expired at the requested cutoff\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"current pointer time differs from the publication activation time\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"current pointer update was not known at the requested cutoff\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"current publication was not effective at the requested cutoff\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"pointer target is not the exact current published calendar winner\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"publication does not exactly match the canonical current pointer\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"same-current replay must preserve the original activation identity\","
+    },
+    {
+      "path": "apps/data_center/domain/formal_exchange_calendar_publication.py",
+      "text": "\"this reader only returns the current publication, not superseded history\","
     },
     {
       "path": "apps/data_center/domain/instrument_reference_snapshot.py",

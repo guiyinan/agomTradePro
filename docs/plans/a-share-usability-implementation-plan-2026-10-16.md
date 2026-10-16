@@ -739,3 +739,19 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 后两批已分别提交 Data Center `66358ddcf` 与模拟结算/费用 `0346c6d39`。模拟批独立导出九个测试文件为 **130 passed / 5 PostgreSQL-only skipped**；费用与 UoW 的既有原生 **111 passed** 仍只证明其原始冻结窗口，不与本次 SQLite 数字相加。最终有界候选的 **126 个生产文件**完成工作树/导出源码规范化及 AST 对照，**219 个 Python 文件**的 Black/isort/Ruff 通过且运行中无漂移；待修复的旧 ASH-01 红测和下一正式日历五个候选文件明确排除。
 
 各阶段均从当时 index 导出运行既有生成器及检查，不混入后续模型。最终基础投影为 **42 app / 588 model / 9,087 field**、模块图 **44 / 210**，freshness **83 surface**、Audit **23 event**；其中两项 Calendar event 仍为 planned/not_wired。临时导出隔离及候选分类原件、源码换行边界、各批 SHA 和测试范围统一见[分阶段提交检查点](../testing/a-share-usability-phased-commits-2026-10-17.json)。计划登记推进到 v218，唯一仓库集成焦点仍为 ASH-02；本地提交不代表 CI/S6、生产迁移、真实 Provider 或券商实盘验收。
+
+### 19.26 正式日历纯契约、时间与存储身份反例
+
+下一提交边界收敛为正式日历的 Domain/Application 合同及其直接回归：nullable calendar member 的规范哈希移至 Domain，原 Application 入口保留签名并委托，普通非空时间编码与历史 golden digest 不变。正式 seal 绑定精确原件、目录版本、codec、响应 TTL 与系统知识时间；首次、向前发布及精确当前重放采用完整旧 pointer tuple，读取仅支持当前指针，不声称历史指针 PIT。
+
+主代理另补 **9 项真实失败反例**：6 项时间反例证明旧实现会接受 pointer 时间漂移及向前发布时间不推进；2 项证明数据库分配成员 UUID 后会被误拒，或被误判为新的向前发布；1 项证明向前发布可误接受替换 pointer 行。修正后 pointer 时间必须等于发布时刻，向前发布时间严格推进并保留原 pointer UUID；仅对齐既有编码明确排除的成员行/所属 publication 存储 ID 后，仍比较其余全部 seal 值，不把正确摘要字符串当作完整字段相等。
+
+实际暂存源码树 `a346f5cb98eb746475ee21672ab2605edb44f8d2` 的独立导出，九份定向测试 **180 passed / 98.63 秒**，全生产 mypy 债务 **0 errors / 0 files**。四个生产文件增量 mypy 零回归，九个 Python 文件 Black/isort/Ruff 通过。增量架构审查覆盖四文件、1,736 新增行，boundary/audit 均为 0。新 freshness 登记只描述内部纯契约，当前共 84 surface；生成器中的 `active_public` 表示登记命中，不证明发布路由已可用。此批无模型或迁移变化。
+
+同一独立导出的覆盖率回归为 **120 passed**，与上述 180 项重叠，不相加；正式日历 Domain 覆盖 **369/380 语句、142/146 分支**，均高于 90%。四个生产文件共 81 个函数的参数、返回标注与 public docstring 无缺项，九个冻结文件运行中无漂移。
+
+并行候选的 Infrastructure/Core 尚待独立接受。正式写入必须由发布权限上下文拥有唯一外层事务，目录 SHARE fence 后普通读取以避免与既有先锁行后写入形成升级死锁；发布、旧记录 supersession、pointer、Audit event/outbox 及提交前 lease/TTL 校验须整体提交或回滚。普通已发布参考数据读取只做精确 Audit 完整性检查，不因原发布人撤权而失效；发布重放仍要求原操作者当前持有发布权，不能借用只读完整性入口绕过。
+
+原生 PostgreSQL 首发/向前 CAS、目录两种锁顺序、Audit/outbox 故障整体回滚、真实会话撤权及用户入口仍在下一验收边界。原 ASH-01 红测、普通模拟消费者、ASH-02、完整 ASH-03 与整体 Goal 均继续开放；`broker_order_evidence_integrated()` 继续为 false。此次本地合同测试和提交不代替 CI/S6、真实 Provider、研究晋级或券商验收。
+
+完整源码窗口、失败原件及覆盖率见[正式日历纯契约检查点](../testing/a-share-usability-formal-calendar-contracts-2026-10-17.json)。登记更新为 v219，74 个计划单元校验无违规。

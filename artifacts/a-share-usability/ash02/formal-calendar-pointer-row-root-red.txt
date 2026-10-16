@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_forward_commit_must_keep_the_existing_pointer_row_identity _______
+tests\unit\data_center\test_formal_calendar_pointer_chronology.py:92: in test_forward_commit_must_keep_the_existing_pointer_row_identity
+    with pytest.raises(CalendarFormalPublicationApplicationError) as caught:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.formal_exchange_calendar_publication.CalendarFormalPublicationApplicationError'>
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_formal_calendar_pointer_chronology.py::test_forward_commit_must_keep_the_existing_pointer_row_identity
+1 failed, 6 deselected in 2.60s
