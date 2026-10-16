@@ -1,0 +1,60 @@
+{
+  "schema": "ash01-inventory-checkpoint.v1",
+  "recorded_at": "2026-10-16T03:26:49.127473+00:00",
+  "source_commit": "12cad5d4cf2da32164c3af380b8b6db09deb254e",
+  "scope": "Local consumer/owner/support inventory and failing-first behavior reproductions only.",
+  "source_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "679b8eaabea86e5df9c253c225bfa958e5a2ad6187579da4ff68e8dcbb248099",
+    "apps/simulated_trading/application/use_cases.py": "d859344c68c47bff5159b34ea47d6ce44fe20377c0411e962e4d8ba0e1c12353",
+    "apps/simulated_trading/application/unified_position_service.py": "b7881a09a63253d1a07ca791e75f975a3f031222ed32c9816765181060006289",
+    "apps/simulated_trading/application/query_services.py": "9cd774cb513be3f999cb4569a70328306b9f8c265705efbbe1688fdd43fb06b7",
+    "apps/simulated_trading/domain/rules.py": "11f399d77b7c90c34597678f1a0fb1b9c6e33a0971437ffca0c32d98298b1af8",
+    "apps/simulated_trading/domain/entities.py": "6fd5e2a1e8beaeaa86ba0afa2301e507f2fe0ffcf3de98aab15943f10e2a67c3",
+    "apps/simulated_trading/infrastructure/models.py": "69154129a08774e7e72fb86913b4cf87c24ab97a083cd563048e31762f04d8de",
+    "apps/account/application/manual_trade_sync.py": "b75b50d55700d617898dabf72b1a9965d319d6257f4ae085e6ec021961652726",
+    "apps/portfolio/domain/market_constraints.py": "be5223baec3ccf9fde086c93b10d512d3f63117fd588c6436c55caba400d696a",
+    "apps/portfolio/interface/api_views.py": "c6f9902b01cf4d217634b0de33af393cba875430b9ac3731db0f102be882e86b",
+    "apps/broker_execution/application/evidence_gate.py": "8c8ecdcb51c9186fc31776706cdadd8ff71f88f7590eee69fe592d423814adc0",
+    "apps/broker_execution/infrastructure/repositories.py": "2a366e7b947ddf5ded71fe76889feba0a0539f319557ab904ec8dfcb286fad32",
+    "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": "8fd7b255a400234ead5a1d54f8c8854bd9c3ceb413388869cd52e2f89e8cedf4",
+    "qmt_agent/executor.py": "b98b55476d398e8184628d072d84dbd2bad42f71c6431fbe39ec57a2a2c71f46",
+    "qmt_agent/qmt_adapter.py": "093be9fd4b43c1babdf4f157a9e1c63fc8a29cc453af2f5f02f0096c45aba549"
+  },
+  "red_reproduction": {
+    "command": "agomtradepro/Scripts/python.exe -X utf8 -m pytest tests/unit/simulated_trading/test_ash01_settlement_regressions.py -q --basetemp=.tmp/pytest-ash-ledger-ash01-repro",
+    "log_path": "docs/testing/a-share-usability-ash01-red-2026-10-16.txt",
+    "log_sha256": "73690f765407517d6bc9fa26d6984a485396f2cc5143511baf2dff08c9f41535",
+    "failed": 3,
+    "passed": 1,
+    "expected_failures": [
+      "new_stock_buy_immediately_sellable",
+      "addition_immediately_sellable",
+      "legal_full_odd_lot_close_rejected"
+    ],
+    "artifact_log_path": "artifacts/a-share-usability/ash01/pytest-ash01-settlement-regressions.txt"
+  },
+  "verified_parent_baseline": {
+    "passed": 32,
+    "targets": [
+      "tests/unit/domain/simulated_trading/test_rules.py",
+      "tests/unit/broker_execution/test_domain.py",
+      "tests/unit/broker_execution/test_live_order_evidence_gate.py"
+    ],
+    "evidence_location": "Parent tool transcript; separate raw log not retained.",
+    "architecture_boundary_violations": 0,
+    "architecture_audit_violations": 0,
+    "module_cycle_components": 0
+  },
+  "production_acceptance": "unverified",
+  "broker_acceptance": "unverified",
+  "deployment_authorized": false,
+  "mutations_performed": [
+    "local plan/registry and new test file only"
+  ],
+  "limitations": [
+    "Normal settlement has no pending-lot/release mechanism yet.",
+    "Imported actual fees live in Account Transaction; zero-fee simulation mirror cannot be charged twice.",
+    "No real provider, broker, production UAT, migration or historical correction was performed.",
+    "Existing red tests remain unresolved until scheduled ASH-02/03 work."
+  ]
+}

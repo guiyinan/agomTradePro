@@ -1,14 +1,14 @@
 {
-  "version": "2026-10-16.v198",
+  "version": "2026-10-16.v216",
   "updated_at": "2026-10-16",
   "execution_focus": {
-    "unit_id": "DATA-18",
+    "unit_id": "ASH-02",
     "allowed_parallel_execution_modes": [
       "production",
       "external",
       "governance"
     ],
-    "policy": "User authorized the 2026-09-24 production-recovery plan and Luna max implementation subagents. DATA-18 is the single repository integration unit; R2 contracts, R3 read-only user flows and R4 task observability run as bounded disjoint subtasks under the primary agent, who owns R1 publication/runtime and S1-S6 systemic gates. Preserve existing production unit states; active audit identity is not audit acceptance, provider refresh is not publication success, and repository green tests are not production recovery. See the new plan for current evidence, ownership, dependencies and exit gates. 2026-09-25 read-only revalidation observed production a6f591a418 / release 20260925023307. Market Publications refreshed to 5,557 of denominator 5,569, financial remains 80, both no-execute previews timed out at 180 seconds, and protected monitoring retry remains 401. States are unchanged. Evidence: docs/deployment/production-closure-revalidation-2026-09-25-a6f591a418.json. 2026-09-26 read-only revalidation observed production 9c77c51182 / release 20260925201025 and profile v19. Authority current heads advanced to 2/2/2, but Publications remain 5,557/5,557/5,557/80 against denominator 5,569, the no-execute Publication preview still times out, and protected monitoring remains 401. States are unchanged. Evidence: docs/deployment/production-closure-revalidation-2026-09-26-9c77c51182.json. 2026-09-28 read-only revalidation observed production 64147fbb60 / release 20260928021509. Both no-execute previews now return bounded missing-financial-decision-evidence denials, resolving the timeout symptom, but Publications remain 5,557/5,557/5,557/80 against denominator 5,569 and protected monitoring remains 401. States are unchanged. Evidence: docs/deployment/production-closure-revalidation-2026-09-28-64147fbb60.json. 2026-09-29 deployment-bound read-only production revalidation at 9c7a5a71a6 / 20260929044615: health/db/ready are 200 and decision-ready is 503. Profile v19 remains bound to release_ref 9c77c51182 while runtime executes 9c7a5a71a6, so exact production identity binding remains P0-blocked; authority remains current at 2/2/2. The active-A-share denominator increased to 5,571 while quote/price/valuation Publications remain 5,557 and financial remains 80, increasing the market gap to 14. Both no-execute previews failed on PostgreSQL pgsql_tmp exhaustion (No space left on device) with mutations_performed=false, so their business gates were not evaluated and child path reachability is not claimed. Deployed contract and tolerance registries remain awaiting owner approval with zero entries and the matcher registry is empty. Both protected monitoring probes return 401. No deployment, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-09-29-9c7a5a71a6.json. 2026-09-30 deployment-bound read-only production revalidation at 6d9a134e41 / 20260929110229: health/db/ready are 200 and decision-ready is 503. Profile v19 remains bound to release_ref 9c77c51182 while runtime executes 6d9a134e41, so exact production identity binding remains P0-blocked; authority remains current at 2/2/2. The active-A-share denominator remains 5,571 while quote/price/valuation Publications remain 5,557 and financial remains 80, leaving the market gap at 14. Both no-execute previews returned structured missing-financial-decision-evidence denials with mutations_performed=false; the prior pgsql_tmp no-space symptom did not recur, but capacity recovery is not claimed. Deployed contract and tolerance registries remain awaiting owner approval with zero entries and the matcher registry is empty. Both protected monitoring probes return 401. No deployment, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-09-30-6d9a134e41.json. 2026-10-01 deployment-bound read-only production revalidation at 6d9a134e41 / 20260929110229: health/db/ready are 200 and decision-ready is 503. Profile v19 remains bound to release_ref 9c77c51182, so exact production identity binding remains P0-blocked. The active-A-share denominator increased to 5,572 while quote/price/valuation Publications remain 5,557 and financial remains 80, increasing the market gap to 15. Temporally current actor/owner/joined heads regressed from 2/2/2 to 1/1/1; this remains insufficient for exact EVID/AUD acceptance. Both no-execute previews returned structured missing-financial-decision-evidence denials with mutations_performed=false. Deployed contract and tolerance registries remain awaiting owner approval with zero entries and the matcher registry is empty. Both protected monitoring probes return 401. No deployment, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-01-6d9a134e41.json. 2026-10-03 deployment-bound read-only production revalidation at 946ea48106 / 20261001213508: health/db/ready are 200 and decision-ready is 503. Profile v19 remains bound to release_ref 9c77c51182, so exact production identity binding remains P0-blocked. Against denominator 5,572, price Publication advanced to full 5,572 coverage with as_of 2026-09-29, quote advanced to 5,564 with 8 missing and valuation to 5,561 with 11 missing, both as_of 2026-09-30; financial remains 80. Authority remains 1/1/1 and cannot replace exact EVID/AUD acceptance. Both no-execute previews returned structured missing-financial-decision-evidence denials with mutations_performed=false. Deployed contract and tolerance registries remain awaiting owner approval with zero entries and the matcher registry is empty. Both protected monitoring probes return 401. No deployment, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-03-946ea48106.json. 2026-10-04 deployment-bound read-only production revalidation at 2eb462b297 / 20261003124733: health/db/ready are 200 and decision-ready is 503. Profile v19 remains bound to release_ref 9c77c51182, so exact production identity binding remains P0-blocked. Against denominator 5,572, price Publication remains 5,572 with as_of 2026-09-29, quote remains 5,564 with 8 missing and valuation remains 5,561 with 11 missing, both as_of 2026-09-30; financial remains 80. Authority remains 1/1/1 and cannot replace exact EVID/AUD acceptance. Both no-execute previews returned structured missing-financial-decision-evidence denials with mutations_performed=false. Deployed contract and tolerance registries remain awaiting owner approval with zero entries and the matcher registry is empty. Both protected monitoring probes return 401. No deployment, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-04-2eb462b297.json. 2026-10-06 deployment-bound read-only production revalidation at 66f7d37077 / 20261006041252: health/db/ready are 200 and decision-ready is 503. Production now runs the exact probe-time repository HEAD, but profile v19 remains bound to release_ref 9c77c51182, so deployment/profile exact identity remains P0-blocked. Against denominator 5,572, price remains 5,572 with as_of 2026-09-29, quote remains 5,564 with 8 missing and valuation remains 5,561 with 11 missing, both as_of 2026-09-30; financial remains 80. Authority remains 1/1/1 and cannot replace exact EVID/AUD acceptance. Deployed Git now contains one active, approval-recorded AKShare source-time contract and its exact matcher, but this validation observed no retained real provider sample; tolerance policy remains awaiting owner approval with zero policies. Both no-execute previews still deny missing financial decision evidence with mutations_performed=false, and both protected monitoring probes return 401. No deployment, profile activation, provider call, production write or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-06-66f7d37077.json. 2026-10-07 deployment-bound read-only production revalidation: production remains 66f7d37077 / 20261006041252 while repository HEAD 7191ddcf29 is 33 commits ahead. Health/db/ready are 200, decision-ready is 503 and release-identity is 403. Profile v19 remains bound to 9c77c51182, so exact identity remains P0-blocked; authority remains 1/1/1. An exact read-only pointer join shows active current pointers for quote=5,572 and valuation=5,572 with zero missing, but price=5,561 with 11 missing; there is no financial current pointer. All three market pointers share activation_id 19d9a93e and were updated 2026-10-06T10:34:29.820133Z. Historical published rows are retained and are not treated as conflicting pointers. Both no-execute previews still fail closed on missing financial decision evidence with mutations_performed=false. Protected monitoring initial and retry now time out, so no authentication or retained-sample claim is possible. The deployed source-time contract/matcher are unchanged; the repository producer/retention work is not deployed. No deployment, provider call, production write, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-07-66f7d37077.json. 2026-10-09 deployment-bound read-only production revalidation: production advanced to d3fdbd6f1 / 20261008050500 while probe-time repository HEAD 47a91e25a is 71 commits ahead. Health/db/ready are 200, decision-ready is 503 and release-identity is 403. Profile v19 remains bound to 9c77c51182, so exact identity remains P0-blocked; authority remains 1/1/1. Active pointers are unchanged: quote and valuation are 5,572/5,572, price is 5,561/5,572 with 11 missing, and financial has no current pointer. Deployed source now includes the owner-approved AKShare source-time contract, exact matcher, provider verifier and retained-evidence verifier, but aggregate production evidence is empty: 0 announced_at facts, 0 decision-evidence facts, 0 source-time witnesses, 0 claims/bound claims and 0 artifact/success audits. Numeric tolerances remain awaiting owner approval with zero policies. Both no-execute previews still fail closed on missing financial decision evidence with mutations_performed=false. Protected monitoring recovered transport from TimeoutError to credentialed/anonymous 401, still DENY_STOP_LINES with no retained sample. No deployment, direct provider call, production write, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-09-d3fdbd6f1c.json. The prior clean-candidate Application-to-Infrastructure task lease probe violation is resolved at repository HEAD 47a91e25a; the architecture audit now reports zero violations. 2026-10-10 deployment-bound read-only production revalidation: production remains at d3fdbd6f1 / 20261008050500 while probe-time repository HEAD d7bebd95c is 101 commits ahead. Health/db/ready are 200, decision-ready is 503 and release-identity is 403. Profile v19 remains bound to 9c77c51182, so exact identity remains P0-blocked; authority regressed from 1/1/1 to 0/1/0 after the current actor source expired; the owner head remains current. Active pointers are unchanged: quote and valuation are 5,572/5,572, price is 5,561/5,572 with 11 missing, and financial has no current pointer. Deployed source now includes the owner-approved AKShare source-time contract, exact matcher, provider verifier and retained-evidence verifier, but aggregate production evidence is empty: 0 announced_at facts, 0 decision-evidence facts, 0 source-time witnesses, 0 claims/bound claims and 0 artifact/success audits. Numeric tolerances remain awaiting owner approval with zero policies. Both no-execute previews still fail closed on missing financial decision evidence with mutations_performed=false. Protected monitoring remains credentialed/anonymous 401, DENY_STOP_LINES with no retained sample. No deployment, direct provider call, production write, profile activation or Publication switch was performed by this validation. Evidence: docs/deployment/production-closure-revalidation-2026-10-10-d3fdbd6f1c.json."
+    "policy": "User-authorized A-share Goal with Luna Max collaborators. ASH-02 remains the single repository integration focus. Keep original and corrected ASH-01 evidence. Bounded disjoint prerequisites cover execution publication/rollback, raw response retention, an exact-reference exchange calendar fact and the normal simulated-consumer transaction adapter using the frozen same-table Risk V3 contract. Do not switch legacy trade callers before joint source/consumer acceptance. These prerequisites do not complete or activate the full ASH-03 stage. Preserve DATA/EVID/QMT, production and research-only stops; no fixture or claimed capability grants authority."
   },
   "workstreams": [
     {
@@ -366,11 +366,26 @@
           "role": "primary"
         }
       ]
+    },
+    {
+      "id": "a-share-usability",
+      "title": "A-share research, simulation and controlled execution usability",
+      "category": "investment-usability",
+      "priority": "P0/P1",
+      "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
+      "status": "active",
+      "next_gate": "Plan19.22/policy-authority checkpoint accepts explicit same-table member codec binding (old NULL policy hashes unchanged, new bound content v2/p2 identity) and frozen session-only publisher authority prerequisite. Policy SQLite304 plus overlapping Domain21; Policy AST 45/45 statements24/24branches, identity13/13+2/2,10-source mypy zero. Root native58/no skips includes six real two-connection revocations (direct/group-permission/group-membership both orders, actual pg_blocking_pids), four Root expiry/clock/thread regressions and21 policy ORM. Root real expiry/clock red3 and cross-thread red1 retained then fixed; final live validation rolls back callback writes.4-source authority mypy zero. Exact frozen0101/0102/0103 applied to owned fixture544migrations/580tables, not full replay; permission metadata-only current registry recovery after historical ContentType QA-harness error, no migrations repeated. Two custom definitions/zero direct or group grants; no unrelated seed hooks.0101 structural application is NOT instrument source snapshot acceptance. Root independent instrument ORM corrected red4 found Model.save absence/insert overwrite and QuerySet bulk upsert bypass; Agent local guard repair green, source exact-body/race/full acceptance pending. Read-provider extension now authorized: fixed GET session adapter, closed PUBLISH/AUDIT_READ core sharing, current locked grant held through exact Audit query; event as_of only selects history, no invented historical grant intervals/table. Audit owner adjusts leased provider Protocol, Core bridge alone composes both apps. This extension changes frozen shared auth source and needs new regression; native58/checkpoint stays old-candidate proof. Formal calendar publisher/source/policy/Audit atomicity and actual reader still not wired. Preserve earlier Fee111/source70/calendarTTL94/codec81/combined103-178 checkpoints; no global-green claim for later WIP. Legacy consumers unswitched, ASH-02 sole focus, original ASH-01 T+1/oddlot, wholeASH-03 and Goal open; DATA-18 gates ASH-11. Production, real provider, research promotion, Evidence and broker stops remain.",
+      "documents": [
+        {
+          "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+          "role": "primary"
+        }
+      ]
     }
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-14.v62",
+    "version": "2026-10-16.v65",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -384,7 +399,8 @@
       "tui-usability-governance": 0,
       "index-dividend-thermometer": 0,
       "repository-maintenance-governance": 0,
-      "manager-holdings-plan-review": 6
+      "manager-holdings-plan-review": 6,
+      "a-share-usability": 0
     },
     "legacy_sources": [
       {
@@ -1507,7 +1523,7 @@
         "wave": 3,
         "priority": "P0",
         "execution_mode": "repository",
-        "status": "active",
+        "status": "planned",
         "title": "Close publication integrity, read-only investor flows, SDK/MCP and task diagnostics with production rehearsal gates",
         "depends_on": [
           "AUD-05"
@@ -1598,6 +1614,205 @@
         "title": "Resolve expired Manager Holdings draft review without authorizing implementation",
         "depends_on": [],
         "exit_gate": "A retained owner review decision explicitly accepts, revises or archives the draft. Any feasibility probe and MVP remain separately authorized decisions; no provider access, implementation or production change follows merely from plan registration."
+      },
+      {
+        "id": "ASH-01",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "completed",
+        "title": "Inventory A-share consumer paths, supported scope and authoritative rule sources",
+        "depends_on": [],
+        "exit_gate": "Every core buy/add/sell/close/import/repair/backtest/QMT path has an owner, actual consumer, rule/cost source, time contract and failure-test mapping. The security/board/mode support matrix and existing-contract reuse decisions are explicit. Reproduce verified defects before implementation; do not infer production coverage from static code or begin provider/live activity."
+      },
+      {
+        "id": "ASH-02",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "active",
+        "title": "Unify versioned A-share tradability rules and server/Agent validation",
+        "depends_on": [
+          "ASH-01"
+        ],
+        "exit_gate": "Risk-owned versioned rules and Data Center evidence cover declared boards, order quantities/odd lots, price ticks and boundary modes, sessions, source freshness and account permissions. Unknown state fails closed; server and Agent agree on the same bound input, version and hash. No fractional quantity truncation or historical constant fallback. Behavior, architecture and type checks pass without enabling live execution."
+      },
+      {
+        "id": "ASH-03",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Repair settlement, reservations, simulated fills and cost consistency",
+        "depends_on": [
+          "ASH-02"
+        ],
+        "exit_gate": "Stock T+1 and other declared security settlement classes distinguish economic, unsettled, sellable and reserved quantities over real sessions. Normal simulation, actual-fill import and corrections have explicit cost/fee contracts without duplicate charging or invented zero cost. PostgreSQL concurrency, duplicate/partial/cancel/recovery and rollback evidence proves no oversell or double spend. Historical correction remains previewed and separately bounded."
+      },
+      {
+        "id": "ASH-04",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Propagate source-time and per-asset usable capabilities to decision consumers",
+        "depends_on": [
+          "ASH-01"
+        ],
+        "exit_gate": "Published/PIT reads retain observation, availability and knowledge cutoff; intraday execution rejects missing or stale source time. Per-asset capability isolation preserves verified market functions while blocking missing financial functions, full denominators and identity/audit/scope checks. Future reports, stale caches and failover regressions pass; TUI displays actionable capabilities without implicit business writes. Existing DATA production gates stay independent."
+      },
+      {
+        "id": "ASH-05",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Connect announcements and corporate actions to positions and plan validity",
+        "depends_on": [
+          "ASH-02",
+          "ASH-03",
+          "ASH-04"
+        ],
+        "exit_gate": "Source-bound event versions distinguish announcement, availability and effective stages; recommendation/plan validity and account cash/share effects reuse existing owners and Audit/Outbox. Duplicate, late, revised, dividend/stock-distribution/rights and deferred-fee cases replay without duplicate posting or adjusted-price double counting. Unknown events remain UNKNOWN; missing source coverage stays explicit."
+      },
+      {
+        "id": "ASH-06",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Make A-share backtests respect PIT, sessions, fills and net costs",
+        "depends_on": [
+          "ASH-02",
+          "ASH-03",
+          "ASH-04",
+          "ASH-05"
+        ],
+        "exit_gate": "Historical universes/PIT data, signal versus earliest-fill time, exchange sessions, board rules, settlement, capacity, corporate actions and both-side costs are replayable. Limit/suspension/unfilled exits remain positions rather than fabricated cash; stop triggers do not imply fills. Golden cases, future-data perturbation and matched simulation reconciliation pass. Evidence-based trust levels retain unsupported assumptions."
+      },
+      {
+        "id": "ASH-07",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Enforce portfolio concentration, liquidity and outstanding-order risk",
+        "depends_on": [
+          "ASH-02",
+          "ASH-03",
+          "ASH-04"
+        ],
+        "exit_gate": "Versioned risk policy uses source-bound sector/ETF coverage, capacity and settled/reserved account projections at planning and execution. Pending sales do not release risk or buying power prematurely. Sector concentration, duplicate exposure, stale/partial look-through, low liquidity, simultaneous orders and blocked-exit stress cases produce explainable constraints using existing Scenario services."
+      },
+      {
+        "id": "ASH-08",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Deliver an account-specific rebalance plan and complete TUI user journey",
+        "depends_on": [
+          "ASH-03",
+          "ASH-04",
+          "ASH-07"
+        ],
+        "exit_gate": "Plans expose current/sellable and target shares, feasible deltas, costs, cash, dependencies, versions, expiry and invalidation. Partial fills/cancel/expiry recompute remaining work without mutating approved fields. Existing TransitionPlan and exact bindings are reused. Ordinary/read-only/cross-account browser, API and SDK/MCP contracts pass with actionable empty/blocked states and no new Classic business page."
+      },
+      {
+        "id": "ASH-09",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P0",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Wire exact Evidence and current risk authorization through live-order checkpoints",
+        "depends_on": [
+          "ASH-02",
+          "ASH-03",
+          "ASH-04",
+          "ASH-07",
+          "ASH-08"
+        ],
+        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate."
+      },
+      {
+        "id": "ASH-10",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P2",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Reconcile real-account performance, recommendation lineage and execution costs",
+        "depends_on": [
+          "ASH-05",
+          "ASH-08"
+        ],
+        "exit_gate": "Returns distinguish external cash flows, dividends, actual costs and valuation with explicit benchmark and weighting method. Exact recommendation/plan/order/fill lineage is reused; uncertain manual matches and attribution residuals stay visible. Cash-flow, duplicate/partial-fill, corporate-action and unmatched-trade golden cases reconcile to the ledger at declared precision, with report limitations when reconciliation is incomplete."
+      },
+      {
+        "id": "ASH-11",
+        "workstream_id": "a-share-usability",
+        "wave": 3,
+        "priority": "P1",
+        "execution_mode": "production",
+        "status": "planned",
+        "title": "Accept candidate-bound A-share research, manual-assistance and simulation journeys",
+        "depends_on": [
+          "ASH-05",
+          "ASH-06",
+          "ASH-08",
+          "DATA-18"
+        ],
+        "exit_gate": "One candidate binds applicable CI/S6, real data capabilities, rule/cost/configuration/TUI versions and recoverability. Ordinary-user research, holdings, feasible plan, authorized actual-fill import, partial completion, reconciliation and review journeys pass across permitted roles and supported scopes. Partial capabilities remain restricted and live execution stays separately gated; no old candidate window is inherited.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Collect read-only candidate/manifest/Publication capability and rule-version bindings, CI/S6 outputs and explicit unsupported scopes without provider refresh or production mutations.",
+            "Run deterministic ordinary-user/read-only/unauthorized browser and API/SDK/MCP read journeys; retain source times, observations, raw results and hashes."
+          ],
+          "authorization_required": [
+            "Deploy or switch a candidate/configuration, run production migrations/backfill/corrections or execute write-side UAT such as real-fill import or approval. Prepare bounded preflight, dry-run, impact and rollback first and honor any existing applicable authorization."
+          ],
+          "human_or_external_required": [
+            "Business owners judge the actual A/B user outcomes and support limits; missing genuine data or required independent acceptance cannot be replaced with fixture or agent signatures."
+          ]
+        }
+      },
+      {
+        "id": "ASH-12",
+        "workstream_id": "a-share-usability",
+        "wave": 4,
+        "priority": "P0",
+        "execution_mode": "external",
+        "status": "planned",
+        "title": "Verify scoped formal QMT execution against existing Evidence and broker exits",
+        "depends_on": [
+          "ASH-09",
+          "ASH-11",
+          "EVID-03",
+          "QMT-01",
+          "QMT-02"
+        ],
+        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit.",
+        "evidence_collection": {
+          "auto_collect": [
+            "Inspect current canonical authorization, QMT Phase 0/simulation/live evidence and exact candidate/account/version bindings without changing rollout or sending orders.",
+            "After target-host access is authorized, collect read-only quote/source-time/limits/session/account facts and replay existing order/fill/cash/position event timelines and reconciliation reports."
+          ],
+          "authorization_required": [
+            "Enable live execution or send any actual order/cancel, change a production rule or risk limit, or inject a live fault. Present exact account/security/value/time scope, stop criteria, expected costs and recovery steps before the action unless already authorized."
+          ],
+          "human_or_external_required": [
+            "The broker supplies working target XtQuant permissions and environment; genuine account/strategy owners and required reviewers accept the scoped live and recovery outcomes under the existing QMT process."
+          ]
+        }
       }
     ]
   }

@@ -1,0 +1,30 @@
+FFFF.                                                                    [100%]
+================================== FAILURES ===================================
+____________ test_new_a_share_buy_is_not_sellable_on_execution_day ____________
+tests\unit\simulated_trading\test_ash01_settlement_regressions.py:141: in test_new_a_share_buy_is_not_sellable_on_execution_day
+    assert position.available_quantity == 0.0
+E   AssertionError: assert 100.0 == 0.0
+E    +  where 100.0 = Position(account_id=1, asset_code='600000.SH', asset_name='浦发银行', asset_type='equity', quantity=100.0, available_quant...e_json=None, invalidation_description='', is_invalidated=False, invalidation_reason=None, invalidation_checked_at=None).available_quantity
+_________ test_a_share_addition_keeps_only_prior_day_shares_sellable __________
+tests\unit\simulated_trading\test_ash01_settlement_regressions.py:168: in test_a_share_addition_keeps_only_prior_day_shares_sellable
+    assert position.available_quantity == 300.0
+E   AssertionError: assert 500.0 == 300.0
+E    +  where 500.0 = Position(account_id=1, asset_code='600000.SH', asset_name='浦发银行', asset_type='equity', quantity=500.0, available_quant...json=None, invalidation_description=None, is_invalidated=False, invalidation_reason=None, invalidation_checked_at=None).available_quantity
+______ test_a_share_odd_lot_can_be_sold_when_closing_the_entire_position ______
+tests\unit\simulated_trading\test_ash01_settlement_regressions.py:181: in test_a_share_odd_lot_can_be_sold_when_closing_the_entire_position
+    trade = sell.execute(
+apps\simulated_trading\application\use_cases.py:553: in execute
+    raise ValueError(f"卖出订单验证失败: {error_msg}")
+E   ValueError: 卖出订单验证失败: 数量必须为100的倍数
+___ test_a_share_odd_remainder_can_be_sold_once_without_closing_whole_lots ____
+tests\unit\simulated_trading\test_ash01_settlement_regressions.py:204: in test_a_share_odd_remainder_can_be_sold_once_without_closing_whole_lots
+    trade = sell.execute(
+apps\simulated_trading\application\use_cases.py:553: in execute
+    raise ValueError(f"卖出订单验证失败: {error_msg}")
+E   ValueError: 卖出订单验证失败: 数量必须为100的倍数
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_ash01_settlement_regressions.py::test_new_a_share_buy_is_not_sellable_on_execution_day
+FAILED tests/unit/simulated_trading/test_ash01_settlement_regressions.py::test_a_share_addition_keeps_only_prior_day_shares_sellable
+FAILED tests/unit/simulated_trading/test_ash01_settlement_regressions.py::test_a_share_odd_lot_can_be_sold_when_closing_the_entire_position
+FAILED tests/unit/simulated_trading/test_ash01_settlement_regressions.py::test_a_share_odd_remainder_can_be_sold_once_without_closing_whole_lots
+4 failed, 1 passed in 1.78s

@@ -19,6 +19,7 @@
 | `index-dividend-thermometer` | 指数温度分析 | [主计划与支撑文档](#index-dividend-thermometer) |
 | `repository-maintenance-governance` | Scripts / 文档 / MCP 存量治理 | [主计划与支撑文档](#repository-maintenance-governance) |
 | `manager-holdings-plan-review` | Manager Holdings 草案审查 | [主计划与支撑文档](#manager-holdings-plan-review) |
+| `a-share-usability` | A 股交易规则、模拟结算、数据能力、调仓与执行闭环 | [主计划与支撑文档](#a-share-usability) |
 
 状态、owner 与 next gate 读取 `workstreams`；可执行状态读取 `closure_backlog.units`。工作流 active 不等于允许启动其中的 planned 实施。
 
@@ -140,6 +141,12 @@
 | 角色 | 文档 |
 | --- | --- |
 | 主计划 | [Manager Holdings / Decision Twin Development Plan](manager-holdings-decision-twin-development-plan-2026-09-30.md) |
+
+### a-share-usability
+
+| 角色 | 文档 |
+| --- | --- |
+| 主计划 | [A 股可用性完善实施计划（2026-10-16）](a-share-usability-implementation-plan-2026-10-16.md) |
 
 ## 限期审查队列
 

@@ -1,0 +1,19 @@
+{
+  "schema": "ash01-corrected-checkpoint.v1",
+  "recorded_at": "2026-10-16T04:48:23.9971379+00:00",
+  "erratum": "docs/testing/a-share-usability-ash01-odd-lot-erratum-2026-10-16.md",
+  "original_manifest": "docs/testing/a-share-usability-ash01-inventory-2026-10-16.json",
+  "original_test_snapshot": "docs/testing/a-share-usability-ash01-settlement-test-original-2026-10-16.py.txt",
+  "source_test": "tests/unit/simulated_trading/test_ash01_settlement_regressions.py",
+  "source_test_snapshot": "docs/testing/a-share-usability-ash01-corrected-test-2026-10-16.py.txt",
+  "source_test_sha256": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+  "log": "docs/testing/a-share-usability-ash01-corrected-red-2026-10-16.txt",
+  "log_sha256": "0d03873523316c33d56b9471c8cc4e2d46ae4fea5830e38b806aa08fc6240711",
+  "interpreter": "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+  "command": "agomtradepro/Scripts/python.exe -X utf8 -m pytest tests/unit/simulated_trading/test_ash01_settlement_regressions.py -q --basetemp=.tmp/pytest-ash01-corrected-red",
+  "failed": 4,
+  "passed": 1,
+  "production_logic_modified": false,
+  "authoritative_source": "https://www.sse.com.cn/lawandrules/guide/stock/jyglywznylc/tz/c/c_20230209_5716007.shtml",
+  "production_acceptance": "unverified"
+}
