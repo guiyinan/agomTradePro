@@ -1,0 +1,99 @@
+{
+  "recorded_at": "2026-10-16T18:42:59.703710+00:00",
+  "stage": "ASH-02 internal Calendar Audit integrity/replay and Core adapter",
+  "status": "bounded_local_adapter_acceptance_only",
+  "exported_source_tree": "9f9d67fc27e3e21a851a010394766fd7b266a1e0",
+  "proof_scope": "Frozen exported source before generated projections/acceptance metadata insertion; not the final commit or CI/S6 identity. Formal repository and later Domain cross-dataset correction are excluded.",
+  "tests": {
+    "files": 8,
+    "passed": 148,
+    "seconds": 17.7,
+    "production_drift": []
+  },
+  "mypy": {
+    "incremental_production_files": 5,
+    "new_errors": 0,
+    "full_errors": 0,
+    "full_error_files": 0,
+    "baseline_changed": false
+  },
+  "style_python_files": 9,
+  "function_contracts": {
+    "checked": 43,
+    "issues": []
+  },
+  "architecture": {
+    "files": 5,
+    "added_lines": 1199,
+    "boundary": 0,
+    "audit": 0
+  },
+  "source_sha256_exported": {
+    "apps/audit/application/calendar_publication_integrity.py": "ec9713a408ee706af0e960d269c07f3e3c90717b612984dd7ad06d09c5d43424",
+    "apps/audit/application/calendar_publication_replay_verifier.py": "a787d259407f8008f76f670166898cc44741340ba8045e27652353fd4472711b",
+    "apps/audit/calendar_publication_composition.py": "db48afe6569a5f75a15fd21eb6be28f973dd926465433508c45535f86522d750",
+    "apps/data_center/application/calendar_formal_publication_audit_port.py": "c80754c3147e9023034752f5d9812b3a21f0c60aa8419da0269d6dd816afc7e7",
+    "core/integration/calendar_formal_publication_audit.py": "4152280bde4de867c4c22371bfd0353e1ca5ea635db429035bad2a67cd84c18d",
+    "tests/unit/audit/test_calendar_publication_composition.py": "a32f2d0cf6955a7599be60111701efb43b48f50bd3b9982270c24a032b047bf1",
+    "tests/unit/audit/test_calendar_publication_integrity.py": "ed797c454fbdbb6661159015be864999d54dcd72eae825db3446e46bcdda77ce",
+    "tests/unit/audit/test_calendar_publication_replay_verifier.py": "42ddc84a3035a4ddc4bf9df5c7b56538477396a813d17735b7337d24a9cf00b7",
+    "tests/unit/core/test_calendar_formal_publication_audit.py": "3fc1ec5e94918fbf5109f9d0427cd7049559148b5436e248643776f66c95390f"
+  },
+  "source_sha256_staged": {
+    "apps/audit/application/calendar_publication_integrity.py": "588ee1d91ad952f7bcc909de49af42997d82148661ca38364f29def44d68f63a",
+    "apps/audit/application/calendar_publication_replay_verifier.py": "3116100f3106f87893e0266f20465ee3cd0a15d0598adb5ccd71285fb5061abb",
+    "apps/audit/calendar_publication_composition.py": "c4f394ccc6f4f645aae6d0d27dad8316340f3e2babd483188a39584251bfc73e",
+    "apps/data_center/application/calendar_formal_publication_audit_port.py": "fc4b5f51474a1387f079d5cd64cb7bdce760f9b1eafbe655334cec9bff4bb97d",
+    "core/integration/calendar_formal_publication_audit.py": "4213618eaaa5aa8c2a6169415a4ec9ec9a56a802da02239f374b6ad200a9e6ca",
+    "tests/unit/audit/test_calendar_publication_composition.py": "c765cb98d4eea2be074df16270eae69ffe03a5e6912683aec9053f77c7d7fc05",
+    "tests/unit/audit/test_calendar_publication_integrity.py": "639ecb930420465ee2cb1c0aa85aba360770d8bb24a8171a4f7fee5c11f2e987",
+    "tests/unit/audit/test_calendar_publication_replay_verifier.py": "ecea2877bc8c3a2d471db4a4bf1c4c69117592fc47a640b7e0824f936bed3676",
+    "tests/unit/core/test_calendar_formal_publication_audit.py": "98a8090d1f0765a2174acde56a48607e53c2be5ef70a256bcf30db80229d4b03"
+  },
+  "source_equivalence": "LF-normalized exact bytes and equal Python ASTs across export/index/worktree; raw byte and release identity are not conflated.",
+  "accepted": [
+    "DC-owned three-method Audit port",
+    "same-alias public Audit composition without Application infrastructure imports",
+    "minimal receipt for no-write published-pair integrity",
+    "exact current replay by original actor with current publication permission",
+    "Core exact source/seal mapping with no Audit event browsing exposure"
+  ],
+  "failure_history": "First new integrity red was a missing module; second red was a malformed test setup creating an outbox after event mutation. Neither is claimed as a production business failure. Raw originals are retained.",
+  "native_integration_status": "Unaccepted: a later 133-production-file native storage candidate returned 16 passed/5 failed due to fixture formal/raw dataset mismatch rejected by Audit v1. That different source window does not qualify this adapter as an accepted publisher and will be recorded in the storage checkpoint.",
+  "not_accepted": [
+    "formal repository atomicity",
+    "native actual publication happy path and Audit rollback",
+    "old-current Audit integrity before forward",
+    "orphan historical pointer recovery or rejection",
+    "source/formal dataset early boundary",
+    "capture/context/HTTP/TUI entrypoints",
+    "ordinary simulated consumers",
+    "ASH-01/whole ASH-02/whole ASH-03",
+    "external outbox dispatch",
+    "production/provider, CI/S6, research/Evidence/broker activation"
+  ],
+  "calendar_audit_events_remain_planned_not_wired": true,
+  "broker_order_evidence_integrated": false,
+  "goal_complete": false,
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-integrity-red.txt": "73e72db6647e459821a69c4affb4b2b468869a6cd52cbad029fb8a47ce8628ca",
+    "artifacts/a-share-usability/ash02/calendar-integrity-red-2.txt": "c264ce46293ec1d6b33341804a11c179779b57074ec9e68b152e879879cc2548",
+    "artifacts/a-share-usability/ash02/calendar-integrity-unit-first-green.txt": "b685a2b45c6e8db7359e7b2c6a5997283866e09bcdb437bc6deec7165468e586",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-unit-green.txt": "e13c2d87d58e2ace6d152248848865d118d9458081d4e10efb191b75d259464e",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-regression-final.txt": "7c67417c48c03248aa35289b602e25f7ee8aa6446ee7a2c520625dbec0871a00",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-mypy-final.txt": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-black-final.txt": "4373799750d7529a38e4e29ed6ed6f8561066976c7ded8b3c2f569778a6fcbac",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-ruff-final.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "artifacts/a-share-usability/ash02/phased-calendar-audit-bridge-index-projections-1.txt": "f951a8131f54d965fd94d5fbccb45c270c14ba4e8a3a96f95ecae50f794349aa",
+    "artifacts/a-share-usability/ash02/phased-calendar-audit-bridge-calendar-audit-bridge-index-1.txt": "46dc7367ca1cdf364bfea58fc4af855629ff98b884031a28df8eecb6ea2d2845",
+    "artifacts/a-share-usability/ash02/phased-calendar-audit-bridge-calendar-audit-bridge-index-1-sources.json": "41a9227303c8563de998d2ca6eb89e7bb9d9afc6b1f11bc51aee257c478db837",
+    "artifacts/a-share-usability/ash02/phased-calendar-audit-bridge-debt-index-1.txt": "92012d899ccd94a5c636fb06375092d9e6a69924347c73a05450cb677c95e014",
+    "artifacts/a-share-usability/ash02/phased-calendar-audit-bridge-debt-index-1-sources.json": "f7aad68fb6117768a2c59a0896a5179e0cbfc52de34629ae0b57dba5434a4497",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-index-bounded-quality.json": "167eed072db2ea73a92fb8c8c56debe77060bb3ba5cfc691281d393065bdd4ed",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-index-black.txt": "d0f4682f5d925920449708eabf2a12cf5e871ad1a03807d46c36dde14a185bb8",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-index-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-index-ruff.txt": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-index-incremental-mypy.txt": "b2778bab1157c8d1248033fdb64044f9f72ba7b15624dce01ac6fd930f97030f",
+    "artifacts/a-share-usability/ash02/calendar-audit-bridge-root-architecture-delta.txt": "5a0a90d217c8cb2a2c0f163adc663f78e2c53512a0230351de4678e431a690c5"
+  }
+}

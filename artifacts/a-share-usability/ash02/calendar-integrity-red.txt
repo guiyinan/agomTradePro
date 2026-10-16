@@ -1,0 +1,13 @@
+
+=================================== ERRORS ====================================
+__ ERROR collecting tests/unit/audit/test_calendar_publication_integrity.py ___
+ImportError while importing test module 'D:\githv\agomTradePro\tests\unit\audit\test_calendar_publication_integrity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\unit\audit\test_calendar_publication_integrity.py:19: in <module>
+    from apps.audit.application.calendar_publication_integrity import (
+E   ModuleNotFoundError: No module named 'apps.audit.application.calendar_publication_integrity'
+=========================== short test summary info ===========================
+ERROR tests/unit/audit/test_calendar_publication_integrity.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 1.23s

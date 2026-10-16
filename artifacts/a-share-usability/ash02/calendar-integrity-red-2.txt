@@ -1,0 +1,17 @@
+.......F..                                                               [100%]
+================================== FAILURES ===================================
+________ test_integrity_rejects_hash_damage_and_non_exact_outbox_pair _________
+tests\unit\audit\test_calendar_publication_integrity.py:342: in test_integrity_rejects_hash_damage_and_non_exact_outbox_pair
+    reader = FakeIntegrityReader(event=damaged_event, outbox=_outbox(event))
+tests\unit\audit\test_calendar_publication_integrity.py:201: in _outbox
+    return ExactSystemAuditOutboxWinner(
+<string>:8: in __init__
+    ???
+apps\audit\application\system_audit_event_outbox.py:65: in __post_init__
+    self.event.validate_hashes()
+apps\audit\domain\system_audit_event.py:525: in validate_hashes
+    raise ValueError("audit event hash mismatch")
+E   ValueError: audit event hash mismatch
+=========================== short test summary info ===========================
+FAILED tests/unit/audit/test_calendar_publication_integrity.py::test_integrity_rejects_hash_damage_and_non_exact_outbox_pair
+1 failed, 9 passed in 1.41s

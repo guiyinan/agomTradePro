@@ -755,3 +755,13 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 原生 PostgreSQL 首发/向前 CAS、目录两种锁顺序、Audit/outbox 故障整体回滚、真实会话撤权及用户入口仍在下一验收边界。原 ASH-01 红测、普通模拟消费者、ASH-02、完整 ASH-03 与整体 Goal 均继续开放；`broker_order_evidence_integrated()` 继续为 false。此次本地合同测试和提交不代替 CI/S6、真实 Provider、研究晋级或券商验收。
 
 完整源码窗口、失败原件及覆盖率见[正式日历纯契约检查点](../testing/a-share-usability-formal-calendar-contracts-2026-10-17.json)。登记更新为 v219，74 个计划单元校验无违规。
+
+### 19.27 Calendar Audit 内部完整性与 Core 适配独立接受
+
+正式日历纯契约已提交 `4cacfc065`。下一切片只接受 Data Center 自有三方法 Audit Protocol、公开 Audit composition root、只读最小完整性回执、原操作者当前发布权限下的精确重放，以及 Core 的显式字段映射。普通日历参考读取可以核验既存事件/出站对，无需原发布人继续持权；该内部能力不授予 Audit 浏览或发布权限，不返回完整审计事件，也不修复缺失半件。
+
+实际暂存源码树 `9f9d67fc27e3e21a851a010394766fd7b266a1e0` 的独立导出，八份 unit/SQLite 组件 **148 passed / 17.70 秒**。五个生产文件增量 mypy 零回归、全生产债务 **0 errors / 0 files**，九个 Python 文件 Black/isort/Ruff 通过；43 个生产函数的标注及 public docstring 无缺项。增量架构五文件、1,199 新增行，boundary/audit 均为 0；运行期间无生产源码漂移。与前一切片重叠的测试不累计。原始 red 中的缺模块与坏夹具均注明性质，不冒充生产业务失败。
+
+仓储并未因此接受。其后另一冻结窗口的主代理原生 PostgreSQL 首跑 **16 passed / 5 failed**：CAS 和两种目录锁顺序通过，真实 Audit 因 fixture 的 formal dataset 与 RawPayload dataset 不同而严格拒绝。须修 fixture 并在 Domain 提前拒绝跨 dataset，不放宽 Audit v1。独立仓储审查还确认 forward 未校验旧 current 的 Audit，以及缺 pointer 时漏检仅剩 superseded 历史；这两项正在补真实失败测试和修复，不能用本段 148 项结果代替验收。
+
+原件及两套源码字节摘要见[Calendar Audit 适配检查点](../testing/a-share-usability-calendar-audit-bridge-2026-10-17.json)。导出、暂存与工作树仅声明 LF 规范化/AST 等价，不合并成同一发布 SHA；初次 Native 失败窗口另行保留。当前 84 freshness surface、23 Audit event、1,348 入口；Calendar 两项事件仍 planned/not_wired，无生产路由、外部 outbox 投递或券商能力启用。整体 Goal、ASH-01、ASH-02、完整 ASH-03 和模拟消费者迁移继续开放。

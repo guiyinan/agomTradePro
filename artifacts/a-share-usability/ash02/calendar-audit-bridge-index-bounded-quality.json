@@ -1,0 +1,30 @@
+{
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-calendar-audit-bridge-sh0ijhbx",
+  "production": [
+    "apps/audit/application/calendar_publication_integrity.py",
+    "apps/audit/application/calendar_publication_replay_verifier.py",
+    "apps/audit/calendar_publication_composition.py",
+    "apps/data_center/application/calendar_formal_publication_audit_port.py",
+    "core/integration/calendar_formal_publication_audit.py"
+  ],
+  "tests": [
+    "tests/unit/audit/test_calendar_publication_composition.py",
+    "tests/unit/audit/test_calendar_publication_integrity.py",
+    "tests/unit/audit/test_calendar_publication_replay_verifier.py",
+    "tests/unit/core/test_calendar_formal_publication_audit.py"
+  ],
+  "source_sha256": {
+    "apps/audit/application/calendar_publication_integrity.py": "ec9713a408ee706af0e960d269c07f3e3c90717b612984dd7ad06d09c5d43424",
+    "apps/audit/application/calendar_publication_replay_verifier.py": "a787d259407f8008f76f670166898cc44741340ba8045e27652353fd4472711b",
+    "apps/audit/calendar_publication_composition.py": "db48afe6569a5f75a15fd21eb6be28f973dd926465433508c45535f86522d750",
+    "apps/data_center/application/calendar_formal_publication_audit_port.py": "c80754c3147e9023034752f5d9812b3a21f0c60aa8419da0269d6dd816afc7e7",
+    "core/integration/calendar_formal_publication_audit.py": "4152280bde4de867c4c22371bfd0353e1ca5ea635db429035bad2a67cd84c18d",
+    "tests/unit/audit/test_calendar_publication_composition.py": "a32f2d0cf6955a7599be60111701efb43b48f50bd3b9982270c24a032b047bf1",
+    "tests/unit/audit/test_calendar_publication_integrity.py": "ed797c454fbdbb6661159015be864999d54dcd72eae825db3446e46bcdda77ce",
+    "tests/unit/audit/test_calendar_publication_replay_verifier.py": "42ddc84a3035a4ddc4bf9df5c7b56538477396a813d17735b7337d24a9cf00b7",
+    "tests/unit/core/test_calendar_formal_publication_audit.py": "3fc1ec5e94918fbf5109f9d0427cd7049559148b5436e248643776f66c95390f"
+  },
+  "checked_functions": 43,
+  "issues": [],
+  "changed_during_run": []
+}

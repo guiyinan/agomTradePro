@@ -2362,6 +2362,15 @@
           "build_calendar_publication_blocked_event",
           "build_calendar_publication_published_event"
         ],
+        "application/calendar_publication_integrity.py": [
+          "CalendarPublicationAuditIntegrityReader",
+          "CalendarPublicationAuditIntegrityReceipt",
+          "VerifyPublishedCalendarPublicationIntegrityUseCase"
+        ],
+        "application/calendar_publication_replay_verifier.py": [
+          "CalendarPublicationAuditReplayReader",
+          "VerifyCurrentCalendarPublicationAuditReplayUseCase"
+        ],
         "application/data_conflict_audit.py": [
           "AppendDataConflictAuditObservationUseCase",
           "DataConflictAuditEventOutboxWriter",
@@ -2722,12 +2731,12 @@
         ]
       },
       "layers": {
-        "application": 37,
+        "application": 39,
         "domain": 11,
         "infrastructure": 28,
         "interface": 14,
         "management": 8,
-        "root": 4,
+        "root": 5,
         "templatetags": 2
       },
       "orm_models": {
@@ -4039,6 +4048,9 @@
           "CalendarAuditReaderSessionRequestProof",
           "LockedCalendarAuditReaderPrincipal"
         ],
+        "application/calendar_formal_publication_audit_port.py": [
+          "CalendarFormalPublicationAuditPort"
+        ],
         "application/calendar_publication_authority.py": [
           "AuthorizeCalendarPublisherUseCase",
           "CalendarPublisherAuthorityRepositoryPort",
@@ -5257,7 +5269,7 @@
         ]
       },
       "layers": {
-        "application": 153,
+        "application": 154,
         "domain": 42,
         "infrastructure": 190,
         "interface": 22,

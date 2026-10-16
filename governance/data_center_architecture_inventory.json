@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5617,
+    "current_surface_references": 5631,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -5735,6 +5735,38 @@
       "text": "``_from_authority`` while holding the exact current permission lease. The"
     },
     {
+      "path": "apps/audit/application/calendar_publication_integrity.py",
+      "text": "\"calendar publication event differs from the exact current record\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "A replay is authorized by a live current ``publish_exchange_calendar``"
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "This application contract verifies a current publication retry under the"
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "\"\"\"Narrow read-only event/outbox port for a current calendar replay."
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "\"\"\"Require the persisted event to match the current binding and actor.\"\"\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "\"current calendar publication has no persisted Audit event\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "\"persisted calendar publication event does not match the current binding\""
+    },
+    {
+      "path": "apps/audit/application/calendar_publication_replay_verifier.py",
+      "text": "replay it. The historical event may precede the principal's current"
+    },
+    {
       "path": "apps/audit/application/data_conflict_audit.py",
       "text": "raise ValueError(\"current and previous evidence identities must differ\")"
     },
@@ -8109,6 +8141,10 @@
     {
       "path": "apps/data_center/application/calendar_audit_read_authority.py",
       "text": "\"\"\"Return the current lock-time permission verification instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_formal_publication_audit_port.py",
+      "text": "\"\"\"Verify the original actor's unchanged event/outbox under current permission.\"\"\""
     },
     {
       "path": "apps/data_center/application/calendar_publication_authority.py",
@@ -21889,6 +21925,26 @@
     {
       "path": "core/integration/bound_single_owner_policy_publication.py",
       "text": "return current if current == self.expected else None"
+    },
+    {
+      "path": "core/integration/calendar_formal_publication_audit.py",
+      "text": "\"\"\"Verify an exact current replay by its original actor's live permission.\"\"\""
+    },
+    {
+      "path": "core/integration/calendar_formal_publication_audit.py",
+      "text": "\"\"\"Verify one exact pair inside the caller's authorized current-read UOW."
+    },
+    {
+      "path": "core/integration/calendar_formal_publication_audit.py",
+      "text": "\"calendar Audit integrity receipt differs from the exact current record\""
+    },
+    {
+      "path": "core/integration/calendar_formal_publication_audit.py",
+      "text": "\"only the current published calendar record can bind this Audit event\","
+    },
+    {
+      "path": "core/integration/calendar_formal_publication_audit.py",
+      "text": "must independently authorize the requested current calendar read."
     },
     {
       "path": "core/integration/calendar_publication_audit_reader.py",
