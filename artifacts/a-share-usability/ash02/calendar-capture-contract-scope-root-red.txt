@@ -1,0 +1,9 @@
+F..                                                                      [100%]
+================================== FAILURES ===================================
+_ test_null_ttl_contract_is_ignored_only_outside_the_active_calendar_scope[True-True-True] _
+tests\component\data_center\test_calendar_capture_contract_scope.py:75: in test_null_ttl_contract_is_ignored_only_outside_the_active_calendar_scope
+    with pytest.raises(CalendarCaptureConfigurationError) as failure:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.calendar_capture_configuration.CalendarCaptureConfigurationError'>
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_calendar_capture_contract_scope.py::test_null_ttl_contract_is_ignored_only_outside_the_active_calendar_scope[True-True-True]
+1 failed, 2 passed in 15.29s

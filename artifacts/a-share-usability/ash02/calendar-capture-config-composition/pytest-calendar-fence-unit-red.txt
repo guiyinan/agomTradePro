@@ -1,0 +1,10 @@
+F......                                                                  [100%]
+================================== FAILURES ===================================
+_________ test_postgresql_fence_uses_sorted_shared_table_locks[True] __________
+tests\unit\data_center\test_calendar_capture_configuration_repository.py:82: in test_postgresql_fence_uses_sorted_shared_table_locks
+    assert ("SET LOCAL lock_timeout = '5s'" in cursor.statements) is cap_timeout
+E   assert ("SET LOCAL lock_timeout = '5s'" in ['SHOW transaction_isolation', "SELECT current_setting('lock_timeout')::interval = interval '0' OR current_setting('lo...ter_dataset_provider_binding" IN SHARE MODE', 'LOCK TABLE "data_center_dataset_publication_policy" IN SHARE MODE', ...]) is True
+E    +  where ['SHOW transaction_isolation', "SELECT current_setting('lock_timeout')::interval = interval '0' OR current_setting('lo...ter_dataset_provider_binding" IN SHARE MODE', 'LOCK TABLE "data_center_dataset_publication_policy" IN SHARE MODE', ...] = <tests.unit.data_center.test_calendar_capture_configuration_repository._Cursor object at 0x000002494FAA2A50>.statements
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_capture_configuration_repository.py::test_postgresql_fence_uses_sorted_shared_table_locks[True]
+1 failed, 6 passed in 2.09s

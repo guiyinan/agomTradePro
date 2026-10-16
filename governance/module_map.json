@@ -4048,6 +4048,18 @@
           "CalendarAuditReaderSessionRequestProof",
           "LockedCalendarAuditReaderPrincipal"
         ],
+        "application/calendar_capture_configuration.py": [
+          "CalendarCaptureBindingCandidate",
+          "CalendarCaptureConfiguration",
+          "CalendarCaptureConfigurationCandidates",
+          "CalendarCaptureConfigurationCandidatesPort",
+          "CalendarCaptureConfigurationError",
+          "CalendarCaptureContractCandidate",
+          "CalendarCapturePolicyCandidate",
+          "CalendarCaptureProviderCandidate",
+          "SelectCalendarCaptureConfigurationUseCase",
+          "resolve_calendar_capture_configuration"
+        ],
         "application/calendar_formal_publication_audit_port.py": [
           "CalendarFormalPublicationAuditPort"
         ],
@@ -5289,12 +5301,12 @@
         ]
       },
       "layers": {
-        "application": 155,
+        "application": 156,
         "domain": 42,
-        "infrastructure": 191,
+        "infrastructure": 192,
         "interface": 22,
         "management": 42,
-        "root": 26
+        "root": 27
       },
       "orm_models": {
         "infrastructure/models.py": [

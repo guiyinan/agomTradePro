@@ -1,0 +1,3934 @@
+{
+    "meta": {
+        "format": 3,
+        "version": "7.10.7",
+        "timestamp": "2026-10-17T04:16:05.891667",
+        "branch_coverage": true,
+        "show_contexts": false
+    },
+    "files": {
+        "apps\\data_center\\application\\calendar_capture_configuration.py": {
+            "executed_lines": [
+                1,
+                3,
+                5,
+                6,
+                7,
+                9,
+                15,
+                16,
+                18,
+                19,
+                20,
+                23,
+                24,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                36,
+                39,
+                40,
+                41,
+                42,
+                43,
+                46,
+                47,
+                48,
+                50,
+                51,
+                52,
+                53,
+                55,
+                58,
+                59,
+                60,
+                61,
+                62,
+                65,
+                66,
+                67,
+                69,
+                70,
+                71,
+                72,
+                74,
+                77,
+                78,
+                79,
+                80,
+                81,
+                84,
+                85,
+                86,
+                88,
+                89,
+                90,
+                91,
+                92,
+                94,
+                97,
+                98,
+                99,
+                100,
+                101,
+                102,
+                103,
+                104,
+                107,
+                108,
+                109,
+                111,
+                112,
+                113,
+                114,
+                116,
+                119,
+                125,
+                126,
+                127,
+                128,
+                130,
+                133,
+                134,
+                135,
+                137,
+                138,
+                139,
+                140,
+                141,
+                142,
+                143,
+                145,
+                148,
+                150,
+                151,
+                155,
+                157,
+                158,
+                160,
+                162,
+                163,
+                165,
+                167,
+                169,
+                171,
+                175,
+                178,
+                179,
+                181,
+                189,
+                190,
+                192,
+                195,
+                197,
+                205,
+                206,
+                207,
+                210,
+                222,
+                224,
+                225,
+                226,
+                227,
+                228,
+                229,
+                230,
+                231,
+                233,
+                238,
+                239,
+                240,
+                241,
+                242,
+                243,
+                244,
+                245,
+                246,
+                249,
+                254,
+                255,
+                256,
+                257,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                265,
+                272,
+                273,
+                274,
+                275,
+                276,
+                277,
+                278,
+                279,
+                280,
+                281,
+                282,
+                283,
+                285,
+                290,
+                291,
+                292,
+                293,
+                294,
+                296,
+                302,
+                305,
+                307,
+                318,
+                321,
+                327,
+                330,
+                331,
+                332,
+                333,
+                336,
+                339,
+                340,
+                343,
+                346,
+                347,
+                350
+            ],
+            "summary": {
+                "covered_lines": 177,
+                "num_statements": 190,
+                "percent_covered": 90.15151515151516,
+                "percent_covered_display": "90.2",
+                "missing_lines": 13,
+                "excluded_lines": 0,
+                "num_branches": 74,
+                "num_partial_branches": 13,
+                "covered_branches": 61,
+                "missing_branches": 13
+            },
+            "missing_lines": [
+                129,
+                149,
+                154,
+                156,
+                159,
+                161,
+                164,
+                166,
+                168,
+                170,
+                174,
+                223,
+                247
+            ],
+            "excluded_lines": [],
+            "executed_branches": [
+                [
+                    39,
+                    40
+                ],
+                [
+                    39,
+                    41
+                ],
+                [
+                    58,
+                    59
+                ],
+                [
+                    58,
+                    60
+                ],
+                [
+                    77,
+                    78
+                ],
+                [
+                    77,
+                    79
+                ],
+                [
+                    97,
+                    98
+                ],
+                [
+                    97,
+                    99
+                ],
+                [
+                    99,
+                    100
+                ],
+                [
+                    99,
+                    101
+                ],
+                [
+                    101,
+                    102
+                ],
+                [
+                    101,
+                    103
+                ],
+                [
+                    119,
+                    -116
+                ],
+                [
+                    119,
+                    125
+                ],
+                [
+                    125,
+                    126
+                ],
+                [
+                    125,
+                    127
+                ],
+                [
+                    127,
+                    119
+                ],
+                [
+                    127,
+                    128
+                ],
+                [
+                    128,
+                    130
+                ],
+                [
+                    148,
+                    150
+                ],
+                [
+                    151,
+                    155
+                ],
+                [
+                    155,
+                    157
+                ],
+                [
+                    158,
+                    160
+                ],
+                [
+                    160,
+                    162
+                ],
+                [
+                    163,
+                    165
+                ],
+                [
+                    165,
+                    167
+                ],
+                [
+                    167,
+                    169
+                ],
+                [
+                    169,
+                    171
+                ],
+                [
+                    171,
+                    175
+                ],
+                [
+                    222,
+                    224
+                ],
+                [
+                    238,
+                    239
+                ],
+                [
+                    238,
+                    240
+                ],
+                [
+                    240,
+                    241
+                ],
+                [
+                    240,
+                    242
+                ],
+                [
+                    246,
+                    249
+                ],
+                [
+                    254,
+                    255
+                ],
+                [
+                    254,
+                    256
+                ],
+                [
+                    256,
+                    257
+                ],
+                [
+                    256,
+                    258
+                ],
+                [
+                    260,
+                    261
+                ],
+                [
+                    260,
+                    262
+                ],
+                [
+                    262,
+                    263
+                ],
+                [
+                    262,
+                    265
+                ],
+                [
+                    272,
+                    273
+                ],
+                [
+                    272,
+                    274
+                ],
+                [
+                    274,
+                    275
+                ],
+                [
+                    274,
+                    276
+                ],
+                [
+                    278,
+                    279
+                ],
+                [
+                    278,
+                    280
+                ],
+                [
+                    280,
+                    281
+                ],
+                [
+                    280,
+                    282
+                ],
+                [
+                    282,
+                    283
+                ],
+                [
+                    282,
+                    285
+                ],
+                [
+                    290,
+                    291
+                ],
+                [
+                    290,
+                    292
+                ],
+                [
+                    292,
+                    293
+                ],
+                [
+                    292,
+                    294
+                ],
+                [
+                    302,
+                    305
+                ],
+                [
+                    302,
+                    307
+                ],
+                [
+                    339,
+                    -336
+                ],
+                [
+                    339,
+                    340
+                ]
+            ],
+            "missing_branches": [
+                [
+                    128,
+                    129
+                ],
+                [
+                    148,
+                    149
+                ],
+                [
+                    151,
+                    154
+                ],
+                [
+                    155,
+                    156
+                ],
+                [
+                    158,
+                    159
+                ],
+                [
+                    160,
+                    161
+                ],
+                [
+                    163,
+                    164
+                ],
+                [
+                    165,
+                    166
+                ],
+                [
+                    167,
+                    168
+                ],
+                [
+                    169,
+                    170
+                ],
+                [
+                    171,
+                    174
+                ],
+                [
+                    222,
+                    223
+                ],
+                [
+                    246,
+                    247
+                ]
+            ],
+            "functions": {
+                "CalendarCaptureContractCandidate.__post_init__": {
+                    "executed_lines": [
+                        39,
+                        40,
+                        41,
+                        42,
+                        43
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            39,
+                            40
+                        ],
+                        [
+                            39,
+                            41
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCapturePolicyCandidate.__post_init__": {
+                    "executed_lines": [
+                        58,
+                        59,
+                        60,
+                        61,
+                        62
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            58,
+                            59
+                        ],
+                        [
+                            58,
+                            60
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureBindingCandidate.__post_init__": {
+                    "executed_lines": [
+                        77,
+                        78,
+                        79,
+                        80,
+                        81
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            77,
+                            78
+                        ],
+                        [
+                            77,
+                            79
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureProviderCandidate.__post_init__": {
+                    "executed_lines": [
+                        97,
+                        98,
+                        99,
+                        100,
+                        101,
+                        102,
+                        103,
+                        104
+                    ],
+                    "summary": {
+                        "covered_lines": 8,
+                        "num_statements": 8,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 6,
+                        "num_partial_branches": 0,
+                        "covered_branches": 6,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            97,
+                            98
+                        ],
+                        [
+                            97,
+                            99
+                        ],
+                        [
+                            99,
+                            100
+                        ],
+                        [
+                            99,
+                            101
+                        ],
+                        [
+                            101,
+                            102
+                        ],
+                        [
+                            101,
+                            103
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureConfigurationCandidates.__post_init__": {
+                    "executed_lines": [
+                        119,
+                        125,
+                        126,
+                        127,
+                        128,
+                        130
+                    ],
+                    "summary": {
+                        "covered_lines": 6,
+                        "num_statements": 7,
+                        "percent_covered": 86.66666666666667,
+                        "percent_covered_display": "86.7",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 8,
+                        "num_partial_branches": 1,
+                        "covered_branches": 7,
+                        "missing_branches": 1
+                    },
+                    "missing_lines": [
+                        129
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            119,
+                            -116
+                        ],
+                        [
+                            119,
+                            125
+                        ],
+                        [
+                            125,
+                            126
+                        ],
+                        [
+                            125,
+                            127
+                        ],
+                        [
+                            127,
+                            119
+                        ],
+                        [
+                            127,
+                            128
+                        ],
+                        [
+                            128,
+                            130
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            128,
+                            129
+                        ]
+                    ]
+                },
+                "CalendarCaptureConfiguration.__post_init__": {
+                    "executed_lines": [
+                        148,
+                        150,
+                        151,
+                        155,
+                        157,
+                        158,
+                        160,
+                        162,
+                        163,
+                        165,
+                        167,
+                        169,
+                        171,
+                        175
+                    ],
+                    "summary": {
+                        "covered_lines": 14,
+                        "num_statements": 24,
+                        "percent_covered": 54.54545454545455,
+                        "percent_covered_display": "54.5",
+                        "missing_lines": 10,
+                        "excluded_lines": 0,
+                        "num_branches": 20,
+                        "num_partial_branches": 10,
+                        "covered_branches": 10,
+                        "missing_branches": 10
+                    },
+                    "missing_lines": [
+                        149,
+                        154,
+                        156,
+                        159,
+                        161,
+                        164,
+                        166,
+                        168,
+                        170,
+                        174
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            148,
+                            150
+                        ],
+                        [
+                            151,
+                            155
+                        ],
+                        [
+                            155,
+                            157
+                        ],
+                        [
+                            158,
+                            160
+                        ],
+                        [
+                            160,
+                            162
+                        ],
+                        [
+                            163,
+                            165
+                        ],
+                        [
+                            165,
+                            167
+                        ],
+                        [
+                            167,
+                            169
+                        ],
+                        [
+                            169,
+                            171
+                        ],
+                        [
+                            171,
+                            175
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            148,
+                            149
+                        ],
+                        [
+                            151,
+                            154
+                        ],
+                        [
+                            155,
+                            156
+                        ],
+                        [
+                            158,
+                            159
+                        ],
+                        [
+                            160,
+                            161
+                        ],
+                        [
+                            163,
+                            164
+                        ],
+                        [
+                            165,
+                            166
+                        ],
+                        [
+                            167,
+                            168
+                        ],
+                        [
+                            169,
+                            170
+                        ],
+                        [
+                            171,
+                            174
+                        ]
+                    ]
+                },
+                "CalendarCaptureConfigurationCandidatesPort.load_candidates": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 0,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "SelectCalendarCaptureConfigurationUseCase.__init__": {
+                    "executed_lines": [
+                        195
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "SelectCalendarCaptureConfigurationUseCase.execute": {
+                    "executed_lines": [
+                        205,
+                        206,
+                        207
+                    ],
+                    "summary": {
+                        "covered_lines": 3,
+                        "num_statements": 3,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "resolve_calendar_capture_configuration": {
+                    "executed_lines": [
+                        222,
+                        224,
+                        225,
+                        226,
+                        227,
+                        228,
+                        229,
+                        230,
+                        231,
+                        233,
+                        238,
+                        239,
+                        240,
+                        241,
+                        242,
+                        243,
+                        244,
+                        245,
+                        246,
+                        249,
+                        254,
+                        255,
+                        256,
+                        257,
+                        258,
+                        259,
+                        260,
+                        261,
+                        262,
+                        263,
+                        265,
+                        272,
+                        273,
+                        274,
+                        275,
+                        276,
+                        277,
+                        278,
+                        279,
+                        280,
+                        281,
+                        282,
+                        283,
+                        285,
+                        290,
+                        291,
+                        292,
+                        293,
+                        294,
+                        296,
+                        302,
+                        305,
+                        307
+                    ],
+                    "summary": {
+                        "covered_lines": 53,
+                        "num_statements": 55,
+                        "percent_covered": 95.40229885057471,
+                        "percent_covered_display": "95.4",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 32,
+                        "num_partial_branches": 2,
+                        "covered_branches": 30,
+                        "missing_branches": 2
+                    },
+                    "missing_lines": [
+                        223,
+                        247
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            222,
+                            224
+                        ],
+                        [
+                            238,
+                            239
+                        ],
+                        [
+                            238,
+                            240
+                        ],
+                        [
+                            240,
+                            241
+                        ],
+                        [
+                            240,
+                            242
+                        ],
+                        [
+                            246,
+                            249
+                        ],
+                        [
+                            254,
+                            255
+                        ],
+                        [
+                            254,
+                            256
+                        ],
+                        [
+                            256,
+                            257
+                        ],
+                        [
+                            256,
+                            258
+                        ],
+                        [
+                            260,
+                            261
+                        ],
+                        [
+                            260,
+                            262
+                        ],
+                        [
+                            262,
+                            263
+                        ],
+                        [
+                            262,
+                            265
+                        ],
+                        [
+                            272,
+                            273
+                        ],
+                        [
+                            272,
+                            274
+                        ],
+                        [
+                            274,
+                            275
+                        ],
+                        [
+                            274,
+                            276
+                        ],
+                        [
+                            278,
+                            279
+                        ],
+                        [
+                            278,
+                            280
+                        ],
+                        [
+                            280,
+                            281
+                        ],
+                        [
+                            280,
+                            282
+                        ],
+                        [
+                            282,
+                            283
+                        ],
+                        [
+                            282,
+                            285
+                        ],
+                        [
+                            290,
+                            291
+                        ],
+                        [
+                            290,
+                            292
+                        ],
+                        [
+                            292,
+                            293
+                        ],
+                        [
+                            292,
+                            294
+                        ],
+                        [
+                            302,
+                            305
+                        ],
+                        [
+                            302,
+                            307
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            222,
+                            223
+                        ],
+                        [
+                            246,
+                            247
+                        ]
+                    ]
+                },
+                "_blocked": {
+                    "executed_lines": [
+                        321
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "_validate_knowledge_time": {
+                    "executed_lines": [
+                        330,
+                        331,
+                        332,
+                        333
+                    ],
+                    "summary": {
+                        "covered_lines": 4,
+                        "num_statements": 4,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "_require_utc": {
+                    "executed_lines": [
+                        339,
+                        340
+                    ],
+                    "summary": {
+                        "covered_lines": 2,
+                        "num_statements": 2,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            339,
+                            -336
+                        ],
+                        [
+                            339,
+                            340
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_is_utc": {
+                    "executed_lines": [
+                        346,
+                        347
+                    ],
+                    "summary": {
+                        "covered_lines": 2,
+                        "num_statements": 2,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        7,
+                        9,
+                        15,
+                        16,
+                        18,
+                        19,
+                        20,
+                        23,
+                        24,
+                        27,
+                        28,
+                        29,
+                        31,
+                        32,
+                        33,
+                        34,
+                        36,
+                        46,
+                        47,
+                        48,
+                        50,
+                        51,
+                        52,
+                        53,
+                        55,
+                        65,
+                        66,
+                        67,
+                        69,
+                        70,
+                        71,
+                        72,
+                        74,
+                        84,
+                        85,
+                        86,
+                        88,
+                        89,
+                        90,
+                        91,
+                        92,
+                        94,
+                        107,
+                        108,
+                        109,
+                        111,
+                        112,
+                        113,
+                        114,
+                        116,
+                        133,
+                        134,
+                        135,
+                        137,
+                        138,
+                        139,
+                        140,
+                        141,
+                        142,
+                        143,
+                        145,
+                        178,
+                        179,
+                        181,
+                        189,
+                        190,
+                        192,
+                        197,
+                        210,
+                        318,
+                        327,
+                        336,
+                        343,
+                        350
+                    ],
+                    "summary": {
+                        "covered_lines": 68,
+                        "num_statements": 68,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                }
+            },
+            "classes": {
+                "CalendarCaptureConfigurationError": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 0,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CalendarCaptureContractCandidate": {
+                    "executed_lines": [
+                        39,
+                        40,
+                        41,
+                        42,
+                        43
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            39,
+                            40
+                        ],
+                        [
+                            39,
+                            41
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCapturePolicyCandidate": {
+                    "executed_lines": [
+                        58,
+                        59,
+                        60,
+                        61,
+                        62
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            58,
+                            59
+                        ],
+                        [
+                            58,
+                            60
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureBindingCandidate": {
+                    "executed_lines": [
+                        77,
+                        78,
+                        79,
+                        80,
+                        81
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            77,
+                            78
+                        ],
+                        [
+                            77,
+                            79
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureProviderCandidate": {
+                    "executed_lines": [
+                        97,
+                        98,
+                        99,
+                        100,
+                        101,
+                        102,
+                        103,
+                        104
+                    ],
+                    "summary": {
+                        "covered_lines": 8,
+                        "num_statements": 8,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 6,
+                        "num_partial_branches": 0,
+                        "covered_branches": 6,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            97,
+                            98
+                        ],
+                        [
+                            97,
+                            99
+                        ],
+                        [
+                            99,
+                            100
+                        ],
+                        [
+                            99,
+                            101
+                        ],
+                        [
+                            101,
+                            102
+                        ],
+                        [
+                            101,
+                            103
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "CalendarCaptureConfigurationCandidates": {
+                    "executed_lines": [
+                        119,
+                        125,
+                        126,
+                        127,
+                        128,
+                        130
+                    ],
+                    "summary": {
+                        "covered_lines": 6,
+                        "num_statements": 7,
+                        "percent_covered": 86.66666666666667,
+                        "percent_covered_display": "86.7",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 8,
+                        "num_partial_branches": 1,
+                        "covered_branches": 7,
+                        "missing_branches": 1
+                    },
+                    "missing_lines": [
+                        129
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            119,
+                            -116
+                        ],
+                        [
+                            119,
+                            125
+                        ],
+                        [
+                            125,
+                            126
+                        ],
+                        [
+                            125,
+                            127
+                        ],
+                        [
+                            127,
+                            119
+                        ],
+                        [
+                            127,
+                            128
+                        ],
+                        [
+                            128,
+                            130
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            128,
+                            129
+                        ]
+                    ]
+                },
+                "CalendarCaptureConfiguration": {
+                    "executed_lines": [
+                        148,
+                        150,
+                        151,
+                        155,
+                        157,
+                        158,
+                        160,
+                        162,
+                        163,
+                        165,
+                        167,
+                        169,
+                        171,
+                        175
+                    ],
+                    "summary": {
+                        "covered_lines": 14,
+                        "num_statements": 24,
+                        "percent_covered": 54.54545454545455,
+                        "percent_covered_display": "54.5",
+                        "missing_lines": 10,
+                        "excluded_lines": 0,
+                        "num_branches": 20,
+                        "num_partial_branches": 10,
+                        "covered_branches": 10,
+                        "missing_branches": 10
+                    },
+                    "missing_lines": [
+                        149,
+                        154,
+                        156,
+                        159,
+                        161,
+                        164,
+                        166,
+                        168,
+                        170,
+                        174
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            148,
+                            150
+                        ],
+                        [
+                            151,
+                            155
+                        ],
+                        [
+                            155,
+                            157
+                        ],
+                        [
+                            158,
+                            160
+                        ],
+                        [
+                            160,
+                            162
+                        ],
+                        [
+                            163,
+                            165
+                        ],
+                        [
+                            165,
+                            167
+                        ],
+                        [
+                            167,
+                            169
+                        ],
+                        [
+                            169,
+                            171
+                        ],
+                        [
+                            171,
+                            175
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            148,
+                            149
+                        ],
+                        [
+                            151,
+                            154
+                        ],
+                        [
+                            155,
+                            156
+                        ],
+                        [
+                            158,
+                            159
+                        ],
+                        [
+                            160,
+                            161
+                        ],
+                        [
+                            163,
+                            164
+                        ],
+                        [
+                            165,
+                            166
+                        ],
+                        [
+                            167,
+                            168
+                        ],
+                        [
+                            169,
+                            170
+                        ],
+                        [
+                            171,
+                            174
+                        ]
+                    ]
+                },
+                "CalendarCaptureConfigurationCandidatesPort": {
+                    "executed_lines": [],
+                    "summary": {
+                        "covered_lines": 0,
+                        "num_statements": 0,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "SelectCalendarCaptureConfigurationUseCase": {
+                    "executed_lines": [
+                        195,
+                        205,
+                        206,
+                        207
+                    ],
+                    "summary": {
+                        "covered_lines": 4,
+                        "num_statements": 4,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        7,
+                        9,
+                        15,
+                        16,
+                        18,
+                        19,
+                        20,
+                        23,
+                        24,
+                        27,
+                        28,
+                        29,
+                        31,
+                        32,
+                        33,
+                        34,
+                        36,
+                        46,
+                        47,
+                        48,
+                        50,
+                        51,
+                        52,
+                        53,
+                        55,
+                        65,
+                        66,
+                        67,
+                        69,
+                        70,
+                        71,
+                        72,
+                        74,
+                        84,
+                        85,
+                        86,
+                        88,
+                        89,
+                        90,
+                        91,
+                        92,
+                        94,
+                        107,
+                        108,
+                        109,
+                        111,
+                        112,
+                        113,
+                        114,
+                        116,
+                        133,
+                        134,
+                        135,
+                        137,
+                        138,
+                        139,
+                        140,
+                        141,
+                        142,
+                        143,
+                        145,
+                        178,
+                        179,
+                        181,
+                        189,
+                        190,
+                        192,
+                        197,
+                        210,
+                        222,
+                        224,
+                        225,
+                        226,
+                        227,
+                        228,
+                        229,
+                        230,
+                        231,
+                        233,
+                        238,
+                        239,
+                        240,
+                        241,
+                        242,
+                        243,
+                        244,
+                        245,
+                        246,
+                        249,
+                        254,
+                        255,
+                        256,
+                        257,
+                        258,
+                        259,
+                        260,
+                        261,
+                        262,
+                        263,
+                        265,
+                        272,
+                        273,
+                        274,
+                        275,
+                        276,
+                        277,
+                        278,
+                        279,
+                        280,
+                        281,
+                        282,
+                        283,
+                        285,
+                        290,
+                        291,
+                        292,
+                        293,
+                        294,
+                        296,
+                        302,
+                        305,
+                        307,
+                        318,
+                        321,
+                        327,
+                        330,
+                        331,
+                        332,
+                        333,
+                        336,
+                        339,
+                        340,
+                        343,
+                        346,
+                        347,
+                        350
+                    ],
+                    "summary": {
+                        "covered_lines": 130,
+                        "num_statements": 132,
+                        "percent_covered": 97.59036144578313,
+                        "percent_covered_display": "97.6",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 34,
+                        "num_partial_branches": 2,
+                        "covered_branches": 32,
+                        "missing_branches": 2
+                    },
+                    "missing_lines": [
+                        223,
+                        247
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            222,
+                            224
+                        ],
+                        [
+                            238,
+                            239
+                        ],
+                        [
+                            238,
+                            240
+                        ],
+                        [
+                            240,
+                            241
+                        ],
+                        [
+                            240,
+                            242
+                        ],
+                        [
+                            246,
+                            249
+                        ],
+                        [
+                            254,
+                            255
+                        ],
+                        [
+                            254,
+                            256
+                        ],
+                        [
+                            256,
+                            257
+                        ],
+                        [
+                            256,
+                            258
+                        ],
+                        [
+                            260,
+                            261
+                        ],
+                        [
+                            260,
+                            262
+                        ],
+                        [
+                            262,
+                            263
+                        ],
+                        [
+                            262,
+                            265
+                        ],
+                        [
+                            272,
+                            273
+                        ],
+                        [
+                            272,
+                            274
+                        ],
+                        [
+                            274,
+                            275
+                        ],
+                        [
+                            274,
+                            276
+                        ],
+                        [
+                            278,
+                            279
+                        ],
+                        [
+                            278,
+                            280
+                        ],
+                        [
+                            280,
+                            281
+                        ],
+                        [
+                            280,
+                            282
+                        ],
+                        [
+                            282,
+                            283
+                        ],
+                        [
+                            282,
+                            285
+                        ],
+                        [
+                            290,
+                            291
+                        ],
+                        [
+                            290,
+                            292
+                        ],
+                        [
+                            292,
+                            293
+                        ],
+                        [
+                            292,
+                            294
+                        ],
+                        [
+                            302,
+                            305
+                        ],
+                        [
+                            302,
+                            307
+                        ],
+                        [
+                            339,
+                            -336
+                        ],
+                        [
+                            339,
+                            340
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            222,
+                            223
+                        ],
+                        [
+                            246,
+                            247
+                        ]
+                    ]
+                }
+            }
+        },
+        "apps\\data_center\\calendar_snapshot_capture_composition.py": {
+            "executed_lines": [
+                1,
+                3,
+                5,
+                6,
+                7,
+                8,
+                10,
+                11,
+                13,
+                19,
+                24,
+                25,
+                28,
+                31,
+                34,
+                39,
+                40,
+                41,
+                44,
+                48,
+                49,
+                50,
+                52,
+                53,
+                60,
+                61,
+                63,
+                72,
+                73,
+                74,
+                76,
+                82,
+                83,
+                84,
+                87,
+                102,
+                103,
+                104,
+                106,
+                109,
+                110,
+                114,
+                115,
+                117,
+                118,
+                119,
+                120,
+                124,
+                125,
+                126,
+                127,
+                137,
+                139,
+                142,
+                147,
+                148,
+                149,
+                150,
+                152,
+                153,
+                160,
+                167,
+                168,
+                169,
+                170,
+                171,
+                172,
+                173,
+                174,
+                185,
+                186,
+                187,
+                197,
+                198,
+                199,
+                200,
+                201,
+                202,
+                203,
+                204,
+                207,
+                210,
+                212,
+                214,
+                217,
+                220,
+                221,
+                226,
+                229,
+                230,
+                231,
+                232,
+                239,
+                242,
+                248,
+                255,
+                258,
+                261,
+                262,
+                263,
+                264,
+                268,
+                271,
+                277
+            ],
+            "summary": {
+                "covered_lines": 102,
+                "num_statements": 119,
+                "percent_covered": 81.69934640522875,
+                "percent_covered_display": "81.7",
+                "missing_lines": 17,
+                "excluded_lines": 0,
+                "num_branches": 34,
+                "num_partial_branches": 11,
+                "covered_branches": 23,
+                "missing_branches": 11
+            },
+            "missing_lines": [
+                105,
+                116,
+                121,
+                122,
+                135,
+                136,
+                138,
+                140,
+                151,
+                184,
+                196,
+                211,
+                213,
+                222,
+                223,
+                238,
+                265
+            ],
+            "excluded_lines": [],
+            "executed_branches": [
+                [
+                    104,
+                    106
+                ],
+                [
+                    115,
+                    117
+                ],
+                [
+                    137,
+                    139
+                ],
+                [
+                    139,
+                    142
+                ],
+                [
+                    150,
+                    152
+                ],
+                [
+                    174,
+                    185
+                ],
+                [
+                    187,
+                    197
+                ],
+                [
+                    199,
+                    200
+                ],
+                [
+                    199,
+                    201
+                ],
+                [
+                    201,
+                    202
+                ],
+                [
+                    201,
+                    203
+                ],
+                [
+                    203,
+                    -160
+                ],
+                [
+                    203,
+                    204
+                ],
+                [
+                    210,
+                    212
+                ],
+                [
+                    212,
+                    214
+                ],
+                [
+                    229,
+                    230
+                ],
+                [
+                    229,
+                    231
+                ],
+                [
+                    232,
+                    239
+                ],
+                [
+                    248,
+                    -242
+                ],
+                [
+                    248,
+                    255
+                ],
+                [
+                    261,
+                    -258
+                ],
+                [
+                    261,
+                    262
+                ],
+                [
+                    264,
+                    261
+                ]
+            ],
+            "missing_branches": [
+                [
+                    104,
+                    105
+                ],
+                [
+                    115,
+                    116
+                ],
+                [
+                    137,
+                    138
+                ],
+                [
+                    139,
+                    140
+                ],
+                [
+                    150,
+                    151
+                ],
+                [
+                    174,
+                    184
+                ],
+                [
+                    187,
+                    196
+                ],
+                [
+                    210,
+                    211
+                ],
+                [
+                    212,
+                    213
+                ],
+                [
+                    232,
+                    238
+                ],
+                [
+                    264,
+                    265
+                ]
+            ],
+            "functions": {
+                "CalendarSnapshotCaptureComposition.__init__": {
+                    "executed_lines": [
+                        72,
+                        73,
+                        74
+                    ],
+                    "summary": {
+                        "covered_lines": 3,
+                        "num_statements": 3,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "CalendarSnapshotCaptureComposition.execute": {
+                    "executed_lines": [
+                        82,
+                        83,
+                        84
+                    ],
+                    "summary": {
+                        "covered_lines": 3,
+                        "num_statements": 3,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "compose_calendar_snapshot_capture": {
+                    "executed_lines": [
+                        102,
+                        103,
+                        104,
+                        106,
+                        109,
+                        110,
+                        114,
+                        115,
+                        117,
+                        118,
+                        119,
+                        120,
+                        124,
+                        125,
+                        126,
+                        127,
+                        137,
+                        139,
+                        142,
+                        147,
+                        148,
+                        149,
+                        150,
+                        152,
+                        153
+                    ],
+                    "summary": {
+                        "covered_lines": 25,
+                        "num_statements": 34,
+                        "percent_covered": 68.18181818181819,
+                        "percent_covered_display": "68.2",
+                        "missing_lines": 9,
+                        "excluded_lines": 0,
+                        "num_branches": 10,
+                        "num_partial_branches": 5,
+                        "covered_branches": 5,
+                        "missing_branches": 5
+                    },
+                    "missing_lines": [
+                        105,
+                        116,
+                        121,
+                        122,
+                        135,
+                        136,
+                        138,
+                        140,
+                        151
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            104,
+                            106
+                        ],
+                        [
+                            115,
+                            117
+                        ],
+                        [
+                            137,
+                            139
+                        ],
+                        [
+                            139,
+                            142
+                        ],
+                        [
+                            150,
+                            152
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            104,
+                            105
+                        ],
+                        [
+                            115,
+                            116
+                        ],
+                        [
+                            137,
+                            138
+                        ],
+                        [
+                            139,
+                            140
+                        ],
+                        [
+                            150,
+                            151
+                        ]
+                    ]
+                },
+                "_verify_provider_matches_central": {
+                    "executed_lines": [
+                        167,
+                        168,
+                        169,
+                        170,
+                        171,
+                        172,
+                        173,
+                        174,
+                        185,
+                        186,
+                        187,
+                        197,
+                        198,
+                        199,
+                        200,
+                        201,
+                        202,
+                        203,
+                        204
+                    ],
+                    "summary": {
+                        "covered_lines": 19,
+                        "num_statements": 21,
+                        "percent_covered": 87.09677419354838,
+                        "percent_covered_display": "87.1",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 10,
+                        "num_partial_branches": 2,
+                        "covered_branches": 8,
+                        "missing_branches": 2
+                    },
+                    "missing_lines": [
+                        184,
+                        196
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            174,
+                            185
+                        ],
+                        [
+                            187,
+                            197
+                        ],
+                        [
+                            199,
+                            200
+                        ],
+                        [
+                            199,
+                            201
+                        ],
+                        [
+                            201,
+                            202
+                        ],
+                        [
+                            201,
+                            203
+                        ],
+                        [
+                            203,
+                            -160
+                        ],
+                        [
+                            203,
+                            204
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            174,
+                            184
+                        ],
+                        [
+                            187,
+                            196
+                        ]
+                    ]
+                },
+                "_optional_url": {
+                    "executed_lines": [
+                        210,
+                        212,
+                        214
+                    ],
+                    "summary": {
+                        "covered_lines": 3,
+                        "num_statements": 5,
+                        "percent_covered": 55.55555555555556,
+                        "percent_covered_display": "55.6",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 2,
+                        "covered_branches": 2,
+                        "missing_branches": 2
+                    },
+                    "missing_lines": [
+                        211,
+                        213
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            210,
+                            212
+                        ],
+                        [
+                            212,
+                            214
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            210,
+                            211
+                        ],
+                        [
+                            212,
+                            213
+                        ]
+                    ]
+                },
+                "_constant_time_equal": {
+                    "executed_lines": [
+                        220,
+                        221
+                    ],
+                    "summary": {
+                        "covered_lines": 2,
+                        "num_statements": 4,
+                        "percent_covered": 50.0,
+                        "percent_covered_display": "50.0",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        222,
+                        223
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "_require_caller_outer_transaction": {
+                    "executed_lines": [
+                        229,
+                        230,
+                        231,
+                        232,
+                        239
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 6,
+                        "percent_covered": 80.0,
+                        "percent_covered_display": "80.0",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 1,
+                        "covered_branches": 3,
+                        "missing_branches": 1
+                    },
+                    "missing_lines": [
+                        238
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            229,
+                            230
+                        ],
+                        [
+                            229,
+                            231
+                        ],
+                        [
+                            232,
+                            239
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            232,
+                            238
+                        ]
+                    ]
+                },
+                "_require_same_outer_transaction": {
+                    "executed_lines": [
+                        248,
+                        255
+                    ],
+                    "summary": {
+                        "covered_lines": 2,
+                        "num_statements": 2,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            248,
+                            -242
+                        ],
+                        [
+                            248,
+                            255
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_require_operational_model_routes": {
+                    "executed_lines": [
+                        261,
+                        262,
+                        263,
+                        264
+                    ],
+                    "summary": {
+                        "covered_lines": 4,
+                        "num_statements": 5,
+                        "percent_covered": 77.77777777777777,
+                        "percent_covered_display": "77.8",
+                        "missing_lines": 1,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 1,
+                        "covered_branches": 3,
+                        "missing_branches": 1
+                    },
+                    "missing_lines": [
+                        265
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            261,
+                            -258
+                        ],
+                        [
+                            261,
+                            262
+                        ],
+                        [
+                            264,
+                            261
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            264,
+                            265
+                        ]
+                    ]
+                },
+                "_blocked": {
+                    "executed_lines": [
+                        271
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        7,
+                        8,
+                        10,
+                        11,
+                        13,
+                        19,
+                        24,
+                        25,
+                        28,
+                        31,
+                        34,
+                        39,
+                        40,
+                        41,
+                        44,
+                        48,
+                        49,
+                        50,
+                        52,
+                        53,
+                        60,
+                        61,
+                        63,
+                        76,
+                        87,
+                        160,
+                        207,
+                        217,
+                        226,
+                        242,
+                        258,
+                        268,
+                        277
+                    ],
+                    "summary": {
+                        "covered_lines": 35,
+                        "num_statements": 35,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                }
+            },
+            "classes": {
+                "CalendarSnapshotCaptureComposition": {
+                    "executed_lines": [
+                        72,
+                        73,
+                        74,
+                        82,
+                        83,
+                        84
+                    ],
+                    "summary": {
+                        "covered_lines": 6,
+                        "num_statements": 6,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        7,
+                        8,
+                        10,
+                        11,
+                        13,
+                        19,
+                        24,
+                        25,
+                        28,
+                        31,
+                        34,
+                        39,
+                        40,
+                        41,
+                        44,
+                        48,
+                        49,
+                        50,
+                        52,
+                        53,
+                        60,
+                        61,
+                        63,
+                        76,
+                        87,
+                        102,
+                        103,
+                        104,
+                        106,
+                        109,
+                        110,
+                        114,
+                        115,
+                        117,
+                        118,
+                        119,
+                        120,
+                        124,
+                        125,
+                        126,
+                        127,
+                        137,
+                        139,
+                        142,
+                        147,
+                        148,
+                        149,
+                        150,
+                        152,
+                        153,
+                        160,
+                        167,
+                        168,
+                        169,
+                        170,
+                        171,
+                        172,
+                        173,
+                        174,
+                        185,
+                        186,
+                        187,
+                        197,
+                        198,
+                        199,
+                        200,
+                        201,
+                        202,
+                        203,
+                        204,
+                        207,
+                        210,
+                        212,
+                        214,
+                        217,
+                        220,
+                        221,
+                        226,
+                        229,
+                        230,
+                        231,
+                        232,
+                        239,
+                        242,
+                        248,
+                        255,
+                        258,
+                        261,
+                        262,
+                        263,
+                        264,
+                        268,
+                        271,
+                        277
+                    ],
+                    "summary": {
+                        "covered_lines": 96,
+                        "num_statements": 113,
+                        "percent_covered": 80.95238095238095,
+                        "percent_covered_display": "81.0",
+                        "missing_lines": 17,
+                        "excluded_lines": 0,
+                        "num_branches": 34,
+                        "num_partial_branches": 11,
+                        "covered_branches": 23,
+                        "missing_branches": 11
+                    },
+                    "missing_lines": [
+                        105,
+                        116,
+                        121,
+                        122,
+                        135,
+                        136,
+                        138,
+                        140,
+                        151,
+                        184,
+                        196,
+                        211,
+                        213,
+                        222,
+                        223,
+                        238,
+                        265
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            104,
+                            106
+                        ],
+                        [
+                            115,
+                            117
+                        ],
+                        [
+                            137,
+                            139
+                        ],
+                        [
+                            139,
+                            142
+                        ],
+                        [
+                            150,
+                            152
+                        ],
+                        [
+                            174,
+                            185
+                        ],
+                        [
+                            187,
+                            197
+                        ],
+                        [
+                            199,
+                            200
+                        ],
+                        [
+                            199,
+                            201
+                        ],
+                        [
+                            201,
+                            202
+                        ],
+                        [
+                            201,
+                            203
+                        ],
+                        [
+                            203,
+                            -160
+                        ],
+                        [
+                            203,
+                            204
+                        ],
+                        [
+                            210,
+                            212
+                        ],
+                        [
+                            212,
+                            214
+                        ],
+                        [
+                            229,
+                            230
+                        ],
+                        [
+                            229,
+                            231
+                        ],
+                        [
+                            232,
+                            239
+                        ],
+                        [
+                            248,
+                            -242
+                        ],
+                        [
+                            248,
+                            255
+                        ],
+                        [
+                            261,
+                            -258
+                        ],
+                        [
+                            261,
+                            262
+                        ],
+                        [
+                            264,
+                            261
+                        ]
+                    ],
+                    "missing_branches": [
+                        [
+                            104,
+                            105
+                        ],
+                        [
+                            115,
+                            116
+                        ],
+                        [
+                            137,
+                            138
+                        ],
+                        [
+                            139,
+                            140
+                        ],
+                        [
+                            150,
+                            151
+                        ],
+                        [
+                            174,
+                            184
+                        ],
+                        [
+                            187,
+                            196
+                        ],
+                        [
+                            210,
+                            211
+                        ],
+                        [
+                            212,
+                            213
+                        ],
+                        [
+                            232,
+                            238
+                        ],
+                        [
+                            264,
+                            265
+                        ]
+                    ]
+                }
+            }
+        },
+        "apps\\data_center\\infrastructure\\calendar_capture_configuration_repository.py": {
+            "executed_lines": [
+                1,
+                3,
+                5,
+                6,
+                8,
+                17,
+                18,
+                19,
+                24,
+                25,
+                26,
+                28,
+                29,
+                30,
+                38,
+                39,
+                41,
+                44,
+                46,
+                47,
+                50,
+                52,
+                55,
+                56,
+                57,
+                58,
+                59,
+                70,
+                84,
+                95,
+                111,
+                118,
+                121,
+                122,
+                123,
+                124,
+                125,
+                126,
+                131,
+                134,
+                135,
+                136,
+                137,
+                143,
+                144,
+                147,
+                150,
+                151,
+                152,
+                153,
+                154,
+                157,
+                160,
+                161,
+                162,
+                163,
+                164,
+                165,
+                166,
+                167,
+                171,
+                172,
+                173,
+                174,
+                175,
+                176,
+                177,
+                178,
+                181,
+                182,
+                183,
+                184,
+                185,
+                186,
+                187,
+                188,
+                189,
+                190,
+                193,
+                194,
+                197,
+                200,
+                206
+            ],
+            "summary": {
+                "covered_lines": 81,
+                "num_statements": 89,
+                "percent_covered": 92.7927927927928,
+                "percent_covered_display": "92.8",
+                "missing_lines": 8,
+                "excluded_lines": 0,
+                "num_branches": 22,
+                "num_partial_branches": 0,
+                "covered_branches": 22,
+                "missing_branches": 0
+            },
+            "missing_lines": [
+                107,
+                108,
+                109,
+                110,
+                127,
+                128,
+                191,
+                192
+            ],
+            "excluded_lines": [],
+            "executed_branches": [
+                [
+                    123,
+                    124
+                ],
+                [
+                    123,
+                    125
+                ],
+                [
+                    134,
+                    135
+                ],
+                [
+                    134,
+                    136
+                ],
+                [
+                    137,
+                    143
+                ],
+                [
+                    137,
+                    144
+                ],
+                [
+                    150,
+                    -147
+                ],
+                [
+                    150,
+                    151
+                ],
+                [
+                    153,
+                    150
+                ],
+                [
+                    153,
+                    154
+                ],
+                [
+                    160,
+                    161
+                ],
+                [
+                    160,
+                    186
+                ],
+                [
+                    165,
+                    166
+                ],
+                [
+                    165,
+                    167
+                ],
+                [
+                    172,
+                    173
+                ],
+                [
+                    172,
+                    174
+                ],
+                [
+                    174,
+                    175
+                ],
+                [
+                    174,
+                    176
+                ],
+                [
+                    177,
+                    178
+                ],
+                [
+                    177,
+                    181
+                ],
+                [
+                    186,
+                    187
+                ],
+                [
+                    186,
+                    194
+                ]
+            ],
+            "missing_branches": [],
+            "functions": {
+                "DjangoCalendarCaptureConfigurationRepository.__init__": {
+                    "executed_lines": [
+                        44
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "DjangoCalendarCaptureConfigurationRepository.unit_of_work_key": {
+                    "executed_lines": [
+                        50
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "DjangoCalendarCaptureConfigurationRepository.load_candidates": {
+                    "executed_lines": [
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        70,
+                        84,
+                        95,
+                        111
+                    ],
+                    "summary": {
+                        "covered_lines": 9,
+                        "num_statements": 13,
+                        "percent_covered": 69.23076923076923,
+                        "percent_covered_display": "69.2",
+                        "missing_lines": 4,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        107,
+                        108,
+                        109,
+                        110
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "DjangoCalendarCaptureConfigurationRepository.get_provider_config": {
+                    "executed_lines": [
+                        121,
+                        122,
+                        123,
+                        124,
+                        125,
+                        126
+                    ],
+                    "summary": {
+                        "covered_lines": 6,
+                        "num_statements": 8,
+                        "percent_covered": 80.0,
+                        "percent_covered_display": "80.0",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        127,
+                        128
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            123,
+                            124
+                        ],
+                        [
+                            123,
+                            125
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_require_caller_transaction": {
+                    "executed_lines": [
+                        134,
+                        135,
+                        136,
+                        137,
+                        143,
+                        144
+                    ],
+                    "summary": {
+                        "covered_lines": 6,
+                        "num_statements": 6,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 0,
+                        "covered_branches": 4,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            134,
+                            135
+                        ],
+                        [
+                            134,
+                            136
+                        ],
+                        [
+                            137,
+                            143
+                        ],
+                        [
+                            137,
+                            144
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_require_model_routes": {
+                    "executed_lines": [
+                        150,
+                        151,
+                        152,
+                        153,
+                        154
+                    ],
+                    "summary": {
+                        "covered_lines": 5,
+                        "num_statements": 5,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 4,
+                        "num_partial_branches": 0,
+                        "covered_branches": 4,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            150,
+                            -147
+                        ],
+                        [
+                            150,
+                            151
+                        ],
+                        [
+                            153,
+                            150
+                        ],
+                        [
+                            153,
+                            154
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_acquire_configuration_fence": {
+                    "executed_lines": [
+                        160,
+                        161,
+                        162,
+                        163,
+                        164,
+                        165,
+                        166,
+                        167,
+                        171,
+                        172,
+                        173,
+                        174,
+                        175,
+                        176,
+                        177,
+                        178,
+                        181,
+                        182,
+                        183,
+                        184,
+                        185,
+                        186,
+                        187,
+                        188,
+                        189,
+                        190,
+                        193,
+                        194
+                    ],
+                    "summary": {
+                        "covered_lines": 28,
+                        "num_statements": 30,
+                        "percent_covered": 95.23809523809524,
+                        "percent_covered_display": "95.2",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 12,
+                        "num_partial_branches": 0,
+                        "covered_branches": 12,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        191,
+                        192
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            160,
+                            161
+                        ],
+                        [
+                            160,
+                            186
+                        ],
+                        [
+                            165,
+                            166
+                        ],
+                        [
+                            165,
+                            167
+                        ],
+                        [
+                            172,
+                            173
+                        ],
+                        [
+                            172,
+                            174
+                        ],
+                        [
+                            174,
+                            175
+                        ],
+                        [
+                            174,
+                            176
+                        ],
+                        [
+                            177,
+                            178
+                        ],
+                        [
+                            177,
+                            181
+                        ],
+                        [
+                            186,
+                            187
+                        ],
+                        [
+                            186,
+                            194
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "_blocked": {
+                    "executed_lines": [
+                        200
+                    ],
+                    "summary": {
+                        "covered_lines": 1,
+                        "num_statements": 1,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        8,
+                        17,
+                        18,
+                        19,
+                        24,
+                        25,
+                        26,
+                        28,
+                        29,
+                        30,
+                        38,
+                        39,
+                        41,
+                        46,
+                        47,
+                        52,
+                        118,
+                        131,
+                        147,
+                        157,
+                        197,
+                        206
+                    ],
+                    "summary": {
+                        "covered_lines": 24,
+                        "num_statements": 24,
+                        "percent_covered": 100.0,
+                        "percent_covered_display": "100.0",
+                        "missing_lines": 0,
+                        "excluded_lines": 0,
+                        "num_branches": 0,
+                        "num_partial_branches": 0,
+                        "covered_branches": 0,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [],
+                    "excluded_lines": [],
+                    "executed_branches": [],
+                    "missing_branches": []
+                }
+            },
+            "classes": {
+                "DjangoCalendarCaptureConfigurationRepository": {
+                    "executed_lines": [
+                        44,
+                        50,
+                        55,
+                        56,
+                        57,
+                        58,
+                        59,
+                        70,
+                        84,
+                        95,
+                        111,
+                        121,
+                        122,
+                        123,
+                        124,
+                        125,
+                        126
+                    ],
+                    "summary": {
+                        "covered_lines": 17,
+                        "num_statements": 23,
+                        "percent_covered": 76.0,
+                        "percent_covered_display": "76.0",
+                        "missing_lines": 6,
+                        "excluded_lines": 0,
+                        "num_branches": 2,
+                        "num_partial_branches": 0,
+                        "covered_branches": 2,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        107,
+                        108,
+                        109,
+                        110,
+                        127,
+                        128
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            123,
+                            124
+                        ],
+                        [
+                            123,
+                            125
+                        ]
+                    ],
+                    "missing_branches": []
+                },
+                "": {
+                    "executed_lines": [
+                        1,
+                        3,
+                        5,
+                        6,
+                        8,
+                        17,
+                        18,
+                        19,
+                        24,
+                        25,
+                        26,
+                        28,
+                        29,
+                        30,
+                        38,
+                        39,
+                        41,
+                        46,
+                        47,
+                        52,
+                        118,
+                        131,
+                        134,
+                        135,
+                        136,
+                        137,
+                        143,
+                        144,
+                        147,
+                        150,
+                        151,
+                        152,
+                        153,
+                        154,
+                        157,
+                        160,
+                        161,
+                        162,
+                        163,
+                        164,
+                        165,
+                        166,
+                        167,
+                        171,
+                        172,
+                        173,
+                        174,
+                        175,
+                        176,
+                        177,
+                        178,
+                        181,
+                        182,
+                        183,
+                        184,
+                        185,
+                        186,
+                        187,
+                        188,
+                        189,
+                        190,
+                        193,
+                        194,
+                        197,
+                        200,
+                        206
+                    ],
+                    "summary": {
+                        "covered_lines": 64,
+                        "num_statements": 66,
+                        "percent_covered": 97.67441860465117,
+                        "percent_covered_display": "97.7",
+                        "missing_lines": 2,
+                        "excluded_lines": 0,
+                        "num_branches": 20,
+                        "num_partial_branches": 0,
+                        "covered_branches": 20,
+                        "missing_branches": 0
+                    },
+                    "missing_lines": [
+                        191,
+                        192
+                    ],
+                    "excluded_lines": [],
+                    "executed_branches": [
+                        [
+                            134,
+                            135
+                        ],
+                        [
+                            134,
+                            136
+                        ],
+                        [
+                            137,
+                            143
+                        ],
+                        [
+                            137,
+                            144
+                        ],
+                        [
+                            150,
+                            -147
+                        ],
+                        [
+                            150,
+                            151
+                        ],
+                        [
+                            153,
+                            150
+                        ],
+                        [
+                            153,
+                            154
+                        ],
+                        [
+                            160,
+                            161
+                        ],
+                        [
+                            160,
+                            186
+                        ],
+                        [
+                            165,
+                            166
+                        ],
+                        [
+                            165,
+                            167
+                        ],
+                        [
+                            172,
+                            173
+                        ],
+                        [
+                            172,
+                            174
+                        ],
+                        [
+                            174,
+                            175
+                        ],
+                        [
+                            174,
+                            176
+                        ],
+                        [
+                            177,
+                            178
+                        ],
+                        [
+                            177,
+                            181
+                        ],
+                        [
+                            186,
+                            187
+                        ],
+                        [
+                            186,
+                            194
+                        ]
+                    ],
+                    "missing_branches": []
+                }
+            }
+        }
+    },
+    "totals": {
+        "covered_lines": 360,
+        "num_statements": 398,
+        "percent_covered": 88.25757575757575,
+        "percent_covered_display": "88.3",
+        "missing_lines": 38,
+        "excluded_lines": 0,
+        "num_branches": 130,
+        "num_partial_branches": 24,
+        "covered_branches": 106,
+        "missing_branches": 24
+    }
+}

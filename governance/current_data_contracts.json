@@ -8384,7 +8384,10 @@
         "apps/data_center/application/exchange_calendar.py",
         "apps/data_center/infrastructure/exchange_calendar_source_evidence.py",
         "apps/data_center/infrastructure/exchange_calendar_repository.py",
-        "apps/data_center/infrastructure/tushare_exchange_calendar_source.py"
+        "apps/data_center/infrastructure/tushare_exchange_calendar_source.py",
+        "apps/data_center/application/calendar_capture_configuration.py",
+        "apps/data_center/infrastructure/calendar_capture_configuration_repository.py",
+        "apps/data_center/calendar_snapshot_capture_composition.py"
       ],
       "required_markers": {
         "apps/data_center/domain/exchange_calendar.py": [
@@ -8409,6 +8412,20 @@
           "first_seen_at=raw_reference.response_completed_at",
           "source_published_at=None",
           "EXCHANGE_CALENDAR_RAW_REFERENCE_MISMATCH"
+        ],
+        "apps/data_center/application/calendar_capture_configuration.py": [
+          "CALENDAR_CAPTURE_DATASET_AMBIGUOUS",
+          "known_at"
+        ],
+        "apps/data_center/infrastructure/calendar_capture_configuration_repository.py": [
+          "calendar_response_max_age_seconds__isnull=False",
+          "SHARE MODE",
+          "5s"
+        ],
+        "apps/data_center/calendar_snapshot_capture_composition.py": [
+          "get_secrets",
+          "known_at",
+          "_DEFAULT_ALIAS = \"default\""
         ]
       },
       "required_tests": [
@@ -8441,6 +8458,11 @@
           "case": "two_connection_first_write_preserves_one_clock_and_identity",
           "test_file": "tests/component/data_center/test_exchange_calendar_concurrency.py",
           "test_function": "test_concurrent_first_write_returns_one_immutable_snapshot"
+        },
+        {
+          "case": "configured_capture_preserves_exact_raw_body_and_clocks",
+          "test_file": "tests/component/data_center/test_calendar_snapshot_capture_composition.py",
+          "test_function": "test_factory_captures_retains_parses_and_saves_under_exact_config"
         }
       ]
     },

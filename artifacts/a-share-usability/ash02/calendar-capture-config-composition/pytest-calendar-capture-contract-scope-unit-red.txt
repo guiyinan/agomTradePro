@@ -1,0 +1,9 @@
+.F......................                                                 [100%]
+================================== FAILURES ===================================
+_______ test_rejects_active_same_dataset_contract_without_calendar_ttl ________
+tests\unit\data_center\test_calendar_capture_configuration.py:108: in test_rejects_active_same_dataset_contract_without_calendar_ttl
+    with pytest.raises(CalendarCaptureConfigurationError) as raised:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.calendar_capture_configuration.CalendarCaptureConfigurationError'>
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_capture_configuration.py::test_rejects_active_same_dataset_contract_without_calendar_ttl
+1 failed, 23 passed in 2.42s

@@ -1,0 +1,3 @@
+exported_source_tree=97fc67067b7a50b0adca50151e390ac8fbad609b
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-capture-e3y9v6x0
+Full mypy debt ceiling passed: 0 errors in 0 files

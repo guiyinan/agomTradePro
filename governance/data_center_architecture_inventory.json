@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5665,
+    "current_surface_references": 5666,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8141,6 +8141,10 @@
     {
       "path": "apps/data_center/application/calendar_audit_read_authority.py",
       "text": "\"\"\"Return the current lock-time permission verification instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_capture_configuration.py",
+      "text": "\"\"\"Resolve current active config, without reconstructing historical catalog state.\"\"\""
     },
     {
       "path": "apps/data_center/application/calendar_formal_publication_audit_port.py",

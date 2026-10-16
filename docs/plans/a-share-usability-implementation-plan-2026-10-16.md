@@ -795,3 +795,17 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 投影仍为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface 与 23 Audit event；没有新模型或迁移。两项 Calendar event 仍 planned/not_wired，尚无 HTTP/TUI operational entrypoint。工作树、暂存与导出保留独立字节摘要，只声明换行规范化及 AST 等价，不合并成 CI/S6 或 release 身份。原件、覆盖和范围见[日历操作检查点](../testing/a-share-usability-calendar-operations-2026-10-17.json)。
 
 计划登记 v222。下一独立批继续配置驱动的真实采集组装、Session+CSRF HTTP/TUI 用户旅程，然后切换普通模拟/回测消费者。独立采集 factory 候选不在本批接受范围。整体 Goal、原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 的门禁、真实 Provider/生产/研究晋级/Evidence/券商验收继续开放；`broker_order_evidence_integrated()` 仍为 false。
+
+### 19.30 配置驱动日历采集独立验收
+
+操作用例批 `d823cf5c4` 后，本批只接受显式配置选择、同事务真实采集组装及其直接回归。[采集配置合同](../api/a-share-calendar-capture-configuration.md)绑定唯一日历数据集及其全部 active 合同版本、精确 policy/binding、唯一 active Tushare 实例和中央秘密快照。配置选择与实际 RawPayload、事实入库加入调用方同一 default 外层事务，允许内部 savepoint；正式发布 writer 的唯一 atomic 规则不变。
+
+主代理保留两类实际失败：首次 Native **33 passed / 15 failed** 暴露 PostgreSQL GUC 不接受 `5 seconds`，修为 `5s` 后曾有 **48 passed** 中间窗口；随后新增 ORM 测试 **1 failed / 2 passed**，确认同数据集 active、TTL 为 NULL 的旧合同被查询隐藏。现先定位显式日历数据集，再加载其所有 active 合同，App 对完整集合判歧义；无关数据集和 inactive 旧版本继续排除。修复前源码与失败原件保留，中间绿色窗口不代替最终验收。首个暂存导出另有 1 failed / 409 passed / 21 skipped：Root 将 freshness 标记登记为不存在的 DEFAULT_DB_ALIAS；修正为实际 _DEFAULT_ALIAS 后换新导出复验，不改生产行为，也不覆盖原失败记录。
+
+最终主代理本地原生 PostgreSQL 六份文件 **54 passed / 127.85 秒**，137 个生产文件与六份测试无运行漂移。六个新增并发场景分别核验四表 DML 的精确 pg_blocking_pids、旧行锁持有时普通目录读取可完成、配置 fence 持有到 RawPayload+fact 外层提交。此窗口还含纯单测，不能全部计为并发用例；出站 HTTP 使用替身，无真实 Provider，也没有 Session/CSRF 认证旅程。夹具复用 544 个已应用迁移，未从空重放。
+
+实际暂存源码树 `76ee4b7dbea6435426b146b036a584c2f207746e` 的独立导出，34 份文件 **410 passed / 21 PostgreSQL-only skipped / 324.86 秒**。三生产文件增量 mypy 零回归，全生产债务 0 errors / 0 files，八个 Python 文件 Black/isort/Ruff 通过，32 个生产函数无标注/docstring 缺项；增量架构 867 新增行、boundary/audit 均为零。重叠覆盖组合：`apps\data_center\application\calendar_capture_configuration.py`：181/194 语句、63/76 分支；`apps\data_center\calendar_snapshot_capture_composition.py`：102/119 语句、23/34 分支；`apps\data_center\infrastructure\calendar_capture_configuration_repository.py`：82/90 语句、22/22 分支。不同运行不累计为唯一用例数。
+
+没有新模型或迁移；42 app / 588 model / 9,087 field，模块 44 / 210、84 freshness surface、23 Audit event。生成投影只由脚本生成。Native 与导出源码逐文件核验 LF/AST 等价，保留各自原始字节身份，不合并为 release 或 CI/S6 身份。完整证据见[采集检查点](../testing/a-share-usability-calendar-capture-2026-10-17.json)。
+
+计划登记 v223。当前治理 manifest 尚未配置日历所需 TTL/binding/codec，现有 catalog checker 对新增 dataset 也需另行协调；本批不宣称生产可采集。多 active Tushare 实例、逐实例秘密绑定、线性化秘密轮换、第二合格日历供应商和 Calendar RawAudit occurrence/run 仍未解决。下一批继续真实 Session+CSRF HTTP/TUI 用户旅程，再迁移普通模拟/回测消费者。整体 Goal、原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 的门禁继续开放；没有部署、授予真实权限、种子、Provider RPC、外部 dispatch、研究晋级、Evidence 或券商资格，`broker_order_evidence_integrated()` 仍为 false。

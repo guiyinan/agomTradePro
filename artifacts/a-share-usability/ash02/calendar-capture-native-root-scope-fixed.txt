@@ -1,0 +1,3 @@
+Local PostgreSQL 16 fixture with 544 previously applied migrations; reused without migration replay; no production database.
+......................................................                   [100%]
+54 passed in 127.85s (0:02:07)

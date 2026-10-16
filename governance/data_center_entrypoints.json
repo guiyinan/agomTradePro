@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 92,
+      "test_evidence": 93,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 863,
       "adjacent_operational": 339,
-      "candidate-review": 10,
+      "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1350
+    "total": 1351
   },
   "entries": [
     {
@@ -5331,7 +5331,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=5",
+      "evidence": "governed current-data contract; source_files=8",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.exchange_calendar_reference:Exact unpublished exchange-calendar reference and next-session lookup; no current or execution authority",
       "locator": "Exact unpublished exchange-calendar reference and next-session lookup; no current or execution authority",
       "path": "governance/current_data_contracts.json",
@@ -12777,6 +12777,16 @@
       "path": "tests/component/data_center/test_calendar_authority_revocation_postgres.py",
       "status": "candidate-review",
       "symbol": "test_calendar_authority_revocation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_calendar_capture_configuration_postgres.py:test_calendar_capture_configuration_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_calendar_capture_configuration_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_calendar_capture_configuration_postgres",
       "target": ""
     },
     {
