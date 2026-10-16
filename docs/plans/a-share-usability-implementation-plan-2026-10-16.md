@@ -781,3 +781,17 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 首次 native 的 **16 passed / 5 failed** 源于 fixture formal/raw dataset 不一致，Audit 正确拒绝；修夹具和 Domain，而未放宽 Audit。后续 **28 passed / 1 failed** 是 Root 新增旅程测试写反既有计数 tuple 顺序，修正测试后才取得最终 29 项。各次 source hash、原始失败和中间绿色窗口独立保留，不改写历史。工作树/暂存/导出只证明 LF 规范化及 AST 等价，不合并成 release、CI/S6 字节身份。
 
 本批投影仍为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface、23 Audit event；入口为 1,349、candidate-review 为 9。新增 Native 测试仅是待审查 operational test evidence，其分类有专项回归；两项 Calendar event 仍 planned/not_wired。完整原件及限定见[正式日历仓储检查点](../testing/a-share-usability-formal-calendar-storage-2026-10-17.json)。计划登记 v221，整体 Goal、原 ASH-01、完整 ASH-02/ASH-03、普通模拟/回测消费者和真实 Provider/生产/券商验收均未退出；`broker_order_evidence_integrated()` 仍为 false。下一独立批开始采集/预览/确认/读取的 Application 操作契约，尚无 HTTP/TUI 用户入口。
+
+### 19.29 日历操作用例与精确准备独立验收
+
+仓储批 `e6b960654` 后，本批只接受内部采集/预览/确认/current 的 Application intents、精确准备仓储及直接回归。[操作合同](../api/a-share-calendar-operations.md)要求服务器从精确原文、事实行摘要、唯一活动合同/策略和完整 current pointer 重建 seal，客户端只机器回传引用、目录身份、原 CAS、activation 与摘要。preview checksum 是公开无密钥校验和，不是权限或曾预览证明。authority 拥有唯一外层事务，调用方必须等 context 成功退出后才向外返回确认结果。
+
+主代理保存两项实际失败原件并修复：合法的仓储分配成员 UUID 被误拒，以及同一 current 重试时原 CAS 可跨范围。确认现在使用 Domain 的完整证据等价函数，只忽略两个存储 ID；原 CAS 和实际 current 均核对 dataset/publication-key。原确认成功后可重试同 hash/activation 的精确当前赢家，继续受原 actor 当前发布权约束。另修复原确认重试和普通读取范围校验；其早期 stdout 未独立落盘，状态文件如实记录，不伪称原件。准备初始 red 是缺 API，不是错误放行业务。
+
+主代理冻结窗口在本地原生 PostgreSQL 的九份文件 **70 passed / 371.98 秒**，134 个生产文件与九份测试无运行漂移。24 项为纯 Application，46 项为数据库组件；不把全部计为原生并发场景。新增真实组合验证 preview 无正式写入、first/原 intent retry 保留原 record/pointer/Audit、撤权后普通读取仍可用而确认拒绝，以及同版本 TTL 漂移在写前阻断。两种 preparation 锁测试分别验证行锁持有时可完成普通目录读取、目录 DML 形成精确 pg_blocking_pids blocker 并在提交后读到停用。真实持久 Session/权限使用直接构造 proof DTO，没有经过 DRF SessionAuth，不能冒充 HTTP 认证旅程。夹具复用 544 个已应用迁移，未从空重放。
+
+实际暂存源码树 `2391d2fedf46494b0f6edf7f523fff5dd4614440` 的独立导出，28 份 unit/SQLite 文件 **362 passed / 15 PostgreSQL-only skipped / 391.75 秒**；两生产文件增量 mypy 零回归，全生产债务 **0 errors / 0 files**，七个 Python 文件 Black/isort/Ruff 通过，82 个生产函数无标注或 public docstring 缺项。增量架构两文件、1,344 新增行，boundary/audit 均为 0。重叠覆盖组合的 Application 为 **331/388 语句、72/112 分支**；Infrastructure 为 **451/604 语句、131/210 分支**，满足专项门槛。不同组合不累计为唯一用例数。
+
+投影仍为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface 与 23 Audit event；没有新模型或迁移。两项 Calendar event 仍 planned/not_wired，尚无 HTTP/TUI operational entrypoint。工作树、暂存与导出保留独立字节摘要，只声明换行规范化及 AST 等价，不合并成 CI/S6 或 release 身份。原件、覆盖和范围见[日历操作检查点](../testing/a-share-usability-calendar-operations-2026-10-17.json)。
+
+计划登记 v222。下一独立批继续配置驱动的真实采集组装、Session+CSRF HTTP/TUI 用户旅程，然后切换普通模拟/回测消费者。独立采集 factory 候选不在本批接受范围。整体 Goal、原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 的门禁、真实 Provider/生产/研究晋级/Evidence/券商验收继续开放；`broker_order_evidence_integrated()` 仍为 false。

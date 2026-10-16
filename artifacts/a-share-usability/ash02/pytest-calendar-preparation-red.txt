@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ test_load_exact_returns_the_locked_source_catalog_and_absent_pointer _____
+tests\component\data_center\test_calendar_publication_preparation_repository.py:34: in test_load_exact_returns_the_locked_source_catalog_and_absent_pointer
+    context = repository.load_exact(snapshot.reference(), known_at=known_at)
+E   AttributeError: 'DjangoFormalExchangeCalendarPublicationRepository' object has no attribute 'load_exact'
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_calendar_publication_preparation_repository.py::test_load_exact_returns_the_locked_source_catalog_and_absent_pointer
+1 failed in 15.26s

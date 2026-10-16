@@ -1,0 +1,48 @@
+{
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-calendar-operations-32k4ae31",
+  "targets": [
+    "tests/unit/data_center/test_calendar_publication_operations.py",
+    "tests/unit/data_center/test_calendar_operations_storage_identity.py",
+    "tests/unit/data_center/test_calendar_operations_request_scope.py",
+    "tests/component/data_center/test_calendar_publication_preparation_repository.py",
+    "tests/component/data_center/test_formal_exchange_calendar_publication_repository.py",
+    "tests/component/data_center/test_formal_calendar_forward_integrity.py",
+    "tests/component/data_center/test_formal_calendar_orphan_history.py"
+  ],
+  "source_sha256": {
+    "apps/data_center/application/calendar_publication_operations.py": "b10bd2cdd1d402de9995bb4351c920f51112f85c46070c9b35ed484cd1f8e489",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "a24363635b370c6f4f90e9f4cdb5cc7b03eec24459a6d4ada2a0fdf55106f30c",
+    "tests/unit/data_center/test_calendar_publication_operations.py": "2c926c899b23efad1d6129829e64b9090c5aaed682fa551862786e35bb715124",
+    "tests/unit/data_center/test_calendar_operations_storage_identity.py": "4d40da8e9305f4e8725824fc7ee8fe7c95370f9857a75e812900e2217e8a8921",
+    "tests/unit/data_center/test_calendar_operations_request_scope.py": "4fd45a04e73f1095b17cc7826694dbf2ae5a91f29acf73c2a1d0102ef3c566b8",
+    "tests/component/data_center/test_calendar_publication_preparation_repository.py": "b26ffb2ad3a5f19ef6e75e4fe923224e026f6f7bb0dda96022e134a8f590cd46",
+    "tests/component/data_center/test_calendar_preparation_postgres.py": "67bb6cd9a74efb8149136a4530a835b34ab7934862f89fe37944061261cdcb95"
+  },
+  "summaries": {
+    "apps\\data_center\\application\\calendar_publication_operations.py": {
+      "covered_lines": 331,
+      "num_statements": 388,
+      "percent_covered": 80.6,
+      "percent_covered_display": "80.6",
+      "missing_lines": 57,
+      "excluded_lines": 0,
+      "num_branches": 112,
+      "num_partial_branches": 40,
+      "covered_branches": 72,
+      "missing_branches": 40
+    },
+    "apps\\data_center\\infrastructure\\formal_exchange_calendar_publication_repository.py": {
+      "covered_lines": 451,
+      "num_statements": 604,
+      "percent_covered": 71.4987714987715,
+      "percent_covered_display": "71.5",
+      "missing_lines": 153,
+      "excluded_lines": 0,
+      "num_branches": 210,
+      "num_partial_branches": 73,
+      "covered_branches": 131,
+      "missing_branches": 79
+    }
+  },
+  "changed_during_run": []
+}

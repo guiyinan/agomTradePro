@@ -4057,6 +4057,26 @@
           "CalendarPublisherSessionRequestProof",
           "LockedCalendarPublisherPrincipal"
         ],
+        "application/calendar_publication_operations.py": [
+          "CalendarActivationIdFactory",
+          "CalendarFormalPublicationPort",
+          "CalendarOperationsClock",
+          "CalendarPublicationOperationsError",
+          "CalendarPublicationPreparationContext",
+          "CalendarPublicationPreparationPort",
+          "CalendarPublicationPreview",
+          "CalendarPublicationPreviewIdentity",
+          "CalendarSnapshotCapturePort",
+          "CaptureExchangeCalendarSnapshotIntent",
+          "CaptureExchangeCalendarSnapshotUseCase",
+          "CapturedExchangeCalendarSnapshot",
+          "ConfirmCalendarPublicationIntent",
+          "ConfirmCalendarPublicationUseCase",
+          "PreviewCalendarPublicationIntent",
+          "PreviewCalendarPublicationUseCase",
+          "ReadCurrentCalendarIntent",
+          "ReadCurrentCalendarUseCase"
+        ],
         "application/candidate_raw_audit_manifest.py": [
           "CandidateRawAuditManifestRepositoryProtocol",
           "CandidateRawAuditManifestService"
@@ -5269,7 +5289,7 @@
         ]
       },
       "layers": {
-        "application": 154,
+        "application": 155,
         "domain": 42,
         "infrastructure": 191,
         "interface": 22,

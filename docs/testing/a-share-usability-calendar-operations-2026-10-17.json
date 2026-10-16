@@ -1,0 +1,161 @@
+{
+  "recorded_at": "2026-10-16T20:08:54.769106+00:00",
+  "stage": "ASH-02 internal capture/preview/confirm/current intents and trusted preparation",
+  "status": "bounded_local_application_preparation_acceptance_only",
+  "exported_source_tree": "2391d2fedf46494b0f6edf7f523fff5dd4614440",
+  "proof_scope": "Actual staged-source export before regenerated projections and acceptance metadata; not final commit, CI/S6, release, production or provider qualification.",
+  "native_tests": {
+    "passed": 70,
+    "seconds": 371.98,
+    "production_files": 134,
+    "test_files": 9,
+    "pure_application_cases": 24,
+    "db_component_cases": 46,
+    "source_drift": [],
+    "fixture": "Dedicated previously migrated PostgreSQL 16 fixture; 544 applied migrations reused with --no-migrations, not replayed from empty.",
+    "session_scope": "Persisted real Session and exact grants, with directly constructed proof DTO; not a DRF/HTTP authentication journey."
+  },
+  "sqlite_and_unit_tests": {
+    "passed": 362,
+    "skipped": 15,
+    "seconds": 391.75,
+    "test_files": 28,
+    "note": "Native-only skips are expected; tests overlap the native window and must not be added as unique cases."
+  },
+  "coverage": {
+    "apps\\data_center\\application\\calendar_publication_operations.py": {
+      "covered_lines": 331,
+      "num_statements": 388,
+      "percent_covered": 80.6,
+      "percent_covered_display": "80.6",
+      "missing_lines": 57,
+      "excluded_lines": 0,
+      "num_branches": 112,
+      "num_partial_branches": 40,
+      "covered_branches": 72,
+      "missing_branches": 40
+    },
+    "apps\\data_center\\infrastructure\\formal_exchange_calendar_publication_repository.py": {
+      "covered_lines": 451,
+      "num_statements": 604,
+      "percent_covered": 71.4987714987715,
+      "percent_covered_display": "71.5",
+      "missing_lines": 153,
+      "excluded_lines": 0,
+      "num_branches": 210,
+      "num_partial_branches": 73,
+      "covered_branches": 131,
+      "missing_branches": 79
+    }
+  },
+  "quality": {
+    "production_files": 2,
+    "python_files": 7,
+    "checked_functions": 82,
+    "incremental_mypy_regressions": 0,
+    "full_mypy_debt": {
+      "errors": 0,
+      "files": 0
+    },
+    "style_checks": [
+      "Black",
+      "isort",
+      "Ruff"
+    ],
+    "architecture_added_files": 2,
+    "architecture_added_lines": 1344,
+    "architecture_violations": 0,
+    "audit_violations": 0
+  },
+  "failure_first": {
+    "root_preserved_red": [
+      "Storage-assigned member/publication UUIDs were wrongly rejected by full dataclass equality: 1 failed.",
+      "Foreign-scope original CAS could be accepted for exact replay after caller recomputed the unkeyed preview checksum: 1 failed."
+    ],
+    "preparation_red": "Missing load_exact API: AttributeError; not a wrong business acceptance.",
+    "unpreserved_stdout": "Earlier retry 3-failure and current-read-scope 2-failure runs remain interactive observations only; explicit artifact-status note is not a reconstructed stdout transcript.",
+    "shared_worktree_debt": "Agent full-debt zero result retained as diagnostic only, excluded from staged acceptance; the independent export debt result is authoritative here."
+  },
+  "source_sha256_staged": {
+    "apps/data_center/application/calendar_publication_operations.py": "8a70efaba1691c2f4af2d72eab213407ceafbff253c172a3c61e785e9a8ae3f7",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "a42358e2d752f2964a859cf603882bb83896e2460f673bfa8ef9935e36a7cc66",
+    "tests/unit/data_center/test_calendar_publication_operations.py": "56018206bd67afa2e3aad14fb8c068b181f84fd86efbee6fba7c9ca340770c3c",
+    "tests/unit/data_center/test_calendar_operations_storage_identity.py": "a1493e530dc6f6113d0939ddcf5bf90b8e8aa7eb176e222297ac8e123ee6591d",
+    "tests/unit/data_center/test_calendar_operations_request_scope.py": "718d73a5b7ca2333c8ea99da638829a78242bbcbad512e408586ef3b24b66a23",
+    "tests/component/data_center/test_calendar_publication_preparation_repository.py": "0a884fdc513e98e6c353a7b9169b61cec4da45ffe67946acfc5e2abdd20e62a0",
+    "tests/component/data_center/test_calendar_preparation_postgres.py": "36279b123cbdcb7adecf5c539bc7c4f399e27f8332f2a3d3b7e9a1d25e52ed86"
+  },
+  "source_sha256_exported": {
+    "apps/data_center/application/calendar_publication_operations.py": "b10bd2cdd1d402de9995bb4351c920f51112f85c46070c9b35ed484cd1f8e489",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": "a24363635b370c6f4f90e9f4cdb5cc7b03eec24459a6d4ada2a0fdf55106f30c",
+    "tests/unit/data_center/test_calendar_publication_operations.py": "2c926c899b23efad1d6129829e64b9090c5aaed682fa551862786e35bb715124",
+    "tests/unit/data_center/test_calendar_operations_storage_identity.py": "4d40da8e9305f4e8725824fc7ee8fe7c95370f9857a75e812900e2217e8a8921",
+    "tests/unit/data_center/test_calendar_operations_request_scope.py": "4fd45a04e73f1095b17cc7826694dbf2ae5a91f29acf73c2a1d0102ef3c566b8",
+    "tests/component/data_center/test_calendar_publication_preparation_repository.py": "b26ffb2ad3a5f19ef6e75e4fe923224e026f6f7bb0dda96022e134a8f590cd46",
+    "tests/component/data_center/test_calendar_preparation_postgres.py": "67bb6cd9a74efb8149136a4530a835b34ab7934862f89fe37944061261cdcb95"
+  },
+  "source_byte_boundary": "Worktree, index and export have separate raw digests; only LF-normalized and Python AST equivalence is asserted.",
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-operations-native-root-initial.txt": "b0c6e3d9f8585824b089e9aa3838fb15c35d2e8330b306ac5e577356ca3f5d16",
+    "artifacts/a-share-usability/ash02/calendar-operations-native-root-initial-sources.json": "3f3e94ccf6f33d4fc4376ab8dd6446670d9ba7fb5cba7d57d988df89f5f67680",
+    "artifacts/a-share-usability/ash02/calendar-operations-storage-identity-root-red.txt": "873da4a110794b02c642af23009d10ee6c580c9594d8545fefc85a16ca9e4970",
+    "artifacts/a-share-usability/ash02/calendar-operations-request-scope-root-red.txt": "4366bbe4bc2d4294f74936e98a01a12c7f986252822b6bb7ce4b30976004c483",
+    "artifacts/a-share-usability/ash02/calendar-operations-red-artifact-status.txt": "55bdd1094cadbcc2562c29873204583958b9ceaea02b7dc2532224e2a848476b",
+    "artifacts/a-share-usability/ash02/calendar-operations-final-24.txt": "689b543788e430d77370eba70a7968993100c0a5831e4068fb9be907f436cbba",
+    "artifacts/a-share-usability/ash02/calendar-operations-final-coverage-24.json": "a471697279f0e752a6b844dc5f3f4008c6be52fd81c0e3a48a5482e7e0cdc137",
+    "artifacts/a-share-usability/ash02/calendar-operations-final-coverage-24.txt": "d7748cae503d45f78add39caa25f55c63c7e55419b4c78d9ba932db25fc957c6",
+    "artifacts/a-share-usability/ash02/calendar-operations-mypy.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/calendar-operations-black.txt": "83abf4b47e6b6e216d698b30f1f030922562c86836a54764d86a0e463467807e",
+    "artifacts/a-share-usability/ash02/calendar-operations-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/calendar-operations-ruff.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "artifacts/a-share-usability/ash02/pytest-calendar-preparation-red.txt": "2087cbaf7a64cf843a5058721b712d9e8344ac369278270c198367fc81c7e51c",
+    "artifacts/a-share-usability/ash02/pytest-calendar-preparation-final2.txt": "136a0a09dc8ef42464367bc94e81f8e50475c705c5aa6b960fcb48a62aaf5738",
+    "artifacts/a-share-usability/ash02/calendar-preparation-coverage-final2.json": "58deb0a4fc37546df830b35104d3d463d71e97222a6dd7f3852b38371de69388",
+    "artifacts/a-share-usability/ash02/mypy-calendar-preparation-incremental-final.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/mypy-debt-calendar-preparation-final.txt": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+    "artifacts/a-share-usability/ash02/calendar-operations-root-architecture.txt": "3bf3762eec37b1c21a2742253ee588672910c6a824a0997a7d6552599cb36a93",
+    "artifacts/a-share-usability/ash02/calendar-operations-root-architecture.txt.sources.json": "812079b74e57d6daec0015f054d835f3e2ddf178ba0bab3e3a8226387c8b1f42",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-black.txt": "84b9efe87539186dc93860b3f3a897d1a12d9d88af87ec1dd653ef7f7d1eab58",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-isort.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-ruff.txt": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-incremental-mypy.txt": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-bounded-quality.json": "5c8de619f8bbd33c9dd2d880d708730ccee0f9fdc80d27700e0261b10cb0c94b",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-coverage.txt": "16f559ae528641ec4daf90180b1b045812340eaca96c0cc653549708988cb8a6",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-coverage.json": "f92d7c09460948d9cc07162049946453d27c43fb3e752d8c0a8cae702b927e64",
+    "artifacts/a-share-usability/ash02/calendar-operations-index-coverage-sources.json": "64ec07b34136287edd4990a36b28744dd741d743b689720f8b9ade19556443fb",
+    "artifacts/a-share-usability/ash02/phased-calendar-operations-index-projections-1.txt": "3d419083f9271f9a4a223fde68ea515f64ef6235580a222bd600c573d91d85b0",
+    "artifacts/a-share-usability/ash02/phased-calendar-operations-calendar-operations-index-1.txt": "e34cf88170420c0507ecfdd159b1bfb3828a2ca5abd0c3f05dffaf485efcb752",
+    "artifacts/a-share-usability/ash02/phased-calendar-operations-calendar-operations-index-1-sources.json": "c7eb9e09fe179f51d6c9c6b588a95754a14ab8ed32f021bf12f0d0c87d533049",
+    "artifacts/a-share-usability/ash02/phased-calendar-operations-debt-index-1.txt": "eb7cd00486fb11bc33f0b1608ff4bef62fefa9f115dace0213043ac1b07d9a61",
+    "artifacts/a-share-usability/ash02/phased-calendar-operations-debt-index-1-sources.json": "78ac3a6723be3c2e00ff284032d41caff696c9063c778341317762310ae09b2e",
+    "artifacts/a-share-usability/ash02/calendar-operations-acceptance-final-guards.txt": "dcafe6ea2737a503429b49a679e2b509ff9fd6e1967ace93f7d9c6e531027dd7"
+  },
+  "not_accepted": [
+    "HTTP/TUI operational entrypoints and browser journey",
+    "Independent source configuration/factory candidate",
+    "Qualified real Provider or failover",
+    "Calendar RawAudit occurrence/run binding",
+    "Ordinary simulated/backtest consumers",
+    "Original ASH-01 regressions or complete ASH-02/03",
+    "Production, CI/S6, research promotion, external dispatch, Evidence or broker authorization"
+  ],
+  "broker_order_evidence_integrated": false,
+  "projection_counts": {
+    "apps": 42,
+    "models": 588,
+    "fields": 9087,
+    "module_map_modules": 44,
+    "module_map_edges": 210,
+    "freshness_surfaces": 84,
+    "audit_events": 23,
+    "entrypoints": 1350,
+    "candidate_review": 10,
+    "calendar_events": "planned/not_wired"
+  },
+  "active_plan_registry": {
+    "version": "2026-10-17.v222",
+    "units": 74,
+    "violations": 0
+  },
+  "coverage_note": "55 overlapping SQLite/unit cases; statement/branch denominators are reported separately, not the branch-enabled combined percent."
+}

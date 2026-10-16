@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 91,
+      "test_evidence": 92,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 863,
       "adjacent_operational": 339,
-      "candidate-review": 9,
+      "candidate-review": 10,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1349
+    "total": 1350
   },
   "entries": [
     {
@@ -5411,9 +5411,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=3",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Internal exact-current formal-calendar storage contract with same-transaction Audit integrity; HTTP/TUI entrypoints and ordinary consumers remain separate; no source-observation or execution authority",
-      "locator": "Internal exact-current formal-calendar storage contract with same-transaction Audit integrity; HTTP/TUI entrypoints and ordinary consumers remain separate; no source-observation or execution authority",
+      "evidence": "governed current-data contract; source_files=4",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
+      "locator": "Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.formal_calendar_current_pointer_contract",
@@ -12777,6 +12777,16 @@
       "path": "tests/component/data_center/test_calendar_authority_revocation_postgres.py",
       "status": "candidate-review",
       "symbol": "test_calendar_authority_revocation_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/data_center/test_calendar_preparation_postgres.py:test_calendar_preparation_postgres:",
+      "locator": "",
+      "path": "tests/component/data_center/test_calendar_preparation_postgres.py",
+      "status": "candidate-review",
+      "symbol": "test_calendar_preparation_postgres",
       "target": ""
     },
     {

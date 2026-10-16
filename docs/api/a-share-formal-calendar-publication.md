@@ -6,7 +6,7 @@
 
 正式记录以精确 `dataset_key`、`exchange` 和由交易所确定的 `publication_key` 为范围。Domain 使用 `CalendarFormalPublicationSeal` 固定数据集版本、显式日历响应 TTL、合同与策略身份、快照和成员清单；Application 暴露发布与当前读取用例。Infrastructure 通过 `DjangoFormalExchangeCalendarPublicationRepository` 实现持久化、CAS 和读取，Core bridge 将发布 Audit/Outbox 操作接到 Audit Application。
 
-当前代码没有 operational capture/context、HTTP 或 TUI 发布入口，也没有真实 Provider、生产数据或券商端验收。现有 Snapshot/RawPayload 能支持候选事实与发布证据的重建，但本链路没有 Calendar 专属 `RawAudit` ID、请求 occurrence 或 run 绑定。因此，不能把保留的原文称作已验证的 RawAudit 请求记录。
+内部采集、预览、确认、当前读取的 Application 操作和精确准备仓储见[操作合同](a-share-calendar-operations.md)。当前没有 HTTP 或 TUI 发布入口，也没有真实 Provider、生产数据或券商端验收。现有 Snapshot/RawPayload 能支持候选事实与发布证据的重建，但本链路没有 Calendar 专属 `RawAudit` ID、请求 occurrence 或 run 绑定。因此，不能把保留的原文称作已验证的 RawAudit 请求记录。
 
 正式日历仅是参考数据。`CalendarFormalPublicationCommit` 和 `CurrentPublishedExchangeCalendar` 都声明 `must_not_execute=True`；读取结果不包含盘中停牌状态、证券状态、价格边界、交易阶段、账户授权或订单许可。
 

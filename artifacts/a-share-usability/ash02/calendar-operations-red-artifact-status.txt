@@ -1,0 +1,9 @@
+Calendar operations evidence status
+
+Final validation artifacts:
+- calendar-operations-final-24.txt: 24 passed (the 22 owned Application tests plus Root's storage-identity and request-scope regressions).
+- calendar-operations-final-coverage-24.txt and calendar-operations-final-coverage-24.json: the same 24 tests with branch measurement enabled.
+- calendar-operations-mypy.txt, calendar-operations-black.txt, calendar-operations-isort.txt, calendar-operations-ruff.txt: final type/style stdout. isort stdout was empty and is recorded as a zero-byte file; the command returned exit code 0.
+- calendar-operations-storage-identity-root-red.txt and calendar-operations-request-scope-root-red.txt: Root-owned pre-fix red artifacts, left unchanged.
+
+The earlier exact-retry red (3 failed, 10 passed) and current-read result-scope red (2 failed) were real pytest runs, but stdout was captured only in the interactive tool responses; no standalone file was written at run time. This note records that limitation and the observed results; it is not a raw stdout transcript. The initial ModuleNotFound collection failure is not counted as a behavior red.

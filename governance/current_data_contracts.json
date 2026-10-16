@@ -8635,11 +8635,12 @@
     },
     {
       "id": "data_center.formal_calendar_current_pointer_contract",
-      "surface": "Internal exact-current formal-calendar storage contract with same-transaction Audit integrity; HTTP/TUI entrypoints and ordinary consumers remain separate; no source-observation or execution authority",
+      "surface": "Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "source_files": [
         "apps/data_center/domain/formal_exchange_calendar_publication.py",
         "apps/data_center/application/formal_exchange_calendar_publication.py",
-        "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py"
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "apps/data_center/application/calendar_publication_operations.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -8667,6 +8668,14 @@
           "verify_published_integrity",
           "_require_single_caller_transaction",
           "_require_postgresql_read_committed"
+        ],
+        "apps/data_center/application/calendar_publication_operations.py": [
+          "CALENDAR_PUBLICATION_PREVIEW_STALE",
+          "CALENDAR_PUBLICATION_POINTER_CHANGED",
+          "CALENDAR_PUBLICATION_POINTER_SCOPE_MISMATCH",
+          "calendar_formal_seals_have_same_evidence",
+          "CALENDAR_CURRENT_READ_SCOPE_MISMATCH",
+          "known_at=confirmed_at"
         ]
       },
       "required_tests": [
@@ -8719,6 +8728,16 @@
           "case": "real_audit_half_pair_never_repaired",
           "test_file": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
           "test_function": "test_real_audit_missing_half_blocks_replay_and_forward_without_repair"
+        },
+        {
+          "case": "operations_actual_session_original_retry_and_read_after_revocation",
+          "test_file": "tests/component/data_center/test_calendar_preparation_postgres.py",
+          "test_function": "test_native_preview_confirm_original_retry_and_reference_after_revocation"
+        },
+        {
+          "case": "catalog_same_version_ttl_drift_invalidates_confirmation",
+          "test_file": "tests/component/data_center/test_calendar_preparation_postgres.py",
+          "test_function": "test_native_catalog_ttl_change_invalidates_an_existing_preview_before_writes"
         }
       ]
     }

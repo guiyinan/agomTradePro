@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5645,
+    "current_surface_references": 5665,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8151,6 +8151,70 @@
       "text": "\"\"\"Hold current session, identity, and permission witnesses until exit.\"\"\""
     },
     {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "CAS and current-principal replay checks."
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current pointer scope differs from the exact calendar publication\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current publication pointer changed after preview\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current read requires a typed intent\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current read result lost its server clock or capability boundary\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current reader returned a publication for another dataset or exchange\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Current reader returned an invalid result type\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"Preparation context has no complete current-pointer identity\","
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Bind the current reader and an explicit server clock.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Exact persisted source, catalog evidence, row hash and current pointer."
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Query the exact current pointer and keep its non-execution boundary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Read exact current state using a server-owned knowledge cutoff.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Request an exact current calendar without exposing a client clock.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Resolve exact persisted evidence and current catalog/pointer state."
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "\"\"\"Return the current timezone-aware UTC instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_publication_operations.py",
+      "text": "supplied knowledge cutoff. It must not choose a latest source or silently"
+    },
+    {
       "path": "apps/data_center/application/config_summary_service.py",
       "text": "\"\"\"Register the data-center config-summary repository.\"\"\""
     },
@@ -11388,6 +11452,10 @@
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "text": "\"Current calendar pointer did not resolve to its exact publication\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
       "text": "\"Current publication's exact catalog row is invalid\","
     },
     {
@@ -11412,7 +11480,15 @@
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "text": "\"Formal calendar publication history exists without a current pointer\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
       "text": "\"Forward calendar publication has no exact current record\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "text": "\"\"\"Load exact source/catalog/current evidence inside one caller-owned UoW."
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
@@ -11433,6 +11509,10 @@
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
       "text": "del activation_id  # The exact activation identity is stored by the current pointer."
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "text": "latest source, writes publication rows, or treats an expired current"
     },
     {
       "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
