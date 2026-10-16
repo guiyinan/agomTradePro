@@ -1,0 +1,21 @@
+apps\data_center\interface\calendar_publication_api_schema.py:35: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:57: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:63: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:67: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:96: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:97: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:98: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:107: error: Unused "type: ignore" comment  [unused-ignore]
+Mypy regression(s):
+- apps/data_center/interface/calendar_publication_api_schema.py: unused-ignore increased from 0 to 13
+- apps/data_center/interface/calendar_publication_api_views.py: unused-ignore increased from 0 to 4
+apps\data_center\interface\calendar_publication_api_schema.py:108: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:114: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:143: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:159: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_schema.py:161: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_views.py:106: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_views.py:129: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_views.py:149: error: Unused "type: ignore" comment  [unused-ignore]
+apps\data_center\interface\calendar_publication_api_views.py:175: error: Unused "type: ignore" comment  [unused-ignore]
+Found 17 errors in 2 files (checked 2 source files)

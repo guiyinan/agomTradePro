@@ -56,6 +56,12 @@ from apps.data_center.interface.api_views import (
     sync_valuations,
     valuations,
 )
+from apps.data_center.interface.calendar_publication_api_views import (
+    CalendarPublicationConfirmView,
+    CalendarPublicationPreviewView,
+    CaptureCalendarSnapshotView,
+    CurrentCalendarView,
+)
 from apps.data_center.interface.tui_views import (
     MacroGovernanceTuiView,
     MarketThermometerTuiConfigView,
@@ -84,6 +90,10 @@ class DataCenterApiRootView(APIView):
                     "price_history": "/api/data-center/prices/history/",
                     "price_quotes": "/api/data-center/prices/quotes/",
                     "pit_manifests": "/api/data-center/pit-manifests/",
+                    "exchange_calendar_capture": "/api/data-center/exchange-calendars/snapshots/capture/",
+                    "exchange_calendar_preview": "/api/data-center/exchange-calendars/publication-preview/",
+                    "exchange_calendar_publish": "/api/data-center/exchange-calendars/publications/",
+                    "exchange_calendar_current": "/api/data-center/exchange-calendars/current/",
                     "fund_nav": "/api/data-center/funds/nav/",
                     "financials": "/api/data-center/financials/",
                     "valuations": "/api/data-center/valuations/",
@@ -103,6 +113,26 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path(
+        "exchange-calendars/snapshots/capture/",
+        CaptureCalendarSnapshotView.as_view(),
+        name="dc-calendar-capture",
+    ),
+    path(
+        "exchange-calendars/publication-preview/",
+        CalendarPublicationPreviewView.as_view(),
+        name="dc-calendar-preview",
+    ),
+    path(
+        "exchange-calendars/publications/",
+        CalendarPublicationConfirmView.as_view(),
+        name="dc-calendar-publish",
+    ),
+    path(
+        "exchange-calendars/current/",
+        CurrentCalendarView.as_view(),
+        name="dc-calendar-current",
+    ),
     path("egress/", include("apps.data_center.interface.egress_api_urls")),
     path("qmt-bridge/bindings/", QmtBindingsView.as_view(), name="qmt-bridge-bindings"),
     path(

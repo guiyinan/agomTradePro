@@ -1,0 +1,19 @@
+...........F........................F..........                          [100%]
+================================== FAILURES ===================================
+_______ test_capture_rejects_coercion_and_invalid_date_ranges[payload2] _______
+tests\unit\data_center\test_calendar_publication_serializers.py:166: in test_capture_rejects_coercion_and_invalid_date_ranges
+    assert not serializer.is_valid()
+E   AssertionError: assert not True
+E    +  where True = is_valid()
+E    +    where is_valid = CaptureCalendarSnapshotInputSerializer(data={'exchange': ' SSE', 'coverage_start': '2026-10-01', 'coverage_end': '2026...exchange = _ExactStringField(max_length=32)\n    coverage_start = _ExactDateField()\n    coverage_end = _ExactDateField().is_valid
+___________ test_confirmation_accepts_complete_present_pointer_cas ____________
+tests\unit\data_center\test_calendar_publication_serializers.py:311: in test_confirmation_accepts_complete_present_pointer_cas
+    assert serializer.is_valid(), serializer.errors
+E   AssertionError: {'expected_pointer': {'updated_at': [ErrorDetail(string='Expected a timezone-aware UTC instant.', code='invalid')]}}
+E   assert False
+E    +  where False = is_valid()
+E    +    where is_valid = ConfirmCalendarPublicationInputSerializer(data={'snapshot_reference': {'snapshot_id': '0c68c0aa-3150-45fd-b71e-0c95bf5...  activation_id = _ActivationIdField()\n    expected_publication_hash = _Sha256Field()\n    preview_hash = _Sha256Field().is_valid
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_publication_serializers.py::test_capture_rejects_coercion_and_invalid_date_ranges[payload2]
+FAILED tests/unit/data_center/test_calendar_publication_serializers.py::test_confirmation_accepts_complete_present_pointer_cas
+2 failed, 45 passed in 2.82s

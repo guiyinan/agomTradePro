@@ -1,0 +1,6 @@
+...........                                                              [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.5-final-0 _______________
+
+Coverage JSON written to file .tmp/coverage-calendar-publication-api-views-final-check.json
+11 passed in 2.16s

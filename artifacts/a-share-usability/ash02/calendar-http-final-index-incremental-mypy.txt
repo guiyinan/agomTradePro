@@ -1,0 +1,2 @@
+Success: no issues found in 6 source files
+Mypy regressions: 0 (legacy errors observed: 0)

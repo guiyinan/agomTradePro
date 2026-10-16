@@ -1,0 +1,24 @@
+...FF                                                                    [100%]
+================================== FAILURES ===================================
+__ test_current_read_owns_one_outer_transaction_without_publisher_authority ___
+tests\unit\data_center\test_calendar_publication_operations_composition.py:309: in test_current_read_owns_one_outer_transaction_without_publisher_authority
+    result = composition.read_current_exchange_calendar(
+apps\data_center\calendar_publication_operations_composition.py:147: in read_current_exchange_calendar
+    _require_unowned_read_boundary(connection)
+apps\data_center\calendar_publication_operations_composition.py:177: in _require_unowned_read_boundary
+    or not connection.get_autocommit()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\base\base.py:454: in get_autocommit
+    self.ensure_connection()
+E   RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+_________ test_current_read_rejects_a_caller_owned_outer_transaction __________
+tests\unit\data_center\test_calendar_publication_operations_composition.py:326: in test_current_read_rejects_a_caller_owned_outer_transaction
+    with transaction.atomic(using=DEFAULT_DB_ALIAS):
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\transaction.py:198: in __enter__
+    if not connection.get_autocommit():
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\base\base.py:454: in get_autocommit
+    self.ensure_connection()
+E   RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_owns_one_outer_transaction_without_publisher_authority
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_rejects_a_caller_owned_outer_transaction
+2 failed, 3 passed in 1.85s

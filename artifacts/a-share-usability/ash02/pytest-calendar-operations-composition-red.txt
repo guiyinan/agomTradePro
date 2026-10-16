@@ -1,0 +1,29 @@
+FFFFF                                                                    [100%]
+================================== FAILURES ===================================
+____________ test_capture_uses_locked_default_and_same_outer_clock ____________
+tests\unit\data_center\test_calendar_publication_operations_composition.py:118: in test_capture_uses_locked_default_and_same_outer_clock
+    from apps.data_center import calendar_publication_operations_composition as composition
+E   ImportError: cannot import name 'calendar_publication_operations_composition' from 'apps.data_center' (D:\githv\agomTradePro\apps\data_center\__init__.py)
+_________ test_publisher_operation_propagates_authority_exit_failure __________
+tests\unit\data_center\test_calendar_publication_operations_composition.py:159: in test_publisher_operation_propagates_authority_exit_failure
+    from apps.data_center import calendar_publication_operations_composition as composition
+E   ImportError: cannot import name 'calendar_publication_operations_composition' from 'apps.data_center' (D:\githv\agomTradePro\apps\data_center\__init__.py)
+_ test_confirm_composes_the_formal_publisher_usecase_over_audited_repository __
+tests\unit\data_center\test_calendar_publication_operations_composition.py:201: in test_confirm_composes_the_formal_publisher_usecase_over_audited_repository
+    from apps.data_center import calendar_publication_operations_composition as composition
+E   ImportError: cannot import name 'calendar_publication_operations_composition' from 'apps.data_center' (D:\githv\agomTradePro\apps\data_center\__init__.py)
+__ test_current_read_owns_one_outer_transaction_without_publisher_authority ___
+tests\unit\data_center\test_calendar_publication_operations_composition.py:278: in test_current_read_owns_one_outer_transaction_without_publisher_authority
+    from apps.data_center import calendar_publication_operations_composition as composition
+E   ImportError: cannot import name 'calendar_publication_operations_composition' from 'apps.data_center' (D:\githv\agomTradePro\apps\data_center\__init__.py)
+_________ test_current_read_rejects_a_caller_owned_outer_transaction __________
+tests\unit\data_center\test_calendar_publication_operations_composition.py:311: in test_current_read_rejects_a_caller_owned_outer_transaction
+    from apps.data_center import calendar_publication_operations_composition as composition
+E   ImportError: cannot import name 'calendar_publication_operations_composition' from 'apps.data_center' (D:\githv\agomTradePro\apps\data_center\__init__.py)
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_capture_uses_locked_default_and_same_outer_clock
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_publisher_operation_propagates_authority_exit_failure
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_confirm_composes_the_formal_publisher_usecase_over_audited_repository
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_owns_one_outer_transaction_without_publisher_authority
+FAILED tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_rejects_a_caller_owned_outer_transaction
+5 failed in 1.89s

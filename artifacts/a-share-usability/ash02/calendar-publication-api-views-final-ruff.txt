@@ -1,0 +1,191 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> apps\data_center\interface\calendar_publication_api_views.py:3:1
+   |
+ 1 |   """JSON HTTP adapters for the four-step exchange-calendar reference workflow."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from rest_framework import status
+ 6 | | from rest_framework.authentication import SessionAuthentication
+ 7 | | from rest_framework.parsers import JSONParser
+ 8 | | from rest_framework.permissions import IsAuthenticated
+ 9 | | from rest_framework.renderers import JSONRenderer
+10 | | from rest_framework.request import Request
+11 | | from rest_framework.response import Response
+12 | | from rest_framework.views import APIView
+13 | |
+14 | | from apps.data_center.calendar_publication_operations_composition import (
+15 | |     capture_exchange_calendar_snapshot,
+16 | |     confirm_calendar_publication,
+17 | |     preview_calendar_publication,
+18 | |     read_current_exchange_calendar,
+19 | | )
+20 | | from apps.data_center.domain.formal_exchange_calendar_publication import (
+21 | |     CalendarPublicationTransition,
+22 | | )
+23 | | from apps.data_center.interface.calendar_publication_api_schema import (
+24 | |     CalendarApiErrorResponseSerializer,
+25 | |     CalendarCaptureResponseSerializer,
+26 | |     CalendarCurrentResponseSerializer,
+27 | |     CalendarPreviewResponseSerializer,
+28 | |     CalendarPublicationCommitResponseSerializer,
+29 | | )
+30 | | from apps.data_center.interface.calendar_publication_presenters import (
+31 | |     present_calendar_capture,
+32 | |     present_calendar_commit,
+33 | |     present_calendar_current,
+34 | |     present_calendar_preview,
+35 | | )
+36 | | from apps.data_center.interface.calendar_publication_serializers import (
+37 | |     CaptureCalendarSnapshotInputSerializer,
+38 | |     ConfirmCalendarPublicationInputSerializer,
+39 | |     CurrentCalendarQuerySerializer,
+40 | |     PreviewCalendarPublicationInputSerializer,
+41 | | )
+42 | | from drf_spectacular.types import OpenApiTypes
+43 | | from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+   | |__________________________________________________________________________________^
+help: Organize imports
+   |
+4  |
+5  + from drf_spectacular.types import OpenApiTypes
+6  + from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+7  | from rest_framework import status
+--------------------------------------------------------------------------------
+43 | )
+   - from drf_spectacular.types import OpenApiTypes
+   - from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+44 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\unit\data_center\test_calendar_publication_api_views.py:3:1
+   |
+ 1 |   """HTTP shape tests for calendar publication views with composition stubs."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | import json
+ 6 | | from dataclasses import replace
+ 7 | | from datetime import timedelta
+ 8 | | from typing import cast
+ 9 | |
+10 | | import pytest
+11 | | from rest_framework import status
+12 | | from rest_framework.test import APIRequestFactory, force_authenticate
+13 | |
+14 | | from apps.data_center.application.calendar_publication_operations import (
+15 | |     CalendarPublicationOperationsError,
+16 | |     CapturedExchangeCalendarSnapshot,
+17 | |     ConfirmCalendarPublicationUseCase,
+18 | | )
+19 | | from apps.data_center.application.calendar_publication_authority import (
+20 | |     LockedCalendarPublisherPrincipal,
+21 | | )
+22 | | from apps.data_center.application.formal_exchange_calendar_publication import (
+23 | |     CalendarFormalPublicationCommit,
+24 | |     CalendarPublicationTransition,
+25 | |     CurrentPublishedExchangeCalendar,
+26 | | )
+27 | | from apps.data_center.interface import calendar_publication_api_views as views
+28 | | from apps.data_center.interface.calendar_publication_presenters import (
+29 | |     present_calendar_capture,
+30 | |     present_calendar_preview,
+31 | | )
+32 | | from apps.data_center.interface.calendar_publication_serializers import (
+33 | |     ConfirmCalendarPublicationInputSerializer,
+34 | | )
+35 | | from tests.unit.data_center.test_calendar_publication_operations import (
+36 | |     CALENDAR_DAY,
+37 | |     NOW,
+38 | |     FixedClock,
+39 | |     Publisher,
+40 | |     PublisherPrincipal,
+41 | |     PreparationReader,
+42 | |     _context,
+43 | |     _make_preview,
+44 | |     _snapshot,
+45 | | )
+   | |_^
+help: Organize imports
+   |
+13 |
+14 + from apps.data_center.application.calendar_publication_authority import (
+15 +     LockedCalendarPublisherPrincipal,
+16 + )
+17 | from apps.data_center.application.calendar_publication_operations import (
+18 |     CalendarPublicationOperationsError,
+19 |     CapturedExchangeCalendarSnapshot,
+20 |     ConfirmCalendarPublicationUseCase,
+   - )
+   - from apps.data_center.application.calendar_publication_authority import (
+   -     LockedCalendarPublisherPrincipal,
+21 | )
+--------------------------------------------------------------------------------
+38 |     FixedClock,
+39 +     PreparationReader,
+40 |     Publisher,
+41 |     PublisherPrincipal,
+   -     PreparationReader,
+42 |     _context,
+   |
+
+F401 [*] `tests.unit.data_center.test_calendar_publication_operations.PublisherPrincipal` imported but unused
+  --> tests\unit\data_center\test_calendar_publication_api_views.py:40:5
+   |
+38 |     FixedClock,
+39 |     Publisher,
+40 |     PublisherPrincipal,
+   |     ^^^^^^^^^^^^^^^^^^
+41 |     PreparationReader,
+42 |     _context,
+   |
+help: Remove unused import
+   |
+39 |     Publisher,
+   -     PublisherPrincipal,
+   -     PreparationReader,
+   -     _context,
+40 |     _make_preview,
+   |
+
+F401 [*] `tests.unit.data_center.test_calendar_publication_operations.PreparationReader` imported but unused
+  --> tests\unit\data_center\test_calendar_publication_api_views.py:41:5
+   |
+39 |     Publisher,
+40 |     PublisherPrincipal,
+41 |     PreparationReader,
+   |     ^^^^^^^^^^^^^^^^^
+42 |     _context,
+43 |     _make_preview,
+   |
+help: Remove unused import
+   |
+39 |     Publisher,
+   -     PublisherPrincipal,
+   -     PreparationReader,
+   -     _context,
+40 |     _make_preview,
+   |
+
+F401 [*] `tests.unit.data_center.test_calendar_publication_operations._context` imported but unused
+  --> tests\unit\data_center\test_calendar_publication_api_views.py:42:5
+   |
+40 |     PublisherPrincipal,
+41 |     PreparationReader,
+42 |     _context,
+   |     ^^^^^^^^
+43 |     _make_preview,
+44 |     _snapshot,
+   |
+help: Remove unused import
+   |
+39 |     Publisher,
+   -     PublisherPrincipal,
+   -     PreparationReader,
+   -     _context,
+40 |     _make_preview,
+   |
+
+Found 5 errors.
+[*] 5 fixable with the `--fix` option.

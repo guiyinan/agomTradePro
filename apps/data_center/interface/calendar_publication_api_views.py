@@ -1,0 +1,246 @@
+"""JSON HTTP adapters for the four-step exchange-calendar reference workflow."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TypeVar, cast
+
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.data_center.calendar_publication_operations_composition import (
+    capture_exchange_calendar_snapshot,
+    confirm_calendar_publication,
+    preview_calendar_publication,
+    read_current_exchange_calendar,
+)
+from apps.data_center.domain.formal_exchange_calendar_publication import (
+    CalendarPublicationTransition,
+)
+from apps.data_center.interface.calendar_publication_api_schema import (
+    CalendarApiErrorResponseSerializer,
+    CalendarCaptureSuccessResponseSerializer,
+    CalendarCommitSuccessResponseSerializer,
+    CalendarCurrentSuccessResponseSerializer,
+    CalendarPreviewSuccessResponseSerializer,
+)
+from apps.data_center.interface.calendar_publication_presenters import (
+    present_calendar_capture,
+    present_calendar_commit,
+    present_calendar_current,
+    present_calendar_preview,
+)
+from apps.data_center.interface.calendar_publication_serializers import (
+    CaptureCalendarSnapshotInputSerializer,
+    ConfirmCalendarPublicationInputSerializer,
+    CurrentCalendarQuerySerializer,
+    PreviewCalendarPublicationInputSerializer,
+)
+
+_ViewMethod = TypeVar("_ViewMethod", bound=Callable[..., object])
+_typed_extend_schema = cast(
+    Callable[..., Callable[[_ViewMethod], _ViewMethod]],
+    extend_schema,
+)
+
+
+class _CalendarJsonAPIView(APIView):
+    """Fix JSON media, session authentication and signed-in access for these APIs."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (JSONParser,)
+    renderer_classes = (JSONRenderer,)
+
+
+def _error_responses(
+    *,
+    conflict: bool = False,
+    not_found: bool = False,
+    unavailable: bool = False,
+) -> dict[int, OpenApiResponse]:
+    """Describe shared exception-handler responses for this endpoint family."""
+
+    errors: dict[int, OpenApiResponse] = {
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="Strict JSON or query validation failed.",
+        ),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="The session request proof cannot be bound to the authenticated database identity.",
+        ),
+        status.HTTP_403_FORBIDDEN: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="The user is unauthenticated or lacks the required publisher permission.",
+        ),
+        status.HTTP_405_METHOD_NOT_ALLOWED: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="The HTTP method is not supported by this endpoint.",
+        ),
+        status.HTTP_406_NOT_ACCEPTABLE: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="Only JSON responses are available.",
+        ),
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="Write operations accept application/json only.",
+        ),
+        status.HTTP_422_UNPROCESSABLE_ENTITY: OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="A typed calendar operation or business invariant failed.",
+        ),
+    }
+    if conflict:
+        errors[status.HTTP_409_CONFLICT] = OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="A source, catalog, pointer, or transaction-boundary check failed.",
+        )
+    if not_found:
+        errors[status.HTTP_404_NOT_FOUND] = OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="No current calendar publication exists for this scope.",
+        )
+    if unavailable:
+        errors[status.HTTP_503_SERVICE_UNAVAILABLE] = OpenApiResponse(
+            response=CalendarApiErrorResponseSerializer,
+            description="The configured calendar source or exact evidence is unavailable.",
+        )
+    return errors
+
+
+class CaptureCalendarSnapshotView(_CalendarJsonAPIView):
+    """Capture one explicit complete source range without publishing it."""
+
+    @_typed_extend_schema(
+        request=CaptureCalendarSnapshotInputSerializer,
+        responses={
+            status.HTTP_201_CREATED: CalendarCaptureSuccessResponseSerializer,
+            **_error_responses(unavailable=True),
+        },
+        operation_id="captureExchangeCalendarSnapshot",
+        tags=("Data Center Calendar",),
+    )
+    def post(self, request: Request) -> Response:
+        """Capture the source response and return its exact preview reference."""
+
+        intent = CaptureCalendarSnapshotInputSerializer(data=request.data).to_intent()
+        result = capture_exchange_calendar_snapshot(request, intent)
+        return Response(
+            {
+                "outcome": "success",
+                "success": True,
+                "data": present_calendar_capture(result),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CalendarPublicationPreviewView(_CalendarJsonAPIView):
+    """Preview one exact captured source and return the complete CAS echo."""
+
+    @_typed_extend_schema(
+        request=PreviewCalendarPublicationInputSerializer,
+        responses={
+            status.HTTP_200_OK: CalendarPreviewSuccessResponseSerializer,
+            **_error_responses(conflict=True, unavailable=True),
+        },
+        operation_id="previewExchangeCalendarPublication",
+        tags=("Data Center Calendar",),
+    )
+    def post(self, request: Request) -> Response:
+        """Return server-derived publication identity without writing a publication."""
+
+        intent = PreviewCalendarPublicationInputSerializer(data=request.data).to_intent()
+        result = preview_calendar_publication(request, intent)
+        return Response(
+            {
+                "outcome": "success",
+                "success": True,
+                "data": present_calendar_preview(result),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class CalendarPublicationConfirmView(_CalendarJsonAPIView):
+    """Confirm only the exact server preview under the current publisher session."""
+
+    @_typed_extend_schema(
+        request=ConfirmCalendarPublicationInputSerializer,
+        responses={
+            status.HTTP_200_OK: CalendarCommitSuccessResponseSerializer,
+            status.HTTP_201_CREATED: CalendarCommitSuccessResponseSerializer,
+            **_error_responses(conflict=True, unavailable=True),
+        },
+        operation_id="confirmExchangeCalendarPublication",
+        tags=("Data Center Calendar",),
+    )
+    def post(self, request: Request) -> Response:
+        """Publish the revalidated preview and return only after outer commit exits."""
+
+        intent = ConfirmCalendarPublicationInputSerializer(data=request.data).to_intent()
+        result = confirm_calendar_publication(request, intent)
+        response_status = (
+            status.HTTP_201_CREATED
+            if result.transition is CalendarPublicationTransition.FIRST_PUBLISH
+            else status.HTTP_200_OK
+        )
+        return Response(
+            {
+                "outcome": "success",
+                "success": True,
+                "data": present_calendar_commit(result),
+            },
+            status=response_status,
+        )
+
+
+class CurrentCalendarView(_CalendarJsonAPIView):
+    """Read the exact current published reference without requiring publish permission."""
+
+    @_typed_extend_schema(
+        parameters=[CurrentCalendarQuerySerializer],
+        responses={
+            status.HTTP_200_OK: CalendarCurrentSuccessResponseSerializer,
+            **_error_responses(not_found=True, conflict=True, unavailable=True),
+        },
+        operation_id="readCurrentExchangeCalendar",
+        tags=("Data Center Calendar",),
+    )
+    def get(self, request: Request) -> Response:
+        """Return the exact current reference or a stable 404 when none exists."""
+
+        intent = CurrentCalendarQuerySerializer(data=request.query_params).to_query()
+        result = read_current_exchange_calendar(intent)
+        if result is None:
+            return Response(
+                {
+                    "error": "No current calendar publication exists for this scope.",
+                    "code": "CALENDAR_CURRENT_PUBLICATION_NOT_FOUND",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {
+                "outcome": "success",
+                "success": True,
+                "data": present_calendar_current(result),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+__all__ = [
+    "CalendarPublicationConfirmView",
+    "CalendarPublicationPreviewView",
+    "CaptureCalendarSnapshotView",
+    "CurrentCalendarView",
+]

@@ -809,3 +809,19 @@ Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 Postgre
 没有新模型或迁移；42 app / 588 model / 9,087 field，模块 44 / 210、84 freshness surface、23 Audit event。生成投影只由脚本生成。Native 与导出源码逐文件核验 LF/AST 等价，保留各自原始字节身份，不合并为 release 或 CI/S6 身份。完整证据见[采集检查点](../testing/a-share-usability-calendar-capture-2026-10-17.json)。
 
 计划登记 v223。当前治理 manifest 尚未配置日历所需 TTL/binding/codec，现有 catalog checker 对新增 dataset 也需另行协调；本批不宣称生产可采集。多 active Tushare 实例、逐实例秘密绑定、线性化秘密轮换、第二合格日历供应商和 Calendar RawAudit occurrence/run 仍未解决。下一批继续真实 Session+CSRF HTTP/TUI 用户旅程，再迁移普通模拟/回测消费者。整体 Goal、原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 的门禁继续开放；没有部署、授予真实权限、种子、Provider RPC、外部 dispatch、研究晋级、Evidence 或券商资格，`broker_order_evidence_integrated()` 仍为 false。
+
+### 19.31 日历 Session HTTP 独立验收
+
+采集组装批 `c6deb6433` 后，本批只接受四条 JSON/Session 路由、严格序列化与公开投影、OpenAPI 响应合同，以及每请求独立事务的可信 composition。四个路由均进入 Data Center 的 `api_urls.py` 和发现入口；捕获/预览/确认逐次锁内核验真实 session 与明确发布权限，current 仅要求已认证 session。[HTTP 合同](../api/a-share-calendar-http.md)说明完整 machine echo、必需原 TTL/CAS、成功状态与稳定错误；不接受客户端 actor、alias、clock、seal 或独立 TTL 覆盖。
+
+主代理冻结窗口在本地原生 PostgreSQL 六份文件 **81 passed / 96.26 秒**，143 个生产文件和六份测试无漂移。只有六项是真实 APIClient SessionAuthentication+CSRF 组件旅程，其余 75 项是直接契约单测，不能全部计为 HTTP 用例。真实旅程包含 first/原 echo retry/forward/新 echo retry、旧 echo 冲突、撤权后只读与确认拒绝、匿名/缺 CSRF 零副作用、非法 actor/alias/as_of、同版本 TTL 漂移、写入 pointer/event 后 outbox 故障的整体回滚，并保留此前独立捕获的来源。实际源、发布、authority 与 Core/Audit 均执行，只替换供应商 transport 和测试秘密快照。夹具复用 544 个既有迁移，未从空重放，无真实 Provider 或浏览器/TUI。
+
+失败优先原件包括缺模块/入口 red、五项缺路由/发现、serializer whitespace/UTC 和 OpenAPI 401/422。明确区分坏前缀夹具与生产缺项。Root Native 首轮 **1 failed / 80 passed** 的唯一失败是测试末尾误要求可复用 HTTP Session 关闭；只将断言改为已有 finally 的 response.close，不修改生产生命周期，也不声称连接池已关闭。所有历史窗口和最终结果分开保存。
+
+首个 HTTP 导出虽有 485 passed / 27 skipped、增量 mypy 六文件零回归，全生产类型检查仍实际检出四个 untyped-decorator 新错误。原生产字节与失败诊断均保留；只为第三方 extend_schema 增加精确泛型 decorator alias，未改四个视图方法签名、schema 参数或债务基线，再以新源码重跑 Native、独立导出和完整门禁。
+
+实际暂存源码树 `37d86ea3d60ea53643d8343a482146aebfc682e2` 的独立导出，40 份文件 **485 passed / 27 PostgreSQL-only skipped / 237.77 秒**。六生产文件增量 mypy 零回归，全生产债务 0 errors / 0 files，十二个 Python 文件 Black/isort/Ruff 通过，52 个生产函数无标注/public docstring 缺项；增量架构 1332 新增行、boundary/audit 为零。重叠的覆盖组合 75 passed / 6 native-only skipped：`apps/data_center/calendar_publication_operations_composition.py`：57/61 语句、3/4 分支；`apps/data_center/interface/api_urls.py`：13/13 语句、0/0 分支；`apps/data_center/interface/calendar_publication_api_schema.py`：115/115 语句、0/0 分支；`apps/data_center/interface/calendar_publication_api_views.py`：61/61 语句、7/8 分支；`apps/data_center/interface/calendar_publication_presenters.py`：33/33 语句、0/0 分支；`apps/data_center/interface/calendar_publication_serializers.py`：207/232 语句、43/54 分支。不同组合不累计为唯一用例。
+
+没有新模型或迁移。投影为 42 app / 588 model / 9,087 field、模块 44 / 210、84 freshness surface、23 Audit event；入口 1355、REST 路由 76、candidate-review 11。本批不晋级两项 Calendar event 的 planned/not_wired 登记，也未接入完整 operational blocked-event producer。Native 与导出逐文件核验 LF/AST 等价，各自原始字节摘要独立，不合并为 release 或 CI/S6 身份。完整证据见[HTTP 检查点](../testing/a-share-usability-calendar-http-2026-10-17.json)。
+
+计划登记检查实际先报新工作台计划未登记，补为同 ASH-02 的 supporting 并纳入导航后，v224 / 74 单元 / 0 violations；没有新增 closure unit。详见[工作台阶段计划](a-share-calendar-workbench-plan-2026-10-17.md)，其中 Session blob 覆写窗口与预览交接的密钥/codec 决策门尚未验收。下一切片实现专用 TUI 任务及服务端预览状态交接，提供无业务默认值的初始配置概览、明确的采集范围、取消/陈旧预览/多窗口处理和浏览器主任务 UAT；不能让用户粘贴 JSON/hash，也不能将通用 UI confirmed 当发布授权。随后推进普通模拟/回测消费者。完整 ASH-02/03、原 ASH-01、DATA-18 对 ASH-11 的门禁与整体 Goal 继续开放；目录种子/授权、真实 Provider/failover、Calendar RawAudit occurrence/run、生产、研究晋级、外部 dispatch、Evidence 和券商资格均未通过，`broker_order_evidence_integrated()` 仍为 false。

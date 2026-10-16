@@ -5238,6 +5238,10 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "exchange-calendars/snapshots/capture/",
+          "exchange-calendars/publication-preview/",
+          "exchange-calendars/publications/",
+          "exchange-calendars/current/",
           "egress/",
           "qmt-bridge/bindings/",
           "qmt-bridge/bindings/<uuid:binding_id>/",
@@ -5304,9 +5308,9 @@
         "application": 156,
         "domain": 42,
         "infrastructure": 192,
-        "interface": 22,
+        "interface": 26,
         "management": 42,
-        "root": 27
+        "root": 28
       },
       "orm_models": {
         "infrastructure/models.py": [

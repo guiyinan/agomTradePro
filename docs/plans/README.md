@@ -148,6 +148,8 @@
 | --- | --- |
 | 主计划 | [A 股可用性完善实施计划（2026-10-16）](a-share-usability-implementation-plan-2026-10-16.md) |
 
+工作拆分：[交易日历 TUI 工作台阶段计划](a-share-calendar-workbench-plan-2026-10-17.md)。预览交接机制仍有实施前决策门；本阶段 API 验收不代表工作台已交付。
+
 ## 限期审查队列
 
 队列与期限读取 `review_queue`。已过期的 Manager Holdings 草案已转入上列明确工作流和 `MHD-01` 待审查单元；原期限和未批准实施的边界保留在草案与登记说明中。

@@ -8657,12 +8657,18 @@
     },
     {
       "id": "data_center.formal_calendar_current_pointer_contract",
-      "surface": "Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
+      "surface": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "source_files": [
         "apps/data_center/domain/formal_exchange_calendar_publication.py",
         "apps/data_center/application/formal_exchange_calendar_publication.py",
         "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-        "apps/data_center/application/calendar_publication_operations.py"
+        "apps/data_center/application/calendar_publication_operations.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "apps/data_center/interface/api_urls.py",
+        "apps/data_center/interface/calendar_publication_api_views.py",
+        "apps/data_center/interface/calendar_publication_api_schema.py",
+        "apps/data_center/interface/calendar_publication_presenters.py",
+        "apps/data_center/interface/calendar_publication_serializers.py"
       ],
       "required_markers": {
         "apps/data_center/domain/formal_exchange_calendar_publication.py": [
@@ -8698,6 +8704,38 @@
           "calendar_formal_seals_have_same_evidence",
           "CALENDAR_CURRENT_READ_SCOPE_MISMATCH",
           "known_at=confirmed_at"
+        ],
+        "apps/data_center/calendar_publication_operations_composition.py": [
+          "locked_calendar_publisher_for_request",
+          "CALENDAR_CURRENT_READ_TRANSACTION_OWNER_INVALID",
+          "DEFAULT_DB_ALIAS"
+        ],
+        "apps/data_center/interface/api_urls.py": [
+          "exchange-calendars/current/",
+          "dc-calendar-current"
+        ],
+        "apps/data_center/interface/calendar_publication_api_views.py": [
+          "authentication_classes = (SessionAuthentication,)",
+          "renderer_classes = (JSONRenderer,)",
+          "CALENDAR_CURRENT_PUBLICATION_NOT_FOUND"
+        ],
+        "apps/data_center/interface/calendar_publication_api_schema.py": [
+          "source_observed_at",
+          "must_not_execute",
+          "confirmation_intent"
+        ],
+        "apps/data_center/interface/calendar_publication_presenters.py": [
+          "\"must_not_execute\": True",
+          "\"must_not_use_for_decision\": True",
+          "\"source_observed_at\": None",
+          "\"source_available_at\": None",
+          "\"source_time_status\": \"not_provided\"",
+          "\"blocked_reason\": \"exchange_calendar_reference_only\""
+        ],
+        "apps/data_center/interface/calendar_publication_serializers.py": [
+          "Unknown fields:",
+          "Repeated query parameters:",
+          "CurrentCalendarQuerySerializer"
         ]
       },
       "required_tests": [
@@ -8760,6 +8798,21 @@
           "case": "catalog_same_version_ttl_drift_invalidates_confirmation",
           "test_file": "tests/component/data_center/test_calendar_preparation_postgres.py",
           "test_function": "test_native_catalog_ttl_change_invalidates_an_existing_preview_before_writes"
+        },
+        {
+          "case": "actual_http_session_csrf_publish_forward_replay_revocation",
+          "test_file": "tests/component/data_center/test_calendar_operations_http.py",
+          "test_function": "test_session_csrf_full_publish_forward_replay_and_revoked_current_read"
+        },
+        {
+          "case": "http_catalog_ttl_drift_blocks_before_formal_writes",
+          "test_file": "tests/component/data_center/test_calendar_operations_http.py",
+          "test_function": "test_confirmation_rejects_catalog_ttl_drift_after_preview"
+        },
+        {
+          "case": "http_outbox_failure_rolls_back_formal_but_keeps_source",
+          "test_file": "tests/component/data_center/test_calendar_operations_http.py",
+          "test_function": "test_outbox_failure_rolls_back_formal_publication_but_keeps_capture"
         }
       ]
     }

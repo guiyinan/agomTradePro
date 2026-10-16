@@ -1,0 +1,2 @@
+active-plan-registry version=2026-10-17.v224 workstreams=13 primary=22 support=35 review=0 units=74 paths=58 violations=1
+[unregistered_active_path] docs/plans/a-share-calendar-workbench-plan-2026-10-17.md: active plan artifact is absent from the registry

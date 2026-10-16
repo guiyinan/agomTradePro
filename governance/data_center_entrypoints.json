@@ -19,7 +19,7 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 72,
+      "rest_url": 76,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 863,
+      "active_public": 867,
       "adjacent_operational": 339,
       "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1351
+    "total": 1355
   },
   "entries": [
     {
@@ -5411,9 +5411,9 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=4",
-      "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
-      "locator": "Internal exact-current formal-calendar storage, trusted preparation and operation contracts; HTTP/TUI and ordinary consumers remain separate; no source-observation or execution authority",
+      "evidence": "governed current-data contract; source_files=10",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
+      "locator": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.formal_calendar_current_pointer_contract",
@@ -10072,6 +10072,46 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-capture:exchange-calendars/snapshots/capture/",
+      "locator": "exchange-calendars/snapshots/capture/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-capture",
+      "target": "CaptureCalendarSnapshotView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-current:exchange-calendars/current/",
+      "locator": "exchange-calendars/current/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-current",
+      "target": "CurrentCalendarView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-preview:exchange-calendars/publication-preview/",
+      "locator": "exchange-calendars/publication-preview/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-preview",
+      "target": "CalendarPublicationPreviewView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-publish:exchange-calendars/publications/",
+      "locator": "exchange-calendars/publications/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-publish",
+      "target": "CalendarPublicationConfirmView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/api_urls.py:dc-capital-flows:capital-flows/",
       "locator": "capital-flows/",
       "path": "apps/data_center/interface/api_urls.py",
@@ -10502,11 +10542,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@106:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@136:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@106",
+      "symbol": "path@136",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {

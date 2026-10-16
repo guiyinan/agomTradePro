@@ -1,0 +1,13 @@
+
+=================================== ERRORS ====================================
+_ ERROR collecting tests/unit/data_center/test_calendar_publication_presenters.py _
+ImportError while importing test module 'D:\githv\agomTradePro\tests\unit\data_center\test_calendar_publication_presenters.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+tests\unit\data_center\test_calendar_publication_presenters.py:24: in <module>
+    from apps.data_center.interface.calendar_publication_presenters import (
+E   ModuleNotFoundError: No module named 'apps.data_center.interface.calendar_publication_presenters'
+=========================== short test summary info ===========================
+ERROR tests/unit/data_center/test_calendar_publication_presenters.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 1.89s

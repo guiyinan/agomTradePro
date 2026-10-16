@@ -1,0 +1,43 @@
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "bool"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "bool | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "str | _StrPromise | Callable[[], str | _StrPromise] | _Empty | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "str | Callable[[], str] | _Empty | None"  [arg-type]
+Mypy regression(s):
+- apps/data_center/interface/calendar_publication_serializers.py: arg-type increased from 0 to 31
+- apps/data_center/interface/calendar_publication_serializers.py: redundant-cast increased from 0 to 2
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "str | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "str | _StrPromise | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "dict[str, Any] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: note: "Dict" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+apps\data_center\interface\calendar_publication_serializers.py:74: note: Consider using "Mapping" instead, which is covariant in the value type
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "dict[str, str | _StrPromise] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "Sequence[Callable[[str], None] | ContextValidator[str]] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:74: error: Argument 1 to "__init__" of "CharField" has incompatible type "**dict[str, object]"; expected "int | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:81: error: Redundant cast to "str"  [redundant-cast]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "str | _Empty | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "Sequence[str] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "bool"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "bool | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "date | Callable[[], date] | _Empty | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "str | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "str | _StrPromise | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "dict[str, Any] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: note: "Dict" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+apps\data_center\interface\calendar_publication_serializers.py:175: note: Consider using "Mapping" instead, which is covariant in the value type
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "dict[str, str | _StrPromise] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:175: error: Argument 1 to "__init__" of "DateField" has incompatible type "**dict[str, object]"; expected "Sequence[Callable[[date], None] | ContextValidator[date]] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "str | _Empty | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "Sequence[str] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "tzinfo | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "bool"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "bool | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "datetime | Callable[[], datetime] | _Empty | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "str | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "str | _StrPromise | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "dict[str, Any] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: note: "Dict" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+apps\data_center\interface\calendar_publication_serializers.py:197: note: Consider using "Mapping" instead, which is covariant in the value type
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "dict[str, str | _StrPromise] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:197: error: Argument 1 to "__init__" of "DateTimeField" has incompatible type "**dict[str, object]"; expected "Sequence[Callable[[datetime], None] | ContextValidator[datetime]] | None"  [arg-type]
+apps\data_center\interface\calendar_publication_serializers.py:221: error: Redundant cast to "int"  [redundant-cast]
+Found 33 errors in 1 file (checked 1 source file)
