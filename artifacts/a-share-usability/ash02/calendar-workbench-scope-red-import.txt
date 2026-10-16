@@ -1,0 +1,62 @@
+FFFFFFFFF                                                                [100%]
+================================== FAILURES ===================================
+_ test_no_argument_scope_projects_metadata_without_claiming_runtime_or_current _
+tests\unit\data_center\test_calendar_workbench_scope.py:117: in test_no_argument_scope_projects_metadata_without_claiming_runtime_or_current
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates0-CALENDAR_CAPTURE_DATASET_MISSING] _
+tests\unit\data_center\test_calendar_workbench_scope.py:194: in test_typed_selector_blocks_preserve_reason_without_inventing_current_absence
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates1-CALENDAR_CAPTURE_PROVIDER_INSTANCE_AMBIGUOUS] _
+tests\unit\data_center\test_calendar_workbench_scope.py:194: in test_typed_selector_blocks_preserve_reason_without_inventing_current_absence
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates2-CALENDAR_CAPTURE_DATASET_MISSING] _
+tests\unit\data_center\test_calendar_workbench_scope.py:194: in test_typed_selector_blocks_preserve_reason_without_inventing_current_absence
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_invalid_clock_is_rejected_before_configuration_repository_read[clock_value0] _
+tests\unit\data_center\test_calendar_workbench_scope.py:222: in test_invalid_clock_is_rejected_before_configuration_repository_read
+    use_case, repository = _use_case(_candidate_set(), clock)
+tests\unit\data_center\test_calendar_workbench_scope.py:107: in _use_case
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_invalid_clock_is_rejected_before_configuration_repository_read[clock_value1] _
+tests\unit\data_center\test_calendar_workbench_scope.py:222: in test_invalid_clock_is_rejected_before_configuration_repository_read
+    use_case, repository = _use_case(_candidate_set(), clock)
+tests\unit\data_center\test_calendar_workbench_scope.py:107: in _use_case
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_ test_invalid_clock_is_rejected_before_configuration_repository_read[2026-10-17T08:00:00Z] _
+tests\unit\data_center\test_calendar_workbench_scope.py:222: in test_invalid_clock_is_rejected_before_configuration_repository_read
+    use_case, repository = _use_case(_candidate_set(), clock)
+tests\unit\data_center\test_calendar_workbench_scope.py:107: in _use_case
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+_____ test_untyped_repository_failure_is_not_converted_to_blocked_context _____
+tests\unit\data_center\test_calendar_workbench_scope.py:239: in test_untyped_repository_failure_is_not_converted_to_blocked_context
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+__ test_configuration_error_is_the_only_selector_exception_mapped_to_blocked __
+tests\unit\data_center\test_calendar_workbench_scope.py:261: in test_configuration_error_is_the_only_selector_exception_mapped_to_blocked
+    from apps.data_center.application.calendar_workbench_scope import (
+E   ModuleNotFoundError: No module named 'apps.data_center.application.calendar_workbench_scope'
+============================== warnings summary ===============================
+C:\ProgramData\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1441
+  C:\ProgramData\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1441: PytestConfigWarning: Unknown config option: cache_dir
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_no_argument_scope_projects_metadata_without_claiming_runtime_or_current
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates0-CALENDAR_CAPTURE_DATASET_MISSING]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates1-CALENDAR_CAPTURE_PROVIDER_INSTANCE_AMBIGUOUS]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_typed_selector_blocks_preserve_reason_without_inventing_current_absence[candidates2-CALENDAR_CAPTURE_DATASET_MISSING]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_invalid_clock_is_rejected_before_configuration_repository_read[clock_value0]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_invalid_clock_is_rejected_before_configuration_repository_read[clock_value1]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_invalid_clock_is_rejected_before_configuration_repository_read[2026-10-17T08:00:00Z]
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_untyped_repository_failure_is_not_converted_to_blocked_context
+FAILED tests/unit/data_center/test_calendar_workbench_scope.py::test_configuration_error_is_the_only_selector_exception_mapped_to_blocked
+9 failed, 1 warning in 1.60s

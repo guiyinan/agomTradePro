@@ -20,6 +20,7 @@ from django.http import HttpRequest, JsonResponse
 from django.middleware.csrf import get_token
 from django.test import override_settings
 from django.urls import include, path, resolve
+from pytest_django.plugin import DjangoDbBlocker
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -44,6 +45,12 @@ from tests.component.data_center.test_formal_calendar_publication_postgres impor
     _clear_auth_join_rows,
 )
 from tests.support.isolated_schema import isolated_schema
+from tests.support.native_postgres_database import (
+    assert_native_postgres_test_database,
+)
+from tests.support.native_postgres_database import (  # noqa: F401
+    native_postgres_test_database as _native_postgres_test_database_fixture,
+)
 from tests.unit.test_tui_workbench import FakeMetadataRepository, _metadata_payload
 
 _ORIGIN = "https://testserver"
@@ -52,6 +59,10 @@ _LEGACY_ACTION = "test.compatibility-probe"
 _AUTH_SECRET = "calendar-tui-component-internal-auth-fixture"
 _OWNER_PATH = "/api/test-owner/calendar-authority/"
 _LEGACY_PATH = "/api/test-owner/compatibility/"
+pytestmark = pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="TUI calendar authority bridge requires Native PostgreSQL",
+)
 
 
 class _AuthorityProbe(APIView):
@@ -120,26 +131,44 @@ class _CountingExecutor(TuiInternalActionExecutor):
 
 @pytest.fixture(autouse=True)
 def _postgres_schema(
-    django_db_setup: None, django_db_blocker: Any, monkeypatch: pytest.MonkeyPatch
+    django_db_setup: str,
+    django_db_blocker: DjangoDbBlocker,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[None]:
     """Keep the full app registry and clear only the explicit fixture tables.
 
-    Direct django_db_setup plus our unblock context avoids a TransactionTestCase
-    flush of every Account governance table. Restricting available_apps would
-    hide the real user__account_profile token relation.
+    The shared session fixture explicitly targets TEST.NAME. This per-test
+    fixture verifies the SQL database before both setup and cleanup, keeps the
+    full app registry for the user__account_profile relation, and avoids a
+    TransactionTestCase flush of every Account governance table.
     """
 
-    del django_db_setup
-    if connection.vendor != "postgresql":
-        pytest.skip("TUI calendar authority bridge requires Native PostgreSQL")
     monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
+
+    def verify_database_before_cleanup() -> None:
+        """Prevent any fixture cleanup if the connection drifted away from TEST.NAME."""
+
+        assert_native_postgres_test_database(expected_name=django_db_setup)
+
     with django_db_blocker.unblock():
-        with isolated_schema((*_SCHEMA_MODELS, AccountProfileModel, UserAccessTokenModel)):
+        assert_native_postgres_test_database(expected_name=django_db_setup)
+        with isolated_schema(
+            (*_SCHEMA_MODELS, AccountProfileModel, UserAccessTokenModel),
+            before_cleanup=verify_database_before_cleanup,
+        ):
             _clear_auth_join_rows()
             try:
                 yield
             finally:
+                assert_native_postgres_test_database(expected_name=django_db_setup)
                 _clear_auth_join_rows()
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(native_postgres_test_database: str) -> str:
+    """Use the shared explicitly targeted setup for this Native-only module."""
+
+    return native_postgres_test_database
 
 
 @pytest.fixture

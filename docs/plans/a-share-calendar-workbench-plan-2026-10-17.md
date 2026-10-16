@@ -76,3 +76,9 @@ TUI 目前没有日历 screen 或 action。现有管理员 Data Center screen `a
 基础认证门禁已有独立冻结验收：六项 Native PostgreSQL APIClient 组件执行真实外层 Session/CSRF、生产内部 executor 和 owner session/grant 校验，证明外层缺 CSRF、匿名、真实 token/internal 认证及撤权的拒绝边界。内部 request factory 仍关闭 CSRF；保护来自真实外层。该测试用只读 owner probe，没有采集/预览/确认/current 的完整工作台业务旅程。
 
 此计划不代表已接入 Calendar 浏览器任务、已发布当前 reference、已验证真实生产源或已获得 failover。scope、中央密钥及 token 的未暂存候选需各自经主代理验收；真实业务接线、浏览器主任务和普通消费者仍待完成，不能将基础门禁标作工作台交付。
+
+## 2026-10-17 配置概览与交接机制核验更新
+
+配置概览 Application/composition 已按主计划 19.34 独立验收，HTTP/TUI 接线仍待验收。Native 测试须使用 tests.support.native_postgres_database 的显式 TEST.NAME setup，在写入与清理前核对真实 current_database；不可用仅动态请求 django_db_setup 代替切库。
+
+只读源码核验已经证明既有 row_actions.param_map 只能从已声明、可见的行列取值，并序列化到 DOM 属性，不能安全交接 opaque token；普通 hidden 字段缺值还会进入不可见必填循环。因此本计划原先优先复用 row_actions 的假设已撤回：采用最小显式 result_continuation 声明，同屏 prepare→confirm 的精确字段映射，服务端在 view/debug/audit 前剥离机器交接，浏览器仅当前标签页内存暂存。prepare 仍遵守已有 write 确认规则；成功不会自动发布，用户另点发布并再次明确确认。取消、失败、到期、上下文变化须清空交接；直接打开 confirm 缺交接时指回预览，不要求粘贴 JSON/hash/token。此通用 metadata/compiler/runtime/renderer 扩展尚是候选，后续需独立类型、静态、Node、Native 集成与浏览器主任务验收。

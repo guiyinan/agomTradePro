@@ -1,0 +1,274 @@
+{
+  "recorded_at": "2026-10-16T23:56:53.751574+00:00",
+  "status": "bounded_scope_acceptance_with_explicit_native_target_correction",
+  "initial_scope_reference": {
+    "recorded_at": "2026-10-16T23:09:27.358326+00:00",
+    "source_tree_before_projections": "cf9ac53e2a0f5ab60e6ebab6794dc83ad84e00dc",
+    "staged_tree_with_generated_projections": "147dc724a9cfa0cb50081064ec44dc0b366e259a",
+    "base_commit": "ad6c141569f528b91a8c5265fa456b890b3c23ae",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-calendar-workbench-scope-j_en_fke",
+    "owned_paths": [
+      "apps/data_center/application/calendar_workbench_scope.py",
+      "apps/data_center/calendar_workbench_scope_composition.py",
+      "tests/unit/data_center/test_calendar_workbench_scope.py",
+      "tests/unit/data_center/test_calendar_workbench_scope_composition.py",
+      "tests/component/data_center/test_calendar_workbench_scope.py"
+    ],
+    "generated_paths": [
+      "governance/module_map.json",
+      "governance/data_dictionary.json",
+      "docs/architecture/DATA_DICTIONARY.md",
+      "governance/data_center_architecture_inventory.json",
+      "governance/data_center_entrypoints.json"
+    ],
+    "source_sha256_export_raw": {
+      "apps/data_center/application/calendar_workbench_scope.py": "5f23d0e7661d50e74b8c3ba2133c7f86afa97e8cfd7bfa22762423c98f875dc3",
+      "apps/data_center/calendar_workbench_scope_composition.py": "1c73a199d58606eef3843ae4fafb346917c1570c9537dd59678ed8235b2cb1bd",
+      "tests/unit/data_center/test_calendar_workbench_scope.py": "b31d8e43d605fe1692872b1582f72b6d9627d3f6549d9ccff7e961f3d5e6246a",
+      "tests/unit/data_center/test_calendar_workbench_scope_composition.py": "40aa30595e21f5090367eb26896240e8443d57c0e9e664da4230ab7e732edeca",
+      "tests/component/data_center/test_calendar_workbench_scope.py": "37ef8df10edca1463c9f7e09ba58d9cb0a4b88b5b6149e46bd984b9488a7efa6"
+    },
+    "proof": "Exported source tree plus only actual script-generated projection mutations; raw/LF identities separate, not release/CI/S6."
+  },
+  "quality": {
+    "targets": [
+      "tests/unit/data_center/test_calendar_workbench_scope.py",
+      "tests/unit/data_center/test_calendar_workbench_scope_composition.py",
+      "tests/component/data_center/test_calendar_workbench_scope.py",
+      "tests/unit/data_center/test_calendar_capture_configuration.py",
+      "tests/unit/data_center/test_calendar_capture_configuration_repository.py",
+      "tests/unit/test_data_center_entrypoint_inventory.py"
+    ],
+    "functions": [
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "_require_utc"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "__post_init__"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "from_configuration"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "__post_init__"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "__init__"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "execute"
+      },
+      {
+        "file": "apps/data_center/application/calendar_workbench_scope.py",
+        "function": "_read_known_at"
+      },
+      {
+        "file": "apps/data_center/calendar_workbench_scope_composition.py",
+        "function": "read_calendar_workbench_scope_context"
+      },
+      {
+        "file": "apps/data_center/calendar_workbench_scope_composition.py",
+        "function": "_require_unowned_default_connection"
+      },
+      {
+        "file": "apps/data_center/calendar_workbench_scope_composition.py",
+        "function": "now"
+      }
+    ],
+    "coverage": {
+      "apps/data_center/application/calendar_workbench_scope.py": {
+        "covered_lines": 82,
+        "num_statements": 98,
+        "percent_covered": 77.61194029850746,
+        "percent_covered_display": "77.6",
+        "missing_lines": 16,
+        "excluded_lines": 0,
+        "num_branches": 36,
+        "num_partial_branches": 14,
+        "covered_branches": 22,
+        "missing_branches": 14
+      },
+      "apps/data_center/calendar_workbench_scope_composition.py": {
+        "covered_lines": 27,
+        "num_statements": 28,
+        "percent_covered": 96.875,
+        "percent_covered_display": "96.9",
+        "missing_lines": 1,
+        "excluded_lines": 0,
+        "num_branches": 4,
+        "num_partial_branches": 0,
+        "covered_branches": 4,
+        "missing_branches": 0
+      }
+    },
+    "proof": "App/composition statement floors met; validation-branch mirror tests not added solely to reach100percent."
+  },
+  "native_reference": {
+    "recorded_at": "2026-10-16T23:36:26.257641+00:00",
+    "staged_tree": "b3b36e7663eb3eab69e078bce5e21657f014ef88",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-scope-native-verified-tqat9g_q",
+    "source_sha256": {
+      "apps/data_center/application/calendar_workbench_scope.py": "5f23d0e7661d50e74b8c3ba2133c7f86afa97e8cfd7bfa22762423c98f875dc3",
+      "apps/data_center/calendar_workbench_scope_composition.py": "1c73a199d58606eef3843ae4fafb346917c1570c9537dd59678ed8235b2cb1bd",
+      "tests/component/data_center/test_calendar_workbench_scope.py": "1bd121ea0e57ba6bf5cf179effe4e9731ddd916f68218bdf4eb7f881e6351620",
+      "tests/component/data_center/test_calendar_tui_session_auth.py": "af82166dfa8094574fc6022a02723029a40916ede0a4b81ecee6524d49a0d16f",
+      "tests/support/native_postgres_database.py": "396b9b199a11be209f1715130e5dfa01e9fd897f94aed8189f4a8dba24df95f7",
+      "tests/unit/test_native_postgres_database.py": "17115799719ca94d55ae759b27ab7c02f0aa3321c05c75c3023daec8a5a034ad",
+      "tests/support/isolated_schema.py": "0ce62c402c148a32d5677d52cf58e22abc64de5556905747b3e37d22645c1008"
+    },
+    "scope": "Full registry, forced default test alias; pre/post read-only current_database/migration/TTL/singleton checks. No base schema repair or production access. Not a release identity.",
+    "diagnostic_sources": {
+      ".tmp/test_native_target_before.py": "\"\"\"Read-only qualification before/after the Native component fixtures.\"\"\"\nimport json\nfrom pathlib import Path\nimport pytest\nfrom django.db import connection\nfrom tests.support.native_postgres_database import native_postgres_test_database as native_postgres_test_database\nfrom tests.support.native_postgres_database import assert_native_postgres_test_database\n\n@pytest.fixture(scope=\"session\")\ndef django_db_setup(native_postgres_test_database):\n    return native_postgres_test_database\n\ndef test_qualified_target(django_db_setup,django_db_blocker):\n    with django_db_blocker.unblock():\n        assert_native_postgres_test_database()\n        with connection.cursor() as cursor:\n            cursor.execute(\"SELECT current_database(),current_schema()\")\n            target=cursor.fetchone()\n            cursor.execute(\"SELECT COUNT(*) FROM django_migrations\")\n            migrations=cursor.fetchone()[0]\n            cursor.execute(\"SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=%s\",['data_center_dataset_contract'])\n            columns=[row[0] for row in cursor.fetchall()]\n            cursor.execute(\"SELECT singleton,generation FROM account_authority_generation\")\n            singleton=cursor.fetchall()\n    report={'actual_database_schema':target,'configured_name':connection.settings_dict['NAME'],'explicit_test_name':connection.settings_dict['TEST']['NAME'],'applied_migrations':migrations,'calendar_ttl_present':'calendar_response_max_age_seconds' in columns,'account_singleton':singleton,'read_only':True}\n    output=Path('D:\\\\githv\\\\agomTradePro\\\\artifacts\\\\a-share-usability\\\\ash02\\\\calendar-workbench-scope-verified-native-before.json')\n    assert not output.exists()\n    output.write_text(json.dumps(report,indent=2)+'\\n',encoding='utf-8')\n    assert target[0]==report['explicit_test_name']=='test_ash_quality_native'\n    assert migrations==544 and report['calendar_ttl_present']\n    assert singleton==[(1,0)]\n",
+      ".tmp/test_native_target_after.py": "\"\"\"Read-only qualification before/after the Native component fixtures.\"\"\"\nimport json\nfrom pathlib import Path\nimport pytest\nfrom django.db import connection\nfrom tests.support.native_postgres_database import native_postgres_test_database as native_postgres_test_database\nfrom tests.support.native_postgres_database import assert_native_postgres_test_database\n\n@pytest.fixture(scope=\"session\")\ndef django_db_setup(native_postgres_test_database):\n    return native_postgres_test_database\n\ndef test_qualified_target(django_db_setup,django_db_blocker):\n    with django_db_blocker.unblock():\n        assert_native_postgres_test_database()\n        with connection.cursor() as cursor:\n            cursor.execute(\"SELECT current_database(),current_schema()\")\n            target=cursor.fetchone()\n            cursor.execute(\"SELECT COUNT(*) FROM django_migrations\")\n            migrations=cursor.fetchone()[0]\n            cursor.execute(\"SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=%s\",['data_center_dataset_contract'])\n            columns=[row[0] for row in cursor.fetchall()]\n            cursor.execute(\"SELECT singleton,generation FROM account_authority_generation\")\n            singleton=cursor.fetchall()\n    report={'actual_database_schema':target,'configured_name':connection.settings_dict['NAME'],'explicit_test_name':connection.settings_dict['TEST']['NAME'],'applied_migrations':migrations,'calendar_ttl_present':'calendar_response_max_age_seconds' in columns,'account_singleton':singleton,'read_only':True}\n    output=Path('D:\\\\githv\\\\agomTradePro\\\\artifacts\\\\a-share-usability\\\\ash02\\\\calendar-workbench-scope-verified-native-after.json')\n    assert not output.exists()\n    output.write_text(json.dumps(report,indent=2)+'\\n',encoding='utf-8')\n    assert target[0]==report['explicit_test_name']=='test_ash_quality_native'\n    assert migrations==544 and report['calendar_ttl_present']\n    assert singleton==[(1,0)]\n"
+    }
+  },
+  "native_result": {
+    "staged_tree": "b3b36e7663eb3eab69e078bce5e21657f014ef88",
+    "exit": 0,
+    "changed_during_run": []
+  },
+  "native_passed": 15,
+  "native_seconds": 28.58,
+  "native_breakdown": {
+    "scope": 7,
+    "outer_session_owner_probe": 6,
+    "pre_post_target_qualification": 2
+  },
+  "fixture_unit_passed": 10,
+  "fixture_native_skipped": 13,
+  "native_target_correction": {
+    "recorded_at": "2026-10-16T23:56:53.737829+00:00",
+    "status": "Historical six-pass output retained; prior test-target/544-migration qualification withdrawn because actual target identity was not recorded. The same fixture pattern reproducibly requests zero pytest aliases and targets disposable local base ash_quality_native (537 migrations). Verified-target replacement independently reruns the six auth cases. No production database was involved.",
+    "replacement_checkpoint": "docs/testing/a-share-usability-calendar-workbench-scope-2026-10-17.json",
+    "original_target_probe": "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-runtime-target-probe.json",
+    "replacement_test_target": "test_ash_quality_native",
+    "replacement_migrations": 544
+  },
+  "lost_unaccepted_logs": "See calendar-workbench-scope-native-component-note.md; overwritten old raw files excluded from acceptance.",
+  "candidate_log_observation": "Root observed different elapsed times in two reads of an unaccepted helper SQLite log. Writer was not identified; the agent reported no artifact redirection in final checks. Unbound candidate green logs are excluded; final acceptance uses unique Root frozen-export logs.",
+  "preflight_failure": "A supplied63-character test digest failed staging validation; a dependent export mistakenly started before staging success and stopped at missing helper file before database access. Complete64-character hash verified, staging and final Native export rerun in dependency order. This is an operator preflight failure, not a business/Native failure.",
+  "scope": "Metadata only, no routes/models/migrations/RPC/seeds/orders; Goal remains active. Separate raw/LF identities, not release/CI/S6.",
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-composition-red.txt": "6b7cb2a2b4aad9b00c6bb5d845e03511984604ad15f6d8dac15d0adc8bff562b",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-native-component-note.md": "d7473de7ebe1499527087624603e57b30783e9de1a764259335f5b53b2b893bf",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-red-import.txt": "c629f3ed600b539b055520d794b254b534a594335b59a3e4ef81f69ecd4952d4",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-architecture-sources.json": "3468da474bd628dd083caec5bb166f11b44bb34ea91d8d81b0a4b9846db3c2a9",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-architecture.json": "a5092974bc65ed83c1f4a3fea2b9fd82154c54ba33df19ead3438d0a65cd41a6",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-black.txt": "ece44587b21e319203a369e8a2e565238a900a94558f5af73178b5e575dfce32",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-coverage.json": "a771d7ea4f598a9c5f05e7890dfb1cbde9b6f94e7b5519e500d91a3ed3839ffb",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-full-mypy.txt": "77ea60b67607074c5a8657c439702399e2ff69cab1774f1b27fc33543c843f09",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-incremental-mypy.txt": "95e2ea36c242a18b2cd06ba8b1eb24474360ab02ef8654fea4f336d2c3c05b3b",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-isort.txt": "8f639428ee3718a16ba363ec16cadaa35a36859b01394c2852543abe2445075e",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-native.txt": "03dc002ba0fd91c7517d98e23c50bc4318f3f26ac08b636b7b3310b060d8a25f",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-quality-sources.json": "3468da474bd628dd083caec5bb166f11b44bb34ea91d8d81b0a4b9846db3c2a9",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-quality.json": "1f59096020e9f1335ad7db5c67db1e2dcad617d561cfbad65d45116129af90a8",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-reference.json": "fe3bce2432c6fe14e6f23f950007945924c88bf465b4865e7147bcd81530ea93",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-ruff.txt": "6c5307076e7faa5d968178b39f34ec1389733bf7f4d5eee82881f49c5890eace",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-runtime-target-probe.json": "fd89a16e218c4858970f083338e7503dec88e3ba6e9f5d93f3a2ee6c19b11ac4",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-runtime-target-probe.txt": "ffdebae409c56de6d4777861f5a78d9266f251e5a2d2c9dd1763955d94e067d2",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-schema-audit.json": "2e2520de3c771165719ad7e359f36913c310bb4a0c1932156522f44e107a97e2",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-tests.txt": "6d9b29debd905662b5e62c6dce41d45b9534cfa0533bee6c8f06740f24cacf67",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-typing-sources.json": "3468da474bd628dd083caec5bb166f11b44bb34ea91d8d81b0a4b9846db3c2a9",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-entry-check.txt": "bd60fd3c913c8d8fc3f83619e8e498f82560d8e2f9de46b149cf5c99424c17eb",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-entry-generate.txt": "bd60fd3c913c8d8fc3f83619e8e498f82560d8e2f9de46b149cf5c99424c17eb",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-entry-reference.json": "843dac16668c9918c137b720c821f768827c3a5f1cce6d1c4b42cbff17ef1a3c",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-fixture-black.txt": "62aede6ae6722b6f9554489aab6933dee709ad72541ff222dc4d8439efac9057",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-fixture-isort.txt": "9558546ff3c0da147f21facf9dc207ecdd980b7398a8808864e698c3aef20a73",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-fixture-projections.txt": "7d5b14588c3845da054bc0e091f772dfd33b0f99656413f5dd63e61acb09462a",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-fixture-ruff.txt": "9f0a1344f2a872050a94ede557e17338eabc158fb8e189cf4363bb28d0176668",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-fixture-tests.txt": "249dbeef3ea04f78af5035cddf5aa2b86c447bbde0f05e8ea36a2d5d64bbc9fe",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-native-after.json": "ca5bf8c02bd47021366d2e4212e12d39602a1a290548d530300057ddffd1de1e",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-native-before.json": "ca5bf8c02bd47021366d2e4212e12d39602a1a290548d530300057ddffd1de1e",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-native-reference.json": "24a4502f00bc35c8c86a505361116df0e83487a6c25d0dbd876669575bab90fd",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-native-result.json": "850a647db4fecdb26d8eb62c95290e12e94251f78f68012d7419b2c919b50d47",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-native-tests.txt": "7eae6f70addf146b29e5a40f90315739d0bf849d38050ab8ac14a6021d983ed8",
+    "artifacts/a-share-usability/ash02/native-session-db-helper-blocker-red.txt": "0860446a47607dc40c1bd5c02f77406b8754b6d3e8b387fb50c4a24a514a9040",
+    "artifacts/a-share-usability/ash02/native-session-db-helper-red.txt": "8c16caf8f162e04ad7746e0eaf7d5324738f1468a18c0a16cb5bfbad9dfa93f4",
+    "artifacts/a-share-usability/ash02/phased-calendar-workbench-scope-index-projections-1.txt": "b4365b0e6e0af5a99aa0b02e657a2b9b416e07fe1482a1fdb1037f29cc2ed2eb",
+    "artifacts/a-share-usability/ash02/calendar-workbench-scope-verified-plan-registry.json": "6302469677cece3f6ec836f742acf6311f420f4f53887822a29f67f567e3acb6"
+  },
+  "final_entry_projection": {
+    "recorded_at": "2026-10-16T23:55:35.803577+00:00",
+    "native_source_tree": "b3b36e7663eb3eab69e078bce5e21657f014ef88",
+    "manifest_source_tree": "72c6b4b2dabf96c1cc810d2bab201791926a33ae",
+    "final_staged_tree": "6db3ad40b6d261a84a44bd840a15511e60082743",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-scope-entry-final-qd9fsrg0",
+    "only_changes_since_native": [
+      "governance/data_center_entrypoints.json",
+      "governance/data_center_operational_entrypoints.json"
+    ],
+    "generated_sha256": "fdc7d731cf6ac3bf696cef3211648250e308120410c4d8c0e33e64ab94c8e432",
+    "manifest_sha256": "c4d748e5c8f9ecfa7472fa7804b3a434eea7f2494cef1442739a7c3f695d0590",
+    "summary": {
+      "by_category": {
+        "admin_surface": 16,
+        "agent_skill": 3,
+        "application_consumer": 160,
+        "beat_schedule": 61,
+        "capability_runtime": 25,
+        "celery_dispatch_edge": 18,
+        "celery_task": 130,
+        "compatibility_facade": 95,
+        "current_data_surface": 84,
+        "dynamic_import_edge": 14,
+        "management_command": 49,
+        "management_command_edge": 65,
+        "mcp_tool": 40,
+        "migration_evidence": 14,
+        "operational_dispatch_edge": 72,
+        "operational_script": 40,
+        "orchestration_entry": 18,
+        "public_port": 97,
+        "rest_url": 76,
+        "runbook": 7,
+        "runtime_config_key": 45,
+        "scheduler_writer": 18,
+        "script": 19,
+        "sdk": 57,
+        "terminal_tui": 28,
+        "test_evidence": 95,
+        "workflow_step": 11
+      },
+      "by_status": {
+        "active_public": 867,
+        "adjacent_operational": 341,
+        "candidate-review": 11,
+        "compatibility": 138,
+        "retired_blocked": 0
+      },
+      "total": 1357
+    },
+    "summary_source_key": "counts",
+    "generator_and_check_exit_codes": [
+      0,
+      0
+    ],
+    "raw_log_sha256": {
+      "calendar-workbench-scope-verified-entry-generate.txt": "bd60fd3c913c8d8fc3f83619e8e498f82560d8e2f9de46b149cf5c99424c17eb",
+      "calendar-workbench-scope-verified-entry-check.txt": "bd60fd3c913c8d8fc3f83619e8e498f82560d8e2f9de46b149cf5c99424c17eb"
+    },
+    "reporting_error": "Initial operator helper used nonexistent summary key after both checks succeeded and generated bytes were staged; corrected report reads actual counts key. No source or generated-file edit and no check rerun.",
+    "proof": "Official generator and stale-check; production/tests unchanged since verified Native15. Old stale-check failure retained."
+  },
+  "plan_registry": {
+    "validation_tree_before_checkpoint_update": "8df44e33955eacd62f48e7f2e57985256f8204fa",
+    "report": {
+      "version": "2026-10-17.v227",
+      "workstream_count": 13,
+      "primary_plan_count": 22,
+      "supporting_document_count": 36,
+      "review_queue_count": 0,
+      "closure_unit_count": 74,
+      "registered_path_count": 58,
+      "active_path_count": 58,
+      "violation_count": 0,
+      "violations": []
+    }
+  }
+}

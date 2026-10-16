@@ -1,0 +1,104 @@
+F...FF.FF                                                                [100%]
+================================== FAILURES ===================================
+______ test_setup_uses_only_default_and_restores_public_migrate_setting _______
+tests\unit\test_native_postgres_database.py:119: in test_setup_uses_only_default_and_restores_public_migrate_setting
+    with _open_session(connection, use_migrations=False) as expected_name:
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\support\native_postgres_database.py:291: in native_postgres_database_session
+    state = _acquire_database_setup(
+tests\support\native_postgres_database.py:238: in _acquire_database_setup
+    assert_native_postgres_test_database(expected_name=target_name, database=database)
+tests\support\native_postgres_database.py:146: in assert_native_postgres_test_database
+    actual_name = _read_current_database_name(database)
+tests\support\native_postgres_database.py:105: in _read_current_database_name
+    cursor.execute("SELECT current_database()")
+tests\unit\test_native_postgres_database.py:29: in execute
+    assert self.blocker.active, "SQL ran while Django's database blocker was active"
+E   AssertionError: SQL ran while Django's database blocker was active
+E   assert False
+E    +  where False = <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E425D30>.active
+E    +    where <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E425D30> = <tests.unit.test_native_postgres_database._Cursor object at 0x000002331E425FD0>.blocker
+_______ test_existing_test_connection_is_sql_verified_and_never_rebuilt _______
+tests\unit\test_native_postgres_database.py:173: in test_existing_test_connection_is_sql_verified_and_never_rebuilt
+    with _open_session(connection):
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\support\native_postgres_database.py:291: in native_postgres_database_session
+    state = _acquire_database_setup(
+tests\support\native_postgres_database.py:196: in _acquire_database_setup
+    assert_native_postgres_test_database(expected_name=target_name, database=database)
+tests\support\native_postgres_database.py:146: in assert_native_postgres_test_database
+    actual_name = _read_current_database_name(database)
+tests\support\native_postgres_database.py:105: in _read_current_database_name
+    cursor.execute("SELECT current_database()")
+tests\unit\test_native_postgres_database.py:29: in execute
+    assert self.blocker.active, "SQL ran while Django's database blocker was active"
+E   AssertionError: SQL ran while Django's database blocker was active
+E   assert False
+E    +  where False = <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E461220>.active
+E    +    where <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E461220> = <tests.unit.test_native_postgres_database._Cursor object at 0x000002331E4610F0>.blocker
+__ test_create_db_overrides_reuse_for_setup_but_keeps_database_after_session __
+tests\unit\test_native_postgres_database.py:203: in test_create_db_overrides_reuse_for_setup_but_keeps_database_after_session
+    with _open_session(connection, reuse_db=True, create_db=True):
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\support\native_postgres_database.py:291: in native_postgres_database_session
+    state = _acquire_database_setup(
+tests\support\native_postgres_database.py:238: in _acquire_database_setup
+    assert_native_postgres_test_database(expected_name=target_name, database=database)
+tests\support\native_postgres_database.py:146: in assert_native_postgres_test_database
+    actual_name = _read_current_database_name(database)
+tests\support\native_postgres_database.py:105: in _read_current_database_name
+    cursor.execute("SELECT current_database()")
+tests\unit\test_native_postgres_database.py:29: in execute
+    assert self.blocker.active, "SQL ran while Django's database blocker was active"
+E   AssertionError: SQL ran while Django's database blocker was active
+E   assert False
+E    +  where False = <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E323AD0>.active
+E    +    where <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E323AD0> = <tests.unit.test_native_postgres_database._Cursor object at 0x000002331E3239B0>.blocker
+____________ test_setup_rejects_database_sql_mismatch_before_yield ____________
+tests\unit\test_native_postgres_database.py:250: in test_setup_rejects_database_sql_mismatch_before_yield
+    with _open_session(connection):
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\support\native_postgres_database.py:291: in native_postgres_database_session
+    state = _acquire_database_setup(
+tests\support\native_postgres_database.py:238: in _acquire_database_setup
+    assert_native_postgres_test_database(expected_name=target_name, database=database)
+tests\support\native_postgres_database.py:146: in assert_native_postgres_test_database
+    actual_name = _read_current_database_name(database)
+tests\support\native_postgres_database.py:105: in _read_current_database_name
+    cursor.execute("SELECT current_database()")
+tests\unit\test_native_postgres_database.py:29: in execute
+    assert self.blocker.active, "SQL ran while Django's database blocker was active"
+E   AssertionError: SQL ran while Django's database blocker was active
+E   assert False
+E    +  where False = <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E5EC8D0>.active
+E    +    where <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E5EC8D0> = <tests.unit.test_native_postgres_database._Cursor object at 0x000002331E5EC7C0>.blocker
+____ test_reused_setup_is_shared_and_teardown_waits_for_last_fixture_lease ____
+tests\unit\test_native_postgres_database.py:273: in test_reused_setup_is_shared_and_teardown_waits_for_last_fixture_lease
+    with _open_session(connection):
+C:\ProgramData\anaconda3\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+tests\support\native_postgres_database.py:291: in native_postgres_database_session
+    state = _acquire_database_setup(
+tests\support\native_postgres_database.py:238: in _acquire_database_setup
+    assert_native_postgres_test_database(expected_name=target_name, database=database)
+tests\support\native_postgres_database.py:146: in assert_native_postgres_test_database
+    actual_name = _read_current_database_name(database)
+tests\support\native_postgres_database.py:105: in _read_current_database_name
+    cursor.execute("SELECT current_database()")
+tests\unit\test_native_postgres_database.py:29: in execute
+    assert self.blocker.active, "SQL ran while Django's database blocker was active"
+E   AssertionError: SQL ran while Django's database blocker was active
+E   assert False
+E    +  where False = <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E223950>.active
+E    +    where <tests.unit.test_native_postgres_database._Blocker object at 0x000002331E223950> = <tests.unit.test_native_postgres_database._Cursor object at 0x000002331E223A50>.blocker
+=========================== short test summary info ===========================
+FAILED tests/unit/test_native_postgres_database.py::test_setup_uses_only_default_and_restores_public_migrate_setting
+FAILED tests/unit/test_native_postgres_database.py::test_existing_test_connection_is_sql_verified_and_never_rebuilt
+FAILED tests/unit/test_native_postgres_database.py::test_create_db_overrides_reuse_for_setup_but_keeps_database_after_session
+FAILED tests/unit/test_native_postgres_database.py::test_setup_rejects_database_sql_mismatch_before_yield
+FAILED tests/unit/test_native_postgres_database.py::test_reused_setup_is_shared_and_teardown_waits_for_last_fixture_lease
+5 failed, 4 passed in 1.91s

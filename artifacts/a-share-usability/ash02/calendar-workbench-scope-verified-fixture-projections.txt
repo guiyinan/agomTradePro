@@ -1,0 +1,16 @@
+staged_tree=b3b36e7663eb3eab69e078bce5e21657f014ef88
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q
+module map OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q\governance\module_map.json matches the source tree (modules=44 edges=210)
+data dictionary OK: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q\governance\data_dictionary.json and D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q\docs\architecture\DATA_DICTIONARY.md match the source tree (apps=42 models=588)
+Audit event contracts OK: events=23; status=active; implementation=wired
+Current-data freshness contracts OK: 84 surface(s)
+{"approved_non_data_http_imports": 5, "cross_app_orm_imports": 47, "current_surface_references": 5695, "data_write_task_decorators": 66, "direct_data_center_imports_outside_data_center": 0, "external_http_imports_for_review": 0, "legacy_fact_references": 0, "provider_imports_outside_data_center": 0, "runtime_parameter_references": 56}
+inventory is stale: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-scope-native-verified-tqat9g_q\governance\data_center_entrypoints.json
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import subprocess,sys; scripts=['scripts/check_module_map.py','scripts/check_data_dictionary.py','scripts/check_audit_event_contracts.py','scripts/check_current_data_contracts.py','scripts/data_center_architecture_inventory.py','scripts/data_center_entrypoint_inventory.py']; [subprocess.run([sys.executable,'-X','utf8',s],check=True) for s in scripts]
+                                                                                                                                                                                                                                                                                         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', 'scripts/data_center_entrypoint_inventory.py']' returned non-zero exit status 1.

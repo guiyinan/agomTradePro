@@ -1,0 +1,215 @@
+source_tree_before_projections=cf9ac53e2a0f5ab60e6ebab6794dc83ad84e00dc
+staged_tree_with_generated_projections=147dc724a9cfa0cb50081064ec44dc0b366e259a
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-calendar-workbench-scope-j_en_fke
+FFFFF..                                                                  [100%]
+================================== FAILURES ===================================
+_ test_scope_composition_selects_safe_metadata_without_secrets_provider_or_current _
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UndefinedColumn: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+
+The above exception was the direct cause of the following exception:
+tests\component\data_center\test_calendar_workbench_scope.py:157: in test_scope_composition_selects_safe_metadata_without_secrets_provider_or_current
+    _write_configuration()
+tests\component\data_center\test_calendar_workbench_scope.py:108: in _write_configuration
+    _write_contract(dataset_key=dataset_key)
+tests\component\data_center\test_calendar_workbench_scope.py:84: in _write_contract
+    return DatasetContractModel.objects.create(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:665: in create
+    obj.save(force_insert=True, using=self.db)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:902: in save
+    self.save_base(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1008: in save_base
+    updated = self._save_table(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1169: in _save_table
+    results = self._do_insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1210: in _do_insert
+    return manager._insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:1873: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\sql\compiler.py:1882: in execute_sql
+    cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   django.db.utils.ProgrammingError: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+_ test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[missing-CALENDAR_CAPTURE_DATASET_MISSING] _
+tests\component\data_center\test_calendar_workbench_scope.py:213: in test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog
+    assert context.blocked_reason == expected_reason
+E   AssertionError: assert 'CALENDAR_CAP...G_UNAVAILABLE' == 'CALENDAR_CAP...TASET_MISSING'
+E     
+E     - CALENDAR_CAPTURE_DATASET_MISSING
+E     + CALENDAR_CAPTURE_CATALOG_UNAVAILABLE
+_ test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[multiple_active-CALENDAR_CAPTURE_DATASET_AMBIGUOUS] _
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UndefinedColumn: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+
+The above exception was the direct cause of the following exception:
+tests\component\data_center\test_calendar_workbench_scope.py:203: in test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog
+    _write_configuration()
+tests\component\data_center\test_calendar_workbench_scope.py:108: in _write_configuration
+    _write_contract(dataset_key=dataset_key)
+tests\component\data_center\test_calendar_workbench_scope.py:84: in _write_contract
+    return DatasetContractModel.objects.create(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:665: in create
+    obj.save(force_insert=True, using=self.db)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:902: in save
+    self.save_base(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1008: in save_base
+    updated = self._save_table(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1169: in _save_table
+    results = self._do_insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1210: in _do_insert
+    return manager._insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:1873: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\sql\compiler.py:1882: in execute_sql
+    cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   django.db.utils.ProgrammingError: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+_ test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[active_null_ttl_version-CALENDAR_CAPTURE_DATASET_AMBIGUOUS] _
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UndefinedColumn: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+
+The above exception was the direct cause of the following exception:
+tests\component\data_center\test_calendar_workbench_scope.py:206: in test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog
+    _write_configuration()
+tests\component\data_center\test_calendar_workbench_scope.py:108: in _write_configuration
+    _write_contract(dataset_key=dataset_key)
+tests\component\data_center\test_calendar_workbench_scope.py:84: in _write_contract
+    return DatasetContractModel.objects.create(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:665: in create
+    obj.save(force_insert=True, using=self.db)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:902: in save
+    self.save_base(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1008: in save_base
+    updated = self._save_table(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1169: in _save_table
+    results = self._do_insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1210: in _do_insert
+    return manager._insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:1873: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\sql\compiler.py:1882: in execute_sql
+    cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   django.db.utils.ProgrammingError: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+__ test_existing_current_pointer_is_not_required_or_read_for_metadata_scope ___
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UndefinedColumn: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+
+The above exception was the direct cause of the following exception:
+tests\component\data_center\test_calendar_workbench_scope.py:221: in test_existing_current_pointer_is_not_required_or_read_for_metadata_scope
+    _write_configuration()
+tests\component\data_center\test_calendar_workbench_scope.py:108: in _write_configuration
+    _write_contract(dataset_key=dataset_key)
+tests\component\data_center\test_calendar_workbench_scope.py:84: in _write_contract
+    return DatasetContractModel.objects.create(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:665: in create
+    obj.save(force_insert=True, using=self.db)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:902: in save
+    self.save_base(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1008: in save_base
+    updated = self._save_table(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1169: in _save_table
+    results = self._do_insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py:1210: in _do_insert
+    return manager._insert(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\query.py:1873: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\sql\compiler.py:1882: in execute_sql
+    cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:79: in execute
+    return self._execute_with_wrappers(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:92: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:100: in _execute
+    with self.db.wrap_database_errors:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\utils.py:105: in _execute
+    return self.cursor.execute(sql, params)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\psycopg\cursor.py:97: in execute
+    raise ex.with_traceback(None)
+E   django.db.utils.ProgrammingError: column "calendar_response_max_age_seconds" of relation "data_center_dataset_contract" does not exist
+E   LINE 1: ...reshness_seconds", "execution_freshness_seconds", "calendar_...
+E                                                                ^
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_calendar_workbench_scope.py::test_scope_composition_selects_safe_metadata_without_secrets_provider_or_current
+FAILED tests/component/data_center/test_calendar_workbench_scope.py::test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[missing-CALENDAR_CAPTURE_DATASET_MISSING]
+FAILED tests/component/data_center/test_calendar_workbench_scope.py::test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[multiple_active-CALENDAR_CAPTURE_DATASET_AMBIGUOUS]
+FAILED tests/component/data_center/test_calendar_workbench_scope.py::test_scope_composition_fails_closed_for_missing_or_ambiguous_catalog[active_null_ttl_version-CALENDAR_CAPTURE_DATASET_AMBIGUOUS]
+FAILED tests/component/data_center/test_calendar_workbench_scope.py::test_existing_current_pointer_is_not_required_or_read_for_metadata_scope
+5 failed, 2 passed in 4.20s

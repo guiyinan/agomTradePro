@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 93,
+      "test_evidence": 95,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 867,
-      "adjacent_operational": 339,
+      "adjacent_operational": 341,
       "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1355
+    "total": 1357
   },
   "entries": [
     {
@@ -13071,6 +13071,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed Native PostgreSQL test-only setup and lifecycle unit checks; public default-alias setup, explicit independent TEST.NAME, actual SQL target checks before fixture writes/cleanup, no new business or production invocation surface",
+      "id": "test_evidence:tests/support/native_postgres_database.py:native_postgres_database:",
+      "locator": "",
+      "path": "tests/support/native_postgres_database.py",
+      "status": "adjacent_operational",
+      "symbol": "native_postgres_database",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/account/test_celery_task_outcome_contracts.py:test_celery_task_outcome_contracts:",
       "locator": "",
@@ -13421,6 +13431,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed Native PostgreSQL test-only setup and lifecycle unit checks; public default-alias setup, explicit independent TEST.NAME, actual SQL target checks before fixture writes/cleanup, no new business or production invocation surface",
+      "id": "test_evidence:tests/unit/test_native_postgres_database.py:test_native_postgres_database:",
+      "locator": "",
+      "path": "tests/unit/test_native_postgres_database.py",
+      "status": "adjacent_operational",
+      "symbol": "test_native_postgres_database",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/unit/test_postgres_role_contract.py:test_postgres_role_contract:",
       "locator": "",
@@ -13603,7 +13623,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 84,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 42,
+    "operational_governance_rules": 43,
     "runtime_config_keys": 45
   },
   "source_contracts": [

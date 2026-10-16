@@ -444,6 +444,15 @@
         "tests/unit/test_evid09_web_only_image_exercise.py"
       ],
       "status": "active_public"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed Native PostgreSQL test-only setup and lifecycle unit checks; public default-alias setup, explicit independent TEST.NAME, actual SQL target checks before fixture writes/cleanup, no new business or production invocation surface",
+      "path": [
+        "tests/support/native_postgres_database.py",
+        "tests/unit/test_native_postgres_database.py"
+      ],
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

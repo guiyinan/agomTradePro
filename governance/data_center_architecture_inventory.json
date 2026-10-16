@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5685,
+    "current_surface_references": 5695,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8219,6 +8219,34 @@
       "text": "supplied knowledge cutoff. It must not choose a latest source or silently"
     },
     {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"Enforce that this no-argument context makes no execution or current claim.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"Return active calendar metadata without secrets, network, or current-pointer reads.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"Safe, version-exact catalog metadata with no credential or current data.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"Select current metadata at server time with no caller-supplied scope fields.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"Separate metadata selection from unverified capture runtime and current state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "\"\"\"State whether a specific exchange current pointer was queried.\"\"\""
+    },
+    {
+      "path": "apps/data_center/application/calendar_workbench_scope.py",
+      "text": "raise ValueError(\"Calendar scope context has no exchange-scoped current pointer\")"
+    },
+    {
       "path": "apps/data_center/application/config_summary_service.py",
       "text": "\"\"\"Register the data-center config-summary repository.\"\"\""
     },
@@ -10241,6 +10269,18 @@
     {
       "path": "apps/data_center/calendar_publication_operations_composition.py",
       "text": "\"\"\"Return the current timezone-aware server instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_scope_composition.py",
+      "text": "\"\"\"Return the current timezone-aware server instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_scope_composition.py",
+      "text": "reads a current publication pointer. A successful result means metadata was"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_scope_composition.py",
+      "text": "selected; it does not establish provider readiness or current publication."
     },
     {
       "path": "apps/data_center/composition.py",

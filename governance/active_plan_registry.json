@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v226",
+  "version": "2026-10-17.v227",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.33 after91dd83f49 fixes confirmed to exact JSON bool/defaultfalse before dependency setup; seven real invalid-type reds, separate nonreflection test-assertion red preserved. Exact staged-source 345cdea835430907d4db5c39b65a5f6dbc8c0b72: 433 unit/SQLite passed, 0 skipped; Native6 outer Session/CSRF+inner owner authority cases passed, not Calendar business/browser UAT. One production incremental type/full debt zero; style/coverage/architecture/runtime check green. No manifest/structure/model/route change. Next independent acceptance: central key, original-TTL-bound preview codec, owner scope and dedicated Calendar workbench/browser task; then ordinary sim/backtest consumers. ASH-02 sole focus; original ASH-01/fullASH-02/03/Goal open; DATA-18 gates ASH-11. No production, Provider/failover, research, Evidence, dispatch or broker qualification; broker_order_evidence_integrated remains false.",
+      "next_gate": "Plan19.34 safe metadata scope accepted locally:77 unit/SQLite pass7Native-only skips; production2 inc/fulltype0, style/coverage/architecture/projections green. Native fixture actual-target bug confirmed: historical auth6 outputs retained but544/test-target assumptions withdrawn and corrected. Public explicit-default setup and SQL target guards before writes/cleanup; verified Native15 = scope7+auth6+pre/postqualification2, all on test_ash_quality_native/544 with singleton intact. This is not Calendar workbench business/browser UAT. Next key/token foundation, ownerAPI/TUI continuation/browser then ordinary sim/backtest. Full ASH01/02/03/Goal open; no production/Provider/research/Evidence/dispatch/broker qualification; DATA18 gatesASH11.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

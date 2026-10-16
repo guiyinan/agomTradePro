@@ -1,0 +1,17 @@
+{
+  "tree": "147dc724a9cfa0cb50081064ec44dc0b366e259a",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-calendar-workbench-scope-j_en_fke",
+  "source_sha256": {
+    "apps/data_center/application/calendar_workbench_scope.py": "5f23d0e7661d50e74b8c3ba2133c7f86afa97e8cfd7bfa22762423c98f875dc3",
+    "apps/data_center/calendar_workbench_scope_composition.py": "1c73a199d58606eef3843ae4fafb346917c1570c9537dd59678ed8235b2cb1bd",
+    "tests/unit/data_center/test_calendar_workbench_scope.py": "b31d8e43d605fe1692872b1582f72b6d9627d3f6549d9ccff7e961f3d5e6246a",
+    "tests/unit/data_center/test_calendar_workbench_scope_composition.py": "40aa30595e21f5090367eb26896240e8443d57c0e9e664da4230ab7e732edeca",
+    "tests/component/data_center/test_calendar_workbench_scope.py": "37ef8df10edca1463c9f7e09ba58d9cb0a4b88b5b6149e46bd984b9488a7efa6",
+    "apps/data_center/application/calendar_capture_configuration.py": "adb24a9059c0e940214cf9c8648a0e727096d8c6e958eea412528fd1994f957d",
+    "apps/data_center/infrastructure/calendar_capture_configuration_repository.py": "a95cce730161c851906edccfe6f0649040e56f8923b2265cec1bee4b98f84634",
+    "apps/data_center/infrastructure/catalog_models.py": "c5ab70b4b08d2cca45b339f8ebf970720a6273c8f03fa77c9db554712186a3bd",
+    "apps/data_center/infrastructure/models.py": "c7e79b41ec3899f5d200a8b55974017015f26cac62abdf91cdc2fa8ffb3edb81"
+  },
+  "changed_during_run": [],
+  "exit": 0
+}

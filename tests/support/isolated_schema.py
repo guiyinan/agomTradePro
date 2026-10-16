@@ -7,7 +7,7 @@ helper uses existing tables when present, clears only the tables under test,
 and drops only tables it created itself.
 """
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 
 from django.db import connection, models
@@ -32,8 +32,12 @@ def _clear_rows(model_types: tuple[ModelType, ...], existing_tables: set[str]) -
 
 
 @contextmanager
-def isolated_schema(model_types: Iterable[ModelType]) -> Iterator[None]:
-    """Create or reuse test tables and clean them before and after a test."""
+def isolated_schema(
+    model_types: Iterable[ModelType],
+    *,
+    before_cleanup: Callable[[], None] | None = None,
+) -> Iterator[None]:
+    """Create or reuse test tables, then guard row cleanup and owned table drops."""
 
     ordered_models = _unique_models(model_types)
     existing_tables = set(connection.introspection.table_names())
@@ -54,6 +58,8 @@ def isolated_schema(model_types: Iterable[ModelType]) -> Iterator[None]:
     try:
         yield
     finally:
+        if before_cleanup is not None:
+            before_cleanup()
         all_tables = existing_tables | {model_type._meta.db_table for model_type in missing_models}
         _clear_rows(ordered_models, all_tables)
         with connection.schema_editor() as editor:

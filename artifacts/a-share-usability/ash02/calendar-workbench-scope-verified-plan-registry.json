@@ -1,0 +1,16 @@
+{
+  "validation_tree_before_checkpoint_update": "8df44e33955eacd62f48e7f2e57985256f8204fa",
+  "exit": 0,
+  "report": {
+    "version": "2026-10-17.v227",
+    "workstream_count": 13,
+    "primary_plan_count": 22,
+    "supporting_document_count": 36,
+    "review_queue_count": 0,
+    "closure_unit_count": 74,
+    "registered_path_count": 58,
+    "active_path_count": 58,
+    "violation_count": 0,
+    "violations": []
+  }
+}

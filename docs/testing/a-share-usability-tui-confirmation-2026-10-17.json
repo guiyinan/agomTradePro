@@ -141,5 +141,13 @@
     "artifacts/a-share-usability/ash02/tui-confirmation-boolean-ruff.txt": "6ce7b443b39e1389d43537fa425df2d9b3a96093c083d86be7a2020c215fdba0",
     "artifacts/a-share-usability/ash02/tui-confirmation-boolean-test-assertion-failure.txt": "44cc2e3a839580b61d883926a8212bc456132994e7d56b69c5e9bd682242b9a4",
     "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-plan-registry.txt": "52f56eaf871b6d673affafe523c5ccc363f763d523f94ce4757ab80bf999c30d"
+  },
+  "native_target_correction": {
+    "recorded_at": "2026-10-16T23:56:53.737829+00:00",
+    "status": "Historical six-pass output retained; prior test-target/544-migration qualification withdrawn because actual target identity was not recorded. The same fixture pattern reproducibly requests zero pytest aliases and targets disposable local base ash_quality_native (537 migrations). Verified-target replacement independently reruns the six auth cases. No production database was involved.",
+    "replacement_checkpoint": "docs/testing/a-share-usability-calendar-workbench-scope-2026-10-17.json",
+    "original_target_probe": "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-runtime-target-probe.json",
+    "replacement_test_target": "test_ash_quality_native",
+    "replacement_migrations": 544
   }
 }

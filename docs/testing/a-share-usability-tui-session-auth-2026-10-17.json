@@ -12,7 +12,7 @@
     "inner_factory_csrf_disabled": true,
     "owner_probe_only": true,
     "calendar_business_or_browser_journey": false,
-    "fixture": "Local PostgreSQL16,544 previously applied migrations; no empty replay."
+    "fixture": "Historical target assumption withdrawn; see native_target_correction. Original output is preserved."
   },
   "sqlite_and_unit_tests": {
     "passed": 507,
@@ -316,5 +316,13 @@
     "artifacts/a-share-usability/ash02/tui-session-auth-ruff.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
     "artifacts/a-share-usability/ash02/tui-session-auth-suite.txt": "6ac46e113f42856e85d16fc53796c69769adbc7184bdd230760a0c2a6e0b2415",
     "artifacts/a-share-usability/ash02/tui-session-auth-final-plan-registry.txt": "57153e4b4297d5deef76090712a01ae86a7c2c8ebca6017cbc4cf6e1e36ba6fc"
+  },
+  "native_target_correction": {
+    "recorded_at": "2026-10-16T23:56:53.737829+00:00",
+    "status": "Historical six-pass output retained; prior test-target/544-migration qualification withdrawn because actual target identity was not recorded. The same fixture pattern reproducibly requests zero pytest aliases and targets disposable local base ash_quality_native (537 migrations). Verified-target replacement independently reruns the six auth cases. No production database was involved.",
+    "replacement_checkpoint": "docs/testing/a-share-usability-calendar-workbench-scope-2026-10-17.json",
+    "original_target_probe": "artifacts/a-share-usability/ash02/calendar-workbench-scope-root-runtime-target-probe.json",
+    "replacement_test_target": "test_ash_quality_native",
+    "replacement_migrations": 544
   }
 }

@@ -853,3 +853,19 @@ HTTP 批 `33ea2860b` 后，本批只接受可选且严格布尔的 `session_auth
 主代理另对同源码重跑真实外层/内部 owner PostgreSQL 认证组件 **6 passed / 19.47 秒**，源码无漂移；它仍仅证明认证与锁内权限边界，不是 Calendar 工作台业务或浏览器 UAT。runtime check:tui 通过，manifest 绑定源未变，无需重生成；无新增模型/迁移/路由或模块结构。正常浏览器调用发送 boolean，未找到维护中的 SDK/MCP 字符串调用依赖。不同回归组合不累计为唯一用例。
 
 计划登记 v226，ASH-02 继续唯一集成焦点；[检查点](../testing/a-share-usability-tui-confirmation-2026-10-17.json)绑定源和原始日志的独立 raw/LF 身份，不冒充同一 CI/S6 或发布字节。下一批继续中央密钥、原 TTL token、scope 与专用工作台接线。原 ASH-01、完整 ASH-02/03、普通模拟/回测消费者及整体 Goal 仍开放，DATA-18 仍约束 ASH-11；没有部署、生产授权/目录种子、真实 Provider、外部 dispatch、研究/Evidence/券商放行，broker_order_evidence_integrated 仍 false。
+
+### 19.34 安全配置概览与 Native 测试库目标修正
+
+本批只接受 Calendar 工作台的配置概览 Application DTO、查询用例与固定 default alias 的 composition。只返回既有 selector 选定的精确 dataset/contract/schema/policy/codec/TTL 和 provider 配置 ID；配置缺失或歧义发布稳定 blocked reason。秘密与 Provider runtime 明确 not_checked，current pointer 明确 not_scoped；不读秘密、不发 RPC、不查 current，不给交易所或日期填业务默认值。调用方已有事务或关闭 autocommit 在查配置之前拒绝。
+
+初始独立源码导出 `147dc724a9cfa0cb50081064ec44dc0b366e259a` 的六份 unit/SQLite 回归 **77 passed / 7 PostgreSQL-only skipped / 477.00 秒**。两生产文件增量 mypy 零回归、全生产债务零；五 Python 文件风格检查及十个生产函数标注/public docstring 通过。App 覆盖 82/98 语句、22/36 分支，composition 27/28 语句、4/4 分支；不把 combined coverage 当语句覆盖率。架构两文件、289 新增行、boundary/audit 零；生成投影由脚本产生并通过 stale-check。
+
+Native 首跑 5 failed / 2 passed，实际原因是 pytest-django 仅从 marker 或静态 DB fixture 选择 alias：直接请求 django_db_setup 仍传空 aliases，连接落在本机隔离基础库 ash_quality_native（537 迁移、无 TTL 列），不是已经有 544 迁移的指定测试库。只读实际连接探针复现此点，没有迁移或修补基础库。19.32/19.33 的六项通过原件继续保留，但其“指定测试库/544 迁移”的旧资格说明撤回；两个检查点已加明确更正。其它具备 DB marker 的历史窗口不据此一概推翻。
+
+修正后的独立 Native 源码树 `b3b36e7663eb3eab69e078bce5e21657f014ef88` 使用公开 setup_databases，显式 default alias、独立 TEST.NAME、原 keepdb/create-db/TEST.MIGRATE 语义，完整 app registry，无整库 Account flush 或每例隐式外层事务。设置/SQL 双重库名核验在写入和清理之前执行；清理器的可选 before_cleanup 失败会阻止删行/删表。真实 blocker 单测 red，以及清理窗口的追加验证分别保存。主代理最终 **15 passed / 28.58 秒**：7 项真实配置组件、重跑的 6 项真实 Session/CSRF 外层与 owner 权限 probe、另 2 项前后只读目标资格检查。前后均实际连接 test_ash_quality_native、544 迁移、TTL 列存在且 Account singleton=(1,0)；不从空重放。补充夹具回归 **10 passed / 13 Native-only skipped**，修改后的测试支持文件风格和投影 stale-check 通过；初始 77 项与本组不累计唯一用例，两套源码身份分别保留。
+
+三份早期未接受的 scope 日志曾被代理覆写且无真实备份，另有零字节 isort 文件被重写；事故记录明确列出，不能重造旧原件，也不用于本次验收。Root 新命名原件完整保存，未影响已有认证/确认的原始日志。
+
+本批未新增模型、迁移、路由或业务种子。完整证据见[配置概览检查点](../testing/a-share-usability-calendar-workbench-scope-2026-10-17.json)。计划登记 v227，74 单元、ASH-02 继续唯一集成焦点；下批中央密钥和原期限令牌基础，再接专用 API/TUI 与浏览器主任务，然后普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03 与整体 Goal 继续开放，DATA-18 仍约束 ASH-11；没有生产部署、真实 Provider、授权/目录种子、研究/Evidence、外部 dispatch 或券商放行，broker_order_evidence_integrated 仍 false。
+
+最终测试支持文件加入后，入口 stale-check 实际拒绝了旧投影。主代理审查两项仅测试的 Native setup/helper evidence，将其显式登记为 adjacent_operational，使用官方脚本重生成并复验：入口 1,357，REST 76、candidate-review 11 不变；新增两项不授予生产或业务执行能力。Native 后只改变这份治理登记和生成入口投影，源码与测试未变，保留原失败日志及独立树身份。

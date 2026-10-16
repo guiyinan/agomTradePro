@@ -1,0 +1,79 @@
+{
+  "targets": [
+    "tests/unit/data_center/test_calendar_workbench_scope.py",
+    "tests/unit/data_center/test_calendar_workbench_scope_composition.py",
+    "tests/component/data_center/test_calendar_workbench_scope.py",
+    "tests/unit/data_center/test_calendar_capture_configuration.py",
+    "tests/unit/data_center/test_calendar_capture_configuration_repository.py",
+    "tests/unit/test_data_center_entrypoint_inventory.py"
+  ],
+  "functions": [
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "_require_utc"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "__post_init__"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "from_configuration"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "__post_init__"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "__init__"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "execute"
+    },
+    {
+      "file": "apps/data_center/application/calendar_workbench_scope.py",
+      "function": "_read_known_at"
+    },
+    {
+      "file": "apps/data_center/calendar_workbench_scope_composition.py",
+      "function": "read_calendar_workbench_scope_context"
+    },
+    {
+      "file": "apps/data_center/calendar_workbench_scope_composition.py",
+      "function": "_require_unowned_default_connection"
+    },
+    {
+      "file": "apps/data_center/calendar_workbench_scope_composition.py",
+      "function": "now"
+    }
+  ],
+  "coverage": {
+    "apps/data_center/application/calendar_workbench_scope.py": {
+      "covered_lines": 82,
+      "num_statements": 98,
+      "percent_covered": 77.61194029850746,
+      "percent_covered_display": "77.6",
+      "missing_lines": 16,
+      "excluded_lines": 0,
+      "num_branches": 36,
+      "num_partial_branches": 14,
+      "covered_branches": 22,
+      "missing_branches": 14
+    },
+    "apps/data_center/calendar_workbench_scope_composition.py": {
+      "covered_lines": 27,
+      "num_statements": 28,
+      "percent_covered": 96.875,
+      "percent_covered_display": "96.9",
+      "missing_lines": 1,
+      "excluded_lines": 0,
+      "num_branches": 4,
+      "num_partial_branches": 0,
+      "covered_branches": 4,
+      "missing_branches": 0
+    }
+  },
+  "proof": "App/composition statement floors met; validation-branch mirror tests not added solely to reach100percent."
+}

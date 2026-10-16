@@ -4089,6 +4089,14 @@
           "ReadCurrentCalendarIntent",
           "ReadCurrentCalendarUseCase"
         ],
+        "application/calendar_workbench_scope.py": [
+          "CalendarWorkbenchCurrentPointerStatus",
+          "CalendarWorkbenchScopeContext",
+          "CalendarWorkbenchScopeMetadata",
+          "CalendarWorkbenchScopeMetadataStatus",
+          "CalendarWorkbenchSecretRuntimeStatus",
+          "ReadCalendarWorkbenchScopeContextUseCase"
+        ],
         "application/candidate_raw_audit_manifest.py": [
           "CandidateRawAuditManifestRepositoryProtocol",
           "CandidateRawAuditManifestService"
@@ -5305,12 +5313,12 @@
         ]
       },
       "layers": {
-        "application": 156,
+        "application": 157,
         "domain": 42,
         "infrastructure": 192,
         "interface": 26,
         "management": 42,
-        "root": 28
+        "root": 29
       },
       "orm_models": {
         "infrastructure/models.py": [
