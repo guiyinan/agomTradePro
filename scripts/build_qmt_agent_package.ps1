@@ -1,10 +1,26 @@
 param(
-    [string]$Version = "0.1.0",
+    [string]$Version = "",
     [string]$OutputRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$VersionSourcePath = Join-Path $RepoRoot "qmt_agent\__init__.py"
+$VersionSource = Get-Content -LiteralPath $VersionSourcePath -Raw
+$VersionAssignments = [regex]::Matches(
+    $VersionSource,
+    '(?m)^__version__\s*=\s*"(?<version>\d+\.\d+\.\d+)"\s*$'
+)
+if ($VersionAssignments.Count -ne 1) {
+    throw "The Agent source must define exactly one canonical __version__."
+}
+$SourceVersion = $VersionAssignments[0].Groups["version"].Value
+$VersionWasProvided = $PSBoundParameters.ContainsKey("Version")
+if ($VersionWasProvided -and $Version -cne $SourceVersion) {
+    throw "Requested package version '$Version' does not match source version '$SourceVersion'."
+}
+$Version = $SourceVersion
+
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $RepoRoot "artifacts\qmt-agent"
 }
@@ -21,8 +37,21 @@ New-Item -ItemType Directory -Force -Path $StagingRoot | Out-Null
 try {
     $StagedAgent = Join-Path $StagingRoot "qmt_agent"
     New-Item -ItemType Directory -Force -Path $StagedAgent | Out-Null
-    Copy-Item -Path (Join-Path $RepoRoot "qmt_agent\*") -Destination $StagedAgent -Recurse -Force
-    Get-ChildItem -LiteralPath (Join-Path $RepoRoot "qmt_agent\package") -File | ForEach-Object {
+    $AgentSourceRoot = Join-Path $RepoRoot "qmt_agent"
+    Get-ChildItem -LiteralPath $AgentSourceRoot -File -Filter "*.py" | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $StagedAgent -Force
+    }
+    foreach ($ApprovedFile in @("README.md", "xtquant-lock.json", "config.example.yaml")) {
+        Copy-Item -LiteralPath (Join-Path $AgentSourceRoot $ApprovedFile) -Destination $StagedAgent -Force
+    }
+    foreach ($ScriptDirectory in @("scripts", "package")) {
+        $StagedScriptDirectory = Join-Path $StagedAgent $ScriptDirectory
+        New-Item -ItemType Directory -Force -Path $StagedScriptDirectory | Out-Null
+        Get-ChildItem -LiteralPath (Join-Path $AgentSourceRoot $ScriptDirectory) -File -Filter "*.ps1" | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $StagedScriptDirectory -Force
+        }
+    }
+    Get-ChildItem -LiteralPath (Join-Path $AgentSourceRoot "package") -File -Filter "*.ps1" | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $StagingRoot $_.Name) -Force
     }
     Copy-Item -LiteralPath (Join-Path $RepoRoot "qmt_agent\README.md") -Destination (Join-Path $StagingRoot "README.md") -Force

@@ -2445,6 +2445,15 @@
           "DataValidationRejectedObservation",
           "build_data_validation_rejected_event"
         ],
+        "application/execution_rule_retirement_audit.py": [
+          "AppendExecutionRuleRetirementAuditUseCase",
+          "ExecutionRuleRetirementAuditConflict",
+          "ExecutionRuleRetirementAuditCorruption",
+          "ExecutionRuleRetirementAuditError",
+          "ExecutionRuleRetirementAuditObservation",
+          "ExecutionRuleRetirementAuditUnavailable",
+          "build_execution_rule_retirement_audit_event"
+        ],
         "application/forecast_scoreboard.py": [
           "ForecastScoreboardGateway",
           "GetForecastScoreboardUseCase"
@@ -2711,7 +2720,7 @@
         ]
       },
       "layers": {
-        "application": 36,
+        "application": 37,
         "domain": 11,
         "infrastructure": 28,
         "interface": 14,
@@ -3095,6 +3104,9 @@
           "broker_order_evidence_integrated",
           "require_broker_order_evidence"
         ],
+        "application/execution_contract_capabilities.py": [
+          "parse_agent_execution_contracts"
+        ],
         "application/management_use_cases.py": [
           "AccountProjectionProviderProtocol",
           "ManageAccountAccessUseCase",
@@ -3272,8 +3284,8 @@
         ]
       },
       "layers": {
-        "application": 26,
-        "domain": 12,
+        "application": 27,
+        "domain": 13,
         "infrastructure": 30,
         "interface": 6,
         "root": 6
@@ -9065,6 +9077,43 @@
         }
       },
       "entrypoints": {
+        "application/ashare_execution_rule_catalog.py": [
+          "AShareExecutionRuleCatalog",
+          "ExecutionRuleConflict",
+          "ExecutionRuleCorruption",
+          "ExecutionRuleImportResult",
+          "ExecutionRuleInputError",
+          "ExecutionRulePersistenceUnavailable",
+          "ExecutionRuleUnavailable",
+          "ExecutionRuleVersionMismatch",
+          "ImportAShareExecutionRulesUseCase",
+          "ReadEffectiveAShareExecutionRuleUseCase"
+        ],
+        "application/ashare_execution_rule_lifecycle.py": [
+          "AShareExecutionRuleLifecycleClock",
+          "AShareExecutionRuleLifecycleRepository",
+          "AShareExecutionRuleRetirementAuditPort",
+          "AShareExecutionRuleRetirementAuditReceipt",
+          "AShareExecutionRuleRetirementResult",
+          "ExecutionRuleRetirementConflict",
+          "ExecutionRuleRetirementCorruption",
+          "ExecutionRuleRetirementDenied",
+          "ExecutionRuleRetirementInputError",
+          "ExecutionRuleRetirementNotFound",
+          "ExecutionRuleRetirementUnavailable",
+          "RetireAShareExecutionRuleUseCase",
+          "RuleLifecycleAuthorizationDenied",
+          "RuleLifecycleAuthorizer"
+        ],
+        "application/ashare_execution_rule_v2_catalog.py": [
+          "AShareExecutionSubmissionRuleCatalog",
+          "ImportAShareExecutionSubmissionRulesUseCase",
+          "ReadEffectiveAShareExecutionSubmissionRuleUseCase"
+        ],
+        "application/ashare_execution_rule_v3_catalog.py": [
+          "AShareExecutionSettlementRuleV3Catalog",
+          "ImportAShareExecutionSettlementRulesV3UseCase"
+        ],
         "application/broker_order_execution_policy.py": [
           "ActivateBrokerOrderExecutionPolicy",
           "ActivateBrokerOrderExecutionPolicyCommand",
@@ -9117,6 +9166,29 @@
           "GetExactEvidenceOperatorSpecApprovalCommand",
           "RegisterEvidenceOperatorSpecApprovalSubject",
           "RegisterEvidenceOperatorSpecApprovalSubjectCommand"
+        ],
+        "application/execution_settlement_v3.py": [
+          "ExecutionSettlementV3Corruption",
+          "ExecutionSettlementV3InputError",
+          "ExecutionSettlementV3ReadPort",
+          "ExecutionSettlementV3ReadRecord",
+          "ExecutionSettlementV3Unavailable",
+          "ReadEffectiveExecutionSettlementV3UseCase"
+        ],
+        "application/execution_submission_v2.py": [
+          "EvaluateExecutionSubmissionV2UseCase",
+          "ExecutionSellPositionProvider",
+          "ExecutionSubmissionMarketProvider",
+          "ExecutionSubmissionRuleProvider",
+          "ExecutionSubmissionV2Evaluation"
+        ],
+        "application/execution_trading_constraints.py": [
+          "EvaluateExecutionTradingConstraintsUseCase",
+          "ExecutionConstraintsEvaluation",
+          "ExecutionMarketEvidenceProvider",
+          "ExecutionRuleProvider",
+          "ExecutionTradingEvidenceInvalid",
+          "ExecutionTradingEvidenceUnavailable"
         ],
         "application/quick_wins.py": [
           "BuildDecisionScorecard",
@@ -9287,10 +9359,11 @@
         ]
       },
       "layers": {
-        "application": 16,
-        "domain": 9,
-        "infrastructure": 18,
+        "application": 23,
+        "domain": 14,
+        "infrastructure": 23,
         "interface": 11,
+        "management": 1,
         "root": 5
       },
       "orm_models": {

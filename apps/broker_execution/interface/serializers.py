@@ -210,6 +210,11 @@ class AgentHeartbeatSerializer(serializers.Serializer[dict[str, Any]]):
         max_length=50,
     )
     agent_version = serializers.CharField(max_length=32)
+    execution_constraint_schemas = serializers.ListField(
+        child=serializers.RegexField(r"\A[a-z][a-z0-9._-]{0,95}\Z", trim_whitespace=False),
+        required=False,
+        max_length=8,
+    )
     qmt_version = serializers.CharField(required=False, allow_blank=True, max_length=64)
     dry_run = serializers.BooleanField(default=True)
     message = serializers.CharField(required=False, allow_blank=True, max_length=500)

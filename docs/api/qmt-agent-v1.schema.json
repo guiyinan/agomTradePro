@@ -19,6 +19,13 @@
         "qmt_connected": {"type": "boolean"},
         "account_ids": {"type": "array", "maxItems": 50, "items": {"type": "integer", "minimum": 1}},
         "agent_version": {"type": "string", "maxLength": 32},
+        "execution_constraint_schemas": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,95}$", "not": {"pattern": "\\s"}},
+          "description": "Explicit self-reported execution schema support. Legacy omission clears capabilities and cannot authorize new order leasing or submitting. This declaration is not execution authority."
+        },
         "qmt_version": {"type": "string", "maxLength": 64},
         "dry_run": {"type": "boolean", "default": true},
         "message": {"type": "string", "maxLength": 500}

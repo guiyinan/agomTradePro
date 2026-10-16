@@ -461,25 +461,25 @@
           "test_file": "tests/unit/data_center/test_model_market_data.py",
           "test_function": "test_incomplete_suspension_evidence_remains_stale"
         },
-    {
-      "case": "suspended_instrument_no_fabrication",
-      "test_file": "tests/component/test_qlib_builder.py",
-      "test_function": "test_verified_suspension_excludes_current_instrument_without_fabricated_bars"
-    },
-    {
-      "case": "qlib_partial_suspension_does_not_hide_missing_member",
-      "test_file": "tests/component/test_qlib_builder.py",
-      "test_function": "test_partial_suspension_does_not_hide_unverified_missing_qlib_member"
-    },
-    {
-      "case": "qlib_all_suspension_requires_exact_requested_scope",
-      "test_file": "tests/component/test_qlib_builder.py",
-      "test_function": "test_all_qlib_members_require_verified_suspension_before_suspended_outcome"
-    },
-    {
-      "case": "prediction_current_membership",
-      "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
-      "test_function": "test_qlib_prediction_filters_instruments_at_actual_prediction_date"
+        {
+          "case": "suspended_instrument_no_fabrication",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_verified_suspension_excludes_current_instrument_without_fabricated_bars"
+        },
+        {
+          "case": "qlib_partial_suspension_does_not_hide_missing_member",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_partial_suspension_does_not_hide_unverified_missing_qlib_member"
+        },
+        {
+          "case": "qlib_all_suspension_requires_exact_requested_scope",
+          "test_file": "tests/component/test_qlib_builder.py",
+          "test_function": "test_all_qlib_members_require_verified_suspension_before_suspended_outcome"
+        },
+        {
+          "case": "prediction_current_membership",
+          "test_file": "tests/unit/alpha/test_qlib_runtime_contracts.py",
+          "test_function": "test_qlib_prediction_filters_instruments_at_actual_prediction_date"
         },
         {
           "case": "configured_star_volume",
@@ -2057,7 +2057,9 @@
         ],
         "apps/broker_execution/infrastructure/broker_repository_agent_runtime.py": [
           "reported_qmt_connected",
-          "Agent heartbeat source or receipt is stale"
+          "Agent heartbeat source or receipt is stale",
+          "execution_constraint_schemas",
+          "AGENT_EXECUTION_CONTRACT_UNSUPPORTED"
         ],
         "apps/broker_execution/interface/serializers.py": [
           "observed_at = serializers.CharField(required=False",
@@ -2104,6 +2106,21 @@
           "case": "mcp_remains_disabled",
           "test_file": "tests/unit/test_mcp_evidence_output_surfaces.py",
           "test_function": "test_decision_facing_broker_native_reads_are_disabled"
+        },
+        {
+          "case": "latest_heartbeat_replaces_declared_schema_support",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_heartbeat_persists_v2_declaration_and_legacy_update_clears_it"
+        },
+        {
+          "case": "missing_schema_cannot_lease_new_order",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_missing_capability_cannot_create_a_lease_even_with_evidence_gate_mocked"
+        },
+        {
+          "case": "missing_schema_cannot_advance_leased_order",
+          "test_file": "tests/component/broker_execution/test_execution_contract_capabilities.py",
+          "test_function": "test_missing_capability_cannot_advance_a_leased_order"
         }
       ]
     },
@@ -7893,6 +7910,266 @@
           "case": "market_financial_capability_isolation",
           "test_file": "tests/unit/test_validate_release_rehearsal.py",
           "test_function": "test_partial_financial_scope_keeps_market_gate_and_disables_financial_refresh"
+        }
+      ]
+    },
+    {
+      "id": "risk_center.a_share_execution_constraints",
+      "surface": "Risk owner-read tradability evaluation and independent QMT Agent source-window revalidation; no execution authorization",
+      "source_files": [
+        "apps/risk_center/domain/execution_trading_constraints.py",
+        "apps/risk_center/application/execution_trading_constraints.py",
+        "qmt_agent/execution_constraints.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/domain/execution_trading_constraints.py": [
+          "source_observed_at",
+          "source_available_at",
+          "calendar_observed_at",
+          "market_observed_at",
+          "RULE_SOURCE_EXPIRED",
+          "MARKET_EVIDENCE_EXPIRED",
+          "ExecutionDecisionStatus.DENIED"
+        ],
+        "apps/risk_center/application/execution_trading_constraints.py": [
+          "ExecutionTradingEvidenceUnavailable",
+          "ExecutionTradingEvidenceInvalid",
+          "as_of=as_of",
+          "self.__post_init__()"
+        ],
+        "qmt_agent/execution_constraints.py": [
+          "for clock in (as_of, local_time):",
+          "_validate_evidence_window(",
+          "SERVER_DECISION_DENIED"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "owner_reads_share_account_and_cutoff",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints_application.py",
+          "test_function": "test_output_binds_both_owner_reads_to_the_same_account_and_cutoff"
+        },
+        {
+          "case": "missing_rule_never_uses_defaults",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints_application.py",
+          "test_function": "test_missing_rule_cannot_fall_back_or_read_market"
+        },
+        {
+          "case": "naive_cutoff_rejected_before_source_read",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints_application.py",
+          "test_function": "test_naive_cutoff_is_rejected_before_any_provider_read"
+        },
+        {
+          "case": "separate_source_windows_expire",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints.py",
+          "test_function": "test_rule_calendar_and_market_evidence_expiry_fail_closed"
+        },
+        {
+          "case": "agent_rechecks_after_server_evaluation",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints_application.py",
+          "test_function": "test_agent_rechecks_expiry_after_a_valid_server_evaluation"
+        },
+        {
+          "case": "server_denial_not_overridden_by_agent",
+          "test_file": "tests/unit/risk_center/test_execution_trading_constraints_application.py",
+          "test_function": "test_agent_rejects_a_genuine_domain_denial"
+        }
+      ]
+    },
+    {
+      "id": "risk_center.a_share_execution_submission_v2",
+      "surface": "Candidate v2 source-bound stage and price-cage evaluation over preserved v1 evidence; no live execution authority",
+      "source_files": [
+        "apps/risk_center/domain/execution_submission_v2.py",
+        "apps/risk_center/application/execution_submission_v2.py",
+        "qmt_agent/execution_submission_v2.py",
+        "qmt_agent/executor.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/domain/execution_submission_v2.py": [
+          "market_evidence_v1",
+          "evaluate_execution_order(",
+          "PriceSubmissionStage.CONTINUOUS",
+          "SUBMISSION_STAGE_NOT_ALLOWED"
+        ],
+        "apps/risk_center/application/execution_submission_v2.py": [
+          "ExecutionTradingEvidenceUnavailable",
+          "ExecutionTradingEvidenceInvalid",
+          "as_of=as_of",
+          "self.__post_init__()",
+          "ExecutionSellPositionProvider",
+          "get_sell_position(",
+          "order.sell_position_evidence is not None"
+        ],
+        "qmt_agent/execution_submission_v2.py": [
+          "_validate_submitted_at",
+          "validate_effective_constraints",
+          "SERVER_DECISION_DENIED",
+          "_validate_price_submission"
+        ],
+        "qmt_agent/executor.py": [
+          "validate_execution_submission_v2",
+          "_validated_local_last_price",
+          "submission_check_at",
+          "_validate_local_order_identity"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "v2_owner_reads_share_account_and_cutoff",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_query_binds_both_owner_reads_and_preserves_nested_v1_hashes"
+        },
+        {
+          "case": "v2_missing_rule_cannot_fall_back_to_v1",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_missing_v2_rule_does_not_read_market_or_fall_back_to_v1"
+        },
+        {
+          "case": "v2_naive_cutoff_rejected_before_owner_read",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_naive_cutoff_is_rejected_before_any_v2_owner_read"
+        },
+        {
+          "case": "v2_expired_source_preserves_original_time",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_expired_v2_source_is_denied_without_retimestamping_it"
+        },
+        {
+          "case": "v2_serialization_rechecks_content_integrity",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_serialization_revalidates_inputs_after_evaluation"
+        },
+        {
+          "case": "v2_agent_revalidates_both_source_clocks",
+          "test_file": "tests/unit/broker_execution/test_agent_execution_submission_v2.py",
+          "test_function": "test_v1_evidence_and_both_clocks_are_revalidated"
+        },
+        {
+          "case": "v2_agent_rejects_forged_allowed_price_cage",
+          "test_file": "tests/unit/broker_execution/test_agent_execution_submission_v2.py",
+          "test_function": "test_forged_allowed_price_outside_cage_is_rejected_inside_daily_band"
+        },
+        {
+          "case": "v2_agent_rejects_forged_allowed_reference",
+          "test_file": "tests/unit/broker_execution/test_agent_execution_submission_v2.py",
+          "test_function": "test_forged_allowed_selected_reference_outside_daily_band_is_rejected"
+        },
+        {
+          "case": "v2_executor_rechecks_after_account_read",
+          "test_file": "tests/unit/broker_execution/test_agent.py",
+          "test_function": "test_account_read_expiry_is_rechecked_before_vendor_call"
+        },
+        {
+          "case": "v2_executor_rechecks_stop_after_account_read",
+          "test_file": "tests/unit/broker_execution/test_agent.py",
+          "test_function": "test_stop_created_during_post_ack_account_read_blocks_vendor_call"
+        },
+        {
+          "case": "v2_executor_uses_clock_after_source_tick_read",
+          "test_file": "tests/unit/broker_execution/test_agent.py",
+          "test_function": "test_qmt_tick_created_during_market_read_uses_post_read_clock"
+        },
+        {
+          "case": "caller_cannot_supply_position_source",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_caller_position_evidence_cannot_impersonate_the_position_owner"
+        },
+        {
+          "case": "sell_requires_trusted_position_owner",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_sell_without_a_position_owner_has_no_caller_or_zero_balance_fallback"
+        },
+        {
+          "case": "all_owner_reads_share_scope_and_cutoff",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_sell_binds_all_owner_reads_and_preserves_original_position_source"
+        },
+        {
+          "case": "position_source_cannot_extend_domain_window",
+          "test_file": "tests/unit/risk_center/test_execution_submission_v2_application.py",
+          "test_function": "test_v2_position_owner_cannot_bypass_existing_domain_constraints"
+        },
+        {
+          "case": "five_board_quantity_examples_match_agent",
+          "test_file": "tests/unit/risk_center/test_exchange_execution_rule_examples.py",
+          "test_function": "test_exchange_buy_quantity_examples_match_both_validators"
+        },
+        {
+          "case": "continuous_cage_boundary_matches_agent",
+          "test_file": "tests/unit/risk_center/test_exchange_execution_rule_examples.py",
+          "test_function": "test_exchange_continuous_price_examples_match_both_validators"
+        },
+        {
+          "case": "low_price_tick_widening_matches_agent",
+          "test_file": "tests/unit/risk_center/test_exchange_execution_rule_examples.py",
+          "test_function": "test_exchange_low_price_examples_apply_the_tick_widening_term"
+        }
+      ]
+    },
+    {
+      "id": "risk_center.a_share_execution_settlement_v3_config",
+      "surface": "Source-bound immutable V3 parameter configuration at an exact system knowledge cutoff; no calendar, position release, research promotion or live execution authority",
+      "source_files": [
+        "apps/risk_center/domain/execution_settlement_v3.py",
+        "apps/risk_center/application/execution_settlement_v3.py",
+        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py"
+      ],
+      "required_markers": {
+        "apps/risk_center/domain/execution_settlement_v3.py": [
+          "bundle_id",
+          "bundle_version",
+          "latest_source_observed_at",
+          "oldest_source_observed_at",
+          "all bundle sources must be available before the intersected expiry"
+        ],
+        "apps/risk_center/application/execution_settlement_v3.py": [
+          "record.recorded_at <= as_of",
+          "bundle.latest_source_observed_at <= as_of",
+          "bundle.source_available_at <= as_of",
+          "bundle.effective_from <= as_of < bundle.valid_until",
+          "ExecutionSettlementV3Unavailable",
+          "ExecutionSettlementV3Corruption"
+        ],
+        "apps/risk_center/infrastructure/ashare_execution_rule_repository.py": [
+          "_rule_header(",
+          "rule.bundle_id",
+          "rule.bundle_version",
+          "source_available_at = rule.source_available_at",
+          "ExecutionRuleVersionMismatch",
+          "recorded_at=visible[0].recorded_at"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "all_sources_available_before_intersection_expiry",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_rejects_source_availability_at_or_after_intersected_bundle_expiry"
+        },
+        {
+          "case": "separate_oldest_and_latest_source_clocks",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_keeps_distinct_oldest_and_latest_source_observation_clocks"
+        },
+        {
+          "case": "future_system_knowledge_or_source_blocked",
+          "test_file": "tests/unit/risk_center/test_execution_settlement_v3.py",
+          "test_function": "test_v3_read_use_case_blocks_future_knowledge_source_and_expired_windows"
+        },
+        {
+          "case": "outer_identity_intersection_and_local_recording_persisted",
+          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
+          "test_function": "test_v3_repository_stores_outer_identity_intersection_and_recorded_at"
+        },
+        {
+          "case": "no_implicit_v1_v2_downgrade",
+          "test_file": "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py",
+          "test_function": "test_v1_and_v2_readers_reject_v3_rows_without_unwrapping"
+        },
+        {
+          "case": "v3_lifecycle_uses_same_real_audit_transaction",
+          "test_file": "tests/unit/risk_center/test_ashare_execution_rule_lifecycle.py",
+          "test_function": "test_v3_retirement_audits_outer_identity_and_preserves_nested_rule_on_forward_rollback"
         }
       ]
     }

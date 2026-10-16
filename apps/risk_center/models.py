@@ -1,5 +1,8 @@
 """Risk center models re-export."""
 
+from apps.risk_center.infrastructure.ashare_execution_rule_models import (  # noqa: F401
+    AShareExecutionRuleModel,
+)
 from apps.risk_center.infrastructure.broker_order_execution_policy_models import (  # noqa: F401
     BrokerOrderExecutionPolicyActivationModel,
     BrokerOrderExecutionPolicySourceModel,

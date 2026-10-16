@@ -76486,6 +76486,165 @@
     "risk_center": {
       "models": [
         {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "AShareExecutionRuleModel",
+          "docstring": "One complete canonical A-share execution rule configuration version.",
+          "fields": [
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "security_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "rule_id",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "rule_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "market",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 192
+              },
+              "name": "board",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "recorded_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "source_available_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "effective_from",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "name": "valid_until",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 64,
+                "unique": true
+              },
+              "name": "content_hash",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "JSONField",
+              "name": "canonical_payload",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "retirement_effective_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "retirement_recorded_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "UUIDField",
+              "kwargs": {
+                "blank": true,
+                "null": true,
+                "unique": true
+              },
+              "name": "retirement_request_id",
+              "null": true,
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "retirement_actor_type",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 256,
+                "null": true
+              },
+              "name": "retirement_actor_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "retirement_request_hash",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=('security_id', 'rule_id', 'rule_version'), name='risk_ash_rule_identity_uq'), models.CheckConstraint(condition=models.Q(effective_from__lt=models.F('valid_until')), name='risk_ash_rule_effective_ck'), models.CheckConstraint(condition=models.Q(source_available_at__lt=models.F('valid_until')), name='risk_ash_rule_source_clock_ck'), models.CheckConstraint(condition=models.Q(retirement_effective_at__isnull=True, retirement_recorded_at__isnull=True, retirement_request_id__isnull=True, retirement_actor_type__isnull=True, retirement_actor_id__isnull=True, retirement_request_hash__isnull=True) | models.Q(retirement_effective_at__isnull=False, retirement_recorded_at__isnull=False, retirement_request_id__isnull=False, retirement_actor_type__isnull=False, retirement_actor_id__isnull=False, retirement_request_hash__isnull=False), name='risk_ash_rule_retire_all_or_none_ck'), models.CheckConstraint(condition=models.Q(retirement_recorded_at__isnull=True) | models.Q(retirement_recorded_at__lte=models.F('retirement_effective_at')), name='risk_ash_rule_retire_clock_ck'), models.CheckConstraint(condition=models.Q(retirement_effective_at__isnull=True) | models.Q(effective_from__lte=models.F('retirement_effective_at'), retirement_effective_at__lt=models.F('valid_until')), name='risk_ash_rule_retire_window_ck')]",
+            "db_table": "risk_center_ashare_execution_rule",
+            "indexes": "[models.Index(fields=('security_id', 'effective_from', 'valid_until'), name='risk_ash_rule_effective_ix')]"
+          },
+          "source_file": "infrastructure/ashare_execution_rule_models.py"
+        },
+        {
           "abstract": true,
           "bases": [
             "models.Model"

@@ -10,6 +10,7 @@ from .evidence_gate import (
     broker_order_evidence_integrated,
     require_broker_order_evidence,
 )
+from .execution_contract_capabilities import parse_agent_execution_contracts
 from .ports import BrokerExecutionRepositoryProtocol
 from .repository_provider import get_broker_execution_repository
 from .use_case_errors import BrokerExecutionValidationError
@@ -56,7 +57,10 @@ class AgentHeartbeatUseCase:
         self.repository = repository or get_broker_execution_repository()
 
     def execute(self, *, agent: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        """Validate capabilities before persisting the authenticated heartbeat."""
+
         agent_pk, allowed_account_ids = _agent_scope(agent)
+        parse_agent_execution_contracts(payload.get("execution_constraint_schemas", []))
         result = self.repository.heartbeat_agent(
             agent_pk=agent_pk,
             allowed_account_ids=allowed_account_ids,

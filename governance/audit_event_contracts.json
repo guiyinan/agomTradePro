@@ -120,6 +120,26 @@
   ],
   "events": [
     {
+      "event_type": "risk.execution_rule.retired",
+      "category": "system.configuration",
+      "owner": "risk_center",
+      "status": "active",
+      "implementation_status": "wired",
+      "write_policy": "transactional_outbox",
+      "severity": "warning",
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "request_id"
+      ],
+      "detail_schema": "risk.execution_rule.retired.v1",
+      "reason_codes": [
+        "execution_rule_retired"
+      ],
+      "test_contract": "tests/unit/risk_center/test_ashare_execution_rule_lifecycle.py::test_retirement_is_same_transaction_pit_visible_and_forward_rollback_is_new_version"
+    },
+    {
       "event_type": "data.fetch.completed",
       "category": "data.reliability",
       "owner": "data_center",

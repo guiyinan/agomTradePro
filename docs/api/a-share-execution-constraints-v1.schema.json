@@ -1,0 +1,600 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agomtradepro.local/contracts/a-share-execution-constraints-v1.schema.json",
+  "title": "A-share execution constraints v1",
+  "description": "Strict wire shape only. Runtime checks remain authoritative for canonical hashes, timestamps, tradability and exact order binding. This is not execution authorization.",
+  "type": "object",
+  "required": [
+    "schema",
+    "as_of",
+    "rule",
+    "market_evidence",
+    "order",
+    "decision"
+  ],
+  "properties": {
+    "schema": {
+      "const": "a-share-execution-constraints.v1"
+    },
+    "as_of": {
+      "$ref": "#/$defs/instant"
+    },
+    "rule": {
+      "$ref": "#/$defs/rule"
+    },
+    "market_evidence": {
+      "$ref": "#/$defs/marketEvidence"
+    },
+    "order": {
+      "$ref": "#/$defs/order"
+    },
+    "decision": {
+      "$ref": "#/$defs/decision"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 192,
+      "pattern": "^\\S+(?![\\s\\S])"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{6})?Z(?![\\s\\S])"
+    },
+    "decimal": {
+      "type": "string",
+      "maxLength": 257,
+      "pattern": "^(?:0|[1-9][0-9]*)(?:\\.[0-9]*[1-9])?(?![\\s\\S])"
+    },
+    "positiveDecimal": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/decimal"
+        },
+        {
+          "not": {
+            "const": "0"
+          }
+        }
+      ]
+    },
+    "shareQuantity": {
+      "type": "string",
+      "maxLength": 257,
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "nonnegativeShares": {
+      "type": "string",
+      "maxLength": 257,
+      "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "accountId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "quantityConstraint": {
+      "type": "object",
+      "required": [
+        "minimum",
+        "step",
+        "maximum"
+      ],
+      "properties": {
+        "minimum": {
+          "$ref": "#/$defs/shareQuantity"
+        },
+        "step": {
+          "$ref": "#/$defs/shareQuantity"
+        },
+        "maximum": {
+          "$ref": "#/$defs/shareQuantity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "rule_version",
+        "security_id",
+        "market",
+        "board",
+        "rule_source_id",
+        "rule_source_version",
+        "rule_source_hash",
+        "content_hash",
+        "source_observed_at",
+        "source_available_at",
+        "effective_from",
+        "valid_until",
+        "buy_quantity",
+        "sell_quantity",
+        "sell_odd_lot_mode",
+        "price_tick"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/token"
+        },
+        "rule_version": {
+          "$ref": "#/$defs/token"
+        },
+        "security_id": {
+          "$ref": "#/$defs/token"
+        },
+        "market": {
+          "$ref": "#/$defs/token"
+        },
+        "board": {
+          "$ref": "#/$defs/token"
+        },
+        "rule_source_id": {
+          "$ref": "#/$defs/token"
+        },
+        "rule_source_version": {
+          "$ref": "#/$defs/token"
+        },
+        "rule_source_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "source_observed_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "source_available_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/instant"
+        },
+        "valid_until": {
+          "$ref": "#/$defs/instant"
+        },
+        "buy_quantity": {
+          "$ref": "#/$defs/quantityConstraint"
+        },
+        "sell_quantity": {
+          "$ref": "#/$defs/quantityConstraint"
+        },
+        "sell_odd_lot_mode": {
+          "type": "string",
+          "enum": [
+            "FORBID",
+            "SELLABLE_BALANCE_TO_ZERO",
+            "SELL_ODD_REMAINDER_ONCE"
+          ]
+        },
+        "price_tick": {
+          "$ref": "#/$defs/positiveDecimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sellPositionEvidence": {
+      "type": "object",
+      "required": [
+        "security_id",
+        "source_id",
+        "source_version",
+        "source_hash",
+        "observed_at",
+        "available_at",
+        "valid_until",
+        "account_id",
+        "completeness",
+        "available_to_sell_quantity",
+        "restricted_quantity"
+      ],
+      "properties": {
+        "security_id": {
+          "$ref": "#/$defs/token"
+        },
+        "source_id": {
+          "$ref": "#/$defs/token"
+        },
+        "source_version": {
+          "$ref": "#/$defs/token"
+        },
+        "source_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "available_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "valid_until": {
+          "$ref": "#/$defs/instant"
+        },
+        "account_id": {
+          "$ref": "#/$defs/accountId"
+        },
+        "completeness": {
+          "type": "string",
+          "enum": [
+            "COMPLETE",
+            "INCOMPLETE",
+            "UNKNOWN"
+          ]
+        },
+        "available_to_sell_quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/nonnegativeShares"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "restricted_quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/nonnegativeShares"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "completeness": {
+                "const": "COMPLETE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "available_to_sell_quantity": {
+                "$ref": "#/$defs/nonnegativeShares"
+              },
+              "restricted_quantity": {
+                "$ref": "#/$defs/nonnegativeShares"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "marketEvidence": {
+      "type": "object",
+      "required": [
+        "security_id",
+        "market",
+        "board",
+        "calendar_id",
+        "calendar_version",
+        "session_id",
+        "session_timezone",
+        "market_source_id",
+        "market_source_version",
+        "calendar_source_hash",
+        "market_source_hash",
+        "content_hash",
+        "calendar_observed_at",
+        "calendar_available_at",
+        "calendar_valid_until",
+        "session_open_at",
+        "session_close_at",
+        "market_observed_at",
+        "market_available_at",
+        "market_valid_until",
+        "trading_date",
+        "session_state",
+        "security_state",
+        "price_boundary_mode",
+        "reference_price",
+        "lower_limit_price",
+        "upper_limit_price"
+      ],
+      "properties": {
+        "security_id": {
+          "$ref": "#/$defs/token"
+        },
+        "market": {
+          "$ref": "#/$defs/token"
+        },
+        "board": {
+          "$ref": "#/$defs/token"
+        },
+        "calendar_id": {
+          "$ref": "#/$defs/token"
+        },
+        "calendar_version": {
+          "$ref": "#/$defs/token"
+        },
+        "session_id": {
+          "$ref": "#/$defs/token"
+        },
+        "session_timezone": {
+          "$ref": "#/$defs/token"
+        },
+        "market_source_id": {
+          "$ref": "#/$defs/token"
+        },
+        "market_source_version": {
+          "$ref": "#/$defs/token"
+        },
+        "calendar_source_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "market_source_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "content_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "calendar_observed_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "calendar_available_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "calendar_valid_until": {
+          "$ref": "#/$defs/instant"
+        },
+        "session_open_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "session_close_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "market_observed_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "market_available_at": {
+          "$ref": "#/$defs/instant"
+        },
+        "market_valid_until": {
+          "$ref": "#/$defs/instant"
+        },
+        "trading_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "session_state": {
+          "type": "string",
+          "enum": [
+            "OPEN",
+            "CLOSED",
+            "UNKNOWN"
+          ]
+        },
+        "security_state": {
+          "type": "string",
+          "enum": [
+            "TRADING",
+            "SUSPENDED",
+            "DELISTED",
+            "UNKNOWN"
+          ]
+        },
+        "price_boundary_mode": {
+          "type": "string",
+          "enum": [
+            "LIMITED",
+            "UNRESTRICTED",
+            "UNKNOWN"
+          ]
+        },
+        "reference_price": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "lower_limit_price": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/positiveDecimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "upper_limit_price": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/positiveDecimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "price_boundary_mode": {
+                "const": "LIMITED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "lower_limit_price": {
+                "$ref": "#/$defs/positiveDecimal"
+              },
+              "upper_limit_price": {
+                "$ref": "#/$defs/positiveDecimal"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "lower_limit_price": {
+                "type": "null"
+              },
+              "upper_limit_price": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "order": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "security_id",
+        "account_id",
+        "side",
+        "quantity",
+        "limit_price",
+        "sell_position_evidence"
+      ],
+      "properties": {
+        "order_id": {
+          "$ref": "#/$defs/token"
+        },
+        "security_id": {
+          "$ref": "#/$defs/token"
+        },
+        "account_id": {
+          "$ref": "#/$defs/accountId"
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "BUY",
+            "SELL"
+          ]
+        },
+        "quantity": {
+          "$ref": "#/$defs/shareQuantity"
+        },
+        "limit_price": {
+          "$ref": "#/$defs/positiveDecimal"
+        },
+        "sell_position_evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sellPositionEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "rule_content_hash",
+        "market_evidence_content_hash",
+        "status",
+        "reason_codes"
+      ],
+      "properties": {
+        "order_id": {
+          "$ref": "#/$defs/token"
+        },
+        "rule_content_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "market_evidence_content_hash": {
+          "$ref": "#/$defs/digest"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ALLOWED",
+            "DENIED"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "RULE_MARKET_SECURITY_MISMATCH",
+              "ORDER_SECURITY_MISMATCH",
+              "RULE_SOURCE_NOT_YET_AVAILABLE",
+              "RULE_NOT_YET_EFFECTIVE",
+              "RULE_SOURCE_EXPIRED",
+              "RULE_MARKET_MISMATCH",
+              "RULE_BOARD_MISMATCH",
+              "CALENDAR_EVIDENCE_NOT_YET_AVAILABLE",
+              "CALENDAR_EVIDENCE_EXPIRED",
+              "MARKET_EVIDENCE_NOT_YET_AVAILABLE",
+              "MARKET_EVIDENCE_EXPIRED",
+              "SESSION_STATE_UNKNOWN",
+              "SESSION_CLOSED",
+              "OUTSIDE_TRADING_DATE",
+              "OUTSIDE_SESSION",
+              "SECURITY_STATE_UNKNOWN",
+              "SECURITY_SUSPENDED",
+              "SECURITY_DELISTED",
+              "PRICE_BOUNDARY_UNKNOWN",
+              "REFERENCE_PRICE_NOT_ON_TICK",
+              "LIMIT_PRICE_NOT_ON_TICK",
+              "REFERENCE_PRICE_OUTSIDE_BOUNDARY",
+              "LIMIT_PRICE_OUTSIDE_BOUNDARY",
+              "QUANTITY_BELOW_MINIMUM",
+              "QUANTITY_NOT_ON_STEP",
+              "QUANTITY_ABOVE_MAXIMUM",
+              "POSITION_EVIDENCE_MISSING",
+              "POSITION_EVIDENCE_INCOMPLETE",
+              "POSITION_ACCOUNT_MISMATCH",
+              "POSITION_SECURITY_MISMATCH",
+              "POSITION_EVIDENCE_NOT_YET_AVAILABLE",
+              "POSITION_EVIDENCE_EXPIRED",
+              "SELLABLE_BALANCE_INSUFFICIENT",
+              "ODD_LOT_HAS_RESTRICTED_BALANCE",
+              "ODD_LOT_NOT_FULL_SELLABLE_BALANCE"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ALLOWED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason_codes": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason_codes": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -2,8 +2,9 @@
 * text=auto
 .gitattributes text eol=lf
 
-# Preserve original A-share evidence bytes.
+# Preserve original A-share evidence bytes and deterministic generated code.
 docs/testing/a-share-usability-ash01-* -text
+qmt_agent/price_submission_range.py text eol=lf
 docs/testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json text eol=lf
 docs/testing/evid07-authenticated-receipt-writer-checkpoint-2026-09-11.json.sha256 text eol=lf
 docs/testing/evid07-durable-policy-checkpoint-2026-09-10.json text eol=lf

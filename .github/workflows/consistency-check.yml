@@ -70,6 +70,9 @@ jobs:
         run: |
           python scripts/check_current_data_contracts.py
 
+      - name: Verify standalone QMT price algorithm projection
+        run: python scripts/build_qmt_price_submission_projection.py --check
+
       - name: Enforce system audit event contracts
         run: python scripts/check_audit_event_contracts.py
 

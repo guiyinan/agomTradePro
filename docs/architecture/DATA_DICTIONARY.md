@@ -7,8 +7,8 @@
 ## 概览
 
 - App 数：42
-- 模型数：584
-- 字段数：8984
+- 模型数：585
+- 字段数：9001
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -12140,6 +12140,32 @@
 
 
 ## risk_center
+
+### AShareExecutionRuleModel
+
+- 来源文件：`apps/risk_center/infrastructure/ashare_execution_rule_models.py`
+- 数据表：`risk_center_ashare_execution_rule`
+- 说明：One complete canonical A-share execution rule configuration version.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `security_id` | `CharField` |  |  |  |  |  |
+| `rule_id` | `CharField` |  |  |  |  |  |
+| `rule_version` | `CharField` |  |  |  |  |  |
+| `market` | `CharField` |  |  |  |  |  |
+| `board` | `CharField` |  |  |  |  |  |
+| `recorded_at` | `DateTimeField` |  |  |  |  |  |
+| `source_available_at` | `DateTimeField` |  |  |  |  |  |
+| `effective_from` | `DateTimeField` |  |  |  |  |  |
+| `valid_until` | `DateTimeField` |  |  |  |  |  |
+| `content_hash` | `CharField` |  | 是 |  |  |  |
+| `canonical_payload` | `JSONField` |  |  |  |  |  |
+| `retirement_effective_at` | `DateTimeField` | 是 |  |  |  |  |
+| `retirement_recorded_at` | `DateTimeField` | 是 |  |  |  |  |
+| `retirement_request_id` | `UUIDField` | 是 | 是 |  |  |  |
+| `retirement_actor_type` | `CharField` | 是 |  |  |  |  |
+| `retirement_actor_id` | `CharField` | 是 |  |  |  |  |
+| `retirement_request_hash` | `CharField` | 是 |  |  |  |  |
 
 ### BrokerExecutionPolicyAppendOnlyModel
 

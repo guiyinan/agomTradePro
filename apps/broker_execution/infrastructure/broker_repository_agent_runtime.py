@@ -18,10 +18,14 @@ from apps.broker_execution.application.evidence_gate import (
     broker_order_evidence_integrated,
     require_broker_order_evidence,
 )
+from apps.broker_execution.application.execution_contract_capabilities import (
+    parse_agent_execution_contracts,
+)
 from apps.broker_execution.application.use_case_errors import (
     BrokerAgentAuthenticationError,
     BrokerExecutionConflictError,
     BrokerExecutionNotFoundError,
+    BrokerExecutionValidationError,
 )
 from apps.broker_execution.domain.connection_freshness import heartbeat_times_are_fresh
 from apps.broker_execution.domain.entities import LiveOrderStatus
@@ -54,6 +58,24 @@ ModelT = TypeVar("ModelT", bound=Model)
 
 def _decimal_text(value: Decimal | None) -> str | None:
     return str(value) if value is not None else None
+
+
+def _require_agent_submission_contract(agent: BrokerAgentModel | None) -> None:
+    """Block new submission on missing, malformed, or unsupported capability data."""
+
+    if agent is None:
+        raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED")
+    snapshot: object = agent.health_snapshot
+    if not isinstance(snapshot, dict):
+        raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED")
+    try:
+        capabilities = parse_agent_execution_contracts(
+            snapshot.get("execution_constraint_schemas", [])
+        )
+    except BrokerExecutionValidationError as error:
+        raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED") from error
+    if not capabilities.supports_submission_v2:
+        raise BrokerExecutionConflictError("AGENT_EXECUTION_CONTRACT_UNSUPPORTED")
 
 
 class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
@@ -120,6 +142,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
     ) -> dict[str, Any]:
         """Persist Agent health without trusting account ownership from the payload."""
 
+        contracts = parse_agent_execution_contracts(payload.get("execution_constraint_schemas", []))
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
         was_connected = agent.qmt_connected
         account_ids = [int(item) for item in payload.get("account_ids", [])]
@@ -165,6 +188,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
             "message": str(payload.get("message") or "")[:500],
             "source_observed_at": source_observed_at,
             "reported_qmt_connected": reported_qmt_connected,
+            "execution_constraint_schemas": list(contracts.schemas),
         }
         agent.save(
             update_fields=[
@@ -230,6 +254,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
 
         now = timezone.now()
         agent = BrokerAgentModel._default_manager.get(pk=agent_pk, is_active=True)
+        _require_agent_submission_contract(agent)
         try:
             source_observed_at = datetime.fromisoformat(
                 str((agent.health_snapshot or {}).get("source_observed_at") or "").replace(
@@ -358,7 +383,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
         with transaction.atomic():
             order = (
                 LiveOrderModel._default_manager.select_for_update(of=("self",))
-                .select_related("lease")
+                .select_related("lease", "agent")
                 .filter(client_order_id=client_order_id, agent_id=agent_pk)
                 .first()
             )
@@ -366,6 +391,7 @@ class BrokerExecutionAgentRuntimeMixin(BrokerExecutionRepositoryMixinSupport):
                 raise BrokerExecutionNotFoundError("Leased order does not exist")
             if order.account_id not in set(allowed_account_ids):
                 raise BrokerAgentAuthenticationError("Order exceeds the credential account scope")
+            _require_agent_submission_contract(order.agent)
             lease = getattr(order, "lease", None)
             token_hash = hashlib.sha256(lease_token.encode("utf-8")).hexdigest()
             if (
