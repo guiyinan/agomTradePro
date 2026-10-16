@@ -1,6 +1,6 @@
 # 活跃计划索引
 
-> 导航整理：2026-10-14。机器唯一真源：[governance/active_plan_registry.json](../../governance/active_plan_registry.json)。
+> 导航整理：2026-10-16。机器唯一真源：[governance/active_plan_registry.json](../../governance/active_plan_registry.json)。
 > 本页提供工作流与文档入口。状态、owner、依赖、排期、审查期限和退出门直接读取机器字段，不维护第二套快照。
 
 ## 当前工作流
@@ -66,6 +66,7 @@
 | 支撑 | [治理契约存量覆盖缺口备忘录（2026-08-10）](governance-legacy-coverage-gaps-memo-2026-08-10.md) |
 | 支撑 | [模型行情经数据中台取数（本地改造，2026-09-09）](model-market-data-center-routing-2026-09-09.md) |
 | 支撑 | [生产恢复与系统性防回归整改计划（2026-09-24）](production-recovery-and-regression-remediation-2026-09-24.md) |
+| 支撑 | [财务发现与发布能力隔离整改（2026-10-16）](financial-scope-resilience-2026-10-16.md) |
 | 支撑 | [发布阻塞清零综合实施方案（2026-08-29）](release-blocker-closure-execution-plan-2026-08-29.md) |
 | 支撑 | [测试覆盖薄弱环节整改计划](test-coverage-weakness-remediation-2026-07-24.md) |
 | 证据 | [测试覆盖薄弱环节整改实施记录](test-coverage-weakness-remediation-progress-2026-07-24.md) |

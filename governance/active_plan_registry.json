@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-14.v197",
-  "updated_at": "2026-10-14",
+  "version": "2026-10-16.v198",
+  "updated_at": "2026-10-16",
   "execution_focus": {
     "unit_id": "DATA-18",
     "allowed_parallel_execution_modes": [
@@ -164,6 +164,10 @@
         },
         {
           "path": "docs/plans/production-recovery-and-regression-remediation-2026-09-24.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/financial-scope-resilience-2026-10-16.md",
           "role": "supporting"
         }
       ]
