@@ -20,6 +20,7 @@
 | --- | --- |
 | [MODULE_DEPENDENCIES.md](architecture/MODULE_DEPENDENCIES.md) | **模块依赖关系文档（拓扑图+改进建议）** |
 | [MODULE_MAP.md](architecture/MODULE_MAP.md) | **模块架构地图说明书（governance/module_map.json 生成投影的字段口径与 Debug 用法）** |
+| [DATA_DICTIONARY.md](architecture/DATA_DICTIONARY.md) | **ORM 数据字典（governance/data_dictionary.json 生成投影的人读渲染，禁止手改）** |
 | [SYSTEM_TOPOLOGY.md](architecture/SYSTEM_TOPOLOGY.md) | **系统模块拓扑图与数据流（已同步 2026-04-26 架构治理结果）** |
 | [architecture-remediation-result-2026-04-26.md](architecture/architecture-remediation-result-2026-04-26.md) | **架构整改结果（cycle=0 / audit=0 / MCP 契约未变）** |
 | [adr-0001-shared-infrastructure-boundaries.md](architecture/adr-0001-shared-infrastructure-boundaries.md) | **ADR：shared.infrastructure 边界判定** |

@@ -92,6 +92,9 @@ jobs:
       - name: Verify module map projection is current
         run: python scripts/check_module_map.py
 
+      - name: Verify data dictionary projection is current
+        run: python scripts/check_data_dictionary.py
+
   structure-audit-report:
     runs-on: ubuntu-latest
     timeout-minutes: 10

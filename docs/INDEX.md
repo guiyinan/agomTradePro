@@ -28,6 +28,7 @@
 | 系统版本 | [VERSION.md](VERSION.md)，与 `core/version.py` 一致性校验 |
 | 运行与开发依赖 | [pyproject.toml](../pyproject.toml)，requirements 为生成投影 |
 | 模块结构、入口与路由 | [module_map.json](../governance/module_map.json) 与 [MODULE_MAP.md](architecture/MODULE_MAP.md) |
+| ORM 模型字段与表结构 | [data_dictionary.json](../governance/data_dictionary.json) 与 [DATA_DICTIONARY.md](architecture/DATA_DICTIONARY.md) |
 | 动态治理规模 | [governance/governance_baseline.json](../governance/governance_baseline.json) |
 | 测试门槛与报告口径 | [testing_quality_baseline.json](../governance/testing_quality_baseline.json) 与 [coverage-governance.md](development/ci/coverage-governance.md) |
 | 工作流、状态、依赖与执行焦点 | [active_plan_registry.json](../governance/active_plan_registry.json) 的 `workstreams`、`closure_backlog`、`execution_focus` |

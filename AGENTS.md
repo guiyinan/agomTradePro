@@ -11,6 +11,7 @@
 - 动态治理规模的唯一真源是 `governance/governance_baseline.json`。
 - 运行与开发依赖的唯一真源是 `pyproject.toml`。禁止手工编辑 `requirements-prod.txt`、`requirements-dev.txt`；使用 `python scripts/sync_dependency_projections.py` 生成投影。
 - 模块结构地图 `governance/module_map.json` 是代码树的生成投影（同 requirements 投影模式），禁止手工编辑；变更模块结构后运行 `python scripts/build_module_map.py` 重新生成。
+- `governance/data_dictionary.json` 与 `docs/architecture/DATA_DICTIONARY.md` 是 ORM 模型的生成投影，禁止手工编辑；模型变更后运行 `python scripts/build_data_dictionary.py`。
 
 项目基线：Python 3.11+、Django 5.x、Celery + Redis；本地可用 SQLite，正式生产使用 PostgreSQL。
 
