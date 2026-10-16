@@ -707,3 +707,35 @@ CLI 默认仅校验 manifest/预览，零仓储调用；显式 `--apply` 与数�
 源码、实际失败/成功原件、覆盖及工具错误说明见[证券快照有界检查点](../testing/a-share-usability-instrument-snapshot-2026-10-16.json)。Root 两项 SQLite 定向命令误漏 `--no-migrations`，在测试尚未开始的整库 setup 阶段中止；空 stdout 不作红绿证据。Native wrapper 的 pytest 已全部通过，覆盖报告因 parallel 文件尚未 combine 而失败；随后精确合并并生成有界 JSON，不把 QA 工具错误写成业务失败。来源能力仍禁止决策与执行，正式发布和旧消费者均未接通。
 
 用户随后要求**分批、分阶段提交**。后续按独立业务事项在 `dev/next-development` 留下 commit，每批带直接相关测试、合同及适用投影；当前先保存计划与已验证盘点，再分开提交规则、数据来源/发布读取、模拟结算与费用、权限/审计等已冻结切片。共享文件按实际依赖归属整合，不能仅为减少提交大小制造不可导入的中间代码。未通过或未接通的消费者继续保留明确退出门，不因已 commit 就标记 ASH 单元完成。无关工作区改动保持独立。
+
+### 19.24 当前权限审计联验与 2026-10-17 冻结质控
+
+真实 DRF GET/POST 分别使用固定审计读权/发布权，私有共享 purpose 在运行时拒绝未知值，session key 不进入内部 claim 的 repr 或比较。Core bridge 持有当前同 alias 权限到查询和结果重验结束；历史 `as_of` 只筛选事件，不声称过去已有授权。主代理新写两项 rollback-only 反例，由 Luna 实际执行为 2 failed；修复将事务回滚位检查放入 assert_live，正常退出也不能静默报告成功，已存在的回调异常保持原义。
+
+[Calendar Audit v1](../api/a-share-calendar-audit-v1.md)仅接纳完整两类无 scope 合同，通用租户读写约束未放宽。精确查询从整表扫描收窄为目标 stream 或类型/dataset/exchange 精确匹配的行；实际 red 证明无关损坏不应阻断目标。第二项 red 证明 SQL 时间筛选会藏住被篡改到未来的目标行，因此先恢复目标完整事件和前驱链，再选择 PIT 前缀。现有 dispatcher 的真实组件旅程只证明内部持久回执，不等于外部消费或生产运行已开启。
+
+新冻结候选主代理原生 PostgreSQL **205 passed / 331.38 秒，无跳过、无源码漂移**，覆盖 15 个文件，含旧 Audit/hash/outbox、政策 ORM、真实 GET/Core reader 和 **12 项实际双连接撤权顺序**（发布/读取 × 直接授权/组权限/组成员 × 两顺序），观察准确 blocker/waiter。Audit Domain 为 **276/282 语句、78/84 分支**。共享 SQLite 107 passed/9 PG-only skipped、补充 authority unit 36、Audit unit 39/component 13 均与 native 重叠，不相加。
+
+冻结生产 **125 文件增量 mypy 零回归**，全生产 **0 errors / 0 files**；**217 Python 文件** Black/isort/Ruff 均通过。1,165 个实际变更生产函数的标注及 public docstring 无缺项。增量架构 128 文件、28,136 新增行，boundary/audit 为 0；严格 App 图 44 模块/206 边，0 双向依赖、0 循环，不加 allowlist 或债务。最新投影为 ORM **42 app/588 model/9,087 field**，模块地图 **44 module/210 edge**；83 freshness surface、23 Audit 合同通过，其中 Calendar 两项仍 planned/not_wired。
+
+源码与行为原件见[共享授权审计检查点](../testing/a-share-usability-calendar-audit-authority-2026-10-17.json)。19.21 的 103/178 和 19.22 的 58 项证据保留旧窗口，不替代本次新哈希。正式日历 publisher 的 pointer/source/policy/Audit 联合原子性及交易消费者仍未接通；当前仅完成只读设计，尚未因此关闭原 ASH-01、ASH-02、ASH-03 或 Goal。生产/真实 Provider/研究晋级/Evidence/券商停止线不变。
+
+首批计划与盘点已提交 `e1d48b005`。其余批次依赖复核后按 Audit 底座 → Risk/QMT 与退役桥 → Data Center/权限及其 Core 桥 → 模拟结算/费用执行；每批从**实际 index tree**调用现有生成器并校验，不把完整工作树后续模型投影提前塞进前批提交。最初 index 导出遗漏 tests，导致治理检查找不到引用；该 QA harness 失败保留，补全导出后重跑，不修改生产或放宽检查。
+
+### 19.25 分批提交、独立快照与执行时间规则补充复核
+
+已提交计划盘点 `e1d48b005`、Calendar Audit 底座 `9e69af276`、Risk/QMT 与退役审计桥 `356266129`，以及临时副本隔离修复 `9eeead50a`。Audit 独立暂存快照 **52 passed**；Risk/QMT 独立快照 **778 passed**；临时目录修复的同批入口清单 **31 passed**、全库 mypy 债务 **0**。高风险最小回归包在 `9eeead50a` 的独立导出上 **375 passed**，覆盖 TUI、Agent Service、SDK client 与 SSL redirect。
+
+入口扫描器原先会把仓库 `.tmp` 下的暂存树导出当作真实管理命令。导出目录已移到仓库外，并为 `.tmp` 增加真实 public-port ghost 反例；其他本地临时目录继续覆盖。下一 Data Center 批新增的会话引擎动态加载及两项 PostgreSQL 测试仍是 `candidate-review`，专用测试逐项确认；不把新增候选误判成扫描器回退，也不自动批准它们。
+
+Data Center 首次独立导出真实出现 **20 failed / 541 passed / 24 PostgreSQL-only skipped**。其中执行报价候选误用 `current` 日终收盘限制，导致中国上午或跨午夜的精确执行报价被错误拒绝；另两项 unit mock 未实现真实 PublicationPolicy 的 dataset 字段。修复仅使收盘要求适用于 `current` key，`execution` 仍要求独立 key、活动版本 guard、非未来源证据，以及激活/恢复/回滚时的源 TTL 和当前权限。原组件夹具未移到盘后来掩盖缺陷。
+
+固定时钟的午夜、上午、15:00 边界及未来源时间反例通过；两份 unit **85 passed**，既有 SQLite 组件 **20 passed / 1 PostgreSQL-only skipped**。主代理在已有 **544 迁移**的专用原生 PostgreSQL 夹具复验五个精确文件，**106 passed / 107.40 秒、无跳过**，125 个冻结生产文件及五份测试在运行中无漂移。修复后的独立 Data Center 导出为 **609 passed / 24 skipped**，全库 mypy 债务 **0**。原生证明、测试哈希与真实红测见[执行时间规则检查点](../testing/a-share-usability-execution-lanes-2026-10-17.json)；各历史检查点保持其原始源码窗口，不合并成发布或生产验收。
+
+质量封装曾用 `git write-tree` 观测另一个导出测试期间的工作区 index，字段含义不准确，并与投影暂存发生一次锁冲突；类型检查器当时尚未启动。原件保留，后续封装只绑定导出清单的 `staged_source_tree` 与导出源码摘要，不再访问可变 index。未删除活动锁。75 个本批生产文件另有原生工作树与导出源码的 LF 规范化、AST 等价证明；这不替代同字节的 CI/S6 发布身份。
+
+正式日历的下一切片已进入独立 Domain/Application 与审计重放验证器候选开发，尚未接 Infrastructure/Core 原子发布，不纳入本基础批的接受范围。精确 RawPayload 证据不冒充不存在的日历 RawAudit occurrence；current-pointer 读取不冒充历史指针 PIT；新发布时点与本次权限验证绑定，已完成重放保留原事件时间并要求原操作者当前仍有发布权。旧消费者、原 ASH-01 回归、ASH-03、ASH-02 与整体 Goal 继续开放。
+
+后两批已分别提交 Data Center `66358ddcf` 与模拟结算/费用 `0346c6d39`。模拟批独立导出九个测试文件为 **130 passed / 5 PostgreSQL-only skipped**；费用与 UoW 的既有原生 **111 passed** 仍只证明其原始冻结窗口，不与本次 SQLite 数字相加。最终有界候选的 **126 个生产文件**完成工作树/导出源码规范化及 AST 对照，**219 个 Python 文件**的 Black/isort/Ruff 通过且运行中无漂移；待修复的旧 ASH-01 红测和下一正式日历五个候选文件明确排除。
+
+各阶段均从当时 index 导出运行既有生成器及检查，不混入后续模型。最终基础投影为 **42 app / 588 model / 9,087 field**、模块图 **44 / 210**，freshness **83 surface**、Audit **23 event**；其中两项 Calendar event 仍为 planned/not_wired。临时导出隔离及候选分类原件、源码换行边界、各批 SHA 和测试范围统一见[分阶段提交检查点](../testing/a-share-usability-phased-commits-2026-10-17.json)。计划登记推进到 v218，唯一仓库集成焦点仍为 ASH-02；本地提交不代表 CI/S6、生产迁移、真实 Provider 或券商实盘验收。
