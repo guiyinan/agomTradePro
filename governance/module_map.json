@@ -4368,6 +4368,7 @@
         "application/financial_scope_capacity_receipt.py": [
           "FinancialScopeCapacityReceiptError",
           "build_financial_scope_capacity_receipt",
+          "build_financial_scope_partial_receipt",
           "canonical_sha256",
           "validate_financial_scope_capacity_receipt"
         ],
@@ -4376,6 +4377,7 @@
           "parse_financial_scope_manifest_review"
         ],
         "application/financial_scope_manifest_bootstrap.py": [
+          "FinancialScopeAssetResult",
           "FinancialScopeDiscoveryAuthorizationSource",
           "FinancialScopeDiscoveryReader",
           "FinancialScopeDiscoveryResult",

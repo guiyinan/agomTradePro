@@ -54,5 +54,16 @@
     "isolated_database_migrations",
     "financial_scope_authorization",
     "candidate_regression_evidence"
-  ]
+  ],
+  "evidence_bundle": {
+    "maximum_file_bytes": 67108864,
+    "maximum_total_bytes": 268435456
+  },
+  "financial_scope_resilience": {
+    "schema": "release.financial-scope-resilience.v1",
+    "partial_evidence_mode": "isolated_partial_financial_capture",
+    "partial_financial_refresh": false,
+    "universe_policy": "all_frozen_assets_classified",
+    "integrity_failures": "block_release"
+  }
 }

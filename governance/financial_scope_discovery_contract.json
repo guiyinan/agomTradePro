@@ -4,7 +4,7 @@
   "provider_name": "akshare",
   "provider_source": "akshare",
   "contract_id": "akshare.financial-scope.latest-notice",
-  "contract_version": "2026-10-09.v1",
+  "contract_version": "2026-10-16.v2",
   "endpoint": "datacenter.eastmoney.com/securities/api/data/get?type=RPT_F10_FINANCE_MAINFINADATA",
   "datasets": [
     "equity.financial.fact",
@@ -26,20 +26,23 @@
       "NOTICE_DATE"
     ]
   },
+  "response": {
+    "provider_count_must_match_rows": true,
+    "provider_count_above_row_ceiling": "fail_closed",
+    "empty_asset_scope": "asset_blocked",
+    "duplicate_native_rows": "fail_closed",
+    "pair_drift": "fail_closed",
+    "invalid_date_rows": "retain_and_quarantine",
+    "selection": "latest_available_at_dual_response_completion",
+    "no_available_announcement": "asset_blocked"
+  },
   "parser": {
-    "parser_id": "akshare-financial-scope-parser.v1",
-    "parser_sha256": "ffe70921ce8a636261f0b6629d7af52e98924e27b63084af36e209c9110d1a34",
+    "parser_id": "akshare-financial-scope-parser.v2",
+    "parser_sha256": "a6d027c53ffca9d7061fd392341404620ff11682fd1099026ff602fb05e9caa3",
     "asset_field": "SECUCODE",
     "period_field": "REPORT_DATE",
     "announcement_date_field": "NOTICE_DATE",
     "source_timezone": "Asia/Shanghai"
-  },
-  "response": {
-    "provider_count_must_match_rows": true,
-    "provider_count_above_row_ceiling": "fail_closed",
-    "empty_asset_scope": "fail_closed",
-    "duplicate_native_rows": "fail_closed",
-    "pair_drift": "fail_closed"
   },
   "evidence": {
     "retention": "two exact encrypted raw response bodies",
@@ -57,5 +60,5 @@
     "physical_attempts_per_logical_request_maximum": 2
   },
   "authentication": "none",
-  "contract_sha256": "d99df926c2afb2f07a5429290058e38c3fab1d56be8b0266e9090c6db61e39ac"
+  "contract_sha256": "ddcbd3789696265d72dd8999a5774859f40e19e7128bae2a857fa90a54084c0c"
 }

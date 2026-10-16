@@ -68,6 +68,9 @@ ISOLATED_DATABASE_MIGRATION_FIELDS = frozenset(
     }
 )
 MAX_BUNDLE_BYTES = 64 * 1024 * 1024
+RELEASE_POLICY_PATH = (
+    Path(__file__).resolve().parents[1] / "governance/release_rehearsal_policy.json"
+)
 
 
 def _read(path: Path, limit: int = MAX_BUNDLE_BYTES) -> bytes:
@@ -190,7 +193,9 @@ def _resolve(base: Path, relative: str) -> Path:
     return candidate
 
 
-def _copy_graph(report_path: Path, destination: Path) -> tuple[str, int]:
+def _copy_graph(
+    report_path: Path, destination: Path, *, maximum_total_bytes: int = MAX_BUNDLE_BYTES
+) -> tuple[str, int]:
     source_root = report_path.resolve().parent
     queue = [report_path.resolve()]
     copied: dict[str, str] = {}
@@ -206,7 +211,7 @@ def _copy_graph(report_path: Path, destination: Path) -> tuple[str, int]:
             continue
         copied[relative] = digest
         total += len(raw)
-        if total > MAX_BUNDLE_BYTES:
+        if total > maximum_total_bytes:
             raise ValueError("REHEARSAL_BUNDLE_SIZE_LIMIT")
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -258,12 +263,29 @@ def build_manifest(
         or set(reports) != set(REQUIRED_SCHEMAS)
     ):
         raise ValueError("REHEARSAL_BUNDLE_IDENTITY_INVALID")
+    policy = _json(RELEASE_POLICY_PATH).get("evidence_bundle")
+    if (
+        not isinstance(policy, dict)
+        or policy.get("maximum_file_bytes") != MAX_BUNDLE_BYTES
+        or type(policy.get("maximum_total_bytes")) is not int
+        or cast(int, policy["maximum_total_bytes"]) < MAX_BUNDLE_BYTES
+    ):
+        raise ValueError("REHEARSAL_BUNDLE_RESOURCE_POLICY_INVALID")
+    maximum_total_bytes = cast(int, policy["maximum_total_bytes"])
     loaded = {kind: _json(path) for kind, path in reports.items()}
     for kind, payload in loaded.items():
         if (
             payload.get("schema") != REQUIRED_SCHEMAS[kind]
             or payload.get("kind") != kind
-            or payload.get("outcome") != "success"
+            or (
+                payload.get("outcome") != "success"
+                and not (
+                    kind == "financial_scope_capacity"
+                    and payload.get("outcome") == "partial"
+                    and payload.get("evidence_mode") == "isolated_partial_financial_capture"
+                    and payload.get("capabilities") == {"financial_refresh": False}
+                )
+            )
             or payload.get("candidate_sha") != candidate_sha
             or payload.get("target_trade_date") != target_trade_date
             or payload.get("universe_sha256") != universe_sha256
@@ -349,9 +371,11 @@ def build_manifest(
             report_path = reports[kind]
             kind_dir = output_dir / kind
             kind_dir.mkdir()
-            digest, copied_bytes = _copy_graph(report_path, kind_dir)
+            digest, copied_bytes = _copy_graph(
+                report_path, kind_dir, maximum_total_bytes=maximum_total_bytes
+            )
             total += copied_bytes
-            if total > MAX_BUNDLE_BYTES:
+            if total > maximum_total_bytes:
                 raise ValueError("REHEARSAL_BUNDLE_SIZE_LIMIT")
             references.append(
                 {
@@ -376,6 +400,10 @@ def build_manifest(
             "release_universe": release_universe,
             "provider_identities": raw_identities,
             "reports": references,
+            "capabilities": {
+                "market_refresh": True,
+                "financial_refresh": financial_capacity.get("outcome") == "success",
+            },
         }
         path = output_dir / "release-rehearsal-manifest.json"
         raw = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()

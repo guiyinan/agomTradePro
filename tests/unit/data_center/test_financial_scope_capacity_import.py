@@ -281,6 +281,32 @@ def _prepare(
     )
 
 
+def test_partial_receipt_is_explicitly_disabled_for_production_import(tmp_path: Path) -> None:
+    """A market-only recovery receipt must never acquire financial import authority."""
+    payloads = _payloads(tmp_path)
+    payloads[1]["outcome"] = "partial"
+    with pytest.raises(
+        FinancialScopeCapacityImportError, match="FINANCIAL_SCOPE_IMPORT_CAPABILITY_DISABLED"
+    ):
+        _prepare(payloads)
+
+
+@pytest.mark.parametrize("financial_allowed", [True, False])
+def test_release_capability_manifest_is_checked_before_financial_import(
+    tmp_path: Path, financial_allowed: bool
+) -> None:
+    """New capability metadata supports full import but cannot escalate market-only evidence."""
+    payloads = _payloads(tmp_path)
+    payloads[0]["capabilities"] = {"market_refresh": True, "financial_refresh": financial_allowed}
+    if financial_allowed:
+        assert _prepare(payloads)["environment"] == "production"
+    else:
+        with pytest.raises(
+            FinancialScopeCapacityImportError, match="FINANCIAL_SCOPE_IMPORT_CAPABILITY_DISABLED"
+        ):
+            _prepare(payloads)
+
+
 def test_import_record_binds_every_hash_review_event_and_exact_production_ceiling(
     tmp_path: Path,
 ) -> None:

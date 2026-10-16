@@ -49,6 +49,10 @@ agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
 
 ### 发布预检与 S6 策略快照
 
+财务发现采用 `2026-10-16.v2` 最新已可用公告合同：历史坏日期隔离留存，局部网络/数据缺口发布逐资产 `partial`。
+`partial_evidence` 仅允许通过独立行情验收的能力，`financial_refresh=false`；不得导入为完整财务刷新凭证。
+完整规则及停止线见 [S6 恢复规范](s6-rehearsal-recovery.md#财务发现-v2-与能力隔离)。
+
 日常修改 S6 prepare 路由时，先运行下面的快速反馈，再冻结正式候选。默认只运行精确单测；
 `--live` 才访问当前 Django 环境配置的真实 provider，且必须显式指定预计的 S6 目标日：
 

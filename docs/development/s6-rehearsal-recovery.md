@@ -1,6 +1,6 @@
 # S6 预检、续跑和诊断
 
-本规范对应 `scripts/run_release_rehearsal.py`。目标是让同一候选的环境故障或后续阶段失败可恢复，避免重复构建、重复 provider 调用；不改变业务验收门槛或部署审批。`isolated_database_migrations` 是有状态写入阶段：只有报告和检查点证明迁移阶段完整成功、目标 container ID 未变时，后续阶段才可按普通检查点恢复；迁移阶段被启动但结果不明时绝不能 `--resume` 重放。
+本规范对应 `scripts/run_release_rehearsal.py`。检查点机制让同一候选的环境故障或后续阶段失败可恢复，避免重复构建、重复 provider 调用；检查点恢复本身不改变业务验收门槛或部署审批。另行批准的财务发现 v2 语义见下文。`isolated_database_migrations` 是有状态写入阶段：只有报告和检查点证明迁移阶段完整成功、目标 container ID 未变时，后续阶段才可按普通检查点恢复；迁移阶段被启动但结果不明时绝不能 `--resume` 重放。
 
 ## 操作方式
 
@@ -161,9 +161,35 @@ fact capture UUID 交叉核对后，51 个两次 provider 校验失败的资产�
 原文的只读复核可重建 5510 个资产的 capture pair，其中 13 个在 asset-item 校验处阻断：最新公告日为 2026-10-16，按既有
 date-only 契约要到北京时间 2026-10-17 00:00 才可用。不能把这 13 个阻断继续解释为留存后即时读回抖动。
 
-这些数据缺陷不是重试可解决的错误。现行完整历史行日期校验、空值拒绝和可用时间门槛保持失败关闭；没有新的来源补全证据或
-明确批准的新查询/验收契约，不得再次 reserve 全量 attempt，也不得删行、缩小资产分母或伪造公告时间来通过验收。失败原文的
-只读诊断不属于新 attempt 的成功证据。
+这些数据缺陷不是重试可解决的错误。该失败 attempt 按当时 v1 合同封存，不得追加新合同成功证据。
+2026-10-16 用户明确批准按局部失败、局部禁用、整体继续运行整改；新候选采用下述 v2 合同，不能复用历史失败原文作为新验收证据。
+
+## 财务发现 v2 与能力隔离
+
+本次整改范围、完成标准与回滚边界见[阶段计划](../plans/financial-scope-resilience-2026-10-16.md)。
+
+`governance/financial_scope_discovery_contract.json` 定义 `2026-10-16.v2`：仍获取两份完整分页原文并验证 count、范围和审计；
+缺失、格式异常或早于财报期末的公告日期行保留在原文中，使用原始行摘要显式隔离，不补造日期。两份规范化行集合连同隔离行
+必须一致，否则仍阻断。有效候选只取在两份响应较早完成时间之前已达到既定次日零点可用时刻的最新公告。尚不可用的公告不参与
+选择，仍保留原文和计数；找不到合格公告的资产发布 `FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT`。
+
+冻结资产全集不缩小，每个资产均发布 `asset_results`，区分 `eligible` 与 `blocked`，记录稳定原因、隔离行/尚不可用行数量。
+这里的 eligible 只证明公告范围可用于后续审核，原始捕获本身始终 `must_not_use_for_decision=true`，不证明财务值新鲜或取得生产写权限。
+网络耗尽及无可用公告形成 `partial`；身份、权限、未知异常、重复、双份漂移、原文或审计错误仍阻断整次验收，且停止继续请求。
+未配置并验证备用数据源时局部禁用，不用未经核对的来源填洞。原有出网路由候选、重试次数和 owner ceiling 不扩张。
+
+部分结果只生成 `evidence_mode=isolated_partial_financial_capture` 的报告，不能通过 full-scope receipt 验证/导入。
+报告必须覆盖全部冻结资产、全部已留存原文及其独立审计，并绑定 exact SHA/image、provider、授权和隔离环境；删资产、删原文或
+隐藏错误均失败关闭。S6 runner 可以完成 bundle/validator，最终状态为 `partial_evidence`；不能报告 14 阶段全部业务通过。
+builder、validator、handoff 和部署入口共同核验 `capabilities={market_refresh:true,financial_refresh:false}`。
+这只允许在全部行情/写入/CI/策略/环境门禁均通过后使用已有行情恢复路径，财务功能保持禁用；不是部署授权，也不是生产刷新凭证。
+完整财务结果仍须 full-scope receipt、两个独立认证 owner/reviewer 事件和有效 ceiling 才能进入生产 financial refresh。
+两个周期入口继续 disabled；新候选 CI、official artifact 与 fresh S6 完成前不得部署。
+
+证据包资源预算见 release policy 的 `evidence_bundle`，由 builder 与独立 validator 同时执行：单文件仍限 64 MiB，
+完整包限 256 MiB。只读盘点封存失败样本的 11020 份原文为 110738068 bytes（约 106 MiB），超过旧的 64 MiB 整包上限；
+新预算容纳原文及完整报告，不改变任何覆盖、身份或审计门槛，也不把该样本作为新验收证据。超出新资源预算仍明确阻断。
+范围源报告使用紧凑规范 JSON，独立 validator 与生产 import 对该全集报告沿用 64 MiB 单文件限制；其他 JSON 元数据仍限 16 MiB。
 
 已成功且产物完整的 provider 阶段不会在续跑时重复调用。未成功的 provider 阶段没有可复用的成功证据，显式 `--resume` 会在保留失败产物后重新执行该阶段并再次消耗受控配额；必须先确认原失败根因已修复且剩余配额可用。执行器不会自动循环续跑。
 

@@ -383,7 +383,7 @@ def _parse_reviewable_report(
         raise FinancialScopeCapacityInputError("FINANCIAL_CAPACITY_SCOPE_POINTER_INVALID")
     result = _mapping(report.get("result"))
     if (
-        set(result)
+        set(result) - {"asset_results"}
         != {"schema", "outcome", "error_codes", "counts", "candidate", "candidate_manifest"}
         or result.get("schema") != "data-center.financial-scope-discovery-result.v1"
         or result.get("outcome") != "success"
@@ -445,6 +445,20 @@ def _parse_reviewable_report(
         or counts.get("publication_writes") != 0
     ):
         raise FinancialScopeCapacityInputError("FINANCIAL_CAPACITY_SCOPE_POINTER_INVALID")
+    if candidate.binding.contract_version == "2026-10-16.v2":
+        asset_results = result.get("asset_results")
+        if not isinstance(asset_results, list) or len(asset_results) != len(candidate.items):
+            raise FinancialScopeCapacityInputError("FINANCIAL_CAPACITY_SCOPE_POINTER_INVALID")
+        for raw_asset_result, item in zip(asset_results, candidate.items, strict=True):
+            asset = _mapping(raw_asset_result)
+            if (
+                asset.get("asset_code") != item.asset_code
+                or asset.get("status") != "eligible"
+                or asset.get("reason_code") is not None
+                or asset.get("must_not_use_for_decision") is not True
+                or asset.get("selected_scope") != item.to_dict()
+            ):
+                raise FinancialScopeCapacityInputError("FINANCIAL_CAPACITY_SCOPE_POINTER_INVALID")
     return candidate, _canonical_sha256(value)
 
 

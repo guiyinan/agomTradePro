@@ -94,6 +94,8 @@ def import_financial_scope_capacity_bundle(
     if not _is_aware(observed_now):
         raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_TIME_INVALID")
     first_snapshot = _read_bundle_snapshot(bundle_dir)
+    if first_snapshot.capacity_receipt.get("outcome") == "partial":
+        raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_CAPABILITY_DISABLED")
     runtime_binding = _load_runtime_binding(first_snapshot.release_manifest)
     active_asset_codes = _load_active_asset_codes()
     candidate, canonical_report_sha256 = _parse_scope_report(first_snapshot.scope_report)
@@ -231,7 +233,7 @@ def _read_bundle_snapshot(bundle_dir: Path) -> _BundleSnapshot:
     ):
         raise FinancialScopeCapacityImportRuntimeError("FINANCIAL_SCOPE_IMPORT_SOURCE_INVALID")
     source_path = "financial_scope_capacity/financial-scope-discovery.json"
-    source_raw = _read_checked_file(root, source_path, _MAX_JSON_BYTES)
+    source_raw = _read_checked_file(root, source_path, 64 * 1024 * 1024)
     if source_ref.get("sha256") != _sha256(source_raw):
         raise FinancialScopeCapacityImportRuntimeError(
             "FINANCIAL_SCOPE_IMPORT_SOURCE_DIGEST_INVALID"

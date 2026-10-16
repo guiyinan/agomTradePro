@@ -8,6 +8,31 @@ import pytest
 
 from scripts.build_release_rehearsal_manifest import REQUIRED_SCHEMAS, build_manifest
 
+
+def test_bundle_graph_total_limit_is_separate_from_individual_artifact_limit(
+    tmp_path: Path,
+) -> None:
+    """Several valid ciphertext files must fit the explicit aggregate resource budget."""
+    from scripts.build_release_rehearsal_manifest import _copy_graph
+
+    body = b"retained encrypted evidence"
+    (tmp_path / "body.frb").write_bytes(body)
+    report = tmp_path / "report.json"
+    report.write_text(
+        json.dumps({"path": "body.frb", "sha256": hashlib.sha256(body).hexdigest()}),
+        encoding="utf-8",
+    )
+    exact_size = report.stat().st_size + len(body)
+    destination = tmp_path / "bundle"
+    destination.mkdir()
+    _, copied = _copy_graph(report, destination, maximum_total_bytes=exact_size)
+    assert copied == exact_size
+    rejected = tmp_path / "rejected"
+    rejected.mkdir()
+    with pytest.raises(ValueError, match="REHEARSAL_BUNDLE_SIZE_LIMIT"):
+        _copy_graph(report, rejected, maximum_total_bytes=exact_size - 1)
+
+
 CANDIDATE = "c" * 40
 DATE = "2026-09-24"
 UNIVERSE_CODES = ["000001.SZ"]

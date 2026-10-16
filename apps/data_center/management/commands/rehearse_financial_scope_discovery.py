@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.data_center.application.financial_scope_capacity_receipt import (
     build_financial_scope_capacity_receipt,
+    build_financial_scope_partial_receipt,
     canonical_sha256,
 )
 from apps.data_center.application.financial_scope_manifest_bootstrap import (
@@ -29,6 +30,7 @@ from apps.data_center.application.financial_scope_manifest_bootstrap import (
 from apps.data_center.domain.financial_scope_discovery import (
     FINANCIAL_SCOPE_DISCOVERY_ERROR_CODES,
     FinancialScopeDiscoveryCandidate,
+    FinancialScopeDiscoveryCapture,
     FinancialScopeDiscoveryError,
 )
 from apps.data_center.financial_scope_discovery_composition import (
@@ -135,8 +137,13 @@ class Command(BaseCommand):
             )
             _write_exclusive_json(report_path, report)
             result = report.get("result")
-            if isinstance(result, dict) and result.get("outcome") == "success":
-                capacity_receipt = build_financial_scope_capacity_receipt(
+            if isinstance(result, dict) and result.get("outcome") in {"success", "partial"}:
+                builder = (
+                    build_financial_scope_capacity_receipt
+                    if result["outcome"] == "success"
+                    else build_financial_scope_partial_receipt
+                )
+                capacity_receipt = builder(
                     scope_report=report,
                     scope_report_sha256=hashlib.sha256(_encoded_json(report)).hexdigest(),
                     target_trade_date=target_trade_date,
@@ -155,7 +162,7 @@ class Command(BaseCommand):
         result = report["result"]
         if not isinstance(result, dict):
             raise CommandError("REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_REPORT_INVALID")
-        if result.get("outcome") != "success":
+        if result.get("outcome") not in {"success", "partial"}:
             error_codes = result.get("error_codes")
             if not isinstance(error_codes, list) or not error_codes:
                 raise CommandError("REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_BLOCKED")
@@ -241,7 +248,9 @@ def _run_discovery(
         )
     )
     try:
-        encrypted_artifacts = _encrypted_artifact_projection(artifact_root, result.candidate)
+        encrypted_artifacts = _encrypted_artifact_projection(
+            artifact_root, result.candidate, captures=result.retained_captures
+        )
     except FinancialScopeDiscoveryError as exc:
         result = replace(
             result,
@@ -295,6 +304,12 @@ def _authorization_projection(
     """Expose the owner authorization that is sealed into a complete manifest."""
 
     candidate = result.candidate
+    if candidate is None and result.authorization is not None:
+        return {
+            "approval_id": result.authorization.approval_id,
+            "owner_event_id": result.authorization.event_id,
+            "owner_receipt_sha256": result.authorization.receipt_sha256,
+        }
     if candidate is None:
         return None
     return {
@@ -321,13 +336,26 @@ def _result_projection(value: dict[str, object]) -> dict[str, object]:
 
 
 def _encrypted_artifact_projection(
-    root: Path, candidate: FinancialScopeDiscoveryCandidate | None
+    root: Path,
+    candidate: FinancialScopeDiscoveryCandidate | None,
+    *,
+    captures: tuple[FinancialScopeDiscoveryCapture, ...] = (),
 ) -> list[dict[str, object]]:
     """Enumerate only opaque encrypted artifacts and reject links or special files."""
 
     if root.is_symlink() or not root.is_dir():
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
     expected: dict[str, dict[str, object]] = {}
+    for capture in captures:
+        if capture.capture_id in expected:
+            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RAW_ARTIFACT_INVALID")
+        expected[capture.capture_id] = {
+            "asset_code": capture.asset_code,
+            "dataset_key": capture.dataset_key,
+            "capture_id": capture.capture_id,
+            "body_sha256": capture.body_sha256,
+            "raw_audit_id": capture.raw_audit_id,
+        }
     if candidate is not None:
         for item in candidate.items:
             expected[item.financial_capture_id] = {
@@ -502,9 +530,9 @@ def _write_exclusive_json(path: Path, payload: dict[str, object]) -> None:
 def _encoded_json(payload: dict[str, object]) -> bytes:
     """Return the exact exclusive-report encoding used by both S6 outputs."""
 
-    return (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
-        "utf-8"
-    )
+    return (
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode("utf-8")
 
 
 def _write_safe_failure_report(path: Path, *, candidate_sha: str, code: str) -> bool:

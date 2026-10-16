@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from apps.data_center.application.financial_scope_manifest_bootstrap import (
     FinancialScopeDiscoveryUseCase,
@@ -109,7 +109,7 @@ def build_financial_scope_discovery_binding(
         contract_id=_required_text(contract, "contract_id"),
         contract_version=_required_text(contract, "contract_version"),
         contract_sha256=_required_text(contract, "contract_sha256"),
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id=str(cast(dict[str, object], contract["parser"])["parser_id"]),
         parser_sha256=financial_scope_discovery_parser_sha256(),
         deployment_region=akshare_financial_deployment_region(),
     )

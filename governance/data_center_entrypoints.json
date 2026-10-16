@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 73,
+      "current_data_surface": 74,
       "dynamic_import_edge": 13,
       "management_command": 49,
       "management_command_edge": 65,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 852,
+      "active_public": 853,
       "adjacent_operational": 339,
       "candidate-review": 5,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1334
+    "total": 1335
   },
   "entries": [
     {
@@ -5337,6 +5337,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "data_center.financial_provider_body_scope",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.financial_scope_latest_available:Latest available financial announcement with retained quarantined history and asset-local failures",
+      "locator": "Latest available financial announcement with retained quarantined history and asset-local failures",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.financial_scope_latest_available",
       "target": ""
     },
     {
@@ -13391,7 +13401,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 73,
+    "current_data_contracts": 74,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 42,
     "runtime_config_keys": 45

@@ -70,3 +70,37 @@ def test_target_date_universe_source_rejects_datetime() -> None:
         composition.TargetDateFinancialScopeDiscoveryUniverseSource(
             datetime(2026, 10, 14, tzinfo=UTC)
         )
+
+
+def test_binding_uses_checked_in_v2_contract_parser_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An exporter must not bind a v2 contract to the obsolete hardcoded v1 parser."""
+    from types import SimpleNamespace
+
+    from apps.data_center.infrastructure.financial_scope_discovery_reader import (
+        load_financial_scope_discovery_contract,
+    )
+    from apps.data_center.infrastructure.rehearsal_identity import RehearsalProviderIdentity
+
+    identity = RehearsalProviderIdentity(
+        role="akshare_financial_route:19",
+        provider_id=19,
+        source="akshare_financial",
+        version="fixture",
+        endpoint_id="fixture-endpoint",
+        deployment_region="isolated-test",
+    )
+    monkeypatch.setattr(
+        composition, "configured_akshare_financial_identity", lambda **kwargs: identity
+    )
+    monkeypatch.setattr(composition, "akshare_financial_deployment_region", lambda: "isolated-test")
+    contract = load_financial_scope_discovery_contract()
+    binding = composition.build_financial_scope_discovery_binding(
+        provider=SimpleNamespace(id=19, source_type="akshare", is_active=True),
+        candidate_sha="a" * 40,
+    )
+    assert binding.contract_version == "2026-10-16.v2"
+    assert (
+        binding.parser_id == contract["parser"]["parser_id"] == "akshare-financial-scope-parser.v2"
+    )

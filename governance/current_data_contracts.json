@@ -7848,6 +7848,53 @@
           "test_function": "test_validator_recomputes_unknown_listing_date_digest_from_full_scope"
         }
       ]
+    },
+    {
+      "id": "data_center.financial_scope_latest_available",
+      "surface": "Latest available financial announcement with retained quarantined history and asset-local failures",
+      "source_files": [
+        "apps/data_center/domain/financial_scope_discovery.py",
+        "apps/data_center/application/financial_scope_manifest_bootstrap.py",
+        "apps/data_center/application/financial_scope_capacity_receipt.py"
+      ],
+      "required_markers": {
+        "apps/data_center/domain/financial_scope_discovery.py": [
+          "latest_source_time",
+          "quarantined_row_sha256",
+          "NO_AVAILABLE_ANNOUNCEMENT"
+        ],
+        "apps/data_center/application/financial_scope_manifest_bootstrap.py": [
+          "must_not_use_for_decision",
+          "\"partial\"",
+          "asset_results"
+        ],
+        "apps/data_center/application/financial_scope_capacity_receipt.py": [
+          "isolated_partial_financial_capture",
+          "\"financial_refresh\": False"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "available_announcement_uses_response_cutoff",
+          "test_file": "tests/unit/data_center/test_financial_scope_manifest_bootstrap.py",
+          "test_function": "test_selects_latest_available_announcement_and_preserves_quarantined_history"
+        },
+        {
+          "case": "quarantine_retains_original_rows",
+          "test_file": "tests/unit/data_center/test_financial_scope_resilience.py",
+          "test_function": "test_history_date_defect_is_quarantined_without_losing_valid_rows"
+        },
+        {
+          "case": "partial_cannot_grant_full_financial",
+          "test_file": "tests/unit/data_center/test_financial_scope_resilience.py",
+          "test_function": "test_partial_evidence_never_grants_full_financial_refresh"
+        },
+        {
+          "case": "market_financial_capability_isolation",
+          "test_file": "tests/unit/test_validate_release_rehearsal.py",
+          "test_function": "test_partial_financial_scope_keeps_market_gate_and_disables_financial_refresh"
+        }
+      ]
     }
   ]
 }

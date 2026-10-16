@@ -274,7 +274,7 @@ def test_reports_all_missing_assets_and_provider_failures_in_one_result() -> Non
         universe_source=_UniverseSource(assets),
     ).execute(_request(assets))
 
-    assert result.outcome == "blocked"
+    assert result.outcome == "partial"
     assert result.candidate is None
     assert result.missing_count == 2
     assert result.failed_capture_count == 2
@@ -283,6 +283,81 @@ def test_reports_all_missing_assets_and_provider_failures_in_one_result() -> Non
         "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
     )
     assert len(reader.calls) == len(assets)
+    assert tuple(row.asset_code for row in result.asset_results) == assets
+    assert result.asset_results[-1].status == "eligible"
+    assert len(result.retained_captures) == 2
+
+
+def test_selects_latest_available_announcement_and_preserves_quarantined_history() -> None:
+    from apps.data_center.domain.financial_scope_discovery import build_asset_item
+
+    asset = "000001.SZ"
+    good = _capture(asset)
+    rows = good.rows + (
+        FinancialScopeDiscoveryRow(asset, date(2001, 6, 30), None, "d" * 64),
+        FinancialScopeDiscoveryRow(asset, date(2026, 9, 30), date(2026, 10, 8)),
+    )
+    item = build_asset_item(
+        binding=_binding(),
+        asset_code=asset,
+        financial=replace(good, rows=rows),
+        source_time=replace(_capture(asset, capture_index=1), rows=rows),
+    )
+    assert item.announcement_date == date(2026, 8, 30)
+    assert item.available_at <= min(item.response_completed_at)
+
+
+def test_no_available_announcement_is_local_block_with_both_captures_preserved() -> None:
+    assets = ("000001.SZ", "600000.SH")
+    reader = _Reader()
+    rows = (FinancialScopeDiscoveryRow(assets[0], date(2001, 6, 30), None, "d" * 64),)
+    reader.capture_overrides[assets[0]] = (
+        replace(_capture(assets[0]), rows=rows),
+        replace(_capture(assets[0], capture_index=1), rows=rows),
+    )
+    result = FinancialScopeDiscoveryUseCase(
+        reader=reader,
+        authorization_source=_AuthorizationSource(_authorization(assets)),
+        universe_source=_UniverseSource(assets),
+    ).execute(_request(assets))
+    assert result.outcome == "partial"
+    assert result.captured_count == 1
+    assert (
+        result.asset_results[0].reason_code == "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT"
+    )
+    assert len(result.retained_captures) == 4
+    assert result.candidate is None
+
+
+def test_empty_provider_scope_blocks_only_the_asset_and_retains_raw_pair() -> None:
+    assets = ("000001.SZ",)
+    reader = _Reader()
+    reader.capture_overrides[assets[0]] = (
+        replace(_capture(assets[0]), rows=()),
+        replace(_capture(assets[0], capture_index=1), rows=()),
+    )
+    result = FinancialScopeDiscoveryUseCase(
+        reader=reader,
+        authorization_source=_AuthorizationSource(_authorization(assets)),
+        universe_source=_UniverseSource(assets),
+    ).execute(_request(assets))
+    assert result.outcome == "partial"
+    assert result.missing_count == 1
+    assert result.captured_count == 0
+    assert len(result.retained_captures) == 2
+
+
+def test_authority_or_evidence_failure_stops_further_provider_reads() -> None:
+    assets = ("000001.SZ", "600000.SH")
+    reader = _Reader()
+    reader.failures[assets[0]] = "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_IDENTITY_INVALID"
+    result = FinancialScopeDiscoveryUseCase(
+        reader=reader,
+        authorization_source=_AuthorizationSource(_authorization(assets)),
+        universe_source=_UniverseSource(assets),
+    ).execute(_request(assets))
+    assert result.outcome == "blocked"
+    assert reader.calls == [assets[0]]
 
 
 def test_rejects_capture_pair_scope_drift_and_reports_conflicting_asset() -> None:

@@ -17,6 +17,10 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 五条不可破坏的语义
 
+财务公告范围发现 v2 以两份响应共同的知识截止点选择最新已可用公告，不能让尚不可用的最新行遮蔽旧的已可用公告。
+缺失/占位日期隔离并保留原文；全集逐资产分类，`partial` 不具有完整财务刷新能力。范围 eligible 不等于财务事实 fresh，
+不得绕过 Publication 的 freshness 与独立授权。登记见 `data_center.financial_scope_latest_available`。
+
 Alpha Qlib 推理缓存必须按 `asof_date` 核对请求交易日；旧源日期仅可写为
 `degraded`，发布 `must_not_use_for_decision=true` 和 `qlib_source_data_stale`，
 并跳过下游推荐刷新。每日行情额度耗尽直接返回阻断且零写入，不改变旧评分时间。

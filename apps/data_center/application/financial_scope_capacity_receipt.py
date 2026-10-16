@@ -9,6 +9,12 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from typing import cast
 
+from apps.data_center.domain.financial_scope_discovery import (
+    FinancialScopeDiscoveryAsset,
+    FinancialScopeDiscoveryError,
+    latest_source_time,
+)
+
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _CANDIDATE = re.compile(r"^[0-9a-f]{40}$")
 _IMAGE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -206,7 +212,301 @@ def canonical_sha256(value: object) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _validate_scope_source(source: Mapping[str, object]) -> None:
+def build_financial_scope_partial_receipt(
+    *,
+    scope_report: object,
+    scope_report_sha256: str,
+    target_trade_date: str,
+    release_universe_sha256: str,
+    provider_identities_sha256: str,
+    expected_release_asset_codes: tuple[str, ...],
+    frozen_provider_identities: tuple[Mapping[str, object], ...],
+) -> dict[str, object]:
+    """Seal local external failures with financial refresh disabled, never full capacity."""
+    code = "S6_FINANCIAL_SCOPE_PARTIAL_INVALID"
+    source = _mapping(scope_report, code)
+    _validate_scope_source(source, partial=True)
+    _require_sha256(scope_report_sha256, code)
+    if (
+        not expected_release_asset_codes
+        or tuple(sorted(set(expected_release_asset_codes))) != expected_release_asset_codes
+        or any(_ASSET_CODE.fullmatch(asset) is None for asset in expected_release_asset_codes)
+        or canonical_sha256(list(expected_release_asset_codes)) != release_universe_sha256
+        or canonical_sha256(list(frozen_provider_identities)) != provider_identities_sha256
+    ):
+        raise FinancialScopeCapacityReceiptError(code)
+    binding = _mapping(source.get("binding"), code)
+    if binding.get("contract_version") != "2026-10-16.v2":
+        raise FinancialScopeCapacityReceiptError(code)
+    for key in ("contract_sha256", "parser_sha256"):
+        _require_sha256(_text(binding, key, code), code)
+    try:
+        date.fromisoformat(target_trade_date)
+    except ValueError:
+        raise FinancialScopeCapacityReceiptError(code) from None
+    if not _frozen_financial_identity_matches(
+        frozen_provider_identities=frozen_provider_identities, binding=binding
+    ):
+        raise FinancialScopeCapacityReceiptError(code)
+    result = _mapping(source.get("result"), code)
+    counts = _mapping(result.get("counts"), code)
+    if any(
+        type(counts.get(key)) is not int
+        for key in (
+            "requested",
+            "captured",
+            "failed_capture",
+            "missing",
+            "duplicates",
+            "conflicts",
+            "logical_requests",
+            "physical_attempts",
+            "artifact_writes",
+            "raw_audit_writes",
+            "fact_writes",
+            "publication_writes",
+        )
+    ):
+        raise FinancialScopeCapacityReceiptError(code)
+    assets = _list(result.get("asset_results"), code)
+    captures = _list(result.get("captures"), code)
+    if result.get("candidate") is not None or result.get("candidate_manifest") is not None:
+        raise FinancialScopeCapacityReceiptError(code)
+    allowed = {
+        "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+        "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT",
+    }
+    codes = _list(result.get("error_codes"), code)
+    if not codes or any(
+        type(item) is not str
+        or item
+        not in {
+            f"REHEARSAL_{reason}"
+            for reason in allowed | {"FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE"}
+        }
+        for item in codes
+    ):
+        raise FinancialScopeCapacityReceiptError(code)
+    started = _parse_datetime(source.get("started_at"))
+    finished = _parse_datetime(source.get("finished_at"))
+    capture_by_id: dict[str, Mapping[str, object]] = {}
+    captures_by_asset: dict[str, list[Mapping[str, object]]] = {}
+    audit_ids: set[int] = set()
+    for value in captures:
+        capture = _mapping(value, code)
+        capture_id = _text(capture, "capture_id", code)
+        audit_id = _positive_int(capture, "raw_audit_id")
+        completed = _parse_datetime(capture.get("response_completed_at"))
+        _require_sha256(_text(capture, "body_sha256", code), code)
+        if (
+            set(capture)
+            != {
+                "asset_code",
+                "dataset_key",
+                "capture_id",
+                "body_sha256",
+                "raw_audit_id",
+                "response_completed_at",
+            }
+            or capture_id in capture_by_id
+            or audit_id in audit_ids
+            or not started <= completed <= finished
+        ):
+            raise FinancialScopeCapacityReceiptError(code)
+        capture_by_id[capture_id] = capture
+        captures_by_asset.setdefault(_text(capture, "asset_code", code), []).append(capture)
+        audit_ids.add(audit_id)
+    observed: list[str] = []
+    eligible = 0
+    reasons: set[str] = set()
+    for value in assets:
+        asset = _mapping(value, code)
+        asset_code = _text(asset, "asset_code", code)
+        observed.append(asset_code)
+        pair = captures_by_asset.get(asset_code, [])
+        if (
+            set(asset)
+            != {
+                "asset_code",
+                "status",
+                "reason_code",
+                "must_not_use_for_decision",
+                "selected_scope",
+                "quarantined_rows",
+                "unavailable_rows",
+            }
+            or asset.get("must_not_use_for_decision") is not True
+            or any(
+                type(asset.get(key)) is not int or cast(int, asset[key]) < 0
+                for key in ("quarantined_rows", "unavailable_rows")
+            )
+            or len(pair) not in {0, 2}
+            or (
+                pair
+                and {capture.get("dataset_key") for capture in pair}
+                != {"equity.financial.fact", "equity.financial.source-time"}
+            )
+        ):
+            raise FinancialScopeCapacityReceiptError(code)
+        if asset.get("status") == "eligible":
+            selected = _mapping(asset.get("selected_scope"), code)
+            try:
+                item = FinancialScopeDiscoveryAsset(
+                    asset_code=_text(selected, "asset_code", code),
+                    announcement_date=date.fromisoformat(
+                        _text(selected, "announcement_date", code)
+                    ),
+                    available_at=_parse_datetime(selected.get("available_at")),
+                    native_row_ids=tuple(
+                        cast(list[str], _list(selected.get("native_row_ids"), code))
+                    ),
+                    financial_capture_id=_text(selected, "financial_capture_id", code),
+                    financial_body_sha256=_text(selected, "financial_body_sha256", code),
+                    financial_raw_audit_id=_positive_int(selected, "financial_raw_audit_id"),
+                    source_time_capture_id=_text(selected, "source_time_capture_id", code),
+                    source_time_body_sha256=_text(selected, "source_time_body_sha256", code),
+                    source_time_raw_audit_id=_positive_int(selected, "source_time_raw_audit_id"),
+                    response_completed_at=cast(
+                        tuple[datetime, datetime],
+                        tuple(
+                            _parse_datetime(v)
+                            for v in _list(selected.get("response_completed_at"), code)
+                        ),
+                    ),
+                )
+            except (FinancialScopeDiscoveryError, TypeError, ValueError):
+                raise FinancialScopeCapacityReceiptError(code) from None
+            if (
+                asset.get("reason_code") is not None
+                or len(pair) != 2
+                or item.asset_code != asset_code
+                or item.available_at != latest_source_time(item.announcement_date)
+                or dict(selected) != item.to_dict()
+            ):
+                raise FinancialScopeCapacityReceiptError(code)
+            for role, capture_id, body_hash, audit_id, completed in (
+                (
+                    "equity.financial.fact",
+                    item.financial_capture_id,
+                    item.financial_body_sha256,
+                    item.financial_raw_audit_id,
+                    item.response_completed_at[0],
+                ),
+                (
+                    "equity.financial.source-time",
+                    item.source_time_capture_id,
+                    item.source_time_body_sha256,
+                    item.source_time_raw_audit_id,
+                    item.response_completed_at[1],
+                ),
+            ):
+                matched_capture = capture_by_id.get(capture_id)
+                if matched_capture != {
+                    "asset_code": asset_code,
+                    "dataset_key": role,
+                    "capture_id": capture_id,
+                    "body_sha256": body_hash,
+                    "raw_audit_id": audit_id,
+                    "response_completed_at": completed.isoformat(),
+                }:
+                    raise FinancialScopeCapacityReceiptError(code)
+            eligible += 1
+        elif asset.get("status") == "blocked":
+            reason = asset.get("reason_code")
+            if (
+                type(reason) is not str
+                or reason not in allowed
+                or asset.get("selected_scope") is not None
+                or (
+                    reason == "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT"
+                    and len(pair) != 2
+                )
+                or (reason == "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED" and pair)
+            ):
+                raise FinancialScopeCapacityReceiptError(code)
+            reasons.add(f"REHEARSAL_{reason}")
+        else:
+            raise FinancialScopeCapacityReceiptError(code)
+    requested = len(expected_release_asset_codes)
+    if (
+        tuple(observed) != expected_release_asset_codes
+        or eligible >= requested
+        or counts.get("requested") != requested
+        or counts.get("captured") != eligible
+        or counts.get("missing") != requested - eligible
+        or counts.get("failed_capture") != requested - eligible
+        or counts.get("duplicates") != 0
+        or counts.get("conflicts") != 0
+        or counts.get("fact_writes") != 0
+        or counts.get("publication_writes") != 0
+        or counts.get("logical_requests") != requested * 2
+        or not len(captures) + requested - len(captures_by_asset)
+        <= cast(int, counts.get("physical_attempts", -1))
+        <= requested * 4
+        or counts.get("artifact_writes") != len(captures)
+        or counts.get("raw_audit_writes") != len(captures)
+        or set(codes) != reasons | {"REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE"}
+        or any(
+            capture.get("asset_code") not in expected_release_asset_codes
+            for capture in capture_by_id.values()
+        )
+    ):
+        raise FinancialScopeCapacityReceiptError(code)
+    artifacts = _list(source.get("encrypted_artifacts"), code)
+    indexed: set[str] = set()
+    root_name = _text(source, "artifact_root", code)
+    for value in artifacts:
+        artifact = _mapping(value, code)
+        index = _mapping(artifact.get("envelope_index"), code)
+        capture_id = _text(index, "capture_id", code)
+        matched_capture = capture_by_id.get(capture_id)
+        path = _text(artifact, "path", code)
+        if (
+            matched_capture is None
+            or capture_id in indexed
+            or _ARTIFACT_PATH.fullmatch(path) is None
+            or path != f"{root_name}/v1/{capture_id}.frb"
+            or dict(index)
+            != {key: val for key, val in matched_capture.items() if key != "response_completed_at"}
+            or set(artifact) != {"path", "size_bytes", "ciphertext_sha256", "envelope_index"}
+        ):
+            raise FinancialScopeCapacityReceiptError(code)
+        _positive_int(artifact, "size_bytes")
+        _require_sha256(_text(artifact, "ciphertext_sha256", code), code)
+        indexed.add(capture_id)
+    if indexed != set(capture_by_id):
+        raise FinancialScopeCapacityReceiptError(code)
+    receipt: dict[str, object] = {
+        "schema": "release.financial-scope-capacity.v1",
+        "kind": "financial_scope_capacity",
+        "candidate_sha": source["candidate_sha"],
+        "candidate_image_id": source["candidate_image_id"],
+        "candidate_source_attestation": "image_release_manifest",
+        "target_trade_date": target_trade_date,
+        "universe_sha256": release_universe_sha256,
+        "provider_identities_sha256": provider_identities_sha256,
+        "release_universe": {
+            "asset_count": requested,
+            "asset_codes": list(expected_release_asset_codes),
+            "sha256": release_universe_sha256,
+        },
+        "outcome": "partial",
+        "evidence_mode": "isolated_partial_financial_capture",
+        "environment": "s6_isolated_disposable",
+        "started_at": source["started_at"],
+        "finished_at": source["finished_at"],
+        "scope_report": {"path": "financial-scope-discovery.json", "sha256": scope_report_sha256},
+        "capabilities": {"financial_refresh": False},
+        "counts": dict(counts),
+        "asset_results_sha256": canonical_sha256(assets),
+        "artifact_ledger_sha256": canonical_sha256(artifacts),
+        "production_manifest_review_satisfied": False,
+    }
+    receipt["receipt_sha256"] = canonical_sha256(receipt)
+    return receipt
+
+
+def _validate_scope_source(source: Mapping[str, object], *, partial: bool = False) -> None:
     expected_keys = {
         "schema",
         "kind",
@@ -229,13 +529,14 @@ def _validate_scope_source(source: Mapping[str, object]) -> None:
         set(source) != expected_keys
         or source.get("schema") != "release.financial-scope-discovery.v1"
         or source.get("kind") != "financial_scope_discovery"
-        or source.get("outcome") != "success"
-        or source.get("review_status") != "pending_independent_review"
-        or set(result)
+        or source.get("outcome") != ("partial" if partial else "success")
+        or source.get("review_status")
+        != ("not_eligible" if partial else "pending_independent_review")
+        or set(result) - ({"asset_results", "captures"} if partial else {"asset_results"})
         != {"schema", "outcome", "error_codes", "counts", "candidate", "candidate_manifest"}
         or result.get("schema") != "data-center.financial-scope-discovery-result.v1"
-        or result.get("outcome") != "success"
-        or result.get("error_codes") != []
+        or result.get("outcome") != ("partial" if partial else "success")
+        or (not partial and result.get("error_codes") != [])
         or _IMAGE.fullmatch(
             _text(source, "candidate_image_id", "S6_FINANCIAL_SCOPE_SOURCE_INVALID")
         )
@@ -471,6 +772,10 @@ def _validate_candidate(
             or any(not _is_utc(value) for value in completed_at)
             or any(value < started_at or value > finished_at for value in completed_at)
             or available_at > min(completed_at)
+            or (
+                candidate_binding.get("contract_version") == "2026-10-16.v2"
+                and available_at != latest_source_time(announcement_date)
+            )
         ):
             raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
         for text_key in ("financial_capture_id", "source_time_capture_id"):
@@ -493,6 +798,25 @@ def _validate_candidate(
         observed_codes.append(asset_code)
     if observed_codes != cast(list[str], codes):
         raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE")
+    if candidate_binding.get("contract_version") == "2026-10-16.v2":
+        asset_results = _list(result.get("asset_results"), "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+        if len(asset_results) != len(items):
+            raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_COVERAGE_INCOMPLETE")
+        for raw_asset, selected in zip(asset_results, items, strict=True):
+            asset = _mapping(raw_asset, "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+            selected_item = _mapping(selected, "S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
+            if (
+                asset.get("asset_code") != selected_item.get("asset_code")
+                or asset.get("status") != "eligible"
+                or asset.get("reason_code") is not None
+                or asset.get("must_not_use_for_decision") is not True
+                or asset.get("selected_scope") != selected_item
+                or any(
+                    type(asset.get(key)) is not int or cast(int, asset[key]) < 0
+                    for key in ("quarantined_rows", "unavailable_rows")
+                )
+            ):
+                raise FinancialScopeCapacityReceiptError("S6_FINANCIAL_SCOPE_EVIDENCE_INVALID")
     root_name = _text(source, "artifact_root", "S6_FINANCIAL_SCOPE_ARTIFACT_INVALID")
     paths: set[str] = set()
     indexed_capture_ids: set[str] = set()
@@ -645,6 +969,7 @@ def _is_utc(value: datetime) -> bool:
 __all__ = [
     "FinancialScopeCapacityReceiptError",
     "build_financial_scope_capacity_receipt",
+    "build_financial_scope_partial_receipt",
     "canonical_sha256",
     "validate_financial_scope_capacity_receipt",
 ]

@@ -852,6 +852,92 @@ def test_rehearsal_accepts_frozen_failover_route_identities(tmp_path: Path) -> N
     assert verify_evidence_handoff_receipt(receipt)["provider_identities_sha256"] == digest
 
 
+def test_partial_financial_stage_finishes_bundle_and_handoff_with_financial_disabled(
+    tmp_path: Path,
+) -> None:
+    """Local provider exhaustion must reach final validation, not stop the launcher."""
+    from apps.data_center.application.financial_scope_capacity_receipt import (
+        build_financial_scope_partial_receipt,
+    )
+
+    class PartialRunner(FakeRunner):
+        def _create_stage_report(self, command: Command) -> None:
+            super()._create_stage_report(command)
+            if command.label != "financial_scope_capacity":
+                return
+            output = command.artifact_dir / "output"
+            source_path = output / "financial-scope-discovery.json"
+            receipt_path = output / "financial-full-scope-capacity.json"
+            old_receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            source = json.loads(source_path.read_text(encoding="utf-8"))
+            source.update(outcome="partial", review_status="not_eligible")
+            source["binding"]["contract_version"] = "2026-10-16.v2"
+            for artifact in source["encrypted_artifacts"]:
+                (output / artifact["path"]).unlink()
+            source["encrypted_artifacts"] = []
+            result = source["result"]
+            result.update(
+                outcome="partial",
+                candidate=None,
+                candidate_manifest=None,
+                captures=[],
+                error_codes=[
+                    "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE",
+                    "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+                ],
+            )
+            result["counts"].update(
+                captured=0,
+                failed_capture=len(UNIVERSE_CODES),
+                missing=len(UNIVERSE_CODES),
+                artifact_writes=0,
+                raw_audit_writes=0,
+            )
+            result["asset_results"] = [
+                {
+                    "asset_code": code,
+                    "status": "blocked",
+                    "reason_code": "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+                    "selected_scope": None,
+                    "must_not_use_for_decision": True,
+                    "quarantined_rows": 0,
+                    "unavailable_rows": 0,
+                }
+                for code in UNIVERSE_CODES
+            ]
+            raw = (json.dumps(source, sort_keys=True, indent=2) + "\n").encode()
+            source_path.write_bytes(raw)
+            receipt = build_financial_scope_partial_receipt(
+                scope_report=source,
+                scope_report_sha256=hashlib.sha256(raw).hexdigest(),
+                target_trade_date=TRADE_DATE,
+                release_universe_sha256=UNIVERSE_SHA256,
+                provider_identities_sha256=old_receipt["provider_identities_sha256"],
+                expected_release_asset_codes=UNIVERSE_CODES,
+                frozen_provider_identities=tuple(
+                    json.loads(
+                        self._mounted_path(
+                            command.argv, target="/run/agom/provider-identities.json"
+                        ).read_text(encoding="utf-8")
+                    )
+                ),
+            )
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    config = _config(tmp_path, root=_fake_checkout(tmp_path))
+    runner = PartialRunner()
+    receipt_path = run_release_rehearsal(config, runner=runner)
+    receipt = verify_evidence_handoff_receipt(receipt_path)
+    assert receipt["capabilities"] == {"market_refresh": True, "financial_refresh": False}
+    assert (
+        runner.labels.index("financial_scope_capacity")
+        < runner.labels.index("bundle_build")
+        < runner.labels.index("release_validator")
+    )
+    status = json.loads((config.output_dir / "run-status.json").read_text(encoding="utf-8"))
+    assert status["outcome"] == "partial_evidence"
+
+
 @pytest.mark.parametrize(
     "failed_stage",
     [

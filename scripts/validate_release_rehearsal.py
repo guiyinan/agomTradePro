@@ -71,6 +71,8 @@ ISOLATED_DATABASE_MIGRATION_FIELDS = frozenset(
 )
 from apps.data_center.application.financial_scope_capacity_receipt import (
     FinancialScopeCapacityReceiptError,
+    build_financial_scope_partial_receipt,
+    canonical_sha256,
     validate_financial_scope_capacity_receipt,
 )
 from shared.release_rehearsal_file_io import RehearsalFileReadError, read_regular_file
@@ -325,9 +327,9 @@ def _require_candidate_attestation(payload: dict[str, Any]) -> None:
         _fail("REHEARSAL_CANDIDATE_SOURCE_UNATTESTED")
 
 
-def _read_json(path: Path, code: str) -> dict[str, Any]:
+def _read_json(path: Path, code: str, *, maximum: int = 16 * 1024 * 1024) -> dict[str, Any]:
     try:
-        raw = read_regular_file(path.parent, path.name, 16 * 1024 * 1024)
+        raw = read_regular_file(path.parent, path.name, maximum)
         payload: object = json.loads(raw)
     except (OSError, UnicodeError, json.JSONDecodeError, RehearsalFileReadError):
         _fail(code)
@@ -366,6 +368,34 @@ def _validate_required_reports_policy() -> None:
         or set(cast(list[object], required)) != set(REQUIRED_REPORT_SCHEMAS)
     ):
         _fail("REHEARSAL_REQUIRED_REPORTS_POLICY_INVALID")
+    if payload.get("financial_scope_resilience") != {
+        "schema": "release.financial-scope-resilience.v1",
+        "partial_evidence_mode": "isolated_partial_financial_capture",
+        "partial_financial_refresh": False,
+        "universe_policy": "all_frozen_assets_classified",
+        "integrity_failures": "block_release",
+    }:
+        _fail("REHEARSAL_FINANCIAL_SCOPE_POLICY_INVALID")
+
+
+def _validate_bundle_resources(base: Path) -> None:
+    """Enforce the governed total ciphertext budget independently of the builder."""
+    policy = _release_policy().get("evidence_bundle")
+    if (
+        not isinstance(policy, dict)
+        or type(policy.get("maximum_file_bytes")) is not int
+        or type(policy.get("maximum_total_bytes")) is not int
+        or not 0 < policy["maximum_file_bytes"] <= policy["maximum_total_bytes"]
+    ):
+        _fail("REHEARSAL_BUNDLE_RESOURCE_POLICY_INVALID")
+    total = 0
+    for path in base.rglob("*"):
+        if path.is_symlink() or not path.is_file():
+            continue
+        size = path.stat().st_size
+        total += size
+        if size > policy["maximum_file_bytes"] or total > policy["maximum_total_bytes"]:
+            _fail("REHEARSAL_BUNDLE_SIZE_LIMIT")
 
 
 def _stage_environment_contract_policy() -> tuple[tuple[str, ...], tuple[str, ...], int, int, int]:
@@ -703,9 +733,17 @@ def _validate_common_report(
         _fail("REHEARSAL_TARGET_DATE_MISMATCH")
     if report.get("universe_sha256") != expected_universe:
         _fail("REHEARSAL_UNIVERSE_MISMATCH")
-    if report.get("outcome") != "success":
+    partial_financial = (
+        kind == "financial_scope_capacity"
+        and report.get("outcome") == "partial"
+        and report.get("capabilities") == {"financial_refresh": False}
+    )
+    if report.get("outcome") != "success" and not partial_financial:
         _fail("REHEARSAL_REPORT_NOT_SUCCESSFUL")
-    if report.get("evidence_mode") != REQUIRED_EVIDENCE_MODES[kind]:
+    expected_mode = (
+        "isolated_partial_financial_capture" if partial_financial else REQUIRED_EVIDENCE_MODES[kind]
+    )
+    if report.get("evidence_mode") != expected_mode:
         _fail("REHEARSAL_EVIDENCE_MODE_INVALID")
     if report.get("provider_identities_sha256") != expected_provider_digest:
         _fail("REHEARSAL_PROVIDER_MISMATCH")
@@ -997,6 +1035,7 @@ def _validate_financial_scope_authorization(
     source = _read_json(
         scope_report_path.parent / "financial-scope-discovery.json",
         "REHEARSAL_FINANCIAL_SCOPE_AUTHORIZATION_SOURCE_INVALID",
+        maximum=64 * 1024 * 1024,
     )
     source_authorization = source.get("authorization")
     source_binding = source.get("binding")
@@ -2764,20 +2803,31 @@ def _validate_financial_scope_capacity(
         source_ref.get("path"),
         source_ref.get("sha256"),
     )
-    source_report = _read_json(source_path, "REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    source_report = _read_json(
+        source_path, "REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID", maximum=64 * 1024 * 1024
+    )
     result = source_report.get("result")
     candidate_manifest = result.get("candidate_manifest") if isinstance(result, dict) else None
-    if not isinstance(candidate_manifest, dict):
+    partial = report.get("outcome") == "partial"
+    if not partial and not isinstance(candidate_manifest, dict):
         _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
+    candidate_payload = candidate_manifest if isinstance(candidate_manifest, dict) else {}
     generated_at = _parse_datetime(
-        candidate_manifest.get("generated_at"), "REHEARSAL_FINANCIAL_SCOPE_TIME_INVALID"
+        source_report.get("started_at") if partial else candidate_payload.get("generated_at"),
+        "REHEARSAL_FINANCIAL_SCOPE_TIME_INVALID",
     )
     if generated_at > now + timedelta(minutes=5) or now - generated_at > max_age:
         _fail("REHEARSAL_EVIDENCE_STALE")
-    raw_items = candidate_manifest.get("items")
+    raw_items = (
+        result.get("captures")
+        if partial and isinstance(result, dict)
+        else candidate_payload.get("items")
+    )
     if not isinstance(raw_items, list):
         _fail("REHEARSAL_FINANCIAL_SCOPE_SOURCE_INVALID")
     for raw_item in cast(list[object], raw_items):
+        if partial and isinstance(raw_item, dict):
+            raw_item = {"response_completed_at": [raw_item.get("response_completed_at")]}
         if not isinstance(raw_item, dict) or not isinstance(
             raw_item.get("response_completed_at"), list
         ):
@@ -2837,6 +2887,23 @@ def _validate_financial_scope_capacity(
     if source_finished > now + timedelta(minutes=5) or now - source_finished > max_age:
         _fail("REHEARSAL_EVIDENCE_STALE")
     try:
+        if partial:
+            expected = build_financial_scope_partial_receipt(
+                scope_report=source_report,
+                scope_report_sha256=cast(str, source_ref.get("sha256")),
+                target_trade_date=expected_date,
+                release_universe_sha256=expected_universe,
+                provider_identities_sha256=expected_provider_digest,
+                expected_release_asset_codes=expected_release_asset_codes,
+                frozen_provider_identities=frozen_provider_identities,
+            )
+            if (
+                canonical_sha256(report) != canonical_sha256(expected)
+                or report.get("candidate_sha") != expected_candidate
+                or report.get("candidate_image_id") != expected_image_id
+            ):
+                _fail("S6_FINANCIAL_SCOPE_PARTIAL_INVALID")
+            return
         validate_financial_scope_capacity_receipt(
             receipt=report,
             scope_report=source_report,
@@ -3233,6 +3300,7 @@ def validate_release_rehearsal(
     if set(references) != set(REQUIRED_REPORT_SCHEMAS):
         _fail("REHEARSAL_REPORT_SET_INCOMPLETE")
     base = manifest_path.resolve().parent
+    _validate_bundle_resources(base)
     loaded_reports: dict[str, dict[str, Any]] = {}
     report_paths: dict[str, Path] = {}
     for kind in REQUIRED_REPORT_SCHEMAS:
@@ -3354,8 +3422,17 @@ def validate_release_rehearsal(
         expected_github_repository,
         expected_github_run_id,
     )
+    capabilities = {
+        "market_refresh": True,
+        "financial_refresh": loaded_reports["financial_scope_capacity"].get("outcome") == "success",
+    }
+    if manifest.get("capabilities", capabilities) != capabilities or (
+        not capabilities["financial_refresh"] and "capabilities" not in manifest
+    ):
+        _fail("REHEARSAL_CAPABILITIES_MISMATCH")
     return {
-        "outcome": "success",
+        "outcome": "success" if capabilities["financial_refresh"] else "partial",
+        "capabilities": capabilities,
         "candidate_sha": expected_candidate,
         "candidate_image_id": expected_candidate_image_id,
         "target_trade_date": expected_target_date,

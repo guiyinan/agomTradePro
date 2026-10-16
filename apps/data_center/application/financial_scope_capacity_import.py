@@ -86,6 +86,10 @@ def prepare_financial_scope_capacity_import_record(
 ) -> dict[str, object]:
     """Build an immutable ledger payload after exact runtime and authority checks."""
 
+    receipt_status = _mapping(capacity_receipt, "FINANCIAL_SCOPE_IMPORT_RECEIPT_INVALID")
+    if receipt_status.get("outcome") == "partial":
+        raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_CAPABILITY_DISABLED")
+
     _require_sha256(release_manifest_sha256, "FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
     _require_sha256(capacity_receipt_raw_sha256, "FINANCIAL_SCOPE_IMPORT_RECEIPT_INVALID")
     _require_sha256(scope_report_raw_sha256, "FINANCIAL_SCOPE_IMPORT_SOURCE_INVALID")
@@ -275,6 +279,10 @@ def _parse_release_manifest(manifest: Mapping[str, object]) -> dict[str, str]:
         "provider_identities",
         "reports",
     }
+    if "capabilities" in manifest:
+        expected_keys.add("capabilities")
+        if manifest["capabilities"] != {"market_refresh": True, "financial_refresh": True}:
+            raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_CAPABILITY_DISABLED")
     if set(manifest) != expected_keys or manifest.get("schema") != _RELEASE_SCHEMA:
         raise FinancialScopeCapacityImportError("FINANCIAL_SCOPE_IMPORT_MANIFEST_INVALID")
     reports = manifest.get("reports")

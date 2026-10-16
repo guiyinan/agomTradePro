@@ -56,9 +56,9 @@ def _authorization_payload(
             "provider_name": "akshare",
             "provider_identity_sha256": "c" * 64,
             "contract_id": "akshare.financial-scope.latest-notice",
-            "contract_version": "2026-10-09.v1",
+            "contract_version": "2026-10-16.v2",
             "contract_sha256": "d" * 64,
-            "parser_id": "akshare-financial-scope-parser.v1",
+            "parser_id": "akshare-financial-scope-parser.v2",
             "parser_sha256": "e" * 64,
             "deployment_region": "isolated-test",
         },
@@ -225,7 +225,7 @@ def test_scope_discovery_reader_uses_the_shared_exact_route_preflight(
         "_load_scope_discovery_contract",
         lambda: {
             "contract_id": "akshare.financial-scope.latest-notice",
-            "contract_version": "2026-10-09.v1",
+            "contract_version": "2026-10-16.v2",
             "contract_sha256": "d" * 64,
         },
     )
@@ -247,9 +247,9 @@ def test_scope_discovery_reader_uses_the_shared_exact_route_preflight(
         provider_name="akshare",
         provider_identity_sha256=identity_sha256,
         contract_id="akshare.financial-scope.latest-notice",
-        contract_version="2026-10-09.v1",
+        contract_version="2026-10-16.v2",
         contract_sha256="d" * 64,
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id="akshare-financial-scope-parser.v2",
         parser_sha256=reader_module.financial_scope_discovery_parser_sha256(),
         deployment_region="isolated-test",
     )
@@ -295,7 +295,7 @@ def test_scope_discovery_reader_maps_route_preflight_failure_to_stable_blocker(
         "_load_scope_discovery_contract",
         lambda: {
             "contract_id": "akshare.financial-scope.latest-notice",
-            "contract_version": "2026-10-09.v1",
+            "contract_version": "2026-10-16.v2",
             "contract_sha256": "d" * 64,
         },
     )
@@ -314,9 +314,9 @@ def test_scope_discovery_reader_maps_route_preflight_failure_to_stable_blocker(
         provider_name="akshare",
         provider_identity_sha256=identity_sha256,
         contract_id="akshare.financial-scope.latest-notice",
-        contract_version="2026-10-09.v1",
+        contract_version="2026-10-16.v2",
         contract_sha256="d" * 64,
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id="akshare-financial-scope-parser.v2",
         parser_sha256=reader_module.financial_scope_discovery_parser_sha256(),
         deployment_region="isolated-test",
     )
@@ -355,9 +355,9 @@ def test_scope_discovery_reader_uses_provider_supported_asset_filter_grammar(
         provider_name="akshare",
         provider_identity_sha256="b" * 64,
         contract_id="akshare.financial-scope.latest-notice",
-        contract_version="2026-10-09.v1",
+        contract_version="2026-10-16.v2",
         contract_sha256="c" * 64,
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id="akshare-financial-scope-parser.v2",
         parser_sha256="d" * 64,
         deployment_region="isolated-test",
     )
@@ -383,14 +383,14 @@ def test_scope_discovery_reader_uses_provider_supported_asset_filter_grammar(
 
 
 def test_scope_response_validator_retries_provider_error_then_accepts_rows() -> None:
-    """An HTTP-200 provider error is transient, while valid scoped rows are retained."""
+    """An operational envelope gets a bounded retry; query and access errors do not."""
 
     validator = reader_module._ScopeResponseValidator(
         asset_code="000001.SZ",
         maximum_rows=200,
     )
 
-    rejected = validator(b'{"success":false,"code":9501,"result":null}')
+    rejected = validator(b'{"success":false,"code":500,"result":null}')
     accepted = validator(
         b'{"success":true,"code":0,"result":{"count":1,"data":['
         b'{"SECUCODE":"000001.SZ","REPORT_DATE":"2026-09-30",'
@@ -476,9 +476,9 @@ def test_scope_discovery_reader_validates_retained_dataset_key_at_schema_path() 
         provider_name="akshare",
         provider_identity_sha256="b" * 64,
         contract_id="akshare.financial-scope.latest-notice",
-        contract_version="2026-10-09.v1",
+        contract_version="2026-10-16.v2",
         contract_sha256="c" * 64,
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id="akshare-financial-scope-parser.v2",
         parser_sha256="d" * 64,
         deployment_region="isolated-test",
     )
@@ -577,9 +577,9 @@ def test_scope_discovery_reader_retries_idempotent_retention_and_verification() 
         provider_name="akshare",
         provider_identity_sha256="b" * 64,
         contract_id="akshare.financial-scope.latest-notice",
-        contract_version="2026-10-09.v1",
+        contract_version="2026-10-16.v2",
         contract_sha256="c" * 64,
-        parser_id="akshare-financial-scope-parser.v1",
+        parser_id="akshare-financial-scope-parser.v2",
         parser_sha256="d" * 64,
         deployment_region="isolated-test",
     )

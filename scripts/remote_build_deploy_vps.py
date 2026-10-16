@@ -732,7 +732,12 @@ def _validate_prebuilt_rehearsal_receipt(
         )
     except (OSError, TypeError, ValueError, KeyError) as exc:
         raise ValueError("Independent release rehearsal validation failed") from exc
-    if result.get("outcome") != "success":
+    expected_capabilities = receipt.get("capabilities")
+    if result.get("outcome") != "success" and not (
+        result.get("outcome") == "partial"
+        and result.get("capabilities") == {"market_refresh": True, "financial_refresh": False}
+        and expected_capabilities == result.get("capabilities")
+    ):
         raise ValueError("Independent release rehearsal validation failed")
 
 

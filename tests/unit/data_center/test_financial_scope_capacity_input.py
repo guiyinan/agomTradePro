@@ -200,6 +200,39 @@ def _canonical_sha256(payload: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def test_v2_complete_report_keeps_asset_ledger_and_hash_through_pointer_parser() -> None:
+    """The post-review input reader must understand the producer's v2 result shape."""
+    from apps.data_center.application.financial_scope_capacity_input import _parse_reviewable_report
+
+    report = _report()
+    result = report["result"]
+    candidate = result["candidate_manifest"]
+    report["binding"]["contract_version"] = "2026-10-16.v2"
+    candidate["binding"]["contract_version"] = "2026-10-16.v2"
+    candidate["manifest_sha256"] = _canonical_sha256(
+        {key: val for key, val in candidate.items() if key != "manifest_sha256"}
+    )
+    result["candidate"]["manifest_sha256"] = candidate["manifest_sha256"]
+    result["asset_results"] = [
+        {
+            "asset_code": item["asset_code"],
+            "status": "eligible",
+            "reason_code": None,
+            "selected_scope": item,
+            "must_not_use_for_decision": True,
+            "quarantined_rows": 0,
+            "unavailable_rows": 0,
+        }
+        for item in candidate["items"]
+    ]
+    parsed, report_hash = _parse_reviewable_report(report, environment="isolated")
+    assert report_hash == _canonical_sha256(report)
+    assert parsed.coverage_count == len(_ASSET_CODES)
+    result["asset_results"] = []
+    with pytest.raises(FinancialScopeCapacityInputError):
+        _parse_reviewable_report(report, environment="isolated")
+
+
 def _persist_reviews(
     report: dict[str, object],
     *,

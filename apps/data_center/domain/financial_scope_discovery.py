@@ -66,6 +66,7 @@ FINANCIAL_SCOPE_DISCOVERY_ERROR_CODES = frozenset(
         "FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED",
         "FINANCIAL_SCOPE_DISCOVERY_AUTHORITY_INVALID",
         "FINANCIAL_SCOPE_DISCOVERY_UNIVERSE_DRIFT",
+        "FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT",
     }
 )
 
@@ -112,21 +113,29 @@ class FinancialScopeDiscoveryRow:
     """One provider-native security, fiscal period, and announcement-date row."""
 
     asset_code: str
-    period_end: date
-    announcement_date: date
+    period_end: date | None
+    announcement_date: date | None
+    quarantined_row_sha256: str | None = None
 
     def __post_init__(self) -> None:
         """Require canonical provider-native calendar dates and asset code."""
 
         if _ASSET_CODE.fullmatch(self.asset_code) is None:
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-        if type(self.period_end) is not date or type(self.announcement_date) is not date:
+        if self.quarantined_row_sha256 is not None:
+            if _SHA256.fullmatch(self.quarantined_row_sha256) is None:
+                raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
+        elif type(self.period_end) is not date or type(self.announcement_date) is not date:
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
 
     @property
     def native_row_id(self) -> str:
         """Return the owner-declared composite identity from native row fields."""
 
+        if self.quarantined_row_sha256 is not None:
+            return f"quarantined:{self.asset_code}:{self.quarantined_row_sha256}"
+        if self.period_end is None or self.announcement_date is None:
+            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
         return (
             f"akshare:{self.asset_code}:{self.period_end.isoformat()}:"
             f"{self.announcement_date.isoformat()}"
@@ -193,7 +202,7 @@ class FinancialScopeDiscoveryCapture:
             or self.response_completed_at.utcoffset() != timedelta(0)
         ):
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-        if not isinstance(self.rows, tuple) or not self.rows:
+        if not isinstance(self.rows, tuple):
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
         if any(type(row) is not FinancialScopeDiscoveryRow for row in self.rows):
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
@@ -761,14 +770,23 @@ def build_asset_item(
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_DUPLICATE_NATIVE_ROW")
     if financial_rows != source_rows:
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_CONFLICT")
-    newest_date = max(row.announcement_date for row in financial_rows)
-    local_completion = min(
-        financial.response_completed_at, source_time.response_completed_at
-    ).astimezone(ZoneInfo(_SOURCE_TIMEZONE))
-    if newest_date > local_completion.date():
-        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
+    completion = min(financial.response_completed_at, source_time.response_completed_at)
+    eligible_dates = tuple(
+        row.announcement_date
+        for row in financial_rows
+        if row.quarantined_row_sha256 is None
+        and row.announcement_date is not None
+        and latest_source_time(row.announcement_date) <= completion
+    )
+    if not eligible_dates:
+        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_NO_AVAILABLE_ANNOUNCEMENT")
+    newest_date = max(eligible_dates)
     row_ids = tuple(
-        sorted(row.native_row_id for row in financial_rows if row.announcement_date == newest_date)
+        sorted(
+            row.native_row_id
+            for row in financial_rows
+            if row.quarantined_row_sha256 is None and row.announcement_date == newest_date
+        )
     )
     return FinancialScopeDiscoveryAsset(
         asset_code=asset_code,

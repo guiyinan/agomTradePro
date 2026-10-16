@@ -67,7 +67,7 @@ _ASSET_FIELD = "SECUCODE"
 _PERIOD_FIELD = "REPORT_DATE"
 _ANNOUNCEMENT_FIELD = "NOTICE_DATE"
 _DATA_QUERY_TYPE = "RPT_F10_FINANCE_MAINFINADATA"
-_PARSER_ID = "akshare-financial-scope-parser.v1"
+_PARSER_ID = "akshare-financial-scope-parser.v2"
 _PARSER_SOURCE_TIMEZONE = "Asia/Shanghai"
 _PAGE_NUMBER = 1
 _DATASET_KEYS = (
@@ -102,7 +102,7 @@ class _ScopeResponseValidator(FinancialResponseValidatorProtocol):
             self.error_code = exc.code
             return FinancialResponseValidationResult(
                 accepted=False,
-                retryable=exc.code != "FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED",
+                retryable=exc.code == "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
             )
         self.error_code = None
         return FinancialResponseValidationResult(accepted=True)
@@ -318,14 +318,31 @@ class AkshareFinancialScopeDiscoveryReader:
                 and validator.error_code is not None
             ):
                 raise FinancialScopeDiscoveryError(validator.error_code) from None
+            recoverable = exc.code in {
+                "EGRESS_DNS_TIMEOUT",
+                "EGRESS_DNS_CONCURRENCY_LIMIT",
+                "EGRESS_DNS_ERROR",
+                "EGRESS_ENDPOINT_UNAVAILABLE",
+                "EGRESS_CIRCUIT_OPEN",
+                "EGRESS_TIMEOUT",
+                "EGRESS_CONNECTION_ERROR",
+                "EGRESS_FINANCIAL_RESPONSE_CAPTURE_FAILED",
+                "EGRESS_HTTP_429",
+                "EGRESS_HTTP_500",
+                "EGRESS_HTTP_502",
+                "EGRESS_HTTP_503",
+                "EGRESS_HTTP_504",
+            }
             raise FinancialScopeDiscoveryError(
                 "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+                if recoverable
+                else "FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID"
             ) from None
         except (DataFetchError, OSError, RuntimeError, TimeoutError, TypeError, ValueError):
             raise FinancialScopeDiscoveryError(
-                "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+                "FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID"
             ) from None
-        periods = tuple(sorted({row.period_end for row in rows}))
+        periods = tuple(sorted({row.period_end for row in rows if row.period_end is not None}))
         verified_scope = FinancialResponseScope(
             asset_codes=(asset_code,),
             period_ends=periods,
@@ -518,7 +535,7 @@ def _expected_contract_payload() -> dict[str, object]:
         "provider_name": AKSHARE_PROVIDER_NAME,
         "provider_source": "akshare",
         "contract_id": "akshare.financial-scope.latest-notice",
-        "contract_version": "2026-10-09.v1",
+        "contract_version": "2026-10-16.v2",
         "endpoint": AKSHARE_MAIN_FINANCIAL_DATA_ENDPOINT,
         "datasets": list(_DATASET_KEYS),
         "request": {
@@ -540,9 +557,12 @@ def _expected_contract_payload() -> dict[str, object]:
         "response": {
             "provider_count_must_match_rows": True,
             "provider_count_above_row_ceiling": "fail_closed",
-            "empty_asset_scope": "fail_closed",
+            "empty_asset_scope": "asset_blocked",
             "duplicate_native_rows": "fail_closed",
             "pair_drift": "fail_closed",
+            "invalid_date_rows": "retain_and_quarantine",
+            "selection": "latest_available_at_dual_response_completion",
+            "no_available_announcement": "asset_blocked",
         },
         "parser": {
             "parser_id": _PARSER_ID,
@@ -577,6 +597,8 @@ def financial_scope_discovery_parser_sha256() -> str:
     source_bundle = "\n".join(
         (
             inspect.getsource(_parse_provider_rows),
+            inspect.getsource(_strict_date),
+            inspect.getsource(_ScopeResponseValidator),
             inspect.getsource(FinancialScopeDiscoveryRow),
             inspect.getsource(latest_source_time),
             inspect.getsource(build_asset_item),
@@ -602,7 +624,9 @@ def _parse_provider_rows(
     try:
         payload: object = decode_json_bytes(body)
     except ValueError:
-        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID") from None
+        raise FinancialScopeDiscoveryError(
+            "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+        ) from None
     if not isinstance(payload, Mapping):
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
     if (
@@ -610,7 +634,11 @@ def _parse_provider_rows(
         or type(payload.get("code")) is not int
         or payload.get("code") != 0
     ):
-        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED")
+        raise FinancialScopeDiscoveryError(
+            "FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID"
+            if type(payload.get("code")) is not int or payload.get("code") in {401, 403, 9501}
+            else "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED"
+        )
     result = payload.get("result")
     if not isinstance(result, Mapping):
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
@@ -623,8 +651,6 @@ def _parse_provider_rows(
         or reported_count != len(raw_rows)
     ):
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
-    if reported_count == 0:
-        raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE")
     if reported_count > maximum_rows:
         raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_RESPONSE_TRUNCATED")
     rows: list[FinancialScopeDiscoveryRow] = []
@@ -633,13 +659,23 @@ def _parse_provider_rows(
             raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
         period_end = _strict_date(raw_row.get(_PERIOD_FIELD))
         announcement_date = _strict_date(raw_row.get(_ANNOUNCEMENT_FIELD))
-        if period_end is None or announcement_date is None:
-            raise FinancialScopeDiscoveryError("FINANCIAL_SCOPE_DISCOVERY_CAPTURE_INVALID")
+        quarantined = None
+        if period_end is None or announcement_date is None or announcement_date < period_end:
+            quarantined = hashlib.sha256(
+                json.dumps(
+                    dict(raw_row),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                ).encode("utf-8")
+            ).hexdigest()
         rows.append(
             FinancialScopeDiscoveryRow(
                 asset_code=asset_code,
                 period_end=period_end,
                 announcement_date=announcement_date,
+                quarantined_row_sha256=quarantined,
             )
         )
     return tuple(rows)

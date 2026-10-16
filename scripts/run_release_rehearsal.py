@@ -1801,7 +1801,15 @@ def _report(path: Path, identity: Identity, *, image_bound: bool) -> dict[str, o
         except ValueError as exc:
             raise RehearsalBlocked(path.parent.name, "S6_STAGE_IDENTITY_MISMATCH") from exc
     if (
-        value.get("outcome") != "success"
+        (
+            value.get("outcome") != "success"
+            and not (
+                value.get("kind") == "financial_scope_capacity"
+                and value.get("outcome") == "partial"
+                and value.get("evidence_mode") == "isolated_partial_financial_capture"
+                and value.get("capabilities") == {"financial_refresh": False}
+            )
+        )
         or value.get("candidate_sha") != identity.candidate_sha
         or value.get("target_trade_date") != identity.target_trade_date
         or value.get("universe_sha256") != identity.universe_sha256
@@ -4023,6 +4031,11 @@ def _run_release_rehearsal(
                 "schema": "release.rehearsal-evidence-handoff.v1",
                 "issuer": "release_rehearsal_launcher",
                 "receipt_status": "evidence_complete",
+                "capabilities": {
+                    "market_refresh": True,
+                    "financial_refresh": financial_scope_capacity_report.get("outcome")
+                    == "success",
+                },
                 "deployable": False,
                 "evidence_completed_at": datetime.now(UTC).isoformat(),
                 "validator": str(config.root / "scripts" / "validate_release_rehearsal.py"),
@@ -4038,7 +4051,17 @@ def _run_release_rehearsal(
             read_only=True,
         )
         completed.append(stage)
-        _status(status_path, "success_evidence", completed, None, None)
+        _status(
+            status_path,
+            (
+                "partial_evidence"
+                if financial_scope_capacity_report.get("outcome") == "partial"
+                else "success_evidence"
+            ),
+            completed,
+            None,
+            None,
+        )
         return receipt_path
     except RehearsalBlocked as exc:
         if status_path is not None:
@@ -4073,6 +4096,8 @@ def verify_evidence_handoff_receipt(receipt_path: Path) -> dict[str, object]:
             and receipt.get("manifest_sha256") == hashlib.sha256(_read_file(manifest)).hexdigest()
         )
         manifest_payload = _object(json.loads(_read_file(manifest)), "S6_MANIFEST_INVALID")
+        if receipt.get("capabilities") != manifest_payload.get("capabilities"):
+            valid = False
         for key in (
             "candidate_sha",
             "release_tag",
@@ -4227,10 +4252,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+    evidence_receipt = _object(json.loads(_read_file(receipt)), "S6_RECEIPT_INVALID")
+    partial_evidence = evidence_receipt.get("capabilities") == {
+        "market_refresh": True,
+        "financial_refresh": False,
+    }
     print(
         json.dumps(
             {
-                "outcome": "success_evidence",
+                "outcome": "partial_evidence" if partial_evidence else "success_evidence",
+                "capabilities": evidence_receipt.get("capabilities"),
                 "receipt_status": "evidence_complete",
                 "deployable": False,
                 "receipt": str(receipt),

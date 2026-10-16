@@ -15,6 +15,7 @@ import pytest
 
 from apps.data_center.application.financial_scope_capacity_receipt import (
     build_financial_scope_capacity_receipt,
+    build_financial_scope_partial_receipt,
 )
 from shared.release_rehearsal_stage_environment import CATEGORIES as STAGE_ENVIRONMENT_CATEGORIES
 from shared.release_rehearsal_stage_environment import (
@@ -1228,6 +1229,131 @@ def _validate(manifest: Path, now: datetime) -> dict[str, object]:
         max_age_hours=24,
         now=now,
     )
+
+
+def test_independent_validator_enforces_total_evidence_resource_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The validator must not trust a builder's assertion about bundle size."""
+    monkeypatch.setattr(
+        validator,
+        "_release_policy",
+        lambda: {"evidence_bundle": {"maximum_file_bytes": 10, "maximum_total_bytes": 15}},
+    )
+    (tmp_path / "first.frb").write_bytes(b"a" * 8)
+    (tmp_path / "second.frb").write_bytes(b"b" * 8)
+    with pytest.raises(validator.RehearsalValidationError, match="REHEARSAL_BUNDLE_SIZE_LIMIT"):
+        validator._validate_bundle_resources(tmp_path)
+
+
+def test_partial_financial_scope_keeps_market_gate_and_disables_financial_refresh(
+    tmp_path: Path,
+) -> None:
+    """Exercise the entire independent validator with one failed external asset."""
+    from apps.data_center.domain.financial_scope_discovery import latest_source_time
+
+    now = datetime(2026, 9, 25, 0, 0, tzinfo=UTC)
+    manifest, reports = _build_evidence(tmp_path, now)
+    scope_path = reports["financial_scope_capacity"].parent / "financial-scope-discovery.json"
+    source = json.loads(scope_path.read_text(encoding="utf-8"))
+    result = source["result"]
+    items = result["candidate_manifest"]["items"]
+    failed_asset = items[-1]["asset_code"]
+    items = items[:-1]
+    for item in items:
+        item["available_at"] = latest_source_time(
+            datetime.fromisoformat(item["announcement_date"]).date()
+        ).isoformat()
+    source.update(outcome="partial", review_status="not_eligible")
+    source["binding"]["contract_version"] = "2026-10-16.v2"
+    result.update(
+        outcome="partial",
+        candidate=None,
+        candidate_manifest=None,
+        error_codes=[
+            "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_COVERAGE_INCOMPLETE",
+            "REHEARSAL_FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+        ],
+    )
+    result["counts"].update(
+        captured=len(items),
+        missing=1,
+        failed_capture=1,
+        artifact_writes=len(items) * 2,
+        raw_audit_writes=len(items) * 2,
+    )
+    result["asset_results"] = [
+        {
+            "asset_code": item["asset_code"],
+            "status": "eligible",
+            "reason_code": None,
+            "selected_scope": item,
+            "must_not_use_for_decision": True,
+            "quarantined_rows": 0,
+            "unavailable_rows": 0,
+        }
+        for item in items
+    ] + [
+        {
+            "asset_code": failed_asset,
+            "status": "blocked",
+            "reason_code": "FINANCIAL_SCOPE_DISCOVERY_PROVIDER_CAPTURE_FAILED",
+            "selected_scope": None,
+            "must_not_use_for_decision": True,
+            "quarantined_rows": 0,
+            "unavailable_rows": 0,
+        }
+    ]
+    remaining = []
+    for artifact in source["encrypted_artifacts"]:
+        if artifact["envelope_index"]["asset_code"] == failed_asset:
+            (scope_path.parent / artifact["path"]).unlink()
+        else:
+            remaining.append(artifact)
+    source["encrypted_artifacts"] = remaining
+    by_code = {item["asset_code"]: item for item in items}
+    result["captures"] = [
+        {
+            **artifact["envelope_index"],
+            "response_completed_at": by_code[artifact["envelope_index"]["asset_code"]][
+                "response_completed_at"
+            ][0 if artifact["envelope_index"]["dataset_key"] == "equity.financial.fact" else 1],
+        }
+        for artifact in remaining
+    ]
+    source_digest = _write_json(scope_path, source)
+    receipt = build_financial_scope_partial_receipt(
+        scope_report=source,
+        scope_report_sha256=source_digest,
+        target_trade_date=TARGET_DATE,
+        release_universe_sha256=UNIVERSE,
+        provider_identities_sha256=PROVIDER_DIGEST,
+        expected_release_asset_codes=tuple(ASSET_CODES),
+        frozen_provider_identities=tuple(PROVIDERS),
+    )
+    _replace_report(manifest, reports["financial_scope_capacity"], receipt)
+    authorization = json.loads(reports["financial_scope_authorization"].read_text(encoding="utf-8"))
+    authorization["binding"] = source["binding"]
+    _replace_report(manifest, reports["financial_scope_authorization"], authorization)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["capabilities"] = {"market_refresh": True, "financial_refresh": False}
+    _write_json(manifest, payload)
+    validated = _validate(manifest, now)
+    assert validated["outcome"] == "partial"
+    assert validated["capabilities"] == {"market_refresh": True, "financial_refresh": False}
+    receipt["capabilities"]["financial_refresh"] = 0
+    _replace_report(manifest, reports["financial_scope_capacity"], receipt)
+    with pytest.raises(
+        validator.RehearsalValidationError, match="S6_FINANCIAL_SCOPE_PARTIAL_INVALID"
+    ):
+        _validate(manifest, now)
+    receipt["capabilities"]["financial_refresh"] = False
+    _replace_report(manifest, reports["financial_scope_capacity"], receipt)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["capabilities"]["financial_refresh"] = True
+    _write_json(manifest, payload)
+    with pytest.raises(validator.RehearsalValidationError, match="REHEARSAL_CAPABILITIES_MISMATCH"):
+        _validate(manifest, now)
 
 
 def test_legacy_policy_evidence_cannot_authorize_partial_release() -> None:
