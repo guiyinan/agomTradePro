@@ -2340,6 +2340,28 @@
         "application/backtest_gateway.py": [
           "register_audit_backtest_gateway"
         ],
+        "application/calendar_publication_audit.py": [
+          "AppendCalendarPublicationAuditUseCase",
+          "CalendarAuditEventFactory",
+          "CalendarAuditPublisherPrincipal",
+          "CalendarAuditReaderPrincipal",
+          "CalendarPublicationAuditConflict",
+          "CalendarPublicationAuditCorruption",
+          "CalendarPublicationAuditDenied",
+          "CalendarPublicationAuditOutboxWriter",
+          "CalendarPublicationAuditReadAuthorityProvider",
+          "CalendarPublicationAuditReaderContext",
+          "CalendarPublicationAuditReaderRepository",
+          "CalendarPublicationAuditUnavailable",
+          "CalendarPublicationAuditValidationError",
+          "CalendarPublicationBlockedObservation",
+          "CalendarPublicationPublishedObservation",
+          "ListCalendarPublicationAuditEventsCommand",
+          "ListCalendarPublicationAuditEventsResult",
+          "ListCalendarPublicationAuditEventsUseCase",
+          "build_calendar_publication_blocked_event",
+          "build_calendar_publication_published_event"
+        ],
         "application/data_conflict_audit.py": [
           "AppendDataConflictAuditObservationUseCase",
           "DataConflictAuditEventOutboxWriter",
@@ -2583,6 +2605,7 @@
         "application/system_audit_event_outbox.py": [
           "AppendSystemAuditEventOutboxCommand",
           "AppendSystemAuditEventOutboxUseCase",
+          "ExactSystemAuditOutboxWinner",
           "SystemAuditEventOutboxCommit",
           "SystemAuditEventOutboxConflict",
           "SystemAuditEventOutboxCorruption",
@@ -2688,8 +2711,8 @@
         ]
       },
       "layers": {
-        "application": 35,
-        "domain": 10,
+        "application": 36,
+        "domain": 11,
         "infrastructure": 28,
         "interface": 14,
         "management": 8,

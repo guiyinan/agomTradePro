@@ -14,8 +14,17 @@
     "decision.governance",
     "execution.control"
   ],
-  "allowed_write_policies": ["required", "transactional_outbox", "best_effort"],
-  "allowed_severities": ["info", "warning", "error", "critical"],
+  "allowed_write_policies": [
+    "required",
+    "transactional_outbox",
+    "best_effort"
+  ],
+  "allowed_severities": [
+    "info",
+    "warning",
+    "error",
+    "critical"
+  ],
   "allowed_outcomes": [
     "started",
     "success",
@@ -47,7 +56,10 @@
       "owner": "audit",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/audit/infrastructure/models.py", "apps/audit/interface/api_urls.py"],
+      "source_files": [
+        "apps/audit/infrastructure/models.py",
+        "apps/audit/interface/api_urls.py"
+      ],
       "next_stage": "M3"
     },
     {
@@ -55,7 +67,10 @@
       "owner": "account",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/account/interface/views.py", "apps/audit/interface/authentication.py"],
+      "source_files": [
+        "apps/account/interface/views.py",
+        "apps/audit/interface/authentication.py"
+      ],
       "next_stage": "M3"
     },
     {
@@ -63,7 +78,10 @@
       "owner": "config_center",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/config_center/application/tasks.py", "apps/data_center/application/tasks.py"],
+      "source_files": [
+        "apps/config_center/application/tasks.py",
+        "apps/data_center/application/tasks.py"
+      ],
       "next_stage": "M3"
     },
     {
@@ -71,7 +89,10 @@
       "owner": "task_monitor",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/task_monitor/application/tasks.py", "apps/task_monitor/application/backup_tasks.py"],
+      "source_files": [
+        "apps/task_monitor/application/tasks.py",
+        "apps/task_monitor/application/backup_tasks.py"
+      ],
       "next_stage": "M3"
     },
     {
@@ -79,7 +100,10 @@
       "owner": "risk_center",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/risk_center/application/evidence_operator_spec_approval.py", "apps/portfolio/application/governed_optimization.py"],
+      "source_files": [
+        "apps/risk_center/application/evidence_operator_spec_approval.py",
+        "apps/portfolio/application/governed_optimization.py"
+      ],
       "next_stage": "M3"
     },
     {
@@ -87,7 +111,10 @@
       "owner": "broker_execution",
       "status": "inventory_only",
       "event_contract_status": "pending",
-      "source_files": ["apps/broker_execution/application/authorization.py", "apps/broker_execution/application/agent_use_cases.py"],
+      "source_files": [
+        "apps/broker_execution/application/authorization.py",
+        "apps/broker_execution/application/agent_use_cases.py"
+      ],
       "next_stage": "M3"
     }
   ],
@@ -100,10 +127,20 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "info",
-      "outcomes": ["success"],
-      "required_correlations": ["provider_key", "capability", "dataset_key", "run_id", "ingested_run_id"],
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key",
+        "run_id",
+        "ingested_run_id"
+      ],
       "detail_schema": "data.fetch.completed.v1",
-      "reason_codes": ["fetch_completed"],
+      "reason_codes": [
+        "fetch_completed"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -114,10 +151,20 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "warning",
-      "outcomes": ["noop"],
-      "required_correlations": ["provider_key", "capability", "dataset_key", "run_id", "ingested_run_id"],
+      "outcomes": [
+        "noop"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key",
+        "run_id",
+        "ingested_run_id"
+      ],
       "detail_schema": "data.fetch.noop.v1",
-      "reason_codes": ["fetch_noop"],
+      "reason_codes": [
+        "fetch_noop"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -128,10 +175,20 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "error",
-      "outcomes": ["failed"],
-      "required_correlations": ["provider_key", "capability", "dataset_key", "run_id", "ingested_run_id"],
+      "outcomes": [
+        "failed"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key",
+        "run_id",
+        "ingested_run_id"
+      ],
       "detail_schema": "data.fetch.failed.v1",
-      "reason_codes": ["fetch_failed"],
+      "reason_codes": [
+        "fetch_failed"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -142,10 +199,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "error",
-      "outcomes": ["failed", "blocked"],
-      "required_correlations": ["dataset_key", "evidence_ref"],
+      "outcomes": [
+        "failed",
+        "blocked"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.validation.rejected.v1",
-      "reason_codes": ["validation_rejected"],
+      "reason_codes": [
+        "validation_rejected"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -156,10 +221,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "warning",
-      "outcomes": ["detected", "recovered"],
-      "required_correlations": ["dataset_key", "evidence_ref"],
+      "outcomes": [
+        "detected",
+        "recovered"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.quality.changed.v1",
-      "reason_codes": ["quality_changed"],
+      "reason_codes": [
+        "quality_changed"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -170,10 +243,19 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "warning",
-      "outcomes": ["detected", "recovered", "blocked"],
-      "required_correlations": ["dataset_key", "evidence_ref"],
+      "outcomes": [
+        "detected",
+        "recovered",
+        "blocked"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.freshness.changed.v1",
-      "reason_codes": ["freshness_changed"],
+      "reason_codes": [
+        "freshness_changed"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -184,10 +266,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "error",
-      "outcomes": ["detected", "blocked"],
-      "required_correlations": ["dataset_key", "evidence_ref"],
+      "outcomes": [
+        "detected",
+        "blocked"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.conflict.detected.v1",
-      "reason_codes": ["conflict_detected"],
+      "reason_codes": [
+        "conflict_detected"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -198,10 +288,17 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "info",
-      "outcomes": ["recovered"],
-      "required_correlations": ["dataset_key", "evidence_ref"],
+      "outcomes": [
+        "recovered"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.conflict.resolved.v1",
-      "reason_codes": ["conflict_resolved"],
+      "reason_codes": [
+        "conflict_resolved"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -212,10 +309,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "warning",
-      "outcomes": ["started"],
-      "required_correlations": ["provider_key", "capability", "dataset_key"],
+      "outcomes": [
+        "started"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key"
+      ],
       "detail_schema": "data.failover.started.v1",
-      "reason_codes": ["failover_started"],
+      "reason_codes": [
+        "failover_started"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -226,10 +331,19 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "info",
-      "outcomes": ["success"],
-      "required_correlations": ["provider_key", "capability", "dataset_key", "evidence_ref"],
+      "outcomes": [
+        "success"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.failover.succeeded.v1",
-      "reason_codes": ["failover_succeeded"],
+      "reason_codes": [
+        "failover_succeeded"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -240,10 +354,19 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "error",
-      "outcomes": ["failed", "blocked"],
-      "required_correlations": ["provider_key", "capability", "dataset_key"],
+      "outcomes": [
+        "failed",
+        "blocked"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key"
+      ],
       "detail_schema": "data.failover.rejected.v1",
-      "reason_codes": ["failover_rejected"],
+      "reason_codes": [
+        "failover_rejected"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -254,10 +377,20 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "critical",
-      "outcomes": ["failed", "blocked"],
-      "required_correlations": ["provider_key", "capability", "dataset_key", "evidence_ref"],
+      "outcomes": [
+        "failed",
+        "blocked"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "dataset_key",
+        "evidence_ref"
+      ],
       "detail_schema": "data.failover.exhausted.v1",
-      "reason_codes": ["failover_exhausted"],
+      "reason_codes": [
+        "failover_exhausted"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -268,10 +401,17 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "critical",
-      "outcomes": ["blocked"],
-      "required_correlations": ["provider_key", "capability"],
+      "outcomes": [
+        "blocked"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability"
+      ],
       "detail_schema": "data.provider.circuit_opened.v1",
-      "reason_codes": ["provider_circuit_opened"],
+      "reason_codes": [
+        "provider_circuit_opened"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -282,10 +422,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "info",
-      "outcomes": ["recovered"],
-      "required_correlations": ["provider_key", "capability", "evidence_ref"],
+      "outcomes": [
+        "recovered"
+      ],
+      "required_correlations": [
+        "provider_key",
+        "capability",
+        "evidence_ref"
+      ],
       "detail_schema": "data.provider.recovered.v1",
-      "reason_codes": ["provider_recovered"],
+      "reason_codes": [
+        "provider_recovered"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -296,10 +444,18 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "info",
-      "outcomes": ["published"],
-      "required_correlations": ["dataset_key", "publication_id", "evidence_ref"],
+      "outcomes": [
+        "published"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "publication_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.publication.published.v1",
-      "reason_codes": ["publication_published"],
+      "reason_codes": [
+        "publication_published"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -310,10 +466,18 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "critical",
-      "outcomes": ["blocked"],
-      "required_correlations": ["dataset_key", "publication_id", "evidence_ref"],
+      "outcomes": [
+        "blocked"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "publication_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.publication.blocked.v1",
-      "reason_codes": ["publication_blocked"],
+      "reason_codes": [
+        "publication_blocked"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -324,10 +488,18 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "warning",
-      "outcomes": ["rolled_back"],
-      "required_correlations": ["dataset_key", "publication_id", "evidence_ref"],
+      "outcomes": [
+        "rolled_back"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "publication_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.publication.rolled_back.v1",
-      "reason_codes": ["publication_rolled_back"],
+      "reason_codes": [
+        "publication_rolled_back"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -338,10 +510,18 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "critical",
-      "outcomes": ["blocked"],
-      "required_correlations": ["dataset_key", "publication_id", "evidence_ref"],
+      "outcomes": [
+        "blocked"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "publication_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.decision_read.blocked.v1",
-      "reason_codes": ["decision_read_blocked"],
+      "reason_codes": [
+        "decision_read_blocked"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -352,10 +532,18 @@
       "implementation_status": "wired",
       "write_policy": "transactional_outbox",
       "severity": "info",
-      "outcomes": ["recovered"],
-      "required_correlations": ["dataset_key", "publication_id", "evidence_ref"],
+      "outcomes": [
+        "recovered"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "publication_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.decision_read.recovered.v1",
-      "reason_codes": ["decision_read_recovered"],
+      "reason_codes": [
+        "decision_read_recovered"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
     },
     {
@@ -366,11 +554,179 @@
       "implementation_status": "wired",
       "write_policy": "required",
       "severity": "info",
-      "outcomes": ["success", "partial", "failed"],
-      "required_correlations": ["dataset_key", "run_id", "evidence_ref"],
+      "outcomes": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "run_id",
+        "evidence_ref"
+      ],
       "detail_schema": "data.repair.completed.v1",
-      "reason_codes": ["repair_completed"],
+      "reason_codes": [
+        "repair_completed"
+      ],
       "test_contract": "tests/unit/test_audit_event_contracts.py::test_registry_is_valid"
+    },
+    {
+      "event_type": "data.calendar.publication.published",
+      "category": "data.reliability",
+      "owner": "data_center",
+      "status": "planned",
+      "implementation_status": "not_wired",
+      "write_policy": "transactional_outbox",
+      "severity": "info",
+      "outcomes": [
+        "published"
+      ],
+      "required_correlations": [
+        "dataset_key",
+        "capability",
+        "publication_id",
+        "evidence_ref"
+      ],
+      "detail_schema": "data.calendar.publication.published.v1",
+      "reason_codes": [
+        "calendar_publication_published"
+      ],
+      "envelope_constraints": {
+        "event_version": "1",
+        "schema_version": "system-audit-event.v1",
+        "source_app": "data_center",
+        "source_component": "calendar_publication",
+        "source_surface": "internal",
+        "scope": null,
+        "observed_at": null,
+        "actor_type": "django_user",
+        "actor_display": null
+      },
+      "detail_required_keys": [
+        "authentication_mode",
+        "permission_codename",
+        "dataset_key",
+        "exchange",
+        "publication_id",
+        "publication_key",
+        "policy_version",
+        "publication_hash",
+        "snapshot_evidence"
+      ],
+      "fixed_detail_values": {
+        "authentication_mode": "session",
+        "permission_codename": "publish_exchange_calendar"
+      },
+      "snapshot_evidence": {
+        "snapshot_keys": [
+          "snapshot_id",
+          "exchange",
+          "coverage_start",
+          "coverage_end",
+          "provider_name",
+          "first_seen_at",
+          "recorded_at",
+          "source_published_at",
+          "fact_content_hash",
+          "content_hash",
+          "record_digest"
+        ],
+        "raw_reference_keys": [
+          "payload_id",
+          "payload_hash",
+          "record_digest",
+          "body_sha256",
+          "retained_content_sha256",
+          "request_scope_sha256",
+          "original_body_retained",
+          "response_completed_at",
+          "response_time_semantics",
+          "provider_name",
+          "dataset_key",
+          "transport"
+        ],
+        "response_time_semantics": "local_response_body_completion"
+      },
+      "producer_paths": [
+        "apps/audit/application/calendar_publication_audit.py::build_calendar_publication_published_event",
+        "apps/audit/application/calendar_publication_audit.py::AppendCalendarPublicationAuditUseCase",
+        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py::append_and_enqueue_calendar_targeted",
+        "apps/audit/infrastructure/system_audit_repository.py::list_calendar_publication_events",
+        "apps/audit/application/system_audit_outbox_dispatcher.py::DispatchSystemAuditOutboxUseCase.execute",
+        "apps/audit/infrastructure/system_audit_delivery_receipt.py::DjangoSystemAuditDeliveryReceiptPublisher.publish"
+      ],
+      "tests": [
+        "tests/unit/audit/test_calendar_publication_audit.py::test_published_builder_binds_fact_row_and_raw_response_without_source_clock_invention",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_append_is_exact_pair_and_generic_null_scope_stays_closed",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_exact_replay_returns_original_pair_and_missing_outbox_fails_closed",
+        "tests/component/audit/test_calendar_publication_audit.py::test_outbox_failure_rolls_back_calendar_event_append",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_exact_selector_ignores_unrelated_corrupt_event",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_exact_selector_rejects_corruption_in_target_rows",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_exact_selector_rejects_a_gap_in_the_target_stream",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_exact_selector_does_not_hide_future_clock_damage_in_target_row",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_scope_none_event_dispatches_to_exact_durable_receipt"
+      ],
+      "test_contract": "tests/unit/audit/test_calendar_publication_audit.py::test_published_builder_binds_fact_row_and_raw_response_without_source_clock_invention"
+    },
+    {
+      "event_type": "data.calendar.publication.blocked",
+      "category": "data.reliability",
+      "owner": "data_center",
+      "status": "planned",
+      "implementation_status": "not_wired",
+      "write_policy": "transactional_outbox",
+      "severity": "warning",
+      "outcomes": [
+        "blocked"
+      ],
+      "required_correlations": [
+        "request_id",
+        "dataset_key",
+        "capability",
+        "evidence_ref"
+      ],
+      "detail_schema": "data.calendar.publication.blocked.v1",
+      "reason_codes": [
+        "calendar_publication_blocked"
+      ],
+      "envelope_constraints": {
+        "event_version": "1",
+        "schema_version": "system-audit-event.v1",
+        "source_app": "data_center",
+        "source_component": "calendar_publication",
+        "source_surface": "internal",
+        "scope": null,
+        "observed_at": null,
+        "actor_type": "django_user",
+        "actor_display": null
+      },
+      "detail_required_keys": [
+        "authentication_mode",
+        "permission_codename",
+        "dataset_key",
+        "exchange",
+        "request_id",
+        "publication_id",
+        "blocked_reason",
+        "snapshot_evidence"
+      ],
+      "fixed_detail_values": {
+        "authentication_mode": "session",
+        "permission_codename": "publish_exchange_calendar"
+      },
+      "snapshot_evidence": "same exact optional snapshot_evidence object as the published event; null means no candidate evidence was available",
+      "producer_paths": [
+        "apps/audit/application/calendar_publication_audit.py::build_calendar_publication_blocked_event",
+        "apps/audit/application/calendar_publication_audit.py::AppendCalendarPublicationAuditUseCase",
+        "apps/audit/infrastructure/system_audit_event_outbox_coordinator.py::append_and_enqueue_calendar_targeted"
+      ],
+      "tests": [
+        "tests/unit/audit/test_calendar_publication_audit.py::test_blocked_builder_keeps_attempt_identity_without_fabricating_candidate_evidence",
+        "tests/unit/audit/test_calendar_publication_audit.py::test_blocked_contract_selector_supports_absent_and_present_candidate_evidence",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_blocked_event_uses_same_exact_stream_and_chain",
+        "tests/component/audit/test_calendar_publication_audit.py::test_calendar_scope_none_event_dispatches_to_exact_durable_receipt"
+      ],
+      "test_contract": "tests/unit/audit/test_calendar_publication_audit.py::test_blocked_builder_keeps_attempt_identity_without_fabricating_candidate_evidence"
     }
   ]
 }

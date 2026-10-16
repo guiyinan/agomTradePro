@@ -8,11 +8,20 @@ from datetime import datetime
 
 from django.db import connections, transaction
 
+from apps.audit.application.calendar_publication_audit import CalendarAuditPublisherPrincipal
 from apps.audit.application.system_audit_event_outbox import (
+    ExactSystemAuditOutboxWinner,
     SystemAuditEventOutboxCommit,
     SystemAuditEventOutboxConflict,
+    SystemAuditEventOutboxCorruption,
+)
+from apps.audit.domain.calendar_publication_audit import (
+    CALENDAR_PUBLISH_PERMISSION,
+    calendar_publication_event_selector,
+    validate_calendar_publication_event,
 )
 from apps.audit.domain.system_audit_event import AuditScopeRef, SystemAuditEvent
+from core.exceptions import AuthenticationError, AuthorizationError
 
 from .system_audit_outbox_repository import DjangoSystemAuditOutboxRepository
 from .system_audit_repository import DjangoSystemAuditEventRepository
@@ -141,6 +150,139 @@ class DjangoSystemAuditEventOutboxCoordinator:
             idempotency_key=persisted_event.idempotency_key,
         )
 
+    def append_and_enqueue_calendar_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        principal: CalendarAuditPublisherPrincipal,
+    ) -> SystemAuditEventOutboxCommit:
+        """Atomically append one authorized calendar event and its exact outbox.
+
+        This calendar-only path is the sole no-scope append capability. It
+        validates the closed event contract, rechecks the live publisher lease
+        on this alias, and refuses to repair an event/outbox half-pair during
+        replay.
+        """
+
+        if not self._active:
+            raise SystemAuditEventOutboxConflict(
+                "calendar Audit append requires the caller-owned event/outbox UOW"
+            )
+        try:
+            validate_calendar_publication_event(event)
+        except (AttributeError, TypeError, ValueError) as error:
+            raise SystemAuditEventOutboxConflict(
+                "calendar Audit candidate is outside its exact registered contract"
+            ) from error
+        if event.recorded_at != recorded_at:
+            raise SystemAuditEventOutboxConflict(
+                "calendar Audit event recorded_at differs from the write"
+            )
+        try:
+            principal.assert_live()
+        except (AuthenticationError, AuthorizationError) as error:
+            raise SystemAuditEventOutboxConflict(
+                "calendar publisher authorization lease is no longer live"
+            ) from error
+        # Read attribution only after the lease has been revalidated.
+        user_id = getattr(principal, "user_id", None)
+        actor_type = getattr(principal, "actor_type", None)
+        actor_id = getattr(principal, "actor_id", None)
+        permission_codename = getattr(principal, "permission_codename", None)
+        database_alias = getattr(principal, "database_alias", None)
+        verified_at = getattr(principal, "verified_at", None)
+        recorded_offset = recorded_at.utcoffset() if type(recorded_at) is datetime else None
+        verified_offset = verified_at.utcoffset() if type(verified_at) is datetime else None
+        if (
+            type(recorded_at) is not datetime
+            or recorded_at.tzinfo is None
+            or recorded_offset is None
+            or recorded_offset.total_seconds() != 0
+            or type(user_id) is not int
+            or user_id <= 0
+            or actor_type != "django_user"
+            or actor_id != f"django-user:{user_id}"
+            or permission_codename != CALENDAR_PUBLISH_PERMISSION
+            or database_alias != self._using
+            or event.actor.actor_type != actor_type
+            or event.actor.actor_id != actor_id
+            or type(verified_at) is not datetime
+            or verified_at.tzinfo is None
+            or verified_offset is None
+            or verified_offset.total_seconds() != 0
+        ):
+            raise SystemAuditEventOutboxConflict(
+                "calendar Audit actor or permission differs from the locked principal"
+            )
+
+        self.lock_stream(event.stream_id)
+        now = self._event_repository.now()
+        dataset_key, exchange = calendar_publication_event_selector(event)
+        winner = self._event_repository.get_calendar_publication_winner_targeted(
+            event_id=event.event_id,
+            event_version=event.event_version,
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=now,
+            lock=True,
+        )
+        if winner is not None:
+            if winner != event:
+                raise SystemAuditEventOutboxConflict(
+                    "calendar Audit identity already has another event winner"
+                )
+            outbox_winner = self.get_exact_outbox_winner_targeted(winner)
+            if outbox_winner is None:
+                raise SystemAuditEventOutboxCorruption(
+                    "calendar Audit event winner has no exact outbox row"
+                )
+            if outbox_winner.event != event:
+                raise SystemAuditEventOutboxCorruption(
+                    "calendar Audit event and outbox winners differ"
+                )
+            return SystemAuditEventOutboxCommit(
+                event=event,
+                outbox_id=outbox_winner.outbox_id,
+                event_id=event.event_id,
+                idempotency_key=event.idempotency_key,
+            )
+
+        orphan = self.get_exact_outbox_winner_targeted(event)
+        if orphan is not None:
+            raise SystemAuditEventOutboxCorruption(
+                "calendar Audit outbox identity exists without its event winner"
+            )
+        head = self._event_repository.get_calendar_publication_head_targeted(
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=now,
+            lock=True,
+        )
+        persisted_event = self._event_repository.append_calendar_targeted(
+            event,
+            expected_predecessor_hash=expected_predecessor_hash,
+            recorded_at=recorded_at,
+            identity_winner=None,
+            stream_head=head,
+        )
+        outbox_record = self._outbox_repository.enqueue_targeted(
+            persisted_event,
+            created_at=recorded_at,
+            available_at=recorded_at,
+        )
+        if outbox_record.event != persisted_event:
+            raise SystemAuditEventOutboxConflict(
+                "calendar Audit outbox payload does not match the event winner"
+            )
+        return SystemAuditEventOutboxCommit(
+            event=persisted_event,
+            outbox_id=outbox_record.outbox_id,
+            event_id=persisted_event.event_id,
+            idempotency_key=persisted_event.idempotency_key,
+        )
+
     def lock_stream(self, stream_id: str) -> None:
         """Serialize the exact audit stream before reading its head."""
 
@@ -230,6 +372,57 @@ class DjangoSystemAuditEventOutboxCoordinator:
             lock=lock,
         )
 
+    def get_calendar_publication_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Read one event identity after exact calendar contract validation."""
+
+        return self._event_repository.get_calendar_publication_winner_targeted(
+            event_id=event_id,
+            event_version=event_version,
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=as_of,
+            lock=True,
+        )
+
+    def get_calendar_publication_head_targeted(
+        self,
+        *,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+    ) -> SystemAuditEvent | None:
+        """Read the exact calendar stream head after the caller locks its stream."""
+
+        return self._event_repository.get_calendar_publication_head_targeted(
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=as_of,
+            lock=True,
+        )
+
+    def list_calendar_publication_events(
+        self,
+        *,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Return only registered events from one exact dataset/exchange stream."""
+
+        return self._event_repository.list_calendar_publication_events(
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=as_of,
+        )
+
     def get_current_head_targeted(
         self,
         *,
@@ -245,6 +438,36 @@ class DjangoSystemAuditEventOutboxCoordinator:
             as_of=as_of,
             scope=scope,
             lock=lock,
+        )
+
+    def get_exact_outbox_winner_targeted(
+        self,
+        event: SystemAuditEvent,
+    ) -> ExactSystemAuditOutboxWinner | None:
+        """Read an exact matching outbox row through the existing identity selector."""
+
+        if type(event) is not SystemAuditEvent:
+            raise SystemAuditEventOutboxConflict("exact outbox reads require a typed event")
+        try:
+            event.validate_hashes()
+        except (TypeError, ValueError) as error:
+            raise SystemAuditEventOutboxConflict(
+                "exact outbox reads require a hash-valid event"
+            ) from error
+        if not self._active:
+            raise SystemAuditEventOutboxConflict(
+                "exact outbox winner reads require the caller-owned event/outbox UOW"
+            )
+        winners = self._outbox_repository.get_identity_winners_targeted((event,))
+        record = winners.get(event.event_id)
+        if record is None:
+            return None
+        return ExactSystemAuditOutboxWinner(
+            outbox_id=record.outbox_id,
+            event=record.event,
+            event_id=record.event.event_id,
+            idempotency_key=record.event.idempotency_key,
+            payload_hash=record.event.content_hash,
         )
 
     def get_winner(

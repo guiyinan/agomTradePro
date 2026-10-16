@@ -7,6 +7,7 @@ about Django, data-center providers, or publisher side effects.
 
 from __future__ import annotations
 
+import re
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,6 +15,8 @@ from typing import Protocol
 from uuid import UUID
 
 from apps.audit.domain.system_audit_event import SystemAuditEvent
+
+_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class SystemAuditEventOutboxUnavailable(Exception):
@@ -42,6 +45,38 @@ class SystemAuditEventOutboxCommit:
             raise ValueError("event_id must match the committed event")
         if self.event.idempotency_key != self.idempotency_key:
             raise ValueError("idempotency_key must match the committed event")
+
+
+@dataclass(frozen=True, slots=True)
+class ExactSystemAuditOutboxWinner:
+    """One exact persisted outbox row and its immutable event payload."""
+
+    outbox_id: UUID
+    event: SystemAuditEvent
+    event_id: str
+    idempotency_key: str
+    payload_hash: str
+
+    def __post_init__(self) -> None:
+        """Revalidate the exact canonical event and its paired Outbox identity."""
+
+        if type(self.event) is not SystemAuditEvent:
+            raise ValueError("outbox winner event must be an exact SystemAuditEvent")
+        self.event.validate_hashes()
+        if type(self.outbox_id) is not UUID:
+            raise ValueError("outbox_id must be a UUID")
+        if type(self.event_id) is not str or not self.event_id:
+            raise ValueError("event_id must be non-empty")
+        if type(self.idempotency_key) is not str or not self.idempotency_key:
+            raise ValueError("idempotency_key must be non-empty")
+        if type(self.payload_hash) is not str or _HASH_RE.fullmatch(self.payload_hash) is None:
+            raise ValueError("payload_hash must be a lowercase SHA-256 digest")
+        if (
+            self.event.event_id != self.event_id
+            or self.event.idempotency_key != self.idempotency_key
+            or self.event.content_hash != self.payload_hash
+        ):
+            raise ValueError("outbox winner identity or payload hash differs from its event")
 
 
 class SystemAuditEventOutboxWriter(Protocol):
@@ -107,6 +142,7 @@ class AppendSystemAuditEventOutboxUseCase:
 __all__ = [
     "AppendSystemAuditEventOutboxCommand",
     "AppendSystemAuditEventOutboxUseCase",
+    "ExactSystemAuditOutboxWinner",
     "SystemAuditEventOutboxCommit",
     "SystemAuditEventOutboxConflict",
     "SystemAuditEventOutboxCorruption",

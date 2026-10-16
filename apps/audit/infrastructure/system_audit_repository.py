@@ -1,9 +1,11 @@
 """Closed-world repository for the canonical system audit event ledger.
 
-Every read restores the complete table before applying a selector, so an
-unrelated future or tampered row cannot be hidden by a filtered query. PostgreSQL
-empty-stream concurrency still requires a deployment-specific race proof;
-SQLite component tests are structural evidence only.
+Generic selectors restore the complete table before applying a selector. The
+calendar-only selector is the intentional exception: it restores only the
+exact stream and registered dataset/exchange rows, then validates that full
+calendar stream. PostgreSQL empty-stream concurrency still requires a
+deployment-specific race proof; SQLite component tests are structural evidence
+only.
 """
 
 from __future__ import annotations
@@ -18,6 +20,13 @@ from django.db import IntegrityError, connections, transaction
 from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
+from apps.audit.domain.calendar_publication_audit import (
+    CALENDAR_PUBLICATION_BLOCKED_EVENT,
+    CALENDAR_PUBLICATION_PUBLISHED_EVENT,
+    CalendarPublicationAuditContractError,
+    calendar_publication_stream_id,
+    validate_calendar_publication_event,
+)
 from apps.audit.domain.system_audit_event import AuditScopeRef, JSONValue, SystemAuditEvent
 from apps.audit.infrastructure.system_audit_event_codec import decode, encode
 from apps.audit.infrastructure.system_audit_models import (
@@ -341,6 +350,135 @@ class DjangoSystemAuditEventRepository:
         )
         return tuple(sorted(events, key=lambda value: value.sequence_no))
 
+    def list_calendar_publication_events(
+        self,
+        *,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+    ) -> tuple[SystemAuditEvent, ...]:
+        """Read only the complete calendar event stream for one exact selector.
+
+        Unlike ``list_events(scope=None)``, this closed selector admits only
+        the two registered calendar contracts and verifies their dataset,
+        exchange, stream, envelope, and hashes before returning any rows.
+        """
+
+        self._require_cutoff(as_of)
+        try:
+            expected_stream = calendar_publication_stream_id(dataset_key, exchange)
+        except CalendarPublicationAuditContractError as error:
+            raise SystemAuditUnavailable("calendar audit selector is invalid") from error
+
+        calendar_event_types = (
+            CALENDAR_PUBLICATION_PUBLISHED_EVENT,
+            CALENDAR_PUBLICATION_BLOCKED_EVENT,
+        )
+        rows = (
+            SystemAuditEventModel._default_manager.using(self._using)
+            .filter(
+                Q(stream_id=expected_stream)
+                | (
+                    Q(event_type__in=calendar_event_types)
+                    & Q(dataset_key=dataset_key)
+                    & Q(detail__exchange=exchange)
+                ),
+            )
+            .order_by("sequence_no")
+        )
+        selected: list[SystemAuditEvent] = []
+        selected_state: list[_StateRow] = []
+        for row in rows:
+            event = self._restore(row)
+            if event.event_type in {
+                CALENDAR_PUBLICATION_PUBLISHED_EVENT,
+                CALENDAR_PUBLICATION_BLOCKED_EVENT,
+            }:
+                self._validate_calendar_row(event)
+                event_exchange = event.detail.get("exchange")
+                if (
+                    event.dataset_key != dataset_key
+                    or event_exchange != exchange
+                    or event.stream_id != expected_stream
+                ):
+                    raise SystemAuditCorruption(
+                        "calendar audit event is stored outside its exact selector"
+                    )
+                selected.append(event)
+                selected_state.append(_StateRow(event=event, row=row))
+            else:
+                raise SystemAuditCorruption(
+                    "calendar audit stream contains an unregistered event type"
+                )
+        _validate_closed_world(tuple(selected_state))
+        visible = tuple(event for event in selected if event.recorded_at <= as_of)
+        return tuple(sorted(visible, key=lambda value: value.sequence_no))
+
+    def get_calendar_publication_winner_targeted(
+        self,
+        *,
+        event_id: str,
+        event_version: str,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Lock and restore one event winner bound to the exact calendar stream."""
+
+        self._require_cutoff(as_of)
+        try:
+            expected_stream = calendar_publication_stream_id(dataset_key, exchange)
+        except CalendarPublicationAuditContractError as error:
+            raise SystemAuditUnavailable("calendar audit identity selector is invalid") from error
+        queryset = SystemAuditEventModel._default_manager.using(self._using).filter(
+            event_id=event_id,
+            event_version=event_version,
+        )
+        if lock:
+            queryset = queryset.select_for_update()
+        rows = tuple(queryset[:2])
+        if len(rows) > 1:
+            raise SystemAuditCorruption("calendar audit event identity is ambiguous")
+        if not rows:
+            return None
+        event = self._restore(rows[0])
+        self._validate_calendar_row(event)
+        if event.dataset_key != dataset_key or event.stream_id != expected_stream:
+            raise SystemAuditConflict("calendar audit identity differs from its exact selector")
+        if event.recorded_at > as_of:
+            return None
+        return event
+
+    def get_calendar_publication_head_targeted(
+        self,
+        *,
+        dataset_key: str,
+        exchange: str,
+        as_of: datetime,
+        lock: bool = False,
+    ) -> SystemAuditEvent | None:
+        """Return the latest complete event in one exact dataset/exchange stream."""
+
+        events = self.list_calendar_publication_events(
+            dataset_key=dataset_key,
+            exchange=exchange,
+            as_of=as_of,
+        )
+        if not events:
+            return None
+        head = events[-1]
+        if lock:
+            row = (
+                SystemAuditEventModel._default_manager.using(self._using)
+                .select_for_update()
+                .filter(event_id=head.event_id, event_version=head.event_version)
+                .first()
+            )
+            if row is None or self._restore(row) != head:
+                raise SystemAuditCorruption("calendar audit stream head changed during lock")
+        return head
+
     def list_correlated_events(
         self,
         run_id: str | None,
@@ -534,6 +672,61 @@ class DjangoSystemAuditEventRepository:
             ) from error
         return self._restore(row)
 
+    def append_calendar_targeted(
+        self,
+        event: SystemAuditEvent,
+        *,
+        expected_predecessor_hash: str | None,
+        recorded_at: datetime,
+        identity_winner: SystemAuditEvent | None = None,
+        stream_head: SystemAuditEvent | None = None,
+    ) -> SystemAuditEvent:
+        """Append only a fully validated registered calendar event with no scope.
+
+        This narrow entry point does not relax ``append`` or
+        ``append_targeted``. Callers must hold the exact stream lock and pass
+        the winner/head they selected through the calendar-only selectors.
+        """
+
+        if _UOW.get() is None:
+            raise SystemAuditConflict("calendar audit append requires repository.atomic()")
+        self._validate_calendar_row(event, candidate=True)
+        if recorded_at.tzinfo is None or recorded_at.utcoffset() is None:
+            raise SystemAuditCorruption("calendar audit recorded_at is naive")
+        if recorded_at > self.now():
+            raise SystemAuditUnavailable("future calendar audit recorded_at is forbidden")
+        if event.recorded_at != recorded_at:
+            raise SystemAuditConflict("calendar audit event recorded_at differs from the write")
+        if identity_winner is not None:
+            self._validate_calendar_row(identity_winner)
+            if identity_winner != event:
+                raise SystemAuditConflict("calendar audit identity already has another winner")
+            return identity_winner
+        if stream_head is not None:
+            self._validate_calendar_row(stream_head)
+            if stream_head.stream_id != event.stream_id:
+                raise SystemAuditConflict("calendar audit serialized stream head differs")
+        expected = stream_head.content_hash if stream_head is not None else None
+        if (
+            expected != expected_predecessor_hash
+            or event.predecessor_hash != expected_predecessor_hash
+        ):
+            raise SystemAuditConflict("calendar audit predecessor compare-and-swap failed")
+        expected_sequence = stream_head.sequence_no + 1 if stream_head is not None else 1
+        if event.sequence_no != expected_sequence:
+            raise SystemAuditConflict("calendar audit sequence is not adjacent to its stream head")
+        if stream_head is not None and event.recorded_at < stream_head.recorded_at:
+            raise SystemAuditConflict("calendar audit recorded clock moved backwards")
+        row = SystemAuditEventModel(**_model_values(event))
+        try:
+            with _claim_system_audit_insert(event.event_id, event.content_hash):
+                row.save(force_insert=True, using=self._using)
+        except IntegrityError as error:
+            raise SystemAuditConflict(
+                "calendar audit serialized append collided with another identity"
+            ) from error
+        return self._restore(row)
+
     def append_group_targeted(
         self,
         events: tuple[SystemAuditEvent, ...],
@@ -646,6 +839,20 @@ class DjangoSystemAuditEventRepository:
         if row.persisted_at != event.recorded_at:
             raise SystemAuditCorruption("system audit persisted clock is invalid")
         return event
+
+    def _validate_calendar_row(
+        self,
+        event: SystemAuditEvent,
+        *,
+        candidate: bool = False,
+    ) -> None:
+        """Apply the closed calendar v1 event contract to a candidate or row."""
+
+        try:
+            validate_calendar_publication_event(event)
+        except (AttributeError, TypeError, ValueError) as error:
+            exception = SystemAuditConflict if candidate else SystemAuditCorruption
+            raise exception("calendar audit event violates its registered contract") from error
 
     def _scope_visible(
         self,

@@ -33,7 +33,7 @@ from apps.data_center.domain.control_plane import CanonicalPublication
 from tests.support.isolated_schema import isolated_schema
 from tests.unit.audit.test_system_audit_event import make_event
 
-pytestmark = pytest.mark.django_db(transaction=True)
+pytestmark = pytest.mark.django_db(transaction=True, available_apps=["apps.audit"])
 
 NOW = datetime(2026, 8, 14, 15, 0, tzinfo=UTC)
 
