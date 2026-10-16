@@ -1,0 +1,47 @@
+COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m pytest tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies -q --ds=core.settings.development_sqlite --no-migrations --basetemp=.tmp/pytest-tui-confirmation-red
+FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[string-false] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[string-true] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-zero] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-one] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[null] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[array] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[object] _
+tests\unit\test_tui_workbench.py:3505: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert response.status_code == 400
+E   assert 200 == 400
+E    +  where 200 = <Response status_code=200, "text/html; charset=utf-8">.status_code
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[string-false]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[string-true]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-zero]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-one]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[null]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[array]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[object]
+7 failed in 9.11s

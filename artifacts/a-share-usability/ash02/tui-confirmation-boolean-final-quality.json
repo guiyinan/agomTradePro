@@ -1,0 +1,29 @@
+{
+  "source_tree": "345cdea835430907d4db5c39b65a5f6dbc8c0b72",
+  "targets": [
+    "tests/unit/test_tui_workbench.py",
+    "tests/component/test_terminal_api.py",
+    "tests/api/test_terminal_api_edges.py",
+    "tests/component/test_tui_agent_action_bridge.py",
+    "tests/unit/test_terminal_agent_service.py",
+    "sdk/tests/test_sdk/test_client.py",
+    "tests/unit/test_internal_ssl_redirect.py"
+  ],
+  "coverage": {
+    "covered_lines": 242,
+    "num_statements": 281,
+    "percent_covered": 85.28428093645485,
+    "percent_covered_display": "85.3",
+    "missing_lines": 39,
+    "excluded_lines": 0,
+    "num_branches": 18,
+    "num_partial_branches": 3,
+    "covered_branches": 13,
+    "missing_branches": 5
+  },
+  "added_executable": 7,
+  "added_covered": 7,
+  "modified_functions": [
+    "post"
+  ]
+}

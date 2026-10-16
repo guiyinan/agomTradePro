@@ -1,0 +1,13 @@
+{
+  "staged_source_tree": "25f315984f744e3afbfb357cc915e2d3167e5991",
+  "base_commit": "91dd83f49fbeaf3d3b80e83e3f29841002b1b3a4",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-tui-confirmation-diel_006",
+  "owned_paths": [
+    "apps/terminal/interface/api_views.py",
+    "tests/unit/test_tui_workbench.py"
+  ],
+  "source_sha256_export_raw": {
+    "apps/terminal/interface/api_views.py": "0da18a4e92119892df3c227cb7ace051bfd958ee0a59e2d15246aa8874e00325",
+    "tests/unit/test_tui_workbench.py": "66bfe659175c20a733376a34a0b61fc433b1912a26e37a5d6d5c47f13f01af07"
+  }
+}

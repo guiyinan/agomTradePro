@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v225",
+  "version": "2026-10-17.v226",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan 19.32 bounded TUI real-session gate acceptance after 33ea2860b: exact-source a832a06a874603343f6131860d419dee0a74544f, 507 unit/SQLite passed with 6 native-only skips; six actual Native outer Session/CSRF and inner owner authority probes, not Calendar business/browser UAT. Four production incremental types and full debt zero; style, coverage, architecture, metadata, Node68/check and unchanged projections green. Legacy missing-flag KeyError fixed; fixture errors/local singleton repair preserved and not product failures. Runtime manifest generated officially, existing104-source LF bindings, no bundle change. Next separate fix: confirmed must be exact bool; existing string false coercion reproduced without DB. Then independently accept owner scope, central key/token original-TTL binding and dedicated Calendar workbench/browser task, followed by ordinary sim/backtest consumers. Future candidates not accepted by this batch. ASH-02 sole focus; original ASH-01, complete ASH-02/03 and Goal remain open; DATA-18 gates ASH-11. No production/research/Provider/failover/Evidence/dispatch/broker qualification; broker_order_evidence_integrated remains false.",
+      "next_gate": "Plan19.33 after91dd83f49 fixes confirmed to exact JSON bool/defaultfalse before dependency setup; seven real invalid-type reds, separate nonreflection test-assertion red preserved. Exact staged-source 345cdea835430907d4db5c39b65a5f6dbc8c0b72: 433 unit/SQLite passed, 0 skipped; Native6 outer Session/CSRF+inner owner authority cases passed, not Calendar business/browser UAT. One production incremental type/full debt zero; style/coverage/architecture/runtime check green. No manifest/structure/model/route change. Next independent acceptance: central key, original-TTL-bound preview codec, owner scope and dedicated Calendar workbench/browser task; then ordinary sim/backtest consumers. ASH-02 sole focus; original ASH-01/fullASH-02/03/Goal open; DATA-18 gates ASH-11. No production, Provider/failover, research, Evidence, dispatch or broker qualification; broker_order_evidence_integrated remains false.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

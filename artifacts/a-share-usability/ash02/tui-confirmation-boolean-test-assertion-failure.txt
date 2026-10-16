@@ -1,0 +1,23 @@
+COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m pytest tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies tests/unit/test_tui_workbench.py::test_tui_action_run_preserves_boolean_confirmation_behavior -q --ds=core.settings.development_sqlite --no-migrations --basetemp=.tmp/pytest-tui-confirmation-green
+..FF.......                                                              [100%]
+================================== FAILURES ===================================
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-zero] _
+tests\unit\test_tui_workbench.py:3511: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert repr(confirmed) not in str(response.data)
+E   assert '0' not in "{'error_cod...4c60f25ec1'}"
+E     
+E     '0' is contained here:
+E        'b1c51c9f08e44c778292d44c60f25ec1'}
+E     ?           +
+_ test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-one] _
+tests\unit\test_tui_workbench.py:3511: in test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies
+    assert repr(confirmed) not in str(response.data)
+E   assert '1' not in "{'error_cod...bd011c066b'}"
+E     
+E     '1' is contained here:
+E       07645b72c4191a1d6e8bd011c066b'}
+E     ?           +
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-zero]
+FAILED tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies[integer-one]
+2 failed, 9 passed in 4.14s

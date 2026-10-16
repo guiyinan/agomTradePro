@@ -3440,6 +3440,154 @@ def test_tui_action_runner_returns_business_view_model(client, tui_user):
     assert "source" not in payload["action"]
 
 
+@pytest.mark.parametrize(
+    "confirmed",
+    ["false", "true", 0, 1, None, [], {}],
+    ids=["string-false", "string-true", "integer-zero", "integer-one", "null", "array", "object"],
+)
+def test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies(
+    monkeypatch,
+    confirmed,
+):
+    metadata_payload = _metadata_payload()
+    metadata_payload["actions"][0].update(
+        method="POST",
+        endpoint="/api/probe/write/",
+        risk="write",
+        confirmation_required=True,
+        audit_required=True,
+        source="approved:confirmation-probe",
+    )
+    repository = FakeMetadataRepository(metadata_payload)
+    dependency_calls = {"metadata": 0, "audit": 0, "executor": 0, "execute": 0}
+
+    class RecordingExecutor:
+        def execute(self, **kwargs):
+            dependency_calls["execute"] += 1
+            return {"status_code": 200, "payload": {"ok": True}}
+
+    def get_repository():
+        dependency_calls["metadata"] += 1
+        return repository
+
+    def get_audit_repository():
+        dependency_calls["audit"] += 1
+        return FakeAuditRepository()
+
+    def get_executor():
+        dependency_calls["executor"] += 1
+        return RecordingExecutor()
+
+    monkeypatch.setattr(tui_api_views, "get_tui_metadata_repository", get_repository)
+    monkeypatch.setattr(tui_api_views, "get_terminal_audit_repository", get_audit_repository)
+    monkeypatch.setattr(tui_api_views, "get_tui_action_executor", get_executor)
+    user = SimpleNamespace(
+        id=721,
+        pk=721,
+        username="confirmation-probe-user",
+        is_authenticated=True,
+        is_staff=False,
+        is_superuser=False,
+        rbac_role="user",
+    )
+    request = APIRequestFactory().post(
+        "/api/terminal/tui/actions/sample.list/run/",
+        {"params": {}, "confirmed": confirmed},
+        format="json",
+    )
+    force_authenticate(request, user=user)
+
+    response = tui_api_views.TuiWorkbenchActionRunView.as_view()(
+        request,
+        action_key="sample.list",
+    )
+    response.render()
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    assert response.data["error_code"] == "tui_confirmation_invalid"
+    assert response.data["title"] == "确认信息无效"
+    assert response.data["detail"] == "请重新打开任务并确认后再提交。"
+    assert set(response.data) == {
+        "error_code",
+        "title",
+        "detail",
+        "recovery_actions",
+        "trace_id",
+    }
+    assert "confirmed" not in response.data
+    if isinstance(confirmed, str):
+        assert confirmed not in str(response.data)
+    assert dependency_calls == {"metadata": 0, "audit": 0, "executor": 0, "execute": 0}
+
+
+@pytest.mark.parametrize(
+    ("body", "query", "expected_confirmation_required", "expected_execute_calls"),
+    [
+        ({"params": {}, "confirmed": False}, "", True, 0),
+        ({"params": {}}, "", True, 0),
+        ({"params": {}}, "?confirmed=true", True, 0),
+        ({"params": {}, "confirmed": True}, "", False, 1),
+    ],
+    ids=["explicit-false", "missing-defaults-false", "query-does-not-override", "explicit-true"],
+)
+def test_tui_action_run_preserves_boolean_confirmation_behavior(
+    monkeypatch,
+    body,
+    query,
+    expected_confirmation_required,
+    expected_execute_calls,
+):
+    metadata_payload = _metadata_payload()
+    metadata_payload["actions"][0].update(
+        method="POST",
+        endpoint="/api/probe/write/",
+        risk="write",
+        confirmation_required=True,
+        audit_required=True,
+        source="approved:confirmation-probe",
+    )
+    repository = FakeMetadataRepository(metadata_payload)
+    executor_calls = []
+
+    class RecordingExecutor:
+        def execute(self, **kwargs):
+            executor_calls.append(kwargs)
+            return {"status_code": 200, "payload": {"ok": True}}
+
+    monkeypatch.setattr(tui_api_views, "get_tui_metadata_repository", lambda: repository)
+    monkeypatch.setattr(
+        tui_api_views,
+        "get_terminal_audit_repository",
+        lambda: FakeAuditRepository(),
+    )
+    monkeypatch.setattr(tui_api_views, "get_tui_action_executor", RecordingExecutor)
+    user = SimpleNamespace(
+        id=721,
+        pk=721,
+        username="confirmation-probe-user",
+        is_authenticated=True,
+        is_staff=False,
+        is_superuser=False,
+        rbac_role="user",
+    )
+    request = APIRequestFactory().post(
+        f"/api/terminal/tui/actions/sample.list/run/{query}",
+        body,
+        format="json",
+    )
+    force_authenticate(request, user=user)
+
+    response = tui_api_views.TuiWorkbenchActionRunView.as_view()(
+        request,
+        action_key="sample.list",
+    )
+
+    assert response.status_code == 200
+    assert response.data["confirmation_required"] is expected_confirmation_required
+    assert len(executor_calls) == expected_execute_calls
+
+
 @pytest.mark.django_db
 def test_tui_admin_config_center_runtime_action_handles_active_model_without_updated_at(
     client,

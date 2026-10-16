@@ -1,0 +1,3 @@
+COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m pytest tests/unit/test_tui_workbench.py::test_tui_action_run_rejects_non_boolean_confirmation_before_dependencies tests/unit/test_tui_workbench.py::test_tui_action_run_preserves_boolean_confirmation_behavior -q --ds=core.settings.development_sqlite --no-migrations --basetemp=.tmp/pytest-tui-confirmation-green2
+...........                                                              [100%]
+11 passed in 2.35s

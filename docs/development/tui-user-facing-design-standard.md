@@ -30,6 +30,12 @@ visible action and requires the exact DRF `SessionAuthentication`, an authentica
 user and a nonempty database-backed session key before constructing its executor.
 Failure returns HTTP 403 with `tui_session_auth_required`. Audience, risk, client
 parameters and a token-authenticated staff user cannot satisfy this contract.
+The action-run request may omit `confirmed` (equivalent to `false`). If present,
+it must be a JSON boolean; strings, numbers, null, arrays and objects return
+HTTP 400 with `tui_confirmation_invalid` before metadata/audit/executor setup.
+Query parameters cannot supply confirmation. A true value remains a UI
+acknowledgement and never replaces the owner's business authorization.
+
 The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
 recheck their own live permissions and transaction-bound session authority.

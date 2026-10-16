@@ -1,0 +1,5 @@
+staged_source_tree=345cdea835430907d4db5c39b65a5f6dbc8c0b72
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-index-tui-confirmation-ppnd400e
+Native local PostgreSQL16 reused with 544 previously applied migrations; no empty replay.
+......                                                                   [100%]
+6 passed in 19.47s

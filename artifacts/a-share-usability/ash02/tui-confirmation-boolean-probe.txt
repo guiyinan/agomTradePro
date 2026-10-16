@@ -1,0 +1,27 @@
+{
+  "probe": "TuiWorkbenchActionRunView confirmed coercion",
+  "results": [
+    {
+      "submitted_confirmed": "False",
+      "submitted_type": "bool",
+      "http_status": 200,
+      "response_confirmation_required": true,
+      "executor_call_count": 0,
+      "audit_outcomes": [
+        "blocked"
+      ],
+      "database_attempts": 0
+    },
+    {
+      "submitted_confirmed": "'false'",
+      "submitted_type": "str",
+      "http_status": 200,
+      "response_confirmation_required": false,
+      "executor_call_count": 1,
+      "audit_outcomes": [
+        "success"
+      ],
+      "database_attempts": 0
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "recorded_at": "2026-10-16T22:57:21.746020+00:00",
+  "status": "bounded_local_confirmation_input_fix",
+  "exported_source_tree": "345cdea835430907d4db5c39b65a5f6dbc8c0b72",
+  "base_commit": "91dd83f49fbeaf3d3b80e83e3f29841002b1b3a4",
+  "sqlite_and_unit": {
+    "passed": 433,
+    "skipped": 0,
+    "seconds": 389.01,
+    "test_files": 7
+  },
+  "native": {
+    "passed": 6,
+    "seconds": 19.47,
+    "source_drift": [],
+    "scope": "Actual Session/CSRF+owner authority probe, no Calendar capture/publish/browser task;544 existing migrations, no empty replay."
+  },
+  "quality": {
+    "source_tree": "345cdea835430907d4db5c39b65a5f6dbc8c0b72",
+    "targets": [
+      "tests/unit/test_tui_workbench.py",
+      "tests/component/test_terminal_api.py",
+      "tests/api/test_terminal_api_edges.py",
+      "tests/component/test_tui_agent_action_bridge.py",
+      "tests/unit/test_terminal_agent_service.py",
+      "sdk/tests/test_sdk/test_client.py",
+      "tests/unit/test_internal_ssl_redirect.py"
+    ],
+    "coverage": {
+      "covered_lines": 242,
+      "num_statements": 281,
+      "percent_covered": 85.28428093645485,
+      "percent_covered_display": "85.3",
+      "missing_lines": 39,
+      "excluded_lines": 0,
+      "num_branches": 18,
+      "num_partial_branches": 3,
+      "covered_branches": 13,
+      "missing_branches": 5
+    },
+    "added_executable": 7,
+    "added_covered": 7,
+    "modified_functions": [
+      "post"
+    ]
+  },
+  "architecture": {
+    "changed_files": 1,
+    "added_lines": 21,
+    "violations": 0
+  },
+  "typing": {
+    "incremental_production_files": 1,
+    "regressions": 0,
+    "full_errors": 0
+  },
+  "runtime": "Bound source unchanged; actual check:tui passed; no new bundle or manifest.",
+  "scope": "Exact JSON boolean/default false; invalid types400 before dependencies; existing owner permission unchanged. Raw/LF identities separate; not CI/S6/release or production qualification.",
+  "plan_registry": {
+    "version": "2026-10-17.v226",
+    "units": 74,
+    "violations": 0,
+    "validation_tree_before_checkpoint": "d7c36e52c8bd41436da809038634fe61c5c4797d"
+  },
+  "failure_history": [
+    "Read-only actual view/fake executor probe, string false executes, native boolean false blocks; zero DB attempts.",
+    "7 actual invalid-type test failures before production fix.",
+    "2 incorrect full-response single-character nonreflection assertions hit random trace_id; narrowed test assertion, no production behavior change.",
+    "Incremental mypy found1 redundant-cast; exact type check already narrows bool. Removed only cast, retained previous25f315 source export and actual failure, then new-source final gates.",
+    "Agent initial mixed selection aborted before any test result was observed; no pass or actual Provider RPC observation claimed."
+  ],
+  "not_accepted": [
+    "Calendar owner/TUI/browser task and uncommitted key/token/scope candidates",
+    "FullASH-01/02/03 and Goal",
+    "Ordinary simulated/backtest migration",
+    "Production, Provider/failover, RawAudit/lifecycle/blocked producer",
+    "Research/Evidence/broker or external dispatch"
+  ],
+  "source_sha256_export_raw": {
+    "apps/terminal/interface/api_views.py": "04b3ef48911fe295202e94a626894536e04628b4582a8dcabbe0a102e15f1c91",
+    "tests/unit/test_tui_workbench.py": "66bfe659175c20a733376a34a0b61fc433b1912a26e37a5d6d5c47f13f01af07"
+  },
+  "source_sha256_staged": {
+    "apps/terminal/interface/api_views.py": "b2fab75f6f3ff02b19a3c7ff33ec316783e53aa2ed61ef4232aa0769727fe289",
+    "tests/unit/test_tui_workbench.py": "9e4e683f9b5f55044021a0a83012b7410f0756fbe9051df12dad508494b1e48a"
+  },
+  "artifact_sha256_staged": {
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-before-type-fix-reference.json": "c7ff1636ee8c36760bd1af7ff7566d1317d176a6b9368ab02976db96e3d8d204",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-black.txt": "77c7a131d64617e689b4bc2e182b26d231c8f9b56a7cd07d534f13d076d6f019",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-architecture.json": "79fdc4f6c5514039c35fd7c9ece28f50211410293d1792c39c6a54643002ef67",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-black.txt": "9a61509eeb134a1b9997b1c2a3e689e9cf464d4c7027b3cc9e9ac1d446cd0d94",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-coverage.json": "1de5cabdf02736af4bf3ac07e1c9c2f4e471dcf81a352e54794f41fa542d773e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-full-mypy.txt": "75ec085a6cc24a14255d1140f0aa8d9b518dc6f20d33b2e5be1ecea2bf166900",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-incremental-mypy.txt": "7dd5e54153ee549752dc90aa86151ff35a88900ef6c92be502883f9e6292c3f9",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-isort.txt": "ab143794670d375b93e0f45266dc1ee3dd10dcf5378cca38e862aadfc011621c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native-result.json": "f1b7293db9ff7af853ae17920c998872f7a713a83de904789b3cc01c04f4f093",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native-sources.json": "c27a228cda7666e7a913681720f02cb86e63fb2c6d6edbe2e451b1c25f60ae60",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native.txt": "7e80e136620f832a8ed653d04ab9afdfbdb301cad92ef1bb74644c28838417ab",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-quality.json": "751bfcbce336d85453077dc24c99258bef2f85af2bb11b6cbedba5d936159d82",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-reference.json": "dfb389eb381e56c89e2653792ad2e756cc16032c67c0790f29b97acddfb3cbdf",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-ruff.txt": "d2524dd41b464af5139bf9454ab8720433de4641e5fb371027e575faaed4e528",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-runtime-check.txt": "c66761f2d68144e48a0c52212afb4694a5d4700ff805dc5c0356196742a7a160",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-tests.txt": "221bdd0a338707c1128542c5d348a94d272be856d3712fe5227aff9957f1894c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-green-final.txt": "0ba2edcd57134df44793c1a3feba03d001ce76bb8d11e4d21f72b515559f40ad",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-green.txt": "a88b216807b8900aaab8b359e295231d8430481cc33b53786d26f1a1ffbf686c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-initial-run-aborted.txt": "62baf6f3d6bfee777adde9b6f675c8eed929c6c9586f977036761cc2552b819e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-isort.txt": "f632241084a1ba190617818d581111e6e7aadcbf2cf97f874b43eef04139aa72",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-mypy-red.txt": "e06cb8fad364887cadb5302add77f8399a408e772b58d96ed9a0bb7943f4b6db",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-mypy.txt": "47115d473e027a0e429d5580f1e798114cbbfbbfb94749e3bab3fecebf04657e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-probe.txt": "ce4cad95cffa06780ec6c17bc1128fe401e888e692e07ded8576224273818b8a",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-red.txt": "5e8a141adb362d91fdecfcb767280f74747505f1cf06c506ee1759e0645356c8",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-ruff.txt": "6ce7b443b39e1389d43537fa425df2d9b3a96093c083d86be7a2020c215fdba0",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-test-assertion-failure.txt": "44cc2e3a839580b61d883926a8212bc456132994e7d56b69c5e9bd682242b9a4",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-plan-registry.txt": "52f56eaf871b6d673affafe523c5ccc363f763d523f94ce4757ab80bf999c30d"
+  },
+  "artifact_sha256_raw": {
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-before-type-fix-reference.json": "c7ff1636ee8c36760bd1af7ff7566d1317d176a6b9368ab02976db96e3d8d204",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-black.txt": "77c7a131d64617e689b4bc2e182b26d231c8f9b56a7cd07d534f13d076d6f019",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-architecture.json": "79fdc4f6c5514039c35fd7c9ece28f50211410293d1792c39c6a54643002ef67",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-black.txt": "9a61509eeb134a1b9997b1c2a3e689e9cf464d4c7027b3cc9e9ac1d446cd0d94",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-coverage.json": "1de5cabdf02736af4bf3ac07e1c9c2f4e471dcf81a352e54794f41fa542d773e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-full-mypy.txt": "75ec085a6cc24a14255d1140f0aa8d9b518dc6f20d33b2e5be1ecea2bf166900",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-incremental-mypy.txt": "7dd5e54153ee549752dc90aa86151ff35a88900ef6c92be502883f9e6292c3f9",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-isort.txt": "ab143794670d375b93e0f45266dc1ee3dd10dcf5378cca38e862aadfc011621c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native-result.json": "f1b7293db9ff7af853ae17920c998872f7a713a83de904789b3cc01c04f4f093",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native-sources.json": "c27a228cda7666e7a913681720f02cb86e63fb2c6d6edbe2e451b1c25f60ae60",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-native.txt": "7e80e136620f832a8ed653d04ab9afdfbdb301cad92ef1bb74644c28838417ab",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-quality.json": "751bfcbce336d85453077dc24c99258bef2f85af2bb11b6cbedba5d936159d82",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-reference.json": "dfb389eb381e56c89e2653792ad2e756cc16032c67c0790f29b97acddfb3cbdf",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-ruff.txt": "d2524dd41b464af5139bf9454ab8720433de4641e5fb371027e575faaed4e528",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-runtime-check.txt": "c66761f2d68144e48a0c52212afb4694a5d4700ff805dc5c0356196742a7a160",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-tests.txt": "221bdd0a338707c1128542c5d348a94d272be856d3712fe5227aff9957f1894c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-green-final.txt": "0ba2edcd57134df44793c1a3feba03d001ce76bb8d11e4d21f72b515559f40ad",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-green.txt": "a88b216807b8900aaab8b359e295231d8430481cc33b53786d26f1a1ffbf686c",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-initial-run-aborted.txt": "62baf6f3d6bfee777adde9b6f675c8eed929c6c9586f977036761cc2552b819e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-isort.txt": "f632241084a1ba190617818d581111e6e7aadcbf2cf97f874b43eef04139aa72",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-mypy-red.txt": "e06cb8fad364887cadb5302add77f8399a408e772b58d96ed9a0bb7943f4b6db",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-mypy.txt": "47115d473e027a0e429d5580f1e798114cbbfbbfb94749e3bab3fecebf04657e",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-probe.txt": "ce4cad95cffa06780ec6c17bc1128fe401e888e692e07ded8576224273818b8a",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-red.txt": "5e8a141adb362d91fdecfcb767280f74747505f1cf06c506ee1759e0645356c8",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-ruff.txt": "6ce7b443b39e1389d43537fa425df2d9b3a96093c083d86be7a2020c215fdba0",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-test-assertion-failure.txt": "44cc2e3a839580b61d883926a8212bc456132994e7d56b69c5e9bd682242b9a4",
+    "artifacts/a-share-usability/ash02/tui-confirmation-boolean-final-plan-registry.txt": "52f56eaf871b6d673affafe523c5ccc363f763d523f94ce4757ab80bf999c30d"
+  }
+}

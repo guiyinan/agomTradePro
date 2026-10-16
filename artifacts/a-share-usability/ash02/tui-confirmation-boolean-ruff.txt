@@ -1,0 +1,2 @@
+COMMAND: & "D:\githv\agomTradePro\agomtradepro\Scripts\python.exe" -m ruff check apps/terminal/interface/api_views.py tests/unit/test_tui_workbench.py
+All checks passed!

@@ -1,0 +1,13 @@
+{
+  "staged_source_tree": "345cdea835430907d4db5c39b65a5f6dbc8c0b72",
+  "base_commit": "91dd83f49fbeaf3d3b80e83e3f29841002b1b3a4",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-tui-confirmation-ppnd400e",
+  "owned_paths": [
+    "apps/terminal/interface/api_views.py",
+    "tests/unit/test_tui_workbench.py"
+  ],
+  "source_sha256_export_raw": {
+    "apps/terminal/interface/api_views.py": "04b3ef48911fe295202e94a626894536e04628b4582a8dcabbe0a102e15f1c91",
+    "tests/unit/test_tui_workbench.py": "66bfe659175c20a733376a34a0b61fc433b1912a26e37a5d6d5c47f13f01af07"
+  }
+}

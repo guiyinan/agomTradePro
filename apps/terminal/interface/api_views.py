@@ -731,6 +731,23 @@ class TuiWorkbenchActionRunView(APIView):
     def post(self, request: Request, action_key: str) -> Response:
         """Run a published safe action for the current user."""
 
+        request_data = request.data
+        confirmed = False
+        if isinstance(request_data, dict) and "confirmed" in request_data:
+            submitted_confirmation = request_data["confirmed"]
+            if type(submitted_confirmation) is not bool:
+                return Response(
+                    _tui_error_payload(
+                        request=request,
+                        error_code="tui_confirmation_invalid",
+                        title="确认信息无效",
+                        detail="请重新打开任务并确认后再提交。",
+                        recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                    ),
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            confirmed = submitted_confirmation
+
         idempotency_key = request.headers.get("Idempotency-Key")
         if idempotency_key is not None and (
             not idempotency_key
@@ -770,18 +787,14 @@ class TuiWorkbenchActionRunView(APIView):
                 ]
             payload = service.run_action(
                 action_key=action_key,
-                params=request.data.get("params", {}) if isinstance(request.data, dict) else {},
+                params=request_data.get("params", {}) if isinstance(request_data, dict) else {},
                 user=request.user,
                 session=getattr(request, "session", None),
-                confirmed=(
-                    bool(request.data.get("confirmed", False))
-                    if isinstance(request.data, dict)
-                    else False
-                ),
+                confirmed=confirmed,
                 confirmation=(
-                    request.data.get("confirmation") if isinstance(request.data, dict) else None
+                    request_data.get("confirmation") if isinstance(request_data, dict) else None
                 ),
-                reauth=request.data.get("reauth") if isinstance(request.data, dict) else None,
+                reauth=request_data.get("reauth") if isinstance(request_data, dict) else None,
                 idempotency_key=idempotency_key,
             )
         except KeyError:

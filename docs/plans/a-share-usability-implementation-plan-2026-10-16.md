@@ -841,3 +841,15 @@ HTTP 批 `33ea2860b` 后，本批只接受可选且严格布尔的 `session_auth
 只读复核另已确证既有 confirmed 字符串转换问题：JSON "false" 会被 bool 转为真，正常浏览器发送布尔值。该代码未在本认证切片修改；紧接独立修复并保留真实探针。scope、中央密钥、preview token 均属后续未暂存候选；token TTL 独立审查缺口待修，不混入本批。
 
 计划登记 v225，74 单元、ASH-02 仍为唯一集成焦点。完整检查点见[TUI 会话门禁](../testing/a-share-usability-tui-session-auth-2026-10-17.json)。下一批先修确认参数严格类型，再验收 owner scope/token、接专用工作台和浏览器 UAT，随后普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03、DATA-18 对 ASH-11 门禁与整体 Goal 继续开放；真实 Provider/生产/研究/Evidence/外部 dispatch/券商资格未通过，broker_order_evidence_integrated 仍 false。
+
+### 19.33 TUI 确认参数严格类型独立修复
+
+认证批 `91dd83f49` 后，本批只修 TUI action-run 的 confirmed 输入：缺字段按 false，存在必须是 JSON 原生 boolean；string/number/null/array/object 在 metadata、audit repository 或 executor factory 创建前返回 400/tui_confirmation_invalid，不回显输入。真实 false 或缺省仍要求确认，query string 不能代替 body，真实 true 沿用已确认流程；owner 的业务授权不变。
+
+实际只读探针先复现 JSON "false" 被 bool 转为 true 并调用假执行器，真实 false 不执行，两次均零数据库访问。正式持久测试随后有 7 个真实类型拒绝 red；修复后又有 2 个测试断言错误，原因是全响应搜索字符 0/1 命中随机 trace_id。只收窄回显断言到稳定用户文案与响应字段，保留原件，未改变生产 trace 或放宽类型。首次增量 mypy 又检出一个 redundant-cast：精确 type 检查已完成收窄，只删除该冗余转换，并保留旧源码独立导出后以新字节重跑全部验收。代理另一个组合在尚无测试结果输出时中止，没有冒充通过或网络调用观测。
+
+最终暂存源码树 `345cdea835430907d4db5c39b65a5f6dbc8c0b72` 独立导出，7 份回归文件 **433 passed / 0 skipped / 389.01 秒**。一生产文件增量 mypy 零回归，全生产债务 0 errors/0 files；两 Python 文件 Black/isort/Ruff 通过，修改函数参数/返回及 public docstring 完整。Interface 覆盖 242/281 语句、13/18 分支，新增可执行语句 7/7；架构增量一文件、21 新增行、boundary/audit 零。
+
+主代理另对同源码重跑真实外层/内部 owner PostgreSQL 认证组件 **6 passed / 19.47 秒**，源码无漂移；它仍仅证明认证与锁内权限边界，不是 Calendar 工作台业务或浏览器 UAT。runtime check:tui 通过，manifest 绑定源未变，无需重生成；无新增模型/迁移/路由或模块结构。正常浏览器调用发送 boolean，未找到维护中的 SDK/MCP 字符串调用依赖。不同回归组合不累计为唯一用例。
+
+计划登记 v226，ASH-02 继续唯一集成焦点；[检查点](../testing/a-share-usability-tui-confirmation-2026-10-17.json)绑定源和原始日志的独立 raw/LF 身份，不冒充同一 CI/S6 或发布字节。下一批继续中央密钥、原 TTL token、scope 与专用工作台接线。原 ASH-01、完整 ASH-02/03、普通模拟/回测消费者及整体 Goal 仍开放，DATA-18 仍约束 ASH-11；没有部署、生产授权/目录种子、真实 Provider、外部 dispatch、研究/Evidence/券商放行，broker_order_evidence_integrated 仍 false。
