@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v259",
+  "version": "2026-10-18.v260",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.56: Settlement Domain extraction verified on frozen tree eddaab3b3ed64bee30263c8b6ccbab18826735aa; actual results: 218 unit, 61 SQLite with 4 PostgreSQL-only skips, 65 native component passes. Domain coverage 95.937/93.617/95.408; module map only simulated_trading.domain +2. Governance and retirement remain non-green at actual exit 1 each (one size and nine retirement violations). Keep ASH-02 focus and closure v74/79 unchanged; full Goal remains open. Evidence: artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json.",
+      "next_gate": "Formal calendar extraction source tree 1b7207fb57b33ed7156d9b20a58b71c056f9b3a5 is accepted as a bounded same-tree result: unit 294 pass; SQLite 31 pass / 0 skip; native PostgreSQL 27 pass / 0 skip across all three native files. Full governance exited 0. Versioned-surface retirement exited 1 with the exact nine prior violations and remains non-green. Root strict-delta review approved all three generated projections. The data-center architecture output also records the three unchanged current-surface path corrections carried forward from the prior Domain extraction; they were not verified by that prior batch. This evidence does not complete the full A-share Goal, RC, S6, or production validation. Evidence: artifacts/a-share-usability/ash01/formal-calendar-size-evidence-2026-10-18.json; projection review SHA-256 481b649a028a9e37bfe85962b12e357dd97f089fed13620f154b4ea46e2d023c.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

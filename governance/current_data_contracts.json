@@ -8700,6 +8700,9 @@
         "apps/data_center/domain/formal_exchange_calendar_publication.py",
         "apps/data_center/application/formal_exchange_calendar_publication.py",
         "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
         "apps/data_center/application/calendar_publication_operations.py",
         "apps/data_center/calendar_publication_operations_composition.py",
         "apps/data_center/interface/api_urls.py",
@@ -8727,13 +8730,22 @@
           "def must_not_execute(self) -> bool:"
         ],
         "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": [
-          "CALENDAR_FORMAL_POINTER_MISSING",
-          "CALENDAR_FORMAL_PROPOSAL_MISMATCH",
-          "CALENDAR_FORMAL_TTL_EXPIRED",
+          "DjangoFormalExchangeCalendarPublicationRepository",
+          "_FormalExchangeCalendarPublicationWriter",
+          "_FormalExchangeCalendarPublicationReader"
+        ],
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py": [
           "CALENDAR_FORMAL_AUDIT_INTEGRITY_INVALID",
-          "verify_published_integrity",
           "_require_single_caller_transaction",
           "_require_postgresql_read_committed"
+        ],
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py": [
+          "CALENDAR_FORMAL_PROPOSAL_MISMATCH",
+          "CALENDAR_FORMAL_TTL_EXPIRED"
+        ],
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py": [
+          "CALENDAR_FORMAL_POINTER_MISSING",
+          "verify_published_integrity"
         ],
         "apps/data_center/application/calendar_publication_operations.py": [
           "CALENDAR_PUBLICATION_PREVIEW_STALE",

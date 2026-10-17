@@ -1231,3 +1231,17 @@ Root-2 全量治理实际保留 3 个 size violation 与 9 个 retirement violat
 Full governance 与 retirement 实际各退出 1，分别保留一个已知 size violation 和九个 retirement violation，均不记为 green。ASH-02 focus/policy 与 closure v74 的 79 个 units 保持原样。此批不代表 ASH01–12 Goal、RC、S6 或 production 完成。
 
 详细证据：`docs/testing/a-share-usability-settlement-domain-size-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json`。
+
+### 19.57 Formal calendar extraction bounded acceptance
+
+本批以 `8a6e2f19450a58fc349dfa66dfdfc343e920ef31` 为 base，冻结 source tree 为 `1b7207fb57b33ed7156d9b20a58b71c056f9b3a5`；六个源输入仅包含四个日历 production 文件、current-data contract 和 freshness guard。静态 proof 对应 38 个完整方法/helper 与 8 个原 module/class assignment；格式化后四文件 SHA 与 proof 一致。
+
+正式日历 current-pointer contract 将原仓储上的七个 marker 完整分配至 support、writer、reader，并保留三个公开 facade/inheritance marker；原 contract required_tests 与其余 85 个 contract surface 不变。Freshness guard 仅增加本批两行说明。
+
+实际 unit 294 pass；SQLite 31 pass / 0 skip；native PostgreSQL 27 pass / 0 skip，覆盖三份原生测试文件。Full governance 实际退出 0。Retirement 实际退出 1，精确匹配既有九项违规，明确保持 non-green。
+
+Root strict projection review `481b649a028a9e37bfe85962b12e357dd97f089fed13620f154b4ea46e2d023c` 对三个官方生成投影给出 strict_delta=true，并绑定冻结 source tree 与实际 LF hashes。module map 仅增加 data_center infrastructure 三个成员；data-center architecture inventory 的 current-surface 引用从 5806 增至 5808 条，包含 18 个旧日历引用的职责迁移、两个新 docstring，以及上一 Domain 提交遗漏的三个 current-surface 路径补正（文本不变）。这三项补正本批首次随官方重建验证，不追认前批验证。Entry-point inventory 仅将正式日历 current_data_surface.evidence.source_files 从 10 项扩为 13 项；其余 entry/field 不变。两次早期 strict projection review 失败与最终批准均保留在 evidence bundle。
+
+只有 Root review 批准的三个投影文件会被复制；脚本不 stage、不创建 commit。source patch 限定上述六个源输入，可重建冻结 tree。详细证据：`docs/testing/a-share-usability-formal-calendar-size-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/formal-calendar-size-evidence-2026-10-18.json`。
+
+本批仅证明受限的代码/治理边界，不代表完整 A-share Goal、RC、S6 或 production 验收；ASH-02 focus/policy、closure v74/79 units、其余 workstreams 与 TUX-08 保持原样。

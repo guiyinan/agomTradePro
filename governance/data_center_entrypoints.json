@@ -5421,7 +5421,7 @@
     },
     {
       "category": "current_data_surface",
-      "evidence": "governed current-data contract; source_files=10",
+      "evidence": "governed current-data contract; source_files=13",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.formal_calendar_current_pointer_contract:Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "locator": "Exact-current calendar HTTP Session reference read, trusted preparation and storage; TUI and ordinary consumers remain separate; no source-observation or execution authority",
       "path": "governance/current_data_contracts.json",

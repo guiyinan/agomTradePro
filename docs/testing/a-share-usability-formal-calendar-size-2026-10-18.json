@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "status": "passed",
+  "qualification": "Bounded same-tree formal-calendar extraction only; full A-share Goal remains open.",
+  "base_commit": "8a6e2f19450a58fc349dfa66dfdfc343e920ef31",
+  "source_tree": "1b7207fb57b33ed7156d9b20a58b71c056f9b3a5",
+  "source_paths": [
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+    "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
+    "governance/current_data_contracts.json",
+    "docs/development/data-freshness-contract-guard.md"
+  ],
+  "source_proof": {
+    "methods_and_helpers_ast_identical": 38,
+    "assignments_ast_identical": 8
+  },
+  "observed_results": {
+    "unit": {
+      "collected": 294,
+      "passed": 294,
+      "skipped": []
+    },
+    "sqlite": {
+      "collected": 31,
+      "passed": 31,
+      "skipped": []
+    },
+    "native": {
+      "collected": 27,
+      "passed": 27,
+      "skipped": []
+    },
+    "full_governance_exit_code": 0,
+    "retirement_exit_code": 1,
+    "retirement_violations": 9,
+    "retirement_green": false,
+    "generated_lf_sha256": {
+      "governance/module_map.json": "17099fcd50b4c670ead0b20ce152af3deb59dd975af5cd05675dcb106d0de3f7",
+      "governance/data_center_architecture_inventory.json": "a4993d11ebeb18d6af799a11f0586cf7eecca9bf73ed2b10d7d9affdf079dd23",
+      "governance/data_center_entrypoints.json": "1709ff75b7b04c1cbad8b7d29bb980ca60c409c92b2e809c74d3adaeed1ee465"
+    }
+  },
+  "root_projection_review": {
+    "sha256_raw": "481b649a028a9e37bfe85962b12e357dd97f089fed13620f154b4ea46e2d023c",
+    "strict_delta": true,
+    "changed_paths": [
+      "governance/data_center_architecture_inventory.json",
+      "governance/data_center_entrypoints.json",
+      "governance/module_map.json"
+    ],
+    "generated_lf_sha256": {
+      "governance/module_map.json": "17099fcd50b4c670ead0b20ce152af3deb59dd975af5cd05675dcb106d0de3f7",
+      "governance/data_center_architecture_inventory.json": "a4993d11ebeb18d6af799a11f0586cf7eecca9bf73ed2b10d7d9affdf079dd23",
+      "governance/data_center_entrypoints.json": "1709ff75b7b04c1cbad8b7d29bb980ca60c409c92b2e809c74d3adaeed1ee465"
+    }
+  },
+  "projection_correction": {
+    "data_center_architecture": "5806 to 5808 current-surface reference rows; calendar references relocated, two docstrings added, and three prior Domain current-surface paths corrected without text changes.",
+    "data_center_entrypoints": "Only formal calendar current_data_surface.evidence.source_files changed from 10 to 13; all other entries and fields are unchanged.",
+    "module_map": "Only data_center infrastructure membership increases by three.",
+    "prior_batch_note": "The three path corrections were omitted from the prior Domain projection and were not verified there; this batch records the official regenerated projection."
+  },
+  "root_projection_review_failures": [
+    ".tmp/formal-calendar-size-root-1-projection-review-initial-failure.json",
+    ".tmp/formal-calendar-size-root-1-projection-review-second-failure.json"
+  ],
+  "protected_test_hashes": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "evidence": "artifacts/a-share-usability/ash01/formal-calendar-size-evidence-2026-10-18.json",
+  "limitations": [
+    "No production or broker authority is granted.",
+    "This bounded batch does not complete RC, S6, or the A-share Goal."
+  ]
+}

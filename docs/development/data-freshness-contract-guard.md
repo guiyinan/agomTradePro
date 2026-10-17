@@ -386,6 +386,8 @@ V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久�
 
 目录 SHARE fence 后先锁 RawPayload、再锁 snapshot 与发布记录；只加入调用方唯一外层事务，不开启嵌套事务。PostgreSQL 要求 READ COMMITTED，SQLite 使用无新增行的写保留。内部原生 PostgreSQL 验证不代表已提供 HTTP/TUI 发布入口、已切换模拟消费者或已取得执行授权；`must_not_execute` 仍为 true。详细边界见 `docs/api/a-share-formal-calendar-publication.md` 和实施计划 19.28。
 
+2026-10-18 仓储职责提取保留原公开 facade；同 App 的 support、writer、reader 承载原有校验、发布与读取方法。上述 current 合同的七项源码标记按实际定义位置迁移登记，并增加 facade 继承绑定检查；原测试要求、源时间、TTL、同一 alias／外层事务及 Audit/outbox 完整性语义不变。
+
 ### 2026-10-17 日历操作与精确准备
 
 内部 preview/confirm 通过精确引用重建持久来源、实际事实摘要和活动目录，服务器提供知识截止点；确认不接受客户端时钟或 seal。原确认只可重试同 hash/activation 的当前赢家，原 CAS 范围仍须相符；无密钥 preview checksum 不授予权限。源过期和同版本 TTL 漂移均阻断，重试不刷新源时间。普通 current read 必须绑定 dataset/exchange 和服务器截止点。

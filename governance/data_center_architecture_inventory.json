@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5806,
+    "current_surface_references": 5808,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -11643,76 +11643,84 @@
       "text": "updated_by=current.updated_by,"
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"Current calendar pointer did not resolve to its exact publication\","
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"Current publication's exact catalog row is invalid\","
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"Exact current replay has no persisted publication record\","
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"Formal calendar current publication must have exactly one member\","
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"Formal calendar current-read query is not typed\","
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"Formal calendar publication history exists without a current pointer\","
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"Formal calendar publication history exists without a current pointer\","
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"Formal calendar publication history exists without a current pointer\","
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"Forward calendar publication has no exact current record\","
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"\"\"Load exact source/catalog/current evidence inside one caller-owned UoW."
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"\"\"Load the exact versioned catalog rows named by a current publication.\"\"\""
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
+      "text": "\"\"\"Read exact current or preparation publication evidence.\"\"\""
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"\"\"Lock the exact current pointer after catalog and source rows.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "\"\"\"Publish or verify an exact current replay inside the caller's UoW.\"\"\""
-    },
-    {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "\"\"\"Read exact current publication/Audit rows in one caller-owned outer transaction."
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
-      "text": "del activation_id  # The exact activation identity is stored by the current pointer."
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
+      "text": "\"\"\"Read exact source evidence and current pointer state without writing.\"\"\""
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_reader.py",
       "text": "latest source, writes publication rows, or treats an expired current"
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+      "text": "\"Current publication's exact catalog row is invalid\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+      "text": "\"Formal calendar current publication must have exactly one member\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+      "text": "\"\"\"Load the exact versioned catalog rows named by a current publication.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+      "text": "\"\"\"Lock the exact current pointer after catalog and source rows.\"\"\""
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
+      "text": "del activation_id  # The exact activation identity is stored by the current pointer."
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
       "text": "raise DataFetchError(\"Current publication's exact contract is unavailable\", code=code)"
     },
     {
-      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_support.py",
       "text": "raise DataFetchError(\"Current publication's exact policy is unavailable\", code=code)"
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+      "text": "\"Exact current replay has no persisted publication record\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+      "text": "\"Formal calendar publication history exists without a current pointer\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+      "text": "\"Forward calendar publication has no exact current record\","
+    },
+    {
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_writer.py",
+      "text": "\"\"\"Publish or verify an exact current replay inside the caller's UoW.\"\"\""
     },
     {
       "path": "apps/data_center/infrastructure/full_universe_capacity_runner.py",
@@ -20675,6 +20683,18 @@
       "text": "\"\"\"Persisted performance values exposed with an account summary.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/domain/execution_settlement_calendar.py",
+      "text": "\"\"\"Count actual current-calendar open sessions after the stored trade date.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_calendar.py",
+      "text": "\"current calendar does not cover the complete settlement interval\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_calendar.py",
+      "text": "\"current date is not an explicitly open calendar session\""
+    },
+    {
       "path": "apps/simulated_trading/domain/execution_settlement_identity.py",
       "text": "mapping. Current source snapshots remain blocked while they carry source"
     },
@@ -20721,18 +20741,6 @@
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Validate all summary fields and their derivable cross-field bindings.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
-      "text": "\"\"\"Count actual current-calendar open sessions after the stored trade date.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
-      "text": "\"current calendar does not cover the complete settlement interval\""
-    },
-    {
-      "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
-      "text": "\"current date is not an explicitly open calendar session\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/account_physical_row_provider.py",
