@@ -1,0 +1,9 @@
+{
+  "recorded_at": "2026-10-17T00:52:57.978218+00:00",
+  "base_commit": "1d77d2cef81132f969bd0eb05cd1429aec983ae3",
+  "source_tree": "52c0f54285cb8c998d3c73afab83bc03f25cda48",
+  "test_blob": "1d044c4871ac105794f89b5cd1b5196d029f2d5e",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-density-fixture-9ny465b2",
+  "test_sha256": "cb053f0088e42ce9eaf37b7f3afc0bb8b6b3258f697c793caff646469ac032a2",
+  "scope": "Test-only auxiliary index; initializes valid real runtime input before deliberately disabling patches to exercise density branch; production validators unchanged. No pending Calendar IA injection or continuation changes."
+}

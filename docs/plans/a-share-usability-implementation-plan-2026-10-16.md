@@ -897,3 +897,9 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 官方生成投影及 stale-check 通过；Native 夹具单行修正后另在最终暂存导出复验 module map 和入口投影。42 app / 588 model / 9,087 field、44 模块 / 210 依赖、85 freshness surface、23 Audit event、1,362 入口（REST 80，candidate-review 11）。没有新模型、迁移、业务种子或权限授予。完整源窗口与失败原件见[工作台接口检查点](../testing/a-share-usability-calendar-workbench-api-2026-10-17.json)；不同树及原始/LF 字节身份分开，不合成 release/CI/S6 身份。
 
 计划登记 v229 / 74 已登记 closure 单元，ASH-02 继续唯一集成焦点。通用 TUI continuation 仍候选：取消清理已补真实红绿，但确认后网络/5xx 的同提交重试还须修复；现有前端回归读取生成 bundle，后续必须先 build 再验收。随后接独立 Calendar screen/IA/runtime、真实外层 TUI Native 与浏览器主任务，再切普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03、整体 Goal 与 DATA-18 对 ASH-11 门禁仍开放；生产/真实 Provider/研究/Evidence/外部 dispatch/券商资格未放行，broker_order_evidence_integrated 仍 false。
+
+### 19.37 TUI 密度回归夹具单独修正
+
+本批仅修正既有 TUI 密度测试夹具：先用真实发布文件规范化建立合法的 selector/filter 合同，再禁用 runtime patches 并刻意超载审计动作密度，原密度预算断言保留。原夹具在已提交基线 1d77d2cef 上独立复现 1 failed / 1.98 秒；只改夹具的隔离源码树 52c0f54285cb8c998d3c73afab83bc03f25cda48 上，完整原 source-consistency 模块 48 passed / 40.92 秒。没有放宽生产校验，没有把待审 Calendar IA 新用例纳入本次提交。
+
+[夹具检查点](../testing/a-share-usability-tui-density-fixture-2026-10-17.json)保留 red/green 原件与独立源码身份。计划登记 v230 / 74 已登记单元；continuation 的确认重试、Calendar screen 与外层 Native/browser、普通模拟/回测消费者仍在后续批，整体 Goal 和 ASH-02 保持开放。

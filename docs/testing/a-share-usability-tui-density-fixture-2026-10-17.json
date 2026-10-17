@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-10-17T01:00:38.967131+00:00",
+  "status": "test_fixture_only",
+  "base_commit": "1d77d2cef81132f969bd0eb05cd1429aec983ae3",
+  "candidate": {
+    "recorded_at": "2026-10-17T00:52:57.978218+00:00",
+    "base_commit": "1d77d2cef81132f969bd0eb05cd1429aec983ae3",
+    "source_tree": "52c0f54285cb8c998d3c73afab83bc03f25cda48",
+    "test_blob": "1d044c4871ac105794f89b5cd1b5196d029f2d5e",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-density-fixture-9ny465b2",
+    "test_sha256": "cb053f0088e42ce9eaf37b7f3afc0bb8b6b3258f697c793caff646469ac032a2",
+    "scope": "Test-only auxiliary index; initializes valid real runtime input before deliberately disabling patches to exercise density branch; production validators unchanged. No pending Calendar IA injection or continuation changes."
+  },
+  "baseline_result": {
+    "failed": 1,
+    "seconds": 1.98
+  },
+  "corrected_result": {
+    "passed": 48,
+    "seconds": 40.92
+  },
+  "production_changed": false,
+  "limits": [
+    "Real normalization retains unrelated selector contracts before density fixture deliberately disables RuntimeActionPatches. Density enforcement itself remains asserted.",
+    "Pending Calendar IA addition is excluded from the staged test blob. No production validator change, browser UAT or continuation acceptance."
+  ],
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-continuation-density-baseline-root-reference.json": "8c892634210f3a5c69cf59718b5bd3fe4fe64a8a214ec14adca2269a31fa91bb",
+    "artifacts/a-share-usability/ash02/calendar-continuation-density-baseline-root-tests.txt": "5a584375367a879d9fcae397f076960f1784d807be7a72bcb145cf551fe612fb",
+    "artifacts/a-share-usability/ash02/calendar-continuation-density-fixture-root-1-reference.json": "ce53657039f8dea543271ee061e60a2403ba4323da1ff813d65bb1aad6d71d91",
+    "artifacts/a-share-usability/ash02/calendar-continuation-density-fixture-root-1-tests.txt": "665cdaa12dc4fd04c6d9a75abf41d8064185f38affc4842f3c302f24bfc74459"
+  }
+}

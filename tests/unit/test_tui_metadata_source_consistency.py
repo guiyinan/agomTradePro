@@ -291,7 +291,11 @@ def test_ia_density_enforcement_is_not_bypassed_by_noop_runtime_early_return(
 
     import apps.terminal.infrastructure.tui_metadata_repository as repository_module
 
-    payload = load_json_payload(PUBLISHED_PATH)
+    # Keep unrelated selector contracts valid before disabling all runtime patches.
+    # Density is overloaded below after the real initial normalization.
+    payload = repository_module.PublishedTuiMetadataRepository(
+        published_path=PUBLISHED_PATH
+    )._load_published_file()
     target_actions = [
         action for action in payload["actions"] if action.get("screen_key") == "execution.audit"
     ][:6]

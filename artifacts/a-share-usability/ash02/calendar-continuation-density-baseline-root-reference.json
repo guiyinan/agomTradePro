@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-17T00:48:25.042443+00:00",
+  "commit": "1d77d2cef81132f969bd0eb05cd1429aec983ae3",
+  "source_tree": "ae3c750df1b7507587bc8f22b52aa25daa63e5f7",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-density-baseline-cj_48mx1",
+  "source_sha256": {
+    "apps/terminal/application/tui_metadata.py": "d431be5ec42c3ec68cd9d63ef97d7b85db8ae33109ce2e21a2d5e627002c385b",
+    "apps/terminal/application/tui_workbench_catalog.py": "2a5ee6ed096a2919a004136785427e778257ccebb24d879cc93ff92420faff71",
+    "apps/terminal/application/tui_workbench_execution.py": "47107687d8955599ed1fcb24abfe1d9f84b775f6a5c2c7c6fd4c8808396d1468",
+    "tests/unit/test_tui_metadata_source_consistency.py": "9589c922a0652d5dce9e6041834ce05634a502e4e76f9b73c57502b89b2b1b72"
+  },
+  "scope": "Committed baseline without unaccepted continuation or Calendar screen Python. One failing density test only; local SQLite, no PG/Provider."
+}
