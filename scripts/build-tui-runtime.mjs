@@ -32,6 +32,9 @@ const workbenchSegments = [
     "frontend/tui-workbench/src/15-workspace-state.js",
     "frontend/tui-workbench/src/20-dashboard.js",
     "frontend/tui-workbench/src/30-actions.js",
+    "frontend/tui-workbench/src/35-next-step-navigation.js",
+    "frontend/tui-workbench/src/36-research-entry.js",
+    "frontend/tui-workbench/src/39-research-evidence.js",
     "frontend/tui-workbench/src/40-views.js",
     "frontend/tui-workbench/src/45-pagination.js",
     "frontend/tui-workbench/src/50-shell.js",
@@ -116,6 +119,7 @@ const metadataInfrastructureFiles = [
 for (const absolutePath of [
     "config/tui/schema/tui_metadata.schema.v3.json",
     "apps/terminal/application/tui_experience.py",
+    "apps/terminal/application/tui_research_snapshot_result.py",
     "apps/terminal/application/tui_workbench.py",
     "apps/terminal/application/tui_workbench_execution.py",
     "apps/terminal/application/tui_workbench_calendar_result_models.py",

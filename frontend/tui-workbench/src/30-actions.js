@@ -283,24 +283,32 @@
         `;
     }
 
-    function renderActionForm(action) {
+    function renderActionForm(action, options = {}) {
+        const entry = options.entry === true;
+        const idNamespace = String(options.idNamespace || (entry ? "entry" : "")).trim();
         const hasVisibleFields = (action.fields || []).some((field) => field.input_type !== "hidden");
         const completed = isActionCompleted(action.key);
         const description = operatorText(action.description || "");
         const submitLabel = actionSubmitLabel(action);
         return `
-            <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}" novalidate>
-                <button class="tui-action-button" type="button">
-                    <span>
-                        ${escapeHtml(action.label)}
-                        <span class="tui-action-meta" data-action-meta>${escapeHtml(actionMetaLabel(action, completed))}</span>
-                    </span>
-                </button>
-                ${hasVisibleFields ? '<button class="tui-row-fill-button" type="button" data-fill-from-row>从选中行填充</button>' : ""}
+            <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${entry ? "tui-action-entry-form " : ""}${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}" novalidate>
+                ${entry ? `
+                    <button class="tui-action-button tui-entry-submit" type="submit">
+                        <span>${escapeHtml(action.submit_label || action.label || "开始")}</span>
+                    </button>
+                ` : `
+                    <button class="tui-action-button" type="button">
+                        <span>
+                            ${escapeHtml(action.label)}
+                            <span class="tui-action-meta" data-action-meta>${escapeHtml(actionMetaLabel(action, completed))}</span>
+                        </span>
+                    </button>
+                `}
+                ${entry || !hasVisibleFields ? "" : '<button class="tui-row-fill-button" type="button" data-fill-from-row>从选中行填充</button>'}
                 ${action.confirmation_required ? '<div class="tui-action-confirm">提交前会要求确认</div>' : ""}
-                ${description ? `<div class="tui-action-desc">${escapeHtml(description)}</div>` : ""}
-                ${(action.fields || []).map((field) => renderField(action, field)).join("")}
-                <button class="tui-action-submit" type="submit">${escapeHtml(submitLabel)}</button>
+                ${entry ? "" : (description ? `<div class="tui-action-desc">${escapeHtml(description)}</div>` : "")}
+                ${(action.fields || []).map((field) => renderField(action, field, { idNamespace })).join("")}
+                ${entry ? "" : `<button class="tui-action-submit" type="submit">${escapeHtml(submitLabel)}</button>`}
             </form>
         `;
     }
@@ -773,6 +781,11 @@
 
     async function loadScreen(screenKey, options = {}) {
         if (!options.skipCapture) captureWorkspace();
+        const navigationOrigin = String(options.navigationOrigin || "").trim();
+        if (!['next-step', 'next-step-return'].includes(navigationOrigin)
+            && typeof nextStepNavigationController === "function") {
+            nextStepNavigationController().invalidate();
+        }
         els.main.removeAttribute('aria-busy');
         state.dashboardController?.abort();
         const controller = new AbortController();
@@ -974,7 +987,25 @@
         };
     }
 
-    function offerActionRetry(actionKey, params, options) {
+    function offerActionRetry(actionKey, params, options = {}) {
+        const action = currentAction(actionKey);
+        const retryParams = passiveReadRetryParams(action, params);
+        if (action) {
+            appendPassiveReadEntry(action, params || {});
+        }
+        if (retryParams) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'tui-action-submit';
+            button.dataset.actionReadRetry = 'true';
+            button.textContent = '重新读取';
+            button.addEventListener('click', () => {
+                button.disabled = true;
+                runAction(actionKey, null, { params: { ...retryParams }, readRetry: true });
+            });
+            els.main.appendChild(button);
+            return;
+        }
         if (!options.idempotencyKey || !params) return;
         const button = document.createElement('button');
         button.type = 'button';
@@ -1209,6 +1240,7 @@
                     renderViewModel(result.view_model);
                 }
                 restoreDashboardActionPanel(options);
+                appendPassiveReadEntry(action, params);
                 showMissingFieldsPrompt(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待补填");

@@ -1,0 +1,51 @@
+{
+  "scope": "Unique local TUX08 QA; not production or human acceptance",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/component/test_tui_research_task_browser.py",
+    "-q",
+    "--reuse-db",
+    "--ds",
+    "tux08_80daddffcf_browser_settings",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\browser-01-temp",
+    "-o",
+    "cache_dir=D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\browser-01-cache"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux08_80daddffcf_browser_settings",
+  "started_at": "2026-10-17T14:42:23.787687+00:00",
+  "environment_selection": {
+    "scope": "Formal isolated QA environment; not executed or passed yet",
+    "base_head": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "qa_root": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf",
+    "settings_directory": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env",
+    "settings_module": "tux08_80daddffcf_settings",
+    "browser_settings_module": "tux08_80daddffcf_browser_settings",
+    "settings_sha256": "85844d3d431480bc6f00cf47609221e9ff718b8a5e8c55f0c6394fb1ebba8b68",
+    "browser_settings_sha256": "aa6ba6621be934054e148d48c35fab5eab52e99cf494759a70a6963425756880",
+    "database_paths": [
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-default.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-tests.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser-tests.sqlite3"
+    ],
+    "nonce": "80daddffcf",
+    "revision": 2,
+    "prior_settings_hashes": {
+      "settings_sha256": "3c16b4406eb5c8b4dc08306d553618f7dcaeb93848fce58edb051ef3ad5b9f0b",
+      "browser_settings_sha256": "dda2d7ddb98a75ae3e1e52d2d72aa562db34cf1746c8d61e125012abbc4e2c9a"
+    },
+    "revision_reason": "Primary host policy matches default development_sqlite unit-test settings for existing SSL regression; browser stays loopback-only. No database/freshness/owner-policy changes."
+  },
+  "exit_code": 1,
+  "finished_at": "2026-10-17T14:46:54.007287+00:00",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\browser-01.log",
+  "log_sha256": "886599e8ba2cdda1a75956449efc11f8f52d1fd410752c4d41902b79430b9dfc",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\browser-01.log",
+  "output": "FFFF                                                                     [100%]\r\n================================== FAILURES ===================================\r\n____________ test_real_research_and_authorized_professional_return ____________\r\ntests\\component\\test_tui_research_task_browser.py:115: in test_real_research_and_authorized_professional_return\r\n    assert response.status == 200\r\nE   AssertionError: assert 403 == 200\r\nE    +  where 403 = <Response url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' request=<Request url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' method='POST'>>.status\r\n---------------------------- Captured stdout setup ----------------------------\r\n[Migration 0007] Data backfill completed: event_type=0, gate_effective=0\r\n---------------------------- Captured stderr call -----------------------------\r\nPersonal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nRequest completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (67ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (67ms)\r\n_______ test_real_partial_missing_forbidden_and_explicit_network_retry ________\r\ntests\\component\\test_tui_research_task_browser.py:230: in test_real_partial_missing_forbidden_and_explicit_network_retry\r\n    assert partial[\"outcome\"] == \"partial\"\r\nE   KeyError: 'outcome'\r\n---------------------------- Captured stderr call -----------------------------\r\nPersonal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nRequest completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (52ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (52ms)\r\n_____________ test_real_restricted_evidence_and_explicit_recovery _____________\r\ntests\\component\\test_tui_research_task_browser.py:297: in test_real_restricted_evidence_and_explicit_recovery\r\n    assert response.status == 200\r\nE   AssertionError: assert 403 == 200\r\nE    +  where 403 = <Response url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' request=<Request url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' method='POST'>>.status\r\n---------------------------- Captured stderr call -----------------------------\r\nPersonal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nRequest completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (64ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (64ms)\r\n_______________ test_real_stale_source_is_visible_as_restricted _______________\r\ntests\\component\\test_tui_research_task_browser.py:337: in test_real_stale_source_is_visible_as_restricted\r\n    assert response.status == 200\r\nE   AssertionError: assert 403 == 200\r\nE    +  where 403 = <Response url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' request=<Request url='http://localhost:54456/api/tui/actions/equity.research-snapshot/run/' method='POST'>>.status\r\n---------------------------- Captured stderr call -----------------------------\r\nPersonal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nRequest completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (44ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: POST /api/tui/actions/equity.research-snapshot/run/ - 403 (44ms)\r\n=========================== short test summary info ===========================\r\nFAILED tests/component/test_tui_research_task_browser.py::test_real_research_and_authorized_professional_return\r\nFAILED tests/component/test_tui_research_task_browser.py::test_real_partial_missing_forbidden_and_explicit_network_retry\r\nFAILED tests/component/test_tui_research_task_browser.py::test_real_restricted_evidence_and_explicit_recovery\r\nFAILED tests/component/test_tui_research_task_browser.py::test_real_stale_source_is_visible_as_restricted\r\n4 failed in 252.29s (0:04:12)\r\n"
+}

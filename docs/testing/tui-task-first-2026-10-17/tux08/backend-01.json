@@ -1,0 +1,48 @@
+{
+  "scope": "Unique local TUX08 QA; not production or human acceptance",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/unit/terminal/test_tui_research_snapshot_result.py",
+    "tests/unit/terminal/test_tui_research_workbench_projection.py",
+    "tests/unit/terminal/test_tui_information_architecture.py",
+    "tests/unit/test_tui_metadata_source_consistency.py",
+    "tests/component/test_tui_research_task_owner.py",
+    "-q",
+    "--ds",
+    "tux08_80daddffcf_settings",
+    "--basetemp=D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\backend-01-temp",
+    "-o",
+    "cache_dir=D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\backend-01-cache"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux08_80daddffcf_settings",
+  "started_at": "2026-10-17T13:46:25.578530+00:00",
+  "environment_selection": {
+    "scope": "Formal isolated QA environment; not executed or passed yet",
+    "base_head": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "qa_root": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf",
+    "settings_directory": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env",
+    "settings_module": "tux08_80daddffcf_settings",
+    "browser_settings_module": "tux08_80daddffcf_browser_settings",
+    "settings_sha256": "3c16b4406eb5c8b4dc08306d553618f7dcaeb93848fce58edb051ef3ad5b9f0b",
+    "browser_settings_sha256": "dda2d7ddb98a75ae3e1e52d2d72aa562db34cf1746c8d61e125012abbc4e2c9a",
+    "database_paths": [
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-default.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-tests.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser-tests.sqlite3"
+    ],
+    "nonce": "80daddffcf"
+  },
+  "exit_code": 1,
+  "finished_at": "2026-10-17T13:52:29.822635+00:00",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\backend-01.log",
+  "log_sha256": "e188848342ba367cdd13ca80984938eef0bd9e78dbbe3f807ea4e0eac5783857",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\backend-01.log",
+  "output": "..F........................F............................................ [ 78%]\r\n....................                                                     [100%]\r\n================================== FAILURES ===================================\r\n____ test_financial_tamper_blocks_actual_task_and_restoration_allows_retry ____\r\ntests\\component\\test_tui_research_task_owner.py:92: in test_financial_tamper_blocks_actual_task_and_restoration_allows_retry\r\n    assert blocked.status_code == 503\r\nE   assert 200 == 503\r\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\r\n________ test_target_does_not_copy_unsafe_owner_codes_into_next_steps _________\r\ntests\\unit\\terminal\\test_tui_research_workbench_projection.py:267: in test_target_does_not_copy_unsafe_owner_codes_into_next_steps\r\n    result = _service(_Metadata(), _Executor(payload)).run_action(\r\napps\\terminal\\application\\tui_workbench_execution.py:188: in run_action\r\n    endpoint, request_params = self._bind_endpoint_params(\r\napps\\terminal\\application\\tui_workbench_execution.py:714: in _bind_endpoint_params\r\n    bound = re.sub(\r\nC:\\ProgramData\\anaconda3\\Lib\\re\\__init__.py:208: in sub\r\n    return _compile(pattern, flags).sub(repl, string, count)\r\napps\\terminal\\application\\tui_workbench_execution.py:704: in replace_converter\r\n    return self._pop_path_value(remaining, name)\r\napps\\terminal\\application\\tui_workbench_execution.py:731: in _pop_path_value\r\n    raise ValueError(f\"Unsafe path parameter: {name}\")\r\nE   ValueError: Unsafe path parameter: stock_code\r\n=========================== short test summary info ===========================\r\nFAILED tests/component/test_tui_research_task_owner.py::test_financial_tamper_blocks_actual_task_and_restoration_allows_retry\r\nFAILED tests/unit/terminal/test_tui_research_workbench_projection.py::test_target_does_not_copy_unsafe_owner_codes_into_next_steps\r\n2 failed, 90 passed in 308.76s (0:05:08)\r\n"
+}

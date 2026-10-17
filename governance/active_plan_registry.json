@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v256",
+  "version": "2026-10-17.v258",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -310,7 +310,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-07 shell exit remains verified. TUX-08a additive owner outcome prerequisite is verified in docs/testing/tui-task-first-2026-10-17/tux08a/acceptance.json: 79 focused tests and four final consumer rechecks, zero incremental/full mypy debt. Restore the exact ASH-02 repository focus and preserve its remaining gates. TUX-08 full research task remains planned pending a new explicit window after shared terminal size remediation: direct input, curated facts/evidence, authorized professional return and real-browser cases are unfinished. TUX-09 must select an authorized account and cannot infer risk/freshness from portfolio statistics. No production, user onboarding, CI/S6, global size or version-retirement pass is claimed.",
+      "next_gate": "TUX-08 bounded research task is repository-verified with frozen local owner/browser evidence. TUX-09/10 remain planned and require a separate bounded handoff; private preparation is allowed. Preserve canonical ASH-08 ownership. No five-person user or production acceptance is claimed. The A-share Goal still owns its two size and nine retirement failures; full repository/release gates remain open.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-17.v72",
+    "version": "2026-10-17.v74",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1852,7 +1852,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Deliver a bounded single-asset research task using real owner services",
         "depends_on": [
           "TUX-07"

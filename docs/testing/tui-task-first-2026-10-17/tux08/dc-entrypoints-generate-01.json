@@ -1,0 +1,43 @@
+{
+  "scope": "Unique local TUX08 QA; not production or human acceptance",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/data_center_entrypoint_inventory.py",
+    "--write"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux08_80daddffcf_settings",
+  "started_at": "2026-10-17T15:21:05.532349+00:00",
+  "environment_selection": {
+    "scope": "Formal isolated QA environment; not executed or passed yet",
+    "base_head": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "qa_root": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf",
+    "settings_directory": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env",
+    "settings_module": "tux08_80daddffcf_settings",
+    "browser_settings_module": "tux08_80daddffcf_browser_settings",
+    "settings_sha256": "85844d3d431480bc6f00cf47609221e9ff718b8a5e8c55f0c6394fb1ebba8b68",
+    "browser_settings_sha256": "aa6ba6621be934054e148d48c35fab5eab52e99cf494759a70a6963425756880",
+    "database_paths": [
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-default.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-tests.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser-tests.sqlite3"
+    ],
+    "nonce": "80daddffcf",
+    "revision": 2,
+    "prior_settings_hashes": {
+      "settings_sha256": "3c16b4406eb5c8b4dc08306d553618f7dcaeb93848fce58edb051ef3ad5b9f0b",
+      "browser_settings_sha256": "dda2d7ddb98a75ae3e1e52d2d72aa562db34cf1746c8d61e125012abbc4e2c9a"
+    },
+    "revision_reason": "Primary host policy matches default development_sqlite unit-test settings for existing SSL regression; browser stays loopback-only. No database/freshness/owner-policy changes."
+  },
+  "exit_code": 0,
+  "finished_at": "2026-10-17T15:23:43.650840+00:00",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\dc-entrypoints-generate-01.log",
+  "log_sha256": "aefe632c1e4980ac4d0e6153c9ea2e6a8573529670ae11a46ddacd2703943f2d",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\dc-entrypoints-generate-01.log",
+  "output": "{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\r\n"
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "Unique local TUX08 QA; not production or human acceptance",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    ".tmp/tux08-integration-env/runtime_count_probe.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux08_80daddffcf_settings",
+  "started_at": "2026-10-17T14:35:24.656240+00:00",
+  "environment_selection": {
+    "scope": "Formal isolated QA environment; not executed or passed yet",
+    "base_head": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "qa_root": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf",
+    "settings_directory": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env",
+    "settings_module": "tux08_80daddffcf_settings",
+    "browser_settings_module": "tux08_80daddffcf_browser_settings",
+    "settings_sha256": "3c16b4406eb5c8b4dc08306d553618f7dcaeb93848fce58edb051ef3ad5b9f0b",
+    "browser_settings_sha256": "dda2d7ddb98a75ae3e1e52d2d72aa562db34cf1746c8d61e125012abbc4e2c9a",
+    "database_paths": [
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-default.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-tests.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser-tests.sqlite3"
+    ],
+    "nonce": "80daddffcf"
+  },
+  "exit_code": 1,
+  "finished_at": "2026-10-17T14:35:55.780692+00:00",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\inventory-delta-01.log",
+  "log_sha256": "a8468d6f747f2152dff44ca8a8b2114890d40f1d7f550994305c14ae7208041c",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\inventory-delta-01.log",
+  "output": "Traceback (most recent call last):\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_experience.py\", line 156, in validate_metadata_experience\r\n    experience = validate_experience(payload[\"experience\"], screen_keys)\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_experience.py\", line 104, in validate_experience\r\n    entries = _entries(mode.get(\"entries\"), screen_keys, allow_resume=False)\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_experience.py\", line 76, in _entries\r\n    raise ValueError(f\"experience references unknown screen {screen_key}\")\r\nValueError: experience references unknown screen task.asset-research\r\n\r\nThe above exception was the direct cause of the following exception:\r\n\r\nTraceback (most recent call last):\r\n  File \"D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env\\runtime_count_probe.py\", line 12, in <module>\r\n    prior = repository.PublishedTuiMetadataRepository()._load_published_file()\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\infrastructure\\tui_metadata_repository.py\", line 452, in _load_published_file\r\n    return self.validate_and_normalize_runtime_payload(payload)\r\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\infrastructure\\tui_metadata_repository.py\", line 457, in validate_and_normalize_runtime_payload\r\n    return self._normalize_runtime_payload(validate_tui_metadata(copy.deepcopy(payload)))\r\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\infrastructure\\tui_metadata_repository.py\", line 626, in _normalize_runtime_payload\r\n    return validate_tui_metadata(normalized)\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_metadata.py\", line 406, in validate_tui_metadata\r\n    _validate_with_json_schema(payload)\r\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_metadata.py\", line 1209, in _validate_with_json_schema\r\n    validate_metadata_experience(payload)\r\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\r\n  File \"D:\\githv\\agomTradePro\\apps\\terminal\\application\\tui_experience.py\", line 160, in validate_metadata_experience\r\n    raise TuiMetadataValidationError(str(exc)) from exc\r\napps.terminal.application.tui_metadata_filter_validation.TuiMetadataValidationError: experience references unknown screen task.asset-research\r\n"
+}

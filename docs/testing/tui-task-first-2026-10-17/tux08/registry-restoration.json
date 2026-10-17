@@ -1,0 +1,16 @@
+{
+  "registry_version": "2026-10-17.v258",
+  "closure_version": "2026-10-17.v74",
+  "unit_count": 79,
+  "tux08": "completed",
+  "tux09": "planned",
+  "tux10": "planned",
+  "all_other_units_exact_base_match": true,
+  "ash02_complete_unit_exact_base_match": true,
+  "execution_focus_and_policy_exact_base_match": true,
+  "source_snapshot": "frozen-inputs.json",
+  "documentation_only_changes_after_qa": [
+    "governance/active_plan_registry.json",
+    "docs/plans/tui-task-first-experience-plan-2026-10-17.md"
+  ]
+}

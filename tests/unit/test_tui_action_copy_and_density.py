@@ -174,7 +174,7 @@ def test_real_tui_sources_close_copy_reference_and_density_debt() -> None:
 
     assert report.passed, report.as_json()
     assert report.published_action_count == 413
-    assert report.runtime_action_count == 871
+    assert report.runtime_action_count == 894
     assert report.published_screen_count == 12
     assert report.route_action_count == 338
     assert report.exposed_route_action_count == 0

@@ -1,0 +1,258 @@
+{
+  "unit": "TUX-08",
+  "status": "bounded-repository-task-verified-global-gates-open",
+  "base_commit": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+  "source_binding": "frozen-inputs.json; final command records bind this immutable runtime/test source, with raw and LF-normalized SHA256. Only the primary plan and execution registry are finalized after frozen QA; runtime/test inputs are unchanged.",
+  "implemented": [
+    "One authenticated name/code input using the existing Equity owner.",
+    "Bounded facts, six expandable evidence sections, original clocks, units, legal zero values and owner restrictions.",
+    "Single-column task view with compact first-screen facts; professional mode retains its panels.",
+    "Fresh authorized professional target, no automatic target execution, one-hop return and passive-read refresh.",
+    "Explicit read retry; writes, confirmation and continuation identities keep their existing rules.",
+    "First GET initializes a standard CSRF cookie; tokenless POST still fails.",
+    "Versioned CSS/JS URLs for the configured long-lived production static cache."
+  ],
+  "final_checks": {
+    "isort-final-01": {
+      "exit_code": 0,
+      "record": "isort-final-01.json",
+      "output_in_record": true
+    },
+    "black-final-01": {
+      "exit_code": 0,
+      "record": "black-final-01.json",
+      "output_in_record": true
+    },
+    "ruff-final-01": {
+      "exit_code": 0,
+      "record": "ruff-final-01.json",
+      "output_in_record": true
+    },
+    "mypy-02": {
+      "exit_code": 0,
+      "record": "mypy-02.json",
+      "output_in_record": true
+    },
+    "debt-02": {
+      "exit_code": 0,
+      "record": "debt-02.json",
+      "output_in_record": true
+    },
+    "backend-04": {
+      "exit_code": 0,
+      "record": "backend-04.json",
+      "output_in_record": true
+    },
+    "browser-05": {
+      "exit_code": 0,
+      "record": "browser-05.json",
+      "output_in_record": true
+    },
+    "node-04": {
+      "exit_code": 0,
+      "record": "node-04.json",
+      "output_in_record": true
+    },
+    "runtime-check-final-01": {
+      "exit_code": 0,
+      "record": "runtime-check-final-01.json",
+      "output_in_record": true
+    },
+    "current-data-02": {
+      "exit_code": 0,
+      "record": "current-data-02.json",
+      "output_in_record": true
+    },
+    "dc-entrypoints-02": {
+      "exit_code": 0,
+      "record": "dc-entrypoints-02.json",
+      "output_in_record": true
+    },
+    "dc-architecture-02": {
+      "exit_code": 0,
+      "record": "dc-architecture-02.json",
+      "output_in_record": true
+    },
+    "module-map-02": {
+      "exit_code": 0,
+      "record": "module-map-02.json",
+      "output_in_record": true
+    },
+    "staged-size-final-02": {
+      "exit_code": 0,
+      "record": "staged-size-final-02.json",
+      "output_in_record": true
+    },
+    "architecture-final-02": {
+      "exit_code": 0,
+      "record": "architecture-final-02.json",
+      "output_in_record": true
+    }
+  },
+  "final_counts": {
+    "backend_tests": 56,
+    "browser_tests": 4,
+    "normal_role_viewport_cases": 4,
+    "frontend_tests": 122,
+    "mypy_errors": 0,
+    "mypy_files_with_errors": 0
+  },
+  "normal_browser_observations": [
+    {
+      "role": "user",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "explicit_research_or_return_reads": 2,
+      "existing_professional_workspace_passive_reads": [
+        "/api/tui/actions/asset-analysis.pool-summary/run/",
+        "/api/tui/actions/backtest.summary/run/",
+        "/api/tui/actions/backtest.list/run/"
+      ],
+      "automatic_target_runs": 0,
+      "page_errors": []
+    },
+    {
+      "role": "user",
+      "viewport": [
+        390,
+        844
+      ],
+      "explicit_research_or_return_reads": 2,
+      "existing_professional_workspace_passive_reads": [
+        "/api/tui/actions/asset-analysis.pool-summary/run/",
+        "/api/tui/actions/backtest.summary/run/",
+        "/api/tui/actions/backtest.list/run/"
+      ],
+      "automatic_target_runs": 0,
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "explicit_research_or_return_reads": 2,
+      "existing_professional_workspace_passive_reads": [
+        "/api/tui/actions/asset-analysis.pool-summary/run/",
+        "/api/tui/actions/backtest.summary/run/",
+        "/api/tui/actions/backtest.list/run/"
+      ],
+      "automatic_target_runs": 0,
+      "page_errors": []
+    },
+    {
+      "role": "admin",
+      "viewport": [
+        390,
+        844
+      ],
+      "explicit_research_or_return_reads": 2,
+      "existing_professional_workspace_passive_reads": [
+        "/api/tui/actions/asset-analysis.pool-summary/run/",
+        "/api/tui/actions/backtest.summary/run/",
+        "/api/tui/actions/backtest.list/run/"
+      ],
+      "automatic_target_runs": 0,
+      "page_errors": []
+    }
+  ],
+  "actual_pipeline": [
+    "Existing four strict readiness checks",
+    "Actual financial/market/optional typed repositories and publication readers",
+    "Real authenticated REST view",
+    "Existing TuiInternalActionExecutor and TuiWorkbenchService",
+    "Real local Django HTTP/browser sessions"
+  ],
+  "synthetic_inputs": [
+    "Explicit two-session calendar transport",
+    "Stored runtime/provider-health and one-stock universe",
+    "Source-bearing synthetic facts, news, flow, financial artifact bytes and sealed publication members in disposable file SQLite"
+  ],
+  "database_scope": "Unique private primary/browser test databases, LocMem and memory task channels. No Root PostgreSQL or production database is used. Source-bearing synthetic helpers intentionally require explicit disposable file SQLite; portable projection/outcome tests are registered in the cross-database current-data manifest.",
+  "global_gates": {
+    "governance_exit_code": 1,
+    "governance_violations": 2,
+    "retirement_exit_code": 1,
+    "retirement_violations": 9,
+    "owner": "All eleven were introduced by the concurrent A-share Goal before this TUX08 slice. Root owns their later independent closure; this batch adds none and does not waive or raise baselines/floors. Full-repository/release gates remain failed."
+  },
+  "corrections": [
+    "backend-01: two test assumptions corrected (actual tamper owner status is HTTP200/blocked; unsafe returned code must be tested with a safe request path).",
+    "backend-02:608 passed/7 failed; six SSL cases needed the default unit host policy, one runtime action count was stale.",
+    "Inventory delta probe with old IA and no new bundle confirmed893->894, exactly one added research action.",
+    "Luna review hardened malformed owner envelopes and independent visible execution outcome.",
+    "Actual browser-01 revealed missing first-page CSRF cookie; effective red and green retained.",
+    "browser-02 functional pass was rejected visually: squeezed mobile three-column layout.",
+    "browser-03 functional pass was rejected visually: legacy shell row clipped the main scroller. browser-04 added a true scroller-bounds assertion; final browser rerun uses the corrected layout.",
+    "Initial mypy/debt both reported the same new optional-code TypedDict error; TypeGuard fixes it without suppression or debt baseline change.",
+    "Generated Data Center inventories were stale after the TUI contract/source extension; official generators refreshed them.",
+    "Some direct local bundle writes encountered transient Windows UNKNOWN/open errors; successful official rebuild/check is required, no artifact is hand edited."
+  ],
+  "remaining": [
+    "TUX-09 and TUX-10 remain planned; no automatic follow-on repository lease.",
+    "TUX-10 includes the broader task-focused header/keyboard command reachability audit and integrated journeys.",
+    "No five-person onboarding study, production/provider/exchange authority acceptance, deployment, paid AI, QMT or trading is claimed.",
+    "Existing owner supplies facts, not a generated investment thesis, contrary analysis or executable invalidation thresholds; the UI says so."
+  ],
+  "review": {
+    "workers": "gpt-5.6-luna / max; bounded backend, frontend and read-only reviews; one shared writer at a time",
+    "parent": "Reviewed differences, repaired reported shape/outcome/type gaps, inspected actual desktop/mobile screenshots, ran final serial QA and owns staging/commit."
+  },
+  "handoff": "Final registry restoration, exact commit, protected hashes and terminal-process statement are recorded after the documentation/Git gate.",
+  "restored_focus": {
+    "registry_version": "2026-10-17.v258",
+    "closure_version": "2026-10-17.v74",
+    "unit_count": 79,
+    "tux08": "completed",
+    "tux09": "planned",
+    "tux10": "planned",
+    "all_other_units_exact_base_match": true,
+    "ash02_complete_unit_exact_base_match": true,
+    "execution_focus_and_policy_exact_base_match": true,
+    "source_snapshot": "frozen-inputs.json",
+    "documentation_only_changes_after_qa": [
+      "governance/active_plan_registry.json",
+      "docs/plans/tui-task-first-experience-plan-2026-10-17.md"
+    ]
+  },
+  "normal_professional_entry": "The existing professional workspace retains three approved passive GET panels (asset pool, backtest statistics and list). The selected valuation action is only prefilled, never automatically run; mode toggles make no requests.",
+  "final_documentation_checks": {
+    "registry": {
+      "exit_code": 0,
+      "record": "registry-final-01.json"
+    },
+    "registry_tests": {
+      "exit_code": 0,
+      "passed": 8,
+      "record": "registry-tests-final-01.json"
+    },
+    "global_governance": {
+      "exit_code": 1,
+      "violations": 2,
+      "record": "governance-final-01.json"
+    },
+    "version_retirement": {
+      "exit_code": 1,
+      "violations": 9,
+      "record": "retirement-final-01.json"
+    }
+  },
+  "processes": "All owned runtime, Python, Node, browser, documentation, staged architecture and size QA commands are terminal; no owned service is left running.",
+  "documentation_final_raw_sha256": {
+    "governance/active_plan_registry.json": "321f94b87f81c7ad3dbc6dcbfc6613196fa5a8d7934722a8d8688f592cacf589",
+    "docs/plans/tui-task-first-experience-plan-2026-10-17.md": "6969529202593fa43e89d60530931b6d3bc8ad6075e87e5d4bedc7ffeac74ca4"
+  },
+  "staged_source_validation": {
+    "tree": "00f33489325532b0cbe230f830810cd812ff8f2d",
+    "ref_less_validation_commit": "3c4d5d68eabe3967fcbfbe1fc6bb289613f78cbc",
+    "parent": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "scope": "Exact staged runtime/test/doc sources before appending these gate records. No branch or ref moved; protected intent-to-add removed only from private index.",
+    "superseded_attempts": [
+      "staged-size-final-01.json",
+      "architecture-final-01.json"
+    ]
+  }
+}

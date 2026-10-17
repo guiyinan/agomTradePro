@@ -89,6 +89,10 @@ from .tui_metadata_runtime_injection_equity_analytics import (
 from .tui_metadata_runtime_injection_equity_config import (
     RUNTIME_EQUITY_CONFIG_ACTIONS,
 )
+from .tui_metadata_runtime_injection_equity_research_task import (
+    RUNTIME_EQUITY_RESEARCH_TASK_ACTION,
+    RUNTIME_EQUITY_RESEARCH_TASK_SCREEN,
+)
 from .tui_metadata_runtime_injection_equity_screen import (
     RUNTIME_EQUITY_SCREEN_ACTIONS,
 )
@@ -460,6 +464,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_equity_analytics_metadata",
         actions=RUNTIME_EQUITY_ANALYTICS_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_equity_research_task_metadata",
+        screens=(RUNTIME_EQUITY_RESEARCH_TASK_SCREEN,),
+        actions=(RUNTIME_EQUITY_RESEARCH_TASK_ACTION,),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_equity_screen_metadata",

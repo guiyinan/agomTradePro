@@ -1,0 +1,13 @@
+{
+  "command": [
+    "node",
+    "scripts/build-tui-runtime.mjs"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "started_at": "2026-10-17T15:24:26.754225+00:00",
+  "exit_code": 0,
+  "finished_at": "2026-10-17T15:24:27.178610+00:00",
+  "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\runtime-build-final-01.log",
+  "output": ""
+}

@@ -1,0 +1,6 @@
+{
+  "failure": "Authenticated first GET /tui/ did not issue the CSRF cookie; effective red failed at cookie-presence assertion.",
+  "original_private_log_sha256": "c3e3eaa2e9e6a60293b3308df98a60a4a80176917259db83afb73bb5e6a3e318",
+  "raw_log_exported": false,
+  "reason": "The assertion repr contains a disposable test-session cookie; retain only its original hash and bounded diagnostic."
+}

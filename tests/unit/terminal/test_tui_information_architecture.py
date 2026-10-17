@@ -48,13 +48,13 @@ def test_tui_ia_registry_is_the_complete_screen_routing_source() -> None:
 
     assert [group["key"] for group in registry["groups"]] == ["daily", "research", "system"]
     assert len(registry["published_screens"]) == 12
-    assert len(registry["runtime_screens"]) == 14
+    assert len(registry["runtime_screens"]) == 15
     assert len(registry["workflow"]) == 8
     assert sum(len(screen["sources"]) for screen in registry["published_screens"]) == 37
     assert (
         sum(len(screen.get("runtime_sources", [])) for screen in registry["published_screens"])
         + sum(len(screen["sources"]) for screen in registry["runtime_screens"])
-        == 21
+        == 22
     )
     assert aliases["macro-regime.pulse"] == "macro-regime.overview"
     assert aliases["command-center.auto-advisor"] == "command-center.decision-flow"
@@ -86,6 +86,8 @@ def test_research_navigation_is_split_by_user_task_and_labels_are_unambiguous() 
     assert modules["personal-services"]["label"] == "个人服务接入"
     assert modules["personal-settings"]["label"] == "个人设置"
     assert screens["research.asset-lab"]["module_key"] == "investment-research"
+    assert screens["task.asset-research"]["module_key"] == "investment-research"
+    assert screens["task.asset-research"]["default_action_key"] == "equity.research-snapshot"
     assert screens["ai-ops.terminal"]["module_key"] == "ai-workspace"
     assert screens["cli.terminal"]["module_key"] == "ai-workspace"
     assert screens["prompt.workbench"]["module_key"] == "ai-workspace"
@@ -101,6 +103,19 @@ def test_research_navigation_is_split_by_user_task_and_labels_are_unambiguous() 
     assert screens["capability-router.self-service"]["label"] == "我的 MCP 接入"
     assert screens["capability-router.mcp-center"]["label"] == "MCP 工具治理"
     assert screens["capability-router.admin-access"]["label"] == "MCP 用户与令牌"
+
+
+def test_research_task_runtime_action_preserves_professional_action_identity() -> None:
+    payload = _runtime_payload()
+    actions = {action["key"]: action for action in payload["actions"]}
+
+    task_action = actions["equity.research-snapshot"]
+    assert task_action["screen_key"] == "task.asset-research"
+    assert task_action["endpoint"] == "/api/equity/research-snapshot/<str:stock_code>/"
+    assert task_action["risk"] == "read"
+    assert task_action["fields"][0]["key"] == "stock_code"
+    assert task_action["fields"][0]["binding"] == "path"
+    assert actions["equity.valuation-overview"]["screen_key"] == "research.asset-lab"
 
 
 def test_tui_ia_uses_one_user_facing_terminology_vocabulary() -> None:
@@ -123,7 +138,7 @@ def test_runtime_screen_registry_publishes_complete_user_experience_contract() -
     normalized_screens = {screen["key"]: screen for screen in payload["screens"]}
     action_keys = {action["key"] for action in payload["actions"]}
 
-    assert len(runtime_screens) == 14
+    assert len(runtime_screens) == 15
     assert set(runtime_screens) <= set(normalized_screens)
     for key, screen in runtime_screens.items():
         assert screen["summary"]
@@ -188,8 +203,8 @@ def test_runtime_catalog_preserves_all_15_user_and_26_admin_screens() -> None:
     user_screens = _catalog_screen_keys(service.get_catalog(user=user))
     admin_screens = _catalog_screen_keys(service.get_catalog(user=admin))
 
-    assert len(user_screens) == 15
-    assert len(admin_screens) == 26
+    assert len(user_screens) == 16
+    assert len(admin_screens) == 27
     assert set(admin_screens) == {screen["key"] for screen in payload["screens"]}
     assert "api-library.data-center" not in user_screens
     assert "ai-ops.system-providers" not in user_screens
@@ -215,7 +230,7 @@ def test_runtime_ia_is_idempotent_and_has_no_dangling_screen_references() -> Non
     assert normalized_twice["coverage_summary"]["runtime_density_demoted_actions"] == 143
     screen_keys = {screen["key"] for screen in normalized_once["screens"]}
     action_keys = {action["key"] for action in normalized_once["actions"]}
-    assert len(screen_keys) == 26
+    assert len(screen_keys) == 27
     assert all(action["screen_key"] in screen_keys for action in normalized_once["actions"])
     assert all(
         not panel.get("action_key") or panel["action_key"] in action_keys

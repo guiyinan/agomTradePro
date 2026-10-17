@@ -1099,6 +1099,31 @@ a {
     align-items: center;
 }
 
+.tui-next-step-return {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.tui-next-step-return button {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--tui-accent);
+    border-radius: 0;
+    background: var(--tui-bg-deep);
+    color: var(--tui-accent);
+    font: 700 11px/1.2 var(--tui-mono);
+    padding: 4px 7px;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.tui-next-step-return button:hover,
+.tui-next-step-return button:focus-visible {
+    background: var(--tui-accent);
+    color: var(--tui-inverse);
+    outline: 0;
+}
+
 .tui-workflow-nav button,
 .tui-workflow-nav span,
 .tui-workflow-tools button {
@@ -2726,6 +2751,221 @@ a {
     padding: 3px 6px;
 }
 
+.tui-research-entry {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin: 0 0 10px;
+    padding: 8px;
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+}
+
+.tui-research-entry-title {
+    color: var(--tui-accent);
+    font: 700 12px/1.35 var(--tui-mono);
+}
+
+.tui-research-entry .tui-action-form {
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+}
+
+.tui-research-entry .tui-field {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.tui-research-evidence {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin-top: 12px;
+    padding: 8px;
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+}
+
+.tui-research-evidence-title {
+    margin: 0;
+    color: var(--tui-accent);
+    font: 700 13px/1.35 var(--tui-mono);
+}
+
+.tui-research-evidence-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    min-width: 0;
+    color: var(--tui-muted);
+    font: 11px/1.45 var(--tui-mono);
+}
+
+.tui-research-evidence-blocking-reason,
+.tui-research-evidence-reason,
+.tui-research-evidence-required,
+.tui-research-evidence-columns,
+.tui-research-evidence-empty,
+.tui-research-evidence-truncation {
+    min-width: 0;
+    margin: 5px 0;
+    overflow-wrap: anywhere;
+    color: var(--tui-muted);
+    font: 11px/1.5 var(--tui-mono);
+}
+
+.tui-research-evidence-blocking-reason strong,
+.tui-research-evidence-reason strong,
+.tui-research-evidence-columns strong {
+    color: var(--tui-accent);
+}
+
+.tui-research-evidence-section,
+.tui-research-evidence-clocks {
+    min-width: 0;
+    border: 1px solid var(--tui-border-dim);
+}
+
+.tui-research-evidence-section {
+    border-radius: 4px;
+    background: var(--tui-panel);
+}
+
+.tui-research-evidence-summary,
+.tui-research-evidence-clocks > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 6px 10px;
+    align-items: start;
+    min-width: 0;
+    padding: 7px 8px;
+    cursor: pointer;
+    color: var(--tui-text);
+    font: 700 11px/1.4 var(--tui-mono);
+}
+
+.tui-research-evidence-clocks > summary {
+    display: block;
+    color: var(--tui-accent);
+}
+
+.tui-research-evidence-summary:hover,
+.tui-research-evidence-summary:focus-visible,
+.tui-research-evidence-clocks > summary:hover,
+.tui-research-evidence-clocks > summary:focus-visible {
+    background: var(--tui-text);
+    color: var(--tui-inverse);
+    outline: none;
+}
+
+.tui-research-evidence-label,
+.tui-research-evidence-status,
+.tui-research-evidence-restriction,
+.tui-research-evidence-count {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tui-research-evidence-status,
+.tui-research-evidence-restriction,
+.tui-research-evidence-count {
+    color: var(--tui-muted);
+    font-weight: 400;
+}
+
+.tui-research-evidence-body {
+    min-width: 0;
+    padding: 0 8px 8px;
+}
+
+.tui-research-evidence-rows {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.tui-research-evidence-row {
+    min-width: 0;
+    padding: 6px;
+    border: 1px dashed var(--tui-border-dim);
+}
+
+.tui-research-evidence-row-index {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--tui-accent);
+    font: 700 11px/1.35 var(--tui-mono);
+}
+
+.tui-research-evidence-fields,
+.tui-research-evidence-source-times {
+    display: grid;
+    grid-template-columns: minmax(86px, 0.32fr) minmax(0, 1fr);
+    gap: 0;
+    min-width: 0;
+    margin: 0;
+    border-top: 1px dashed var(--tui-border-dim);
+}
+
+.tui-research-evidence-fields > div,
+.tui-research-evidence-source-times > div {
+    display: contents;
+}
+
+.tui-research-evidence-fields dt,
+.tui-research-evidence-fields dd,
+.tui-research-evidence-source-times dt,
+.tui-research-evidence-source-times dd {
+    min-width: 0;
+    margin: 0;
+    padding: 4px 5px;
+    border-bottom: 1px dashed var(--tui-border-dim);
+    overflow-wrap: anywhere;
+    font: 11px/1.4 var(--tui-mono);
+}
+
+.tui-research-evidence-fields dt,
+.tui-research-evidence-source-times dt {
+    color: var(--tui-muted);
+}
+
+.tui-research-evidence-fields dd,
+.tui-research-evidence-source-times dd {
+    color: var(--tui-text);
+}
+
+.tui-research-evidence-source-times {
+    margin-top: 6px;
+}
+
+.tui-research-evidence-origin {
+    display: inline-block;
+    margin-left: 5px;
+    color: var(--tui-muted);
+}
+
+.tui-research-evidence-origin::before {
+    content: "来源已标注";
+}
+
+@media (max-width: 640px) {
+    .tui-research-evidence-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tui-research-evidence-status,
+    .tui-research-evidence-restriction,
+    .tui-research-evidence-count {
+        grid-column: auto;
+    }
+
+    .tui-research-evidence-fields,
+    .tui-research-evidence-source-times {
+        grid-template-columns: minmax(74px, 0.4fr) minmax(0, 1fr);
+    }
+}
+
 .tui-raw-drawer {
     position: fixed;
     right: 16px;
@@ -3926,5 +4166,140 @@ a {
 @media (max-width: 640px) {
     .tui-app[data-experience-enabled] {
         grid-template-rows: auto auto auto minmax(0, 1fr) var(--tui-status-height) var(--tui-footer-height);
+    }
+}
+
+/* TUX-08: keep the task entry and its result readable without changing the
+   professional workspace geometry.  The :has() scope only activates while a
+   server-authorized task form is present in task mode. */
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) {
+    grid-template-rows: auto auto minmax(0, 1fr) var(--tui-status-height);
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-system-strip,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-function-bar {
+    display: none;
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-rail,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-actions-panel,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-inspector-panel {
+    display: none;
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "main";
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-panel,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-body {
+    min-width: 0;
+    min-height: 0;
+}
+
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-body {
+    overflow: auto;
+}
+
+.tui-research-entry > summary.tui-research-entry-title {
+    display: list-item;
+    margin: 0;
+    padding: 3px 0;
+    color: var(--tui-accent);
+    cursor: pointer;
+    font: 700 12px/1.35 var(--tui-mono);
+}
+
+.tui-research-entry > summary.tui-research-entry-title::marker {
+    color: var(--tui-accent);
+}
+
+.tui-research-entry > summary.tui-research-entry-title:hover,
+.tui-research-entry > summary.tui-research-entry-title:focus-visible {
+    background: var(--tui-text);
+    color: var(--tui-inverse);
+    outline: none;
+}
+
+.tui-research-entry[open] > .tui-action-form {
+    margin-top: 8px;
+}
+
+.tui-research-evidence-disclaimer {
+    margin: 0;
+    padding: 6px 8px;
+    border: 1px dashed var(--tui-border-dim);
+    color: var(--tui-muted);
+    font: 11px/1.5 var(--tui-mono);
+    overflow-wrap: anywhere;
+}
+
+.tui-research-evidence-p0 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+}
+
+.tui-research-evidence-fact {
+    display: grid;
+    grid-template-columns: minmax(86px, 0.36fr) minmax(0, 1fr);
+    min-width: 0;
+    border: 1px solid var(--tui-border-dim);
+    background: var(--tui-panel);
+}
+
+.tui-research-evidence-fact dt,
+.tui-research-evidence-fact dd {
+    min-width: 0;
+    margin: 0;
+    padding: 5px 6px;
+    overflow-wrap: anywhere;
+    font: 11px/1.4 var(--tui-mono);
+}
+
+.tui-research-evidence-fact dt {
+    color: var(--tui-muted);
+}
+
+.tui-research-evidence-fact dd {
+    color: var(--tui-text);
+}
+
+.tui-research-evidence-primary-times {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 5px 10px;
+    min-width: 0;
+    padding: 5px 6px;
+    border: 1px solid var(--tui-border-dim);
+    color: var(--tui-muted);
+    font: 11px/1.45 var(--tui-mono);
+}
+
+.tui-research-evidence-primary-times span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tui-research-evidence-primary-times strong {
+    color: var(--tui-accent);
+}
+
+@media (max-width: 640px) {
+    .tui-research-evidence-p0 {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tui-research-evidence-primary-times {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

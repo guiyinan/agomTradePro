@@ -2598,7 +2598,7 @@
     },
     {
       "id": "mcp.equity_research_snapshot",
-      "surface": "Equity Application + REST + SDK + MCP research snapshot + AI capability route",
+      "surface": "Equity Application + REST + SDK + MCP research snapshot + AI capability route + curated authenticated TUI task",
       "source_files": [
         "apps/ai_capability/application/use_cases.py",
         "apps/ai_capability/application/financial_fact_routing.py",
@@ -2607,7 +2607,9 @@
         "apps/equity/research_snapshot_composition.py",
         "sdk/agomtradepro/modules/equity.py",
         "sdk/agomtradepro_mcp/registry/modules/owners/equity_read_capabilities.py",
-        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py"
+        "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py",
+        "apps/terminal/application/tui_research_snapshot_result.py",
+        "apps/terminal/application/tui_workbench_execution.py"
       ],
       "required_markers": {
         "apps/ai_capability/application/use_cases.py": [
@@ -2646,6 +2648,16 @@
         "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/equity.py": [
           "def _internal_handler_equity_read_research_snapshot(",
           "client.equity.get_research_snapshot("
+        ],
+        "apps/terminal/application/tui_research_snapshot_result.py": [
+          "def project_tui_research_snapshot_result(",
+          "must_not_use_for_decision",
+          "announced_at",
+          "def _source_time_label("
+        ],
+        "apps/terminal/application/tui_workbench_execution.py": [
+          "def _research_professional_target(",
+          "equity.research-snapshot"
         ]
       },
       "required_tests": [
@@ -2698,6 +2710,16 @@
           "case": "real_http_and_tui_outcome_consumer",
           "test_file": "tests/component/test_equity_research_outcome_consumer.py",
           "test_function": "test_research_outcome_reaches_real_http_and_existing_tui_executor"
+        },
+        {
+          "case": "curated_tui_owner_outcome_and_authorized_target",
+          "test_file": "tests/unit/terminal/test_tui_research_workbench_projection.py",
+          "test_function": "test_research_action_projects_owner_outcome_and_canonical_next_step"
+        },
+        {
+          "case": "curated_tui_restrictions_and_original_source_time",
+          "test_file": "tests/unit/terminal/test_tui_research_workbench_projection.py",
+          "test_function": "test_research_action_preserves_restrictions_and_original_source_time"
         }
       ]
     },

@@ -10,6 +10,9 @@ from typing import TYPE_CHECKING, Any, TypedDict
 from django.utils import timezone
 
 from apps.terminal.application.tui_audit import verified_reauth_evidence
+from apps.terminal.application.tui_research_snapshot_result import (
+    TuiResearchProfessionalTarget,
+)
 
 
 class _OwnerResultContinuation(TypedDict):
@@ -229,6 +232,14 @@ class TuiWorkbenchExecutionMixin:
                 )
                 return failure
             projection_action = self._action_with_empty_state_context(action)
+            if action_key == "equity.research-snapshot":
+                professional_target = self._research_professional_target(
+                    payload=safe_payload,
+                    status_code=status_code,
+                    user=user,
+                )
+                if professional_target is not None:
+                    projection_action["_research_professional_target"] = professional_target
             view_model = self._to_view_model(
                 action=projection_action,
                 payload=safe_payload,
@@ -457,6 +468,75 @@ class TuiWorkbenchExecutionMixin:
                 guidance.append(value)
         projected["_empty_state_guidance"] = guidance
         return projected
+
+    def _research_professional_target(
+        self,
+        *,
+        payload: Any,
+        status_code: int,
+        user: Any,
+    ) -> TuiResearchProfessionalTarget | None:
+        """Return a fresh permission-filtered professional target for one research result."""
+
+        if (
+            user is None
+            or getattr(user, "is_authenticated", False) is not True
+            or getattr(user, "is_active", False) is not True
+            or getattr(user, "pk", None) in (None, "")
+        ):
+            return None
+        if not 200 <= status_code < 300 or not isinstance(payload, Mapping):
+            return None
+        if not (
+            isinstance(payload.get("status"), str)
+            and isinstance(payload.get("outcome"), str)
+            and isinstance(payload.get("identity"), Mapping)
+            and isinstance(payload.get("sections"), Mapping)
+            and isinstance(payload.get("must_not_use_for_decision"), bool)
+        ):
+            return None
+        stock_code = payload.get("stock_code")
+        if not isinstance(stock_code, str) or not stock_code.strip():
+            return None
+        target_action = self._action_by_key("equity.valuation-overview", user=user)
+        if target_action is None:
+            return None
+        if (
+            str(target_action.get("screen_key") or "") != "research.asset-lab"
+            or str(target_action.get("method") or "").upper() != "GET"
+            or str(target_action.get("risk") or "").lower() != "read"
+            or str(target_action.get("effect") or "read").lower() != "read"
+            or bool(target_action.get("confirmation_required"))
+            or bool(target_action.get("requires_password"))
+            or str(target_action.get("sensitive_level") or "none").lower() != "none"
+        ):
+            return None
+        fields = target_action.get("fields")
+        if not isinstance(fields, list):
+            return None
+        has_safe_stock_path = any(
+            isinstance(field, dict)
+            and field.get("key") == "stock_code"
+            and field.get("binding") == "path"
+            and field.get("value_type", "string") == "string"
+            and str(field.get("input_type") or "text").lower() == "text"
+            and str(field.get("presentation_semantic") or "").lower()
+            not in {"api_token", "copyable_secret", "endpoint_url", "prompt_text", "secret"}
+            and field.get("sensitive") is not True
+            and field.get("secret") is not True
+            and str(field.get("sensitive_level") or "none").lower() == "none"
+            for field in fields
+        )
+        if not has_safe_stock_path:
+            return None
+        label = target_action.get("label")
+        target: TuiResearchProfessionalTarget = {
+            "screen_key": "research.asset-lab",
+            "action_key": "equity.valuation-overview",
+        }
+        if isinstance(label, str) and label.strip():
+            target["label"] = label.strip()
+        return target
 
     def _apply_default_field_values(
         self,

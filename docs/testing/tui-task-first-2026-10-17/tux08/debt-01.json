@@ -1,0 +1,42 @@
+{
+  "scope": "Unique local TUX08 QA; not production or human acceptance",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/check_mypy_debt_ceiling.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux08_80daddffcf_settings",
+  "started_at": "2026-10-17T15:09:23.125050+00:00",
+  "environment_selection": {
+    "scope": "Formal isolated QA environment; not executed or passed yet",
+    "base_head": "2388e9c3ba15411114276fdc8f74535782ff3f6f",
+    "qa_root": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf",
+    "settings_directory": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-env",
+    "settings_module": "tux08_80daddffcf_settings",
+    "browser_settings_module": "tux08_80daddffcf_browser_settings",
+    "settings_sha256": "85844d3d431480bc6f00cf47609221e9ff718b8a5e8c55f0c6394fb1ebba8b68",
+    "browser_settings_sha256": "aa6ba6621be934054e148d48c35fab5eab52e99cf494759a70a6963425756880",
+    "database_paths": [
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-default.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-tests.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser.sqlite3",
+      "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\tux08-browser-tests.sqlite3"
+    ],
+    "nonce": "80daddffcf",
+    "revision": 2,
+    "prior_settings_hashes": {
+      "settings_sha256": "3c16b4406eb5c8b4dc08306d553618f7dcaeb93848fce58edb051ef3ad5b9f0b",
+      "browser_settings_sha256": "dda2d7ddb98a75ae3e1e52d2d72aa562db34cf1746c8d61e125012abbc4e2c9a"
+    },
+    "revision_reason": "Primary host policy matches default development_sqlite unit-test settings for existing SSL regression; browser stays loopback-only. No database/freshness/owner-policy changes."
+  },
+  "exit_code": 1,
+  "finished_at": "2026-10-17T15:14:04.221772+00:00",
+  "log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\debt-01.log",
+  "log_sha256": "f7dbef8320f61e8c35cb9dd80e629f80b52d9da8c0b1df6a8247e930914a99f1",
+  "source_log": "D:\\githv\\agomTradePro\\.tmp\\tux08-integration-80daddffcf\\debt-01.log",
+  "output": "Full mypy debt exceeded the checked-in ceiling:\r\n- apps/terminal/application/tui_research_snapshot_result.py: typeddict-item increased from 0 to 1\r\nExact increased mypy diagnostics:\r\n- apps\\terminal\\application\\tui_research_snapshot_result.py:983: error: Incompatible types (expression has type \"str | None\", TypedDict item \"stock_code\" has type \"str\")  [typeddict-item]\r\n"
+}

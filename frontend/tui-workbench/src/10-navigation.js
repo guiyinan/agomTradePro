@@ -160,8 +160,11 @@
         });
     }
 
-    function renderField(action, field) {
-        const id = `tui-${action.key}-${field.key}`;
+    function renderField(action, field, options = {}) {
+        const idNamespace = String(options.idNamespace || "").trim();
+        const id = idNamespace
+            ? `tui-${idNamespace}-${action.key}-${field.key}`
+            : `tui-${action.key}-${field.key}`;
         const rawValue = field.default ?? "";
         const valueType = String(field.value_type || "").toLowerCase();
         const isStructuredValue = ["json", "object", "list"].includes(valueType)
@@ -416,8 +419,8 @@
         const entryState = screen.entry_state || {};
         const defaultAction = resolveDefaultAction(screenSpec);
         if (entryState.mode === "parameter_gate" && defaultAction) {
-            renderEntryState(screenSpec, defaultAction, entryState);
-            setStatus("等待选择");
+            const rendered = renderEntryState(screenSpec, defaultAction, entryState);
+            setStatus(rendered ? "等待选择" : "入口暂不可用");
         } else if (defaultAction && !options.suppressAutoAction && dashboardActionCanAutoRun(defaultAction)) {
             const defaultForm = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(defaultAction))}"]`);
             renderActionLoadingState(defaultAction, screenSpec, { waitingCopy: entryState.empty_copy });
@@ -465,7 +468,34 @@
             .filter((field) => field.default === undefined || field.default === null || field.default === "");
     }
 
+    function entryActionCanRender(action, screenSpec) {
+        const requiredFields = (action?.fields || []).filter((field) => field.required);
+        if (!requiredFields.length) {
+            return false;
+        }
+        const continuationFields = typeof resultContinuations !== "undefined"
+            && typeof resultContinuations.continuationFields === "function"
+            ? resultContinuations.continuationFields(action, screenSpec?.actions || [])
+            : new Set();
+        return requiredFields.every((field) => {
+            const safe = typeof safeWorkspaceField === "function"
+                ? safeWorkspaceField(field)
+                : !["password", "file", "hidden"].includes(String(field.input_type || "").toLowerCase())
+                    && !["api_token", "endpoint_url", "secret", "copyable_secret"].includes(
+                        String(field.presentation_semantic || "").toLowerCase(),
+                    );
+            return safe && !continuationFields.has(field.key);
+        });
+    }
+
     function renderEntryState(screenSpec, action, entryState) {
+        if (!entryActionCanRender(action, screenSpec)) {
+            els.main.innerHTML = renderEmptyState(
+                "当前任务需要在工作区补充参数。",
+                ["入口暂不支持直接填写，请打开工作区后继续。"],
+            );
+            return false;
+        }
         const fieldKey = String(entryState.field_key || "");
         const field = (action.fields || []).find((item) => item.key === fieldKey) || unresolvedRequiredFields(action)[0];
         if (!field) {
@@ -473,14 +503,15 @@
                 entryState.empty_copy || screenEmptyStateHint(screenSpec.screen, screenSpec.screen.summary),
                 entryState.help_steps || ["请选择左侧任务继续。"],
             );
-            return;
+            return false;
         }
         const inputType = String(field.input_type || "").toLowerCase();
         if (inputType === "select" && Array.isArray(field.options) && field.options.length) {
             renderSelectorEntryState(screenSpec, action, entryState, field);
-            return;
+            return true;
         }
         renderTaskStartEntryState(screenSpec, action, entryState, field);
+        return true;
     }
 
     function renderSelectorEntryState(screenSpec, action, entryState, field) {
@@ -524,6 +555,10 @@
     }
 
     function renderTaskStartEntryState(screenSpec, action, entryState, field) {
+        const entryForm = renderActionForm(action, {
+            entry: true,
+            idNamespace: "entry",
+        });
         els.main.innerHTML = `
             <section class="tui-entry-state">
                 <div class="tui-view-status">任务起步 / ${escapeHtml(screenSpec.screen.label)}</div>
@@ -531,14 +566,14 @@
                     <strong>${escapeHtml(entryState.empty_copy || screenEmptyStateHint(screenSpec.screen, `先补充${field.label}`))}</strong>
                     ${(entryState.help_steps || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
                 </div>
-                <div class="tui-entry-actions">
-                    <button type="button" data-focus-default-action>打开默认任务</button>
-                </div>
+                ${entryForm}
             </section>
         `;
-        els.main.querySelector("[data-focus-default-action]")?.addEventListener("click", () => {
-            focusActionForm(action.key);
-        });
+        bindRenderedActionForms(els.main);
+        const form = els.main.querySelector(
+            `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`,
+        );
+        focusActionFormInPanel(form);
     }
 
     function screenUserExperience(screen) {
@@ -617,6 +652,9 @@
     function renderWorkflowStrip(workflow) {
         if (!els.workflowStrip) {
             return;
+        }
+        if (typeof clearNextStepReturnControl === "function") {
+            clearNextStepReturnControl();
         }
         if (isOperatorHomeScreen(state.screen?.screen?.key)) {
             els.workflowStrip.hidden = true;

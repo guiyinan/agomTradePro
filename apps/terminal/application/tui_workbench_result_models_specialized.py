@@ -9,6 +9,9 @@ from apps.terminal.application.tui_egress_result import (
     build_egress_result,
     build_egress_saved_result,
 )
+from apps.terminal.application.tui_research_snapshot_result import (
+    project_tui_research_snapshot_result,
+)
 from apps.terminal.application.tui_workbench_calendar_result_models import (
     _CALENDAR_COMMIT_RESULT_KEYS as _CALENDAR_COMMIT_RESULT_KEYS,
 )
@@ -81,6 +84,13 @@ class TuiWorkbenchSpecializedResultMixin(TuiWorkbenchCalendarResultMixin, TuiDas
             return self._calendar_preview_result_model(action, payload, status_code, request_params)
         if action_key == "data-center.calendar-workbench-confirm":
             return self._calendar_commit_result_model(action, payload, status_code)
+        if action_key == "equity.research-snapshot":
+            projected = project_tui_research_snapshot_result(
+                payload,
+                status_code,
+                action.get("_research_professional_target"),
+            )
+            return dict(projected) if projected is not None else None
         if action_key == "dashboard.alpha-ranking" and isinstance(payload, dict):
             meta = self._mapping(payload.get("meta"))
             notice = self._mapping(meta.get("refresh_notice"))

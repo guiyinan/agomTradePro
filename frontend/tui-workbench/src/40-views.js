@@ -20,6 +20,9 @@
             updatePager(viewModel.pager || null);
         }
         refreshRowFillButtons();
+        if (typeof appendPassiveReadEntry === "function") {
+            appendPassiveReadEntry(currentAction(state.lastAction), state.lastParams || {});
+        }
     }
 
     function renderNonGridView(viewModel) {
@@ -240,8 +243,105 @@
         });
     }
 
+    let nextStepNavigationInstance = null;
+
+    function nextStepNavigationController() {
+        if (nextStepNavigationInstance) {
+            return nextStepNavigationInstance;
+        }
+        nextStepNavigationInstance = createNextStepNavigation({
+            getState: () => state,
+            getCurrentScreenKey: () => state.screen?.screen?.key || "",
+            currentAction: (actionRef) => currentAction(actionRef),
+            isPassiveRead: (action) => isPassiveRead(action),
+            continuationFields: (action, actions) => (
+                typeof resultContinuations !== "undefined"
+                    && typeof resultContinuations.continuationFields === "function"
+                    ? resultContinuations.continuationFields(action, actions)
+                    : []
+            ),
+            loadScreen: (screenKey, options) => loadScreen(screenKey, options),
+            revealTaskWithParams: (action, params) => revealTaskWithParams(action, params),
+            runAction: (actionKey, form, options) => runAction(actionKey, form, options),
+            setStatus,
+            screenLabel: (screenKey) => catalogScreenLabel(screenKey) || screenKey,
+            syncLocation: (screenKey, actionKey, options) => syncNextStepLocation(screenKey, actionKey, options),
+            renderReturnControl: (context, onReturn) => renderNextStepReturnControl(context, onReturn),
+            clearReturnControl: () => clearNextStepReturnControl(),
+        });
+        return nextStepNavigationInstance;
+    }
+
+    function syncNextStepLocation(screenKey, actionKey, options = {}) {
+        const normalizedScreenKey = String(screenKey || "").trim();
+        if (!normalizedScreenKey || !window.history?.pushState) {
+            return;
+        }
+        const url = new URL(window.location.href);
+        url.search = "";
+        url.searchParams.set("screen", normalizedScreenKey);
+        const normalizedActionKey = String(actionKey || "").trim();
+        if (normalizedActionKey) {
+            url.searchParams.set("action", normalizedActionKey);
+        } else {
+            url.searchParams.delete("action");
+        }
+        const method = options.replace ? "replaceState" : "pushState";
+        window.history[method](
+            { screen: normalizedScreenKey, action: normalizedActionKey },
+            "",
+            url,
+        );
+    }
+
+    function clearNextStepReturnControl() {
+        const host = els.workflowStrip;
+        if (!host) {
+            return;
+        }
+        host.querySelectorAll("[data-next-step-return-host]").forEach((returnHost) => returnHost.remove());
+        host.querySelectorAll("[data-next-step-return]").forEach((button) => button.remove());
+    }
+
+    function renderNextStepReturnControl(context, onReturn) {
+        const host = els.workflowStrip;
+        if (!host) {
+            return;
+        }
+        clearNextStepReturnControl();
+        const sourceLabel = String(context?.sourceScreenLabel || context?.sourceScreenKey || "原任务").trim();
+        const markup = `
+            <div class="tui-next-step-return" data-next-step-return-host>
+                <button type="button" data-next-step-return aria-label="返回原任务：${escapeHtml(sourceLabel)}">
+                    返回原任务：${escapeHtml(sourceLabel)}
+                </button>
+            </div>
+        `;
+        host.hidden = false;
+        if (typeof host.insertAdjacentHTML === "function") {
+            host.insertAdjacentHTML("beforeend", markup);
+        } else {
+            host.innerHTML = `${host.innerHTML || ""}${markup}`;
+        }
+        const button = host.querySelector("[data-next-step-return]");
+        button?.addEventListener("click", async () => {
+            button.disabled = true;
+            setStatus("正在返回原任务");
+            const result = await onReturn();
+            if (["error", "stale", "forbidden", "unavailable"].includes(result?.status)) {
+                button.disabled = false;
+            }
+        });
+    }
+
     function executeNextStep(step) {
         if (!step) {
+            return;
+        }
+        const targetScreenKey = String(step.screen_key || "").trim();
+        const currentScreenKey = String(state.screen?.screen?.key || "").trim();
+        if (targetScreenKey && step.action_key && targetScreenKey !== currentScreenKey) {
+            nextStepNavigationController().open(step);
             return;
         }
         if (step.action_key) {
@@ -249,8 +349,8 @@
             runAction(step.action_key, null, { params });
             return;
         }
-        if (step.screen_key) {
-            loadScreen(step.screen_key);
+        if (targetScreenKey) {
+            loadScreen(targetScreenKey);
             return;
         }
         setStatus(step.hint || "已记录下一步");
@@ -652,11 +752,27 @@
     }
 
     function renderDetail(viewModel) {
+        const isResearchSnapshot = typeof researchEvidenceIsSnapshotViewModel === "function"
+            && researchEvidenceIsSnapshotViewModel(viewModel);
+        if (isResearchSnapshot && typeof renderResearchEvidenceSections === "function") {
+            els.main.innerHTML = `
+                ${renderResearchEvidenceSections(viewModel)}
+                ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length
+                    ? renderEmptyState("建议下一步", [], viewModel.next_steps)
+                    : ""}
+            `;
+            els.main.scrollTop = 0;
+            bindNextStepButtons(els.main, viewModel.next_steps);
+            return;
+        }
         const semantics = currentActionSemantics();
         const detailBody = semantics.length || (viewModel.fields || []).some(field => fieldPresentation(field) !== 'metadata')
             ? renderSemanticDetailView(viewModel, semantics)
             : renderSemanticGridFields(viewModel.fields || []);
         const isEmpty = !detailBody;
+        const evidenceSections = typeof renderResearchEvidenceSections === "function"
+            ? renderResearchEvidenceSections(viewModel)
+            : "";
         const nested = semantics.length ? [] : (viewModel.nested || []);
         els.main.innerHTML = `
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}</div>
@@ -666,6 +782,7 @@
                 viewModel.empty_guidance,
                 viewModel.next_steps,
             )}
+            ${evidenceSections}
             ${nested.length ? `
                 <div class="tui-nested-list">
                     ${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}

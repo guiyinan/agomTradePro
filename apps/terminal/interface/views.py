@@ -13,6 +13,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBase, HttpRespons
 from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.terminal.application.interface_services import (
     get_terminal_page_context,
@@ -71,6 +72,7 @@ class TerminalConfigView(View):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class TuiWorkbenchView(View):
     """
     Standalone TUI workbench page.

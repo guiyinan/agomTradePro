@@ -21,8 +21,10 @@
     }
 
     function safeWorkspaceField(field) {
-        return !['password','file','hidden'].includes(field.input_type)
-            && !['api_token','endpoint_url','secret','copyable_secret'].includes(field.presentation_semantic);
+        const inputType = String(field?.input_type || '').toLowerCase();
+        const semantic = String(field?.presentation_semantic || '').toLowerCase();
+        return !['password','file','hidden'].includes(inputType)
+            && !['api_token','endpoint_url','secret','copyable_secret'].includes(semantic);
     }
 
     function safeActionParams(action, params) {
@@ -36,12 +38,19 @@
             && (value == null || ['string','number','boolean'].includes(typeof value))));
     }
 
+    function workspaceFormElement(action) {
+        if (!action) return null;
+        const selector = `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`;
+        return els.main.querySelector(`.tui-action-entry-form${selector}`)
+            || els.actions.querySelector(selector);
+    }
+
     function captureWorkspace() {
         const key = state.screen?.screen?.key;
         if (!key || (state.experienceHomeFresh && isExperienceHomeScreen(key))) return;
         const drafts = {};
         for (const action of state.screen.actions || []) {
-            const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
+            const form = workspaceFormElement(action);
             if (!form) continue;
             drafts[action.key] = {};
             for (const field of (action.fields || []).filter(safeWorkspaceField)) {
@@ -64,7 +73,7 @@
     function restoreWorkspaceForms(snapshot) {
         if (!snapshot) return;
         for (const action of state.screen.actions || []) {
-            const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
+            const form = workspaceFormElement(action);
             if (!form) continue;
             for (const field of (action.fields || []).filter(safeWorkspaceField)) {
                 const value = snapshot.drafts[action.key]?.[field.key];
@@ -92,8 +101,13 @@
 
     function revealTaskWithParams(action, params) {
         focusActions();
-        const form = revealActionFormInPanel(action);
-        if (!form) return;
+        const selector = action
+            ? `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`
+            : "";
+        const form = selector
+            ? els.main.querySelector(`.tui-action-entry-form${selector}`) || revealActionFormInPanel(action)
+            : null;
+        if (!form) return false;
         for (const field of (action.fields || []).filter(safeWorkspaceField)) {
             if (!Object.prototype.hasOwnProperty.call(params, field.key)) continue;
             const input = formFieldElement(form, field.key);
@@ -103,6 +117,7 @@
         }
         focusActionFormInPanel(form);
         setStatus(`已定位“${action.label}”，请核对对象后继续`);
+        return true;
     }
 
     function markDataReady() {

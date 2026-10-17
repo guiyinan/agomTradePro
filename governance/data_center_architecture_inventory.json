@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5801,
+    "current_surface_references": 5806,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21625,6 +21625,26 @@
     {
       "path": "apps/terminal/application/tui_operator_services.py",
       "text": "title=str(((summary.get(\"daily_state\") or {}).get(\"title\")) or \"Readiness monitor\"),"
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "summary += \"本快照仅汇总事实，未自动生成投资结论、反向论证或可直接验证的证伪条件。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "summary += f\"分区状态：{section_facts}。\" if section_facts else \"未返回研究分区。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "summary += f\"已报告缺口：{gaps}。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_research_snapshot_result.py",
+      "text": "summary = f\"{location}研究快照。\""
     },
     {
       "path": "apps/terminal/application/tui_workbench.py",

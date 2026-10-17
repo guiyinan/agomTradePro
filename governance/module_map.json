@@ -11443,6 +11443,20 @@
           "build_operator_home_payload",
           "build_operator_home_section_payload"
         ],
+        "application/tui_research_snapshot_result.py": [
+          "TuiResearchColumn",
+          "TuiResearchField",
+          "TuiResearchNested",
+          "TuiResearchNextStep",
+          "TuiResearchParams",
+          "TuiResearchProfessionalTarget",
+          "TuiResearchRow",
+          "TuiResearchSection",
+          "TuiResearchSnapshotView",
+          "TuiResearchSourceTime",
+          "build_tui_research_snapshot_view",
+          "project_tui_research_snapshot_result"
+        ],
         "application/tui_workbench.py": [
           "TuiWorkbenchRegistry",
           "TuiWorkbenchService"
@@ -11505,9 +11519,9 @@
         ]
       },
       "layers": {
-        "application": 30,
+        "application": 31,
         "domain": 5,
-        "infrastructure": 89,
+        "infrastructure": 90,
         "interface": 9,
         "management": 7,
         "root": 4
