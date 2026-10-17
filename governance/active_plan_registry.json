@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v243",
+  "version": "2026-10-17.v244",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.47 accepted bounded MCP explicit-empty scope preservation after c43a23d14. Root exact original confirmation red1 reproduced; identical probe green1. Frozen SDK/MCP scope+original owner/endpoint210, SDKclient23, terminalagent20; two SDK production incremental mypy0 and default apps/core/shared full debt0, full style and module-map0. None/[]/ordered IDs and real SDK JSON/outcome/null preservation against memory transport; no HTTP/DB/provider or CI/S6 qualification. All other function sources/module imports retained; no new app/model/route. Next immediately remediate own19.45 engine907-to1325 and task-entry1199-to1319 non-empty lines above1200 without baseline increase, then imported-fee missing/zero. Default MCP preview pagination/eligibility/confirmation binding open. Existing9 retirement failures separate; ordinary settlement/T+1/owner/source/PIT and fullGoal/ASH01/02/03 open. ASH02 sole focus; this staged registry retains74 units; concurrent TUI governance units are preserved unstaged for serial handoff. Evidence: docs/testing/a-share-usability-mcp-auto-trading-scope-2026-10-17.json.",
+      "next_gate": "Plan19.48 accepted bounded auto-trading responsibility extraction: engine 1161 and tasks 1184 nonempty lines; removed the two own19.45 size regressions without baseline/checker/allowlist increase. Full governance still exits1 with exactly the seven original size violations; separate nine retirement failures remain open. Same frozen source Root 401 units, native53, SQLite55(includes2probes), original2 probes; five-source incremental/full default mypy0, AST compatibility/architecture/annotations/style and seven applicable projection/contract checks passed. No test assertion changed, real task entry bodies preserved, explicit old import reexports and current collaborator/override seams retained. ASH02 sole focus and79units unchanged; TUX06 governance completed, TUX07-10 planned until separately coordinated production-focus handoff. Next TUX07 bounded window then restoreASH02 actual-import fee missing-vs-zero work; default MCP preview pagination/enabled/frozen-scope, original ordinary T+1/odd-lot/atomicity/idempotency/lock-owner/source-purpose/PIT remain open. DATA18 gatesASH11; fullGoal open; no production/provider/broker/Evidence/settlement activation or sameCI/S6 claim. Evidence: docs/testing/a-share-usability-auto-trading-size-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

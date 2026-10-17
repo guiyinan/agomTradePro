@@ -10428,14 +10428,15 @@
           "AssetPoolQueryService"
         ],
         "application/auto_trading_engine.py": [
-          "AssetPoolServiceProtocol",
           "AutoTradingEngine",
-          "AutoTradingTradeRepositoryProtocol",
           "MockPriceProvider",
-          "PreTradeRiskGuardProtocol",
-          "PriceProviderProtocol",
-          "RegimeServiceProtocol",
-          "SignalServiceProtocol"
+          "PreTradeRiskGuardProtocol"
+        ],
+        "application/auto_trading_exit_evaluator.py": [
+          "AutoTradingExitEvaluator",
+          "FloatPicker",
+          "IssueSink",
+          "PriceTrigger"
         ],
         "application/auto_trading_outcome_reporting.py": [
           "auto_trading_count_units",
@@ -10574,6 +10575,8 @@
         ],
         "application/ports.py": [
           "AssetPoolQueryRepositoryProtocol",
+          "AssetPoolServiceProtocol",
+          "AutoTradingTradeRepositoryProtocol",
           "DailyNetValueAccountRepositoryProtocol",
           "DailyNetValuePositionRepositoryProtocol",
           "DailyNetValueRecord",
@@ -10584,7 +10587,10 @@
           "PositionExitAdvice",
           "PositionExitAdvisorProtocol",
           "PreviousDailyNetValueRecord",
-          "SignalQueryRepositoryProtocol"
+          "PriceProviderProtocol",
+          "RegimeServiceProtocol",
+          "SignalQueryRepositoryProtocol",
+          "SignalServiceProtocol"
         ],
         "application/position_invalidation_checker.py": [
           "InvalidatedPositionResult",
@@ -10665,6 +10671,9 @@
           "SimulatedAccountRowSourceV2Repository",
           "SimulatedAccountRowSourceV2Unavailable"
         ],
+        "application/task_contract_support.py": [
+          "select_default_auto_trading_account_ids"
+        ],
         "application/task_notifications.py": [
           "send_mail"
         ],
@@ -10742,7 +10751,7 @@
         ]
       },
       "layers": {
-        "application": 32,
+        "application": 34,
         "domain": 12,
         "infrastructure": 37,
         "interface": 15,

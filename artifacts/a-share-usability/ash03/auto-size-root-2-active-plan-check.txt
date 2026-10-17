@@ -1,0 +1,1 @@
+active-plan-registry version=2026-10-17.v244 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0

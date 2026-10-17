@@ -1,0 +1,15 @@
+只读职责拆分复核
+基准 HEAD：b1894b739
+复核范围：auto_trading_engine.py、ports.py、auto_trading_exit_evaluator.py、tasks.py、task_contract_support.py；未运行测试/DB，未修改生产代码。
+
+结论
+未发现除已知在途修复之外的确定行为漂移、循环依赖或仓库内 monkeypatch/import seam 断裂。
+
+证据
+- 依赖方向为 engine -> exit_evaluator -> ports -> domain；tasks -> task_contract_support -> auto_trading_outcome_reporting/domain。outcome_reporting 不回导 tasks/support；当前应用/测试引用没有形成反向边。新协议位于 ports.py（AssetPoolServiceProtocol:15、SignalServiceProtocol:36、AutoTradingTradeRepositoryProtocol:64）；auto_trading_engine.py 仍从 ports 显式导入/重导出旧协议名（21-37），仓库未找到直接依赖其旧定义模块身份的调用方。
+- 退出评估提取后，engine 原公开/测试用私有方法仍在原类中（_build_exit_advice_map:756、_get_position_exit_advice:862、_resolve_exit_quantity:880、_get_sell_reason:884、_get_current_price:1167、_is_exit_advice_price_triggered:1175、_is_price_triggered:1187、_pick_float:1203）。wrapper 将当前 collaborator、logger 和 callback 传给无状态 evaluator；卖出建议顺序、价格读取/触发与退出数量逻辑在 diff 中是搬移，不是重写。测试直接替换 engine._get_position_exit_advice 的点仍保留（tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py:239,274）；旧 exit loop 和 _execute_legacy_trading 调用测试仍指向 engine 原方法。
+- tasks.py 将原 helper/type/常量以显式别名回导（45-85），daily task 继续经 tasks 模块全局使用这些别名；其默认账户选择 wrapper 留在 tasks.py（132-136）。选择器的校验规则与旧实现一致，函数本体迁至 task_contract_support.py:163。仓库内实际 monkeypatch tasks.AutoTradingEngine、repository providers、calculator、replace、notification functions 等 seam 均仍在 tasks.py（例如 tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py:58-60, tests/component/simulated_trading/test_auto_trading_task_lifecycle.py:69-71）。
+- 对迁出私有 task helpers、_TASK_OUTCOMES、_MAX_TASK_BATCH_SIZE、tasks.date/datetime 的全仓搜索，未发现用 patch/setattr 替换它们的测试或生产调用。tasks.date 仅在 tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py:129,211,265 构造预期日期，当前回导仍满足。没有测试/生产代码从旧 engine 模块 monkeypatch safe_float/logger 或直接导入迁出的协议类。
+
+边界说明
+通过 `from ...tasks import helper` 仍能导入旧 task 属性，但函数执行时读取的是新 support 模块自身的 globals；因此若未来外部测试专门 monkeypatch `tasks.date` 来冻结 `_parse_task_date(None, ...)`，或替换 `tasks._TASK_OUTCOMES`/`tasks._MAX_TASK_BATCH_SIZE` 期望影响 helper 内部常量，该替换不会改变 support 函数的 globals。当前仓库没有此类 patch/消费者；现有 `tasks.date` 用法只是期望值构造，故未判为当前兼容缺陷。

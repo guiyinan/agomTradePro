@@ -1,0 +1,83 @@
+{
+  "source_tree": "b5bbc88eb10be59659f2e2483537001fb83169a1",
+  "original_commit": "b1894b7390ada59f7335a3cd40b60819cae705b4",
+  "moved_protocols_signatures_preserved": [
+    "AssetPoolServiceProtocol",
+    "SignalServiceProtocol",
+    "PriceProviderProtocol",
+    "RegimeServiceProtocol",
+    "AutoTradingTradeRepositoryProtocol"
+  ],
+  "engine_unchanged_methods": [
+    "run_daily_trading",
+    "_unsupported_account_type_outcome",
+    "_process_account",
+    "_get_account_strategy_id",
+    "_execute_strategy_based_trading",
+    "_execute_strategy_buy_signal",
+    "_execute_legacy_trading",
+    "_record_execution_link",
+    "_record_confirmed_execution_link",
+    "_record_performance_outcome",
+    "_get_buy_candidates",
+    "_execute_buy",
+    "_buy_risk_issue",
+    "_update_account_performance"
+  ],
+  "engine_wrapper_signatures_and_decorators_preserved": [
+    "_build_exit_advice_map",
+    "_get_position_exit_advice",
+    "_resolve_exit_quantity",
+    "_get_sell_reason",
+    "_get_current_price",
+    "_is_exit_advice_price_triggered",
+    "_is_price_triggered",
+    "_pick_float"
+  ],
+  "relocated_evaluator_bodies_equal_after_explicit_port_substitution": [
+    "build_exit_advice_map",
+    "get_position_exit_advice",
+    "resolve_exit_quantity",
+    "get_sell_reason",
+    "get_current_price",
+    "is_exit_advice_price_triggered",
+    "is_price_triggered",
+    "pick_float"
+  ],
+  "task_functions_and_protocols_equal_ignoring_docstrings": [
+    "typed_shared_task",
+    "execute_realtime_price_polling",
+    "_handle_pre_execution_failure",
+    "daily_auto_trading_task",
+    "update_position_prices_task",
+    "calculate_all_performance_task",
+    "cleanup_inactive_accounts_task",
+    "send_performance_summary_task",
+    "daily_portfolio_inspection_task",
+    "check_position_invalidation_task",
+    "notify_invalidated_positions_task",
+    "update_all_prices_after_close",
+    "update_position_prices_task_alias",
+    "calculate_all_performance_task_alias",
+    "cleanup_inactive_accounts_task_alias",
+    "send_performance_summary_task_alias",
+    "check_position_invalidation_task_alias",
+    "notify_invalidated_positions_task_alias"
+  ],
+  "moved_task_helpers_equal_ignoring_docstrings": [
+    "_task_result",
+    "_BoundTaskProtocol",
+    "_build_pre_execution_failure_batch",
+    "_TypedTask",
+    "_require_non_negative_count",
+    "_TaskRequestProtocol",
+    "_failed_task_result",
+    "_parse_task_date",
+    "_auto_trading_unavailable_scope_result",
+    "_validate_optional_id",
+    "_validate_optional_ids"
+  ],
+  "default_scope_repository_read_then_original_validation_preserved": true,
+  "explicit_old_path_reexports": true,
+  "no_runtime_behavior_proof_claimed_from_ast_alone": true
+}

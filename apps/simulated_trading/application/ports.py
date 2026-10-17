@@ -3,13 +3,78 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Protocol, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from apps.simulated_trading.domain.entities import (
     Position,
     SimulatedAccount,
     SimulatedTrade,
 )
+
+
+class AssetPoolServiceProtocol(Protocol):
+    """Asset-pool reads required by the auto-trading application service."""
+
+    def get_investable_assets(self, asset_type: str) -> list[dict[str, object]]:
+        """Return investable assets for one asset type."""
+        ...
+
+    def get_investable_assets_with_signals(
+        self,
+        asset_type: str,
+        min_score: float,
+        limit: int,
+    ) -> list[dict[str, object]]:
+        """Return investable assets that have active signals."""
+        ...
+
+    def get_asset_pool_type(self, asset_code: str) -> str | None:
+        """Return the latest pool type for one asset."""
+        ...
+
+
+class SignalServiceProtocol(Protocol):
+    """Signal snapshot reads required by auto-trading evaluation."""
+
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, Any] | None:
+        """Return a signal snapshot by identifier."""
+        ...
+
+
+class PriceProviderProtocol(Protocol):
+    """Historical price reads required by auto-trading evaluation."""
+
+    def get_price(self, asset_code: str, trade_date: date) -> float | None:
+        """Return an optional price for the requested date."""
+        ...
+
+    def require_price(self, asset_code: str, trade_date: date) -> float:
+        """Return a required price or raise when it is unavailable."""
+        ...
+
+
+class RegimeServiceProtocol(Protocol):
+    """Current market regime reads required by auto-trading."""
+
+    def get_current_regime(self) -> str:
+        """Return the current regime identifier."""
+        ...
+
+
+class AutoTradingTradeRepositoryProtocol(Protocol):
+    """Trade persistence required by execution and daily net-value updates."""
+
+    def save(self, trade: SimulatedTrade) -> int:
+        """Persist one simulated trade."""
+        ...
+
+    def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
+        """Return trades for one account."""
+        ...
+
+    def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
+        """Count trades executed for an account on one date."""
+        ...
 
 
 class AssetPoolQueryRepositoryProtocol(Protocol):
@@ -20,14 +85,11 @@ class AssetPoolQueryRepositoryProtocol(Protocol):
         asset_type: str,
         min_score: float,
         limit: int,
-    ) -> list[dict[str, object]]:
-        ...
+    ) -> list[dict[str, object]]: ...
 
-    def get_latest_pool_type(self, asset_code: str) -> str | None:
-        ...
+    def get_latest_pool_type(self, asset_code: str) -> str | None: ...
 
-    def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
-        ...
+    def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]: ...
 
 
 class SignalQueryRepositoryProtocol(Protocol):
@@ -36,14 +98,11 @@ class SignalQueryRepositoryProtocol(Protocol):
     def get_valid_signal_summaries(
         self,
         asset_codes: list[str] | None = None,
-    ) -> list[dict[str, object]]:
-        ...
+    ) -> list[dict[str, object]]: ...
 
-    def get_signal_snapshot(self, signal_id: int) -> dict[str, object] | None:
-        ...
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, object] | None: ...
 
-    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]:
-        ...
+    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]: ...
 
 
 @dataclass(frozen=True)
@@ -71,8 +130,7 @@ class PositionExitAdvisorProtocol(Protocol):
         account_id: int,
         positions: list[object],
         as_of_date: date,
-    ) -> list[PositionExitAdvice]:
-        ...
+    ) -> list[PositionExitAdvice]: ...
 
 
 class ExecutionLinkRecorderProtocol(Protocol):
@@ -89,8 +147,7 @@ class ExecutionLinkRecorderProtocol(Protocol):
         executed_at: datetime,
         match_if_missing: bool = False,
         notes: str = "",
-    ) -> dict[str, object] | None:
-        ...
+    ) -> dict[str, object] | None: ...
 
 
 class DailyNetValueWritePayload(TypedDict):
@@ -173,5 +230,4 @@ class DailyNetValueRepositoryProtocol(Protocol):
         current_date: date,
     ) -> PreviousDailyNetValueRecord | None: ...
 
-    def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None:
-        ...
+    def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None: ...

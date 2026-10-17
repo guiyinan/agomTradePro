@@ -1,0 +1,53 @@
+--- D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_engine.py:before	2026-10-17 15:48:35.413802
++++ D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_engine.py:after	2026-10-17 15:49:14.052965
+@@ -21,16 +21,20 @@
+ from apps.simulated_trading.application.auto_trading_exit_evaluator import (
+
+     AutoTradingExitEvaluator,
+
+ )
+
+-from apps.simulated_trading.application.ports import (
+-    AssetPoolServiceProtocol as AssetPoolServiceProtocol,
+-    AutoTradingTradeRepositoryProtocol as AutoTradingTradeRepositoryProtocol,
+-    ExecutionLinkRecorderProtocol,
+-    PositionExitAdvice,
+-    PositionExitAdvisorProtocol,
+-    PriceProviderProtocol as PriceProviderProtocol,
+-    RegimeServiceProtocol as RegimeServiceProtocol,
+-    SignalServiceProtocol as SignalServiceProtocol,
+-)
++from apps.simulated_trading.application.ports import (
+
++    AssetPoolServiceProtocol as AssetPoolServiceProtocol,
+
++)
+
++from apps.simulated_trading.application.ports import (
+
++    AutoTradingTradeRepositoryProtocol as AutoTradingTradeRepositoryProtocol,
+
++)
+
++from apps.simulated_trading.application.ports import (
+
++    ExecutionLinkRecorderProtocol,
+
++    PositionExitAdvice,
+
++    PositionExitAdvisorProtocol,
+
++)
+
++from apps.simulated_trading.application.ports import PriceProviderProtocol as PriceProviderProtocol
+
++from apps.simulated_trading.application.ports import RegimeServiceProtocol as RegimeServiceProtocol
+
++from apps.simulated_trading.application.ports import SignalServiceProtocol as SignalServiceProtocol
+
+ from apps.simulated_trading.application.use_cases import (
+
+     ExecuteBuyOrderUseCase,
+
+     ExecuteSellOrderUseCase,
+

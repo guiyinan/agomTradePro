@@ -1,0 +1,546 @@
+{
+  "baseline_version": "2026-09-09.v220",
+  "violation_count": 7,
+  "sections": [
+    {
+      "name": "governance_baseline",
+      "violation_count": 0,
+      "data": {
+        "baseline_version": "2026-09-09.v220",
+        "required_key_count": 14,
+        "missing_required_keys": [],
+        "mcp_governance_required_key_count": 13,
+        "mcp_governance_entry_count": 13,
+        "module_shape_entry_count": 44,
+        "allowed_application_import_file_count": 0,
+        "allowed_large_file_count": 0
+      },
+      "violations": []
+    },
+    {
+      "name": "docs_consistency",
+      "violation_count": 0,
+      "data": {
+        "actual_mcp_tool_count": 377,
+        "expected_mcp_tool_count": 377,
+        "actual_business_module_count": 44,
+        "expected_business_module_count": 44,
+        "actual_static_test_function_count": 19409,
+        "expected_static_test_function_count": 12264,
+        "dynamic_governance_doc_count": 21,
+        "core_version": "0.8.0",
+        "pyproject_version": "0.8.0"
+      },
+      "violations": []
+    },
+    {
+      "name": "docs_links",
+      "violation_count": 0,
+      "data": {
+        "checked_links": 76
+      },
+      "violations": []
+    },
+    {
+      "name": "governance_docs",
+      "violation_count": 0,
+      "data": {
+        "required_token_count": 9,
+        "missing_tokens": []
+      },
+      "violations": []
+    },
+    {
+      "name": "module_shape",
+      "violation_count": 0,
+      "data": {
+        "account": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "agent_runtime": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "interface/urls.py"
+          ]
+        },
+        "ai_capability": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "interface/urls.py"
+          ]
+        },
+        "ai_provider": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "interface/views.py"
+          ]
+        },
+        "alpha": {
+          "score": 11,
+          "missing": []
+        },
+        "alpha_trigger": {
+          "score": 8,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py",
+            "interface/api_urls.py"
+          ]
+        },
+        "asset_analysis": {
+          "score": 10,
+          "missing": [
+            "domain/rules.py"
+          ]
+        },
+        "audit": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "backtest": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "beta_gate": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "broker_execution": {
+          "score": 10,
+          "missing": [
+            "application/dtos.py"
+          ]
+        },
+        "config_center": {
+          "score": 8,
+          "missing": [
+            "domain/rules.py",
+            "domain/services.py",
+            "application/dtos.py"
+          ]
+        },
+        "dashboard": {
+          "score": 11,
+          "missing": []
+        },
+        "data_center": {
+          "score": 10,
+          "missing": [
+            "domain/services.py"
+          ]
+        },
+        "decision_rhythm": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "interface/views.py"
+          ]
+        },
+        "equity": {
+          "score": 10,
+          "missing": [
+            "application/dtos.py"
+          ]
+        },
+        "events": {
+          "score": 11,
+          "missing": []
+        },
+        "factor": {
+          "score": 10,
+          "missing": [
+            "domain/rules.py"
+          ]
+        },
+        "filter": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "fixed_income": {
+          "score": 5,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py",
+            "interface/views.py",
+            "interface/serializers.py",
+            "interface/urls.py",
+            "interface/api_urls.py"
+          ]
+        },
+        "fund": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "hedge": {
+          "score": 10,
+          "missing": [
+            "domain/rules.py"
+          ]
+        },
+        "macro": {
+          "score": 9,
+          "missing": [
+            "infrastructure/repositories.py",
+            "interface/views.py"
+          ]
+        },
+        "macro_factor": {
+          "score": 4,
+          "missing": [
+            "domain/rules.py",
+            "domain/services.py",
+            "application/dtos.py",
+            "interface/views.py",
+            "interface/serializers.py",
+            "interface/urls.py",
+            "interface/api_urls.py"
+          ]
+        },
+        "operational_readiness": {
+          "score": 1,
+          "missing": [
+            "domain/entities.py",
+            "domain/rules.py",
+            "domain/services.py",
+            "application/use_cases.py",
+            "application/dtos.py",
+            "infrastructure/models.py",
+            "infrastructure/repositories.py",
+            "interface/views.py",
+            "interface/serializers.py",
+            "interface/urls.py"
+          ]
+        },
+        "policy": {
+          "score": 8,
+          "missing": [
+            "domain/services.py",
+            "application/dtos.py",
+            "interface/views.py"
+          ]
+        },
+        "portfolio": {
+          "score": 6,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py",
+            "interface/views.py",
+            "interface/serializers.py",
+            "interface/urls.py"
+          ]
+        },
+        "prompt": {
+          "score": 11,
+          "missing": []
+        },
+        "pulse": {
+          "score": 11,
+          "missing": []
+        },
+        "realtime": {
+          "score": 11,
+          "missing": []
+        },
+        "regime": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "research": {
+          "score": 5,
+          "missing": [
+            "domain/entities.py",
+            "domain/rules.py",
+            "domain/services.py",
+            "application/dtos.py",
+            "interface/views.py",
+            "interface/urls.py"
+          ]
+        },
+        "risk_center": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "rotation": {
+          "score": 10,
+          "missing": [
+            "domain/rules.py"
+          ]
+        },
+        "sector": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "sentiment": {
+          "score": 11,
+          "missing": []
+        },
+        "setup_wizard": {
+          "score": 8,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py",
+            "interface/serializers.py"
+          ]
+        },
+        "share": {
+          "score": 10,
+          "missing": [
+            "domain/rules.py"
+          ]
+        },
+        "signal": {
+          "score": 9,
+          "missing": [
+            "domain/services.py",
+            "application/dtos.py"
+          ]
+        },
+        "simulated_trading": {
+          "score": 10,
+          "missing": [
+            "application/dtos.py"
+          ]
+        },
+        "strategy": {
+          "score": 11,
+          "missing": []
+        },
+        "task_monitor": {
+          "score": 8,
+          "missing": [
+            "domain/rules.py",
+            "domain/services.py",
+            "interface/api_urls.py"
+          ]
+        },
+        "terminal": {
+          "score": 9,
+          "missing": [
+            "domain/rules.py",
+            "application/dtos.py"
+          ]
+        },
+        "valuation": {
+          "score": 11,
+          "missing": []
+        }
+      },
+      "violations": []
+    },
+    {
+      "name": "misplaced_app_config",
+      "violation_count": 0,
+      "data": {
+        "violation_count": 0
+      },
+      "violations": []
+    },
+    {
+      "name": "singular_dto_files",
+      "violation_count": 0,
+      "data": {
+        "violation_count": 0
+      },
+      "violations": []
+    },
+    {
+      "name": "architecture_ruleset",
+      "violation_count": 0,
+      "data": {
+        "rules_version": "2026-10-09.v9",
+        "boundary_rule_count": 7,
+        "audit_rule_count": 20,
+        "duplicate_rule_ids": []
+      },
+      "violations": []
+    },
+    {
+      "name": "module_dependency_baseline",
+      "violation_count": 0,
+      "data": {
+        "baseline_version": "2026-08-13.v25",
+        "module_count": 44,
+        "outbound_budget_count": 44,
+        "inbound_budget_count": 44,
+        "max_outbound_modules_per_app": 24,
+        "max_inbound_modules_per_app": 30,
+        "max_app_import_edges": 206
+      },
+      "violations": []
+    },
+    {
+      "name": "ci_governance_wiring",
+      "violation_count": 0,
+      "data": {
+        "architecture_workflow": ".github/workflows/architecture-layer-guard.yml",
+        "consistency_workflow": ".github/workflows/consistency-check.yml",
+        "architecture_required_token_count": 7,
+        "consistency_required_token_count": 10
+      },
+      "violations": []
+    },
+    {
+      "name": "application_third_party_imports",
+      "violation_count": 0,
+      "data": {},
+      "violations": []
+    },
+    {
+      "name": "core_integration_debt",
+      "violation_count": 0,
+      "data": {
+        "actual_infrastructure_import_count": 0,
+        "expected_infrastructure_import_count": 0,
+        "actual_orm_access_count": 0,
+        "expected_orm_access_count": 0,
+        "files": {}
+      },
+      "violations": []
+    },
+    {
+      "name": "core_management_command_debt",
+      "violation_count": 0,
+      "data": {
+        "actual_infrastructure_import_count": 0,
+        "expected_infrastructure_import_count": 0,
+        "actual_orm_access_count": 0,
+        "expected_orm_access_count": 0,
+        "files": {}
+      },
+      "violations": []
+    },
+    {
+      "name": "large_python_files",
+      "violation_count": 7,
+      "data": {
+        "line_limit": 1200,
+        "large_file_count": 7,
+        "large_files": {
+          "apps/data_center/infrastructure/fact_and_operational_models.py": 1328,
+          "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+          "apps/simulated_trading/domain/execution_settlement_uow.py": 1296,
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": 1387,
+          "apps/simulated_trading/infrastructure/models.py": 1372,
+          "apps/terminal/application/tui_metadata.py": 1256,
+          "apps/terminal/application/tui_workbench_result_models_specialized.py": 1373
+        },
+        "allowed_large_file_count": 0
+      },
+      "violations": [
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
+          "message": "Production Python file has 1328 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+          "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "message": "Production Python file has 1387 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/models.py",
+          "message": "Production Python file has 1372 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_metadata.py",
+          "message": "Production Python file has 1256 non-empty lines, above limit 1200."
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+          "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+        }
+      ]
+    },
+    {
+      "name": "large_file_remediation",
+      "violation_count": 0,
+      "data": {
+        "allowed_path_count": 0,
+        "remediation_path_count": 0,
+        "review_date": "2026-10-17"
+      },
+      "violations": []
+    }
+  ],
+  "violations": [
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
+      "message": "Production Python file has 1328 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+      "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+      "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "message": "Production Python file has 1387 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/simulated_trading/infrastructure/models.py",
+      "message": "Production Python file has 1372 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/terminal/application/tui_metadata.py",
+      "message": "Production Python file has 1256 non-empty lines, above limit 1200."
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+    }
+  ]
+}

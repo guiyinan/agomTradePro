@@ -1091,3 +1091,27 @@ SDK和MCP真实序列化对内存传输替身验证了None、[]、[7]及[8,7]、
 本次独立提交只暂存ASH登记字段/version，完整保留并行TUI草案、README、supporting登记及其五个TUX单元的工作树变更；本批冻结登记仍74单元，实时工作树可有79单元，不将两者混为同一验收身份。共享index/登记窗口在本批提交后交接TUI治理批，期间本主线不操作该索引、登记或生成器。
 
 逐一补查19.45九个生产文件发现，两项尺寸回退均为本主线引入：engine从907到1,325非空行，task入口从1,199到1,319，均超过治理1,200限额，不能称为继承基线。已通过的功能/类型证据保留，完整发布继续不通过；下一独立事项优先按职责拆分引擎并重跑尺寸及回归，不提高基线。既有九项版本退役失败与此分开记录。费用missing/zero保留为随后事项。完整Goal、ASH-02唯一焦点、普通原子结算/T+1/owner/source用途/PIT、DATA-18/ASH-11及生产/Provider/Evidence/QMT门禁继续开放。
+
+### 19.48 自动交易编排尺寸回退整改独立验收
+
+实际尺寸checker在保留的原/候选冻结导出中报告7→9项违规，新增两项恰为engine和task入口；代码与1,200限额均原样运行，原报告保留于`auto-size-root-red-1-comparison.json`。本批只消除本主线新增两项，不能将完整质量门称为通过，也不能提高baseline或加入allowlist。
+
+Luna Max分工：engine侧把退出/价格评估迁入独立Application evaluator，五个既有服务Protocol归入本App现有ports；保留原Engine方法wrapper、当前属性读取、logger、构造参数和monkeypatch seam，不移动买入规则或引入新的金融默认。task侧把纯输入验证/规范化结果与结构型Protocol迁入单一Application support模块；Celery装饰器、任务入口、retry/日志和依赖工厂留在tasks，原helper名字显式重导出。两组职责不交叉，新模块不导入Infrastructure；support不新增Celery/Django依赖。设计估算约1,150行；为保留完整wrapper/类型/文档，实际规划验收目标为各不超过1,170非空行，不压缩代码凑估算值，治理真源硬门仍为1,200。
+
+先复用现有功能测试，不写镜像测试或改断言接受新行为。Root负责joint冻结、完整适用类型/架构/函数契约/风格、官方模块与Data Center投影、Celery/current/audit合同，以及实际HTTP/普通UC/Celery生命周期在SQLite和既有PG专库的回归。最终以真实尺寸checker验证新增两项消失、原7项逐路径不变，并运行完整治理报告说明剩余失败；九项版本退役问题另列。任何行为差异、导入循环或patch seam漂移都先修复再提交。
+
+TUI治理已在b1894b739独立提交，登记为v243/79单元且ASH-02焦点未变；Root接回共享index/registry/生成器窗口后才允许本批生产修改。完成本批后，再协商TUX-07的唯一生产焦点窗口；其间费用仅做只读设计，TUI代码和金融owner不同时抢占共享主线。完整A股Goal和来源/结算/PIT/生产资格门仍开放。
+
+作者最终完整同名重导出经过项目isort后，tasks为1,184非空行，超过本批1,170规划估算14行；engine为1,161。Root保留原章节注释和完整类型兼容，不压缩文本达到估算值。1,170不是治理门禁，真实1,200硬限、baseline和检查器不变；最终尺寸报告单独发布估算未达到情况，不能声称两者均达到1,170。
+
+Root首轮冻结98b51b21a593682f0d0ce9c815edb2209b55b009：标注门发现新support公开Protocol.run缺docstring；联合测试为400 passed/1 failed，唯一失败是原冷启动子进程超过既有60秒阈值。两项原始失败保留，不修改测试或超时。第二次冻结b5bbc88eb10be59659f2e2483537001fb83169a1只补这条docstring，五个模块去docstring后完整AST相同，其余四源原字节相同；首轮源码patch已重建匹配，后续完整联合测试须在第二窗真实重跑。完整mypy在首窗实际运行，第二窗再次增量检查并通过上述严格差异证明衔接，不声称在第二窗重复全库检查或具有同一CI/S6身份。
+
+独立Luna Max只读审查未发现现有仓库调用方的import/override断裂或新循环。迁出的task helper现在读取support自己的模块globals；旧路径仍能导入同一helper，但未来外部若专门替换tasks.date或tasks中的常量，替换不会影响support内部。全仓当前无此类patch，现有tasks.date只构造测试期望，因此这是兼容范围说明，不能宣传成所有可能模块级patch都原样保留。
+
+共享分支在QA期间另有独立路演提交1bccf5933，只有docs/roadshow六个新增文件。Root完整保留该提交；辅助index证明整合源码与已验收b5bbc88只差这六个文档文件，五源Git blob经真实CRLF→LF转换与冻结导出相同，既有运行时、测试、依赖、治理和脚本输入未变。该路演目录不在相关模块/ORM/入口runbook扫描范围内，不将路演内容计入本批审查或同一完整CI/S6身份。实际提交parent与质量冻结parent分别记录，不通过回退其他事项恢复旧HEAD。
+
+19.48最终验收：冻结源码`b5bbc88eb10be59659f2e2483537001fb83169a1`；engine与tasks分别为1161、1184非空行，两个新模块和ports均低于1,200。真实尺寸checker从9回到原7项，完整治理实际退出1且仅含同一原7项，baseline/checker/allowlist未改；比较断言成功不能冒充完整治理通过。九项退役失败另保留，不在本批重跑。
+
+Root 401项单元、53项既有PG专库组件/集成、55项SQLite（含2个内存目标探针）及2条原生产异常探针全部通过。Domain复用覆盖303语句/88分支100%；五源增量mypy及默认apps/core/shared全库债务门零，Black/isort/Ruff、架构增量、完整标注与七项适用生成投影/契约复核通过。所有实际Celery任务函数AST与parent保持，迁出helper主体除docstring相同；退出评估主体仅把原self依赖替换为每次传入的端口/回调，原签名、装饰器与其余engine方法保持。Root审查恢复了作者中间改变的邮件换行及一处日志表达式，所有最终测试在恢复后的同一冻结源码运行。未修改测试断言。
+
+专用PG子库前后均546迁移；共享父库只读544迁移、singleton=(1,0)，无重建/flush。官方生成器在最终冻结导出实测，变更投影由其输出同步；Celery/current/audit合同内容与任务入口不变，因此保留原登记并复核。源码patch经辅助index重建匹配；详见[尺寸整改检查点](../testing/a-share-usability-auto-trading-size-2026-10-17.json)。新模块不授予来源/订单资格，不激活候选结算链。TUI/SDK/SSL生产未改，未重复独立完整包；terminal回归已纳入本批单元。完整Goal与ASH-02及来源、普通结算、PIT、费用、MCP默认范围问题继续开放。下一窗口先由TUX-07按独立冻结范围取得唯一生产焦点，完成后恢复ASH-02；期间本主线费用仅做只读设计。

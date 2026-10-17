@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\.tmp\check_auto_size_quality.py", line 265, in <module>
+    assert not missing, missing
+           ^^^^^^^^^^^
+AssertionError: [['apps/simulated_trading/application/task_contract_support.py', '_TypedTask.run', 'public docstring']]

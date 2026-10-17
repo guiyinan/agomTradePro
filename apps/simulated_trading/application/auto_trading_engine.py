@@ -12,17 +12,29 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
     PreTradeRiskCheckResult,
+)
+from apps.simulated_trading.application.auto_trading_exit_evaluator import (
+    AutoTradingExitEvaluator,
+)
+from apps.simulated_trading.application.ports import (
+    AssetPoolServiceProtocol as AssetPoolServiceProtocol,
+)
+from apps.simulated_trading.application.ports import (
+    AutoTradingTradeRepositoryProtocol as AutoTradingTradeRepositoryProtocol,
 )
 from apps.simulated_trading.application.ports import (
     ExecutionLinkRecorderProtocol,
     PositionExitAdvice,
     PositionExitAdvisorProtocol,
 )
+from apps.simulated_trading.application.ports import PriceProviderProtocol as PriceProviderProtocol
+from apps.simulated_trading.application.ports import RegimeServiceProtocol as RegimeServiceProtocol
+from apps.simulated_trading.application.ports import SignalServiceProtocol as SignalServiceProtocol
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
@@ -51,56 +63,6 @@ if TYPE_CHECKING:
     from apps.strategy.application.strategy_executor import StrategyExecutor
 
 
-# Protocol接口定义
-class AssetPoolServiceProtocol(Protocol):
-    """资产池服务接口"""
-
-    def get_investable_assets(self, asset_type: str) -> list[dict[str, object]]:
-        """获取可投池资产"""
-        ...
-
-    def get_investable_assets_with_signals(
-        self,
-        asset_type: str,
-        min_score: float,
-        limit: int,
-    ) -> list[dict[str, object]]:
-        """Return investable assets that have active signals."""
-        ...
-
-    def get_asset_pool_type(self, asset_code: str) -> str | None:
-        """Return the latest pool type for one asset."""
-        ...
-
-
-class SignalServiceProtocol(Protocol):
-    """信号服务接口"""
-
-    def get_signal_snapshot(self, signal_id: int) -> dict[str, Any] | None:
-        """按ID获取信号快照"""
-        ...
-
-
-class PriceProviderProtocol(Protocol):
-    """价格提供者接口"""
-
-    def get_price(self, asset_code: str, trade_date: date) -> float | None:
-        """获取指定日期的价格"""
-        ...
-
-    def require_price(self, asset_code: str, trade_date: date) -> float:
-        """严格获取指定日期价格，缺失时抛错。"""
-        ...
-
-
-class RegimeServiceProtocol(Protocol):
-    """Regime服务接口"""
-
-    def get_current_regime(self) -> str:
-        """获取当前Regime"""
-        ...
-
-
 class PreTradeRiskGuardProtocol(Protocol):
     """Centralized pre-trade risk guard interface."""
 
@@ -118,22 +80,6 @@ class PreTradeRiskGuardProtocol(Protocol):
         current_symbol_position_value: float = 0.0,
     ) -> PreTradeRiskCheckResult:
         """Evaluate whether a proposed order can be submitted."""
-        ...
-
-
-class AutoTradingTradeRepositoryProtocol(Protocol):
-    """Trade persistence required by execution and daily net-value updates."""
-
-    def save(self, trade: SimulatedTrade) -> int:
-        """Persist one simulated trade."""
-        ...
-
-    def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
-        """Return trades for one account."""
-        ...
-
-    def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
-        """Count trades executed for an account on one date."""
         ...
 
 
@@ -235,6 +181,7 @@ class AutoTradingEngine:
         self.exit_advisor = exit_advisor
         self.execution_link_recorder = execution_link_recorder
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
+        self._exit_evaluator = AutoTradingExitEvaluator()
         self.pre_trade_risk_guard = (
             pre_trade_risk_guard
             if pre_trade_risk_guard is not None
@@ -813,30 +760,14 @@ class AutoTradingEngine:
         trade_date: date,
         state: _AccountOutcomeState,
     ) -> dict[str, PositionExitAdvice]:
-        if self.exit_advisor is None:
-            return {}
-
-        try:
-            position_objects: list[object] = list(positions)
-            advices = self.exit_advisor.get_exit_advices(
-                account_id,
-                position_objects,
-                trade_date,
-            )
-        except Exception:
-            logger.warning("exit_advisor 执行失败，回退旧卖出逻辑: account_id=%s", account_id)
-            state.add_issue(
-                kind=AutoTradingIssueKind.FAILED,
-                stage="exit_advisor",
-                code="EXIT_ADVISOR_UNAVAILABLE",
-            )
-            return {}
-
-        return {
-            advice.asset_code.strip().upper(): advice
-            for advice in advices
-            if advice.asset_code.strip()
-        }
+        return self._exit_evaluator.build_exit_advice_map(
+            account_id,
+            positions,
+            trade_date,
+            exit_advisor=self.exit_advisor,
+            state=state,
+            logger=logger,
+        )
 
     def _record_execution_link(
         self,
@@ -935,110 +866,24 @@ class AutoTradingEngine:
         trade_date: date,
         advisor_map: dict[str, PositionExitAdvice] | None = None,
     ) -> PositionExitAdvice | None:
-        """
-        生成持仓退出建议。
-
-        优先级:
-        1. 持仓已证伪
-        2. 决策层退出建议
-        3. 信号失效
-        4. 禁投池/风控阻断
-        5. 账户级止损兜底
-        """
-        if position.is_invalidated:
-            logger.info(f"    持仓 {position.asset_code} 已证伪,准备卖出")
-            return PositionExitAdvice(
-                asset_code=position.asset_code,
-                should_exit=True,
-                quantity=int(position.quantity),
-                reason_code="POSITION_INVALIDATED",
-                reason_text=position.invalidation_reason or "持仓已证伪",
-                source="simulated_trading.position_invalidation",
-            )
-
-        advisor_advice = (advisor_map or {}).get(position.asset_code.strip().upper())
-        if advisor_advice and (advisor_advice.should_exit or advisor_advice.should_reduce):
-            action = "清仓" if advisor_advice.should_exit else "减仓"
-            logger.info(
-                "    持仓 %s 命中决策层%s建议,来源=%s",
-                position.asset_code,
-                action,
-                advisor_advice.source,
-            )
-            return advisor_advice
-
-        # 1. 检查信号是否仍然有效
-        signal_valid = True
-        if position.signal_id:
-            if self.signal_service:
-                signal = self.signal_service.get_signal_snapshot(position.signal_id)
-                signal_valid = bool(signal and signal.get("is_valid", False))
-            else:
-                logger.warning("signal_service 未配置，跳过信号有效性校验: %s", position.signal_id)
-                signal_valid = True
-
-        if not signal_valid:
-            logger.info(f"    持仓 {position.asset_code} 信号失效,准备卖出")
-            return PositionExitAdvice(
-                asset_code=position.asset_code,
-                should_exit=True,
-                quantity=int(position.quantity),
-                reason_code="SIGNAL_INVALID",
-                reason_text="信号失效卖出",
-                source="simulated_trading.signal_validation",
-            )
-
-        # 2. 检查是否仍在可投池
-        if self.asset_pool_service:
-            pool_type = self.asset_pool_service.get_asset_pool_type(position.asset_code)
-            if pool_type == "prohibited":
-                logger.info(f"    持仓 {position.asset_code} 进入禁投池,准备卖出")
-                return PositionExitAdvice(
-                    asset_code=position.asset_code,
-                    should_exit=True,
-                    quantity=int(position.quantity),
-                    reason_code="PROHIBITED_POOL",
-                    reason_text="资产进入禁投池",
-                    source="simulated_trading.asset_pool",
-                )
-
-        # 3. 检查是否触发止损
-        if account.stop_loss_pct and position.unrealized_pnl_pct < -account.stop_loss_pct:
-            logger.info(
-                f"    持仓 {position.asset_code} 触发止损 "
-                f"(浮亏{position.unrealized_pnl_pct:.2f}% > 止损线{account.stop_loss_pct}%),准备卖出"
-            )
-            return PositionExitAdvice(
-                asset_code=position.asset_code,
-                should_exit=True,
-                quantity=int(position.quantity),
-                reason_code="ACCOUNT_STOP_LOSS",
-                reason_text=f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)",
-                source="simulated_trading.account_risk",
-            )
-
-        return None
+        """Preserve the engine override seam for ordered exit evaluation."""
+        return self._exit_evaluator.get_position_exit_advice(
+            position,
+            account,
+            trade_date,
+            advisor_map,
+            signal_service=self.signal_service,
+            asset_pool_service=self.asset_pool_service,
+            logger=logger,
+        )
 
     def _resolve_exit_quantity(self, position: Position, advice: PositionExitAdvice) -> int:
-        position_quantity = max(int(position.quantity), 0)
-        if advice.should_exit:
-            return position_quantity
-        if not advice.should_reduce or advice.quantity is None:
-            return 0
-
-        requested_quantity = int(advice.quantity)
-        if requested_quantity <= 0:
-            return 0
-        return min(requested_quantity, position_quantity)
+        """Preserve the engine override seam for exit quantity resolution."""
+        return self._exit_evaluator.resolve_exit_quantity(position, advice)
 
     def _get_sell_reason(self, position: Position, advice: PositionExitAdvice | None = None) -> str:
-        """获取卖出原因"""
-        if advice and advice.reason_text:
-            return str(advice.reason_text)
-        if position.unrealized_pnl_pct < 0:
-            return f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)"
-        else:
-            return "信号变化卖出"
+        """Preserve the engine override seam for sell-reason selection."""
+        return self._exit_evaluator.get_sell_reason(position, advice)
 
     def _get_buy_candidates(
         self,
@@ -1320,30 +1165,24 @@ class AutoTradingEngine:
         return None
 
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
-        """获取当前价格"""
-        if self.price_provider:
-            price: float | None = safe_float(self.price_provider.get_price(asset_code, trade_date))
-            if price is not None and price > 0:
-                return price
-
-            required_price: float | None = safe_float(
-                self.price_provider.require_price(asset_code, trade_date)
-            )
-            if required_price is not None and required_price > 0:
-                return required_price
-        return None
+        """Preserve the engine override seam for current-price resolution."""
+        return self._exit_evaluator.get_current_price(
+            asset_code,
+            trade_date,
+            price_provider=self.price_provider,
+        )
 
     def _is_exit_advice_price_triggered(
         self,
         advice: PositionExitAdvice,
         price: float,
     ) -> bool:
-        payload = {
-            "target_price_low": advice.target_price_low,
-            "target_price_high": advice.target_price_high,
-            "stop_loss_price": advice.stop_loss_price,
-        }
-        return self._is_price_triggered(action="sell", price=price, payload=payload)
+        """Preserve the engine override seam for exit price-band evaluation."""
+        return self._exit_evaluator.is_exit_advice_price_triggered(
+            advice,
+            price,
+            price_trigger=self._is_price_triggered,
+        )
 
     def _is_price_triggered(
         self,
@@ -1352,56 +1191,18 @@ class AutoTradingEngine:
         price: float,
         payload: Mapping[str, object],
     ) -> bool:
-        """Return whether current price satisfies optional execution bands."""
-
-        if not payload:
-            return True
-
-        normalized_action = str(action or "").lower()
-        if normalized_action == "sell":
-            stop_loss_price = self._pick_float(payload, "stop_loss_price", "stop_loss")
-            if stop_loss_price is not None and price <= stop_loss_price:
-                return True
-            low = self._pick_float(payload, "target_price_low", "sell_price_low", "exit_price_low")
-            high = self._pick_float(
-                payload, "target_price_high", "sell_price_high", "exit_price_high"
-            )
-        else:
-            low = self._pick_float(payload, "entry_price_low", "buy_price_low", "price_band_low")
-            high = self._pick_float(
-                payload, "entry_price_high", "buy_price_high", "price_band_high"
-            )
-
-        if low is None and high is None:
-            single_price = self._pick_float(
-                payload,
-                "entry_price",
-                "buy_price",
-                "target_price",
-                "sell_price",
-                "limit_price",
-            )
-            if single_price is None:
-                return True
-            if normalized_action == "sell":
-                low = single_price
-            else:
-                high = single_price
-
-        if low is not None and price < low:
-            return False
-        if high is not None and price > high:
-            return False
-        return True
+        """Preserve the engine override seam for price-band evaluation."""
+        return self._exit_evaluator.is_price_triggered(
+            action=action,
+            price=price,
+            payload=payload,
+            pick_float=self._pick_float,
+        )
 
     @staticmethod
     def _pick_float(payload: Mapping[str, object], *keys: str) -> float | None:
-        for key in keys:
-            parsed: float | None = safe_float(payload.get(key))
-            if parsed is None or parsed <= 0:
-                continue
-            return parsed
-        return None
+        """Preserve the engine override seam for numeric payload extraction."""
+        return AutoTradingExitEvaluator.pick_float(payload, *keys)
 
     def _update_account_performance(self, account_id: int, trade_date: date) -> bool:
         """

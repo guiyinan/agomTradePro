@@ -1,0 +1,157 @@
+{
+  "scope": "Actual check_large_python_file_baseline only; not full-repository governance.",
+  "reports": {
+    "before": {
+      "source_tree": "1cdb1509ad263e6583b2c1c301f047669f26fb13",
+      "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-auto-scope-ocl32cvy",
+      "violations": [
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
+          "message": "Production Python file has 1328 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+          "message": "Production Python file has 1731 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "message": "Production Python file has 1296 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "message": "Production Python file has 1387 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/models.py",
+          "message": "Production Python file has 1372 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_metadata.py",
+          "message": "Production Python file has 1256 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+          "message": "Production Python file has 1373 non-empty lines, above limit 1200.",
+          "line": null
+        }
+      ],
+      "stats": {
+        "line_limit": 1200,
+        "large_file_count": 7,
+        "large_files": {
+          "apps/data_center/infrastructure/fact_and_operational_models.py": 1328,
+          "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+          "apps/simulated_trading/domain/execution_settlement_uow.py": 1296,
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": 1387,
+          "apps/simulated_trading/infrastructure/models.py": 1372,
+          "apps/terminal/application/tui_metadata.py": 1256,
+          "apps/terminal/application/tui_workbench_result_models_specialized.py": 1373
+        },
+        "allowed_large_file_count": 0
+      }
+    },
+    "after": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-mcp-auto-scope-m9fwrt50",
+      "violations": [
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/fact_and_operational_models.py",
+          "message": "Production Python file has 1328 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+          "message": "Production Python file has 1731 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/application/auto_trading_engine.py",
+          "message": "Production Python file has 1325 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/application/tasks.py",
+          "message": "Production Python file has 1319 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+          "message": "Production Python file has 1296 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "message": "Production Python file has 1387 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/simulated_trading/infrastructure/models.py",
+          "message": "Production Python file has 1372 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_metadata.py",
+          "message": "Production Python file has 1256 non-empty lines, above limit 1200.",
+          "line": null
+        },
+        {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+          "message": "Production Python file has 1373 non-empty lines, above limit 1200.",
+          "line": null
+        }
+      ],
+      "stats": {
+        "line_limit": 1200,
+        "large_file_count": 9,
+        "large_files": {
+          "apps/data_center/infrastructure/fact_and_operational_models.py": 1328,
+          "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+          "apps/simulated_trading/application/auto_trading_engine.py": 1325,
+          "apps/simulated_trading/application/tasks.py": 1319,
+          "apps/simulated_trading/domain/execution_settlement_uow.py": 1296,
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": 1387,
+          "apps/simulated_trading/infrastructure/models.py": 1372,
+          "apps/terminal/application/tui_metadata.py": 1256,
+          "apps/terminal/application/tui_workbench_result_models_specialized.py": 1373
+        },
+        "allowed_large_file_count": 0
+      }
+    }
+  },
+  "own_added_violations": [
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/simulated_trading/application/auto_trading_engine.py"
+    },
+    {
+      "code": "large_python_file_missing_baseline",
+      "path": "apps/simulated_trading/application/tasks.py"
+    }
+  ],
+  "checker_raw_sha256": "f50bc988f6f1aed730aa78fbbc6813d1e4d35cfd336c084fb6f16c51cd3450a6",
+  "baseline_increased": false,
+  "read_only": true,
+  "release_ci_s6_identity": false
+}

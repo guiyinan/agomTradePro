@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5796,
+    "current_surface_references": 5801,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20340,11 +20340,19 @@
     },
     {
       "path": "apps/simulated_trading/application/auto_trading_engine.py",
-      "text": "\"\"\"Return the latest pool type for one asset.\"\"\""
+      "text": "\"\"\"Preserve the engine override seam for current-price resolution.\"\"\""
     },
     {
-      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "path": "apps/simulated_trading/application/auto_trading_exit_evaluator.py",
+      "text": "\"\"\"Evaluate an exit advice using the engine's current trigger callback.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_exit_evaluator.py",
       "text": "\"\"\"Return whether current price satisfies optional execution bands.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_exit_evaluator.py",
+      "text": "the engine's current collaborators and its established override seams stay"
     },
     {
       "path": "apps/simulated_trading/application/auto_trading_outcome_reporting.py",
@@ -20515,6 +20523,18 @@
       "text": "summary dict with keys: account_id, initial_capital_written,"
     },
     {
+      "path": "apps/simulated_trading/application/ports.py",
+      "text": "\"\"\"Current market regime reads required by auto-trading.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "text": "\"\"\"Return the current regime identifier.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/application/ports.py",
+      "text": "\"\"\"Return the latest pool type for one asset.\"\"\""
+    },
+    {
       "path": "apps/simulated_trading/application/position_invalidation_checker.py",
       "text": "\"\"\"Return the latest observation for one indicator.\"\"\""
     },
@@ -20579,6 +20599,10 @@
       "text": "raise SimulatedAccountRowSourceV2Unavailable(\"exact current raw observation is unavailable\")"
     },
     {
+      "path": "apps/simulated_trading/application/task_contract_support.py",
+      "text": "\"summary\": {"
+    },
+    {
       "path": "apps/simulated_trading/application/task_notifications.py",
       "text": "\"summary:\","
     },
@@ -20621,10 +20645,6 @@
     {
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "\"\"\"Execute one realtime polling cycle through the owning realtime app.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "\"summary\": {"
     },
     {
       "path": "apps/simulated_trading/application/tasks.py",

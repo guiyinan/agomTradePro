@@ -1,0 +1,9 @@
+{
+  "source_tree": "98b51b21a593682f0d0ce9c815edb2209b55b009",
+  "results": {
+    "incremental-mypy": 0,
+    "full-mypy": 0
+  },
+  "exit": 0,
+  "changed_during_run": []
+}

@@ -1,0 +1,28 @@
+source_tree=b5bbc88eb10be59659f2e2483537001fb83169a1
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-r_s2faj8
+Governance baseline version: 2026-09-09.v220
+Governance violations: 7
+- governance_baseline: 0 violation(s)
+- docs_consistency: 0 violation(s)
+- docs_links: 0 violation(s)
+- governance_docs: 0 violation(s)
+- module_shape: 0 violation(s)
+- misplaced_app_config: 0 violation(s)
+- singular_dto_files: 0 violation(s)
+- architecture_ruleset: 0 violation(s)
+- module_dependency_baseline: 0 violation(s)
+- ci_governance_wiring: 0 violation(s)
+- application_third_party_imports: 0 violation(s)
+- core_integration_debt: 0 violation(s)
+- core_management_command_debt: 0 violation(s)
+- large_python_files: 7 violation(s)
+- large_file_remediation: 0 violation(s)
+
+Violations:
+- large_python_file_missing_baseline: apps/data_center/infrastructure/fact_and_operational_models.py - Production Python file has 1328 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py - Production Python file has 1731 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/simulated_trading/domain/execution_settlement_uow.py - Production Python file has 1296 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py - Production Python file has 1387 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/simulated_trading/infrastructure/models.py - Production Python file has 1372 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/terminal/application/tui_metadata.py - Production Python file has 1256 non-empty lines, above limit 1200.
+- large_python_file_missing_baseline: apps/terminal/application/tui_workbench_result_models_specialized.py - Production Python file has 1373 non-empty lines, above limit 1200.
