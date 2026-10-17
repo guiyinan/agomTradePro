@@ -24,6 +24,7 @@ def test_manifest_covers_server_side_tui_contract() -> None:
         "config/tui/ia/tui_information_architecture.v1.json",
         "apps/terminal/application/tui_metadata.py",
         "apps/terminal/application/tui_metadata_constants.py",
+        "apps/terminal/application/tui_metadata_continuation_validation.py",
         "apps/terminal/application/tui_metadata_field_aliases.py",
         "apps/terminal/application/tui_experience.py",
         "apps/terminal/application/tui_workbench.py",

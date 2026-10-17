@@ -1,8 +1,8 @@
 {
   "version": "0.2.0",
   "source_owner": "AgomTradePro",
-  "upstream_commit": "5a373862db8a03417f98e48d89cc2865696c2975",
-  "build_id": "agomtui-runtime-0.2.0+11ef547ae008",
+  "upstream_commit": "f5df7c709f4ee5cf161078b83c165c090d434fdd",
+  "build_id": "agomtui-runtime-0.2.0+515933915c64",
   "direction": "AgomTradePro -> AgOMTUI",
   "contracts": {
     "screen_dashboard_layouts": [
@@ -40,11 +40,12 @@
     "static/css/tui-workbench.css": "9224ea70c21b2a22d4b4759c2bca3b76abd7182c37867ab7ae6be0b4509fe5b2",
     "config/tui/ia/tui_information_architecture.v1.json": "c3aa5b8dd3dbf5e8c86d693d30b5eff0fe00046495a316e44d02d1a43064ac87",
     "apps/terminal/application/tui_metadata_constants.py": "372ef9a906b0f0723e03dd7f2a0235fd35dde6dcacb8a701ba4ba656041f804c",
+    "apps/terminal/application/tui_metadata_continuation_validation.py": "7f0e8155b701f27992f10ac19020036d8c81f9d5a59c7406bc61a64d52bf5c7a",
     "apps/terminal/application/tui_metadata_field_aliases.py": "117c6a3de5c529d537783399f553efc50d4bf9c0507c0b3d503f56f1c072269a",
     "apps/terminal/application/tui_metadata_filter_validation.py": "2e2bc9b3ee6fa28e9e81e8c669f682ed7de8cba4df4ea9a28120ab47c86e521e",
-    "apps/terminal/application/tui_metadata.py": "5cfe252e853146b9e937cecc6e4a816d8a8dfd8eac60c45beb27fe9859c7415c",
+    "apps/terminal/application/tui_metadata.py": "afa6ef993c5303cdfef7fd0c22cb72cb93115876a759cf040a09ffa364197d87",
     "apps/terminal/infrastructure/tui_information_architecture.py": "38c31bd08783be3fd805a8ed7cbb5bcb2de98c24a6dd6a050365fb46b66b0a1c",
-    "apps/terminal/infrastructure/tui_metadata_repository.py": "1c286c6b15d833b98a7ef5efe191a0c9a83a9f09a1f303047619588e69b39188",
+    "apps/terminal/infrastructure/tui_metadata_repository.py": "bba1383b247522daace29a99ab3fc28fdf9795753de15b9bf0220777ffdf9cc6",
     "apps/terminal/infrastructure/tui_metadata_repository_helpers.py": "ebbc590053ee8ef193dd6fb6ebc08ff4919b7c315aae2d54b31a0e7ea3399434",
     "apps/terminal/infrastructure/tui_metadata_signals.py": "0c0071c88fcba28eec726cc7891ca9b0592b5b4d5c064b7f104cd85f0288bb5d",
     "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_alpha_policy.py": "b54a03766128b6602012ca9711cc09d2861ccbdd5f44ae43db07247ac9b141ca",

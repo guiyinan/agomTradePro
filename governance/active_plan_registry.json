@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v253",
+  "version": "2026-10-17.v254",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.52: three simulated models relocated with complete AST/old facades/16-model registry order preserved; frozen8590440d actual703unit/33HTTPcompat/46SQLite passed,4PG-only skip, schema unchanged; default full and incremental mypy/style/architecture/official projections0. Initial private socketpair guard and cached-import source-check assumptions corrected without production changes; original failures retained. Root owns remaining4 size/9 retirement failures; no baseline/floor/pin waiver. Prioritize the two independent terminal extraction slices then bounded TUX08 handoff, before resuming Domain/calendar; all acceptance criteria preserved. ASH02 single focus,79units/closure72,C-quality requirements/stops unchanged. Ordinary settlement/source-purpose/PIT,fees missing-vs-zero,default MCP frozen scope/fullGoal remain open. Evidence: docs/testing/a-share-usability-simulated-model-size-2026-10-17.json.",
+      "next_gate": "Plan19.53: continuation validator extracted with AST/error/call identity; helper-only cache invalidation and manifest coverage actual RED then GREEN. Frozen d5b2b890 actual 484Python/100Node/native HTTP+browser2 passed; default full/incremental mypy,style,architecture,runtime/module/contract checks0. Frontend bundles unchanged; synthetic calendar boundary only. Root owns remaining3 size/9 retirement failures, no baseline/floor/pin waiver. Calendar result extraction next, then bounded TUX08 handoff before Domain/formal-calendar resumes. ASH02 focus/79units/closure72/C-quality/stops unchanged; fullGoal and financial/source/PIT/fees/MCP obligations open. Evidence: docs/testing/a-share-usability-tui-continuation-size-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

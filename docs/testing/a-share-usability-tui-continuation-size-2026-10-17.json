@@ -1,0 +1,112 @@
+{
+  "status": "bounded-continuation-validator-extraction-verified",
+  "base_commit": "f5df7c709f4ee5cf161078b83c165c090d434fdd",
+  "source_tree": "d5b2b89019fd62dbbe85701b4cb3b29e4f6abae0",
+  "source_commit": "41498fed3bfc5403200ecd95814a03177090e8b9",
+  "production": [
+    "apps/terminal/application/tui_metadata.py",
+    "apps/terminal/application/tui_metadata_continuation_validation.py",
+    "apps/terminal/infrastructure/tui_metadata_repository.py"
+  ],
+  "tests": [
+    "tests/unit/test_tui_runtime_manifest_contract.py",
+    "tests/unit/terminal/test_tui_continuation_contract_cache.py"
+  ],
+  "source_lf_sha256": {
+    "apps/terminal/application/tui_metadata.py": "afa6ef993c5303cdfef7fd0c22cb72cb93115876a759cf040a09ffa364197d87",
+    "apps/terminal/application/tui_metadata_continuation_validation.py": "7f0e8155b701f27992f10ac19020036d8c81f9d5a59c7406bc61a64d52bf5c7a",
+    "apps/terminal/infrastructure/tui_metadata_repository.py": "bba1383b247522daace29a99ab3fc28fdf9795753de15b9bf0220777ffdf9cc6",
+    "tests/unit/test_tui_runtime_manifest_contract.py": "cd2e9157543ab50321c6cd831c79125bd0d33e9b68910f07d8fce41fce3b718b",
+    "tests/unit/terminal/test_tui_continuation_contract_cache.py": "865d8591601147325278efd6eb7badd2a0f178525d3e7e681b7117ba8be9950d"
+  },
+  "verified": {
+    "python_regression": {
+      "passed": 484,
+      "skipped": 0,
+      "seconds": 370.3
+    },
+    "node_tests": 100,
+    "native_http_and_browser": {
+      "passed": 2,
+      "skipped": 0,
+      "seconds": 94.47
+    },
+    "actual_phase_exit_codes": {
+      "build": {
+        "runtime-build": 0,
+        "runtime-check": 0,
+        "module-build": 0
+      },
+      "unit": {
+        "python-regression": 0
+      },
+      "node": {
+        "node-regression": 0
+      },
+      "typing": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "style": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0,
+        "architecture": 0,
+        "size": 0
+      },
+      "governance": {
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0,
+        "check_data_dictionary": 0,
+        "full-governance": 1,
+        "retirement": 1
+      },
+      "native": {
+        "native-before": 0,
+        "native-journey": 0,
+        "native-after": 0
+      }
+    },
+    "red": "Two actual failures before cache dependency fix and official manifest regeneration",
+    "ast": "Complete validator annotations/body/doc/error constructions, remaining nonimport AST and sole call expression identical to parent; same error class; independent Luna Max review",
+    "cache": "Changing only continuation helper bytes invalidates the published metadata source token; test clears lru cache before/after",
+    "projection": "Official runtime build/check0; only main/repository/helper source hashes and derived build ID/upstream change. All three frontend bundles byte-identical after LF normalization; module map only terminal.application28→29",
+    "source_patch_reconstructs_exact_tree": true,
+    "post_document_actual_exits": {
+      "registry": 0,
+      "registry-tests": 0,
+      "docs-links": 0,
+      "module": 0,
+      "runtime": 0
+    },
+    "generated_lf_sha256": {
+      "config/tui/agomtui-runtime.manifest.json": "d094ecdfc74f1847ed14bf10ef171764f0e22e628500ab981ee3182c5882ac8a",
+      "governance/module_map.json": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+    },
+    "runtime_build_id": "agomtui-runtime-0.2.0+515933915c64",
+    "post_document_registry_tests_passed": 8
+  },
+  "native_boundary": "Existing child test_ash_plan_binding_01a14268 only. Real root routes, Session/CSRF, owner, confirmation, audit redaction and Chromium task flow; calendar transport and preview secret synthetic. Read-only probes before/after pin child546/parent544 migrations and parent authority singleton(1,0). No production/provider qualification.",
+  "open_gates": {
+    "full_governance_exit": 1,
+    "size_failures": 3,
+    "retirement_exit": 1,
+    "retirement_failures": 9,
+    "all_owned_by_goal": true,
+    "no_baseline_floor_pin_allowlist_relaxation": true
+  },
+  "protected_raw_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "verification_limits": [
+    "No CI/S6, deployment or live broker/source authority",
+    "No claim of OS network audit for Python/Node tests",
+    "No new Domain coverage measurement; Domain unchanged"
+  ],
+  "next": "Independent calendar result projection extraction, then explicit bounded TUX08 handoff, then Domain/formal-calendar and financial/retirement work; full ASH01–12 Goal remains open",
+  "rollback": "Reverse this independent extraction, cache dependency, tests and generated/doc changes; no database migration or restore",
+  "evidence": "artifacts/a-share-usability/ash01/tui-continuation-size-evidence-2026-10-17.json"
+}

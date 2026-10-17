@@ -1185,3 +1185,14 @@ Root实际703项已提交模拟交易模块单元（含新注册测试）通过7
 两源增量mypy与默认apps/core/shared全库债务门实际0；三源Black/isort/Ruff、架构含audit、官方增量尺寸门0。原models.py1372→927非空行，新文件454；完整治理仍实际exit1，尺寸5→4；retirement仍exit1九项，全部Goal责任，未改baseline/allowlist/floor/checker pin。Domain逻辑未改，无新增覆盖率声明。原parent的18项同组集成及DC两库存实际通过；本批官方字典/Markdown/module生成，字典只三source_file与派生位置变，其余模型/字段/Meta/数量不变。module map现有启发式只扫models.py/models包，因此静态ORM列表去掉三条、infra数+1；这不代表真实模型减少，Django仍16。current/audit/Celery与DC投影复核保持，不手改生成物。源patch经辅助index重建匹配，原始日志/摘要与红绿保留在[检查点](../testing/a-share-usability-simulated-model-size-2026-10-17.json)的统一证据包。
 
 本批只提交职责搬移及对应测试/投影/文档，不授予普通结算、来源/研究/Evidence/订单资格。ASH-02唯一集成焦点、79单元/closure72、完整ASH-01～12、其余4尺寸/9版本、费用missing/zero和默认MCP名单冻结继续开放。为让并行TUI主任务有界集成，已协调将19.49中两个独立terminal提取切片提前至本批之后，完成并独立提交后再明确借出TUX08主体窗口；Domain/calendar随后接回。只是独立批次顺序调整，不放宽原验收、停止线或真实用户任务要求。
+
+
+### 19.53 Continuation metadata 校验器提取与缓存依赖验收
+
+本批 parent 为 `f5df7c709f4ee5cf161078b83c165c090d434fdd`，冻结源码树 `d5b2b89019fd62dbbe85701b4cb3b29e4f6abae0`。Luna Max 提取完整 `_validate_result_continuations`，保留注解、错误类、错误构造、唯一调用阶段及其余非导入 AST；主文件由1255降至1131非空行，helper133行。没有放宽隐藏字段、人工确认、Session、受众、同屏目标、脱敏或禁止串联规则。
+
+Root发现服务端缓存只依赖主metadata文件，故同批把新helper加入原source token。新增helper字节变化测试与manifest必需文件断言先得到真实2failed；补齐依赖并运行官方runtime构建后通过。三份前端bundle与parent逐字节LF一致；manifest只增加helper并更新主文件/仓库hash、派生build_id与真实parent upstream，未改schema、IA、published graph或用户流程。官方module map只增加terminal.application文件数28→29。
+
+不可变导出实际Python回归484通过、Node 100通过；覆盖workbench/continuation、compiler、manifest、experience，以及terminal agent/SDK/SSL最小包。实际PostgreSQL子库原生HTTP与Chromium旅程2通过，走真实Session/CSRF、owner、准备、确认、发布、读取与审计脱敏；外部日历输入和预览密钥为synthetic。前后只读核对子库546、父库544迁移，父库权限singleton仍(1,0)。这不授予真实Provider或生产权限。增量/默认全量mypy、Black/isort/Ruff、架构、增量大小、官方投影/契约检查均为0。
+
+全量治理仍实际exit1，Goal自产超大文件4→3；版本退役仍exit1共9项。未提高baseline/floor/pin或allowlist。ASH-02唯一focus、79units、closure72与C-quality条件保持；保护中的原结算/费用RED未修改、未暂存。下一批先完成calendar result projection，随后明确交回TUX08窗口，再继续Domain/formal calendar及金融缺口。ASH01–12完整Goal仍active。详细证据：`docs/testing/a-share-usability-tui-continuation-size-2026-10-17.json`。

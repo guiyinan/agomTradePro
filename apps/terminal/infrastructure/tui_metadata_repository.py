@@ -412,6 +412,7 @@ class PublishedTuiMetadataRepository:
         contract_paths = [
             TUI_IA_PATH,
             application_metadata_path,
+            application_metadata_path.with_name("tui_metadata_continuation_validation.py"),
             infrastructure_dir.parent / "application" / "tui_experience.py",
             Path(__file__).resolve(),
             infrastructure_dir / "tui_information_architecture.py",
