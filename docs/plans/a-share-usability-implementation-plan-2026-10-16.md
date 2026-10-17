@@ -869,3 +869,15 @@ Native 首跑 5 failed / 2 passed，实际原因是 pytest-django 仅从 marker 
 本批未新增模型、迁移、路由或业务种子。完整证据见[配置概览检查点](../testing/a-share-usability-calendar-workbench-scope-2026-10-17.json)。计划登记 v227，74 单元、ASH-02 继续唯一集成焦点；下批中央密钥和原期限令牌基础，再接专用 API/TUI 与浏览器主任务，然后普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03 与整体 Goal 继续开放，DATA-18 仍约束 ASH-11；没有生产部署、真实 Provider、授权/目录种子、研究/Evidence、外部 dispatch 或券商放行，broker_order_evidence_integrated 仍 false。
 
 最终测试支持文件加入后，入口 stale-check 实际拒绝了旧投影。主代理审查两项仅测试的 Native setup/helper evidence，将其显式登记为 adjacent_operational，使用官方脚本重生成并复验：入口 1,357，REST 76、candidate-review 11 不变；新增两项不授予生产或业务执行能力。Native 后只改变这份治理登记和生成入口投影，源码与测试未变，保留原失败日志及独立树身份。
+
+### 19.35 中央预览密钥与原期限令牌基础独立验收
+
+配置概览批 `961c3800d` 后，本批仅接受中央秘密的显式 env-only 预览密钥分支、不可变预览令牌 DTO 与严格加密 codec。既有无参数 get_secrets 保留数据库优先和必需 Tushare token 语义；新分支严格接受 bool，零数据库 loader 调用。新密钥字段保留旧构造签名，隐藏于 repr，不参与 equality。密钥缓存须显式清理或重启才轮换，无旧密钥 keyring；历史 provider 凭据 repr 和混用显式 True 调用的缓存形状问题仍属已记录的既有边界。
+
+令牌仅从完整服务端 Preview 构造，绑定原 first_seen、原 contract TTL 推导的到期时间、完整发布 intent/CAS、actor、session 摘要与 default alias。它只承载交接，不授予发布权限或表示一次性消费；确认 owner 仍须重新验权、验源和 CAS。wire v2 置于既有 encrypted:v1 Fernet 内，先校验前缀再解密，严格校验 key 集合、重复字段、原生类型、规范 UTC/日期及大小，不接受客户端续期。
+
+独立只读审查实际复现可延长原源期限的候选缺口，持久 red 为 1 failed；修复后保留原期限精确等式。另以 3,000 层、仍在大小限制内的嵌套 JSON 实际复现 RecursionError，新增 typed invalid-payload 映射并保留 red；较浅 1,000 层探针没有复现，未冒充失败。无生产入口在本批接入 codec。
+
+独立导出 `71a9c5db866b943cf002dd78c30634d14964afad` 的五份回归 **91 passed / 3.03 秒**。三个生产文件增量 mypy 零回归、全生产债务零，五文件 Black/isort/Ruff 通过，37 个生产函数参数/返回与 public docstring 无缺项。覆盖分别为 App 69/79 语句、16/20 分支；Infrastructure 176/208 语句、48/62 分支；shared secrets 53/57 语句、11/12 分支。当前父提交上的投影检查使用独立源码树 `b69cedb067fd7cf2df29dc6c91252db6679bca87`，三生产文件架构 882 新增行、boundary/audit 零；两窗口的五个所属文件按 LF 和 AST 核验相等，保留原字节及树身份，不合并为同一 CI/S6 或 release 身份。
+
+生成投影由官方脚本产生并通过全部 stale-check；42 app / 588 model / 9,087 field，44 模块 / 210 依赖，84 freshness surface、23 Audit event、1,357 入口，无新模型、迁移或路由。完整源与原件绑定见[令牌基础检查点](../testing/a-share-usability-calendar-preview-foundation-2026-10-17.json)。计划登记 v228 / 74 单元，ASH-02 继续唯一集成焦点。下一批接工作台用例、配置驱动 current 查询、真实 Session/CSRF API，再独立验收通用 TUI 交接与浏览器主任务。原 ASH-01、完整 ASH-02/03、普通模拟/回测消费者及整体 Goal 继续开放；DATA-18 对 ASH-11 的门禁、生产/真实 Provider/研究/Evidence/外部 dispatch/券商验收均未放行，broker_order_evidence_integrated 仍 false。

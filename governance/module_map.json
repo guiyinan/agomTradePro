@@ -4063,6 +4063,11 @@
         "application/calendar_formal_publication_audit_port.py": [
           "CalendarFormalPublicationAuditPort"
         ],
+        "application/calendar_preview_token.py": [
+          "CalendarPreviewTokenCodec",
+          "CalendarPreviewTokenContent",
+          "CalendarPreviewTokenError"
+        ],
         "application/calendar_publication_authority.py": [
           "AuthorizeCalendarPublisherUseCase",
           "CalendarPublisherAuthorityRepositoryPort",
@@ -5313,9 +5318,9 @@
         ]
       },
       "layers": {
-        "application": 157,
+        "application": 158,
         "domain": 42,
-        "infrastructure": 192,
+        "infrastructure": 193,
         "interface": 26,
         "management": 42,
         "root": 29

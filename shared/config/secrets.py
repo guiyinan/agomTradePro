@@ -12,7 +12,7 @@ Unified Secrets Management.
 
 import os
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from shared.domain.interfaces import DataSourceSecretsDTO
@@ -21,6 +21,7 @@ from shared.domain.interfaces import DataSourceSecretsDTO
 @dataclass(frozen=True)
 class DataSourceSecrets:
     """数据源 API 密钥"""
+
     tushare_token: str
     fred_api_key: str
     tushare_http_url: str | None = None
@@ -31,9 +32,11 @@ class DataSourceSecrets:
 @dataclass(frozen=True)
 class AppSecrets:
     """应用密钥配置"""
+
     data_sources: DataSourceSecrets
     slack_webhook: str | None = None
     alert_email: str | None = None
+    field_encryption_key: str | None = field(default=None, repr=False, compare=False)
 
 
 # ========== 注册表模式 ==========
@@ -74,6 +77,7 @@ def _load_from_env() -> AppSecrets:
         ),
         slack_webhook=os.environ.get("SLACK_WEBHOOK_URL"),
         alert_email=os.environ.get("ALERT_EMAIL"),
+        field_encryption_key=_load_field_encryption_key_from_env(),
     )
 
 
@@ -104,6 +108,7 @@ def _load_from_database() -> AppSecrets | None:
                 ),
                 slack_webhook=os.environ.get("SLACK_WEBHOOK_URL"),
                 alert_email=os.environ.get("ALERT_EMAIL"),
+                field_encryption_key=_load_field_encryption_key_from_env(),
             )
         return None
 
@@ -113,21 +118,35 @@ def _load_from_database() -> AppSecrets | None:
         return None
 
 
-@lru_cache(maxsize=1)
-def get_secrets() -> AppSecrets:
+def _load_field_encryption_key_from_env() -> str | None:
+    """Return the existing field-encryption key without logging its value."""
+
+    return os.environ.get("AGOMTRADEPRO_ENCRYPTION_KEY") or None
+
+
+@lru_cache(maxsize=2, typed=True)
+def get_secrets(*, require_tushare_token: bool = True) -> AppSecrets:
     """
     获取应用密钥配置
 
-    优先级:
-    1. 数据库配置（DataSourceConfig）
-    2. 环境变量
+    ``require_tushare_token=True`` 保持原有行为：优先读取数据库数据源，
+    再回退到环境变量，并在没有 Tushare Token 时抛出错误。
+    ``False`` 只读取环境变量，不调用数据库数据源加载器，也不要求配置
+    Tushare Token；适用于只需要现有应用加密密钥的基础设施功能。
 
     Returns:
         AppSecrets: 应用密钥配置
 
     Raises:
         EnvironmentError: 如果没有配置 Tushare Token
+        TypeError: 如果 require_tushare_token 不是 bool
     """
+    if type(require_tushare_token) is not bool:
+        raise TypeError("require_tushare_token must be a bool")
+
+    if not require_tushare_token:
+        return _load_from_env()
+
     # 先尝试从数据库读取
     db_secrets = _load_from_database()
     if db_secrets and db_secrets.data_sources.tushare_token:

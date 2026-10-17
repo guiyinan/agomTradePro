@@ -1,0 +1,3568 @@
+{
+  "recorded_at": "2026-10-17T00:13:33.098715+00:00",
+  "status": "bounded_preview_token_foundation_acceptance",
+  "quality_reference": {
+    "recorded_at": "2026-10-16T23:25:05.517295+00:00",
+    "source_tree": "71a9c5db866b943cf002dd78c30634d14964afad",
+    "base_staged_tree": "147dc724a9cfa0cb50081064ec44dc0b366e259a",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-preview-foundation-y_skvylx",
+    "owned_paths": [
+      "shared/config/secrets.py",
+      "apps/data_center/application/calendar_preview_token.py",
+      "apps/data_center/infrastructure/calendar_preview_token.py",
+      "tests/unit/shared/config/test_preview_key_secrets.py",
+      "tests/unit/data_center/test_calendar_preview_token.py"
+    ],
+    "source_sha256": {
+      "shared/config/secrets.py": "8dd32d3b521bd28976557989f432c1f22d1e12664a49c93258be1eca4cf3fb56",
+      "apps/data_center/application/calendar_preview_token.py": "1ab7e93fbbd093a581e0f5e417e00d7f0b1185ab775b6a3e07ca4dd895e103f2",
+      "apps/data_center/infrastructure/calendar_preview_token.py": "ea5ce3039995b964b70ee8f2628440547e80c48bef15ae8dcbe82ddb4c548ea2",
+      "tests/unit/shared/config/test_preview_key_secrets.py": "22d37a7bdf756107b8bea74a776a20368ac4da5be05ef938d2bdf9891e50a00a",
+      "tests/unit/data_center/test_calendar_preview_token.py": "69b0b12b12b209251b36b39bd353baafdddb17aa94343fb4f5a706278523a8e1"
+    },
+    "proof": "Auxiliary index only; shared index unchanged. QA includes staged scope predecessor; no workbench/API/UI candidates. Raw/LF identities separate; not release/CI/S6."
+  },
+  "projection_source_tree": "b69cedb067fd7cf2df29dc6c91252db6679bca87",
+  "projection_export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-index-calendar-preview-foundation-djvb3elu",
+  "final_source_tree_before_acceptance_metadata": "dfd6cb3c33af36993be58b7076a00d2e545fcc24",
+  "tests": {
+    "passed": 91,
+    "seconds": 3.03,
+    "files": 5
+  },
+  "production_files": 3,
+  "mypy_new_errors": 0,
+  "mypy_full_errors": 0,
+  "baseline_changed": false,
+  "function_contracts": {
+    "functions": [
+      {
+        "file": "shared/config/secrets.py",
+        "function": "register_database_secrets_loader"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "_load_from_env"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "_load_from_database"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "_load_field_encryption_key_from_env"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "get_secrets"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "clear_secrets_cache"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "get_tushare_token"
+      },
+      {
+        "file": "shared/config/secrets.py",
+        "function": "get_tushare_http_url"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "_require_utc"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "__init__"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "__post_init__"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "validate"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "from_preview"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "encode"
+      },
+      {
+        "file": "apps/data_center/application/calendar_preview_token.py",
+        "function": "decode"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_encryption_service"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_content_payload"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_content_from_payload"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_parse_payload"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_unique_object"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_reject_json_constant"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_reject_json_float"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_require_object"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_expect_text"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_expect_optional_text"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_expect_int"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_parse_date"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_parse_utc"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_format_utc"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_require_utc"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_canonical_json"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_validate_expected_binding"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_raise_json_error"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "_raise_token_error"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "__init__"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "encode"
+      },
+      {
+        "file": "apps/data_center/infrastructure/calendar_preview_token.py",
+        "function": "decode"
+      }
+    ],
+    "issues": []
+  },
+  "architecture": {
+    "files": 3,
+    "added_lines": 882,
+    "boundary": 0,
+    "audit": 0
+  },
+  "coverage": {
+    "apps\\data_center\\application\\calendar_preview_token.py": {
+      "executed_lines": [
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        10,
+        15,
+        16,
+        19,
+        21,
+        22,
+        23,
+        26,
+        27,
+        29,
+        30,
+        32,
+        35,
+        38,
+        39,
+        40,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        54,
+        57,
+        59,
+        62,
+        67,
+        72,
+        76,
+        80,
+        84,
+        88,
+        92,
+        93,
+        106,
+        107,
+        108,
+        109,
+        110,
+        114,
+        115,
+        118,
+        119,
+        123,
+        124,
+        128,
+        134,
+        135,
+        144,
+        149,
+        150,
+        151,
+        152,
+        161,
+        162,
+        177,
+        178,
+        180,
+        183,
+        195,
+        198,
+        199,
+        203,
+        204,
+        210,
+        215
+      ],
+      "summary": {
+        "covered_lines": 69,
+        "num_statements": 79,
+        "percent_covered": 85.85858585858585,
+        "percent_covered_display": "85.9",
+        "missing_lines": 10,
+        "excluded_lines": 0,
+        "num_branches": 20,
+        "num_partial_branches": 4,
+        "covered_branches": 16,
+        "missing_branches": 4
+      },
+      "missing_lines": [
+        63,
+        94,
+        102,
+        129,
+        145,
+        163,
+        171,
+        205,
+        206,
+        211
+      ],
+      "excluded_lines": [],
+      "executed_branches": [
+        [
+          62,
+          67
+        ],
+        [
+          67,
+          72
+        ],
+        [
+          67,
+          76
+        ],
+        [
+          76,
+          80
+        ],
+        [
+          76,
+          84
+        ],
+        [
+          84,
+          88
+        ],
+        [
+          84,
+          92
+        ],
+        [
+          109,
+          110
+        ],
+        [
+          109,
+          114
+        ],
+        [
+          123,
+          124
+        ],
+        [
+          123,
+          128
+        ],
+        [
+          128,
+          -59
+        ],
+        [
+          144,
+          149
+        ],
+        [
+          198,
+          199
+        ],
+        [
+          198,
+          203
+        ],
+        [
+          210,
+          215
+        ]
+      ],
+      "missing_branches": [
+        [
+          62,
+          63
+        ],
+        [
+          128,
+          129
+        ],
+        [
+          144,
+          145
+        ],
+        [
+          210,
+          211
+        ]
+      ],
+      "functions": {
+        "CalendarPreviewTokenError.__init__": {
+          "executed_lines": [
+            35
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "CalendarPreviewTokenContent.__post_init__": {
+          "executed_lines": [
+            57
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "CalendarPreviewTokenContent.validate": {
+          "executed_lines": [
+            62,
+            67,
+            72,
+            76,
+            80,
+            84,
+            88,
+            92,
+            93,
+            106,
+            107,
+            108,
+            109,
+            110,
+            114,
+            115,
+            118,
+            119,
+            123,
+            124,
+            128
+          ],
+          "summary": {
+            "covered_lines": 21,
+            "num_statements": 25,
+            "percent_covered": 84.61538461538461,
+            "percent_covered_display": "84.6",
+            "missing_lines": 4,
+            "excluded_lines": 0,
+            "num_branches": 14,
+            "num_partial_branches": 2,
+            "covered_branches": 12,
+            "missing_branches": 2
+          },
+          "missing_lines": [
+            63,
+            94,
+            102,
+            129
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              62,
+              67
+            ],
+            [
+              67,
+              72
+            ],
+            [
+              67,
+              76
+            ],
+            [
+              76,
+              80
+            ],
+            [
+              76,
+              84
+            ],
+            [
+              84,
+              88
+            ],
+            [
+              84,
+              92
+            ],
+            [
+              109,
+              110
+            ],
+            [
+              109,
+              114
+            ],
+            [
+              123,
+              124
+            ],
+            [
+              123,
+              128
+            ],
+            [
+              128,
+              -59
+            ]
+          ],
+          "missing_branches": [
+            [
+              62,
+              63
+            ],
+            [
+              128,
+              129
+            ]
+          ]
+        },
+        "CalendarPreviewTokenContent.from_preview": {
+          "executed_lines": [
+            144,
+            149,
+            150,
+            151,
+            152,
+            161,
+            162
+          ],
+          "summary": {
+            "covered_lines": 7,
+            "num_statements": 10,
+            "percent_covered": 66.66666666666667,
+            "percent_covered_display": "66.7",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            145,
+            163,
+            171
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              144,
+              149
+            ]
+          ],
+          "missing_branches": [
+            [
+              144,
+              145
+            ]
+          ]
+        },
+        "CalendarPreviewTokenCodec.encode": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "CalendarPreviewTokenCodec.decode": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_require_utc": {
+          "executed_lines": [
+            198,
+            199,
+            203,
+            204,
+            210,
+            215
+          ],
+          "summary": {
+            "covered_lines": 6,
+            "num_statements": 9,
+            "percent_covered": 69.23076923076923,
+            "percent_covered_display": "69.2",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 1,
+            "covered_branches": 3,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            205,
+            206,
+            211
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              198,
+              199
+            ],
+            [
+              198,
+              203
+            ],
+            [
+              210,
+              215
+            ]
+          ],
+          "missing_branches": [
+            [
+              210,
+              211
+            ]
+          ]
+        },
+        "": {
+          "executed_lines": [
+            1,
+            3,
+            5,
+            6,
+            7,
+            8,
+            10,
+            15,
+            16,
+            19,
+            21,
+            22,
+            23,
+            26,
+            27,
+            29,
+            30,
+            32,
+            38,
+            39,
+            40,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            54,
+            59,
+            134,
+            135,
+            177,
+            178,
+            180,
+            183,
+            195
+          ],
+          "summary": {
+            "covered_lines": 33,
+            "num_statements": 33,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        }
+      },
+      "classes": {
+        "CalendarPreviewTokenError": {
+          "executed_lines": [
+            35
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "CalendarPreviewTokenContent": {
+          "executed_lines": [
+            57,
+            62,
+            67,
+            72,
+            76,
+            80,
+            84,
+            88,
+            92,
+            93,
+            106,
+            107,
+            108,
+            109,
+            110,
+            114,
+            115,
+            118,
+            119,
+            123,
+            124,
+            128,
+            144,
+            149,
+            150,
+            151,
+            152,
+            161,
+            162
+          ],
+          "summary": {
+            "covered_lines": 29,
+            "num_statements": 36,
+            "percent_covered": 80.76923076923077,
+            "percent_covered_display": "80.8",
+            "missing_lines": 7,
+            "excluded_lines": 0,
+            "num_branches": 16,
+            "num_partial_branches": 3,
+            "covered_branches": 13,
+            "missing_branches": 3
+          },
+          "missing_lines": [
+            63,
+            94,
+            102,
+            129,
+            145,
+            163,
+            171
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              62,
+              67
+            ],
+            [
+              67,
+              72
+            ],
+            [
+              67,
+              76
+            ],
+            [
+              76,
+              80
+            ],
+            [
+              76,
+              84
+            ],
+            [
+              84,
+              88
+            ],
+            [
+              84,
+              92
+            ],
+            [
+              109,
+              110
+            ],
+            [
+              109,
+              114
+            ],
+            [
+              123,
+              124
+            ],
+            [
+              123,
+              128
+            ],
+            [
+              128,
+              -59
+            ],
+            [
+              144,
+              149
+            ]
+          ],
+          "missing_branches": [
+            [
+              62,
+              63
+            ],
+            [
+              128,
+              129
+            ],
+            [
+              144,
+              145
+            ]
+          ]
+        },
+        "CalendarPreviewTokenCodec": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "": {
+          "executed_lines": [
+            1,
+            3,
+            5,
+            6,
+            7,
+            8,
+            10,
+            15,
+            16,
+            19,
+            21,
+            22,
+            23,
+            26,
+            27,
+            29,
+            30,
+            32,
+            38,
+            39,
+            40,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            54,
+            59,
+            134,
+            135,
+            177,
+            178,
+            180,
+            183,
+            195,
+            198,
+            199,
+            203,
+            204,
+            210,
+            215
+          ],
+          "summary": {
+            "covered_lines": 39,
+            "num_statements": 42,
+            "percent_covered": 91.30434782608695,
+            "percent_covered_display": "91.3",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 1,
+            "covered_branches": 3,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            205,
+            206,
+            211
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              198,
+              199
+            ],
+            [
+              198,
+              203
+            ],
+            [
+              210,
+              215
+            ]
+          ],
+          "missing_branches": [
+            [
+              210,
+              211
+            ]
+          ]
+        }
+      }
+    },
+    "apps\\data_center\\infrastructure\\calendar_preview_token.py": {
+      "executed_lines": [
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        14,
+        20,
+        25,
+        26,
+        29,
+        30,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        52,
+        62,
+        75,
+        85,
+        98,
+        99,
+        102,
+        103,
+        112,
+        115,
+        118,
+        123,
+        124,
+        125,
+        126,
+        132,
+        133,
+        139,
+        141,
+        152,
+        157,
+        158,
+        163,
+        164,
+        169,
+        170,
+        175,
+        179,
+        184,
+        185,
+        186,
+        187,
+        194,
+        198,
+        199,
+        205,
+        206,
+        207,
+        208,
+        209,
+        220,
+        225,
+        230,
+        231,
+        236,
+        237,
+        242,
+        245,
+        248,
+        249,
+        256,
+        257,
+        262,
+        263,
+        272,
+        275,
+        276,
+        277,
+        278,
+        279,
+        314,
+        317,
+        318,
+        319,
+        323,
+        324,
+        328,
+        329,
+        330,
+        331,
+        332,
+        333,
+        334,
+        336,
+        339,
+        350,
+        353,
+        364,
+        367,
+        382,
+        392,
+        393,
+        402,
+        403,
+        409,
+        412,
+        413,
+        422,
+        430,
+        434,
+        435,
+        437,
+        440,
+        443,
+        444,
+        445,
+        446,
+        447,
+        448,
+        451,
+        457,
+        463,
+        470,
+        472,
+        473,
+        474,
+        475,
+        477,
+        478,
+        479,
+        480,
+        483,
+        486,
+        488,
+        491,
+        494,
+        495,
+        496,
+        499,
+        502,
+        503,
+        504,
+        507,
+        510,
+        511,
+        512,
+        518,
+        520,
+        523,
+        526,
+        527,
+        528,
+        529,
+        530,
+        536,
+        538,
+        541,
+        544,
+        545,
+        551,
+        561,
+        564,
+        567,
+        572,
+        573,
+        579,
+        584,
+        587,
+        590,
+        591,
+        605,
+        613,
+        622,
+        628,
+        631,
+        634,
+        642
+      ],
+      "summary": {
+        "covered_lines": 176,
+        "num_statements": 208,
+        "percent_covered": 82.96296296296296,
+        "percent_covered_display": "83.0",
+        "missing_lines": 32,
+        "excluded_lines": 0,
+        "num_branches": 62,
+        "num_partial_branches": 14,
+        "covered_branches": 48,
+        "missing_branches": 14
+      },
+      "missing_lines": [
+        119,
+        127,
+        134,
+        159,
+        180,
+        210,
+        216,
+        250,
+        251,
+        264,
+        265,
+        436,
+        454,
+        460,
+        471,
+        476,
+        487,
+        513,
+        514,
+        519,
+        531,
+        532,
+        537,
+        546,
+        547,
+        557,
+        568,
+        574,
+        575,
+        580,
+        598,
+        599
+      ],
+      "excluded_lines": [],
+      "executed_branches": [
+        [
+          118,
+          123
+        ],
+        [
+          126,
+          132
+        ],
+        [
+          133,
+          139
+        ],
+        [
+          158,
+          163
+        ],
+        [
+          163,
+          164
+        ],
+        [
+          163,
+          169
+        ],
+        [
+          169,
+          170
+        ],
+        [
+          169,
+          179
+        ],
+        [
+          179,
+          184
+        ],
+        [
+          198,
+          199
+        ],
+        [
+          198,
+          205
+        ],
+        [
+          220,
+          225
+        ],
+        [
+          220,
+          230
+        ],
+        [
+          230,
+          231
+        ],
+        [
+          230,
+          236
+        ],
+        [
+          236,
+          237
+        ],
+        [
+          236,
+          242
+        ],
+        [
+          256,
+          257
+        ],
+        [
+          256,
+          262
+        ],
+        [
+          318,
+          319
+        ],
+        [
+          318,
+          323
+        ],
+        [
+          323,
+          324
+        ],
+        [
+          323,
+          328
+        ],
+        [
+          435,
+          437
+        ],
+        [
+          444,
+          445
+        ],
+        [
+          444,
+          448
+        ],
+        [
+          445,
+          446
+        ],
+        [
+          445,
+          447
+        ],
+        [
+          470,
+          472
+        ],
+        [
+          474,
+          475
+        ],
+        [
+          474,
+          478
+        ],
+        [
+          475,
+          477
+        ],
+        [
+          478,
+          479
+        ],
+        [
+          478,
+          480
+        ],
+        [
+          486,
+          488
+        ],
+        [
+          494,
+          495
+        ],
+        [
+          494,
+          496
+        ],
+        [
+          502,
+          503
+        ],
+        [
+          502,
+          504
+        ],
+        [
+          518,
+          520
+        ],
+        [
+          527,
+          528
+        ],
+        [
+          527,
+          529
+        ],
+        [
+          536,
+          538
+        ],
+        [
+          551,
+          561
+        ],
+        [
+          567,
+          572
+        ],
+        [
+          579,
+          584
+        ],
+        [
+          613,
+          -605
+        ],
+        [
+          613,
+          622
+        ]
+      ],
+      "missing_branches": [
+        [
+          118,
+          119
+        ],
+        [
+          126,
+          127
+        ],
+        [
+          133,
+          134
+        ],
+        [
+          158,
+          159
+        ],
+        [
+          179,
+          180
+        ],
+        [
+          435,
+          436
+        ],
+        [
+          470,
+          471
+        ],
+        [
+          475,
+          476
+        ],
+        [
+          486,
+          487
+        ],
+        [
+          518,
+          519
+        ],
+        [
+          536,
+          537
+        ],
+        [
+          551,
+          557
+        ],
+        [
+          567,
+          568
+        ],
+        [
+          579,
+          580
+        ]
+      ],
+      "functions": {
+        "EncryptedCalendarPreviewTokenCodec.__init__": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "EncryptedCalendarPreviewTokenCodec.encode": {
+          "executed_lines": [
+            118,
+            123,
+            124,
+            125,
+            126,
+            132,
+            133,
+            139
+          ],
+          "summary": {
+            "covered_lines": 8,
+            "num_statements": 11,
+            "percent_covered": 64.70588235294117,
+            "percent_covered_display": "64.7",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 6,
+            "num_partial_branches": 3,
+            "covered_branches": 3,
+            "missing_branches": 3
+          },
+          "missing_lines": [
+            119,
+            127,
+            134
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              118,
+              123
+            ],
+            [
+              126,
+              132
+            ],
+            [
+              133,
+              139
+            ]
+          ],
+          "missing_branches": [
+            [
+              118,
+              119
+            ],
+            [
+              126,
+              127
+            ],
+            [
+              133,
+              134
+            ]
+          ]
+        },
+        "EncryptedCalendarPreviewTokenCodec.decode": {
+          "executed_lines": [
+            152,
+            157,
+            158,
+            163,
+            164,
+            169,
+            170,
+            175,
+            179,
+            184,
+            185,
+            186,
+            187,
+            194,
+            198,
+            199,
+            205,
+            206,
+            207,
+            208,
+            209,
+            220,
+            225,
+            230,
+            231,
+            236,
+            237,
+            242
+          ],
+          "summary": {
+            "covered_lines": 28,
+            "num_statements": 32,
+            "percent_covered": 87.5,
+            "percent_covered_display": "87.5",
+            "missing_lines": 4,
+            "excluded_lines": 0,
+            "num_branches": 16,
+            "num_partial_branches": 2,
+            "covered_branches": 14,
+            "missing_branches": 2
+          },
+          "missing_lines": [
+            159,
+            180,
+            210,
+            216
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              158,
+              163
+            ],
+            [
+              163,
+              164
+            ],
+            [
+              163,
+              169
+            ],
+            [
+              169,
+              170
+            ],
+            [
+              169,
+              179
+            ],
+            [
+              179,
+              184
+            ],
+            [
+              198,
+              199
+            ],
+            [
+              198,
+              205
+            ],
+            [
+              220,
+              225
+            ],
+            [
+              220,
+              230
+            ],
+            [
+              230,
+              231
+            ],
+            [
+              230,
+              236
+            ],
+            [
+              236,
+              237
+            ],
+            [
+              236,
+              242
+            ]
+          ],
+          "missing_branches": [
+            [
+              158,
+              159
+            ],
+            [
+              179,
+              180
+            ]
+          ]
+        },
+        "_encryption_service": {
+          "executed_lines": [
+            248,
+            249,
+            256,
+            257,
+            262,
+            263
+          ],
+          "summary": {
+            "covered_lines": 6,
+            "num_statements": 10,
+            "percent_covered": 66.66666666666667,
+            "percent_covered_display": "66.7",
+            "missing_lines": 4,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0
+          },
+          "missing_lines": [
+            250,
+            251,
+            264,
+            265
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              256,
+              257
+            ],
+            [
+              256,
+              262
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_content_payload": {
+          "executed_lines": [
+            275,
+            276,
+            277,
+            278,
+            279
+          ],
+          "summary": {
+            "covered_lines": 5,
+            "num_statements": 5,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_content_from_payload": {
+          "executed_lines": [
+            317,
+            318,
+            319,
+            323,
+            324,
+            328,
+            329,
+            330,
+            331,
+            332,
+            333,
+            334,
+            336,
+            339,
+            350,
+            353,
+            364,
+            367,
+            382,
+            392,
+            393,
+            402,
+            403
+          ],
+          "summary": {
+            "covered_lines": 23,
+            "num_statements": 23,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 0,
+            "covered_branches": 4,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              318,
+              319
+            ],
+            [
+              318,
+              323
+            ],
+            [
+              323,
+              324
+            ],
+            [
+              323,
+              328
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_parse_payload": {
+          "executed_lines": [
+            412,
+            413,
+            422,
+            430,
+            434,
+            435,
+            437
+          ],
+          "summary": {
+            "covered_lines": 7,
+            "num_statements": 8,
+            "percent_covered": 80.0,
+            "percent_covered_display": "80.0",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            436
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              435,
+              437
+            ]
+          ],
+          "missing_branches": [
+            [
+              435,
+              436
+            ]
+          ]
+        },
+        "_unique_object": {
+          "executed_lines": [
+            443,
+            444,
+            445,
+            446,
+            447,
+            448
+          ],
+          "summary": {
+            "covered_lines": 6,
+            "num_statements": 6,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 0,
+            "covered_branches": 4,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              444,
+              445
+            ],
+            [
+              444,
+              448
+            ],
+            [
+              445,
+              446
+            ],
+            [
+              445,
+              447
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_reject_json_constant": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 1,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.0",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [
+            454
+          ],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_reject_json_float": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 1,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.0",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [
+            460
+          ],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_require_object": {
+          "executed_lines": [
+            470,
+            472,
+            473,
+            474,
+            475,
+            477,
+            478,
+            479,
+            480
+          ],
+          "summary": {
+            "covered_lines": 9,
+            "num_statements": 11,
+            "percent_covered": 78.94736842105263,
+            "percent_covered_display": "78.9",
+            "missing_lines": 2,
+            "excluded_lines": 0,
+            "num_branches": 8,
+            "num_partial_branches": 2,
+            "covered_branches": 6,
+            "missing_branches": 2
+          },
+          "missing_lines": [
+            471,
+            476
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              470,
+              472
+            ],
+            [
+              474,
+              475
+            ],
+            [
+              474,
+              478
+            ],
+            [
+              475,
+              477
+            ],
+            [
+              478,
+              479
+            ],
+            [
+              478,
+              480
+            ]
+          ],
+          "missing_branches": [
+            [
+              470,
+              471
+            ],
+            [
+              475,
+              476
+            ]
+          ]
+        },
+        "_expect_text": {
+          "executed_lines": [
+            486,
+            488
+          ],
+          "summary": {
+            "covered_lines": 2,
+            "num_statements": 3,
+            "percent_covered": 60.0,
+            "percent_covered_display": "60.0",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            487
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              486,
+              488
+            ]
+          ],
+          "missing_branches": [
+            [
+              486,
+              487
+            ]
+          ]
+        },
+        "_expect_optional_text": {
+          "executed_lines": [
+            494,
+            495,
+            496
+          ],
+          "summary": {
+            "covered_lines": 3,
+            "num_statements": 3,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              494,
+              495
+            ],
+            [
+              494,
+              496
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_expect_int": {
+          "executed_lines": [
+            502,
+            503,
+            504
+          ],
+          "summary": {
+            "covered_lines": 3,
+            "num_statements": 3,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              502,
+              503
+            ],
+            [
+              502,
+              504
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_parse_date": {
+          "executed_lines": [
+            510,
+            511,
+            512,
+            518,
+            520
+          ],
+          "summary": {
+            "covered_lines": 5,
+            "num_statements": 8,
+            "percent_covered": 60.0,
+            "percent_covered_display": "60.0",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            513,
+            514,
+            519
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              518,
+              520
+            ]
+          ],
+          "missing_branches": [
+            [
+              518,
+              519
+            ]
+          ]
+        },
+        "_parse_utc": {
+          "executed_lines": [
+            526,
+            527,
+            528,
+            529,
+            530,
+            536,
+            538
+          ],
+          "summary": {
+            "covered_lines": 7,
+            "num_statements": 10,
+            "percent_covered": 71.42857142857143,
+            "percent_covered_display": "71.4",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 1,
+            "covered_branches": 3,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            531,
+            532,
+            537
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              527,
+              528
+            ],
+            [
+              527,
+              529
+            ],
+            [
+              536,
+              538
+            ]
+          ],
+          "missing_branches": [
+            [
+              536,
+              537
+            ]
+          ]
+        },
+        "_format_utc": {
+          "executed_lines": [
+            544,
+            545,
+            551,
+            561
+          ],
+          "summary": {
+            "covered_lines": 4,
+            "num_statements": 7,
+            "percent_covered": 55.55555555555556,
+            "percent_covered_display": "55.6",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            546,
+            547,
+            557
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              551,
+              561
+            ]
+          ],
+          "missing_branches": [
+            [
+              551,
+              557
+            ]
+          ]
+        },
+        "_require_utc": {
+          "executed_lines": [
+            567,
+            572,
+            573,
+            579,
+            584
+          ],
+          "summary": {
+            "covered_lines": 5,
+            "num_statements": 9,
+            "percent_covered": 53.84615384615385,
+            "percent_covered_display": "53.8",
+            "missing_lines": 4,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 2,
+            "covered_branches": 2,
+            "missing_branches": 2
+          },
+          "missing_lines": [
+            568,
+            574,
+            575,
+            580
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              567,
+              572
+            ],
+            [
+              579,
+              584
+            ]
+          ],
+          "missing_branches": [
+            [
+              567,
+              568
+            ],
+            [
+              579,
+              580
+            ]
+          ]
+        },
+        "_canonical_json": {
+          "executed_lines": [
+            590,
+            591
+          ],
+          "summary": {
+            "covered_lines": 2,
+            "num_statements": 4,
+            "percent_covered": 50.0,
+            "percent_covered_display": "50.0",
+            "missing_lines": 2,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [
+            598,
+            599
+          ],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_validate_expected_binding": {
+          "executed_lines": [
+            613,
+            622
+          ],
+          "summary": {
+            "covered_lines": 2,
+            "num_statements": 2,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              613,
+              -605
+            ],
+            [
+              613,
+              622
+            ]
+          ],
+          "missing_branches": []
+        },
+        "_raise_json_error": {
+          "executed_lines": [
+            631
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_raise_token_error": {
+          "executed_lines": [
+            642
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "": {
+          "executed_lines": [
+            1,
+            3,
+            5,
+            6,
+            7,
+            8,
+            9,
+            11,
+            12,
+            14,
+            20,
+            25,
+            26,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            39,
+            52,
+            62,
+            75,
+            85,
+            98,
+            99,
+            102,
+            103,
+            112,
+            115,
+            141,
+            245,
+            272,
+            314,
+            409,
+            440,
+            451,
+            457,
+            463,
+            483,
+            491,
+            499,
+            507,
+            523,
+            541,
+            564,
+            587,
+            605,
+            628,
+            634
+          ],
+          "summary": {
+            "covered_lines": 49,
+            "num_statements": 49,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        }
+      },
+      "classes": {
+        "_DuplicateJsonKeyError": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "EncryptedCalendarPreviewTokenCodec": {
+          "executed_lines": [
+            118,
+            123,
+            124,
+            125,
+            126,
+            132,
+            133,
+            139,
+            152,
+            157,
+            158,
+            163,
+            164,
+            169,
+            170,
+            175,
+            179,
+            184,
+            185,
+            186,
+            187,
+            194,
+            198,
+            199,
+            205,
+            206,
+            207,
+            208,
+            209,
+            220,
+            225,
+            230,
+            231,
+            236,
+            237,
+            242
+          ],
+          "summary": {
+            "covered_lines": 36,
+            "num_statements": 43,
+            "percent_covered": 81.53846153846153,
+            "percent_covered_display": "81.5",
+            "missing_lines": 7,
+            "excluded_lines": 0,
+            "num_branches": 22,
+            "num_partial_branches": 5,
+            "covered_branches": 17,
+            "missing_branches": 5
+          },
+          "missing_lines": [
+            119,
+            127,
+            134,
+            159,
+            180,
+            210,
+            216
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              118,
+              123
+            ],
+            [
+              126,
+              132
+            ],
+            [
+              133,
+              139
+            ],
+            [
+              158,
+              163
+            ],
+            [
+              163,
+              164
+            ],
+            [
+              163,
+              169
+            ],
+            [
+              169,
+              170
+            ],
+            [
+              169,
+              179
+            ],
+            [
+              179,
+              184
+            ],
+            [
+              198,
+              199
+            ],
+            [
+              198,
+              205
+            ],
+            [
+              220,
+              225
+            ],
+            [
+              220,
+              230
+            ],
+            [
+              230,
+              231
+            ],
+            [
+              230,
+              236
+            ],
+            [
+              236,
+              237
+            ],
+            [
+              236,
+              242
+            ]
+          ],
+          "missing_branches": [
+            [
+              118,
+              119
+            ],
+            [
+              126,
+              127
+            ],
+            [
+              133,
+              134
+            ],
+            [
+              158,
+              159
+            ],
+            [
+              179,
+              180
+            ]
+          ]
+        },
+        "": {
+          "executed_lines": [
+            1,
+            3,
+            5,
+            6,
+            7,
+            8,
+            9,
+            11,
+            12,
+            14,
+            20,
+            25,
+            26,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            39,
+            52,
+            62,
+            75,
+            85,
+            98,
+            99,
+            102,
+            103,
+            112,
+            115,
+            141,
+            245,
+            248,
+            249,
+            256,
+            257,
+            262,
+            263,
+            272,
+            275,
+            276,
+            277,
+            278,
+            279,
+            314,
+            317,
+            318,
+            319,
+            323,
+            324,
+            328,
+            329,
+            330,
+            331,
+            332,
+            333,
+            334,
+            336,
+            339,
+            350,
+            353,
+            364,
+            367,
+            382,
+            392,
+            393,
+            402,
+            403,
+            409,
+            412,
+            413,
+            422,
+            430,
+            434,
+            435,
+            437,
+            440,
+            443,
+            444,
+            445,
+            446,
+            447,
+            448,
+            451,
+            457,
+            463,
+            470,
+            472,
+            473,
+            474,
+            475,
+            477,
+            478,
+            479,
+            480,
+            483,
+            486,
+            488,
+            491,
+            494,
+            495,
+            496,
+            499,
+            502,
+            503,
+            504,
+            507,
+            510,
+            511,
+            512,
+            518,
+            520,
+            523,
+            526,
+            527,
+            528,
+            529,
+            530,
+            536,
+            538,
+            541,
+            544,
+            545,
+            551,
+            561,
+            564,
+            567,
+            572,
+            573,
+            579,
+            584,
+            587,
+            590,
+            591,
+            605,
+            613,
+            622,
+            628,
+            631,
+            634,
+            642
+          ],
+          "summary": {
+            "covered_lines": 140,
+            "num_statements": 165,
+            "percent_covered": 83.41463414634147,
+            "percent_covered_display": "83.4",
+            "missing_lines": 25,
+            "excluded_lines": 0,
+            "num_branches": 40,
+            "num_partial_branches": 9,
+            "covered_branches": 31,
+            "missing_branches": 9
+          },
+          "missing_lines": [
+            250,
+            251,
+            264,
+            265,
+            436,
+            454,
+            460,
+            471,
+            476,
+            487,
+            513,
+            514,
+            519,
+            531,
+            532,
+            537,
+            546,
+            547,
+            557,
+            568,
+            574,
+            575,
+            580,
+            598,
+            599
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              256,
+              257
+            ],
+            [
+              256,
+              262
+            ],
+            [
+              318,
+              319
+            ],
+            [
+              318,
+              323
+            ],
+            [
+              323,
+              324
+            ],
+            [
+              323,
+              328
+            ],
+            [
+              435,
+              437
+            ],
+            [
+              444,
+              445
+            ],
+            [
+              444,
+              448
+            ],
+            [
+              445,
+              446
+            ],
+            [
+              445,
+              447
+            ],
+            [
+              470,
+              472
+            ],
+            [
+              474,
+              475
+            ],
+            [
+              474,
+              478
+            ],
+            [
+              475,
+              477
+            ],
+            [
+              478,
+              479
+            ],
+            [
+              478,
+              480
+            ],
+            [
+              486,
+              488
+            ],
+            [
+              494,
+              495
+            ],
+            [
+              494,
+              496
+            ],
+            [
+              502,
+              503
+            ],
+            [
+              502,
+              504
+            ],
+            [
+              518,
+              520
+            ],
+            [
+              527,
+              528
+            ],
+            [
+              527,
+              529
+            ],
+            [
+              536,
+              538
+            ],
+            [
+              551,
+              561
+            ],
+            [
+              567,
+              572
+            ],
+            [
+              579,
+              584
+            ],
+            [
+              613,
+              -605
+            ],
+            [
+              613,
+              622
+            ]
+          ],
+          "missing_branches": [
+            [
+              435,
+              436
+            ],
+            [
+              470,
+              471
+            ],
+            [
+              475,
+              476
+            ],
+            [
+              486,
+              487
+            ],
+            [
+              518,
+              519
+            ],
+            [
+              536,
+              537
+            ],
+            [
+              551,
+              557
+            ],
+            [
+              567,
+              568
+            ],
+            [
+              579,
+              580
+            ]
+          ]
+        }
+      }
+    },
+    "shared\\config\\secrets.py": {
+      "executed_lines": [
+        1,
+        13,
+        14,
+        15,
+        16,
+        18,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        32,
+        33,
+        34,
+        36,
+        37,
+        38,
+        39,
+        46,
+        49,
+        60,
+        63,
+        65,
+        66,
+        67,
+        70,
+        84,
+        95,
+        96,
+        98,
+        99,
+        100,
+        101,
+        121,
+        124,
+        127,
+        128,
+        144,
+        145,
+        147,
+        148,
+        151,
+        152,
+        153,
+        156,
+        159,
+        160,
+        167,
+        170,
+        172,
+        175,
+        182,
+        185
+      ],
+      "summary": {
+        "covered_lines": 53,
+        "num_statements": 57,
+        "percent_covered": 92.7536231884058,
+        "percent_covered_display": "92.8",
+        "missing_lines": 4,
+        "excluded_lines": 0,
+        "num_branches": 12,
+        "num_partial_branches": 1,
+        "covered_branches": 11,
+        "missing_branches": 1
+      },
+      "missing_lines": [
+        113,
+        115,
+        118,
+        192
+      ],
+      "excluded_lines": [],
+      "executed_branches": [
+        [
+          95,
+          96
+        ],
+        [
+          95,
+          98
+        ],
+        [
+          100,
+          101
+        ],
+        [
+          144,
+          145
+        ],
+        [
+          144,
+          147
+        ],
+        [
+          147,
+          148
+        ],
+        [
+          147,
+          151
+        ],
+        [
+          152,
+          153
+        ],
+        [
+          152,
+          156
+        ],
+        [
+          159,
+          160
+        ],
+        [
+          159,
+          167
+        ]
+      ],
+      "missing_branches": [
+        [
+          100,
+          113
+        ]
+      ],
+      "functions": {
+        "register_database_secrets_loader": {
+          "executed_lines": [
+            60
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_load_from_env": {
+          "executed_lines": [
+            65,
+            66,
+            67,
+            70
+          ],
+          "summary": {
+            "covered_lines": 4,
+            "num_statements": 4,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "_load_from_database": {
+          "executed_lines": [
+            95,
+            96,
+            98,
+            99,
+            100,
+            101
+          ],
+          "summary": {
+            "covered_lines": 6,
+            "num_statements": 9,
+            "percent_covered": 69.23076923076923,
+            "percent_covered_display": "69.2",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "num_branches": 4,
+            "num_partial_branches": 1,
+            "covered_branches": 3,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            113,
+            115,
+            118
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              95,
+              96
+            ],
+            [
+              95,
+              98
+            ],
+            [
+              100,
+              101
+            ]
+          ],
+          "missing_branches": [
+            [
+              100,
+              113
+            ]
+          ]
+        },
+        "_load_field_encryption_key_from_env": {
+          "executed_lines": [
+            124
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "get_secrets": {
+          "executed_lines": [
+            144,
+            145,
+            147,
+            148,
+            151,
+            152,
+            153,
+            156,
+            159,
+            160,
+            167
+          ],
+          "summary": {
+            "covered_lines": 11,
+            "num_statements": 11,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 8,
+            "num_partial_branches": 0,
+            "covered_branches": 8,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              144,
+              145
+            ],
+            [
+              144,
+              147
+            ],
+            [
+              147,
+              148
+            ],
+            [
+              147,
+              151
+            ],
+            [
+              152,
+              153
+            ],
+            [
+              152,
+              156
+            ],
+            [
+              159,
+              160
+            ],
+            [
+              159,
+              167
+            ]
+          ],
+          "missing_branches": []
+        },
+        "clear_secrets_cache": {
+          "executed_lines": [
+            172
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "get_tushare_token": {
+          "executed_lines": [
+            182
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "get_tushare_http_url": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 1,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.0",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [
+            192
+          ],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "": {
+          "executed_lines": [
+            1,
+            13,
+            14,
+            15,
+            16,
+            18,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            46,
+            49,
+            63,
+            84,
+            121,
+            127,
+            128,
+            170,
+            175,
+            185
+          ],
+          "summary": {
+            "covered_lines": 28,
+            "num_statements": 28,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        }
+      },
+      "classes": {
+        "DataSourceSecrets": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "AppSecrets": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 0,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.0",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "": {
+          "executed_lines": [
+            1,
+            13,
+            14,
+            15,
+            16,
+            18,
+            21,
+            22,
+            23,
+            25,
+            26,
+            27,
+            28,
+            29,
+            32,
+            33,
+            34,
+            36,
+            37,
+            38,
+            39,
+            46,
+            49,
+            60,
+            63,
+            65,
+            66,
+            67,
+            70,
+            84,
+            95,
+            96,
+            98,
+            99,
+            100,
+            101,
+            121,
+            124,
+            127,
+            128,
+            144,
+            145,
+            147,
+            148,
+            151,
+            152,
+            153,
+            156,
+            159,
+            160,
+            167,
+            170,
+            172,
+            175,
+            182,
+            185
+          ],
+          "summary": {
+            "covered_lines": 53,
+            "num_statements": 57,
+            "percent_covered": 92.7536231884058,
+            "percent_covered_display": "92.8",
+            "missing_lines": 4,
+            "excluded_lines": 0,
+            "num_branches": 12,
+            "num_partial_branches": 1,
+            "covered_branches": 11,
+            "missing_branches": 1
+          },
+          "missing_lines": [
+            113,
+            115,
+            118,
+            192
+          ],
+          "excluded_lines": [],
+          "executed_branches": [
+            [
+              95,
+              96
+            ],
+            [
+              95,
+              98
+            ],
+            [
+              100,
+              101
+            ],
+            [
+              144,
+              145
+            ],
+            [
+              144,
+              147
+            ],
+            [
+              147,
+              148
+            ],
+            [
+              147,
+              151
+            ],
+            [
+              152,
+              153
+            ],
+            [
+              152,
+              156
+            ],
+            [
+              159,
+              160
+            ],
+            [
+              159,
+              167
+            ]
+          ],
+          "missing_branches": [
+            [
+              100,
+              113
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "source_sha256_staged": {
+    "shared/config/secrets.py": "63a7d7c069cfc3bd6e00a52f9e0fa1842f3e9553d5c084ae0853ec44281cc891",
+    "apps/data_center/application/calendar_preview_token.py": "febfe1ad0a38cd5efb441257216aa27cb3a761b1391703e085ca788673c61aa2",
+    "apps/data_center/infrastructure/calendar_preview_token.py": "98ed837bc7ff1e2b8d017355d65f44a406c3a2fd3aeec691a6115b62f5f56fb8",
+    "tests/unit/shared/config/test_preview_key_secrets.py": "3055b144fb0cfb20ed3c4a83694512cdefbd224c51a71a99c52f03c857412872",
+    "tests/unit/data_center/test_calendar_preview_token.py": "4da50c9cd758dcc0cad2e28997d030538ec5b2af185ce43c00c929623f57e277"
+  },
+  "equivalence": "Owned five files LF-exact/AST-equal across QA export/index/worktree. Different predecessor trees/raw identities are retained; not release/CI/S6.",
+  "limits": [
+    "No API/TUI wiring or current route",
+    "No production or provider RPC",
+    "Token is not authorization or consumption receipt",
+    "Key rotation requires explicit cache clear or process restart; no old-key ring",
+    "Existing provider-secret repr exposure and explicit-True mixed call-shape cache issue remain recorded boundaries",
+    "No real Session/CSRF or browser acceptance in this batch"
+  ],
+  "goal_complete": false,
+  "broker_order_evidence_integrated": false,
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-annotations-sources.json": "7bbe5e9f1881dee1a288be54496883364e2a6b328f78ca11179156e6f4e6ed04",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-annotations.json": "0c21b2d159bc0b2f5f9444484c820e5f4b40108a703e46cae3417ace92c5fed4",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-architecture.json": "f40c76341722740ad9b1e3387a434a65e2115baa096df7ff36a1e8c9212ecbc3",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-black.txt": "4f0cda6bbac7c2e6059c6ea242a1b59d3ea54aa3e6761e981a90f88f16e2aa01",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-coverage.json": "cedc2ba5ac68b18bbca7a1cbfb2238ecbb65b959746af5e957dd6d6ce7297e73",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-full-mypy.txt": "e3a103e355847be074ab2902a432df76f3f6e9c9ec0681227e5ae6c8b9be0b86",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-incremental-mypy.txt": "51d22ad8f175b0ff44b9d75c7093697094c608686b4d66a0c8b7d21ab5284342",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-isort.txt": "c2ee491fb4b8b57a36c465a3d6481f0aaf873e9d0058e8551f56c90974148463",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-quality-sources.json": "7bbe5e9f1881dee1a288be54496883364e2a6b328f78ca11179156e6f4e6ed04",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-reference.json": "8bd8c3a2a4b12329ffbb52c35ba4ead72e8ff60eec780d1168ea86f550b81f20",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-ruff.txt": "171933187310c2c6cc8a818c891ce4ec77cf7456163d7d65c705ac1a95c18a37",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-tests.txt": "9946e52c8916c40e0fae2c5c5058c66daea830b601db448210237b7bb390f410",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-typing-sources.json": "7bbe5e9f1881dee1a288be54496883364e2a6b328f78ca11179156e6f4e6ed04",
+    "artifacts/a-share-usability/ash02/calendar-preview-key-review-20261017.md": "0b2ab936fe2110a614f4c073fa4df58d2c143383706b38e98b6dc9814913844d",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-recursion-probe.txt": "f4648baf64ca51561fd304521bde112958f49ef349f2a9ee145f5111bfc74119",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-recursion-red.txt": "868e39d9f239535653b7a681447f1382bf1f07a0cef16579b7d98e4bb43a1b3e",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-review-notes.md": "5b6c03d475f75f349505ad8d9dd3b572a6feb4951ec8d27a802a3bf475a94a6d",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-review-ttl-repro-success.txt": "0752d8db5f5c491f8da4c909489e616b59a4f5cf27bf0fa312553a6ce1df87ac",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-review-ttl-repro.txt": "d52184a0e58ea9220e43f6e8304f018e63e2e5d9ef62de35485de71cbcc3a089",
+    "artifacts/a-share-usability/ash02/calendar-preview-token-ttl-red.txt": "876d377a6862cd898ce47f5071735d9b22dc5bd1f9168c9a267d5d124aa8ca2e",
+    "artifacts/a-share-usability/ash02/phased-calendar-preview-foundation-index-projections-1.txt": "fc38e3a4f6f384f433e81850e6a2403517dcfa2bf2377c854684de54db13d98d",
+    "artifacts/a-share-usability/ash02/calendar-preview-foundation-root-plan-registry.txt": "f7aba7fdf45b67fce03d6a3137e39006a7fbfe64624905bfb9338950f5767c14"
+  },
+  "review_document_formatting": "Removed an intentional Markdown hard-break trailing pair from the authored key review before commit; machine raw logs unchanged."
+}

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v227",
+  "version": "2026-10-17.v228",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.34 safe metadata scope accepted locally:77 unit/SQLite pass7Native-only skips; production2 inc/fulltype0, style/coverage/architecture/projections green. Native fixture actual-target bug confirmed: historical auth6 outputs retained but544/test-target assumptions withdrawn and corrected. Public explicit-default setup and SQL target guards before writes/cleanup; verified Native15 = scope7+auth6+pre/postqualification2, all on test_ash_quality_native/544 with singleton intact. This is not Calendar workbench business/browser UAT. Next key/token foundation, ownerAPI/TUI continuation/browser then ordinary sim/backtest. Full ASH01/02/03/Goal open; no production/Provider/research/Evidence/dispatch/broker qualification; DATA18 gatesASH11.",
+      "next_gate": "Plan19.35 accepts only env-only central preview key and source-window-bound encrypted token foundation. Frozen export91pass; production3 incremental/fulltype0, style5, annotations37, architecture3/882lines0, official projections green. Actual TTL-extension and bounded-deep-JSON RecursionError candidates reproduced and corrected. Token is not publication authority; explicit key cache clear/restart rotation, no old-key ring. Workbench Application/composition/API/current remain later candidates; next exact routes/freshness/real Session+CSRF Native, generic TUI continuation and browser main-task UAT, then ordinary sim/backtest consumers. ASH01/02/03 and Goal open; DATA18 gatesASH11; no production/realProvider/research/Evidence/dispatch/broker qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

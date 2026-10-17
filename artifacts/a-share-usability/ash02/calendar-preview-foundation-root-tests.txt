@@ -1,0 +1,9 @@
+source_tree=71a9c5db866b943cf002dd78c30634d14964afad
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-preview-foundation-y_skvylx
+........................................................................ [ 79%]
+...................                                                      [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.5-final-0 _______________
+
+Coverage JSON written to file D:\githv\agomTradePro\artifacts\a-share-usability\ash02\calendar-preview-foundation-root-coverage.json
+91 passed in 3.03s
