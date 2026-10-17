@@ -1,0 +1,4 @@
+Post-document governance only; working production model extraction is excluded from prerequisite commit.
+command=['-c', 'from scripts.check_governance_consistency import check_docs_links; v,d=check_docs_links(); print(d); print([x.to_dict() for x in v]); assert not v']
+{'checked_links': 76}
+[]

@@ -1,0 +1,4 @@
+Post-document governance only; working production model extraction is excluded from prerequisite commit.
+command=['-m', 'pytest', 'tests/unit/test_active_plan_registry.py', '-q', '--no-migrations', '--ds=core.settings.development_sqlite', '--basetemp=.tmp/pytest-thermometer-fixture-registry-root-1']
+........                                                                 [100%]
+8 passed in 0.72s

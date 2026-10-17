@@ -1,0 +1,42 @@
+[
+  {
+    "file": "apps/data_center/infrastructure/fact_and_operational_models.py",
+    "commit": "66358ddcf8c5cd67a2d847b901cb7c004f86819e 2026-10-17T01:27:26+08:00 feat: add source-bound market data and publication safeguards",
+    "actual_checker_nonempty_counts": {
+      "66358ddcf^": 1130,
+      "66358ddcf": 1328
+    }
+  },
+  {
+    "file": "apps/simulated_trading/domain/execution_settlement_uow.py",
+    "commit": "0346c6d399ed3eca20e9a06c10a402952a92c606 2026-10-17T01:37:17+08:00 feat: add atomic simulated settlement and exact fee policies",
+    "actual_checker_nonempty_counts": {
+      "0346c6d39^": null,
+      "0346c6d39": 1292
+    }
+  },
+  {
+    "file": "apps/simulated_trading/infrastructure/models.py",
+    "commit": "0346c6d399ed3eca20e9a06c10a402952a92c606 2026-10-17T01:37:17+08:00 feat: add atomic simulated settlement and exact fee policies",
+    "actual_checker_nonempty_counts": {
+      "0346c6d39^": 1028,
+      "0346c6d39": 1342
+    }
+  },
+  {
+    "file": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+    "commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779 2026-10-17T12:34:29+08:00 fix: bind original simulated settlement plans",
+    "actual_checker_nonempty_counts": {
+      "1d3a3ccbb^": 1033,
+      "1d3a3ccbb": 1218
+    }
+  },
+  {
+    "file": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+    "commit": "e6b960654ade13e7d38fe88c12609405b241f96a 2026-10-17T03:22:07+08:00 feat: persist audited formal calendar publications",
+    "actual_checker_nonempty_counts": {
+      "e6b960654^": null,
+      "e6b960654": 1521
+    }
+  }
+]

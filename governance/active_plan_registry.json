@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v247",
+  "version": "2026-10-17.v248",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.48 accepted bounded auto-trading responsibility extraction: engine 1161 and tasks 1184 nonempty lines; removed the two own19.45 size regressions without baseline/checker/allowlist increase. Full governance still exits1 with exactly the seven original size violations; separate nine retirement failures remain open. Same frozen source Root 401 units, native53, SQLite55(includes2probes), original2 probes; five-source incremental/full default mypy0, AST compatibility/architecture/annotations/style and seven applicable projection/contract checks passed. No test assertion changed, real task entry bodies preserved, explicit old import reexports and current collaborator/override seams retained. ASH02 sole focus and79units unchanged; TUX06 governance completed, TUX07-10 planned until separately coordinated production-focus handoff. Next TUX07 bounded window then restoreASH02 actual-import fee missing-vs-zero work; default MCP preview pagination/enabled/frozen-scope, original ordinary T+1/odd-lot/atomicity/idempotency/lock-owner/source-purpose/PIT remain open. DATA18 gatesASH11; fullGoal open; no production/provider/broker/Evidence/settlement activation or sameCI/S6 claim. Evidence: docs/testing/a-share-usability-auto-trading-size-2026-10-17.json.",
+      "next_gate": "Plan19.49: thermometer API calendar-test prerequisite independently verified on exact419079582 production plus one test file;11 API tests and style passed, original calendar-unavailable red retained, missing calendar503 preserved. Commit this test prerequisite first; model extraction remains uncommitted pending full post-prerequisite runtime acceptance. TUX07 independently committed419079582 and window returned; ASH02 active,79units/closure70 retained. Root owns all seven size and nine version-retirement failures introduced by this Goal; preserve full original schema/hash/history and genuine consolidation, no baseline/allowlist/floor/checker-pin changes or rename-only evasion. Preserve5a C-quality requirements; fees missing-vs-zero, default MCP frozen eligible scope, ordinary T+1/odd-lot/atomicity/idempotency/lock-owner/source-purpose/PIT and fullGoal remain open. DATA18/EVID/production/provider/broker stops unchanged; no activation or releaseCI/S6 claim. Evidence: docs/testing/a-share-usability-thermometer-calendar-fixture-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

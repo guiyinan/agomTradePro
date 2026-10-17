@@ -1,0 +1,96 @@
+{
+  "status": "verified_test_prerequisite",
+  "date": "2026-10-17",
+  "plan_section": "19.49",
+  "base_commit": "41907958208ff799973bf27c51893fa23b4105c2",
+  "original_source_tree": "51c67267c002b4273ff5252d58c96a30cd2fa84b",
+  "fixture_source_tree": "ee4380ce048e4c202d1b36add8d8e02ab30d59c0",
+  "changed_runtime_production": [],
+  "original_reproduction": {
+    "failed": 1,
+    "seconds": 20.17,
+    "reason": "Calendar-dependent test setup had no qualified calendar/audit composition"
+  },
+  "verified": {
+    "api_tests": 11,
+    "seconds": 37.7,
+    "black": 0,
+    "isort": 0,
+    "ruff": 0,
+    "unchanged_production_proved_by_git_tree_diff": true,
+    "scope": "Real Django Client API/ORM/threshold path with an explicit synthetic calendar-read boundary; no-calendar branch is503/MARKET_CALENDAR_UNAVAILABLE",
+    "registry_violations": 0,
+    "registry_tests": 8,
+    "docs_link_violations": 0,
+    "source_patch_reconstructed_exact_tree": true
+  },
+  "not_claimed": [
+    "Real network HTTP server",
+    "Production/provider/calendar qualification",
+    "PostgreSQL or migrations",
+    "Model extraction acceptance",
+    "A-share Goal completion",
+    "Full release CI/S6"
+  ],
+  "open_goal_owned_gates": {
+    "size_violations_before_model_commit": 7,
+    "version_retirement_violations": 9,
+    "baseline_or_checker_changes": false
+  },
+  "evidence": {
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-api-tests.txt": {
+      "raw_sha256": "f3e9ebbb591ea6ee30a47bd1819f4314ccfd4613d348325e756cf3c77ca400d9",
+      "lf_sha256": "c2b1fd67532477b9548e2b50e50ead63bde5fc0c7676e8c97f4c7dbdc040ccf6"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-black.txt": {
+      "raw_sha256": "2c5c8c8ffd9fdf25967db3e7a566502df05d43d3f383cbd71ae85eef96e5c5cc",
+      "lf_sha256": "9ee1c86c309c262468565a04c4f4d442a7c610d524c91344dff168a3ad930596"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-isort.txt": {
+      "raw_sha256": "008598d6ad3fc87301f206a82c100ffe775d482c64b8ac9c3bdc803f3ae4dd63",
+      "lf_sha256": "008598d6ad3fc87301f206a82c100ffe775d482c64b8ac9c3bdc803f3ae4dd63"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-reference.json": {
+      "raw_sha256": "a76c454eb4579a05f2884cc70da9d621a4539df538e9071c6a9b02a111918a57",
+      "lf_sha256": "a76c454eb4579a05f2884cc70da9d621a4539df538e9071c6a9b02a111918a57"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-result.json": {
+      "raw_sha256": "08cb45928df05b3b5de872afb91f572d3c514b78bbd72c6e5795aa371ac412a9",
+      "lf_sha256": "08cb45928df05b3b5de872afb91f572d3c514b78bbd72c6e5795aa371ac412a9"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-ruff.txt": {
+      "raw_sha256": "980ea1606a606e94f16bce58ac9dde6fd5ef3e60000ef8e227048a65fa7d3ae7",
+      "lf_sha256": "980ea1606a606e94f16bce58ac9dde6fd5ef3e60000ef8e227048a65fa7d3ae7"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-source.patch": {
+      "raw_sha256": "a88dfff5f3d67bcd44c866b6d2802ec5fe52418f9f550c8f2de27a406a2923c7",
+      "lf_sha256": "a88dfff5f3d67bcd44c866b6d2802ec5fe52418f9f550c8f2de27a406a2923c7"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-original-root-1-red.txt": {
+      "raw_sha256": "c8c84bde9cc3da2fcd54faac8bf31c1ce5d9f69306518ecfe51c4d2a7554d17f",
+      "lf_sha256": "472fc3cdea26e9b5cabd9d17caa238b9fa2f9862e523818f1dff355952f604d8"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-original-root-1-reference.json": {
+      "raw_sha256": "0fe346c3e3da4f528114e775aa2bebab586a383fe11e3469bd883a02465f8355",
+      "lf_sha256": "0fe346c3e3da4f528114e775aa2bebab586a383fe11e3469bd883a02465f8355"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-registry.txt": {
+      "raw_sha256": "9e0e43eba7b5111e2abe325fcb8f985edaf44e5fcec5cce30bb3b79685bea67f",
+      "lf_sha256": "b72e4c053080a107a68659059a4fc21415b9f4815adea602da482dcfe7f63d8b"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-registry-tests.txt": {
+      "raw_sha256": "602934a5d2595f283f0b991b7439e44a84290a3da4d5bb5cb018b7d2abb4af68",
+      "lf_sha256": "97f3d143ab5561e5065893c9f035d38d15c97598ca78b251f5daf7d1cd1f55d8"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-docs-links.txt": {
+      "raw_sha256": "aaaa1d81a002a11ca633195818b595352d742f681607b11fc348043077721455",
+      "lf_sha256": "da61201a4d4fda4f5fdceae0aae5bdc38a8a208afad983cc79142d8c1c60e2a7"
+    }
+  },
+  "whitespace_validation": {
+    "full_git_diff_check_exit": 2,
+    "reason": "Native unified patch contains required single-space blank context lines; raw evidence is not reformatted.",
+    "excluded_exact_raw_patch": "artifacts/a-share-usability/ash03/thermometer-api-calendar-fixture-root-1-source.patch",
+    "all_other_staged_paths_check_exit": 0
+  }
+}

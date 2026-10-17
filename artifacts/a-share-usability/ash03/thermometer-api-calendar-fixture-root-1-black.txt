@@ -1,0 +1,4 @@
+source_tree=ee4380ce048e4c202d1b36add8d8e02ab30d59c0
+command=['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', '-m', 'black', '--check', 'tests/integration/data_center/test_market_thermometer_api.py']
+All done! ✨ 🍰 ✨
+1 file would be left unchanged.

@@ -1,0 +1,15 @@
+source_tree=51c67267c002b4273ff5252d58c96a30cd2fa84b
+command=['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/integration/data_center/test_market_thermometer_api.py::test_market_thermometer_current_returns_user_override_contract', '-q', '--tb=short', '--no-migrations', '--ds=ash_thermometer_calendar_baseline_settings', '--basetemp=.tmp/pytest-thermometer-original-calendar-root-1']
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_market_thermometer_current_returns_user_override_contract ________
+tests\integration\data_center\test_market_thermometer_api.py:50: in test_market_thermometer_current_returns_user_override_contract
+    decision_safe_date = resolve_market_thermometer_as_of_date()
+apps\data_center\application\market_thermometer_dates.py:41: in resolve_market_thermometer_as_of_date
+    raise DataFetchError(
+E   core.exceptions.DataFetchError: Exchange trading calendar is unavailable
+------------------------------ Captured log call ------------------------------
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+=========================== short test summary info ===========================
+FAILED tests/integration/data_center/test_market_thermometer_api.py::test_market_thermometer_current_returns_user_override_contract
+1 failed in 20.17s

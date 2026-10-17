@@ -1,0 +1,12 @@
+{
+  "base_commit": "41907958208ff799973bf27c51893fa23b4105c2",
+  "source_tree": "51c67267c002b4273ff5252d58c96a30cd2fa84b",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-thermometer-calendar-base-r8su7a6k",
+  "test": "tests/integration/data_center/test_market_thermometer_api.py",
+  "test_lf_sha256": "d5782d6e3d30cb3ca194f3e9e8de9a6f221bd5c790a1bfbc2413c4e45f17287b",
+  "sqlite_settings": "from core.settings.development_sqlite import *\nDATABASES={\"default\":{\"ENGINE\":\"django.db.backends.sqlite3\",\"NAME\":\":memory:\",\"TEST\":{\"NAME\":\":memory:\"}}}\n",
+  "actual_exit": 1,
+  "test_source_unchanged": true,
+  "postgresql_accessed": false,
+  "production_or_provider_accessed": false
+}

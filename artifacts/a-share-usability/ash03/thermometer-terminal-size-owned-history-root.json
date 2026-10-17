@@ -1,0 +1,81 @@
+{
+  "checker_source": "scripts/check_governance_consistency.py::count_non_empty_lines",
+  "actual_checker_function_ast_executed": true,
+  "read_only_git_sources": true,
+  "records": {
+    "apps/terminal/application/tui_metadata.py": [
+      {
+        "ref": "c032a86d1^",
+        "commit": "632c7a7f4faf5a33911635678aa248cd12225633",
+        "file_present": true,
+        "nonempty": 1128,
+        "lf_sha256": "0ef840d352bc739fbb002c13f01fb10f7bc332c642ea7ce54a085ce044248ea7"
+      },
+      {
+        "ref": "c032a86d1",
+        "commit": "c032a86d18589794d166244a8ca877868ef2567c",
+        "file_present": true,
+        "nonempty": 1256,
+        "lf_sha256": "590e8b92ae8e030fe9f05d2b484a35da159daa0b30895508a3f078465075f303"
+      },
+      {
+        "ref": "91dd83f49^",
+        "commit": "33ea2860b2d1917e930e83dc43118bdeeb762e6d",
+        "file_present": true,
+        "nonempty": 1120,
+        "lf_sha256": "8a972e69899f7e38c56c6a78d4727f3eaa72e9d86602f23702299f90fa7532fa"
+      },
+      {
+        "ref": "91dd83f49",
+        "commit": "91dd83f49fbeaf3d3b80e83e3f29841002b1b3a4",
+        "file_present": true,
+        "nonempty": 1128,
+        "lf_sha256": "0ef840d352bc739fbb002c13f01fb10f7bc332c642ea7ce54a085ce044248ea7"
+      },
+      {
+        "ref": "HEAD",
+        "commit": "5a373862db8a03417f98e48d89cc2865696c2975",
+        "file_present": true,
+        "nonempty": 1256,
+        "lf_sha256": "590e8b92ae8e030fe9f05d2b484a35da159daa0b30895508a3f078465075f303"
+      }
+    ],
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": [
+      {
+        "ref": "32e254b60^",
+        "commit": "863f1e7dfa03568febe56c929558958ec0e52ec8",
+        "file_present": true,
+        "nonempty": 948,
+        "lf_sha256": "e92f4ea7432fa22091367e3d6786426647612db8fcaad80ab117400941c4fce6"
+      },
+      {
+        "ref": "32e254b60",
+        "commit": "32e254b60aceea3132623f3593e769cef0f7ed66",
+        "file_present": true,
+        "nonempty": 1373,
+        "lf_sha256": "0be975507b5f41694bb6a214082f0688d13c22a0da81a918778ea567b2ab328c"
+      },
+      {
+        "ref": "e0b03d375^",
+        "commit": "a66a8cf9d546b27ad33fa13ad47d969718086452",
+        "file_present": true,
+        "nonempty": 1054,
+        "lf_sha256": "ded1945d7abe32d66faeaa644d845e1eee1696713740be435d951c29a47e12e4"
+      },
+      {
+        "ref": "e0b03d375",
+        "commit": "e0b03d37586e6c81cf0f9d515d7205f4094f0aff",
+        "file_present": true,
+        "nonempty": 948,
+        "lf_sha256": "e92f4ea7432fa22091367e3d6786426647612db8fcaad80ab117400941c4fce6"
+      },
+      {
+        "ref": "HEAD",
+        "commit": "5a373862db8a03417f98e48d89cc2865696c2975",
+        "file_present": true,
+        "nonempty": 1373,
+        "lf_sha256": "0be975507b5f41694bb6a214082f0688d13c22a0da81a918778ea567b2ab328c"
+      }
+    ]
+  }
+}

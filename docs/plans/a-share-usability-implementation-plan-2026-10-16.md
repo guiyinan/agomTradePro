@@ -1119,3 +1119,31 @@ Root首轮冻结98b51b21a593682f0d0ce9c815edb2209b55b009：标注门发现新sup
 Root 401项单元、53项既有PG专库组件/集成、55项SQLite（含2个内存目标探针）及2条原生产异常探针全部通过。Domain复用覆盖303语句/88分支100%；五源增量mypy及默认apps/core/shared全库债务门零，Black/isort/Ruff、架构增量、完整标注与七项适用生成投影/契约复核通过。所有实际Celery任务函数AST与parent保持，迁出helper主体除docstring相同；退出评估主体仅把原self依赖替换为每次传入的端口/回调，原签名、装饰器与其余engine方法保持。Root审查恢复了作者中间改变的邮件换行及一处日志表达式，所有最终测试在恢复后的同一冻结源码运行。未修改测试断言。
 
 专用PG子库前后均546迁移；共享父库只读544迁移、singleton=(1,0)，无重建/flush。官方生成器在最终冻结导出实测，变更投影由其输出同步；Celery/current/audit合同内容与任务入口不变，因此保留原登记并复核。源码patch经辅助index重建匹配；详见[尺寸整改检查点](../testing/a-share-usability-auto-trading-size-2026-10-17.json)。新模块不授予来源/订单资格，不激活候选结算链。TUI/SDK/SSL生产未改，未重复独立完整包；terminal回归已纳入本批单元。完整Goal与ASH-02及来源、普通结算、PIT、费用、MCP默认范围问题继续开放。下一窗口先由TUX-07按独立冻结范围取得唯一生产焦点，完成后恢复ASH-02；期间本主线费用仅做只读设计。
+
+### 19.49 本 Goal 质量回退收敛与市场温度计模型首批
+
+TUX-07 已在 `41907958208ff799973bf27c51893fa23b4105c2` 独立提交并明确归还共享窗口；登记 v247 / closure70，ASH-02 恢复唯一集成焦点、79 单元不变。保留该提交及 `5a373862d` 的 ASH-09/10、U15、ASH-12 C 级执行质量要求。其 566 Python、100 Node 与真实浏览器证据属于该独立批，不作为以下模型源码的测试结果。
+
+Root 补查纠正：19.48 所称“原七项”只是相对该次局部整改的前置状态，七项全部由本 Goal 引入或推过 1,200 非空行门槛；九项版本退役失败也来自本 Goal，而非无关外部旧债。尺寸来源为 `66358ddcf`、`e6b960654`、`0346c6d39`、`1d3a3ccbb`、`c032a86d1`、`32e254b60`。规则 unsuffixed/V2/V3 catalog、codec 六文件由 `356266129` 新增，费用 V2 composition 由 `0346c6d39` 新增。逐文件历史与实际 checker 计数已核对；正式验收附来源记录。完整质量门继续不通过，不能以单批无新增错误代替整体收口。
+
+先分七个有界职责提取批，每批独立冻结、回归、提交，不提高 baseline/allowlist，不压缩代码凑行数：
+
+1. Data Center 温度计三个完整模型组迁入本 App 独立模型文件；旧三个模块 facade 显式重导出，原注册次序、类主体、字段/Meta 与 Domain 转换不变。首批仅此事项。
+2. 结算 Repository 的无实例状态 plan-binding 校验提为 typed helper，保留原实例 wrapper、签名/装饰器和锁、执行、释放、回滚边界。
+3. 模拟账户、持仓、成交模型组整体提取，保留原 facade 和 `SimulatedPositionModel` 身份，核对 Django registry 与迁移状态。
+4. 结算 Domain 分离 primitives/calendar，保留 V1/V2 canonical bytes、hash、错误类型和旧导入符号；纯 Domain 不新增外部依赖。
+5. 正式日历 Repository 按 support/reader/writer 分责，原 facade 和构造函数保留、仍为同一实例/alias/外层事务；必须在原生 PostgreSQL 验证 CAS、并发、authority 与 Audit/outbox 整体回滚。
+6. TUI continuation metadata 校验独立提取，保留调用点、异常类型、确认/会话/隐藏目标校验，官方 compiler 指纹必须包含新文件。
+7. TUI calendar result 投影独立提取，保留原 dispatch/MRO、公开与隐藏字段、nullable counts、时间和证据状态，复验 HTTP 与真实浏览器用户任务。
+
+其后以独立批收敛九项版本面失败：规则 catalog/codec 复用现有无后缀入口与单一规则表，合并实际重复的结构校验；V1/V2/V3 独立 wire schema、数字/时间边界、嵌套 hash 与历史读取均保留。不得只重命名规避扫描、统一成更宽或更严的假兼容 parser、删除历史格式，或改 retirement-only 封存 floor/checker pin。费用 builder 合入既有结算 composition，命令保留显式 database alias 与 `--apply`。内部 Python 模块路径调用方必须全部核对并同步；仓库搜索不等于外部部署/插件消费者或生产行盘点证明，发布风险单列，不伪造零调用/零行。
+
+首批采用先失败后实现：新增 no-DB registry 身份测试，在新模块不存在时取得真实失败，再应用提取。Root 独立检查四个模块导入路径与 `apps.get_model` 为同一类、app label/表名/注册数、原三类完整 AST、其余类/函数与注册顺序。真实运行原计算/任务、模型 invariant、温度计 ORM 仓储和 HTTP API 回归；迁移 dry-run 必须无变化。生成字典只允许三个模型 source_file 改变，字段/Meta/数量不变；官方 module/DC 投影重建并检查。此 Python-only 提取不改变 SQL、约束或并发，隔离 SQLite 足够，禁止借用或 flush PostgreSQL 目标。
+
+生产两文件增量 mypy、默认 apps/core/shared 全库债务门、Black/isort/Ruff、架构增量、实际尺寸与完整治理报告均须执行；未通过检查原件保留。比较断言通过不等于完整治理通过，剩余六项尺寸与九项版本失败继续由本 Goal 后续处理。两个原有未提交测试保持字节与暂存状态，不纳入本批。费用 missing/zero、MCP 默认名单冻结、普通结算 T+1/零股/原子性/幂等/锁内 owner、来源用途/PIT 与 ASH-01～12 完整 Goal 均未完成，DATA-18/Evidence/生产/Provider/QMT 停止线不变。
+
+19.49 测试前置验收：模型首窗 `299388f1e76fc607299e92156c1e1ca740a6c954` 实际 60 passed / 1 failed；失败发生在原 API 测试准备数据时读取日历。Root 在精确原 `419079582` 全部旧生产源码的 `51c67267c002b4273ff5252d58c96a30cd2fa84b` 重放，同样 1 failed / 20.17 秒，原因是隔离环境没有审计/日历资格。不是模型搬移造成，原失败保持，不改生产回退或资格门。
+
+Luna Max 只为个人阈值正场景注入局部合成日历读取边界，仍使用真实日期解析器、Django Client/API、ORM、阈值计算及原断言；没有全局 autouse、工作日推算或正式来源资格声明。新增独立负例令该边界返回 None，实际 API 必须为503、JSON与稳定 `MARKET_CALENDAR_UNAVAILABLE`，不返回 score/success。Root 以原生产源码加唯一测试文件的 `ee4380ce048e4c202d1b36add8d8e02ab30d59c0` 冻结树实际运行全部 11 项 API 测试，通过37.70秒，Black/isort/Ruff通过；独立 Luna Max 只读复核无阻断项。详情见[温度计日历测试前置检查点](../testing/a-share-usability-thermometer-calendar-fixture-2026-10-17.json)。
+
+此前置先独立提交，只包含测试、对应证据和本阶段计划登记；未提交的模型两源与新注册测试明确排除。生产源码无变化，不将模型候选已通过的类型/迁移检查冒充此前置运行结果，也不将本地 Client 验收称为真实网络/生产资格。七项尺寸与九项版本门均为本 Goal 责任且继续开放；ASH-02焦点、79单元、完整Goal与原停止线不变。模型批须在此前置提交后，保留同一生产源码并重跑完整受影响测试，再独立验收/提交。
