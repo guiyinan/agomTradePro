@@ -1,0 +1,15 @@
+{
+  "base": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "tree": "e82350caba093a8a30dcad03089ef71f30e09e51",
+  "unreferenced_qa_commit": "62229dda1538cdbf0ef59c6d5b0b705c76dc932e",
+  "paths": [
+    "apps/account/application/portfolio_recorded_facts.py",
+    "apps/account/application/portfolio_recorded_facts_contracts.py",
+    "apps/account/infrastructure/account_read_repository.py",
+    "apps/account/interface/portfolio_api_views.py",
+    "tests/integration/account/test_portfolio_recorded_facts_api.py",
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py",
+    "governance/module_map.json"
+  ],
+  "main_index_modified": false
+}

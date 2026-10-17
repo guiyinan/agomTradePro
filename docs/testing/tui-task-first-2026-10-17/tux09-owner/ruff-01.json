@@ -1,0 +1,57 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "ruff",
+    "check",
+    "apps/account/application/portfolio_recorded_facts.py",
+    "apps/account/application/portfolio_recorded_facts_contracts.py",
+    "apps/account/infrastructure/account_read_repository.py",
+    "apps/account/interface/portfolio_api_views.py",
+    "tests/integration/account/test_portfolio_recorded_facts_api.py",
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "raw_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec",
+      "lf_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+      "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+      "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "1ee7388289d6249ac86a8d436fd045bf21afec45c7a310ef9e07dc86d53d84f3",
+      "lf_sha256": "1bc3f5bccc9857abee8ce18d7fd3fbe4b7a3593c68ee05701cf20e9f729be65e"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "b23f3b7d49e16bd50c668b57e13377d62f6a77466ba8330baf655a73ec4d3b4e",
+      "lf_sha256": "b23f3b7d49e16bd50c668b57e13377d62f6a77466ba8330baf655a73ec4d3b4e"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc",
+      "lf_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc"
+    }
+  },
+  "started_at": "2026-10-17T17:31:25.182679+00:00",
+  "pid": 8916,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T17:31:26.108079+00:00",
+  "log_sha256": "45c60be1a5200b1ba550591bd748e13747cb2e877f5a1388b9643ed685ff542a",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\ruff-01.log",
+  "output": "I001 [*] Import block is un-sorted or un-formatted\n  --> tests\\integration\\account\\test_portfolio_recorded_facts_api.py:3:1\n   |\n 1 |   \"\"\"HTTP, authorization and no-sync contracts for Account recorded facts.\"\"\"\n 2 |\n 3 | / from __future__ import annotations\n 4 | |\n 5 | | import socket\n 6 | | from collections.abc import Iterator\n 7 | | from datetime import datetime, timedelta\n 8 | | from decimal import Decimal\n 9 | | from typing import Any\n10 | |\n11 | | import pytest\n12 | | from django.contrib.auth.models import User\n13 | | from django.utils import timezone\n14 | | from rest_framework.test import APIClient\n15 | |\n16 | | from apps.account.application.portfolio_api_services import (\n17 | |     resolve_portfolio_for_user,\n18 | | )\n19 | | from apps.account.infrastructure.account_read_repository import AccountReadRepository\n20 | | from apps.account.infrastructure.models import (\n21 | |     AssetCategoryModel,\n22 | |     CapitalFlowModel,\n23 | |     CurrencyModel,\n24 | |     PortfolioModel,\n25 | |     PortfolioObserverGrantModel,\n26 | |     PositionModel,\n27 | |     TransactionModel,\n28 | | )\n29 | | from apps.audit.infrastructure.models import OperationLogModel\n30 | | from apps.simulated_trading.infrastructure.models import (\n31 | |     AccountPositionValuationSnapshotModel,\n32 | |     LedgerMigrationMapModel,\n33 | | )\n34 | | from apps.simulated_trading.infrastructure.models import PositionModel as LedgerPositionModel\n35 | | from apps.simulated_trading.infrastructure.models import (\n36 | |     SimulatedAccountModel,\n37 | |     SimulatedTradeModel,\n38 | | )\n   | |_^\nhelp: Organize imports\n   |\n32 |     LedgerMigrationMapModel,\n   - )\n   - from apps.simulated_trading.infrastructure.models import PositionModel as LedgerPositionModel\n   - from apps.simulated_trading.infrastructure.models import (\n33 |     SimulatedAccountModel,\n34 |     SimulatedTradeModel,\n35 | )\n36 + from apps.simulated_trading.infrastructure.models import PositionModel as LedgerPositionModel\n37 |\n   |\n\nFound 1 error.\n[*] 1 fixable with the `--fix` option.\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v260",
+  "version": "2026-10-18.v262",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-17.v74",
+    "version": "2026-10-18.v76",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,

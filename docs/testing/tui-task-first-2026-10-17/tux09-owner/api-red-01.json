@@ -1,0 +1,51 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/integration/account/test_portfolio_recorded_facts_api.py::test_owner_gets_typed_recorded_facts_and_separate_read_clocks",
+    "-q",
+    "--reuse-db",
+    "--ds=tux09_owner_a11bd_settings",
+    "--basetemp=D:/githv/agomTradePro/.tmp/tux09-owner-a11bdf8ff3-01/api-red-01-temp",
+    "-o",
+    "cache_dir=D:/githv/agomTradePro/.tmp/tux09-owner-a11bdf8ff3-01/api-red-01-cache"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": null,
+    "apps/account/application/portfolio_recorded_facts_contracts.py": null,
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "055ef94511f6031ccd8e55085b2b17593a30cc3c1d32b03f223217758224cc38",
+      "lf_sha256": "a2e4ab9672ef35bba91313dfd806236774f7db8e2982ec7457b584e225a44e81"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "a58643c5577e3c0f8baffad8c36562b0faf88a8a3ed99b431fd7185b3f414de2",
+      "lf_sha256": "3c4cd0835114b653382876646024210da795a908dece663f46dae816185c76e1"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "ff9addfccf5672377ac01695f25af37d65e49e3bd5c933d0d113c6ece8a7cf87",
+      "lf_sha256": "ff9addfccf5672377ac01695f25af37d65e49e3bd5c933d0d113c6ece8a7cf87"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "3d0af8ff027fb0d4481933208c1610abb046b54c7445db15a8013f7d2cf22d87",
+      "lf_sha256": "3d0af8ff027fb0d4481933208c1610abb046b54c7445db15a8013f7d2cf22d87"
+    }
+  },
+  "started_at": "2026-10-17T17:20:08.078432+00:00",
+  "pid": 7812,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T17:24:27.711541+00:00",
+  "log_sha256": "b35ed95952215d690cd4662bf5dcc15dc61f28a0b248dd25d2796fc16ad87a86",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\api-red-01.log",
+  "output": "F                                                                        [100%]\r\n================================== FAILURES ===================================\r\n________ test_owner_gets_typed_recorded_facts_and_separate_read_clocks ________\r\ntests\\integration\\account\\test_portfolio_recorded_facts_api.py:140: in test_owner_gets_typed_recorded_facts_and_separate_read_clocks\r\n    response = _authenticated_get(\r\ntests\\integration\\account\\test_portfolio_recorded_facts_api.py:129: in _authenticated_get\r\n    assert response[\"Content-Type\"].split(\";\", 1)[0] == \"application/json\"\r\nE   AssertionError: assert 'text/html' == 'application/json'\r\nE     \r\nE     - application/json\r\nE     + text/html\r\n---------------------------- Captured stdout setup ----------------------------\r\n[Migration 0007] Data backfill completed: event_type=0, gate_effective=0\r\n---------------------------- Captured stderr call -----------------------------\r\nRequest completed: GET /api/account/portfolios/1/recorded-facts/ - 404 (5882ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/account/portfolios/1/recorded-facts/ - 404 (5882ms)\r\n=========================== short test summary info ===========================\r\nFAILED tests/integration/account/test_portfolio_recorded_facts_api.py::test_owner_gets_typed_recorded_facts_and_separate_read_clocks\r\n1 failed in 228.55s (0:03:48)\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

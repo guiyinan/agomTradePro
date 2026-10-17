@@ -1,0 +1,55 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/check_architecture_delta.py",
+    "--base-ref",
+    "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+    "--head-ref",
+    "62229dda1538cdbf0ef59c6d5b0b705c76dc932e",
+    "--include-audit",
+    "--fail-on-audit-violations"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "raw_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34",
+      "lf_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+      "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+      "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "29add58bc0516e0652825e9422aa37cb333a8981f05ff527e92424d07a564f97",
+      "lf_sha256": "a54ecf4f6382e5416002304478edc7310177749afe66b633fe021d70f8418939"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450",
+      "lf_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc",
+      "lf_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc"
+    }
+  },
+  "started_at": "2026-10-17T17:40:35.016541+00:00",
+  "pid": 25024,
+  "exit_code": 0,
+  "finished_at": "2026-10-17T17:41:31.160631+00:00",
+  "log_sha256": "59a294c2a37a30f29bf4f13b4862a11f801d9032e2115c9aee5339e19fafd07d",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\architecture-01.log",
+  "output": "Architecture delta guard\r\nBase ref: a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed\r\nHead ref: 62229dda1538cdbf0ef59c6d5b0b705c76dc932e\r\nChanged files: 4\r\nAdded lines: 808\r\nArchitecture rules version: 2026-10-09.v9\r\nScan roots: apps, core, shared\r\nScanned files: 3497\r\nBoundary rules: 7\r\nBoundary violations: 0\r\n\r\nAudit rules: 20\r\nAudit violations: 0\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

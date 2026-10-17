@@ -798,6 +798,25 @@
           "resolve_portfolio_for_user",
           "update_position_payload"
         ],
+        "application/portfolio_recorded_facts.py": [
+          "PortfolioAccessResolver",
+          "PortfolioRecordedFactsInputError",
+          "PortfolioRecordedFactsReadError",
+          "PortfolioRecordedFactsReadResult",
+          "PortfolioRecordedFactsReader",
+          "ReadNow"
+        ],
+        "application/portfolio_recorded_facts_contracts.py": [
+          "PortfolioRecordedFactsPayload",
+          "RecordedPosition",
+          "RecordedPositionPage",
+          "RecordedPositionPagePayload",
+          "RecordedPositionPayload",
+          "RecordedReadClock",
+          "RecordedReadClockPayload",
+          "RecordedStatistics",
+          "RecordedStatisticsPayload"
+        ],
         "application/query_services.py": [
           "count_missing_asset_metadata",
           "count_orphan_account_positions",
@@ -1017,7 +1036,7 @@
         ]
       },
       "layers": {
-        "application": 66,
+        "application": 68,
         "domain": 36,
         "infrastructure": 141,
         "interface": 24,

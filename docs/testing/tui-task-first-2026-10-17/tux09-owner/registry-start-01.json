@@ -1,0 +1,43 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/check_active_plan_registry.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": null,
+    "apps/account/application/portfolio_recorded_facts_contracts.py": null,
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "055ef94511f6031ccd8e55085b2b17593a30cc3c1d32b03f223217758224cc38",
+      "lf_sha256": "a2e4ab9672ef35bba91313dfd806236774f7db8e2982ec7457b584e225a44e81"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "a58643c5577e3c0f8baffad8c36562b0faf88a8a3ed99b431fd7185b3f414de2",
+      "lf_sha256": "3c4cd0835114b653382876646024210da795a908dece663f46dae816185c76e1"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "ff9addfccf5672377ac01695f25af37d65e49e3bd5c933d0d113c6ece8a7cf87",
+      "lf_sha256": "ff9addfccf5672377ac01695f25af37d65e49e3bd5c933d0d113c6ece8a7cf87"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "3d0af8ff027fb0d4481933208c1610abb046b54c7445db15a8013f7d2cf22d87",
+      "lf_sha256": "3d0af8ff027fb0d4481933208c1610abb046b54c7445db15a8013f7d2cf22d87"
+    }
+  },
+  "started_at": "2026-10-17T17:20:06.313933+00:00",
+  "pid": 11052,
+  "exit_code": 0,
+  "finished_at": "2026-10-17T17:20:06.935432+00:00",
+  "log_sha256": "6c45933d468e1b446c291a966054d5689ca81e434d8bfb3f77fecc57c57d67ef",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\registry-start-01.log",
+  "output": "active-plan-registry version=2026-10-18.v261 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

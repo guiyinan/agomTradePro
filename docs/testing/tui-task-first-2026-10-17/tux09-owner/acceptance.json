@@ -1,0 +1,127 @@
+{
+  "unit": "TUX-09 owner prerequisite only",
+  "status": "bounded-owner-interface-verified; TUX-09 and TUX-10 remain planned",
+  "base_commit": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "implemented": [
+    "Authenticated GET-only stored portfolio facts using existing Account owner policy.",
+    "Authorization before and after reads; identity changes discard prior components.",
+    "Native currency/nulls, exact Decimal strings, explicit position count and bounded pages.",
+    "Separate application read intervals, never source clocks or an atomic valuation snapshot.",
+    "Existing observer audit gateway persists a real authorized read audit record.",
+    "No ledger synchronization; complete business rows remain unchanged in isolated API tests."
+  ],
+  "actual_checks": {
+    "backend-final-01": {
+      "record": "backend-final-01.json",
+      "exit_code": 0
+    },
+    "style-03": {
+      "record": "style-03.json",
+      "exit_code": 0
+    },
+    "imports-03": {
+      "record": "imports-03.json",
+      "exit_code": 0
+    },
+    "ruff-03": {
+      "record": "ruff-03.json",
+      "exit_code": 0
+    },
+    "mypy-02": {
+      "record": "mypy-02.json",
+      "exit_code": 0
+    },
+    "mypy-debt-01": {
+      "record": "mypy-debt-01.json",
+      "exit_code": 0
+    },
+    "module-generate-01": {
+      "record": "module-generate-01.json",
+      "exit_code": 0
+    },
+    "module-check-01": {
+      "record": "module-check-01.json",
+      "exit_code": 0
+    },
+    "architecture-01": {
+      "record": "architecture-01.json",
+      "exit_code": 0
+    },
+    "size-01": {
+      "record": "size-01.json",
+      "exit_code": 0
+    },
+    "governance-01": {
+      "record": "governance-01.json",
+      "exit_code": 0
+    }
+  },
+  "known_failed_rounds": {
+    "api-red-01": "Old production tree returned 404 HTML: actual missing-route RED.",
+    "owner-green-01": "21 passed, four incorrect test assertions: database Decimal scale, equal Decimal exponent representation and audit response_status field. Corrected assertions; no production bypass.",
+    "ruff-01": "Import alias ordering differed between isort and Ruff. Used an explicit model-module alias; final six-file checks and combined API/permission tests rebind the repaired test file.",
+    "mypy-01": "Two redundant casts on injected typed ports and one nullable query-parameter narrowing error. Removed redundant casts and explicitly narrowed None; no ignore or baseline change."
+  },
+  "source_binding": "frozen-inputs.json; successful QA records bind exact six owner source/test inputs. Official module map generated then checked. Plan and registry finalized after frozen source QA.",
+  "final_counts": {
+    "backend_tests": 70,
+    "owned_api_tests": 20,
+    "owned_dto_tests": 5,
+    "existing_account_regressions": 45,
+    "mypy_errors": 0
+  },
+  "restoration": {
+    "registry": "2026-10-18.v262",
+    "closure": "2026-10-18.v76",
+    "units": 79,
+    "all_unit_objects_exact_before": true,
+    "ash02_full_object_exact_before": true,
+    "execution_focus_and_policy_exact_before": true,
+    "tux09": "planned",
+    "tux10": "planned"
+  },
+  "remaining": [
+    "No TUI metadata, task selector/executor projection, frontend or keyboard activation in this window.",
+    "Today-focus and portfolio-check complete UI journeys and TUX-10 integrated compatibility acceptance remain pending.",
+    "No human onboarding study, production/provider/exchange authority, native PostgreSQL owner validation, deployment or trading acceptance.",
+    "Stored statistics have no FX normalization or price source time; position pagination bounds output but reads all open rows before slicing. Large-portfolio performance is unverified.",
+    "Concurrent Root retirement gate retains nine known failures; no floor/baseline/exemption changes."
+  ],
+  "agents": "Luna Max bounded implementation and static audit; parent sole shared source writer, actual QA and Git owner.",
+  "protected_tests": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "final_document_checks": {
+    "registry": {
+      "exit_code": 0,
+      "record": "registry-final-01.json"
+    },
+    "registry_tests": {
+      "exit_code": 0,
+      "passed": 8,
+      "record": "registry-tests-01.json"
+    },
+    "governance": {
+      "exit_code": 0,
+      "violations": 0,
+      "record": "governance-final-01.json"
+    },
+    "retirement": {
+      "exit_code": 1,
+      "violations": [
+        "module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+        "module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+        "no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+        "no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+        "unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+        "unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+        "unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+        "unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+        "unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py"
+      ],
+      "record": "retirement-final-01.json",
+      "no_waiver_or_baseline_change": true
+    }
+  }
+}

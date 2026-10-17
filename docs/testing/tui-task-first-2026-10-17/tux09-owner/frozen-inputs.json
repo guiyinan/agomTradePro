@@ -1,0 +1,30 @@
+{
+  "apps/account/application/portfolio_recorded_facts.py": {
+    "raw_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34",
+    "lf_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34"
+  },
+  "apps/account/application/portfolio_recorded_facts_contracts.py": {
+    "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+    "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+  },
+  "apps/account/infrastructure/account_read_repository.py": {
+    "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+    "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+  },
+  "apps/account/interface/portfolio_api_views.py": {
+    "raw_sha256": "29add58bc0516e0652825e9422aa37cb333a8981f05ff527e92424d07a564f97",
+    "lf_sha256": "a54ecf4f6382e5416002304478edc7310177749afe66b633fe021d70f8418939"
+  },
+  "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+    "raw_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450",
+    "lf_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450"
+  },
+  "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+    "raw_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc",
+    "lf_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc"
+  },
+  "governance/module_map.json": {
+    "raw_sha256": "6ac68e4ce27c2345b8a13acbcd4df321ab075c7725d9e5eac2f61bc27c2a835f",
+    "lf_sha256": "6ac68e4ce27c2345b8a13acbcd4df321ab075c7725d9e5eac2f61bc27c2a835f"
+  }
+}

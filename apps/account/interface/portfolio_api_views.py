@@ -14,6 +14,11 @@ from rest_framework.response import Response
 
 from apps.account.application import portfolio_api_services
 from apps.account.application.business_provider_gateway import log_audit_operation
+from apps.account.application.portfolio_recorded_facts import (
+    PortfolioRecordedFactsInputError,
+    PortfolioRecordedFactsReader,
+    PortfolioRecordedFactsReadError,
+)
 from shared.request_payload import request_data_mapping
 
 from .permissions import ObserverAccessPermission
@@ -34,6 +39,28 @@ def _authenticated_user_id(request: Request) -> int:
     if not isinstance(user_id, int):
         raise NotAuthenticated("Authenticated user has no persisted ID")
     return user_id
+
+
+def _positive_query_parameter(
+    request: Request,
+    name: str,
+    *,
+    default: int,
+    maximum: int | None = None,
+) -> int:
+    """Parse one positive bounded pagination query parameter."""
+
+    raw_value = request.query_params.get(name)
+    if raw_value is None or raw_value == "":
+        return default
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise PortfolioRecordedFactsInputError(f"{name} 必须是正整数") from exc
+    if value <= 0 or (maximum is not None and value > maximum):
+        limit = f"且不超过 {maximum}" if maximum is not None else ""
+        raise PortfolioRecordedFactsInputError(f"{name} 必须是正整数{limit}")
+    return value
 
 
 class ObserverAuditMixin:
@@ -239,6 +266,51 @@ class PortfolioViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):
 
         self._log_observer_portfolio_access_if_needed(request, context.portfolio, "statistics")
         return Response(PortfolioStatisticsSerializer(payload).data)
+
+    @action(detail=True, methods=["get"], url_path="recorded-facts")
+    def recorded_facts(self, request: Request, pk: str | None = None) -> Response:
+        """Return bounded stored portfolio facts without ledger synchronization."""
+
+        if pk is None:
+            return Response(
+                {"success": False, "error": "缺少 portfolio_id"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            page = _positive_query_parameter(request, "page", default=1)
+            page_size = _positive_query_parameter(
+                request,
+                "page_size",
+                default=20,
+                maximum=100,
+            )
+            result = PortfolioRecordedFactsReader().read(
+                user_id=_authenticated_user_id(request),
+                portfolio_id=pk,
+                page=page,
+                page_size=page_size,
+            )
+        except PortfolioRecordedFactsInputError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except portfolio_api_services.PortfolioNotFoundError as exc:
+            raise NotFound(str(exc)) from exc
+        except portfolio_api_services.PortfolioAccessDeniedError as exc:
+            raise PermissionDenied(str(exc)) from exc
+        except PortfolioRecordedFactsReadError:
+            return Response(
+                {"success": False, "error": "组合事实暂不可用"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        self._log_observer_portfolio_access_if_needed(
+            request,
+            result.context.portfolio,
+            "recorded_facts",
+        )
+        return Response({"success": True, **result.payload})
 
 
 class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet[Any]):

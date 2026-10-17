@@ -1,0 +1,58 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    "tests/integration/account/test_portfolio_recorded_facts_api.py",
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py",
+    "-q",
+    "--reuse-db",
+    "--ds=tux09_owner_a11bd_settings",
+    "--basetemp=D:/githv/agomTradePro/.tmp/tux09-owner-a11bdf8ff3-01/owner-green-01-temp",
+    "-o",
+    "cache_dir=D:/githv/agomTradePro/.tmp/tux09-owner-a11bdf8ff3-01/owner-green-01-cache"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "raw_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec",
+      "lf_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+      "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+      "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "1ee7388289d6249ac86a8d436fd045bf21afec45c7a310ef9e07dc86d53d84f3",
+      "lf_sha256": "1bc3f5bccc9857abee8ce18d7fd3fbe4b7a3593c68ee05701cf20e9f729be65e"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "f071dab8379db8691413f52e5eb6b2e7099ee78df353ffaf2c9a851909db05c2",
+      "lf_sha256": "f071dab8379db8691413f52e5eb6b2e7099ee78df353ffaf2c9a851909db05c2"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "b22c4feead95b077f35af9e22c76d12db5ba92fa6d6b3aca4174347804f75d7b",
+      "lf_sha256": "b22c4feead95b077f35af9e22c76d12db5ba92fa6d6b3aca4174347804f75d7b"
+    }
+  },
+  "started_at": "2026-10-17T17:26:26.627632+00:00",
+  "pid": 31816,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T17:27:47.664348+00:00",
+  "log_sha256": "5d382471c61fd9669676ffb924fab57b5f17b693f43e5aaca840e18be381681f",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\owner-green-01.log",
+  "output": "FF.....F............F....                                                [100%]\r\n================================== FAILURES ===================================\r\n________ test_owner_gets_typed_recorded_facts_and_separate_read_clocks ________\r\ntests\\integration\\account\\test_portfolio_recorded_facts_api.py:164: in test_owner_gets_typed_recorded_facts_and_separate_read_clocks\r\n    assert item[\"avg_cost\"] == \"10.50\"\r\nE   AssertionError: assert '10.5000' == '10.50'\r\nE     \r\nE     - 10.50\r\nE     + 10.5000\r\nE     ?      ++\r\n___________ test_observer_gets_read_facts_and_owner_resource_audit ____________\r\ntests\\integration\\account\\test_portfolio_recorded_facts_api.py:212: in test_observer_gets_read_facts_and_owner_resource_audit\r\n    assert audit.status_code == 200\r\nE   AttributeError: 'OperationLogModel' object has no attribute 'status_code'\r\n_______ test_native_currency_nulls_and_legal_zero_values_are_preserved ________\r\ntests\\integration\\account\\test_portfolio_recorded_facts_api.py:360: in test_native_currency_nulls_and_legal_zero_values_are_preserved\r\n    assert item[\"market_value\"] == \"0\"\r\nE   AssertionError: assert '0.00' == '0'\r\nE     \r\nE     - 0\r\nE     + 0.00\r\n_ PortfolioRecordedFactsContractTest.test_money_strings_preserve_precision_and_zero _\r\ntests\\unit\\account\\test_portfolio_recorded_facts_contracts.py:146: in test_money_strings_preserve_precision_and_zero\r\n    self.assertEqual(payload[\"total_pnl\"], \"-0.000000001\")\r\nE   AssertionError: '-1E-9' != '-0.000000001'\r\nE   - -1E-9\r\nE   + -0.000000001\r\n=========================== short test summary info ===========================\r\nFAILED tests/integration/account/test_portfolio_recorded_facts_api.py::test_owner_gets_typed_recorded_facts_and_separate_read_clocks\r\nFAILED tests/integration/account/test_portfolio_recorded_facts_api.py::test_observer_gets_read_facts_and_owner_resource_audit\r\nFAILED tests/integration/account/test_portfolio_recorded_facts_api.py::test_native_currency_nulls_and_legal_zero_values_are_preserved\r\nFAILED tests/unit/account/test_portfolio_recorded_facts_contracts.py::PortfolioRecordedFactsContractTest::test_money_strings_preserve_precision_and_zero\r\n4 failed, 21 passed in 59.29s\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

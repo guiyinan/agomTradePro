@@ -1,0 +1,49 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/check_versioned_surface_retirement.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "raw_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34",
+      "lf_sha256": "1906b4a22d5758d8f2a3890d8124c0572ea33983ed679f2cc00f7fe34df44e34"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+      "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+      "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "29add58bc0516e0652825e9422aa37cb333a8981f05ff527e92424d07a564f97",
+      "lf_sha256": "a54ecf4f6382e5416002304478edc7310177749afe66b633fe021d70f8418939"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450",
+      "lf_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc",
+      "lf_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc"
+    }
+  },
+  "started_at": "2026-10-17T17:46:20.249503+00:00",
+  "pid": 49288,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T17:46:21.673126+00:00",
+  "log_sha256": "bd2807a8a24ca5ce2eebef2d6519e571aa02ea958246b8e0db86ed91fcf8d7c6",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\retirement-final-01.log",
+  "output": "Versioned surface retirement violations: module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}

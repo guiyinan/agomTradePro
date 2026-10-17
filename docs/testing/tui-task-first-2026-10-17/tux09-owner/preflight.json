@@ -1,0 +1,86 @@
+{
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "branch": "dev/next-development",
+  "root_handoff_path": "D:\\githv\\agomTradePro\\.tmp\\formal-calendar-size-root-1-postcommit.json",
+  "root_handoff_sha256": "2108eb62558db9a6f89e2eb9c793236451bb4bc8c21a481f485b3c64ff764db3",
+  "protected": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "status_before": " A tests/unit/simulated_trading/test_ash01_settlement_regressions.py\n?? tests/unit/account/test_manual_trade_fee_availability.py\n",
+  "cached_before": "",
+  "registry_version": "2026-10-18.v260",
+  "closure_version": "2026-10-17.v74",
+  "unit_count": 79,
+  "source_bindings": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "preimage": null,
+      "candidate_sha256": "69f4f4417a3eed9126472c9c6e02d7041b5b8e5c0589322661b984c0cd659894"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "preimage": null,
+      "candidate_sha256": "8409351081e01db0364149498d67a337fd7bf4268e3da76329267e5c659a9094"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "preimage_raw_sha256": "055ef94511f6031ccd8e55085b2b17593a30cc3c1d32b03f223217758224cc38",
+      "preimage_lf_sha256": "a2e4ab9672ef35bba91313dfd806236774f7db8e2982ec7457b584e225a44e81",
+      "candidate_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "preimage_raw_sha256": "a58643c5577e3c0f8baffad8c36562b0faf88a8a3ed99b431fd7185b3f414de2",
+      "preimage_lf_sha256": "3c4cd0835114b653382876646024210da795a908dece663f46dae816185c76e1",
+      "candidate_sha256": "229d8f5ef9878bf9831f0d14c0113180b64520b86dd66fbd7f9e9034893bdc97"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "preimage": null,
+      "candidate_sha256": "037d7791fc675fef3c689ed3aa0c2155a7c52fd1b8e4e02254b49173f51d3316"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "preimage": null,
+      "candidate_sha256": "3d0af8ff027fb0d4481933208c1610abb046b54c7445db15a8013f7d2cf22d87"
+    }
+  },
+  "dependencies": {
+    "apps/account/application/portfolio_api_contracts.py": {
+      "actual_raw_sha256": "9db2dc2b457c6691a9d18030d138d3dff7a477776c54cddb58a9710dca90b3ce",
+      "lf_sha256": "8d54c1465da37c668d4cee807c861e3e93981c7721ee94719d70f0f8d8d468db",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/application/portfolio_api_services.py": {
+      "actual_raw_sha256": "f283afab2dd25a047f07802b81775d86ee835ae525d2fb560b5fa2bfc9954883",
+      "lf_sha256": "4a4fcb7ced92525714b28235d9fda885250fd9dadcfb67c8dbe58e3e0e824e1b",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/application/repository_provider.py": {
+      "actual_raw_sha256": "6c031d46593b7babc569a5330f4f71aab69be632beb3a5970ba6e4f04c23d01d",
+      "lf_sha256": "882f750c3e4358c97f4b6f3726dbd9b3298edda91d7adf28b27b8e621f737e7a",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/interface/permissions.py": {
+      "actual_raw_sha256": "bba093d532fdc48e444aedf79761c28b2793f661cb1e58ceaa525e28cb5412a8",
+      "lf_sha256": "6854b025a526374a00f0c6c32d758760a1b488c24a4f552e2f3b8a993f8af88b",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/interface/serializers.py": {
+      "actual_raw_sha256": "6352a59670d4bb62b9538fd1d4c57ed8a82a8abecc48cd9e5ee4ac302a7b83b8",
+      "lf_sha256": "42b75e7ddbb319625cf73a4a631d0e42b17eaeea2ade5cfbbfbc02831f7a47f1",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/interface/api_urls.py": {
+      "actual_raw_sha256": "a57819c34de78d5aaa2d4a4ad6dbe06bffbd048cb0e323356dc7f88d572012d8",
+      "lf_sha256": "a57819c34de78d5aaa2d4a4ad6dbe06bffbd048cb0e323356dc7f88d572012d8",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/account/infrastructure/portfolio_models.py": {
+      "actual_raw_sha256": "51afa9646cd7223585b0798073d11cda0dd7e02770b032d8be46a78e3f04f226",
+      "lf_sha256": "e47088685a29a85ddc891ab9375b1e59602a1e894944d4e31a9dd79daa3b8f66",
+      "same_as_fixed_export_lf": true
+    },
+    "apps/simulated_trading/infrastructure/account_portfolio_repository.py": {
+      "actual_raw_sha256": "ec264d2711ddb49da8de2c04988a84f2541534bf1b01de50632a5c38ed8b3035",
+      "lf_sha256": "35afa95a0f545da651b263e045467a999c008e1b859f537f0346213f7eb29cca",
+      "same_as_fixed_export_lf": true
+    }
+  },
+  "scope": "Owner prerequisite only. No TUI metadata/runtime/frontend activation or test claim."
+}

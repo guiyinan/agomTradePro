@@ -45,6 +45,9 @@ class AccountReadRepository:
                     if position.asset_code in metadata_by_code
                     else position.asset_code
                 ),
+                "currency_code": position.currency.code if position.currency else None,
+                "currency_name": position.currency.name if position.currency else None,
+                "currency_symbol": position.currency.symbol if position.currency else None,
                 "asset_class": position.asset_class,
                 "shares": position.shares,
                 "avg_cost": position.avg_cost,

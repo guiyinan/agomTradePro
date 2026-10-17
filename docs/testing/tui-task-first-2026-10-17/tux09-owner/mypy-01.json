@@ -1,0 +1,53 @@
+{
+  "scope": "Local isolated owner prerequisite only; no TUI journey or production acceptance",
+  "base_head": "a11bdf8ff3a1ed76f0bc951904588edfe2e1e4ed",
+  "command": [
+    "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "scripts/check_mypy_regression.py",
+    "apps/account/application/portfolio_recorded_facts.py",
+    "apps/account/application/portfolio_recorded_facts_contracts.py",
+    "apps/account/infrastructure/account_read_repository.py",
+    "apps/account/interface/portfolio_api_views.py"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_owner_a11bd_settings",
+  "settings_sha256": "c4c0ae46365e40e81eb9d38e03decf8522d1f4a4cfe401eb9576d1104c5bb800",
+  "database": "Unique SQLite owner-default.sqlite3 / owner-tests.sqlite3 under this QA directory",
+  "source_inputs": {
+    "apps/account/application/portfolio_recorded_facts.py": {
+      "raw_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec",
+      "lf_sha256": "93d34ca93542f1ca89dcb716cbeeabbba91fe3b4f62fe6a2f24e99aad4a6b6ec"
+    },
+    "apps/account/application/portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861",
+      "lf_sha256": "cc931789f4acf3c9849bc7fa163b8caea667ebafb1080dc192f4c98c05399861"
+    },
+    "apps/account/infrastructure/account_read_repository.py": {
+      "raw_sha256": "e375e2fe40573bd5c480282ab7f17c3d21f2b6b7e02b88f6cdea0d5cf0b5b5a5",
+      "lf_sha256": "d8503fcff8edc9a2acae6a14c768aa201eadce5111c73329763a880c7813fa15"
+    },
+    "apps/account/interface/portfolio_api_views.py": {
+      "raw_sha256": "1ee7388289d6249ac86a8d436fd045bf21afec45c7a310ef9e07dc86d53d84f3",
+      "lf_sha256": "1bc3f5bccc9857abee8ce18d7fd3fbe4b7a3593c68ee05701cf20e9f729be65e"
+    },
+    "tests/integration/account/test_portfolio_recorded_facts_api.py": {
+      "raw_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450",
+      "lf_sha256": "62a412cc120ea2ccb3da58edc1d778668000d041ec7568949682c006e2408450"
+    },
+    "tests/unit/account/test_portfolio_recorded_facts_contracts.py": {
+      "raw_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc",
+      "lf_sha256": "bfbcddf40057510b7f6b59da8fffc238c379b276af45004c1cfb9c509d8487cc"
+    }
+  },
+  "started_at": "2026-10-17T17:31:52.929224+00:00",
+  "pid": 35324,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T17:33:37.414712+00:00",
+  "log_sha256": "98ebe030a4efb6f1abc14224348e81610fc3f19cda0760da42b1dcda7d92be7d",
+  "local_log_path": "D:\\githv\\agomTradePro\\.tmp\\tux09-owner-a11bdf8ff3-01\\mypy-01.log",
+  "output": "Mypy regression(s):\r\n- apps/account/application/portfolio_recorded_facts.py: redundant-cast increased from 0 to 2\r\n- apps/account/interface/portfolio_api_views.py: arg-type increased from 0 to 1\r\napps\\account\\application\\portfolio_recorded_facts.py:103: error: Redundant cast to \"AccountReadRepository\"  [redundant-cast]\r\napps\\account\\application\\portfolio_recorded_facts.py:108: error: Redundant cast to \"PortfolioApiRepository\"  [redundant-cast]\r\napps\\account\\interface\\portfolio_api_views.py:57: error: Argument 1 to \"int\" has incompatible type \"str | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"  [arg-type]\r\nFound 3 errors in 2 files (checked 4 source files)\r\n",
+  "output_encoding": "UTF-8; encode output without newline conversion to verify log_sha256"
+}
