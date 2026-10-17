@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v230",
+  "version": "2026-10-17.v231",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.37 accepts only pre-existing density fixture correction:baseline1failed reproduced on committed1d77, corrected original source-consistency module48passed40.92s, no production validator change or pending Calendar IA included. Plan19.36 owner/API remains accepted. Next generic continuation confirmed retry after actual build, then dedicated Calendar IA/runtime+outerTUI Native/browser, then ordinary sim/backtest. ASH01/02/03 and full Goal open; DATA18 gatesASH11; no production/realProvider/research/Evidence/dispatch/broker qualification.",
+      "next_gate": "Plan19.38 accepts generic hidden result_continuation/schema/service/private-tab controller and paired build only. Final build-first5browser/fullNode pass; Python3 unchanged across qualified type/regression windows. Cancellation/expiry/newpreview/actionpair/screen clear; exact token/key/confirmation retry and reauth without password retention. Calendar IA/runtime, outerNative/browser and ordinary sim/backtest remain separate pending batches. FullGoal/ASH01/02/03 open; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

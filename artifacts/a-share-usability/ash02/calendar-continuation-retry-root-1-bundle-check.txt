@@ -1,0 +1,6 @@
+source_tree=1d17aa8c0aa59bef9866ef515ea52a237a2877b3
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-green-y9mqyhlh
+
+> agomtradepro@1.0.0 check:tui
+> node scripts/build-tui-runtime.mjs --check
+

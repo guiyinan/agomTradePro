@@ -1,0 +1,42 @@
+{
+  "recorded_at": "2026-10-17T01:25:01.126020+00:00",
+  "base_commit": "632c7a7f4faf5a33911635678aa248cd12225633",
+  "source_tree": "f05b33fdfab9871df47c9e816a66c71a5110d11b",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-retry-green-5mv44yl3",
+  "owned_paths": [
+    "apps/terminal/application/tui_metadata.py",
+    "apps/terminal/application/tui_workbench_catalog.py",
+    "apps/terminal/application/tui_workbench_execution.py",
+    "config/tui/schema/tui_metadata.schema.v3.json",
+    "frontend/tui-workbench/src/05-result-continuation.js",
+    "frontend/tui-workbench/src/00-runtime.js",
+    "frontend/tui-workbench/src/10-navigation.js",
+    "frontend/tui-workbench/src/30-actions.js",
+    "scripts/build-tui-runtime.mjs",
+    "tests/unit/test_tui_workbench.py",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs",
+    "frontend/tui-workbench/src/50-shell.js",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs",
+    "frontend/tui-workbench/tests/source-layout.test.mjs",
+    "tests/unit/test_tui_metadata_source_consistency.py"
+  ],
+  "fixture_blob": "1d044c4871ac105794f89b5cd1b5196d029f2d5e",
+  "source_sha256": {
+    "apps/terminal/application/tui_metadata.py": "88287a3add573ca66c1e055d53e4d05076c8ffdd8cbcaa65ed34a8b55bd37ccb",
+    "apps/terminal/application/tui_workbench_catalog.py": "92c8b474da666fadd76809e823e32866f1c740333b2e3445c770394c34692028",
+    "apps/terminal/application/tui_workbench_execution.py": "b4801c296e1c78e45e57386c0f63e616422b15b5159bcdfbaebc6f5066e11f65",
+    "config/tui/schema/tui_metadata.schema.v3.json": "580bbedac38a4da25021ea100dac87b613199cb50a095810182847e095372d02",
+    "frontend/tui-workbench/src/05-result-continuation.js": "4aaaa18d561061a8ee508d3f60ed3dbfe85827427ec0f72c601ed9d3573dc6bc",
+    "frontend/tui-workbench/src/00-runtime.js": "ff1813b034f9e2be0b977f6aaa22e9b3dafcf06ebc888e97c1f63839c5acc408",
+    "frontend/tui-workbench/src/10-navigation.js": "7c9ee9a63cb172e49ac71c58144dbec10a2adcb8210e62b75a0e56c1c977800b",
+    "frontend/tui-workbench/src/30-actions.js": "c7626575d0cabe46f16110ede659a0491cf381f95109539221ba944881d4902c",
+    "scripts/build-tui-runtime.mjs": "cc0f1ba26c561ed13be20695659bd4bc3d0b32e8db3ce2105c6419b68e6d7777",
+    "tests/unit/test_tui_workbench.py": "410b6033c17b940963f2341d35511e0c36ce82408c5a4306139428b7c3028c17",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": "8385b455dd4ad49c6501d1fcfc99eb113febe59346b88cc832ffbcdf368dbb10",
+    "frontend/tui-workbench/src/50-shell.js": "ae37e5710fa07c3204f8d713567bee1a7924bad428c8ff272ee617d8a8c4fdad",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": "6bf81d2355e2d4cc96fa5cce8ec73c4e6daf9b1cbdc48a3bcac485bd3d73045f",
+    "frontend/tui-workbench/tests/source-layout.test.mjs": "3a6972c4da12e9569f36974480d7bd94c3ddd6110029d80e0f5fccb3189d0140",
+    "tests/unit/test_tui_metadata_source_consistency.py": "cb053f0088e42ce9eaf37b7f3afc0bb8b6b3258f697c793caff646469ac032a2"
+  },
+  "scope": "Generic continuation auxiliary export only; excludes pending Calendar IA/runtime and outerNative. Build before browser tests. No dependency install, PG or production."
+}

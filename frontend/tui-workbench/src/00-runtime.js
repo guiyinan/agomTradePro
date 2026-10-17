@@ -1,5 +1,6 @@
 
     const runtimeCore = window.AgomTUIRuntimeCore || {};
+    const resultContinuations = window.AgomTUIResultContinuations.createController();
     const state = {
         catalog: null,
         screen: null,
@@ -1465,8 +1466,10 @@
                     scheduleSlowActionState(state.pendingRequestId, action);
                 } else if (command === "retry") {
                     clearPendingRequest({ abort: true });
-                    runAction(action.key, null, { params: { ...state.lastParams }, idempotencyKey: state.lastIdempotencyKey });
+                    runAction(action.key, null, slowActionRetryOptions(action));
                 } else if (command === "cancel") {
+                    resultContinuations.cancelSource(action, state.screen?.actions || []);
+                    resultContinuations.clearTargetRequest(action);
                     clearPendingRequest({ abort: true });
                     els.main.innerHTML = renderEmptyState("已取消当前请求。", ["你可以重试，或切换到其他入口继续。"]);
                     setStatus("已取消");

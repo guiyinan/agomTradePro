@@ -6,6 +6,7 @@ import test from "node:test";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const sourceNames = [
+    "05-result-continuation.js",
     "00-runtime.js",
     "10-navigation.js",
     "15-workspace-state.js",

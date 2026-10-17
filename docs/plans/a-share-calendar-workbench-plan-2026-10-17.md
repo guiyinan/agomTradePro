@@ -7,8 +7,8 @@
 - scope 选择切片已由 commit 961c3800d 接受；opaque preview token/key 边界已由 commit b8a30b74e 接受。
 - 严格 session_auth_required metadata/gate 与 confirmed 必须为 JSON boolean 的入口已接受。缺省 confirmed 为 false；其他类型在任何 executor 副作用前拒绝。
 - Calendar HTTP/API 切片由 commit 02540d22c 接受：166 项相关单元测试；8 个生产文件增量检查及全库 mypy 结果为 0；真实 URL 路由 Native Session/CSRF 测试 14 passed（12 项业务流程及 2 项目标资格，34.86 秒）；freshness 85 项和入口目录 1362 项检查通过。首轮 13 passed、1 failed 是旧数据库绑定未关闭的测试夹具错误，修复后的 14 项结果取代首轮作为验收证据。官方生成与最终修正夹具后的入口 stale-check 均已通过；完整证据见[接口检查点](../testing/a-share-usability-calendar-workbench-api-2026-10-17.json)。
-- 通用 result_continuation 的取消清理已做定向修复：取消专用 Node 选择 13/13；对应 3 个 Python 生产文件未变。历史 354 项 Python 与旧 6 项 Node 结果是不同的既有套件，不能同新 13 项累加成一个覆盖率或 UAT 声明。Root 的 12 源候选 type/static/build 为零错误；先于新 build 运行的旧 Node 81 项只验证旧 bundle，不能证明新 bundle。真实浏览器验收尚未完成。
-- 仍有一个需先关闭的重试缺口：用户确认后若目标请求响应丢失或返回 5xx，目前没有“重试本次提交”的可靠浏览器路径。Ledger 正对新 built bundle 补真实失败用例，随后实现相同 token/key/expiry 的精确重试。该用例和修复尚未通过，不能宣称确认重试安全。
+- 通用 result_continuation 已独立验收：schema/service/private-tab controller 与配对 bundle/manifest；最终 build 后5项浏览器场景及完整Node 92项通过。Python/type/static/architecture结果来自明确独立源码窗口，相关源LF相等；不累加用例、不冒充同一CI/S6身份。详见[通用交接检查点](../testing/a-share-usability-tui-result-continuation-2026-10-17.json)。
+- 确认提交的网络/5xx精确重试、确认前重试返回确认、密码复核、同屏切换清理已关闭。旧令牌和原提交身份不变，密码不保存在重试上下文。Calendar实际owner主任务浏览器验收仍属后续阶段。
 - 已登记的 74 项 closure 单元是既有治理清单；本计划不把它们统称为全部已关闭，也不新增整体规模承诺。DATA-18、ASH-11 仍 incomplete/planned，完整 Goal 未关闭。
 
 ## 唯一用户旅程与公开契约
@@ -43,9 +43,9 @@ prepare 返回的 continuation action key 必须是 data-center.calendar-workben
 
 依赖基线为 commit 02540d22c。官方生成检查及最终 test-body 修正后的入口投影检查已通过，首次失败与修复后通过的原始证据分别保留。后续接线不放宽该 owner/API 与配置选择合同；如再修改其生产源，重新运行受影响的严格输入、Session/CSRF、TTL/CAS、撤权及 Audit/Outbox 回归。Native 测试在写入与清理前核对真实显式 TEST.NAME；SQLite 不能替代 PostgreSQL 验收。
 
-### B. 关闭 continuation 与确认重试缺口
+### B. 已验收的通用 continuation 基础
 
-按当前 continuation 实现而非旧 row-action 方案继续。完成取消、失败、过期、新 prepare 和 screen/action 上下文变化的清理回归。首先保留新 built bundle 下“确认请求已执行但客户端无响应/5xx后如何安全重试”的真实 red；修复后，重试必须沿用未过期的同一 token、同一幂等 key 和原 expires_at，只重放原请求，不重新捕获、不续期、不换 activation/CAS。CAS 已被其他发布前移时，旧 continuation 仍冲突；过期 token 不可重试。运行相应 Python、Node、type/static/build 检查并对最终新 bundle 做真实浏览器验证。已跑的旧 Node 81 不能充当这项验收。
+本通用阶段已完成取消、失败、过期、新 prepare、同屏动作对和screen变化的清理；源generation避免旧响应覆盖。网络/5xx重放原token/confirmation/key/expiry，首次未确认提交重试后仍需用户确认，密码复核不会保留旧密码。保留真实red和修复后新built-bundle结果。旧81项Node早于新build，未作为本阶段验收。Calendar外层Session/CSRF、owner及真实浏览器主任务独立验收。
 
 ### C. Calendar screen 与完整外层 TUI Native / browser journey
 

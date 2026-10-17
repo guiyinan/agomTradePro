@@ -1,3 +1,5 @@
+    let modalCancelHandler = null;
+
     function showModal(title, bodyHtml, options = {}) {
         state.modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         els.modalTitle.textContent = title;
@@ -11,6 +13,7 @@
             els.modal.classList.add(options.className);
         }
         els.modal.dataset.modalClass = options.className || "";
+        modalCancelHandler = typeof options.onCancel === "function" ? options.onCancel : null;
         els.modal.hidden = false;
         els.modalClose.focus();
     }
@@ -113,6 +116,20 @@
 
     function showActionConfirmation(result, actionKey, params, options = {}) {
         const confirmation = result.confirmation || {};
+        const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+        const action = actions.find(item => item?.key === actionKey);
+        const incoming = resultContinuations.incomingForTarget(actions, actionKey);
+        let onCancel = null;
+        if (action && incoming.status === "ready") {
+            onCancel = () => resultContinuations.cancelTargetConfirmation(
+                action,
+                actions,
+                params,
+                Date.now(),
+            );
+        } else if (action) {
+            onCancel = resultContinuations.sourceCancelHandler(action, actions);
+        }
         showModal(confirmation.title || "确认操作", `
             <div class="tui-confirmation">
                 <p>${escapeHtml(confirmation.message || "确认后执行此操作。")}</p>
@@ -121,11 +138,11 @@
                     <button class="tui-confirm-button" type="button" data-cancel-action>${escapeHtml(confirmation.cancel_label || "取消")}</button>
                 </div>
             </div>
-        `);
+        `, { onCancel });
         const confirmButton = els.modalBody.querySelector("[data-confirm-action]");
         const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
         confirmButton.addEventListener("click", () => {
-            closeModal();
+            closeModal({ cancel: false });
             runAction(actionKey, null, {
                 ...options,
                 confirmed: true,
@@ -146,6 +163,23 @@
 
     function showPasswordChallenge(result, actionKey, params, options = {}) {
         const challenge = result.password_challenge || {};
+        const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+        const action = actions.find(item => item?.key === actionKey);
+        const incoming = resultContinuations.incomingForTarget(actions, actionKey);
+        let onCancel = null;
+        if (action && incoming.status === "ready") {
+            onCancel = () => {
+                const cancelled = resultContinuations.cancelTargetConfirmation(
+                    action,
+                    actions,
+                    params,
+                    Date.now(),
+                );
+                if (cancelled.status === "missing") {
+                    resultContinuations.clearTargetRequest(action);
+                }
+            };
+        }
         showModal("重新验证身份", `
             <form class="tui-confirmation" data-password-challenge-form>
                 <p>${escapeHtml(challenge.message || "该操作需要重新验证身份。")}</p>
@@ -158,13 +192,13 @@
                     <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
                 </div>
             </form>
-        `);
+        `, { onCancel });
         const form = els.modalBody.querySelector("[data-password-challenge-form]");
         const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
         form.addEventListener("submit", (event) => {
             event.preventDefault();
             const password = form.querySelector("[name='password']")?.value || "";
-            closeModal();
+            closeModal({ cancel: false });
             runAction(actionKey, null, {
                 ...options,
                 params,
@@ -183,12 +217,17 @@
         form.querySelector("input")?.focus();
     }
 
-    function closeModal() {
+    function closeModal(options = {}) {
         if (els.modal) {
             const wasOpen = !els.modal.hidden;
+            const onCancel = modalCancelHandler;
+            modalCancelHandler = null;
             els.modal.hidden = true;
             els.modal.classList.remove("is-image-preview");
             els.modalBody.innerHTML = "";
+            if (wasOpen && options.cancel !== false && onCancel) {
+                onCancel();
+            }
             if (wasOpen && state.modalReturnFocus && document.contains(state.modalReturnFocus)) {
                 state.modalReturnFocus.focus();
             }

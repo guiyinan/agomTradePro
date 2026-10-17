@@ -1,0 +1,695 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const helperPath = resolve(root, "frontend/tui-workbench/src/05-result-continuation.js");
+const helperSource = await readFile(helperPath, "utf8");
+const shellPath = resolve(root, "frontend/tui-workbench/src/50-shell.js");
+const shellSource = await readFile(shellPath, "utf8");
+
+function makeActions() {
+    const source = {
+        key: "calendar.prepare",
+        screen_key: "calendar.workbench",
+        method: "POST",
+        risk: "write",
+        session_auth_required: true,
+        confirmation_required: true,
+        result_continuation: {
+            target_action_key: "calendar.confirm",
+            field_map: { confirmation_token: "confirmation_token" },
+        },
+    };
+    const target = {
+        key: "calendar.confirm",
+        screen_key: "calendar.workbench",
+        method: "POST",
+        risk: "write",
+        session_auth_required: true,
+        confirmation_required: true,
+        fields: [{
+            key: "confirmation_token",
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        }],
+    };
+    return [source, target];
+}
+
+function loadController() {
+    const context = { globalThis: {} };
+    runInNewContext(helperSource, context);
+    return context.globalThis.AgomTUIResultContinuations.createController();
+}
+
+function sourceBetween(source, startMarker, endMarker) {
+    const start = source.indexOf(startMarker);
+    const end = source.indexOf(endMarker, start);
+    assert.notEqual(start, -1, `missing source marker: ${startMarker}`);
+    assert.notEqual(end, -1, `missing source marker: ${endMarker}`);
+    return source.slice(start, end);
+}
+
+function loadActionConfirmationGlue(actions, controller) {
+    const modalCancelState = sourceBetween(
+        shellSource,
+        "    let modalCancelHandler = null;",
+        "    function modalFocusableElements()",
+    );
+    const confirmation = sourceBetween(
+        shellSource,
+        "    function showActionConfirmation(",
+        "    function showPasswordChallenge(",
+    );
+    const closeModal = sourceBetween(
+        shellSource,
+        "    function closeModal(",
+        "    function openSelectedRowDetail(",
+    );
+    const listeners = new Map();
+    const modalBody = {
+        innerHTML: "",
+        querySelector(selector) {
+            const button = {
+                addEventListener(eventName, callback) {
+                    listeners.set(`${selector}:${eventName}`, callback);
+                },
+                focus() {},
+            };
+            return button;
+        },
+    };
+    const state = {
+        screen: { actions },
+        modalReturnFocus: null,
+    };
+    const els = {
+        modal: {
+            hidden: true,
+            classList: { add() {}, remove() {} },
+            dataset: {},
+        },
+        modalTitle: { textContent: "" },
+        modalBody,
+        modalClose: { focus() {} },
+    };
+    const runCalls = [];
+    const statusCalls = [];
+    const context = {
+        Date,
+        HTMLElement: class HTMLElement {},
+        document: { activeElement: null, contains: () => false },
+        state,
+        els,
+        resultContinuations: controller,
+        escapeHtml: value => String(value ?? ""),
+        runAction: (...args) => runCalls.push(args),
+        setStatus: value => statusCalls.push(value),
+    };
+    runInNewContext(
+        `${modalCancelState}\n${confirmation}\n${closeModal}\n` +
+            "globalThis.glue = { showActionConfirmation, closeModal };",
+        context,
+    );
+    return {
+        glue: context.glue,
+        els,
+        listeners,
+        runCalls,
+        statusCalls,
+    };
+}
+
+function loadPasswordChallengeGlue(actions, controller) {
+    const challenge = sourceBetween(
+        shellSource,
+        "    function showPasswordChallenge(",
+        "    function closeModal(",
+    );
+    const listeners = new Map();
+    let onCancel = null;
+    const passwordInput = { value: "", focus() {} };
+    const cancelButton = {
+        addEventListener(eventName, callback) {
+            listeners.set(`cancel:${eventName}`, callback);
+        },
+    };
+    const form = {
+        addEventListener(eventName, callback) {
+            listeners.set(`form:${eventName}`, callback);
+        },
+        querySelector(selector) {
+            return selector === "input" || selector === "[name='password']" ? passwordInput : null;
+        },
+    };
+    const modalBody = {
+        querySelector(selector) {
+            if (selector === "[data-password-challenge-form]") return form;
+            if (selector === "[data-cancel-action]") return cancelButton;
+            return null;
+        },
+    };
+    const runCalls = [];
+    const statusCalls = [];
+    const context = {
+        Date,
+        state: { screen: { actions } },
+        els: { modalBody },
+        resultContinuations: controller,
+        escapeHtml: value => String(value ?? ""),
+        showModal(_title, _markup, options = {}) { onCancel = options.onCancel || null; },
+        closeModal(options = {}) {
+            const callback = onCancel;
+            onCancel = null;
+            if (options.cancel !== false && callback) callback();
+        },
+        runAction: (...args) => runCalls.push(args),
+        setStatus: value => statusCalls.push(value),
+    };
+    runInNewContext(
+        `${challenge}\nglobalThis.glue = { showPasswordChallenge };`,
+        context,
+    );
+    return { glue: context.glue, listeners, passwordInput, runCalls, statusCalls };
+}
+
+function loadCloseTopLayer(shellContext) {
+    const closeTopLayer = sourceBetween(
+        shellSource,
+        "    function closeTopLayer()",
+        "    function keyboardCommandForEvent(",
+    );
+    runInNewContext(
+        `${closeTopLayer}\nglobalThis.closeTopLayer = closeTopLayer;`,
+        shellContext,
+    );
+    return shellContext.closeTopLayer;
+}
+
+function successfulResult(token, expiresAt = "2099-01-01T00:00:00Z") {
+    return {
+        outcome: "success",
+        response: { status_code: 200 },
+        view_model: { kind: "detail", status: "已准备" },
+        debug: { raw_available: false, raw_response: null },
+        continuation: {
+            action_key: "calendar.confirm",
+            input: { confirmation_token: token },
+            expires_at: expiresAt,
+        },
+    };
+}
+
+test("same-tab handoff keeps token in memory and cancellation discards the pending confirmation", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    assert.equal(controller.startSource(source, actions).status, "ready");
+    assert.equal(controller.acceptResult(source, actions, successfulResult("synthetic-only"), 1).status, "stored");
+
+    const beforeConfirm = controller.targetParams(target, actions, { note: "visible input" }, 2);
+    assert.equal(beforeConfirm.status, "ready");
+    assert.equal(beforeConfirm.params.confirmation_token, "synthetic-only");
+    assert.equal(beforeConfirm.params.note, "visible input");
+
+    const cancelled = controller.cancelTargetConfirmation(target, actions, beforeConfirm.params, 3);
+    assert.equal(cancelled.status, "cancelled");
+    const confirmed = controller.consumeTarget(target, actions, {}, 4);
+    assert.equal(confirmed.status, "missing");
+    assert.equal(controller.targetParams(target, actions, {}, 5).status, "missing");
+});
+
+test("cancelling the actual confirmation modal discards only its matching handoff", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("synthetic-only"), 1);
+    const modal = loadActionConfirmationGlue(actions, controller);
+
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "确认发布" } },
+        target.key,
+        { confirmation_token: "synthetic-only" },
+    );
+    modal.listeners.get("[data-cancel-action]:click")();
+
+    assert.equal(controller.targetParams(target, actions, {}, 2).status, "missing");
+    assert.deepEqual(modal.statusCalls, ["已取消"]);
+    assert.equal(modal.els.modal.hidden, true);
+});
+
+test("closing the source confirmation modal invalidates its late response", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const source = actions[0];
+    const started = controller.startSource(source, actions);
+    const modal = loadActionConfirmationGlue(actions, controller);
+
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "获取预览" } },
+        source.key,
+        {},
+    );
+    modal.glue.closeModal();
+
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("late-preview"),
+        2,
+        started.requestToken,
+    ).status, "stale");
+    assert.equal(controller.targetParams(actions[1], actions, {}, 3).status, "missing");
+});
+
+test("closing an old source modal does not cancel a newer source request", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const oldRequest = controller.startSource(source, actions);
+    const modal = loadActionConfirmationGlue(actions, controller);
+
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "获取旧预览" } },
+        source.key,
+        {},
+    );
+    const newRequest = controller.startSource(source, actions);
+    modal.glue.closeModal();
+
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("new-preview"),
+        2,
+        newRequest.requestToken,
+    ).status, "stored");
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("late-old-preview"),
+        3,
+        oldRequest.requestToken,
+    ).status, "stale");
+    assert.equal(controller.targetParams(target, actions, {}, 4).params.confirmation_token, "new-preview");
+});
+
+test("cancelling an ordinary confirmation modal leaves unrelated handoff state unchanged", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const ordinary = {
+        key: "calendar.refresh",
+        screen_key: "calendar.workbench",
+        method: "POST",
+        risk: "write",
+        session_auth_required: true,
+        confirmation_required: true,
+    };
+    const screenActions = [...actions, ordinary];
+    controller.acceptResult(source, screenActions, successfulResult("keep-preview"), 1);
+    const modal = loadActionConfirmationGlue(screenActions, controller);
+
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "确认普通操作" } },
+        ordinary.key,
+        {},
+    );
+    modal.listeners.get("[data-cancel-action]:click")();
+
+    assert.equal(controller.targetParams(target, screenActions, {}, 2).params.confirmation_token, "keep-preview");
+});
+
+test("Escape route closes the actual confirmation modal through cancellation cleanup", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("escape-preview"), 1);
+    const modal = loadActionConfirmationGlue(actions, controller);
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "确认发布" } },
+        target.key,
+        { confirmation_token: "escape-preview" },
+    );
+    const shellContext = {
+        els: {
+            modal: { hidden: false },
+            filterBar: { hidden: true },
+            menuPopover: { hidden: true },
+            rawDrawer: { hidden: true },
+        },
+        closeModal: modal.glue.closeModal,
+        hideFilterBar() {},
+        closeMenu() {},
+        toggleRawDrawer() {},
+    };
+    const closeTopLayer = loadCloseTopLayer(shellContext);
+
+    assert.equal(closeTopLayer(), true);
+    assert.equal(controller.targetParams(target, actions, {}, 2).status, "missing");
+    assert.match(shellSource, /els\.modalClose\.addEventListener\("click", closeModal\)/);
+});
+
+test("confirming the actual modal keeps the handoff until the target submission consumes it", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("synthetic-only"), 1);
+    const modal = loadActionConfirmationGlue(actions, controller);
+
+    modal.glue.showActionConfirmation(
+        { confirmation: { message: "确认发布" } },
+        target.key,
+        { confirmation_token: "synthetic-only" },
+    );
+    modal.listeners.get("[data-confirm-action]:click")();
+
+    assert.equal(modal.runCalls.length, 1);
+    assert.equal(modal.runCalls[0][2].confirmed, true);
+    assert.equal(controller.targetParams(target, actions, {}, 2).status, "ready");
+    assert.equal(controller.consumeTarget(target, actions, {}, 3).params.confirmation_token, "synthetic-only");
+});
+
+test("an old modal cannot discard a newer preview for the same target", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("old-preview"), 1);
+    const oldParams = controller.targetParams(target, actions, {}, 2).params;
+    controller.startSource(source, actions);
+    controller.acceptResult(source, actions, successfulResult("new-preview"), 3);
+
+    assert.equal(controller.cancelTargetConfirmation(target, actions, oldParams, 4).status, "stale");
+    assert.equal(controller.targetParams(target, actions, {}, 5).params.confirmation_token, "new-preview");
+});
+
+test("new preview invalidates an earlier handoff and a failed result cannot restore it", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("old-value"), 1);
+    controller.startSource(source, actions);
+    const failed = controller.acceptResult(source, actions, {
+        outcome: "failed",
+        response: { status_code: 502 },
+    }, 2);
+    assert.equal(failed.status, "none");
+    assert.equal(controller.targetParams(target, actions, {}, 3).status, "missing");
+});
+
+test("out-of-order source responses and cancelled pending previews cannot replace a newer handoff", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const first = controller.startSource(source, actions);
+    const second = controller.startSource(source, actions);
+
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("new-preview"),
+        2,
+        second.requestToken,
+    ).status, "stored");
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("late-old-preview"),
+        3,
+        first.requestToken,
+    ).status, "stale");
+    assert.equal(controller.targetParams(target, actions, {}, 4).params.confirmation_token, "new-preview");
+
+    const cancelled = controller.startSource(source, actions);
+    assert.equal(controller.cancelSource(source, actions, cancelled.requestToken), true);
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("cancelled-preview"),
+        5,
+        cancelled.requestToken,
+    ).status, "stale");
+    assert.equal(controller.targetParams(target, actions, {}, 6).status, "missing");
+});
+
+test("expired or malformed owner continuation fails closed and is not retained", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    assert.equal(controller.acceptResult(source, actions, successfulResult("expired", "1970-01-01T00:00:00Z"), 2).status, "expired");
+    assert.equal(controller.acceptResult(source, actions, successfulResult("bad", "2099-01-01T00:00:00+08:00"), 2).status, "invalid");
+    const nonString = successfulResult(42);
+    assert.equal(controller.acceptResult(source, actions, nonString, 2).status, "invalid");
+    const wrong = successfulResult("wrong-action");
+    wrong.continuation.action_key = "calendar.other";
+    assert.equal(controller.acceptResult(source, actions, wrong, 2).status, "invalid");
+    assert.equal(controller.targetParams(target, actions, {}, 3).status, "missing");
+});
+
+test("continuation values duplicated into render or debug data are rejected", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const source = actions[0];
+    const result = successfulResult("synthetic-only");
+    result.view_model.summary = "synthetic-only";
+    assert.equal(controller.acceptResult(source, actions, result, 1).status, "leaked");
+    assert.equal(controller.acceptResult(source, actions, successfulResult("safe"), 1).status, "stored");
+});
+
+test("handoff state is isolated by controller and never enters safe UI parameters", () => {
+    const firstTab = loadController();
+    const secondTab = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    firstTab.acceptResult(source, actions, successfulResult("tab-one"), 1);
+    assert.equal(secondTab.targetParams(target, actions, {}, 2).status, "missing");
+    assert.equal(JSON.stringify(firstTab.safeUiParams(
+        target,
+        { confirmation_token: "tab-one", note: "ok" },
+        actions,
+    )), JSON.stringify({ note: "ok" }));
+    firstTab.clearScreen(target.screen_key);
+    assert.equal(firstTab.targetParams(target, actions, {}, 2).status, "missing");
+});
+
+test("confirmed continuation retry retains exact private request identity without retaining reauth", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    controller.acceptResult(source, actions, successfulResult("private-token"), 1);
+    const ready = controller.consumeTarget(target, actions, { note: "release" }, 2);
+    assert.equal(ready.status, "ready");
+    const confirmation = {
+        confirmed: true,
+        confirmed_at: "2026-10-17T02:00:00.000Z",
+        message: "确认发布",
+    };
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: ready.params,
+        idempotencyKey: "same-key",
+        confirmed: true,
+        confirmation,
+        expiresAt: ready.expiresAt,
+        reauth: { credential: "password-must-not-be-retained" },
+    }, 3).status, "stored");
+
+    const retry = controller.targetRequestForRetry(target, actions, 4);
+    assert.equal(retry.status, "ready");
+    assert.equal(JSON.stringify(retry.params), JSON.stringify({ note: "release", confirmation_token: "private-token" }));
+    assert.equal(retry.idempotencyKey, "same-key");
+    assert.equal(retry.confirmed, true);
+    assert.equal(JSON.stringify(retry.confirmation), JSON.stringify(confirmation));
+    assert.equal(Object.hasOwn(retry, "reauth"), false);
+    retry.params.confirmation_token = "mutated-copy";
+    assert.equal(controller.targetRequestForRetry(target, actions, 5).params.confirmation_token, "private-token");
+    assert.equal(JSON.stringify(controller.safeUiParams(
+        target,
+        retry.params,
+        actions,
+    )), JSON.stringify({ note: "release" }));
+});
+
+test("retry request context expires and is cleared by cancellation, a new preview, and screen exit", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const expiresAt = "1970-01-01T00:00:10Z";
+    controller.acceptResult(source, actions, successfulResult("expiring-token", expiresAt), 1);
+    const handoff = controller.targetParams(target, actions, {}, 2);
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: "retry-key",
+        confirmed: false,
+        confirmation: null,
+        expiresAt,
+    }, 3).status, "stored");
+    assert.equal(controller.targetRequestForRetry(target, actions, 10_000).status, "expired");
+
+    controller.acceptResult(source, actions, successfulResult("cancel-token"), 1);
+    const cancelParams = controller.targetParams(target, actions, {}, 2).params;
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: cancelParams,
+        idempotencyKey: "cancel-key",
+        confirmed: false,
+        confirmation: null,
+        expiresAt: "2099-01-01T00:00:00Z",
+    }, 3).status, "stored");
+    assert.equal(controller.cancelTargetConfirmation(target, actions, cancelParams, 4).status, "cancelled");
+    assert.equal(controller.targetRequestForRetry(target, actions, 5).status, "missing");
+
+    controller.acceptResult(source, actions, successfulResult("old-token"), 6);
+    const oldParams = controller.targetParams(target, actions, {}, 7).params;
+    controller.rememberTargetRequest(target, actions, {
+        params: oldParams,
+        idempotencyKey: "old-key",
+        confirmed: false,
+        confirmation: null,
+        expiresAt: "2099-01-01T00:00:00Z",
+    }, 8);
+    controller.startSource(source, actions);
+    assert.equal(controller.targetRequestForRetry(target, actions, 9).status, "missing");
+
+    controller.acceptResult(source, actions, successfulResult("screen-token"), 10);
+    const screenParams = controller.targetParams(target, actions, {}, 11).params;
+    controller.rememberTargetRequest(target, actions, {
+        params: screenParams,
+        idempotencyKey: "screen-key",
+        confirmed: false,
+        confirmation: null,
+        expiresAt: "2099-01-01T00:00:00Z",
+    }, 12);
+    controller.clearScreen(target.screen_key);
+    assert.equal(controller.targetRequestForRetry(target, actions, 13).status, "missing");
+});
+
+test("same-screen unrelated action clears an unconsumed continuation", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const unrelated = {
+        key: "calendar.scope",
+        screen_key: source.screen_key,
+        method: "GET",
+        risk: "read",
+    };
+    actions.push(unrelated);
+
+    controller.startSource(source, actions);
+    assert.equal(controller.acceptResult(source, actions, successfulResult("pending-token"), 1).status, "stored");
+
+    controller.retainActionContext(unrelated, actions);
+
+    assert.equal(controller.targetParams(target, actions, {}, 2).status, "missing");
+});
+
+test("same-screen unrelated action clears a continuation retry context", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+    const unrelated = {
+        key: "calendar.scope",
+        screen_key: source.screen_key,
+        method: "GET",
+        risk: "read",
+    };
+    actions.push(unrelated);
+
+    controller.startSource(source, actions);
+    assert.equal(controller.acceptResult(source, actions, successfulResult("retry-token"), 1).status, "stored");
+    const consumed = controller.consumeTarget(target, actions, {}, 2);
+    assert.equal(consumed.status, "ready");
+    assert.equal(controller.rememberTargetRequest(target, actions, {
+        params: consumed.params,
+        idempotencyKey: "same-retry-key",
+        confirmed: true,
+        confirmation: {
+            confirmed: true,
+            confirmed_at: "2026-10-17T02:00:00Z",
+            message: "确认发布",
+        },
+        expiresAt: consumed.expiresAt,
+    }, 3).status, "stored");
+
+    controller.retainActionContext(unrelated, actions);
+
+    assert.equal(controller.targetRequestForRetry(target, actions, 4).status, "missing");
+});
+
+test("action-context retention preserves the active pair and rejects a superseded source result", () => {
+    const controller = loadController();
+    const actions = makeActions();
+    const [source, target] = actions;
+
+    assert.equal(controller.retainActionContext(source, actions), true);
+    const first = controller.startSource(source, actions);
+    assert.equal(controller.retainActionContext(source, actions), true);
+    const current = controller.startSource(source, actions);
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("stale-token"),
+        1,
+        first.requestToken,
+    ).status, "stale");
+    assert.equal(controller.acceptResult(
+        source,
+        actions,
+        successfulResult("current-token"),
+        2,
+        current.requestToken,
+    ).status, "stored");
+    assert.equal(controller.targetParams(target, actions, {}, 3).params.confirmation_token, "current-token");
+});
+
+test("password challenge submission preserves retry context but cancellation discards it", () => {
+    const actions = makeActions();
+    const [source, target] = actions;
+    const controller = loadController();
+    controller.acceptResult(source, actions, successfulResult("reauth-token"), 1);
+    const handoff = controller.consumeTarget(target, actions, {}, 2);
+    const confirmation = {
+        confirmed: true,
+        confirmed_at: "2026-10-17T02:00:00.000Z",
+        message: "确认发布",
+    };
+    controller.rememberTargetRequest(target, actions, {
+        params: handoff.params,
+        idempotencyKey: "reauth-key",
+        confirmed: true,
+        confirmation,
+        expiresAt: handoff.expiresAt,
+    }, 3);
+    const submitted = loadPasswordChallengeGlue(actions, controller);
+    submitted.glue.showPasswordChallenge(
+        { password_challenge: { challenge_id: "challenge-1" } },
+        target.key,
+        handoff.params,
+        { continuationRetry: true, confirmed: true, idempotencyKey: "reauth-key", confirmation },
+    );
+    submitted.passwordInput.value = "synthetic-password";
+    let prevented = false;
+    submitted.listeners.get("form:submit")({ preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(submitted.runCalls.length, 1);
+    assert.equal(submitted.runCalls[0][2].reauth.credential, "synthetic-password");
+    assert.equal(controller.targetRequestForRetry(target, actions, 4).status, "ready");
+
+    const cancelled = loadPasswordChallengeGlue(actions, controller);
+    cancelled.glue.showPasswordChallenge(
+        { password_challenge: { challenge_id: "challenge-2" } },
+        target.key,
+        handoff.params,
+        { continuationRetry: true, confirmed: true, idempotencyKey: "reauth-key", confirmation },
+    );
+    cancelled.listeners.get("cancel:click")();
+    assert.deepEqual(cancelled.statusCalls, ["已取消"]);
+    assert.equal(controller.targetRequestForRetry(target, actions, 5).status, "missing");
+});

@@ -36,6 +36,20 @@ HTTP 400 with `tui_confirmation_invalid` before metadata/audit/executor setup.
 Query parameters cannot supply confirmation. A true value remains a UI
 acknowledgement and never replaces the owner's business authorization.
 
+An action may declare `result_continuation` with an exact `target_action_key` and
+`field_map` for one confirmed, session-protected mutation on the same screen.
+The owner returns `continuation` separately from display data. The server validates
+its exact shape, target, nonempty hidden values and original UTC expiry before
+rendering; it excludes the handoff from debug and audit results. The current tab
+keeps those values only in a private controller. They never become form defaults,
+URL parameters, persistent browser state or an automatic mutation.
+The target still requires its own explicit confirmation and live owner authority.
+Network/server retry uses the original unexpired token, confirmation and submission
+key; reauthentication credentials are entered again rather than retained for retry.
+Cancellation, expiry, a new preview, another action pair or screen exit clears the
+corresponding pending/retry context. Source generations prevent late responses from
+replacing a newer preview. Backend expiry, CAS and authority remain decisive.
+
 The internal request factory disables CSRF checks, so the actual outer browser
 request must pass SessionAuthentication's CSRF enforcement. Owner APIs must still
 recheck their own live permissions and transaction-bound session authority.

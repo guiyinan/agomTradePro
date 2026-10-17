@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any, TypedDict
+
+from django.utils import timezone
 
 from apps.terminal.application.tui_audit import verified_reauth_evidence
+
+
+class _OwnerResultContinuation(TypedDict):
+    """Validated runtime-only handoff returned by a declared owner action."""
+
+    action_key: str
+    input: dict[str, str]
+    expires_at: str
 
 
 class TuiWorkbenchExecutionMixin:
@@ -189,16 +201,41 @@ class TuiWorkbenchExecutionMixin:
             )
             status_code = int(result.get("status_code", 200))
             payload = result.get("payload")
+            safe_payload, owner_continuation, continuation_error = (
+                self._validate_owner_result_continuation(
+                    action=action,
+                    payload=payload,
+                    status_code=status_code,
+                )
+            )
+            if continuation_error is not None:
+                failure = self._result_continuation_failure_payload(
+                    action=action,
+                    user=user,
+                    error_code=continuation_error,
+                )
+                self._append_tui_audit(
+                    action,
+                    resolved_params,
+                    user=user,
+                    session=session,
+                    outcome="failed_continuation_contract",
+                    confirmation_evidence=confirmation,
+                    reauth_evidence=reauth_evidence,
+                    result=failure,
+                    error=continuation_error,
+                )
+                return failure
             projection_action = self._action_with_empty_state_context(action)
             view_model = self._to_view_model(
                 action=projection_action,
-                payload=payload,
+                payload=safe_payload,
                 status_code=status_code,
                 request_params=request_params,
             )
             envelope = {
                 "version": "tui-workbench.v2",
-                "outcome": self._execution_outcome(payload, status_code),
+                "outcome": self._execution_outcome(safe_payload, status_code),
                 "action": self._action_payload(action, user=user),
                 "confirmation_required": False,
                 "response": {
@@ -207,7 +244,7 @@ class TuiWorkbenchExecutionMixin:
                 "view_model": view_model,
                 "debug": {
                     "raw_available": bool(action.get("raw_debug", True)),
-                    "raw_response": payload if action.get("raw_debug", True) else None,
+                    "raw_response": safe_payload if action.get("raw_debug", True) else None,
                 },
             }
             envelope.update(self._result_head_payload(view_model))
@@ -234,7 +271,153 @@ class TuiWorkbenchExecutionMixin:
             reauth_evidence=reauth_evidence,
             result=envelope,
         )
+        if owner_continuation is not None:
+            envelope["continuation"] = owner_continuation
         return envelope
+
+    def _validate_owner_result_continuation(
+        self,
+        *,
+        action: dict[str, Any],
+        payload: Any,
+        status_code: int,
+    ) -> tuple[Any, _OwnerResultContinuation | None, str | None]:
+        """Validate a declared owner handoff and remove it from renderable payload data."""
+
+        descriptor = action.get("result_continuation")
+        declared = isinstance(descriptor, dict)
+        if not isinstance(payload, dict):
+            if (
+                declared
+                and status_code < 400
+                and self._execution_outcome(payload, status_code) == "success"
+            ):
+                return payload, None, "tui_result_continuation_missing"
+            return payload, None, None
+
+        if "continuation" not in payload:
+            if (
+                declared
+                and status_code < 400
+                and self._execution_outcome(payload, status_code) == "success"
+                and not any(
+                    payload.get(key)
+                    for key in (
+                        "confirmation_required",
+                        "password_challenge_required",
+                        "missing_fields",
+                    )
+                )
+            ):
+                return payload, None, "tui_result_continuation_missing"
+            return payload, None, None
+
+        if not isinstance(descriptor, dict):
+            return payload, None, "tui_result_continuation_unexpected"
+        if (
+            status_code >= 400
+            or self._execution_outcome(payload, status_code) != "success"
+            or any(
+                payload.get(key)
+                for key in (
+                    "confirmation_required",
+                    "password_challenge_required",
+                    "missing_fields",
+                )
+            )
+        ):
+            return payload, None, "tui_result_continuation_invalid"
+
+        continuation = payload.get("continuation")
+        if not isinstance(continuation, dict) or set(continuation) != {
+            "action_key",
+            "input",
+            "expires_at",
+        }:
+            return payload, None, "tui_result_continuation_invalid"
+        target_action_key = descriptor.get("target_action_key")
+        field_map = descriptor.get("field_map")
+        continuation_input = continuation.get("input")
+        if (
+            not isinstance(target_action_key, str)
+            or not isinstance(field_map, dict)
+            or continuation.get("action_key") != target_action_key
+            or not isinstance(continuation_input, dict)
+            or set(continuation_input) != set(field_map)
+            or any(type(value) is not str or not value for value in continuation_input.values())
+        ):
+            return payload, None, "tui_result_continuation_invalid"
+
+        expires_at_text = continuation.get("expires_at")
+        if not isinstance(expires_at_text, str) or not expires_at_text:
+            return payload, None, "tui_result_continuation_invalid"
+        try:
+            normalized_expiry = (
+                expires_at_text[:-1] + "+00:00"
+                if expires_at_text.endswith("Z")
+                else expires_at_text
+            )
+            expires_at = datetime.fromisoformat(normalized_expiry)
+        except ValueError:
+            return payload, None, "tui_result_continuation_invalid"
+        if expires_at.tzinfo is None or expires_at.utcoffset() != timedelta(0):
+            return payload, None, "tui_result_continuation_invalid"
+        if expires_at.astimezone(UTC) <= timezone.now().astimezone(UTC):
+            return payload, None, "tui_result_continuation_expired"
+
+        token_values = {value for value in continuation_input.values() if value}
+        safe_payload = {key: value for key, value in payload.items() if key != "continuation"}
+        if self._contains_continuation_value(safe_payload, token_values):
+            return payload, None, "tui_result_continuation_leaked"
+        validated: _OwnerResultContinuation = {
+            "action_key": target_action_key,
+            "input": dict(continuation_input),
+            "expires_at": expires_at_text,
+        }
+        return safe_payload, validated, None
+
+    @staticmethod
+    def _contains_continuation_value(value: Any, token_values: set[str]) -> bool:
+        """Return whether an owner handoff value is duplicated into display data."""
+
+        if isinstance(value, str):
+            return value in token_values
+        if isinstance(value, Mapping):
+            return any(
+                TuiWorkbenchExecutionMixin._contains_continuation_value(item, token_values)
+                for item in value.values()
+            )
+        if isinstance(value, list | tuple):
+            return any(
+                TuiWorkbenchExecutionMixin._contains_continuation_value(item, token_values)
+                for item in value
+            )
+        return False
+
+    def _result_continuation_failure_payload(
+        self,
+        *,
+        action: dict[str, Any],
+        user: Any,
+        error_code: str,
+    ) -> dict[str, Any]:
+        """Build a bounded failure without retaining any owner response content."""
+
+        message = "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。"
+        view_model = self._message_model(action, message, 502)
+        view_model["status"] = "未完成"
+        view_model["user_error_code"] = error_code
+        return {
+            "version": "tui-workbench.v2",
+            "outcome": "failed",
+            "error_code": error_code,
+            "action": self._action_payload(action, user=user),
+            "confirmation_required": False,
+            "response": {"status_code": 502},
+            "view_model": view_model,
+            "debug": {"raw_available": False, "raw_response": None},
+            **self._result_head_payload(view_model),
+        }
 
     def _execution_outcome(self, payload: Any, status_code: int) -> str:
         """Preserve a bounded owner outcome separately from transport success."""

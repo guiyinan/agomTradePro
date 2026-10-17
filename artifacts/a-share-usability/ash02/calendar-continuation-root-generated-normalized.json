@@ -1,0 +1,26 @@
+{
+  "source_tree": "99a092054f02e89b1ce49006757d8085e1de5600",
+  "outputs": {
+    "config/tui/agomtui-runtime.manifest.json": {
+      "source_blob_sha256": "adb5b45933d7823c9b658ced3fa2a21ab26a3c30a5ddd8eedd763988f0381d99",
+      "generated_sha256": "6611324417daecf74befeaac6a2934f5ed4f5ae31a4aa782e6f6daf23a724feb",
+      "lf_equal": false
+    },
+    "static/js/tui-workbench.js": {
+      "source_blob_sha256": "a5953f614bf277e9874c7ee976e064de0e25d75d5558d6d7f56729d46aa92884",
+      "generated_sha256": "5e000d1bae667c8f8c118370bccd4cefee25ad0711fb58ae9a58bc6ced2bfd90",
+      "lf_equal": false
+    },
+    "static/js/agomtui-runtime-core.js": {
+      "source_blob_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+      "generated_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+      "lf_equal": true
+    },
+    "static/js/tui-agomtradepro-adapter.js": {
+      "source_blob_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+      "generated_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+      "lf_equal": true
+    }
+  },
+  "explanation": "git archive materializes native CRLF for some text outputs while blobs use LF; raw before/after changes are not semantic changes. The two unchanged runtime/adapter outputs are LF-identical to source blobs. Node81 ran before build and qualifies the old bundle only; final candidate browser tests must run after build."
+}

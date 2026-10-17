@@ -25,6 +25,7 @@ const targets = [
     },
 ];
 const workbenchSegments = [
+    "frontend/tui-workbench/src/05-result-continuation.js",
     "frontend/tui-workbench/src/00-runtime.js",
     "frontend/tui-workbench/src/10-navigation.js",
     "frontend/tui-workbench/src/15-workspace-state.js",

@@ -1,0 +1,20 @@
+source_tree_before_generated_outputs=725a85e0f114e15628ef67d93472846e0a2ef165
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-red-z_i2lttc
+✖ an unconfirmed continuation retry returns through confirmation before publishing (7291.6111ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7996.0986
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:353:1
+✖ an unconfirmed continuation retry returns through confirmation before publishing (7291.6111ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-red-z_i2lttc\frontend\tui-workbench\tests\workbench-browser.test.mjs:457:20) {
+    name: 'TimeoutError'
+  }

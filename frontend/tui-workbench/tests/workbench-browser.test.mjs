@@ -44,6 +44,588 @@ test("mutation identity survives confirmation and network retry but changes for 
         await browser.close();
     }
 });
+
+for (const failureMode of ["network abort", "HTTP 503"]) {
+    test(`calendar continuation target retries the same confirmed submission after ${failureMode}`, async () => {
+        const screen = makeCalendarContinuationScreen();
+        const { browser, page, requestLog } = await openHarness(
+            "https://app.test/?screen=test.grid&action=calendar.prepare",
+            { screen, waitForInitialRows: false },
+        );
+        const prepareAction = screen.actions.find(item => item.key === "calendar.prepare");
+        const confirmAction = screen.actions.find(item => item.key === "calendar.confirm");
+        const token = "synthetic-calendar-preview-token";
+        const targetRequests = [];
+        const prepareRequests = [];
+        const browserErrors = [];
+        page.on("pageerror", error => browserErrors.push(error.message));
+        page.on("console", message => {
+            if (message.type() === "error") browserErrors.push(message.text());
+        });
+        let failFirstConfirmedRequest = true;
+        try {
+            await page.route("**/actions/calendar.prepare/run/", async route => {
+                const request = route.request();
+                const requestBody = route.request().postDataJSON();
+                prepareRequests.push({
+                    body: requestBody,
+                    idempotencyKey: request.headers()["idempotency-key"],
+                });
+                if (!requestBody.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: prepareAction,
+                            confirmation_required: true,
+                            confirmation: {
+                                title: "确认操作",
+                                message: "此操作会修改系统状态：准备日历预览。确认后才会执行。",
+                                confirm_label: "确认执行",
+                                cancel_label: "取消",
+                            },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "等待" },
+                            debug: { raw_available: false, raw_response: null },
+                        }),
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome: "success",
+                        action: prepareAction,
+                        confirmation_required: false,
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "已准备", status: "成功" },
+                        debug: { raw_available: false, raw_response: null },
+                        business_summary: "日历预览已准备。",
+                        blocking_reason: "",
+                        next_steps: [],
+                        debug_hidden_fields: [],
+                        user_error_code: "",
+                        continuation: {
+                            action_key: "calendar.confirm",
+                            input: { confirmation_token: token },
+                            expires_at: "2099-01-01T00:00:00Z",
+                        },
+                    }),
+                });
+            });
+            await page.route("**/actions/calendar.confirm/run/", async route => {
+                const request = route.request();
+                const requestBody = request.postDataJSON();
+                targetRequests.push({
+                    body: requestBody,
+                    idempotencyKey: request.headers()["idempotency-key"],
+                });
+                if (!requestBody.confirmed) {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: "application/json",
+                        body: JSON.stringify({
+                            version: "tui-workbench.v2",
+                            action: confirmAction,
+                            confirmation_required: true,
+                            confirmation: {
+                                title: "确认操作",
+                                message: "此操作会修改系统状态：确认日历发布。确认后才会执行。",
+                                confirm_label: "确认执行",
+                                cancel_label: "取消",
+                            },
+                            response: { status_code: 409 },
+                            view_model: { kind: "message", title: "等待确认", status: "待确认" },
+                            debug: { raw_available: false, raw_response: null },
+                            business_summary: "",
+                            blocking_reason: "",
+                            next_steps: [],
+                            debug_hidden_fields: [],
+                            user_error_code: "",
+                        }),
+                    });
+                    return;
+                }
+                if (failFirstConfirmedRequest) {
+                    failFirstConfirmedRequest = false;
+                    if (failureMode === "network abort") {
+                        await route.abort("failed");
+                    } else {
+                        await route.fulfill({
+                            status: 503,
+                            contentType: "application/json",
+                            body: JSON.stringify({ detail: "暂时不可用" }),
+                        });
+                    }
+                    return;
+                }
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        outcome: "success",
+                        action: confirmAction,
+                        confirmation_required: false,
+                        response: { status_code: 200 },
+                        view_model: { kind: "detail", title: "已发布", status: "成功" },
+                        debug: { raw_available: false, raw_response: null },
+                        business_summary: "日历已发布。",
+                        blocking_reason: "",
+                        next_steps: [],
+                        debug_hidden_fields: [],
+                        user_error_code: "",
+                    }),
+                });
+            });
+
+            const firstPrepareResponse = page.waitForResponse(response =>
+                response.url().includes("/actions/calendar.prepare/run/"),
+            );
+            await page.locator('[data-main-panel] form[data-action-ui-key="calendar.prepare"] .tui-action-submit').click();
+            await firstPrepareResponse;
+            assert.equal(prepareRequests.length, 1);
+            assert.equal(prepareRequests[0].body.confirmed, false);
+
+            const confirmedPrepareResponse = page.waitForResponse(response =>
+                response.url().includes("/actions/calendar.prepare/run/"),
+            );
+            await page.locator("[data-confirm-action]").click();
+            const sourceResponse = await confirmedPrepareResponse;
+            assert.equal(sourceResponse.status(), 200);
+            assert.equal(prepareRequests.length, 2);
+            assert.equal(prepareRequests[1].body.confirmed, true);
+            assert.equal(prepareRequests[1].idempotencyKey, prepareRequests[0].idempotencyKey);
+
+            const continuationButton = page.locator("[data-result-continuation] button");
+            await continuationButton.waitFor({ state: "visible", timeout: 1_000 }).catch(async () => {
+                const diagnostics = await page.evaluate(() => ({
+                    status: document.querySelector("[data-workbench-status]")?.textContent || "",
+                    mainText: document.querySelector("[data-main-panel]")?.innerText || "",
+                    mainHtml: document.querySelector("[data-main-panel]")?.innerHTML || "",
+                    url: window.location.href,
+                }));
+                diagnostics.mainHtml = diagnostics.mainHtml.replaceAll(token, "<SYNTHETIC_TOKEN>");
+                assert.fail(JSON.stringify({
+                    stage: "source confirmed response did not render the continuation target",
+                    prepareRequests,
+                    targetRequests,
+                    diagnostics,
+                    browserErrors,
+                    requestLog,
+                }));
+            });
+            await continuationButton.click();
+            await page.locator("[data-confirm-action]").click();
+
+            await page.locator('[data-action-submission-retry="true"]').waitFor({ state: "visible" });
+            await assertContinuationTokenNotPersisted(page, token);
+            await page.locator('[data-action-submission-retry="true"]').click();
+            await page.waitForFunction(
+                () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+            );
+
+            const confirmedRequests = targetRequests.filter(item => item.body.confirmed);
+            assert.equal(confirmedRequests.length, 2);
+            assert.equal(targetRequests.length, 3);
+            assert.ok(confirmedRequests[0].idempotencyKey);
+            assert.equal(confirmedRequests[1].idempotencyKey, confirmedRequests[0].idempotencyKey);
+            assert.deepEqual(confirmedRequests[1].body, confirmedRequests[0].body);
+            assert.equal(confirmedRequests[0].body.params.confirmation_token, token);
+            assert.equal(confirmedRequests[0].body.confirmed, true);
+            assert.equal(confirmedRequests[0].body.confirmation.confirmed, true);
+            await assertContinuationTokenNotPersisted(page, token);
+        } finally {
+            await browser.close();
+        }
+    });
+}
+
+test("same-screen unrelated action clears a calendar continuation before target submission", async () => {
+    const screen = makeCalendarContinuationScreen();
+    const prepareAction = screen.actions.find(item => item.key === "calendar.prepare");
+    const confirmAction = screen.actions.find(item => item.key === "calendar.confirm");
+    const unrelatedAction = action("calendar.scope", {
+        label: "读取日历配置状态",
+        method: "GET",
+        risk: "read",
+        task_tier: "primary",
+        screen_key: "test.grid",
+    });
+    screen.actions.push(unrelatedAction);
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=calendar.prepare",
+        { screen, waitForInitialRows: false },
+    );
+    const token = "synthetic-calendar-context-token";
+    let targetRequests = 0;
+    try {
+        await page.route("**/actions/calendar.prepare/run/", async route => {
+            if (!route.request().postDataJSON().confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: prepareAction,
+                        confirmation_required: true,
+                        confirmation: { message: "确认准备" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: prepareAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "已准备", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                    continuation: {
+                        action_key: "calendar.confirm",
+                        input: { confirmation_token: token },
+                        expires_at: "2099-01-01T00:00:00Z",
+                    },
+                }),
+            });
+        });
+        await page.route("**/actions/calendar.scope/run/", async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: unrelatedAction,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "配置状态", status: "读取完成" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+        await page.route("**/actions/calendar.confirm/run/", async route => {
+            targetRequests += 1;
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: confirmAction,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "已发布", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+
+        await page.locator('[data-main-panel] form[data-action-ui-key="calendar.prepare"] .tui-action-submit').click();
+        await page.locator("[data-confirm-action]").click();
+        await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+        await page.locator('[data-actions-panel] [data-toggle-advanced]').click();
+        const targetForm = page.locator('[data-actions-panel] form[data-action-ui-key="calendar.confirm"]');
+        await targetForm.waitFor({ state: "visible" });
+        await page.locator('[data-action-ui-key="calendar.scope"] .tui-action-submit').click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "读取完成",
+        );
+        await targetForm.locator(".tui-action-submit").click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "等待重新准备",
+        );
+        assert.equal(targetRequests, 0);
+        await assertContinuationTokenNotPersisted(page, token);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("an unconfirmed continuation retry returns through confirmation before publishing", async () => {
+    const screen = makeCalendarContinuationScreen();
+    const prepareAction = screen.actions.find(item => item.key === "calendar.prepare");
+    const confirmAction = screen.actions.find(item => item.key === "calendar.confirm");
+    const token = "synthetic-calendar-unconfirmed-retry-token";
+    const targetRequests = [];
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=calendar.prepare",
+        { screen, waitForInitialRows: false },
+    );
+    try {
+        await page.route("**/actions/calendar.prepare/run/", async route => {
+            const body = route.request().postDataJSON();
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: prepareAction,
+                        confirmation_required: true,
+                        confirmation: { message: "确认准备" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: prepareAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "已准备", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                    continuation: {
+                        action_key: "calendar.confirm",
+                        input: { confirmation_token: token },
+                        expires_at: "2099-01-01T00:00:00Z",
+                    },
+                }),
+            });
+        });
+        await page.route("**/actions/calendar.confirm/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (!body.confirmed && targetRequests.length === 1) {
+                await route.fulfill({
+                    status: 503,
+                    contentType: "application/json",
+                    body: JSON.stringify({ detail: "暂时不可用" }),
+                });
+                return;
+            }
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: confirmAction,
+                        confirmation_required: true,
+                        confirmation: {
+                            title: "确认操作",
+                            message: "此操作会修改系统状态：确认日历发布。确认后才会执行。",
+                            confirm_label: "确认执行",
+                            cancel_label: "取消",
+                        },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "待确认" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: confirmAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "已发布", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+
+        await page.locator('[data-main-panel] form[data-action-ui-key="calendar.prepare"] .tui-action-submit').click();
+        await page.locator("[data-confirm-action]").click();
+        await page.locator("[data-result-continuation] button").waitFor({ state: "visible" });
+        await page.locator("[data-result-continuation] button").click();
+        await page.locator('[data-action-submission-retry="true"]').waitFor({ state: "visible" });
+        await page.locator('[data-action-submission-retry="true"]').click();
+        await page.locator("[data-confirm-action]").waitFor({ state: "visible" });
+        await page.locator("[data-confirm-action]").click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+        );
+
+        assert.equal(targetRequests.length, 3);
+        assert.equal(targetRequests[0].body.confirmed, false);
+        assert.equal(targetRequests[1].body.confirmed, false);
+        assert.equal(targetRequests[0].key, targetRequests[1].key);
+        assert.equal(targetRequests[1].key, targetRequests[2].key);
+        assert.equal(targetRequests[0].body.params.confirmation_token, token);
+        assert.equal(targetRequests[1].body.params.confirmation_token, token);
+        assert.equal(targetRequests[2].body.params.confirmation_token, token);
+        assert.equal(targetRequests[2].body.confirmed, true);
+        assert.equal(targetRequests[2].body.confirmation.confirmed, true);
+        await assertContinuationTokenNotPersisted(page, token);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("calendar continuation keeps request identity across a password challenge without retaining the password", async () => {
+    const screen = makeCalendarContinuationScreen();
+    const prepareAction = screen.actions.find(item => item.key === "calendar.prepare");
+    const confirmAction = screen.actions.find(item => item.key === "calendar.confirm");
+    confirmAction.risk = "admin";
+    const token = "synthetic-calendar-reauth-token";
+    const targetRequests = [];
+    let failFirstReauth = true;
+    const { browser, page } = await openHarness(
+        "https://app.test/?screen=test.grid&action=calendar.prepare",
+        { screen, waitForInitialRows: false },
+    );
+    try {
+        await page.route("**/actions/calendar.prepare/run/", async route => {
+            const requestBody = route.request().postDataJSON();
+            if (!requestBody.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: prepareAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认", message: "确认准备预览。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: prepareAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "预览已准备", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                    continuation: {
+                        action_key: "calendar.confirm",
+                        input: { confirmation_token: token },
+                        expires_at: "2099-01-01T00:00:00Z",
+                    },
+                }),
+            });
+        });
+        await page.route("**/actions/calendar.confirm/run/", async route => {
+            const request = route.request();
+            const body = request.postDataJSON();
+            targetRequests.push({ body, key: request.headers()["idempotency-key"] });
+            if (!body.confirmed) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: confirmAction,
+                        confirmation_required: true,
+                        confirmation: { title: "确认", message: "确认发布日历。" },
+                        response: { status_code: 409 },
+                        view_model: { kind: "message", title: "等待确认", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            if (!body.reauth) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                        version: "tui-workbench.v2",
+                        action: confirmAction,
+                        password_challenge_required: true,
+                        password_challenge: { challenge_id: "calendar-password-1", message: "请验证密码" },
+                        response: { status_code: 403 },
+                        view_model: { kind: "message", title: "等待验密", status: "等待" },
+                        debug: { raw_available: false, raw_response: null },
+                    }),
+                });
+                return;
+            }
+            if (body.reauth.credential === "first-password" && failFirstReauth) {
+                failFirstReauth = false;
+                await route.fulfill({
+                    status: 503,
+                    contentType: "application/json",
+                    body: JSON.stringify({ detail: "暂时不可用" }),
+                });
+                return;
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    version: "tui-workbench.v2",
+                    outcome: "success",
+                    action: confirmAction,
+                    confirmation_required: false,
+                    response: { status_code: 200 },
+                    view_model: { kind: "detail", title: "日历已发布", status: "成功" },
+                    debug: { raw_available: false, raw_response: null },
+                }),
+            });
+        });
+
+        await page.locator('[data-main-panel] form[data-action-ui-key="calendar.prepare"] .tui-action-submit').click();
+        await page.locator("[data-confirm-action]").click();
+        const continuation = page.locator("[data-result-continuation] button");
+        await continuation.waitFor({ state: "visible" });
+        await continuation.click();
+        await page.locator("[data-confirm-action]").click();
+        const firstChallenge = page.locator("[data-password-challenge-form]");
+        await firstChallenge.waitFor({ state: "visible" });
+        await firstChallenge.locator('[name="password"]').fill("first-password");
+        await firstChallenge.locator('[type="submit"]').click();
+        await page.locator('[data-action-submission-retry="true"]').waitFor({ state: "visible" });
+        await assertContinuationTokenNotPersisted(page, token);
+        assert.equal((await page.locator("body").innerText()).includes("first-password"), false);
+
+        await page.locator('[data-action-submission-retry="true"]').click();
+        const retryChallenge = page.locator("[data-password-challenge-form]");
+        await retryChallenge.waitFor({ state: "visible" });
+        assert.equal(targetRequests.length, 4);
+        assert.equal(targetRequests[3].body.confirmed, true);
+        assert.equal(targetRequests[3].body.reauth, undefined);
+        await retryChallenge.locator('[name="password"]').fill("second-password");
+        await retryChallenge.locator('[type="submit"]').click();
+        await page.waitForFunction(
+            () => document.querySelector("[data-workbench-status]")?.textContent === "操作完成",
+        );
+
+        assert.equal(targetRequests.length, 5);
+        assert.equal(new Set(targetRequests.map(item => item.key)).size, 1);
+        const confirmed = targetRequests.filter(item => item.body.confirmed);
+        assert.equal(new Set(confirmed.map(item => item.body.params.confirmation_token)).size, 1);
+        assert.equal(confirmed[0].body.params.confirmation_token, token);
+        assert.equal(new Set(confirmed.map(item => JSON.stringify(item.body.confirmation))).size, 1);
+        assert.equal(confirmed[2].body.reauth, undefined);
+        assert.equal(confirmed[1].body.reauth.credential, "first-password");
+        assert.equal(confirmed[3].body.reauth.credential, "second-password");
+        await assertContinuationTokenNotPersisted(page, token);
+        assert.equal((await page.locator("body").innerText()).includes("second-password"), false);
+    } finally {
+        await browser.close();
+    }
+});
+
 const bundlePath = resolve(root, "static/js/tui-workbench.js");
 const cssPath = resolve(root, "static/css/tui-workbench.css");
 
@@ -464,6 +1046,59 @@ const screen = {
     },
     actions,
 };
+
+function makeCalendarContinuationScreen() {
+    const prepare = action("calendar.prepare", {
+        label: "准备日历预览",
+        method: "POST",
+        risk: "write",
+        task_tier: "primary",
+        confirmation_required: true,
+        screen_key: "test.grid",
+    });
+    prepare.session_auth_required = true;
+    prepare.result_continuation = {
+        target_action_key: "calendar.confirm",
+        field_map: { confirmation_token: "confirmation_token" },
+    };
+    const confirm = action("calendar.confirm", {
+        label: "确认日历发布",
+        method: "POST",
+        risk: "write",
+        task_tier: "advanced",
+        confirmation_required: true,
+        screen_key: "test.grid",
+        fields: [{
+            key: "confirmation_token",
+            label: "确认令牌",
+            input_type: "hidden",
+            value_type: "string",
+            required: true,
+            binding: "body",
+            presentation_semantic: "api_token",
+            default: "",
+        }],
+    });
+    confirm.session_auth_required = true;
+    return {
+        ...screen,
+        screen: { ...screen.screen, default_action_key: prepare.key },
+        actions: [prepare, confirm],
+    };
+}
+
+async function assertContinuationTokenNotPersisted(page, token) {
+    const found = await page.evaluate(expected => {
+        const retained = [
+            window.location.href,
+            document.documentElement.outerHTML,
+            JSON.stringify(Object.entries(window.localStorage)),
+            JSON.stringify(Object.entries(window.sessionStorage)),
+        ].join("\\n");
+        return retained.includes(expected);
+    }, token);
+    assert.equal(found, false, "continuation token must stay out of URL, DOM and browser storage");
+}
 
 const dashboardScreen = {
     module: { key: "test", label: "测试模块" },

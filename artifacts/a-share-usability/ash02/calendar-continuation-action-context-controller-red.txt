@@ -1,0 +1,32 @@
+✖ same-screen unrelated action clears an unconsumed continuation (4.8582ms)
+✖ same-screen unrelated action clears a continuation retry context (7.3083ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 367.0602
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\result-continuation.test.mjs:573:1
+✖ same-screen unrelated action clears an unconsumed continuation (4.8582ms)
+  TypeError: controller.retainActionContext is not a function
+      at TestContext.<anonymous> (file:///D:/githv/agomTradePro/frontend/tui-workbench/tests/result-continuation.test.mjs:588:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)
+
+test at frontend\tui-workbench\tests\result-continuation.test.mjs:593:1
+✖ same-screen unrelated action clears a continuation retry context (7.3083ms)
+  TypeError: controller.retainActionContext is not a function
+      at TestContext.<anonymous> (file:///D:/githv/agomTradePro/frontend/tui-workbench/tests/result-continuation.test.mjs:621:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)

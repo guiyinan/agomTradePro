@@ -1,0 +1,4 @@
+PASS: node --check frontend/tui-workbench/src/05-result-continuation.js
+PASS: node --check frontend/tui-workbench/src/50-shell.js
+PASS: node --check frontend/tui-workbench/tests/result-continuation.test.mjs
+exit_code=0

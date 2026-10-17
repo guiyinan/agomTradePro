@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-10-17T00:48:25.392823+00:00",
+  "source_tree_before_generated_outputs": "a08179472d51a49c45400b7d4c1a7e98bfcd864f",
+  "unfixed_candidate_source_tree": "99a092054f02e89b1ce49006757d8085e1de5600",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-retry-red-eo0cbd_h",
+  "test_sha256_export": "58d92256d7a86350cd4567f51d69aba5de13101ed89a38890574406e05eefdf0",
+  "generated_sha256": {
+    "config/tui/agomtui-runtime.manifest.json": "6611324417daecf74befeaac6a2934f5ed4f5ae31a4aa782e6f6daf23a724feb",
+    "static/js/tui-workbench.js": "5e000d1bae667c8f8c118370bccd4cefee25ad0711fb58ae9a58bc6ced2bfd90",
+    "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+    "static/js/tui-agomtradepro-adapter.js": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f"
+  },
+  "scope": "Test-only auxiliary-index delta and actual Root-built old candidate outputs. Synthetic browser HTTP harness, no Django/PG/real Provider/main-task UAT; shared index untouched."
+}

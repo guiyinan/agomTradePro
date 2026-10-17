@@ -1,0 +1,35 @@
+✖ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (4.9424ms)
+✔ new preview invalidates an earlier handoff and a failed result cannot restore it (1.523ms)
+✔ out-of-order source responses and cancelled pending previews cannot replace a newer handoff (1.371ms)
+✔ expired or malformed owner continuation fails closed and is not retained (7.4509ms)
+✔ continuation values duplicated into render or debug data are rejected (1.2267ms)
+✔ handoff state is isolated by controller and never enters safe UI parameters (2.7151ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 671.8698
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\result-continuation.test.mjs:65:1
+✖ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (4.9424ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'ready' !== 'missing'
+  
+      at TestContext.<anonymous> (file:///D:/githv/agomTradePro/frontend/tui-workbench/tests/result-continuation.test.mjs:78:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'ready',
+    expected: 'missing',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

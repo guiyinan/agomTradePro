@@ -391,6 +391,61 @@
         return params;
     }
 
+    function showContinuationRecovery(action, sourceActionKey, message) {
+        const sourceAction = currentAction(sourceActionKey);
+        els.main.innerHTML = `
+            <section class="tui-entry-state" role="alert">
+                <div class="tui-view-status">需要重新准备</div>
+                <div class="tui-entry-copy">
+                    <strong>${escapeHtml(message)}</strong>
+                    <p>后续操作需要当前标签页中仍有效的预览结果。</p>
+                </div>
+                ${sourceAction ? `
+                    <div class="tui-entry-actions">
+                        <button type="button" data-continuation-source>${escapeHtml(sourceAction.label)}</button>
+                    </div>
+                ` : ""}
+            </section>
+        `;
+        els.main.querySelector("[data-continuation-source]")?.addEventListener("click", () => {
+            runAction(sourceAction.key, actionFormElement(sourceAction));
+        });
+        setStatus("等待重新准备");
+    }
+
+    function renderContinuationFailure(action, code) {
+        state.lastRaw = null;
+        state.lastAction = action.key;
+        state.lastParams = {};
+        renderViewModel({
+            kind: "message",
+            title: action.label || "当前任务",
+            status: "未完成",
+            message: "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。",
+            user_error_code: code,
+        });
+        setStatus("交接未完成");
+        updateRawDrawer();
+    }
+
+    function appendContinuationNextAction(targetActionKey) {
+        const targetAction = currentAction(targetActionKey);
+        if (!targetAction) {
+            return;
+        }
+        const section = document.createElement("section");
+        section.className = "tui-entry-actions";
+        section.dataset.resultContinuation = "true";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = `继续：${targetAction.label}`;
+        button.addEventListener("click", () => {
+            runAction(targetAction.key, actionFormElement(targetAction));
+        });
+        section.appendChild(button);
+        els.main.appendChild(section);
+    }
+
     function readTextFile(file) {
         return new Promise((resolve, reject) => {
             if (file && Number(file.size) > maxTextFileBytes) {
@@ -547,6 +602,9 @@
         if (!safeRead) {
             return false;
         }
+        if (resultContinuations.incomingForTarget(screenSpec?.actions || [], normalizedKey).status === "ready") {
+            return false;
+        }
         const deepLinkedParams = actionParamsFromBrowserLocation();
         return (action.fields || [])
             .filter((field) => field.required)
@@ -587,6 +645,9 @@
         const runnableParams = {};
         (action.fields || []).forEach((field) => {
             if (!(field.key in deepLinkedParams)) {
+                return;
+            }
+            if (resultContinuations.continuationFields(action, screenSpec?.actions || []).has(field.key)) {
                 return;
             }
             const element = formFieldElement(form, field.key);
@@ -891,6 +952,20 @@
         setStatus("服务器端任务仍在运行，可稍后刷新状态");
     }
 
+    function slowActionRetryOptions(action) {
+        const incomingContinuation = resultContinuations.incomingForTarget(
+            state.screen?.actions || [],
+            action.key,
+        );
+        if (incomingContinuation.status === "ready") {
+            return { continuationRetry: true };
+        }
+        return {
+            params: { ...state.lastParams },
+            idempotencyKey: state.lastIdempotencyKey,
+        };
+    }
+
     function offerActionRetry(actionKey, params, options) {
         if (!options.idempotencyKey || !params) return;
         const button = document.createElement('button');
@@ -901,6 +976,19 @@
         button.addEventListener('click', () => {
             button.disabled = true;
             runAction(actionKey, null, { ...options, params: { ...params } });
+        });
+        els.main.appendChild(button);
+    }
+
+    function offerContinuationRetry(actionKey) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tui-action-submit';
+        button.dataset.actionSubmissionRetry = 'true';
+        button.textContent = '重试本次提交';
+        button.addEventListener('click', () => {
+            button.disabled = true;
+            runAction(actionKey, null, { continuationRetry: true });
         });
         els.main.appendChild(button);
     }
@@ -922,14 +1010,71 @@
         const controller = new AbortController();
         const requestId = startPendingRequest(controller);
         let submittedParams = null;
+        let continuationTarget = false;
+        let receivedContinuation = null;
+        let continuationRequestToken;
+        let continuationExpiresAt = null;
+        let requestConfirmed = Boolean(options.confirmed);
+        let requestConfirmation = options.confirmation || null;
+        let requestIdempotencyKey = options.idempotencyKey || null;
+        let fetchStarted = false;
+        let fetchReturned = false;
         try {
             const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
             const dashboardRefreshPanelKey = String(options.dashboardRefreshPanelKey || "").trim();
             const hasDashboardResultTarget = Boolean(dashboardResultPanelKey);
             const hasDashboardRefreshTarget = Boolean(dashboardRefreshPanelKey);
             const isTargetedDashboardAction = hasDashboardResultTarget || hasDashboardRefreshTarget;
-            const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
-            submittedParams = params;
+            const actions = Array.isArray(state.screen?.actions) ? state.screen.actions : [];
+            resultContinuations.retainActionContext(action, actions);
+            const sourceDescriptor = resultContinuations.startSource(action, actions);
+            if (sourceDescriptor.status === "invalid") {
+                renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
+                return;
+            }
+            if (sourceDescriptor.status === "ready") {
+                continuationRequestToken = sourceDescriptor.requestToken;
+            }
+            const incomingContinuation = resultContinuations.incomingForTarget(actions, actualActionKey);
+            if (incomingContinuation.status === "invalid") {
+                renderContinuationFailure(action, "tui_result_continuation_metadata_invalid");
+                return;
+            }
+            let params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : {});
+            if (incomingContinuation.status === "ready") {
+                continuationTarget = true;
+                let handoff;
+                if (options.continuationRetry === true || (options.confirmed && options.reauth)) {
+                    handoff = resultContinuations.targetRequestForRetry(action, actions, Date.now());
+                    if (handoff.status === "ready") {
+                        requestIdempotencyKey = handoff.idempotencyKey;
+                        requestConfirmed = handoff.confirmed;
+                        requestConfirmation = handoff.confirmation;
+                        continuationExpiresAt = handoff.expiresAt;
+                        options.idempotencyKey = handoff.idempotencyKey;
+                        options.confirmed = handoff.confirmed;
+                        options.confirmation = handoff.confirmation || undefined;
+                    }
+                } else {
+                    handoff = options.confirmed
+                        ? resultContinuations.consumeTarget(action, actions, params, Date.now())
+                        : resultContinuations.targetParams(action, actions, params, Date.now());
+                    if (handoff.status === "ready") continuationExpiresAt = handoff.expiresAt;
+                }
+                if (handoff.status !== "ready") {
+                    showContinuationRecovery(
+                        action,
+                        handoff.sourceActionKey || incomingContinuation.sourceActionKey,
+                        handoff.status === "expired"
+                            ? "预览已过期，请重新准备后再确认。"
+                            : "此页面没有可用的预览结果，请先重新准备。",
+                    );
+                    return;
+                }
+                params = handoff.params;
+            }
+            const safeUiParams = resultContinuations.safeUiParams(action, params, actions);
+            submittedParams = safeUiParams;
             if (!isLatestRequest(requestId)) {
                 return;
             }
@@ -939,17 +1084,18 @@
                     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
                 params.client_request_id = `request-tui-${suffix}`;
             }
-            if (!retainedGrid) invalidateOperationContext(action, params);
+            if (!retainedGrid) invalidateOperationContext(action, safeUiParams);
             state.lastAction = actualActionKey;
-            state.lastParams = params;
+            state.lastParams = safeUiParams;
             const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(String(action.method || 'GET').toUpperCase());
-            if (isMutation && !options.idempotencyKey) {
+            if (isMutation && !requestIdempotencyKey) {
                 const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
                     ? crypto.randomUUID()
                     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                options.idempotencyKey = `tui-${suffix}`;
+                requestIdempotencyKey = `tui-${suffix}`;
             }
-            state.lastIdempotencyKey = isMutation ? options.idempotencyKey : null;
+            if (isMutation) options.idempotencyKey = requestIdempotencyKey;
+            state.lastIdempotencyKey = isMutation ? requestIdempotencyKey : null;
             state.selectedRowIndex = 0;
             setCurrentLocation(action);
             closeMenu();
@@ -965,24 +1111,89 @@
                 renderActionLoadingState(action, state.screen);
                 scheduleSlowActionState(requestId, action);
             }
-            const requestBody = { params, confirmed: Boolean(options.confirmed) };
-            if (options.confirmation) {
-                requestBody.confirmation = options.confirmation;
+            const requestBody = { params, confirmed: requestConfirmed };
+            if (requestConfirmation) {
+                requestBody.confirmation = requestConfirmation;
             }
             if (options.reauth) {
                 requestBody.reauth = options.reauth;
             }
-            const result = await fetchJson(actionRunUrl(actualActionKey), {
+            const serializedRequestBody = JSON.stringify(requestBody);
+            if (continuationTarget) {
+                // Keep only retryable request identity. Reauthentication credentials belong
+                // to this one outbound request and must never enter the private retry snapshot.
+                const retrySnapshot = JSON.parse(JSON.stringify({
+                    params: requestBody.params,
+                    confirmation: requestBody.confirmation || null,
+                }));
+                const retained = resultContinuations.rememberTargetRequest(action, actions, {
+                    params: retrySnapshot.params,
+                    idempotencyKey: requestIdempotencyKey,
+                    confirmed: requestConfirmed,
+                    confirmation: retrySnapshot.confirmation,
+                    expiresAt: continuationExpiresAt,
+                }, Date.now());
+                if (retained.status !== "stored") {
+                    resultContinuations.clearTargetRequest(action);
+                    showContinuationRecovery(
+                        action,
+                        incomingContinuation.sourceActionKey,
+                        retained.status === "expired"
+                            ? "预览已过期，请重新准备后再确认。"
+                            : "此页面没有可用的预览结果，请先重新准备。",
+                    );
+                    return;
+                }
+            }
+            fetchStarted = true;
+            let result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
-                headers: isMutation ? { 'Idempotency-Key': options.idempotencyKey } : {},
-                body: JSON.stringify(requestBody),
+                headers: isMutation ? { 'Idempotency-Key': requestIdempotencyKey } : {},
+                body: serializedRequestBody,
                 signal: controller.signal,
             });
+            fetchReturned = true;
             if (!isLatestRequest(requestId)) {
                 return;
             }
             clearPendingRequest();
+            const continuationResult = resultContinuations.acceptResult(
+                action,
+                actions,
+                result,
+                Date.now(),
+                continuationRequestToken,
+            );
+            if (continuationResult.status === "stored") {
+                receivedContinuation = continuationResult;
+                delete result.continuation;
+            } else if (["unexpected", "invalid", "missing", "expired", "leaked"].includes(continuationResult.status)) {
+                result = {
+                    outcome: "failed",
+                    error_code: `tui_result_continuation_${continuationResult.status}`,
+                    response: { status_code: 502 },
+                    view_model: {
+                        kind: "message",
+                        title: action.label || "当前任务",
+                        status: "未完成",
+                        message: "当前结果未能安全交接，尚未继续后续操作。请重新运行准备步骤。",
+                        user_error_code: `tui_result_continuation_${continuationResult.status}`,
+                    },
+                    debug: { raw_available: false, raw_response: null },
+                };
+                state.lastRaw = null;
+            }
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
+                if (continuationTarget && result.missing_fields.some(field =>
+                    resultContinuations.continuationFields(action, actions).has(field.key))) {
+                    resultContinuations.clearScreen(action.screen_key);
+                    showContinuationRecovery(
+                        action,
+                        incomingContinuation.sourceActionKey,
+                        "预览凭据不可用，请重新准备后再确认。",
+                    );
+                    return;
+                }
                 state.lastRaw = null;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
@@ -994,12 +1205,15 @@
                 return;
             }
             if (result.confirmation_required) {
+                if (continuationTarget) resultContinuations.clearTargetRequest(action);
                 state.lastRaw = null;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
                 restoreDashboardActionPanel(options);
-                showActionConfirmation(result, actualActionKey, params, options);
+                const confirmationOptions = { ...options };
+                delete confirmationOptions.continuationRetry;
+                showActionConfirmation(result, actualActionKey, params, confirmationOptions);
                 updateRawDrawer();
                 setStatus("等待确认");
                 return;
@@ -1010,10 +1224,17 @@
                     renderViewModel(result.view_model);
                 }
                 restoreDashboardActionPanel(options);
-                showPasswordChallenge(result, actualActionKey, params, options);
+                const challengeOptions = { ...options };
+                delete challengeOptions.reauth;
+                showPasswordChallenge(result, actualActionKey, params, challengeOptions);
                 updateRawDrawer();
                 setStatus("等待验密");
                 return;
+            }
+            const reportedStatus = Number(result.response?.status_code ?? 0);
+            const reportedServerFailure = Number.isFinite(reportedStatus) && reportedStatus >= 500;
+            if (continuationTarget && !reportedServerFailure) {
+                resultContinuations.clearTargetRequest(action);
             }
             if (!retainedGrid) markActionCompleted(action, result);
             state.lastRaw = result.debug?.raw_response ?? null;
@@ -1041,8 +1262,12 @@
             }
             if (retainedGrid) setGridUpdating(false);
             renderViewModel(result.view_model);
-            if (Number(result.response?.status_code) >= 500) {
-                offerActionRetry(actualActionKey, submittedParams, options);
+            if (receivedContinuation) {
+                appendContinuationNextAction(receivedContinuation.targetActionKey);
+            }
+            if (reportedServerFailure) {
+                if (continuationTarget) offerContinuationRetry(actualActionKey);
+                else offerActionRetry(actualActionKey, submittedParams, options);
             }
             if (retainedGrid) els.main.querySelector('.tui-datagrid')?.focus({ preventScroll: true });
             markDataReady();
@@ -1062,8 +1287,16 @@
                 return;
             }
             if (error?.name === "AbortError") {
+                if (continuationTarget) resultContinuations.clearTargetRequest(action);
                 setStatus("请求已取消");
                 return;
+            }
+            const continuationRetryable = continuationTarget && (
+                Number(error?.status) >= 500
+                || (fetchStarted && !fetchReturned && error instanceof TypeError)
+            );
+            if (continuationTarget && !continuationRetryable) {
+                resultContinuations.clearTargetRequest(action);
             }
             clearPendingRequest();
             if (retainedGrid) {
@@ -1099,7 +1332,8 @@
                 }
             } else {
                 renderBoundedApplicationError(error);
-                offerActionRetry(actualActionKey, submittedParams, options);
+                if (continuationRetryable) offerContinuationRetry(actualActionKey);
+                else if (!continuationTarget) offerActionRetry(actualActionKey, submittedParams, options);
             }
         }
     }

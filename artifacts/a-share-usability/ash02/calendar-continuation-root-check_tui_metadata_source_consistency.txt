@@ -1,0 +1,3 @@
+source_tree=99a092054f02e89b1ce49006757d8085e1de5600
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-itt_wj0o
+{"outcome": "ok", "passed": true, "patch_boundary": {"configured_keys": [], "ignored_on_full_ia_payload": [], "not_in_ia_registry": []}, "published_action_count": 413, "published_screen_count": 12, "runtime_action_count": 889, "runtime_screen_count": 25, "violations": []}

@@ -1,0 +1,27 @@
+✔ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (3.9566ms)
+✔ cancelling the actual confirmation modal discards only its matching handoff (4.511ms)
+✔ closing the source confirmation modal invalidates its late response (1.7104ms)
+✔ closing an old source modal does not cancel a newer source request (1.6895ms)
+✔ cancelling an ordinary confirmation modal leaves unrelated handoff state unchanged (1.4033ms)
+✔ Escape route closes the actual confirmation modal through cancellation cleanup (5.8477ms)
+✔ confirming the actual modal keeps the handoff until the target submission consumes it (2.9056ms)
+✔ an old modal cannot discard a newer preview for the same target (11.1662ms)
+✔ new preview invalidates an earlier handoff and a failed result cannot restore it (1.5243ms)
+✔ out-of-order source responses and cancelled pending previews cannot replace a newer handoff (1.6407ms)
+✔ expired or malformed owner continuation fails closed and is not retained (1.2434ms)
+✔ continuation values duplicated into render or debug data are rejected (1.0089ms)
+✔ handoff state is isolated by controller and never enters safe UI parameters (6.0975ms)
+✔ confirmed continuation retry retains exact private request identity without retaining reauth (1.4835ms)
+✔ retry request context expires and is cleared by cancellation, a new preview, and screen exit (1.3487ms)
+✔ same-screen unrelated action clears an unconsumed continuation (4.6263ms)
+✔ same-screen unrelated action clears a continuation retry context (1.1088ms)
+✔ action-context retention preserves the active pair and rejects a superseded source result (0.8552ms)
+✔ password challenge submission preserves retry context but cancellation discards it (2.8256ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 292.481

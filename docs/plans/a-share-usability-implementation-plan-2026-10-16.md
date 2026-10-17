@@ -903,3 +903,15 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 本批仅修正既有 TUI 密度测试夹具：先用真实发布文件规范化建立合法的 selector/filter 合同，再禁用 runtime patches 并刻意超载审计动作密度，原密度预算断言保留。原夹具在已提交基线 1d77d2cef 上独立复现 1 failed / 1.98 秒；只改夹具的隔离源码树 52c0f54285cb8c998d3c73afab83bc03f25cda48 上，完整原 source-consistency 模块 48 passed / 40.92 秒。没有放宽生产校验，没有把待审 Calendar IA 新用例纳入本次提交。
 
 [夹具检查点](../testing/a-share-usability-tui-density-fixture-2026-10-17.json)保留 red/green 原件与独立源码身份。计划登记 v230 / 74 已登记单元；continuation 的确认重试、Calendar screen 与外层 Native/browser、普通模拟/回测消费者仍在后续批，整体 Goal 和 ASH-02 保持开放。
+
+### 19.38 通用 TUI 隐藏结果交接与同提交重试
+
+本批仅接受 result_continuation 的 schema/compiler/service 与当前标签页私有控制器、配对 bundle/manifest。单一 source 将隐藏值交给同屏、Session 与显式确认的 target；服务端在投影和审计前剥离 continuation，缺失、意外、无效、过期或泄漏均稳定拒绝。浏览器不自动执行发布，不把令牌写入表单、URL、普通状态或浏览器持久存储。
+
+确认后网络/5xx 重试沿用原令牌、原确认内容、原幂等键和原期限；密码不进入重试上下文，需要时重新复核。确认前失败重试仍需进入新的确认流程。取消、新预览、切换动作对或屏幕、过期清理对应交接；旧响应不能覆盖新预览。同屏切换清理与 slow-action 目标重试亦已补充。
+
+最终源树 f05b33fdfab9871df47c9e816a66c71a5110d11b 在 build/check 后，完整Node（含5项交接浏览器场景） 92 项通过。相同Python/schema/既有workbench测试在第一轮独立导出162项扩展回归通过；更早354项workbench回归、三生产文件增量与全库mypy、四项static门禁保持独立源码窗口，已核验相关源LF相等，不累加为唯一用例数。三文件326新增行架构boundary/audit零；六项治理stale-check通过，无新ORM模型或路由。
+
+真实red5复现网络/503无重试；取消与上下文controller红、确认前重试旧bundle失败和修复后通过均保留。早期browser夹具的缺action/隐藏表单/错误确认顺序造成的失败单列，不能冒充业务red；先于build的旧81项Node结果不作为新功能验收。所有浏览器结果均为合成HTTP前端harness，不能替代Calendar真实Session/CSRF、owner及主任务UAT。
+
+完整证据见[通用交接检查点](../testing/a-share-usability-tui-result-continuation-2026-10-17.json)。计划登记v231 / 74单元，下一批专用Calendar IA/runtime、真实外层TUI Native与browser，再切普通模拟/回测消费者。ASH-01/02/03和整体Goal仍开放；DATA-18对ASH-11门禁及生产/Provider/研究/Evidence/外部dispatch/券商资格均未放行。

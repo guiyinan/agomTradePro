@@ -1,0 +1,49 @@
+{
+  "recorded_at": "2026-10-17T00:27:59.389462+00:00",
+  "source_tree": "99a092054f02e89b1ce49006757d8085e1de5600",
+  "base_staged_tree": "4d11b3cbe46b54f2b1bf31f7cfb543b211f3e8bb",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-continuation-itt_wj0o",
+  "owned_paths": [
+    "apps/terminal/application/tui_metadata.py",
+    "apps/terminal/application/tui_workbench_catalog.py",
+    "apps/terminal/application/tui_workbench_execution.py",
+    "config/tui/schema/tui_metadata.schema.v3.json",
+    "frontend/tui-workbench/src/05-result-continuation.js",
+    "frontend/tui-workbench/src/00-runtime.js",
+    "frontend/tui-workbench/src/10-navigation.js",
+    "frontend/tui-workbench/src/30-actions.js",
+    "scripts/build-tui-runtime.mjs",
+    "tests/unit/test_tui_workbench.py",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs",
+    "frontend/tui-workbench/src/50-shell.js"
+  ],
+  "source_sha256_export": {
+    "apps/terminal/application/tui_metadata.py": "88287a3add573ca66c1e055d53e4d05076c8ffdd8cbcaa65ed34a8b55bd37ccb",
+    "apps/terminal/application/tui_workbench_catalog.py": "92c8b474da666fadd76809e823e32866f1c740333b2e3445c770394c34692028",
+    "apps/terminal/application/tui_workbench_execution.py": "b4801c296e1c78e45e57386c0f63e616422b15b5159bcdfbaebc6f5066e11f65",
+    "config/tui/schema/tui_metadata.schema.v3.json": "580bbedac38a4da25021ea100dac87b613199cb50a095810182847e095372d02",
+    "frontend/tui-workbench/src/05-result-continuation.js": "76a696153b0996b6284a56f39dba757291e5abe3d3102803f04eb5c9c93664a4",
+    "frontend/tui-workbench/src/00-runtime.js": "49f681d70bee0884f4f6c3984df1ae9275243f0bbef037ddc9dc559398b5681c",
+    "frontend/tui-workbench/src/10-navigation.js": "7c9ee9a63cb172e49ac71c58144dbec10a2adcb8210e62b75a0e56c1c977800b",
+    "frontend/tui-workbench/src/30-actions.js": "32e497203577abb622c78a98b72d876144c0921715fb44c2043cd417e085e692",
+    "scripts/build-tui-runtime.mjs": "cc0f1ba26c561ed13be20695659bd4bc3d0b32e8db3ce2105c6419b68e6d7777",
+    "tests/unit/test_tui_workbench.py": "410b6033c17b940963f2341d35511e0c36ce82408c5a4306139428b7c3028c17",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": "a3c06e11edd88ec47559b24dcabea22f58af5cd50637fdd14e3817c3c23f5691",
+    "frontend/tui-workbench/src/50-shell.js": "7413cacc32de7a535416f7031990cface3b799e873da1ec574b52ab60a347ad0"
+  },
+  "source_sha256_worktree": {
+    "apps/terminal/application/tui_metadata.py": "8606b8f36297f50ca1d5dacfb1a1df5b1ee8a9db12217ab6c79797ee7e166053",
+    "apps/terminal/application/tui_workbench_catalog.py": "700c1cfd6d2db4aa5ff1c64547ba08e616b6a89a93dafb9863ecaa098676d092",
+    "apps/terminal/application/tui_workbench_execution.py": "11aa3545904712209fbb8bf2118bbffedcf31009d37fff723bdcf2e590b15802",
+    "config/tui/schema/tui_metadata.schema.v3.json": "ace93d1aaeff746566b7d4d7b882abf1b633ac2a9e01561988d435363a7c841b",
+    "frontend/tui-workbench/src/05-result-continuation.js": "943244a1a212959af7b4882cdf9cdca3f0e2d9f86b495aa1d65e25036af689c1",
+    "frontend/tui-workbench/src/00-runtime.js": "3b9d06d13b6b1865e645bfaaae218c6319b270d46eff48e2f8b33c193235695e",
+    "frontend/tui-workbench/src/10-navigation.js": "8edc871debd9898c36e60ef7ef130773db6a63357d48676c29ff37e871061272",
+    "frontend/tui-workbench/src/30-actions.js": "1f37fce235b8765d786b46f847910d2766dcaee89ded04d3f14dd9a95b65f392",
+    "scripts/build-tui-runtime.mjs": "5397ee00e31cfdcac5ec96f324e38917e6130f2050760bd1298cb9c079d14415",
+    "tests/unit/test_tui_workbench.py": "00b63e87355cca74689d1f83079d89e751de3521fc353f6e87c0049f7cc0cb2b",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": "506d12abdefafad627743327398106e4a88d8dc17e59951cd2d711ce5d91263c",
+    "frontend/tui-workbench/src/50-shell.js": "8359bb347eaeb6d16e172f46511a5c755446f617d78c2c9ca29f8673ec8c9756"
+  },
+  "scope": "Auxiliary index; no candidate staging or Calendar screen/runtime metadata. Separate raw/LF identities; not release/CI/S6."
+}

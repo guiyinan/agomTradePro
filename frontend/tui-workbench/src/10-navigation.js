@@ -293,6 +293,11 @@
     }
 
     function renderScreen(screenSpec, options = {}) {
+        const previousScreenKey = String(state.screen?.screen?.key || "");
+        const nextScreenKey = String(screenSpec?.screen?.key || "");
+        if (previousScreenKey && previousScreenKey !== nextScreenKey) {
+            resultContinuations.clearScreen(previousScreenKey);
+        }
         state.screen = screenSpec;
         state.lastAction = null;
         state.lastParams = {};

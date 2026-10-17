@@ -139,9 +139,26 @@
         "result_semantics": {
           "type": "array",
           "items": { "$ref": "#/$defs/presentationSemantic" }
+        },
+        "result_continuation": {
+          "$ref": "#/$defs/resultContinuation"
         }
       },
       "additionalProperties": true
+    },
+    "resultContinuation": {
+      "type": "object",
+      "required": ["target_action_key", "field_map"],
+      "properties": {
+        "target_action_key": { "type": "string", "minLength": 1 },
+        "field_map": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "type": "string", "minLength": 1 },
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
     },
     "field": {
       "type": "object",

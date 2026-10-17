@@ -4577,6 +4577,235 @@ def test_tui_service_requires_confirmation_for_admin_post_action(tui_admin_user)
     assert executor.calls == 1
 
 
+def _calendar_continuation_metadata_payload():
+    """Return a synthetic same-screen prepare/confirm action pair."""
+
+    return _metadata_payload(
+        actions=[
+            {
+                "key": "calendar.prepare",
+                "label": "准备日历发布",
+                "method": "POST",
+                "endpoint": "/api/data-center/calendar/prepare/",
+                "intent": "prepare_calendar_publication",
+                "screen_key": "command-center.overview",
+                "module_key": "command-center",
+                "view_type": "detail",
+                "risk": "write",
+                "session_auth_required": True,
+                "audit_required": True,
+                "result_continuation": {
+                    "target_action_key": "calendar.confirm",
+                    "field_map": {"confirmation_token": "confirmation_token"},
+                },
+                "fields": [],
+            },
+            {
+                "key": "calendar.confirm",
+                "label": "确认日历发布",
+                "method": "POST",
+                "endpoint": "/api/data-center/calendar/confirm/",
+                "intent": "confirm_calendar_publication",
+                "screen_key": "command-center.overview",
+                "module_key": "command-center",
+                "view_type": "detail",
+                "risk": "write",
+                "session_auth_required": True,
+                "audit_required": True,
+                "fields": [
+                    {
+                        "key": "confirmation_token",
+                        "label": "发布确认凭据",
+                        "input_type": "hidden",
+                        "value_type": "string",
+                        "required": True,
+                        "default": "",
+                        "binding": "body",
+                        "presentation_semantic": "api_token",
+                    }
+                ],
+            },
+        ]
+    )
+
+
+def test_tui_result_continuation_metadata_requires_a_hidden_confirmed_session_target():
+    payload = _calendar_continuation_metadata_payload()
+    validated = validate_tui_metadata(deepcopy(payload))
+    compacted = compact_tui_metadata_payload(validated)
+    restored = validate_tui_metadata(compacted)
+    source = next(action for action in restored["actions"] if action["key"] == "calendar.prepare")
+    assert source["result_continuation"] == {
+        "target_action_key": "calendar.confirm",
+        "field_map": {"confirmation_token": "confirmation_token"},
+    }
+
+    invalid_payloads = []
+    missing_target = deepcopy(payload)
+    missing_target["actions"][0]["result_continuation"]["target_action_key"] = "calendar.missing"
+    invalid_payloads.append(missing_target)
+    visible_target_field = deepcopy(payload)
+    visible_target_field["actions"][1]["fields"][0]["input_type"] = "text"
+    invalid_payloads.append(visible_target_field)
+    unconfirmed_target = deepcopy(payload)
+    unconfirmed_target["actions"][1]["confirmation_required"] = False
+    invalid_payloads.append(unconfirmed_target)
+    unauthenticated_source = deepcopy(payload)
+    unauthenticated_source["actions"][0]["session_auth_required"] = False
+    invalid_payloads.append(unauthenticated_source)
+    wrong_screen = deepcopy(payload)
+    wrong_screen["actions"][1]["screen_key"] = "other.screen"
+    invalid_payloads.append(wrong_screen)
+
+    for invalid in invalid_payloads:
+        with pytest.raises(TuiMetadataValidationError):
+            validate_tui_metadata(invalid)
+
+
+def test_tui_result_continuation_is_stripped_before_view_debug_and_audit(
+    tui_admin_user,
+):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    token = "fixture-only-preview-token"
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {"preview_ready": True, "summary": "仅合成数据"},
+                    "continuation": {
+                        "action_key": "calendar.confirm",
+                        "input": {"confirmation_token": token},
+                        "expires_at": (timezone.now() + timedelta(minutes=2)).isoformat(),
+                    },
+                },
+            }
+
+    audit_repository = FakeAuditRepository()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_calendar_continuation_metadata_payload()),
+        action_executor=FakeExecutor(),
+        audit_repository=audit_repository,
+        require_audit_sink=True,
+    )
+
+    result = service.run_action(
+        action_key="calendar.prepare",
+        params={},
+        user=tui_admin_user,
+        session=SimpleNamespace(session_key="fixture-session"),
+        confirmed=True,
+    )
+
+    assert result["continuation"]["action_key"] == "calendar.confirm"
+    assert result["continuation"]["input"] == {"confirmation_token": token}
+    assert token not in str(result["view_model"])
+    assert token not in str(result["debug"])
+    assert len(audit_repository.entries) == 1
+    assert token not in audit_repository.entries[0].params_summary
+
+
+def test_tui_target_confirmation_audit_masks_handoff_token(tui_admin_user):
+    token = "fixture-only-target-preview-token"
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            raise AssertionError("target action must wait for TUI confirmation")
+
+    audit_repository = FakeAuditRepository()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_calendar_continuation_metadata_payload()),
+        action_executor=FakeExecutor(),
+        audit_repository=audit_repository,
+        require_audit_sink=True,
+    )
+
+    result = service.run_action(
+        action_key="calendar.confirm",
+        params={"confirmation_token": token},
+        user=tui_admin_user,
+        session=SimpleNamespace(session_key="fixture-session"),
+        confirmed=False,
+    )
+
+    assert result["confirmation_required"] is True
+    assert "continuation" not in result
+    assert token not in str(result)
+    assert len(audit_repository.entries) == 1
+    assert token not in audit_repository.entries[0].params_summary
+    assert "***" in audit_repository.entries[0].params_summary
+
+
+@pytest.mark.parametrize(
+    "owner_payload,expected_code",
+    [
+        (
+            {
+                "success": True,
+                "data": {"ok": True},
+                "continuation": {
+                    "action_key": "calendar.confirm",
+                    "input": {"confirmation_token": "unexpected-secret"},
+                    "expires_at": "2099-01-01T00:00:00+00:00",
+                },
+            },
+            "tui_result_continuation_unexpected",
+        ),
+    ],
+)
+def test_tui_unconfigured_result_continuation_fails_closed_without_secret(
+    tui_admin_user,
+    owner_payload,
+    expected_code,
+):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": owner_payload}
+
+    audit_repository = FakeAuditRepository()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(),
+        action_executor=FakeExecutor(),
+        audit_repository=audit_repository,
+        require_audit_sink=True,
+    )
+
+    result = service.run_action(
+        action_key="sample.list",
+        params={},
+        user=tui_admin_user,
+    )
+
+    assert result["error_code"] == expected_code
+    assert "continuation" not in result
+    assert "unexpected-secret" not in str(result)
+    assert len(audit_repository.entries) == 0
+
+
+def test_tui_configured_success_without_continuation_fails_closed(tui_admin_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": {"success": True, "data": {"ready": True}}}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_calendar_continuation_metadata_payload()),
+        action_executor=FakeExecutor(),
+    )
+    result = service.run_action(
+        action_key="calendar.prepare",
+        params={},
+        user=tui_admin_user,
+        confirmed=True,
+    )
+    assert result["error_code"] == "tui_result_continuation_missing"
+    assert "continuation" not in result
+
+
 def test_tui_service_action_runner_wraps_list_as_datagrid(tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):

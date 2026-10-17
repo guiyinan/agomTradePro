@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -471,6 +472,8 @@ class TuiWorkbenchCatalogMixin:
             "result_semantics": list(action.get("result_semantics") or []),
             "sequence": int(action.get("sequence", 999)),
         }
+        if isinstance(action.get("result_continuation"), dict):
+            payload["result_continuation"] = copy.deepcopy(action["result_continuation"])
         if include_technical:
             payload.update(
                 {

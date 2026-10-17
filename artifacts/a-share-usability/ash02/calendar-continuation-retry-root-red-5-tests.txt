@@ -1,0 +1,34 @@
+source_tree_before_generated_outputs=013eb380b84d9601a6fb372cb952171fb9299f25
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-red-9ugax6l6
+✖ calendar continuation target retries the same confirmed submission after network abort (7136.651ms)
+✖ calendar continuation target retries the same confirmed submission after HTTP 503 (6369.0588ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14493.4699
+
+✖ failing tests:
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:49:5
+✖ calendar continuation target retries the same confirmed submission after network abort (7136.651ms)
+  locator.waitFor: Timeout 5000ms exceeded.
+  Call log:
+  [2m  - waiting for locator('[data-action-submission-retry="true"]') to be visible[22m
+  
+      at TestContext.<anonymous> (D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-red-9ugax6l6\frontend\tui-workbench\tests\workbench-browser.test.mjs:224:73) {
+    name: 'TimeoutError'
+  }
+
+test at frontend\tui-workbench\tests\workbench-browser.test.mjs:49:5
+✖ calendar continuation target retries the same confirmed submission after HTTP 503 (6369.0588ms)
+  locator.waitFor: Timeout 5000ms exceeded.
+  Call log:
+  [2m  - waiting for locator('[data-action-submission-retry="true"]') to be visible[22m
+  
+      at TestContext.<anonymous> (D:\githv\agomTradePro-ash-index-qa-01a14268\ash-continuation-retry-red-9ugax6l6\frontend\tui-workbench\tests\workbench-browser.test.mjs:224:73) {
+    name: 'TimeoutError'
+  }
