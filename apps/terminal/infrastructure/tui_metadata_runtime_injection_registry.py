@@ -41,6 +41,10 @@ from .tui_metadata_runtime_injection_broker_execution import (
     RUNTIME_BROKER_EXECUTION_ACTIONS,
     RUNTIME_BROKER_EXECUTION_SCREENS,
 )
+from .tui_metadata_runtime_injection_calendar_workbench import (
+    RUNTIME_CALENDAR_WORKBENCH_ACTIONS,
+    RUNTIME_CALENDAR_WORKBENCH_SCREEN,
+)
 from .tui_metadata_runtime_injection_capability_router import (
     RUNTIME_CAPABILITY_ROUTER_ACTIONS,
     RUNTIME_CAPABILITY_ROUTER_DEBUG_MODULE,
@@ -441,6 +445,12 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         coverage_key="runtime_injected_data_center_metadata",
         screens=(RUNTIME_EGRESS_SCREEN,),
         actions=RUNTIME_DATA_CENTER_ACTIONS + RUNTIME_EGRESS_ACTIONS,
+        replace_existing=True,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_calendar_workbench_metadata",
+        screens=(RUNTIME_CALENDAR_WORKBENCH_SCREEN,),
+        actions=RUNTIME_CALENDAR_WORKBENCH_ACTIONS,
         replace_existing=True,
     ),
     RuntimeMetadataInjectionBundle(

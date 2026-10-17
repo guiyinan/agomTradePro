@@ -1,0 +1,8 @@
+{
+  "recorded_at": "2026-10-17T01:42:43.471062+00:00",
+  "source_tree": "1d9047b093de24bcf2ddf2019003bb68c8341061",
+  "runtime_source": "48f9c4898961c44f6bdb1ade6a4583414e269cb1",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-calendar-shell-cache-yf8ilkxu",
+  "template_sha256_export": "3380d9139befb9058e8140bee800aa89d6dba7b892f9b0ae2b139a2b31ed2736",
+  "scope": "One workbench script query-version bump for non-manifest static storage with long production cache; no other assets/settings changes. Template refresh preserves reviewed lifecycle fields. No live deployment/production cache observation; browser main-task test excluded until frozen."
+}

@@ -1,0 +1,13 @@
+source_tree=2c2531778fb74e4b3fc9b0d41e00a8ad4617e5da
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-workbench-outer-tui-native-g2jt9r_a
+.......F................................................................ [ 60%]
+................................................                         [100%]
+================================== FAILURES ===================================
+______ test_real_tui_sources_have_consistent_published_screen_ownership _______
+tests\unit\test_tui_metadata_source_consistency.py:66: in test_real_tui_sources_have_consistent_published_screen_ownership
+    assert report.runtime_screen_count == 25
+E   AssertionError: assert 26 == 25
+E    +  where 26 = TuiMetadataConsistencyReport(outcome='ok', published_screen_count=12, runtime_screen_count=26, published_action_count=...=(), patch_boundary=TuiMetadataPatchBoundary(configured_keys=(), ignored_on_full_ia_payload=(), not_in_ia_registry=())).runtime_screen_count
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_metadata_source_consistency.py::test_real_tui_sources_have_consistent_published_screen_ownership
+1 failed, 119 passed in 109.75s (0:01:49)

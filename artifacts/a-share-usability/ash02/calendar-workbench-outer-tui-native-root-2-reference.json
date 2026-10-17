@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-10-17T01:19:58.340479+00:00",
+  "source_tree": "f015f7ace0af0f5d8c01cffc5452b4b28e279aeb",
+  "continuation_source": "be0b8bc326416f12a9835899239baf30d94ab23c",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-workbench-outer-tui-native-mz73vad4",
+  "source_sha256": {
+    "apps/terminal/application/tui_metadata.py": "88287a3add573ca66c1e055d53e4d05076c8ffdd8cbcaa65ed34a8b55bd37ccb",
+    "apps/terminal/application/tui_workbench_catalog.py": "92c8b474da666fadd76809e823e32866f1c740333b2e3445c770394c34692028",
+    "apps/terminal/application/tui_workbench_execution.py": "b4801c296e1c78e45e57386c0f63e616422b15b5159bcdfbaebc6f5066e11f65",
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": "ab76011839ed46acfdfdd11821133abbeb3b23ac5093fcd0268da4d1a03917ed",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py": "f15240e72860ca61ee44f69a4ef2b9dfac56ab0ffaeae96497f9cd09bfa08d9c",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": "78f2d1dfaf8cc50b103e716af5a60fa299b4840c444eb5e65613d0a5b6e432e3",
+    "config/tui/ia/tui_information_architecture.v1.json": "5cc4e89a9128870149ecb3d03806077823bae828285ceddf6e6a7836740f46a2",
+    "config/tui/schema/tui_metadata.schema.v3.json": "580bbedac38a4da25021ea100dac87b613199cb50a095810182847e095372d02",
+    "frontend/tui-workbench/src/00-runtime.js": "62351c5f27c2ac373c078bbd37bf8c18322443e0d6abe128ce6dde25c4217fff",
+    "frontend/tui-workbench/src/05-result-continuation.js": "4aaaa18d561061a8ee508d3f60ed3dbfe85827427ec0f72c601ed9d3573dc6bc",
+    "frontend/tui-workbench/src/10-navigation.js": "7c9ee9a63cb172e49ac71c58144dbec10a2adcb8210e62b75a0e56c1c977800b",
+    "frontend/tui-workbench/src/30-actions.js": "968d3a9d18728d2fb21f6b0e451aa9256b172a565ffd5273991bdd45ffa67e2f",
+    "frontend/tui-workbench/src/50-shell.js": "ae37e5710fa07c3204f8d713567bee1a7924bad428c8ff272ee617d8a8c4fdad",
+    "frontend/tui-workbench/tests/result-continuation.test.mjs": "8385b455dd4ad49c6501d1fcfc99eb113febe59346b88cc832ffbcdf368dbb10",
+    "frontend/tui-workbench/tests/workbench-browser.test.mjs": "6bf81d2355e2d4cc96fa5cce8ec73c4e6daf9b1cbdc48a3bcac485bd3d73045f",
+    "scripts/build-tui-runtime.mjs": "cc0f1ba26c561ed13be20695659bd4bc3d0b32e8db3ce2105c6419b68e6d7777",
+    "tests/component/data_center/test_calendar_workbench_tui_http.py": "3adffad789ea2d0c293c99b34d920cf5434428e44979c3a3152ca2cb128f56c8",
+    "tests/unit/terminal/test_calendar_workbench_runtime.py": "b5a5a7b53ac7fa8a5a6b243e9a2cba12bffd466e0bb4ab06a5efcfd45519825d",
+    "tests/unit/terminal/test_calendar_workbench_service_projection.py": "e3330643f81ed3c851442966854ce5a3eb9b1542c54d3ec5574570f9c57fe5e1",
+    "tests/unit/test_tui_metadata_source_consistency.py": "da34c01c2ee7e6c224ab028b66442144fbd464b7fae3a009cfa0b5f63834c73b",
+    "tests/unit/test_tui_workbench.py": "410b6033c17b940963f2341d35511e0c36ce82408c5a4306139428b7c3028c17"
+  },
+  "scope": "Real root TUI URLConf, file-backed actual metadata normalization/runtime, actual owner/auth/session/CSRF/Audit; metadata DB version selection only bypassed. Only transport and preview key synthetic. Not browser, metadata promotion, real Provider, CI/S6 or deployment."
+}

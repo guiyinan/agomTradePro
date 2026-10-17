@@ -1,6 +1,6 @@
 # 日历发布的会话与显式权限前置合同
 
-当前提供锁内主体授权组件，尚无正式日历发布路由、指针写入或交易授权。已认证会话证明用户账户通过 Django 会话认证，不证明物理真人在场。
+当前提供锁内主体授权组件，并已在本地日历 HTTP 工作台接入发布与读取流程；真实 Session/CSRF HTTP 验收见[日历 HTTP 合同](a-share-calendar-http.md)。TUI 工作台用户旅程及其实际验收范围见[工作台计划](../plans/a-share-calendar-workbench-plan-2026-10-17.md)。这些入口不代表生产部署或交易授权。已认证会话证明用户账户通过 Django 会话认证，不证明物理真人在场。
 
 ## 请求与权限来源
 
@@ -36,4 +36,4 @@ SQLite 定向组合 28 passed，另有三个 PostgreSQL-only 行锁候选跳过�
 
 主代理原生 PostgreSQL 15 文件组合 **205 passed / 331.38 秒，无跳过、无源码漂移**，包括旧普通 Audit/hash/Outbox 兼容、真实 GET/Core reader、政策 ORM 与 12 项双连接撤权顺序（发布/读取 × 直接授权/组权限/组成员 × 两顺序）。数据库实际 blocker/waiter 被观察；回调标记仍只证明授权事务，不等于正式 publication pointer/Audit/outbox 联合原子性。
 
-新 Audit Domain 覆盖 **276/282 语句、78/84 分支**。真实 dispatcher 已将一个无 scope Calendar 事件写入内部持久回执，未证明外部消费者或生产 dispatcher 启用。两个事件登记为 planned/not_wired；没有发布/读取 HTTP 路由、默认 provider、真实 grant、生产迁移或实盘开通。详见[共享授权与审计检查点](../testing/a-share-usability-calendar-audit-authority-2026-10-17.json)。
+新 Audit Domain 覆盖 **276/282 语句、78/84 分支**。真实 dispatcher 已将一个无 scope Calendar 事件写入内部持久回执，未证明外部消费者或生产 dispatcher 启用。**截至本节所引用的 2026-10-17 共享授权与审计检查点（后续 HTTP 工作台接入之前）**，两个事件登记为 planned/not_wired，且没有发布/读取 HTTP 路由；这段记录保留当时阶段，不代表当前路由状态。之后本地 HTTP 工作台路径及 Session/CSRF 验收见[日历 HTTP 合同](a-share-calendar-http.md)，TUI 用户旅程另见上述工作台计划。默认 provider、真实 grant、生产迁移或实盘开通仍未验收。详见[共享授权与审计检查点](../testing/a-share-usability-calendar-audit-authority-2026-10-17.json)。

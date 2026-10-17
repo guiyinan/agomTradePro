@@ -1,0 +1,7 @@
+{
+  "source_tree": "0f327f94f1e14143065cbb5259063f260e2d6f27",
+  "stage": "pre-PG browser qualification guard",
+  "test_database_accessed": false,
+  "browser_launched": false,
+  "reason": "Root incorrectly required Calendar manifest to equal generic manifest despite new IA/runtime metadata sources. All3JavaScript outputs match generic; build/check passed. Fixed guard to compare JS assets only and retain newly generated Calendar manifest separately. Next build sets explicit Git source context rather than unknown upstream."
+}

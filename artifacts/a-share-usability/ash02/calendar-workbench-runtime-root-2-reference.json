@@ -1,0 +1,22 @@
+{
+  "recorded_at": "2026-10-17T01:28:33.627484+00:00",
+  "base_commit": "c032a86d18589794d166244a8ca877868ef2567c",
+  "source_tree": "48f9c4898961c44f6bdb1ade6a4583414e269cb1",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-calendar-runtime-final-oxc6sxzj",
+  "source_sha256": {
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py": "f15240e72860ca61ee44f69a4ef2b9dfac56ab0ffaeae96497f9cd09bfa08d9c",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": "78f2d1dfaf8cc50b103e716af5a60fa299b4840c444eb5e65613d0a5b6e432e3",
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": "ab76011839ed46acfdfdd11821133abbeb3b23ac5093fcd0268da4d1a03917ed",
+    "config/tui/ia/tui_information_architecture.v1.json": "5cc4e89a9128870149ecb3d03806077823bae828285ceddf6e6a7836740f46a2",
+    "tests/unit/terminal/test_calendar_workbench_runtime.py": "b5a5a7b53ac7fa8a5a6b243e9a2cba12bffd466e0bb4ab06a5efcfd45519825d",
+    "tests/unit/terminal/test_calendar_workbench_service_projection.py": "e3330643f81ed3c851442966854ce5a3eb9b1542c54d3ec5574570f9c57fe5e1",
+    "tests/unit/test_tui_metadata_source_consistency.py": "e8ca539c72f1a4f5598f667a87a5599aee211809a38d51a6b332eb74d77039c3",
+    "tests/component/data_center/test_calendar_workbench_tui_http.py": "3adffad789ea2d0c293c99b34d920cf5434428e44979c3a3152ca2cb128f56c8"
+  },
+  "same_production_lf_as_native2": [
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py",
+    "apps/terminal/application/tui_workbench_result_models_specialized.py"
+  ],
+  "scope": "Calendar screen/runtime/projection and tests only over accepted generic TUI; exact screen-count assertion corrected25to26, MCP profile fixture included. Browser main-task test still excluded until frozen. No shared index mutation or release/CI/S6 claim."
+}

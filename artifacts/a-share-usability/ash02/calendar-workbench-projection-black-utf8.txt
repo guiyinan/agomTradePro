@@ -1,0 +1,4 @@
+would reformat apps\terminal\application\tui_workbench_result_models_specialized.py
+
+Oh no! \U0001f4a5 \U0001f494 \U0001f4a5
+1 file would be reformatted, 1 file would be left unchanged.

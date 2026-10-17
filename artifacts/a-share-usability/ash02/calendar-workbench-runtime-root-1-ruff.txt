@@ -1,0 +1,3 @@
+source_tree=2c2531778fb74e4b3fc9b0d41e00a8ad4617e5da
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-workbench-outer-tui-native-g2jt9r_a
+All checks passed!

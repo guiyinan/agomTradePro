@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-10-17T01:59:37.476236+00:00",
+  "source_tree": "96c643912e3180df4079a265d3bb2d8b402f8a77",
+  "shell_source": "1d9047b093de24bcf2ddf2019003bb68c8341061",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-calendar-browser-native-09c_j4zc",
+  "source_sha256": {
+    "tests/component/data_center/test_calendar_workbench_tui_browser.py": "9e8094809e5846fe5230b9f0b0ed4e6986f13a2fd43d75f22c0401079f60c6d2",
+    "core/templates/terminal/tui_workbench.html": "3380d9139befb9058e8140bee800aa89d6dba7b892f9b0ae2b139a2b31ed2736",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py": "f15240e72860ca61ee44f69a4ef2b9dfac56ab0ffaeae96497f9cd09bfa08d9c",
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": "78f2d1dfaf8cc50b103e716af5a60fa299b4840c444eb5e65613d0a5b6e432e3",
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": "ab76011839ed46acfdfdd11821133abbeb3b23ac5093fcd0268da4d1a03917ed",
+    "tests/component/data_center/test_calendar_workbench_tui_http.py": "3adffad789ea2d0c293c99b34d920cf5434428e44979c3a3152ca2cb128f56c8"
+  },
+  "scope": "Real local HTTP Django shell/login/Session/CSRF/TUI/owner/Audit and actual headless Python Playwright; only Provider transport and synthetic keys mocked; published metadata DB version selection bypassed using real file normalization/IA/runtime. No flush, production, real Provider or metadata promotion."
+}

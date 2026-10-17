@@ -1,0 +1,4 @@
+source_tree=f015f7ace0af0f5d8c01cffc5452b4b28e279aeb
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-workbench-outer-tui-native-mz73vad4
+....                                                                     [100%]
+4 passed in 30.92s

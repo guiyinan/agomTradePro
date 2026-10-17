@@ -1,0 +1,3 @@
+source_tree=6af855b70c5ecc6a5e1bc81d8ce64ebedd9c9bd9
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-dvaccrez
+All checks passed!

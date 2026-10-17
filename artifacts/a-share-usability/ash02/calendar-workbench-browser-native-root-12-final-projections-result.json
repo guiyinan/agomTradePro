@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "source_tree": "2e84dec69bb3d21acfc44b8e0a9504eb4a6a22f9",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-calendar-browser-native-211iperm",
+  "changed_during_run": [],
+  "generated_sha256": {
+    "governance/module_map.json": "38d6cee2e4335b633b25d2ec616bab0fb0a5f373faa6133ecfc91feec4f85dc9",
+    "governance/data_center_architecture_inventory.json": "e1e2bda4d4f04e86dc37047724073861619c4bca1b37ae428294c3928bf6bede",
+    "governance/data_center_entrypoints.json": "d17f36d2363f03011f64f9109977517484f7b2180997d5f2dc1b8b1b19555161",
+    "config/tui/agomtui-runtime.manifest.json": "741ec76b5440909241d9188af82838ecea46dd28ea8c03f2f31921c2a17769e5",
+    "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv": "089152e1ff5bef5bd0b737a20fe6878838e3f5606f360bb004fcde83d13ac100"
+  }
+}

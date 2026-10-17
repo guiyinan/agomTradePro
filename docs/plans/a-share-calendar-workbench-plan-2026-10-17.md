@@ -1,6 +1,6 @@
 # A 股交易日历 TUI 工作台实施计划（2026-10-17）
 
-> 当前方案及剩余验收门。已接受的 HTTP 基础与未完成的 TUI/消费者阶段分开记录；整体 Goal 保持 active。该计划不创建业务默认值、生产权限或数据种子，也不扩大支持市场范围。
+> 当前方案及剩余验收门。已接受的 HTTP/TUI 基础与未完成的消费者阶段分开记录；整体 Goal 保持 active。该计划不创建业务默认值、生产权限或数据种子，也不扩大支持市场范围。
 
 ## 已接受基线与未完成状态
 
@@ -8,12 +8,12 @@
 - 严格 session_auth_required metadata/gate 与 confirmed 必须为 JSON boolean 的入口已接受。缺省 confirmed 为 false；其他类型在任何 executor 副作用前拒绝。
 - Calendar HTTP/API 切片由 commit 02540d22c 接受：166 项相关单元测试；8 个生产文件增量检查及全库 mypy 结果为 0；真实 URL 路由 Native Session/CSRF 测试 14 passed（12 项业务流程及 2 项目标资格，34.86 秒）；freshness 85 项和入口目录 1362 项检查通过。首轮 13 passed、1 failed 是旧数据库绑定未关闭的测试夹具错误，修复后的 14 项结果取代首轮作为验收证据。官方生成与最终修正夹具后的入口 stale-check 均已通过；完整证据见[接口检查点](../testing/a-share-usability-calendar-workbench-api-2026-10-17.json)。
 - 通用 result_continuation 已独立验收：schema/service/private-tab controller 与配对 bundle/manifest；最终 build 后5项浏览器场景及完整Node 92项通过。Python/type/static/architecture结果来自明确独立源码窗口，相关源LF相等；不累加用例、不冒充同一CI/S6身份。详见[通用交接检查点](../testing/a-share-usability-tui-result-continuation-2026-10-17.json)。
-- 确认提交的网络/5xx精确重试、确认前重试返回确认、密码复核、同屏切换清理已关闭。旧令牌和原提交身份不变，密码不保存在重试上下文。Calendar实际owner主任务浏览器验收仍属后续阶段。
+- 确认提交的网络/5xx精确重试、确认前重试返回确认、密码复核、同屏切换清理已关闭。旧令牌和原提交身份不变，密码不保存在重试上下文。Calendar实际owner外层Native和真实浏览器主任务现已独立通过，见本计划C节检查点。
 - 已登记的 74 项 closure 单元是既有治理清单；本计划不把它们统称为全部已关闭，也不新增整体规模承诺。DATA-18、ASH-11 仍 incomplete/planned，完整 Goal 未关闭。
 
 ## 唯一用户旅程与公开契约
 
-Calendar 采用单独 TUI 管理工作台，screen key 为 data-center.calendar-workbench。候选 runtime action keys 按 owner 当前命名为：
+Calendar 采用单独 TUI 管理工作台，screen key 为 data-center.calendar-workbench。runtime action keys 按 owner 命名为：
 
 - data-center.calendar-workbench-scope
 - data-center.calendar-workbench-current
@@ -50,6 +50,8 @@ prepare 返回的 continuation action key 必须是 data-center.calendar-workben
 本通用阶段已完成取消、失败、过期、新 prepare、同屏动作对和screen变化的清理；源generation避免旧响应覆盖。网络/5xx重放原token/confirmation/key/expiry，首次未确认提交重试后仍需用户确认，密码复核不会保留旧密码。保留真实red和修复后新built-bundle结果。旧81项Node早于新build，未作为本阶段验收。Calendar外层Session/CSRF、owner及真实浏览器主任务独立验收。
 
 ### C. Calendar screen 与完整外层 TUI Native / browser journey
+
+本阶段已按最终冻结源码独立验收：125项unit/Service回归、4项外层Native、真实浏览器1项旅程和2项数据库前后核验分别通过，不累计唯一用例。覆盖实际登录/F9/确认/取消/发布/current/撤权只读/普通用户拒绝及移动视口；Provider transport和秘密为合成夹具，数据库业务配置由测试预置，metadata数据库版本选择由真实文件规范化替代。没有实际Provider、生产或消费者资格。精确源、业务/夹具失败原件、类型/架构和生成投影见[工作台TUI检查点](../testing/a-share-usability-calendar-workbench-tui-2026-10-17.json)。
 
 在 IA registry 注册 data-center.calendar-workbench screen 并由 Data Center runtime 提供上述四个 actions。scope 作为默认无参入口；current 要显式 exchange；prepare 只呈现 exchange 与覆盖日期字段；confirm 目标 schema 使用自动隐藏 continuation。metadata 不授予权限、不写默认配置、不展示凭据。用户文案说明无 current、配置阻断、来源 TTL 和 reference-only 边界。
 

@@ -1,0 +1,42 @@
+....F....                                                                [100%]
+================================== FAILURES ===================================
+_____ test_commit_projection_preserves_zero_and_fractional_timestamp_text _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000014CD6A8AC50>
+
+    def test_commit_projection_preserves_zero_and_fractional_timestamp_text(
+        monkeypatch: Any,
+    ) -> None:
+        payload = _published_payload() | {
+            "first_seen_at": "2026-10-17T02:00:00Z",
+            "published_at": "2026-10-17T02:00:00.100000Z",
+            "checked_at": "2026-10-17T02:00:00.200000Z",
+            "response_expires_at": "2026-10-17T02:00:00.300000Z",
+        }
+        service, _ = _service(payload, monkeypatch, status_code=201)
+    
+        result = service.run_action(
+            action_key=CONFIRM_ACTION,
+            params={"confirmation_token": "encrypted:v1:must-not-display"},
+            user=_admin(),
+            confirmed=True,
+        )
+    
+        view_model = result["view_model"]
+        assert view_model["status"] == "日历已首次发布"
+>       assert all(
+            value in view_model["message"]
+            for value in (
+                "2026-10-17T02:00:00Z",
+                "2026-10-17T02:00:00.100000Z",
+                "2026-10-17T02:00:00.200000Z",
+                "2026-10-17T02:00:00.300000Z",
+            )
+        )
+E       assert False
+E        +  where False = all(<generator object test_commit_projection_preserves_zero_and_fractional_timestamp_text.<locals>.<genexpr> at 0x0000014CD6A08040>)
+
+tests\unit\terminal\test_calendar_workbench_service_projection.py:347: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/unit/terminal/test_calendar_workbench_service_projection.py::test_commit_projection_preserves_zero_and_fractional_timestamp_text
+1 failed, 8 passed in 25.36s

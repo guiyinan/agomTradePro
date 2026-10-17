@@ -1,0 +1,144 @@
+source_tree=0f327f94f1e14143065cbb5259063f260e2d6f27
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-iw24dwzu
+.F.                                                                      [100%]
+================================== FAILURES ===================================
+____ test_calendar_workbench_real_browser_prepare_cancel_publish_and_read _____
+tests\component\data_center\test_calendar_workbench_tui_browser.py:379: in test_calendar_workbench_real_browser_prepare_cancel_publish_and_read
+    with sync_playwright() as playwright:
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\sync_api\_context_manager.py:77: in __enter__
+    dispatcher_fiber.switch()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\sync_api\_context_manager.py:56: in greenlet_main
+    self._loop.run_until_complete(self._connection.run_as_sync())
+C:\ProgramData\anaconda3\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py:303: in run_as_sync
+    await self.run()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py:312: in run
+    await self._transport.connect()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_transport.py:133: in connect
+    raise exc
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_transport.py:120: in connect
+    self._proc = await asyncio.create_subprocess_exec(
+C:\ProgramData\anaconda3\Lib\asyncio\subprocess.py:224: in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+C:\ProgramData\anaconda3\Lib\asyncio\base_events.py:1794: in subprocess_exec
+    transport = await self._make_subprocess_transport(
+C:\ProgramData\anaconda3\Lib\asyncio\base_events.py:539: in _make_subprocess_transport
+    raise NotImplementedError
+E   NotImplementedError
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_calendar_workbench_tui_browser.py::test_calendar_workbench_real_browser_prepare_cancel_publish_and_read
+1 failed, 2 passed in 10.90s
+Future exception was never retrieved
+future: <Future finished exception=NotImplementedError()>
+Traceback (most recent call last):
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\runner.py", line 341, in from_call
+    result: TResult | None = func()
+                             ~~~~^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\runner.py", line 242, in <lambda>
+    lambda: runtest_hook(item=item, **kwds), when=when, reraise=reraise
+            ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_hooks.py", line 513, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 182, in _multicall
+    return outcome.get_result()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_result.py", line 100, in get_result
+    raise exc.with_traceback(exc.__traceback__)
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    teardown.throw(outcome._exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\threadexception.py", line 92, in pytest_runtest_call
+    yield from thread_exception_runtest_hook()
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\threadexception.py", line 68, in thread_exception_runtest_hook
+    yield
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    teardown.throw(outcome._exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\unraisableexception.py", line 95, in pytest_runtest_call
+    yield from unraisable_exception_runtest_hook()
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\unraisableexception.py", line 70, in unraisable_exception_runtest_hook
+    yield
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    teardown.throw(outcome._exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\logging.py", line 846, in pytest_runtest_call
+    yield from self._runtest_for(item, "call")
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\logging.py", line 829, in _runtest_for
+    yield
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    teardown.throw(outcome._exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\capture.py", line 880, in pytest_runtest_call
+    return (yield)
+            ^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+    teardown.throw(outcome._exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\skipping.py", line 257, in pytest_runtest_call
+    return (yield)
+            ^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 103, in _multicall
+    res = hook_impl.function(*args)
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\runner.py", line 174, in pytest_runtest_call
+    item.runtest()
+    ~~~~~~~~~~~~^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\python.py", line 1627, in runtest
+    self.ihook.pytest_pyfunc_call(pyfuncitem=self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_hooks.py", line 513, in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+    raise exception.with_traceback(exception.__traceback__)
+  File "C:\ProgramData\anaconda3\Lib\site-packages\pluggy\_callers.py", line 103, in _multicall
+    res = hook_impl.function(*args)
+  File "C:\ProgramData\anaconda3\Lib\site-packages\_pytest\python.py", line 159, in pytest_pyfunc_call
+    result = testfunction(**testargs)
+  File "D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-iw24dwzu\tests\component\data_center\test_calendar_workbench_tui_browser.py", line 379, in test_calendar_workbench_real_browser_prepare_cancel_publish_and_read
+    with sync_playwright() as playwright:
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\sync_api\_context_manager.py", line 77, in __enter__
+    dispatcher_fiber.switch()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\sync_api\_context_manager.py", line 56, in greenlet_main
+    self._loop.run_until_complete(self._connection.run_as_sync())
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py", line 303, in run_as_sync
+    await self.run()
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py", line 312, in run
+    await self._transport.connect()
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_transport.py", line 133, in connect
+    raise exc
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_transport.py", line 120, in connect
+    self._proc = await asyncio.create_subprocess_exec(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "C:\ProgramData\anaconda3\Lib\asyncio\subprocess.py", line 224, in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        stderr=stderr, **kwds)
+        ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\asyncio\base_events.py", line 1794, in subprocess_exec
+    transport = await self._make_subprocess_transport(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        protocol, popen_args, False, stdin, stdout, stderr,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        bufsize, **kwargs)
+        ^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\asyncio\base_events.py", line 539, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError

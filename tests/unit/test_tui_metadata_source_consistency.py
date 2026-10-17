@@ -63,7 +63,7 @@ def test_real_tui_sources_have_consistent_published_screen_ownership() -> None:
 
     assert report.passed, report.as_json()
     assert report.published_screen_count == 12
-    assert report.runtime_screen_count == 25
+    assert report.runtime_screen_count == 26
     assert report.published_action_count == 413
     assert report.runtime_action_count >= report.published_action_count
 
@@ -1258,6 +1258,9 @@ def _ia_runtime_screen_injection_cases() -> tuple[tuple[str, dict[str, Any]], ..
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_broker_execution import (
         RUNTIME_BROKER_EXECUTION_SCREENS,
     )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_calendar_workbench import (
+        RUNTIME_CALENDAR_WORKBENCH_SCREEN,
+    )
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_capability_router import (
         RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,
     )
@@ -1291,6 +1294,7 @@ def _ia_runtime_screen_injection_cases() -> tuple[tuple[str, dict[str, Any]], ..
         ("system.settings", RUNTIME_SYSTEM_SETTINGS_SCREEN),
         ("identity-access.user-governance", RUNTIME_USER_ACCESS_GOVERNANCE_SCREEN),
         ("broker-execution.qmt-setup", qmt_setup),
+        ("data-center.calendar-workbench", RUNTIME_CALENDAR_WORKBENCH_SCREEN),
     )
 
 

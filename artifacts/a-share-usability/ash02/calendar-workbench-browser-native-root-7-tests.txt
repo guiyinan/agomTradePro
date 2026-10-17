@@ -1,0 +1,53 @@
+source_tree=b99433d884d5242b1b4ee78e018e5c9bf1c4b398
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-calendar-browser-native-4ffpctw6
+.F.                                                                      [100%]
+================================== FAILURES ===================================
+____ test_calendar_workbench_real_browser_prepare_cancel_publish_and_read _____
+tests\component\data_center\test_calendar_workbench_tui_browser.py:500: in test_calendar_workbench_real_browser_prepare_cancel_publish_and_read
+    prepare_modal.wait_for(state="visible")
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\sync_api\_generated.py:18080: in wait_for
+    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_locator.py:710: in wait_for
+    await self._frame.wait_for_selector(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_frame.py:369: in wait_for_selector
+    await self._channel.send(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\playwright\_impl\_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+E   Call log:
+E     - waiting for locator("[data-tui-modal]") to be visible
+E       63 × locator resolved to hidden <section hidden="" class="tui-modal" data-tui-modal="">…</section>
+------------------------------ Captured log call ------------------------------
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/home/ - 503 (1324ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/home/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/home/ - 503 (144ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/home/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/home/ - 503 (173ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/home/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/governance-queue/ - 503 (134ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/governance-queue/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/governance-queue/ - 503 (84ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/governance-queue/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/governance-queue/ - 503 (78ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/governance-queue/
+WARNING  apps.data_center.application.market_calendar:market_calendar.py:118 Trading calendar unavailable: SystemAuditCompositionUnavailable
+WARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: MARKET_CALENDAR_UNAVAILABLE - Exchange trading calendar is unavailable
+WARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/operator/governance-queue/ - 503 (58ms)
+ERROR    django.request:log.py:253 Service Unavailable: /api/tui/operator/governance-queue/
+=========================== short test summary info ===========================
+FAILED tests/component/data_center/test_calendar_workbench_tui_browser.py::test_calendar_workbench_real_browser_prepare_cancel_publish_and_read
+1 failed, 2 passed in 63.12s (0:01:03)

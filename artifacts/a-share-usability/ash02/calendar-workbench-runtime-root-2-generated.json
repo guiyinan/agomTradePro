@@ -1,0 +1,11 @@
+{
+  "source_tree": "48f9c4898961c44f6bdb1ade6a4583414e269cb1",
+  "generated_sha256": {
+    "governance/module_map.json": "735541ffa6d4eb6cbd39e898c7e869561bcdca60d29df4c01c4fc36b99293387",
+    "governance/data_center_architecture_inventory.json": "017aec83bb8c0eaedce836803ca846f03ae7e5bbecac9403ab9b783a03f234d6",
+    "governance/data_center_entrypoints.json": "d17f36d2363f03011f64f9109977517484f7b2180997d5f2dc1b8b1b19555161"
+  },
+  "changed_during_run": [],
+  "exit": 0,
+  "shared_index_changed": false
+}

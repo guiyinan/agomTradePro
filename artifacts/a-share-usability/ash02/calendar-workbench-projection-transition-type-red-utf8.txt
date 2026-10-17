@@ -1,0 +1,131 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_malformed_or_unknown_calendar_mutation_result_fails_closed _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EAB6C429E0>
+
+    def test_malformed_or_unknown_calendar_mutation_result_fails_closed(
+        monkeypatch: Any,
+    ) -> None:
+        cases = (
+            (PREPARE_ACTION, _preview_payload() | {"preview_hash": "private-hash"}, 201),
+            (
+                CONFIRM_ACTION,
+                _published_payload() | {"activation_id": "private-activation"},
+                201,
+            ),
+            (
+                CONFIRM_ACTION,
+                _published_payload() | {"transition_label": ["日历已首次发布"]},
+                201,
+            ),
+            (
+                CONFIRM_ACTION,
+                _published_payload() | {"transition_label": {"label": "日历已首次发布"}},
+                201,
+            ),
+            (
+                PREPARE_ACTION,
+                _preview_payload() | {"coverage_start": "not-a-date"},
+                201,
+            ),
+            (CONFIRM_ACTION, {"error": "private owner error", "code": "PRIVATE_CODE"}, 409),
+        )
+        for action_key, payload, status_code in cases:
+            continuation = (
+                {
+                    "action_key": CONFIRM_ACTION,
+                    "input": {"confirmation_token": "encrypted:v1:fixture-token"},
+                    "expires_at": "2999-10-18T02:00:00Z",
+                }
+                if action_key == PREPARE_ACTION and status_code < 400
+                else None
+            )
+            service, _ = _service(
+                payload,
+                monkeypatch,
+                status_code=status_code,
+                continuation=continuation,
+            )
+            params = (
+                {
+                    "exchange": "SSE",
+                    "coverage_start": "2026-10-15",
+                    "coverage_end": "2026-10-16",
+                }
+                if action_key == PREPARE_ACTION
+                else {"confirmation_token": "encrypted:v1:must-not-display"}
+            )
+    
+>           result = service.run_action(
+                action_key=action_key,
+                params=params,
+                user=_admin(),
+                confirmed=True,
+            )
+
+tests\unit\terminal\test_calendar_workbench_service_projection.py:411: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+apps\terminal\application\tui_workbench_execution.py:230: in run_action
+    view_model = self._to_view_model(
+apps\terminal\application\tui_workbench_result_models.py:73: in _to_view_model
+    custom_model = self._custom_view_model(
+apps\terminal\application\tui_workbench_result_models_specialized.py:114: in _custom_view_model
+    return self._calendar_commit_result_model(action, payload, status_code)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <apps.terminal.application.tui_workbench.TuiWorkbenchService object at 0x000001EAB86A8190>
+action = {'_empty_state_guidance': ['先查看配置与当前日历。没有当前版本时，明确填写交易所和日期范围后准备预览。', '发布后按交易所复核当前参考日历；若配置阻断、预览过期或权限失效，先处理阻断或重新准备。'], 'audience': 'admin', 'audit_required': True, 'confirmation_required': True, ...}
+payload = {'blocked_reason': 'exchange_calendar_reference_only', 'checked_at': '2026-10-17T02:02:01Z', 'coverage_end': '2026-10-16', 'coverage_start': '2026-10-15', ...}
+status_code = 201
+
+    def _calendar_commit_result_model(
+        self,
+        action: dict[str, Any],
+        payload: Any,
+        status_code: int,
+    ) -> dict[str, Any]:
+        """Show a bounded publication receipt while hiding all server identities."""
+    
+        if not 200 <= status_code < 300:
+            return self._calendar_message_model(
+                action,
+                "发布结果无法确认，请重新读取当前日历后再决定是否重试。",
+                status_code,
+                "发布结果待确认",
+            )
+        if type(payload) is not dict or not self._calendar_receipt_base_is_displayable(
+            payload,
+            allowed_keys=_CALENDAR_COMMIT_RESULT_KEYS,
+            publication_status="published",
+            reliability="audited_calendar_reference",
+        ):
+            return self._calendar_message_model(
+                action,
+                "发布回执无法安全确认，请重新读取当前日历。",
+                status_code,
+                "状态待确认",
+            )
+    
+        transition = payload["transition_label"]
+        start = self._calendar_date(payload["coverage_start"])
+        end = self._calendar_date(payload["coverage_end"])
+        first_seen = self._calendar_utc_timestamp(payload["first_seen_at"])
+        published_at = self._calendar_utc_timestamp(payload["published_at"])
+        checked_at = self._calendar_utc_timestamp(payload["checked_at"])
+        expiry = self._calendar_utc_timestamp(payload["response_expires_at"])
+        if (
+>           transition not in _CALENDAR_COMMIT_TRANSITIONS
+            or start is None
+            or end is None
+            or first_seen is None
+            or published_at is None
+            or checked_at is None
+            or expiry is None
+        ):
+E       TypeError: unhashable type: 'list'
+
+apps\terminal\application\tui_workbench_result_models_specialized.py:352: TypeError
+=========================== short test summary info ===========================
+FAILED tests/unit/terminal/test_calendar_workbench_service_projection.py::test_malformed_or_unknown_calendar_mutation_result_fails_closed
+1 failed, 8 deselected in 5.93s

@@ -1,0 +1,12 @@
+{
+  "recorded_at": "2026-10-17T01:37:59.075807+00:00",
+  "source_tree": "48f9c4898961c44f6bdb1ade6a4583414e269cb1",
+  "generated_inventory_sha256": "d17f36d2363f03011f64f9109977517484f7b2180997d5f2dc1b8b1b19555161",
+  "inventory_total": 1362,
+  "terminal_tui_total": 28,
+  "calendar_runtime_terminal_tui_entries": 0,
+  "observation": "The existing static _discover_terminal_tui scans published/generated operation-graph JSON only. Post-normalization Python runtime injections are outside that inventory path, including this Calendar workbench. Existing four Calendar REST routes are present.",
+  "qualified_coverage": "Canonical IA/runtime registry, real metadata normalization/service tests, outer Native Session/CSRF/owner journey; browser main-task qualification still pending.",
+  "limits": "A passing static entrypoint check does not claim that runtime-injected actions were enumerated. No static discovery algorithm or approval semantics were changed in this UI slice.",
+  "followup": "Track a separate bounded runtime-dispatch inventory remediation within the overall A-share goal; preserve scanner no-Django/no-execution contract."
+}

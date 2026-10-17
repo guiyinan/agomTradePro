@@ -937,3 +937,21 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 作者先保留缺公开UseCase导致ImportError的red，随后定向绿。Root驱动在前置测试/增量类型已通过后，因缓存复制helper漏导入shutil停止；完整类型和生成命令当时尚未运行。已修正驱动并在同一冻结导出从该门继续，旧原件未覆盖，编排问题不计业务red。完整源与原件见[精确映射读取检查点](../testing/a-share-usability-instrument-mapping-query-2026-10-17.json)。
 
 此查询不授予映射或日历任何交易资格，也没有把参考数据转换成结算证据。计划登记v233 / 74单元；Calendar工作台继续关闭P0投影/时间格式反例并完成最终Native/browser/type/生成验收。后续分别处理market与exchange、原始限制、用途资格、历史知识时点及既有settlement UoW消费者。ASH-01/02/03与完整Goal仍开放，DATA-18对ASH-11及生产/Evidence/QMT门禁不变。
+
+### 19.41 日历工作台与真实浏览器主任务独立验收
+
+本批接受独立 Calendar screen/IA/runtime、配置状态与当前参考日历的用户投影，以及实际 TUI 外层 Native 和浏览器主任务。默认读取配置状态；当前读取要求显式交易所，准备预览还要求明确的覆盖日期范围，隐藏令牌只通过已验收的当前标签页 continuation 传递。prepare 和 publish 分别确认，取消发布需重新准备；撤去发布权限后仍可读取参考日历。表格展示日期、开休市和前一开市日，摘要保留原响应完成时间/原有效期并明确上游观测时间未知、不可用于交易或投资决策。未新增交易资格。
+
+最终冻结源树 2e84dec69bb3d21acfc44b8e0a9504eb4a6a22f9 的125项metadata/compiler/actionability/Service回归通过，三生产文件增量mypy与全库债务为零，八Python文件风格检查通过；架构三文件boundary/audit零。另有terminal-agent/SDK-client/internal-SSL入口回归49项通过。真实外层HTTP另有4项通过（2项接口流程、2项目标核验），覆盖Session/CSRF、Token拒绝、owner首次/重放/forward/旧CAS/撤权及Audit/Outbox；各包与browser分列，不累计唯一用例数。
+
+实际浏览器最终源树 2e84dec69bb3d21acfc44b8e0a9504eb4a6a22f9 先build/check，再以本地真实Django HTTP和指定Native PostgreSQL完成1项端到端旅程及2项前后目标核验。真实登录、F9任务入口、配置阻断/选中、空current、取消prepare、prepare、取消publish清理、新prepare、显式publish、撤权后current、普通用户屏幕拒绝通过；390×844视口保留日期/参考用途且无文档横向溢出。核验实际加载bundle字节，令牌不进入DOM/输入值/URL/浏览器存储、console或Audit；没有声称所有console/network错误为零。隔离初始首页的市场日历依赖返回503，保留日志，不作为全站可用证明。
+
+真实浏览器发现的公开动作缺method已独立由d0ce4d93e修复。预览说明折叠在metadata披露区的P0缺陷在本批改为专用可见消息；Root审查另发现展示层按字符串比较UTC时间会误判零/小数秒，新增反例后去掉重复的时序业务校验，原有效期仍由owner Domain判定，展示原文不续期。发布转换标签先验证精确字符串类型，拒绝list/dict等畸形JSON值，避免集合查询直接抛TypeError。真实业务反例与对应窗口分别保留。
+
+浏览器首轮在DB前被Root错误的manifest相等断言阻断；Windows事件循环、Python回调注册、未用F9打开任务区、状态/日期定位和Playwright循环内同步ORM错误单列为测试环境/夹具失败，保留原件，不冒充业务red。最终使用临时Proactor策略及独立同步DB核验线程，未启用async-unsafe或放宽业务/数据库门禁。Root将时间正例的到期时刻修正为原firstSeen加86400秒，符合owner整数秒TTL；仅两个测试的expiry及展示断言改变，生产源码未变。最终unit/browser/Native/生成检查绑定上述导出；类型与架构使用前一冻结源的实际通过窗口，并以Git完整差异只含该测试、三生产文件字节相同核对适用性。旧120项/旧Native及browser10/11中间绿保留独立窗口；原始/导出/LF/暂存身份不合成同一CI/S6或发布身份。曾误要求checked_at必须在可见消息的中间断言已按产品实际展示字段修正，没有为测试添加用户文案。
+
+工作台脚本缓存query版本同步更新：生产使用非manifest静态存储且允许长期缓存，旧版本可能继续加载不理解continuation的bundle。页面渲染检查通过；最终build后由官方脚本刷新并复验Web→TUI清单。module map、Data Center架构/入口投影亦由官方脚本生成并通过六项治理及四项TUI静态检查。当前静态入口扫描仅枚举JSON operation graph，未覆盖Python runtime注入的四个Calendar actions；已明确记录扫描范围，另列后续静态runtime发现整改，不能把通过扫描等同完整枚举。
+
+CSV生成后的人工范围复核确认：196行集合不变，7条已删除模板记录不变，所有变化均属于官方REFRESHED_FACT_FIELDS，人工维护的生命周期、权限与目标归类字段未变。189个现存模板的content_hash均匹配本次冻结导出的原始文件字节；其中也包含历史机器事实补齐和CRLF导出差异，不能解释成183个模板发生业务改动。本批实际HTML源码仅工作台一个文件改变。官方--check检查模板冻结与生命周期结构，不声称逐项重算字节哈希；详细字段审查保留在检查点。
+
+详见[工作台TUI检查点](../testing/a-share-usability-calendar-workbench-tui-2026-10-17.json)。计划登记v234 / 74已登记单元，精确mapping查询已由19.40独立接受。下一阶段明确market↔exchange和来源/用途资格，并对原成交plan/lag的持久化完整性先补反例、再接既有原子化settlement UoW；历史回测另用PIT读契约，不以今日current重建历史。ASH-01/02/03与整体Goal保持开放，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。

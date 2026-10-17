@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v233",
+  "version": "2026-10-17.v234",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.40 accepts exact UUID InstrumentReference mapping query only; existing repository/composition reused. 28 unit tests, incremental/full mypy, style, architecture and official projections pass. No latest/inverse/default/eligibility/consumer switch. Calendar P0 receipt/time-format fix and final Native/browser remain pending. Then distinct market/exchange and source-purpose/PIT qualification before existing settlement UoW consumers. FullGoal/ASH01/02/03 open; DATA18 gatesASH11; no production/Provider/Evidence/live/broker qualification.",
+      "next_gate": "Plan19.41 accepts Calendar IA/runtime/reference projection and real outer Native/browser journey. Final unit/Service, separate4 Native, actual browser1+2target probes pass, source identities qualified. Official projections/static/type clean; runtime-injected inventory coverage limit explicitly recorded. Exact mapping query accepted19.40; next original-plan/lag integrity regression and explicit market/exchange/source-purpose qualification, then existing UoW consumers; historical PIT backtest separate. FullGoal/ASH01/02/03 open; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

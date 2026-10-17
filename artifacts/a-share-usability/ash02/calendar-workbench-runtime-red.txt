@@ -1,0 +1,26 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+__________ test_calendar_workbench_is_a_dedicated_admin_task_screen ___________
+tests\unit\terminal\test_calendar_workbench_runtime.py:38: in test_calendar_workbench_is_a_dedicated_admin_task_screen
+    assert screen is not None
+E   assert None is not None
+___ test_calendar_workbench_runtime_actions_are_exact_and_session_protected ___
+tests\unit\terminal\test_calendar_workbench_runtime.py:61: in test_calendar_workbench_runtime_actions_are_exact_and_session_protected
+    assert expected_keys <= set(actions)
+E   AssertionError: assert {'data-center...kbench-scope'} <= {'account-set...g-costs', ...}
+E     
+E     Extra items in the left set:
+E     'data-center.calendar-workbench-scope'
+E     'data-center.calendar-workbench-current'
+E     'data-center.calendar-workbench-prepare'
+E     'data-center.calendar-workbench-confirm'
+_______ test_calendar_workbench_screen_has_p0_scope_and_current_panels ________
+tests\unit\terminal\test_calendar_workbench_runtime.py:128: in test_calendar_workbench_screen_has_p0_scope_and_current_panels
+    assert len(screen_fragments) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])
+=========================== short test summary info ===========================
+FAILED tests/unit/terminal/test_calendar_workbench_runtime.py::test_calendar_workbench_is_a_dedicated_admin_task_screen
+FAILED tests/unit/terminal/test_calendar_workbench_runtime.py::test_calendar_workbench_runtime_actions_are_exact_and_session_protected
+FAILED tests/unit/terminal/test_calendar_workbench_runtime.py::test_calendar_workbench_screen_has_p0_scope_and_current_panels
+3 failed in 1.92s

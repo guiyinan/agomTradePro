@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5754,
+    "current_surface_references": 5784,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21712,6 +21712,10 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "\"\"\"Render a current reference calendar or a bounded non-success message.\"\"\""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "\"value\": self._display_value(summary.get(\"as_of_date\")),"
     },
     {
@@ -21736,6 +21740,18 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "and current.get(\"must_not_execute\") is True"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "and current.get(\"must_not_use_for_decision\") is True"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "and current.get(\"reliability\") == \"audited_calendar_reference\""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "and isinstance(payload.get(\"summary\"), dict)"
     },
     {
@@ -21744,7 +21760,63 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "current = payload.get(\"current\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "current.get(\"publication_status\") == \"published\""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "days = current.get(\"calendar_days\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "def _calendar_current_is_displayable(self, current: dict[str, Any]) -> bool:"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "def _calendar_display_rows(self, current: dict[str, Any]) -> list[dict[str, str]] | None:"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "end = self._calendar_date(current.get(\"coverage_end\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "error = self._operator_text(summary.get(\"error\") or \"\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "exchange = current.get(\"exchange\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "exchange = current.get(\"exchange\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "expiry = self._calendar_utc_timestamp(current.get(\"response_expires_at\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "f\"{current['coverage_end']}）；来源响应完成时间 {current['first_seen_at']} \""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "f\"{current['exchange']} 参考日历（{current['coverage_start']} 至 \""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "f\"来源响应有效期至 {current['response_expires_at']}。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "first_seen = self._calendar_utc_timestamp(current.get(\"first_seen_at\"))"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "freshness = current.get(\"freshness\")"
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
@@ -21756,7 +21828,19 @@
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "if action_key == \"data-center.calendar-workbench-current\":"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "if action_key == \"sentiment.awareness-summary\" and isinstance(payload, dict):"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "if not isinstance(request_params, dict) or current.get(\"exchange\") != request_params.get("
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "if type(current) is not dict or not self._calendar_current_is_displayable(current):"
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
@@ -21773,6 +21857,14 @@
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
       "text": "regime = self._display_value(summary.get(\"quadrant\") or \"Unknown\")"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "rows = self._calendar_display_rows(current)"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "text": "start = self._calendar_date(current.get(\"coverage_start\"))"
     },
     {
       "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
@@ -21877,6 +21969,34 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_broker_execution.py",
       "text": "\"summary\": \"处理委托、成交、资金和持仓差异，并核对实盘操作证据。\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "\"action_key\": _ACTION_PREFIX + \"current\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "\"key\": \"calendar-current-reference\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "\"layout_area\": \"current-reference\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "\"rows_path\": \"current.calendar_days\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "elif key_suffix == \"current\":"
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "endpoint=\"/api/data-center/exchange-calendars/workbench/current/\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_calendar_workbench.py",
+      "text": "key_suffix=\"current\","
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_capability_router.py",
