@@ -1159,3 +1159,16 @@ Luna Max 只为个人阈值正场景注入局部合成日历读取边界，仍�
 官方模型状态、四种生成与七项投影/契约共12命令实际退出均0。首个编排比较因字典按source_file排序、搬移三模型改变列表位置而退出1，原失败单独保留；严格逐模型比较证明仅三条source_file与派生位置变化，79模型的字段/Meta及其他所有模型记录、相对次序与其他App均不变。官方字典/Markdown/module投影同步生成输出，未手改；DC architecture/entrypoint输出本身未变。完整治理实际退出1，尺寸由7降至6；单独版本退役门仍退出1、九项均本Goal责任。不存在全仓门已绿的声明。
 
 源patch经辅助index重建匹配，原始红绿/失败日志及raw/LF摘要保留，两个用户测试字节与暂存状态不变。详见[温度计模型尺寸整改检查点](../testing/a-share-usability-thermometer-model-size-2026-10-17.json)。本批只提交该职责提取及对应测试/生成投影/证据，不混入费用或MCP功能。没有使用现有PG目标、生产或Provider，不授予owner/研究/Evidence/QMT资格；Domain逻辑、TUI/SDK/SSL生产未改，未重复其完整包。下一批继续19.49所列有界整改；六项尺寸、九项版本、普通结算/来源/PIT、费用missing/zero、默认MCP冻结范围和完整ASH-01～12 Goal继续开放。
+
+
+### 19.51 结算绑定校验职责提取独立验收
+
+TUX-08a在`28c8650fe2faca38b6795991789b3729cf41e39a`独立提交并显式归还唯一共享窗口。Root核对原79单元、ASH-02完整unit/focus/policy与两个保护测试原样，登记v251/closure72；该批79项与全库类型结果只属于其独立验收，不冒充本批结果。
+
+本批按19.49第二步，将无实例状态的stored-plan-binding校验提至同App Infrastructure的`execution_settlement_plan_binding_repository.py`，保留原实例方法wrapper、签名、装饰器、docstring及`_receipt`调用seam。Luna独立静态审查和Root最终源码对照证明移动校验主体AST相同、其余类与非import顶层节点不变；类型别名显式重导出，真实导入和`get_type_hints`均解析一致。只运行Black/isort必要排版，没有业务规则、字段、迁移、锁或事务范围变化。
+
+最终冻结树`0a29cdf41a62f78ff56b521cadb9904ca90f5b9a`实际运行185项Domain/Application/组合单元测试，通过3.48秒；47项原生PostgreSQL结算组件测试通过391.39秒，覆盖V1/V2绑定、损坏/漂移、legacy replay、owner隔离及并发重放/释放。专用子库前后546迁移，探针在真实read-only事务验证目标；没有重建/flush共享父库或使用生产来源。无新增镜像测试；两个既有用户红测试继续保留且未纳入本提交。
+
+两生产文件增量mypy和默认apps/core/shared全库债务门均实际退出0；Black/isort/Ruff、架构含audit、运行时注解与官方module map生成/检查、current/audit/Celery合同复核均0。正式治理仍实际退出1：尺寸由6降至5；版本退役门仍实际退出1、九项未解决，全部继续由本Goal负责。没有提高baseline/allowlist或修改retirement-only floor/checker pin，也不将比较成功等同全门通过。
+
+源码patch以JSON保留原UTF-8及摘要，经辅助index重建匹配精确冻结树；对应独立审查、原始日志及退出码在统一证据包保存。初次增量尺寸CLI因内部three-dot diff不能接受tree引用而退出1；保留失败，只创建同tree/原parent的无分支质量commit重跑官方原CLI，通过，未改检查器或生产。详见[绑定校验尺寸整改检查点](../testing/a-share-usability-settlement-binding-size-2026-10-17.json)。官方module投影同步生成输出，模型/字段和字典不变。Domain/TUI/SDK/SSL生产未改，不重复其完整包；无新增Domain覆盖率声明。本批不激活候选普通结算、不授予来源/研究/Evidence/订单资格；ASH-02、其余五项尺寸/九项版本、费用missing/zero、默认MCP范围冻结和完整ASH-01～12继续开放。下一步仍按19.49顺序拆分模拟模型、Domain、正式日历与terminal，再分批收敛版本实现。

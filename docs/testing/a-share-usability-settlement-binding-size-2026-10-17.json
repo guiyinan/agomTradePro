@@ -1,0 +1,122 @@
+{
+  "status": "bounded-responsibility-extraction-verified",
+  "base_commit": "28c8650fe2faca38b6795991789b3729cf41e39a",
+  "source_tree": "0a29cdf41a62f78ff56b521cadb9904ca90f5b9a",
+  "production": [
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+    "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py"
+  ],
+  "source_lf_sha256": {
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "d2bcc1a0e68ab16d6ebf07e08ac020e4a3ea678da387f356bc0dbafe84695909",
+    "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py": "d8e76e2a77b4960542cd4c08a77edd0d45c5d0c680878e9dbbd10206805f662a"
+  },
+  "source_proof": {
+    "source_tree": "0a29cdf41a62f78ff56b521cadb9904ca90f5b9a",
+    "moved_body_ast_exact": true,
+    "wrapper_signature_decorators_docstring_exact": true,
+    "helper_typed_signature_equals_original_without_self": true,
+    "all_other_class_and_nonimport_module_nodes_exact": true,
+    "only_legacy_type_alias_definition_replaced_by_explicit_reexport": true,
+    "production_public_function_typed_and_documented": true,
+    "not_claimed": "This source comparison does not replace runtime or database tests."
+  },
+  "verified": {
+    "unit": {
+      "passed": 185,
+      "seconds": 3.48
+    },
+    "postgresql_component": {
+      "passed": 47,
+      "seconds": 391.39
+    },
+    "actual_phase_exits": {
+      "unit": {
+        "unit": 0
+      },
+      "style": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0
+      },
+      "size-2": {
+        "changed-file-size-2": 0,
+        "size-counts-2": 0
+      },
+      "typing": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "runtime-contract": {
+        "runtime-contract": 0
+      },
+      "architecture": {
+        "architecture": 0
+      },
+      "native": {
+        "native-target-before": 0,
+        "native-component": 0,
+        "native-target-after": 0
+      },
+      "projections": {
+        "build_module_map": 0,
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0
+      },
+      "governance": {
+        "full-governance": 1,
+        "retirement": 1
+      }
+    },
+    "full_mypy_default_apps_core_shared": true,
+    "official_nonempty_file_sizes": [
+      {
+        "path": "apps/simulated_trading/infrastructure/execution_settlement_plan_binding_repository.py",
+        "base": 0,
+        "head": 226
+      },
+      {
+        "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "base": 1387,
+        "head": 1193
+      }
+    ],
+    "native_target": "test_ash_plan_binding_01a14268 on local port52009;546 migrations before/after;actual read-only target probes",
+    "original_call_seam_and_runtime_annotation_identity": true,
+    "source_patch_reconstructs_exact_tree": true,
+    "post_document_actual_exits": {
+      "registry": 0,
+      "registry-tests": 0,
+      "docs-links": 0,
+      "module": 0
+    },
+    "post_document_registry_tests_passed": 8
+  },
+  "open_gates": {
+    "full_governance_actual_exit": 1,
+    "remaining_size_failures": 5,
+    "retirement_actual_exit": 1,
+    "remaining_retirement_failures": 9,
+    "all_owned_by_this_goal": true,
+    "baseline_allowlist_floor_pin_changed": false
+  },
+  "generated_projection": "Official build_module_map output copied from frozen export; no manual projection edits",
+  "retained_harness_correction": "Initial official growth CLI rejected direct Git tree because it uses three-dot commit diff. Re-run uses unattached commit with identical tree and accepted parent; no branch, checker or production changes. Initial exit1 log retained.",
+  "protected_test_lf_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "evidence": "artifacts/a-share-usability/ash01/settlement-binding-size-evidence-2026-10-17.json",
+  "scope": "Only stateless stored-plan-binding validation extracted; wrapper/locks/transactions/owner checks/replay/release preserved",
+  "not_claimed": [
+    "Full ASH-02/Goal completion",
+    "Ordinary settlement activation",
+    "Qualified live identity/calendar/PIT/Evidence",
+    "Production/providers/QMT",
+    "CI/S6",
+    "Fresh full terminal/SDK/SSL packages; their production code unchanged",
+    "New Domain coverage; Domain unchanged"
+  ],
+  "rollback": "Reverse this independent owned extraction and projection/document changes; no schema or database rollback required"
+}

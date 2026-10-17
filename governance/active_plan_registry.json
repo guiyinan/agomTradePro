@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v251",
+  "version": "2026-10-17.v252",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.50: thermometer model responsibility extraction independently accepted after test prerequisite77b0132b9; final frozen49cac18e62 SQLite tests passed, original three classes/registration/old facade identities preserved, no migration. Old file1328to1147/new192; official12 commands0, semantic dictionary only3 source paths/derived positions, type/style/architecture0 on exact same production inputs. Initial API calendar failure and projection-list-order assumption failure retained; not oneCI/S6. Root owns remaining6 size and9 retirement failures; continue bounded19.49 remediation without baseline/allowlist/floor/checker-pin increases, rename-only evasion or historic schema/hash loss. ASH02 focus,79units/closure70 and5a C-quality requirements preserved. Ordinary T+1/odd-lot/atomicity/idempotency/lock-owner/source-purpose/PIT, fees missing-vs-zero, default MCP frozen eligible scope/fullGoal remain open; DATA18/EVID/production/provider/broker stops unchanged. Evidence: docs/testing/a-share-usability-thermometer-model-size-2026-10-17.json.",
+      "next_gate": "Plan19.51: stateless settlement binding validator extracted with original wrapper/call seam and exact body; frozen 0a29cdf4 actual 185 unit/47 native PostgreSQL tests passed; incremental and default full mypy/style/architecture/projections0. Remaining5 size/9 retirement gates are Goal-owned and still fail; continue19.49 bounded model/Domain/calendar/terminal and version consolidation without waiver or historical schema/hash loss. ASH02 single focus,79units/closure72 and C-quality requirements preserved. Ordinary settlement/source-purpose/PIT,fees missing-vs-zero,default MCP frozen eligible scope/fullGoal remain open; DATA18/EVID/production/provider/broker stops unchanged. Evidence: docs/testing/a-share-usability-settlement-binding-size-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
