@@ -1,0 +1,2 @@
+source_tree=299388f1e76fc607299e92156c1e1ca740a6c954
+command=['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', '-m', 'isort', '--check-only', 'apps/data_center/infrastructure/fact_and_operational_models.py', 'apps/data_center/infrastructure/market_thermometer_models.py', 'tests/unit/data_center/test_market_thermometer_model_registration.py']

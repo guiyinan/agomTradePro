@@ -1,0 +1,3 @@
+Post-document and official projection-sync state; runtime production source unchanged from49cac18e.
+command=['scripts/check_module_map.py']
+module map OK: D:\githv\agomTradePro\governance\module_map.json matches the source tree (modules=44 edges=210)

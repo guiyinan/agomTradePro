@@ -31504,360 +31504,6 @@
           "bases": [
             "models.Model"
           ],
-          "class_name": "MarketThermometerConfigModel",
-          "docstring": "Singleton configuration for market thermometer scoring.",
-          "fields": [
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 5
-              },
-              "name": "short_window",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 20
-              },
-              "name": "medium_window",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 252
-              },
-              "name": "long_window",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 24
-              },
-              "name": "monthly_long_window",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 3
-              },
-              "name": "daily_stale_days",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 45
-              },
-              "name": "monthly_stale_days",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 4
-              },
-              "name": "min_valid_components",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "dict",
-                "help_text": "Component weights keyed by component_key"
-              },
-              "name": "component_weights",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 35.0
-              },
-              "name": "warm_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 60.0
-              },
-              "name": "hot_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 75.0
-              },
-              "name": "overheat_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 85.0
-              },
-              "name": "extreme_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "created_at",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "updated_at",
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "db_table": "data_center_market_thermometer_config",
-            "verbose_name": "Market Thermometer Config",
-            "verbose_name_plural": "Market Thermometer Config"
-          },
-          "source_file": "infrastructure/fact_and_operational_models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "MarketThermometerSnapshotModel",
-          "docstring": "One persisted market thermometer snapshot per observed date.",
-          "fields": [
-            {
-              "db_index": true,
-              "field_type": "DateField",
-              "kwargs": {
-                "db_index": true,
-                "unique": true
-              },
-              "name": "observed_at",
-              "positional_args": [],
-              "unique": true
-            },
-            {
-              "field_type": "FloatField",
-              "name": "score",
-              "positional_args": []
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "band",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "change_5d",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "change_20d",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "list"
-              },
-              "name": "components",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "list"
-              },
-              "name": "trigger_reasons",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "list"
-              },
-              "name": "stale_components",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "default": "list"
-              },
-              "name": "missing_components",
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "default": 0
-              },
-              "name": "valid_component_count",
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "default": "calculated",
-                "max_length": 20
-              },
-              "name": "data_source",
-              "positional_args": []
-            },
-            {
-              "field_type": "BooleanField",
-              "kwargs": {
-                "default": false
-              },
-              "name": "must_not_use_for_decision",
-              "positional_args": []
-            },
-            {
-              "field_type": "TextField",
-              "kwargs": {
-                "blank": true,
-                "default": ""
-              },
-              "name": "blocked_reason",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "calculated_at",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "updated_at",
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "db_table": "data_center_market_thermometer_snapshot",
-            "indexes": "[models.Index(fields=['band', 'observed_at'])]",
-            "ordering": [
-              "-observed_at"
-            ],
-            "verbose_name": "Market Thermometer Snapshot",
-            "verbose_name_plural": "Market Thermometer Snapshots"
-          },
-          "source_file": "infrastructure/fact_and_operational_models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "MarketThermometerUserOverrideModel",
-          "docstring": "Per-user threshold override for market thermometer interpretation.",
-          "fields": [
-            {
-              "field_type": "OneToOneField",
-              "kwargs": {
-                "on_delete": "models.CASCADE",
-                "related_name": "market_thermometer_override"
-              },
-              "name": "user",
-              "positional_args": [
-                "settings.AUTH_USER_MODEL"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 35.0
-              },
-              "name": "warm_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 60.0
-              },
-              "name": "hot_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 75.0
-              },
-              "name": "overheat_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 85.0
-              },
-              "name": "extreme_threshold",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "created_at",
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "updated_at",
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "db_table": "data_center_market_thermometer_user_override",
-            "verbose_name": "Market Thermometer User Override",
-            "verbose_name_plural": "Market Thermometer User Overrides"
-          },
-          "source_file": "infrastructure/fact_and_operational_models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
           "class_name": "NewsFactModel",
           "docstring": "News article associated with a stock or sector.",
           "fields": [
@@ -34373,6 +34019,360 @@
             "abstract": true
           },
           "source_file": "infrastructure/macro_factor_research_source_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "MarketThermometerConfigModel",
+          "docstring": "Singleton configuration for market thermometer scoring.",
+          "fields": [
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 5
+              },
+              "name": "short_window",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 20
+              },
+              "name": "medium_window",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 252
+              },
+              "name": "long_window",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 24
+              },
+              "name": "monthly_long_window",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 3
+              },
+              "name": "daily_stale_days",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 45
+              },
+              "name": "monthly_stale_days",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 4
+              },
+              "name": "min_valid_components",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "dict",
+                "help_text": "Component weights keyed by component_key"
+              },
+              "name": "component_weights",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 35.0
+              },
+              "name": "warm_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 60.0
+              },
+              "name": "hot_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 75.0
+              },
+              "name": "overheat_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 85.0
+              },
+              "name": "extreme_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "db_table": "data_center_market_thermometer_config",
+            "verbose_name": "Market Thermometer Config",
+            "verbose_name_plural": "Market Thermometer Config"
+          },
+          "source_file": "infrastructure/market_thermometer_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "MarketThermometerSnapshotModel",
+          "docstring": "One persisted market thermometer snapshot per observed date.",
+          "fields": [
+            {
+              "db_index": true,
+              "field_type": "DateField",
+              "kwargs": {
+                "db_index": true,
+                "unique": true
+              },
+              "name": "observed_at",
+              "positional_args": [],
+              "unique": true
+            },
+            {
+              "field_type": "FloatField",
+              "name": "score",
+              "positional_args": []
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "band",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "change_5d",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "change_20d",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "list"
+              },
+              "name": "components",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "list"
+              },
+              "name": "trigger_reasons",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "list"
+              },
+              "name": "stale_components",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "default": "list"
+              },
+              "name": "missing_components",
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "default": 0
+              },
+              "name": "valid_component_count",
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "default": "calculated",
+                "max_length": 20
+              },
+              "name": "data_source",
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": false
+              },
+              "name": "must_not_use_for_decision",
+              "positional_args": []
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "default": ""
+              },
+              "name": "blocked_reason",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "calculated_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "db_table": "data_center_market_thermometer_snapshot",
+            "indexes": "[models.Index(fields=['band', 'observed_at'])]",
+            "ordering": [
+              "-observed_at"
+            ],
+            "verbose_name": "Market Thermometer Snapshot",
+            "verbose_name_plural": "Market Thermometer Snapshots"
+          },
+          "source_file": "infrastructure/market_thermometer_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "MarketThermometerUserOverrideModel",
+          "docstring": "Per-user threshold override for market thermometer interpretation.",
+          "fields": [
+            {
+              "field_type": "OneToOneField",
+              "kwargs": {
+                "on_delete": "models.CASCADE",
+                "related_name": "market_thermometer_override"
+              },
+              "name": "user",
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 35.0
+              },
+              "name": "warm_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 60.0
+              },
+              "name": "hot_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 75.0
+              },
+              "name": "overheat_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 85.0
+              },
+              "name": "extreme_threshold",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "db_table": "data_center_market_thermometer_user_override",
+            "verbose_name": "Market Thermometer User Override",
+            "verbose_name_plural": "Market Thermometer User Overrides"
+          },
+          "source_file": "infrastructure/market_thermometer_models.py"
         },
         {
           "bases": [

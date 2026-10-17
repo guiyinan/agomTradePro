@@ -1147,3 +1147,15 @@ Root 补查纠正：19.48 所称“原七项”只是相对该次局部整改的
 Luna Max 只为个人阈值正场景注入局部合成日历读取边界，仍使用真实日期解析器、Django Client/API、ORM、阈值计算及原断言；没有全局 autouse、工作日推算或正式来源资格声明。新增独立负例令该边界返回 None，实际 API 必须为503、JSON与稳定 `MARKET_CALENDAR_UNAVAILABLE`，不返回 score/success。Root 以原生产源码加唯一测试文件的 `ee4380ce048e4c202d1b36add8d8e02ab30d59c0` 冻结树实际运行全部 11 项 API 测试，通过37.70秒，Black/isort/Ruff通过；独立 Luna Max 只读复核无阻断项。详情见[温度计日历测试前置检查点](../testing/a-share-usability-thermometer-calendar-fixture-2026-10-17.json)。
 
 此前置先独立提交，只包含测试、对应证据和本阶段计划登记；未提交的模型两源与新注册测试明确排除。生产源码无变化，不将模型候选已通过的类型/迁移检查冒充此前置运行结果，也不将本地 Client 验收称为真实网络/生产资格。七项尺寸与九项版本门均为本 Goal 责任且继续开放；ASH-02焦点、79单元、完整Goal与原停止线不变。模型批须在此前置提交后，保留同一生产源码并重跑完整受影响测试，再独立验收/提交。
+
+### 19.50 温度计模型职责提取独立验收
+
+测试前置已独立提交 `77b0132b960ba2784ced72eabc82d618d22e4532` 后，才冻结本批最终运行窗 `49cac18e7686f106b9378e7a09669224851cc44c`。Root 重新实际运行完整受影响 62 项计算/任务、注册、模型 invariant、温度计仓储与全部 API 测试，全部通过32.26秒；包括真实 Django Client/Session、ORM、个人阈值和无日历503。日历读取正场景明确使用合成 fixture，不将该结果解释为正式日历/来源资格或真实网络 HTTP 验收。
+
+三个模型整体迁至同 App Infrastructure 的 `market_thermometer_models.py`；旧 split 模块在原定义位置晚导入该模块、显式绑定三个类名，两个既有 facade 保持原引用。该写法是为兼顾 isort 与原注册点的有界实现选择，不把别名按字母排序误当实际注册顺序。真实 registry 测试确认四模块路径和 AppRegistry 为同一类对象；Root另证明 Config/UserOverride/Snapshot 原类定义顺序、三类完整AST及其余顶层节点不变。五个迁移方法参数/返回与docstring完整；无业务默认值、字段、Meta、表名或迁移变化。真实尺寸checker确认原文件1328→1147，新文件192，均低于1,200；baseline/allowlist/checker不变。
+
+首窗 `299388f1e76fc607299e92156c1e1ca740a6c954` 实际两源增量mypy和默认apps/core/shared全库债务门为零，Black/isort/Ruff与架构/审计零。最终窗三源（含注册测试）LF字节相同；所有apps/core/shared/sdk/qmt/scripts/config、依赖、类型与相关契约输入经Git树比较无变化，差异仅为此前置测试与治理文档/证据。类型检查在首窗实际运行、未在最终窗重复；最终完整运行测试已真实重跑，不冒充同一CI/S6身份。
+
+官方模型状态、四种生成与七项投影/契约共12命令实际退出均0。首个编排比较因字典按source_file排序、搬移三模型改变列表位置而退出1，原失败单独保留；严格逐模型比较证明仅三条source_file与派生位置变化，79模型的字段/Meta及其他所有模型记录、相对次序与其他App均不变。官方字典/Markdown/module投影同步生成输出，未手改；DC architecture/entrypoint输出本身未变。完整治理实际退出1，尺寸由7降至6；单独版本退役门仍退出1、九项均本Goal责任。不存在全仓门已绿的声明。
+
+源patch经辅助index重建匹配，原始红绿/失败日志及raw/LF摘要保留，两个用户测试字节与暂存状态不变。详见[温度计模型尺寸整改检查点](../testing/a-share-usability-thermometer-model-size-2026-10-17.json)。本批只提交该职责提取及对应测试/生成投影/证据，不混入费用或MCP功能。没有使用现有PG目标、生产或Provider，不授予owner/研究/Evidence/QMT资格；Domain逻辑、TUI/SDK/SSL生产未改，未重复其完整包。下一批继续19.49所列有界整改；六项尺寸、九项版本、普通结算/来源/PIT、费用missing/zero、默认MCP冻结范围和完整ASH-01～12 Goal继续开放。

@@ -4891,69 +4891,6 @@
 | `occurrence_count` | `PositiveIntegerField` |  |  |  |  |  |
 | `record_count` | `PositiveIntegerField` |  |  |  |  |  |
 
-### MarketThermometerConfigModel
-
-- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
-- 数据表：`data_center_market_thermometer_config`
-- 说明：Singleton configuration for market thermometer scoring.
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `short_window` | `PositiveIntegerField` |  |  | 5 |  |  |
-| `medium_window` | `PositiveIntegerField` |  |  | 20 |  |  |
-| `long_window` | `PositiveIntegerField` |  |  | 252 |  |  |
-| `monthly_long_window` | `PositiveIntegerField` |  |  | 24 |  |  |
-| `daily_stale_days` | `PositiveIntegerField` |  |  | 3 |  |  |
-| `monthly_stale_days` | `PositiveIntegerField` |  |  | 45 |  |  |
-| `min_valid_components` | `PositiveIntegerField` |  |  | 4 |  |  |
-| `component_weights` | `JSONField` |  |  | dict | Component weights keyed by component_key |  |
-| `warm_threshold` | `FloatField` |  |  | 35.0 |  |  |
-| `hot_threshold` | `FloatField` |  |  | 60.0 |  |  |
-| `overheat_threshold` | `FloatField` |  |  | 75.0 |  |  |
-| `extreme_threshold` | `FloatField` |  |  | 85.0 |  |  |
-| `created_at` | `DateTimeField` |  |  |  |  |  |
-| `updated_at` | `DateTimeField` |  |  |  |  |  |
-
-### MarketThermometerSnapshotModel
-
-- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
-- 数据表：`data_center_market_thermometer_snapshot`
-- 说明：One persisted market thermometer snapshot per observed date.
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `observed_at` | `DateField` |  | 是 |  |  |  |
-| `score` | `FloatField` |  |  |  |  |  |
-| `band` | `CharField` |  |  |  |  |  |
-| `change_5d` | `FloatField` | 是 |  |  |  |  |
-| `change_20d` | `FloatField` | 是 |  |  |  |  |
-| `components` | `JSONField` |  |  | list |  |  |
-| `trigger_reasons` | `JSONField` |  |  | list |  |  |
-| `stale_components` | `JSONField` |  |  | list |  |  |
-| `missing_components` | `JSONField` |  |  | list |  |  |
-| `valid_component_count` | `PositiveIntegerField` |  |  | 0 |  |  |
-| `data_source` | `CharField` |  |  | calculated |  |  |
-| `must_not_use_for_decision` | `BooleanField` |  |  | False |  |  |
-| `blocked_reason` | `TextField` |  |  |  |  |  |
-| `calculated_at` | `DateTimeField` |  |  |  |  |  |
-| `updated_at` | `DateTimeField` |  |  |  |  |  |
-
-### MarketThermometerUserOverrideModel
-
-- 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
-- 数据表：`data_center_market_thermometer_user_override`
-- 说明：Per-user threshold override for market thermometer interpretation.
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `user` | `OneToOneField` |  |  |  |  | settings.AUTH_USER_MODEL |
-| `warm_threshold` | `FloatField` |  |  | 35.0 |  |  |
-| `hot_threshold` | `FloatField` |  |  | 60.0 |  |  |
-| `overheat_threshold` | `FloatField` |  |  | 75.0 |  |  |
-| `extreme_threshold` | `FloatField` |  |  | 85.0 |  |  |
-| `created_at` | `DateTimeField` |  |  |  |  |  |
-| `updated_at` | `DateTimeField` |  |  |  |  |  |
-
 ### NewsFactModel
 
 - 来源文件：`apps/data_center/infrastructure/fact_and_operational_models.py`
@@ -5346,6 +5283,69 @@
 - 来源文件：`apps/data_center/infrastructure/macro_factor_research_source_models.py`
 - 抽象模型：是
 - 说明：Base model enforcing repository-only inserts and immutable rows.
+
+### MarketThermometerConfigModel
+
+- 来源文件：`apps/data_center/infrastructure/market_thermometer_models.py`
+- 数据表：`data_center_market_thermometer_config`
+- 说明：Singleton configuration for market thermometer scoring.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `short_window` | `PositiveIntegerField` |  |  | 5 |  |  |
+| `medium_window` | `PositiveIntegerField` |  |  | 20 |  |  |
+| `long_window` | `PositiveIntegerField` |  |  | 252 |  |  |
+| `monthly_long_window` | `PositiveIntegerField` |  |  | 24 |  |  |
+| `daily_stale_days` | `PositiveIntegerField` |  |  | 3 |  |  |
+| `monthly_stale_days` | `PositiveIntegerField` |  |  | 45 |  |  |
+| `min_valid_components` | `PositiveIntegerField` |  |  | 4 |  |  |
+| `component_weights` | `JSONField` |  |  | dict | Component weights keyed by component_key |  |
+| `warm_threshold` | `FloatField` |  |  | 35.0 |  |  |
+| `hot_threshold` | `FloatField` |  |  | 60.0 |  |  |
+| `overheat_threshold` | `FloatField` |  |  | 75.0 |  |  |
+| `extreme_threshold` | `FloatField` |  |  | 85.0 |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
+
+### MarketThermometerSnapshotModel
+
+- 来源文件：`apps/data_center/infrastructure/market_thermometer_models.py`
+- 数据表：`data_center_market_thermometer_snapshot`
+- 说明：One persisted market thermometer snapshot per observed date.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `observed_at` | `DateField` |  | 是 |  |  |  |
+| `score` | `FloatField` |  |  |  |  |  |
+| `band` | `CharField` |  |  |  |  |  |
+| `change_5d` | `FloatField` | 是 |  |  |  |  |
+| `change_20d` | `FloatField` | 是 |  |  |  |  |
+| `components` | `JSONField` |  |  | list |  |  |
+| `trigger_reasons` | `JSONField` |  |  | list |  |  |
+| `stale_components` | `JSONField` |  |  | list |  |  |
+| `missing_components` | `JSONField` |  |  | list |  |  |
+| `valid_component_count` | `PositiveIntegerField` |  |  | 0 |  |  |
+| `data_source` | `CharField` |  |  | calculated |  |  |
+| `must_not_use_for_decision` | `BooleanField` |  |  | False |  |  |
+| `blocked_reason` | `TextField` |  |  |  |  |  |
+| `calculated_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
+
+### MarketThermometerUserOverrideModel
+
+- 来源文件：`apps/data_center/infrastructure/market_thermometer_models.py`
+- 数据表：`data_center_market_thermometer_user_override`
+- 说明：Per-user threshold override for market thermometer interpretation.
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `user` | `OneToOneField` |  |  |  |  | settings.AUTH_USER_MODEL |
+| `warm_threshold` | `FloatField` |  |  | 35.0 |  |  |
+| `hot_threshold` | `FloatField` |  |  | 60.0 |  |  |
+| `overheat_threshold` | `FloatField` |  |  | 75.0 |  |  |
+| `extreme_threshold` | `FloatField` |  |  | 85.0 |  |  |
+| `created_at` | `DateTimeField` |  |  |  |  |  |
+| `updated_at` | `DateTimeField` |  |  |  |  |  |
 
 ### AssetAliasModel
 

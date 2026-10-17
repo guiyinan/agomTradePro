@@ -1,0 +1,579 @@
+{
+  "status": "verified_responsibility_extraction",
+  "date": "2026-10-17",
+  "plan_section": "19.50",
+  "prerequisite_commit": "77b0132b960ba2784ced72eabc82d618d22e4532",
+  "first_source_tree": "299388f1e76fc607299e92156c1e1ca740a6c954",
+  "final_runtime_source_tree": "49cac18e7686f106b9378e7a09669224851cc44c",
+  "verified": {
+    "final_sqlite_tests": 62,
+    "seconds": 32.26,
+    "model_state_check": "No changes detected",
+    "old_nonempty": 1328,
+    "final_nonempty": {
+      "apps/data_center/infrastructure/fact_and_operational_models.py": 1147,
+      "apps/data_center/infrastructure/market_thermometer_models.py": 192
+    },
+    "complete_model_class_asts_preserved": 3,
+    "model_methods_fully_typed_and_documented": [
+      "save",
+      "load",
+      "to_domain",
+      "to_domain",
+      "to_domain"
+    ],
+    "legacy_facades_and_app_registry_same_class_identity": true,
+    "registration_sequence_preserved": true,
+    "other_top_level_nodes_preserved_except_explicit_aliases_and_imports": true,
+    "first_window_incremental_mypy": 0,
+    "first_window_default_full_mypy": 0,
+    "full_mypy_repeated_final_window": false,
+    "production_and_check_input_equality_proved": true,
+    "black": 0,
+    "isort": 0,
+    "ruff": 0,
+    "architecture_and_audit": 0,
+    "official_generation_and_check_commands": 12,
+    "all_official_command_exits": 0,
+    "data_center_dictionary_models": 79,
+    "dictionary_only_semantic_changes": "Three source_file values and their derived source-order positions"
+  },
+  "preserved_failures": {
+    "first_suite": "60 passed / 1 calendar-fixture failure; unchanged original419079582 reproduction and prerequisite77b0132b9 retained",
+    "projection_driver_exit": 1,
+    "projection_driver_reason": "Incorrect list-order equality assumption; exact per-model semantic comparison passed separately"
+  },
+  "open_goal_owned_gates": {
+    "full_governance_actual_exit": 1,
+    "remaining_size_violations": [
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "message": "Production Python file has 1387 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/simulated_trading/infrastructure/models.py",
+        "message": "Production Python file has 1372 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/terminal/application/tui_metadata.py",
+        "message": "Production Python file has 1255 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+        "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+      }
+    ],
+    "retirement_actual_exit": 1,
+    "retirement_violations": 9,
+    "baseline_allowlist_or_checker_changed": false
+  },
+  "boundaries": {
+    "postgresql_accessed": false,
+    "production_or_provider_accessed": false,
+    "new_migrations": false,
+    "new_business_defaults": false,
+    "domain_logic_changed": false,
+    "same_ci_s6_claimed": false,
+    "full_goal_completed": false,
+    "note": "TUI/SDK/SSL production unchanged; full packages not repeated. No source, owner, Evidence or broker authority granted."
+  },
+  "patch_reconstructed_exact_source_tree": true,
+  "evidence": {
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.exit": {
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "lf_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.stderr.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lf_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.stdout.txt": {
+      "raw_sha256": "10c61618f7978f671df6d96729250750d65ebfac16007629e0ccf15e657798df",
+      "lf_sha256": "7f20721722339faad833bedbd918bbce72ec5ee8917b82cf8b1a09bf4e47f2f3"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.exit": {
+      "raw_sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+      "lf_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.stderr.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lf_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.stdout.txt": {
+      "raw_sha256": "604ad87756724bb897894ca29e6ad257b51a1992e5d2148e7faeeec1d9f5d182",
+      "lf_sha256": "073b1bbed3fedd224b758a734fc16517c5bf3d17bd10f69d131ecd1b1c9690ca"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-1.exit": {
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lf_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-1.txt": {
+      "raw_sha256": "818a4f748b6e7d9e632744dfde470d2f1df3e0280b25833ea22343853fb1384e",
+      "lf_sha256": "b482faa6f3c8abcee8955a7bbcbc656faa4bc45fa248065d2d738e0efc06449c"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-2.exit": {
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lf_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-2.txt": {
+      "raw_sha256": "7ca1830b9dc979271a6083f04997b26a9d30999a2c2937e1cf9b12f4552d1cc3",
+      "lf_sha256": "63b790839ce6b31fc1dbb63a1e003a272da4f544927ffa0ca09a0a7981386073"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-architecture.txt": {
+      "raw_sha256": "69f6f76b1fdcb18f77ac8e166ecb039bf24d2ab3bd660071565520f7696f3f73",
+      "lf_sha256": "8ba87403c525fa240eef7ca995d65cdc2dc18fadc21d53603f6825b8c29e351e"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-black.txt": {
+      "raw_sha256": "9fc505dcbbf39cf1d1dc3a57d8f8fd759f9ef2780b32bfcbf5a62161c94c310e",
+      "lf_sha256": "d610302bc6421a463e650f2252dc6f5a4ace6ed9c0d9995f5661108ac86e914d"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_audit_event_contracts.txt": {
+      "raw_sha256": "557517aee54ce66dcf44387ba65a983215a02fc5b8e43b92311118a313d1f003",
+      "lf_sha256": "d508691780a4b9c86af74dc39c310a866ef208e37beaff3cf78c3f1e8037a43d"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_celery_task_contracts.txt": {
+      "raw_sha256": "308e5a50fce4f7e991aba07b80d91404fc81d5095f8ca50413e7415e21f58f5b",
+      "lf_sha256": "5c461304aa02bd0dd1026e505baa5f4bb8d66e0563a9dddd67557271645b85a3"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_current_data_contracts.txt": {
+      "raw_sha256": "1f0a0041b5fecf97ee6b4743e08a4a160e44bec836a12f788a1cc15083b8dfe6",
+      "lf_sha256": "84e66ac23b17f0a131392ae36fd9d1049488b40a51927a34c3a036c32f2f23c3"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_data_dictionary.txt": {
+      "raw_sha256": "b698ab6cf61f3cb3663191a0c17763b125a501ebca0aa8a291e4d9b0bd2298cb",
+      "lf_sha256": "58e08ff2407f406833a765c7a8361d7a4cb86d3cce44cc54321d876d47d9467d"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_module_map.txt": {
+      "raw_sha256": "1ea92d08c73e06829a806d262461c0698da2452719ba02ef6c404c3b060629b7",
+      "lf_sha256": "8c85b84b5b8c9d406d6889b33076e778c97fb79706a5f07247f159490436a314"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-data_center_architecture_inventory.txt": {
+      "raw_sha256": "5aaee1c2a4721c5c9643ec4a2d9fbae45441a28932a25192fe2b822e37cc3886",
+      "lf_sha256": "293757d51a828267d37de27a35a2e9209b9629345c8c90af87f98102863a9e9b"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-data_center_entrypoint_inventory.txt": {
+      "raw_sha256": "3444a96329282af6d1d3fffc7dd410aa6eb283575d6488c056e1139acb810f6f",
+      "lf_sha256": "4270383d800972d0f76e8312947df10ec5a07c329b62a578124aaecf9fc8be7e"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dc-architecture-build.txt": {
+      "raw_sha256": "649c8535e9f200fc7de90fc9b9d42ccf9967319cb6f59b4fe9e7037b2a896bae",
+      "lf_sha256": "f292267d277b2df3edb1fab6508508b63cfc9a278363e0d05520d015c4defa8f"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dc-entry-build.txt": {
+      "raw_sha256": "723bac8b09de9ce1f5ae017b6490f5f39fee08157380f9d49ea43783ada051af",
+      "lf_sha256": "073ffd75fc7d385fab450acab8f875b92698b921e1bfa8d228673d6a34ff7e07"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dictionary-build.txt": {
+      "raw_sha256": "d64837076e9f725f620b73b3622d368a55ee9486d970063dc04681afc7fed8bc",
+      "lf_sha256": "2c50be210137dbf486f7485d6c8a07521912224846cbbb1245a6577952d6cca6"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dictionary-semantic-comparison.json": {
+      "raw_sha256": "bedd1a1726dd9f86ae6cf3d6d3ec1fd823a01b3965577147712a0be65da73f54",
+      "lf_sha256": "1bbbe6ebcda377b97d7e6d3cb90792d67ce078bab76a4442d5c16adfd620c2d0"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-governance.json": {
+      "raw_sha256": "90570d429e57aedc0bedd6a21b94a1c528632fa3238674ede01175c62424ed85",
+      "lf_sha256": "05080ea0f950f837fe51bf72429c603e26a690212d6fc94c7c8fe78acdd45a2a"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-governance.txt": {
+      "raw_sha256": "96bc351c72fb211fc85bd6b546a9e45fa20cd33b1f4138945fb6b71f6a452162",
+      "lf_sha256": "59ab022c9bff2a3078e818d996ef02a8eb0bf02bcc15a3e77566a3cc972587e9"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-mypy.txt": {
+      "raw_sha256": "b19752b0181d2c53a029b48181405da5ea880108ef5c160149c2f78d784b07b4",
+      "lf_sha256": "0acb7e5f36a3f890e5eb9b2e48db8b901faf1b476146d5bc46580cdbad37cece"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-governance-result.json": {
+      "raw_sha256": "9f46f118575e059793995ab45f4b97f4902c54e9e34b778a6ee8681c4d9f0104",
+      "lf_sha256": "9f46f118575e059793995ab45f4b97f4902c54e9e34b778a6ee8681c4d9f0104"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-incremental-mypy.txt": {
+      "raw_sha256": "ebca9fbe43ee7b5de31972abae717391a3df8a43130d29703471b67bc1a5b9f2",
+      "lf_sha256": "9132b23dbb765ca4bad1ab315e52d606981475317d27b4a5306bc4ac7c20326a"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-isort.txt": {
+      "raw_sha256": "cc8da421e0a0da9ccc134bc041a12c7ad1009cb6cb2b8381d54ae7845a603335",
+      "lf_sha256": "cc8da421e0a0da9ccc134bc041a12c7ad1009cb6cb2b8381d54ae7845a603335"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-model-state.txt": {
+      "raw_sha256": "27796d060dff52d0ea209e3f0661d2efe5531a69bc57a24330deee3196d00e21",
+      "lf_sha256": "bfa6cbd4df3e2635a13cd2196eb51d98f249f79c8546a41baada5c328a3d4d86"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-module-build.txt": {
+      "raw_sha256": "a441a2a80828abc6f29e9df22c2b02346dde3110971a7928d50bdfd26d0d5116",
+      "lf_sha256": "ea56460cc73ca90904831d1d937113adf7da4de92a657bb48f73499f8c6da05e"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-projection-comparison-failure.json": {
+      "raw_sha256": "5652a0172470a858cfa1ca4c9eba7fd5acb8fe0c3c6f8743b0be038e00912a0a",
+      "lf_sha256": "c212ce3d65a85584bf332d2b6b137e0c75e6138eaede00f8df4dd934232f9ec7"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-reference.json": {
+      "raw_sha256": "0bbbe3ac7f7156d2217717023a96e3174cd32e963e625573272209cfd77a142c",
+      "lf_sha256": "0bbbe3ac7f7156d2217717023a96e3174cd32e963e625573272209cfd77a142c"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-ruff.txt": {
+      "raw_sha256": "57fc4e5d14bf2d35520a3679295a6877890440376f2faba0ae89d9bccb874a53",
+      "lf_sha256": "57fc4e5d14bf2d35520a3679295a6877890440376f2faba0ae89d9bccb874a53"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-source.patch": {
+      "raw_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45",
+      "lf_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-sqlite-tests.txt": {
+      "raw_sha256": "2ae0e4cbad2d5cb3fa7b9fa2f048ea21ec4dc03bdefb07cfdfb4a4762263d05d",
+      "lf_sha256": "c03f1fc37c6fc65665d27427f6c3165f3618a983a23afd10e85dba3ba9521781"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-static-compatibility.json": {
+      "raw_sha256": "cfcf55b3f05c8230c805ae3e3608235b1ab4bd6a5c32c286be07a3fa4f9e0edc",
+      "lf_sha256": "cfcf55b3f05c8230c805ae3e3608235b1ab4bd6a5c32c286be07a3fa4f9e0edc"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-style-result.json": {
+      "raw_sha256": "ad9e7fa76fc233cedcf6794ea8fb4d7b863efbc0f0ede91dc4b4e8251a2ee806",
+      "lf_sha256": "ad9e7fa76fc233cedcf6794ea8fb4d7b863efbc0f0ede91dc4b4e8251a2ee806"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-typing-result.json": {
+      "raw_sha256": "2b8230031de182ac3057f13966506d8ba8fbfbace325e7d08eafc4ab6af5ced7",
+      "lf_sha256": "2b8230031de182ac3057f13966506d8ba8fbfbace325e7d08eafc4ab6af5ced7"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-version-retirement.txt": {
+      "raw_sha256": "bcae1d2cc749ee36fa04d52b6eb9958948d62337f91a04b854a983b1a83950fd",
+      "lf_sha256": "d2ceb03aecc97fdec5c4e68f8b61f1a9965ac67730fbce9cb0af473ee6925016"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-input-equivalence.json": {
+      "raw_sha256": "2c5694c90ffda4f36a1932b6b22b25f7687a87041b18dc399ec14cf4924873cc",
+      "lf_sha256": "3de765b633b20215f5cc70fdb9962c939d22013526dadb2b03a8985647b7c00b"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-official-projections.json": {
+      "raw_sha256": "aba734d8077f0462c13a4d23baaefb7a3f0a51bc9004361c63a6e8fafe5a8b16",
+      "lf_sha256": "508dba74c84af1b5a337b59e083264fcb31fa581650e6eee13d0ac7c41f4fe42"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-reference.json": {
+      "raw_sha256": "3c142c72deec1a276cebfdde218506564a828b5644e65f37f92595567104ad07",
+      "lf_sha256": "3c142c72deec1a276cebfdde218506564a828b5644e65f37f92595567104ad07"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-source.patch": {
+      "raw_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45",
+      "lf_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-sqlite-tests.txt": {
+      "raw_sha256": "084968e133c5ced9a7b069df479bf3370ec758c4e7a5c19471695d052b5a396b",
+      "lf_sha256": "553f023205fea47a95ac9cd3dca790c1b4648e099a3fef7fd4e2a82a80950d4e"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-tests-result.json": {
+      "raw_sha256": "7662ec593bda7e1b50b091f5e56df06f8c0391b690f96342b4d6588732040a1e",
+      "lf_sha256": "7662ec593bda7e1b50b091f5e56df06f8c0391b690f96342b4d6588732040a1e"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-dictionary.txt": {
+      "raw_sha256": "e72ed6e8d1f70f311a5280760272a552671effab718842d95160250866cff682",
+      "lf_sha256": "e38bcf7e3b58b000ce1182f1bc4088bf2cefe92dbf497eda4f0f36038557b199"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-docs-links.txt": {
+      "raw_sha256": "410a8e7b9d0436de409d8d801b50e19949d0a2648155bb1aa4d313fd19b230e1",
+      "lf_sha256": "73311f6b9538d2fe927d57af2bcd5993ea33bd052395ff813d0ac07b5e370c24"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-governance.json": {
+      "raw_sha256": "3e67353316b089eda07e42ba25658edc0381af39331164c82b50fe4b6e327cc8",
+      "lf_sha256": "00bc15e1b900e18a6b630cf94c2d91af3783d625c329b5f1306d6afdda28066d"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-governance.txt": {
+      "raw_sha256": "7a4f4f64ba7bb87015333a871648761f989635d4becf1c1cfcbe5cadcc6f444f",
+      "lf_sha256": "19f45bb0fe394fb226eee198ab0c3f3818b5ce04845f15677e2c6c76b0274304"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-module.txt": {
+      "raw_sha256": "df0e57dc4d560480c145dfa55c7a6b53a99123cf0b4eb183d53bb8acc3251acc",
+      "lf_sha256": "fb3abc15ff2a3fd295aa904bf88da30be7bb0f1f2dec6c1a9e379009d9d4f177"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-registry-tests.txt": {
+      "raw_sha256": "1e3696df029f2637ae5b2e9ae6e26150125de45253efeb8ba6ace7900ad1a113",
+      "lf_sha256": "fcbb2e614b59c39896bb80bc91022c1d08d56255aa313b0b9c2232e921eb5bd0"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-registry.txt": {
+      "raw_sha256": "59ed8e76a4df493f4c1f0c82d4d8c44eb01747decca87df3c7f9c647ae53b5a5",
+      "lf_sha256": "054ebff7c805fbbc516a188910f84a19f211c893f76cddac7d531de9cec01cba"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-result.json": {
+      "raw_sha256": "c401b131ed0b82fb66ff1ccff018154228668e589ef3be5d399a77de45d540a4",
+      "lf_sha256": "826e33261465f621ece09b4443fb0be63a6e12dd93572026d55c5c5c242f0305"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-retirement.txt": {
+      "raw_sha256": "c55a29e287c449f45d6e916e02235a64730083979548514cd74ae03c3da7a275",
+      "lf_sha256": "8e9929b1b729cf6460c3bd749d89c35c782c12aff85f50766b9a8a5d6ae8a8e8"
+    }
+  },
+  "final_post_document_checks": {
+    "results": {
+      "dictionary": 0,
+      "module": 0,
+      "registry": 0,
+      "registry-tests": 0,
+      "docs-links": 0,
+      "governance": 1,
+      "retirement": 1
+    },
+    "actual_full_governance_violation_count": 6,
+    "actual_retirement_violation_count": 9,
+    "full_governance_passed": false,
+    "retirement_passed": false,
+    "runtime_source_lf_sha256_unchanged": true,
+    "registry_tests": 8,
+    "official_dictionary_and_module_stale_checks": 0
+  },
+  "qualified_source_lf_sha256": {
+    "apps/data_center/infrastructure/fact_and_operational_models.py": "24f588d2203dbdd7c15b39f2cb65ec1ffa8c411980c19554ea580766d27d4120",
+    "apps/data_center/infrastructure/market_thermometer_models.py": "0ce24d218eff4c1e0d5de03b01b1bdb6626f521055b96652481956038af6cef3",
+    "tests/unit/data_center/test_market_thermometer_model_registration.py": "2ee857d3b2a57fc79fb3bad515a18a8428f62a219aacff44df39623db908095a"
+  },
+  "production_paths": [
+    "apps/data_center/infrastructure/fact_and_operational_models.py",
+    "apps/data_center/infrastructure/market_thermometer_models.py"
+  ],
+  "registration_test_paths": [
+    "tests/unit/data_center/test_market_thermometer_model_registration.py"
+  ],
+  "whitespace_validation": {
+    "full_staged_diff_check_exit": 2,
+    "only_raw_native_patch_context_lines_excluded": [
+      "artifacts/a-share-usability/ash03/thermometer-size-root-1-source.patch",
+      "artifacts/a-share-usability/ash03/thermometer-size-root-2-source.patch"
+    ],
+    "all_other_staged_paths_check_exit": 0,
+    "source_patch_reconstructed_exact_tree": true
+  },
+  "staged_evidence_byte_representations": {
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.exit": {
+      "staged_blob_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.stderr.txt": {
+      "staged_blob_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-1.stdout.txt": {
+      "staged_blob_sha256": "7f20721722339faad833bedbd918bbce72ec5ee8917b82cf8b1a09bf4e47f2f3",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.exit": {
+      "staged_blob_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.stderr.txt": {
+      "staged_blob_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-green-2.stdout.txt": {
+      "staged_blob_sha256": "073b1bbed3fedd224b758a734fc16517c5bf3d17bd10f69d131ecd1b1c9690ca",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-1.exit": {
+      "staged_blob_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-1.txt": {
+      "staged_blob_sha256": "b482faa6f3c8abcee8955a7bbcbc656faa4bc45fa248065d2d738e0efc06449c",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-2.exit": {
+      "staged_blob_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-author-registration-red-2.txt": {
+      "staged_blob_sha256": "63b790839ce6b31fc1dbb63a1e003a272da4f544927ffa0ca09a0a7981386073",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-architecture.txt": {
+      "staged_blob_sha256": "8ba87403c525fa240eef7ca995d65cdc2dc18fadc21d53603f6825b8c29e351e",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-black.txt": {
+      "staged_blob_sha256": "d610302bc6421a463e650f2252dc6f5a4ace6ed9c0d9995f5661108ac86e914d",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_audit_event_contracts.txt": {
+      "staged_blob_sha256": "d508691780a4b9c86af74dc39c310a866ef208e37beaff3cf78c3f1e8037a43d",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_celery_task_contracts.txt": {
+      "staged_blob_sha256": "5c461304aa02bd0dd1026e505baa5f4bb8d66e0563a9dddd67557271645b85a3",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_current_data_contracts.txt": {
+      "staged_blob_sha256": "84e66ac23b17f0a131392ae36fd9d1049488b40a51927a34c3a036c32f2f23c3",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_data_dictionary.txt": {
+      "staged_blob_sha256": "58e08ff2407f406833a765c7a8361d7a4cb86d3cce44cc54321d876d47d9467d",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-check_module_map.txt": {
+      "staged_blob_sha256": "8c85b84b5b8c9d406d6889b33076e778c97fb79706a5f07247f159490436a314",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-data_center_architecture_inventory.txt": {
+      "staged_blob_sha256": "293757d51a828267d37de27a35a2e9209b9629345c8c90af87f98102863a9e9b",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-data_center_entrypoint_inventory.txt": {
+      "staged_blob_sha256": "4270383d800972d0f76e8312947df10ec5a07c329b62a578124aaecf9fc8be7e",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dc-architecture-build.txt": {
+      "staged_blob_sha256": "f292267d277b2df3edb1fab6508508b63cfc9a278363e0d05520d015c4defa8f",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dc-entry-build.txt": {
+      "staged_blob_sha256": "073ffd75fc7d385fab450acab8f875b92698b921e1bfa8d228673d6a34ff7e07",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dictionary-build.txt": {
+      "staged_blob_sha256": "2c50be210137dbf486f7485d6c8a07521912224846cbbb1245a6577952d6cca6",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-dictionary-semantic-comparison.json": {
+      "staged_blob_sha256": "1bbbe6ebcda377b97d7e6d3cb90792d67ce078bab76a4442d5c16adfd620c2d0",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-governance.json": {
+      "staged_blob_sha256": "05080ea0f950f837fe51bf72429c603e26a690212d6fc94c7c8fe78acdd45a2a",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-governance.txt": {
+      "staged_blob_sha256": "59ab022c9bff2a3078e818d996ef02a8eb0bf02bcc15a3e77566a3cc972587e9",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-full-mypy.txt": {
+      "staged_blob_sha256": "0acb7e5f36a3f890e5eb9b2e48db8b901faf1b476146d5bc46580cdbad37cece",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-governance-result.json": {
+      "staged_blob_sha256": "9f46f118575e059793995ab45f4b97f4902c54e9e34b778a6ee8681c4d9f0104",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-incremental-mypy.txt": {
+      "staged_blob_sha256": "9132b23dbb765ca4bad1ab315e52d606981475317d27b4a5306bc4ac7c20326a",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-isort.txt": {
+      "staged_blob_sha256": "cc8da421e0a0da9ccc134bc041a12c7ad1009cb6cb2b8381d54ae7845a603335",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-model-state.txt": {
+      "staged_blob_sha256": "bfa6cbd4df3e2635a13cd2196eb51d98f249f79c8546a41baada5c328a3d4d86",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-module-build.txt": {
+      "staged_blob_sha256": "ea56460cc73ca90904831d1d937113adf7da4de92a657bb48f73499f8c6da05e",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-projection-comparison-failure.json": {
+      "staged_blob_sha256": "c212ce3d65a85584bf332d2b6b137e0c75e6138eaede00f8df4dd934232f9ec7",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-reference.json": {
+      "staged_blob_sha256": "0bbbe3ac7f7156d2217717023a96e3174cd32e963e625573272209cfd77a142c",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-ruff.txt": {
+      "staged_blob_sha256": "57fc4e5d14bf2d35520a3679295a6877890440376f2faba0ae89d9bccb874a53",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-source.patch": {
+      "staged_blob_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-sqlite-tests.txt": {
+      "staged_blob_sha256": "c03f1fc37c6fc65665d27427f6c3165f3618a983a23afd10e85dba3ba9521781",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-static-compatibility.json": {
+      "staged_blob_sha256": "cfcf55b3f05c8230c805ae3e3608235b1ab4bd6a5c32c286be07a3fa4f9e0edc",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-style-result.json": {
+      "staged_blob_sha256": "ad9e7fa76fc233cedcf6794ea8fb4d7b863efbc0f0ede91dc4b4e8251a2ee806",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-typing-result.json": {
+      "staged_blob_sha256": "2b8230031de182ac3057f13966506d8ba8fbfbace325e7d08eafc4ab6af5ced7",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-1-version-retirement.txt": {
+      "staged_blob_sha256": "d2ceb03aecc97fdec5c4e68f8b61f1a9965ac67730fbce9cb0af473ee6925016",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-input-equivalence.json": {
+      "staged_blob_sha256": "3de765b633b20215f5cc70fdb9962c939d22013526dadb2b03a8985647b7c00b",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-official-projections.json": {
+      "staged_blob_sha256": "508dba74c84af1b5a337b59e083264fcb31fa581650e6eee13d0ac7c41f4fe42",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-reference.json": {
+      "staged_blob_sha256": "3c142c72deec1a276cebfdde218506564a828b5644e65f37f92595567104ad07",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-source.patch": {
+      "staged_blob_sha256": "09718aeb986824940755bb4ed765475b115d48aca0dd75449f7d26efb50f8a45",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-sqlite-tests.txt": {
+      "staged_blob_sha256": "553f023205fea47a95ac9cd3dca790c1b4648e099a3fef7fd4e2a82a80950d4e",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-root-2-tests-result.json": {
+      "staged_blob_sha256": "7662ec593bda7e1b50b091f5e56df06f8c0391b690f96342b4d6588732040a1e",
+      "representation": "raw"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-dictionary.txt": {
+      "staged_blob_sha256": "e38bcf7e3b58b000ce1182f1bc4088bf2cefe92dbf497eda4f0f36038557b199",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-docs-links.txt": {
+      "staged_blob_sha256": "73311f6b9538d2fe927d57af2bcd5993ea33bd052395ff813d0ac07b5e370c24",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-governance.json": {
+      "staged_blob_sha256": "00bc15e1b900e18a6b630cf94c2d91af3783d625c329b5f1306d6afdda28066d",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-governance.txt": {
+      "staged_blob_sha256": "19f45bb0fe394fb226eee198ab0c3f3818b5ce04845f15677e2c6c76b0274304",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-module.txt": {
+      "staged_blob_sha256": "fb3abc15ff2a3fd295aa904bf88da30be7bb0f1f2dec6c1a9e379009d9d4f177",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-registry-tests.txt": {
+      "staged_blob_sha256": "fcbb2e614b59c39896bb80bc91022c1d08d56255aa313b0b9c2232e921eb5bd0",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-registry.txt": {
+      "staged_blob_sha256": "054ebff7c805fbbc516a188910f84a19f211c893f76cddac7d531de9cec01cba",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-result.json": {
+      "staged_blob_sha256": "826e33261465f621ece09b4443fb0be63a6e12dd93572026d55c5c5c242f0305",
+      "representation": "lf-normalized"
+    },
+    "artifacts/a-share-usability/ash03/thermometer-size-final-root-1-retirement.txt": {
+      "staged_blob_sha256": "8e9929b1b729cf6460c3bd749d89c35c782c12aff85f50766b9a8a5d6ae8a8e8",
+      "representation": "lf-normalized"
+    }
+  },
+  "both_source_patches_reconstructed_exact_trees": true
+}

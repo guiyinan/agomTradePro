@@ -1,0 +1,23 @@
+{
+  "base_commit": "41907958208ff799973bf27c51893fa23b4105c2",
+  "source_tree": "299388f1e76fc607299e92156c1e1ca740a6c954",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-thermometer-size-r2ty9ili",
+  "production": [
+    "apps/data_center/infrastructure/fact_and_operational_models.py",
+    "apps/data_center/infrastructure/market_thermometer_models.py"
+  ],
+  "tests": [
+    "tests/unit/data_center/test_market_thermometer_model_registration.py"
+  ],
+  "source_lf_sha256": {
+    "apps/data_center/infrastructure/fact_and_operational_models.py": "24f588d2203dbdd7c15b39f2cb65ec1ffa8c411980c19554ea580766d27d4120",
+    "apps/data_center/infrastructure/market_thermometer_models.py": "0ce24d218eff4c1e0d5de03b01b1bdb6626f521055b96652481956038af6cef3",
+    "tests/unit/data_center/test_market_thermometer_model_registration.py": "2ee857d3b2a57fc79fb3bad515a18a8428f62a219aacff44df39623db908095a"
+  },
+  "protected_lf_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "sqlite_settings": "from core.settings.development_sqlite import *\nDATABASES={\"default\":{\"ENGINE\":\"django.db.backends.sqlite3\",\"NAME\":\":memory:\",\"TEST\":{\"NAME\":\":memory:\"}}}\n",
+  "qualification": "Python model responsibility extraction; no schema/financial behavior change or production/provider/broker qualification. Isolated SQLite only; no PostgreSQL target touched."
+}

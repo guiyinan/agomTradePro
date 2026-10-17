@@ -1,0 +1,33 @@
+{
+  "first_generator_source_tree": "299388f1e76fc607299e92156c1e1ca740a6c954",
+  "final_code_source_tree": "49cac18e7686f106b9378e7a09669224851cc44c",
+  "only_official_generator_outputs_copied": true,
+  "outputs": [
+    {
+      "path": "governance/data_dictionary.json",
+      "lf_sha256": "29483a0bb6c835fa0202fff13888ae901c75f977ce053201ff8fab4b96f5bcca",
+      "changed_from_parent": true
+    },
+    {
+      "path": "docs/architecture/DATA_DICTIONARY.md",
+      "lf_sha256": "09533577ac0ac0bbf1641d51871f321ac48756eeaba83a6f45b6654e43672c50",
+      "changed_from_parent": true
+    },
+    {
+      "path": "governance/module_map.json",
+      "lf_sha256": "351bc0f1a692766685b0dc428e26f46a227935f10d2376196af521f1c20eb639",
+      "changed_from_parent": true
+    },
+    {
+      "path": "governance/data_center_architecture_inventory.json",
+      "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897",
+      "changed_from_parent": false
+    },
+    {
+      "path": "governance/data_center_entrypoints.json",
+      "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61",
+      "changed_from_parent": false
+    }
+  ],
+  "first_runner_assertion_note": "Official commands exited0; subsequent naive list comparison failed because moved records relocate by source file. Independent per-model comparison proves only3 source_file changes and derived positions."
+}

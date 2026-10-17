@@ -1,0 +1,3 @@
+source_tree=299388f1e76fc607299e92156c1e1ca740a6c954
+command=['D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe', '-X', 'utf8', 'scripts/build_module_map.py']
+module map OK: modules=44 edges=210

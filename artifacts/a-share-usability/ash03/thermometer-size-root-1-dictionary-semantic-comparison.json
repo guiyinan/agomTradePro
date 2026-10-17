@@ -1,0 +1,20 @@
+{
+  "source_tree": "299388f1e76fc607299e92156c1e1ca740a6c954",
+  "first_comparison_failed_on_source_sorted_list_relocation": true,
+  "per_model_diffs": {
+    "MarketThermometerConfigModel": [
+      "source_file"
+    ],
+    "MarketThermometerSnapshotModel": [
+      "source_file"
+    ],
+    "MarketThermometerUserOverrideModel": [
+      "source_file"
+    ]
+  },
+  "all_field_meta_and_class_records_unchanged": true,
+  "model_count": 79,
+  "other_models_relative_order_and_other_apps_unchanged": true,
+  "official_checkers_already_ran": 12,
+  "official_checker_exits": 0
+}
