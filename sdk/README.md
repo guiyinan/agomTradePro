@@ -470,6 +470,32 @@ For detailed migration information, see:
 - Fund canonical payloads: `info -> fund`, `nav -> nav_data`, `holding -> holdings`; `style` and `holding` prefer `report_date` over `as_of_date`.
 - `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` is set.
 
+## Transaction fees in MCP imports and exports
+
+For transaction JSON/CSV imports, the actual fee fields are `commission`,
+`slippage`, `stamp_duty`, and `transfer_fee`. Omitted, null, or blank fees stay
+uncollected; an explicit zero is a collected zero. Client-supplied `*_known`
+flags and estimated costs cannot set the server's actual-fee availability.
+
+Provide exact amounts as decimal strings, for example `"commission": "1.25"`.
+The transport preserves decimal values as strings and the server validates its
+supported precision and range. Numeric JSON tokens may already have lost precision
+when decoded to a float; converting that float later cannot recover the original
+text. A successful local preview does not certify server acceptance. Inspect the
+import result's `success` and row errors, including after a confirmed call: the
+current dispatcher can still report outer `completed` for a failed nested result.
+
+CSV export keeps its original first eleven columns and appends `slippage`,
+`stamp_duty`, `transfer_fee`, then the four matching `*_known` columns. A fee
+amount is emitted only when its flag is exactly true, preserving known zero.
+False flags export as `False`; null or absent historical flags export blank.
+Reimport creates new records rather than restoring historical provenance.
+
+Use append imports. The transaction API does not support deletion or replacement;
+legacy replace consumers still require a separate compatibility fix. Existing
+portfolio-filter/limit and fallback-pagination gaps can also leave a scoped read
+incomplete. These exports are bounded reads, not complete histories or PIT snapshots.
+
 ## Development
 
 ```bash

@@ -1291,3 +1291,18 @@ Root4浏览器3失败（同步Playwright线程ORM）、API7通过/1失败（原�
 后续独立实施Fee B和MCP默认范围；已mapped历史交易仍map-first，旧目标ledger无可用性字段，不能从零值恢复来源；普通结算合格输入/来源/PIT/货币归一化及真实券商/production仍开放。费用写入与Admin LogEntry不声明独立跨两者原子保证。ASH02完整focus/policy、closure v78/79完整unit及其他workstream保持；ASH01–12完整Goal active。
 
 证据：`docs/testing/a-share-usability-account-fee-availability-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/account-fee-availability-evidence-2026-10-18.json`。记录更新后，registry checker、8项registry单元及full governance独立验证实际通过；所验输入摘要与原日志已保留。最终写入的验收说明不冒充最终发布SHA、RC或S6证据。
+
+
+### 19.61 SDK fee transport bounded acceptance
+
+本批以 `27018618ae7c7cc491b64d29ee8eee5fd3343680` 为 base，八个源路径包含三个生产 Python、三个测试、SDK README 和 wheel 配置；最终 source tree 为 `b844d9d81eac371dcfb1580c2e08a03455529a3a`。规范 source patch 在两个独立 Git index 重放得到同树，主 index 与两用户保护文件保留。缺失/null/空白费用不发送，明确零保留；两条 JSON 创建路径共用精确十进制字符串 helper，不转发客户端 availability/estimate 声明。CSV 保留原十一列并追加三项金额及四项 flags，只有 flag 精确为 true 才输出金额。已解码为 float 的原始 JSON 字面精度不能恢复；本地 preview 不能代替服务端精度校验。
+
+实际 SDK 相关回归 87、真实本地 MCP→SDK→HTTP 验收 2、SDK client/SSL 回归 29，共 118 项通过且无 skip。增量 mypy 与 SDK strict mypy 各检查三个生产文件，均零错误；默认债务门也零错误（其默认范围不覆盖 SDK，不能替代前两项）。Black/isort/Ruff、module map、两项 data-center 清单及 full governance 实际通过。HTTP 使用隔离 SQLite、真实 owner token/profile 和确认流程；本批未改模型/迁移，HTTP 用 no-migrations 建测试 schema，不替代此前 Fee A 的独立迁移和原生 PG 实证。请求围栏只约束 requests origin，不声称全进程网络沙箱或生产资格。
+
+安装验收真实发现旧 wheel 漏掉声明的 agomtradepro 客户端包；wheel-only ignore-vcs 修正后仍只选择原两个包，已在仓库外 cwd、禁止 backend namespace 导入的条件下成功加载三个目标模块，并核对 wheel/安装/源字节及完整 Python 文件集合。Hatchling 1.32.4 与五个依赖仅安装在临时构建 target，下载 wheel 哈希留存；项目依赖与活跃环境未修改。配置 TOML 除 wheel ignore-vcs 外保持相同，依据为 [Hatch build configuration](https://hatch.pypa.io/dev/config/build/)。
+
+原始行为 RED 为 15 失败/2 通过。第一次集成回归 86 通过/1 失败是旧 commission 浮点断言，首次 mypy 是隐式 re-export；HTTP 首轮 1 通过/1 失败是断言未采用现有统一 details 错误格式，另保留 Ruff 与 wheel/backend/安装导入失败原件，均不追认为 green。最终三生产源在所有批准命令间逐字节一致；v3 只修 HTTP 测试断言和 lint，README/构建配置后来加入，不冒充所有检查在最终完整树重跑。
+
+后续按独立批次修 C1 非追加导入拒绝、C2 组合过滤与分页，再接 MCP 默认账户确认及合格结算/PIT/来源。服务端拒绝时当前 dispatcher 仍可能 outer completed / nested false，旧 replace 与分页缺口均保留；不声明历史来源恢复、后台幂等或完整 ASH Goal/production/RC/S6 完成。ASH02 完整 focus/policy、79 个 closure unit 和其他 workstream 保持，closure 只推进证据版本。
+
+证据：`docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json`。登记后另跑 registry 与 full-governance 检查，实际结果写入 checkpoint，不预先宣称通过。

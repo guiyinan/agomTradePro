@@ -100,7 +100,7 @@ def test_account_input_helpers_cover_valid_and_invalid_boundaries() -> None:
         }
     )
     assert transaction["action"] == "buy"
-    assert transaction["commission"] == 0.1
+    assert transaction["commission"] == "0.1"
     assert transaction["traded_at"]
     for row in [
         {"action": "hold", "asset_code": "A", "shares": 1, "price": 1},

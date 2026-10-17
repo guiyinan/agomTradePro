@@ -54,6 +54,9 @@ Repository = "https://github.com/agomtradepro/agomtradepro"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agomtradepro", "agomtradepro_mcp"]
+# The repository's virtualenv ignore rule also matches this SDK package name.
+# Keep selection limited to the two packages above instead of applying VCS rules.
+ignore-vcs = true
 
 [tool.black]
 line-length = 100

@@ -378,6 +378,9 @@ def _fallback_import_transactions_json(
         _list_endpoint_rows,
         _normalize_transaction_input,
     )
+    from agomtradepro_mcp.tools.transaction_fee_transport import (
+        _build_transaction_create_payload,
+    )
 
     if mode not in {"append", "replace"}:
         return {"success": False, "error": "mode 仅支持 append 或 replace"}
@@ -412,17 +415,7 @@ def _fallback_import_transactions_json(
                     )
 
         for row in normalized:
-            payload = {
-                "portfolio": portfolio_id,
-                "action": row["action"],
-                "asset_code": row["asset_code"],
-                "shares": row["shares"],
-                "price": row["price"],
-                "traded_at": row["traded_at"],
-                "notes": row["notes"],
-            }
-            if "commission" in row:
-                payload["commission"] = row["commission"]
+            payload = _build_transaction_create_payload(portfolio_id, row)
             try:
                 client.post("api/account/transactions/", json=payload)
             except Exception as exc:

@@ -12,6 +12,14 @@ from typing import Any, cast
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro_mcp.tools.transaction_fee_transport import (
+    _TRANSACTION_EXPORT_COLUMNS,
+    _TRANSACTION_FEE_FIELDS,
+    _build_transaction_create_payload,
+    _export_transaction_csv_row,
+    _normalize_optional_transaction_fee,
+    _normalize_transaction_number,
+)
 
 
 def _extract_results(payload: Any) -> list[dict[str, Any]]:
@@ -106,12 +114,8 @@ def _normalize_transaction_input(row: dict[str, Any]) -> dict[str, Any]:
     if not asset_code:
         raise ValueError("asset_code 不能为空")
 
-    shares = _to_float(row.get("shares"), "shares")
-    price = _to_float(row.get("price"), "price")
-    if shares <= 0:
-        raise ValueError("shares 必须大于 0")
-    if price <= 0:
-        raise ValueError("price 必须大于 0")
+    shares = _normalize_transaction_number(row.get("shares"), "shares", allow_zero=False)
+    price = _normalize_transaction_number(row.get("price"), "price", allow_zero=False)
 
     traded_at = row.get("traded_at")
     if traded_at in (None, ""):
@@ -125,8 +129,10 @@ def _normalize_transaction_input(row: dict[str, Any]) -> dict[str, Any]:
         "traded_at": traded_at,
         "notes": str(row.get("notes") or ""),
     }
-    if row.get("commission") not in (None, ""):
-        result["commission"] = _to_float(row.get("commission"), "commission")
+    for fee_field in _TRANSACTION_FEE_FIELDS:
+        fee_value = _normalize_optional_transaction_fee(row, fee_field)
+        if fee_value is not None:
+            result[fee_field] = fee_value
     return result
 
 
@@ -682,24 +688,12 @@ def register_account_tools(server: FastMCP) -> None:
         导出交易记录（CSV 文本）
         """
         rows = get_transactions_detailed(portfolio_id=portfolio_id, limit=limit)
-        columns = [
-            "id",
-            "portfolio",
-            "position",
-            "action",
-            "asset_code",
-            "shares",
-            "price",
-            "notional",
-            "commission",
-            "traded_at",
-            "notes",
-        ]
+        columns = list(_TRANSACTION_EXPORT_COLUMNS)
         out = io.StringIO()
         writer = csv.DictWriter(out, fieldnames=columns)
         writer.writeheader()
         for row in rows:
-            writer.writerow({k: row.get(k, "") for k in columns})
+            writer.writerow(_export_transaction_csv_row(row))
         return {
             "portfolio_id": portfolio_id,
             "count": len(rows),
@@ -799,6 +793,8 @@ def register_account_tools(server: FastMCP) -> None:
         """
         批量导入交易记录（JSON）
 
+        极小非零费用金额可用十进制字符串表示，以避免 JSON 数值解码的精度损失；金额仍须满足服务端币种精度与取值范围。
+
         Args:
             mode: append|replace
         """
@@ -834,17 +830,7 @@ def register_account_tools(server: FastMCP) -> None:
                         )
 
             for row in normalized:
-                payload = {
-                    "portfolio": portfolio_id,
-                    "action": row["action"],
-                    "asset_code": row["asset_code"],
-                    "shares": row["shares"],
-                    "price": row["price"],
-                    "traded_at": row["traded_at"],
-                    "notes": row["notes"],
-                }
-                if "commission" in row:
-                    payload["commission"] = row["commission"]
+                payload = _build_transaction_create_payload(portfolio_id, row)
                 try:
                     client.post("api/account/transactions/", json=payload)
                 except Exception as exc:  # noqa: BLE001

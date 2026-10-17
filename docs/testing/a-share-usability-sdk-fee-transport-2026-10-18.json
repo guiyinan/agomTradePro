@@ -1,0 +1,302 @@
+{
+  "schema_version": "a_share_bounded_acceptance.v1",
+  "batch": "sdk-fee-transport",
+  "date": "2026-10-18",
+  "status": "passed_bounded_local",
+  "base": "27018618ae7c7cc491b64d29ee8eee5fd3343680",
+  "source_tree": "b844d9d81eac371dcfb1580c2e08a03455529a3a",
+  "source_paths": [
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py",
+    "sdk/agomtradepro_mcp/tools/account_tools.py",
+    "sdk/agomtradepro_mcp/tools/transaction_fee_transport.py",
+    "sdk/tests/test_mcp/test_t5_account_fee_transport.py",
+    "sdk/tests/test_mcp/test_t5_account_tools_contracts.py",
+    "tests/component/account/test_transaction_fee_mcp_http_journey.py",
+    "sdk/README.md",
+    "sdk/pyproject.toml"
+  ],
+  "source_patch_sha256": "087b0b7ed203f8e3d449f260f96f977bce7a0f885e00e7ee1a8fe910e631d743",
+  "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+  "actual_test_counts": {
+    "unit-02": {
+      "total": 87,
+      "passed": 87,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "http-02": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "smoke-01": {
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "passed_test_total": 118,
+  "accepted_commands": [
+    {
+      "phase": "unit-02",
+      "exit_code": 0,
+      "source_manifest_sha256": "3f8956d9f5ed2d490b64e710ae2deea936d6dfe4b58ee2594e58e1d7296ea60f",
+      "log_sha256": "565a76de579003a2ec51dcbbb95cecf31393c7bd85c1747d20a9b6b7c0ed9f04"
+    },
+    {
+      "phase": "http-02",
+      "exit_code": 0,
+      "source_manifest_sha256": "0a4d4540e6fab7b081d9e02c36388a70d26dcf7f3ac4be78e7dd43e81e9456d6",
+      "log_sha256": "8231adea0fd2709181da5f4e754e99d05c594d78c33aa4702e6cf223c763d5ae"
+    },
+    {
+      "phase": "smoke-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "ca25d2e4587557be04b30c911115bb9d8fb9e77ba41416353b91be7041eefbed",
+      "log_sha256": "d7edf84071b406918b3df40f79ea0bf7b3002d62ae7a4f527351f1941c7b12dd"
+    },
+    {
+      "phase": "black-03",
+      "exit_code": 0,
+      "source_manifest_sha256": "ca25d2e4587557be04b30c911115bb9d8fb9e77ba41416353b91be7041eefbed",
+      "log_sha256": "33134de81cb2a35fae1c21de114f0957b6db24a486951201856e5a221ed0d408"
+    },
+    {
+      "phase": "isort-03",
+      "exit_code": 0,
+      "source_manifest_sha256": "ca25d2e4587557be04b30c911115bb9d8fb9e77ba41416353b91be7041eefbed",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "phase": "ruff-03",
+      "exit_code": 0,
+      "source_manifest_sha256": "ca25d2e4587557be04b30c911115bb9d8fb9e77ba41416353b91be7041eefbed",
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "phase": "mypy-incremental-02",
+      "exit_code": 0,
+      "source_manifest_sha256": "3f8956d9f5ed2d490b64e710ae2deea936d6dfe4b58ee2594e58e1d7296ea60f",
+      "log_sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88"
+    },
+    {
+      "phase": "mypy-sdk-strict-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "3f8956d9f5ed2d490b64e710ae2deea936d6dfe4b58ee2594e58e1d7296ea60f",
+      "log_sha256": "281a094c39385b4d7b53e5db635f52158036861433c2a4975b9039e77a627a24"
+    },
+    {
+      "phase": "mypy-debt-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "0a4d4540e6fab7b081d9e02c36388a70d26dcf7f3ac4be78e7dd43e81e9456d6",
+      "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+    },
+    {
+      "phase": "module-map-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd"
+    },
+    {
+      "phase": "governance-pre-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+    },
+    {
+      "phase": "dc-inventory-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49"
+    },
+    {
+      "phase": "dc-entrypoints-01",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a"
+    },
+    {
+      "phase": "wheel-build-03",
+      "exit_code": 0,
+      "source_manifest_sha256": "3be158c1bcc69fbc67682c335b5178c2a8a50bb150ba6ec60ff304ae441bcd05",
+      "log_sha256": "324ba0ed1eb4d50b771521cdc998896a7db1db6d04b44d8dec5448015ed92323"
+    },
+    {
+      "phase": "wheel-install-02",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "15473e84d67ab1d1a1ac74d3b120fff48a510d069bc71db0bc8438b415d70877"
+    },
+    {
+      "phase": "wheel-import-02",
+      "exit_code": 0,
+      "source_manifest_sha256": "be85a89b4be9dd3a3020b00a27c7144edf2d69a31b4dc83a0a458264c4defb65",
+      "log_sha256": "2c4e4cfbfe54848efe82ec19be60e32ee3bc6c6a027fceac37ab7806f117c5b9"
+    }
+  ],
+  "source_revision_boundaries": [
+    "All accepted commands pin exactly the final three production Python files.",
+    "Unit/type checks use v2; v3 changes only the non-collected HTTP test for the actual core error envelope and lint equivalences.",
+    "SDK README and wheel-only ignore-vcs were added later; parsed TOML proves no runtime dependency, test or mypy setting changed.",
+    "Final wheel source v4 includes the exact eight Git source paths; the patch replays to the recorded tree using separate indexes."
+  ],
+  "behavior": [
+    "Missing/null/blank fees stay omitted; explicit zero stays collected; client availability/estimate fields are never forwarded.",
+    "Both JSON import paths send precise decimal strings; server precision rejection remains authoritative.",
+    "CSV retains its first eleven columns and appends three amounts and four flags; amounts require the exact true flag.",
+    "The corrected wheel contains both declared SDK packages, imports outside the checkout, and rejects backend namespace imports."
+  ],
+  "limits": [
+    "These are synthetic local SQLite HTTP and SDK checks, with no migrations in the HTTP run; prior Fee A migration/PG evidence is separate.",
+    "No original numeric JSON token can be recovered after upstream float decoding; callers needing exact input use decimal strings.",
+    "Preview is not server validation; backend idempotency and provenance restoration are not proven.",
+    "Legacy replace can still append after failed deletes; C1 must reject unsupported replacement before HTTP.",
+    "Scope filtering after raw limit, first-page fallback reads, and outer completed with nested false remain consumer-contract gaps.",
+    "Default account scope, qualified settlement/PIT/source, remaining ASH units, production/broker/RC/S6 are still open."
+  ],
+  "retained_failures": [
+    "red-unit-01",
+    "unit-01",
+    "mypy-incremental-01",
+    "http-01",
+    "ruff-02",
+    "wheel-build-01",
+    "wheel-import-01"
+  ],
+  "build_documentation": "https://hatch.pypa.io/dev/config/build/",
+  "evidence_bundle": "artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json",
+  "evidence_bundle_sha256": "3bccc6196e0bf97913526dd574ccb4a8d0abdebd91ad91a7fd29315485d50118",
+  "postdoc": {
+    "status": "passed",
+    "commands": [
+      {
+        "phase": "registry-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_active_plan_registry.py",
+          "--format",
+          "text"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 0.461,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\fee-b-postdoc-inputs.json",
+        "source_manifest_raw_sha256": "4fef0ddf0bc2bc5a8d5aab1b0856cee299f60e8fb9bd89e291ffe8f67b159be9",
+        "window_record_raw_sha256": "71e5be2402914c84ad94d1401052c03af374b2c5b3dd8f58ea9387436a8068b7",
+        "driver_raw_sha256": "99bb561247305b7d6049abe013936043c570a8d66a731df685f34cec111ef852",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\fee-b-registry-post-01.log",
+        "log_raw_sha256": "6e95666538e6a101e1c15d50fa992d1bce739478b6f20bac2b721c09131245ef",
+        "sources": {
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "441d018f3f72f1609f36a7e4c0e15cb8e893f867c0f1156b1bd966d722d43faa",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "345dee96c89aff8bcb3a36a5dc419835adacf605544acbcfc6c26583eda78f8a",
+          "sdk/agomtradepro_mcp/tools/transaction_fee_transport.py": "2f6b95e6d3b93c858c2508c29609e98785b25c9e4c933dc54654b2d2bd5ca3b7",
+          "sdk/tests/test_mcp/test_t5_account_fee_transport.py": "361ffe677316186c8c1bcb8071d28ed77202d62818843e1759a74e057ecea2d0",
+          ".tmp/ash_fee_b_sqlite_settings.py": "9eb20cd27caf12b98e2db926ae72df67d2be11ed69fcd2de319e15a204ef53a7",
+          "sdk/tests/test_mcp/test_t5_account_tools_contracts.py": "5fbf6a189ac04f428bfaf857a8ae944df05eba64a2b1e44058d4447fa63b6f52",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "0612a9f43773a9c063ceb31a633aac822fdad8b6fe328073ce92f1e875b4121e",
+          "sdk/README.md": "46b712700609d277c5e9a48a9c4e23bda863b3c479e191b9512a1f17b27d7f27",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json": "a3347157b0282ffdc631872002e7d90a62bec86245767028835c74de53a459c5",
+          "docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json": "ecbfb172a7eb1b5ace78aa901af48d6fd20a2259c1f79b6c0264e1fdf88a764d",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "562f7dfefc105e7c4af482abba3fe23369195c7f093e717b347d0e1e31e1f44e",
+          "governance/active_plan_registry.json": "1a80b5ad3be5d9130efa80a4cd344779619a752da09806ebd959511bbdfcc0a0"
+        }
+      },
+      {
+        "phase": "governance-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_governance_consistency.py",
+          "--baseline",
+          "governance/governance_baseline.json",
+          "--format",
+          "text"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 29.39,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\fee-b-postdoc-inputs.json",
+        "source_manifest_raw_sha256": "4fef0ddf0bc2bc5a8d5aab1b0856cee299f60e8fb9bd89e291ffe8f67b159be9",
+        "window_record_raw_sha256": "71e5be2402914c84ad94d1401052c03af374b2c5b3dd8f58ea9387436a8068b7",
+        "driver_raw_sha256": "99bb561247305b7d6049abe013936043c570a8d66a731df685f34cec111ef852",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\fee-b-governance-post-01.log",
+        "log_raw_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b",
+        "sources": {
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "441d018f3f72f1609f36a7e4c0e15cb8e893f867c0f1156b1bd966d722d43faa",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "345dee96c89aff8bcb3a36a5dc419835adacf605544acbcfc6c26583eda78f8a",
+          "sdk/agomtradepro_mcp/tools/transaction_fee_transport.py": "2f6b95e6d3b93c858c2508c29609e98785b25c9e4c933dc54654b2d2bd5ca3b7",
+          "sdk/tests/test_mcp/test_t5_account_fee_transport.py": "361ffe677316186c8c1bcb8071d28ed77202d62818843e1759a74e057ecea2d0",
+          ".tmp/ash_fee_b_sqlite_settings.py": "9eb20cd27caf12b98e2db926ae72df67d2be11ed69fcd2de319e15a204ef53a7",
+          "sdk/tests/test_mcp/test_t5_account_tools_contracts.py": "5fbf6a189ac04f428bfaf857a8ae944df05eba64a2b1e44058d4447fa63b6f52",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "0612a9f43773a9c063ceb31a633aac822fdad8b6fe328073ce92f1e875b4121e",
+          "sdk/README.md": "46b712700609d277c5e9a48a9c4e23bda863b3c479e191b9512a1f17b27d7f27",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json": "a3347157b0282ffdc631872002e7d90a62bec86245767028835c74de53a459c5",
+          "docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json": "ecbfb172a7eb1b5ace78aa901af48d6fd20a2259c1f79b6c0264e1fdf88a764d",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "562f7dfefc105e7c4af482abba3fe23369195c7f093e717b347d0e1e31e1f44e",
+          "governance/active_plan_registry.json": "1a80b5ad3be5d9130efa80a4cd344779619a752da09806ebd959511bbdfcc0a0"
+        }
+      },
+      {
+        "phase": "registry-tests-post-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "-q",
+          "--ds=ash_fee_b_sqlite_settings",
+          "tests/unit/test_active_plan_registry.py",
+          "--junitxml=D:/githv/agomTradePro/.tmp/fee-b-registry-tests-post-01.xml",
+          "--basetemp=D:/githv/agomTradePro/.tmp/fee-b-registry-tests-post-01-temp",
+          "-o",
+          "cache_dir=D:/githv/agomTradePro/.tmp/fee-b-registry-tests-post-01-cache"
+        ],
+        "cwd": "D:/githv/agomTradePro",
+        "exit_code": 0,
+        "seconds": 34.078,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\fee-b-postdoc-inputs.json",
+        "source_manifest_raw_sha256": "4fef0ddf0bc2bc5a8d5aab1b0856cee299f60e8fb9bd89e291ffe8f67b159be9",
+        "window_record_raw_sha256": "71e5be2402914c84ad94d1401052c03af374b2c5b3dd8f58ea9387436a8068b7",
+        "driver_raw_sha256": "99bb561247305b7d6049abe013936043c570a8d66a731df685f34cec111ef852",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\fee-b-registry-tests-post-01.log",
+        "log_raw_sha256": "1b265e6558385a043151467a209110490234abf8fe63edfda807330d224b4812",
+        "sources": {
+          "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/account.py": "441d018f3f72f1609f36a7e4c0e15cb8e893f867c0f1156b1bd966d722d43faa",
+          "sdk/agomtradepro_mcp/tools/account_tools.py": "345dee96c89aff8bcb3a36a5dc419835adacf605544acbcfc6c26583eda78f8a",
+          "sdk/agomtradepro_mcp/tools/transaction_fee_transport.py": "2f6b95e6d3b93c858c2508c29609e98785b25c9e4c933dc54654b2d2bd5ca3b7",
+          "sdk/tests/test_mcp/test_t5_account_fee_transport.py": "361ffe677316186c8c1bcb8071d28ed77202d62818843e1759a74e057ecea2d0",
+          ".tmp/ash_fee_b_sqlite_settings.py": "9eb20cd27caf12b98e2db926ae72df67d2be11ed69fcd2de319e15a204ef53a7",
+          "sdk/tests/test_mcp/test_t5_account_tools_contracts.py": "5fbf6a189ac04f428bfaf857a8ae944df05eba64a2b1e44058d4447fa63b6f52",
+          "tests/component/account/test_transaction_fee_mcp_http_journey.py": "0612a9f43773a9c063ceb31a633aac822fdad8b6fe328073ce92f1e875b4121e",
+          "sdk/README.md": "46b712700609d277c5e9a48a9c4e23bda863b3c479e191b9512a1f17b27d7f27",
+          "sdk/pyproject.toml": "aa0969e3391c4572e35810581c48f98acf5793778a84c8069276997f587204bd",
+          "artifacts/a-share-usability/ash01/sdk-fee-transport-evidence-2026-10-18.json": "a3347157b0282ffdc631872002e7d90a62bec86245767028835c74de53a459c5",
+          "docs/testing/a-share-usability-sdk-fee-transport-2026-10-18.json": "ecbfb172a7eb1b5ace78aa901af48d6fd20a2259c1f79b6c0264e1fdf88a764d",
+          "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "562f7dfefc105e7c4af482abba3fe23369195c7f093e717b347d0e1e31e1f44e",
+          "governance/active_plan_registry.json": "1a80b5ad3be5d9130efa80a4cd344779619a752da09806ebd959511bbdfcc0a0"
+        }
+      }
+    ],
+    "registry_tests_passed": 8,
+    "actual_input_manifest_sha256": "4fef0ddf0bc2bc5a8d5aab1b0856cee299f60e8fb9bd89e291ffe8f67b159be9",
+    "final_record_append_after_checks": true,
+    "limitation": "These commands validated the recorded input hashes before this proof was appended; this is not RC/S6 or a final release-SHA assertion."
+  },
+  "peer_review": {
+    "status": "no_definite_blocker",
+    "scope": "static_only",
+    "artifact": ".tmp/fee-b-final-peer-review-20261018.md",
+    "raw_sha256": "8eb329c4b4505802186f9e0d1aadf626e4c9e3aaea20bf6cfa8ac2b98c0ce8f1"
+  }
+}
