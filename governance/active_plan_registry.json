@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v244",
+  "version": "2026-10-17.v246",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-17.v67",
+    "version": "2026-10-17.v69",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1749,7 +1749,7 @@
           "ASH-07",
           "ASH-08"
         ],
-        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate."
+        "exit_gate": "Existing canonical account/plan/order/risk receipts and authority bind exact scope, hashes, versions and validity at create/approve/lease/submitting. Revocation, policy/quote drift, tampering, lease expiry and uncertain submission fail closed or reconcile without duplicate broker calls. Isolated PostgreSQL and Agent regressions pass; no constant-true rollout, generic bypass or production activation is introduced. EVID/QMT production acceptance stays separate. The decision-to-reconciliation event chain preserves applicable source/received timestamps, clock provenance, account/plan/order/approval versions and idempotent sequencing; missing broker source time remains null and recovery reconciles broker facts rather than inferring orders from local logs alone."
       },
       {
         "id": "ASH-10",
@@ -1763,7 +1763,7 @@
           "ASH-05",
           "ASH-08"
         ],
-        "exit_gate": "Returns distinguish external cash flows, dividends, actual costs and valuation with explicit benchmark and weighting method. Exact recommendation/plan/order/fill lineage is reused; uncertain manual matches and attribution residuals stay visible. Cash-flow, duplicate/partial-fill, corporate-action and unmatched-trade golden cases reconcile to the ledger at declared precision, with report limitations when reconciliation is incomplete."
+        "exit_gate": "Returns distinguish external cash flows, dividends, actual costs and valuation with explicit benchmark and weighting method. Exact recommendation/plan/order/fill lineage is reused; uncertain manual matches and attribution residuals stay visible. Cash-flow, duplicate/partial-fill, corporate-action and unmatched-trade golden cases reconcile to the ledger at declared precision, with report limitations when reconciliation is incomplete. A versioned execution-quality report distinguishes decision, arrival and limit benchmarks from actual fill VWAP and covers buy/sell direction, fee inclusion, filled/unfilled quantities, price slippage, delay cost and opportunity cost with explicit source observation/availability times. Missing benchmark or timestamp evidence produces unavailable/limited rather than zero-slippage or current-price backfill."
       },
       {
         "id": "ASH-11",
@@ -1808,11 +1808,11 @@
           "QMT-01",
           "QMT-02"
         ],
-        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit.",
+        "exit_gate": "Reuse current EVID-03 and QMT-01/02 evidence, then verify the same candidate/account/board/session scope with real target Windows/XtQuant fields and permissions, continuous simulation, controlled small-value orders/cancels, recovery and four-way reconciliation. Existing stops and unsupported scopes remain explicit; no mock-only proof, automatic live enablement or implied capital expansion satisfies the exit. Candidate-bound buy/sell, partial-fill, reject, cancel and duplicate/out-of-order evidence includes applicable decision/ACK/fill/cancel timing, actual fees, slippage and unfilled impact; missing benchmark or broker-time evidence degrades the report, and reconnect or duplicate callbacks cannot create a second broker order or ledger entry.",
         "evidence_collection": {
           "auto_collect": [
             "Inspect current canonical authorization, QMT Phase 0/simulation/live evidence and exact candidate/account/version bindings without changing rollout or sending orders.",
-            "After target-host access is authorized, collect read-only quote/source-time/limits/session/account facts and replay existing order/fill/cash/position event timelines and reconciliation reports."
+            "After target-host access is authorized, collect read-only quote/source-time/limits/session/account facts and replay existing order/fill/cash/position event timelines, execution-quality/slippage/fee/timing reports and reconciliation reports."
           ],
           "authorization_required": [
             "Enable live execution or send any actual order/cancel, change a production rule or risk limit, or inject a live fault. Present exact account/security/value/time scope, stop criteria, expected costs and recovery steps before the action unless already authorized."
