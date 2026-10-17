@@ -1,0 +1,7 @@
+{
+  "first_projection_checks_attempt": "Assertion before any copy/check: CRLF archive export was compared raw to Git LF blob.",
+  "business_or_projection_check_failure": false,
+  "normalization_fix": "Compare untouched export to base after CRLF-to-LF only.",
+  "subsequent_real_checks": "auto-scope-root-2-projection-checks-result.json",
+  "business_source_modified": false
+}

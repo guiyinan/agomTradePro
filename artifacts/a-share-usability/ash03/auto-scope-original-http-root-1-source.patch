@@ -1,0 +1,225 @@
+diff --git a/tests/component/simulated_trading/test_auto_trading_account_scope_http.py b/tests/component/simulated_trading/test_auto_trading_account_scope_http.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..fea813c09de10e9e43476507af63b3922a306971
+--- /dev/null
++++ b/tests/component/simulated_trading/test_auto_trading_account_scope_http.py
+@@ -0,0 +1,219 @@
++"""Real URLConf, persisted ownership and Session/CSRF scope tests.
++
++Only the trading engine is replaced. These tests never qualify market data or
++execute orders; they verify which stored accounts the public trigger can reach.
++"""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from datetime import date
++from decimal import Decimal
++from typing import Any
++
++import pytest
++from django.conf import settings
++from django.contrib.auth import get_user_model
++from django.urls import reverse
++from rest_framework.test import APIClient
++
++from apps.simulated_trading.application import interface_services
++from apps.simulated_trading.infrastructure.models import (
++    SimulatedAccountModel,
++    SimulatedTradeModel,
++)
++
++pytestmark = pytest.mark.django_db
++
++
++@pytest.fixture(autouse=True)
++def _isolated_user_setup(monkeypatch: pytest.MonkeyPatch) -> None:
++    """Keep user onboarding integrations outside this account-scope test."""
++
++    monkeypatch.setenv("AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS", "1")
++
++
++@dataclass(frozen=True)
++class _Accounts:
++    owner: Any
++    other: Any
++    admin: Any
++    own_simulated: SimulatedAccountModel
++    foreign_simulated: SimulatedAccountModel
++    own_real: SimulatedAccountModel
++    own_disabled: SimulatedAccountModel
++    own_inactive: SimulatedAccountModel
++    admin_simulated: SimulatedAccountModel
++
++
++@pytest.fixture
++def accounts() -> _Accounts:
++    """Persist two ordinary owners and an administrator with distinct accounts."""
++
++    users = get_user_model()
++    owner = users.objects.create_user(username="ash-scope-owner")
++    other = users.objects.create_user(username="ash-scope-other")
++    admin = users.objects.create_user(username="ash-scope-admin", is_superuser=True, is_staff=True)
++
++    def account(user: Any, name: str, **values: object) -> SimulatedAccountModel:
++        return SimulatedAccountModel.objects.create(
++            user=user,
++            account_name=name,
++            initial_capital=Decimal("10000.00"),
++            current_cash=Decimal("10000.00"),
++            total_value=Decimal("10000.00"),
++            **values,
++        )
++
++    return _Accounts(
++        owner=owner,
++        other=other,
++        admin=admin,
++        own_simulated=account(owner, "owned-simulated", account_type="simulated"),
++        foreign_simulated=account(other, "foreign-simulated", account_type="simulated"),
++        own_real=account(owner, "owned-real", account_type="real"),
++        own_disabled=account(owner, "owned-disabled", auto_trading_enabled=False),
++        own_inactive=account(owner, "owned-inactive", is_active=False),
++        admin_simulated=account(admin, "admin-simulated", account_type="simulated"),
++    )
++
++
++class _EngineSpy:
++    def __init__(self) -> None:
++        self.builds = 0
++        self.calls: list[tuple[date, list[int] | None]] = []
++
++    def build(self) -> _EngineSpy:
++        self.builds += 1
++        return self
++
++    def run_daily_trading(
++        self, trade_date: date, account_ids: list[int] | None = None
++    ) -> dict[int, dict[str, int]]:
++        self.calls.append((trade_date, account_ids))
++        return {}
++
++
++@pytest.fixture
++def engine(monkeypatch: pytest.MonkeyPatch) -> _EngineSpy:
++    """Keep the real account repository and replace only the execution boundary."""
++
++    spy = _EngineSpy()
++    monkeypatch.setattr(interface_services, "build_auto_trading_engine", spy.build)
++    return spy
++
++
++def _client(user: Any | None = None) -> tuple[APIClient, str]:
++    """Use an actual DB-backed session and the real admin CSRF cookie endpoint."""
++
++    client = APIClient(enforce_csrf_checks=True)
++    response = client.get(reverse("admin:login"), secure=True)
++    assert response.status_code == 200
++    token = client.cookies[settings.CSRF_COOKIE_NAME].value
++    if user is not None:
++        client.force_login(user)
++    return client, token
++
++
++def _post(client: APIClient, token: str, payload: dict[str, object]) -> Any:
++    response = client.post(
++        reverse("api_simulated_trading:auto-trading-run"),
++        payload,
++        format="json",
++        secure=True,
++        HTTP_X_CSRFTOKEN=token,
++    )
++    assert response["Content-Type"].startswith("application/json")
++    return response
++
++
++def test_scope_http_default_only_reaches_current_owner_simulated_accounts(
++    accounts: _Accounts, engine: _EngineSpy
++) -> None:
++    client, token = _client(accounts.owner)
++    response = _post(client, token, {"trade_date": "2026-10-16"})
++    assert response.status_code == 200
++    assert engine.calls == [(date(2026, 10, 16), [accounts.own_simulated.pk])]
++    assert SimulatedTradeModel.objects.count() == 0
++
++
++@pytest.mark.parametrize("mixed", [False, True])
++def test_scope_http_foreign_account_rejects_whole_scope_before_engine(
++    accounts: _Accounts, engine: _EngineSpy, mixed: bool
++) -> None:
++    client, token = _client(accounts.owner)
++    ids = [accounts.foreign_simulated.pk]
++    if mixed:
++        ids.insert(0, accounts.own_simulated.pk)
++    response = _post(client, token, {"account_ids": ids})
++    assert response.status_code == 403
++    assert engine.builds == 0 and engine.calls == []
++    assert SimulatedTradeModel.objects.count() == 0
++
++
++@pytest.mark.parametrize("attribute", ["own_real", "own_disabled", "own_inactive"])
++def test_scope_http_ineligible_account_never_constructs_engine(
++    accounts: _Accounts, engine: _EngineSpy, attribute: str
++) -> None:
++    client, token = _client(accounts.owner)
++    account = getattr(accounts, attribute)
++    response = _post(client, token, {"account_ids": [account.pk]})
++    assert response.status_code == 400
++    assert engine.builds == 0 and engine.calls == []
++
++
++def test_scope_http_explicit_empty_is_no_work_without_engine(
++    accounts: _Accounts, engine: _EngineSpy
++) -> None:
++    client, token = _client(accounts.owner)
++    response = _post(client, token, {"account_ids": []})
++    assert response.status_code == 200
++    assert response.json()["total_accounts"] == 0
++    assert engine.builds == 0 and engine.calls == []
++
++
++@pytest.mark.parametrize("bad_ids", [[True], [0], [-1], [1, 1]])
++def test_scope_http_invalid_ids_stop_before_engine(
++    accounts: _Accounts, engine: _EngineSpy, bad_ids: list[object]
++) -> None:
++    client, token = _client(accounts.owner)
++    response = _post(client, token, {"account_ids": bad_ids})
++    assert response.status_code == 400
++    assert engine.builds == 0 and engine.calls == []
++
++
++def test_scope_http_anonymous_request_is_unauthorized(engine: _EngineSpy) -> None:
++    client, token = _client()
++    response = _post(client, token, {})
++    assert response.status_code == 401
++    assert engine.builds == 0 and engine.calls == []
++
++
++def test_scope_http_session_mutation_requires_csrf(
++    accounts: _Accounts, engine: _EngineSpy
++) -> None:
++    client, _ = _client(accounts.owner)
++    response = client.post(
++        reverse("api_simulated_trading:auto-trading-run"), {}, format="json", secure=True
++    )
++    assert response.status_code == 403
++    assert response["Content-Type"].startswith("application/json")
++    assert engine.builds == 0 and engine.calls == []
++
++
++def test_scope_http_admin_omitted_scope_is_still_only_own_accounts(
++    accounts: _Accounts, engine: _EngineSpy
++) -> None:
++    client, token = _client(accounts.admin)
++    response = _post(client, token, {})
++    assert response.status_code == 200
++    assert engine.calls[0][1] == [accounts.admin_simulated.pk]
++
++
++def test_scope_http_admin_explicit_managed_simulated_account_is_allowed(
++    accounts: _Accounts, engine: _EngineSpy
++) -> None:
++    client, token = _client(accounts.admin)
++    response = _post(client, token, {"account_ids": [accounts.foreign_simulated.pk]})
++    assert response.status_code == 200
++    assert engine.calls[0][1] == [accounts.foreign_simulated.pk]

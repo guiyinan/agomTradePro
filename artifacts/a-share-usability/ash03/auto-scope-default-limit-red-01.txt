@@ -1,0 +1,10 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_default_scope_rejects_more_than_the_technical_account_limit _______
+tests\unit\simulated_trading\test_auto_trading_account_scope.py:81: in test_default_scope_rejects_more_than_the_technical_account_limit
+    assert result.allowed is False
+E   assert True is False
+E    +  where True = AutoTradingAccountScopeResult(account_ids=(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, ...7, 9988, 9989, 9990, 9991, 9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999, 10000, 10001), error=None, status_code=None).allowed
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_account_scope.py::test_default_scope_rejects_more_than_the_technical_account_limit
+1 failed in 1.34s

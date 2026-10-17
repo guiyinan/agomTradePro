@@ -44,7 +44,7 @@ def _request(
         POST=data or {},
         data=data or {},
         query_params=query or {},
-        user=SimpleNamespace(id=7),
+        user=SimpleNamespace(id=7, is_authenticated=True, is_superuser=False),
     )
 
 
@@ -411,12 +411,21 @@ def test_auto_trading_success_and_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
-    engine = SimpleNamespace(
-        run_daily_trading=lambda *_args, **_kwargs: {
-            1: {"buy_count": 2, "sell_count": 1},
-            2: {"buy_count": 1, "sell_count": 0},
-        }
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "resolve_auto_trading_account_scope",
+        lambda *_args: SimpleNamespace(
+            allowed=True,
+            account_ids=(1, 2),
+            error=None,
+            status_code=None,
+        ),
     )
+    engine = MagicMock()
+    engine.run_daily_trading.return_value = {
+        1: {"buy_count": 2, "sell_count": 1},
+        2: {"buy_count": 1, "sell_count": 0},
+    }
     monkeypatch.setattr(
         view_module.simulated_interface_services,
         "build_auto_trading_engine",
@@ -424,11 +433,116 @@ def test_auto_trading_success_and_exception(
     )
     response = AutoTradingAPIView().post(_request(data={"trade_date": date(2026, 7, 1)}))
     assert response.data["summary"] == {"total_buy_count": 3, "total_sell_count": 1}
+    engine.run_daily_trading.assert_called_once_with(date(2026, 7, 1), account_ids=[1, 2])
 
     engine.run_daily_trading = lambda *_args, **_kwargs: (_ for _ in ()).throw(
         RuntimeError("engine down")
     )
     assert AutoTradingAPIView().post(_request(data={})).status_code == 500
+
+
+def test_auto_trading_rejects_unowned_account_before_building_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An explicitly selected foreign account must never reach engine construction."""
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    access_checks: list[tuple[object, int, str]] = []
+
+    def deny_access(user: object, account_id: int, action: str = "访问") -> SimpleNamespace:
+        access_checks.append((user, account_id, action))
+        return SimpleNamespace(
+            allowed=False,
+            account=None,
+            error="无权执行自动交易该账户",
+            status_code=403,
+        )
+
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "get_account_access",
+        deny_access,
+    )
+    build_engine = MagicMock()
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        build_engine,
+    )
+
+    response = AutoTradingAPIView().post(_request(data={"account_ids": [88]}))
+
+    assert response.status_code == 403
+    assert access_checks and access_checks[0][1] == 88
+    build_engine.assert_not_called()
+
+
+def test_auto_trading_rejects_real_account_before_building_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Real accounts stay outside the simulated execution endpoint even for an owner."""
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "get_account_access",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            allowed=True,
+            account=SimpleNamespace(
+                id=88,
+                user_id=7,
+                account_type="real",
+                is_active=True,
+                auto_trading_enabled=True,
+            ),
+            error=None,
+            status_code=None,
+        ),
+    )
+    build_engine = MagicMock()
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        build_engine,
+    )
+
+    response = AutoTradingAPIView().post(_request(data={"account_ids": [88]}))
+
+    assert response.status_code == 400
+    build_engine.assert_not_called()
+
+
+@pytest.mark.parametrize("account_ids", [[], None])
+def test_auto_trading_empty_resolved_scope_returns_zero_summary_without_engine(
+    monkeypatch: pytest.MonkeyPatch,
+    account_ids: list[int] | None,
+) -> None:
+    """An empty scope is a no-op and must not initialize trading dependencies."""
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "resolve_auto_trading_account_scope",
+        lambda *_args: SimpleNamespace(
+            allowed=True,
+            account_ids=(),
+            error=None,
+            status_code=None,
+        ),
+    )
+    build_engine = MagicMock()
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        build_engine,
+    )
+
+    response = AutoTradingAPIView().post(
+        _request(data={"account_ids": account_ids} if account_ids is not None else {})
+    )
+
+    assert response.status_code == 200
+    assert response.data["total_accounts"] == 0
+    assert response.data["results"] == {}
+    assert response.data["summary"] == {"total_buy_count": 0, "total_sell_count": 0}
+    build_engine.assert_not_called()
 
 
 def test_daily_inspection_run_and_history_contracts(

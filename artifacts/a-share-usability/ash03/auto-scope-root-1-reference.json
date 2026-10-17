@@ -1,0 +1,36 @@
+{
+  "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+  "source_tree": "05c606d2f59e27dbdef801fccb4f136fe87ad0ec",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-auto-scope-6gm05nt3",
+  "scope": {
+    "production": [
+      "apps/simulated_trading/application/interface_services.py",
+      "apps/simulated_trading/interface/views.py",
+      "apps/simulated_trading/interface/serializers.py"
+    ],
+    "tests": [
+      "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+      "tests/unit/simulated_trading/test_auto_trading_account_scope.py",
+      "tests/component/simulated_trading/test_auto_trading_account_scope_http.py"
+    ],
+    "support": [],
+    "unit_tests": [
+      "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+      "tests/unit/simulated_trading/test_auto_trading_account_scope.py",
+      "tests/unit/simulated_trading/test_t3b_interface_contracts.py"
+    ],
+    "component_tests": [
+      "tests/component/simulated_trading/test_auto_trading_account_scope_http.py"
+    ],
+    "migration_tests": []
+  },
+  "source_sha256": {
+    "apps/simulated_trading/application/interface_services.py": "137ed125ca8e9ff9eab98e1a80888615a66e2c99a40c518207cab29c558b3703",
+    "apps/simulated_trading/interface/views.py": "d6c234f5fa28db8887d60ce22aaec4b07c18fa1884e6428516ff2079d509e419",
+    "apps/simulated_trading/interface/serializers.py": "567ced789406d633a31bc2cb80cc86bf49715f1cfbfa19511e5cf0588457a579",
+    "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py": "be5bc52160c6468ab6f2265595e6ab51e68e4d0a0f018162b2803f01719b9fd8",
+    "tests/unit/simulated_trading/test_auto_trading_account_scope.py": "f32a0f775b6333d59412ec5893b28b1813ca90b52c1f108ba44d873a7c697817",
+    "tests/component/simulated_trading/test_auto_trading_account_scope_http.py": "b504982c2bfc5d3fd4bc372c3ad23fef9728e990c5737e3d51d02ce384019b37"
+  },
+  "qualification": "Existing HTTP account preflight only. No production, market-source qualification, order execution, lock-time owner acceptance or release CI/S6."
+}

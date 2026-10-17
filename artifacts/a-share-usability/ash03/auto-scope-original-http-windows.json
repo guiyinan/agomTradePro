@@ -1,0 +1,20 @@
+{
+  "windows": [
+    {
+      "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+      "source_tree": "f7c4a0b4ed87eaf5b2f0eb8e3830d46a14075cb3",
+      "source_patch": "artifacts/a-share-usability/ash03/auto-scope-original-http-root-1-source.patch",
+      "patch_sha256": "f26f8f363d911c228451a8009a401d1e7ca91b2a58e3d4dbeb4a19400b0d70d8"
+    },
+    {
+      "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+      "source_tree": "2f795e674b5e6e15a6a4fe981ae4bbc21777fafc",
+      "source_patch": "artifacts/a-share-usability/ash03/auto-scope-original-http-root-2-source.patch",
+      "patch_sha256": "e19d4c619311574865f12330ca3c644e09267d4b64e4524619e9637c15c1cfd6"
+    }
+  ],
+  "first_window": "One test passed before the engine was built; the HTTPS test request omitted its same-origin header. This did not reproduce the owner-scope failure and is not business-red evidence.",
+  "second_window": "After adding the same-origin request header in a fresh source window, actual project URLConf/DB Session/account ownership returned200 for a foreign account, expected403: one failed/25.08 seconds.",
+  "same_database_kind": "Explicit in-memory SQLite; only the engine replaced; no provider call/order execution.",
+  "release_ci_s6_identity": false
+}

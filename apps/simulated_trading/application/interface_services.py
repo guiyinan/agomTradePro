@@ -39,6 +39,8 @@ from apps.simulated_trading.application.use_cases import (
 )
 from core.integration.portfolio_account_access import PortfolioAccountAccessResult
 
+MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE = 10_000
+
 
 @dataclass(frozen=True)
 class AccountAccessResult(PortfolioAccountAccessResult):
@@ -53,6 +55,21 @@ class AccountAccessResult(PortfolioAccountAccessResult):
         """Whether access was granted."""
 
         return self.account is not None and self.error is None
+
+
+@dataclass(frozen=True)
+class AutoTradingAccountScopeResult:
+    """Authorized simulated account ids for one manual auto-trading request."""
+
+    account_ids: tuple[int, ...] | None = None
+    error: str | None = None
+    status_code: int | None = None
+
+    @property
+    def allowed(self) -> bool:
+        """Whether a complete account scope was resolved."""
+
+        return self.account_ids is not None and self.error is None and self.status_code is None
 
 
 def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
@@ -137,6 +154,144 @@ def get_account_access(user: Any, account_id: int, action: str = "访问") -> Ac
         )
 
     return AccountAccessResult(account=account)
+
+
+def resolve_auto_trading_account_scope(
+    user: Any,
+    account_ids: list[int] | None,
+) -> AutoTradingAccountScopeResult:
+    """Resolve a user's eligible simulated account scope before engine construction.
+
+    An omitted list selects only the authenticated user's active, auto-enabled
+    simulated accounts. An explicit list is checked account by account through
+    the existing ownership policy. An empty list remains an explicit empty scope.
+    """
+
+    if not user or getattr(user, "is_authenticated", False) is not True:
+        return AutoTradingAccountScopeResult(
+            error="请先登录后再执行自动交易",
+            status_code=401,
+        )
+    user_id = getattr(user, "id", None)
+    if type(user_id) is not int or user_id <= 0:
+        return AutoTradingAccountScopeResult(
+            error="当前用户身份无效",
+            status_code=401,
+        )
+
+    if account_ids is not None:
+        if type(account_ids) is not list:
+            return AutoTradingAccountScopeResult(
+                error="account_ids 必须是列表",
+                status_code=400,
+            )
+        if len(account_ids) > MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE:
+            return AutoTradingAccountScopeResult(
+                error="account_ids 超出允许的账户数量",
+                status_code=400,
+            )
+        if any(type(account_id) is not int or account_id <= 0 for account_id in account_ids):
+            return AutoTradingAccountScopeResult(
+                error="account_ids 必须是正整数列表",
+                status_code=400,
+            )
+        if len(set(account_ids)) != len(account_ids):
+            return AutoTradingAccountScopeResult(
+                error="account_ids 不能包含重复账户",
+                status_code=400,
+            )
+        if not account_ids:
+            return AutoTradingAccountScopeResult(account_ids=())
+
+        authorized_ids: list[int] = []
+        for account_id in account_ids:
+            access = get_account_access(user, account_id, action="执行自动交易")
+            if not access.allowed:
+                return AutoTradingAccountScopeResult(
+                    error=access.error or "无权执行自动交易",
+                    status_code=access.status_code or 403,
+                )
+            account = access.account
+            row_account_id = getattr(account, "id", None)
+            if type(row_account_id) is not int or row_account_id != account_id:
+                return AutoTradingAccountScopeResult(
+                    error="所选账户记录无效",
+                    status_code=404,
+                )
+            owner_id = getattr(account, "user_id", None)
+            if owner_id is not None and type(owner_id) is not int:
+                return AutoTradingAccountScopeResult(
+                    error="所选账户记录无效",
+                    status_code=404,
+                )
+            if owner_id != user_id and getattr(user, "is_superuser", False) is not True:
+                return AutoTradingAccountScopeResult(
+                    error="无权执行自动交易该账户",
+                    status_code=403,
+                )
+            if getattr(account, "account_type", None) != "simulated":
+                return AutoTradingAccountScopeResult(
+                    error="自动交易仅支持模拟账户",
+                    status_code=400,
+                )
+            if getattr(account, "is_active", False) is not True:
+                return AutoTradingAccountScopeResult(
+                    error="所选账户未启用",
+                    status_code=400,
+                )
+            if getattr(account, "auto_trading_enabled", False) is not True:
+                return AutoTradingAccountScopeResult(
+                    error="所选账户未启用自动交易",
+                    status_code=400,
+                )
+            authorized_ids.append(account_id)
+        return AutoTradingAccountScopeResult(account_ids=tuple(authorized_ids))
+
+    account_repo = get_simulated_account_repository()
+    account_models = account_repo.get_active_account_models_for_user(user_id)
+    selected_ids: list[int] = []
+    seen_ids: set[int] = set()
+    for account in account_models:
+        row_user_id = getattr(account, "user_id", None)
+        if type(row_user_id) is not int or row_user_id != user_id:
+            return AutoTradingAccountScopeResult(
+                error="账户范围包含其他用户或无效记录",
+                status_code=500,
+            )
+        row_account_id = getattr(account, "id", None)
+        if type(row_account_id) is not int or row_account_id <= 0 or row_account_id in seen_ids:
+            return AutoTradingAccountScopeResult(
+                error="账户范围包含重复或无效记录",
+                status_code=500,
+            )
+        seen_ids.add(row_account_id)
+        if getattr(account, "is_active", False) is not True:
+            return AutoTradingAccountScopeResult(
+                error="账户范围包含非活动记录",
+                status_code=500,
+            )
+        account_type = getattr(account, "account_type", None)
+        if account_type == "real":
+            continue
+        if account_type != "simulated":
+            return AutoTradingAccountScopeResult(
+                error="账户范围包含未知账户类型",
+                status_code=500,
+            )
+        if type(getattr(account, "auto_trading_enabled", None)) is not bool:
+            return AutoTradingAccountScopeResult(
+                error="账户范围包含无效自动交易状态",
+                status_code=500,
+            )
+        if getattr(account, "auto_trading_enabled", False) is not True:
+            continue
+        selected_ids.append(row_account_id)
+        if len(selected_ids) > MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE:
+            return AutoTradingAccountScopeResult(
+                error="默认账户范围超出允许的账户数量",
+                status_code=400,
+            )
+    return AutoTradingAccountScopeResult(account_ids=tuple(selected_ids))
 
 
 def create_account_for_user(

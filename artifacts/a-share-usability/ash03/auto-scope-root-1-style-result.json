@@ -1,0 +1,11 @@
+{
+  "source_tree": "05c606d2f59e27dbdef801fccb4f136fe87ad0ec",
+  "results": {
+    "black": 0,
+    "black-changed-test": 0,
+    "isort": 0,
+    "ruff": 0
+  },
+  "exit": 0,
+  "changed_during_run": []
+}

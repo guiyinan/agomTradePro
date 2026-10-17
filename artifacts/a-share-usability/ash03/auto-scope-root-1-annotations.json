@@ -1,0 +1,21 @@
+{
+  "source_tree": "05c606d2f59e27dbdef801fccb4f136fe87ad0ec",
+  "changed_functions": [
+    [
+      "apps/simulated_trading/application/interface_services.py",
+      "AutoTradingAccountScopeResult.allowed",
+      69
+    ],
+    [
+      "apps/simulated_trading/application/interface_services.py",
+      "resolve_auto_trading_account_scope",
+      159
+    ],
+    [
+      "apps/simulated_trading/interface/views.py",
+      "AutoTradingAPIView.post",
+      666
+    ]
+  ],
+  "missing": []
+}

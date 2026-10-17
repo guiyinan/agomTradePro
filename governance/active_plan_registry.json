@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v236",
+  "version": "2026-10-17.v237",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.43 accepted bounded candidate market/exchange wiring: explicit required identity reader, compatible V2 plan/binding, independent stored exchange and original pending scope. Risk/Fee retain rule market; Calendar uses exact source exchange. 218 unit, SQLite45+4skip/component and4+4skip/migration, native47 component and6 migration passed; actual dedicated child increment545-to546, not clean full schema replay. Types/style/architecture/annotations/official projections and six applicable governance checks passed. Extra retirement check actually fails the same9 legacy registration/floor violations on exact base and candidate; no baseline/checker edits and no whole-release pass. Preserve V1 bytes/source True/None. Identify a genuine identity/calendar purpose owner before positive ordinary trading; avoid a permanently blocked adapter or invented clocks/qualification. Production identity/purpose owner, original ASH01 failures, legacy consumer/PIT, retirement gate and FullGoal/ASH01/02/03 remain open; 74units unchanged; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-market-exchange-2026-10-17.json.",
+      "next_gate": "Plan19.44 accepted bounded authenticated auto-trading account scope. Omission selects own eligible simulated accounts; [] is noop; entire explicit managed scope preflight precedes engine construction. Root original real HTTP cross-owner red and41 unit/SQLite17(15HTTP+2probes)/native15 passed. Final docstring-only source window independently41 unit, zero incremental/full mypy, architecture/annotations/style and six projection checks passed; unchanged legacy T5 full-Black debt retained. DB window1 and final source2 separately bound, no release CI/S6 identity. Plan19.45 now integrates typed outcomes through real engine/task/API: strategy lookup fail must not legacy-buy; preserve confirmed trades, unknown stored on possible writes, no whole-batch retry after engine entry. Existing9 retirement failures and lock-time owner/ordinary T+1/odd-lot/source-purpose/PIT remain open. ASH02 sole focus;74 units unchanged; DATA18 gatesASH11; FullGoal/ASH01/02/03 open; no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-auto-trading-scope-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

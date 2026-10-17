@@ -15,6 +15,9 @@ from rest_framework import serializers
 from apps.simulated_trading.application.canonical_account_creation_input import (
     CanonicalAccountCreationInput,
 )
+from apps.simulated_trading.application.interface_services import (
+    MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE,
+)
 from apps.simulated_trading.domain.entities import AccountType
 
 # ============================================================================
@@ -444,8 +447,9 @@ class AutoTradingRunRequestSerializer(serializers.Serializer[dict[str, Any]]):
     trade_date = serializers.DateField(required=False, help_text="交易日期（默认今天）")
     account_ids = serializers.ListField(
         required=False,
+        max_length=MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE,
         child=serializers.IntegerField(),
-        help_text="指定账户ID列表（空则全部活跃账户）",
+        help_text="指定本人可管理的模拟账户；省略时使用本人启用自动交易的账户，空数组表示不执行",
     )
 
 

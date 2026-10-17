@@ -1,0 +1,4 @@
+source_tree=f7c4a0b4ed87eaf5b2f0eb8e3830d46a14075cb3
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-scope-original-red-izvipbbn
+.                                                                        [100%]
+1 passed in 31.18s

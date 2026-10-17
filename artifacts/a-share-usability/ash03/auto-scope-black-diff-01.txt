@@ -1,0 +1,87 @@
+--- tests\unit\simulated_trading\test_auto_trading_account_scope.py	2026-10-17 05:37:11.463912+00:00
++++ tests\unit\simulated_trading\test_auto_trading_account_scope.py	2026-10-17 05:40:31.706060+00:00
+@@ -58,13 +58,11 @@
+ def test_default_scope_rejects_more_than_the_technical_account_limit(
+     monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+     too_many_accounts = [
+         _account_row(account_id)
+-        for account_id in range(
+-            1, interface_services.MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE + 2
+-        )
++        for account_id in range(1, interface_services.MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE + 2)
+     ]
+     repository = SimpleNamespace(
+         get_active_account_models_for_user=Mock(return_value=too_many_accounts)
+     )
+     monkeypatch.setattr(
+@@ -115,11 +113,14 @@
+         (SimpleNamespace(id=17, is_authenticated=True), cast(list[int], [True]), 400),
+         (SimpleNamespace(id=17, is_authenticated=True), cast(list[int], [0]), 400),
+         (SimpleNamespace(id=17, is_authenticated=True), cast(list[int], [1, 1]), 400),
+         (
+             SimpleNamespace(id=17, is_authenticated=True),
+-            cast(list[int], list(range(1, interface_services.MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE + 2))),
++            cast(
++                list[int],
++                list(range(1, interface_services.MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE + 2)),
++            ),
+             400,
+         ),
+     ],
+ )
+ def test_invalid_identity_or_scope_fails_before_repository_access(
+@@ -210,13 +211,11 @@
+ )
+ def test_default_scope_rejects_corrupt_or_cross_user_repository_rows(
+     monkeypatch: pytest.MonkeyPatch,
+     accounts: list[SimpleNamespace],
+ ) -> None:
+-    repository = SimpleNamespace(
+-        get_active_account_models_for_user=Mock(return_value=accounts)
+-    )
++    repository = SimpleNamespace(get_active_account_models_for_user=Mock(return_value=accounts))
+     monkeypatch.setattr(
+         interface_services,
+         "get_simulated_account_repository",
+         Mock(return_value=repository),
+     )
+would reformat tests\unit\simulated_trading\test_auto_trading_account_scope.py
+--- apps\simulated_trading\application\interface_services.py	2026-10-17 05:39:17.062460+00:00
++++ apps\simulated_trading\application\interface_services.py	2026-10-17 05:40:31.745229+00:00
+@@ -188,13 +188,11 @@
+         if len(account_ids) > MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE:
+             return AutoTradingAccountScopeResult(
+                 error="account_ids 超出允许的账户数量",
+                 status_code=400,
+             )
+-        if any(
+-            type(account_id) is not int or account_id <= 0 for account_id in account_ids
+-        ):
++        if any(type(account_id) is not int or account_id <= 0 for account_id in account_ids):
+             return AutoTradingAccountScopeResult(
+                 error="account_ids 必须是正整数列表",
+                 status_code=400,
+             )
+         if len(set(account_ids)) != len(account_ids):
+@@ -259,15 +257,11 @@
+             return AutoTradingAccountScopeResult(
+                 error="账户范围包含其他用户或无效记录",
+                 status_code=500,
+             )
+         row_account_id = getattr(account, "id", None)
+-        if (
+-            type(row_account_id) is not int
+-            or row_account_id <= 0
+-            or row_account_id in seen_ids
+-        ):
++        if type(row_account_id) is not int or row_account_id <= 0 or row_account_id in seen_ids:
+             return AutoTradingAccountScopeResult(
+                 error="账户范围包含重复或无效记录",
+                 status_code=500,
+             )
+         seen_ids.add(row_account_id)
+would reformat apps\simulated_trading\application\interface_services.py
+
+All done! ✨ 🍰 ✨
+2 files would be reformatted, 2 files would be left unchanged.

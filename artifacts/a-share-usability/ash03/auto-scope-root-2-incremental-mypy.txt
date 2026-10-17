@@ -1,0 +1,4 @@
+source_tree=1cdb1509ad263e6583b2c1c301f047669f26fb13
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-scope-ocl32cvy
+Success: no issues found in 3 source files
+Mypy regressions: 0 (legacy errors observed: 0)

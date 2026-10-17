@@ -1,0 +1,10 @@
+......................F...                                               [100%]
+================================== FAILURES ===================================
+________ test_auto_trading_rejects_real_account_before_building_engine ________
+tests\unit\simulated_trading\test_t5_simulated_view_contracts.py:507: in test_auto_trading_rejects_real_account_before_building_engine
+    assert response.status_code == 403
+E   assert 400 == 403
+E    +  where 400 = <Response status_code=400, "text/html; charset=utf-8">.status_code
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_t5_simulated_view_contracts.py::test_auto_trading_rejects_real_account_before_building_engine
+1 failed, 25 passed in 2.33s

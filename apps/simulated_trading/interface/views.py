@@ -672,7 +672,7 @@ class AutoTradingAPIView(APIView):
         Request Body:
         {
             "trade_date": "2024-01-15",
-            "account_ids": [1, 2]  // 可选，空则全部活跃账户
+            "account_ids": [1, 2]  // 可选；省略只选本人适格模拟账户，[]不执行
         }
 
         Response:
@@ -696,14 +696,38 @@ class AutoTradingAPIView(APIView):
         data = serializer.validated_data
 
         trade_date = data.get("trade_date") or date.today()
-        account_ids = data.get("account_ids")
+        scope = simulated_interface_services.resolve_auto_trading_account_scope(
+            request.user,
+            data.get("account_ids"),
+        )
+        if not scope.allowed or scope.account_ids is None:
+            return Response(
+                {
+                    "success": False,
+                    "error": scope.error or "无法确定自动交易账户范围",
+                },
+                status=scope.status_code or status.HTTP_403_FORBIDDEN,
+            )
+        if not scope.account_ids:
+            return Response(
+                {
+                    "success": True,
+                    "trade_date": trade_date.isoformat(),
+                    "total_accounts": 0,
+                    "results": {},
+                    "summary": {"total_buy_count": 0, "total_sell_count": 0},
+                }
+            )
 
         # 2. 初始化引擎
         engine = simulated_interface_services.build_auto_trading_engine()
 
         # 3. 执行自动交易
         try:
-            results = engine.run_daily_trading(trade_date, account_ids=account_ids)
+            results = engine.run_daily_trading(
+                trade_date,
+                account_ids=list(scope.account_ids),
+            )
 
             # 汇总统计
             total_buy_count = sum(r["buy_count"] for r in results.values())

@@ -1,0 +1,7 @@
+Mypy regression(s):
+- apps/simulated_trading/application/interface_services.py: assignment increased from 0 to 1
+- apps/simulated_trading/interface/views.py: index increased from 0 to 2
+apps\simulated_trading\application\interface_services.py:263: error: Incompatible types in assignment (expression has type "Any | None", variable has type "int")  [assignment]
+apps\simulated_trading\interface\views.py:733: error: Value of type "AccountAutoTradingOutcome" is not indexable  [index]
+apps\simulated_trading\interface\views.py:734: error: Value of type "AccountAutoTradingOutcome" is not indexable  [index]
+Found 3 errors in 2 files (checked 3 source files)

@@ -1,0 +1,14 @@
+{
+  "first_acceptance": "Stopped before final proof/commit when an isort diagnostic with embedded CRCRLF was not Git-normalized as assumed.",
+  "raw_evidence_modified": false,
+  "clean_filter_verification": "Actual index blob OID equals git hash-object --path from exact working bytes for every path.",
+  "non_lf_artifact_blobs": {
+    "artifacts/a-share-usability/ash03/auto-scope-isort-diff-01.txt": {
+      "raw_sha256": "96eb5c079c3d5e74954f3952abb8c293d2d28608ea02030c6a9522f65f472c7c",
+      "git_blob_sha256": "96eb5c079c3d5e74954f3952abb8c293d2d28608ea02030c6a9522f65f472c7c",
+      "computed_lf_projection_sha256": "da7f5a08790e5eac269e6504ac0ada64a73edebbbc4a9fb25687ca392f221ddc",
+      "git_text_auto_kept_raw": true
+    }
+  },
+  "source_test_document_projection_non_lf_exceptions": []
+}

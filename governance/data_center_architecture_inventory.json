@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5797,
+    "current_surface_references": 5798,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -21033,6 +21033,10 @@
     {
       "path": "apps/simulated_trading/interface/views.py",
       "text": "\"summary\": {"
+    },
+    {
+      "path": "apps/simulated_trading/interface/views.py",
+      "text": "\"summary\": {\"total_buy_count\": 0, \"total_sell_count\": 0},"
     },
     {
       "path": "apps/simulated_trading/interface/views.py",

@@ -1018,3 +1018,32 @@ V2与既有存储契约的集成反例在源码e58e876897342f2ddaa3691dfade39f99
 五个Root红绿源码窗口均保留base→tree原始patch，并通过辅助index重建匹配，避免只依赖未引用Git对象或本地导出。失败原件中的pytest空格及patch上下文按原字节保留，独立绑定摘要；生产、测试、文档及生成投影仍完整检查空白。不同源码窗口不拼成唯一CI/S6/release身份。
 
 完整源、独立测试包、真实反例/编排问题和原始/LF字节摘要见[市场与交易所接线检查点](../testing/a-share-usability-market-exchange-2026-10-17.json)。计划登记v236 / 74单元，本事项单独提交。下一批先确认真正可提供身份/日历来源时点、内部证券绑定与用途有效窗的owner，不新增必然永久blocked的拼装adapter；继续选择可独立落地的普通用户任务缺口。不得把合成reader或本地测试变成来源资格。正式identity owner/用途adapter、普通买卖/自动模拟/回测消费者、历史PIT、原ASH-01五项反例、退役登记缺口与整体Goal均未关闭；ASH-02仍唯一集成焦点，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。
+
+### 19.44 自动模拟触发的账户范围独立验收
+
+799810cfb已独立提交规则market/source exchange分离。重新核对真实入口发现AutoTradingAPIView直接把省略的account_ids=None交给engine，显式IDs也未经owner范围预检；engine随后读取全部active账户。不能把新增结果展示建立在该越权边界之上，因此先按完整安全事项独立修复和提交，后续结果闭环不混入本批。
+
+本批复用当前公开账户访问owner，增加Application范围校验；省略只返回当前用户明确可管理的活跃模拟账户范围，空数组仍是空范围，不能变None。显式请求须先完整验权与核账户类型再构造engine，不允许一部分账户先执行才发现另一部分越权；普通用户不能触发他人或真实账户。管理员显式管理权限沿既有账户策略，不新增默认全账户模式。Interface只验证输入、调用Application和格式化结果，不直查ORM。保持原engine与交易规则，不将候选UoW/参考数据激活，不改实盘Evidence门禁。
+
+验收：在原提交源码上真实复现越权范围问题；匿名、跨主、混合范围、真实账户、非法ID/类型、显式空范围均在engine构造前处理；授权的明确模拟范围才调用一次engine，且必须传显式IDs。真实API状态码和JSON Content-Type、现有接口回归、增量/全库mypy、风格/架构/标注及官方投影/适用治理检查通过后独立提交。只验证preflight范围，不声称旧engine已具备锁内当前owner重校验；该问题需普通消费者完整UoW接线继续解决。
+
+
+Root在原提交799810cfb隔离导出加唯一真实HTTP反例，实际URLConf、持久化用户/Session、CSRF和账户归属均经过现有边界，仅engine替身。第一窗口漏同源Origin，在engine前被拒绝而测试通过，明确不计业务red；补齐Origin的新窗口2f795e674b5e6e15a6a4fe981ae4bbc21777fafc实际跨主返回200而期望403，1 failed。原件与两个base→tree patch均保留。Application直调匿名拒绝401，真实项目Session优先认证的HTTP匿名返回403，测试按真实行为验证。
+
+冻结业务源码05c606d2f59e27dbdef801fccb4f136fe87ad0ec的41项单元、SQLite17项（15真实HTTP+2内存目标探针）和专用PG16子库15项真实HTTP通过。使用既有546迁移专库，前后目标与新列探针通过，没有重建共享父库；父库独立只读仍544迁移、singleton=(1,0)。最终源码1cdb1509ad263e6583b2c1c301f047669f26fb13仅更正既有post docstring的账户示例；其余五源/测试字节相同，剔除docstring的AST相同。最终窗口另跑41项单元、三生产文件增量/全库mypy零、架构3文件187新增行零、三函数完整标注、风格与六项官方投影/治理复核通过。DB运行与最终文档源码窗口明确分列，不合成同一CI/S6身份。
+
+Black完整检查其余五个文件、对既有T5检查修改行；T5内四个未动函数的全文格式债务与原提交逐字相同并保留，不声称旧文件全文Black通过。isort/Ruff完整六文件通过。生成字典无模型差异，官方module/DC投影按生成器同步。最终投影复核首次把export CRLF与Git LF原字节比较而在任何复制/命令前assert，修正为LF比较后另存实际结果；不计业务失败。作者早期混合工作树mypy输出含并行新engine的接口不兼容，限定源码Root增量与全库实际零，不把早期诊断删掉。
+
+所有四个Root源码patch经辅助index重建匹配。新增及修改源码/测试/文档/生成投影完整空白检查；仅原始日志/patch的原字节空格按精确路径及摘要保留。检查点见[自动交易账户范围](../testing/a-share-usability-auto-trading-scope-2026-10-17.json)。此事项独立提交后才开放19.45 API结果适配，不混入并行Domain/engine/task改动。已有九项版本退役门失败继续开放，本批未改相关登记/封存floor，不声称全库质量门或发布验收全通过。锁内owner竞争、正式来源用途资格、普通结算消费者/T+1/零股/历史PIT和完整Goal仍未关闭。
+
+最终字节核验首次因旧isort诊断含CRCRLF、Git text=auto按原字节保留而停止，尚未提交；原件不改。恢复后逐路径以实际Git clean hash/object对照索引，明确记录这些原始日志blob并非LF投影；其他源码/测试/文档/生成投影仍逐字LF匹配。该编排假设错误不计业务失败。
+
+### 19.45 自动模拟业务结果闭环：实施中（依赖19.44）
+
+真实调用链另一缺口：策略和legacy买卖的异常只日志，AccountTradingResult只有buy/sell计数；Celery按已遍历账户数得出success，HTTP返回固定success=true。需要贯通Domain结果、真实engine、任务和API，不能用另一个永远blocked的候选入口替代现有路径。
+
+Luna Max按纯Domain结果、engine与原测试、任务/API适配分工，Root独占Git、生成投影与真实DB/用户任务验收。Domain保留确认成交数量、安全稳定issue码、明确outcome和effects_indeterminate；旧UC在执行中抛错可能已经部分写账，此时存储数必须未知而不是零，也不能整批自动重试。成交成功返回后，关联或绩效失败仍保留已确认成交并报告partial。批requested/succeeded/failed统一按账户，完整success/noop才计入succeeded，partial账户另列；兼容success按Celery合同在partial为true，但新消费者以outcome为准。
+
+验收覆盖策略/legacy四买卖分支、策略查找失败不可回退误交易、缺价格/资产池/风险阻断、账户间隔离、无操作、部分失败、全失败、已成交后置失败、执行结果不明、输入非法与缺失/伪造结果。新wire严格类型，不将旧buy/sell-only字典补成成功；异常原文不向用户泄露。Task Monitor复用现有业务outcome解释器，Celery机器合同登记实际具体测试函数。此结果修复不授予任何来源、研究或交易资格，也不关闭原ASH-01 T+1/零股消费者反例。
+
+两批均保持ASH-02为唯一集成焦点与74个登记单元不变；正式身份/日历用途资格、普通买卖/回测接线、历史PIT、整体ASH-01～12 Goal、九项既有版本退役失败、DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁继续开放。另已核实历史导入缺费用被记作实际零费，保留为独立后续事项，不混入这两批。

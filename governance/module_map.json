@@ -10515,6 +10515,7 @@
         ],
         "application/interface_services.py": [
           "AccountAccessResult",
+          "AutoTradingAccountScopeResult",
           "build_admin_dashboard_context",
           "build_auto_trading_engine",
           "build_inspection_notify_context",
@@ -10537,6 +10538,7 @@
           "list_account_trade_payloads",
           "list_daily_inspection_report_payloads",
           "reset_account_with_summary",
+          "resolve_auto_trading_account_scope",
           "run_daily_inspection",
           "save_inspection_notification_config"
         ],
