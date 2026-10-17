@@ -36,7 +36,7 @@ from apps.risk_center.domain.price_submission_range import (
     PriceSubmissionRangeRule,
     PriceSubmissionStage,
 )
-from apps.risk_center.infrastructure.ashare_execution_rule_v3_codec import (
+from apps.risk_center.infrastructure.ashare_execution_rule_codec import (
     ASHARE_EXECUTION_RULES_V3_SCHEMA,
     AShareExecutionRuleV3CodecError,
     decode_a_share_execution_settlement_bundle,

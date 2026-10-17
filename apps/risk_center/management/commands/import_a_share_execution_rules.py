@@ -13,30 +13,22 @@ from apps.risk_center.application.ashare_execution_rule_catalog import (
     ExecutionRuleInputError,
     ExecutionRuleUnavailable,
     ImportAShareExecutionRulesUseCase,
-)
-from apps.risk_center.application.ashare_execution_rule_v2_catalog import (
-    ImportAShareExecutionSubmissionRulesUseCase,
-)
-from apps.risk_center.application.ashare_execution_rule_v3_catalog import (
     ImportAShareExecutionSettlementRulesV3UseCase,
+    ImportAShareExecutionSubmissionRulesUseCase,
 )
 from apps.risk_center.infrastructure.ashare_execution_rule_codec import (
     ASHARE_EXECUTION_RULES_SCHEMA,
+    ASHARE_EXECUTION_RULES_V2_SCHEMA,
+    ASHARE_EXECUTION_RULES_V3_SCHEMA,
     AShareExecutionRuleCodecError,
+    AShareExecutionRuleV2CodecError,
+    AShareExecutionRuleV3CodecError,
     parse_a_share_execution_rule_manifest,
+    parse_a_share_execution_rule_v2_manifest,
+    parse_a_share_execution_rule_v3_manifest,
 )
 from apps.risk_center.infrastructure.ashare_execution_rule_repository import (
     DjangoAShareExecutionRuleRepository,
-)
-from apps.risk_center.infrastructure.ashare_execution_rule_v2_codec import (
-    ASHARE_EXECUTION_RULES_V2_SCHEMA,
-    AShareExecutionRuleV2CodecError,
-    parse_a_share_execution_rule_v2_manifest,
-)
-from apps.risk_center.infrastructure.ashare_execution_rule_v3_codec import (
-    ASHARE_EXECUTION_RULES_V3_SCHEMA,
-    AShareExecutionRuleV3CodecError,
-    parse_a_share_execution_rule_v3_manifest,
 )
 
 

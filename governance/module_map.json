@@ -9263,6 +9263,8 @@
       "entrypoints": {
         "application/ashare_execution_rule_catalog.py": [
           "AShareExecutionRuleCatalog",
+          "AShareExecutionSettlementRuleV3Catalog",
+          "AShareExecutionSubmissionRuleCatalog",
           "ExecutionRuleConflict",
           "ExecutionRuleCorruption",
           "ExecutionRuleImportResult",
@@ -9271,7 +9273,10 @@
           "ExecutionRuleUnavailable",
           "ExecutionRuleVersionMismatch",
           "ImportAShareExecutionRulesUseCase",
-          "ReadEffectiveAShareExecutionRuleUseCase"
+          "ImportAShareExecutionSettlementRulesV3UseCase",
+          "ImportAShareExecutionSubmissionRulesUseCase",
+          "ReadEffectiveAShareExecutionRuleUseCase",
+          "ReadEffectiveAShareExecutionSubmissionRuleUseCase"
         ],
         "application/ashare_execution_rule_lifecycle.py": [
           "AShareExecutionRuleLifecycleClock",
@@ -9288,15 +9293,6 @@
           "RetireAShareExecutionRuleUseCase",
           "RuleLifecycleAuthorizationDenied",
           "RuleLifecycleAuthorizer"
-        ],
-        "application/ashare_execution_rule_v2_catalog.py": [
-          "AShareExecutionSubmissionRuleCatalog",
-          "ImportAShareExecutionSubmissionRulesUseCase",
-          "ReadEffectiveAShareExecutionSubmissionRuleUseCase"
-        ],
-        "application/ashare_execution_rule_v3_catalog.py": [
-          "AShareExecutionSettlementRuleV3Catalog",
-          "ImportAShareExecutionSettlementRulesV3UseCase"
         ],
         "application/broker_order_execution_policy.py": [
           "ActivateBrokerOrderExecutionPolicy",
@@ -9543,9 +9539,9 @@
         ]
       },
       "layers": {
-        "application": 23,
+        "application": 21,
         "domain": 14,
-        "infrastructure": 23,
+        "infrastructure": 21,
         "interface": 11,
         "management": 1,
         "root": 5

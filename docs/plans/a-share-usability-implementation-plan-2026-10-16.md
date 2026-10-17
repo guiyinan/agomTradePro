@@ -1245,3 +1245,17 @@ Root strict projection review `481b649a028a9e37bfe85962b12e357dd97f089fed13620f1
 只有 Root review 批准的三个投影文件会被复制；脚本不 stage、不创建 commit。source patch 限定上述六个源输入，可重建冻结 tree。详细证据：`docs/testing/a-share-usability-formal-calendar-size-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/formal-calendar-size-evidence-2026-10-18.json`。
 
 本批仅证明受限的代码/治理边界，不代表完整 A-share Goal、RC、S6 或 production 验收；ASH-02 focus/policy、closure v74/79 units、其余 workstreams 与 TUX-08 保持原样。
+
+### 19.58 Risk version consolidation bounded acceptance
+
+本批以 `6789f0bf18820145d3d195868e1b23fde77d164b` 为 base，冻结 source tree 为 `e687847e78b2c3098995dd63a012b2f2104535b3`，source commit 为 `23ab1dcd07bb722cb371369f3e1f7936b683c8cb`。范围为 12 个 Risk 源路径，其中 8 个文件有 LF pin、4 个为明确删除。V2/V3 catalog 与 codec 合入既有无后缀入口，继续使用同一规则表；保留 V1/V2/V3 wire schema、canonical hash、嵌套校验、错误和历史读取。五个公开入口整体迁移，未删除历史规则格式。官方 module map 经 strict-delta review，LF SHA-256 为 `baed2c39f54afb9cef171623fc6d6619b12a480929e42d79883c8c3c7fc82e60`；仅复制该官方导出。
+
+冻结树实际完成 19 项命令：18 项普通检查通过；versioned-surface retirement 实际退出 1，其唯一已知违规证据有效但仍为 non-green。真实日志哈希与 JUnit 总数、逐文件结果及零 skip 情况见统一证据包。
+
+实际测试为规则单元77、退役反例7、SQLite仓储29，合计113通过且无skip；唯一已知失败的真实仓库退役断言在该测试命令中明确deselect，另以官方checker保留实际exit1。八项Risk版本面违规已收敛，剩余费用composition一项。未修改baseline、floor、pin或allowlist。此批不含SQL、模型、事务与Domain业务规则变更，未运行原生PG且不作其并发验收声明。仓内旧模块调用方已迁移；仓外直接导入这些内部Python路径的消费者未知，发布前仍需核对。
+
+该批仅收敛 A 股规则版本代码边界，不代表完整 A-share Goal、普通结算、费用、MCP、PIT、数据源资格、RC、S6 或 production 验收；remaining fee-composition RED 继续开放。ASH-02 单一焦点、79 个 closure unit、closure v76、完整 focus/policy 与其余 workstream 保持。
+
+详细证据：`docs/testing/a-share-usability-risk-version-consolidation-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json`。
+
+登记更新后的独立补充验收实际通过8项registry单元，registry检查和再次full-governance均exit0；与冻结源码113项合计121项通过。首次私有postdoc脚本仅在gitignored证据可见性前置判断失败、未运行检查，修正后通过，原失败及前后driver均保留。该补充记录在检查后写入证据包，保留实际输入摘要，不冒充最终发布SHA或S6。

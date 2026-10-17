@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from apps.risk_center.application.ashare_execution_rule_v2_catalog import (
+from apps.risk_center.application.ashare_execution_rule_catalog import (
     ImportAShareExecutionSubmissionRulesUseCase,
     ReadEffectiveAShareExecutionSubmissionRuleUseCase,
 )
@@ -26,7 +26,7 @@ from apps.risk_center.domain.price_submission_range import (
     PriceSubmissionRangeRule,
     PriceSubmissionStage,
 )
-from apps.risk_center.infrastructure.ashare_execution_rule_v2_codec import (
+from apps.risk_center.infrastructure.ashare_execution_rule_codec import (
     ASHARE_EXECUTION_RULES_V2_SCHEMA,
     AShareExecutionRuleV2CodecError,
     parse_a_share_execution_rule_v2_manifest,

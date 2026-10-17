@@ -1,0 +1,165 @@
+{
+  "schema_version": "a_share_bounded_acceptance.v1",
+  "batch": "risk-version-consolidation-6789",
+  "date": "2026-10-18",
+  "status": "passed_with_known_retirement_red",
+  "base": "6789f0bf18820145d3d195868e1b23fde77d164b",
+  "source_commit": "23ab1dcd07bb722cb371369f3e1f7936b683c8cb",
+  "source_tree": "e687847e78b2c3098995dd63a012b2f2104535b3",
+  "source_paths": [
+    "apps/risk_center/application/ashare_execution_rule_catalog.py",
+    "apps/risk_center/application/ashare_execution_rule_v2_catalog.py",
+    "apps/risk_center/application/ashare_execution_rule_v3_catalog.py",
+    "apps/risk_center/infrastructure/ashare_execution_rule_codec.py",
+    "apps/risk_center/infrastructure/ashare_execution_rule_repository.py",
+    "apps/risk_center/infrastructure/ashare_execution_rule_v2_codec.py",
+    "apps/risk_center/infrastructure/ashare_execution_rule_v3_codec.py",
+    "apps/risk_center/management/commands/import_a_share_execution_rules.py",
+    "docs/api/a-share-execution-settlement-v3.md",
+    "tests/unit/risk_center/test_ashare_execution_rule_v2_catalog.py",
+    "tests/unit/risk_center/test_ashare_execution_rule_v3_catalog.py",
+    "tests/unit/risk_center/test_execution_settlement_v3.py"
+  ],
+  "present_source_count": 8,
+  "deleted_source_count": 4,
+  "actual": {
+    "status": "passed_with_known_retirement_red",
+    "source_tree": "e687847e78b2c3098995dd63a012b2f2104535b3",
+    "commands": 19,
+    "ordinary_passed": 18,
+    "ordinary_failed": 0,
+    "full_governance_exit_code": 0,
+    "retirement": {
+      "label": "retirement-expected-red",
+      "exit_code": 1,
+      "expected_exit": 1,
+      "evidence_valid": true,
+      "green": false,
+      "acceptance_gate": false,
+      "ok": false,
+      "log_sha256": "cdae00fb8d2e26b754b6688f29126199079e2277729cacec754a0867772b37ee",
+      "stdout_sha256": "5f1bd0612346a1396c5a3b3b9de51782a52f717c2173c331d05c838ef6ff7fb8"
+    },
+    "junit": {
+      "retirement-tests": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "per_file": {
+          "tests/guardrails/test_versioned_surface_retirement.py": {
+            "total": 7,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 7
+          }
+        },
+        "path": ".tmp\\risk-consolidation-6789-root-1-export\\.tmp\\risk-consolidation-6789-root-1-retirement-tests.xml",
+        "sha256": "8fa827ada924a014862f02ee68d4f05446ac30c9241e30e96c0c1278ffcaacbe"
+      },
+      "risk-components-sqlite": {
+        "total": 29,
+        "passed": 29,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "per_file": {
+          "tests/component/risk_center/test_ashare_execution_rule_repository.py": {
+            "total": 8,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 8
+          },
+          "tests/component/risk_center/test_ashare_execution_rule_repository_v2.py": {
+            "total": 7,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 7
+          },
+          "tests/component/risk_center/test_ashare_execution_rule_repository_v3.py": {
+            "total": 14,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 14
+          }
+        },
+        "path": ".tmp\\risk-consolidation-6789-root-1-export\\.tmp\\risk-consolidation-6789-root-1-risk-components-sqlite.xml",
+        "sha256": "55af294de51e7fca4d14c68ebae82b49e9c45e00c22ef44dc3d30e7907b1ef8e"
+      },
+      "risk-units": {
+        "total": 77,
+        "passed": 77,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "per_file": {
+          "tests/unit/risk_center/test_ashare_execution_rule_catalog.py": {
+            "total": 6,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 6
+          },
+          "tests/unit/risk_center/test_ashare_execution_rule_v2_catalog.py": {
+            "total": 11,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 11
+          },
+          "tests/unit/risk_center/test_ashare_execution_rule_v3_catalog.py": {
+            "total": 4,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 4
+          },
+          "tests/unit/risk_center/test_execution_settlement_v3.py": {
+            "total": 56,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 56
+          }
+        },
+        "path": ".tmp\\risk-consolidation-6789-root-1-export\\.tmp\\risk-consolidation-6789-root-1-risk-units.xml",
+        "sha256": "d4d95058ae8a854b0df9cb812c09ecbcb2ad8fed64b9bb5a48a94e048cac9692"
+      }
+    }
+  },
+  "module_map": {
+    "strict_delta": true,
+    "lf_sha256": "baed2c39f54afb9cef171623fc6d6619b12a480929e42d79883c8c3c7fc82e60",
+    "review_raw_sha256": "9da36c9fbd4da07a3efb3fac6a06b377c200ffaad24405aadfe3129cc47845ae"
+  },
+  "compatibility_limit": "Repository imports migrated; external direct imports of deleted internal Python module paths remain unknown.",
+  "evidence_bundle": "artifacts\\a-share-usability\\ash01\\risk-version-consolidation-evidence-2026-10-18.json",
+  "open_items": [
+    "Remaining fee-composition RED",
+    "Full ASH-01–12 Goal",
+    "ordinary settlement and fees",
+    "MCP",
+    "PIT",
+    "source qualification",
+    "real production validation",
+    "RC and S6"
+  ],
+  "scope_statement": "Bounded repository evidence only; no trading, broker, RC, S6, Goal-completion, or production authority is granted.",
+  "postdoc": {
+    "registry_tests_passed": 8,
+    "skipped": 0,
+    "actual_exit_codes": {
+      "registry": 0,
+      "registry-tests": 0,
+      "full-governance": 0
+    },
+    "report_raw_sha256": "97929cc4c7a9ea0d4b1b150f39c04281ea6675a596cfc04ba7707c8c5a2ca3a4",
+    "preflight_failure_retained": true,
+    "runtime_and_postdoc_tests_total": 121
+  }
+}

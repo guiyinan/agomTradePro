@@ -14,8 +14,6 @@ from django.core.management.base import CommandError
 from apps.risk_center.application.ashare_execution_rule_catalog import (
     ExecutionRuleImportResult,
     ExecutionRuleInputError,
-)
-from apps.risk_center.application.ashare_execution_rule_v3_catalog import (
     ImportAShareExecutionSettlementRulesV3UseCase,
 )
 from apps.risk_center.application.execution_settlement_v3 import (
@@ -37,7 +35,7 @@ from apps.risk_center.domain.price_submission_range import (
     PriceSubmissionRangeRule,
     PriceSubmissionStage,
 )
-from apps.risk_center.infrastructure.ashare_execution_rule_v3_codec import (
+from apps.risk_center.infrastructure.ashare_execution_rule_codec import (
     ASHARE_EXECUTION_RULES_V3_SCHEMA,
 )
 from apps.risk_center.management.commands import import_a_share_execution_rules as import_command

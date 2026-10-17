@@ -2,7 +2,7 @@
 
 V3 将冻结的 [V2 执行规则](a-share-execution-constraints-v2.md)与独立版本的结算政策组成一个不可变配置包。它是 Risk-owned 参数合同，不是 Agent 下单协议，也不计算或释放可卖股份。当前实施状态见[计划 19.9](../plans/a-share-usability-implementation-plan-2026-10-16.md#199-原生-postgresql规则退役与-v3-参数检查点)；仓储接线与模拟成交事务分别验收。
 
-实现为 [Domain](../../apps/risk_center/domain/execution_settlement_v3.py)、[Application](../../apps/risk_center/application/execution_settlement_v3.py)和[严格 JSON codec](../../apps/risk_center/infrastructure/ashare_execution_rule_v3_codec.py)。旧 V1/V2 内容及 hash 不因升级而改写，研究优化里的结算参数及禁用标记不发生隐式晋级。
+实现为 [Domain](../../apps/risk_center/domain/execution_settlement_v3.py)、[Application](../../apps/risk_center/application/execution_settlement_v3.py)和[严格 JSON codec](../../apps/risk_center/infrastructure/ashare_execution_rule_codec.py)。旧 V1/V2 内容及 hash 不因升级而改写，研究优化里的结算参数及禁用标记不发生隐式晋级。
 
 ## 身份与内容
 

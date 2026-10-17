@@ -42,21 +42,17 @@ from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionR
 from apps.risk_center.domain.execution_trading_constraints import AShareExecutionRule
 from apps.risk_center.infrastructure.ashare_execution_rule_codec import (
     AShareExecutionRuleCodecError,
+    AShareExecutionRuleV2CodecError,
+    AShareExecutionRuleV3CodecError,
     decode_a_share_execution_rule,
+    decode_a_share_execution_settlement_bundle,
+    decode_a_share_execution_submission_rule,
     encode_a_share_execution_rule,
+    encode_a_share_execution_settlement_bundle,
+    encode_a_share_execution_submission_rule,
 )
 from apps.risk_center.infrastructure.ashare_execution_rule_models import (
     AShareExecutionRuleModel,
-)
-from apps.risk_center.infrastructure.ashare_execution_rule_v2_codec import (
-    AShareExecutionRuleV2CodecError,
-    decode_a_share_execution_submission_rule,
-    encode_a_share_execution_submission_rule,
-)
-from apps.risk_center.infrastructure.ashare_execution_rule_v3_codec import (
-    AShareExecutionRuleV3CodecError,
-    decode_a_share_execution_settlement_bundle,
-    encode_a_share_execution_settlement_bundle,
 )
 
 _PG_ADVISORY_LOCK_TIMEOUT = timedelta(seconds=2)
