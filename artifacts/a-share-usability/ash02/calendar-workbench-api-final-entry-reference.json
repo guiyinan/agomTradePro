@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-10-17T00:29:39.252590+00:00",
+  "source_tree": "4d11b3cbe46b54f2b1bf31f7cfb543b211f3e8bb",
+  "native_source_tree": "ed376755d8f1344b4bddedea217dbda2f16f4037",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-workbench-api-final-entry-y69vmnif",
+  "generated_sha256": {
+    "governance/module_map.json": "b574c57404fd1690d93744136db48af684c5a8f718c119c358c101e407659f4c",
+    "governance/data_dictionary.json": "18868e15c95672063fec24720605cab5bf0eeed6e3a8f5dc9403bd7acfd7b977",
+    "docs/architecture/DATA_DICTIONARY.md": "807bdf9408000c952e78655a5bc8ac9ec752caa27cd8c745013662f243304d91",
+    "governance/data_center_architecture_inventory.json": "b590eb30aaea981066a76dbcb8f327377dfcd7ea31b89a24a01d0f9bae44d584",
+    "governance/data_center_entrypoints.json": "cf8765a0a82f0947ea17a0b27102e2704c7025a4230b313c7a83716bb8ff6691"
+  },
+  "scope": "Exact prospective API index after only Native test binding correction; official projection-source checks remain separately bound. Entry checker reruns because test evidence parsing may depend on that body. Not release/CI/S6."
+}

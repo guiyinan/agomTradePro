@@ -1,0 +1,36 @@
+.........FFFF................                                            [100%]
+================================== FAILURES ===================================
+_ test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock0] _
+tests\unit\data_center\test_calendar_workbench.py:430: in test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port
+    workbench.prepare_preview(
+apps\data_center\application\calendar_workbench.py:200: in prepare_preview
+    _validate_capture_preview_binding(captured, preview)
+apps\data_center\application\calendar_workbench.py:346: in _validate_capture_preview_binding
+    raise CalendarPublicationOperationsError(
+E   apps.data_center.application.calendar_publication_operations.CalendarPublicationOperationsError: Preview changed the captured reference or one of its source clocks
+_ test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock1] _
+tests\unit\data_center\test_calendar_workbench.py:430: in test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port
+    workbench.prepare_preview(
+apps\data_center\application\calendar_workbench.py:200: in prepare_preview
+    _validate_capture_preview_binding(captured, preview)
+apps\data_center\application\calendar_workbench.py:346: in _validate_capture_preview_binding
+    raise CalendarPublicationOperationsError(
+E   apps.data_center.application.calendar_publication_operations.CalendarPublicationOperationsError: Preview changed the captured reference or one of its source clocks
+_ test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock2] _
+tests\unit\data_center\test_calendar_workbench.py:430: in test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port
+    workbench.prepare_preview(
+apps\data_center\application\calendar_workbench.py:200: in prepare_preview
+    _validate_capture_preview_binding(captured, preview)
+apps\data_center\application\calendar_workbench.py:346: in _validate_capture_preview_binding
+    raise CalendarPublicationOperationsError(
+E   apps.data_center.application.calendar_publication_operations.CalendarPublicationOperationsError: Preview changed the captured reference or one of its source clocks
+__ test_prepare_rereads_clock_before_encoding_and_honors_original_ttl_expiry __
+tests\unit\data_center\test_calendar_workbench.py:457: in test_prepare_rereads_clock_before_encoding_and_honors_original_ttl_expiry
+    with pytest.raises(CalendarPreviewTokenError) as error:
+E   Failed: DID NOT RAISE <class 'apps.data_center.application.calendar_preview_token.CalendarPreviewTokenError'>
+=========================== short test summary info ===========================
+FAILED tests/unit/data_center/test_calendar_workbench.py::test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock0]
+FAILED tests/unit/data_center/test_calendar_workbench.py::test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock1]
+FAILED tests/unit/data_center/test_calendar_workbench.py::test_prepare_rejects_invalid_or_rolled_back_clock_before_any_port[initial_clock2]
+FAILED tests/unit/data_center/test_calendar_workbench.py::test_prepare_rereads_clock_before_encoding_and_honors_original_ttl_expiry
+4 failed, 25 passed in 1.75s

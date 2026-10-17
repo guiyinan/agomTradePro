@@ -389,3 +389,9 @@ V3 外层身份、交集有效窗和最晚来源可获得时间必须与持久�
 四步 JSON 接口保留原响应完成/入库时钟，未知的上游观测及可获得时间继续为 null；正式 current 仅为参考，仍发布稳定阻断原因及禁止决策/执行标记。current 使用服务器截止点，拒绝客户端 as_of；已认证用户不因原发布人撤权而失去只读完整性核验。
 
 采集、预览、确认各自从真实 Session+CSRF 请求取得主体并重验当前发布权限。机器回显原目录 TTL、完整 CAS 与预览摘要；同版本漂移、过期或旧 pointer 均阻断，不刷新旧源年龄。真实 HTTP 组件不代表浏览器/TUI、Provider 或生产资格。见[日历 HTTP 合同](../api/a-share-calendar-http.md)。
+
+## Calendar 工作台的配置驱动 current 参考读取
+
+工作台 current 入口只接受一个明确 exchange，按服务器唯一有效配置选出 dataset，再调用既有 exact-current owner；配置阻断不回退其他 dataset，缺 pointer 不回退历史。配置选择与 current 读取分别拥有自己的 default 外层事务，二者不宣称跨读取的同一数据库快照。此查询是配置驱动的只读显示；旧显式 dataset 查询仍可用于原范围。
+
+当前合同不能用新配置 TTL 重算旧 publication 的有效期：公开 first_seen 和 response_expires_at 来自原 seal/window，as_of 是服务器核验截止点，不能冒充上游观测时间。未提供的 source_observed_at/source_available_at 保持 null，source_time_status=not_provided；已发布参考一律 must_not_execute=true、must_not_use_for_decision=true、blocked_reason=exchange_calendar_reference_only。未选出配置与没有 current 分别显式 blocked/not_found。登记 data_center.calendar_workbench_current_reference；本段不授予真实 Provider、交易决策或券商资格。

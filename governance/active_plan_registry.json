@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v228",
+  "version": "2026-10-17.v229",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.35 accepts only env-only central preview key and source-window-bound encrypted token foundation. Frozen export91pass; production3 incremental/fulltype0, style5, annotations37, architecture3/882lines0, official projections green. Actual TTL-extension and bounded-deep-JSON RecursionError candidates reproduced and corrected. Token is not publication authority; explicit key cache clear/restart rotation, no old-key ring. Workbench Application/composition/API/current remain later candidates; next exact routes/freshness/real Session+CSRF Native, generic TUI continuation and browser main-task UAT, then ordinary sim/backtest consumers. ASH01/02/03 and Goal open; DATA18 gatesASH11; no production/realProvider/research/Evidence/dispatch/broker qualification.",
+      "next_gate": "Plan19.36 accepts only workbench Application/compositions/strict JSON API and four real routes:166 unit pass, production8 incremental/fulltype0, annotations61/style13/architecture8(1879lines)0. Actual root-URLConf Native14=12 interface/business+2 target checks on explicit test_ash_quality_native/544, retained TTL and revoked-publisher reference reads. First13pass1fail was old binding still enabled in version-switch fixture; corrected fixture only, no selector relaxation. Freshness85, entry1362 REST80; no models/migrations/seeds/grants. Generic continuation remains candidate: cancel cleanup fixed locally, same-submission confirmed network/5xx retry still must repair and test after building actual candidate bundle. Next dedicated Calendar IA/runtime + outer TUI Native/browser, then ordinary sim/backtest consumers. ASH01/02/03 and full Goal open; DATA18 gatesASH11; no production/realProvider/research/Evidence/dispatch/broker qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

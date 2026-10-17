@@ -129,3 +129,20 @@ GET 仅带两个 query 参数：
 视图/OpenAPI 合同中的成功状态为：采集 `201`，预览 `200`，确认首次发布 `201`、forward/精确重试 `200`，current 读取 `200` 或缺失 `404`。标准 JSON 错误 envelope 使用 `error` 和稳定 `code`。预期错误包括：输入/未知字段 `400`、认证 proof 无法与数据库身份绑定 `401`、未认证或无发布权 `403`、错误方法 `405`、不接受 JSON 响应 `406`、写入媒体类型错误 `415`、typed 业务校验失败 `422`、CAS/目录或时钟冲突 `409`、来源或精确证据不可用 `503`。真实 HTTP 组件已确认匿名 Session 请求返回 `403`；`401` 是身份 proof 无法绑定时的业务异常合同，两者应区别处理。
 
 最新定向 Native 结果为 **81 项：75 项 serializer/presenter/view 等直接单元测试，另有 6 项通过 Django APIClient 执行的真实 SessionAuthentication、CSRF 与 API 组件旅程**。这 6 项验证 capture/preview/confirm/current 的 HTTP 边界，不是浏览器或 TUI 测试；response stream closed 断言只针对响应对象，不代表客户端 session pool 已关闭。独立暂存源码导出另有 485 passed / 27 PostgreSQL-only skipped；这些组合重叠，不能累计为唯一用例。类型、风格、覆盖、架构与生成投影门禁已通过，完整证据见阶段检查点。生产部署验收仍 pending。本文未执行真实 Provider 请求、权限授予、catalog seed、生产发布、部署或实盘验证。
+
+## 工作台的服务端预览交接
+
+新增工作台入口复用上述真实 Session、CSRF 和发布 owner，不要求用户回填底层 snapshot/CAS JSON。四个新路径均以 `/api/data-center/exchange-calendars/workbench/` 为前缀：
+
+| 方法与后缀 | 输入 | 结果 |
+| --- | --- | --- |
+| GET `scope/` | 不接受 query | 唯一配置概览，或稳定 blocked reason；秘密和 Provider runtime 明确未检查 |
+| GET `current/` | 仅一个显式 exchange | 按唯一配置 dataset 读取 exact current，或配置 blocked / current not_found |
+| POST `prepare/` | exchange、coverage_start、coverage_end | 采集和预览成功返回 201；安全可见摘要与专用机器交接分开 |
+| POST `confirm/` | 仅 confirmation_token | owner 重验原源/权限/窗口/CAS；首次 201，forward 或 exact retry 200 |
+
+prepare 中采集和预览分别由既有 owner 拥有自己的 default 事务，不构成跨步骤原子事务；采集后预览或密钥不可用仍可能保留源快照。响应专用顶层 continuation 包含 action_key=data-center.calendar-workbench-confirm、input.confirmation_token 与 expires_at，不能放入可见表格、调试区、审计结果、URL 或持久浏览器存储。该交接不代表授权或一次性消费，确认仍由当前 Session 与发布权限重验。服务端令牌绑定 actor/session、完整原 intent、first_seen 与原合同 TTL，不因重试续期。密钥更换须清缓存或重启，旧令牌失效后须重新准备。
+
+GET current 不要求发布权限，只接受一个 exchange，拒绝重复值及客户端指定 dataset、actor、alias 或 as_of。配置 selector 与 exact-current owner 分别拥有外层事务，不宣称两次读取是同一跨读快照。新配置 TTL 不重算旧 publication 的 response_expires_at；缺 current 不读取旧 history 冒充 current。上游观测时间未知仍为 null，所有成功日历参考仍不可用于交易或投资决策。原显式 dataset current 路径保持可用。
+
+这些是 HTTP 合同；通用 TUI 交接、专用 screen 接线、实际浏览器完成主任务和真实供应商须各自验收，不能从路由可解析推导已完成。

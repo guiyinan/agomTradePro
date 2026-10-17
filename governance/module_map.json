@@ -4094,6 +4094,13 @@
           "ReadCurrentCalendarIntent",
           "ReadCurrentCalendarUseCase"
         ],
+        "application/calendar_workbench.py": [
+          "CalendarPublicationWorkbench",
+          "CalendarWorkbenchCapturePort",
+          "CalendarWorkbenchConfirmationPort",
+          "CalendarWorkbenchPreview",
+          "CalendarWorkbenchPreviewPort"
+        ],
         "application/calendar_workbench_scope.py": [
           "CalendarWorkbenchCurrentPointerStatus",
           "CalendarWorkbenchScopeContext",
@@ -5251,6 +5258,10 @@
       },
       "http_routes": {
         "interface/api_urls.py": [
+          "exchange-calendars/workbench/scope/",
+          "exchange-calendars/workbench/current/",
+          "exchange-calendars/workbench/prepare/",
+          "exchange-calendars/workbench/confirm/",
           "exchange-calendars/snapshots/capture/",
           "exchange-calendars/publication-preview/",
           "exchange-calendars/publications/",
@@ -5318,12 +5329,12 @@
         ]
       },
       "layers": {
-        "application": 158,
+        "application": 159,
         "domain": 42,
         "infrastructure": 193,
-        "interface": 26,
+        "interface": 30,
         "management": 42,
-        "root": 29
+        "root": 31
       },
       "orm_models": {
         "infrastructure/models.py": [

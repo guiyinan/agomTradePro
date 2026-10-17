@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5695,
+    "current_surface_references": 5753,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -8219,6 +8219,10 @@
       "text": "supplied knowledge cutoff. It must not choose a latest source or silently"
     },
     {
+      "path": "apps/data_center/application/calendar_workbench.py",
+      "text": "\"\"\"Publish or replay exactly the decoded intent under current authority.\"\"\""
+    },
+    {
       "path": "apps/data_center/application/calendar_workbench_scope.py",
       "text": "\"\"\"Enforce that this no-argument context makes no execution or current claim.\"\"\""
     },
@@ -10271,6 +10275,130 @@
       "text": "\"\"\"Return the current timezone-aware server instant.\"\"\""
     },
     {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "\"\"\"Return Django's current timezone-aware instant.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "current = _require_default_proof("
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "current.user_id != initial_proof.user_id"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "if current.request_authenticated_at < initial_proof.request_authenticated_at:"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "or current.database_alias != initial_proof.database_alias"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "or current.request_user_database_alias != initial_proof.request_user_database_alias"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_composition.py",
+      "text": "or current.session_key != initial_proof.session_key"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "The configuration selector and current-publication owner each use their"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Blocked configuration cannot carry an old current calendar\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Current calendar does not match the selected dataset and exchange\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Current calendar owner returned an invalid result type\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Current workbench exchange is invalid\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Current workbench requires one explicit exchange\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"Workbench current result requires typed configuration scope\","
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"\"\"Compose the workbench's selected-dataset exact current calendar read.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"\"\"Keep configuration selection and its exact current result together.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"\"\"Read current reference data for the unique selected calendar dataset."
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"\"\"Reject any current row that escaped the selected dataset and exchange.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "\"\"\"Validate the exchange token before configuration lookup or current read.\"\"\""
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "current = read_current_exchange_calendar(intent)"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "current: CurrentPublishedExchangeCalendar | None"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "current=None,"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "dataset is passed unchanged to the exact-current owner; this composition"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "if self.current is None:"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "if self.current is not None:"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "if type(self.current) is not CurrentPublishedExchangeCalendar:"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "or self.current.pointer.dataset_key != metadata.dataset_key"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "or self.current.record.seal.exchange != self.exchange"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "return CalendarWorkbenchCurrentReadResult(exchange=exchange, scope=scope, current=current)"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "self.current.__post_init__()"
+    },
+    {
+      "path": "apps/data_center/calendar_workbench_current_composition.py",
+      "text": "self.current.record.seal.dataset.value != metadata.dataset_key"
+    },
+    {
       "path": "apps/data_center/calendar_workbench_scope_composition.py",
       "text": "\"\"\"Return the current timezone-aware server instant.\"\"\""
     },
@@ -12228,7 +12356,15 @@
     },
     {
       "path": "apps/data_center/interface/api_urls.py",
+      "text": "\"exchange-calendars/workbench/current/\","
+    },
+    {
+      "path": "apps/data_center/interface/api_urls.py",
       "text": "\"exchange_calendar_current\": \"/api/data-center/exchange-calendars/current/\","
+    },
+    {
+      "path": "apps/data_center/interface/api_urls.py",
+      "text": "\"exchange_calendar_workbench_current\": \"/api/data-center/exchange-calendars/workbench/current/\","
     },
     {
       "path": "apps/data_center/interface/api_urls.py",
@@ -12249,6 +12385,10 @@
     {
       "path": "apps/data_center/interface/api_urls.py",
       "text": "name=\"dc-calendar-current\","
+    },
+    {
+      "path": "apps/data_center/interface/api_urls.py",
+      "text": "name=\"dc-calendar-workbench-current\","
     },
     {
       "path": "apps/data_center/interface/api_urls.py",
@@ -12373,6 +12513,98 @@
     {
       "path": "apps/data_center/interface/calendar_publication_serializers.py",
       "text": "\"\"\"Validate the complete current-pointer compare-and-swap identity.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"\"\"Project exact current days without exposing storage or Audit identities.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"as_of\": _utc_text(current.as_of),"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"current\": None,"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"current\": None,"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"current\": {"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "\"response_expires_at\": _utc_text(current.record.window.response_expires_at),"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "current = value.current"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "if current is None:"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "raise TypeError(\"Calendar workbench current read must use its exact DTO\")"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_presenters.py",
+      "text": "seal = current.record.seal"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_schema.py",
+      "text": "\"\"\"Current read response with configuration and publication status kept explicit.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_schema.py",
+      "text": "\"\"\"Reference-only current publication details without technical identities.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_schema.py",
+      "text": "\"\"\"Selected configuration and exact current-reference state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_schema.py",
+      "text": "\"\"\"Success response contains only the safe publication summary.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_schema.py",
+      "text": "current = _CalendarWorkbenchCurrentPublicationSerializer(allow_null=True)"
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "\"\"\"Read the current reference calendar for the selected capture dataset.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "\"\"\"Return metadata selection status without reading credentials or current state.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "\"\"\"Revalidate the hidden token under current session and publisher authority.\"\"\""
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "description=\"The authenticated session lacks current calendar publish permission.\","
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "description=\"The current publication failed a typed integrity check.\","
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "description=\"The current publication or its source-age window changed.\","
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "description=\"The selected configuration or current evidence is unavailable.\","
+    },
+    {
+      "path": "apps/data_center/interface/calendar_workbench_api_views.py",
+      "text": "description=\"The source-age window or current publication state changed.\","
     },
     {
       "path": "apps/data_center/interface/publication_guards.py",

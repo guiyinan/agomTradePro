@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 84,
+      "current_data_surface": 85,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -19,7 +19,7 @@
       "operational_script": 40,
       "orchestration_entry": 18,
       "public_port": 97,
-      "rest_url": 76,
+      "rest_url": 80,
       "runbook": 7,
       "runtime_config_key": 45,
       "scheduler_writer": 18,
@@ -30,13 +30,13 @@
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 867,
+      "active_public": 872,
       "adjacent_operational": 341,
       "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1357
+    "total": 1362
   },
   "entries": [
     {
@@ -5301,6 +5301,16 @@
     },
     {
       "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=11",
+      "id": "current_data_surface:governance/current_data_contracts.json:data_center.calendar_workbench_current_reference:Exact current exchange-calendar reference for the unique configured dataset; original publication response window; unknown upstream observation; reference only, no execution authority",
+      "locator": "Exact current exchange-calendar reference for the unique configured dataset; original publication response window; unknown upstream observation; reference only, no execution authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "data_center.calendar_workbench_current_reference",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
       "evidence": "governed current-data contract; source_files=2",
       "id": "current_data_surface:governance/current_data_contracts.json:data_center.close_and_nav_fallbacks:UnifiedPriceService daily close and fund NAV fallback chain",
       "locator": "UnifiedPriceService daily close and fund NAV fallback chain",
@@ -10112,6 +10122,46 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-workbench-confirm:exchange-calendars/workbench/confirm/",
+      "locator": "exchange-calendars/workbench/confirm/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-workbench-confirm",
+      "target": "CalendarWorkbenchConfirmView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-workbench-current:exchange-calendars/workbench/current/",
+      "locator": "exchange-calendars/workbench/current/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-workbench-current",
+      "target": "CalendarWorkbenchCurrentView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-workbench-prepare:exchange-calendars/workbench/prepare/",
+      "locator": "exchange-calendars/workbench/prepare/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-workbench-prepare",
+      "target": "CalendarWorkbenchPrepareView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:dc-calendar-workbench-scope:exchange-calendars/workbench/scope/",
+      "locator": "exchange-calendars/workbench/scope/",
+      "path": "apps/data_center/interface/api_urls.py",
+      "status": "active_public",
+      "symbol": "dc-calendar-workbench-scope",
+      "target": "CalendarWorkbenchScopeView.as_view()"
+    },
+    {
+      "category": "rest_url",
+      "evidence": "Data Center-owned URLconf",
       "id": "rest_url:apps/data_center/interface/api_urls.py:dc-capital-flows:capital-flows/",
       "locator": "capital-flows/",
       "path": "apps/data_center/interface/api_urls.py",
@@ -10542,11 +10592,11 @@
     {
       "category": "rest_url",
       "evidence": "Data Center-owned URLconf",
-      "id": "rest_url:apps/data_center/interface/api_urls.py:path@136:egress/",
+      "id": "rest_url:apps/data_center/interface/api_urls.py:path@166:egress/",
       "locator": "egress/",
       "path": "apps/data_center/interface/api_urls.py",
       "status": "active_public",
-      "symbol": "path@136",
+      "symbol": "path@166",
       "target": "include('apps.data_center.interface.egress_api_urls')"
     },
     {
@@ -13621,7 +13671,7 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 84,
+    "current_data_contracts": 85,
     "legacy_entrypoints_and_wrappers": 0,
     "operational_governance_rules": 43,
     "runtime_config_keys": 45

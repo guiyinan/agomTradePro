@@ -8815,6 +8815,88 @@
           "test_function": "test_outbox_failure_rolls_back_formal_publication_but_keeps_capture"
         }
       ]
+    },
+    {
+      "id": "data_center.calendar_workbench_current_reference",
+      "surface": "Exact current exchange-calendar reference for the unique configured dataset; original publication response window; unknown upstream observation; reference only, no execution authority",
+      "source_files": [
+        "apps/data_center/calendar_workbench_current_composition.py",
+        "apps/data_center/application/calendar_workbench_scope.py",
+        "apps/data_center/calendar_workbench_scope_composition.py",
+        "apps/data_center/application/calendar_publication_operations.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "apps/data_center/domain/formal_exchange_calendar_publication.py",
+        "apps/data_center/interface/calendar_workbench_api_views.py",
+        "apps/data_center/interface/calendar_workbench_api_presenters.py",
+        "apps/data_center/interface/calendar_workbench_api_serializers.py",
+        "apps/data_center/interface/calendar_workbench_api_schema.py",
+        "apps/data_center/interface/api_urls.py"
+      ],
+      "required_markers": {
+        "apps/data_center/calendar_workbench_current_composition.py": [
+          "read_calendar_workbench_scope_context()",
+          "CalendarWorkbenchScopeMetadataStatus.BLOCKED",
+          "ReadCurrentCalendarIntent(dataset_key=metadata.dataset_key, exchange=exchange)",
+          "read_current_exchange_calendar(intent)",
+          "CALENDAR_CURRENT_READ_SCOPE_MISMATCH"
+        ],
+        "apps/data_center/interface/calendar_workbench_api_presenters.py": [
+          "\"response_expires_at\": _utc_text(current.record.window.response_expires_at)",
+          "\"as_of\": _utc_text(current.as_of)",
+          "\"source_observed_at\": None",
+          "\"source_available_at\": None",
+          "\"source_time_status\": \"not_provided\"",
+          "\"must_not_execute\": True",
+          "\"must_not_use_for_decision\": True",
+          "\"blocked_reason\": \"exchange_calendar_reference_only\"",
+          "\"current_status\": \"not_found\""
+        ],
+        "apps/data_center/interface/calendar_workbench_api_serializers.py": [
+          "getlist(\"exchange\")",
+          "CalendarWorkbenchCurrentQuerySerializer"
+        ],
+        "apps/data_center/interface/api_urls.py": [
+          "exchange-calendars/workbench/current/",
+          "dc-calendar-workbench-current"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "server_selected_exact_dataset",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_current_composition.py",
+          "test_function": "test_current_composition_uses_selected_dataset_and_same_exchange"
+        },
+        {
+          "case": "blocked_scope_without_current_or_history_fallback",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_current_composition.py",
+          "test_function": "test_blocked_configuration_reason_is_preserved_without_current_read"
+        },
+        {
+          "case": "missing_current_explicit_empty",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_api_views.py",
+          "test_function": "test_current_view_reports_missing_current_without_historical_fallback"
+        },
+        {
+          "case": "original_publication_ttl_not_current_configuration_ttl",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_api_views.py",
+          "test_function": "test_current_view_preserves_original_publication_expiry_after_config_ttl_change"
+        },
+        {
+          "case": "repeated_exchange_rejected",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_api_views.py",
+          "test_function": "test_current_view_rejects_repeated_exchange_query_parameter"
+        },
+        {
+          "case": "client_authority_and_cutoff_rejected",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_api_views.py",
+          "test_function": "test_current_view_rejects_client_dataset_alias_clock_and_noncanonical_exchange"
+        },
+        {
+          "case": "published_reference_never_execution_authority",
+          "test_file": "tests/unit/data_center/test_calendar_workbench_api_views.py",
+          "test_function": "test_current_view_accepts_only_exchange_and_returns_reference_only_data"
+        }
+      ]
     }
   ]
 }

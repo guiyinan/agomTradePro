@@ -881,3 +881,19 @@ Native 首跑 5 failed / 2 passed，实际原因是 pytest-django 仅从 marker 
 独立导出 `71a9c5db866b943cf002dd78c30634d14964afad` 的五份回归 **91 passed / 3.03 秒**。三个生产文件增量 mypy 零回归、全生产债务零，五文件 Black/isort/Ruff 通过，37 个生产函数参数/返回与 public docstring 无缺项。覆盖分别为 App 69/79 语句、16/20 分支；Infrastructure 176/208 语句、48/62 分支；shared secrets 53/57 语句、11/12 分支。当前父提交上的投影检查使用独立源码树 `b69cedb067fd7cf2df29dc6c91252db6679bca87`，三生产文件架构 882 新增行、boundary/audit 零；两窗口的五个所属文件按 LF 和 AST 核验相等，保留原字节及树身份，不合并为同一 CI/S6 或 release 身份。
 
 生成投影由官方脚本产生并通过全部 stale-check；42 app / 588 model / 9,087 field，44 模块 / 210 依赖，84 freshness surface、23 Audit event、1,357 入口，无新模型、迁移或路由。完整源与原件绑定见[令牌基础检查点](../testing/a-share-usability-calendar-preview-foundation-2026-10-17.json)。计划登记 v228 / 74 单元，ASH-02 继续唯一集成焦点。下一批接工作台用例、配置驱动 current 查询、真实 Session/CSRF API，再独立验收通用 TUI 交接与浏览器主任务。原 ASH-01、完整 ASH-02/03、普通模拟/回测消费者及整体 Goal 继续开放；DATA-18 对 ASH-11 的门禁、生产/真实 Provider/研究/Evidence/外部 dispatch/券商验收均未放行，broker_order_evidence_integrated 仍 false。
+
+### 19.36 工作台用例、配置驱动 current 与正式路由独立验收
+
+本批只接受 Calendar 工作台 Application/composition、严格 JSON serializer/presenter/schema 与四条正式 workbench 路由。prepare 只收 exchange 和完整覆盖日期，依次调用既有采集、预览并创建原期限令牌；采集已提交后续步骤失败仍保留源。confirm 只收隐藏令牌，按真实 request Session/actor/default alias 重验原 intent/TTL/权限/CAS，不重捕获或刷新预期。机器 continuation 位于响应顶层，与可见摘要分开；这批不接 TUI。
+
+scope 无 query，只显示非秘密配置元数据。新 current 仅接受一个显式 exchange，由唯一配置 selector 选 dataset 后调用原 exact-current owner；配置 blocked 不查 current，缺 pointer 明确 not_found，不回退其他 dataset/history。配置选择与 current 分别拥有自己的 default 外层事务，不宣称同一跨读快照。新配置 TTL 不重算旧 publication window；真实已登录用户撤去发布权限后仍可只读。旧显式 dataset current 路由保留，所有日历结果仍 reference-only，未知 source clocks 不填请求时间。
+
+失败优先原件保留：独立时钟审查实际复现 prepare 在无效/回退时钟下已调用 capture/preview，且 mint 前未重新采样；4 failed/25 passed 后修为外部副作用前校验和 mint 前原窗口复验。正式路由先有 5 failed，补路由/discovery；Root 同时改正尚未执行到的 namespaced reverse 断言。早期临时 URLConf Native 的无效合成 Fernet key、RawEnvelope occurrence 数量预期错误均只修夹具；相同 body 的三个不同完成时刻为三条 source occurrence，不改生产去重。正式路由首轮 13 passed/1 failed 是新旧 binding 同时 enabled 被正确判歧义；只将夹具旧 binding 停用并保留历史行，生产 selector 未放宽。
+
+独立导出 `93826c76881f3999e0d8fcee89b63d79bd9531db` 的十份 unit/SQLite 回归 **166 passed / 21.95 秒**。八生产文件增量 mypy 零回归、全项目债务零，13 Python 文件 Black/isort/Ruff 通过，61 生产函数标注/public docstring 无缺项；架构八文件、1,879 新增行、boundary/audit 零。覆盖各文件的语句/分支分开记录在检查点，不合并为单一 Domain 覆盖率。本批没有新增 Domain 算法。
+
+最终真实项目 URLConf 源码 `ed376755d8f1344b4bddedea217dbda2f16f4037` 的原生 PostgreSQL **14 passed / 34.86 秒**，其中 12 项接口/业务用例、2 项前后只读目标资格核验。实际 test_ash_quality_native、544 迁移、TTL 列与 Account singleton=(1,0) 前后一致；不从空重放。真实 admin login 页发 CSRF cookie、数据库 Session、采集/预览/正式发布/Audit/Outbox/current 参与；仅供应商 HTTP transport 与秘密为合成夹具。覆盖首次/forward/exact retry/旧 CAS、篡改、换 actor/session、过期、撤权、缺 CSRF、缺密钥、重复/未知 query、配置阻断与旧发布期限保持。无运行源码漂移，不冒充真实 Provider 或浏览器主任务 UAT。
+
+官方生成投影及 stale-check 通过；Native 夹具单行修正后另在最终暂存导出复验 module map 和入口投影。42 app / 588 model / 9,087 field、44 模块 / 210 依赖、85 freshness surface、23 Audit event、1,362 入口（REST 80，candidate-review 11）。没有新模型、迁移、业务种子或权限授予。完整源窗口与失败原件见[工作台接口检查点](../testing/a-share-usability-calendar-workbench-api-2026-10-17.json)；不同树及原始/LF 字节身份分开，不合成 release/CI/S6 身份。
+
+计划登记 v229 / 74 已登记 closure 单元，ASH-02 继续唯一集成焦点。通用 TUI continuation 仍候选：取消清理已补真实红绿，但确认后网络/5xx 的同提交重试还须修复；现有前端回归读取生成 bundle，后续必须先 build 再验收。随后接独立 Calendar screen/IA/runtime、真实外层 TUI Native 与浏览器主任务，再切普通模拟/回测消费者。原 ASH-01、完整 ASH-02/03、整体 Goal 与 DATA-18 对 ASH-11 门禁仍开放；生产/真实 Provider/研究/Evidence/外部 dispatch/券商资格未放行，broker_order_evidence_integrated 仍 false。

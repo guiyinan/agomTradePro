@@ -62,6 +62,12 @@ from apps.data_center.interface.calendar_publication_api_views import (
     CaptureCalendarSnapshotView,
     CurrentCalendarView,
 )
+from apps.data_center.interface.calendar_workbench_api_views import (
+    CalendarWorkbenchConfirmView,
+    CalendarWorkbenchCurrentView,
+    CalendarWorkbenchPrepareView,
+    CalendarWorkbenchScopeView,
+)
 from apps.data_center.interface.tui_views import (
     MacroGovernanceTuiView,
     MarketThermometerTuiConfigView,
@@ -94,6 +100,10 @@ class DataCenterApiRootView(APIView):
                     "exchange_calendar_preview": "/api/data-center/exchange-calendars/publication-preview/",
                     "exchange_calendar_publish": "/api/data-center/exchange-calendars/publications/",
                     "exchange_calendar_current": "/api/data-center/exchange-calendars/current/",
+                    "exchange_calendar_workbench_scope": "/api/data-center/exchange-calendars/workbench/scope/",
+                    "exchange_calendar_workbench_current": "/api/data-center/exchange-calendars/workbench/current/",
+                    "exchange_calendar_workbench_prepare": "/api/data-center/exchange-calendars/workbench/prepare/",
+                    "exchange_calendar_workbench_confirm": "/api/data-center/exchange-calendars/workbench/confirm/",
                     "fund_nav": "/api/data-center/funds/nav/",
                     "financials": "/api/data-center/financials/",
                     "valuations": "/api/data-center/valuations/",
@@ -113,6 +123,26 @@ class DataCenterApiRootView(APIView):
 
 
 urlpatterns = [
+    path(
+        "exchange-calendars/workbench/scope/",
+        CalendarWorkbenchScopeView.as_view(),
+        name="dc-calendar-workbench-scope",
+    ),
+    path(
+        "exchange-calendars/workbench/current/",
+        CalendarWorkbenchCurrentView.as_view(),
+        name="dc-calendar-workbench-current",
+    ),
+    path(
+        "exchange-calendars/workbench/prepare/",
+        CalendarWorkbenchPrepareView.as_view(),
+        name="dc-calendar-workbench-prepare",
+    ),
+    path(
+        "exchange-calendars/workbench/confirm/",
+        CalendarWorkbenchConfirmView.as_view(),
+        name="dc-calendar-workbench-confirm",
+    ),
     path(
         "exchange-calendars/snapshots/capture/",
         CaptureCalendarSnapshotView.as_view(),
