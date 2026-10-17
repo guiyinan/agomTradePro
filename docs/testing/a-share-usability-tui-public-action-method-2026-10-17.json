@@ -1,0 +1,87 @@
+{
+  "recorded_at": "2026-10-17T02:32:05.531431+00:00",
+  "status": "bounded_public_action_method_wire_fix",
+  "reference": {
+    "recorded_at": "2026-10-17T02:17:20.465324+00:00",
+    "base_commit": "c032a86d18589794d166244a8ca877868ef2567c",
+    "source_tree": "50cf1d77f8cc2bd99838568442b3adfc2f31e2fc",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-public-action-method-pneklscy",
+    "owned_paths": [
+      "apps/terminal/application/tui_workbench_catalog.py",
+      "tests/unit/test_tui_workbench.py"
+    ],
+    "source_sha256": {
+      "apps/terminal/application/tui_workbench_catalog.py": "ae81e170511947a63504e21082701ef459b1e557a22ef72872cedcc8798cc493",
+      "tests/unit/test_tui_workbench.py": "12f9e671a4349e9bc5f7fc6e54ebba4659a2da3d41574f4b4b3450403bd07677"
+    },
+    "scope": "Generic public action method only; excludes Calendar IA/runtime, mapping query, real DB/provider and deployment."
+  },
+  "full_python_passed": 355,
+  "entry_regression_passed": 49,
+  "full_node_passed": 92,
+  "same_generated_javascript_as_accepted_generic": true,
+  "generated": {
+    "source_tree": "50cf1d77f8cc2bd99838568442b3adfc2f31e2fc",
+    "generated_sha256": {
+      "static/js/tui-workbench.js": "eee47999214ff72ec470792ec326328fee4d9965eeeeaa0941f589afc5f7c36f",
+      "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+      "static/js/tui-agomtradepro-adapter.js": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+      "config/tui/agomtui-runtime.manifest.json": "5496790b37c43ab7db75f11307a6269909677eec9e1914738e4db314513740c6"
+    }
+  },
+  "goal_complete": false,
+  "limits": [
+    "Real Calendar pre-dispatch failure identified wire bug; Calendar UI/runtime still pending independent acceptance.",
+    "Separate author red/focused windows and exact Root final source; no aggregated unique count or release/CI/S6 claim.",
+    "No production/Provider/consumer/execution eligibility or broker qualification."
+  ],
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-after.json": "ca5bf8c02bd47021366d2e4212e12d39602a1a290548d530300057ddffd1de1e",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-before.json": "ca5bf8c02bd47021366d2e4212e12d39602a1a290548d530300057ddffd1de1e",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-black.txt": "8a2e46efabadf66c70086973a63e3638a7e8691c00e1af59bf0ee6a5f8b44cce",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-build.txt": "42b77269d93c9a67a6ab781c93b7d74ab5cfed92f0ede2f4686cdbed30b066ca",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-bundle-check.txt": "5c89503b2992ff13c67ef1949a29fade375ab3e7faefc351847fcee03f07aa29",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-generated.json": "4918749ad19ddcd3664e6dabfe9e3c52dd100c45a2e7918faf8cd99420bf4bd6",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-isort.txt": "ca5789357a7971d1abe8ee7b540a8fedc117b818707203a0b72cf60c3315cd45",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-reference.json": "fb5168bd7d6c936b55f61f4434d55b07c6309f2fb2462254c4125306f6326542",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-result.json": "9e54bbdab821e1473175644816758cdc491a1425012a8bd11d66041ac2eb5a08",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-ruff.txt": "2fd0e193ee0e4035ddea609968f876addb087c924912ff1338c3aa2dcc3f08d0",
+    "artifacts/a-share-usability/ash02/calendar-workbench-browser-native-root-8-tests.txt": "9213732647711a21dbb3adc5a47028c670e4bd085efbaa905fe3644b9eb5b586",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-black-final.txt": "42952929f98ff284b84ffc33f5fca4e517620f9b2ceb3fca1375e504affa8195",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-black.txt": "3d840852d1967cf62b3d618efd5b223eea00491002b6fa4cbc4cc37acf056a29",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-mypy-regression.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-node-green.txt": "54996762c26162b8a45e60aedc3467c946c383019ab1795711a55319e8fd2b79",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-python-green.txt": "aaf431ce375e79d11de2c2d3c11582b5778cbfb0a52a1bf351f57d3bae46d1c6",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-red.txt": "18d036a3bc9aeec44bf37598633f14329096064eea1f570f714e425bb173b0ff",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-ruff-final.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "artifacts/a-share-usability/ash02/tui-action-method-wire-ruff.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-architecture.txt": "f4375008363a3c8d3e85f1558d8043d3b7cf006b23fbe0985b769de9969f4db8",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-black.txt": "4df0ffa9ae1fd8df2be31181d588383835106c0f88a1f17a169d400586711c50",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-build-static-result.json": "771a6719bdac910f70b15b36f4e314415729bca9a2084dc178cbc85f1a1b7083",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-build.txt": "6fc31aba86dca5bcaac4109a70ad7565d5543c83d548a83381735e204a36cc6a",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-bundle-check.txt": "3dc0dd93da2bd2149235be4ce8c15937263318fef17a356fd70bd432972c920d",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_audit_event_contracts.txt": "1fc05d02b1012ac36b13c6f54dbb6e7d44081607e5410bbfbf3038c9c5f9d2be",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_current_data_contracts.txt": "48cc16db3e0feec215bd84c1013d10dc0b3bb10eec88f8efa6036b2b3c266fd3",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_data_dictionary.txt": "71fcdd8a1a105ca7a7a8140292df393600b8a482667892b88939613f12fe732d",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_module_map.txt": "0141856f25dd27030907560608e0c8654c6a755caca0509a5bd39abf0a2fd173",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_tui_action_copy_and_density.txt": "f148b6d6002ee577c364cd3935b5fe2c6289d8084b59806e50da4a6447aa314c",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_tui_metadata_source_consistency.txt": "4c1fcc4384913f24f8af27d7d6b4a923c76e2217731c7122a8d672f03d9ee18b",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_tui_presentation_details.txt": "2ee04a6e00ba8eb82de24f2d39c432fe555fdd4def4ece5ac4c0a0bd341be551",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-check_tui_static_contracts.txt": "d795e21d35547c20c1d362e84f013309cdd45d4a0565a7e53d2ff60b168f047b",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-data_center_architecture_inventory.txt": "207395856309d5aff6b858ef8263090e5a55394af8a294986896f851d5498413",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-data_center_entrypoint_inventory.txt": "514ce1b24a05e9e69497154613702d8f1040585ce743607cd471960b94b51f0e",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-entry-regression-result.json": "771a6719bdac910f70b15b36f4e314415729bca9a2084dc178cbc85f1a1b7083",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-entry-regression-tests.txt": "e282fdbb9892bb87f5313437b1cad4e427c76c84b3ef9d42987f186d686fd4cd",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-full-mypy.txt": "ef00c6a195369bb7095647e5f7a18e1860505010713c85702557fc96a0916d1b",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-generated.json": "b40de4f82cae21318a90c484017e4e604ad6190172df95c19b69e99ce01d5a42",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-incremental-mypy.txt": "fd143a9b7d51add26438ef7c23179cf5869b9af92d07b1b910e604c0c54bce05",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-isort.txt": "a932d2c50eaf914dcc89c26957afe86fb253c9f2424cd39e63134a31dcedcd66",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-node-tests.txt": "8dbec98b6a3dad475db94ea58bb11037d47380c350eccf53b7557ea796a482f2",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-prerun-ordering-failure.json": "3c82f851326212de241e741559314ffdb2aa130c67fa3855bcba70ff544a0c2d",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-python-result.json": "771a6719bdac910f70b15b36f4e314415729bca9a2084dc178cbc85f1a1b7083",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-reference.json": "cf69c208b0b98081e3c294e4fbb9a773cc99279e19a805f06b8e5a55ab62a38f",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-ruff.txt": "26f80be4a11e770b7e228275d38340da9f1fa7b54d95dd156fd73770ad589d28",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-typing-style-result.json": "771a6719bdac910f70b15b36f4e314415729bca9a2084dc178cbc85f1a1b7083",
+    "artifacts/a-share-usability/ash02/tui-public-action-method-root-1-workbench-tests.txt": "3ac718cf4e29a7c85712853ac35a5ed80b72a27f1df24a987fd0b74e2d7e7b28"
+  }
+}

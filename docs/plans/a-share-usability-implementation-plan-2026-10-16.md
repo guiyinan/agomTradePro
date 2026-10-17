@@ -915,3 +915,15 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 真实red5复现网络/503无重试；取消与上下文controller红、确认前重试旧bundle失败和修复后通过均保留。早期browser夹具的缺action/隐藏表单/错误确认顺序造成的失败单列，不能冒充业务red；先于build的旧81项Node结果不作为新功能验收。所有浏览器结果均为合成HTTP前端harness，不能替代Calendar真实Session/CSRF、owner及主任务UAT。
 
 完整证据见[通用交接检查点](../testing/a-share-usability-tui-result-continuation-2026-10-17.json)。计划登记v231 / 74单元，下一批专用Calendar IA/runtime、真实外层TUI Native与browser，再切普通模拟/回测消费者。ASH-01/02/03和整体Goal仍开放；DATA-18对ASH-11门禁及生产/Provider/研究/Evidence/外部dispatch/券商资格均未放行。
+
+### 19.39 普通 TUI 动作投影的机器请求方法修复
+
+真实Calendar浏览器在首次prepare、任何采集之前发现接线缺陷：普通Service.get_screen投影省略method，continuation控制器将目标按GET处理并在前端拒绝，未出现预检请求。此前Node夹具带完整method，单靠该结果不能证明真实公开投影可用。工作台候选未因此接受或放行；原始失败保留。
+
+本批仅将已经规范化的method移入公开action机器字段，并更新真实Service投影及既有隐私断言；界面不显示HTTP方法，endpoint/source/module/raw配置仍在技术投影范围，compact metadata仍剥离method。没有改变controller拒绝条件、Session、CSRF、确认、owner授权或秘密交接。source和target可由客户端正确识别为mutation，使用既有确认和幂等流程。
+
+独立冻结源码树 50cf1d77f8cc2bd99838568442b3adfc2f31e2fc 的完整workbench回归355项通过；build/check之后完整Node 92项通过，三个生成JS文件与已接受通用bundle逐字节相等。单生产文件增量mypy与全库债务零，Black/isort/Ruff、四项TUI静态、六项治理stale-check及架构边界/audit检查通过。manifest按实际build生成，未手改投影或抬高债务基线。
+
+真实公开投影red先复现KeyError(method)，定向6项Python/19项controller绿保留独立窗口，不累加为唯一用例数。Root一轮检查调度早于依赖export完成，只在读取reference时失败，未启动质量/DB命令；修正等待顺序后重跑，单列编排错误而非业务red。完整绑定见[机器请求方法检查点](../testing/a-share-usability-tui-public-action-method-2026-10-17.json)。
+
+计划登记v232 / 74单元，下一批继续Calendar runtime/IA、当前参考投影和真实Native/browser主任务验收，再整合精确mapping查询及模拟结算消费者前置。ASH-01/02/03与整体Goal保持开放；DATA-18对ASH-11和生产/Provider/研究/Evidence/dispatch/券商门禁不变。

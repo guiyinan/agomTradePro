@@ -45,6 +45,8 @@ prepare 返回的 continuation action key 必须是 data-center.calendar-workben
 
 ### B. 已验收的通用 continuation 基础
 
+真实工作台浏览器另发现公开action缺method导致前端将目标识别为GET。该公开投影缺陷已独立修复并通过完整Python/Node和类型/静态门禁，见[机器请求方法检查点](../testing/a-share-usability-tui-public-action-method-2026-10-17.json)。技术endpoint/source仍隐藏；Calendar用户旅程继续单独验收。
+
 本通用阶段已完成取消、失败、过期、新 prepare、同屏动作对和screen变化的清理；源generation避免旧响应覆盖。网络/5xx重放原token/confirmation/key/expiry，首次未确认提交重试后仍需用户确认，密码复核不会保留旧密码。保留真实red和修复后新built-bundle结果。旧81项Node早于新build，未作为本阶段验收。Calendar外层Session/CSRF、owner及真实浏览器主任务独立验收。
 
 ### C. Calendar screen 与完整外层 TUI Native / browser journey

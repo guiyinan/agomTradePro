@@ -1,0 +1,9 @@
+{
+  "recorded_at": "2026-10-17T02:17:20Z",
+  "classification": "root_orchestration_error_before_quality_commands",
+  "observation": "Three check drivers were started while the dependent export command still reported a running PTY session. All exited at reference.read_text with FileNotFoundError; no style, test, build, mypy or database command ran in those invocations.",
+  "correction": "Waited for export session 80438 to exit successfully and create its frozen source reference before starting the three independent quality drivers again.",
+  "acceptance_evidence": false,
+  "shared_index_changed": false,
+  "limits": "The original FileNotFoundError traces remain in tool history; no old raw file was overwritten or reconstructed."
+}

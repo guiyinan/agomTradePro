@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v231",
+  "version": "2026-10-17.v232",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.38 accepts generic hidden result_continuation/schema/service/private-tab controller and paired build only. Final build-first5browser/fullNode pass; Python3 unchanged across qualified type/regression windows. Cancellation/expiry/newpreview/actionpair/screen clear; exact token/key/confirmation retry and reauth without password retention. Calendar IA/runtime, outerNative/browser and ordinary sim/backtest remain separate pending batches. FullGoal/ASH01/02/03 open; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification.",
+      "next_gate": "Plan19.39 accepts only generic public action method wire correction after real Calendar browser found missing method before dispatch. Full workbench/Node, type/style/static/governance/architecture pass on exact auxiliary source; technical endpoints remain hidden. Calendar IA/runtime/outer Native/browser remain separate pending acceptance; then exact mapping and settlement qualification/consumer work. FullGoal/ASH01/02/03 open; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

@@ -447,6 +447,7 @@ class TuiWorkbenchCatalogMixin:
             "ui_key": self._action_ui_key(action),
             "label": self._operator_text(action["label"]),
             "intent": action["intent"],
+            "method": action["method"],
             "screen_key": action["screen_key"],
             "view_type": action["view_type"],
             "risk": action["risk"],
@@ -477,7 +478,6 @@ class TuiWorkbenchCatalogMixin:
         if include_technical:
             payload.update(
                 {
-                    "method": action["method"],
                     "endpoint": action["endpoint"],
                     "module_key": action["module_key"],
                     "source": action.get("source", "published"),

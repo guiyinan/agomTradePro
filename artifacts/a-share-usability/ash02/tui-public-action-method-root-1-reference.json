@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-10-17T02:17:20.465324+00:00",
+  "base_commit": "c032a86d18589794d166244a8ca877868ef2567c",
+  "source_tree": "50cf1d77f8cc2bd99838568442b3adfc2f31e2fc",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-public-action-method-pneklscy",
+  "owned_paths": [
+    "apps/terminal/application/tui_workbench_catalog.py",
+    "tests/unit/test_tui_workbench.py"
+  ],
+  "source_sha256": {
+    "apps/terminal/application/tui_workbench_catalog.py": "ae81e170511947a63504e21082701ef459b1e557a22ef72872cedcc8798cc493",
+    "tests/unit/test_tui_workbench.py": "12f9e671a4349e9bc5f7fc6e54ebba4659a2da3d41574f4b4b3450403bd07677"
+  },
+  "scope": "Generic public action method only; excludes Calendar IA/runtime, mapping query, real DB/provider and deployment."
+}

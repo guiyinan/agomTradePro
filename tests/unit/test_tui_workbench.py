@@ -1318,7 +1318,7 @@ def test_tui_broker_execution_covers_admin_onboarding_without_raw_json(
         for key in admin_keys
         for field in actions[key].get("fields", [])
     )
-    assert "method" not in actions["broker-execution.settings"]
+    assert actions["broker-execution.settings"]["method"] == "PATCH"
     source_actions = {action["key"]: action for action in RUNTIME_BROKER_EXECUTION_ACTIONS}
     assert source_actions["broker-execution.settings"]["method"] == "PATCH"
 
@@ -1889,7 +1889,7 @@ def test_tui_business_screen_actions_are_grouped_by_user_task(client, tui_user):
     assert all(isinstance(action["sequence"], int) for action in actions)
     assert all(not action["label"].startswith("Get ") for action in actions)
     assert all("endpoint" not in action for action in actions)
-    assert all("method" not in action for action in actions)
+    assert all(action["method"] in {"GET", "POST", "PUT", "PATCH", "DELETE"} for action in actions)
     assert all("source" not in action for action in actions)
     assert all("view_model" not in action for action in actions)
     assert all("raw_debug" not in action for action in actions)
@@ -2550,7 +2550,7 @@ def test_tui_decision_flow_publishes_confirmed_daily_workflow_actions(client, tu
         assert actions[action_key]["risk"] == "write"
         assert actions[action_key]["confirmation_required"] is True
         assert "endpoint" not in actions[action_key]
-        assert "method" not in actions[action_key]
+        assert actions[action_key]["method"] in {"POST", "PUT", "PATCH", "DELETE"}
         assert "source" not in actions[action_key]
         assert "view_model" not in actions[action_key]
     assert actions["decision.execute.preview"]["fields"][0]["key"] == "plan_id"
@@ -3436,7 +3436,7 @@ def test_tui_action_runner_returns_business_view_model(client, tui_user):
     assert "raw_response" in payload["debug"]
     assert "request" not in payload
     assert "endpoint" not in payload["action"]
-    assert "method" not in payload["action"]
+    assert payload["action"]["method"] in {"GET", "POST", "PUT", "PATCH", "DELETE"}
     assert "source" not in payload["action"]
 
 
@@ -4660,6 +4660,37 @@ def test_tui_result_continuation_metadata_requires_a_hidden_confirmed_session_ta
     for invalid in invalid_payloads:
         with pytest.raises(TuiMetadataValidationError):
             validate_tui_metadata(invalid)
+
+
+def test_tui_public_screen_projection_includes_machine_method_for_continuation_pair(
+    tui_admin_user,
+):
+    """Publish validated transport semantics while keeping technical details private."""
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(_calendar_continuation_metadata_payload())
+    )
+    screen = service.get_screen("command-center.overview", user=tui_admin_user)
+    actions = {action["key"]: action for action in screen["actions"]}
+
+    source = actions["calendar.prepare"]
+    target = actions["calendar.confirm"]
+    assert source["method"] == "POST"
+    assert target["method"] == "POST"
+    for action in (source, target):
+        assert action["session_auth_required"] is True
+        assert action["confirmation_required"] is True
+        assert "endpoint" not in action
+        assert "module_key" not in action
+        assert "source" not in action
+        assert "raw_debug" not in action
+
+    assert source["result_continuation"] == {
+        "target_action_key": "calendar.confirm",
+        "field_map": {"confirmation_token": "confirmation_token"},
+    }
+    assert target["fields"][0]["input_type"] == "hidden"
+    assert target["fields"][0]["presentation_semantic"] == "api_token"
 
 
 def test_tui_result_continuation_is_stripped_before_view_debug_and_audit(
