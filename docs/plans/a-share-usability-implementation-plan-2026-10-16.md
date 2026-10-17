@@ -1074,4 +1074,20 @@ Root质量门发现作者对既有T5四个无关函数作了全文格式化；�
 
 本批只修改该权限测试函数：在API view公开owner读取入口注入合法blocked metadata DTO，不伪造数据就绪；其余登录、action、HTTP状态、确认和参数断言保持，并验证owner恰好被调用一次。没有修改生产事务guard，没有transaction=True或全库flush。其他顶层测试函数逐字与parent相同。Luna Max只读复核通过；正式配置/事务行为由专用owner/composition测试继续承担。本批不涉及生产Python，因此不把类型检查记为本批新执行。
 
-冻结源码与完整TUI及三组calendar单元回归、风格和模块/入口投影检查见[独立检查点](../testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json)。本次只提交测试夹具及对应证据/计划登记，19.45业务文件继续待四项高风险复验，Goal及74单元状态不变。
+冻结源码与完整TUI及三组calendar单元回归、风格和模块/入口投影检查见[独立检查点](../testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json)。该前置提交当时只包含测试夹具及对应证据/计划登记；19.45随后完成四项高风险复验并独立提交c43a23d14。Goal及74单元状态不变。
+
+### 19.47 MCP显式空账户范围透传独立验收
+
+接口已将显式`[]`定义为空操作，MCP governed owner仍以`account_ids or []`及`normalized_account_ids or None`将它折叠成默认范围。Schema允许空数组。Root在精确原提交c43a23d14加唯一隔离探针的导出中，经真实schema、CORE_DISPATCHER、preview、confirmation、resume和owner，实际预览requested=0/resolved=2/account_ids=null，确认后的fallback收到None；应为[]而实际None，1 failed/5.49秒。账户SDK读取、最终fallback、授权角色与审计使用替身，没有DB、HTTP或市场/券商调用。作者原始探针另保留。
+
+此独立批只修None与空数组的区别：None保持现有默认语义，显式[]预览不读账户、显示零账户并在确认后原样送到SDK/API；非空范围保留原顺序。复用既有确认、幂等和审计流程，结果outcome、已确认数量、unknown stored与额外字段原样透传，不把HTTP成功当交易成功。SDK文档同步本人适格账户、空范围、partial及写入不明含义。Luna Max负责必要owner分支与真实dispatcher/SDK边界测试，Root负责原提交反例、独立源码冻结、类型/用户流程/治理与Git。
+
+默认None预览的分页、auto-enabled筛选和确认时范围绑定仍开放；本批不把该预览视为完整或锁定的最终可执行名单。费用缺失与零的反例继续排队，不混入本批。提交前须逐字重放Root原反例为green，执行SDK/MCP确认与透传测试、两生产文件增量mypy及全库债务门、适用风格/函数保留与治理检查，并保留外部TUI草案的独立登记改动。ASH-02唯一焦点、74单元、完整Goal及既有来源/普通结算/九项退役问题保持开放。
+
+19.47最终验收：冻结8ccd302a9610b58741417ffbd87297a57543f55b，Root的210项新scope/原MCP owner/SDK endpoint契约、SDK client23项、terminal agent20项以及原Root探针逐字green1项通过。两SDK生产文件增量mypy零；全库债务门的实际默认范围为apps/core/shared，零错误，不将其冒充SDK全包检查。Black/isort/Ruff完整三文件通过；除owner目标函数和SDK方法docstring外，其余函数源码与原提交相同，模块级imports不变；module-map复核零，新app/model/route为零。没有修改metadata、compiler/runtime schema、Celery/current数据合同或数据库，未重复刚验收但本批未改的TUI355/SSL6包，也不声称真实HTTP/DB或同一CI/S6。作者中间transport测试的audit fixture两项失败原件保留，最终9项定向测试通过。
+
+SDK和MCP真实序列化对内存传输替身验证了None、[]、[7]及[8,7]、确认前无POST、空范围无GET、确认后精确JSON与partial/failed的unknown字段透传。这里的响应是传输测试数据，不声称空范围真实API会产生partial/failed；原接口空范围noop另由19.45实际HTTP验收。MCP status=completed只代表调用返回，业务仍需读result.outcome。默认预览分页/启用状态/确认范围绑定继续开放。
+
+本次独立提交只暂存ASH登记字段/version，完整保留并行TUI草案、README、supporting登记及其五个TUX单元的工作树变更；本批冻结登记仍74单元，实时工作树可有79单元，不将两者混为同一验收身份。共享index/登记窗口在本批提交后交接TUI治理批，期间本主线不操作该索引、登记或生成器。
+
+逐一补查19.45九个生产文件发现，两项尺寸回退均为本主线引入：engine从907到1,325非空行，task入口从1,199到1,319，均超过治理1,200限额，不能称为继承基线。已通过的功能/类型证据保留，完整发布继续不通过；下一独立事项优先按职责拆分引擎并重跑尺寸及回归，不提高基线。既有九项版本退役失败与此分开记录。费用missing/zero保留为随后事项。完整Goal、ASH-02唯一焦点、普通原子结算/T+1/owner/source用途/PIT、DATA-18/ASH-11及生产/Provider/Evidence/QMT门禁继续开放。

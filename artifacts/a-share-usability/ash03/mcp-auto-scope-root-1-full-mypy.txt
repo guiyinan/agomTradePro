@@ -1,0 +1,3 @@
+source_tree=8ccd302a9610b58741417ffbd87297a57543f55b
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-mcp-auto-scope-m9fwrt50
+Full mypy debt ceiling passed: 0 errors in 0 files

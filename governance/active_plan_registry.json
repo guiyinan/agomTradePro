@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v240",
+  "version": "2026-10-17.v242",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.45 accepted bounded real auto-trading engine/task/API outcome closure after19.44 commit799fd2c51 and independent19.46 test-only prerequisite505c9de39. Real strategy-query failure cannot legacy-buy; confirmed trades survive post-link/performance errors; partial writes/missing/extra/malformed results retain known confirmations and stored=null, no whole-batch retry after engine entry. Shared normalizer/serializer, explicit account/trade units, HTTP recorder and bounded Monitor unknown flag. Root373 unit, native53, SQLite55(includes2probes), original2 probes and four high-risk packages passed; Domain303/303 lines88/88 branches;9-file incremental/full mypy0, architecture/69 annotations and seven applicable governance checks passed. Final integration window on committed TUI prerequisite has22 selected sources identical to format window;9 production bytes identical to DB/type window, no release CI/S6. Existing9 retirement failures, ordinary T+1/odd-lot/atomicity/idempotency/lock-time owner/source-purpose/PIT open. Next independently verify/fix MCP explicit-empty account scope preservation; default preview pagination/eligibility binding also open, then actual-import fee missing-vs-zero closure without historical amount backfill. ASH02 sole focus;74units unchanged;DATA18 gatesASH11; FullGoal/ASH01/02/03 remain open;no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-auto-trading-outcomes-2026-10-17.json.",
+      "next_gate": "Plan19.47 accepted bounded MCP explicit-empty scope preservation after c43a23d14. Root exact original confirmation red1 reproduced; identical probe green1. Frozen SDK/MCP scope+original owner/endpoint210, SDKclient23, terminalagent20; two SDK production incremental mypy0 and default apps/core/shared full debt0, full style and module-map0. None/[]/ordered IDs and real SDK JSON/outcome/null preservation against memory transport; no HTTP/DB/provider or CI/S6 qualification. All other function sources/module imports retained; no new app/model/route. Next immediately remediate own19.45 engine907-to1325 and task-entry1199-to1319 non-empty lines above1200 without baseline increase, then imported-fee missing/zero. Default MCP preview pagination/eligibility/confirmation binding open. Existing9 retirement failures separate; ordinary settlement/T+1/owner/source/PIT and fullGoal/ASH01/02/03 open. ASH02 sole focus; this staged registry retains74 units; concurrent TUI governance units are preserved unstaged for serial handoff. Evidence: docs/testing/a-share-usability-mcp-auto-trading-scope-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

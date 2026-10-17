@@ -1,0 +1,81 @@
+{
+  "scope": "Read-only audit of all nine production files changed in19.45, against exact505c9de39 and unchanged1200 policy.",
+  "rows": [
+    {
+      "path": "apps/simulated_trading/domain/auto_trading_outcomes.py",
+      "before": 0,
+      "after": 506,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "2630cc0969f0d3475c068a7948bc1165064c9415d978d75f0a23f9d6c2ca2dc7"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "before": 907,
+      "after": 1325,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 125,
+      "current_raw_sha256": "c39d387b345e392175330735ade3eceaeea6be87fad06eed33d9c98e9ad4a84b"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_outcome_reporting.py",
+      "before": 0,
+      "after": 148,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "26e6dade8e46da6fcb1012d130bb1b75850c690810226b21f45d22358cdd63de"
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
+      "before": 1199,
+      "after": 1319,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 119,
+      "current_raw_sha256": "c658dfdb6dfe463a6e10a93413b38568b558eafc56d30608adb1b4f885d440f3"
+    },
+    {
+      "path": "apps/simulated_trading/application/interface_services.py",
+      "before": 528,
+      "after": 572,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "1991d8fb6f4c473a503383e7b515f49c1acd79cbc1e35dd1e353239facfb5074"
+    },
+    {
+      "path": "apps/simulated_trading/interface/views.py",
+      "before": 733,
+      "after": 705,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "4090312826f292030085c8113c7875d7cc61c6679f5be767db8fb79e7bcb8a9f"
+    },
+    {
+      "path": "apps/simulated_trading/interface/serializers.py",
+      "before": 385,
+      "after": 429,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "050b48ae7b1b3d88044287d111b9c4df87a30abb6dfe74544278e8f986a38d8c"
+    },
+    {
+      "path": "apps/strategy/application/execution_gateway.py",
+      "before": 256,
+      "after": 266,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "3252f3f8422f856bdd2e4736049131ff21e9d5b64cb3f3dc3332a290745c3584"
+    },
+    {
+      "path": "apps/task_monitor/application/tasks.py",
+      "before": 874,
+      "after": 882,
+      "limit_or_allowance": 1200,
+      "own_excess_growth": 0,
+      "current_raw_sha256": "633657af7c16f66cb1317e6ffd0c3ec793a62898736b4446a9e9cca611089001"
+    }
+  ],
+  "new_excess_files": 2,
+  "baseline_increased": false,
+  "full_governance_pass_claimed": false,
+  "earlier_staging_proof_retained": "mcp-auto-scope-root-1-staged-verification.json"
+}

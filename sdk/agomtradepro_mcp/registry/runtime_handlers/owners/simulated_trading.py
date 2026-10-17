@@ -545,20 +545,22 @@ def _internal_handler_trading_start_simulated_auto_trading(
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    normalized_account_ids = list(account_ids or [])
+    normalized_account_ids = None if account_ids is None else list(account_ids)
 
     if preview_only:
-        if normalized_account_ids:
-            accounts = [
-                client.simulated_trading.get_account(account_id)
-                for account_id in normalized_account_ids
-            ]
-        else:
+        if normalized_account_ids is None:
             accounts = client.simulated_trading.list_accounts(
                 status="active",
                 account_type="simulated",
                 limit=100,
             )
+        elif normalized_account_ids:
+            accounts = [
+                client.simulated_trading.get_account(account_id)
+                for account_id in normalized_account_ids
+            ]
+        else:
+            accounts = []
 
         account_summaries = []
         for account in accounts[:10]:
@@ -577,9 +579,11 @@ def _internal_handler_trading_start_simulated_auto_trading(
             "success": True,
             "preview_only": True,
             "trade_date": trade_date,
-            "account_ids": normalized_account_ids or None,
+            "account_ids": normalized_account_ids,
             "account_scope_summary": {
-                "requested_account_count": len(normalized_account_ids),
+                "requested_account_count": (
+                    len(normalized_account_ids) if normalized_account_ids is not None else 0
+                ),
                 "resolved_account_count": len(accounts),
                 "sample_accounts": account_summaries,
             },
@@ -595,7 +599,7 @@ def _internal_handler_trading_start_simulated_auto_trading(
             "run_simulated_auto_trading",
             {
                 "trade_date": trade_date,
-                "account_ids": normalized_account_ids or None,
+                "account_ids": normalized_account_ids,
             },
         ),
     )

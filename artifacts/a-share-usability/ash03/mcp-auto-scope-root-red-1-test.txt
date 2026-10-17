@@ -1,0 +1,13 @@
+source_tree=2408302bd67918b1e0f832ef8893a26e4eb85573
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-mcp-auto-scope-red-9xl1i7kk
+MCP_AUTO_SCOPE_PROBE={"fallback_account_ids": null, "preview_account_ids": null, "preview_requested_account_count": 0, "preview_resolved_account_count": 2, "resume_status": "completed", "schema_accepts_empty_array": true}
+F
+================================== FAILURES ===================================
+________ test_explicit_empty_account_scope_reaches_fallback_unchanged _________
+.tmp\test_mcp_auto_scope_root_probe.py:94: in test_explicit_empty_account_scope_reaches_fallback_unchanged
+    assert observed == [], "explicit empty account_ids unexpectedly expanded to default scope"
+E   AssertionError: explicit empty account_ids unexpectedly expanded to default scope
+E   assert None == []
+=========================== short test summary info ===========================
+FAILED .tmp/test_mcp_auto_scope_root_probe.py::test_explicit_empty_account_scope_reaches_fallback_unchanged
+1 failed in 5.49s

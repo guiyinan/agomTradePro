@@ -1,0 +1,211 @@
+{
+  "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+  "before_proof_tree": "6ba57766f008790755cb9e55ab47304f58231081",
+  "staged": {
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-author-original-probe.txt": {
+      "raw_sha256": "96b059450d6e5914446e816937addfe28c50877c89371053dba403ba0195d442",
+      "git_blob_sha256": "253a669f09e33209da804e8874e0bd7b8584bf82369497329af7d225334820a3"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-author-original-red.txt": {
+      "raw_sha256": "ec8e39bda3055741295a4abfdc8e55cd0c5bff33d601fd8634dac58642ba73cf",
+      "git_blob_sha256": "968e89e6d48dab20495a2d83462d3c69d63f6504be45b7904ac8d48bdb474101"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-empty-green.txt": {
+      "raw_sha256": "903b0d318b59f6e1aba1161ab4550fecc3b9391cc38333ab12cc7d68a94fa471",
+      "git_blob_sha256": "b12dc155d1e2e19274a3dd619c45d2ac8eb5b1fa98332a4aec726f925d44b39b"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-empty-red.txt": {
+      "raw_sha256": "ab6b1305266369e53920997e3e0599615ef1acfabb411367105ece020d2a8638",
+      "git_blob_sha256": "f1f1b7e7b82a471d0cb0d64d56a27248182dbe00c50d8cc3dfd74607bc9973ac"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-final.txt": {
+      "raw_sha256": "5fc297ad2876407052d46f14e58e621702865b7f7edb8d0f4c989a4156aab78b",
+      "git_blob_sha256": "f7e8d4ea01fd6816e6f608e5c4be3c20d33b5617df6d15923170d49d37dfeac1"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-active-plan-check-final.txt": {
+      "raw_sha256": "6aed39ef5084771fa09c7eeb1161ffcf0c9d0b8fd92ad7c3f7df324d7260d09c",
+      "git_blob_sha256": "0651d7eb33a5fa85ec260c832ace35fcd069a7463d99db5607e13bde90032723"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-active-plan-check.txt": {
+      "raw_sha256": "6aed39ef5084771fa09c7eeb1161ffcf0c9d0b8fd92ad7c3f7df324d7260d09c",
+      "git_blob_sha256": "0651d7eb33a5fa85ec260c832ace35fcd069a7463d99db5607e13bde90032723"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-black.txt": {
+      "raw_sha256": "6f7ebbc8cc848fa9b33359195019982780952a243bd64a04db36c2e3ab393061",
+      "git_blob_sha256": "fc1926785ca36dda8d69dc65f5c845f6e9767d11219d57103b2b38725a63f207"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-boundaries-result.json": {
+      "raw_sha256": "853b115121ee86523b188705f206f01dc7c2734c5b7c4b6870a6728be7c6c8e4",
+      "git_blob_sha256": "853b115121ee86523b188705f206f01dc7c2734c5b7c4b6870a6728be7c6c8e4"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-boundaries.json": {
+      "raw_sha256": "9d76e55198a5ee59bbed764d5456693ffb75d29d2a907f0d0b3299e8c682bf6b",
+      "git_blob_sha256": "9d76e55198a5ee59bbed764d5456693ffb75d29d2a907f0d0b3299e8c682bf6b"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-client-regression-result.json": {
+      "raw_sha256": "25cc07923a8d9ec114fcccd17efa772250c251b04faf213ccf349db055f52a65",
+      "git_blob_sha256": "25cc07923a8d9ec114fcccd17efa772250c251b04faf213ccf349db055f52a65"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-full-mypy.txt": {
+      "raw_sha256": "57a29ea7f03752f7b6faddb6f87b3e3b9149178f182d452dc89a2bb1df866ca7",
+      "git_blob_sha256": "64ee680b78531c66dbc213f75e10b0c9abcd5902144a526b9d59cdd9b2a2b8c0"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-incremental-mypy.txt": {
+      "raw_sha256": "849683ee3c335300791f8d5581229c16451f2c38ca028c31f8de3004b7cc0b1c",
+      "git_blob_sha256": "44f1f8ca4d5481aa42d03c6333d0a72e74998e8c8f8f475c271dcdeb07acf819"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-isort.txt": {
+      "raw_sha256": "d6e00e966319e2e77f2f9a6b45786d1eeceace14df5b46038ec4e60d231b3879",
+      "git_blob_sha256": "d6e00e966319e2e77f2f9a6b45786d1eeceace14df5b46038ec4e60d231b3879"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-module-map.txt": {
+      "raw_sha256": "fa64a705ca979e44b73613c4c72424767291c574b26359a33dbc2fbbabefa514",
+      "git_blob_sha256": "c60e87be25b107d8a0926a7b66ca2d644c7e3dc66327e181065424e52b2b3d11"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe-binding.json": {
+      "raw_sha256": "17a4b0fe79922a0baa91251c04fd925690a75cbd4f45cbb24dcd227518bf6388",
+      "git_blob_sha256": "17a4b0fe79922a0baa91251c04fd925690a75cbd4f45cbb24dcd227518bf6388"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe-result.json": {
+      "raw_sha256": "ef467a0884844e1817c85d5826bb8d18ba7e7230c7616c51514a7d99d4b40df1",
+      "git_blob_sha256": "ef467a0884844e1817c85d5826bb8d18ba7e7230c7616c51514a7d99d4b40df1"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe.txt": {
+      "raw_sha256": "df46ce18485cbe4c017bddb401c5616194ca6cef90d11615829c0afbf5f2c19b",
+      "git_blob_sha256": "3854f226eab52b92235ec343492f8ea907e6262fa4cc0bbc07795fdec888bca5"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-reference.json": {
+      "raw_sha256": "07cbeb2d84c99f61c99430ffa4febd94ad765860b1872c4d4a5f96c2fac58e13",
+      "git_blob_sha256": "07cbeb2d84c99f61c99430ffa4febd94ad765860b1872c4d4a5f96c2fac58e13"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-ruff.txt": {
+      "raw_sha256": "02cdb18e2216aa86162d98750dc7b5de435e6bed06c035b601ac1c94caa8c392",
+      "git_blob_sha256": "02cdb18e2216aa86162d98750dc7b5de435e6bed06c035b601ac1c94caa8c392"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-sdk-client.txt": {
+      "raw_sha256": "689325d3f7c58882ae65b590b726416f560f5ab6898140a8d1baa8028ec2b080",
+      "git_blob_sha256": "2ec9abe66223ab25a7e210e8bb7f7d88a42f6cc9da33ee18675301067ee0ca7c"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-size-open-issues-correction.json": {
+      "raw_sha256": "572adae79d27e751da153ba2199d410235568d7e00d64b1cffda28b4d8873a19",
+      "git_blob_sha256": "572adae79d27e751da153ba2199d410235568d7e00d64b1cffda28b4d8873a19"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source-reconstruction.json": {
+      "raw_sha256": "cadafb1c347b1d6610ccb0edf7cd315b3e855ccd2d118b00ee886b61c95dcd62",
+      "git_blob_sha256": "cadafb1c347b1d6610ccb0edf7cd315b3e855ccd2d118b00ee886b61c95dcd62"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source.patch": {
+      "raw_sha256": "b3b9d3cdbc1df9aca66d89b215f031bca8c95a5fac6c0bb226adf07c670f8314",
+      "git_blob_sha256": "b3b9d3cdbc1df9aca66d89b215f031bca8c95a5fac6c0bb226adf07c670f8314"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-staged-verification.json": {
+      "raw_sha256": "5d33b9eeb58f4f749b58f7a3b34e07636529c2894186a87e05564d062c1b38cd",
+      "git_blob_sha256": "5d33b9eeb58f4f749b58f7a3b34e07636529c2894186a87e05564d062c1b38cd"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-style-result.json": {
+      "raw_sha256": "335279d41436ff55bb449d9f911f756707b76dcb08c7f60b046e0e20f1799919",
+      "git_blob_sha256": "335279d41436ff55bb449d9f911f756707b76dcb08c7f60b046e0e20f1799919"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-terminal-agent.txt": {
+      "raw_sha256": "0dbef0a895ad1515b5bb1852b84289dc4d51fb1702c3048361d6cac17bb6d57f",
+      "git_blob_sha256": "7be3d108d3b1a476a8e21afe465831b529d3b7b3b1a2a1cdec0b44f8a5a5f034"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-typing-result.json": {
+      "raw_sha256": "491ee1231456d6b2b70b58b8817282476a734ab09769835ece8935c5d4f8c7d0",
+      "git_blob_sha256": "491ee1231456d6b2b70b58b8817282476a734ab09769835ece8935c5d4f8c7d0"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-unit-result.json": {
+      "raw_sha256": "2135f6599780f2d586bca7ed69815cf0d40d2b7e03e06662f6be0165ae26621f",
+      "git_blob_sha256": "2135f6599780f2d586bca7ed69815cf0d40d2b7e03e06662f6be0165ae26621f"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-unit.txt": {
+      "raw_sha256": "840f83496c10575de2ac36602d98aebb7f91aec3e51ea8be57c77db6ee04c700",
+      "git_blob_sha256": "8eb7bca280d09a46ab0a167eb4f4181a3bc53fcc132190df57bc7e284989528a"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-reference.json": {
+      "raw_sha256": "1845a3c7a62c274b9fff958acbb4c1acb38dfe52fdbbd534f361e252d772e9ba",
+      "git_blob_sha256": "1845a3c7a62c274b9fff958acbb4c1acb38dfe52fdbbd534f361e252d772e9ba"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-result.json": {
+      "raw_sha256": "32d3b14e55ec17b7e88d357123eeb3a5ebacb6c337f69b90c9f0149cae3f9ca8",
+      "git_blob_sha256": "32d3b14e55ec17b7e88d357123eeb3a5ebacb6c337f69b90c9f0149cae3f9ca8"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-source.patch": {
+      "raw_sha256": "68c1de3d3d3fc07f032d49d7071363b59340abc70a3a664e269b6ecff8d778d7",
+      "git_blob_sha256": "68c1de3d3d3fc07f032d49d7071363b59340abc70a3a664e269b6ecff8d778d7"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-test.txt": {
+      "raw_sha256": "2c898e83e1e3ea6b7cac35d86e1ef2777d01cb96b255c9639af41888803ab539",
+      "git_blob_sha256": "b186e8711198f0b80f322f333ff6bb0936fb27870c5562d7528d5f7477ceaedb"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-sdk-transport-final.txt": {
+      "raw_sha256": "0a14d69ce26f04943371b836da6fc50acacc0e3c27b97287696395f1324958f1",
+      "git_blob_sha256": "bb1981a14aece6fbdeff4759fa2059cdb217207ac6d6f0fa0eaa800d0b5de30a"
+    },
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-sdk-transport-green.txt": {
+      "raw_sha256": "b5b6513f5bd84b306cefae5df99a060fe6b1941692bdf2f71e9c1df1f2351ff6",
+      "git_blob_sha256": "e6063d658145a21e80eae7045d8b782ae8ceef15b55e650fd0efaa2c8bd7af1b"
+    },
+    "docs/api/simulated-auto-trading.md": {
+      "raw_sha256": "dd8158c82f22c900ff33d53c32aca31c17cea30ce5bbbdd9dc3c5b05181ff7d9",
+      "git_blob_sha256": "dd8158c82f22c900ff33d53c32aca31c17cea30ce5bbbdd9dc3c5b05181ff7d9"
+    },
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": {
+      "raw_sha256": "d0e9e1f7dc03e7502b95b5a88f91bb156a23ce03800b6e297347af204fc839cc",
+      "git_blob_sha256": "d0e9e1f7dc03e7502b95b5a88f91bb156a23ce03800b6e297347af204fc839cc"
+    },
+    "docs/testing/a-share-usability-mcp-auto-trading-scope-2026-10-17.json": {
+      "raw_sha256": "8e163d32a282436d1e9d02d6c1f5ee375b7b9db7ad3b356e46d5a4536dd74ff3",
+      "git_blob_sha256": "8e163d32a282436d1e9d02d6c1f5ee375b7b9db7ad3b356e46d5a4536dd74ff3"
+    },
+    "governance/active_plan_registry.json": {
+      "raw_sha256": "157d8bcccc7796c8377836b172cd6ffc1c6ff6350ea90de96551f2ba7fb68b1b",
+      "git_blob_sha256": "5a0f8eff03618e6c52a730f08e416a4ad2fb71ccf8474634fbe55d3b74b572f0"
+    },
+    "sdk/agomtradepro/modules/simulated_trading.py": {
+      "raw_sha256": "a8513b235e6c60ac76c573b7c1a43f5fe7583aaaa93384a11b9afe6bb56e8a4b",
+      "git_blob_sha256": "ff6cc9da43ee73499cf020f22210ebdd3894f424e94f851c09e60b2cb1843516"
+    },
+    "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py": {
+      "raw_sha256": "3b361e8aa035e17392226bbf2c43122d83689fd6c3c7bdf0fcf8742dea6634a4",
+      "git_blob_sha256": "1a4885c7ff0b26fb88054e7986bf6ddc87aa64d90861ad2f4c9d7f1c8ff32723"
+    },
+    "sdk/tests/test_mcp/test_core_registry_owner_simulated_auto_trading_scope.py": {
+      "raw_sha256": "9cd5880cba431b0eef603f8f1ca8f6d02ccb435aa8d6a092acd7f756405603a7",
+      "git_blob_sha256": "9cd5880cba431b0eef603f8f1ca8f6d02ccb435aa8d6a092acd7f756405603a7"
+    }
+  },
+  "only_registry_is_intentionally_partially_staged": true,
+  "concurrent_registry_isolation": {
+    "foreign_registry_before_canonical_sha256": "23ac0144c23daf6028ec3f23a6e2c8df08f88bde78c37a43cdc17d714e27422f",
+    "staged_version": "2026-10-17.v242",
+    "working_version": "2026-10-17.v242",
+    "only_own_ash_next_gate_and_version_staged": true,
+    "all_other_foreign_registry_fields_preserved_unstaged": true
+  },
+  "exact_immutable_evidence_whitespace_exceptions": [
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-empty-red.txt",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-final.txt",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source.patch"
+  ],
+  "source_test_document_exceptions": [],
+  "open_own_size_regressions": [
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "actual_nonempty": 1325,
+      "limit": 1200,
+      "introduced_by_own_previous_batch": true,
+      "next": "Responsibility split, never raise baseline.",
+      "before_previous_batch_nonempty": 907
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
+      "before_previous_batch_nonempty": 1199,
+      "actual_nonempty": 1319,
+      "limit": 1200,
+      "introduced_by_own_previous_batch": true,
+      "next": "Separate pure validation/result construction from Celery entry; never raise baseline."
+    }
+  ],
+  "active_plan_exit": 0
+}

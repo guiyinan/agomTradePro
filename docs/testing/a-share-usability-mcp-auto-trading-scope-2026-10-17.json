@@ -1,0 +1,195 @@
+{
+  "status": "accepted_bounded_scope_fix_with_open_own_engine_size_regression",
+  "reference": {
+    "base_commit": "c43a23d1460640ef503c4442f6f8e4815c3aa2de",
+    "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-mcp-auto-scope-m9fwrt50",
+    "production": [
+      "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py",
+      "sdk/agomtradepro/modules/simulated_trading.py"
+    ],
+    "test": "sdk/tests/test_mcp/test_core_registry_owner_simulated_auto_trading_scope.py",
+    "source_sha256": {
+      "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py": "cbeb90cd2cf37cd2d7a9257ad05ccd0f0c10bff6c7659fb53dbd28c1f2bed9d4",
+      "sdk/agomtradepro/modules/simulated_trading.py": "d59dd2f86d703b3ea02266e59612bfcb5a05aa98fd0d3b15b39c16f31c920ebd",
+      "sdk/tests/test_mcp/test_core_registry_owner_simulated_auto_trading_scope.py": "84686689bfac2d76ae60d4fe276ae4d2e40e6e01068279256fdad6c7623fe77f"
+    },
+    "qualification": "MCP schema/confirmation/owner and real SDK serialization against mock transport; no HTTP server/database/provider/broker.",
+    "release_ci_s6_identity": false
+  },
+  "gates": {
+    "style": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0
+      },
+      "changed_during_run": []
+    },
+    "unit": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "unit": 0
+      },
+      "changed_during_run": []
+    },
+    "typing": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "changed_during_run": []
+    },
+    "client-regression": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "sdk-client": 0,
+        "terminal-agent": 0
+      },
+      "changed_during_run": []
+    },
+    "original-probe": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "original-probe": 0
+      },
+      "changed_during_run": []
+    },
+    "boundaries": {
+      "source_tree": "8ccd302a9610b58741417ffbd87297a57543f55b",
+      "exit": 0,
+      "results": {
+        "module-map": 0
+      },
+      "changed_during_run": []
+    }
+  },
+  "tests": {
+    "unit": 210,
+    "sdk-client": 23,
+    "terminal-agent": 20,
+    "original-probe": 1
+  },
+  "source_reconstruction": [
+    {
+      "path": "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-source.patch",
+      "raw_sha256": "68c1de3d3d3fc07f032d49d7071363b59340abc70a3a664e269b6ecff8d778d7",
+      "reconstructed_tree": "2408302bd67918b1e0f832ef8893a26e4eb85573"
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source.patch",
+      "raw_sha256": "b3b9d3cdbc1df9aca66d89b215f031bca8c95a5fac6c0bb226adf07c670f8314",
+      "reconstructed_tree": "8ccd302a9610b58741417ffbd87297a57543f55b"
+    }
+  ],
+  "boundary_proof": {
+    "changed_functions": {
+      "sdk/agomtradepro_mcp/registry/runtime_handlers/owners/simulated_trading.py": [
+        "_internal_handler_trading_start_simulated_auto_trading"
+      ],
+      "sdk/agomtradepro/modules/simulated_trading.py": [
+        "SimulatedTradingModule.run_auto_trading"
+      ]
+    },
+    "all_other_function_sources_identical_to_base": true,
+    "module_imports_unchanged": true,
+    "fully_annotated_changed_functions": true,
+    "new_app_modules_or_models_or_routes": []
+  },
+  "concurrent_registry_isolation": {
+    "foreign_registry_before_canonical_sha256": "23ac0144c23daf6028ec3f23a6e2c8df08f88bde78c37a43cdc17d714e27422f",
+    "staged_version": "2026-10-17.v242",
+    "working_version": "2026-10-17.v242",
+    "only_own_ash_next_gate_and_version_staged": true,
+    "all_other_foreign_registry_fields_preserved_unstaged": true
+  },
+  "raw_artifact_sha256": {
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-author-original-probe.txt": "96b059450d6e5914446e816937addfe28c50877c89371053dba403ba0195d442",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-author-original-red.txt": "ec8e39bda3055741295a4abfdc8e55cd0c5bff33d601fd8634dac58642ba73cf",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-empty-green.txt": "903b0d318b59f6e1aba1161ab4550fecc3b9391cc38333ab12cc7d68a94fa471",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-empty-red.txt": "ab6b1305266369e53920997e3e0599615ef1acfabb411367105ece020d2a8638",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-final.txt": "5fc297ad2876407052d46f14e58e621702865b7f7edb8d0f4c989a4156aab78b",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-active-plan-check.txt": "6aed39ef5084771fa09c7eeb1161ffcf0c9d0b8fd92ad7c3f7df324d7260d09c",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-black.txt": "6f7ebbc8cc848fa9b33359195019982780952a243bd64a04db36c2e3ab393061",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-boundaries-result.json": "853b115121ee86523b188705f206f01dc7c2734c5b7c4b6870a6728be7c6c8e4",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-boundaries.json": "9d76e55198a5ee59bbed764d5456693ffb75d29d2a907f0d0b3299e8c682bf6b",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-client-regression-result.json": "25cc07923a8d9ec114fcccd17efa772250c251b04faf213ccf349db055f52a65",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-full-mypy.txt": "57a29ea7f03752f7b6faddb6f87b3e3b9149178f182d452dc89a2bb1df866ca7",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-incremental-mypy.txt": "849683ee3c335300791f8d5581229c16451f2c38ca028c31f8de3004b7cc0b1c",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-isort.txt": "d6e00e966319e2e77f2f9a6b45786d1eeceace14df5b46038ec4e60d231b3879",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-module-map.txt": "fa64a705ca979e44b73613c4c72424767291c574b26359a33dbc2fbbabefa514",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe-binding.json": "17a4b0fe79922a0baa91251c04fd925690a75cbd4f45cbb24dcd227518bf6388",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe-result.json": "ef467a0884844e1817c85d5826bb8d18ba7e7230c7616c51514a7d99d4b40df1",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-original-probe.txt": "df46ce18485cbe4c017bddb401c5616194ca6cef90d11615829c0afbf5f2c19b",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-reference.json": "07cbeb2d84c99f61c99430ffa4febd94ad765860b1872c4d4a5f96c2fac58e13",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-ruff.txt": "02cdb18e2216aa86162d98750dc7b5de435e6bed06c035b601ac1c94caa8c392",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-sdk-client.txt": "689325d3f7c58882ae65b590b726416f560f5ab6898140a8d1baa8028ec2b080",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source-reconstruction.json": "cadafb1c347b1d6610ccb0edf7cd315b3e855ccd2d118b00ee886b61c95dcd62",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-source.patch": "b3b9d3cdbc1df9aca66d89b215f031bca8c95a5fac6c0bb226adf07c670f8314",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-style-result.json": "335279d41436ff55bb449d9f911f756707b76dcb08c7f60b046e0e20f1799919",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-terminal-agent.txt": "0dbef0a895ad1515b5bb1852b84289dc4d51fb1702c3048361d6cac17bb6d57f",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-typing-result.json": "491ee1231456d6b2b70b58b8817282476a734ab09769835ece8935c5d4f8c7d0",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-unit-result.json": "2135f6599780f2d586bca7ed69815cf0d40d2b7e03e06662f6be0165ae26621f",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-1-unit.txt": "840f83496c10575de2ac36602d98aebb7f91aec3e51ea8be57c77db6ee04c700",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-reference.json": "1845a3c7a62c274b9fff958acbb4c1acb38dfe52fdbbd534f361e252d772e9ba",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-result.json": "32d3b14e55ec17b7e88d357123eeb3a5ebacb6c337f69b90c9f0149cae3f9ca8",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-source.patch": "68c1de3d3d3fc07f032d49d7071363b59340abc70a3a664e269b6ecff8d778d7",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-root-red-1-test.txt": "2c898e83e1e3ea6b7cac35d86e1ef2777d01cb96b255c9639af41888803ab539",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-sdk-transport-final.txt": "0a14d69ce26f04943371b836da6fc50acacc0e3c27b97287696395f1324958f1",
+    "artifacts/a-share-usability/ash03/mcp-auto-scope-sdk-transport-green.txt": "b5b6513f5bd84b306cefae5df99a060fe6b1941692bdf2f71e9c1df1f2351ff6"
+  },
+  "type_scope": {
+    "incremental": "Both changed SDK production files.",
+    "full_debt_default_targets": [
+      "apps",
+      "core",
+      "shared"
+    ]
+  },
+  "not_repeated": [
+    "TUI workbench355 and internal SSL6 passed in preceding batch; no TUI schema/HTTPS/API change here.",
+    "Native database tests; no database-facing production change."
+  ],
+  "open_quality_regressions": [
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "actual_nonempty": 1325,
+      "limit": 1200,
+      "introduced_by_own_previous_batch": true,
+      "next": "Responsibility split, never raise baseline.",
+      "before_previous_batch_nonempty": 907
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
+      "before_previous_batch_nonempty": 1199,
+      "actual_nonempty": 1319,
+      "limit": 1200,
+      "introduced_by_own_previous_batch": true,
+      "next": "Separate pure validation/result construction from Celery entry; never raise baseline."
+    }
+  ],
+  "all_repository_gates_passed": false,
+  "retirement_failures": {
+    "known_open": 9,
+    "rerun_here": false
+  },
+  "unresolved": [
+    "Default MCP preview pagination/eligibility/confirmation scope binding.",
+    "Imported actual fee missing vs zero.",
+    "Ordinary settlement/T+1/odd-lot/idempotency/lock-time owner.",
+    "Source purpose, PIT and full A-share Goal."
+  ],
+  "qualification": {
+    "real_http_or_database": false,
+    "real_provider_or_broker": false,
+    "release_ci_s6_identity": false
+  },
+  "warnings_preserved": "Existing SDK Filter sunset and Django transitional-setting deprecation warnings."
+}

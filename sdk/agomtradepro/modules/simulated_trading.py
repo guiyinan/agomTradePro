@@ -364,7 +364,12 @@ class SimulatedTradingModule(BaseModule):
 
         Args:
             trade_date: 交易日期，None 表示今天
-            account_ids: 指定账户列表，None 表示全部活跃且启用自动交易账户
+            account_ids: 指定本人适格模拟账户；None 由服务端选择本人活跃且
+                启用自动交易的模拟账户，[] 表示空范围，不执行交易。
+
+        Returns:
+            服务端原始业务结果；以 outcome 判断 success/partial/noop/blocked/failed。
+            confirmed_trade_count 保留已确认成交，stored 为 None 表示写入数量不明。
         """
         data: dict[str, Any] = {}
         if trade_date is not None:

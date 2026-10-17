@@ -1,0 +1,97 @@
+import importlib
+import json
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+SDK_PATH = Path(__file__).resolve().parents[1] / "sdk"
+sys.path.insert(0, str(SDK_PATH))
+
+
+def test_explicit_empty_account_scope_reaches_fallback_unchanged(monkeypatch):
+    """Exercise the real governed preview/resume path without DB or HTTP calls."""
+    import agomtradepro
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS", "false")
+    server_module = importlib.reload(server_module)
+    dispatcher = server_module.CORE_DISPATCHER
+    dispatcher._role_provider = lambda: "staff"
+    dispatcher._audit_logger = SimpleNamespace(
+        log_governed_capability_event=lambda **_kwargs: "probe-audit"
+    )
+
+    schema = dispatcher.get_schema("trading.start.simulated_auto_trading")
+    account_ids_schema = schema["input_schema"]["properties"]["account_ids"]
+    assert account_ids_schema == {"type": "array", "items": {"type": "integer"}}
+
+    listed_accounts = []
+    captured_fallbacks = []
+
+    def list_accounts(*, status=None, account_type=None, limit=100):
+        listed_accounts.append((status, account_type, limit))
+        return [
+            {"id": 7, "name": "Sim A", "status": status, "account_type": account_type},
+            {"id": 8, "name": "Sim B", "status": status, "account_type": account_type},
+        ]
+
+    fake_client = SimpleNamespace(
+        simulated_trading=SimpleNamespace(list_accounts=list_accounts)
+    )
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", lambda: fake_client)
+
+    def fallback(**kwargs):
+        captured_fallbacks.append(dict(kwargs))
+        return {
+            "success": True,
+            "trade_date": kwargs["trade_date"],
+            "account_ids": kwargs["account_ids"],
+            "message": "isolated fallback reached",
+        }
+
+    monkeypatch.setitem(
+        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
+        "run_simulated_auto_trading",
+        fallback,
+    )
+
+    preview = dispatcher.call(
+        capability_key="trading.start.simulated_auto_trading",
+        arguments={
+            "trade_date": "2026-10-17",
+            "account_ids": [],
+            "idempotency_key": "mcp-auto-scope-empty-probe",
+        },
+    )
+    assert preview["status"] == "confirmation_required"
+    preview_result = preview["preview_result"]
+    assert preview_result["account_scope_summary"]["requested_account_count"] == 0
+    assert preview_result["account_scope_summary"]["resolved_account_count"] == 2
+    assert preview_result["account_ids"] is None
+
+    committed = dispatcher.resume_confirmation(
+        confirmation_token=preview["confirmation_token"],
+        approve=True,
+    )
+    assert committed["status"] == "completed"
+    assert listed_accounts == [("active", "simulated", 100)]
+    assert len(captured_fallbacks) == 1
+    observed = captured_fallbacks[0]["account_ids"]
+    print(
+        "MCP_AUTO_SCOPE_PROBE="
+        + json.dumps(
+            {
+                "schema_accepts_empty_array": True,
+                "preview_requested_account_count": preview_result["account_scope_summary"]["requested_account_count"],
+                "preview_resolved_account_count": preview_result["account_scope_summary"]["resolved_account_count"],
+                "preview_account_ids": preview_result["account_ids"],
+                "resume_status": committed["status"],
+                "fallback_account_ids": observed,
+            },
+            sort_keys=True,
+        )
+    )
+    assert observed == [], "explicit empty account_ids unexpectedly expanded to default scope"
