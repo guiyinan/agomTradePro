@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v242",
+  "version": "2026-10-17.v243",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -309,8 +309,8 @@
       "category": "product_interface_and_runtime",
       "priority": "P1",
       "owner": "terminal",
-      "status": "production_validation",
-      "next_gate": "Previously completed usability units remain completed. TUI-02 current candidate/window drift is verified on 2026-09-20; do not inherit the 2026-09-16 first sample or 2026-09-30 eligible instant. Official candidate and retained-source rebind, a real 14-day window and all current-candidate UAT/defect/telemetry/backup/review/approval gates are required. Readiness remains DENY and no A/B Classic template may be removed. Evidence: docs/deployment/production-closure-baseline-revalidation-2026-09-20.json; execution record: docs/reviews/production-closure-2026-09-20.md Current-candidate retained source read-only query returned HTTP 401 on 2026-09-20; no accepted first sample or new eligibility instant. Restore governed protected-query authentication and prove HTTP 200 plus real candidate-bound source before official rebind. Evidence: docs/deployment/production-closure-retained-source-denial-2026-09-20.json",
+      "status": "active",
+      "next_gate": "TUX-06 planning/real-capability/concurrency contract is completed with evidence in docs/testing/tui-task-first-2026-10-17/planning-baseline.json. TUX-07 production mode-shell remains planned until A-share engine/task size remediation exits and an explicit sole-focus handoff is recorded; the preceding MCP slice is committed as 581bcb337e721657d956b7370aeec7a3ac0c63cb. TUX-08 research must publish the existing equity snapshot owner action without inventing narratives or falsification; TUX-09 cannot treat portfolio statistics as verified risk/freshness. Preserve ASH business ownership, prior completed TUX units, raw/confirmation/continuation authority and all TUI-02 production restrictions.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -318,6 +318,10 @@
         },
         {
           "path": "docs/plans/tui-speed-pagination-remediation-2026-09-08.md",
+          "role": "supporting"
+        },
+        {
+          "path": "docs/plans/tui-task-first-experience-plan-2026-10-17.md",
           "role": "supporting"
         }
       ]
@@ -389,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-16.v65",
+    "version": "2026-10-17.v67",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1817,6 +1821,69 @@
             "The broker supplies working target XtQuant permissions and environment; genuine account/strategy owners and required reviewers accept the scoped live and recovery outcomes under the existing QMT process."
           ]
         }
+      },
+      {
+        "id": "TUX-06",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "governance",
+        "status": "completed",
+        "title": "Freeze task-first TUI product, capability and parallel-work contracts",
+        "depends_on": [],
+        "exit_gate": "User authorization is recorded; task/professional/diagnostic boundaries, real owner capability inventory, exact first-slice paths and acceptance cases are documented and reviewed. Four bounded successor phases are registered without stealing ASH-02 focus; shared Git, generation and test windows have an explicit handoff protocol. Plan, registry and document links pass. No implementation, human usability or production acceptance is claimed."
+      },
+      {
+        "id": "TUX-07",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Add task-first home and reversible professional-mode navigation",
+        "depends_on": [
+          "TUX-06"
+        ],
+        "exit_gate": "Validated metadata and one shared runtime expose default task home, task/professional navigation and separately authorized diagnostics. Existing screen/action deep links, keyboard navigation, permission filtering, safe state restoration, confirmation and retry contracts survive. Mode switches trigger no AI or mutation. Frozen-source contract, frontend and actual-browser journeys pass with scoped generation and rollback evidence."
+      },
+      {
+        "id": "TUX-08",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Deliver a bounded single-asset research task using real owner services",
+        "depends_on": [
+          "TUX-07"
+        ],
+        "exit_gate": "A user resolves an unambiguous supported asset and obtains a coherent research result from existing owner capabilities without mandatory provider setup or paid AI. Source observation/cutoff, reliability, missing components, contrary evidence and supported invalidation conditions remain visible; unsupported analysis is identified. Evidence expansion and professional return preserve context. Empty, stale, partial, forbidden, failed and retry cases pass contract and real-browser validation."
+      },
+      {
+        "id": "TUX-09",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Connect today-focus and portfolio checks to canonical workspaces",
+        "depends_on": [
+          "TUX-08"
+        ],
+        "exit_gate": "Task home opens scoped today-focus and a selected authorized portfolio check with meaningful outputs and actionable missing-data/account states. Canonical A-share/portfolio services and ASH-08 workspaces are reused without a parallel rebalance or financial-rule implementation; absent capabilities remain restricted. Normal, empty, partial and cross-account browser/contracts pass without implicit model calls, trades, imports or provider writes."
+      },
+      {
+        "id": "TUX-10",
+        "workstream_id": "tui-usability-governance",
+        "wave": 5,
+        "priority": "P1",
+        "execution_mode": "repository",
+        "status": "planned",
+        "title": "Accept integrated task/professional TUI repository journeys and handoff",
+        "depends_on": [
+          "TUX-09"
+        ],
+        "exit_gate": "One frozen integrated source binds metadata/runtime build, focused type/architecture/governance and frontend checks plus ordinary/admin task/professional, deep-link/history, revocation, partial failure, retry and mobile/keyboard browser journeys. Remaining ASH dependencies, real-user five-person study and production gates are explicit rather than claimed passed. Rollback and per-phase commits are recorded; no deployment, live trading or paid AI is implied."
       }
     ]
   }

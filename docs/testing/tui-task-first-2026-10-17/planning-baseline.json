@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "checkpoint": "TUX-06 preparation baseline",
+  "date": "2026-10-17",
+  "timezone": "Asia/Shanghai",
+  "head_at_capture": "c43a23d1460640ef503c4442f6f8e4815c3aa2de",
+  "scope": "Read-only pre-implementation source review and existing harness baseline; no production TUI change or new-experience acceptance.",
+  "checks": [
+    {
+      "command": "npm run test:tui-js",
+      "exit_code": 0,
+      "passed": 92,
+      "scope": "Existing Node and Playwright synthetic-service harness."
+    },
+    {
+      "command": "agomtradepro/Scripts/python.exe -X utf8 -m pytest tests/unit/test_active_plan_registry.py -q",
+      "exit_code": 0,
+      "passed": 8
+    },
+    {
+      "command": "python -X utf8 scripts/check_doc_route_sdk_consistency.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python -X utf8 scripts/check_governance_consistency.py",
+      "exit_code": 1,
+      "known_violations": 9,
+      "category": "large_python_file_missing_baseline",
+      "scope": "Existing production files outside this planning slice; no baseline changes."
+    }
+  ],
+  "logs": [
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/node-baseline.txt",
+      "sha256": "47599b852e178ec1561b049317649b30636bcf506980d0b931c82f737105e3b2"
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/registry-tests.txt",
+      "sha256": "03cb0a2810e11beef539a844cae622d3104ed2ead6adcb76da4c9e7a03a47058"
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/doc-route-sdk.txt",
+      "sha256": "d79b4fffcb7ce4cb55406e26a258d0ca98dccd79c3e9b9109cbb0c680d4f90b7"
+    },
+    {
+      "path": "docs/testing/tui-task-first-2026-10-17/governance.txt",
+      "sha256": "dc55544c894b2e5ee27d53359293894cc513c68e0a64ea7174d97ba118832d93"
+    }
+  ],
+  "reviewed_sources": [
+    {
+      "path": "config/tui/ia/tui_information_architecture.v1.json",
+      "sha256": "b3fba6d31415bbfb234ebb3363a631c7a4192648233e26568b81a55714366cd2"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench.py",
+      "sha256": "13e8dc885a1cfaef06ebf3adc5977461cc7f665635198521d6886484837fe669"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_catalog.py",
+      "sha256": "4a4a9a16157a8091cf200a5bd5ce68df4a6d5b6b271ec4c387a436355c83d4f5"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_execution.py",
+      "sha256": "11aa3545904712209fbb8bf2118bbffedcf31009d37fff723bdcf2e590b15802"
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_information_architecture.py",
+      "sha256": "ebc55b6c264fcf6cc817e5d3c808c0ae288a4568d3916e4148c199b08f831e04"
+    },
+    {
+      "path": "core/templates/terminal/tui_workbench.html",
+      "sha256": "3380d9139befb9058e8140bee800aa89d6dba7b892f9b0ae2b139a2b31ed2736"
+    },
+    {
+      "path": "frontend/tui-workbench/src/00-runtime.js",
+      "sha256": "66c68b6e328bcb7cad7487152883ffc4ce284360ff752d637ea2ff25468579dc"
+    },
+    {
+      "path": "frontend/tui-workbench/src/10-navigation.js",
+      "sha256": "8edc871debd9898c36e60ef7ef130773db6a63357d48676c29ff37e871061272"
+    },
+    {
+      "path": "frontend/tui-workbench/src/50-shell.js",
+      "sha256": "64d4a59add7f821f8b31d23d917e0c50f65955fb8b7c905ccd3679a9fb5a77c5"
+    },
+    {
+      "path": "frontend/agomtradepro-host/src/index.js",
+      "sha256": "04023790671b1ca43cd4ba96d8acc0b87fc877045ed50d1358e2b499d8537dfe"
+    },
+    {
+      "path": "apps/equity/application/research_snapshot.py",
+      "sha256": "368519c7dce48c17517125f25def3d6c1f1dfc8a503c0938a927273daa334ba0"
+    },
+    {
+      "path": "apps/equity/interface/research_snapshot_views.py",
+      "sha256": "f0d9ae659e83c8096217791d9609ddf0ada2a428c54ab2f1a9cf376ed61e6fc2"
+    },
+    {
+      "path": "apps/equity/research_snapshot_composition.py",
+      "sha256": "4ea242d0807a315730e43daff0c7cba456f6910c6d9d59e8885a09dd08434801"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_services.py",
+      "sha256": "f283afab2dd25a047f07802b81775d86ee835ae525d2fb560b5fa2bfc9954883"
+    }
+  ],
+  "limits": [
+    "No new mode implementation accepted.",
+    "No real-user usability study.",
+    "No real provider, production, deployment, trading or paid AI validation.",
+    "Global governance remains failed on nine recorded production file-size violations."
+  ],
+  "planning_contract_review": {
+    "worker_model": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "parent_review": "Accepted source audit and bounded first-slice paths; no production TUI implementation accepted.",
+    "concurrent_chat": "01a14268-4d88-75e2-812a-fdbdd60b1b24",
+    "preceding_mcp_commit": "581bcb337e721657d956b7370aeec7a3ac0c63cb",
+    "handoff": "MCP commit -> TUI governance -> A-share engine/task size remediation -> sole TUX-07 integration focus -> ASH-02 return."
+  },
+  "static_prototype": {
+    "source": "docs/testing/tui-task-first-2026-10-17/prototype.html",
+    "source_sha256": "5e02eed32dbf511cc35210986823f6d9ad4dc9bf67227efd58134b900bd819d3",
+    "report": "docs/testing/tui-task-first-2026-10-17/prototype-review.json",
+    "scope": "Two viewport interaction checks; synthetic static artifact, not production/new-user acceptance."
+  }
+}

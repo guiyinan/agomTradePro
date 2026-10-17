@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AgomTradePro TUI task-first static interaction prototype">
+  <title>TUI Task First · Static Prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-deep: #050b14;
+      --panel: #0e1b2d;
+      --panel-2: #12243a;
+      --panel-3: #172b45;
+      --line: #27415f;
+      --line-soft: rgba(119, 153, 187, .18);
+      --text: #e8f0f8;
+      --muted: #9bb1c7;
+      --subtle: #6c849b;
+      --accent: #6dd6c2;
+      --accent-strong: #9af1de;
+      --accent-ink: #062b2b;
+      --amber: #f5c477;
+      --red: #f08d91;
+      --blue: #84b8ff;
+      --shadow: 0 18px 45px rgba(0, 0, 0, .24);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-width: 320px; background: var(--bg-deep); }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 82% -12%, rgba(63, 125, 162, .18), transparent 34rem),
+        radial-gradient(circle at 4% 0%, rgba(46, 125, 113, .12), transparent 30rem),
+        var(--bg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--accent-strong);
+      outline-offset: 3px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .topbar {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(5, 11, 20, .82);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand-lockup,
+    .topbar-right,
+    .mode-switch,
+    .status-row,
+    .card-actions,
+    .shortcut-row,
+    .nav-title-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-lockup { gap: 12px; min-width: 0; }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--accent-ink);
+      background: var(--accent);
+      border-radius: 9px;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 0 0 4px rgba(109, 214, 194, .11);
+    }
+
+    .brand-name { font-weight: 800; letter-spacing: .04em; }
+    .brand-subtitle { color: var(--subtle); font-size: 11px; margin-top: 1px; }
+
+    .topbar-right { gap: 18px; }
+
+    .local-badge,
+    .example-badge,
+    .availability-badge,
+    .state-badge,
+    .mode-badge,
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: var(--muted);
+      background: rgba(18, 36, 58, .7);
+      font-size: 11px;
+    }
+
+    .local-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px rgba(109, 214, 194, .7);
+    }
+
+    .example-badge { color: var(--amber); border-color: rgba(245, 196, 119, .36); }
+    .availability-badge.available { color: var(--accent-strong); border-color: rgba(109, 214, 194, .4); }
+    .availability-badge.unavailable { color: var(--amber); border-color: rgba(245, 196, 119, .36); }
+    .state-badge { color: var(--blue); border-color: rgba(132, 184, 255, .34); }
+    .mode-badge { color: var(--accent-strong); border-color: rgba(109, 214, 194, .34); }
+    .tool-badge { color: var(--subtle); }
+
+    .mode-switch {
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(14, 27, 45, .8);
+    }
+
+    .mode-button,
+    .rail-button,
+    .primary-button,
+    .quiet-button,
+    .link-button,
+    .tool-button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease;
+    }
+
+    .mode-button {
+      padding: 6px 11px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .mode-button:hover,
+    .mode-button[aria-pressed="true"] {
+      color: var(--text);
+      border-color: var(--line);
+      background: var(--panel-3);
+    }
+
+    .mode-button[aria-pressed="true"] { color: var(--accent-strong); }
+
+    .layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+    }
+
+    .layout.rail-collapsed { grid-template-columns: 70px minmax(0, 1fr); }
+
+    .rail {
+      min-width: 0;
+      padding: 20px 14px;
+      border-right: 1px solid var(--line-soft);
+      background: rgba(8, 18, 31, .72);
+      overflow: hidden;
+    }
+
+    .rail-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 4px 22px;
+    }
+
+    .rail-heading { color: var(--subtle); font-size: 11px; letter-spacing: .11em; text-transform: uppercase; }
+
+    .rail-toggle {
+      width: 30px;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--muted);
+      background: var(--panel);
+      cursor: pointer;
+    }
+
+    .rail-group { margin-bottom: 23px; }
+    .rail-group-label { margin: 0 9px 8px; color: var(--subtle); font-size: 11px; }
+
+    .rail-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4px 0;
+      padding: 9px 10px;
+      color: var(--muted);
+      background: transparent;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .rail-button:hover,
+    .rail-button.active {
+      color: var(--text);
+      border-color: var(--line);
+      background: var(--panel-2);
+    }
+
+    .rail-button.active { box-shadow: inset 3px 0 0 var(--accent); }
+
+    .rail-icon {
+      width: 22px;
+      color: var(--accent);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .rail-button small { margin-left: auto; color: var(--subtle); font-size: 10px; }
+
+    .rail-unavailable {
+      color: var(--subtle);
+      opacity: .85;
+      cursor: not-allowed;
+    }
+
+    .rail-unavailable .rail-icon { color: var(--amber); }
+
+    .layout.rail-collapsed .rail-heading,
+    .layout.rail-collapsed .rail-group-label,
+    .layout.rail-collapsed .rail-button span:not(.rail-icon),
+    .layout.rail-collapsed .rail-button small { display: none; }
+
+    .layout.rail-collapsed .rail-top { justify-content: center; }
+    .layout.rail-collapsed .rail-button { justify-content: center; padding-inline: 0; }
+    .layout.rail-collapsed .rail-button.active { box-shadow: inset 0 0 0 1px var(--accent); }
+
+    .main {
+      min-width: 0;
+      padding: 28px clamp(18px, 4vw, 58px) 44px;
+      overflow: auto;
+    }
+
+    .content-wrap { width: min(1180px, 100%); margin: 0 auto; }
+
+    .page-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font-size: clamp(24px, 4vw, 38px); line-height: 1.16; letter-spacing: -.045em; }
+    h2 { margin-bottom: 7px; font-size: 19px; letter-spacing: -.025em; }
+    h3 { margin-bottom: 7px; font-size: 15px; }
+    .lead { max-width: 720px; margin-bottom: 0; color: var(--muted); }
+    .heading-status { flex: 0 0 auto; padding-top: 8px; text-align: right; }
+    .heading-status .status-row { justify-content: flex-end; gap: 7px; margin-bottom: 7px; }
+    .small-note { color: var(--subtle); font-size: 11px; }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 30px 0 12px;
+      color: var(--subtle);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .section-label::after { content: ""; height: 1px; flex: 1; background: var(--line-soft); }
+
+    .task-grid,
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .task-card,
+    .resume-card,
+    .capability-card,
+    .navigation-card,
+    .protocol-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(155deg, rgba(23, 43, 69, .95), rgba(11, 23, 39, .96));
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+    }
+
+    .task-card {
+      min-height: 235px;
+      display: flex;
+      flex-direction: column;
+      padding: 17px;
+    }
+
+    .task-card:hover,
+    .navigation-card:hover,
+    .resume-card:hover { border-color: rgba(109, 214, 194, .6); transform: translateY(-1px); }
+
+    .card-top,
+    .nav-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .task-index {
+      display: inline-grid;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border: 1px solid rgba(109, 214, 194, .44);
+      border-radius: 8px;
+      color: var(--accent-strong);
+      background: rgba(109, 214, 194, .09);
+      font-weight: 800;
+    }
+
+    .card-description { min-height: 50px; margin-bottom: 18px; color: var(--muted); font-size: 13px; }
+    .card-detail { margin-top: auto; color: var(--subtle); font-size: 11px; }
+
+    .card-actions { gap: 8px; margin-top: 14px; }
+
+    .primary-button,
+    .quiet-button,
+    .link-button,
+    .tool-button {
+      padding: 8px 11px;
+      font-size: 12px;
+    }
+
+    .primary-button {
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      background: var(--accent);
+      font-weight: 800;
+    }
+
+    .primary-button:hover { background: var(--accent-strong); }
+    .quiet-button { color: var(--muted); border-color: var(--line); background: rgba(14, 27, 45, .75); }
+    .quiet-button:hover, .link-button:hover { color: var(--text); border-color: var(--accent); }
+    .link-button { padding: 4px 0; color: var(--accent-strong); background: transparent; }
+    .tool-button { color: var(--subtle); border-color: var(--line); background: rgba(14, 27, 45, .6); cursor: not-allowed; }
+
+    .resume-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 17px;
+      padding: 16px 18px;
+    }
+
+    .resume-icon {
+      width: 39px;
+      height: 39px;
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      border: 1px solid rgba(132, 184, 255, .35);
+      border-radius: 11px;
+      background: rgba(132, 184, 255, .09);
+      font-weight: 900;
+    }
+
+    .resume-card h3 { margin-bottom: 3px; }
+    .resume-card p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+
+    .capability-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      padding: 16px 18px;
+      background: rgba(12, 25, 42, .78);
+    }
+
+    .capability-title { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+    .capability-card p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+
+    .professional-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin-bottom: 20px;
+      padding: 12px 14px;
+      border: 1px solid rgba(132, 184, 255, .28);
+      border-radius: 10px;
+      color: var(--muted);
+      background: rgba(132, 184, 255, .07);
+      font-size: 12px;
+    }
+
+    .professional-note strong { color: var(--blue); }
+
+    .navigation-card {
+      min-height: 170px;
+      padding: 16px;
+    }
+
+    .nav-card-top { margin-bottom: 14px; }
+    .nav-card-top h3 { margin-bottom: 2px; }
+    .nav-card-key { color: var(--subtle); font-size: 10px; }
+    .navigation-card p { min-height: 42px; margin-bottom: 11px; color: var(--muted); font-size: 12px; }
+
+    .availability-row { display: flex; align-items: center; gap: 8px; color: var(--subtle); font-size: 11px; }
+
+    .footer {
+      min-height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 7px 24px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--subtle);
+      background: rgba(5, 11, 20, .76);
+      font-size: 10px;
+    }
+
+    .shortcut-row { gap: 13px; flex-wrap: wrap; }
+    kbd { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: var(--panel); }
+
+    .evidence-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: flex-end;
+      background: rgba(2, 7, 13, .68);
+      backdrop-filter: blur(3px);
+    }
+
+    .evidence-drawer {
+      width: min(530px, 100%);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 24px clamp(18px, 4vw, 30px);
+      border-left: 1px solid var(--line);
+      background: linear-gradient(160deg, #12243a, #091522 80%);
+      box-shadow: -20px 0 60px rgba(0, 0, 0, .34);
+      overflow: auto;
+    }
+
+    .drawer-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 27px; }
+    .drawer-top h2 { margin-bottom: 5px; }
+    .drawer-close { width: 32px; height: 30px; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: var(--panel); cursor: pointer; }
+    .drawer-lead { color: var(--muted); font-size: 12px; }
+    .evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 22px; }
+    .evidence-item { padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 9px; background: rgba(7, 17, 31, .52); }
+    .evidence-label { display: block; margin-bottom: 3px; color: var(--subtle); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+    .evidence-value { color: var(--text); font-size: 12px; }
+    .limitation-box { margin-top: auto; padding: 13px 14px; border: 1px solid rgba(245, 196, 119, .34); border-radius: 10px; background: rgba(245, 196, 119, .06); }
+    .limitation-box strong { color: var(--amber); }
+    .limitation-box p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .drawer-actions { display: flex; gap: 9px; margin-top: 20px; }
+
+    .help-popover {
+      position: fixed;
+      right: 22px;
+      bottom: 50px;
+      z-index: 5;
+      width: min(355px, calc(100vw - 32px));
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel-2);
+      box-shadow: var(--shadow);
+    }
+
+    .help-popover h3 { margin-bottom: 9px; }
+    .help-popover p { margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+    .help-popover p:last-child { margin-bottom: 0; }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1040px) {
+      .topbar { align-items: flex-start; flex-wrap: wrap; }
+      .topbar-right { width: 100%; justify-content: space-between; }
+      .task-grid, .nav-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      .topbar { padding: 12px 15px; }
+      .topbar-right { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+      .layout, .layout.rail-collapsed { display: block; }
+      .rail { padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--line-soft); }
+      .rail-top { margin-bottom: 9px; }
+      .rail-group { display: flex; align-items: center; gap: 6px; margin-bottom: 0; overflow: auto; }
+      .rail-group-label { display: none; }
+      .rail-button, .layout.rail-collapsed .rail-button { width: auto; justify-content: flex-start; padding: 7px 9px; }
+      .rail-button small, .layout.rail-collapsed .rail-button small { display: none; }
+      .layout.rail-collapsed .rail-heading { display: block; }
+      .layout.rail-collapsed .rail-top { justify-content: space-between; }
+      .main { padding: 23px 15px 35px; }
+      .page-heading { display: block; }
+      .heading-status { padding-top: 15px; text-align: left; }
+      .heading-status .status-row { justify-content: flex-start; }
+      .task-grid, .nav-grid { grid-template-columns: 1fr; }
+      .resume-card, .capability-card { grid-template-columns: 1fr; align-items: flex-start; }
+      .resume-icon { display: none; }
+      .resume-card .primary-button, .capability-card .tool-button { width: 100%; }
+      .footer { align-items: flex-start; flex-direction: column; padding: 9px 15px; }
+      .evidence-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div>
+          <div class="brand-name">AGOM TUI</div>
+          <div class="brand-subtitle">任务优先 · 交互示例</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="local-badge">本地静态预览</span>
+        <span class="example-badge">交互示例</span>
+        <div class="mode-switch" aria-label="工作模式">
+          <button class="mode-button" type="button" data-mode="task" aria-pressed="true">任务模式 <small>1</small></button>
+          <button class="mode-button" type="button" data-mode="professional" aria-pressed="false">专业模式 <small>2</small></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout" id="layout">
+      <aside class="rail" aria-label="导航栏">
+        <div class="rail-top">
+          <span class="rail-heading">导航</span>
+          <button class="rail-toggle" id="railToggle" type="button" aria-label="折叠导航栏" title="F2 折叠导航">≡</button>
+        </div>
+
+        <div class="rail-group" data-rail-group="task">
+          <div class="rail-group-label">任务模式</div>
+          <button class="rail-button active" type="button" data-mode-target="task" data-view="home">
+            <span class="rail-icon">⌂</span><span>任务首页</span><small>首页</small>
+          </button>
+          <button class="rail-button" type="button" data-evidence="resume">
+            <span class="rail-icon">↪</span><span>继续上次工作</span><small>F6</small>
+          </button>
+        </div>
+
+        <div class="rail-group" data-rail-group="professional" hidden>
+          <div class="rail-group-label">专业导航</div>
+          <button class="rail-button" type="button" data-mode-target="professional" data-view="professional">
+            <span class="rail-icon">▦</span><span>工作区索引</span><small>索引</small>
+          </button>
+          <button class="rail-button" type="button" data-evidence="limits">
+            <span class="rail-icon">◌</span><span>证据与限制</span><small>说明</small>
+          </button>
+        </div>
+
+      </aside>
+
+      <main class="main" id="mainContent">
+        <div class="content-wrap">
+          <section id="taskPanel" class="mode-panel" aria-labelledby="taskTitle">
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow">任务模式 · 默认首页</p>
+                <h1 id="taskTitle">今天要完成什么？</h1>
+                <p class="lead">从三个清晰的研究任务开始。下面内容是交互示例，只用于查看交互路径，不代表实时数据或投资结论。</p>
+              </div>
+              <div class="heading-status">
+                <div class="status-row"><span class="mode-badge">任务</span><span class="state-badge">3 个交互示例</span></div>
+                <div class="small-note">入口示例 · 仅查看</div>
+              </div>
+            </div>
+
+            <div class="section-label">主任务</div>
+            <div class="task-grid">
+              <article class="task-card" data-card="decision">
+                <div class="card-top">
+                  <span class="task-index">01</span>
+                  <span class="example-badge">交互示例</span>
+                </div>
+                <h3>今日关注</h3>
+                <p class="card-description">查看待确认的研究材料，并从证据层核对输入与限制。</p>
+                <div class="card-detail">只读预览 · 不生成金融结论</div>
+                <div class="card-actions"><button class="primary-button" type="button" data-evidence="decision">查看依据与限制</button></div>
+              </article>
+
+              <article class="task-card" data-card="research">
+                <div class="card-top">
+                  <span class="task-index">02</span>
+                  <span class="availability-badge available">可继续</span>
+                </div>
+                <h3>研究标的</h3>
+                <p class="card-description">从这里开始一项研究，先查看可用资料与限制，再决定下一步。</p>
+                <div class="card-detail">可直接开始 · 敏感字段不会保存</div>
+                <div class="card-actions"><button class="primary-button" type="button" data-evidence="research">开始研究</button></div>
+              </article>
+
+              <article class="task-card" data-card="portfolio">
+                <div class="card-top">
+                  <span class="task-index">03</span>
+                  <span class="availability-badge unavailable">能力未接入</span>
+                </div>
+                <h3>检查组合</h3>
+                <p class="card-description">查看组合检查的入口状态；当前原型没有连接组合数据源。</p>
+                <div class="card-detail">不可用状态可见 · 不伪造结果</div>
+                <div class="card-actions"><button class="quiet-button" type="button" data-evidence="portfolio">查看依据与限制</button></div>
+              </article>
+            </div>
+
+            <div class="section-label">继续上次工作</div>
+            <article class="resume-card">
+              <div class="resume-icon" aria-hidden="true">↪</div>
+              <div>
+                <h3>继续上次工作 · 研究标的</h3>
+                <p>恢复安全的界面状态；没有保存密码、Token、文件或结果数据。首次使用无需经过这里。</p>
+              </div>
+              <button class="primary-button" type="button" data-evidence="resume">恢复</button>
+            </article>
+
+          </section>
+
+          <section id="professionalPanel" class="mode-panel" aria-labelledby="professionalTitle" hidden>
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow">专业模式 · 工作区索引</p>
+                <h1 id="professionalTitle">按工作区继续</h1>
+                <p class="lead">这里展示可以从专业模式进入的工作区。名称是交互示例；原型只演示浏览路径，不启动业务动作。</p>
+              </div>
+              <div class="heading-status">
+                <div class="status-row"><span class="mode-badge">专业</span><span class="state-badge">只读索引</span></div>
+                <div class="small-note">直接入口与键盘路径保留</div>
+              </div>
+            </div>
+
+            <div class="professional-note"><strong>导航说明</strong><span>这里展示可用的工作区入口。每个入口都先展示依据与限制；需要补充信息的动作不会因为打开入口而自动执行。</span></div>
+            <div class="section-label">现有工作区</div>
+            <div class="nav-grid">
+              <article class="navigation-card">
+                <div class="nav-card-top"><div><h3>今日关注</h3><div class="nav-card-key">交互示例 · 只读入口</div></div><span class="availability-badge available">可查看</span></div>
+                <p>任务首页的专业入口，保留依据与限制层。</p>
+                <button class="quiet-button" type="button" data-evidence="decision">查看依据与限制</button>
+              </article>
+              <article class="navigation-card">
+                <div class="nav-card-top"><div><h3>研究标的</h3><div class="nav-card-key">交互示例 · 只读入口</div></div><span class="availability-badge available">可开始</span></div>
+                <p>从研究入口开始，先查看依据与限制。</p>
+                <button class="quiet-button" type="button" data-evidence="research">查看依据与限制</button>
+              </article>
+              <article class="navigation-card">
+                <div class="nav-card-top"><div><h3>检查组合</h3><div class="nav-card-key">交互示例 · 只读入口</div></div><span class="availability-badge unavailable">无数据源</span></div>
+                <p>入口可见，能力不可用时明确呈现，不填充虚假结果。</p>
+                <button class="quiet-button" type="button" data-evidence="portfolio">查看依据与限制</button>
+              </article>
+              <article class="navigation-card">
+                <div class="nav-card-top"><div><h3>审计记录</h3><div class="nav-card-key">交互示例 · 只读入口</div></div><span class="availability-badge unavailable">当前未开放</span></div>
+                <p>入口需要额外授权；交互示例不展示敏感记录。</p>
+                <button class="quiet-button" type="button" data-evidence="audit">查看依据与限制</button>
+              </article>
+            </div>
+
+            <div class="section-label">工具与诊断（单独授权）</div>
+            <article class="capability-card">
+              <div>
+                <div class="capability-title"><h3>工具与诊断</h3><span class="availability-badge unavailable">当前未开放</span></div>
+                <p>它不属于工作模式。交互示例只展示锁定状态，生产中是否出现取决于单独授权。</p>
+              </div>
+              <button class="tool-button" type="button" disabled>当前不可用</button>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div class="shortcut-row">
+        <span><kbd>1</kbd> 任务</span>
+        <span><kbd>2</kbd> 专业</span>
+        <span><kbd>F2</kbd> 导航</span>
+        <span><kbd>F6</kbd> 恢复</span>
+        <span><kbd>Esc</kbd> 返回</span>
+      </div>
+      <span>本地静态原型 · 无网络请求 · 无 AI · 无写入</span>
+    </footer>
+  </div>
+
+  <div class="evidence-backdrop" id="evidenceBackdrop" hidden>
+    <section class="evidence-drawer" role="dialog" aria-modal="true" aria-labelledby="evidenceTitle">
+      <div class="drawer-top">
+        <div>
+          <p class="eyebrow">证据层 · 交互示例</p>
+          <h2 id="evidenceTitle">证据与限制</h2>
+          <p class="drawer-lead" id="evidenceLead">这里只展示原型内的静态说明。</p>
+        </div>
+        <button class="drawer-close" id="closeEvidence" type="button" aria-label="返回">×</button>
+      </div>
+      <div class="evidence-grid" id="evidenceGrid"></div>
+      <div class="limitation-box">
+        <strong>当前限制</strong>
+        <p id="evidenceLimitation">原型不会连接数据源，也不会生成金融结论。</p>
+      </div>
+      <div class="drawer-actions">
+        <button class="primary-button" id="returnToMode" type="button">返回当前工作模式</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="help-popover" id="helpPopover" hidden>
+    <h3>键盘路径</h3>
+    <p><kbd>1</kbd> 与 <kbd>2</kbd> 切换工作模式；切换不会改变地址或提交动作。</p>
+    <p><kbd>F2</kbd> 折叠导航，<kbd>F6</kbd> 打开恢复入口，<kbd>Esc</kbd> 从证据层返回。</p>
+    <p>按 <kbd>?</kbd> 关闭此提示。</p>
+  </div>
+
+  <script>
+    // Static interaction only: no fetch/XHR, no external requests, no business writes.
+    (function () {
+      "use strict";
+
+      var state = { mode: "task", railCollapsed: false, evidence: null };
+      var evidence = {
+        decision: {
+          title: "今日关注 · 依据与限制",
+          lead: "这是一个只读的交互示例，用来演示从任务卡进入依据与限制，再返回任务首页。",
+          items: [["资料类型", "本地示例资料"], ["新鲜度", "未提供"], ["能力", "只读预览"], ["结论", "不生成金融结论"]],
+          limitation: "没有外部数据源；示例标签不代表实时行情、策略或风险判断。"
+        },
+        research: {
+          title: "研究标的 · 依据与限制",
+          lead: "从这里开始研究，先查看可用资料与限制；恢复上次工作只是可选入口。",
+          items: [["资料类型", "本地示例资料"], ["敏感字段", "不保存"], ["结果数据", "不缓存"], ["下一步", "开始研究"]],
+          limitation: "原型没有研究数据请求；开始研究只打开说明层，不会提交或写入任何内容。"
+        },
+        portfolio: {
+          title: "组合检查 · 能力状态",
+          lead: "入口可以被看见，能力没有接入时必须明确说明，不用示例值填充结果。",
+          items: [["入口", "可查看"], ["数据源", "未接入"], ["结果", "暂不可用"], ["状态", "需单独确认"]],
+          limitation: "当前没有组合数据源，也没有执行检查的权限；返回路径仍保持可用。"
+        },
+        audit: {
+          title: "审计记录 · 授权状态",
+          lead: "审计与诊断属于独立入口，不是专业模式的隐含能力。",
+          items: [["入口", "可显示状态"], ["记录", "未开放"], ["原始响应", "不可用"], ["来源", "单独入口"]],
+          limitation: "静态原型不展示审计记录、Token、端点或原始响应；授权后仍需后端校验。"
+        },
+        resume: {
+          title: "继续上次工作 · 恢复说明",
+          lead: "恢复入口演示了任务优先路径，并保留当前工作模式的返回关系。",
+          items: [["工作区", "研究标的（示例）"], ["状态", "安全筛选"], ["存储", "本地演示"], ["快捷键", "F6"]],
+          limitation: "真实运行时只允许恢复安全字段；密码、文件、Token、端点和业务结果不进入恢复状态。"
+        },
+        limits: {
+          title: "专业导航 · 证据层",
+          lead: "专业模式展示工作区索引；每个入口都先说明依据与限制。",
+          items: [["入口", "交互示例"], ["动作", "不自动执行"], ["可用状态", "明确显示"], ["返回", "Esc / 按钮"]],
+          limitation: "本页面只验证壳层路径；实际 screen/action 深链接、确认、重试和来源限制由现有运行时继续负责。"
+        }
+      };
+
+      var layout = document.getElementById("layout");
+      var taskPanel = document.getElementById("taskPanel");
+      var professionalPanel = document.getElementById("professionalPanel");
+      var evidenceBackdrop = document.getElementById("evidenceBackdrop");
+      var evidenceTitle = document.getElementById("evidenceTitle");
+      var evidenceLead = document.getElementById("evidenceLead");
+      var evidenceGrid = document.getElementById("evidenceGrid");
+      var evidenceLimitation = document.getElementById("evidenceLimitation");
+      var helpPopover = document.getElementById("helpPopover");
+
+      function setMode(mode) {
+        state.mode = mode;
+        state.evidence = null;
+        taskPanel.hidden = mode !== "task";
+        professionalPanel.hidden = mode !== "professional";
+        evidenceBackdrop.hidden = true;
+        document.querySelectorAll("[data-mode]").forEach(function (button) {
+          button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
+        });
+        document.querySelectorAll("[data-rail-group]").forEach(function (group) {
+          group.hidden = group.dataset.railGroup !== mode;
+        });
+        document.querySelectorAll(".rail-button").forEach(function (button) {
+          var isModeHome = button.dataset.modeTarget === mode;
+          button.classList.toggle("active", isModeHome && button.dataset.view === (mode === "task" ? "home" : "professional"));
+        });
+      }
+
+      function openEvidence(key) {
+        var item = evidence[key] || evidence.limits;
+        state.evidence = key;
+        evidenceTitle.textContent = item.title;
+        evidenceLead.textContent = item.lead;
+        evidenceLimitation.textContent = item.limitation;
+        evidenceGrid.innerHTML = item.items.map(function (pair) {
+          return "<div class=\"evidence-item\"><span class=\"evidence-label\">" + pair[0] + "</span><span class=\"evidence-value\">" + pair[1] + "</span></div>";
+        }).join("");
+        evidenceBackdrop.hidden = false;
+        document.getElementById("closeEvidence").focus();
+      }
+
+      function closeEvidence() {
+        state.evidence = null;
+        evidenceBackdrop.hidden = true;
+      }
+
+      document.querySelectorAll("[data-mode]").forEach(function (button) {
+        button.addEventListener("click", function () { setMode(button.dataset.mode); });
+      });
+
+      document.querySelectorAll("[data-evidence]").forEach(function (button) {
+        button.addEventListener("click", function () { openEvidence(button.dataset.evidence); });
+      });
+
+      document.querySelectorAll("[data-mode-target]").forEach(function (button) {
+        button.addEventListener("click", function () { setMode(button.dataset.modeTarget); });
+      });
+
+      document.getElementById("closeEvidence").addEventListener("click", closeEvidence);
+      document.getElementById("returnToMode").addEventListener("click", closeEvidence);
+      evidenceBackdrop.addEventListener("click", function (event) {
+        if (event.target === evidenceBackdrop) closeEvidence();
+      });
+
+      document.getElementById("railToggle").addEventListener("click", function () {
+        state.railCollapsed = !state.railCollapsed;
+        layout.classList.toggle("rail-collapsed", state.railCollapsed);
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "1" && !event.ctrlKey && !event.metaKey && !event.altKey) setMode("task");
+        if (event.key === "2" && !event.ctrlKey && !event.metaKey && !event.altKey) setMode("professional");
+        if (event.key === "F2") {
+          event.preventDefault();
+          document.getElementById("railToggle").click();
+        }
+        if (event.key === "F6") {
+          event.preventDefault();
+          setMode("task");
+          openEvidence("resume");
+        }
+        if (event.key === "Escape") {
+          if (!evidenceBackdrop.hidden) closeEvidence();
+          if (!helpPopover.hidden) helpPopover.hidden = true;
+        }
+        if (event.key === "?") helpPopover.hidden = !helpPopover.hidden;
+      });
+    }());
+  </script>
+</body>
+</html>

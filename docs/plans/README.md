@@ -123,6 +123,7 @@
 | --- | --- |
 | 主计划 | [TUI 可用性与 Metadata 治理整改计划](tui-usability-and-metadata-governance-plan-2026-08-18.md) |
 | 支撑 | [TUI 速度、分页与连续操作整改方案](tui-speed-pagination-remediation-2026-09-08.md) |
+| 支撑 | [TUI 任务模式、专业模式与调试入口调整计划](tui-task-first-experience-plan-2026-10-17.md) |
 
 ### index-dividend-thermometer
 
@@ -171,6 +172,8 @@
 - 提交前运行 `python scripts/check_active_plan_registry.py`。
 
 ## 当前执行焦点
+
+TUI 升级按已授权的 [阶段计划](tui-task-first-experience-plan-2026-10-17.md) 和 `TUX-06`～`TUX-10` 登记推进；与 A 股 Goal 的共享代码、测试冻结和提交窗口须串行交接，不据聊天中的历史说明抢占 repository focus。
 
 读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段才是 repository 执行锁；不得沿用历史日志中的“唯一焦点”或从工作流的 active 状态推定执行权。
 

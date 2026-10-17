@@ -1,0 +1,21 @@
+{
+  "scope": "Static synthetic prototype only",
+  "cases": [
+    {
+      "viewport": [
+        1440,
+        1000
+      ],
+      "mode_and_evidence_journey": "passed"
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "mode_and_evidence_journey": "passed"
+    }
+  ],
+  "page_errors": [],
+  "external_requests": []
+}
