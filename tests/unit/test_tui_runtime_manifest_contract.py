@@ -29,6 +29,8 @@ def test_manifest_covers_server_side_tui_contract() -> None:
         "apps/terminal/application/tui_experience.py",
         "apps/terminal/application/tui_workbench.py",
         "apps/terminal/application/tui_workbench_execution.py",
+        "apps/terminal/application/tui_workbench_calendar_result_models.py",
+        "apps/terminal/application/tui_workbench_result_models_specialized.py",
         "apps/terminal/interface/api_views.py",
         "tui-metadata-compiler/scripts/promote_tui_business_screens.py",
         "apps/terminal/infrastructure/tui_information_architecture.py",

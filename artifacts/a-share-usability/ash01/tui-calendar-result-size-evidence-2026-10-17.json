@@ -1,0 +1,765 @@
+{
+  "reference": {
+    "base_commit": "01dd297f067845579e124f036e17a7700242d152",
+    "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+    "source_commit": "1eec0d43e43234aff7e361f29d910e287037d8b5",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-ot3yvc9n",
+    "production": [
+      "apps/terminal/application/tui_workbench_result_models_specialized.py",
+      "apps/terminal/application/tui_workbench_calendar_result_models.py"
+    ],
+    "tests": [
+      "tests/unit/test_tui_runtime_manifest_contract.py"
+    ],
+    "tooling": [
+      "scripts/build-tui-runtime.mjs"
+    ],
+    "source_lf_sha256": {
+      "apps/terminal/application/tui_workbench_result_models_specialized.py": "718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6",
+      "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
+      "tests/unit/test_tui_runtime_manifest_contract.py": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+      "scripts/build-tui-runtime.mjs": "806bb51b0b83c6b2b8f2e5aaa69db1b35e4dbfbaadb3797ddeacaba1bee6b7b5"
+    },
+    "protected_raw_sha256": {
+      "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+      "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+    }
+  },
+  "actual_phases": {
+    "build": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "runtime-build": 0,
+        "runtime-check": 0,
+        "module-build": 0,
+        "dc-architecture-build": 0,
+        "dc-entrypoint-build": 0
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "unit": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "python-regression": 0
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "node": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "node-regression": 0
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "typing": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "style": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0,
+        "architecture": 0,
+        "size": 0
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "governance": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0,
+        "check_data_dictionary": 0,
+        "data_center_architecture_inventory": 0,
+        "data_center_entrypoint_inventory": 0,
+        "full-governance": 1,
+        "retirement": 1
+      },
+      "source_unchanged": true,
+      "protected_unchanged": true
+    },
+    "native": {
+      "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+      "actual_exit_codes": {
+        "native-before": 0,
+        "native-journey": 0,
+        "native-after": 0
+      },
+      "scope": "Existing real root HTTP/Session/CSRF/owner/continuation/Audit/browser flow, synthetic external calendar and preview secret only; explicit existing child DB, no production or provider qualification"
+    }
+  },
+  "raw_logs": {
+    "tui-calendar-result-size-root-2-architecture.txt": {
+      "raw_sha256": "4e1afa3e14367831cef1678332ed2a8f894a02252a5903c5a4b57e0bc95a8844",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_architecture_delta.py', '--base-ref', '01dd297f067845579e124f036e17a7700242d152', '--head-ref', '1eec0d43e43234aff7e361f29d910e287037d8b5', '--format', 'json', '--include-audit', '--fail-on-audit-violations']\n{\n  \"rules_version\": \"2026-10-09.v9\",\n  \"scan_roots\": [\n    \"apps\",\n    \"core\",\n    \"shared\"\n  ],\n  \"scanned_files\": 3488,\n  \"boundary_rule_count\": 7,\n  \"violation_count\": 0,\n  \"violations\": [],\n  \"modules\": [\n    {\n      \"module\": \"account\",\n      \"role\": \"business\",\n      \"patterns\": [\n        \"Repository\",\n        \"Query Service\"\n      ],\n      \"note\": \"Interface reads from account-owned repositories instead of simulated_trading ORM imports.\",\n      \"outbound_modules\": [\n        \"config_center\",\n        \"data_center\",\n        \"events\",\n        \"fund\",\n        \"hedge\",\n        \"prompt\",\n        \"pulse\",\n        \"regime\",\n        \"risk_center\",\n        \"rotation\",\n        \"sector\",\n        \"signal\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"ai_capability\",\n        \"alpha\",\n        \"audit\",\n        \"backtest\",\n        \"broker_execution\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"factor\",\n        \"simulated_trading\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 12,\n      \"inbound_count\": 12\n    },\n    {\n      \"module\": \"agent_runtime\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"ai_provider\",\n        \"audit\",\n        \"beta_gate\",\n        \"data_center\",\n        \"decision_rhythm\",\n        \"events\",\n        \"policy\",\n        \"realtime\",\n        \"regime\",\n        \"sentiment\",\n        \"signal\",\n        \"simulated_trading\"\n      ],\n      \"inbound_modules\": [\n        \"terminal\"\n      ],\n      \"outbound_count\": 13,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"ai_capability\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"ai_provider\",\n        \"asset_analysis\",\n        \"policy\",\n        \"prompt\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"terminal\"\n      ],\n      \"outbound_count\": 6,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"ai_provider\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"ai_capability\",\n        \"alpha\",\n        \"beta_gate\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"policy\",\n        \"prompt\",\n        \"sentiment\",\n        \"setup_wizard\",\n        \"strategy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 12\n    },\n    {\n      \"module\": \"alpha\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"ai_provider\",\n        \"config_center\",\n        \"data_center\",\n        \"equity\",\n        \"fund\",\n        \"task_monitor\"\n      ],\n      \"inbound_modules\": [\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 7,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"alpha_trigger\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"asset_analysis\",\n        \"data_center\",\n        \"events\",\n        \"policy\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 5,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"asset_analysis\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"policy\",\n        \"regime\",\n        \"sentiment\"\n      ],\n      \"inbound_modules\": [\n        \"ai_capability\",\n        \"alpha_trigger\",\n        \"beta_gate\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"fund\",\n        \"realtime\",\n        \"signal\",\n        \"simulated_trading\",\n        \"strategy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 3,\n      \"inbound_count\": 12\n    },\n    {\n      \"module\": \"audit\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"backtest\",\n        \"data_center\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"dashboard\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 4,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"backtest\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"config_center\",\n        \"data_center\",\n        \"equity\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"audit\"\n      ],\n      \"outbound_count\": 5,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"beta_gate\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"asset_analysis\",\n        \"events\",\n        \"policy\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 5,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"broker_execution\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"data_center\",\n        \"decision_rhythm\",\n        \"risk_center\",\n        \"simulated_trading\",\n        \"task_monitor\"\n      ],\n      \"inbound_modules\": [],\n      \"outbound_count\": 6,\n      \"inbound_count\": 0\n    },\n    {\n      \"module\": \"config_center\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"account\",\n        \"alpha\",\n        \"backtest\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"dashboard\",\n      \"role\": \"aggregation\",\n      \"patterns\": [\n        \"Query Service\"\n      ],\n      \"note\": \"Dashboard keeps cross-module reads in query/DTO boundaries.\",\n      \"outbound_modules\": [\n        \"account\",\n        \"ai_provider\",\n        \"alpha\",\n        \"alpha_trigger\",\n        \"asset_analysis\",\n        \"audit\",\n        \"beta_gate\",\n        \"data_center\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"fund\",\n        \"policy\",\n        \"pulse\",\n        \"regime\",\n        \"rotation\",\n        \"signal\",\n        \"simulated_trading\",\n        \"strategy\",\n        \"task_monitor\"\n      ],\n      \"inbound_modules\": [\n        \"terminal\"\n      ],\n      \"outbound_count\": 19,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"data_center\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"account\",\n        \"agent_runtime\",\n        \"alpha\",\n        \"alpha_trigger\",\n        \"audit\",\n        \"backtest\",\n        \"broker_execution\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"factor\",\n        \"filter\",\n        \"fixed_income\",\n        \"fund\",\n        \"hedge\",\n        \"macro\",\n        \"policy\",\n        \"pulse\",\n        \"realtime\",\n        \"regime\",\n        \"research\",\n        \"risk_center\",\n        \"sector\",\n        \"sentiment\",\n        \"setup_wizard\",\n        \"signal\",\n        \"simulated_trading\",\n        \"strategy\",\n        \"terminal\",\n        \"valuation\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 30\n    },\n    {\n      \"module\": \"decision_rhythm\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"ai_provider\",\n        \"alpha\",\n        \"alpha_trigger\",\n        \"asset_analysis\",\n        \"beta_gate\",\n        \"data_center\",\n        \"equity\",\n        \"events\",\n        \"macro\",\n        \"policy\",\n        \"pulse\",\n        \"realtime\",\n        \"regime\",\n        \"risk_center\",\n        \"rotation\",\n        \"sentiment\",\n        \"signal\",\n        \"simulated_trading\",\n        \"task_monitor\",\n        \"valuation\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"broker_execution\",\n        \"dashboard\",\n        \"share\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 21,\n      \"inbound_count\": 5\n    },\n    {\n      \"module\": \"equity\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"asset_analysis\",\n        \"data_center\",\n        \"fund\",\n        \"realtime\",\n        \"regime\",\n        \"sector\",\n        \"signal\"\n      ],\n      \"inbound_modules\": [\n        \"alpha\",\n        \"backtest\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"research\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 8,\n      \"inbound_count\": 6\n    },\n    {\n      \"module\": \"events\",\n      \"role\": \"integration\",\n      \"patterns\": [\n        \"Registry\",\n        \"Repository wrapper\"\n      ],\n      \"note\": \"Event fan-out should stop at registry/repository boundaries.\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"account\",\n        \"agent_runtime\",\n        \"alpha_trigger\",\n        \"beta_gate\",\n        \"decision_rhythm\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 5\n    },\n    {\n      \"module\": \"factor\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"data_center\",\n        \"rotation\"\n      ],\n      \"inbound_modules\": [\n        \"terminal\"\n      ],\n      \"outbound_count\": 3,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"filter\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [],\n      \"outbound_count\": 1,\n      \"inbound_count\": 0\n    },\n    {\n      \"module\": \"fixed_income\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"portfolio\",\n        \"research\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 2\n    },\n    {\n      \"module\": \"fund\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"asset_analysis\",\n        \"data_center\",\n        \"policy\",\n        \"regime\",\n        \"sentiment\",\n        \"signal\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"alpha\",\n        \"dashboard\",\n        \"equity\"\n      ],\n      \"outbound_count\": 6,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"hedge\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"signal\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"macro\",\n      \"role\": \"core\",\n      \"patterns\": [\n        \"Orchestration\"\n      ],\n      \"note\": \"Macro sync is invoked through regime orchestration boundaries.\",\n      \"outbound_modules\": [\n        \"data_center\",\n        \"pulse\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"decision_rhythm\"\n      ],\n      \"outbound_count\": 3,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"macro_factor\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"research\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"operational_readiness\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [],\n      \"inbound_modules\": [\n        \"task_monitor\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 0,\n      \"inbound_count\": 2\n    },\n    {\n      \"module\": \"policy\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"data_center\",\n        \"regime\",\n        \"task_monitor\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"ai_capability\",\n        \"alpha_trigger\",\n        \"asset_analysis\",\n        \"beta_gate\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"fund\",\n        \"sentiment\",\n        \"signal\",\n        \"simulated_trading\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 4,\n      \"inbound_count\": 12\n    },\n    {\n      \"module\": \"portfolio\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"fixed_income\"\n      ],\n      \"inbound_modules\": [\n        \"research\",\n        \"strategy\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 2\n    },\n    {\n      \"module\": \"prompt\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"ai_capability\",\n        \"strategy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 2,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"pulse\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"macro\",\n        \"regime\",\n        \"simulated_trading\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 7\n    },\n    {\n      \"module\": \"realtime\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"asset_analysis\",\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"simulated_trading\"\n      ],\n      \"outbound_count\": 2,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"regime\",\n      \"role\": \"core\",\n      \"patterns\": [\n        \"Protocol\",\n        \"Adapter\",\n        \"Gateway\"\n      ],\n      \"note\": \"Runtime access to macro is mediated by regime-owned abstractions.\",\n      \"outbound_modules\": [\n        \"data_center\",\n        \"pulse\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"agent_runtime\",\n        \"ai_capability\",\n        \"alpha_trigger\",\n        \"asset_analysis\",\n        \"audit\",\n        \"backtest\",\n        \"beta_gate\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"fund\",\n        \"macro\",\n        \"policy\",\n        \"prompt\",\n        \"rotation\",\n        \"sector\",\n        \"sentiment\",\n        \"signal\",\n        \"simulated_trading\",\n        \"strategy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 2,\n      \"inbound_count\": 22\n    },\n    {\n      \"module\": \"research\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\",\n        \"equity\",\n        \"fixed_income\",\n        \"macro_factor\",\n        \"portfolio\",\n        \"signal\"\n      ],\n      \"inbound_modules\": [],\n      \"outbound_count\": 6,\n      \"inbound_count\": 0\n    },\n    {\n      \"module\": \"risk_center\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"broker_execution\",\n        \"decision_rhythm\",\n        \"simulated_trading\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"rotation\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"factor\",\n        \"signal\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 5\n    },\n    {\n      \"module\": \"sector\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"equity\",\n        \"signal\"\n      ],\n      \"outbound_count\": 2,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"sentiment\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"data_center\",\n        \"policy\",\n        \"regime\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"asset_analysis\",\n        \"decision_rhythm\",\n        \"fund\"\n      ],\n      \"outbound_count\": 4,\n      \"inbound_count\": 4\n    },\n    {\n      \"module\": \"setup_wizard\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"data_center\"\n      ],\n      \"inbound_modules\": [],\n      \"outbound_count\": 2,\n      \"inbound_count\": 0\n    },\n    {\n      \"module\": \"share\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"decision_rhythm\",\n        \"simulated_trading\"\n      ],\n      \"inbound_modules\": [\n        \"simulated_trading\"\n      ],\n      \"outbound_count\": 2,\n      \"inbound_count\": 1\n    },\n    {\n      \"module\": \"signal\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"asset_analysis\",\n        \"data_center\",\n        \"hedge\",\n        \"policy\",\n        \"regime\",\n        \"rotation\",\n        \"sector\"\n      ],\n      \"inbound_modules\": [\n        \"account\",\n        \"agent_runtime\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"fund\",\n        \"research\",\n        \"simulated_trading\",\n        \"strategy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 7,\n      \"inbound_count\": 10\n    },\n    {\n      \"module\": \"simulated_trading\",\n      \"role\": \"business\",\n      \"patterns\": [\n        \"Facade\",\n        \"Gateway\"\n      ],\n      \"note\": \"Simulated trading should not reach strategy ORM directly.\",\n      \"outbound_modules\": [\n        \"account\",\n        \"asset_analysis\",\n        \"data_center\",\n        \"policy\",\n        \"pulse\",\n        \"realtime\",\n        \"regime\",\n        \"risk_center\",\n        \"share\",\n        \"signal\",\n        \"strategy\"\n      ],\n      \"inbound_modules\": [\n        \"agent_runtime\",\n        \"broker_execution\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"share\"\n      ],\n      \"outbound_count\": 11,\n      \"inbound_count\": 5\n    },\n    {\n      \"module\": \"strategy\",\n      \"role\": \"business\",\n      \"patterns\": [\n        \"Facade\",\n        \"Gateway\"\n      ],\n      \"note\": \"Strategy should not reach simulated_trading ORM directly.\",\n      \"outbound_modules\": [\n        \"ai_provider\",\n        \"asset_analysis\",\n        \"data_center\",\n        \"portfolio\",\n        \"prompt\",\n        \"regime\",\n        \"signal\"\n      ],\n      \"inbound_modules\": [\n        \"dashboard\",\n        \"simulated_trading\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 7,\n      \"inbound_count\": 3\n    },\n    {\n      \"module\": \"task_monitor\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"operational_readiness\"\n      ],\n      \"inbound_modules\": [\n        \"alpha\",\n        \"broker_execution\",\n        \"dashboard\",\n        \"decision_rhythm\",\n        \"policy\",\n        \"terminal\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 6\n    },\n    {\n      \"module\": \"terminal\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"account\",\n        \"agent_runtime\",\n        \"ai_capability\",\n        \"ai_provider\",\n        \"alpha\",\n        \"alpha_trigger\",\n        \"asset_analysis\",\n        \"audit\",\n        \"beta_gate\",\n        \"config_center\",\n        \"dashboard\",\n        \"data_center\",\n        \"decision_rhythm\",\n        \"equity\",\n        \"factor\",\n        \"hedge\",\n        \"operational_readiness\",\n        \"policy\",\n        \"prompt\",\n        \"pulse\",\n        \"regime\",\n        \"signal\",\n        \"strategy\",\n        \"task_monitor\"\n      ],\n      \"inbound_modules\": [],\n      \"outbound_count\": 24,\n      \"inbound_count\": 0\n    },\n    {\n      \"module\": \"valuation\",\n      \"role\": \"\",\n      \"patterns\": [],\n      \"note\": \"\",\n      \"outbound_modules\": [\n        \"data_center\"\n      ],\n      \"inbound_modules\": [\n        \"decision_rhythm\"\n      ],\n      \"outbound_count\": 1,\n      \"inbound_count\": 1\n    }\n  ],\n  \"audit\": {\n    \"rule_count\": 20,\n    \"violation_count\": 0,\n    \"violations\": [],\n    \"top_rules\": [],\n    \"top_files\": []\n  },\n  \"mode\": \"delta\",\n  \"base_ref\": \"01dd297f067845579e124f036e17a7700242d152\",\n  \"head_ref\": \"1eec0d43e43234aff7e361f29d910e287037d8b5\",\n  \"changed_files\": [\n    \"apps/terminal/application/tui_workbench_calendar_result_models.py\",\n    \"apps/terminal/application/tui_workbench_result_models_specialized.py\"\n  ],\n  \"changed_file_count\": 2,\n  \"changed_line_count\": 478\n}\n"
+    },
+    "tui-calendar-result-size-root-2-black.txt": {
+      "raw_sha256": "b09d0edde4df6ad6ca8d37663ffbd8a54291868f4acee8d4cc80f3a6a988961f",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'black', '--check', 'apps/terminal/application/tui_workbench_result_models_specialized.py', 'apps/terminal/application/tui_workbench_calendar_result_models.py', 'tests/unit/test_tui_runtime_manifest_contract.py']\nAll done! ✨ 🍰 ✨\n3 files would be left unchanged.\n"
+    },
+    "tui-calendar-result-size-root-2-check_audit_event_contracts.txt": {
+      "raw_sha256": "dd284ed29cd68b108623c1e23e86f17ace5e8687f97badfd309f2d438dbb02ab",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_audit_event_contracts.py']\nAudit event contracts OK: events=23; status=active; implementation=wired\n"
+    },
+    "tui-calendar-result-size-root-2-check_celery_task_contracts.txt": {
+      "raw_sha256": "e0c5e1c0fdfd4813524fc26520f2099ff7ab861295d996adaa335f69dc5efac0",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_celery_task_contracts.py']\nCelery task contracts OK: 95 registered task(s), 21 exemption(s), 24 governed file(s)\n"
+    },
+    "tui-calendar-result-size-root-2-check_current_data_contracts.txt": {
+      "raw_sha256": "f7532f5335dc0fada129f62d7ca61601e4910f6a5cdce010e7a8104cddba169c",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_current_data_contracts.py']\nCurrent-data freshness contracts OK: 86 surface(s)\n"
+    },
+    "tui-calendar-result-size-root-2-check_data_dictionary.txt": {
+      "raw_sha256": "c19fdc3ccb5e1d9739840f54e7ce9720c9294b7c95b857b6468e854b3a8e624c",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_data_dictionary.py']\ndata dictionary OK: D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-ot3yvc9n\\governance\\data_dictionary.json and D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-ot3yvc9n\\docs\\architecture\\DATA_DICTIONARY.md match the source tree (apps=42 models=588)\n"
+    },
+    "tui-calendar-result-size-root-2-check_module_map.txt": {
+      "raw_sha256": "7f07ffaeb22142a0fc5144a0a9ed1406830f057abdcd5f426289a90c39240fd1",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_module_map.py']\nmodule map OK: D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-ot3yvc9n\\governance\\module_map.json matches the source tree (modules=44 edges=210)\n"
+    },
+    "tui-calendar-result-size-root-2-data_center_architecture_inventory.txt": {
+      "raw_sha256": "861f06946de3866671fb7a73cfe33accf192dfb817c579effdf8aa44e1bb28ca",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_architecture_inventory.py']\n{\"approved_non_data_http_imports\": 5, \"cross_app_orm_imports\": 47, \"current_surface_references\": 5801, \"data_write_task_decorators\": 66, \"direct_data_center_imports_outside_data_center\": 0, \"external_http_imports_for_review\": 0, \"legacy_fact_references\": 0, \"provider_imports_outside_data_center\": 0, \"runtime_parameter_references\": 56}\n"
+    },
+    "tui-calendar-result-size-root-2-data_center_entrypoint_inventory.txt": {
+      "raw_sha256": "1f880ea2ef005878b1066beb1ee99c0282d15a1440f7c4cbae20efa713961bdc",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_entrypoint_inventory.py']\n{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\n"
+    },
+    "tui-calendar-result-size-root-2-dc-architecture-build.txt": {
+      "raw_sha256": "85757e09dd72d5b229e080d38978ed1a1814f1c27e91eee854884e2f861f850a",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_architecture_inventory.py', '--write']\n{\"approved_non_data_http_imports\": 5, \"cross_app_orm_imports\": 47, \"current_surface_references\": 5801, \"data_write_task_decorators\": 66, \"direct_data_center_imports_outside_data_center\": 0, \"external_http_imports_for_review\": 0, \"legacy_fact_references\": 0, \"provider_imports_outside_data_center\": 0, \"runtime_parameter_references\": 56}\n"
+    },
+    "tui-calendar-result-size-root-2-dc-entrypoint-build.txt": {
+      "raw_sha256": "b0d9d863eb914e7c7d71d972f56bf6ceeba8dced464a0759549adac59c129483",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_entrypoint_inventory.py', '--write']\n{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\n"
+    },
+    "tui-calendar-result-size-root-2-full-governance.txt": {
+      "raw_sha256": "b198f40b53c95f775774516a874b340bcdc41d50dfb248631fd35f6ef4561d53",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_governance_consistency.py', '--write-report', 'D:\\\\githv\\\\agomTradePro\\\\artifacts\\\\a-share-usability\\\\ash01\\\\tui-calendar-result-size-root-2-full-governance.json']\nGovernance baseline version: 2026-09-09.v220\nGovernance violations: 2\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 2 violation(s)\n- large_file_remediation: 0 violation(s)\n\nViolations:\n- large_python_file_missing_baseline: apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py - Production Python file has 1731 non-empty lines, above limit 1200.\n- large_python_file_missing_baseline: apps/simulated_trading/domain/execution_settlement_uow.py - Production Python file has 1296 non-empty lines, above limit 1200.\n"
+    },
+    "tui-calendar-result-size-root-2-full-mypy.txt": {
+      "raw_sha256": "26de2b4a11b2f86a80f9b51d5bd72b5fbd4f3da264d0575166cae41a3badcf89",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_mypy_debt_ceiling.py']\nFull mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    "tui-calendar-result-size-root-2-incremental-mypy.txt": {
+      "raw_sha256": "88a88e7b3029affc7fa60d1428c8ae1cd311ef387c17c3e7e40f2156fa7f693f",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_mypy_regression.py', 'apps/terminal/application/tui_workbench_result_models_specialized.py', 'apps/terminal/application/tui_workbench_calendar_result_models.py']\nSuccess: no issues found in 2 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    "tui-calendar-result-size-root-2-isort.txt": {
+      "raw_sha256": "bcfcf906641413f191a7d01f20cc71c5b602e3fc85a166ee37c55ee6db4ad689",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'isort', '--check-only', 'apps/terminal/application/tui_workbench_result_models_specialized.py', 'apps/terminal/application/tui_workbench_calendar_result_models.py', 'tests/unit/test_tui_runtime_manifest_contract.py']\n"
+    },
+    "tui-calendar-result-size-root-2-module-build.txt": {
+      "raw_sha256": "0a28fb57d46b17e29c3ec8262f913355f296b98294f738939df44cb945304105",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/build_module_map.py']\nmodule map OK: modules=44 edges=210\n"
+    },
+    "tui-calendar-result-size-root-2-native-after.txt": {
+      "raw_sha256": "f842163363265d415c74cf9d4ac6ebc358af31aadb971a33fcfb41e9a91931d8",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['-c', 'import json, django\\ndjango.setup()\\nfrom copy import deepcopy\\nfrom django.db import connections\\nrows={}\\nfor name,expected in [(\"test_ash_plan_binding_01a14268\",546),(\"test_ash_quality_native\",544)]:\\n    config=deepcopy(connections.databases[\\'default\\']);config[\\'NAME\\']=name\\n    assert config[\\'HOST\\']==\\'127.0.0.1\\' and str(config[\\'PORT\\'])==\\'52009\\'\\n    connections.databases[\\'probe_\\'+name]=config\\n    connection=connections[\\'probe_\\'+name]\\n    with connection.cursor() as cursor:\\n        cursor.execute(\\'BEGIN READ ONLY\\')\\n        cursor.execute(\"SELECT current_database(), current_schema(), current_setting(\\'transaction_read_only\\')\")\\n        identity=cursor.fetchone();assert identity==(name,\\'public\\',\\'on\\')\\n        cursor.execute(\\'SELECT count(*) FROM django_migrations\\');count=cursor.fetchone()[0];assert count==expected\\n        cursor.execute(\\'SELECT singleton,generation FROM account_authority_generation\\');singleton=cursor.fetchall()\\n        assert len(singleton)==1 and singleton[0][0]==1\\n        if name==\\'test_ash_quality_native\\':assert singleton==[(1,0)]\\n        cursor.execute(\\'ROLLBACK\\')\\n    connection.close();rows[name]={\\'identity\\':identity,\\'migrations\\':count,\\'singleton\\':singleton}\\nprint(json.dumps(rows))\\n']\n{\"test_ash_plan_binding_01a14268\": {\"identity\": [\"test_ash_plan_binding_01a14268\", \"public\", \"on\"], \"migrations\": 546, \"singleton\": [[1, 147]]}, \"test_ash_quality_native\": {\"identity\": [\"test_ash_quality_native\", \"public\", \"on\"], \"migrations\": 544, \"singleton\": [[1, 0]]}}\n"
+    },
+    "tui-calendar-result-size-root-2-native-before.txt": {
+      "raw_sha256": "f842163363265d415c74cf9d4ac6ebc358af31aadb971a33fcfb41e9a91931d8",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['-c', 'import json, django\\ndjango.setup()\\nfrom copy import deepcopy\\nfrom django.db import connections\\nrows={}\\nfor name,expected in [(\"test_ash_plan_binding_01a14268\",546),(\"test_ash_quality_native\",544)]:\\n    config=deepcopy(connections.databases[\\'default\\']);config[\\'NAME\\']=name\\n    assert config[\\'HOST\\']==\\'127.0.0.1\\' and str(config[\\'PORT\\'])==\\'52009\\'\\n    connections.databases[\\'probe_\\'+name]=config\\n    connection=connections[\\'probe_\\'+name]\\n    with connection.cursor() as cursor:\\n        cursor.execute(\\'BEGIN READ ONLY\\')\\n        cursor.execute(\"SELECT current_database(), current_schema(), current_setting(\\'transaction_read_only\\')\")\\n        identity=cursor.fetchone();assert identity==(name,\\'public\\',\\'on\\')\\n        cursor.execute(\\'SELECT count(*) FROM django_migrations\\');count=cursor.fetchone()[0];assert count==expected\\n        cursor.execute(\\'SELECT singleton,generation FROM account_authority_generation\\');singleton=cursor.fetchall()\\n        assert len(singleton)==1 and singleton[0][0]==1\\n        if name==\\'test_ash_quality_native\\':assert singleton==[(1,0)]\\n        cursor.execute(\\'ROLLBACK\\')\\n    connection.close();rows[name]={\\'identity\\':identity,\\'migrations\\':count,\\'singleton\\':singleton}\\nprint(json.dumps(rows))\\n']\n{\"test_ash_plan_binding_01a14268\": {\"identity\": [\"test_ash_plan_binding_01a14268\", \"public\", \"on\"], \"migrations\": 546, \"singleton\": [[1, 147]]}, \"test_ash_quality_native\": {\"identity\": [\"test_ash_quality_native\", \"public\", \"on\"], \"migrations\": 544, \"singleton\": [[1, 0]]}}\n"
+    },
+    "tui-calendar-result-size-root-2-native-journey.txt": {
+      "raw_sha256": "69a9145b7a9d9b486ed13a92872ce81d9b95bfe202537939952c423ce381edfa",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['-m', 'pytest', 'tests/component/data_center/test_calendar_workbench_tui_http.py::test_calendar_tui_outer_journey_uses_real_runtime_metadata_and_owner', 'tests/component/data_center/test_calendar_workbench_tui_browser.py::test_calendar_workbench_real_browser_prepare_cancel_publish_and_read', '--ds=ash_tui_calendar_result_native_settings', '--reuse-db', '--migrations', '-q', '--tb=short', '--basetemp=.tmp/pytest-tui-calendar-result-size-root-2-native']\n..                                                                       [100%]\n2 passed in 204.48s (0:03:24)\n"
+    },
+    "tui-calendar-result-size-root-2-node-regression.txt": {
+      "raw_sha256": "7ed9999a8f71419bcc62ab7b2e1c1cc4f268997f1e1b377e73ef3f76d9669568",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['C:/nvm4w/nodejs/node.exe', '--test', '--test-concurrency=1', 'frontend/agomtui-runtime/tests/runtime.test.mjs', 'frontend/tui-workbench/tests/source-layout.test.mjs', 'frontend/tui-workbench/tests/result-continuation.test.mjs']\n✔ runtime urls support optimized bootstrap and legacy endpoints (1.0081ms)\n✔ client pagination activates only above the configured page size (0.341ms)\n✔ dashboard layout precedence is explicit metadata then host fallback then journey (0.2127ms)\n✔ generic bundle does not contain AgomTradePro business identifiers (1.5551ms)\n✔ manifest integrity uses content hashes instead of the repository head (0.7859ms)\n✔ manifest content normalization is independent of checkout line endings (0.7942ms)\n✔ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (4.4335ms)\n✔ cancelling the actual confirmation modal discards only its matching handoff (4.7838ms)\n✔ closing the source confirmation modal invalidates its late response (1.7942ms)\n✔ closing an old source modal does not cancel a newer source request (1.4893ms)\n✔ cancelling an ordinary confirmation modal leaves unrelated handoff state unchanged (1.4616ms)\n✔ Escape route closes the actual confirmation modal through cancellation cleanup (1.9451ms)\n✔ confirming the actual modal keeps the handoff until the target submission consumes it (3.2692ms)\n✔ an old modal cannot discard a newer preview for the same target (0.9023ms)\n✔ new preview invalidates an earlier handoff and a failed result cannot restore it (0.8252ms)\n✔ out-of-order source responses and cancelled pending previews cannot replace a newer handoff (0.9056ms)\n✔ expired or malformed owner continuation fails closed and is not retained (0.7213ms)\n✔ continuation values duplicated into render or debug data are rejected (0.8645ms)\n✔ handoff state is isolated by controller and never enters safe UI parameters (1.4503ms)\n✔ confirmed continuation retry retains exact private request identity without retaining reauth (14.4357ms)\n✔ retry request context expires and is cleared by cancellation, a new preview, and screen exit (1.5862ms)\n✔ same-screen unrelated action clears an unconsumed continuation (1.1558ms)\n✔ same-screen unrelated action clears a continuation retry context (0.8701ms)\n✔ action-context retention preserves the active pair and rejects a superseded source result (0.7663ms)\n✔ password challenge submission preserves retry context but cancellation discards it (2.4727ms)\n✔ workbench maintained sources stay split by responsibility (76.5465ms)\nℹ tests 26\nℹ suites 0\nℹ pass 26\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 2010.5022\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-dc-architecture.txt": {
+      "raw_sha256": "e68641f8f915cb05b982a4e16735808e6d8d3471a2b2ad847940c4497bb5dd46",
+      "utf8": "{\"approved_non_data_http_imports\": 5, \"cross_app_orm_imports\": 47, \"current_surface_references\": 5801, \"data_write_task_decorators\": 66, \"direct_data_center_imports_outside_data_center\": 0, \"external_http_imports_for_review\": 0, \"legacy_fact_references\": 0, \"provider_imports_outside_data_center\": 0, \"runtime_parameter_references\": 56}\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-dc-entrypoint.txt": {
+      "raw_sha256": "aefe632c1e4980ac4d0e6153c9ea2e6a8573529670ae11a46ddacd2703943f2d",
+      "utf8": "{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-docs-links.txt": {
+      "raw_sha256": "2546275036cfc6db95febebc09fb5db959ea6b00e161653dfe784bf8e74488fd",
+      "utf8": "{'checked_links': 76}\n[]\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-module.txt": {
+      "raw_sha256": "a44fd8bcf800d5a5638a80f7a60406ec156714109047354781b76e3f27f6e9fd",
+      "utf8": "module map OK: D:\\githv\\agomTradePro\\governance\\module_map.json matches the source tree (modules=44 edges=210)\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-registry-tests.txt": {
+      "raw_sha256": "278036db5c68cbcac610d5f84412bdb2306294ccb4aab9e59787a6998f95095d",
+      "utf8": "........                                                                 [100%]\n8 passed in 1.25s\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-registry.txt": {
+      "raw_sha256": "ce11b3f46df9dff011added5f2052fe78208e3b98ac1359de232002bae1bab65",
+      "utf8": "active-plan-registry version=2026-10-17.v256 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\n"
+    },
+    "tui-calendar-result-size-root-2-postdoc-runtime.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "utf8": ""
+    },
+    "tui-calendar-result-size-root-2-python-regression.txt": {
+      "raw_sha256": "64d47046bd46d111e152a83eda5414f4d04978e229089ab14b0ff3baf2839548",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/test_tui_workbench.py', 'tests/unit/test_tui_metadata_compiler.py', 'tests/unit/test_tui_runtime_manifest_contract.py', 'tests/unit/terminal/test_tui_continuation_contract_cache.py', 'tests/unit/terminal/test_runtime_injection_input_ownership.py', 'tests/unit/terminal/test_tui_experience.py', 'tests/unit/terminal/test_calendar_workbench_runtime.py', 'tests/unit/terminal/test_calendar_workbench_service_projection.py', 'tests/unit/test_terminal_agent_service.py', 'sdk/tests/test_sdk/test_client.py', 'tests/unit/test_internal_ssl_redirect.py', '-q', '--tb=short', '--no-migrations', '--ds=ash_tui_calendar_result_sqlite_settings', '--basetemp=.tmp/pytest-tui-calendar-result-size-root-2']\n........................................................................ [ 14%]\n........................................................................ [ 28%]\n........................................................................ [ 43%]\n........................................................................ [ 57%]\n........................................................................ [ 71%]\n........................................................................ [ 86%]\n.....................................................................    [100%]\n501 passed in 383.77s (0:06:23)\n"
+    },
+    "tui-calendar-result-size-root-2-red.txt": {
+      "raw_sha256": "364dac1fe4697c9150b591b9b44f10d6b0ea47b333f9a8ad9d3719ae16a7f5d2",
+      "utf8": "F                                                                        [100%]\n================================== FAILURES ===================================\n________________ test_manifest_covers_server_side_tui_contract ________________\ntests\\unit\\test_tui_runtime_manifest_contract.py:44: in test_manifest_covers_server_side_tui_contract\n    assert required <= files.keys()\nE   AssertionError: assert {'apps/terminal/application/tui_experience.py', 'apps/terminal/application/tui_metadata.py', 'apps/terminal/applicatio...tion.py', 'apps/terminal/application/tui_metadata_field_aliases.py', 'apps/terminal/application/tui_workbench.py', ...} <= dict_keys(['config/tui/schema/tui_metadata.schema.v3.json', 'apps/terminal/application/tui_experience.py', 'apps/termi...tui_metadata_runtime_screen_patch_research.py', 'apps/terminal/infrastructure/tui_metadata_runtime_screen_patches.py'])\nE    +  where dict_keys(['config/tui/schema/tui_metadata.schema.v3.json', 'apps/terminal/application/tui_experience.py', 'apps/termi...tui_metadata_runtime_screen_patch_research.py', 'apps/terminal/infrastructure/tui_metadata_runtime_screen_patches.py']) = <built-in method keys of dict object at 0x000001B5F5481AC0>()\nE    +    where <built-in method keys of dict object at 0x000001B5F5481AC0> = {'apps/terminal/application/tui_experience.py': '51e7a87fbad26c229a344876c87e533e3b761843ae0c3a737507e5c917ab0807', 'a...tion/tui_metadata_continuation_validation.py': '7f0e8155b701f27992f10ac19020036d8c81f9d5a59c7406bc61a64d52bf5c7a', ...}.keys\n=========================== short test summary info ===========================\nFAILED tests/unit/test_tui_runtime_manifest_contract.py::test_manifest_covers_server_side_tui_contract\n1 failed in 4.28s\n"
+    },
+    "tui-calendar-result-size-root-2-retirement.txt": {
+      "raw_sha256": "faec3ecdde781b272aa4c9add21f9a1c9e19a1bebb66c4945abd98d5f0f317d1",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_versioned_surface_retirement.py']\nVersioned surface retirement violations: module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py\n"
+    },
+    "tui-calendar-result-size-root-2-ruff.txt": {
+      "raw_sha256": "c336adc80b08e672fffea4d0e9277d94c63300c0264b6e5e527045f65cf37cb8",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'ruff', 'check', 'apps/terminal/application/tui_workbench_result_models_specialized.py', 'apps/terminal/application/tui_workbench_calendar_result_models.py', 'tests/unit/test_tui_runtime_manifest_contract.py']\nAll checks passed!\n"
+    },
+    "tui-calendar-result-size-root-2-runtime-build.txt": {
+      "raw_sha256": "70b349ead96597e9a750e04ae880bf76bc4dd37853c5591bdf02f2c58bc02f95",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['C:/nvm4w/nodejs/node.exe', 'scripts/build-tui-runtime.mjs']\n"
+    },
+    "tui-calendar-result-size-root-2-runtime-check.txt": {
+      "raw_sha256": "a367e7c161ab6d1cd08ab8bc2c73dc2ec1e7e5117f00d10440c487329d52ff85",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['C:/nvm4w/nodejs/node.exe', 'scripts/build-tui-runtime.mjs', '--check']\n"
+    },
+    "tui-calendar-result-size-root-2-size.txt": {
+      "raw_sha256": "2a52ad81b81bb52c59604cce80638c1910a6e4eb53962078aeca79e1fa6a9b4b",
+      "utf8": "source_tree=1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_changed_python_file_size.py', '--base', '01dd297f067845579e124f036e17a7700242d152', '--head', '1eec0d43e43234aff7e361f29d910e287037d8b5']\nPython file-size growth guard passed for 2 changed production files (limit: 1000).\n"
+    }
+  },
+  "full_governance_actual_report": {
+    "baseline_version": "2026-09-09.v220",
+    "violation_count": 2,
+    "sections": [
+      {
+        "name": "governance_baseline",
+        "violation_count": 0,
+        "data": {
+          "baseline_version": "2026-09-09.v220",
+          "required_key_count": 14,
+          "missing_required_keys": [],
+          "mcp_governance_required_key_count": 13,
+          "mcp_governance_entry_count": 13,
+          "module_shape_entry_count": 44,
+          "allowed_application_import_file_count": 0,
+          "allowed_large_file_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "docs_consistency",
+        "violation_count": 0,
+        "data": {
+          "actual_mcp_tool_count": 377,
+          "expected_mcp_tool_count": 377,
+          "actual_business_module_count": 44,
+          "expected_business_module_count": 44,
+          "actual_static_test_function_count": 19435,
+          "expected_static_test_function_count": 12264,
+          "dynamic_governance_doc_count": 21,
+          "core_version": "0.8.0",
+          "pyproject_version": "0.8.0"
+        },
+        "violations": []
+      },
+      {
+        "name": "docs_links",
+        "violation_count": 0,
+        "data": {
+          "checked_links": 76
+        },
+        "violations": []
+      },
+      {
+        "name": "governance_docs",
+        "violation_count": 0,
+        "data": {
+          "required_token_count": 9,
+          "missing_tokens": []
+        },
+        "violations": []
+      },
+      {
+        "name": "module_shape",
+        "violation_count": 0,
+        "data": {
+          "account": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "agent_runtime": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/urls.py"
+            ]
+          },
+          "ai_capability": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/urls.py"
+            ]
+          },
+          "ai_provider": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/views.py"
+            ]
+          },
+          "alpha": {
+            "score": 11,
+            "missing": []
+          },
+          "alpha_trigger": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "asset_analysis": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "audit": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "backtest": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "beta_gate": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "broker_execution": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "config_center": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py"
+            ]
+          },
+          "dashboard": {
+            "score": 11,
+            "missing": []
+          },
+          "data_center": {
+            "score": 10,
+            "missing": [
+              "domain/services.py"
+            ]
+          },
+          "decision_rhythm": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/views.py"
+            ]
+          },
+          "equity": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "events": {
+            "score": 11,
+            "missing": []
+          },
+          "factor": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "filter": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "fixed_income": {
+            "score": 5,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "fund": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "hedge": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "macro": {
+            "score": 9,
+            "missing": [
+              "infrastructure/repositories.py",
+              "interface/views.py"
+            ]
+          },
+          "macro_factor": {
+            "score": 4,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "operational_readiness": {
+            "score": 1,
+            "missing": [
+              "domain/entities.py",
+              "domain/rules.py",
+              "domain/services.py",
+              "application/use_cases.py",
+              "application/dtos.py",
+              "infrastructure/models.py",
+              "infrastructure/repositories.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py"
+            ]
+          },
+          "policy": {
+            "score": 8,
+            "missing": [
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py"
+            ]
+          },
+          "portfolio": {
+            "score": 6,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py"
+            ]
+          },
+          "prompt": {
+            "score": 11,
+            "missing": []
+          },
+          "pulse": {
+            "score": 11,
+            "missing": []
+          },
+          "realtime": {
+            "score": 11,
+            "missing": []
+          },
+          "regime": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "research": {
+            "score": 5,
+            "missing": [
+              "domain/entities.py",
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/urls.py"
+            ]
+          },
+          "risk_center": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "rotation": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "sector": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "sentiment": {
+            "score": 11,
+            "missing": []
+          },
+          "setup_wizard": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/serializers.py"
+            ]
+          },
+          "share": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "signal": {
+            "score": 9,
+            "missing": [
+              "domain/services.py",
+              "application/dtos.py"
+            ]
+          },
+          "simulated_trading": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "strategy": {
+            "score": 11,
+            "missing": []
+          },
+          "task_monitor": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "terminal": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "valuation": {
+            "score": 11,
+            "missing": []
+          }
+        },
+        "violations": []
+      },
+      {
+        "name": "misplaced_app_config",
+        "violation_count": 0,
+        "data": {
+          "violation_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "singular_dto_files",
+        "violation_count": 0,
+        "data": {
+          "violation_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "architecture_ruleset",
+        "violation_count": 0,
+        "data": {
+          "rules_version": "2026-10-09.v9",
+          "boundary_rule_count": 7,
+          "audit_rule_count": 20,
+          "duplicate_rule_ids": []
+        },
+        "violations": []
+      },
+      {
+        "name": "module_dependency_baseline",
+        "violation_count": 0,
+        "data": {
+          "baseline_version": "2026-08-13.v25",
+          "module_count": 44,
+          "outbound_budget_count": 44,
+          "inbound_budget_count": 44,
+          "max_outbound_modules_per_app": 24,
+          "max_inbound_modules_per_app": 30,
+          "max_app_import_edges": 206
+        },
+        "violations": []
+      },
+      {
+        "name": "ci_governance_wiring",
+        "violation_count": 0,
+        "data": {
+          "architecture_workflow": ".github/workflows/architecture-layer-guard.yml",
+          "consistency_workflow": ".github/workflows/consistency-check.yml",
+          "architecture_required_token_count": 7,
+          "consistency_required_token_count": 10
+        },
+        "violations": []
+      },
+      {
+        "name": "application_third_party_imports",
+        "violation_count": 0,
+        "data": {},
+        "violations": []
+      },
+      {
+        "name": "core_integration_debt",
+        "violation_count": 0,
+        "data": {
+          "actual_infrastructure_import_count": 0,
+          "expected_infrastructure_import_count": 0,
+          "actual_orm_access_count": 0,
+          "expected_orm_access_count": 0,
+          "files": {}
+        },
+        "violations": []
+      },
+      {
+        "name": "core_management_command_debt",
+        "violation_count": 0,
+        "data": {
+          "actual_infrastructure_import_count": 0,
+          "expected_infrastructure_import_count": 0,
+          "actual_orm_access_count": 0,
+          "expected_orm_access_count": 0,
+          "files": {}
+        },
+        "violations": []
+      },
+      {
+        "name": "large_python_files",
+        "violation_count": 2,
+        "data": {
+          "line_limit": 1200,
+          "large_file_count": 2,
+          "large_files": {
+            "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+            "apps/simulated_trading/domain/execution_settlement_uow.py": 1296
+          },
+          "allowed_large_file_count": 0
+        },
+        "violations": [
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+            "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+            "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+          }
+        ]
+      },
+      {
+        "name": "large_file_remediation",
+        "violation_count": 0,
+        "data": {
+          "allowed_path_count": 0,
+          "remediation_path_count": 0,
+          "review_date": "2026-10-17"
+        },
+        "violations": []
+      }
+    ],
+    "violations": [
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+      }
+    ]
+  },
+  "post_document_actual_exits": {
+    "registry": 0,
+    "registry-tests": 0,
+    "docs-links": 0,
+    "module": 0,
+    "dc-architecture": 0,
+    "dc-entrypoint": 0,
+    "runtime": 0
+  },
+  "generated_lf_sha256": {
+    "config/tui/agomtui-runtime.manifest.json": "72b7ae0c81967611bf1c83f4cead74050d1d2d05902e04a5cd72e424689933b9",
+    "governance/module_map.json": "203a6f4dd9467f17ae0b6d42dc132a50d8e706a40201ae7a7e8ee0614437a777",
+    "governance/data_center_architecture_inventory.json": "b41a34c497e01171961166bdc5f38020b4ed272aac7d18d3f5fa40578123a1f2"
+  },
+  "runtime_build_id": "agomtui-runtime-0.2.0+8da1d98130a6",
+  "source_patch": {
+    "raw_sha256": "d5ea913beda2997311a8197e610ebf398e6b73e72d434a518b892fbc39ade6ae",
+    "utf8": "diff --git a/apps/terminal/application/tui_workbench_calendar_result_models.py b/apps/terminal/application/tui_workbench_calendar_result_models.py\nnew file mode 100644\nindex 000000000..91498f6d0\n--- /dev/null\n+++ b/apps/terminal/application/tui_workbench_calendar_result_models.py\n@@ -0,0 +1,466 @@\n+\"\"\"Pure presentation helpers for reference-calendar workbench results.\"\"\"\n+\n+from __future__ import annotations\n+\n+from datetime import date, datetime, timedelta\n+from typing import TYPE_CHECKING, Any\n+\n+_CALENDAR_FRESHNESS_KEYS = frozenset(\n+    {\"source_observed_at\", \"source_available_at\", \"source_time_status\"}\n+)\n+_CALENDAR_PREVIEW_RESULT_KEYS = frozenset(\n+    {\n+        \"publication_status\",\n+        \"must_not_execute\",\n+        \"must_not_use_for_decision\",\n+        \"blocked_reason\",\n+        \"freshness\",\n+        \"reliability\",\n+        \"exchange\",\n+        \"coverage_start\",\n+        \"coverage_end\",\n+        \"first_seen_at\",\n+        \"source_published_at\",\n+        \"previewed_at\",\n+        \"response_expires_at\",\n+        \"message\",\n+    }\n+)\n+_CALENDAR_COMMIT_RESULT_KEYS = frozenset(\n+    {\n+        \"publication_status\",\n+        \"must_not_execute\",\n+        \"must_not_use_for_decision\",\n+        \"blocked_reason\",\n+        \"freshness\",\n+        \"reliability\",\n+        \"exchange\",\n+        \"coverage_start\",\n+        \"coverage_end\",\n+        \"transition_label\",\n+        \"published_at\",\n+        \"first_seen_at\",\n+        \"source_published_at\",\n+        \"response_expires_at\",\n+        \"checked_at\",\n+        \"message\",\n+    }\n+)\n+_CALENDAR_COMMIT_TRANSITIONS = frozenset(\n+    {\"日历已首次发布\", \"日历版本已更新\", \"当前日历版本已再次确认\"}\n+)\n+\n+\n+class TuiWorkbenchCalendarResultMixin:\n+    \"\"\"Project reference-calendar owner results into safe TUI models.\"\"\"\n+\n+    if TYPE_CHECKING:\n+\n+        def _message_model(\n+            self, action: dict[str, Any], message: str, status_code: int\n+        ) -> dict[str, Any]: ...\n+        def _datagrid_model(\n+            self,\n+            action: dict[str, Any],\n+            rows: list[Any],\n+            status_code: int,\n+            envelope: dict[str, Any] | None = None,\n+            request_params: dict[str, Any] | None = None,\n+        ) -> dict[str, Any]: ...\n+\n+    def _calendar_scope_result_model(\n+        self,\n+        action: dict[str, Any],\n+        payload: Any,\n+        status_code: int,\n+    ) -> dict[str, Any]:\n+        \"\"\"Show only the calendar configuration message and its configured TTL.\"\"\"\n+\n+        if not 200 <= status_code < 300:\n+            return self._calendar_message_model(\n+                action, \"日历配置状态读取失败，请检查管理员配置后重试。\", status_code, \"读取失败\"\n+            )\n+        if type(payload) is not dict:\n+            return self._calendar_message_model(\n+                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        if payload.get(\"metadata_status\") == \"blocked\" and payload.get(\"metadata\") is None:\n+            return self._calendar_message_model(\n+                action,\n+                \"未能确定唯一可用的日历配置，请管理员检查配置后重试。\",\n+                status_code,\n+                \"配置不可用\",\n+            )\n+        metadata = payload.get(\"metadata\")\n+        if payload.get(\"metadata_status\") != \"metadata_selected\" or type(metadata) is not dict:\n+            return self._calendar_message_model(\n+                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        response_age = metadata.get(\"calendar_response_max_age_seconds\")\n+        if type(response_age) is not int or response_age <= 0:\n+            return self._calendar_message_model(\n+                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        message = (\n+            f\"日历配置元数据已读取；来源响应最大有效期为 {response_age} 秒。\"\n+            \"凭据、数据源运行状态和当前发布状态尚未检查。\"\n+        )\n+        return self._calendar_message_model(action, message, status_code, \"已读取配置元数据\")\n+\n+    def _calendar_preview_result_model(\n+        self,\n+        action: dict[str, Any],\n+        payload: Any,\n+        status_code: int,\n+        request_params: dict[str, Any] | None,\n+    ) -> dict[str, Any]:\n+        \"\"\"Show a validated preview receipt in the visible primary result area.\"\"\"\n+\n+        if not 200 <= status_code < 300:\n+            return self._calendar_message_model(\n+                action,\n+                \"日历预览未能完成，请检查状态后重新准备。\",\n+                status_code,\n+                \"预览未完成\",\n+            )\n+        if type(payload) is not dict or not self._calendar_receipt_base_is_displayable(\n+            payload,\n+            allowed_keys=_CALENDAR_PREVIEW_RESULT_KEYS,\n+            publication_status=\"preview\",\n+            reliability=\"unpublished_publication_preview\",\n+        ):\n+            return self._calendar_message_model(\n+                action,\n+                \"预览结果无法安全确认，请重新读取配置并准备预览。\",\n+                status_code,\n+                \"状态待确认\",\n+            )\n+\n+        exchange = payload[\"exchange\"]\n+        start = self._calendar_date(payload[\"coverage_start\"])\n+        end = self._calendar_date(payload[\"coverage_end\"])\n+        first_seen = self._calendar_utc_timestamp(payload[\"first_seen_at\"])\n+        previewed_at = self._calendar_utc_timestamp(payload[\"previewed_at\"])\n+        expiry = self._calendar_utc_timestamp(payload[\"response_expires_at\"])\n+        if (\n+            start is None\n+            or end is None\n+            or first_seen is None\n+            or previewed_at is None\n+            or expiry is None\n+            or not self._calendar_result_matches_request(\n+                payload,\n+                request_params,\n+                exchange=exchange,\n+                start=start,\n+                end=end,\n+            )\n+        ):\n+            return self._calendar_message_model(\n+                action,\n+                \"预览结果无法安全确认，请重新读取配置并准备预览。\",\n+                status_code,\n+                \"状态待确认\",\n+            )\n+\n+        source_time = self._calendar_source_time_text(payload[\"source_published_at\"])\n+        message = (\n+            f\"日历预览已准备，尚未发布。交易所 {exchange}；覆盖日期 {start.isoformat()} 至 \"\n+            f\"{end.isoformat()}。来源响应完成时间（本地首次记录）{first_seen}；\"\n+            f\"预览时间 {previewed_at}；来源响应有效期至 {expiry}。{source_time}\"\n+            \"上游观测时间未知；仅供参考，不可用于交易或投资决策。请在有效期内明确确认。\"\n+        )\n+        return self._calendar_message_model(action, message, status_code, \"预览已准备\")\n+\n+    def _calendar_commit_result_model(\n+        self,\n+        action: dict[str, Any],\n+        payload: Any,\n+        status_code: int,\n+    ) -> dict[str, Any]:\n+        \"\"\"Show a bounded publication receipt while hiding all server identities.\"\"\"\n+\n+        if not 200 <= status_code < 300:\n+            return self._calendar_message_model(\n+                action,\n+                \"发布结果无法确认，请重新读取当前日历后再决定是否重试。\",\n+                status_code,\n+                \"发布结果待确认\",\n+            )\n+        if type(payload) is not dict or not self._calendar_receipt_base_is_displayable(\n+            payload,\n+            allowed_keys=_CALENDAR_COMMIT_RESULT_KEYS,\n+            publication_status=\"published\",\n+            reliability=\"audited_calendar_reference\",\n+        ):\n+            return self._calendar_message_model(\n+                action,\n+                \"发布回执无法安全确认，请重新读取当前日历。\",\n+                status_code,\n+                \"状态待确认\",\n+            )\n+\n+        transition = payload[\"transition_label\"]\n+        start = self._calendar_date(payload[\"coverage_start\"])\n+        end = self._calendar_date(payload[\"coverage_end\"])\n+        first_seen = self._calendar_utc_timestamp(payload[\"first_seen_at\"])\n+        published_at = self._calendar_utc_timestamp(payload[\"published_at\"])\n+        checked_at = self._calendar_utc_timestamp(payload[\"checked_at\"])\n+        expiry = self._calendar_utc_timestamp(payload[\"response_expires_at\"])\n+        if (\n+            type(transition) is not str\n+            or transition not in _CALENDAR_COMMIT_TRANSITIONS\n+            or start is None\n+            or end is None\n+            or first_seen is None\n+            or published_at is None\n+            or checked_at is None\n+            or expiry is None\n+        ):\n+            return self._calendar_message_model(\n+                action,\n+                \"发布回执无法安全确认，请重新读取当前日历。\",\n+                status_code,\n+                \"状态待确认\",\n+            )\n+\n+        source_time = self._calendar_source_time_text(payload[\"source_published_at\"])\n+        message = (\n+            f\"{transition}。交易所 {payload['exchange']}；覆盖日期 {start.isoformat()} 至 \"\n+            f\"{end.isoformat()}。来源响应完成时间（本地首次记录）{first_seen}；\"\n+            f\"发布确认时间 {published_at}；来源响应有效期至 {expiry}。{source_time}\"\n+            f\"上游观测时间未知；{transition}后的日历仅供参考，不可用于交易或投资决策。\"\n+        )\n+        return self._calendar_message_model(action, message, status_code, transition)\n+\n+    def _calendar_receipt_base_is_displayable(\n+        self,\n+        payload: dict[str, Any],\n+        *,\n+        allowed_keys: frozenset[str],\n+        publication_status: str,\n+        reliability: str,\n+    ) -> bool:\n+        \"\"\"Require the exact owner receipt shape and its reference-only boundary.\"\"\"\n+\n+        freshness = payload.get(\"freshness\")\n+        source_published_at = payload.get(\"source_published_at\")\n+        start = self._calendar_date(payload.get(\"coverage_start\"))\n+        end = self._calendar_date(payload.get(\"coverage_end\"))\n+        return bool(\n+            set(payload) == allowed_keys\n+            and type(freshness) is dict\n+            and set(freshness) == _CALENDAR_FRESHNESS_KEYS\n+            and payload.get(\"publication_status\") == publication_status\n+            and payload.get(\"must_not_execute\") is True\n+            and payload.get(\"must_not_use_for_decision\") is True\n+            and payload.get(\"blocked_reason\") == \"exchange_calendar_reference_only\"\n+            and payload.get(\"reliability\") == reliability\n+            and freshness.get(\"source_observed_at\") is None\n+            and freshness.get(\"source_available_at\") is None\n+            and freshness.get(\"source_time_status\") == \"not_provided\"\n+            and type(payload.get(\"exchange\")) is str\n+            and bool(payload[\"exchange\"])\n+            and payload[\"exchange\"].strip() == payload[\"exchange\"]\n+            and start is not None\n+            and end is not None\n+            and start <= end\n+            and (source_published_at is None or self._calendar_utc_timestamp(source_published_at))\n+            and type(payload.get(\"message\")) is str\n+            and bool(payload[\"message\"].strip())\n+        )\n+\n+    def _calendar_result_matches_request(\n+        self,\n+        payload: dict[str, Any],\n+        request_params: dict[str, Any] | None,\n+        *,\n+        exchange: str,\n+        start: date,\n+        end: date,\n+    ) -> bool:\n+        \"\"\"Bind the returned preview to the exact exchange and dates requested.\"\"\"\n+\n+        if type(request_params) is not dict:\n+            return False\n+        request_start = self._calendar_date(request_params.get(\"coverage_start\"))\n+        request_end = self._calendar_date(request_params.get(\"coverage_end\"))\n+        return bool(\n+            request_params.get(\"exchange\") == exchange\n+            and request_start == start\n+            and request_end == end\n+            and payload.get(\"coverage_start\") == request_params.get(\"coverage_start\")\n+            and payload.get(\"coverage_end\") == request_params.get(\"coverage_end\")\n+        )\n+\n+    def _calendar_source_time_text(self, source_published_at: Any) -> str:\n+        \"\"\"Describe an optional upstream publication time without inventing one.\"\"\"\n+\n+        if source_published_at is None:\n+            return \"上游发布时间未知；\"\n+        timestamp = self._calendar_utc_timestamp(source_published_at)\n+        return f\"上游发布时间 {timestamp}；\" if timestamp is not None else \"\"\n+\n+    def _calendar_current_result_model(\n+        self,\n+        action: dict[str, Any],\n+        payload: Any,\n+        status_code: int,\n+        request_params: dict[str, Any] | None,\n+    ) -> dict[str, Any]:\n+        \"\"\"Render a current reference calendar or a bounded non-success message.\"\"\"\n+\n+        if not 200 <= status_code < 300:\n+            return self._calendar_message_model(\n+                action,\n+                \"当前参考日历读取失败，请检查交易所标识或配置后重试。\",\n+                status_code,\n+                \"读取失败\",\n+            )\n+        if type(payload) is not dict:\n+            return self._calendar_message_model(\n+                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        current_status = payload.get(\"current_status\")\n+        if current_status == \"blocked\" and payload.get(\"configuration_status\") == \"blocked\":\n+            return self._calendar_message_model(\n+                action, \"当前日历配置不可用，读取已阻断；请管理员检查配置。\", status_code, \"已阻断\"\n+            )\n+        if (\n+            current_status == \"not_found\"\n+            and payload.get(\"configuration_status\") == \"metadata_selected\"\n+        ):\n+            return self._calendar_message_model(\n+                action, \"当前配置下没有已发布的参考日历。\", status_code, \"无当前版本\"\n+            )\n+        if (\n+            current_status != \"published\"\n+            or payload.get(\"configuration_status\") != \"metadata_selected\"\n+        ):\n+            return self._calendar_message_model(\n+                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        current = payload.get(\"current\")\n+        if type(current) is not dict or not self._calendar_current_is_displayable(current):\n+            return self._calendar_message_model(\n+                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        if not isinstance(request_params, dict) or current.get(\"exchange\") != request_params.get(\n+            \"exchange\"\n+        ):\n+            return self._calendar_message_model(\n+                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        rows = self._calendar_display_rows(current)\n+        if rows is None:\n+            return self._calendar_message_model(\n+                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n+            )\n+        grid = self._datagrid_model(action, rows, status_code)\n+        grid[\"status\"] = \"仅供参考\"\n+        grid[\"business_summary\"] = (\n+            f\"{current['exchange']} 参考日历（{current['coverage_start']} 至 \"\n+            f\"{current['coverage_end']}）；来源响应完成时间 {current['first_seen_at']} \"\n+            \"（本地首次记录，非上游观测时间）；上游观测时间未知；\"\n+            f\"来源响应有效期至 {current['response_expires_at']}。\"\n+            \"仅供参考，不可用于交易或投资决策。\"\n+        )\n+        grid[\"blocking_reason\"] = \"\"\n+        return grid\n+\n+    def _calendar_current_is_displayable(self, current: dict[str, Any]) -> bool:\n+        \"\"\"Require the published reference-only state and its original UTC window.\"\"\"\n+\n+        freshness = current.get(\"freshness\")\n+        if type(freshness) is not dict:\n+            return False\n+        if not (\n+            current.get(\"publication_status\") == \"published\"\n+            and current.get(\"must_not_execute\") is True\n+            and current.get(\"must_not_use_for_decision\") is True\n+            and current.get(\"reliability\") == \"audited_calendar_reference\"\n+            and freshness.get(\"source_observed_at\") is None\n+            and freshness.get(\"source_available_at\") is None\n+            and freshness.get(\"source_time_status\") == \"not_provided\"\n+        ):\n+            return False\n+        exchange = current.get(\"exchange\")\n+        start = self._calendar_date(current.get(\"coverage_start\"))\n+        end = self._calendar_date(current.get(\"coverage_end\"))\n+        first_seen = self._calendar_utc_timestamp(current.get(\"first_seen_at\"))\n+        expiry = self._calendar_utc_timestamp(current.get(\"response_expires_at\"))\n+        return bool(\n+            type(exchange) is str\n+            and exchange\n+            and start is not None\n+            and end is not None\n+            and first_seen is not None\n+            and expiry is not None\n+        )\n+\n+    def _calendar_display_rows(self, current: dict[str, Any]) -> list[dict[str, str]] | None:\n+        \"\"\"Project the owner's typed calendar facts into three user-facing columns.\"\"\"\n+\n+        days = current.get(\"calendar_days\")\n+        if type(days) is not list or not days:\n+            return None\n+        exchange = current.get(\"exchange\")\n+        rows: list[dict[str, str]] = []\n+        for day in days:\n+            if type(day) is not dict or day.get(\"exchange\") != exchange:\n+                return None\n+            calendar_date = self._calendar_date(day.get(\"calendar_date\"))\n+            previous_open = day.get(\"previous_open_date\")\n+            if (\n+                calendar_date is None\n+                or type(day.get(\"is_open\")) is not bool\n+                or (previous_open is not None and self._calendar_date(previous_open) is None)\n+            ):\n+                return None\n+            rows.append(\n+                {\n+                    \"calendar_date\": calendar_date.isoformat(),\n+                    \"calendar_state\": \"开市\" if day[\"is_open\"] else \"休市\",\n+                    \"previous_open_date\": previous_open or \"未提供\",\n+                }\n+            )\n+        return rows\n+\n+    @staticmethod\n+    def _calendar_date(value: Any) -> date | None:\n+        \"\"\"Parse only canonical ISO dates at this presentation boundary.\"\"\"\n+\n+        if type(value) is not str:\n+            return None\n+        try:\n+            parsed = date.fromisoformat(value)\n+        except ValueError:\n+            return None\n+        return parsed if parsed.isoformat() == value else None\n+\n+    @staticmethod\n+    def _calendar_utc_timestamp(value: Any) -> str | None:\n+        \"\"\"Preserve a nonempty UTC timestamp without inventing source timing.\"\"\"\n+\n+        if type(value) is not str or not value:\n+            return None\n+        try:\n+            parsed = datetime.fromisoformat(value.replace(\"Z\", \"+00:00\"))\n+        except ValueError:\n+            return None\n+        return value if parsed.tzinfo is not None and parsed.utcoffset() == timedelta(0) else None\n+\n+    def _calendar_message_model(\n+        self,\n+        action: dict[str, Any],\n+        message: str,\n+        status_code: int,\n+        status_label: str,\n+    ) -> dict[str, Any]:\n+        \"\"\"Return a safe message with no raw owner metadata.\"\"\"\n+\n+        model = self._message_model(action, message, status_code)\n+        model[\"status\"] = status_label\n+        model[\"business_summary\"] = message\n+        model[\"blocking_reason\"] = message if status_code >= 400 else \"\"\n+        return model\ndiff --git a/apps/terminal/application/tui_workbench_result_models_specialized.py b/apps/terminal/application/tui_workbench_result_models_specialized.py\nindex 4507880c8..e7086a3e3 100644\n--- a/apps/terminal/application/tui_workbench_result_models_specialized.py\n+++ b/apps/terminal/application/tui_workbench_result_models_specialized.py\n@@ -2,7 +2,6 @@\n \n from __future__ import annotations\n \n-from datetime import date, datetime, timedelta\n from typing import TYPE_CHECKING, Any\n \n from apps.terminal.application.tui_dashboard_result import TuiDashboardResultMixin\n@@ -10,54 +9,24 @@ from apps.terminal.application.tui_egress_result import (\n     build_egress_result,\n     build_egress_saved_result,\n )\n-\n-_CALENDAR_FRESHNESS_KEYS = frozenset(\n-    {\"source_observed_at\", \"source_available_at\", \"source_time_status\"}\n+from apps.terminal.application.tui_workbench_calendar_result_models import (\n+    _CALENDAR_COMMIT_RESULT_KEYS as _CALENDAR_COMMIT_RESULT_KEYS,\n+)\n+from apps.terminal.application.tui_workbench_calendar_result_models import (\n+    _CALENDAR_COMMIT_TRANSITIONS as _CALENDAR_COMMIT_TRANSITIONS,\n )\n-_CALENDAR_PREVIEW_RESULT_KEYS = frozenset(\n-    {\n-        \"publication_status\",\n-        \"must_not_execute\",\n-        \"must_not_use_for_decision\",\n-        \"blocked_reason\",\n-        \"freshness\",\n-        \"reliability\",\n-        \"exchange\",\n-        \"coverage_start\",\n-        \"coverage_end\",\n-        \"first_seen_at\",\n-        \"source_published_at\",\n-        \"previewed_at\",\n-        \"response_expires_at\",\n-        \"message\",\n-    }\n+from apps.terminal.application.tui_workbench_calendar_result_models import (\n+    _CALENDAR_FRESHNESS_KEYS as _CALENDAR_FRESHNESS_KEYS,\n )\n-_CALENDAR_COMMIT_RESULT_KEYS = frozenset(\n-    {\n-        \"publication_status\",\n-        \"must_not_execute\",\n-        \"must_not_use_for_decision\",\n-        \"blocked_reason\",\n-        \"freshness\",\n-        \"reliability\",\n-        \"exchange\",\n-        \"coverage_start\",\n-        \"coverage_end\",\n-        \"transition_label\",\n-        \"published_at\",\n-        \"first_seen_at\",\n-        \"source_published_at\",\n-        \"response_expires_at\",\n-        \"checked_at\",\n-        \"message\",\n-    }\n+from apps.terminal.application.tui_workbench_calendar_result_models import (\n+    _CALENDAR_PREVIEW_RESULT_KEYS as _CALENDAR_PREVIEW_RESULT_KEYS,\n )\n-_CALENDAR_COMMIT_TRANSITIONS = frozenset(\n-    {\"日历已首次发布\", \"日历版本已更新\", \"当前日历版本已再次确认\"}\n+from apps.terminal.application.tui_workbench_calendar_result_models import (\n+    TuiWorkbenchCalendarResultMixin,\n )\n \n \n-class TuiWorkbenchSpecializedResultMixin(TuiDashboardResultMixin):\n+class TuiWorkbenchSpecializedResultMixin(TuiWorkbenchCalendarResultMixin, TuiDashboardResultMixin):\n     \"\"\"Specialized view-model builders layered on top of the base mixin.\"\"\"\n \n     if TYPE_CHECKING:\n@@ -209,403 +178,6 @@ class TuiWorkbenchSpecializedResultMixin(TuiDashboardResultMixin):\n             return self._dashboard_overview_result_model(action, payload, status_code)\n         return None\n \n-    def _calendar_scope_result_model(\n-        self,\n-        action: dict[str, Any],\n-        payload: Any,\n-        status_code: int,\n-    ) -> dict[str, Any]:\n-        \"\"\"Show only the calendar configuration message and its configured TTL.\"\"\"\n-\n-        if not 200 <= status_code < 300:\n-            return self._calendar_message_model(\n-                action, \"日历配置状态读取失败，请检查管理员配置后重试。\", status_code, \"读取失败\"\n-            )\n-        if type(payload) is not dict:\n-            return self._calendar_message_model(\n-                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        if payload.get(\"metadata_status\") == \"blocked\" and payload.get(\"metadata\") is None:\n-            return self._calendar_message_model(\n-                action,\n-                \"未能确定唯一可用的日历配置，请管理员检查配置后重试。\",\n-                status_code,\n-                \"配置不可用\",\n-            )\n-        metadata = payload.get(\"metadata\")\n-        if payload.get(\"metadata_status\") != \"metadata_selected\" or type(metadata) is not dict:\n-            return self._calendar_message_model(\n-                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        response_age = metadata.get(\"calendar_response_max_age_seconds\")\n-        if type(response_age) is not int or response_age <= 0:\n-            return self._calendar_message_model(\n-                action, \"日历配置状态无法安全显示，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        message = (\n-            f\"日历配置元数据已读取；来源响应最大有效期为 {response_age} 秒。\"\n-            \"凭据、数据源运行状态和当前发布状态尚未检查。\"\n-        )\n-        return self._calendar_message_model(action, message, status_code, \"已读取配置元数据\")\n-\n-    def _calendar_preview_result_model(\n-        self,\n-        action: dict[str, Any],\n-        payload: Any,\n-        status_code: int,\n-        request_params: dict[str, Any] | None,\n-    ) -> dict[str, Any]:\n-        \"\"\"Show a validated preview receipt in the visible primary result area.\"\"\"\n-\n-        if not 200 <= status_code < 300:\n-            return self._calendar_message_model(\n-                action,\n-                \"日历预览未能完成，请检查状态后重新准备。\",\n-                status_code,\n-                \"预览未完成\",\n-            )\n-        if type(payload) is not dict or not self._calendar_receipt_base_is_displayable(\n-            payload,\n-            allowed_keys=_CALENDAR_PREVIEW_RESULT_KEYS,\n-            publication_status=\"preview\",\n-            reliability=\"unpublished_publication_preview\",\n-        ):\n-            return self._calendar_message_model(\n-                action,\n-                \"预览结果无法安全确认，请重新读取配置并准备预览。\",\n-                status_code,\n-                \"状态待确认\",\n-            )\n-\n-        exchange = payload[\"exchange\"]\n-        start = self._calendar_date(payload[\"coverage_start\"])\n-        end = self._calendar_date(payload[\"coverage_end\"])\n-        first_seen = self._calendar_utc_timestamp(payload[\"first_seen_at\"])\n-        previewed_at = self._calendar_utc_timestamp(payload[\"previewed_at\"])\n-        expiry = self._calendar_utc_timestamp(payload[\"response_expires_at\"])\n-        if (\n-            start is None\n-            or end is None\n-            or first_seen is None\n-            or previewed_at is None\n-            or expiry is None\n-            or not self._calendar_result_matches_request(\n-                payload,\n-                request_params,\n-                exchange=exchange,\n-                start=start,\n-                end=end,\n-            )\n-        ):\n-            return self._calendar_message_model(\n-                action,\n-                \"预览结果无法安全确认，请重新读取配置并准备预览。\",\n-                status_code,\n-                \"状态待确认\",\n-            )\n-\n-        source_time = self._calendar_source_time_text(payload[\"source_published_at\"])\n-        message = (\n-            f\"日历预览已准备，尚未发布。交易所 {exchange}；覆盖日期 {start.isoformat()} 至 \"\n-            f\"{end.isoformat()}。来源响应完成时间（本地首次记录）{first_seen}；\"\n-            f\"预览时间 {previewed_at}；来源响应有效期至 {expiry}。{source_time}\"\n-            \"上游观测时间未知；仅供参考，不可用于交易或投资决策。请在有效期内明确确认。\"\n-        )\n-        return self._calendar_message_model(action, message, status_code, \"预览已准备\")\n-\n-    def _calendar_commit_result_model(\n-        self,\n-        action: dict[str, Any],\n-        payload: Any,\n-        status_code: int,\n-    ) -> dict[str, Any]:\n-        \"\"\"Show a bounded publication receipt while hiding all server identities.\"\"\"\n-\n-        if not 200 <= status_code < 300:\n-            return self._calendar_message_model(\n-                action,\n-                \"发布结果无法确认，请重新读取当前日历后再决定是否重试。\",\n-                status_code,\n-                \"发布结果待确认\",\n-            )\n-        if type(payload) is not dict or not self._calendar_receipt_base_is_displayable(\n-            payload,\n-            allowed_keys=_CALENDAR_COMMIT_RESULT_KEYS,\n-            publication_status=\"published\",\n-            reliability=\"audited_calendar_reference\",\n-        ):\n-            return self._calendar_message_model(\n-                action,\n-                \"发布回执无法安全确认，请重新读取当前日历。\",\n-                status_code,\n-                \"状态待确认\",\n-            )\n-\n-        transition = payload[\"transition_label\"]\n-        start = self._calendar_date(payload[\"coverage_start\"])\n-        end = self._calendar_date(payload[\"coverage_end\"])\n-        first_seen = self._calendar_utc_timestamp(payload[\"first_seen_at\"])\n-        published_at = self._calendar_utc_timestamp(payload[\"published_at\"])\n-        checked_at = self._calendar_utc_timestamp(payload[\"checked_at\"])\n-        expiry = self._calendar_utc_timestamp(payload[\"response_expires_at\"])\n-        if (\n-            type(transition) is not str\n-            or transition not in _CALENDAR_COMMIT_TRANSITIONS\n-            or start is None\n-            or end is None\n-            or first_seen is None\n-            or published_at is None\n-            or checked_at is None\n-            or expiry is None\n-        ):\n-            return self._calendar_message_model(\n-                action,\n-                \"发布回执无法安全确认，请重新读取当前日历。\",\n-                status_code,\n-                \"状态待确认\",\n-            )\n-\n-        source_time = self._calendar_source_time_text(payload[\"source_published_at\"])\n-        message = (\n-            f\"{transition}。交易所 {payload['exchange']}；覆盖日期 {start.isoformat()} 至 \"\n-            f\"{end.isoformat()}。来源响应完成时间（本地首次记录）{first_seen}；\"\n-            f\"发布确认时间 {published_at}；来源响应有效期至 {expiry}。{source_time}\"\n-            f\"上游观测时间未知；{transition}后的日历仅供参考，不可用于交易或投资决策。\"\n-        )\n-        return self._calendar_message_model(action, message, status_code, transition)\n-\n-    def _calendar_receipt_base_is_displayable(\n-        self,\n-        payload: dict[str, Any],\n-        *,\n-        allowed_keys: frozenset[str],\n-        publication_status: str,\n-        reliability: str,\n-    ) -> bool:\n-        \"\"\"Require the exact owner receipt shape and its reference-only boundary.\"\"\"\n-\n-        freshness = payload.get(\"freshness\")\n-        source_published_at = payload.get(\"source_published_at\")\n-        start = self._calendar_date(payload.get(\"coverage_start\"))\n-        end = self._calendar_date(payload.get(\"coverage_end\"))\n-        return bool(\n-            set(payload) == allowed_keys\n-            and type(freshness) is dict\n-            and set(freshness) == _CALENDAR_FRESHNESS_KEYS\n-            and payload.get(\"publication_status\") == publication_status\n-            and payload.get(\"must_not_execute\") is True\n-            and payload.get(\"must_not_use_for_decision\") is True\n-            and payload.get(\"blocked_reason\") == \"exchange_calendar_reference_only\"\n-            and payload.get(\"reliability\") == reliability\n-            and freshness.get(\"source_observed_at\") is None\n-            and freshness.get(\"source_available_at\") is None\n-            and freshness.get(\"source_time_status\") == \"not_provided\"\n-            and type(payload.get(\"exchange\")) is str\n-            and bool(payload[\"exchange\"])\n-            and payload[\"exchange\"].strip() == payload[\"exchange\"]\n-            and start is not None\n-            and end is not None\n-            and start <= end\n-            and (source_published_at is None or self._calendar_utc_timestamp(source_published_at))\n-            and type(payload.get(\"message\")) is str\n-            and bool(payload[\"message\"].strip())\n-        )\n-\n-    def _calendar_result_matches_request(\n-        self,\n-        payload: dict[str, Any],\n-        request_params: dict[str, Any] | None,\n-        *,\n-        exchange: str,\n-        start: date,\n-        end: date,\n-    ) -> bool:\n-        \"\"\"Bind the returned preview to the exact exchange and dates requested.\"\"\"\n-\n-        if type(request_params) is not dict:\n-            return False\n-        request_start = self._calendar_date(request_params.get(\"coverage_start\"))\n-        request_end = self._calendar_date(request_params.get(\"coverage_end\"))\n-        return bool(\n-            request_params.get(\"exchange\") == exchange\n-            and request_start == start\n-            and request_end == end\n-            and payload.get(\"coverage_start\") == request_params.get(\"coverage_start\")\n-            and payload.get(\"coverage_end\") == request_params.get(\"coverage_end\")\n-        )\n-\n-    def _calendar_source_time_text(self, source_published_at: Any) -> str:\n-        \"\"\"Describe an optional upstream publication time without inventing one.\"\"\"\n-\n-        if source_published_at is None:\n-            return \"上游发布时间未知；\"\n-        timestamp = self._calendar_utc_timestamp(source_published_at)\n-        return f\"上游发布时间 {timestamp}；\" if timestamp is not None else \"\"\n-\n-    def _calendar_current_result_model(\n-        self,\n-        action: dict[str, Any],\n-        payload: Any,\n-        status_code: int,\n-        request_params: dict[str, Any] | None,\n-    ) -> dict[str, Any]:\n-        \"\"\"Render a current reference calendar or a bounded non-success message.\"\"\"\n-\n-        if not 200 <= status_code < 300:\n-            return self._calendar_message_model(\n-                action,\n-                \"当前参考日历读取失败，请检查交易所标识或配置后重试。\",\n-                status_code,\n-                \"读取失败\",\n-            )\n-        if type(payload) is not dict:\n-            return self._calendar_message_model(\n-                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        current_status = payload.get(\"current_status\")\n-        if current_status == \"blocked\" and payload.get(\"configuration_status\") == \"blocked\":\n-            return self._calendar_message_model(\n-                action, \"当前日历配置不可用，读取已阻断；请管理员检查配置。\", status_code, \"已阻断\"\n-            )\n-        if (\n-            current_status == \"not_found\"\n-            and payload.get(\"configuration_status\") == \"metadata_selected\"\n-        ):\n-            return self._calendar_message_model(\n-                action, \"当前配置下没有已发布的参考日历。\", status_code, \"无当前版本\"\n-            )\n-        if (\n-            current_status != \"published\"\n-            or payload.get(\"configuration_status\") != \"metadata_selected\"\n-        ):\n-            return self._calendar_message_model(\n-                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        current = payload.get(\"current\")\n-        if type(current) is not dict or not self._calendar_current_is_displayable(current):\n-            return self._calendar_message_model(\n-                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        if not isinstance(request_params, dict) or current.get(\"exchange\") != request_params.get(\n-            \"exchange\"\n-        ):\n-            return self._calendar_message_model(\n-                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        rows = self._calendar_display_rows(current)\n-        if rows is None:\n-            return self._calendar_message_model(\n-                action, \"当前日历结果无法确认，请重新读取。\", status_code, \"状态待确认\"\n-            )\n-        grid = self._datagrid_model(action, rows, status_code)\n-        grid[\"status\"] = \"仅供参考\"\n-        grid[\"business_summary\"] = (\n-            f\"{current['exchange']} 参考日历（{current['coverage_start']} 至 \"\n-            f\"{current['coverage_end']}）；来源响应完成时间 {current['first_seen_at']} \"\n-            \"（本地首次记录，非上游观测时间）；上游观测时间未知；\"\n-            f\"来源响应有效期至 {current['response_expires_at']}。\"\n-            \"仅供参考，不可用于交易或投资决策。\"\n-        )\n-        grid[\"blocking_reason\"] = \"\"\n-        return grid\n-\n-    def _calendar_current_is_displayable(self, current: dict[str, Any]) -> bool:\n-        \"\"\"Require the published reference-only state and its original UTC window.\"\"\"\n-\n-        freshness = current.get(\"freshness\")\n-        if type(freshness) is not dict:\n-            return False\n-        if not (\n-            current.get(\"publication_status\") == \"published\"\n-            and current.get(\"must_not_execute\") is True\n-            and current.get(\"must_not_use_for_decision\") is True\n-            and current.get(\"reliability\") == \"audited_calendar_reference\"\n-            and freshness.get(\"source_observed_at\") is None\n-            and freshness.get(\"source_available_at\") is None\n-            and freshness.get(\"source_time_status\") == \"not_provided\"\n-        ):\n-            return False\n-        exchange = current.get(\"exchange\")\n-        start = self._calendar_date(current.get(\"coverage_start\"))\n-        end = self._calendar_date(current.get(\"coverage_end\"))\n-        first_seen = self._calendar_utc_timestamp(current.get(\"first_seen_at\"))\n-        expiry = self._calendar_utc_timestamp(current.get(\"response_expires_at\"))\n-        return bool(\n-            type(exchange) is str\n-            and exchange\n-            and start is not None\n-            and end is not None\n-            and first_seen is not None\n-            and expiry is not None\n-        )\n-\n-    def _calendar_display_rows(self, current: dict[str, Any]) -> list[dict[str, str]] | None:\n-        \"\"\"Project the owner's typed calendar facts into three user-facing columns.\"\"\"\n-\n-        days = current.get(\"calendar_days\")\n-        if type(days) is not list or not days:\n-            return None\n-        exchange = current.get(\"exchange\")\n-        rows: list[dict[str, str]] = []\n-        for day in days:\n-            if type(day) is not dict or day.get(\"exchange\") != exchange:\n-                return None\n-            calendar_date = self._calendar_date(day.get(\"calendar_date\"))\n-            previous_open = day.get(\"previous_open_date\")\n-            if (\n-                calendar_date is None\n-                or type(day.get(\"is_open\")) is not bool\n-                or (previous_open is not None and self._calendar_date(previous_open) is None)\n-            ):\n-                return None\n-            rows.append(\n-                {\n-                    \"calendar_date\": calendar_date.isoformat(),\n-                    \"calendar_state\": \"开市\" if day[\"is_open\"] else \"休市\",\n-                    \"previous_open_date\": previous_open or \"未提供\",\n-                }\n-            )\n-        return rows\n-\n-    @staticmethod\n-    def _calendar_date(value: Any) -> date | None:\n-        \"\"\"Parse only canonical ISO dates at this presentation boundary.\"\"\"\n-\n-        if type(value) is not str:\n-            return None\n-        try:\n-            parsed = date.fromisoformat(value)\n-        except ValueError:\n-            return None\n-        return parsed if parsed.isoformat() == value else None\n-\n-    @staticmethod\n-    def _calendar_utc_timestamp(value: Any) -> str | None:\n-        \"\"\"Preserve a nonempty UTC timestamp without inventing source timing.\"\"\"\n-\n-        if type(value) is not str or not value:\n-            return None\n-        try:\n-            parsed = datetime.fromisoformat(value.replace(\"Z\", \"+00:00\"))\n-        except ValueError:\n-            return None\n-        return value if parsed.tzinfo is not None and parsed.utcoffset() == timedelta(0) else None\n-\n-    def _calendar_message_model(\n-        self,\n-        action: dict[str, Any],\n-        message: str,\n-        status_code: int,\n-        status_label: str,\n-    ) -> dict[str, Any]:\n-        \"\"\"Return a safe message with no raw owner metadata.\"\"\"\n-\n-        model = self._message_model(action, message, status_code)\n-        model[\"status\"] = status_label\n-        model[\"business_summary\"] = message\n-        model[\"blocking_reason\"] = message if status_code >= 400 else \"\"\n-        return model\n-\n     def _regime_current_result_model(\n         self,\n         action: dict[str, Any],\ndiff --git a/scripts/build-tui-runtime.mjs b/scripts/build-tui-runtime.mjs\nindex 8b864b6ea..40f126306 100644\n--- a/scripts/build-tui-runtime.mjs\n+++ b/scripts/build-tui-runtime.mjs\n@@ -118,6 +118,8 @@ for (const absolutePath of [\n     \"apps/terminal/application/tui_experience.py\",\n     \"apps/terminal/application/tui_workbench.py\",\n     \"apps/terminal/application/tui_workbench_execution.py\",\n+    \"apps/terminal/application/tui_workbench_calendar_result_models.py\",\n+    \"apps/terminal/application/tui_workbench_result_models_specialized.py\",\n     \"apps/terminal/interface/api_views.py\",\n     \"tui-metadata-compiler/scripts/promote_tui_business_screens.py\",\n     \"frontend/agomtui-runtime/src/api.js\",\ndiff --git a/tests/unit/test_tui_runtime_manifest_contract.py b/tests/unit/test_tui_runtime_manifest_contract.py\nindex bd01898ee..cc6628344 100644\n--- a/tests/unit/test_tui_runtime_manifest_contract.py\n+++ b/tests/unit/test_tui_runtime_manifest_contract.py\n@@ -29,6 +29,8 @@ def test_manifest_covers_server_side_tui_contract() -> None:\n         \"apps/terminal/application/tui_experience.py\",\n         \"apps/terminal/application/tui_workbench.py\",\n         \"apps/terminal/application/tui_workbench_execution.py\",\n+        \"apps/terminal/application/tui_workbench_calendar_result_models.py\",\n+        \"apps/terminal/application/tui_workbench_result_models_specialized.py\",\n         \"apps/terminal/interface/api_views.py\",\n         \"tui-metadata-compiler/scripts/promote_tui_business_screens.py\",\n         \"apps/terminal/infrastructure/tui_information_architecture.py\",\n",
+    "reconstructs_exact_tree": true
+  },
+  "candidate_patch": {
+    "raw_sha256": "2fe91ea06e68fc51479a85d9fb958127072a61666d72487335cc7d9fc7f665e5",
+    "path": ".tmp/ash-calendar-result-move-candidate.patch"
+  },
+  "independent_reviews": {
+    ".tmp/ash-calendar-result-move-independent-review-20261017.md": "# 独立只读复核：TUI calendar result model 拆分候选\n\n日期：2026-10-17  \n复核 HEAD：`f5df7c709f4ee5cf161078b83c165c090d434fdd`  \n候选补丁：`.tmp/ash-calendar-result-move-candidate.patch`  \n预期/实测 SHA-256：`2fe91ea06e68fc51479a85d9fb958127072a61666d72487335cc7d9fc7f665e5`\n\n## 结论\n\n补丁对当前目标文件可应用：只读 `git apply --check` 成功。目标旧模块在工作树中未被 Root 的 metadata 批修改；补丁未应用，也未改动正式文件。静态 AST 对照未发现迁移后方法体、常量值、日期/时间默认语义或调用分派的变化。新 mixin 的继承接入与现有 mixin 层次一致，无 C3 MRO 冲突。\n\n## 类与调用路径\n\n候选从 `TuiWorkbenchSpecializedResultMixin` 迁出以下 12 个方法，逐个 `ast.dump(..., include_attributes=False)` 与 HEAD 原方法完全相同：\n\n`_calendar_scope_result_model`, `_calendar_preview_result_model`, `_calendar_commit_result_model`, `_calendar_receipt_base_is_displayable`, `_calendar_result_matches_request`, `_calendar_source_time_text`, `_calendar_current_result_model`, `_calendar_current_is_displayable`, `_calendar_display_rows`, `_calendar_date`, `_calendar_utc_timestamp`, `_calendar_message_model`。\n\n4 个模块常量也逐项 AST 相同：`_CALENDAR_FRESHNESS_KEYS`、`_CALENDAR_PREVIEW_RESULT_KEYS`、`_CALENDAR_COMMIT_RESULT_KEYS`、`_CALENDAR_COMMIT_TRANSITIONS`。方法依赖的 `date`、`datetime`、`timedelta` 随方法移入新模块；对剩余旧类方法扫描后未发现这些名字的加载引用。迁出方法使用的其他全局名为内置类型/函数、`Any` 和新模块中的 4 个常量；未发现对旧模块 egress 导入或其他旧模块全局变量的隐式依赖。迁出方法没有 `super()` 调用。\n\n原 `_custom_view_model` 分派方法留在 facade 中，并继续按原顺序调用 scope、current、prepare、confirm 四个 calendar 方法；`TuiWorkbenchResultModelMixin._to_view_model` 仍先调用该 dispatch。候选把 `TuiWorkbenchCalendarResultMixin` 放在 `TuiDashboardResultMixin` 之前，因此 calendar helper 可通过既有 MRO 找到 `_message_model`、`_datagrid_model`；这两个名字也由 Collection/Detail mixin 在完整服务 MRO 的前序位置提供。静态 C3 结果为：\n\n- Specialized：`TuiWorkbenchSpecializedResultMixin → TuiWorkbenchCalendarResultMixin → TuiDashboardResultMixin`\n- 完整视图模型：`TuiWorkbenchResultModelMixin → TuiWorkbenchCollectionResultMixin → TuiWorkbenchDetailResultMixin → TuiWorkbenchSpecializedResultMixin → TuiWorkbenchCalendarResultMixin → TuiDashboardResultMixin`\n\nCollection、Detail、Dashboard 中没有与 12 个迁出方法同名的方法。原 Specialized 的 `TYPE_CHECKING` 声明块仍留在 facade；新 mixin 增加了它实际使用的 `_message_model`、`_datagrid_model` 两个 helper stub，与原声明的对应签名一致。旧文件继续显式 re-export 4 个常量和新 mixin，dispatch 仍有定义。\n\n## manifest 与 metadata cache\n\n`scripts/build-tui-runtime.mjs` 的 Python manifest 收集不是整目录递归：它收集 `tui_metadata*` 文件，并显式列出 `tui_workbench.py` 与 `tui_workbench_execution.py`。旧 `tui_workbench_result_models_specialized.py` 和候选新文件 `tui_workbench_calendar_result_models.py` 都不在收集范围内。因此候选的新路径不会进入 manifest hash；不过旧实现路径本来就未进入，故这不是此次拆分相对 HEAD 新增的运行时遗漏，而是 backend result-model 源码未被该 manifest 覆盖的既有范围限制。\n\n最小完整补充建议：如果 manifest 需要覆盖服务端 workbench result projection，把旧 facade/dispatch 文件与新 calendar module 两个路径都加入 build 脚本的 manifest 源列表，并将两者加入 `tests/unit/test_tui_runtime_manifest_contract.py` 的 required 集合；只加新模块会继续漏掉留在 facade 的 dispatch。若 manifest 设计只覆盖 metadata normalization 和前端 bundle，则无需为本次移动扩充它，但应避免把该 manifest 描述成覆盖全部 backend result-model 代码。\n\n`PublishedTuiMetadataRepository._runtime_contract_token()` 指纹包含 metadata validator、continuation validator、experience、repository、information-architecture 和 `tui_metadata_runtime_*.py`。该 repository 缓存的是已规范化的发布 metadata payload；calendar result mixin 在 payload 规范化之后构造 action result，且不被该 repository 调用。因此新路径没有该 cache 的必要依赖，无需仅因这次抽取而加入 token 或做 cache invalidation。若未来目标改为 fingerprint 全部服务端 TUI result behavior，需将旧 facade 和新模块成对纳入，而不只是新模块。\n\n## 边界与未执行项\n\n只执行了标准库 AST/源文本静态审查、Git 读取和 `git apply --check`。未应用补丁，未运行测试、Django、数据库、QA、生成器或网络检查；未改正式源、tests、docs、registry、index。Root 当前 metadata 工作树文件保持原样。\n",
+    ".tmp/ash-calendar-result-move-ast-evidence-20261017.md": "# Calendar result projection move: AST/MRO evidence\n\nDate: 2026-10-17\nHEAD: cf44a32f304936d00e1d90928f17d24658dcf1e7\nCandidate SHA-256: 2fe91ea06e68fc51479a85d9fb958127072a61666d72487335cc7d9fc7f665e5\n\n## Applied scope\n\nThe reviewed candidate matched the requested SHA and git apply --check succeeded before application. The only files this batch directly modified were:\n\n- apps/terminal/application/tui_workbench_result_models_specialized.py\n- apps/terminal/application/tui_workbench_calendar_result_models.py\n\nisort and Black formatted those two files. Final isort --check-only, Black --check, and Ruff check passed. No tests, Django, mypy, database, Node, browser, generator, or network checks were run; Root owns those checks.\n\n## AST preservation\n\nThe following 12 moved methods retain their complete AST with source-location attributes excluded:\n\n- _calendar_scope_result_model: AST identical\n- _calendar_preview_result_model: AST identical\n- _calendar_commit_result_model: AST identical\n- _calendar_receipt_base_is_displayable: AST identical\n- _calendar_result_matches_request: AST identical\n- _calendar_source_time_text: AST identical\n- _calendar_current_result_model: AST identical\n- _calendar_current_is_displayable: AST identical\n- _calendar_display_rows: AST identical\n- _calendar_date: AST identical\n- _calendar_utc_timestamp: AST identical\n- _calendar_message_model: AST identical\n\nThe four moved constants retain their complete AST:\n\n- _CALENDAR_FRESHNESS_KEYS: AST identical\n- _CALENDAR_PREVIEW_RESULT_KEYS: AST identical\n- _CALENDAR_COMMIT_RESULT_KEYS: AST identical\n- _CALENDAR_COMMIT_TRANSITIONS: AST identical\n\nThe facade's non-import top-level AST is unchanged after accounting for the four moved assignments and 12 moved methods. Its specialized class AST changes only by removing those methods and adding the intended calendar base; its remaining methods, TYPE_CHECKING block, docstring, and _custom_view_model dispatch body are identical to HEAD. The facade explicitly re-exports the four old constant names and imports TuiWorkbenchCalendarResultMixin. The new mixin's _message_model and _datagrid_model type-checking stubs exactly match their original stubs.\n\nThe retained dispatch maps these action keys to the same moved methods, in the same order:\n\n- data-center.calendar-workbench-scope -> _calendar_scope_result_model\n- data-center.calendar-workbench-current -> _calendar_current_result_model\n- data-center.calendar-workbench-prepare -> _calendar_preview_result_model\n- data-center.calendar-workbench-confirm -> _calendar_commit_result_model\n\nThe calendar mixin declares no base class. Its imports cover date, datetime, timedelta, TYPE_CHECKING, and Any; moved constants are module-local. Static name resolution found no unresolved global names, and the moved methods contain no super() calls.\n\n## Static MRO evidence\n\nThe specialized facade bases are: TuiWorkbenchCalendarResultMixin -> TuiDashboardResultMixin.\n\nStatic C3 linearization:\n\n- Before: TuiWorkbenchResultModelMixin -> TuiWorkbenchCollectionResultMixin -> TuiWorkbenchDetailResultMixin -> TuiWorkbenchSpecializedResultMixin -> TuiDashboardResultMixin\n- After: TuiWorkbenchResultModelMixin -> TuiWorkbenchCollectionResultMixin -> TuiWorkbenchDetailResultMixin -> TuiWorkbenchSpecializedResultMixin -> TuiWorkbenchCalendarResultMixin -> TuiDashboardResultMixin\n\nNo moved method name collides with methods in Collection, Detail, or Dashboard mixins.\n\n## Final source digests\n\n| File | Raw SHA-256 | LF-normalized SHA-256 |\n| --- | --- | --- |\n| apps/terminal/application/tui_workbench_result_models_specialized.py | 00ab1e184c418c0f93abd14107cdf5b7a48ea6c7fca076e41d6b2c8b9f697eb6 | 718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6 |\n| apps/terminal/application/tui_workbench_calendar_result_models.py | d7e92a820168df890190bd939b41592b215ab92761e3c1026bf692a75790b695 | 3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7 |\n\nCurrent working-tree status also contains Root-side changes to scripts/build-tui-runtime.mjs and tests/unit/test_tui_runtime_manifest_contract.py, plus the two previously protected test files. This batch did not edit those paths. Full status:\n\nM apps/terminal/application/tui_workbench_result_models_specialized.py\n M scripts/build-tui-runtime.mjs\n A tests/unit/simulated_trading/test_ash01_settlement_regressions.py\n M tests/unit/test_tui_runtime_manifest_contract.py\n?? apps/terminal/application/tui_workbench_calendar_result_models.py\n?? tests/unit/account/test_manual_trade_fee_availability.py\n",
+    ".tmp/ash-tui-calendar-result-root2-independent-review-20261017.md": "# 独立只读复核：TUI calendar result projection re-acceptance\n\n日期：2026-10-17  \n新 base：01dd297f067845579e124f036e17a7700242d152  \n上一静态审查 base：cf44a32f304936d00e1d90928f17d24658dcf1e7  \n当前冻结候选 source tree：1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead  \n当前 prefix：tui-calendar-result-size-root-2\n\n## 结论\n\n当前四个候选文件与 root2 reference 中记录的四个 LF SHA-256 全部一致。原 specialized facade 在 cf44 与新 base 01dd 的 Git blob object ID 都是 4507880c8b6b777e104a12e2e209b98851a9c54e；因此新 base 没有改写日历结果投影的源输入。候选 AST 静态对照再次确认 12 个方法、4 个常量和 calendar dispatch 原样保留，新增 mixin 只进入预期 MRO 位置。\n\n这只能证明 root2 候选结构仍与此前审查一致。root2 的全套实际 phase result 尚未齐备，本备忘录不把候选或此前失败 run 记为验收通过。\n\n## 输入与 source tree 核对\n\n01dd 的提交主题为 fix: isolate runtime metadata input ownership。相对 cf44，它在 PublishedTuiMetadataRepository._inject_runtime_bundle 中对 bundle 和 ia_owned_action_copy 做深拷贝，避免 runtime 注入/标准化过程污染调用者持有的已发布输入；同时新增 ownership 回归测试。该变化不触碰 specialized facade，但会改变共享 runtime 输入所有权语义。\n\ncf44 与 01dd 中 apps/terminal/application/tui_workbench_result_models_specialized.py 的 Git blob object ID 均为 4507880c8b6b777e104a12e2e209b98851a9c54e。新 module 在 01dd 基线中不存在。root2 reference 的 base、source tree、source commit 与当前冻结候选对应；base→source tree 的差异只有下列四条路径：\n\n- apps/terminal/application/tui_workbench_result_models_specialized.py\n- apps/terminal/application/tui_workbench_calendar_result_models.py\n- scripts/build-tui-runtime.mjs\n- tests/unit/test_tui_runtime_manifest_contract.py\n\n当前工作树候选文件的 LF 摘要与冻结 reference 逐项一致：\n\n| 文件 | 当前 raw SHA-256 | 当前 LF SHA-256 / reference |\n| --- | --- | --- |\n| apps/terminal/application/tui_workbench_result_models_specialized.py | 00ab1e184c418c0f93abd14107cdf5b7a48ea6c7fca076e41d6b2c8b9f697eb6 | 718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6 |\n| apps/terminal/application/tui_workbench_calendar_result_models.py | d7e92a820168df890190bd939b41592b215ab92761e3c1026bf692a75790b695 | 3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7 |\n| tests/unit/test_tui_runtime_manifest_contract.py | d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c | d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c |\n| scripts/build-tui-runtime.mjs | 779b5b125967f4022581cf950f25febd41685fe9ed6f518f5db104f9e88cb182 | 806bb51b0b83c6b2b8f2e5aaa69db1b35e4dbfbaadb3797ddeacaba1bee6b7b5 |\n\nRaw/LF differences for the facade and build script are line-ending representation only; their normalized source bytes match the frozen reference.\n\n## AST、dispatch 与 MRO\n\n标准库 AST 对照以 cf44 中的完整旧 facade 类为基准，并对候选新模块和 facade 做了 source-location-independent 比较：\n\n- 12 个完整方法 AST 均相同：_calendar_scope_result_model、_calendar_preview_result_model、_calendar_commit_result_model、_calendar_receipt_base_is_displayable、_calendar_result_matches_request、_calendar_source_time_text、_calendar_current_result_model、_calendar_current_is_displayable、_calendar_display_rows、_calendar_date、_calendar_utc_timestamp、_calendar_message_model。\n- 4 个常量赋值 AST 均相同：_CALENDAR_FRESHNESS_KEYS、_CALENDAR_PREVIEW_RESULT_KEYS、_CALENDAR_COMMIT_RESULT_KEYS、_CALENDAR_COMMIT_TRANSITIONS。\n- _custom_view_model AST 与原方法相同；其四个 calendar action 分支仍按 scope、current、prepare、confirm 的原顺序调用原方法名。其余 facade 类 AST 在剔除迁出方法并还原预期 base 差异后相同。\n- 当前 specialized bases 为 TuiWorkbenchCalendarResultMixin → TuiDashboardResultMixin。完整结果模型 C3 MRO 为 TuiWorkbenchResultModelMixin → TuiWorkbenchCollectionResultMixin → TuiWorkbenchDetailResultMixin → TuiWorkbenchSpecializedResultMixin → TuiWorkbenchCalendarResultMixin → TuiDashboardResultMixin。\n\n因此新 base 没有改变结果映射逻辑；仍需 root2 同树测试确认 ownership 修复与抽取组合后的实际行为。\n\n## 当前生成投影快照\n\n只读检查 root2 reference export 与 01dd 基线，看到的投影差异符合预期，但缺少完整 build phase marker，不能替代最终官方生成/检查结果：\n\n- TUI runtime manifest 新增的 files 项仅为两个 production 路径；所有原有 files hash 保持相同，upstream_commit 更新为 01dd，build_id 随官方构建派生值变化。\n- 三份前端 JS bundle 在 LF 规范化后与 01dd 完全相同。\n- module_map 只有 terminal application Python 文件数 29→30，以及新增 application/tui_workbench_calendar_result_models.py → TuiWorkbenchCalendarResultMixin 公共类入口。\n- data_center_architecture_inventory 的计数及其他字段保持一致；current_surface_references 中 22 条日历记录从旧 facade 路径移至新 module 路径，其完整记录多重集相同。旧 facade 另有 18 条不属于这次迁出的记录仍留在原路径。\n- governance/data_center_entrypoints.json 的 LF 字节与 base 相同；当前导出 raw 长度差异来自行结束符表示，不是内容差异。\n\n最终 acceptance 草稿会重新对以上结构逐项做严格断言；任何额外字段、路径或计数变化都会失败关闭。\n\n## 为什么必须重跑完整 501 项单元包\n\n此前 calendar root1 的 495 pass / 1 fail 来自旧 base，失败揭示了 runtime metadata normalization 对调用者持有的 bundle 做了原地改动。新 base 把输入深拷贝修复纳入 production 源码，并新增 ownership regression tests；这会改变共享输入边界，并影响 calendar runtime 与 published metadata 的交互。旧运行既有真实失败，也不包含该修复后的候选 source tree，不能沿用其通过数。必须在 01dd→root2 冻结的同一 source tree 上完成 501 项单元包，才能覆盖 ownership 修复、manifest source list、calendar projection 与已有 runtime 行为的组合。\n\n## root2 当前验收状态与限制\n\n本次最终读取时 root2 的 build-result、node-result、style-result、typing-result、native-result 均已生成，且都指向同一冻结 source tree；这些 marker 中实际 exit code 全为 0。Node 日志为 26 项；native-before、HTTP/browser journey、native-after 三项均为 0，journey 有 2 项通过。root2 的真实 manifest RED 日志保留 1 failed。Python 501 项仍在运行，最新日志进度到 86% 且尚无 unit-result；governance 已启动但尚无最终结果。本批仍未到可验收状态，待 unit 与 governance 实际终态后再运行 acceptance 草稿。此前 root1 的 495/1 失败不被本 prefix 复用。\n\n本次只使用 Git 读取、标准库 AST/JSON、哈希和只读生成快照比较。没有运行测试、Django、数据库、Node、mypy、生成器或网络操作；没有修改正式源、tests、投影、docs、registry、git index 或暂存区。上一轮的独立审查 memo 与 AST 证据只作为 cf44 上的静态记录，不替代本轮 01dd 同树 QA。\n",
+    ".tmp/ash-calendar-result-root2-generated-review-20261017.md": "# Root 2 generated projection independent review\n\nStatus: partial review; runtime-manifest and JavaScript checks complete. Module-map and Data Center projection checks are pending the build terminal result. This memo does not imply acceptance of the broader QA.\n\nReference: `artifacts/a-share-usability/ash01/tui-calendar-result-size-root-2-reference.json`.\nFrozen base: `01dd297f067845579e124f036e17a7700242d152`; frozen tree: `1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead`; export: `D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-ot3yvc9n`.\n\n## Completed read-only checks\n\nCompared exported `config/tui/agomtui-runtime.manifest.json` to the manifest at the frozen base. The manifest has 115 entries versus 113 at base. The only additions are `apps/terminal/application/tui_workbench_result_models_specialized.py` and `apps/terminal/application/tui_workbench_calendar_result_models.py`; no prior entries were removed, and all 113 existing digests match the frozen base. The manifest retains the same version, direction, source owner, and contracts. Its `upstream_commit` is the frozen base commit. Recomputed the build ID using `scripts/build-tui-runtime.mjs`'s actual ordered `Object.entries(files)` algorithm; the result `agomtui-runtime-0.2.0+8da1d98130a6` matches the exported manifest. (A sorted-path computation does not match because the builder preserves insertion order; the builder algorithm is authoritative.)\n\nCompared all three exported JavaScript bundles to the frozen-base Git blobs after CRLF-to-LF normalization. They are byte-identical. LF SHA-256 values: `static/js/agomtui-runtime-core.js` `988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90`; `static/js/tui-agomtradepro-adapter.js` `c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f`; `static/js/tui-workbench.js` `4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb`.\n\nThe four reference source LF hashes (two production files, manifest test, and builder script) match the current repository files. Both protected raw test-file SHA-256 values also match the reference.\n\n## Pending\n\nAt the time of this check, the exact file `artifacts/a-share-usability/ash01/tui-calendar-result-size-root-2-build-result.json` was absent. Per instruction, no generator or QA command was run. Module-map, Data Center architecture inventory, and entrypoint inventory deltas therefore remain unreviewed and must not be called passing. No tests, Django, mypy, database, Node, network, or generators were run by this review.\n\n\n## Completion update: build-terminal projection review\n\nRoot later confirmed build process 27796 terminated with exit 0. Read the exact artifact `artifacts/a-share-usability/ash01/tui-calendar-result-size-root-2-build-result.json`: its `source_tree` is `1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead`; all five commands (`runtime-build`, `runtime-check`, `module-build`, `dc-architecture-build`, `dc-entrypoint-build`) have actual exit code 0; `source_unchanged` and `protected_unchanged` are true.\n\nCompared generated projections in the frozen export with the frozen base commit:\n\n- `governance/module_map.json`: 44 module keys in both. Only `terminal` changes. Its `entrypoints` adds `application/tui_workbench_calendar_result_models.py: [\"TuiWorkbenchCalendarResultMixin\"]`; its application-layer count goes from 29 to 30. All other terminal fields, all other modules, and all other module-map fields are identical. Reversing just this entrypoint and count increment makes the complete generated JSON equal to base.\n- `governance/data_center_architecture_inventory.json`: all fields except `current_surface_references` are identical, including every count (the current-surface total is 5801 in both). Exactly 22 reference items move from path `apps/terminal/application/tui_workbench_result_models_specialized.py` to `apps/terminal/application/tui_workbench_calendar_result_models.py`; each text is unchanged. Normalizing the new helper path back to the old path yields the exact same reference multiset as base.\n- `governance/data_center_entrypoints.json`: exact JSON equality with base (1365 entries).\n\nNo blocker found in the generated-projection delta within this review scope. This is not an overall QA acceptance. Per Root's concurrent status, the 501-test Python run was still active, so whole-task acceptance remains pending; that status was not independently run or validated here. This review did not run tests, Django, mypy, Node, database checks, network access, generators, or other QA commands. The earlier pending section above records the state before the terminal build result existed and is retained as the original checkpoint.\n"
+  },
+  "qualification": "Bounded same-tree extraction with local regression and synthetic calendar boundary only; full ASH01–12 Goal remains open.",
+  "owned_file_count": 11
+}

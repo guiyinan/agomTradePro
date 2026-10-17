@@ -1,0 +1,176 @@
+{
+  "status": "bounded-calendar-result-projection-extraction-verified",
+  "base_commit": "01dd297f067845579e124f036e17a7700242d152",
+  "source_tree": "1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead",
+  "source_commit": "1eec0d43e43234aff7e361f29d910e287037d8b5",
+  "production": [
+    "apps/terminal/application/tui_workbench_result_models_specialized.py",
+    "apps/terminal/application/tui_workbench_calendar_result_models.py"
+  ],
+  "tests": [
+    "tests/unit/test_tui_runtime_manifest_contract.py"
+  ],
+  "tooling": [
+    "scripts/build-tui-runtime.mjs"
+  ],
+  "source_lf_sha256": {
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": "718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6",
+    "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
+    "tests/unit/test_tui_runtime_manifest_contract.py": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+    "scripts/build-tui-runtime.mjs": "806bb51b0b83c6b2b8f2e5aaa69db1b35e4dbfbaadb3797ddeacaba1bee6b7b5"
+  },
+  "protected_raw_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "verified": {
+    "python_regression": {
+      "passed": 501,
+      "failed": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "summary": "501 passed",
+      "duration": "383.77"
+    },
+    "node_tests": 26,
+    "native_http_and_browser": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "deselected": 0,
+      "summary": "2 passed",
+      "duration": "204.48"
+    },
+    "actual_phase_exit_codes": {
+      "build": {
+        "runtime-build": 0,
+        "runtime-check": 0,
+        "module-build": 0,
+        "dc-architecture-build": 0,
+        "dc-entrypoint-build": 0
+      },
+      "unit": {
+        "python-regression": 0
+      },
+      "node": {
+        "node-regression": 0
+      },
+      "typing": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "style": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0,
+        "architecture": 0,
+        "size": 0
+      },
+      "governance": {
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0,
+        "check_data_dictionary": 0,
+        "data_center_architecture_inventory": 0,
+        "data_center_entrypoint_inventory": 0,
+        "full-governance": 1,
+        "retirement": 1
+      },
+      "native": {
+        "native-before": 0,
+        "native-journey": 0,
+        "native-after": 0
+      }
+    },
+    "red": {
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "deselected": 0,
+      "summary": "1 failed",
+      "duration": "4.28"
+    },
+    "ast": {
+      "moved_methods": 12,
+      "moved_constants": 4,
+      "method_and_constant_ast": "identical to cf44 source",
+      "dispatch": "same AST and scope/current/prepare/confirm order",
+      "mro": [
+        "TuiWorkbenchResultModelMixin",
+        "TuiWorkbenchCollectionResultMixin",
+        "TuiWorkbenchDetailResultMixin",
+        "TuiWorkbenchSpecializedResultMixin",
+        "TuiWorkbenchCalendarResultMixin",
+        "TuiDashboardResultMixin"
+      ]
+    },
+    "projections": {
+      "manifest_added_production_paths": [
+        "apps/terminal/application/tui_workbench_result_models_specialized.py",
+        "apps/terminal/application/tui_workbench_calendar_result_models.py"
+      ],
+      "upstream_commit": "01dd297f067845579e124f036e17a7700242d152",
+      "build_id": "agomtui-runtime-0.2.0+8da1d98130a6",
+      "frontend_lf_sha256": {
+        "static/js/agomtui-runtime-core.js": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+        "static/js/tui-agomtradepro-adapter.js": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+        "static/js/tui-workbench.js": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb"
+      },
+      "module_map_application_files": 30,
+      "module_map_new_entrypoint": "TuiWorkbenchCalendarResultMixin",
+      "dc_architecture_moved_current_surface_rows": 22,
+      "dc_architecture_counts": {
+        "approved_non_data_http_imports": 5,
+        "cross_app_orm_imports": 47,
+        "current_surface_references": 5801,
+        "data_write_task_decorators": 66,
+        "direct_data_center_imports_outside_data_center": 0,
+        "external_http_imports_for_review": 0,
+        "legacy_fact_references": 0,
+        "provider_imports_outside_data_center": 0,
+        "runtime_parameter_references": 56
+      },
+      "dc_entrypoints_lf_identical_to_base": true
+    },
+    "source_patch_sha256": "d5ea913beda2997311a8197e610ebf398e6b73e72d434a518b892fbc39ade6ae",
+    "source_patch_reconstructs_exact_tree": true,
+    "production_nonempty_lines": {
+      "apps/terminal/application/tui_workbench_result_models_specialized.py": 974,
+      "apps/terminal/application/tui_workbench_calendar_result_models.py": 431
+    },
+    "generated_lf_sha256": {
+      "config/tui/agomtui-runtime.manifest.json": "72b7ae0c81967611bf1c83f4cead74050d1d2d05902e04a5cd72e424689933b9",
+      "governance/module_map.json": "203a6f4dd9467f17ae0b6d42dc132a50d8e706a40201ae7a7e8ee0614437a777",
+      "governance/data_center_architecture_inventory.json": "b41a34c497e01171961166bdc5f38020b4ed272aac7d18d3f5fa40578123a1f2"
+    }
+  },
+  "native_boundary": "Existing child PostgreSQL HTTP/Session/CSRF/owner and browser journey only. Calendar transport and preview secret remain synthetic; no live provider or production qualification.",
+  "open_gates": {
+    "full_governance_exit": 1,
+    "size_violations": 2,
+    "retirement_exit": 1,
+    "retirement_violations": 9,
+    "baseline_floor_pin_or_allowlist_relaxation": false
+  },
+  "verification_limits": [
+    "No CI/S6, deployment or live provider qualification.",
+    "Node coverage is the three frozen runtime/source-layout/result-continuation files.",
+    "The earlier root1 495-pass/1-fail run is not reused."
+  ],
+  "next": "After this bounded calendar projection is accepted, perform the explicit bounded TUX08 handoff before Domain/formal-calendar and remaining financial/source/PIT/fee/MCP work. The full ASH01–12 Goal remains open.",
+  "rollback": "Revert only this independent result-model extraction, manifest source coverage, generated projections, and its acceptance records; no database migration.",
+  "owned_commit_files": [
+    "apps/terminal/application/tui_workbench_result_models_specialized.py",
+    "apps/terminal/application/tui_workbench_calendar_result_models.py",
+    "tests/unit/test_tui_runtime_manifest_contract.py",
+    "scripts/build-tui-runtime.mjs",
+    "config/tui/agomtui-runtime.manifest.json",
+    "governance/module_map.json",
+    "governance/data_center_architecture_inventory.json",
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+    "docs/testing/a-share-usability-tui-calendar-result-size-2026-10-17.json",
+    "governance/active_plan_registry.json",
+    "artifacts/a-share-usability/ash01/tui-calendar-result-size-evidence-2026-10-17.json"
+  ]
+}

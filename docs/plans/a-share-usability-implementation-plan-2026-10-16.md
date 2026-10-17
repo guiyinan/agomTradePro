@@ -1209,3 +1209,14 @@ Root发现服务端缓存只依赖主metadata文件，故同批把新helper加�
 Root-2 全量治理实际保留 3 个 size violation 与 9 个 retirement violation，由 Goal 后续处理；未改 baseline、floor、pin 或 allowlist。ASH02 focus、79 units 与 closure72 保持。下一步用此 parent 重新绑定 calendar result extraction，再显式交接 bounded TUX08，随后继续 Domain/formal-calendar 与金融缺口；完整 ASH01-12 Goal 仍开放。
 
 实际日志、输入所有权独立审查、source patch 重建证明与生成 hash 汇总见 docs\testing\a-share-usability-calendar-runtime-copy-2026-10-17.json。
+
+
+### 19.55 Calendar result projection 拆分复验
+
+本批 base 为 01dd297f067845579e124f036e17a7700242d152，冻结 source tree 为 1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead。从 specialized facade 提取 12 个完整方法与 4 个常量；独立 AST 对照确认其主体与旧 facade dispatch 顺序保持不变。既有 mixin 相对顺序保持，新 CalendarMixin 位于 Specialized 与 Dashboard 之间。新 base 同时包含 runtime metadata 输入深拷贝修复，因此本批在同一冻结树上重新运行完整 501 项 Python 单元回归，不复用旧 base 的 495 pass / 1 fail。
+
+官方 manifest 只新增两个 production result-model 路径并更新真实 upstream/build_id；三个前端 bundle LF 字节不变。module map 只增加一个 application 文件和 calendar mixin 入口；data-center architecture 的计数不变，仅 22 条当前表面引用从旧 facade 移至新 module，entrypoint inventory LF 字节不变。没有改变 metadata cache、IA 或用户流程。
+
+实际冻结树验证：Python 501 passed、Node 26 项、既有 PostgreSQL HTTP 与 browser journey 2 项；Black/isort/Ruff、architecture、size、typing、runtime/module/DC build 与 required contract 检查实际结果见 checkpoint 和 evidence bundle。Full governance 实际退出 1，仍有 2 项本 Goal 尚未收敛的 size 违规；versioned-surface retirement 实际退出 1，仍有 9 项本 Goal 的退役违规。没有放宽 baseline、floor、pin 或 allowlist。ASH-02 focus、79 units、closure 和 full Goal 保持原值。下一步需先明确交接 TUX08 bounded window，再继续 Domain/formal-calendar 与剩余金融/数据工作。
+
+详细证据：docs/testing/a-share-usability-tui-calendar-result-size-2026-10-17.json

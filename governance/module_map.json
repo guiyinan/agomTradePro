@@ -11447,6 +11447,9 @@
           "TuiWorkbenchRegistry",
           "TuiWorkbenchService"
         ],
+        "application/tui_workbench_calendar_result_models.py": [
+          "TuiWorkbenchCalendarResultMixin"
+        ],
         "application/tui_workbench_catalog.py": [
           "TuiWorkbenchCatalogMixin"
         ],
@@ -11502,7 +11505,7 @@
         ]
       },
       "layers": {
-        "application": 29,
+        "application": 30,
         "domain": 5,
         "infrastructure": 89,
         "interface": 9,

@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v255",
+  "version": "2026-10-17.v256",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.54: runtime injection ownership is isolated by private deep copies; corrected parent fixture reaches all five ownership RED assertions, while the initial two fixture-precondition failures and the old 495-pass/1-fail calendar run remain rejected. Root-2 actual unit 501 pass; root-1 build, Node 26, typing and native phases reused only after the one-test-only revision proof. Manifest delta is one production source hash plus derived build and upstream fields; all three JS bundles and module/DC projections are LF-identical to parent. Full governance retains 3 size and 9 retirement failures owned by the Goal; no baseline or allowlist waiver. Rebind calendar result extraction to this parent, then explicit bounded TUX08 handoff before Domain/formal-calendar resumes. ASH02 focus, 79 units and closure72 remain; full Goal and financial gaps stay open.",
+      "next_gate": "Plan19.55: calendar result projection extracted with exact 12-method/4-constant AST, dispatch and MRO preservation. Frozen tree 1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead actual 501 Python/26 Node/native journey 2 passed; all same-tree phase markers checked. Manifest adds only two production paths, bundles unchanged, module/DC projections match strict deltas. Root retains 2 size and 9 retirement violations without waiver. Next: explicit bounded TUX08 handoff, then Domain/formal-calendar and remaining financial work; ASH02 focus/79 units/closure unchanged, full Goal open. Evidence: docs/testing/a-share-usability-tui-calendar-result-size-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
