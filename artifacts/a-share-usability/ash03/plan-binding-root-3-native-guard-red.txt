@@ -1,0 +1,21 @@
+source_tree=4b8b493e71c360daccf7eead741f617e24e87c40
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-lga_25oq
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_reverse_guard_blocks_binding_writer_until_outer_transaction_finishes __
+tests\component\simulated_trading\test_execution_settlement_plan_binding_migration.py:305: in test_reverse_guard_blocks_binding_writer_until_outer_transaction_finishes
+    migration_apps = MigrationExecutor(connection).loader.project_state([_AFTER]).apps
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\migrations\executor.py:18: in __init__
+    self.loader = MigrationLoader(self.connection)
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\migrations\loader.py:58: in __init__
+    self.build_graph()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\migrations\loader.py:276: in build_graph
+    self.graph.validate_consistency()
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\migrations\graph.py:198: in validate_consistency
+    [n.raise_error() for n in self.node_map.values() if isinstance(n, DummyNode)]
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\migrations\graph.py:60: in raise_error
+    raise NodeNotFoundError(self.error_message, self.key, origin=self.origin)
+E   django.db.migrations.exceptions.NodeNotFoundError: Migration simulated_trading.0007_dailyinspectionreportmodel dependencies reference nonexistent parent node ('strategy', '0004_positionmanagementrulemodel')
+=========================== short test summary info ===========================
+FAILED tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py::test_reverse_guard_blocks_binding_writer_until_outer_transaction_finishes
+1 failed in 17.23s

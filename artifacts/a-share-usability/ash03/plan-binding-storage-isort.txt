@@ -1,0 +1,2 @@
+Fixing D:\githv\agomTradePro\apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py
+Fixing D:\githv\agomTradePro\apps\simulated_trading\migrations\0026_simulated_trade_settlement_plan_binding.py

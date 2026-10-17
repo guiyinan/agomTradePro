@@ -301,6 +301,9 @@ class SimulatedTradeModel(models.Model):
     settlement_board = models.CharField(max_length=32, null=True, blank=True)
     settlement_market_session = models.DateField(null=True, blank=True)
     settlement_lag_sessions = models.PositiveIntegerField(null=True, blank=True)
+    settlement_plan_binding_version = models.PositiveSmallIntegerField(default=0)
+    settlement_plan_binding_payload = models.JSONField(null=True, blank=True)
+    settlement_plan_binding_hash = models.CharField(max_length=64, null=True, blank=True)
     settlement_bundle_id = models.CharField(max_length=192, null=True, blank=True)
     settlement_bundle_version = models.CharField(max_length=192, null=True, blank=True)
     settlement_bundle_hash = models.CharField(max_length=64, null=True, blank=True)
@@ -362,6 +365,21 @@ class SimulatedTradeModel(models.Model):
                 condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True)
                 | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False),
                 name="sim_trade_idemp_pair_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    settlement_plan_binding_version=0,
+                    settlement_plan_binding_payload__isnull=True,
+                    settlement_plan_binding_hash__isnull=True,
+                )
+                | Q(
+                    settlement_plan_binding_version=1,
+                    idempotency_key__isnull=False,
+                    request_payload_hash__isnull=False,
+                    settlement_plan_binding_payload__isnull=False,
+                    settlement_plan_binding_hash__isnull=False,
+                ),
+                name="sim_trade_plan_binding_pair_ck",
             ),
             models.CheckConstraint(
                 condition=Q(

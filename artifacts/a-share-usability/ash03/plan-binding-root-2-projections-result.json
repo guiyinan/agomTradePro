@@ -1,0 +1,18 @@
+{
+  "source_tree": "218ca95daadc3825c0b8571dbd52dfe06ef8d319",
+  "results": {
+    "model-state": 0,
+    "dictionary-build": 0,
+    "module-build": 0,
+    "dc-architecture-build": 0,
+    "dc-entry-build": 0,
+    "check_data_dictionary": 0,
+    "check_module_map": 0,
+    "check_current_data_contracts": 0,
+    "check_audit_event_contracts": 0,
+    "data_center_architecture_inventory": 0,
+    "data_center_entrypoint_inventory": 0
+  },
+  "exit": 0,
+  "changed_during_run": []
+}

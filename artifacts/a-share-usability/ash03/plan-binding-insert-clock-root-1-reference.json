@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-10-17T03:44:38.147939+00:00",
+  "base_commit": "32e254b60aceea3132623f3593e769cef0f7ed66",
+  "source_tree": "f7633e5abd960d4515e1f8f0b1669e5c2d76bf32",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-plan-binding-clock-red-oo9pyj1r",
+  "source_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_plan_binding.py": "9e5454b4f96176ca013bf9e270d575c84ee7585f0fc77b8527fd350ec2a0dbb0",
+    "apps/simulated_trading/infrastructure/models.py": "73496272c3e96bdc35ebe5145564a2f396f973afee786f640698b7040030baf8",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "c5cf387a4a41eec2fe5208a03497906a0204f415fcf9a2dbc5a61a98c1a805c8",
+    "apps/simulated_trading/migrations/0026_simulated_trade_settlement_plan_binding.py": "9863f29884f296946510907fffc58c94ed9e4a0bfcf8dbc4475664efa26fb73b",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "6f57074d68b7dbe8e737660379448ef0b8cbec0162bdb84443ec9320149371f5"
+  },
+  "scope": "Positive new-binding insertion expected to fail on auto_now_add; isolated memory SQLite only."
+}

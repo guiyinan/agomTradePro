@@ -1,0 +1,14 @@
+{
+  "actual_database_schema": [
+    "test_ash_quality_native",
+    "public"
+  ],
+  "applied_migrations": 544,
+  "account_singleton": [
+    [
+      1,
+      0
+    ]
+  ],
+  "read_only": true
+}

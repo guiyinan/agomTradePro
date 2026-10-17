@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 95,
+      "test_evidence": 96,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 872,
-      "adjacent_operational": 341,
+      "adjacent_operational": 342,
       "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1362
+    "total": 1363
   },
   "entries": [
     {
@@ -13031,6 +13031,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed simulated-ledger-only settlement binding migration and isolated PostgreSQL writer-lock verification; test-owned rows and actual MigrationExecutor operations, no production invocation or Data Center fact qualification",
+      "id": "test_evidence:tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py:test_execution_settlement_plan_binding_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py",
+      "status": "adjacent_operational",
+      "symbol": "test_execution_settlement_plan_binding_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/test_macro_periodic_tasks.py:test_macro_periodic_tasks:",
       "locator": "",
@@ -13673,7 +13683,7 @@
     "celery_tasks": 95,
     "current_data_contracts": 85,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 43,
+    "operational_governance_rules": 44,
     "runtime_config_keys": 45
   },
   "source_contracts": [

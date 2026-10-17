@@ -1,0 +1,21 @@
+source_tree=f7633e5abd960d4515e1f8f0b1669e5c2d76bf32
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-clock-red-oo9pyj1r
+.F                                                                       [100%]
+================================== FAILURES ===================================
+_ test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idempotent _
+tests\component\simulated_trading\test_execution_settlement_uow.py:507: in test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idempotent
+    first = use_case.execute(intent)
+apps\simulated_trading\application\execution_settlement_uow.py:347: in execute
+    result = self._repository.execute_trade(plan=plan, clock=self._clock)
+apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py:329: in execute_trade
+    return self._apply_trade(
+apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py:800: in _apply_trade
+    return self._receipt(trade)
+apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py:1107: in _receipt
+    self._validate_plan_binding(
+apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py:1281: in _validate_plan_binding
+    raise SimulatedTradeExecutionBlocked(
+E   apps.simulated_trading.application.execution_settlement_uow.SimulatedTradeExecutionBlocked: persisted settlement-plan binding differs from trade field executed_at
+=========================== short test summary info ===========================
+FAILED tests/component/simulated_trading/test_execution_settlement_uow.py::test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idempotent
+1 failed, 1 passed in 18.66s

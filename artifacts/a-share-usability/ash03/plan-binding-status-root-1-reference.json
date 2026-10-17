@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-10-17T03:49:13.484954+00:00",
+  "base_commit": "32e254b60aceea3132623f3593e769cef0f7ed66",
+  "source_tree": "06362917ff583a1afd51244f9d734b9a5169613d",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-plan-binding-status-red-txd4hnsc",
+  "source_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_plan_binding.py": "e4dcdf34ed7d579622a691526e4f3843f32b0785cc64d79f213a73e08ad83246",
+    "apps/simulated_trading/infrastructure/models.py": "73496272c3e96bdc35ebe5145564a2f396f973afee786f640698b7040030baf8",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "698706f7ca7235d1020e68935ef7dc4acf35f75c88924857511cbfbb98bf51b4",
+    "apps/simulated_trading/migrations/0026_simulated_trade_settlement_plan_binding.py": "9863f29884f296946510907fffc58c94ed9e4a0bfcf8dbc4475664efa26fb73b",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "f4998b215568775272255173e824c9e07eea5b813c1eedf8f0c863325d746455"
+  },
+  "scope": "Status drift must block replay and pending release; isolated memory SQLite only."
+}

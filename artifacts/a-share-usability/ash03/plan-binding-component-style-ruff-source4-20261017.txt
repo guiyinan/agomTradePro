@@ -1,0 +1,20 @@
+UP035 [*] Import from `collections.abc` instead: `Iterator`
+  --> tests\component\simulated_trading\test_execution_settlement_plan_binding_migration.py:9:1
+   |
+ 7 | from decimal import Decimal
+ 8 | from importlib import import_module
+ 9 | from typing import Any, Iterator
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 | from uuid import uuid4
+   |
+help: Import from `collections.abc`
+   |
+8  | from importlib import import_module
+   - from typing import Any, Iterator
+9  + from typing import Any
+10 + from collections.abc import Iterator
+11 | from uuid import uuid4
+   |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

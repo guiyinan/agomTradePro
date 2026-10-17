@@ -955,3 +955,34 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 CSV生成后的人工范围复核确认：196行集合不变，7条已删除模板记录不变，所有变化均属于官方REFRESHED_FACT_FIELDS，人工维护的生命周期、权限与目标归类字段未变。189个现存模板的content_hash均匹配本次冻结导出的原始文件字节；其中也包含历史机器事实补齐和CRLF导出差异，不能解释成183个模板发生业务改动。本批实际HTML源码仅工作台一个文件改变。官方--check检查模板冻结与生命周期结构，不声称逐项重算字节哈希；详细字段审查保留在检查点。
 
 详见[工作台TUI检查点](../testing/a-share-usability-calendar-workbench-tui-2026-10-17.json)。计划登记v234 / 74已登记单元，精确mapping查询已由19.40独立接受。下一阶段明确market↔exchange和来源/用途资格，并对原成交plan/lag的持久化完整性先补反例、再接既有原子化settlement UoW；历史回测另用PIT读契约，不以今日current重建历史。ASH-01/02/03与整体Goal保持开放，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。
+
+### 19.42 原模拟成交计划绑定独立验收
+
+本批修复已确认的原计划一致性缺口：原成交 lag=2 的持久化字段被改为0后，既有释放流程未拒绝同日增加可卖量。Root在冻结源码441abc56896c21eef57ddb1543dbc97d3ee6b76d的隔离内存SQLite实际复现1 failed / 1 passed（目标探针通过，业务断言DID NOT RAISE）；原件为artifacts/a-share-usability/ash03/original-plan-binding-root-1-*。没有触碰既有Native测试库。
+
+集成审查另外保留两组真实业务red：源码f7633e5abd960d4515e1f8f0b1669e5c2d76bf32首次成交为1 failed / 1 passed，数据库原有UPDATE已保存锁内成交时间，但auto_now_add覆盖的内存ORM实例未同步，严格回执因此报告executed_at差异。只在既有UPDATE后同步实例，不改模型时间字段和旧导入语义。源码06362917ff583a1afd51244f9d734b9a5169613d的4 failed / 1 passed分别证明cancelled/failed状态篡改在回执和释放均未阻断；待结算查询不再通过status筛掉损坏行，由版本1回执预检明确要求executed。原件分别为plan-binding-insert-clock-root-1-*和plan-binding-status-root-1-*。新Domain另已先复现未知时区被接受，再补ZoneInfo校验；持久wire包含已核算的固定golden hash，避免自比较充当兼容验证。
+
+本批边界和顺序：
+
+1. Domain新增严格、版本化且不可变的原计划绑定，保存原请求摘要、成交/预读时间、结算会话与lag、Risk原bundle/policy、Calendar原snapshot/publication组件身份和费用策略摘要；保持原V1/V2/V3算法与字节不变。外层checksum只证明持久化字段一致性，不是来源真实性、数字签名、权限或交易资格；不复制整个日历days或重新读取今日current冒充原证据。
+2. 现有SimulatedTrade增加版本、payload和独立hash。旧行及尚未切换的旧买卖/导入入口保持version=0且无绑定，本UoW新成交显式version=1且必须完整、可追踪；不回填历史证据，不增加第二账本。新行丢任一绑定列或未知版本由数据库约束/typed校验拒绝。
+3. 幂等回执核验绑定、请求、费用和原行字段；旧version=0仅保留只读回执，不自动升级。释放在修改任何持仓前核验所有锁定pending批次；缺证据、差异或混合损坏整笔回滚。不得用新政策lag替换原成交lag。已有绑定或非旧版本时，迁移反向先抛IrreversibleError，禁止降级丢证据。
+4. Luna Max分工Domain与单元、存储与迁移、组件与迁移测试；Root整合。先真实失败，再SQLite与专用本机PG16库的回执/释放/回滚/两连接并发和实际迁移；再执行增量及全库mypy、风格、架构、官方字典/模块投影和适用治理门禁。只暂存通过验收的完整事项并独立提交，不把后续切换或原ASH-01未解决失败混入。
+
+验收完成标准为原lag反例变绿、版本/字段/shape/hash损坏稳定阻断、混合批次无部分释放、旧回执只读兼容、实际迁移up/down/up及拒绝丢证据、原生并发和适用质量门禁通过；测试源码和数据库目标必须可核验。专用Native库从空建立，不复用会被transaction fixture清空的test_ash_quality_native。Root准备脚本先有import路径错误（连接前），随后空库aggregate+GROUP BY返回None的探针错误（库已创建）；仅在核验明确库名、owner和零表后恢复准备，未删除或复用未知数据。两次编排失败不作为业务red或迁移结果。
+
+本批不切换旧ExecuteBuy/Sell、自动模拟、HTTP、回测或QMT，不解决market/exchange差异，不授予reference数据用途资格，不宣称抵御有数据库写权者同步改写所有证据。后续显式证券/交易所/规则市场绑定、用途资格、历史PIT和普通消费者仍开放；整体Goal、ASH-01/02/03与DATA-18门禁不变。代码回滚须停用候选写入/释放并保留已写证据，不能直接删除新列。
+
+迁移并发反例也已真实保留：source5 8e0ab450a8104833ac631f696ea1406d2b975d41在PG16专库上，原guard事务仍打开时worker成功updated=1，未按预期得到55P03，1 failed/12.37秒；前后545条迁移、字段与singleton核验正常。反例仅证明实际guard没有持住排他锁，不冒充完整双连接unapply。修复限定PG同一原子迁移事务中先锁成交表再检查，非atomic拒绝，SQLite不新增PG SQL；对应最终绿与DDL回退结果见本节下方独立验收窗口。
+
+中间窗口明确区分：source1在执行前人工审查发现测试误要求恢复事务外坏hash，改为保留坏值；source2 SQLite组件的1 failed/37 passed/4 skipped是既有历史费用夹具只换V1费快照却仍留version1绑定，改为显式version0/null pair，不放宽生产校验。source3 Native失败在partial registry导致MigrationLoader缺strategy节点；source4只恢复一层registry仍不可见strategy，属夹具错误，前后专库仍正常，不计业务red。迁移测试改用公开API按实际嵌套层数临时恢复完整registry，并配对还原partial供teardown，不做全库Account flush或手工seed。source4核心SQLite另已38 passed/4 PG-only skipped（36业务+2目标probe）；源码/组合分列，不累加唯一用例。
+
+最终冻结源码2476116306e96a56e6fcfe9e752a6621474abdaa通过154项单元回归；新增Domain语句339/355（95.49%）、分支126/140（90%），不将合并覆盖率93.9%称作语句覆盖率。四生产文件增量mypy零回归、全生产债务零，七Python文件Black/isort/Ruff通过，31个生产函数参数/返回/public docstring无缺项；架构四文件1,331新增行boundary/audit零。官方生成字典/模块/DC架构/入口投影及六项适用治理检查通过：42 app / 588 model / 9,090 field、44模块/210依赖；新迁移测试入口仅登记test_evidence、adjacent_operational，不授予数据或交易资格。
+
+同一最终源码在专用本机PG16库完成40项组件测试（包含4项双连接竞争）和另包3项迁移测试。实际up/down/up、保留证据的拒绝回退、guard事务仍打开时worker得到55P03、非atomic拒绝均通过；持锁测试不声称完整双连接unapply。前后目标探针确认专库545迁移和原字段/Account singleton；原共享库另以只读核验仍544迁移、singleton=(1,0)。本地设置的缺加密密钥warning保留；未执行AI密钥写入，不将该结果作为生产秘密配置验收。
+
+SQLite保留独立source4核心组件38 passed/4 Native-only skipped（36业务+2目标探针），source5实际迁移3 passed/1 Native-only skipped（1业务+2目标探针）。专库从空完整forward545迁移来自source2；最终source6复用该专库，并实际执行上述迁移回退/再升级。已逐字节核验Domain/Model/Repository与早期窗口相同、组件source4与6相同，迁移class operations/dependencies AST相同、非PG guard经明确局部归一后AST等价；source5既有迁移测试与6 AST相同，仅新增Native非atomic反例。各真实源/测试/数据库窗口分列，用于日常开发适用性，不拼成同一CI/S6/release身份；SQLite跳过不算并发通过。
+
+完整原件、原始与Git LF摘要、限定源窗口和未完成项见[原成交计划绑定检查点](../testing/a-share-usability-original-plan-binding-2026-10-17.json)。计划登记v235 / 74单元，本批按完整事项独立提交。下一批修复显式证券身份、规则market与源exchange的接线及用途资格，再将已验收UoW接入普通模拟消费者；原ASH-01五项旧消费者反例仍开放，不把本候选端口验收称为T+1用户闭环。历史PIT、ASH-01/02/03和完整Goal继续开放，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。
+
+最终暂存后whitespace检查仅发现原始PG guard red日志第10行pytest生成的`E`后空格，Root脚本因此在已暂存后退出2。原件及hash不改；仅该原始日志逐行/摘要核验并精确排除空白格式检查，其余源码、测试、文档和原件全部检查。该编排诊断不算业务失败，不放宽生产格式门禁。

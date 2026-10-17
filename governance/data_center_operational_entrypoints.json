@@ -453,6 +453,12 @@
         "tests/unit/test_native_postgres_database.py"
       ],
       "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed simulated-ledger-only settlement binding migration and isolated PostgreSQL writer-lock verification; test-owned rows and actual MigrationExecutor operations, no production invocation or Data Center fact qualification",
+      "path": "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py",
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

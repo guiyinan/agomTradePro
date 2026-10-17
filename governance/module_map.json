@@ -10733,7 +10733,7 @@
       },
       "layers": {
         "application": 31,
-        "domain": 9,
+        "domain": 10,
         "infrastructure": 37,
         "interface": 15,
         "management": 5,

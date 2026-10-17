@@ -1,0 +1,3 @@
+source_tree=218ca95daadc3825c0b8571dbd52dfe06ef8d319
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-ivyw79sq
+{"target": ["test_ash_plan_binding_01a14268", "public", "160015"], "table_count": 0, "migration_count": null, "trade_columns": [], "account_singleton": null, "read_only": true}

@@ -1,0 +1,3 @@
+source_tree=2476116306e96a56e6fcfe9e752a6621474abdaa
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-plan-binding-45dkjcmh
+Audit event contracts OK: events=23; status=active; implementation=wired

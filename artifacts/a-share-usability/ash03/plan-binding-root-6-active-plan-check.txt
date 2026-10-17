@@ -1,0 +1,3 @@
+source_tree=2476116306e96a56e6fcfe9e752a6621474abdaa
+final working docs must equal staged LF bytes
+active-plan-registry version=2026-10-17.v235 workstreams=13 primary=22 support=36 review=0 units=74 paths=58 violations=0

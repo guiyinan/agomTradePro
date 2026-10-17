@@ -1,0 +1,8 @@
+{
+  "recorded_at": "2026-10-17T03:26:04.967895+00:00",
+  "base_commit": "32e254b60aceea3132623f3593e769cef0f7ed66",
+  "source_tree": "441abc56896c21eef57ddb1543dbc97d3ee6b76d",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-original-plan-red-gs9qb__2",
+  "test_sha256": "6f57074d68b7dbe8e737660379448ef0b8cbec0162bdb84443ec9320149371f5",
+  "scope": "One SQLite regression only; no task Native PG, Provider, broker, or production access. Transactional fixture flush is confined to the fresh SQLite test database."
+}

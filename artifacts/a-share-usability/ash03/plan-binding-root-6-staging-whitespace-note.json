@@ -1,0 +1,10 @@
+{
+  "stage": "post-stage whitespace check",
+  "actual_exit": 2,
+  "business_test_failure": false,
+  "source_changed": false,
+  "staging_completed_before_check": true,
+  "diagnostic": "artifacts/a-share-usability/ash03/plan-binding-root-5-native-guard-red.txt:10: trailing whitespace.\n+E     \n",
+  "original_failure_evidence_preserved": true,
+  "resolution": "Verify exact original line/hash and exclude only that original log from whitespace checking; every other staged path remains checked."
+}

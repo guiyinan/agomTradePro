@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import connection, connections, models
+from django.db import IntegrityError, connection, connections, models, transaction
 
 from apps.account.infrastructure.identity_models import AccountProfileModel
 from apps.data_center.domain.exchange_calendar import exchange_calendar_request_scope_hash
@@ -43,6 +43,9 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     FeeTransactionCase,
     SimulatedFeePolicyV2,
+)
+from apps.simulated_trading.domain.execution_settlement_plan_binding import (
+    SimulatedSettlementPlanBindingV1,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarPublicationReference,
@@ -108,6 +111,19 @@ class _BarrierClock:
             self.first_read = False
             self.barrier.wait(timeout=20)
         return AS_OF
+
+
+class _ReleaseBarrierClock:
+    def __init__(self, barrier: Barrier, now: datetime) -> None:
+        self.barrier = barrier
+        self.current = now
+        self.first_read = True
+
+    def now(self) -> datetime:
+        if self.first_read:
+            self.first_read = False
+            self.barrier.wait(timeout=20)
+        return self.current
 
 
 class _RuleReader:
@@ -505,12 +521,27 @@ def test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idemp
     intent = _intent(user_id=user.pk, account_id=account.pk)
 
     first = use_case.execute(intent)
+    first_trade = SimulatedTradeModel.objects.get(pk=first.trade_id)
+    assert first_trade.settlement_plan_binding_version == 1
+    assert first_trade.settlement_plan_binding_payload is not None
+    assert first_trade.settlement_plan_binding_hash is not None
+    first_binding = SimulatedSettlementPlanBindingV1.from_payload(
+        first_trade.settlement_plan_binding_payload
+    )
+    assert first_binding.content_hash == first_trade.settlement_plan_binding_hash
+    assert first_binding.executed_at == first_trade.execution_time
+
     second = use_case.execute(intent)
     position = PositionModel.objects.get(account=account, asset_code="600000.SH")
     account.refresh_from_db()
 
     assert first.trade_id == second.trade_id
     assert second.replayed is True
+    second_trade = SimulatedTradeModel.objects.get(pk=second.trade_id)
+    assert (
+        second_trade.settlement_plan_binding_payload == first_trade.settlement_plan_binding_payload
+    )
+    assert second_trade.settlement_plan_binding_hash == first_trade.settlement_plan_binding_hash
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
     assert position.quantity == Decimal("100.000000")
     assert position.available_quantity == Decimal("0.000000")
@@ -549,6 +580,9 @@ def test_legacy_v1_fee_snapshot_receipt_replays_after_policy_window_expires(
     SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
         fee_schedule_snapshot=v1_schedule.to_payload(),
         fee_schedule_hash=v1_schedule.content_hash,
+        settlement_plan_binding_version=0,
+        settlement_plan_binding_payload=None,
+        settlement_plan_binding_hash=None,
     )
 
     replayed = DjangoSimulatedTradeExecutionRepository(using="default").find_idempotent_result(
@@ -1046,6 +1080,421 @@ def test_sell_cannot_use_pending_shares_and_release_uses_stored_lag_with_revised
     assert account.current_cash == Decimal("99994.96")
 
 
+def test_release_blocks_when_persisted_lag_differs_from_original_policy_binding(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+        lag=2,
+    )
+    receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    original_policy_hash = trade.settlement_policy_hash
+
+    assert trade.settlement_lag_sessions == 2
+    assert position.quantity == Decimal("100.000000")
+    assert position.available_quantity == Decimal("0.000000")
+
+    SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(settlement_lag_sessions=0)
+
+    release_use_case = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=_CalendarReader(evidence),
+        repository=DjangoSimulatedTradeExecutionRepository(using="default"),
+        clock=_Clock(AS_OF),
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        release_use_case.execute(
+            account_id=account.pk,
+            user_id=user.pk,
+            asset_code="600000.SH",
+            exchange="SH",
+        )
+
+    position.refresh_from_db()
+    trade.refresh_from_db()
+    assert position.quantity == Decimal("100.000000")
+    assert position.available_quantity == Decimal("0.000000")
+    assert trade.settlement_status == "pending"
+    assert trade.settlement_released_at is None
+    assert trade.settlement_lag_sessions == 0
+    assert trade.settlement_policy_hash == original_policy_hash
+
+
+@pytest.mark.parametrize(
+    ("field_name", "changed_value"),
+    [
+        ("settlement_lag_sessions", 1),
+        ("settlement_policy_hash", "f" * 64),
+        ("settlement_calendar_snapshot_id", "00000000-0000-4000-8000-000000000001"),
+        ("settlement_calendar_publication_hash", "9" * 64),
+        ("execution_time", AS_OF + timedelta(minutes=1)),
+    ],
+)
+def test_bound_plan_rejects_shape_valid_trade_column_drift(
+    ledger: tuple[object, SimulatedAccountModel],
+    field_name: str,
+    changed_value: object,
+) -> None:
+    """A valid-looking scalar edit cannot detach the stored plan from its trade."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_hash is not None
+
+    changed = SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
+        **{field_name: changed_value}
+    )
+    assert changed == 1
+
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.find_idempotent_result(
+            account_id=account.pk,
+            user_id=user.pk,
+            idempotency_key=trade.idempotency_key,
+        )
+
+
+@pytest.mark.parametrize("tampered_status", ["cancelled", "failed"])
+@pytest.mark.parametrize("operation", ["replay", "release"])
+def test_bound_pending_buy_rejects_execution_status_drift(
+    ledger: tuple[object, SimulatedAccountModel],
+    tampered_status: str,
+    operation: str,
+) -> None:
+    """A pending settlement cannot disappear from checks through a changed order status."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(status=tampered_status)
+
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    if operation == "replay":
+        with pytest.raises(SimulatedTradeExecutionBlocked):
+            repository.find_idempotent_result(
+                account_id=account.pk,
+                user_id=user.pk,
+                idempotency_key=trade.idempotency_key,
+            )
+    elif operation == "release":
+        release_time = AS_OF + timedelta(days=5)
+        release_evidence = _calendar(
+            as_of=release_time,
+            open_dates={
+                date(2026, 10, 16),
+                date(2026, 10, 19),
+                date(2026, 10, 20),
+                date(2026, 10, 21),
+            },
+        )
+        release = ReleaseDueSimulatedSettlementsUseCase(
+            calendar_reader=_CalendarReader(release_evidence),
+            repository=repository,
+            clock=_Clock(release_time),
+        )
+        with pytest.raises(SimulatedTradeExecutionBlocked):
+            release.execute(
+                account_id=account.pk,
+                user_id=user.pk,
+                asset_code="600000.SH",
+                exchange="SH",
+            )
+    else:
+        raise AssertionError(f"unhandled test operation {operation!r}")
+
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    trade.refresh_from_db()
+    assert position.quantity == Decimal("100.000000")
+    assert position.available_quantity == Decimal("0.000000")
+    assert trade.status == tampered_status
+    assert trade.settlement_status == "pending"
+    assert trade.settlement_released_at is None
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["missing_key", "extra_key", "unknown_schema", "wrong_hash", "resealed_policy"],
+)
+def test_bound_plan_rejects_malformed_or_resealed_payload(
+    ledger: tuple[object, SimulatedAccountModel],
+    corruption: str,
+) -> None:
+    """Strict decoding and row binding reject damaged or independently resealed payloads."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    payload = dict(trade.settlement_plan_binding_payload)
+    binding_hash = trade.settlement_plan_binding_hash
+    assert binding_hash is not None
+
+    if corruption == "missing_key":
+        payload.pop("calendar_evidence_hash")
+    elif corruption == "extra_key":
+        payload["unrecognized_binding_field"] = "must be rejected"
+    elif corruption == "unknown_schema":
+        payload["schema"] = "simulated-settlement-plan-binding.unknown"
+    elif corruption == "wrong_hash":
+        binding_hash = "0" * 64
+    elif corruption == "resealed_policy":
+        payload["settlement_policy_hash"] = "f" * 64
+        binding_hash = SimulatedSettlementPlanBindingV1.from_payload(payload).content_hash
+    else:
+        raise AssertionError(f"unhandled test corruption {corruption!r}")
+
+    SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
+        settlement_plan_binding_payload=payload,
+        settlement_plan_binding_hash=binding_hash,
+    )
+
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.find_idempotent_result(
+            account_id=account.pk,
+            user_id=user.pk,
+            idempotency_key=trade.idempotency_key,
+        )
+
+
+def test_corrupt_member_blocks_entire_pending_release_batch(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """One damaged plan prevents any pending row from releasing available shares."""
+
+    user, account = ledger
+    source_evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=source_evidence,
+    )
+    first = use_case.execute(
+        _intent(user_id=user.pk, account_id=account.pk, key="batch-binding-first")
+    )
+    second = use_case.execute(
+        _intent(user_id=user.pk, account_id=account.pk, key="batch-binding-second")
+    )
+    trades = list(SimulatedTradeModel.objects.filter(pk__in=[first.trade_id, second.trade_id]))
+    assert len(trades) == 2
+    original_binding = {
+        trade.pk: (trade.settlement_plan_binding_payload, trade.settlement_plan_binding_hash)
+        for trade in trades
+    }
+    damaged_trade = max(trades, key=lambda trade: trade.pk)
+    SimulatedTradeModel._base_manager.filter(pk=damaged_trade.pk).update(
+        settlement_plan_binding_hash="0" * 64
+    )
+
+    release_time = AS_OF + timedelta(days=5)
+    release_evidence = _calendar(
+        as_of=release_time,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    release = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=_CalendarReader(release_evidence),
+        repository=DjangoSimulatedTradeExecutionRepository(using="default"),
+        clock=_Clock(release_time),
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        release.execute(
+            account_id=account.pk,
+            user_id=user.pk,
+            asset_code="600000.SH",
+            exchange="SH",
+        )
+
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    assert position.available_quantity == Decimal("0.000000")
+    for trade in SimulatedTradeModel.objects.filter(pk__in=[first.trade_id, second.trade_id]):
+        trade.refresh_from_db()
+        assert trade.settlement_status == "pending"
+        assert trade.settlement_released_at is None
+        assert trade.settlement_plan_binding_version == 1
+        assert trade.settlement_plan_binding_payload == original_binding[trade.pk][0]
+        expected_hash = "0" * 64 if trade.pk == damaged_trade.pk else original_binding[trade.pk][1]
+        assert trade.settlement_plan_binding_hash == expected_hash
+
+
+def test_legacy_version_zero_replays_receipt_but_cannot_release_pending_shares(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Unbound V1-fee history remains readable but cannot authorize a new release."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="legacy-v0-replay")
+    original = use_case.execute(intent)
+    trade = SimulatedTradeModel.objects.get(pk=original.trade_id)
+    v2_policy = SimulatedFeePolicyV2.from_payload(trade.fee_schedule_snapshot)
+    v1_schedule = v2_policy.fee_schedule_v1
+    SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
+        fee_schedule_snapshot=v1_schedule.to_payload(),
+        fee_schedule_hash=v1_schedule.content_hash,
+        settlement_plan_binding_version=0,
+        settlement_plan_binding_payload=None,
+        settlement_plan_binding_hash=None,
+    )
+
+    replay = use_case.execute(intent)
+    assert replay.trade_id == original.trade_id
+    assert replay.replayed is True
+    assert SimulatedTradeModel.objects.get(pk=trade.pk).settlement_plan_binding_version == 0
+
+    release_time = AS_OF + timedelta(days=5)
+    release_evidence = _calendar(
+        as_of=release_time,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    release = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=_CalendarReader(release_evidence),
+        repository=DjangoSimulatedTradeExecutionRepository(using="default"),
+        clock=_Clock(release_time),
+    )
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        release.execute(
+            account_id=account.pk,
+            user_id=user.pk,
+            asset_code="600000.SH",
+            exchange="SH",
+        )
+
+    trade.refresh_from_db()
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    assert trade.settlement_status == "pending"
+    assert position.available_quantity == Decimal("0.000000")
+
+
+def test_legacy_model_create_defaults_to_unbound_version_zero(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Existing non-UoW model writers keep creating explicit legacy rows."""
+
+    _user, account = ledger
+    trade = SimulatedTradeModel.objects.create(
+        account=account,
+        asset_code="LEGACY.TEST",
+        asset_name="Legacy import fixture",
+        asset_type="equity",
+        action="buy",
+        quantity=Decimal("1.000000"),
+        price=Decimal("10.0000"),
+        amount=Decimal("10.00"),
+        commission=Decimal("0.00"),
+        slippage=Decimal("0.00"),
+        total_cost=Decimal("10.00"),
+        order_date=date(2026, 10, 16),
+        execution_date=date(2026, 10, 16),
+        status="executed",
+    )
+
+    assert trade.settlement_plan_binding_version == 0
+    assert trade.settlement_plan_binding_payload is None
+    assert trade.settlement_plan_binding_hash is None
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {
+            "settlement_plan_binding_payload": None,
+            "settlement_plan_binding_hash": None,
+        },
+        {"settlement_plan_binding_payload": None},
+        {"settlement_plan_binding_hash": None},
+        {"settlement_plan_binding_version": 2},
+    ],
+    ids=["clear-pair", "clear-payload", "clear-hash", "unknown-version"],
+)
+def test_version_one_binding_database_constraint_rejects_incomplete_state(
+    ledger: tuple[object, SimulatedAccountModel],
+    changes: dict[str, object],
+) -> None:
+    """Version one rows cannot lose either seal column or change to an unknown version."""
+
+    user, account = ledger
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_payload is not None
+    assert trade.settlement_plan_binding_hash is not None
+    original_payload = trade.settlement_plan_binding_payload
+    original_hash = trade.settlement_plan_binding_hash
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(**changes)
+
+    trade.refresh_from_db()
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_payload == original_payload
+    assert trade.settlement_plan_binding_hash == original_hash
+
+
 def test_missing_formal_calendar_blocks_without_writing_a_trade(
     ledger: tuple[object, SimulatedAccountModel],
 ) -> None:
@@ -1261,3 +1710,73 @@ def test_concurrent_sells_cannot_consume_the_same_available_position_twice(
     assert account.current_cash == Decimal("100996.98")
     assert account.current_market_value == Decimal("0.00")
     assert account.total_value == account.current_cash
+
+
+@pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="row-lock release semantics are verified on PostgreSQL",
+)
+def test_concurrent_releases_add_original_pending_shares_once_and_preserve_binding(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Two release callers serialize one immutable pending buy without double-crediting."""
+
+    user, account = ledger
+    original_evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=original_evidence,
+    )
+    receipt = use_case.execute(
+        _intent(user_id=user.pk, account_id=account.pk, key="release-plan-race")
+    )
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    original_payload = trade.settlement_plan_binding_payload
+    original_hash = trade.settlement_plan_binding_hash
+    assert trade.settlement_plan_binding_version == 1
+    assert original_payload is not None
+    assert original_hash is not None
+
+    release_time = AS_OF + timedelta(days=5)
+    release_evidence = _calendar(
+        as_of=release_time,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20), date(2026, 10, 21)},
+    )
+    barrier = Barrier(2)
+
+    def release_once() -> int:
+        connections.close_all()
+        try:
+            repository = DjangoSimulatedTradeExecutionRepository(using="default")
+            release_use_case = ReleaseDueSimulatedSettlementsUseCase(
+                calendar_reader=_CalendarReader(release_evidence),
+                repository=repository,
+                clock=_ReleaseBarrierClock(barrier, release_time),
+            )
+            return release_use_case.execute(
+                account_id=account.pk,
+                user_id=user.pk,
+                asset_code="600000.SH",
+                exchange="SH",
+            )
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(release_once) for _ in range(2)]
+        released_counts = [future.result(timeout=30) for future in futures]
+
+    assert sorted(released_counts) == [0, 1]
+    position = PositionModel.objects.get(account=account, asset_code="600000.SH")
+    trade.refresh_from_db()
+    assert position.quantity == Decimal("100.000000")
+    assert position.available_quantity == Decimal("100.000000")
+    assert trade.settlement_status == "released"
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_payload == original_payload
+    assert trade.settlement_plan_binding_hash == original_hash

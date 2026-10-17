@@ -1,0 +1,11 @@
+source_tree=441abc56896c21eef57ddb1543dbc97d3ee6b76d
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-original-plan-red-gs9qb__2
+.F                                                                       [100%]
+================================== FAILURES ===================================
+_ test_release_blocks_when_persisted_lag_differs_from_original_policy_binding _
+tests\component\simulated_trading\test_execution_settlement_uow.py:1080: in test_release_blocks_when_persisted_lag_differs_from_original_policy_binding
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+E   Failed: DID NOT RAISE <class 'apps.simulated_trading.application.execution_settlement_uow.SimulatedTradeExecutionBlocked'>
+=========================== short test summary info ===========================
+FAILED tests/component/simulated_trading/test_execution_settlement_uow.py::test_release_blocks_when_persisted_lag_differs_from_original_policy_binding
+1 failed, 1 passed in 15.66s

@@ -1,0 +1,4 @@
+reformatted apps\simulated_trading\infrastructure\execution_settlement_uow_repository.py
+
+All done! ✨ 🍰 ✨
+1 file reformatted, 2 files left unchanged.

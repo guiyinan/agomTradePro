@@ -1,0 +1,16 @@
+{
+  "recorded_at": "2026-10-17T04:05:21.845375+00:00",
+  "base_commit": "32e254b60aceea3132623f3593e769cef0f7ed66",
+  "source_tree": "4b8b493e71c360daccf7eead741f617e24e87c40",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-plan-binding-lga_25oq",
+  "source_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_plan_binding.py": "e4dcdf34ed7d579622a691526e4f3843f32b0785cc64d79f213a73e08ad83246",
+    "apps/simulated_trading/infrastructure/models.py": "73496272c3e96bdc35ebe5145564a2f396f973afee786f640698b7040030baf8",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "52fd6eeba43c510767b1d011b62767f06b564125b5648b9bdd05d8fab949e39b",
+    "apps/simulated_trading/migrations/0026_simulated_trade_settlement_plan_binding.py": "9863f29884f296946510907fffc58c94ed9e4a0bfcf8dbc4475664efa26fb73b",
+    "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py": "0db7c021d8a4e36ac8aad7eff83a5e85848642c7792deaa299d803cafbc8a737",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "3a254d66fec7b5382ab66696d5d804cfbe144013c76cff43901721ca12ac003f",
+    "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py": "97356406015e67ef790bbb6d1eef0a4c9b402139867c626477bfe39a312b1794"
+  },
+  "scope": "Development integrity batch, exact source; no release/CI/S6 or provider/broker qualification."
+}

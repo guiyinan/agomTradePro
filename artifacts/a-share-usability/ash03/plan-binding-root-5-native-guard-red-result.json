@@ -1,0 +1,10 @@
+{
+  "source_tree": "8e0ab450a8104833ac631f696ea1406d2b975d41",
+  "results": {
+    "native-target-before-guard-red": 0,
+    "native-target-after-guard-red": 0,
+    "native-guard-red": 1
+  },
+  "exit": 0,
+  "changed_during_run": []
+}

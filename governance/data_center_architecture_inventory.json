@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5784,
+    "current_surface_references": 5791,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20649,6 +20649,34 @@
     {
       "path": "apps/simulated_trading/application/use_cases.py",
       "text": "\"\"\"Persisted performance values exposed with an account summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Canonical integrity summary of one fully validated settlement plan."
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Immutable identity summary for the exact calendar snapshot fact row.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Immutable raw-response identity bound to a calendar snapshot summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Strictly decode one exact calendar snapshot identity summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Strictly decode one exact publication-member identity summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Strictly decode one exact raw-response identity summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Validate all summary fields and their derivable cross-field bindings.\"\"\""
     },
     {
       "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
