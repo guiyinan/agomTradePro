@@ -59,11 +59,18 @@ def test_repository_inventory_matches_approved_m0_baseline() -> None:
     validate_inventory(reviewed_rows, rules=rules)
     check_inventory_file(ROOT, rules=rules, inventory_path=MATRIX_PATH)
 
-    assert len(reviewed_rows) == 196
-    assert sum(row["destination_class"] == "C" for row in reviewed_rows) == 41
+    assert len(reviewed_rows) == 197
+    assert sum(row["destination_class"] == "C" for row in reviewed_rows) == 42
     assert sum(row["status"] == "deleted" for row in reviewed_rows) == 7
-    assert len(discover_template_paths(ROOT)) == 189
-    assert len({row["template_path"] for row in reviewed_rows}) == 196
+    assert len(discover_template_paths(ROOT)) == 190
+    assert len({row["template_path"] for row in reviewed_rows}) == 197
+    admin_rows = [
+        row for row in reviewed_rows if row["template_path"].startswith("core/templates/admin/")
+    ]
+    assert len(admin_rows) == 10
+    assert all(
+        row["destination_class"] == "C" and row["status"] == "retained" for row in admin_rows
+    )
     assert all(row["content_hash"] for row in reviewed_rows)
     assert all(row["resolved_template_origin"] for row in reviewed_rows)
     assert all(
@@ -74,8 +81,23 @@ def test_repository_inventory_matches_approved_m0_baseline() -> None:
     current_rows = build_inventory(ROOT, rules=rules, resolve_django=True)
     by_path = {row["template_path"]: row for row in current_rows}
     reviewed_by_path = {row["template_path"]: row for row in reviewed_rows}
+    fee_template_path = "core/templates/admin/account/transaction/correct_costs.html"
+    for inventory in (by_path, reviewed_by_path):
+        row = inventory[fee_template_path]
+        assert row["template_name"] == "admin/account/transaction/correct_costs.html"
+        assert row["template_role"] == "admin"
+        assert row["owner_app"] == "admin"
+        assert row["destination_class"] == "C"
+        assert row["status"] == "retained"
+        assert row["legacy_url_policy"] == "retain"
+    assert by_path[fee_template_path]["resolved_template_origin"] == fee_template_path
+    assert by_path[fee_template_path]["extends"] == "admin/base_site.html"
     assert by_path["core/templates/dashboard/index.html"]["url_path_pattern"] == "/dashboard/"
     assert by_path["core/templates/terminal/config.html"]["url_path_pattern"] == ""
-    assert "/terminal/config/" in reviewed_by_path["core/templates/terminal/config.html"][
-        "url_path_pattern"
-    ]
+    retired_config = reviewed_by_path["core/templates/terminal/config.html"]
+    assert retired_config["url_path_pattern"] == ""
+    assert retired_config["status"] == "migrated"
+    assert retired_config["legacy_url_policy"] == "redirect_to_tui"
+    assert retired_config["redirect_target"] == (
+        "/tui/?screen=ai-ops.terminal&action=terminal.agent_chat"
+    )

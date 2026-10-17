@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from typing import cast
 
 from django.utils import timezone
 
@@ -13,6 +14,7 @@ from apps.account.application.repository_provider import (
     get_transaction_cost_config_repository,
     get_transaction_cost_repository,
 )
+from apps.account.domain.transaction_cost_calculations import complete_actual_cost
 from apps.account.domain.transaction_cost_contracts import (
     AssetMetadataLookupProtocol,
     AssetMetadataRecord,
@@ -22,8 +24,27 @@ from apps.account.domain.transaction_cost_contracts import (
     TransactionCostRecord,
     TransactionCostRepositoryProtocol,
 )
+from core.exceptions import AuthorizationError, InvalidInputError
 
 ZERO = Decimal("0")
+CENT = Decimal("0.01")
+MAX_ACTUAL_FEE = Decimal("99999999.99")
+
+
+def normalize_actual_fee(value: Decimal | None, *, field_name: str) -> Decimal | None:
+    """Validate and quantize one optional actual fee to the stored scale."""
+
+    if value is None:
+        return None
+    if not isinstance(value, Decimal) or not value.is_finite() or value < ZERO:
+        raise InvalidInputError("实际费用必须为非负有限金额", details={"field": field_name})
+    try:
+        normalized = value.quantize(CENT, rounding=ROUND_HALF_UP)
+    except InvalidOperation as exc:
+        raise InvalidInputError("实际费用超出允许范围", details={"field": field_name}) from exc
+    if normalized > MAX_ACTUAL_FEE:
+        raise InvalidInputError("实际费用超出允许范围", details={"field": field_name})
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -50,12 +71,17 @@ class TransactionCostAnalysis:
 
     total_transactions: int
     total_traded_value: Decimal
-    total_actual_cost: Decimal
-    total_estimated_cost: Decimal
-    cost_variance: Decimal
-    cost_variance_pct: float
-    estimation_accuracy: float
-    avg_cost_ratio: float
+    total_actual_cost: Decimal | None
+    actual_sample_count: int
+    paired_actual_cost: Decimal | None
+    paired_sample_count: int
+    total_estimated_cost: Decimal | None
+    cost_variance: Decimal | None
+    cost_variance_pct: float | None
+    estimation_accuracy: float | None
+    accuracy_sample_count: int
+    avg_cost_ratio: float | None
+    cost_ratio_sample_count: int
     high_cost_transactions: list[HighCostTransaction]
 
 
@@ -188,23 +214,51 @@ class RecordTransactionCostUseCase:
 
     def record_actual_cost(
         self,
+        actor_user_id: int,
         transaction_id: int,
-        actual_commission: Decimal,
+        *,
+        actual_commission: Decimal | None = None,
         actual_slippage: Decimal | None = None,
         actual_stamp_duty: Decimal | None = None,
         actual_transfer_fee: Decimal | None = None,
     ) -> TransactionCostRecord:
         """Persist actual costs and return the refreshed transaction record."""
-
+        if (
+            isinstance(actor_user_id, bool)
+            or not isinstance(actor_user_id, int)
+            or actor_user_id <= 0
+        ):
+            raise InvalidInputError("用户编号必须为正整数", details={"field": "actor_user_id"})
+        if (
+            isinstance(transaction_id, bool)
+            or not isinstance(transaction_id, int)
+            or transaction_id <= 0
+        ):
+            raise InvalidInputError("交易记录编号必须为正整数", details={"field": "transaction_id"})
+        patch = (
+            actual_commission,
+            actual_slippage,
+            actual_stamp_duty,
+            actual_transfer_fee,
+        )
+        if all(value is None for value in patch):
+            raise InvalidInputError("至少需要提交一项实际费用")
+        normalized_patch = (
+            normalize_actual_fee(actual_commission, field_name="commission"),
+            normalize_actual_fee(actual_slippage, field_name="slippage"),
+            normalize_actual_fee(actual_stamp_duty, field_name="stamp_duty"),
+            normalize_actual_fee(actual_transfer_fee, field_name="transfer_fee"),
+        )
         transaction = self.transaction_repo.update_transaction_costs(
             transaction_id,
-            commission=actual_commission,
-            slippage=actual_slippage,
-            stamp_duty=actual_stamp_duty,
-            transfer_fee=actual_transfer_fee,
+            actor_user_id=actor_user_id,
+            commission=normalized_patch[0],
+            slippage=normalized_patch[1],
+            stamp_duty=normalized_patch[2],
+            transfer_fee=normalized_patch[3],
         )
         if transaction is None:
-            raise ValueError(f"交易 {transaction_id} 不存在")
+            raise AuthorizationError("交易记录不存在或无权修改")
         return transaction
 
 
@@ -222,62 +276,108 @@ class TransactionCostAnalysisUseCase:
     ) -> TransactionCostAnalysis:
         """Analyze transaction costs for a user and optional portfolio."""
 
-        since_date = timezone.now() - timedelta(days=days)
+        as_of = timezone.now()
+        since_date = as_of - timedelta(days=days)
         transactions = self.transaction_repo.list_user_transaction_costs(
             user_id,
             portfolio_id=portfolio_id,
             since_date=since_date,
+            until_date=as_of,
         )
         if not transactions:
             return self._empty_analysis()
 
         total_traded_value = sum((transaction["notional"] for transaction in transactions), ZERO)
-        total_actual_cost = sum(
-            (self._actual_cost(transaction) for transaction in transactions), ZERO
+        actual_transactions = [
+            (transaction, self._actual_cost(transaction)) for transaction in transactions
+        ]
+        complete_actual = [
+            (transaction, actual)
+            for transaction, actual in actual_transactions
+            if actual is not None
+        ]
+        actual_sample_count = len(complete_actual)
+        total_actual_cost = (
+            sum((actual for _, actual in complete_actual if actual is not None), ZERO)
+            if complete_actual
+            else None
         )
 
-        estimated_transactions: list[TransactionCostRecord] = []
-        total_estimated_cost = ZERO
-        for transaction in transactions:
-            estimated_cost = transaction["estimated_cost"]
-            if estimated_cost is not None:
-                estimated_transactions.append(transaction)
-                total_estimated_cost += estimated_cost
-
-        cost_variance = total_actual_cost - total_estimated_cost
+        paired = [
+            (transaction, actual)
+            for transaction, actual in complete_actual
+            if transaction["estimated_cost"] is not None
+        ]
+        paired_sample_count = len(paired)
+        paired_actual_cost = (
+            sum((actual for _, actual in paired if actual is not None), ZERO) if paired else None
+        )
+        total_estimated_cost = (
+            sum(
+                (cast(Decimal, transaction["estimated_cost"]) for transaction, _ in paired),
+                ZERO,
+            )
+            if paired
+            else None
+        )
+        cost_variance = (
+            paired_actual_cost - total_estimated_cost
+            if paired_actual_cost is not None and total_estimated_cost is not None
+            else None
+        )
         cost_variance_pct = (
-            float(cost_variance / total_estimated_cost) if total_estimated_cost > ZERO else 0.0
+            float(cost_variance / total_estimated_cost)
+            if cost_variance is not None
+            and total_estimated_cost is not None
+            and total_estimated_cost > ZERO
+            else None
         )
 
+        accuracy_pairs = [
+            (transaction, actual)
+            for transaction, actual in paired
+            if transaction["estimated_cost"] is not None
+            and transaction["estimated_cost"] > ZERO
+            and actual is not None
+        ]
+        accuracy_sample_count = len(accuracy_pairs)
         accurate_count = sum(
             1
-            for transaction in estimated_transactions
-            if transaction["cost_variance_pct"] is not None
-            and abs(transaction["cost_variance_pct"]) < 0.2
+            for transaction, actual in accuracy_pairs
+            if actual is not None
+            and transaction["estimated_cost"] is not None
+            and abs((actual - transaction["estimated_cost"]) / transaction["estimated_cost"])
+            < Decimal("0.2")
         )
         estimation_accuracy = (
-            accurate_count / len(estimated_transactions) if estimated_transactions else 0.0
+            accurate_count / accuracy_sample_count if accuracy_sample_count else None
         )
 
         positive_notional_transactions = [
-            transaction for transaction in transactions if transaction["notional"] > ZERO
+            (transaction, actual)
+            for transaction, actual in complete_actual
+            if transaction["notional"] > ZERO and actual is not None
         ]
+        cost_ratio_sample_count = len(positive_notional_transactions)
         avg_cost_ratio = (
             sum(
                 (
-                    float(self._actual_cost(transaction) / transaction["notional"])
-                    for transaction in positive_notional_transactions
+                    float(actual / transaction["notional"])
+                    for transaction, actual in positive_notional_transactions
+                    if actual is not None
                 ),
                 0.0,
             )
-            / len(positive_notional_transactions)
-            if positive_notional_transactions
-            else 0.0
+            / cost_ratio_sample_count
+            if cost_ratio_sample_count
+            else None
         )
 
         high_cost_transactions: list[HighCostTransaction] = []
-        for transaction in positive_notional_transactions:
-            cost_ratio = float(self._actual_cost(transaction) / transaction["notional"])
+        for transaction, actual in positive_notional_transactions:
+            if actual is None:
+                continue
+            cost_ratio = float(actual / transaction["notional"])
             if cost_ratio > 0.01:
                 high_cost_transactions.append(
                     {
@@ -294,24 +394,23 @@ class TransactionCostAnalysisUseCase:
             total_transactions=len(transactions),
             total_traded_value=total_traded_value,
             total_actual_cost=total_actual_cost,
+            actual_sample_count=actual_sample_count,
+            paired_actual_cost=paired_actual_cost,
+            paired_sample_count=paired_sample_count,
             total_estimated_cost=total_estimated_cost,
             cost_variance=cost_variance,
             cost_variance_pct=cost_variance_pct,
             estimation_accuracy=estimation_accuracy,
+            accuracy_sample_count=accuracy_sample_count,
             avg_cost_ratio=avg_cost_ratio,
+            cost_ratio_sample_count=cost_ratio_sample_count,
             high_cost_transactions=high_cost_transactions,
         )
 
     @staticmethod
-    def _actual_cost(transaction: TransactionCostRecord) -> Decimal:
-        """Return a transaction's complete actual cost."""
-
-        return (
-            transaction["commission"]
-            + (transaction["slippage"] or ZERO)
-            + (transaction["stamp_duty"] or ZERO)
-            + (transaction["transfer_fee"] or ZERO)
-        )
+    def _actual_cost(transaction: TransactionCostRecord) -> Decimal | None:
+        """Return actual cost only when all four components are explicitly known."""
+        return complete_actual_cost(transaction)
 
     @staticmethod
     def _empty_analysis() -> TransactionCostAnalysis:
@@ -320,11 +419,16 @@ class TransactionCostAnalysisUseCase:
         return TransactionCostAnalysis(
             total_transactions=0,
             total_traded_value=ZERO,
-            total_actual_cost=ZERO,
-            total_estimated_cost=ZERO,
-            cost_variance=ZERO,
-            cost_variance_pct=0.0,
-            estimation_accuracy=0.0,
-            avg_cost_ratio=0.0,
+            total_actual_cost=None,
+            actual_sample_count=0,
+            paired_actual_cost=None,
+            paired_sample_count=0,
+            total_estimated_cost=None,
+            cost_variance=None,
+            cost_variance_pct=None,
+            estimation_accuracy=None,
+            accuracy_sample_count=0,
+            avg_cost_ratio=None,
+            cost_ratio_sample_count=0,
             high_cost_transactions=[],
         )

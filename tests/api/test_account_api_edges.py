@@ -47,6 +47,16 @@ def auth_user(db):
 
 
 @pytest.fixture
+def owned_portfolio(auth_user):
+    """Create a portfolio owned by the authenticated API-edge user."""
+
+    return PortfolioModel.objects.create(
+        user=auth_user,
+        name="Owned Transaction Portfolio",
+    )
+
+
+@pytest.fixture
 def admin_user(db):
     configure_account_runtime()
     user = get_user_model().objects.create_superuser(
@@ -1507,17 +1517,38 @@ def test_account_observer_detail_forbids_unrelated_user(
 
 
 @pytest.mark.django_db
-def test_account_transaction_create_returns_403_for_foreign_position(authenticated_client):
+@pytest.mark.parametrize(
+    ("use_owned_portfolio", "expected_message"),
+    [
+        pytest.param(
+            False,
+            "无权为此投资组合创建交易记录",
+            id="foreign-portfolio-denied-first",
+        ),
+        pytest.param(
+            True,
+            "无权为此持仓创建交易记录",
+            id="owned-portfolio-foreign-position",
+        ),
+    ],
+)
+def test_account_transaction_create_returns_403_for_foreign_position(
+    authenticated_client,
+    auth_user,
+    owned_portfolio,
+    use_owned_portfolio,
+    expected_message,
+):
     other_user = get_user_model().objects.create_user(
         username="foreign_position_owner",
         password="testpass123",
         email="foreign-position@example.com",
     )
-    portfolio = PortfolioModel.objects.create(
+    foreign_portfolio = PortfolioModel.objects.create(
         user=other_user, name="Foreign Portfolio", is_active=True
     )
     position = PositionModel.objects.create(
-        portfolio=portfolio,
+        portfolio=foreign_portfolio,
         asset_code="600000.SH",
         asset_class="equity",
         region="CN",
@@ -1529,6 +1560,7 @@ def test_account_transaction_create_returns_403_for_foreign_position(authenticat
         unrealized_pnl=Decimal("100.00"),
         unrealized_pnl_pct=5.0,
     )
+    portfolio = owned_portfolio if use_owned_portfolio else foreign_portfolio
 
     response = authenticated_client.post(
         "/api/account/transactions/",
@@ -1549,7 +1581,9 @@ def test_account_transaction_create_returns_403_for_foreign_position(authenticat
     assert response.status_code == 403
     payload = response.json()
     message = str(payload.get("detail") or payload.get("error") or payload)
-    assert "无权为此持仓创建交易记录" in message
+    assert expected_message in message
+    assert not TransactionModel.objects.filter(portfolio=portfolio).exists()
+    assert not TransactionModel.objects.filter(position=position).exists()
 
 
 @pytest.mark.django_db

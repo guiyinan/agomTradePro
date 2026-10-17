@@ -7,10 +7,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import router, transaction
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
+import core.exceptions as core_exceptions
 from apps.account.domain.entities import (
     DrawdownTier,
     MacroSizingConfig,
@@ -18,6 +20,10 @@ from apps.account.domain.entities import (
     PulseTier,
     RegimeTier,
     Transaction,
+)
+from apps.account.domain.transaction_cost_calculations import (
+    canonical_fee_amount,
+    derive_actual_cost_variance,
 )
 from apps.account.domain.transaction_cost_contracts import (
     TransactionCostConfigRecord,
@@ -56,12 +62,15 @@ from apps.account.infrastructure.portfolio_repository import (
 )
 from apps.account.infrastructure.position_repository import PositionRepository as PositionRepository
 from apps.account.infrastructure.system_settings_projection import SystemSettingsProjection
+from apps.account.infrastructure.transaction_record_repository import (
+    TransactionRecordRepositoryMixin,
+)
 from apps.config_center.application.public import get_runtime_asset_proxy_map
 
 logger = logging.getLogger(__name__)
 
 
-class TransactionRepository:
+class TransactionRepository(TransactionRecordRepositoryMixin):
     """交易记录仓储"""
 
     def get_portfolio_transactions(
@@ -70,9 +79,11 @@ class TransactionRepository:
         limit: int = 50,
     ) -> list[Transaction]:
         """获取组合交易记录"""
+        using = router.db_for_read(TransactionModel)
         models = (
-            TransactionModel._default_manager.filter(portfolio_id=portfolio_id)
-            .select_related("position")
+            TransactionModel._default_manager.using(using)
+            .filter(portfolio_id=portfolio_id)
+            .select_related("portfolio", "position")
             .order_by("-traded_at")[:limit]
         )
 
@@ -89,7 +100,8 @@ class TransactionRepository:
                     shares=model.shares,
                     price=model.price,
                     notional=model.notional,
-                    commission=model.commission,
+                    commission=(model.commission if model.commission_known is True else None),
+                    commission_known=model.commission_known,
                     traded_at=model.traded_at,
                     notes=model.notes,
                 )
@@ -98,8 +110,9 @@ class TransactionRepository:
 
     def get_transaction_cost_record(self, transaction_id: int) -> TransactionCostRecord | None:
         """获取交易成本分析所需的交易明细。"""
+        using = router.db_for_read(TransactionModel)
         try:
-            model = TransactionModel._default_manager.get(id=transaction_id)
+            model = TransactionModel._default_manager.using(using).get(id=transaction_id)
         except TransactionModel.DoesNotExist:
             return None
 
@@ -109,41 +122,70 @@ class TransactionRepository:
         self,
         transaction_id: int,
         *,
-        commission: Decimal,
+        actor_user_id: int,
+        commission: Decimal | None = None,
         slippage: Decimal | None = None,
         stamp_duty: Decimal | None = None,
         transfer_fee: Decimal | None = None,
     ) -> TransactionCostRecord | None:
         """更新交易的实际成本并返回最新明细。"""
-        try:
-            model = TransactionModel._default_manager.get(id=transaction_id)
-        except TransactionModel.DoesNotExist:
-            return None
+        using = router.db_for_write(TransactionModel)
+        with transaction.atomic(using=using):
+            try:
+                portfolio_id = (
+                    TransactionModel._default_manager.using(using)
+                    .filter(id=transaction_id)
+                    .values_list("portfolio_id", flat=True)
+                    .get()
+                )
+            except TransactionModel.DoesNotExist:
+                return None
 
-        model.commission = commission
-        if slippage is not None:
-            model.slippage = slippage
-        if stamp_duty is not None:
-            model.stamp_duty = stamp_duty
-        if transfer_fee is not None:
-            model.transfer_fee = transfer_fee
+            try:
+                portfolio = (
+                    PortfolioModel._default_manager.using(using)
+                    .select_for_update(no_key=True)
+                    .get(id=portfolio_id)
+                )
+            except PortfolioModel.DoesNotExist:
+                return None
+            if portfolio.user_id != actor_user_id:
+                return None
 
-        total_actual = (
-            commission
-            + (slippage or Decimal("0"))
-            + (stamp_duty or Decimal("0"))
-            + (transfer_fee or Decimal("0"))
-        )
-        if model.estimated_cost:
-            variance = total_actual - model.estimated_cost
-            variance_pct = (
-                float(variance) / float(model.estimated_cost) if model.estimated_cost > 0 else 0
-            )
-            model.cost_variance = variance
-            model.cost_variance_pct = variance_pct
+            try:
+                model = (
+                    TransactionModel._default_manager.using(using)
+                    .select_for_update()
+                    .get(id=transaction_id, portfolio_id=portfolio.id)
+                )
+            except TransactionModel.DoesNotExist:
+                return None
 
-        model.save()
-        return self._to_transaction_cost_dict(model)
+            update_fields = ["cost_variance", "cost_variance_pct"]
+            for value, amount_field, known_field in (
+                (commission, "commission", "commission_known"),
+                (slippage, "slippage", "slippage_known"),
+                (stamp_duty, "stamp_duty", "stamp_duty_known"),
+                (transfer_fee, "transfer_fee", "transfer_fee_known"),
+            ):
+                if value is not None:
+                    setattr(model, amount_field, value)
+                    setattr(model, known_field, True)
+                    update_fields.extend([amount_field, known_field])
+
+            variance = derive_actual_cost_variance(self._to_transaction_cost_dict(model))
+            variance_field = TransactionModel._meta.get_field("cost_variance")
+            try:
+                variance_field.clean(variance.cost_variance, model)
+            except DjangoValidationError as exc:
+                raise core_exceptions.InvalidInputError(
+                    "实际费用修正导致成本差异超出可存储范围",
+                    details={"field": "cost_variance"},
+                ) from exc
+            model.cost_variance = variance.cost_variance
+            model.cost_variance_pct = variance.cost_variance_pct
+            model.save(using=using, update_fields=update_fields)
+            return self._to_transaction_cost_dict(model)
 
     def list_user_transaction_costs(
         self,
@@ -151,16 +193,19 @@ class TransactionRepository:
         *,
         portfolio_id: int | None = None,
         since_date: datetime | None = None,
+        until_date: datetime | None = None,
     ) -> list[TransactionCostRecord]:
-        """列出用户指定时间范围内的交易成本明细。"""
-        queryset = TransactionModel._default_manager.filter(portfolio__user_id=user_id)
+        """列出用户指定成交时间范围内的交易成本明细。"""
+        using = router.db_for_read(TransactionModel)
+        queryset = TransactionModel._default_manager.using(using).filter(portfolio__user_id=user_id)
         if portfolio_id is not None:
             queryset = queryset.filter(portfolio_id=portfolio_id)
         if since_date is not None:
-            queryset = queryset.filter(created_at__gte=since_date)
+            queryset = queryset.filter(traded_at__gte=since_date)
+        if until_date is not None:
+            queryset = queryset.filter(traded_at__lte=until_date)
         return [
-            self._to_transaction_cost_dict(model)
-            for model in queryset.order_by("-created_at").all()
+            self._to_transaction_cost_dict(model) for model in queryset.order_by("-traded_at").all()
         ]
 
     @staticmethod
@@ -173,10 +218,14 @@ class TransactionRepository:
             "asset_code": model.asset_code,
             "action": model.action,
             "notional": model.notional,
-            "commission": model.commission,
-            "slippage": model.slippage,
-            "stamp_duty": model.stamp_duty,
-            "transfer_fee": model.transfer_fee,
+            "commission": canonical_fee_amount(model.commission, model.commission_known),
+            "commission_known": model.commission_known,
+            "slippage": canonical_fee_amount(model.slippage, model.slippage_known),
+            "slippage_known": model.slippage_known,
+            "stamp_duty": canonical_fee_amount(model.stamp_duty, model.stamp_duty_known),
+            "stamp_duty_known": model.stamp_duty_known,
+            "transfer_fee": canonical_fee_amount(model.transfer_fee, model.transfer_fee_known),
+            "transfer_fee_known": model.transfer_fee_known,
             "estimated_cost": model.estimated_cost,
             "cost_variance": model.cost_variance,
             "cost_variance_pct": model.cost_variance_pct,
@@ -274,9 +323,9 @@ class ManualTradeSyncRepository:
         asset_code: str,
         shares: float,
         price: Decimal,
-        commission: Decimal,
-        stamp_duty: Decimal,
-        transfer_fee: Decimal,
+        commission: Decimal | None,
+        stamp_duty: Decimal | None,
+        transfer_fee: Decimal | None,
         traded_at: datetime,
         notes: str,
         broker_name: str,
@@ -285,6 +334,7 @@ class ManualTradeSyncRepository:
         raw_payload: dict[str, Any],
         import_batch: BrokerTradeImportBatchModel,
     ) -> TransactionModel:
+        """Persist an imported trade and preserve fee availability."""
         return TransactionModel._default_manager.create(
             portfolio=portfolio,
             position=position,
@@ -293,9 +343,14 @@ class ManualTradeSyncRepository:
             shares=shares,
             price=price,
             notional=Decimal(str(shares)) * price,
-            commission=commission,
-            stamp_duty=stamp_duty,
-            transfer_fee=transfer_fee,
+            commission=commission if commission is not None else Decimal("0"),
+            commission_known=commission is not None,
+            slippage=Decimal("0"),
+            slippage_known=False,
+            stamp_duty=stamp_duty if stamp_duty is not None else Decimal("0"),
+            stamp_duty_known=stamp_duty is not None,
+            transfer_fee=transfer_fee if transfer_fee is not None else Decimal("0"),
+            transfer_fee_known=transfer_fee is not None,
             traded_at=traded_at,
             notes=notes,
             broker_name=broker_name,

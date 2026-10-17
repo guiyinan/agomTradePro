@@ -263,7 +263,8 @@ class Transaction:
     shares: float
     price: Decimal
     notional: Decimal  # 交易金额
-    commission: Decimal  # 手续费
+    commission: Decimal | None  # 手续费，仅已确认采集时有值
+    commission_known: bool | None  # None 表示历史状态未知
     traded_at: datetime
     notes: str  # 备注
 
@@ -741,15 +742,9 @@ class MacroSizingConfig:
             minimum=0,
             maximum=1,
         )
-        if (
-            isinstance(self.version, bool)
-            or not isinstance(self.version, int)
-            or self.version <= 0
-        ):
+        if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version <= 0:
             raise ValueError("version 必须是正整数")
-        normalized_bands = [
-            tier.band.strip().lower() for tier in self.market_temperature_tiers
-        ]
+        normalized_bands = [tier.band.strip().lower() for tier in self.market_temperature_tiers]
         if len(normalized_bands) != len(set(normalized_bands)):
             raise ValueError("market_temperature_tiers 的 band 不能重复")
 

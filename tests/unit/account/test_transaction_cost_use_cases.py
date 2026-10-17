@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -12,6 +12,8 @@ from apps.account.application.transaction_cost_use_cases import (
     TransactionCostAnalysisUseCase,
     TransactionCostEstimationUseCase,
 )
+from apps.account.domain.transaction_cost_contracts import TransactionCostRecord
+from core.exceptions import AuthorizationError
 
 
 class _AssetMetadataRepository:
@@ -46,21 +48,24 @@ class _TransactionCostConfigRepository:
 
 
 class _TransactionRepository:
-    def __init__(self, transactions: list[dict[str, object]] | None = None) -> None:
+    def __init__(self, transactions: list[TransactionCostRecord] | None = None) -> None:
         self.transactions = transactions or []
         self.updated_costs: dict[str, object] | None = None
-        self.update_result: dict[str, object] | None = None
+        self.update_result: TransactionCostRecord | None = None
+        self.list_call: dict[str, int | datetime | None] | None = None
 
     def update_transaction_costs(
         self,
         transaction_id: int,
         *,
-        commission: Decimal,
+        actor_user_id: int,
+        commission: Decimal | None = None,
         slippage: Decimal | None = None,
         stamp_duty: Decimal | None = None,
         transfer_fee: Decimal | None = None,
-    ) -> dict[str, object] | None:
+    ) -> TransactionCostRecord | None:
         self.updated_costs = {
+            "actor_user_id": actor_user_id,
             "transaction_id": transaction_id,
             "commission": commission,
             "slippage": slippage,
@@ -75,10 +80,18 @@ class _TransactionRepository:
         *,
         portfolio_id: int | None = None,
         since_date: datetime | None = None,
-    ) -> list[dict[str, object]]:
+        until_date: datetime | None = None,
+    ) -> list[TransactionCostRecord]:
         assert user_id == 7
         assert portfolio_id == 11
         assert since_date is not None
+        assert until_date is not None
+        self.list_call = {
+            "user_id": user_id,
+            "portfolio_id": portfolio_id,
+            "since_date": since_date,
+            "until_date": until_date,
+        }
         return self.transactions
 
 
@@ -89,7 +102,13 @@ def _transaction(
     commission: Decimal,
     estimated_cost: Decimal | None,
     cost_variance_pct: float | None,
-) -> dict[str, object]:
+    known: tuple[bool | None, bool | None, bool | None, bool | None] = (
+        True,
+        True,
+        True,
+        True,
+    ),
+) -> TransactionCostRecord:
     return {
         "id": transaction_id,
         "portfolio_id": 11,
@@ -98,9 +117,13 @@ def _transaction(
         "action": "sell",
         "notional": notional,
         "commission": commission,
-        "slippage": None,
-        "stamp_duty": None,
-        "transfer_fee": None,
+        "slippage": Decimal("0"),
+        "stamp_duty": Decimal("0"),
+        "transfer_fee": Decimal("0"),
+        "commission_known": known[0],
+        "slippage_known": known[1],
+        "stamp_duty_known": known[2],
+        "transfer_fee_known": known[3],
         "estimated_cost": estimated_cost,
         "cost_variance": None,
         "cost_variance_pct": cost_variance_pct,
@@ -165,17 +188,19 @@ def test_estimate_transaction_cost_rejects_missing_fee_configuration() -> None:
         )
 
 
-def test_record_actual_cost_raises_when_transaction_is_missing() -> None:
+def test_record_actual_cost_denies_missing_or_unowned_transaction_without_enumeration() -> None:
     repository = _TransactionRepository()
     use_case = RecordTransactionCostUseCase(transaction_repo=repository)
 
-    with pytest.raises(ValueError, match="交易 99 不存在"):
+    with pytest.raises(AuthorizationError, match="交易记录不存在或无权修改"):
         use_case.record_actual_cost(
+            actor_user_id=7,
             transaction_id=99,
             actual_commission=Decimal("5"),
         )
 
     assert repository.updated_costs == {
+        "actor_user_id": 7,
         "transaction_id": 99,
         "commission": Decimal("5"),
         "slippage": None,
@@ -184,7 +209,21 @@ def test_record_actual_cost_raises_when_transaction_is_missing() -> None:
     }
 
 
-def test_analyze_transaction_costs_uses_mapping_fields_and_positive_notional_count() -> None:
+def test_analyze_transaction_costs_uses_known_cohorts_and_one_as_of(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    as_of = datetime(2026, 8, 1, 12, tzinfo=UTC)
+    clock_calls = 0
+
+    def fixed_now() -> datetime:
+        nonlocal clock_calls
+        clock_calls += 1
+        return as_of + timedelta(seconds=clock_calls - 1)
+
+    monkeypatch.setattr(
+        "apps.account.application.transaction_cost_use_cases.timezone.now",
+        fixed_now,
+    )
     repository = _TransactionRepository(
         transactions=[
             _transaction(
@@ -192,14 +231,14 @@ def test_analyze_transaction_costs_uses_mapping_fields_and_positive_notional_cou
                 notional=Decimal("1000"),
                 commission=Decimal("5"),
                 estimated_cost=Decimal("5"),
-                cost_variance_pct=0.0,
+                cost_variance_pct=99.0,
             ),
             _transaction(
                 transaction_id=2,
                 notional=Decimal("100"),
                 commission=Decimal("2"),
                 estimated_cost=Decimal("2.5"),
-                cost_variance_pct=-0.2,
+                cost_variance_pct=-99.0,
             ),
             _transaction(
                 transaction_id=3,
@@ -207,6 +246,14 @@ def test_analyze_transaction_costs_uses_mapping_fields_and_positive_notional_cou
                 commission=Decimal("0"),
                 estimated_cost=None,
                 cost_variance_pct=None,
+            ),
+            _transaction(
+                transaction_id=4,
+                notional=Decimal("0"),
+                commission=Decimal("999"),
+                estimated_cost=Decimal("100"),
+                cost_variance_pct=777.0,
+                known=(False, True, True, True),
             ),
         ]
     )
@@ -218,12 +265,26 @@ def test_analyze_transaction_costs_uses_mapping_fields_and_positive_notional_cou
         days=30,
     )
 
-    assert analysis.total_transactions == 3
+    assert clock_calls == 1
+    assert repository.list_call == {
+        "user_id": 7,
+        "portfolio_id": 11,
+        "since_date": as_of - timedelta(days=30),
+        "until_date": as_of,
+    }
+    assert analysis.total_transactions == 4
     assert analysis.total_traded_value == Decimal("1100")
     assert analysis.total_actual_cost == Decimal("7")
+    assert analysis.actual_sample_count == 3
+    assert analysis.paired_actual_cost == Decimal("7")
+    assert analysis.paired_sample_count == 2
     assert analysis.total_estimated_cost == Decimal("7.5")
+    assert analysis.cost_variance == Decimal("-0.5")
+    assert analysis.cost_variance_pct == pytest.approx(-0.5 / 7.5)
     assert analysis.estimation_accuracy == pytest.approx(0.5)
+    assert analysis.accuracy_sample_count == 2
     assert analysis.avg_cost_ratio == pytest.approx((0.005 + 0.02) / 2)
+    assert analysis.cost_ratio_sample_count == 2
     assert analysis.high_cost_transactions == [
         {
             "id": 2,

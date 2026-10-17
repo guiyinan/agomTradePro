@@ -23,9 +23,9 @@ MATRIX_PATH = ROOT / "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv"
 
 
 def _rules() -> dict[str, Any]:
-    """Return the approved 41-template retained-scope count."""
+    """Return the approved 42-template retained-scope count."""
 
-    return {"retained_rules": [{"expected_count": 41}]}
+    return {"retained_rules": [{"expected_count": 42}]}
 
 
 def _write_graph(root: Path, aliases: dict[str, str] | None = None) -> Path:
@@ -63,10 +63,10 @@ def _write_ia(root: Path, *, runtime_keys: list[str]) -> Path:
 
 
 def _retained_rows(root: Path) -> list[dict[str, str]]:
-    """Create the exact 41 physical C templates required at M5-C."""
+    """Create the exact 42 physical C templates required at M5-C."""
 
     rows: list[dict[str, str]] = []
-    for index in range(41):
+    for index in range(42):
         relative = f"core/templates/retained/page-{index}.html"
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,7 +104,7 @@ def _validate(
 
 
 def test_current_repository_is_explicitly_not_finalized() -> None:
-    """The ordinary 196-row matrix remains valid but cannot pass M5-C today."""
+    """The ordinary 197-row matrix remains valid but cannot pass M5-C today."""
 
     with pytest.raises(ValueError, match="Final lifecycle statuses are incomplete"):
         check_finalized_inventory_file(
@@ -143,7 +143,7 @@ def test_current_alias_inventory_exposes_known_m5_c_debt() -> None:
     assert dangling == []
 
 
-def test_exact_41_template_c_scope_is_finalized(tmp_path: Path) -> None:
+def test_exact_42_template_c_scope_is_finalized(tmp_path: Path) -> None:
     """Only the exact retained C scope may remain physically present."""
 
     rows = _retained_rows(tmp_path)

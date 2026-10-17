@@ -3,9 +3,9 @@ DRF Serializers for Account API.
 """
 
 import math
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, TypedDict, cast
 
 from django.apps import apps as django_apps
 from django.utils import timezone
@@ -33,7 +33,6 @@ PortfolioModel = django_apps.get_model("account", "PortfolioModel")
 PortfolioObserverGrantModel = django_apps.get_model("account", "PortfolioObserverGrantModel")
 PositionModel = django_apps.get_model("account", "PositionModel")
 TradingCostConfigModel = django_apps.get_model("account", "TradingCostConfigModel")
-TransactionModel = django_apps.get_model("account", "TransactionModel")
 
 # ==================== Account Profile ====================
 
@@ -220,78 +219,179 @@ class PositionUpdateSerializer(serializers.ModelSerializer[Any]):
 # ==================== Transaction ====================
 
 
-class TransactionSerializer(serializers.ModelSerializer[Any]):
+class TransactionCreateData(TypedDict):
+    """Narrowed, normalized payload produced by TransactionCreateSerializer."""
+
+    portfolio: int
+    position: int | None
+    action: str
+    asset_code: str
+    shares: float
+    price: Decimal
+    commission: Decimal | None
+    slippage: Decimal | None
+    stamp_duty: Decimal | None
+    transfer_fee: Decimal | None
+    notes: str
+    traded_at: datetime
+
+
+class TransactionSerializer(serializers.Serializer[Any]):
     """交易记录序列化器"""
 
-    portfolio_name = serializers.CharField(source="portfolio.name", read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    portfolio = serializers.IntegerField(source="portfolio_id", label="投资组合")
+    portfolio_name = serializers.CharField(read_only=True)
+    position = serializers.IntegerField(
+        source="position_id", allow_null=True, required=False, label="关联持仓"
+    )
     asset_code = serializers.CharField(read_only=True)
+    action = serializers.ChoiceField(choices=(("buy", "买入"), ("sell", "卖出")), label="交易方向")
+    shares = serializers.FloatField(label="交易数量")
+    price = serializers.DecimalField(max_digits=20, decimal_places=4, label="成交价格")
+    notional = serializers.DecimalField(max_digits=20, decimal_places=2, label="成交金额")
+    commission = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="手续费"
+    )
+    commission_known = serializers.BooleanField(allow_null=True, read_only=True)
+    slippage = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="滑点成本"
+    )
+    slippage_known = serializers.BooleanField(allow_null=True, read_only=True)
+    stamp_duty = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="印花税"
+    )
+    stamp_duty_known = serializers.BooleanField(allow_null=True, read_only=True)
+    transfer_fee = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="过户费"
+    )
+    transfer_fee_known = serializers.BooleanField(allow_null=True, read_only=True)
+    broker_name = serializers.CharField(
+        max_length=64, required=False, allow_blank=True, label="券商名称"
+    )
+    external_trade_id = serializers.CharField(
+        max_length=128, required=False, allow_blank=True, label="外部成交编号"
+    )
+    broker_trade_key = serializers.CharField(
+        max_length=64, allow_null=True, required=False, allow_blank=True, label="券商成交去重键"
+    )
+    import_batch = serializers.IntegerField(
+        source="import_batch_id", allow_null=True, required=False, label="导入批次"
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, label="备注")
+    traded_at = serializers.DateTimeField(label="交易时间")
+    created_at = serializers.DateTimeField(read_only=True, label="创建时间")
 
-    class Meta:
-        model = TransactionModel
-        fields = [
-            "id",
-            "portfolio",
-            "portfolio_name",
-            "position",
-            "asset_code",
-            "action",
-            "shares",
-            "price",
-            "notional",
-            "commission",
-            "stamp_duty",
-            "transfer_fee",
-            "broker_name",
-            "external_trade_id",
-            "broker_trade_key",
-            "import_batch",
-            "notes",
-            "traded_at",
-            "created_at",
-        ]
-        read_only_fields = ["created_at"]
 
-
-class TransactionCreateSerializer(serializers.ModelSerializer[Any]):
+class TransactionCreateSerializer(serializers.Serializer[Any]):
     """交易记录创建序列化器"""
 
-    class Meta:
-        model = TransactionModel
-        fields = [
-            "portfolio",
-            "position",
-            "action",
-            "asset_code",
-            "shares",
-            "price",
-            "commission",
-            "notes",
-            "traded_at",
-        ]
+    portfolio = serializers.IntegerField(min_value=1, label="投资组合")
+    position = serializers.IntegerField(
+        min_value=1, allow_null=True, required=False, label="关联持仓"
+    )
+    action = serializers.ChoiceField(choices=(("buy", "买入"), ("sell", "卖出")), label="交易方向")
+    asset_code = serializers.CharField(max_length=20, trim_whitespace=True, label="资产代码")
+    shares = serializers.FloatField(label="交易数量")
+    price = serializers.DecimalField(
+        max_digits=20, decimal_places=4, min_value=Decimal("0.0001"), label="成交价格"
+    )
+    commission = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+        label="手续费",
+    )
+    slippage = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+        label="滑点成本",
+    )
+    stamp_duty = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+        label="印花税",
+    )
+    transfer_fee = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        allow_null=True,
+        label="过户费",
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="", label="备注")
+    traded_at = serializers.DateTimeField(label="交易时间")
 
-    def validate_shares(self, value: Any) -> Any:
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise serializers.ValidationError("交易数量格式无效")
-        if not math.isfinite(float(value)) or value <= 0:
+    def validate_shares(self, value: float) -> float:
+        """Preserve the current finite, positive and upper-bound quantity checks."""
+        if not math.isfinite(value) or value <= 0:
             raise serializers.ValidationError("交易数量必须大于0")
         if value > 1_000_000_000_000:
             raise serializers.ValidationError("交易数量超出允许范围")
         return value
 
-    def validate_price(self, value: Any) -> Any:
-        if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
-            raise serializers.ValidationError("交易价格必须大于0")
-        return value
-
-    def validate_commission(self, value: Any) -> Any:
-        if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
-            raise serializers.ValidationError("手续费必须为非负有限金额")
-        return value
-
     def validate_traded_at(self, value: Any) -> Any:
+        """Reject a transaction time more than five minutes in the future."""
         if value > timezone.now() + timedelta(minutes=5):
             raise serializers.ValidationError("交易时间不能晚于当前时间")
         return value
+
+    def validate(self, attrs: dict[str, Any]) -> TransactionCreateData:
+        """Fill optional keys and narrow DRF's dynamic mapping at the boundary."""
+        return {
+            "portfolio": cast(int, attrs["portfolio"]),
+            "position": cast(int | None, attrs.get("position")),
+            "action": cast(str, attrs["action"]),
+            "asset_code": cast(str, attrs["asset_code"]),
+            "shares": cast(float, attrs["shares"]),
+            "price": cast(Decimal, attrs["price"]),
+            "commission": cast(Decimal | None, attrs.get("commission")),
+            "slippage": cast(Decimal | None, attrs.get("slippage")),
+            "stamp_duty": cast(Decimal | None, attrs.get("stamp_duty")),
+            "transfer_fee": cast(Decimal | None, attrs.get("transfer_fee")),
+            "notes": cast(str, attrs.get("notes", "")),
+            "traded_at": cast(datetime, attrs["traded_at"]),
+        }
+
+
+class TransactionCreatedSerializer(serializers.Serializer[Any]):
+    """Serialize the existing create response fields plus fee availability."""
+
+    portfolio = serializers.IntegerField(source="portfolio_id", label="投资组合")
+    position = serializers.IntegerField(
+        source="position_id", allow_null=True, required=False, label="关联持仓"
+    )
+    action = serializers.ChoiceField(choices=(("buy", "买入"), ("sell", "卖出")), label="交易方向")
+    asset_code = serializers.CharField(max_length=20, label="资产代码")
+    shares = serializers.FloatField(label="交易数量")
+    price = serializers.DecimalField(max_digits=20, decimal_places=4, label="成交价格")
+    commission = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="手续费"
+    )
+    commission_known = serializers.BooleanField(allow_null=True, read_only=True)
+    slippage = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="滑点成本"
+    )
+    slippage_known = serializers.BooleanField(allow_null=True, read_only=True)
+    stamp_duty = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="印花税"
+    )
+    stamp_duty_known = serializers.BooleanField(allow_null=True, read_only=True)
+    transfer_fee = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True, required=False, label="过户费"
+    )
+    transfer_fee_known = serializers.BooleanField(allow_null=True, read_only=True)
+    notes = serializers.CharField(required=False, allow_blank=True, label="备注")
+    traded_at = serializers.DateTimeField(label="交易时间")
 
 
 # ==================== Capital Flow ====================

@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5808,
+    "current_surface_references": 5840,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -2847,6 +2847,10 @@
       "text": "raise ValueError(\"single-owner policy is not current and active\")"
     },
     {
+      "path": "apps/account/domain/transaction_cost_calculations.py",
+      "text": "\"\"\"Current actual-versus-estimated variance and its optional fraction.\"\"\""
+    },
+    {
       "path": "apps/account/domain/validation_graph.py",
       "text": "cached = current.get(key, _MISSING)"
     },
@@ -3839,6 +3843,10 @@
       "text": "return bool((current - self.backup_last_sent_at).days >= self.backup_interval_days)"
     },
     {
+      "path": "apps/account/interface/admin.py",
+      "text": "\"\"\"Preserve the current position association validation in the form.\"\"\""
+    },
+    {
       "path": "apps/account/interface/classification_api_views.py",
       "text": "- GET /api/account/exchange-rates/latest/ - 获取最新汇率"
     },
@@ -3945,6 +3953,10 @@
     {
       "path": "apps/account/interface/serializers.py",
       "text": "\"\"\"MCP access token summary payload.\"\"\""
+    },
+    {
+      "path": "apps/account/interface/serializers.py",
+      "text": "\"\"\"Preserve the current finite, positive and upper-bound quantity checks.\"\"\""
     },
     {
       "path": "apps/account/interface/tui_views.py",
@@ -21655,6 +21667,102 @@
       "text": "summary = f\"{location}研究快照。\""
     },
     {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "\"key\": \"summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "\"value\": _display_scalar(row.get(\"summary\")),"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "_column(\"summary\", \"摘要\"),"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "expected_action=\"decision.workspace.summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary += \" 受限范围与原因：\" + \"；\".join(owner_restrictions) + \"。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary = ("
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary=summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary=summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result.py",
+      "text": "summary=summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "\"decision.workspace.summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "summary: str,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "summary_with_outcome = f\"{summary} 结果状态为未产生记录。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "summary_with_outcome = f\"{summary} 结果状态为部分读取，未覆盖的范围仍需保留限制。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "summary_with_outcome = f\"{summary} 结果状态未提供，不能据此判断完整性。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_focus_result_contracts.py",
+      "text": "summary_with_outcome = summary"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "\"business_summary\": summary,"
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "summary = \"当前没有可供本任务读取的授权组合。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "summary = \"当前用户没有可供本任务读取的本人活跃账户。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "summary = f\"已读取当前用户本人活跃账户，共{count}个。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "summary = f\"已读取第{page}页组合目录，本页{len(rows)}条，目录共{count}条。\""
+    },
+    {
+      "path": "apps/terminal/application/tui_task_selector_result.py",
+      "text": "summary = f\"目录共{count}条，但第{page}页没有记录。\""
+    },
+    {
       "path": "apps/terminal/application/tui_workbench.py",
       "text": "\"\"\"Return whether an action belongs to the current user's role.\"\"\""
     },
@@ -21867,6 +21975,18 @@
       "text": "sections.append(current)"
     },
     {
+      "path": "apps/terminal/application/tui_workbench_execution.py",
+      "text": "\"action_key\": \"decision.workspace.summary\","
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_execution.py",
+      "text": "if target_key == \"decision.workspace.summary\":"
+    },
+    {
+      "path": "apps/terminal/application/tui_workbench_execution.py",
+      "text": "target_key = \"decision.workspace.summary\""
+    },
+    {
       "path": "apps/terminal/application/tui_workbench_result_models.py",
       "text": "current = current.get(part)"
     },
@@ -21993,6 +22113,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_revalidation.py",
       "text": "\"\"\"Stable dry-run summary for all stored metadata registry rows.\"\"\""
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py",
+      "text": "\"decision.workspace.summary\": {"
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_account_overview.py",
@@ -22433,6 +22557,10 @@
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_system_settings.py",
       "text": "\"layout_area\": \"current\","
+    },
+    {
+      "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py",
+      "text": "{\"key\": \"summary\", \"label\": \"摘要\"},"
     },
     {
       "path": "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_monitor.py",

@@ -4,6 +4,8 @@
 > 更新时间: 2026-07-10
 > 项目版本真源: `core/version.py`
 > 动态治理真源: `governance/governance_baseline.json`
+> 生成投影：模块边界见 [governance/module_map.json](../../governance/module_map.json) / [MODULE_MAP.md](MODULE_MAP.md)，ORM 字段见 [governance/data_dictionary.json](../../governance/data_dictionary.json) / [DATA_DICTIONARY.md](DATA_DICTIONARY.md)。
+> Account 交易记录 API 契约（含费用可用性）见 [API_REFERENCE.md](../testing/api/API_REFERENCE.md) §9。
 
 ## 1. 项目概述
 

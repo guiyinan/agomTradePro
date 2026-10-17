@@ -1,6 +1,6 @@
 {
   "version": "web-template-migration.v1",
-  "expected_template_count": 196,
+  "expected_template_count": 197,
   "template_roots": [
     "core/templates",
     "apps"
@@ -47,7 +47,7 @@
     {
       "key": "django-admin",
       "path_prefix": "core/templates/admin/",
-      "expected_count": 9,
+      "expected_count": 10,
       "owner": "admin",
       "template_role": "admin",
       "reason": "Django Admin 生态依赖模板扩展机制。"

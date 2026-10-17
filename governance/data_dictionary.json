@@ -12463,6 +12463,54 @@
               "positional_args": []
             },
             {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true,
+                "verbose_name": "手续费已采集"
+              },
+              "name": "commission_known",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true,
+                "verbose_name": "滑点已采集"
+              },
+              "name": "slippage_known",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true,
+                "verbose_name": "印花税已采集"
+              },
+              "name": "stamp_duty_known",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "blank": true,
+                "default": null,
+                "null": true,
+                "verbose_name": "过户费已采集"
+              },
+              "name": "transfer_fee_known",
+              "null": true,
+              "positional_args": []
+            },
+            {
               "field_type": "DecimalField",
               "kwargs": {
                 "blank": true,

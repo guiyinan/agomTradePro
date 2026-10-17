@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：588
-- 字段数：9091
+- 字段数：9095
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -1929,6 +1929,10 @@
 | `slippage` | `DecimalField` |  |  | 0 | 滑点成本 |  |
 | `stamp_duty` | `DecimalField` |  |  | 0 | 印花税 |  |
 | `transfer_fee` | `DecimalField` |  |  | 0 | 过户费 |  |
+| `commission_known` | `BooleanField` | 是 |  | None | 手续费已采集 |  |
+| `slippage_known` | `BooleanField` | 是 |  | None | 滑点已采集 |  |
+| `stamp_duty_known` | `BooleanField` | 是 |  | None | 印花税已采集 |  |
+| `transfer_fee_known` | `BooleanField` | 是 |  | None | 过户费已采集 |  |
 | `estimated_cost` | `DecimalField` | 是 |  |  | 预估成本 |  |
 | `estimated_cost_ratio` | `FloatField` | 是 |  |  | 预估成本比例 |  |
 | `cost_variance` | `DecimalField` | 是 |  |  | 实际成本 - 预估成本 |  |

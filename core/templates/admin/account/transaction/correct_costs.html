@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <p><strong>当前实际费用：</strong>{{ current_fees }}</p>
+  <p>留空表示保留当前值；输入 0 表示确认该费用为零。</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="submit-row">
+      <input type="submit" value="保存费用修正" class="default">
+      <a href="{{ change_url }}">返回交易详情</a>
+    </div>
+  </form>
+{% endblock %}

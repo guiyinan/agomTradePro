@@ -41,10 +41,14 @@ class TransactionCostRecord(TypedDict):
     asset_code: str
     action: str
     notional: Decimal
-    commission: Decimal
+    commission: Decimal | None
     slippage: Decimal | None
     stamp_duty: Decimal | None
     transfer_fee: Decimal | None
+    commission_known: bool | None
+    slippage_known: bool | None
+    stamp_duty_known: bool | None
+    transfer_fee_known: bool | None
     estimated_cost: Decimal | None
     cost_variance: Decimal | None
     cost_variance_pct: float | None
@@ -87,7 +91,8 @@ class TransactionCostRepositoryProtocol(Protocol):
         self,
         transaction_id: int,
         *,
-        commission: Decimal,
+        actor_user_id: int,
+        commission: Decimal | None = None,
         slippage: Decimal | None = None,
         stamp_duty: Decimal | None = None,
         transfer_fee: Decimal | None = None,
@@ -102,7 +107,8 @@ class TransactionCostRepositoryProtocol(Protocol):
         *,
         portfolio_id: int | None = None,
         since_date: datetime | None = None,
+        until_date: datetime | None = None,
     ) -> list[TransactionCostRecord]:
-        """Return transaction-cost records for the requested analysis scope."""
+        """Return records inside optional source-traded-time bounds."""
 
         ...

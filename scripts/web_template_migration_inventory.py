@@ -25,9 +25,10 @@ import os
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Sequence, cast
+from typing import Any, cast
 from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,7 +37,7 @@ DEFAULT_OUTPUT_PATH = ROOT / "docs" / "plans" / "web-to-tui-migration-matrix-202
 DEFAULT_PUBLISHED_GRAPH_PATH = (
     ROOT / "config" / "tui" / "published" / "tui_operation_graph.published.json"
 )
-FINAL_RETAINED_TEMPLATE_COUNT = 41
+FINAL_RETAINED_TEMPLATE_COUNT = 42
 _PRODUCTION_TEXT_SUFFIXES = frozenset(
     {".css", ".html", ".js", ".json", ".py", ".ts", ".yaml", ".yml"}
 )
@@ -521,9 +522,13 @@ def _resolve_template_origins(
 
     import django
     from django.template import engines
+    from django.template.backends.django import DjangoTemplates
 
     django.setup()
-    engine = engines["django"].engine
+    django_backend = engines["django"]
+    if not isinstance(django_backend, DjangoTemplates):
+        raise TypeError("The 'django' template alias must use DjangoTemplates")
+    engine = django_backend.engine
     origins: dict[str, str] = {}
     for template_name in sorted(set(template_names)):
         resolved_origin = ""
@@ -554,7 +559,7 @@ def _route_lookup(
                 result[template_name].append(route)
     return {
         key: sorted(
-            {route for route in values},
+            set(values),
             key=lambda route: (route.path, route.name, route.callable_name),
         )
         for key, values in result.items()
@@ -1017,13 +1022,13 @@ def validate_finalized_inventory(
     retained_count = sum(int(rule["expected_count"]) for rule in rules["retained_rules"])
     if retained_count != FINAL_RETAINED_TEMPLATE_COUNT:
         raise ValueError(
-            "Final retained rules drifted from the approved 41-template scope: "
+            "Final retained rules drifted from the approved 42-template scope: "
             f"configured={retained_count}"
         )
     retained_rows = [row for row in rows if row["destination_class"] == "C"]
     if len(retained_rows) != FINAL_RETAINED_TEMPLATE_COUNT:
         raise ValueError(
-            "Final inventory must contain exactly 41 C rows: " f"found={len(retained_rows)}"
+            "Final inventory must contain exactly 42 C rows: " f"found={len(retained_rows)}"
         )
     invalid_statuses = sorted(
         row["template_path"]
@@ -1038,7 +1043,11 @@ def validate_finalized_inventory(
     current_physical = {path.relative_to(root).as_posix() for path in discover_template_paths(root)}
     missing_retained = sorted(expected_physical - current_physical)
     unexpected_physical = sorted(current_physical - expected_physical)
-    if missing_retained or unexpected_physical or len(current_physical) != 41:
+    if (
+        missing_retained
+        or unexpected_physical
+        or len(current_physical) != FINAL_RETAINED_TEMPLATE_COUNT
+    ):
         raise ValueError(
             "Final physical template inventory is not the exact C scope. "
             f"physical={len(current_physical)}; missing_C={missing_retained}; "
@@ -1149,7 +1158,7 @@ def main() -> int:
     mode.add_argument(
         "--require-finalized",
         action="store_true",
-        help="Require the exact 41-template M5-C inventory and no orphaned surfaces",
+        help="Require the exact 42-template M5-C inventory and no orphaned surfaces",
     )
     args = parser.parse_args()
 

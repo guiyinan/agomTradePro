@@ -10,6 +10,9 @@ from apps.account.domain.transaction_cost_contracts import (
     TransactionCostConfigRepositoryProtocol,
     TransactionCostRepositoryProtocol,
 )
+from apps.account.domain.transaction_record_contracts import (
+    TransactionRecordRepositoryProtocol,
+)
 from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
     AccountDiagnosticRepository,
@@ -109,15 +112,19 @@ def get_asset_metadata_repository() -> AssetMetadataLookupProtocol:
 def get_transaction_cost_config_repository() -> TransactionCostConfigRepositoryProtocol:
     """Return the transaction-cost configuration repository."""
 
-    return cast(
-        TransactionCostConfigRepositoryProtocol, TransactionCostConfigRepository()
-    )
+    return cast(TransactionCostConfigRepositoryProtocol, TransactionCostConfigRepository())
 
 
 def get_transaction_cost_repository() -> TransactionCostRepositoryProtocol:
     """Return the transaction-cost read/write repository."""
 
     return cast(TransactionCostRepositoryProtocol, TransactionRepository())
+
+
+def get_transaction_record_repository() -> TransactionRecordRepositoryProtocol:
+    """Return the typed transaction-record repository through the existing seam."""
+
+    return cast(TransactionRecordRepositoryProtocol, TransactionRepository())
 
 
 def build_broker_trade_file_parser() -> BrokerTradeFileParser:
@@ -189,9 +196,7 @@ def get_backup_email_connection(config: Any) -> BaseEmailBackend:
 def mark_backup_delivery_sent(sent_at: Any) -> Any:
     """Record successful backup delivery through Config Center."""
 
-    from apps.config_center.application.public import (
-        mark_backup_delivery_sent as _impl,
-    )
+    from apps.config_center.application.public import mark_backup_delivery_sent as _impl
 
     return _impl(sent_at)
 

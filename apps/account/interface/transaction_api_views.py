@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict
-from decimal import ROUND_HALF_UP, Decimal
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 from django.core.files.uploadedfile import UploadedFile
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.exceptions import (
     NotAuthenticated,
@@ -14,6 +16,7 @@ from rest_framework.exceptions import (
     PermissionDenied,
     ValidationError,
 )
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -23,23 +26,38 @@ from rest_framework.views import APIView
 from apps.account.application.interface_services import (
     get_user_capital_flow_queryset,
     get_user_portfolio,
-    get_user_transaction_queryset,
 )
 from apps.account.application.manual_trade_sync import ManualTradeImportUseCase
+from apps.account.application.transaction_record_use_cases import (
+    CreateTransactionUseCase as CreateTransactionRecordUseCase,
+)
+from apps.account.application.transaction_record_use_cases import (
+    GetTransactionUseCase,
+    ListTransactionPageUseCase,
+)
+from apps.account.domain.transaction_record_contracts import CreateTransactionInput
+from core.exceptions import AuthorizationError, InvalidInputError
 
 from .permissions import TradingPermission
 from .serializers import (
     CapitalFlowCreateSerializer,
     CapitalFlowSerializer,
+    TransactionCreateData,
+    TransactionCreatedSerializer,
     TransactionCreateSerializer,
     TransactionSerializer,
 )
 
+_ViewMethod = TypeVar("_ViewMethod", bound=Callable[..., object])
+_typed_extend_schema = cast(
+    Callable[..., Callable[[_ViewMethod], _ViewMethod]],
+    extend_schema,
+)
+
+
 MAX_BROKER_IMPORT_FILE_BYTES = 10 * 1024 * 1024
 MAX_TUI_BROKER_IMPORT_TEXT_BYTES = 2 * 1024 * 1024
 ALLOWED_BROKER_IMPORT_SUFFIXES = {".csv", ".xlsx", ".xls"}
-MAX_TRANSACTION_NOTIONAL = Decimal("999999999999999999.99")
-NOTIONAL_QUANTUM = Decimal("0.01")
 
 
 def _authenticated_user_id(request: Request) -> int:
@@ -67,10 +85,6 @@ class TransactionViewSet(
 
     permission_classes = [IsAuthenticated, TradingPermission]
 
-    def get_queryset(self) -> Any:
-        """只返回当前用户投资组合的交易"""
-        return get_user_transaction_queryset(_authenticated_user_id(self.request))
-
     def get_serializer_class(self) -> type[serializers.BaseSerializer[Any]]:
         """根据操作选择 serializer"""
         if self.action == "create":
@@ -80,35 +94,99 @@ class TransactionViewSet(
             )
         return cast(type[serializers.BaseSerializer[Any]], TransactionSerializer)
 
-    def perform_create(self, serializer: serializers.BaseSerializer[Any]) -> None:
-        """创建时验证持仓归属"""
-        user_id = _authenticated_user_id(self.request)
-        portfolio = serializer.validated_data.get("portfolio")
-        position = serializer.validated_data.get("position")
-        portfolio_id = getattr(portfolio, "id", None)
-        if isinstance(portfolio_id, bool) or not isinstance(portfolio_id, int):
-            raise PermissionDenied("无权为此投资组合创建交易记录")
-        if position and getattr(position.portfolio, "user_id", None) != user_id:
-            raise PermissionDenied("无权为此持仓创建交易记录")
-        if get_user_portfolio(user_id=user_id, portfolio_id=portfolio_id) is None:
-            raise PermissionDenied("无权为此投资组合创建交易记录")
-        if position and getattr(position, "portfolio_id", None) != portfolio_id:
-            raise ValidationError({"position": "持仓不属于该投资组合"})
-        asset_code = serializer.validated_data.get("asset_code")
-        if position and getattr(position, "asset_code", None) != asset_code:
-            raise ValidationError({"asset_code": "资产代码与关联持仓不一致"})
-
-        # 计算成交金额
-        shares = serializer.validated_data["shares"]
-        price = serializer.validated_data["price"]
-        notional = (Decimal(str(shares)) * price).quantize(
-            NOTIONAL_QUANTUM,
-            rounding=ROUND_HALF_UP,
+    @_typed_extend_schema(
+        request=TransactionCreateSerializer,
+        responses={status.HTTP_201_CREATED: TransactionCreatedSerializer},
+    )
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create through Application while keeping the existing 201 response."""
+        serializer = TransactionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = cast(TransactionCreateData, serializer.validated_data)
+        command = CreateTransactionInput(
+            actor_user_id=_authenticated_user_id(request),
+            portfolio_id=data["portfolio"],
+            position_id=data.get("position"),
+            action=data["action"],
+            asset_code=data["asset_code"],
+            shares=data["shares"],
+            price=data["price"],
+            notes=data.get("notes", ""),
+            traded_at=data["traded_at"],
+            commission=data.get("commission"),
+            slippage=data.get("slippage"),
+            stamp_duty=data.get("stamp_duty"),
+            transfer_fee=data.get("transfer_fee"),
         )
-        if not notional.is_finite() or notional > MAX_TRANSACTION_NOTIONAL:
-            raise ValidationError({"non_field_errors": "成交金额超出允许范围"})
+        try:
+            record = CreateTransactionRecordUseCase().execute(command)
+        except AuthorizationError as exc:
+            raise PermissionDenied(exc.message) from exc
+        except InvalidInputError as exc:
+            field = exc.details.get("field")
+            if isinstance(field, str):
+                raise ValidationError({field: exc.message}) from exc
+            raise ValidationError({"non_field_errors": exc.message}) from exc
 
-        serializer.save(notional=notional)
+        response_data = TransactionCreatedSerializer(record).data
+        headers = self.get_success_headers(response_data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Read the existing page-number contract through a typed Application page."""
+        pagination = PageNumberPagination()
+        page_size = pagination.get_page_size(request)
+        if page_size is None:
+            page_size = 20
+        page_use_case = ListTransactionPageUseCase()
+        first_page = page_use_case.execute(
+            user_id=_authenticated_user_id(request),
+            page_number=1,
+            page_size=page_size,
+        )
+        count_page = Paginator(range(first_page.count), page_size)
+        try:
+            page_number = count_page.validate_number(
+                pagination.get_page_number(request, count_page)
+            )
+        except (EmptyPage, PageNotAnInteger) as exc:
+            raise NotFound("Invalid page.") from exc
+
+        page = (
+            first_page
+            if page_number == 1
+            else page_use_case.execute(
+                user_id=_authenticated_user_id(request),
+                page_number=page_number,
+                page_size=page_size,
+            )
+        )
+        pagination.request = request
+        pagination.page = count_page.page(page_number)
+        serialized = TransactionSerializer(page.results, many=True).data
+        return pagination.get_paginated_response(serialized)
+
+    @_typed_extend_schema(
+        parameters=[OpenApiParameter("id", int, OpenApiParameter.PATH)],
+    )
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Read one transaction in the authenticated user's scope."""
+        raw_id = kwargs.get(self.lookup_field)
+        if not isinstance(raw_id, str) or not raw_id.isdigit():
+            raise NotFound()
+        try:
+            transaction_id = int(raw_id)
+        except ValueError as exc:
+            raise NotFound() from exc
+        if transaction_id <= 0:
+            raise NotFound()
+        record = GetTransactionUseCase().execute(
+            user_id=_authenticated_user_id(request),
+            transaction_id=transaction_id,
+        )
+        if record is None:
+            raise NotFound()
+        return Response(TransactionSerializer(record).data)
 
 
 class BrokerTradeImportSerializer(serializers.Serializer[dict[str, Any]]):

@@ -11,6 +11,7 @@
 | 理解系统 | [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) | 系统说明与功能边界 |
 | 理解业务 | [AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 金融规则和业务定义 |
 | 日常开发 | [quick-reference.md](development/quick-reference.md) | 常用命令与 API 操作参考 |
+| API 改动同步检查 | [engineering-guardrails.md](development/engineering-guardrails.md) | SDK、MCP、OpenAPI、文档和用户提示的同步门禁 |
 | 架构与门禁 | [ARCHITECTURE_GUARDRAILS.md](governance/ARCHITECTURE_GUARDRAILS.md) | 架构、CI 与证据层级 |
 | 分支与提交 | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | 长期开发分支与发布流程 |
 | 工作安排 | [计划索引](plans/README.md) | 工作流、主计划与收口入口 |

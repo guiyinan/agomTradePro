@@ -23,13 +23,12 @@ Management command: migrate_account_ledger
 """
 
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, TypedDict
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.db.models import Sum
-from django.utils import timezone
 
 from core.integration.account_ledger import (
     get_account_position_model,
@@ -37,6 +36,10 @@ from core.integration.account_ledger import (
     get_capital_flow_model,
     get_portfolio_model,
 )
+
+SIMULATED_TRADE_PRICE_MAX = Decimal("999999.9999")
+SIMULATED_TRADE_AMOUNT_MAX = Decimal("9999999999999.99")
+SIMULATED_TRADE_QUANTITY_MAX = Decimal("99999999999999.999999")
 
 
 class MigrationStats(TypedDict):
@@ -47,6 +50,7 @@ class MigrationStats(TypedDict):
     positions_skipped: int
     positions_migrated: int
     transactions_skipped: int
+    transactions_skipped_unknown_costs: int
     transactions_migrated: int
     errors: list[str]
 
@@ -68,6 +72,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
+        """Validate migration options and orchestrate the requested ledger migration."""
         dry_run = options["dry_run"]
         user_id = options.get("user_id")
         if not isinstance(dry_run, bool):
@@ -95,6 +100,7 @@ class Command(BaseCommand):
             "positions_skipped": 0,
             "positions_migrated": 0,
             "transactions_skipped": 0,
+            "transactions_skipped_unknown_costs": 0,
             "transactions_migrated": 0,
             "errors": [],
         }
@@ -137,24 +143,17 @@ class Command(BaseCommand):
                 continue
 
             # Compute initial_capital from capital flows
-            deposit_total = (
-                CapitalFlowModel._default_manager.filter(
-                    portfolio=portfolio,
-                    flow_type="deposit",
-                ).aggregate(total=Sum("amount"))["total"]
-                or Decimal("0")
-            )
+            deposit_total = CapitalFlowModel._default_manager.filter(
+                portfolio=portfolio,
+                flow_type="deposit",
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
             # Compute current totals from positions
             positions_qs = portfolio.positions.filter(is_closed=False)
-            market_value_total = sum(
-                float(p.market_value or 0) for p in positions_qs
-            )
+            market_value_total = sum(float(p.market_value or 0) for p in positions_qs)
 
             # current_cash approximation: initial capital - invested value
-            invested = sum(
-                float(p.shares * float(p.avg_cost)) for p in positions_qs
-            )
+            invested = sum(float(p.shares * float(p.avg_cost)) for p in positions_qs)
             cash = max(float(deposit_total) - invested, 0)
             total_value = cash + market_value_total
 
@@ -200,9 +199,7 @@ class Command(BaseCommand):
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
         )
-        from apps.simulated_trading.infrastructure.models import (
-            PositionModel as SimPositionModel,
-        )
+        from apps.simulated_trading.infrastructure.models import PositionModel as SimPositionModel
         from shared.domain.position_calculations import recalculate_derived_fields
 
         AccountPositionModel = get_account_position_model()
@@ -242,14 +239,20 @@ class Command(BaseCommand):
                 continue
 
             # Preserve float precision from account.PositionModel.shares
-            quantity = Decimal(str(pos.shares)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+            quantity = Decimal(str(pos.shares)).quantize(
+                Decimal("0.000001"), rounding=ROUND_HALF_UP
+            )
             if quantity <= 0:
                 stats["positions_skipped"] += 1
                 continue
 
-            avg_cost = Decimal(str(pos.avg_cost)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            avg_cost = Decimal(str(pos.avg_cost)).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
             current_price = float(pos.current_price or pos.avg_cost)
-            mv, pnl, pnl_pct = recalculate_derived_fields(float(quantity), float(avg_cost), current_price)
+            mv, pnl, pnl_pct = recalculate_derived_fields(
+                float(quantity), float(avg_cost), current_price
+            )
 
             # Determine asset_type from asset_class
             asset_type = _map_asset_type(pos.asset_class)
@@ -348,7 +351,81 @@ class Command(BaseCommand):
                 stats["transactions_skipped"] += 1
                 continue
 
-            # Resolve target account
+            fee_state_fields = (
+                txn.commission_known,
+                txn.slippage_known,
+                txn.stamp_duty_known,
+                txn.transfer_fee_known,
+            )
+            if any(state is not True for state in fee_state_fields):
+                stats["transactions_skipped"] += 1
+                stats["transactions_skipped_unknown_costs"] += 1
+                continue
+
+            try:
+                source_quantity = Decimal(str(txn.shares))
+                if not source_quantity.is_finite() or source_quantity <= 0:
+                    raise ValueError("交易数量必须为正有限值")
+                # Preserve the existing six-place ROUND_HALF_UP migration rule.
+                quantity = source_quantity.quantize(
+                    Decimal("0.000001"),
+                    rounding=ROUND_HALF_UP,
+                )
+            except (InvalidOperation, ValueError) as exc:
+                stats["errors"].append(f"交易 {txn.id} 的交易数量无效: {exc}")
+                stats["transactions_skipped"] += 1
+                continue
+
+            if not quantity.is_finite() or quantity <= 0:
+                stats["errors"].append(f"交易 {txn.id} 的交易数量按六位小数舍入后必须仍为正有限值")
+                stats["transactions_skipped"] += 1
+                continue
+            if quantity > SIMULATED_TRADE_QUANTITY_MAX:
+                stats["errors"].append(
+                    f"交易 {txn.id} 的交易数量超出目标 SimulatedTrade(20,6) 上限"
+                )
+                stats["transactions_skipped"] += 1
+                continue
+
+            try:
+                commission = _quantize_migration_fee(txn.commission)
+                slippage = _quantize_migration_fee(txn.slippage)
+                stamp_duty = _quantize_migration_fee(txn.stamp_duty)
+                transfer_fee = _quantize_migration_fee(txn.transfer_fee)
+                price = txn.price.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                # Retain the existing zero-notional fallback; it is a legacy repair
+                # heuristic, not evidence that the source notional was complete.
+                amount = (txn.notional or txn.price * Decimal(str(txn.shares))).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP,
+                )
+                fee_total = commission + slippage + stamp_duty + transfer_fee
+                total_cost = amount + fee_total if txn.action == "buy" else fee_total
+            except (InvalidOperation, ValueError) as exc:
+                stats["errors"].append(f"交易 {txn.id} 的金额或成本无效: {exc}")
+                stats["transactions_skipped"] += 1
+                continue
+
+            # The target model fields are narrower than the account ledger fields:
+            # price(10,4), amount/total_cost(15,2). Reject rows that cannot fit
+            # before resolving target mappings so dry-run and write counts agree.
+            if (
+                not price.is_finite()
+                or price <= 0
+                or price > SIMULATED_TRADE_PRICE_MAX
+                or not amount.is_finite()
+                or amount < 0
+                or amount > SIMULATED_TRADE_AMOUNT_MAX
+                or not total_cost.is_finite()
+                or total_cost < 0
+                or total_cost > SIMULATED_TRADE_AMOUNT_MAX
+            ):
+                stats["errors"].append(f"交易 {txn.id} 超出目标 SimulatedTrade 的字段范围")
+                stats["transactions_skipped"] += 1
+                continue
+
+            # Resolve target account after source cost validation so dry-run and
+            # write runs count unknown, malformed, and unrepresentable costs alike.
             try:
                 mapping = LedgerMigrationMapModel._default_manager.get(
                     source_app="account",
@@ -360,11 +437,7 @@ class Command(BaseCommand):
                 stats["transactions_skipped"] += 1
                 continue
 
-            quantity = Decimal(str(txn.shares)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-            price = float(txn.price)
-            amount = float(txn.notional or txn.price * txn.shares)
-            commission = float(txn.commission or 0)
-            traded_at = txn.traded_at or timezone.now()
+            traded_at = txn.traded_at
 
             if not dry_run:
                 with transaction.atomic():
@@ -375,18 +448,23 @@ class Command(BaseCommand):
                         asset_type="equity",  # default; account model lacks asset_type
                         action=txn.action,
                         quantity=quantity,
-                        price=Decimal(str(price)).quantize(Decimal("0.0001")),
-                        amount=Decimal(str(amount)).quantize(Decimal("0.01")),
-                        commission=Decimal(str(commission)).quantize(Decimal("0.01")),
-                        slippage=Decimal("0"),
-                        total_cost=Decimal(str(commission)).quantize(Decimal("0.01")),
+                        price=price,
+                        amount=amount,
+                        commission=commission,
+                        slippage=slippage,
+                        stamp_duty=stamp_duty,
+                        transfer_fee=transfer_fee,
+                        total_cost=total_cost,
                         realized_pnl=None,
                         realized_pnl_pct=None,
                         reason=txn.notes or "migrated",
                         order_date=traded_at.date(),
                         execution_date=traded_at.date(),
-                        execution_time=traded_at,
                         status="executed",
+                    )
+
+                    SimulatedTradeModel._default_manager.filter(id=new_trade.id).update(
+                        execution_time=traded_at
                     )
 
                     LedgerMigrationMapModel._default_manager.create(
@@ -402,6 +480,7 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  迁移 {stats['transactions_migrated']} 条，跳过 {stats['transactions_skipped']} 条"
         )
+        self.stdout.write(f"  因实际成本未知跳过 {stats['transactions_skipped_unknown_costs']} 条")
 
     # ── Summary ───────────────────────────────────────────────────────────
 
@@ -417,6 +496,9 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  交易记录: 迁移 {stats['transactions_migrated']}，跳过 {stats['transactions_skipped']}"
         )
+        self.stdout.write(
+            f"  其中因实际成本未知跳过 {stats['transactions_skipped_unknown_costs']} 条"
+        )
         if stats["errors"]:
             self.stdout.write(self.style.WARNING(f"\n警告 ({len(stats['errors'])} 条):"))
             for e in stats["errors"]:
@@ -429,6 +511,14 @@ class Command(BaseCommand):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
+
+
+def _quantize_migration_fee(value: Decimal | None) -> Decimal:
+    """Validate and quantize one source fee without a float/string round trip."""
+    if value is None or not value.is_finite() or value < 0:
+        raise ValueError("fee must be a finite, non-negative Decimal")
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
 
 def _map_asset_type(asset_class: str) -> str:
     """Map account.PositionModel.asset_class to simulated_trading asset_type."""

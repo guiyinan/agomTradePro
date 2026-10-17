@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 97,
+      "test_evidence": 98,
       "workflow_step": 11
     },
     "by_status": {
       "active_public": 873,
       "adjacent_operational": 343,
-      "candidate-review": 11,
+      "candidate-review": 12,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1365
+    "total": 1366
   },
   "entries": [
     {
@@ -12827,6 +12827,16 @@
       "path": "tests/component/account/test_single_owner_policy_authentication_postgres.py",
       "status": "adjacent_operational",
       "symbol": "test_single_owner_policy_authentication_postgres",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "executable operational test/migration evidence; governance review required",
+      "id": "test_evidence:tests/component/account/test_transaction_fee_availability_migration.py:test_transaction_fee_availability_migration:",
+      "locator": "",
+      "path": "tests/component/account/test_transaction_fee_availability_migration.py",
+      "status": "candidate-review",
+      "symbol": "test_transaction_fee_availability_migration",
       "target": ""
     },
     {

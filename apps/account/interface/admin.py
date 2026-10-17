@@ -4,9 +4,26 @@ Django Admin for Account Module.
 提供 Account 模块所有模型的 Admin 管理界面。
 """
 
-from django.contrib import admin
+from __future__ import annotations
+
+import math
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from typing import Any, TypeAlias, cast
+
+from django import forms
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.db import router
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
+from django.urls.resolvers import URLPattern
 from django.utils.html import format_html
 
+from apps.account.application.transaction_cost_use_cases import RecordTransactionCostUseCase
+from apps.account.application.transaction_record_use_cases import CreateTransactionUseCase
+from apps.account.domain.transaction_cost_calculations import canonical_fee_amount
+from apps.account.domain.transaction_record_contracts import CreateTransactionInput
 from apps.account.models import (
     AccountProfileModel,
     AssetCategoryModel,
@@ -28,7 +45,10 @@ from apps.account.models import (
     TransactionModel,
     UserAccessTokenModel,
 )
-from shared.infrastructure.django_admin import TypedModelAdmin
+from core.exceptions import AuthorizationError, InvalidInputError
+from shared.infrastructure.django_admin import TypedModelAdmin, TypedModelForm
+
+_AdminFieldSpec: TypeAlias = str | list[str] | tuple[str, ...] | tuple[()]
 
 
 @admin.register(CurrencyModel)
@@ -193,13 +213,223 @@ class TransactionModelAdmin(TypedModelAdmin[TransactionModel]):
         "shares",
         "price",
         "notional",
-        "commission",
+        "actual_fee_display",
         "traded_at",
     ]
     list_filter = ["action", "traded_at"]
     search_fields = ["asset_code", "portfolio__name"]
-    readonly_fields = ["created_at"]
+    readonly_fields = [
+        "created_at",
+        "notional",
+        "actual_fee_display",
+        "cost_correction_link",
+    ]
+    exclude = [
+        "commission",
+        "slippage",
+        "stamp_duty",
+        "transfer_fee",
+        "commission_known",
+        "slippage_known",
+        "stamp_duty_known",
+        "transfer_fee_known",
+        "estimated_cost",
+        "estimated_cost_ratio",
+        "cost_variance",
+        "cost_variance_pct",
+    ]
     date_hierarchy = "traded_at"
+
+    def get_form(
+        self,
+        request: HttpRequest,
+        obj: TransactionModel | None = None,
+        change: bool = False,
+        **kwargs: Any,
+    ) -> type[forms.ModelForm[Any]]:
+        """Use a narrow Application-backed form for new ledger rows."""
+        kwargs["form"] = TransactionAddForm if obj is None else TransactionChangeForm
+        return super().get_form(request, obj, change, **kwargs)
+
+    def get_fields(
+        self,
+        request: HttpRequest,
+        obj: TransactionModel | None = None,
+    ) -> list[_AdminFieldSpec]:
+        """Keep add fields aligned with Application create and preserve other edits."""
+        if obj is None:
+            fields: list[_AdminFieldSpec] = [
+                "portfolio",
+                "position",
+                "action",
+                "asset_code",
+                "shares",
+                "price",
+                "traded_at",
+                "notes",
+            ]
+            return fields
+        return list(super().get_fields(request, obj))
+
+    @admin.display(description="实际费用")
+    def actual_fee_display(self, obj: TransactionModel) -> str:
+        """Show collected amounts without exposing unavailable storage placeholders."""
+        components = (
+            ("手续费", obj.commission, obj.commission_known),
+            ("滑点", obj.slippage, obj.slippage_known),
+            ("印花税", obj.stamp_duty, obj.stamp_duty_known),
+            ("过户费", obj.transfer_fee, obj.transfer_fee_known),
+        )
+        formatted = []
+        for label, stored, known in components:
+            amount = canonical_fee_amount(stored, known)
+            formatted.append(
+                f"{label} {amount:.2f}" if amount is not None else f"{label} 未知/未采集"
+            )
+        return " / ".join(formatted)
+
+    @admin.display(description="费用修正")
+    def cost_correction_link(self, obj: TransactionModel) -> str:
+        """Link to the owner-rechecked actual-cost correction form."""
+        if obj.pk is None:
+            return "不可用"
+        url = reverse(
+            f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_correct_costs",
+            args=[obj.pk],
+        )
+        return format_html('<a href="{}">修正已采集费用</a>', url)
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: TransactionModel,
+        form: forms.ModelForm[TransactionModel],
+        change: bool,
+    ) -> None:
+        """Create through Application once; preserve Django saves for changes."""
+        if change:
+            super().save_model(request, obj, form, change)
+            return
+
+        user = request.user
+        user_id = getattr(user, "pk", None)
+        if (
+            not getattr(user, "is_authenticated", False)
+            or isinstance(user_id, bool)
+            or not isinstance(user_id, int)
+        ):
+            raise PermissionDenied("当前用户无权创建交易记录")
+
+        cleaned = form.cleaned_data
+        portfolio = cleaned["portfolio"]
+        position = cleaned.get("position")
+        command = CreateTransactionInput(
+            actor_user_id=user_id,
+            portfolio_id=portfolio.pk,
+            position_id=position.pk if position is not None else None,
+            action=cleaned["action"],
+            asset_code=cleaned["asset_code"],
+            shares=cleaned["shares"],
+            price=cleaned["price"],
+            notes=cleaned.get("notes", ""),
+            traded_at=cleaned["traded_at"],
+        )
+        try:
+            record = CreateTransactionUseCase().execute(command)
+        except AuthorizationError as exc:
+            raise PermissionDenied(exc.message) from exc
+        except InvalidInputError as exc:
+            raise PermissionDenied("交易创建条件已变化，请检查账户和持仓后重试") from exc
+
+        obj.pk = record.id
+        obj.portfolio_id = record.portfolio_id
+        obj.position_id = record.position_id
+        obj.action = record.action
+        obj.asset_code = record.asset_code
+        obj.shares = record.shares
+        obj.price = record.price
+        obj.notional = record.notional
+        obj.commission = record.commission if record.commission is not None else Decimal("0")
+        obj.commission_known = record.commission_known
+        obj.slippage = record.slippage if record.slippage is not None else Decimal("0")
+        obj.slippage_known = record.slippage_known
+        obj.stamp_duty = record.stamp_duty if record.stamp_duty is not None else Decimal("0")
+        obj.stamp_duty_known = record.stamp_duty_known
+        obj.transfer_fee = record.transfer_fee if record.transfer_fee is not None else Decimal("0")
+        obj.transfer_fee_known = record.transfer_fee_known
+        obj.traded_at = record.traded_at
+        obj.created_at = record.created_at
+        obj._state.adding = False
+        obj._state.db = router.db_for_write(self.model)
+
+    def get_urls(self) -> list[URLPattern]:
+        """Add the single owner-rechecked fee-correction route."""
+        opts = self.model._meta
+        custom = [
+            path(
+                "<path:object_id>/correct-costs/",
+                self.admin_site.admin_view(self.correct_costs_view),
+                name=f"{opts.app_label}_{opts.model_name}_correct_costs",
+            )
+        ]
+        return custom + super().get_urls()
+
+    def correct_costs_view(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """Correct supplied actual fees through the locked Application path."""
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404
+        if not self.has_change_permission(request, obj):
+            raise PermissionDenied
+        if obj.pk is None:
+            raise Http404
+
+        form = TransactionCostCorrectionForm(request.POST if request.method == "POST" else None)
+        if request.method == "POST" and form.is_valid():
+            user = request.user
+            user_id = getattr(user, "pk", None)
+            if (
+                not getattr(user, "is_authenticated", False)
+                or isinstance(user_id, bool)
+                or not isinstance(user_id, int)
+            ):
+                raise PermissionDenied("当前用户无权修正交易费用")
+            cleaned = form.cleaned_data
+            try:
+                RecordTransactionCostUseCase().record_actual_cost(
+                    actor_user_id=user_id,
+                    transaction_id=obj.pk,
+                    actual_commission=cleaned["commission"],
+                    actual_slippage=cleaned["slippage"],
+                    actual_stamp_duty=cleaned["stamp_duty"],
+                    actual_transfer_fee=cleaned["transfer_fee"],
+                )
+            except AuthorizationError as exc:
+                raise PermissionDenied(exc.message) from exc
+            except InvalidInputError as exc:
+                form.add_error(None, exc.message)
+            else:
+                self.log_change(request, obj, "实际费用已修正")
+                messages.success(request, "实际费用已修正")
+                url = reverse(
+                    f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_change",
+                    args=[obj.pk],
+                )
+                return redirect(url)
+
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "original": obj,
+            "form": form,
+            "title": f"修正交易 {obj.id} 的实际费用",
+            "current_fees": self.actual_fee_display(obj),
+            "change_url": reverse(
+                f"admin:{self.model._meta.app_label}_{self.model._meta.model_name}_change",
+                args=[obj.pk],
+            ),
+        }
+        return render(request, "admin/account/transaction/correct_costs.html", context)
 
     @admin.display(description="方向")
     def action_badge(self, obj: TransactionModel) -> str:
@@ -211,6 +441,135 @@ class TransactionModelAdmin(TypedModelAdmin[TransactionModel]):
             color,
             obj.get_action_display().upper(),
         )
+
+
+class TransactionAddForm(TypedModelForm[TransactionModel]):
+    """Narrow add form whose accepted fields are consumed by the create use case."""
+
+    class Meta:
+        model = TransactionModel
+        fields = [
+            "portfolio",
+            "position",
+            "action",
+            "asset_code",
+            "shares",
+            "price",
+            "traded_at",
+            "notes",
+        ]
+
+    def clean_shares(self) -> float:
+        """Match the transaction API's positive finite quantity bounds."""
+        value = cast(float, self.cleaned_data["shares"])
+        if not math.isfinite(value) or value <= 0 or value > 1_000_000_000_000:
+            raise forms.ValidationError("交易数量必须为正有限数且不超过允许范围")
+        return value
+
+    def clean_price(self) -> Decimal:
+        """Require a positive finite decimal before the Application call."""
+        value = cast(Decimal, self.cleaned_data["price"])
+        if not value.is_finite() or value <= 0:
+            raise forms.ValidationError("交易价格必须为正有限数")
+        return value
+
+    def clean(self) -> dict[str, Any]:
+        """Preserve the current position association validation in the form."""
+        cleaned = cast(dict[str, Any], super().clean())
+        allowed_submission_names = tuple(self.fields) + (
+            "traded_at_0",
+            "traded_at_1",
+            "csrfmiddlewaretoken",
+            "_save",
+            "_addanother",
+            "_continue",
+            "_popup",
+            "_saveasnew",
+            "to_field",
+            "_changelist_filters",
+        )
+        submitted_names = tuple(self.data.keys()) + tuple(self.files.keys())
+        if any(name not in allowed_submission_names for name in submitted_names):
+            self.add_error(None, "提交包含交易创建表单不接受的字段")
+
+        portfolio = cast(PortfolioModel | None, cleaned.get("portfolio"))
+        position = cast(PositionModel | None, cleaned.get("position"))
+        asset_code = cast(str | None, cleaned.get("asset_code"))
+        if position is not None and portfolio is not None:
+            if position.portfolio_id != portfolio.pk:
+                self.add_error("position", "持仓不属于该投资组合")
+            elif position.asset_code != asset_code:
+                self.add_error("asset_code", "资产代码与关联持仓不一致")
+        shares = cast(float | None, cleaned.get("shares"))
+        price = cast(Decimal | None, cleaned.get("price"))
+        if shares is not None and price is not None and math.isfinite(shares) and price.is_finite():
+            notional_field = TransactionModel._meta.get_field("notional")
+            decimal_places = notional_field.decimal_places
+            quantum = Decimal("1").scaleb(-decimal_places)
+            maximum = Decimal(10) ** (notional_field.max_digits - decimal_places) - quantum
+            try:
+                notional = (Decimal(str(shares)) * price).quantize(
+                    quantum,
+                    rounding=ROUND_HALF_UP,
+                )
+            except InvalidOperation:
+                self.add_error(None, "成交金额超出允许范围")
+            else:
+                if notional > maximum:
+                    self.add_error(None, "成交金额超出允许范围")
+        return cleaned
+
+
+class TransactionChangeForm(TypedModelForm[TransactionModel]):
+    """Keep other existing editable fields while excluding actual and derived costs."""
+
+    class Meta:
+        model = TransactionModel
+        exclude = [
+            "commission",
+            "slippage",
+            "stamp_duty",
+            "transfer_fee",
+            "commission_known",
+            "slippage_known",
+            "stamp_duty_known",
+            "transfer_fee_known",
+            "estimated_cost",
+            "estimated_cost_ratio",
+            "cost_variance",
+            "cost_variance_pct",
+        ]
+
+
+class TransactionCostCorrectionForm(TypedModelForm[TransactionModel]):
+    """Accept nullable fee corrections, where blank means preserve."""
+
+    class Meta:
+        model = TransactionModel
+        fields = ["commission", "slippage", "stamp_duty", "transfer_fee"]
+
+    commission = forms.DecimalField(
+        required=False, min_value=Decimal("0"), max_digits=10, decimal_places=2
+    )
+    slippage = forms.DecimalField(
+        required=False, min_value=Decimal("0"), max_digits=10, decimal_places=2
+    )
+    stamp_duty = forms.DecimalField(
+        required=False, min_value=Decimal("0"), max_digits=10, decimal_places=2
+    )
+    transfer_fee = forms.DecimalField(
+        required=False, min_value=Decimal("0"), max_digits=10, decimal_places=2
+    )
+
+    def clean(self) -> dict[str, Any]:
+        """Reject an empty patch while leaving each blank component unchanged."""
+        cleaned = cast(dict[str, Any], super().clean())
+        if all(
+            cleaned.get(field) is None
+            for field in ("commission", "slippage", "stamp_duty", "transfer_fee")
+        ):
+            raise forms.ValidationError("至少需要提交一项实际费用")
+        return cleaned
 
 
 @admin.register(CapitalFlowModel)

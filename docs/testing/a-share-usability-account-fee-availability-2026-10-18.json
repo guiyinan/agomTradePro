@@ -1,0 +1,2955 @@
+{
+  "schema_version": "a_share_bounded_acceptance.v1",
+  "batch": "account-fee-availability-root4-root6",
+  "date": "2026-10-18",
+  "status": "passed",
+  "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+  "source_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+  "source_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+  "source_paths": [
+    "apps/account/application/manual_trade_sync.py",
+    "apps/account/application/repository_provider.py",
+    "apps/account/application/transaction_cost_use_cases.py",
+    "apps/account/application/transaction_record_use_cases.py",
+    "apps/account/domain/entities.py",
+    "apps/account/domain/transaction_cost_calculations.py",
+    "apps/account/domain/transaction_cost_contracts.py",
+    "apps/account/domain/transaction_record_contracts.py",
+    "apps/account/infrastructure/portfolio_models.py",
+    "apps/account/infrastructure/position_repository.py",
+    "apps/account/infrastructure/repositories.py",
+    "apps/account/interface/admin.py",
+    "apps/account/interface/serializers.py",
+    "apps/account/interface/transaction_api_views.py",
+    "apps/account/migrations/0067_transaction_fee_availability_flags.py",
+    "apps/simulated_trading/management/commands/migrate_account_ledger.py",
+    "config/tui/migration/web_template_migration.v1.json",
+    "core/templates/admin/account/transaction/correct_costs.html",
+    "docs/architecture/project_structure.md",
+    "docs/plans/web-to-tui-migration-plan-2026-07-25.md",
+    "docs/testing/api/API_REFERENCE.md",
+    "scripts/web_template_migration_inventory.py",
+    "tests/api/test_account_transaction_fee_availability.py",
+    "tests/component/account/test_transaction_cost_availability_repository.py",
+    "tests/component/account/test_transaction_fee_admin_browser_journey.py",
+    "tests/component/account/test_transaction_fee_admin_workflow.py",
+    "tests/component/account/test_transaction_fee_availability_migration.py",
+    "tests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py",
+    "tests/unit/account/test_transaction_cost_availability.py",
+    "tests/unit/account/test_transaction_cost_use_cases.py",
+    "tests/unit/test_web_template_migration_inventory.py",
+    "tests/unit/test_web_to_tui_finalized_inventory.py",
+    "docs/INDEX.md",
+    "apps/account/infrastructure/transaction_record_repository.py",
+    "tests/api/test_account_api_edges.py"
+  ],
+  "present_source_count": 35,
+  "deleted_source_count": 0,
+  "actual": {
+    "schema_version": "fee_a_dual_tree_acceptance.v1",
+    "status": "passed",
+    "final_revision_label": "Root6",
+    "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+    "source_identity": {
+      "final_revision_label": "Root6",
+      "root4_regression_source": {
+        "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+        "source_commit": "ca9c7febcb8c38a2cd0db3038cbd225d4dddd506",
+        "source_tree": "26d5011fec7774250944ef9665eb6a0bc0b3869e",
+        "reference_raw_sha256": "c01c45e752d6c2653ce462f17a0efc9e8ee98968830114f4080c8f0ff8f87d32"
+      },
+      "root5_final_source": {
+        "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+        "source_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+        "source_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+        "reference_raw_sha256": "06810b1dceb19d38b18bd25fcd8fcfee3cabfa5d8c18b9761d64213d51c00541"
+      },
+      "intermediate_root5_failure": {
+        "status": "failed_retained_history",
+        "source_tree": "60bbc52edebcacea94fc3385b8d6691691185e5d",
+        "source_commit": "41f451c5dc20584b33df52fcd32af0d07e472215",
+        "counts": {
+          "total": 3,
+          "failed": 1,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 2
+        },
+        "failed_node": {
+          "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+          "name": "test_browser_csrf_and_foreign_owner_denials_leave_the_ledger_unchanged",
+          "time": "24.025"
+        },
+        "artifacts_raw_sha256": {
+          ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+          ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+          ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+          ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+          ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+          ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0"
+        }
+      },
+      "revision_proof_raw_sha256": "e217bc4692a9d70722af47f7bc8737b517797d23b5dd5086fc7f73b10151e726",
+      "focused_report_raw_sha256": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+      "focused_driver_raw_sha256": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+      "source_patch": {
+        "path": ".tmp\\fee-a-bbc7-root-6-canonical-source.patch",
+        "raw_sha256": "459585ec0282953e06df24c47c8d89140d213b7bf2dc80a54e4c2c9b3c26dd1d",
+        "path_count": 35,
+        "name_status": [
+          "M\tapps/account/application/manual_trade_sync.py",
+          "M\tapps/account/application/repository_provider.py",
+          "M\tapps/account/application/transaction_cost_use_cases.py",
+          "A\tapps/account/application/transaction_record_use_cases.py",
+          "M\tapps/account/domain/entities.py",
+          "A\tapps/account/domain/transaction_cost_calculations.py",
+          "M\tapps/account/domain/transaction_cost_contracts.py",
+          "A\tapps/account/domain/transaction_record_contracts.py",
+          "M\tapps/account/infrastructure/portfolio_models.py",
+          "M\tapps/account/infrastructure/position_repository.py",
+          "M\tapps/account/infrastructure/repositories.py",
+          "A\tapps/account/infrastructure/transaction_record_repository.py",
+          "M\tapps/account/interface/admin.py",
+          "M\tapps/account/interface/serializers.py",
+          "M\tapps/account/interface/transaction_api_views.py",
+          "A\tapps/account/migrations/0067_transaction_fee_availability_flags.py",
+          "M\tapps/simulated_trading/management/commands/migrate_account_ledger.py",
+          "M\tconfig/tui/migration/web_template_migration.v1.json",
+          "A\tcore/templates/admin/account/transaction/correct_costs.html",
+          "M\tdocs/INDEX.md",
+          "M\tdocs/architecture/project_structure.md",
+          "M\tdocs/plans/web-to-tui-migration-plan-2026-07-25.md",
+          "M\tdocs/testing/api/API_REFERENCE.md",
+          "M\tscripts/web_template_migration_inventory.py",
+          "M\ttests/api/test_account_api_edges.py",
+          "A\ttests/api/test_account_transaction_fee_availability.py",
+          "A\ttests/component/account/test_transaction_cost_availability_repository.py",
+          "A\ttests/component/account/test_transaction_fee_admin_browser_journey.py",
+          "A\ttests/component/account/test_transaction_fee_admin_workflow.py",
+          "A\ttests/component/account/test_transaction_fee_availability_migration.py",
+          "A\ttests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py",
+          "A\ttests/unit/account/test_transaction_cost_availability.py",
+          "M\ttests/unit/account/test_transaction_cost_use_cases.py",
+          "M\ttests/unit/test_web_template_migration_inventory.py",
+          "M\ttests/unit/test_web_to_tui_finalized_inventory.py"
+        ],
+        "numstat": {
+          "apps/account/application/manual_trade_sync.py": [
+            31,
+            9
+          ],
+          "apps/account/application/repository_provider.py": [
+            11,
+            6
+          ],
+          "apps/account/application/transaction_cost_use_cases.py": [
+            158,
+            54
+          ],
+          "apps/account/application/transaction_record_use_cases.py": [
+            143,
+            0
+          ],
+          "apps/account/domain/entities.py": [
+            4,
+            9
+          ],
+          "apps/account/domain/transaction_cost_calculations.py": [
+            52,
+            0
+          ],
+          "apps/account/domain/transaction_cost_contracts.py": [
+            9,
+            3
+          ],
+          "apps/account/domain/transaction_record_contracts.py": [
+            116,
+            0
+          ],
+          "apps/account/infrastructure/portfolio_models.py": [
+            24,
+            0
+          ],
+          "apps/account/infrastructure/position_repository.py": [
+            16,
+            0
+          ],
+          "apps/account/infrastructure/repositories.py": [
+            106,
+            51
+          ],
+          "apps/account/infrastructure/transaction_record_repository.py": [
+            164,
+            0
+          ],
+          "apps/account/interface/admin.py": [
+            363,
+            4
+          ],
+          "apps/account/interface/serializers.py": [
+            158,
+            58
+          ],
+          "apps/account/interface/transaction_api_views.py": [
+            114,
+            36
+          ],
+          "apps/account/migrations/0067_transaction_fee_availability_flags.py": [
+            38,
+            0
+          ],
+          "apps/simulated_trading/management/commands/migrate_account_ledger.py": [
+            123,
+            33
+          ],
+          "config/tui/migration/web_template_migration.v1.json": [
+            2,
+            2
+          ],
+          "core/templates/admin/account/transaction/correct_costs.html": [
+            14,
+            0
+          ],
+          "docs/INDEX.md": [
+            1,
+            0
+          ],
+          "docs/architecture/project_structure.md": [
+            2,
+            0
+          ],
+          "docs/plans/web-to-tui-migration-plan-2026-07-25.md": [
+            5,
+            5
+          ],
+          "docs/testing/api/API_REFERENCE.md": [
+            31,
+            1
+          ],
+          "scripts/web_template_migration_inventory.py": [
+            17,
+            8
+          ],
+          "tests/api/test_account_api_edges.py": [
+            38,
+            4
+          ],
+          "tests/api/test_account_transaction_fee_availability.py": [
+            735,
+            0
+          ],
+          "tests/component/account/test_transaction_cost_availability_repository.py": [
+            1008,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_admin_browser_journey.py": [
+            606,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_admin_workflow.py": [
+            346,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_availability_migration.py": [
+            175,
+            0
+          ],
+          "tests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py": [
+            401,
+            0
+          ],
+          "tests/unit/account/test_transaction_cost_availability.py": [
+            1005,
+            0
+          ],
+          "tests/unit/account/test_transaction_cost_use_cases.py": [
+            77,
+            16
+          ],
+          "tests/unit/test_web_template_migration_inventory.py": [
+            29,
+            7
+          ],
+          "tests/unit/test_web_to_tui_finalized_inventory.py": [
+            6,
+            6
+          ]
+        },
+        "replayed_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a"
+      },
+      "root4_regression_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-4-generate-result.json": "bc5233bf4ad920ea66b5a23a4d1fb3beb672aee7d94d9630ba5404f8a0abc78c",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\matrix.log": "ac8a948d71183768398ad7448396df5924e4b8feb361b0e11b62ea1ee09838fa",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\schema.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-yaml.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-json.log": "59fb926f985471d90209fd61c378699b5808d607716148242874ef55524ee2be",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\module-map.log": "01a0bd7f68254ad485a55c8b5daab54954828d657f3ba56378d5a5cb05d6f6f1",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dictionary.log": "db13023dbf80a8a5c308c9ae61e0cbe4104cd64b39660891fcddd35351df34e7",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a",
+        ".tmp\\fee-a-bbc7-root-4-static-result.json": "ca98aa7c4fef425b98a1194686d2ec1bad4c3e25cc8637d2a265da2ddd2a37ff",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\black.log": "03ae340f569a5a47573653580cbf8ffc9e1a11a3652f8fd65f79e68fda22498c",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\incremental-mypy.log": "ec88f73df2f51260594bbf9fde1114a6574aac946a7a9c6eb37a4dd1a5a844db",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\full-mypy-debt.log": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+        ".tmp\\fee-a-bbc7-root-4-governance-result.json": "28ed0836b0529ea5bb477217f04e62f1632d9eecc27d67e4ef3f1992556068d7",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\architecture.log": "2da1de674340e817d552a5b771c8c69a191b62f9785f4a3bcb027f311a289d83",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-cycles.log": "b2a8a87001efaf6bfd42d32e4738f8f251729889f879f5a5a677a0732c112b45",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\changed-size.log": "269c70ab780a1cc6d26866082069720b51d02d7f1db2bf1c97a67f7afcac05f3",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\inventory-check.log": "78827f3ced2b65af1c458f5b82dc8e7b517e773fb9134f12492249e083ae3f0f",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-map.log": "c64f87933f3e5ac57f0bbf8e29fa8f56ec8a356447a94483ea2a4a93bdaea3bd",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-dictionary.log": "37432b5c7311a4ef5b69a4d30b0ba458fb8a50b8fc0cf09475fb9f0ec31ac3da",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-center-projections.log": "1099b4238d6c71149721f3b040b9df82b95fbf9259e6bc7cd01c979362505f44",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\current-contracts.log": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\audit-contracts.log": "64a970fda4c76c443231c11044a84c03e2a4c43262cb2fff0de26e19eb218d7e",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\celery-contracts.log": "085cec167077f3875e5c650c0b3230093c780e910eb5fa8f79063a3f2cec061b",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\full-governance.log": "b3d9c37cc55b09395916f323cae97e2352a975a039d2acc112242511aba7f096",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\versioned-retirement.log": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+        ".tmp\\fee-a-bbc7-root-4-main-result.json": "e9ea1a1355d9b458385c5839a4346c1e87c0037272dcb6d4d5075d3ed99c306a",
+        ".tmp\\fee-a-bbc7-root-4-main-logs\\suite.log": "41ac12c7beafc186ca338aa1e6233386e4d7be73bd3c4985b0390da78d9159e6",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-main-suite.xml": "efb93b919ccfa7220426441603d5ba90516f3e5dd9ecc421adae096267c9dfbf",
+        ".tmp\\fee-a-bbc7-root-4-migration-result.json": "b3ac019fd7c0107eb08348b7191495e5596bd5328ecea876205b9bf64cd0a04b",
+        ".tmp\\fee-a-bbc7-root-4-migration-logs\\0067.log": "f6c0b4564f6c724971420005fcfbe478a9a6f54840bc3ce9c3b7c426b429b0c2",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-migration-0067.xml": "0e026943eda0380b6cc41a4e45423285d2e7e784d4c32d22ebe1d8373e4a78d6",
+        ".tmp\\fee-a-bbc7-root-4-native-result.json": "fece1516f8fbbc17b004ac84d2fdaad31cd3abb1a739d03c0ca653c439266d32",
+        ".tmp\\run_fee_a_native_root4.py": "251b51fe8aadadf3e6d9e33c31cced84898b14b34e3da9cf03486ba3a3b7820d",
+        ".tmp\\fee-a-bbc7-root-4-coverage-review.json": "da815b4e58f6c7047ecbcc99c28faaed2c933a5c28a5cd7e4046ce245e6a1e27",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-native.xml": "ea14e135fdd288fbca462a46e79bee03874efcacccc61244ada3f78a269738fe",
+        ".tmp\\fee-a-bbc7-root-4-native.log": "529814510999742977467fe816455c1656dcd6e8abd3251ae63b47de2427e2ad",
+        ".tmp\\fee-a-bbc7-root-4-migration-graph.log": "2958e6f4005a70f7243abcbebc5ebfdb15790a84514098f5539abcf4d432996f",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-coverage.json": "e1c6b5f0e1dfd2317f00fa13100c46f3b0ac58206e71d124472eec64f937ed52",
+        ".tmp\\fee-a-bbc7-root-red-1-test-result.json": "6a14b0da0a90e7c771ec7ccd36cd67a3b7111c4add123581c368bb8e2bf8f98a",
+        ".tmp\\verify_fee_a_root4_native_coverage.py": "d1f6182be21438512706197b6504e5269961f19b7fa73000656b5214a9386c25",
+        ".tmp\\fee-a-bbc7-root-4-domain-smoke-sequence.json": "f5eb3cbdf22b3bf3d559ebd9ffc4c04342a3145e64dee3522e5f8431f039b54f",
+        ".tmp\\fee-a-bbc7-root-4-domain-result.json": "bf2174b32f7dd2747862e1b5da5dd7392a71ea6166c7dcd0e6424efc8dd2860b",
+        ".tmp\\fee-a-bbc7-root-4-smoke-result.json": "2207c8b81c7294d51952226453bbecfd00a40c09eabf6a8721dd0ccdd018b71d",
+        ".tmp\\run_fee_a_root4_domain_smoke.py": "640682a683c83fd6a66e281b67207d5e53b8f115b98141edce3e240876f71bdd",
+        ".tmp\\run_fee_a_root4_domain_with_junit.py": "fe4d20ef734ce14f4b404db50aac4cacf0474a2b6f97a2bb151ef1ba3a9ddb69",
+        ".tmp\\run_fee_a_root4_smoke.py": "57f43bb3fe2d23f6e14ac0e78763e3eed05a4ea248dbfcfe83fffe059e9602f5",
+        ".tmp\\fee-a-bbc7-root-4-domain-logs\\line-gate.log": "8c0c07df5a387cea5ed26fe9b34aefa03585c19da092c9d0aca871b2d3d683a7",
+        ".tmp\\fee-a-bbc7-root-4-export\\githvagomTradePro.tmpfee-a-bbc7-root-4-export.tmpfee-a-bbc7-root-4-domain-line-gate.xml": "6ce4fcadc29baa33a7d1dae71470c655657fab0ff872e4b9897645abc4aaec88",
+        ".tmp\\fee-a-bbc7-root-4-smoke-logs\\minimum-regression.log": "bfd8fccc9a9fa2dadff3596807219f33b382543fb04c2d488d983c1d621ee154",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-minimum-regression.xml": "622bf851f7770b456a266d670622c287f29a9f139cf70171710b91660987546d",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-harness-failure.json": "d80c0170dcc4d14492507caad37be9d155d5f4dc46c0be6334ef794269820bfa",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry.log": "204c2362c4c39978acaf94b93b7a09a748204987eba075462c22284e296605bc",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2-result.json": "79fe11fa130123a8b132b5dcb3f52b6e77aa5869bea62696b6ca046ea16d1af9",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.log": "466e7ce063cf5de894fe4b27a38cd2550ce3187d4ebff0cd5d9f386fcf36b4f9",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.xml": "a29daa19d827379206b63bf5a0a8e1b7c32bf28c05ab978d75642020106d5e1e",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\ash_fee_sdk_http_fence_v2.py": "0d693ff67700e508612dee542eecd7b1dffb78a6a84297155b880d269f0762a1",
+        ".tmp\\run_fee_a_root4_sdk_http_retry_v3.py": "d44e1e364769c640059c44798934c783482cb1b6fd0c0e2bb8141b003add1d08",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.log": "174fa4dfac83b2c7a78270323aee04c518bc18c8043abb6456d62eb5dc6dc83c",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.xml": "17ae63800b7a336934619a033ecbb52ca395d2ec8bf64280b718f0e903d93f5f"
+      },
+      "root5_intermediate_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+        ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+        ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+        ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+        ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+        ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0"
+      },
+      "final_focused_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-6-focused-result.json": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+        ".tmp\\run_fee_a_root6_focused.py": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-black.log": "a4242762b1ec95204728cf7b5d5654cc0d48b760dbd8d802af61eadfdd728777",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\browser-admin.log": "2820eb35dc38f7ae5858aebafb290c04273317c5a5f29287c078c3ed6acc55ec",
+        ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-browser-admin.xml": "1d07d0b843b6dd5f6f127fa73568b45126235ffd3f45b61f696f73446137d24b",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\api-edges-transaction.log": "8cb7e81cbdfc76ca708d4ef1c4f54b9e9420995535b09a07d4233867e9940982",
+        ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-api-edges-transaction.xml": "d650ee098638e08abda5a63c9c19b62a24c4f074c587ac0c43253cea231310bc",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a"
+      }
+    },
+    "root4_regression_source": {
+      "root4_green_phases": {
+        "main": {
+          "total": 432,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 432
+        },
+        "migration": {
+          "total": 1,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 1
+        }
+      },
+      "root4_native_counts": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "root4_coverage_layers": {
+        "domain": {
+          "covered_lines": 488,
+          "statements": 504,
+          "covered_branches": 75,
+          "branches": 86,
+          "modules": [
+            {
+              "path": "apps/account/domain/entities.py",
+              "covered_lines": 338,
+              "statements": 347,
+              "line_percent": 97.40634005763688,
+              "covered_branches": 69,
+              "branches": 80,
+              "uncovered_lines": [
+                396,
+                450,
+                454,
+                456,
+                487,
+                492,
+                519,
+                544,
+                693
+              ],
+              "uncovered_branches": [
+                [
+                  121,
+                  123
+                ],
+                [
+                  123,
+                  125
+                ],
+                [
+                  392,
+                  396
+                ],
+                [
+                  445,
+                  450
+                ],
+                [
+                  451,
+                  454
+                ],
+                [
+                  455,
+                  456
+                ],
+                [
+                  486,
+                  487
+                ],
+                [
+                  491,
+                  492
+                ],
+                [
+                  518,
+                  519
+                ],
+                [
+                  543,
+                  544
+                ],
+                [
+                  692,
+                  693
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/domain/transaction_cost_calculations.py",
+              "covered_lines": 24,
+              "statements": 24,
+              "line_percent": 100.0,
+              "covered_branches": 6,
+              "branches": 6,
+              "uncovered_lines": [],
+              "uncovered_branches": []
+            },
+            {
+              "path": "apps/account/domain/transaction_cost_contracts.py",
+              "covered_lines": 54,
+              "statements": 58,
+              "line_percent": 93.10344827586206,
+              "covered_branches": 0,
+              "branches": 0,
+              "uncovered_lines": [
+                75,
+                84,
+                102,
+                114
+              ],
+              "uncovered_branches": []
+            },
+            {
+              "path": "apps/account/domain/transaction_record_contracts.py",
+              "covered_lines": 72,
+              "statements": 75,
+              "line_percent": 96.0,
+              "covered_branches": 0,
+              "branches": 0,
+              "uncovered_lines": [
+                96,
+                107,
+                116
+              ],
+              "uncovered_branches": []
+            }
+          ],
+          "line_percent": 96.82539682539682,
+          "branch_percent": 87.20930232558139,
+          "minimum_line_percent": 90,
+          "line_floor_passed": true
+        },
+        "application": {
+          "covered_lines": 444,
+          "statements": 518,
+          "covered_branches": 81,
+          "branches": 108,
+          "modules": [
+            {
+              "path": "apps/account/application/manual_trade_sync.py",
+              "covered_lines": 187,
+              "statements": 215,
+              "line_percent": 86.97674418604652,
+              "covered_branches": 38,
+              "branches": 52,
+              "uncovered_lines": [
+                101,
+                112,
+                113,
+                119,
+                120,
+                134,
+                140,
+                339,
+                380,
+                390,
+                399,
+                437,
+                440,
+                448,
+                451,
+                454,
+                498,
+                501,
+                502,
+                511,
+                514,
+                515,
+                517,
+                534,
+                563,
+                566,
+                567,
+                568
+              ],
+              "uncovered_branches": [
+                [
+                  119,
+                  120
+                ],
+                [
+                  119,
+                  134
+                ],
+                [
+                  338,
+                  339
+                ],
+                [
+                  379,
+                  380
+                ],
+                [
+                  389,
+                  390
+                ],
+                [
+                  398,
+                  399
+                ],
+                [
+                  436,
+                  437
+                ],
+                [
+                  447,
+                  448
+                ],
+                [
+                  450,
+                  451
+                ],
+                [
+                  453,
+                  454
+                ],
+                [
+                  497,
+                  498
+                ],
+                [
+                  510,
+                  511
+                ],
+                [
+                  516,
+                  517
+                ],
+                [
+                  533,
+                  534
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/application/repository_provider.py",
+              "covered_lines": 40,
+              "statements": 67,
+              "line_percent": 59.701492537313435,
+              "covered_branches": 0,
+              "branches": 0,
+              "uncovered_lines": [
+                55,
+                61,
+                67,
+                73,
+                79,
+                85,
+                97,
+                109,
+                115,
+                141,
+                143,
+                149,
+                153,
+                159,
+                161,
+                167,
+                169,
+                175,
+                177,
+                183,
+                185,
+                191,
+                193,
+                199,
+                201,
+                207,
+                211
+              ],
+              "uncovered_branches": []
+            },
+            {
+              "path": "apps/account/application/transaction_cost_use_cases.py",
+              "covered_lines": 156,
+              "statements": 169,
+              "line_percent": 92.3076923076923,
+              "covered_branches": 27,
+              "branches": 38,
+              "uncovered_lines": [
+                43,
+                44,
+                129,
+                130,
+                147,
+                171,
+                172,
+                173,
+                174,
+                175,
+                231,
+                237,
+                379
+              ],
+              "uncovered_branches": [
+                [
+                  128,
+                  129
+                ],
+                [
+                  142,
+                  149
+                ],
+                [
+                  146,
+                  147
+                ],
+                [
+                  169,
+                  171
+                ],
+                [
+                  171,
+                  172
+                ],
+                [
+                  171,
+                  173
+                ],
+                [
+                  173,
+                  174
+                ],
+                [
+                  173,
+                  175
+                ],
+                [
+                  226,
+                  231
+                ],
+                [
+                  232,
+                  237
+                ],
+                [
+                  378,
+                  379
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/application/transaction_record_use_cases.py",
+              "covered_lines": 61,
+              "statements": 67,
+              "line_percent": 91.04477611940298,
+              "covered_branches": 16,
+              "branches": 18,
+              "uncovered_lines": [
+                33,
+                53,
+                54,
+                69,
+                70,
+                78
+              ],
+              "uncovered_branches": [
+                [
+                  32,
+                  33
+                ],
+                [
+                  77,
+                  78
+                ]
+              ]
+            }
+          ],
+          "line_percent": 85.71428571428571,
+          "branch_percent": 75.0,
+          "minimum_line_percent": 80,
+          "line_floor_passed": true
+        },
+        "interface": {
+          "covered_lines": 856,
+          "statements": 1047,
+          "covered_branches": 42,
+          "branches": 148,
+          "modules": [
+            {
+              "path": "apps/account/interface/admin.py",
+              "covered_lines": 291,
+              "statements": 333,
+              "line_percent": 87.38738738738739,
+              "covered_branches": 22,
+              "branches": 38,
+              "uncovered_lines": [
+                129,
+                135,
+                136,
+                164,
+                169,
+                170,
+                171,
+                198,
+                199,
+                200,
+                295,
+                311,
+                312,
+                321,
+                341,
+                342,
+                381,
+                385,
+                396,
+                409,
+                410,
+                466,
+                473,
+                499,
+                500,
+                501,
+                502,
+                515,
+                516,
+                519,
+                571,
+                588,
+                595,
+                596,
+                644,
+                649,
+                655,
+                656,
+                676,
+                677,
+                692,
+                813
+              ],
+              "uncovered_branches": [
+                [
+                  294,
+                  295
+                ],
+                [
+                  310,
+                  311
+                ],
+                [
+                  316,
+                  321
+                ],
+                [
+                  380,
+                  381
+                ],
+                [
+                  384,
+                  385
+                ],
+                [
+                  391,
+                  396
+                ],
+                [
+                  465,
+                  466
+                ],
+                [
+                  472,
+                  473
+                ],
+                [
+                  498,
+                  499
+                ],
+                [
+                  499,
+                  500
+                ],
+                [
+                  499,
+                  501
+                ],
+                [
+                  501,
+                  502
+                ],
+                [
+                  501,
+                  503
+                ],
+                [
+                  505,
+                  520
+                ],
+                [
+                  518,
+                  519
+                ],
+                [
+                  567,
+                  571
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/interface/serializers.py",
+              "covered_lines": 413,
+              "statements": 533,
+              "line_percent": 77.4859287054409,
+              "covered_branches": 3,
+              "branches": 78,
+              "uncovered_lines": [
+                176,
+                177,
+                178,
+                201,
+                202,
+                203,
+                206,
+                207,
+                208,
+                337,
+                339,
+                345,
+                430,
+                431,
+                432,
+                512,
+                513,
+                514,
+                534,
+                535,
+                536,
+                539,
+                540,
+                542,
+                543,
+                547,
+                548,
+                549,
+                550,
+                551,
+                552,
+                553,
+                554,
+                556,
+                558,
+                561,
+                562,
+                565,
+                569,
+                570,
+                575,
+                576,
+                577,
+                582,
+                583,
+                584,
+                586,
+                587,
+                589,
+                593,
+                594,
+                595,
+                601,
+                613,
+                614,
+                616,
+                617,
+                618,
+                650,
+                654,
+                672,
+                673,
+                678,
+                679,
+                682,
+                683,
+                684,
+                687,
+                688,
+                689,
+                692,
+                693,
+                694,
+                697,
+                698,
+                699,
+                714,
+                715,
+                716,
+                778,
+                786,
+                787,
+                788,
+                789,
+                795,
+                796,
+                797,
+                798,
+                801,
+                806,
+                809,
+                814,
+                817,
+                822,
+                831,
+                832,
+                833,
+                834,
+                835,
+                836,
+                837,
+                838,
+                839,
+                840,
+                841,
+                842,
+                843,
+                844,
+                849,
+                850,
+                851,
+                852,
+                853,
+                854,
+                855,
+                858,
+                863,
+                876,
+                877,
+                878
+              ],
+              "uncovered_branches": [
+                [
+                  201,
+                  202
+                ],
+                [
+                  201,
+                  203
+                ],
+                [
+                  206,
+                  207
+                ],
+                [
+                  206,
+                  208
+                ],
+                [
+                  336,
+                  337
+                ],
+                [
+                  338,
+                  339
+                ],
+                [
+                  344,
+                  345
+                ],
+                [
+                  430,
+                  431
+                ],
+                [
+                  430,
+                  432
+                ],
+                [
+                  535,
+                  536
+                ],
+                [
+                  535,
+                  539
+                ],
+                [
+                  542,
+                  543
+                ],
+                [
+                  542,
+                  547
+                ],
+                [
+                  547,
+                  548
+                ],
+                [
+                  547,
+                  551
+                ],
+                [
+                  549,
+                  550
+                ],
+                [
+                  549,
+                  558
+                ],
+                [
+                  551,
+                  552
+                ],
+                [
+                  551,
+                  556
+                ],
+                [
+                  553,
+                  554
+                ],
+                [
+                  553,
+                  558
+                ],
+                [
+                  561,
+                  562
+                ],
+                [
+                  561,
+                  565
+                ],
+                [
+                  569,
+                  570
+                ],
+                [
+                  569,
+                  575
+                ],
+                [
+                  576,
+                  577
+                ],
+                [
+                  576,
+                  582
+                ],
+                [
+                  583,
+                  584
+                ],
+                [
+                  583,
+                  589
+                ],
+                [
+                  586,
+                  587
+                ],
+                [
+                  586,
+                  589
+                ],
+                [
+                  613,
+                  614
+                ],
+                [
+                  613,
+                  618
+                ],
+                [
+                  616,
+                  617
+                ],
+                [
+                  616,
+                  618
+                ],
+                [
+                  673,
+                  678
+                ],
+                [
+                  673,
+                  679
+                ],
+                [
+                  682,
+                  683
+                ],
+                [
+                  682,
+                  684
+                ],
+                [
+                  687,
+                  688
+                ],
+                [
+                  687,
+                  689
+                ],
+                [
+                  692,
+                  693
+                ],
+                [
+                  692,
+                  694
+                ],
+                [
+                  697,
+                  698
+                ],
+                [
+                  697,
+                  699
+                ],
+                [
+                  714,
+                  715
+                ],
+                [
+                  714,
+                  716
+                ],
+                [
+                  787,
+                  788
+                ],
+                [
+                  787,
+                  796
+                ],
+                [
+                  789,
+                  787
+                ],
+                [
+                  789,
+                  795
+                ],
+                [
+                  796,
+                  797
+                ],
+                [
+                  796,
+                  798
+                ],
+                [
+                  831,
+                  832
+                ],
+                [
+                  831,
+                  833
+                ],
+                [
+                  833,
+                  -824
+                ],
+                [
+                  833,
+                  834
+                ],
+                [
+                  834,
+                  835
+                ],
+                [
+                  834,
+                  836
+                ],
+                [
+                  837,
+                  838
+                ],
+                [
+                  837,
+                  839
+                ],
+                [
+                  840,
+                  841
+                ],
+                [
+                  840,
+                  842
+                ],
+                [
+                  842,
+                  843
+                ],
+                [
+                  842,
+                  850
+                ],
+                [
+                  844,
+                  842
+                ],
+                [
+                  844,
+                  849
+                ],
+                [
+                  851,
+                  852
+                ],
+                [
+                  851,
+                  853
+                ],
+                [
+                  853,
+                  854
+                ],
+                [
+                  853,
+                  858
+                ],
+                [
+                  854,
+                  853
+                ],
+                [
+                  854,
+                  855
+                ],
+                [
+                  858,
+                  833
+                ],
+                [
+                  858,
+                  863
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/interface/transaction_api_views.py",
+              "covered_lines": 152,
+              "statements": 181,
+              "line_percent": 83.97790055248619,
+              "covered_branches": 17,
+              "branches": 32,
+              "uncovered_lines": [
+                67,
+                91,
+                129,
+                140,
+                152,
+                153,
+                176,
+                209,
+                239,
+                268,
+                269,
+                298,
+                309,
+                310,
+                326,
+                337,
+                338,
+                363,
+                367,
+                368,
+                372,
+                376,
+                377,
+                378,
+                379,
+                380,
+                384,
+                385,
+                386
+              ],
+              "uncovered_branches": [
+                [
+                  66,
+                  67
+                ],
+                [
+                  90,
+                  91
+                ],
+                [
+                  127,
+                  129
+                ],
+                [
+                  139,
+                  140
+                ],
+                [
+                  175,
+                  176
+                ],
+                [
+                  208,
+                  209
+                ],
+                [
+                  238,
+                  239
+                ],
+                [
+                  297,
+                  298
+                ],
+                [
+                  325,
+                  326
+                ],
+                [
+                  367,
+                  368
+                ],
+                [
+                  367,
+                  372
+                ],
+                [
+                  377,
+                  378
+                ],
+                [
+                  377,
+                  379
+                ],
+                [
+                  384,
+                  385
+                ],
+                [
+                  384,
+                  386
+                ]
+              ]
+            }
+          ],
+          "line_percent": 81.75740210124164,
+          "branch_percent": 28.37837837837838,
+          "minimum_line_percent": 70,
+          "line_floor_passed": true
+        },
+        "infrastructure": {
+          "covered_lines": 626,
+          "statements": 875,
+          "covered_branches": 82,
+          "branches": 160,
+          "modules": [
+            {
+              "path": "apps/account/infrastructure/portfolio_models.py",
+              "covered_lines": 160,
+              "statements": 175,
+              "line_percent": 91.42857142857143,
+              "covered_branches": 0,
+              "branches": 2,
+              "uncovered_lines": [
+                68,
+                70,
+                73,
+                78,
+                80,
+                83,
+                88,
+                93,
+                94,
+                95,
+                100,
+                197,
+                395,
+                463,
+                512
+              ],
+              "uncovered_branches": [
+                [
+                  93,
+                  94
+                ],
+                [
+                  93,
+                  95
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/infrastructure/position_repository.py",
+              "covered_lines": 74,
+              "statements": 165,
+              "line_percent": 44.84848484848485,
+              "covered_branches": 15,
+              "branches": 40,
+              "uncovered_lines": [
+                40,
+                52,
+                58,
+                59,
+                60,
+                61,
+                63,
+                64,
+                66,
+                70,
+                71,
+                72,
+                73,
+                74,
+                79,
+                88,
+                89,
+                90,
+                97,
+                101,
+                128,
+                136,
+                137,
+                153,
+                164,
+                170,
+                181,
+                196,
+                202,
+                203,
+                205,
+                206,
+                207,
+                209,
+                219,
+                220,
+                223,
+                224,
+                226,
+                238,
+                239,
+                242,
+                243,
+                245,
+                268,
+                269,
+                270,
+                272,
+                274,
+                289,
+                310,
+                311,
+                313,
+                331,
+                337,
+                356,
+                357,
+                360,
+                364,
+                416,
+                417,
+                418,
+                419,
+                421,
+                422,
+                425,
+                426,
+                427,
+                429,
+                430,
+                439,
+                440,
+                441,
+                444,
+                445,
+                448,
+                449,
+                450,
+                451,
+                452,
+                455,
+                463,
+                464,
+                467,
+                473,
+                499,
+                500,
+                501,
+                502,
+                505,
+                521
+              ],
+              "uncovered_branches": [
+                [
+                  58,
+                  59
+                ],
+                [
+                  58,
+                  60
+                ],
+                [
+                  60,
+                  61
+                ],
+                [
+                  60,
+                  63
+                ],
+                [
+                  63,
+                  64
+                ],
+                [
+                  63,
+                  66
+                ],
+                [
+                  88,
+                  89
+                ],
+                [
+                  88,
+                  90
+                ],
+                [
+                  127,
+                  128
+                ],
+                [
+                  152,
+                  153
+                ],
+                [
+                  163,
+                  164
+                ],
+                [
+                  169,
+                  170
+                ],
+                [
+                  180,
+                  181
+                ],
+                [
+                  202,
+                  203
+                ],
+                [
+                  202,
+                  205
+                ],
+                [
+                  206,
+                  207
+                ],
+                [
+                  206,
+                  209
+                ],
+                [
+                  359,
+                  360
+                ],
+                [
+                  363,
+                  364
+                ],
+                [
+                  440,
+                  441
+                ],
+                [
+                  440,
+                  444
+                ],
+                [
+                  449,
+                  450
+                ],
+                [
+                  449,
+                  451
+                ],
+                [
+                  463,
+                  464
+                ],
+                [
+                  463,
+                  467
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/infrastructure/repositories.py",
+              "covered_lines": 175,
+              "statements": 280,
+              "line_percent": 62.5,
+              "covered_branches": 21,
+              "branches": 50,
+              "uncovered_lines": [
+                82,
+                83,
+                90,
+                91,
+                92,
+                109,
+                113,
+                114,
+                115,
+                116,
+                117,
+                119,
+                150,
+                151,
+                161,
+                162,
+                202,
+                300,
+                366,
+                375,
+                456,
+                457,
+                458,
+                468,
+                469,
+                481,
+                490,
+                512,
+                514,
+                519,
+                520,
+                599,
+                600,
+                601,
+                608,
+                609,
+                618,
+                624,
+                637,
+                638,
+                639,
+                640,
+                641,
+                642,
+                643,
+                644,
+                673,
+                678,
+                687,
+                715,
+                719,
+                730,
+                733,
+                755,
+                756,
+                761,
+                772,
+                773,
+                782,
+                787,
+                788,
+                820,
+                821,
+                822,
+                830,
+                835,
+                836,
+                837,
+                857,
+                862,
+                863,
+                864,
+                865,
+                866,
+                867,
+                868,
+                869,
+                870,
+                872,
+                873,
+                874,
+                876,
+                881,
+                923,
+                924,
+                925,
+                926,
+                927,
+                928,
+                931,
+                932,
+                937,
+                938,
+                939,
+                942,
+                965,
+                966,
+                967,
+                968,
+                969,
+                972,
+                1017,
+                1059,
+                1060,
+                1061
+              ],
+              "uncovered_branches": [
+                [
+                  91,
+                  92
+                ],
+                [
+                  91,
+                  109
+                ],
+                [
+                  201,
+                  202
+                ],
+                [
+                  203,
+                  205
+                ],
+                [
+                  205,
+                  207
+                ],
+                [
+                  299,
+                  300
+                ],
+                [
+                  423,
+                  426
+                ],
+                [
+                  509,
+                  511
+                ],
+                [
+                  511,
+                  512
+                ],
+                [
+                  513,
+                  514
+                ],
+                [
+                  515,
+                  517
+                ],
+                [
+                  570,
+                  573
+                ],
+                [
+                  639,
+                  640
+                ],
+                [
+                  639,
+                  641
+                ],
+                [
+                  672,
+                  673
+                ],
+                [
+                  677,
+                  678
+                ],
+                [
+                  686,
+                  687
+                ],
+                [
+                  821,
+                  822
+                ],
+                [
+                  821,
+                  830
+                ],
+                [
+                  836,
+                  837
+                ],
+                [
+                  836,
+                  857
+                ],
+                [
+                  924,
+                  925
+                ],
+                [
+                  924,
+                  926
+                ],
+                [
+                  926,
+                  927
+                ],
+                [
+                  926,
+                  928
+                ],
+                [
+                  966,
+                  967
+                ],
+                [
+                  966,
+                  969
+                ],
+                [
+                  1059,
+                  1060
+                ],
+                [
+                  1059,
+                  1061
+                ]
+              ]
+            },
+            {
+              "path": "apps/account/infrastructure/transaction_record_repository.py",
+              "covered_lines": 45,
+              "statements": 49,
+              "line_percent": 91.83673469387755,
+              "covered_branches": 7,
+              "branches": 10,
+              "uncovered_lines": [
+                61,
+                62,
+                72,
+                73
+              ],
+              "uncovered_branches": [
+                [
+                  47,
+                  72
+                ],
+                [
+                  72,
+                  73
+                ],
+                [
+                  72,
+                  78
+                ]
+              ]
+            },
+            {
+              "path": "apps/simulated_trading/management/commands/migrate_account_ledger.py",
+              "covered_lines": 172,
+              "statements": 206,
+              "line_percent": 83.49514563106796,
+              "covered_branches": 39,
+              "branches": 58,
+              "uncovered_lines": [
+                79,
+                88,
+                94,
+                95,
+                223,
+                224,
+                234,
+                235,
+                236,
+                237,
+                238,
+                239,
+                246,
+                247,
+                270,
+                271,
+                275,
+                280,
+                290,
+                404,
+                405,
+                406,
+                407,
+                423,
+                424,
+                425,
+                436,
+                437,
+                438,
+                503,
+                504,
+                505,
+                510,
+                519
+              ],
+              "uncovered_branches": [
+                [
+                  78,
+                  79
+                ],
+                [
+                  87,
+                  88
+                ],
+                [
+                  91,
+                  97
+                ],
+                [
+                  93,
+                  94
+                ],
+                [
+                  130,
+                  133
+                ],
+                [
+                  160,
+                  185
+                ],
+                [
+                  207,
+                  210
+                ],
+                [
+                  222,
+                  223
+                ],
+                [
+                  245,
+                  246
+                ],
+                [
+                  260,
+                  319
+                ],
+                [
+                  268,
+                  270
+                ],
+                [
+                  340,
+                  343
+                ],
+                [
+                  412,
+                  423
+                ],
+                [
+                  442,
+                  478
+                ],
+                [
+                  502,
+                  503
+                ],
+                [
+                  504,
+                  505
+                ],
+                [
+                  504,
+                  506
+                ],
+                [
+                  507,
+                  510
+                ],
+                [
+                  518,
+                  519
+                ]
+              ]
+            }
+          ],
+          "line_percent": 71.54285714285714,
+          "branch_percent": 51.25,
+          "minimum_line_percent": 60,
+          "line_floor_passed": true
+        }
+      },
+      "artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-4-generate-result.json": "bc5233bf4ad920ea66b5a23a4d1fb3beb672aee7d94d9630ba5404f8a0abc78c",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\matrix.log": "ac8a948d71183768398ad7448396df5924e4b8feb361b0e11b62ea1ee09838fa",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\schema.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-yaml.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-json.log": "59fb926f985471d90209fd61c378699b5808d607716148242874ef55524ee2be",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\module-map.log": "01a0bd7f68254ad485a55c8b5daab54954828d657f3ba56378d5a5cb05d6f6f1",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dictionary.log": "db13023dbf80a8a5c308c9ae61e0cbe4104cd64b39660891fcddd35351df34e7",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a",
+        ".tmp\\fee-a-bbc7-root-4-static-result.json": "ca98aa7c4fef425b98a1194686d2ec1bad4c3e25cc8637d2a265da2ddd2a37ff",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\black.log": "03ae340f569a5a47573653580cbf8ffc9e1a11a3652f8fd65f79e68fda22498c",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\incremental-mypy.log": "ec88f73df2f51260594bbf9fde1114a6574aac946a7a9c6eb37a4dd1a5a844db",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\full-mypy-debt.log": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+        ".tmp\\fee-a-bbc7-root-4-governance-result.json": "28ed0836b0529ea5bb477217f04e62f1632d9eecc27d67e4ef3f1992556068d7",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\architecture.log": "2da1de674340e817d552a5b771c8c69a191b62f9785f4a3bcb027f311a289d83",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-cycles.log": "b2a8a87001efaf6bfd42d32e4738f8f251729889f879f5a5a677a0732c112b45",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\changed-size.log": "269c70ab780a1cc6d26866082069720b51d02d7f1db2bf1c97a67f7afcac05f3",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\inventory-check.log": "78827f3ced2b65af1c458f5b82dc8e7b517e773fb9134f12492249e083ae3f0f",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-map.log": "c64f87933f3e5ac57f0bbf8e29fa8f56ec8a356447a94483ea2a4a93bdaea3bd",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-dictionary.log": "37432b5c7311a4ef5b69a4d30b0ba458fb8a50b8fc0cf09475fb9f0ec31ac3da",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-center-projections.log": "1099b4238d6c71149721f3b040b9df82b95fbf9259e6bc7cd01c979362505f44",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\current-contracts.log": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\audit-contracts.log": "64a970fda4c76c443231c11044a84c03e2a4c43262cb2fff0de26e19eb218d7e",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\celery-contracts.log": "085cec167077f3875e5c650c0b3230093c780e910eb5fa8f79063a3f2cec061b",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\full-governance.log": "b3d9c37cc55b09395916f323cae97e2352a975a039d2acc112242511aba7f096",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\versioned-retirement.log": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+        ".tmp\\fee-a-bbc7-root-4-main-result.json": "e9ea1a1355d9b458385c5839a4346c1e87c0037272dcb6d4d5075d3ed99c306a",
+        ".tmp\\fee-a-bbc7-root-4-main-logs\\suite.log": "41ac12c7beafc186ca338aa1e6233386e4d7be73bd3c4985b0390da78d9159e6",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-main-suite.xml": "efb93b919ccfa7220426441603d5ba90516f3e5dd9ecc421adae096267c9dfbf",
+        ".tmp\\fee-a-bbc7-root-4-migration-result.json": "b3ac019fd7c0107eb08348b7191495e5596bd5328ecea876205b9bf64cd0a04b",
+        ".tmp\\fee-a-bbc7-root-4-migration-logs\\0067.log": "f6c0b4564f6c724971420005fcfbe478a9a6f54840bc3ce9c3b7c426b429b0c2",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-migration-0067.xml": "0e026943eda0380b6cc41a4e45423285d2e7e784d4c32d22ebe1d8373e4a78d6",
+        ".tmp\\fee-a-bbc7-root-4-native-result.json": "fece1516f8fbbc17b004ac84d2fdaad31cd3abb1a739d03c0ca653c439266d32",
+        ".tmp\\run_fee_a_native_root4.py": "251b51fe8aadadf3e6d9e33c31cced84898b14b34e3da9cf03486ba3a3b7820d",
+        ".tmp\\fee-a-bbc7-root-4-coverage-review.json": "da815b4e58f6c7047ecbcc99c28faaed2c933a5c28a5cd7e4046ce245e6a1e27"
+      },
+      "native_and_raw_coverage_review": {
+        "status": "passed",
+        "native_counts": {
+          "total": 7,
+          "passed": 7,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "native_parent_unchanged": true,
+        "native_schema_after": {
+          "test_ash_quality_native": {
+            "database": "test_ash_quality_native",
+            "schema": "public",
+            "server_version": "16.15",
+            "server_version_num": 160015,
+            "isolation": "read committed",
+            "read_only_session": true,
+            "migration_count": 544,
+            "migration_sha256": "b1bd43a319c669f56f5cc0c2bf2120a63ec0b78dc4d0cd9e80f97d13f7b2ba0f",
+            "schema_sha256": "9ada3d7f2a8df623ce109d6129afd6e71f4d3e1804fda228d45bc0843f1ff804",
+            "generation": [
+              [
+                1,
+                0
+              ]
+            ],
+            "has_0067": false,
+            "active_other_sessions": []
+          },
+          "test_ash_plan_binding_01a14268": {
+            "database": "test_ash_plan_binding_01a14268",
+            "schema": "public",
+            "server_version": "16.15",
+            "server_version_num": 160015,
+            "isolation": "read committed",
+            "read_only_session": true,
+            "migration_count": 547,
+            "migration_sha256": "a5b9d5b707916c19459ed723edfe359cb09138098cf6b37edfca34cd647cb5e2",
+            "schema_sha256": "4e7b7ce64092a0fff680e69360d58b491a5fbe5fb8ee1b20f90d32a9bbb8bea7",
+            "generation": [
+              [
+                1,
+                212
+              ]
+            ],
+            "has_0067": true,
+            "active_other_sessions": []
+          }
+        },
+        "private_input_contents_omitted": true,
+        "coverage_recomputed_from_raw": true,
+        "artifacts_raw_sha256": {
+          ".tmp\\fee-a-bbc7-root-4-native-result.json": "fece1516f8fbbc17b004ac84d2fdaad31cd3abb1a739d03c0ca653c439266d32",
+          ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-native.xml": "ea14e135fdd288fbca462a46e79bee03874efcacccc61244ada3f78a269738fe",
+          ".tmp\\fee-a-bbc7-root-4-native.log": "529814510999742977467fe816455c1656dcd6e8abd3251ae63b47de2427e2ad",
+          ".tmp\\fee-a-bbc7-root-4-migration-graph.log": "2958e6f4005a70f7243abcbebc5ebfdb15790a84514098f5539abcf4d432996f",
+          ".tmp\\run_fee_a_native_root4.py": "251b51fe8aadadf3e6d9e33c31cced84898b14b34e3da9cf03486ba3a3b7820d",
+          ".tmp\\fee-a-bbc7-root-4-coverage-review.json": "da815b4e58f6c7047ecbcc99c28faaed2c933a5c28a5cd7e4046ce245e6a1e27",
+          ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-coverage.json": "e1c6b5f0e1dfd2317f00fa13100c46f3b0ac58206e71d124472eec64f937ed52",
+          ".tmp\\fee-a-bbc7-root-red-1-test-result.json": "6a14b0da0a90e7c771ec7ccd36cd67a3b7111c4add123581c368bb8e2bf8f98a",
+          ".tmp\\verify_fee_a_root4_native_coverage.py": "d1f6182be21438512706197b6504e5269961f19b7fa73000656b5214a9386c25"
+        }
+      },
+      "domain_smoke": {
+        "status": "domain_passed_smoke_initial_failed_exact_node_retry_passed",
+        "sequence_raw_sha256": "f5eb3cbdf22b3bf3d559ebd9ffc4c04342a3145e64dee3522e5f8431f039b54f",
+        "domain": {
+          "total": 4296,
+          "passed": 4296,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "coverage_percent": 93.24,
+          "junit_raw_sha256": "6ce4fcadc29baa33a7d1dae71470c655657fab0ff872e4b9897645abc4aaec88",
+          "junit_path": ".tmp\\fee-a-bbc7-root-4-export\\githvagomTradePro.tmpfee-a-bbc7-root-4-export.tmpfee-a-bbc7-root-4-domain-line-gate.xml"
+        },
+        "smoke_initial_failure": {
+          "total": 404,
+          "failed": 1,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 403,
+          "history_status": "failed_before_exact_retry"
+        },
+        "smoke_exact_retry": {
+          "nodeid": "sdk/tests/test_sdk/test_client.py::TestAgomTradeProClient::test_retried_business_503_preserves_final_response",
+          "counts": {
+            "total": 1,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "passed": 1
+          },
+          "driver_raw_sha256": "d44e1e364769c640059c44798934c783482cb1b6fd0c0e2bb8141b003add1d08",
+          "plugin_raw_sha256": "0d693ff67700e508612dee542eecd7b1dffb78a6a84297155b880d269f0762a1"
+        },
+        "prior_retry_harness_failures": {
+          "v1": "failed_before_collection_no_junit",
+          "v2": "failed"
+        }
+      },
+      "historical_non_green": {
+        "root4_identity": {
+          "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+          "source_commit": "ca9c7febcb8c38a2cd0db3038cbd225d4dddd506",
+          "source_tree": "26d5011fec7774250944ef9665eb6a0bc0b3869e"
+        },
+        "root4_browser_failure": {
+          "label": "admin",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "pytest",
+            "-q",
+            "--tb=short",
+            "--ds=ash_formal_calendar_sqlite_settings",
+            "--no-migrations",
+            "--create-db",
+            "tests/component/account/test_transaction_fee_admin_browser_journey.py",
+            "--junitxml=D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-browser-admin.xml",
+            "--basetemp=.tmp/fee-a-bbc7-root-4-browser-admin-temp",
+            "-o",
+            "cache_dir=.tmp/fee-a-bbc7-root-4-browser-cache"
+          ],
+          "exit_code": 1,
+          "seconds": 32.662,
+          "log": "D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-browser-logs\\admin.log",
+          "log_raw_sha256": "378abd29f970e00b79be4b19fde8c4b836a7198d8f0d2d42a25b888bfb67dbad",
+          "junit": "D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-browser-admin.xml",
+          "junit_raw_sha256": "89c2b558a8d7a57d672a8f0a616a1557de79ab1949b232fa0fabaffa94892ae8",
+          "counts": {
+            "total": 3,
+            "passed": 0,
+            "failed": 3,
+            "errors": 0,
+            "skipped": 0
+          },
+          "actual_nodes": [
+            {
+              "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+              "name": "test_owner_sees_known_zero_and_unknown_fees_then_records_one_audited_correction",
+              "time": "9.949"
+            },
+            {
+              "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+              "name": "test_browser_rejects_negative_and_out_of_range_corrections_without_writes",
+              "time": "2.041"
+            },
+            {
+              "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+              "name": "test_browser_csrf_and_foreign_owner_denials_leave_the_ledger_unchanged",
+              "time": "2.539"
+            }
+          ],
+          "deselected": 0
+        },
+        "root4_api_edge_failure": {
+          "label": "transaction",
+          "command": [
+            "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "pytest",
+            "-q",
+            "--tb=short",
+            "--ds=ash_formal_calendar_sqlite_settings",
+            "-p",
+            "ash_domain_local_network_fence",
+            "--no-migrations",
+            "tests/api/test_account_api_edges.py",
+            "-k",
+            "transaction",
+            "--junitxml=D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-api-edges-transaction.xml",
+            "--basetemp=.tmp/fee-a-bbc7-root-4-api-edges-transaction-temp",
+            "-o",
+            "cache_dir=.tmp/fee-a-bbc7-root-4-api-edges-cache"
+          ],
+          "exit_code": 1,
+          "seconds": 38.98,
+          "log": "D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-api-edges-logs\\transaction.log",
+          "log_raw_sha256": "f555fc52a0b21e2f3a4b08747c526996aa26220f3284cf7b7ae46e0cbfdb4255",
+          "junit": "D:\\githv\\agomTradePro\\.tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-api-edges-transaction.xml",
+          "junit_raw_sha256": "e24611ce330463ec36eb5f6b6a59c87e4336796d2972ca0237fd2abe7b5a309f",
+          "counts": {
+            "total": 8,
+            "passed": 7,
+            "failed": 1,
+            "errors": 0,
+            "skipped": 0
+          },
+          "actual_nodes": [
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_returns_403_for_foreign_position",
+              "time": "14.780"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_returns_403_for_foreign_portfolio_without_position",
+              "time": "1.248"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_rejects_position_asset_mismatch",
+              "time": "0.719"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_rejects_invalid_financial_values[shares-NaN]",
+              "time": "1.014"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_rejects_invalid_financial_values[commission--0.01]",
+              "time": "0.778"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_rejects_invalid_financial_values[traded_at-2026-10-18T21:43:18.720081+00:00]",
+              "time": "0.745"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_records_are_append_only",
+              "time": "0.751"
+            },
+            {
+              "classname": "tests.api.test_account_api_edges",
+              "name": "test_account_transaction_create_uses_decimal_notional",
+              "time": "0.747"
+            }
+          ],
+          "deselected": 59
+        },
+        "root4_db_sequence_status": "stopped_on_failure",
+        "root4_remaining_status": "stopped_on_failure",
+        "artifacts_raw_sha256": {
+          ".tmp\\fee-a-bbc7-root-4-db-sequence.json": "acfaa2556038356169b22f9c63fa6e8d3042a2bca826539c39dbe7e8c1278c03",
+          ".tmp\\fee-a-bbc7-root-4-browser-result.json": "e57dc1b9640fc2a93903078bd15dadf9ae65480432a56c53666d4660ffe088a1",
+          ".tmp\\fee-a-bbc7-root-4-api-edges-result.json": "5c1518084810505665b4c08679ed5f366c267d6709fb1c13d5905a439acf142c",
+          ".tmp\\fee-a-bbc7-root-4-remaining-checks.json": "286921a6e913ea7ffe46c494d72333c0391b41c3101e295962f091f51eb611f5",
+          ".tmp\\run_fee_a_root4_db_sequence.py": "7b1e7023242776ba24166d40945137a832d0a2e65294e7a6327fd18ab9d25fab",
+          ".tmp\\run_fee_a_root4_remaining_checks.py": "41aba99c21ebd4eedf01cb6001f551f0c1318bda1f6c2cffe679eec060ef1379",
+          ".tmp\\run_fee_a_bbc7_root4_phase.py": "d795d6085f8a8dd337593efb2f7222dbf258102cd8d8dc249c566bdad456655a",
+          ".tmp\\fee-a-bbc7-root-4-browser-logs\\admin.log": "378abd29f970e00b79be4b19fde8c4b836a7198d8f0d2d42a25b888bfb67dbad",
+          ".tmp\\fee-a-bbc7-root-4-api-edges-logs\\transaction.log": "f555fc52a0b21e2f3a4b08747c526996aa26220f3284cf7b7ae46e0cbfdb4255"
+        }
+      }
+    },
+    "root5_intermediate_failure": {
+      "status": "failed_retained_history",
+      "source_tree": "60bbc52edebcacea94fc3385b8d6691691185e5d",
+      "source_commit": "41f451c5dc20584b33df52fcd32af0d07e472215",
+      "counts": {
+        "total": 3,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 2
+      },
+      "failed_node": {
+        "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+        "name": "test_browser_csrf_and_foreign_owner_denials_leave_the_ledger_unchanged",
+        "time": "24.025"
+      },
+      "artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+        ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+        ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+        ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+        ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+        ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0"
+      }
+    },
+    "root5_final_source": {
+      "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+      "source_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+      "source_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+      "reference_raw_sha256": "06810b1dceb19d38b18bd25fcd8fcfee3cabfa5d8c18b9761d64213d51c00541",
+      "final_revision_label": "Root6",
+      "changed_paths": [
+        "docs/testing/api/API_REFERENCE.md",
+        "tests/api/test_account_api_edges.py",
+        "tests/component/account/test_transaction_fee_admin_browser_journey.py"
+      ],
+      "focused_result_raw_sha256": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+      "focused_driver_raw_sha256": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+      "focused_summary": {
+        "status": "passed",
+        "final_revision_label": "Root6",
+        "final_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+        "final_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+        "focused_artifacts_raw_sha256": {
+          ".tmp\\fee-a-bbc7-root-6-focused-result.json": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+          ".tmp\\run_fee_a_root6_focused.py": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-black.log": "a4242762b1ec95204728cf7b5d5654cc0d48b760dbd8d802af61eadfdd728777",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\browser-admin.log": "2820eb35dc38f7ae5858aebafb290c04273317c5a5f29287c078c3ed6acc55ec",
+          ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-browser-admin.xml": "1d07d0b843b6dd5f6f127fa73568b45126235ffd3f45b61f696f73446137d24b",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\api-edges-transaction.log": "8cb7e81cbdfc76ca708d4ef1c4f54b9e9420995535b09a07d4233867e9940982",
+          ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-api-edges-transaction.xml": "d650ee098638e08abda5a63c9c19b62a24c4f074c587ac0c43253cea231310bc",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+          ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a"
+        }
+      }
+    },
+    "root4_historical_failures_are_not_green": true,
+    "root5_intermediate_failure_is_not_green": true,
+    "root6_broad_suite_claimed": false,
+    "root4_green_phase_test_counts": {
+      "main": {
+        "total": 432,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 432
+      },
+      "migration": {
+        "total": 1,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1
+      }
+    },
+    "root4_domain_smoke_test_counts": {
+      "domain": {
+        "total": 4296,
+        "passed": 4296,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "coverage_percent": 93.24,
+        "junit_raw_sha256": "6ce4fcadc29baa33a7d1dae71470c655657fab0ff872e4b9897645abc4aaec88",
+        "junit_path": ".tmp\\fee-a-bbc7-root-4-export\\githvagomTradePro.tmpfee-a-bbc7-root-4-export.tmpfee-a-bbc7-root-4-domain-line-gate.xml"
+      },
+      "smoke_initial_failure": {
+        "total": 404,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 403,
+        "history_status": "failed_before_exact_retry"
+      },
+      "smoke_exact_retry": {
+        "nodeid": "sdk/tests/test_sdk/test_client.py::TestAgomTradeProClient::test_retried_business_503_preserves_final_response",
+        "counts": {
+          "total": 1,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 1
+        },
+        "driver_raw_sha256": "d44e1e364769c640059c44798934c783482cb1b6fd0c0e2bb8141b003add1d08",
+        "plugin_raw_sha256": "0d693ff67700e508612dee542eecd7b1dffb78a6a84297155b880d269f0762a1"
+      }
+    },
+    "artifacts_raw_sha256": {
+      ".tmp\\fee-a-bbc7-root-4-generate-result.json": "bc5233bf4ad920ea66b5a23a4d1fb3beb672aee7d94d9630ba5404f8a0abc78c",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\matrix.log": "ac8a948d71183768398ad7448396df5924e4b8feb361b0e11b62ea1ee09838fa",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\schema.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-yaml.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-json.log": "59fb926f985471d90209fd61c378699b5808d607716148242874ef55524ee2be",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\module-map.log": "01a0bd7f68254ad485a55c8b5daab54954828d657f3ba56378d5a5cb05d6f6f1",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\dictionary.log": "db13023dbf80a8a5c308c9ae61e0cbe4104cd64b39660891fcddd35351df34e7",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+      ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a",
+      ".tmp\\fee-a-bbc7-root-4-static-result.json": "ca98aa7c4fef425b98a1194686d2ec1bad4c3e25cc8637d2a265da2ddd2a37ff",
+      ".tmp\\fee-a-bbc7-root-4-static-logs\\black.log": "03ae340f569a5a47573653580cbf8ffc9e1a11a3652f8fd65f79e68fda22498c",
+      ".tmp\\fee-a-bbc7-root-4-static-logs\\isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".tmp\\fee-a-bbc7-root-4-static-logs\\ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      ".tmp\\fee-a-bbc7-root-4-static-logs\\incremental-mypy.log": "ec88f73df2f51260594bbf9fde1114a6574aac946a7a9c6eb37a4dd1a5a844db",
+      ".tmp\\fee-a-bbc7-root-4-static-logs\\full-mypy-debt.log": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+      ".tmp\\fee-a-bbc7-root-4-governance-result.json": "28ed0836b0529ea5bb477217f04e62f1632d9eecc27d67e4ef3f1992556068d7",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\architecture.log": "2da1de674340e817d552a5b771c8c69a191b62f9785f4a3bcb027f311a289d83",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-cycles.log": "b2a8a87001efaf6bfd42d32e4738f8f251729889f879f5a5a677a0732c112b45",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\changed-size.log": "269c70ab780a1cc6d26866082069720b51d02d7f1db2bf1c97a67f7afcac05f3",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\inventory-check.log": "78827f3ced2b65af1c458f5b82dc8e7b517e773fb9134f12492249e083ae3f0f",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-map.log": "c64f87933f3e5ac57f0bbf8e29fa8f56ec8a356447a94483ea2a4a93bdaea3bd",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-dictionary.log": "37432b5c7311a4ef5b69a4d30b0ba458fb8a50b8fc0cf09475fb9f0ec31ac3da",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-center-projections.log": "1099b4238d6c71149721f3b040b9df82b95fbf9259e6bc7cd01c979362505f44",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\current-contracts.log": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\audit-contracts.log": "64a970fda4c76c443231c11044a84c03e2a4c43262cb2fff0de26e19eb218d7e",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\celery-contracts.log": "085cec167077f3875e5c650c0b3230093c780e910eb5fa8f79063a3f2cec061b",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\full-governance.log": "b3d9c37cc55b09395916f323cae97e2352a975a039d2acc112242511aba7f096",
+      ".tmp\\fee-a-bbc7-root-4-governance-logs\\versioned-retirement.log": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+      ".tmp\\fee-a-bbc7-root-4-main-result.json": "e9ea1a1355d9b458385c5839a4346c1e87c0037272dcb6d4d5075d3ed99c306a",
+      ".tmp\\fee-a-bbc7-root-4-main-logs\\suite.log": "41ac12c7beafc186ca338aa1e6233386e4d7be73bd3c4985b0390da78d9159e6",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-main-suite.xml": "efb93b919ccfa7220426441603d5ba90516f3e5dd9ecc421adae096267c9dfbf",
+      ".tmp\\fee-a-bbc7-root-4-migration-result.json": "b3ac019fd7c0107eb08348b7191495e5596bd5328ecea876205b9bf64cd0a04b",
+      ".tmp\\fee-a-bbc7-root-4-migration-logs\\0067.log": "f6c0b4564f6c724971420005fcfbe478a9a6f54840bc3ce9c3b7c426b429b0c2",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-migration-0067.xml": "0e026943eda0380b6cc41a4e45423285d2e7e784d4c32d22ebe1d8373e4a78d6",
+      ".tmp\\fee-a-bbc7-root-4-native-result.json": "fece1516f8fbbc17b004ac84d2fdaad31cd3abb1a739d03c0ca653c439266d32",
+      ".tmp\\run_fee_a_native_root4.py": "251b51fe8aadadf3e6d9e33c31cced84898b14b34e3da9cf03486ba3a3b7820d",
+      ".tmp\\fee-a-bbc7-root-4-coverage-review.json": "da815b4e58f6c7047ecbcc99c28faaed2c933a5c28a5cd7e4046ce245e6a1e27",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-native.xml": "ea14e135fdd288fbca462a46e79bee03874efcacccc61244ada3f78a269738fe",
+      ".tmp\\fee-a-bbc7-root-4-native.log": "529814510999742977467fe816455c1656dcd6e8abd3251ae63b47de2427e2ad",
+      ".tmp\\fee-a-bbc7-root-4-migration-graph.log": "2958e6f4005a70f7243abcbebc5ebfdb15790a84514098f5539abcf4d432996f",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-coverage.json": "e1c6b5f0e1dfd2317f00fa13100c46f3b0ac58206e71d124472eec64f937ed52",
+      ".tmp\\fee-a-bbc7-root-red-1-test-result.json": "6a14b0da0a90e7c771ec7ccd36cd67a3b7111c4add123581c368bb8e2bf8f98a",
+      ".tmp\\verify_fee_a_root4_native_coverage.py": "d1f6182be21438512706197b6504e5269961f19b7fa73000656b5214a9386c25",
+      ".tmp\\fee-a-bbc7-root-4-domain-smoke-sequence.json": "f5eb3cbdf22b3bf3d559ebd9ffc4c04342a3145e64dee3522e5f8431f039b54f",
+      ".tmp\\fee-a-bbc7-root-4-domain-result.json": "bf2174b32f7dd2747862e1b5da5dd7392a71ea6166c7dcd0e6424efc8dd2860b",
+      ".tmp\\fee-a-bbc7-root-4-smoke-result.json": "2207c8b81c7294d51952226453bbecfd00a40c09eabf6a8721dd0ccdd018b71d",
+      ".tmp\\run_fee_a_root4_domain_smoke.py": "640682a683c83fd6a66e281b67207d5e53b8f115b98141edce3e240876f71bdd",
+      ".tmp\\run_fee_a_root4_domain_with_junit.py": "fe4d20ef734ce14f4b404db50aac4cacf0474a2b6f97a2bb151ef1ba3a9ddb69",
+      ".tmp\\run_fee_a_root4_smoke.py": "57f43bb3fe2d23f6e14ac0e78763e3eed05a4ea248dbfcfe83fffe059e9602f5",
+      ".tmp\\fee-a-bbc7-root-4-domain-logs\\line-gate.log": "8c0c07df5a387cea5ed26fe9b34aefa03585c19da092c9d0aca871b2d3d683a7",
+      ".tmp\\fee-a-bbc7-root-4-export\\githvagomTradePro.tmpfee-a-bbc7-root-4-export.tmpfee-a-bbc7-root-4-domain-line-gate.xml": "6ce4fcadc29baa33a7d1dae71470c655657fab0ff872e4b9897645abc4aaec88",
+      ".tmp\\fee-a-bbc7-root-4-smoke-logs\\minimum-regression.log": "bfd8fccc9a9fa2dadff3596807219f33b382543fb04c2d488d983c1d621ee154",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-minimum-regression.xml": "622bf851f7770b456a266d670622c287f29a9f139cf70171710b91660987546d",
+      ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-harness-failure.json": "d80c0170dcc4d14492507caad37be9d155d5f4dc46c0be6334ef794269820bfa",
+      ".tmp\\fee-a-bbc7-root-4-smoke-http-retry.log": "204c2362c4c39978acaf94b93b7a09a748204987eba075462c22284e296605bc",
+      ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2-result.json": "79fe11fa130123a8b132b5dcb3f52b6e77aa5869bea62696b6ca046ea16d1af9",
+      ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.log": "466e7ce063cf5de894fe4b27a38cd2550ce3187d4ebff0cd5d9f386fcf36b4f9",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.xml": "a29daa19d827379206b63bf5a0a8e1b7c32bf28c05ab978d75642020106d5e1e",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\ash_fee_sdk_http_fence_v2.py": "0d693ff67700e508612dee542eecd7b1dffb78a6a84297155b880d269f0762a1",
+      ".tmp\\run_fee_a_root4_sdk_http_retry_v3.py": "d44e1e364769c640059c44798934c783482cb1b6fd0c0e2bb8141b003add1d08",
+      ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.log": "174fa4dfac83b2c7a78270323aee04c518bc18c8043abb6456d62eb5dc6dc83c",
+      ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.xml": "17ae63800b7a336934619a033ecbb52ca395d2ec8bf64280b718f0e903d93f5f",
+      ".tmp\\fee-a-bbc7-root-4-db-sequence.json": "acfaa2556038356169b22f9c63fa6e8d3042a2bca826539c39dbe7e8c1278c03",
+      ".tmp\\fee-a-bbc7-root-4-browser-result.json": "e57dc1b9640fc2a93903078bd15dadf9ae65480432a56c53666d4660ffe088a1",
+      ".tmp\\fee-a-bbc7-root-4-api-edges-result.json": "5c1518084810505665b4c08679ed5f366c267d6709fb1c13d5905a439acf142c",
+      ".tmp\\fee-a-bbc7-root-4-remaining-checks.json": "286921a6e913ea7ffe46c494d72333c0391b41c3101e295962f091f51eb611f5",
+      ".tmp\\run_fee_a_root4_db_sequence.py": "7b1e7023242776ba24166d40945137a832d0a2e65294e7a6327fd18ab9d25fab",
+      ".tmp\\run_fee_a_root4_remaining_checks.py": "41aba99c21ebd4eedf01cb6001f551f0c1318bda1f6c2cffe679eec060ef1379",
+      ".tmp\\run_fee_a_bbc7_root4_phase.py": "d795d6085f8a8dd337593efb2f7222dbf258102cd8d8dc249c566bdad456655a",
+      ".tmp\\fee-a-bbc7-root-4-browser-logs\\admin.log": "378abd29f970e00b79be4b19fde8c4b836a7198d8f0d2d42a25b888bfb67dbad",
+      ".tmp\\fee-a-bbc7-root-4-api-edges-logs\\transaction.log": "f555fc52a0b21e2f3a4b08747c526996aa26220f3284cf7b7ae46e0cbfdb4255",
+      ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+      ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+      ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+      ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+      ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+      ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0",
+      ".tmp\\fee-a-bbc7-root-6-focused-result.json": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+      ".tmp\\run_fee_a_root6_focused.py": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-black.log": "a4242762b1ec95204728cf7b5d5654cc0d48b760dbd8d802af61eadfdd728777",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\browser-admin.log": "2820eb35dc38f7ae5858aebafb290c04273317c5a5f29287c078c3ed6acc55ec",
+      ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-browser-admin.xml": "1d07d0b843b6dd5f6f127fa73568b45126235ffd3f45b61f696f73446137d24b",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\api-edges-transaction.log": "8cb7e81cbdfc76ca708d4ef1c4f54b9e9420995535b09a07d4233867e9940982",
+      ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-api-edges-transaction.xml": "d650ee098638e08abda5a63c9c19b62a24c4f074c587ac0c43253cea231310bc",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+      ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a",
+      ".tmp\\fee-a-bbc7-root-4-reference.json": "c01c45e752d6c2653ce462f17a0efc9e8ee98968830114f4080c8f0ff8f87d32",
+      ".tmp\\fee-a-bbc7-root-6-reference.json": "06810b1dceb19d38b18bd25fcd8fcfee3cabfa5d8c18b9761d64213d51c00541",
+      ".tmp\\fee-a-bbc7-root-6-revision-proof.json": "e217bc4692a9d70722af47f7bc8737b517797d23b5dd5086fc7f73b10151e726",
+      ".tmp\\fee-a-bbc7-root-4-projection-review.json": "1fc63ffe742262b327b8f5fe84bdd6b97c7a58e5b4a3466e89c5ae3c9d154807",
+      ".tmp\\fee-a-bbc7-root-6-projection-review.json": "d03a20d61122377518348152c99a325ae1c4f2b9a5c51b05e5b20c05bc339be5",
+      ".tmp\\fee-a-root5-acceptance-candidate-20261018\\root5_acceptance_binding.py": "1fed2878691d186b44e09314fe8ba7fd3487aa5b1b1d9e4f67b9085ea87a374c",
+      ".tmp\\fee-a-root5-acceptance-candidate-20261018\\candidate_scripts\\review_fee_a_root6_acceptance.py": "ba7957df3c7eaaaab193a94159bc4fff56dd08ffa72ef107c078d439431d92cc",
+      ".tmp\\fee-a-bbc7-root-6-canonical-source.patch": "459585ec0282953e06df24c47c8d89140d213b7bf2dc80a54e4c2c9b3c26dd1d"
+    },
+    "driver_raw_sha256": "ba7957df3c7eaaaab193a94159bc4fff56dd08ffa72ef107c078d439431d92cc"
+  },
+  "official_projections": {
+    "strict_delta": true,
+    "source_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+    "source_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+    "output_lf_sha256": {
+      "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv": "eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a",
+      "schema.yml": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "docs/testing/api/openapi.yaml": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "docs/testing/api/openapi.json": "a3acda668058464892929f60ec85f651bf380c6df359f28cd27feac08853fd0c",
+      "governance/module_map.json": "ea11a1c4b4e21a5b1b7f74258109c239951762db8fe7e0ece122ec31ed82943c",
+      "governance/data_dictionary.json": "cf5e38e7963c6129a454a590c1595c50b80a41ee31ef0302300d2cc095d36864",
+      "docs/architecture/DATA_DICTIONARY.md": "66920470be5c58e1a40ed4cf26e16a230abcb5bb6ebb8ec79b84f6e9ebe7f062",
+      "governance/data_center_architecture_inventory.json": "eb77092c8fae04d69203493d3e9bca17f4ef4372c288dae3df8e48a14d5aeff8",
+      "governance/data_center_entrypoints.json": "99665ab78b41ead373eac094838b24c32b4f9616e18735498bb6151e23eb8fea"
+    },
+    "origin_source_tree": "26d5011fec7774250944ef9665eb6a0bc0b3869e",
+    "origin_projection_review_raw_sha256": "1fc63ffe742262b327b8f5fe84bdd6b97c7a58e5b4a3466e89c5ae3c9d154807",
+    "revision_proof_raw_sha256": "e217bc4692a9d70722af47f7bc8737b517797d23b5dd5086fc7f73b10151e726"
+  },
+  "evidence_bundle": "artifacts/a-share-usability/ash01/account-fee-availability-evidence-2026-10-18.json",
+  "open_items": [
+    "Fee B SDK/MCP transport and CSV",
+    "MCP default account scope confirmation/commit",
+    "Already-mapped historical fee provenance reconciliation without inferring missing/zero",
+    "Qualified ordinary settlement callers, PIT and source qualification",
+    "Currency normalization",
+    "Full ASH-01–12 Goal",
+    "Real broker/production validation",
+    "RC and S6"
+  ],
+  "scope_statement": "Repository-only account fee availability; Root4 synthetic native PG and Root6 real local Admin journeys. No source, broker, execution, RC, S6 or production authority granted.",
+  "acceptance_binding": {
+    "acceptance_raw_sha256": "d15bfe8ce5383aad754701e01c87ae0c8f0cf601f0e3a4e6a924e9e8f6333dd5",
+    "source_identity": {
+      "final_revision_label": "Root6",
+      "root4_regression_source": {
+        "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+        "source_commit": "ca9c7febcb8c38a2cd0db3038cbd225d4dddd506",
+        "source_tree": "26d5011fec7774250944ef9665eb6a0bc0b3869e",
+        "reference_raw_sha256": "c01c45e752d6c2653ce462f17a0efc9e8ee98968830114f4080c8f0ff8f87d32"
+      },
+      "root5_final_source": {
+        "base": "bbc7d69ff930b6f95a658b7b800837166e263618",
+        "source_commit": "5c8005213e0659327c2b22cf51ac2b34a21c75c3",
+        "source_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a",
+        "reference_raw_sha256": "06810b1dceb19d38b18bd25fcd8fcfee3cabfa5d8c18b9761d64213d51c00541"
+      },
+      "intermediate_root5_failure": {
+        "status": "failed_retained_history",
+        "source_tree": "60bbc52edebcacea94fc3385b8d6691691185e5d",
+        "source_commit": "41f451c5dc20584b33df52fcd32af0d07e472215",
+        "counts": {
+          "total": 3,
+          "failed": 1,
+          "errors": 0,
+          "skipped": 0,
+          "passed": 2
+        },
+        "failed_node": {
+          "classname": "tests.component.account.test_transaction_fee_admin_browser_journey",
+          "name": "test_browser_csrf_and_foreign_owner_denials_leave_the_ledger_unchanged",
+          "time": "24.025"
+        },
+        "artifacts_raw_sha256": {
+          ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+          ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+          ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+          ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+          ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+          ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0"
+        }
+      },
+      "revision_proof_raw_sha256": "e217bc4692a9d70722af47f7bc8737b517797d23b5dd5086fc7f73b10151e726",
+      "focused_report_raw_sha256": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+      "focused_driver_raw_sha256": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+      "source_patch": {
+        "path": ".tmp\\fee-a-bbc7-root-6-canonical-source.patch",
+        "raw_sha256": "459585ec0282953e06df24c47c8d89140d213b7bf2dc80a54e4c2c9b3c26dd1d",
+        "path_count": 35,
+        "name_status": [
+          "M\tapps/account/application/manual_trade_sync.py",
+          "M\tapps/account/application/repository_provider.py",
+          "M\tapps/account/application/transaction_cost_use_cases.py",
+          "A\tapps/account/application/transaction_record_use_cases.py",
+          "M\tapps/account/domain/entities.py",
+          "A\tapps/account/domain/transaction_cost_calculations.py",
+          "M\tapps/account/domain/transaction_cost_contracts.py",
+          "A\tapps/account/domain/transaction_record_contracts.py",
+          "M\tapps/account/infrastructure/portfolio_models.py",
+          "M\tapps/account/infrastructure/position_repository.py",
+          "M\tapps/account/infrastructure/repositories.py",
+          "A\tapps/account/infrastructure/transaction_record_repository.py",
+          "M\tapps/account/interface/admin.py",
+          "M\tapps/account/interface/serializers.py",
+          "M\tapps/account/interface/transaction_api_views.py",
+          "A\tapps/account/migrations/0067_transaction_fee_availability_flags.py",
+          "M\tapps/simulated_trading/management/commands/migrate_account_ledger.py",
+          "M\tconfig/tui/migration/web_template_migration.v1.json",
+          "A\tcore/templates/admin/account/transaction/correct_costs.html",
+          "M\tdocs/INDEX.md",
+          "M\tdocs/architecture/project_structure.md",
+          "M\tdocs/plans/web-to-tui-migration-plan-2026-07-25.md",
+          "M\tdocs/testing/api/API_REFERENCE.md",
+          "M\tscripts/web_template_migration_inventory.py",
+          "M\ttests/api/test_account_api_edges.py",
+          "A\ttests/api/test_account_transaction_fee_availability.py",
+          "A\ttests/component/account/test_transaction_cost_availability_repository.py",
+          "A\ttests/component/account/test_transaction_fee_admin_browser_journey.py",
+          "A\ttests/component/account/test_transaction_fee_admin_workflow.py",
+          "A\ttests/component/account/test_transaction_fee_availability_migration.py",
+          "A\ttests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py",
+          "A\ttests/unit/account/test_transaction_cost_availability.py",
+          "M\ttests/unit/account/test_transaction_cost_use_cases.py",
+          "M\ttests/unit/test_web_template_migration_inventory.py",
+          "M\ttests/unit/test_web_to_tui_finalized_inventory.py"
+        ],
+        "numstat": {
+          "apps/account/application/manual_trade_sync.py": [
+            31,
+            9
+          ],
+          "apps/account/application/repository_provider.py": [
+            11,
+            6
+          ],
+          "apps/account/application/transaction_cost_use_cases.py": [
+            158,
+            54
+          ],
+          "apps/account/application/transaction_record_use_cases.py": [
+            143,
+            0
+          ],
+          "apps/account/domain/entities.py": [
+            4,
+            9
+          ],
+          "apps/account/domain/transaction_cost_calculations.py": [
+            52,
+            0
+          ],
+          "apps/account/domain/transaction_cost_contracts.py": [
+            9,
+            3
+          ],
+          "apps/account/domain/transaction_record_contracts.py": [
+            116,
+            0
+          ],
+          "apps/account/infrastructure/portfolio_models.py": [
+            24,
+            0
+          ],
+          "apps/account/infrastructure/position_repository.py": [
+            16,
+            0
+          ],
+          "apps/account/infrastructure/repositories.py": [
+            106,
+            51
+          ],
+          "apps/account/infrastructure/transaction_record_repository.py": [
+            164,
+            0
+          ],
+          "apps/account/interface/admin.py": [
+            363,
+            4
+          ],
+          "apps/account/interface/serializers.py": [
+            158,
+            58
+          ],
+          "apps/account/interface/transaction_api_views.py": [
+            114,
+            36
+          ],
+          "apps/account/migrations/0067_transaction_fee_availability_flags.py": [
+            38,
+            0
+          ],
+          "apps/simulated_trading/management/commands/migrate_account_ledger.py": [
+            123,
+            33
+          ],
+          "config/tui/migration/web_template_migration.v1.json": [
+            2,
+            2
+          ],
+          "core/templates/admin/account/transaction/correct_costs.html": [
+            14,
+            0
+          ],
+          "docs/INDEX.md": [
+            1,
+            0
+          ],
+          "docs/architecture/project_structure.md": [
+            2,
+            0
+          ],
+          "docs/plans/web-to-tui-migration-plan-2026-07-25.md": [
+            5,
+            5
+          ],
+          "docs/testing/api/API_REFERENCE.md": [
+            31,
+            1
+          ],
+          "scripts/web_template_migration_inventory.py": [
+            17,
+            8
+          ],
+          "tests/api/test_account_api_edges.py": [
+            38,
+            4
+          ],
+          "tests/api/test_account_transaction_fee_availability.py": [
+            735,
+            0
+          ],
+          "tests/component/account/test_transaction_cost_availability_repository.py": [
+            1008,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_admin_browser_journey.py": [
+            606,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_admin_workflow.py": [
+            346,
+            0
+          ],
+          "tests/component/account/test_transaction_fee_availability_migration.py": [
+            175,
+            0
+          ],
+          "tests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py": [
+            401,
+            0
+          ],
+          "tests/unit/account/test_transaction_cost_availability.py": [
+            1005,
+            0
+          ],
+          "tests/unit/account/test_transaction_cost_use_cases.py": [
+            77,
+            16
+          ],
+          "tests/unit/test_web_template_migration_inventory.py": [
+            29,
+            7
+          ],
+          "tests/unit/test_web_to_tui_finalized_inventory.py": [
+            6,
+            6
+          ]
+        },
+        "replayed_tree": "9f8cdf1b837e70cb93fae8482ebebe281db8635a"
+      },
+      "root4_regression_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-4-generate-result.json": "bc5233bf4ad920ea66b5a23a4d1fb3beb672aee7d94d9630ba5404f8a0abc78c",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\matrix.log": "ac8a948d71183768398ad7448396df5924e4b8feb361b0e11b62ea1ee09838fa",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\schema.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-yaml.log": "97dbce4e5e7b2ea7be0a4a917ede33304fac5f3bcce8daaaa3c99be0aa65ed11",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\openapi-json.log": "59fb926f985471d90209fd61c378699b5808d607716148242874ef55524ee2be",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\module-map.log": "01a0bd7f68254ad485a55c8b5daab54954828d657f3ba56378d5a5cb05d6f6f1",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dictionary.log": "db13023dbf80a8a5c308c9ae61e0cbe4104cd64b39660891fcddd35351df34e7",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+        ".tmp\\fee-a-bbc7-root-4-generate-logs\\dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a",
+        ".tmp\\fee-a-bbc7-root-4-static-result.json": "ca98aa7c4fef425b98a1194686d2ec1bad4c3e25cc8637d2a265da2ddd2a37ff",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\black.log": "03ae340f569a5a47573653580cbf8ffc9e1a11a3652f8fd65f79e68fda22498c",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\incremental-mypy.log": "ec88f73df2f51260594bbf9fde1114a6574aac946a7a9c6eb37a4dd1a5a844db",
+        ".tmp\\fee-a-bbc7-root-4-static-logs\\full-mypy-debt.log": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1",
+        ".tmp\\fee-a-bbc7-root-4-governance-result.json": "28ed0836b0529ea5bb477217f04e62f1632d9eecc27d67e4ef3f1992556068d7",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\architecture.log": "2da1de674340e817d552a5b771c8c69a191b62f9785f4a3bcb027f311a289d83",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-cycles.log": "b2a8a87001efaf6bfd42d32e4738f8f251729889f879f5a5a677a0732c112b45",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\changed-size.log": "269c70ab780a1cc6d26866082069720b51d02d7f1db2bf1c97a67f7afcac05f3",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\inventory-check.log": "78827f3ced2b65af1c458f5b82dc8e7b517e773fb9134f12492249e083ae3f0f",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\module-map.log": "c64f87933f3e5ac57f0bbf8e29fa8f56ec8a356447a94483ea2a4a93bdaea3bd",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-dictionary.log": "37432b5c7311a4ef5b69a4d30b0ba458fb8a50b8fc0cf09475fb9f0ec31ac3da",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\data-center-projections.log": "1099b4238d6c71149721f3b040b9df82b95fbf9259e6bc7cd01c979362505f44",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\current-contracts.log": "2fec9471ad946c29cec76e4e6161438531c056982938d311995265ba062202cc",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\audit-contracts.log": "64a970fda4c76c443231c11044a84c03e2a4c43262cb2fff0de26e19eb218d7e",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\celery-contracts.log": "085cec167077f3875e5c650c0b3230093c780e910eb5fa8f79063a3f2cec061b",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\full-governance.log": "b3d9c37cc55b09395916f323cae97e2352a975a039d2acc112242511aba7f096",
+        ".tmp\\fee-a-bbc7-root-4-governance-logs\\versioned-retirement.log": "77f3e3a5d2b05b2e78f4760bd22ceccf77608b2dd9648d483de13e8f2605636d",
+        ".tmp\\fee-a-bbc7-root-4-main-result.json": "e9ea1a1355d9b458385c5839a4346c1e87c0037272dcb6d4d5075d3ed99c306a",
+        ".tmp\\fee-a-bbc7-root-4-main-logs\\suite.log": "41ac12c7beafc186ca338aa1e6233386e4d7be73bd3c4985b0390da78d9159e6",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-main-suite.xml": "efb93b919ccfa7220426441603d5ba90516f3e5dd9ecc421adae096267c9dfbf",
+        ".tmp\\fee-a-bbc7-root-4-migration-result.json": "b3ac019fd7c0107eb08348b7191495e5596bd5328ecea876205b9bf64cd0a04b",
+        ".tmp\\fee-a-bbc7-root-4-migration-logs\\0067.log": "f6c0b4564f6c724971420005fcfbe478a9a6f54840bc3ce9c3b7c426b429b0c2",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-migration-0067.xml": "0e026943eda0380b6cc41a4e45423285d2e7e784d4c32d22ebe1d8373e4a78d6",
+        ".tmp\\fee-a-bbc7-root-4-native-result.json": "fece1516f8fbbc17b004ac84d2fdaad31cd3abb1a739d03c0ca653c439266d32",
+        ".tmp\\run_fee_a_native_root4.py": "251b51fe8aadadf3e6d9e33c31cced84898b14b34e3da9cf03486ba3a3b7820d",
+        ".tmp\\fee-a-bbc7-root-4-coverage-review.json": "da815b4e58f6c7047ecbcc99c28faaed2c933a5c28a5cd7e4046ce245e6a1e27",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-native.xml": "ea14e135fdd288fbca462a46e79bee03874efcacccc61244ada3f78a269738fe",
+        ".tmp\\fee-a-bbc7-root-4-native.log": "529814510999742977467fe816455c1656dcd6e8abd3251ae63b47de2427e2ad",
+        ".tmp\\fee-a-bbc7-root-4-migration-graph.log": "2958e6f4005a70f7243abcbebc5ebfdb15790a84514098f5539abcf4d432996f",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-coverage.json": "e1c6b5f0e1dfd2317f00fa13100c46f3b0ac58206e71d124472eec64f937ed52",
+        ".tmp\\fee-a-bbc7-root-red-1-test-result.json": "6a14b0da0a90e7c771ec7ccd36cd67a3b7111c4add123581c368bb8e2bf8f98a",
+        ".tmp\\verify_fee_a_root4_native_coverage.py": "d1f6182be21438512706197b6504e5269961f19b7fa73000656b5214a9386c25",
+        ".tmp\\fee-a-bbc7-root-4-domain-smoke-sequence.json": "f5eb3cbdf22b3bf3d559ebd9ffc4c04342a3145e64dee3522e5f8431f039b54f",
+        ".tmp\\fee-a-bbc7-root-4-domain-result.json": "bf2174b32f7dd2747862e1b5da5dd7392a71ea6166c7dcd0e6424efc8dd2860b",
+        ".tmp\\fee-a-bbc7-root-4-smoke-result.json": "2207c8b81c7294d51952226453bbecfd00a40c09eabf6a8721dd0ccdd018b71d",
+        ".tmp\\run_fee_a_root4_domain_smoke.py": "640682a683c83fd6a66e281b67207d5e53b8f115b98141edce3e240876f71bdd",
+        ".tmp\\run_fee_a_root4_domain_with_junit.py": "fe4d20ef734ce14f4b404db50aac4cacf0474a2b6f97a2bb151ef1ba3a9ddb69",
+        ".tmp\\run_fee_a_root4_smoke.py": "57f43bb3fe2d23f6e14ac0e78763e3eed05a4ea248dbfcfe83fffe059e9602f5",
+        ".tmp\\fee-a-bbc7-root-4-domain-logs\\line-gate.log": "8c0c07df5a387cea5ed26fe9b34aefa03585c19da092c9d0aca871b2d3d683a7",
+        ".tmp\\fee-a-bbc7-root-4-export\\githvagomTradePro.tmpfee-a-bbc7-root-4-export.tmpfee-a-bbc7-root-4-domain-line-gate.xml": "6ce4fcadc29baa33a7d1dae71470c655657fab0ff872e4b9897645abc4aaec88",
+        ".tmp\\fee-a-bbc7-root-4-smoke-logs\\minimum-regression.log": "bfd8fccc9a9fa2dadff3596807219f33b382543fb04c2d488d983c1d621ee154",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-minimum-regression.xml": "622bf851f7770b456a266d670622c287f29a9f139cf70171710b91660987546d",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-harness-failure.json": "d80c0170dcc4d14492507caad37be9d155d5f4dc46c0be6334ef794269820bfa",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry.log": "204c2362c4c39978acaf94b93b7a09a748204987eba075462c22284e296605bc",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2-result.json": "79fe11fa130123a8b132b5dcb3f52b6e77aa5869bea62696b6ca046ea16d1af9",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.log": "466e7ce063cf5de894fe4b27a38cd2550ce3187d4ebff0cd5d9f386fcf36b4f9",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-2.xml": "a29daa19d827379206b63bf5a0a8e1b7c32bf28c05ab978d75642020106d5e1e",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\ash_fee_sdk_http_fence_v2.py": "0d693ff67700e508612dee542eecd7b1dffb78a6a84297155b880d269f0762a1",
+        ".tmp\\run_fee_a_root4_sdk_http_retry_v3.py": "d44e1e364769c640059c44798934c783482cb1b6fd0c0e2bb8141b003add1d08",
+        ".tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.log": "174fa4dfac83b2c7a78270323aee04c518bc18c8043abb6456d62eb5dc6dc83c",
+        ".tmp\\fee-a-bbc7-root-4-export\\.tmp\\fee-a-bbc7-root-4-smoke-http-retry-3.xml": "17ae63800b7a336934619a033ecbb52ca395d2ec8bf64280b718f0e903d93f5f"
+      },
+      "root5_intermediate_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-5-reference.json": "ea65a4c6a56b0d25bcd23bb6b2ed587b3327c44b9d35631c12754cf607db7454",
+        ".tmp\\fee-a-bbc7-root-5-revision-proof.json": "d9ee8b10b3ce55459e610418063c74b99b7c60b63bc732e6c024f5cc87b613f7",
+        ".tmp\\fee-a-bbc7-root-5-focused-result.json": "604a976ebe0098f9077c2e5bc76b6ef05601ba066deb0b606e6261c7d12d3f5a",
+        ".tmp\\run_fee_a_root5_focused.py": "eaa6ecbe766c7331f717b822b1686cc15c94f271d3669686b5ab22fb32f2031b",
+        ".tmp\\fee-a-bbc7-root-5-focused-logs\\browser-admin.log": "8b88876307fa76d9330442aa77c97b6a0a086e2ab589e39bac6dba5d850c7f1a",
+        ".tmp\\fee-a-bbc7-root-5-export\\.tmp\\fee-a-bbc7-root-5-browser-admin.xml": "f9713982a4f1d44a708d1dcb0e8e2fc5fbaf737a2153393274302bee813537e0"
+      },
+      "final_focused_artifacts_raw_sha256": {
+        ".tmp\\fee-a-bbc7-root-6-focused-result.json": "5e03b0ccab2bfd7696e401f7674e66a62635a2f05c70186a09414b21ab3e0ce0",
+        ".tmp\\run_fee_a_root6_focused.py": "4997834252fd1e475719ddf6c93990d2f60b1392cc0a2b3aadb56fcf2da84fbb",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-black.log": "a4242762b1ec95204728cf7b5d5654cc0d48b760dbd8d802af61eadfdd728777",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-isort.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\style-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\browser-admin.log": "2820eb35dc38f7ae5858aebafb290c04273317c5a5f29287c078c3ed6acc55ec",
+        ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-browser-admin.xml": "1d07d0b843b6dd5f6f127fa73568b45126235ffd3f45b61f696f73446137d24b",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\api-edges-transaction.log": "8cb7e81cbdfc76ca708d4ef1c4f54b9e9420995535b09a07d4233867e9940982",
+        ".tmp\\fee-a-bbc7-root-6-export\\.tmp\\fee-a-bbc7-root-6-api-edges-transaction.xml": "d650ee098638e08abda5a63c9c19b62a24c4f074c587ac0c43253cea231310bc",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-architecture.log": "526d7054102fd512c2238e0db0e0c3e98c546342539353048058732c8e39be49",
+        ".tmp\\fee-a-bbc7-root-6-focused-logs\\projection-dc-entrypoints.log": "e15df7def88d7645e0b64195aa7cec7269d4493806c0d1a86ce2867a856b061a"
+      }
+    }
+  },
+  "postdoc": {
+    "status": "passed",
+    "registry_tests_passed": 8,
+    "skipped": 0,
+    "actual_exit_codes": {
+      "registry": 0,
+      "registry-tests": 0,
+      "full-governance": 0
+    },
+    "report_raw_sha256": "1cb389d9ce10e9360dfa97fe933a98b109b7babfd38e230416b82cf9222cbfdb",
+    "tested_input_raw_sha256": {
+      "apps/account/application/manual_trade_sync.py": "12f450cf58630983491311ba5b87a106ee3c6953e51faf9f4cba7a5b908dbb1a",
+      "apps/account/application/repository_provider.py": "34af9968cb2de757012cd2b70cbaa654d176e3f14e6dfc0b3e0f527ce2685ce2",
+      "apps/account/application/transaction_cost_use_cases.py": "549b924dae55f45ae94ee15fb3bd88f817c4fcfdc9e0acbc6341739d97441b61",
+      "apps/account/application/transaction_record_use_cases.py": "b5fcc687f93fd816e6537903529e22dcad7405f99dd0fdb9f7ddf33085c959ea",
+      "apps/account/domain/entities.py": "20584b22094bfe9c997a92a42c4c82f91a70622f10f0359ffa4fba667d6d0382",
+      "apps/account/domain/transaction_cost_calculations.py": "126cbba882173f9f092723d4e832ee10f4288a77f9ec4c6c78109d2daa28674b",
+      "apps/account/domain/transaction_cost_contracts.py": "65e50c5b03c7f71a26f546e6978e9d21c78786da45c80cc34ec53bb260656f87",
+      "apps/account/domain/transaction_record_contracts.py": "39d5710433190dbabb464ba1b29b6844001c79ccad6080d6cfccfd2d934cd7fb",
+      "apps/account/infrastructure/portfolio_models.py": "93ef04d6e2695f75faf95ce2ac733cf478e4ea78095f0b25c2202fbb6252b077",
+      "apps/account/infrastructure/position_repository.py": "a223cd67ab680e49d712d612c95b9daa5d0a0b5003d78c3547663eeaf7912722",
+      "apps/account/infrastructure/repositories.py": "3945ab1417563887baf351808b28b06eb3b6369caa403437b10172a90b1ed5d5",
+      "apps/account/interface/admin.py": "1799cdbf6da477b0f8a0bfdc4c783c901b97f5486410409bdbd2ac8507aa18c8",
+      "apps/account/interface/serializers.py": "3e5e45827c4229ecd10d54ff0b50b2b096c75dfe469df33dc80b00d24f6884d2",
+      "apps/account/interface/transaction_api_views.py": "2ca19ae5569d88d0f8e8e3fe5da26de0ef0bcc46af8531853f26231c4931a3e9",
+      "apps/account/migrations/0067_transaction_fee_availability_flags.py": "4d062d8e81f4b515eb2e80f292482647a5be812353e4a598e488933f2556bcd6",
+      "apps/simulated_trading/management/commands/migrate_account_ledger.py": "0e62f358b087d9f38755b6a7231ac1f423a15b3d7d3e179b2250500183b79136",
+      "config/tui/migration/web_template_migration.v1.json": "3710396e47d04995a9b8b54d734f81f46de0a8952615b14a509ba65381850519",
+      "core/templates/admin/account/transaction/correct_costs.html": "3593128d18916e6e88d8964c0fb53dcfa3f4f0ceb8887752a1c140d9b79259fd",
+      "docs/architecture/project_structure.md": "c5a961d71cd54ef1643958e705729f491cd099f0fb8380719c6b7cde52e96f91",
+      "docs/plans/web-to-tui-migration-plan-2026-07-25.md": "55ba47a3b2d9bb3d41c90663666708b799555094667df036b622ba820b80a0b6",
+      "docs/testing/api/API_REFERENCE.md": "e1f6dfc6229c88800e757fb88fe7ef3cef972a49f8313dac578293a4253678e6",
+      "scripts/web_template_migration_inventory.py": "e64ce9fedff0d59f8ce2d9c6515583f9da32e583381f5f4ccfc6fc0868fe9ca9",
+      "tests/api/test_account_transaction_fee_availability.py": "17ee9992a6555fa451c3a1514b039d4d0c2bad89451ef6e7435f241d1f1ea538",
+      "tests/component/account/test_transaction_cost_availability_repository.py": "3ceb8f0f2d53d7c4c93665716561930e76b3bebd4954564bf08de86b6a124d91",
+      "tests/component/account/test_transaction_fee_admin_browser_journey.py": "7de3b507f95df72dc6966aac79c536613e5300e613bd96e237377b1b53c29a4a",
+      "tests/component/account/test_transaction_fee_admin_workflow.py": "4d5160e359333fdf5e7a91b9222d587def9d8efbbdd1f9dec89d165db7697063",
+      "tests/component/account/test_transaction_fee_availability_migration.py": "478970a8df12af76d0d2e2429bde3de8c3121d5de71da1fe756e811a7eff7b21",
+      "tests/component/simulated_trading/test_migrate_account_ledger_fee_availability.py": "5729d6cc5255ab36a345cadea8e5a8c7145208628216bef635fa7f092a81851d",
+      "tests/unit/account/test_transaction_cost_availability.py": "cf0d1323f264409f4a9500b5fb27af2dbfbca7fa6f45c00c38dc64deef200bb3",
+      "tests/unit/account/test_transaction_cost_use_cases.py": "0bd2b495c4b0265aaf6478fdca4dfca2f29fd18bd79df4bf7dcfacfb6e0e2c96",
+      "tests/unit/test_web_template_migration_inventory.py": "faa33774b0159d3035d5abb8fb42ef884d21c487a3aca786470672eb5c8d8733",
+      "tests/unit/test_web_to_tui_finalized_inventory.py": "c20d5ed6cb27a608bae1f87494c05cf98149dd156ac6ccba062dbcd7ae02e70a",
+      "docs/INDEX.md": "e2c79f5c7203556d0b76f33d3a8af39b7d58c21bd2465fc19ef22cac53b287b1",
+      "apps/account/infrastructure/transaction_record_repository.py": "6e443357cf50e4e548392a3889dc3b48c2a5d1947985f25e65e875efc8d7cd1a",
+      "tests/api/test_account_api_edges.py": "29296bea89106b99b5d649198cfa7ac7db3370bf75ce643e531ff9e80d0875f7",
+      "docs/plans/web-to-tui-migration-matrix-2026-07-25.csv": "eba54d3a268292ed235adb7708715f229336fc2fb1ca553841bd8d0101cff21a",
+      "schema.yml": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "docs/testing/api/openapi.yaml": "815aec86bc0f5790b38846f0b9af7c9057b69a648b41a2f9bae1c4e685346add",
+      "docs/testing/api/openapi.json": "a3acda668058464892929f60ec85f651bf380c6df359f28cd27feac08853fd0c",
+      "governance/module_map.json": "ea11a1c4b4e21a5b1b7f74258109c239951762db8fe7e0ece122ec31ed82943c",
+      "governance/data_dictionary.json": "cf5e38e7963c6129a454a590c1595c50b80a41ee31ef0302300d2cc095d36864",
+      "docs/architecture/DATA_DICTIONARY.md": "66920470be5c58e1a40ed4cf26e16a230abcb5bb6ebb8ec79b84f6e9ebe7f062",
+      "governance/data_center_architecture_inventory.json": "eb77092c8fae04d69203493d3e9bca17f4ef4372c288dae3df8e48a14d5aeff8",
+      "governance/data_center_entrypoints.json": "99665ab78b41ead373eac094838b24c32b4f9616e18735498bb6151e23eb8fea",
+      "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": "f886ba5ecd625140f055b9fc3cd300c061d9360bd7546e8e90dfb0a4d9c8c754",
+      "governance/active_plan_registry.json": "2c1c543980b234fef6612e9ca31e4a8e1074808838527f6d43310c28311a43d9",
+      "docs/testing/a-share-usability-account-fee-availability-2026-10-18.json": "c40eb04b0dc9b50eb6d2bfad4daff4687173c6b82e67937d1a65435c172e8b19",
+      "artifacts/a-share-usability/ash01/account-fee-availability-evidence-2026-10-18.json": "0dab61002015cd66115711dac09e3165931a1557291bdc39b91bc0f295b5a537"
+    },
+    "finalization_scope": "Only acceptance metadata and one plan paragraph finalized after these checks; source, projections and registry remain the actual tested inputs. No final Git SHA or S6 claim."
+  }
+}

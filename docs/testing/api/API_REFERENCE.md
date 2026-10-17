@@ -459,7 +459,8 @@ POST /api/backtest/run/
 | `/api/account/portfolios/` | GET | 获取投资组合列表 |
 | `/api/account/portfolios/{id}/` | GET | 获取组合详情 |
 | `/api/account/positions/` | GET | 获取持仓列表 |
-| `/api/account/transactions/` | GET | 获取交易记录 |
+| `/api/account/transactions/` | GET/POST | 获取交易记录列表 / 创建交易记录 |
+| `/api/account/transactions/{id}/` | GET | 获取交易记录详情 |
 | `/api/account/capital-flows/` | GET | 获取资金流水 |
 | `/api/account/profile/` | GET | 获取账户配置 |
 | `/api/account/portfolios/{id}/allocation/` | GET | 获取资产配置 |
@@ -469,6 +470,35 @@ POST /api/backtest/run/
 - `account_id + account_type` 是当前统一账户主口径，canonical 路径为 `/api/account/accounts/*`。
 - `/api/simulated-trading/accounts/*` 是统一账户模块原生路径，功能与 canonical 对齐。
 - `/api/account/portfolios/*` 保留为旧账本兼容入口。
+
+### 9.2 交易费用可用性与响应契约
+
+`/api/account/transactions/` 是现有交易记录入口：GET 返回当前用户范围内的分页列表，POST 创建交易；`/api/account/transactions/{id}/` 的 GET 返回当前用户范围内的单笔记录。创建请求中的 `portfolio` 是旧 Account `PortfolioModel` 主键，`position` 是旧 Account `PositionModel` 主键；这两个字段不接受 canonical `SimulatedAccount` / `account_id`。创建请求先验证组合归属，再检查可选持仓；当组合和持仓均不属于当前用户时，优先返回组合归属拒绝。费用字段随交易记录读写，不新增费用汇总 API。
+
+创建请求中的 `commission`、`slippage`、`stamp_duty`、`transfer_fee` 均为可选非负金额。省略、`null` 或空字符串表示未知；显式 `0` 表示已知的零金额。客户端提交的 `*_known` 字段由服务端控制，会被忽略，不能用来声明费用已采集。
+
+HTTP 创建和后台修正表单的费用最多接受两位小数，单项上限为 `99999999.99`。手工成交导入对已提供的费用按分使用 `ROUND_HALF_UP` 归一化，并在舍入后检查同一上限；例如 `0.005` 为 `0.01`，`0.004` 为已采集的 `0.00`。缺失或空白不参与舍入，原始导入文本保留在审计字段中。
+
+响应中的金额和可用性标记按以下语义配对：
+
+| `*_known` | 费用金额 | 含义 |
+|---|---|---|
+| `true` | JSON decimal 字符串（例如 "0.00"，包括零） | 已采集的实际费用 |
+| `false` | `null` | 明确未采集；底层占位值不作为实际金额返回 |
+| `null` | `null` | 可用状态未声明/未知（包括历史记录或未显式设置状态的记录） |
+
+创建成功仍返回 HTTP `201`，保留现有响应字段并返回四项费用及只读 `*_known` 标记；响应不增加 `id`。`GET` 列表和详情返回相同的费用/标记语义。
+
+| 状态码 | 边界 |
+|---|---|
+| `400` | 请求字段不合法，例如费用为负数，或组合/持仓引用无效。 |
+| `403` | 已认证用户没有相应交易权限，或不能在目标组合/持仓下创建交易。 |
+| `404` | 交易详情不存在或不属于当前用户；无效详情 ID 也按未找到处理。 |
+| `405` | 该交易 API 不支持的 HTTP 方法；交易记录保持追加式，详情不支持 PATCH/DELETE。 |
+
+后台“修正交易费用”入口允许逐项修正：留空表示保留该项原值和状态，输入 `0` 表示已知的零金额；至少提交一项费用。历史字段迁移只添加可空状态，不从旧占位值或估算值推断实际费用。迁移到账本时，已存在映射的交易按幂等规则跳过；对尚未映射的交易，只有四项 `*_known` 全部为 `true` 才迁移，否则跳过并计入未知费用跳过数。
+
+这些费用值保留记录中的原始金额口径；当前接口不做币种换算或人民币归一。当前公开 Account 交易接口提供记录创建、列表和详情，不提供费用聚合端点。
 
 ---
 

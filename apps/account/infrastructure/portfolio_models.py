@@ -244,6 +244,30 @@ class TransactionModel(models.Model):
     transfer_fee = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, verbose_name="过户费"
     )
+    commission_known = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="手续费已采集",
+    )
+    slippage_known = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="滑点已采集",
+    )
+    stamp_duty_known = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="印花税已采集",
+    )
+    transfer_fee_known = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="过户费已采集",
+    )
 
     # 成本预估（交易前）
     estimated_cost = models.DecimalField(

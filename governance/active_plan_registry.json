@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v266",
+  "version": "2026-10-18.v267",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Fee composition consolidation source tree cc3551d5d50a8c1b7471b9d527a270f2184e3a4c passed all 19 bounded repository checks; SQLite unit/component JUnit recorded 69/69 pass with no skips. The prior isolated test-only RED was one expected collection ImportError, not a business assertion result. The official generated module map has a strict one-field root-count delta. This batch does not complete the A-share Goal, fee behavior/cost acceptance, ordinary settlement, MCP, PIT, source qualification, external Python import-path compatibility, RC, S6, or production validation. No SQL or schema changed; PostgreSQL tests were not run in this bounded composition-only batch. Evidence: artifacts/a-share-usability/ash01/fee-composition-consolidation-evidence-2026-10-18.json.",
+      "next_gate": "Fee A bounded repository acceptance: Root4 regression and Root6 final focused checks are separately bound; historical failed browser/API/smoke runs and exact local-HTTP retry remain distinct. Commit only after postdoc registry/governance checks. Next development: independent Fee B SDK/MCP/CSV and MCP default-account scope confirmation, then qualified settlement/PIT/source work. Historical already-mapped fees, full Goal and production/RC/S6 remain open. Evidence: docs/testing/a-share-usability-account-fee-availability-2026-10-18.json",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

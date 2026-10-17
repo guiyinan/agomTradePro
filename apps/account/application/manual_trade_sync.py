@@ -17,6 +17,10 @@ from apps.account.application.repository_provider import (
     get_portfolio_api_repository,
 )
 from apps.account.application.simulated_trading_gateway import get_unified_position_service
+from apps.account.application.transaction_cost_use_cases import (
+    normalize_actual_fee,
+)
+from core.exceptions import InvalidInputError
 from core.integration.decision_execution_links import build_manual_trade_execution_matcher
 
 REQUIRED_COLUMNS = {"traded_at", "action", "asset_code", "shares", "price"}
@@ -35,15 +39,16 @@ class NormalizedTradeRow:
     asset_code: str
     shares: float
     price: Decimal
-    commission: Decimal
-    stamp_duty: Decimal
-    transfer_fee: Decimal
+    commission: Decimal | None
+    stamp_duty: Decimal | None
+    transfer_fee: Decimal | None
     external_trade_id: str
     notes: str
     broker_trade_key: str
     raw_payload: dict[str, Any]
 
     def to_preview_dict(self, *, duplicate: bool = False) -> dict[str, Any]:
+        """Serialize this normalized trade as a broker-import preview row."""
         return {
             "row_number": self.row_number,
             "traded_at": self.traded_at.isoformat(),
@@ -51,9 +56,9 @@ class NormalizedTradeRow:
             "asset_code": self.asset_code,
             "shares": self.shares,
             "price": str(self.price),
-            "commission": str(self.commission),
-            "stamp_duty": str(self.stamp_duty),
-            "transfer_fee": str(self.transfer_fee),
+            "commission": str(self.commission) if self.commission is not None else None,
+            "stamp_duty": str(self.stamp_duty) if self.stamp_duty is not None else None,
+            "transfer_fee": str(self.transfer_fee) if self.transfer_fee is not None else None,
             "external_trade_id": self.external_trade_id,
             "broker_trade_key": self.broker_trade_key,
             "duplicate": duplicate,
@@ -447,9 +452,9 @@ class ManualTradeImportUseCase:
                 price = self._parse_decimal(lowered["price"], "price")
                 if price <= 0:
                     raise ValueError("price must be positive")
-                commission = self._parse_decimal(lowered.get("commission", 0), "commission")
-                stamp_duty = self._parse_decimal(lowered.get("stamp_duty", 0), "stamp_duty")
-                transfer_fee = self._parse_decimal(lowered.get("transfer_fee", 0), "transfer_fee")
+                commission = self._parse_optional_fee(lowered.get("commission"), "commission")
+                stamp_duty = self._parse_optional_fee(lowered.get("stamp_duty"), "stamp_duty")
+                transfer_fee = self._parse_optional_fee(lowered.get("transfer_fee"), "transfer_fee")
                 external_trade_id = str(lowered.get("external_trade_id", "") or "").strip()
                 notes = str(lowered.get("notes", "") or "").strip()
                 broker_trade_key = self._build_broker_trade_key(
@@ -511,6 +516,23 @@ class ManualTradeImportUseCase:
         if decimal_value < 0:
             raise ValueError(f"{field_name} must not be negative")
         return decimal_value
+
+    @staticmethod
+    def _parse_optional_fee(value: Any, field_name: str) -> Decimal | None:
+        """Preserve missing fees and apply shared cents normalization to supplied amounts."""
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        try:
+            decimal_value = Decimal(str(value).strip())
+        except InvalidOperation as exc:
+            raise ValueError(f"{field_name} must be numeric") from exc
+        try:
+            normalized = normalize_actual_fee(decimal_value, field_name=field_name)
+        except InvalidInputError as exc:
+            raise ValueError(f"{field_name} is invalid: {exc}") from exc
+        if normalized is None:
+            raise ValueError(f"{field_name} could not be normalized")
+        return decimal_value if normalized == decimal_value else normalized
 
     @staticmethod
     def _build_broker_trade_key(

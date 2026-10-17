@@ -860,6 +860,7 @@
           "get_portfolio_snapshot_repository",
           "get_transaction_cost_config_repository",
           "get_transaction_cost_repository",
+          "get_transaction_record_repository",
           "mark_backup_delivery_sent"
         ],
         "application/simulated_trading_gateway.py": [
@@ -928,7 +929,13 @@
           "TransactionCostAnalysis",
           "TransactionCostAnalysisUseCase",
           "TransactionCostEstimate",
-          "TransactionCostEstimationUseCase"
+          "TransactionCostEstimationUseCase",
+          "normalize_actual_fee"
+        ],
+        "application/transaction_record_use_cases.py": [
+          "CreateTransactionUseCase",
+          "GetTransactionUseCase",
+          "ListTransactionPageUseCase"
         ],
         "application/use_cases.py": [
           "AnalyzePortfolioUseCase",
@@ -1036,9 +1043,9 @@
         ]
       },
       "layers": {
-        "application": 68,
-        "domain": 36,
-        "infrastructure": 141,
+        "application": 69,
+        "domain": 38,
+        "infrastructure": 142,
         "interface": 24,
         "management": 14,
         "root": 23

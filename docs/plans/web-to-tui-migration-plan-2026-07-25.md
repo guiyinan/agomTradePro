@@ -49,7 +49,7 @@
 | D：删除 | 7 | 已由 M0-D 删除并在矩阵保留原始 hash、loader/route 证据与回滚记录位 |
 | 初始合计 | 195 | A/B/C/D 互斥；M0-D 后物理模板数为 188 |
 
-当前矩阵为 **196 行**（A=131、B=17、C=41、D=7）：在 M0 的 195 行初始基线上，迁移期新增了 1 个共用兼容提示 partial，并已纳入冻结台账；扣除 7 个已删 D 档后，当前物理模板数为 189。矩阵记录 117 个历史 route page，其中 7 个 D 档已删除；剩余 110 个 active route page 中，108 个 A/B 页面已关联 Django resolver、目标 TUI screen/action 和主任务，另 2 个认证前登录/注册页按 C 档保留。初始 `api_gap=review_required` 仅表示需核对 owner app JSON 契约，不等同于已经确认缺少 API；其后续关闭状态以矩阵和各 wave 证据为准。
+当前矩阵为 **197 行**（A=131、B=17、C=42、D=7）：在 M0 的 195 行初始基线上，迁移期新增了 1 个共用兼容提示 partial，并新增 1 个 Django Admin 交易费用修正模板；前者纳入冻结台账，后者按 §8 纳入 C 档。扣除 7 个已删 D 档后，当前物理模板数为 190。矩阵记录 117 个历史 route page，其中 7 个 D 档已删除；剩余 110 个 active route page 中，108 个 A/B 页面已关联 Django resolver、目标 TUI screen/action 和主任务，另 2 个认证前登录/注册页按 C 档保留。初始 `api_gap=review_required` 仅表示需核对 owner app JSON 契约，不等同于已经确认缺少 API；其后续关闭状态以矩阵和各 wave 证据为准。
 
 ### 2.3 模板角色
 
@@ -420,7 +420,7 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 
 发布工具也已在仓库侧补齐 provenance：上传构建拒绝 dirty worktree 和 `unknown`/非完整 commit，clone 构建锁定 expected commit；两种路径均要求 OCI revision exact match，并生成只读 release manifest。deploy 会在任何服务启动或 `current` 切换前核验 manifest、image ID 与 revision。相关本地回归 `44 passed`。该代码尚未部署，当前生产快照仍无法证明候选身份，因此不能据此启动或回填 M5-A。
 
-## 8. Web 保留清单（C 档，当前 41 个）
+## 8. Web 保留清单（C 档，当前 42 个）
 
 | 保留域 | 模板范围 | 数量 | 默认 owner | 保留理由 |
 |---|---|---:|---|---|
@@ -428,11 +428,11 @@ python tui-metadata-compiler/scripts/publish_tui_metadata.py \
 | observer 门户 | `core/templates/account/observer_portal.html`、`core/templates/account/collaboration.html` | 2 | account | 面向非日常操作者 |
 | 登录与注册 | `core/templates/account/login.html`、`core/templates/account/register.html` | 2 | account | 发生在认证前，不能依赖需要已认证会话的 TUI shell |
 | setup_wizard | `apps/setup_wizard/templates/**` | 7 | setup_wizard | 一次性初始化流程，web 引导成本最低 |
-| Django Admin 定制 | `core/templates/admin/**` | 9 | 对应模型 owner | Admin 生态本身是模板驱动，不宜迁 |
+| Django Admin 定制 | `core/templates/admin/**` | 10 | 对应模型 owner | Admin 生态本身是模板驱动，不宜迁 |
 | 错误页与基座 | `core/templates/base.html`、`core/templates/base_auth.html`、`core/templates/404.html`、`core/templates/500.html` | 4 | core | 保留页面与错误页的共同基座 |
 | TUI shell | `core/templates/terminal/tui_workbench.html`、`core/templates/terminal/index.html` | 2 | terminal | TUI 自身的宿主模板 |
 | docs 页 | `core/templates/docs/**` | 2 | docs/core | 文档展示，低频 |
-| 合计 | — | 41 | — | 必须逐文件核对，不允许用 glob 数量漂移 |
+| 合计 | — | 42 | — | 必须逐文件核对，不允许用 glob 数量漂移 |
 
 保留清单以外的模板最终去向只有 A/B/D 三种；M0 为每项补 `last_reviewed_at`。M5 完成时仓库模板集合必须与本表展开后的精确文件清单一致，数量和路径均由机器检查。
 
@@ -563,7 +563,7 @@ verification date 取起点且拒绝手填日期，因此仅启动 collector 而
 
 ## 10. M0 映射矩阵契约
 
-M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`；本文只记录契约和阶段结果，不内嵌动态清单。该文件以 195 行为初始基线，当前因迁移期共用兼容 partial 增至 196 行；新增、删除或移动模板必须在同一改动中更新矩阵并通过 inventory check。每行至少包含：
+M0 的主产物固定为 `docs/plans/web-to-tui-migration-matrix-2026-07-25.csv`；本文只记录契约和阶段结果，不内嵌动态清单。该文件以 195 行为初始基线，当前因迁移期共用兼容 partial 与 Django Admin 交易费用修正模板增至 197 行；新增、删除或移动模板必须在同一改动中更新矩阵并通过 inventory check。每行至少包含：
 
 | 字段组 | 必填字段 |
 |---|---|

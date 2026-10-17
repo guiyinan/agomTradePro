@@ -1275,3 +1275,19 @@ Root strict projection review `481b649a028a9e37bfe85962b12e357dd97f089fed13620f1
 详细证据：`docs/testing/a-share-usability-fee-composition-consolidation-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/fee-composition-consolidation-evidence-2026-10-18.json`。
 
 登记更新后的独立补充验收实际通过8项registry单元，registry检查和再次full-governance均exit0；与冻结源码69项合计77项通过。补充证据在检查后写入并保留实际输入摘要，不冒充最终发布SHA或S6。
+
+### 19.60 Account fee availability bounded acceptance
+
+本批base `bbc7d69ff930b6f95a658b7b800837166e263618`，Root4回归树`26d5011fec7774250944ef9665eb6a0bc0b3869e`，最终Root6树`9f8cdf1b837e70cb93fae8482ebebe281db8635a`、source commit `5c8005213e0659327c2b22cf51ac2b34a21c75c3`。35源路径含18生产Python、11测试及相关模板/契约/文档。费用保留已采集零、明确未采集、历史未知三态，不据旧金额推断或回填资格；可用性为True才发布实际金额。完整实际费用与可配对估计分开统计，按源traded_at取时间窗。父Portfolio先于Position/账本锁并在锁内重查owner；PG NO KEY UPDATE兼容外键KEY SHARE。四个仓储方法完整AST提取，主文件1124→983非空行；未提高尺寸/类型/覆盖率基线。
+
+Root4实际主回归432通过、7项精确排除均在原生PostgreSQL实跑通过；0067独立迁移1通过，历史四项金额和时间保留、新flags全NULL。全账户Domain门4296通过、行覆盖率93.24%/90%门槛。费用四层行覆盖率Domain96.825%、Application85.714%、Interface81.757%、Infrastructure71.543%，分支单独记录。最小包原403通过/1失败因fence拦本地HTTP服务器反向解析；同Root4树精确单节点重跑1通过，仅登记端口2次真实HTTP连接、其他应用尝试0，原404套不称全绿。native父库观测schema/migrations/authority元数据前后相同，迁移图在隔离子库应用0067后只读验证；这些是synthetic本地验收。
+
+Root4浏览器3失败（同步Playwright线程ORM）、API7通过/1失败（原夹具同时外部组合/持仓）均保留。Root5只改两测试与API文档，浏览器2通过/1失败是CSRF选择器同时命中logout和费用表单；Root6相对它仅限定该selector字面量，AST反替换相同。最终Root6的Black/isort/Ruff、真实Chromium/Admin3项、API边界9项（59 deselected）、两项DC清单检查全部通过。Root4到Root6只3路径变更，18生产源及其余Git对象保持；原生、覆盖率、主回归不混称Root6重跑。源patch在独立index重放得到精确最终树。
+
+九份官方生成投影经严格差异审查后复制，内容在Root4/Root6间相同。OpenAPI只合成两个交易path及五个schema引用闭包，保留无关历史漂移，不声称全库fresh。DC架构清单仅3条Account docstring及29条TUX09遗漏引用，5808→5840；TUI owner确认六源码HEAD/export LF一致；entrypoint仅新增candidate-review迁移测试，不授予资格。模板矩阵保留原196行全部字段/顺序，追加一行C/retained Admin，不完成其他迁移门。
+
+最初missing费用返回0的真实RED及Root1冷导入/泛型/Ruff、Root2类型/文档/覆盖率、Root3尺寸/DC/迁移图失败都保留。最终证据校验器的缺失import、进度行解析、历史smoke退出码、摘要转录及导出CRLF/Git LF处理错误在发布前纠正，原日志/前件保留；Git原始blob与归一化导出分别核验，不改源码或原QA数据。
+
+后续独立实施Fee B和MCP默认范围；已mapped历史交易仍map-first，旧目标ledger无可用性字段，不能从零值恢复来源；普通结算合格输入/来源/PIT/货币归一化及真实券商/production仍开放。费用写入与Admin LogEntry不声明独立跨两者原子保证。ASH02完整focus/policy、closure v78/79完整unit及其他workstream保持；ASH01–12完整Goal active。
+
+证据：`docs/testing/a-share-usability-account-fee-availability-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/account-fee-availability-evidence-2026-10-18.json`。记录更新后，registry checker、8项registry单元及full governance独立验证实际通过；所验输入摘要与原日志已保留。最终写入的验收说明不冒充最终发布SHA、RC或S6证据。

@@ -2737,13 +2737,8 @@ paths:
   /api/account/transactions/:
     get:
       operationId: api_account_transactions_get
-      description: |-
-        交易记录 API ViewSet
-
-        提供以下接口:
-        - GET /api/account/transactions/ - 获取交易列表
-        - POST /api/account/transactions/ - 创建交易记录
-        - GET /api/account/transactions/{id}/ - 获取交易详情
+      description: Read the existing page-number contract through a typed Application
+        page.
       parameters:
       - name: page
         required: false
@@ -2766,13 +2761,7 @@ paths:
           description: ''
     post:
       operationId: api_account_transactions_post
-      description: |-
-        交易记录 API ViewSet
-
-        提供以下接口:
-        - GET /api/account/transactions/ - 获取交易列表
-        - POST /api/account/transactions/ - 创建交易记录
-        - GET /api/account/transactions/{id}/ - 获取交易详情
+      description: Create through Application while keeping the existing 201 response.
       tags:
       - account
       requestBody:
@@ -2796,18 +2785,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TransactionCreate'
+                $ref: '#/components/schemas/TransactionCreated'
           description: ''
   /api/account/transactions/{id}/:
     get:
       operationId: api_account_transactions_by_id_get
-      description: |-
-        交易记录 API ViewSet
-
-        提供以下接口:
-        - GET /api/account/transactions/ - 获取交易列表
-        - POST /api/account/transactions/ - 创建交易记录
-        - GET /api/account/transactions/{id}/ - 获取交易详情
+      description: Read one transaction in the authenticated user's scope.
       parameters:
       - in: path
         name: id
@@ -34209,17 +34192,42 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           title: 手续费
+        commission_known:
+          type: boolean
+          readOnly: true
+          nullable: true
+        slippage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 滑点成本
+        slippage_known:
+          type: boolean
+          readOnly: true
+          nullable: true
         stamp_duty:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           title: 印花税
+        stamp_duty_known:
+          type: boolean
+          readOnly: true
+          nullable: true
         transfer_fee:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           title: 过户费
+        transfer_fee_known:
+          type: boolean
+          readOnly: true
+          nullable: true
         broker_name:
           type: string
           title: 券商名称
@@ -34309,9 +34317,11 @@ components:
       properties:
         portfolio:
           type: integer
+          minimum: 1
           title: 投资组合
         position:
           type: integer
+          minimum: 1
           nullable: true
           title: 关联持仓
         action:
@@ -34336,7 +34346,109 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
           title: 手续费
+        slippage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 滑点成本
+        stamp_duty:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 印花税
+        transfer_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 过户费
+        notes:
+          type: string
+          default: ''
+          title: 备注
+        traded_at:
+          type: string
+          format: date-time
+          title: 交易时间
+      required:
+      - action
+      - asset_code
+      - portfolio
+      - price
+      - shares
+      - traded_at
+    TransactionCreated:
+      type: object
+      description: Serialize the existing create response fields plus fee availability.
+      properties:
+        portfolio:
+          type: integer
+          title: 投资组合
+        position:
+          type: integer
+          nullable: true
+          title: 关联持仓
+        action:
+          allOf:
+          - $ref: '#/components/schemas/TradeActionEnum'
+          title: 交易方向
+        asset_code:
+          type: string
+          title: 资产代码
+          maxLength: 20
+        shares:
+          type: number
+          format: double
+          title: 交易数量
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
+          title: 成交价格
+        commission:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 手续费
+        commission_known:
+          type: boolean
+          readOnly: true
+          nullable: true
+        slippage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 滑点成本
+        slippage_known:
+          type: boolean
+          readOnly: true
+          nullable: true
+        stamp_duty:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 印花税
+        stamp_duty_known:
+          type: boolean
+          readOnly: true
+          nullable: true
+        transfer_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          title: 过户费
+        transfer_fee_known:
+          type: boolean
+          readOnly: true
+          nullable: true
         notes:
           type: string
           title: 备注
