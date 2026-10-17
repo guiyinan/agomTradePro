@@ -4171,40 +4171,40 @@ a {
 
 /* TUX-08: keep the task entry and its result readable without changing the
    professional workspace geometry.  The :has() scope only activates while a
-   server-authorized task form is present in task mode. */
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) {
+   server-authorized task form or task dashboard is present in task mode. */
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) {
     grid-template-rows: auto auto minmax(0, 1fr) var(--tui-status-height);
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-system-strip,
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-function-bar {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-system-strip,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-function-bar {
     display: none;
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-shell {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-rail,
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-actions-panel,
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-inspector-panel {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-rail,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-actions-panel,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-inspector-panel {
     display: none;
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-workspace-grid {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-workspace-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas: "main";
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-panel,
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-body {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-main-panel,
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-main-body {
     min-width: 0;
     min-height: 0;
 }
 
-.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form) .tui-main-body {
+.tui-app[data-active-experience-mode="task"]:has(.tui-action-entry-form, [data-task-dashboard]) .tui-main-body {
     overflow: auto;
 }
 

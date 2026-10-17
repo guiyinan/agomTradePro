@@ -5,6 +5,19 @@ from __future__ import annotations
 from typing import Any
 
 RUNTIME_ACTION_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
+    "decision.workspace.summary": {
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户编号",
+                "binding": "query",
+                "input_type": "number",
+                "value_type": "integer",
+                "required": True,
+                "min": 1,
+            }
+        ],
+    },
     "auto.api.get.api.account.accounts": {
         "task_group": "01 账户清单",
         "sequence": 100,

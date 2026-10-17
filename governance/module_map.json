@@ -11472,6 +11472,49 @@
           "build_tui_research_snapshot_view",
           "project_tui_research_snapshot_result"
         ],
+        "application/tui_task_focus_result.py": [
+          "project_portfolio_recorded_facts_payload",
+          "project_today_focus_market_context_payload",
+          "project_today_focus_queue_payload",
+          "project_tui_task_focus_result"
+        ],
+        "application/tui_task_focus_result_contracts.py": [
+          "TuiTaskFocusColumn",
+          "TuiTaskFocusDetailView",
+          "TuiTaskFocusField",
+          "TuiTaskFocusMessageView",
+          "TuiTaskFocusNested",
+          "TuiTaskFocusNextStep",
+          "TuiTaskFocusPager",
+          "TuiTaskFocusParams",
+          "TuiTaskFocusProfessionalTarget",
+          "TuiTaskFocusSection",
+          "TuiTaskFocusSectionRow",
+          "blocked_task_result",
+          "detail_task_result",
+          "display_task_scalar",
+          "section_column",
+          "section_preview_fields",
+          "section_row",
+          "task_text"
+        ],
+        "application/tui_task_scope_contracts.py": [
+          "TuiTaskScope",
+          "TuiTaskScopeError",
+          "validate_task_action_scope"
+        ],
+        "application/tui_task_selector_result.py": [
+          "TuiAccountDatagridView",
+          "TuiAccountSelectorRow",
+          "TuiColumn",
+          "TuiNextStep",
+          "TuiPager",
+          "TuiPortfolioDatagridView",
+          "TuiPortfolioSelectorRow",
+          "TuiSelectorMessageView",
+          "project_account_selector_payload",
+          "project_portfolio_selector_payload"
+        ],
         "application/tui_workbench.py": [
           "TuiWorkbenchRegistry",
           "TuiWorkbenchService"
@@ -11534,9 +11577,9 @@
         ]
       },
       "layers": {
-        "application": 31,
+        "application": 35,
         "domain": 5,
-        "infrastructure": 90,
+        "infrastructure": 91,
         "interface": 9,
         "management": 7,
         "root": 4

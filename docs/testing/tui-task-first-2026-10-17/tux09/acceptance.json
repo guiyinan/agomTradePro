@@ -1,0 +1,183 @@
+{
+  "unit": "TUX-09",
+  "status": "repository slice verified; TUX-10 remains planned",
+  "base_commit": "609ea12151975fe6dcc7845173a9bc6130935826",
+  "implemented": [
+    "Task-first today-focus and portfolio-check dashboards using canonical owners and authorized selectors.",
+    "Strict account_id versus portfolio pk scopes before defaults/execution; no raw malformed-owner fallback.",
+    "Account client pagination and portfolio/facts server pagination with scoped retry, late-response guards and revocation clearing.",
+    "Visible business summary and decision restrictions; native Decimal/zero/null/currency and separate read/source clocks.",
+    "Fresh authorized professional form prefill without auto-execution, explicit selected-account read and return to the task chooser.",
+    "Focused task layout on desktop/mobile; professional layout restored; mode toggles issue zero requests."
+  ],
+  "actual_checks": {
+    "backend-final-05": {
+      "record": "backend-final-05.json",
+      "exit_code": 0
+    },
+    "node-02": {
+      "record": "node-02.json",
+      "exit_code": 0
+    },
+    "browser-final-07": {
+      "record": "browser-final-07.json",
+      "exit_code": 0
+    },
+    "mypy-02": {
+      "record": "mypy-02.json",
+      "exit_code": 0
+    },
+    "mypy-03": {
+      "record": "mypy-03.json",
+      "exit_code": 0
+    },
+    "mypy-debt-02": {
+      "record": "mypy-debt-02.json",
+      "exit_code": 0
+    },
+    "isort-check-03": {
+      "record": "isort-check-03.json",
+      "exit_code": 0
+    },
+    "black-check-03": {
+      "record": "black-check-03.json",
+      "exit_code": 0
+    },
+    "ruff-04": {
+      "record": "ruff-04.json",
+      "exit_code": 0
+    },
+    "module-generate-01": {
+      "record": "module-generate-01.json",
+      "exit_code": 0
+    },
+    "module-check-01": {
+      "record": "module-check-01.json",
+      "exit_code": 0
+    },
+    "build-check-contract-02": {
+      "record": "build-check-contract-02.json",
+      "exit_code": 0
+    },
+    "architecture-01": {
+      "record": "architecture-01.json",
+      "exit_code": 0
+    },
+    "size-01": {
+      "record": "size-01.json",
+      "exit_code": 0
+    },
+    "tui-static-02": {
+      "record": "tui-static-02.json",
+      "exit_code": 0
+    },
+    "tui-source-01": {
+      "record": "tui-source-01.json",
+      "exit_code": 0
+    },
+    "tui-copy-01": {
+      "record": "tui-copy-01.json",
+      "exit_code": 0
+    },
+    "tui-presentation-01": {
+      "record": "tui-presentation-01.json",
+      "exit_code": 0
+    },
+    "freshness-01": {
+      "record": "freshness-01.json",
+      "exit_code": 0
+    },
+    "doc-route-01": {
+      "record": "doc-route-01.json",
+      "exit_code": 0
+    },
+    "retirement-01": {
+      "record": "retirement-01.json",
+      "exit_code": 0
+    },
+    "migration-01": {
+      "record": "migration-01.json",
+      "exit_code": 0
+    }
+  },
+  "final_counts": {
+    "backend_tests": 473,
+    "frontend_tests": 135,
+    "publication_and_browser_tests": 7,
+    "mypy_errors": 0
+  },
+  "source_binding": "frozen-inputs.json binds the final 25 source/test/CSS files. frozen-inputs-v3-contract.json adds one static contract JSON; reverse comparison proves exactly two approved semantic changes. Runtime builder does not consume this static contract, and official build check is repeated after it. mypy-02 binds nine production files before the final bounded market-summary append; mypy-03 and full debt-02 bind that append. Final backend, frontend and browser records bind the unchanged 25 source bytes. Generated artifacts are bound separately below.",
+  "review_dispositions": {
+    "static-review-final-contracts.md": "P0 market restrictions fixed: every explicit restricted row reason now contributes to the first-layer business summary; 24 projection tests and final backend pass.",
+    "static-review-layout-v2.md": "Missing blocking_reason rendering fixed and tested. The task identity marker/summary intentionally persists in professional mode on the same task screen; layout is mode-guarded and actual desktop/mobile switches restore professional rail with zero requests. No requirement for old professional output on a newly created task screen is inferred."
+  },
+  "generated": {
+    "static/js/agomtui-runtime-core.js": {
+      "raw_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+      "lf_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90"
+    },
+    "static/js/tui-agomtradepro-adapter.js": {
+      "raw_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+      "lf_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f"
+    },
+    "static/js/tui-workbench.js": {
+      "raw_sha256": "2d7c52e23ac2e7d8bb4ddfb30d919c51345665a0fa34fa253550ed7c2278f409",
+      "lf_sha256": "2d7c52e23ac2e7d8bb4ddfb30d919c51345665a0fa34fa253550ed7c2278f409"
+    },
+    "config/tui/agomtui-runtime.manifest.json": {
+      "raw_sha256": "881cc2b4819bf8b071f0e6e56639993db1c2f6ed59eb11444261d5b86c28c2ee",
+      "lf_sha256": "881cc2b4819bf8b071f0e6e56639993db1c2f6ed59eb11444261d5b86c28c2ee"
+    },
+    "governance/module_map.json": {
+      "raw_sha256": "fa3a4cea2b0be3968b409ffcb94f0d544610041d1061fa12b723a77385d30f11",
+      "lf_sha256": "fa3a4cea2b0be3968b409ffcb94f0d544610041d1061fa12b723a77385d30f11"
+    }
+  },
+  "restoration": {
+    "registry": "2026-10-18.v266",
+    "closure": "2026-10-18.v78",
+    "units": 79,
+    "other_78_full_objects_exact": true,
+    "ash02_full_object_exact": true,
+    "execution_focus_and_policy_exact": true,
+    "tux09": "completed",
+    "tux10": "planned"
+  },
+  "remaining": [
+    "TUX-10 integrated keyboard, history and full research-plus-new-task frozen acceptance remains pending behind Root Fee A.",
+    "The actual browser fixture exercises market owner unavailable recovery; normal market200 is covered only by owner-shaped projection contracts, not a successful live-source browser journey.",
+    "Existing queue and recorded-facts owners omit business outcome; the UI says result status not provided and grants no decision/execution authority.",
+    "No FX normalization, price source clock, sellable quantity or financial-rule implementation is invented. Large-portfolio performance remains unverified.",
+    "No five-person study, production/provider/exchange authority, PostgreSQL acceptance, deployment, paid AI or real trade is claimed."
+  ],
+  "failure_history": "Failed and successful phase JSON records retain exact output strings and original raw stdout SHA-256 plus UTF-8 roundtrip SHA-256. Ignored private .log files are not part of the committed evidence; their output is carried by the corresponding JSON record. See plan section 11.9 for corrections. No baseline or threshold was raised.",
+  "agents": "Luna Max bounded implementation and read-only audits; parent sole shared integration, QA, generated projection and Git owner.",
+  "protected_tests": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "rollback": "Revert this feature commit with its generated artifacts and documentation. Keep independent owner prerequisite 6789f0b. No model/database migration or business write to undo.",
+  "final_document_checks": {
+    "registry-final-01": {
+      "exit_code": 0,
+      "record": "registry-final-01.json"
+    },
+    "registry-tests-01": {
+      "exit_code": 0,
+      "record": "registry-tests-01.json"
+    },
+    "governance-final-01": {
+      "exit_code": 0,
+      "record": "governance-final-01.json"
+    },
+    "retirement-final-01": {
+      "exit_code": 0,
+      "record": "retirement-final-01.json"
+    }
+  },
+  "reproduction_inputs": {
+    "tux09_feature_609ea_settings.py": "2b71567c2c00bc8b393e62b05f6468a575627a67f1cfa348cc77736ad8add6ec",
+    "test_tux09_missing_tasks_red.py": "0e6c396ca2891b120f80174e41d44a963c25eb25a30d092471da1ff252775caa",
+    "reproduce.md": "158755de5906177ac1464aef51df0abf488db0742da9cc55f95855c2fc7b097b"
+  }
+}

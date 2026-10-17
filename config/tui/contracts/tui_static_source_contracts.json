@@ -10,6 +10,7 @@
         "frontend/tui-workbench/src/15-workspace-state.js",
         "frontend/tui-workbench/src/20-dashboard.js",
         "frontend/tui-workbench/src/30-actions.js",
+        "frontend/tui-workbench/src/38-task-focus-panels.js",
         "frontend/tui-workbench/src/40-views.js",
         "frontend/tui-workbench/src/45-pagination.js",
         "frontend/tui-workbench/src/50-shell.js"
@@ -3317,7 +3318,7 @@
       "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:010",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "function renderDashboardActionResult(panelKey, viewModel, action)",
+      "value": "function renderDashboardActionResult(panelKey, viewModel, action, context = {})",
       "legacy_tests": [
         "test_tui_script_renders_accessible_native_dashboard_row_actions"
       ]

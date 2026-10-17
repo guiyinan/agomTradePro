@@ -63,7 +63,7 @@
             setStatus("已经是最后一页");
             return;
         }
-        const patch = paginationParamPatch(action, state.lastPager, state.lastParams, delta);
+        const patch = paginationParamPatch(action, state.lastPager, state.lastParams, delta, { legacyFallback: true });
         if (!patch) {
             setStatus("当前分页参数不可推断");
             return;
@@ -84,8 +84,8 @@
             const action = currentAction(state.lastAction);
             const metadata = action.pagination || {};
             const key = metadata.page_size_param || metadata.limit_param || firstFieldKey(action, ['page_size','pageSize','limit','size']);
-            const patch = paginationParamPatch(action, state.lastPager, state.lastParams, 1 - Number(state.lastPager.page || 1));
-            if (patch) runGridQuery({ ...state.lastParams, ...patch, [key]: size });
+            const patch = paginationParamPatch(action, state.lastPager, state.lastParams, 1 - Number(state.lastPager.page || 1), { legacyFallback: true });
+            if (patch && key) runGridQuery({ ...state.lastParams, ...patch, [key]: size });
         });
         els.main.querySelector('[data-page-number]')?.addEventListener('keydown', event => {
             if (event.key !== 'Enter') return;
@@ -104,6 +104,34 @@
             bindDashboardRowActions(container, panel);
             bindPanelPagination(container, panel, viewModel);
         };
+        const serverPaged = Boolean(viewModel?.pager && !viewModel.pager.client_side);
+        if (serverPaged) {
+            container.querySelectorAll('[data-panel-page-delta]').forEach(button => button.addEventListener('click', () => {
+                if (container.dataset.dashboardPanelPending === "true") {
+                    return;
+                }
+                const delta = Number(button.dataset.panelPageDelta || 0);
+                const action = currentAction(panel.action_key);
+                const params = state.dashboardFilters[panel.key] || {};
+                const patch = paginationParamPatch(action, viewModel.pager, params, delta);
+                if (!patch) {
+                    setStatus("当前分页参数不可用");
+                    return;
+                }
+                const previousPage = panelPages[panel.key]
+                    ? {
+                        ...panelPages[panel.key],
+                        params: { ...(panelPages[panel.key].params || {}) },
+                    }
+                    : null;
+                loadDashboardPanel(panel, {
+                    paramsOverride: { ...params, ...patch },
+                    preservePrevious: true,
+                    previousPage,
+                });
+            }));
+            return;
+        }
         container.querySelectorAll('[data-panel-page-delta]').forEach(button => button.addEventListener('click', () => {
             panelPages[panel.key].page += Number(button.dataset.panelPageDelta);
             redraw();
@@ -146,37 +174,40 @@
         setStatus('更新失败，仍显示原页');
     }
 
-    function paginationParamPatch(action, pager, params, delta) {
+    function paginationParamPatch(action, pager, params, delta, { legacyFallback = false } = {}) {
         const pagination = action.pagination || {};
+        const fieldKey = candidates => firstFieldKey(action, candidates)
+            || (legacyFallback && !action.pagination ? candidates[0] || "" : "");
+        const requestParams = params || {};
         const pagerMode = String(pager.pagination_mode || pager.mode || "");
         const mode = pagination.mode || (pagerMode === "limit_offset" ? "offset" : pagerMode) || inferPaginationMode(action);
         if (mode === "cursor") {
-            const cursorParam = pagination.cursor_param || firstFieldKey(action, ["cursor", "nextCursor", "next_cursor"]);
+            const cursorParam = pagination.cursor_param || fieldKey(["cursor", "nextCursor", "next_cursor"]);
             const cursor = delta > 0
                 ? valueAtPath(pager, pagination.next_cursor_path || "next_cursor")
                 : valueAtPath(pager, pagination.previous_cursor_path || "previous_cursor");
             return cursorParam && cursor ? { [cursorParam]: cursor } : null;
         }
         if (mode === "offset") {
-            const offsetParam = pagination.offset_param || firstFieldKey(action, ["offset", "start"]);
-            const limitParam = pagination.limit_param || firstFieldKey(action, ["limit", "pageSize", "page_size"]);
-            const limit = Number(params[limitParam] || pager.page_size || pager.limit || 10);
-            const current = Number(params[offsetParam] || pager.offset || 0);
+            const offsetParam = pagination.offset_param || fieldKey(["offset", "start"]);
+            const limitParam = pagination.limit_param || fieldKey(["limit", "pageSize", "page_size"]);
+            const limit = Number(requestParams[limitParam] || pager.page_size || pager.limit || 10);
+            const current = Number(requestParams[offsetParam] || pager.offset || 0);
             if (!offsetParam || !Number.isFinite(limit) || !Number.isFinite(current)) {
                 return null;
             }
             const nextOffset = Math.max(0, current + (delta * limit));
             return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };
         }
-        const pageParam = pagination.page_param || firstFieldKey(action, ["page", "pageNum", "page_num", "pageNo", "page_no"]);
-        const pageSizeParam = pagination.page_size_param || firstFieldKey(action, ["page_size", "pageSize", "limit", "size"]);
-        const current = Number(params[pageParam] || pager.page || 1);
+        const pageParam = pagination.page_param || fieldKey(["page", "pageNum", "page_num", "pageNo", "page_no"]);
+        const pageSizeParam = pagination.page_size_param || fieldKey(["page_size", "pageSize", "limit", "size"]);
+        const current = Number(requestParams[pageParam] || pager.page || 1);
         if (!pageParam || !Number.isFinite(current)) {
             return null;
         }
         const next = Math.max(1, current + delta);
         const patch = { [pageParam]: next };
-        const pageSize = Number(params[pageSizeParam] || pager.page_size || pager.pageSize || 0);
+        const pageSize = Number(requestParams[pageSizeParam] || pager.page_size || pager.pageSize || 0);
         if (pageSizeParam && Number.isFinite(pageSize) && pageSize > 0) {
             patch[pageSizeParam] = pageSize;
         }
@@ -196,7 +227,17 @@
 
     function firstFieldKey(action, candidates) {
         const fields = (action.fields || []).map((field) => String(field.key || ""));
-        return candidates.find((candidate) => fields.includes(candidate)) || candidates[0] || "";
+        return candidates.find((candidate) => fields.includes(candidate)) || "";
+    }
+
+    function declaredPanelRequestParams(action, params) {
+        const pagination = action?.pagination || {};
+        const declaredFields = new Set((action?.fields || []).map((field) => String(field.key || "")).filter(Boolean));
+        [pagination.page_param, pagination.page_size_param, pagination.offset_param, pagination.limit_param, pagination.cursor_param]
+            .map((key) => String(key || "").trim())
+            .filter(Boolean)
+            .forEach((key) => declaredFields.add(key));
+        return Object.fromEntries(Object.entries(params || {}).filter(([key]) => declaredFields.has(key)));
     }
 
     function valueAtPath(value, path) {

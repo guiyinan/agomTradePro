@@ -166,6 +166,10 @@ from .tui_metadata_runtime_injection_system_settings import (
     RUNTIME_SYSTEM_SETTINGS_ACTIONS,
     RUNTIME_SYSTEM_SETTINGS_SCREEN,
 )
+from .tui_metadata_runtime_injection_task_focus import (
+    RUNTIME_TASK_FOCUS_ACTIONS,
+    RUNTIME_TASK_FOCUS_SCREENS,
+)
 from .tui_metadata_runtime_injection_task_monitor import (
     RUNTIME_TASK_MONITOR_ACTIONS,
 )
@@ -473,6 +477,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_equity_screen_metadata",
         actions=RUNTIME_EQUITY_SCREEN_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_task_focus_metadata",
+        screens=RUNTIME_TASK_FOCUS_SCREENS,
+        actions=RUNTIME_TASK_FOCUS_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_backtest_metadata",

@@ -13,6 +13,11 @@ from apps.terminal.application.tui_audit import verified_reauth_evidence
 from apps.terminal.application.tui_research_snapshot_result import (
     TuiResearchProfessionalTarget,
 )
+from apps.terminal.application.tui_task_focus_result import TuiTaskFocusProfessionalTarget
+from apps.terminal.application.tui_task_scope_contracts import (
+    TuiTaskScopeError,
+    validate_task_action_scope,
+)
 
 
 class _OwnerResultContinuation(TypedDict):
@@ -136,7 +141,36 @@ class TuiWorkbenchExecutionMixin:
                 "Only read/AI/confirmed write actions are enabled in this TUI surface"
             )
         self._ensure_tui_audit_sink(action)
-        resolved_params = self._apply_default_field_values(action, params or {})
+        try:
+            task_scope = validate_task_action_scope(action_key, params)
+        except TuiTaskScopeError as error:
+            result = self._invalid_task_scope_payload(action, error.message, user=user)
+            missing_fields = (
+                self._missing_required_fields(action, params, user=user)
+                if isinstance(params, Mapping)
+                else []
+            )
+            if missing_fields:
+                result = self._missing_required_fields_payload(action, missing_fields, user=user)
+                result["outcome"] = "blocked"
+                result["view_model"]["outcome"] = "blocked"
+                result["view_model"]["user_error_code"] = "TUI_TASK_SCOPE_INVALID"
+                result.update(self._result_head_payload(result["view_model"]))
+            self._append_tui_audit(
+                action,
+                {},
+                user=user,
+                session=session,
+                outcome="rejected_invalid_scope",
+                result=result,
+                error="TUI_TASK_SCOPE_INVALID",
+            )
+            return result
+        resolved_params = (
+            dict(task_scope.params)
+            if task_scope is not None
+            else self._apply_default_field_values(action, params or {})
+        )
         missing_fields = self._missing_required_fields(action, resolved_params, user=user)
         if missing_fields:
             result = self._missing_required_fields_payload(action, missing_fields, user=user)
@@ -204,8 +238,17 @@ class TuiWorkbenchExecutionMixin:
                 session=session,
                 **identity_options,
             )
-            status_code = int(result.get("status_code", 200))
-            payload = result.get("payload")
+            if task_scope is not None and (
+                not isinstance(result, Mapping)
+                or type(result.get("status_code")) is not int
+                or not 100 <= result["status_code"] <= 599
+            ):
+                # A missing/invalid transport status is not an implicit 200.
+                status_code = 502
+                payload = None
+            else:
+                status_code = int(result.get("status_code", 200))
+                payload = result.get("payload")
             safe_payload, owner_continuation, continuation_error = (
                 self._validate_owner_result_continuation(
                     action=action,
@@ -240,16 +283,32 @@ class TuiWorkbenchExecutionMixin:
                 )
                 if professional_target is not None:
                     projection_action["_research_professional_target"] = professional_target
+            if task_scope is not None:
+                task_target = self._task_focus_professional_target(
+                    action_key=action_key,
+                    payload=safe_payload,
+                    status_code=status_code,
+                    user=user,
+                )
+                if task_target is not None:
+                    projection_action["_task_focus_professional_target"] = task_target
             view_model = self._to_view_model(
                 action=projection_action,
                 payload=safe_payload,
                 status_code=status_code,
-                request_params=request_params,
+                request_params=(resolved_params if task_scope is not None else request_params),
             )
+            outcome = self._execution_outcome(safe_payload, status_code)
+            if task_scope is not None and outcome not in {"blocked", "failed"}:
+                projected_outcome = view_model.get("outcome")
+                if projected_outcome in {"blocked", "failed"}:
+                    # A malformed successful owner payload cannot complete the
+                    # UI operation merely because its HTTP transport succeeded.
+                    outcome = projected_outcome
             raw_allowed = self._diagnostics_allowed(user) and action.get("raw_debug", True) is True
             envelope = {
                 "version": "tui-workbench.v2",
-                "outcome": self._execution_outcome(safe_payload, status_code),
+                "outcome": outcome,
                 "action": self._action_payload(action, user=user),
                 "confirmation_required": False,
                 "response": {
@@ -280,7 +339,11 @@ class TuiWorkbenchExecutionMixin:
             resolved_params,
             user=user,
             session=session,
-            outcome=("succeeded" if 200 <= status_code < 400 else "failed"),
+            outcome=(
+                "succeeded"
+                if 200 <= status_code < (300 if task_scope is not None else 400)
+                else "failed"
+            ),
             confirmation_evidence=confirmation,
             reauth_evidence=reauth_evidence,
             result=envelope,
@@ -288,6 +351,110 @@ class TuiWorkbenchExecutionMixin:
         if owner_continuation is not None:
             envelope["continuation"] = owner_continuation
         return envelope
+
+    def _invalid_task_scope_payload(
+        self, action: dict[str, Any], message: str, *, user: Any
+    ) -> dict[str, Any]:
+        """Return the existing bounded preflight shape without an owner call."""
+
+        model = self._message_model(action, message, 400)
+        model.update(
+            {
+                "status": "需要重新选择",
+                "outcome": "blocked",
+                "business_summary": message,
+                "blocking_reason": message,
+                "user_error_code": "TUI_TASK_SCOPE_INVALID",
+                "next_steps": [],
+            }
+        )
+        return {
+            "version": "tui-workbench.v2",
+            "outcome": "blocked",
+            "action": self._action_payload(action, user=user),
+            "confirmation_required": False,
+            "response": {"status_code": 400},
+            "view_model": model,
+            "debug": {"raw_available": False, "raw_response": None},
+            **self._result_head_payload(model),
+        }
+
+    def _task_focus_professional_target(
+        self,
+        *,
+        action_key: str,
+        payload: Any,
+        status_code: int,
+        user: Any,
+    ) -> TuiTaskFocusProfessionalTarget | None:
+        """Offer one fresh visible passive target without granting owner authority."""
+
+        if (
+            user is None
+            or getattr(user, "is_authenticated", False) is not True
+            or getattr(user, "is_active", False) is not True
+            or getattr(user, "pk", None) in (None, "")
+            or not 200 <= status_code < 300
+            or not isinstance(payload, Mapping)
+            or payload.get("success") is not True
+        ):
+            return None
+        if action_key == "today-focus.queue":
+            target_key = "decision.workspace.summary"
+            screen_key = "command-center.decision-flow"
+            field_key, binding = "account_id", "query"
+        elif action_key in {"portfolio-check.recorded-facts", "account.portfolio-recorded-facts"}:
+            target_key = "account.portfolio-recorded-facts"
+            screen_key = "execution.accounts"
+            field_key, binding = "pk", "path"
+        else:
+            return None
+        target = self._action_by_key(target_key, user=user)
+        if target is None or (
+            target.get("screen_key") != screen_key
+            or str(target.get("method") or "").upper() != "GET"
+            or target.get("risk") != "read"
+            or target.get("effect", "read") != "read"
+            or bool(target.get("confirmation_required"))
+            or bool(target.get("requires_password"))
+            or target.get("sensitive_level", "none") != "none"
+        ):
+            return None
+        fields = target.get("fields")
+        if not isinstance(fields, list):
+            return None
+        safe_field = False
+        for field in fields:
+            if not isinstance(field, dict):
+                return None
+            if field.get("key") == field_key:
+                safe_field = (
+                    field.get("binding") == binding
+                    and field.get("value_type", "string") in {"integer", "string"}
+                    and str(field.get("input_type", "text")) in {"text", "number"}
+                    and field.get("presentation_semantic")
+                    not in {"api_token", "copyable_secret", "endpoint_url", "prompt_text", "secret"}
+                    and field.get("secret") is not True
+                    and field.get("sensitive") is not True
+                    and field.get("sensitive_level", "none") == "none"
+                )
+            elif field.get("required") is True and field.get("default") in (None, ""):
+                return None
+        if not safe_field:
+            return None
+        # The closed keys are server-selected; only the label comes from the
+        # freshly authorized metadata and no target is automatically executed.
+        if target_key == "decision.workspace.summary":
+            return {
+                "screen_key": "command-center.decision-flow",
+                "action_key": "decision.workspace.summary",
+                "label": f"进入专业工作区：{target.get('label') or '查看账户详情'}",
+            }
+        return {
+            "screen_key": "execution.accounts",
+            "action_key": "account.portfolio-recorded-facts",
+            "label": f"进入专业工作区：{target.get('label') or '查看组合详情'}",
+        }
 
     def _validate_owner_result_continuation(
         self,

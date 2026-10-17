@@ -754,35 +754,50 @@
     function renderDetail(viewModel) {
         const isResearchSnapshot = typeof researchEvidenceIsSnapshotViewModel === "function"
             && researchEvidenceIsSnapshotViewModel(viewModel);
+        const action = currentAction(state.lastAction);
+        const pagerMarkup = typeof renderResultPagerMarkup === "function" && isPassiveRead(action)
+            ? renderResultPagerMarkup(viewModel?.pager)
+            : "";
+        const returnMarkup = renderDashboardWorkspaceReturnMarkup();
+        const taskSummary = renderTaskDashboardSummary(viewModel);
         if (isResearchSnapshot && typeof renderResearchEvidenceSections === "function") {
             els.main.innerHTML = `
+                ${returnMarkup}
                 ${renderResearchEvidenceSections(viewModel)}
+                ${pagerMarkup}
                 ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length
                     ? renderEmptyState("建议下一步", [], viewModel.next_steps)
                     : ""}
             `;
             els.main.scrollTop = 0;
             bindNextStepButtons(els.main, viewModel.next_steps);
+            bindDashboardWorkspaceReturnControl(els.main);
+            bindResultPagerControls(els.main, action, viewModel?.pager, state.lastParams || {});
             return;
         }
         const semantics = currentActionSemantics();
         const detailBody = semantics.length || (viewModel.fields || []).some(field => fieldPresentation(field) !== 'metadata')
             ? renderSemanticDetailView(viewModel, semantics)
             : renderSemanticGridFields(viewModel.fields || []);
-        const isEmpty = !detailBody;
+        const detailSections = renderGenericDetailSections(viewModel);
+        const isEmpty = !detailBody && !detailSections;
         const evidenceSections = typeof renderResearchEvidenceSections === "function"
             ? renderResearchEvidenceSections(viewModel)
             : "";
         const nested = semantics.length ? [] : (viewModel.nested || []);
         els.main.innerHTML = `
+            ${isTaskDashboardScreen() ? '<span data-task-dashboard></span>' : ""}
+            ${returnMarkup}
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}</div>
-            ${renderDecisionCue(viewModel)}
+            ${taskSummary || renderDecisionCue(viewModel)}
             ${detailBody || renderEmptyState(
                 viewModel.empty_message || "暂无摘要数据。",
                 viewModel.empty_guidance,
                 viewModel.next_steps,
             )}
+            ${detailSections}
             ${evidenceSections}
+            ${pagerMarkup}
             ${nested.length ? `
                 <div class="tui-nested-list">
                     ${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}
@@ -791,6 +806,13 @@
             ${!isEmpty && Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
         `;
         bindNextStepButtons(els.main, viewModel.next_steps);
+        bindDashboardWorkspaceReturnControl(els.main);
+        bindResultPagerControls(els.main, action, viewModel?.pager, state.lastParams || {});
+    }
+
+    function renderGenericDetailSections(viewModel) {
+        const sections = Array.isArray(viewModel?.sections) ? viewModel.sections : [];
+        return sections.map((section) => renderDetailSectionMarkup(section)).join("");
     }
 
     function renderMessage(viewModel) {
@@ -811,13 +833,21 @@
                 </section>
             `).join("")
             : `<div class="tui-message">${escapeHtml(viewModel.message || "")}</div>`;
+        const action = currentAction(state.lastAction);
+        const pagerMarkup = typeof renderResultPagerMarkup === "function" && isPassiveRead(action)
+            ? renderResultPagerMarkup(viewModel?.pager)
+            : "";
         els.main.innerHTML = `
+            ${renderDashboardWorkspaceReturnMarkup()}
             <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "消息")}</div>
             ${renderDecisionCue(viewModel)}
             <div class="tui-message-list">${body}</div>
+            ${pagerMarkup}
             ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
         `;
         bindNextStepButtons(els.main, viewModel.next_steps);
+        bindDashboardWorkspaceReturnControl(els.main);
+        bindResultPagerControls(els.main, action, viewModel?.pager, state.lastParams || {});
     }
 
     function renderDecisionCue(viewModel) {

@@ -1056,6 +1056,7 @@
         let requestConfirmed = Boolean(options.confirmed);
         let requestConfirmation = options.confirmation || null;
         let requestIdempotencyKey = options.idempotencyKey || null;
+        let targetPanelParams = null;
         let fetchStarted = false;
         let fetchReturned = false;
         try {
@@ -1111,6 +1112,9 @@
                     return;
                 }
                 params = handoff.params;
+            }
+            if (isTargetedDashboardAction) {
+                targetPanelParams = dashboardTargetParams(action, params, actions);
             }
             const safeUiParams = resultContinuations.safeUiParams(action, params, actions);
             submittedParams = safeUiParams;
@@ -1275,8 +1279,12 @@
                 setStatus("等待验密");
                 return;
             }
-            const reportedStatus = Number(result.response?.status_code ?? 0);
-            const reportedServerFailure = Number.isFinite(reportedStatus) && reportedStatus >= 500;
+            const reportedStatus = Number(result.response?.status_code ?? result.status_code ?? 0);
+            const reportedOutcome = String(result.outcome || "").trim().toLowerCase();
+            const reportedOwnerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 400)
+                || ["failed", "blocked"].includes(reportedOutcome) || isDashboardScopeInvalid(result);
+            const reportedServerFailure = (Number.isFinite(reportedStatus) && reportedStatus >= 500)
+                || ["failed", "blocked"].includes(reportedOutcome);
             if (continuationTarget && !reportedServerFailure) {
                 resultContinuations.clearTargetRequest(action);
             }
@@ -1285,13 +1293,17 @@
             state.rawResponseAvailable = result.debug?.raw_available === true && state.lastRaw !== null;
             if (isTargetedDashboardAction) {
                 if (hasDashboardResultTarget) {
-                    renderDashboardActionResult(dashboardResultPanelKey, result.view_model, action);
+                    renderTargetedDashboardEnvelope(action, result,
+                        targetPanelParams || submittedParams || {},
+                        dashboardResultPanelKey, dashboardRefreshPanelKey);
                 }
                 if (hasDashboardRefreshTarget && dashboardRefreshPanelKey !== dashboardResultPanelKey) {
                     await refreshDashboardPanel(dashboardRefreshPanelKey);
                 }
                 updateRawDrawer();
-                setStatus(hasDashboardRefreshTarget ? "结果已返回，治理工作区已更新" : "详情已在当前页面打开");
+                setStatus(reportedOwnerFailure
+                    ? "结果受限，未形成可用事实；请查看限制后再决定是否重新读取"
+                    : (hasDashboardRefreshTarget ? "结果已返回，治理工作区已更新" : "详情已在当前页面打开"));
                 refreshGovernanceBadges();
                 return;
             }
@@ -1302,6 +1314,12 @@
                 refreshGovernanceBadges();
                 return;
             }
+            if (renderFullScreenRestrictedResult(
+                action,
+                Boolean(options.dashboardPanelKey),
+                reportedStatus,
+                result,
+            )) return;
             if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 refreshRenderedActionPanel(state.screen.actions || [], state.screen.screen);
             }
@@ -1344,6 +1362,9 @@
                 resultContinuations.clearTargetRequest(action);
             }
             clearPendingRequest();
+            if (renderFullScreenRestrictedResult(action,
+                Boolean(options.dashboardResultPanelKey || options.dashboardPanelKey),
+                Number(error?.status || 0), error?.payload)) return;
             if (retainedGrid) {
                 const retryParams = { ...state.lastParams };
                 state.lastParams = previousParams;
@@ -1354,7 +1375,12 @@
             }
             const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
             if (dashboardResultPanelKey) {
-                renderDashboardActionError(dashboardResultPanelKey, error);
+                renderDashboardActionError(
+                    dashboardResultPanelKey,
+                    error,
+                    action,
+                    targetPanelParams || submittedParams || {},
+                );
                 return;
             }
             if (options.dashboardPanelKey) {
@@ -1439,48 +1465,9 @@
         if (!panel || !container) {
             return;
         }
+        container.panelViewModel = null;
         container.innerHTML = renderDashboardPanelShell(
             panel,
             `<div class="tui-loading">正在执行${escapeHtml(action.label || "当前操作")}...</div>`,
         );
-    }
-
-    function renderDashboardActionResult(panelKey, viewModel, action) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        const actionSemantics = actionResultSemantics(action.key);
-        const resultPanel = {
-            ...panel,
-            action_key: action.key,
-            presentation_semantic: actionSemantics[0] || panel.presentation_semantic,
-        };
-        container.innerHTML = renderDashboardPanelShell(
-            panel,
-            renderDashboardPanelBody(resultPanel, viewModel),
-        );
-        container.querySelector('.tui-panel-disclosure')?.setAttribute('open', '');
-        container.scrollIntoView({ block: 'nearest' });
-        bindCopyButtons(container);
-        bindDashboardPanelOpenControls(container);
-        bindDashboardRowActions(container, resultPanel);
-        processHostSlot(container);
-    }
-
-    function renderDashboardActionError(panelKey, error) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            renderBoundedApplicationError(error);
-            return;
-        }
-        container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
-        bindDashboardPanelOpenControls(container);
-        bindDashboardPanelRecovery(container, panel);
     }

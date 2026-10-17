@@ -15,6 +15,7 @@ const sourceNames = [
     "30-actions.js",
     "35-next-step-navigation.js",
     "36-research-entry.js",
+    "38-task-focus-panels.js",
     "39-research-evidence.js",
     "40-views.js",
     "45-pagination.js",

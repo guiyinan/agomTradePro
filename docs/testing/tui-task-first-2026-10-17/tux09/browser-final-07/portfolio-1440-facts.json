@@ -1,0 +1,102 @@
+{
+  "url": "http://localhost:54951/tui/?screen=task.portfolio-check",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "requests": [
+    [
+      "GET",
+      "http://localhost:54951/tui/?screen=task.portfolio-check",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:54951/static/css/tui-workbench.css?v=tui-task-research-20261017",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:54951/static/js/agomtui-runtime-core.js?v=agomtui-design-review-20260725-2",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:54951/static/js/tui-agomtradepro-adapter.js?v=tux05-presentation-20260828-1",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:54951/static/js/tui-workbench.js?v=tui-task-research-20261017",
+      null
+    ],
+    [
+      "GET",
+      "http://localhost:54951/api/tui/bootstrap/?screen_key=task.portfolio-check",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {}
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:54951/api/tui/operator/governance-queue/",
+      null
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 2
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 3
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 2
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.portfolios/run/",
+      {
+        "params": {
+          "page": 1
+        }
+      }
+    ],
+    [
+      "POST",
+      "http://localhost:54951/api/tui/actions/portfolio-check.recorded-facts/run/",
+      {
+        "params": {
+          "pk": 689
+        },
+        "confirmed": false
+      }
+    ],
+    [
+      "GET",
+      "http://localhost:54951/api/tui/operator/governance-queue/",
+      null
+    ]
+  ]
+}

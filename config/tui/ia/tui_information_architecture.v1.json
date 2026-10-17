@@ -224,6 +224,159 @@
         ]
       },
       "sources": ["task.asset-research"]
+    },
+    {
+      "key": "task.today-focus",
+      "label": "今日关注",
+      "module_key": "daily-decisions",
+      "group": "daily",
+      "audience": "authenticated",
+      "summary": "先看市场环境，再选择本人活跃账户查看今日待办。",
+      "view_type": "datagrid",
+      "status": "online",
+      "chrome_mode": "immersive",
+      "entry_mode": "dashboard",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "today-focus.market-context",
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "先核对市场环境，再查看已选择账户的今日待办。",
+        "primary_outcome": "看清市场事实、账户选择和待办状态；缺失或过期信息保留提示。",
+        "empty_state_hint": "先查看市场环境，再选择一个本人活跃账户。",
+        "next_step_hint": "选择账户后查看今日待办；需要更完整的组合资料时进入组合检查。"
+      },
+      "business_context": {
+        "objective": "把市场环境和本人账户待办放在同一项只读检查中。",
+        "decision_output": "市场状态、可靠性、观测时间与账户待办记录。",
+        "checkpoints": ["市场环境", "账户范围", "待办状态和记录时间"]
+      },
+      "dashboard_panels": [
+        {
+          "key": "today-focus-market-context",
+          "title": "一、市场环境",
+          "kind": "detail",
+          "action_key": "today-focus.market-context",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_status",
+          "max_rows": 8,
+          "empty_message": "暂无市场环境事实。",
+          "error_message": "市场环境读取失败，请稍后重试。",
+          "stale_message": "市场环境可能已过期，请核对时效。",
+          "columns": [
+            {"key": "area", "label": "范围"},
+            {"key": "status", "label": "状态"},
+            {"key": "freshness", "label": "时效"},
+            {"key": "reliability", "label": "可靠性"},
+            {"key": "observed_at", "label": "观测时间"},
+            {"key": "summary", "label": "摘要"}
+          ]
+        },
+        {
+          "key": "today-focus-account-selector",
+          "title": "二、选择账户",
+          "kind": "datagrid",
+          "action_key": "today-focus.account-selector",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_list",
+          "max_rows": 12,
+          "empty_message": "当前没有本人活跃账户。",
+          "error_message": "账户目录读取失败，请稍后重试。",
+          "columns": [
+            {"key": "account_name", "label": "账户名称"},
+            {"key": "account_type", "label": "账户类型"},
+            {"key": "account_id", "label": "账户编号"}
+          ],
+          "row_actions": [
+            {
+              "action_key": "today-focus.queue",
+              "label_template": "查看 {account_name} 的今日待办",
+              "param_map": {"account_id": "account_id"},
+              "result_panel_key": "today-focus-queue"
+            }
+          ]
+        },
+        {
+          "key": "today-focus-queue",
+          "title": "三、账户今日待办",
+          "kind": "datagrid",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_list",
+          "empty_message": "请选择一个账户查看今日待办。",
+          "error_message": "账户今日待办读取失败，请稍后重试。",
+          "columns": [
+            {"key": "priority", "label": "优先级"},
+            {"key": "status", "label": "状态"},
+            {"key": "title", "label": "事项"},
+            {"key": "next_action", "label": "下一步"},
+            {"key": "created_at", "label": "事项记录/生成时间"}
+          ]
+        }
+      ],
+      "sources": ["task.today-focus"]
+    },
+    {
+      "key": "task.portfolio-check",
+      "label": "检查组合",
+      "module_key": "daily-decisions",
+      "group": "daily",
+      "audience": "authenticated",
+      "summary": "选择已授权组合，查看已记录的持仓与统计事实。",
+      "view_type": "datagrid",
+      "status": "online",
+      "chrome_mode": "immersive",
+      "entry_mode": "dashboard",
+      "dashboard_layout": "task_flow",
+      "default_action_key": "portfolio-check.portfolios",
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "先选择有权查看的组合，再核对已记录持仓和统计。",
+        "primary_outcome": "看清组合身份、持仓记录、原始单位和记录时间；缺失信息明确保留。",
+        "empty_state_hint": "先读取已授权组合目录。",
+        "next_step_hint": "选择组合后查看记录事实；结果不代表实时估值、风险通过或交易资格。"
+      },
+      "business_context": {
+        "objective": "在授权范围内核对组合记录，不新增同步或交易流程。",
+        "decision_output": "组合身份、持仓记录、统计事实及单位与时间缺口。",
+        "checkpoints": ["授权组合", "持仓记录", "统计单位和记录时间", "读取限制"]
+      },
+      "dashboard_panels": [
+        {
+          "key": "portfolio-check-selector",
+          "title": "一、选择组合",
+          "kind": "datagrid",
+          "action_key": "portfolio-check.portfolios",
+          "user_priority": "p0",
+          "presentation_semantic": "primary_list",
+          "max_rows": 20,
+          "empty_message": "当前没有可查看的授权组合。",
+          "error_message": "组合目录读取失败，请稍后重试。",
+          "columns": [
+            {"key": "name", "label": "组合名称"},
+            {"key": "is_active", "label": "是否启用"},
+            {"key": "base_currency_code", "label": "基础币种代码"},
+            {"key": "base_currency_name", "label": "基础币种名称"},
+            {"key": "id", "label": "组合编号"}
+          ],
+          "row_actions": [
+            {
+              "action_key": "portfolio-check.recorded-facts",
+              "label_template": "查看 {name} 的记录事实",
+              "param_map": {"pk": "id"},
+              "result_panel_key": "portfolio-check-recorded-facts"
+            }
+          ]
+        },
+        {
+          "key": "portfolio-check-recorded-facts",
+          "title": "二、组合已记录事实",
+          "kind": "detail",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail",
+          "empty_message": "请选择一个组合查看已记录持仓和统计事实。",
+          "error_message": "组合记录事实读取失败；当前没有可展示的部分结果。"
+        }
+      ],
+      "sources": ["task.portfolio-check"]
     }
   ],
   "workflow": [
@@ -236,7 +389,7 @@
     {"screen_key": "macro-regime.strategy", "label": "策略与风控", "role": "确认约束"},
     {"screen_key": "execution.audit", "label": "事件与复盘", "role": "复盘留痕"}
   ],
-  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8, "task.asset-research": 1}, "task_group_limit": 4},
+  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8, "task.asset-research": 1, "task.today-focus": 2, "task.portfolio-check": 1}, "task_group_limit": 4},
   "experience": {
     "home_screen_key": "command-center.overview",
     "default_mode": "task",
@@ -250,7 +403,7 @@
             "kind": "screen",
             "label": "今日关注",
             "description": "查看市场环境和已有待办；进入后读取当前任务。",
-            "screen_key": "command-center.overview"
+            "screen_key": "task.today-focus"
           },
           {
             "key": "research",
@@ -264,7 +417,7 @@
             "kind": "screen",
             "label": "检查组合",
             "description": "查看已授权的账户与持仓，核对可用事实。",
-            "screen_key": "execution.accounts"
+            "screen_key": "task.portfolio-check"
           }
         ]
       },

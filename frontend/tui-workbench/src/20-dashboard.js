@@ -8,12 +8,13 @@
         const screen = screenSpec.screen;
         const panels = [...(screen.dashboard_panels || [])].sort((a, b) => panelPriority(a).localeCompare(panelPriority(b)));
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
+        const isHomeScreen = isOperatorHomeScreen(screen.key);
         const actionSummary = summarizeActions(screenSpec.actions || []);
         const businessContext = screen.business_context || {};
         const experience = screenUserExperience(screen);
         const layout = dashboardLayout(panels, screen);
         setWorkspaceViewKind("dashboard");
-        els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
+        els.mainTitle.textContent = isHomeScreen ? "系统首页" : String(screen.label || "当前工作区");
         const suppressHomeAutoLoad = Boolean(options.suppressHomeAutoLoad && isExperienceHomeScreen(screen.key));
         els.main.innerHTML = `
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
@@ -23,7 +24,7 @@
                     <small>首次进入先选择任务；数据会在你打开任务后读取。</small>
                 </div>
             ` : `
-                <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
+                <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" ${isTaskDashboardScreen() ? "data-task-dashboard" : ""} style="${escapeHtml(layout.gridStyle)}">
                     ${panels.map((panel) => `
                         <article class="tui-dash-panel" data-panel-kind="${escapeHtml(panel.kind)}" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
                             ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
@@ -41,7 +42,7 @@
                 ["主任务", experience.primaryTask],
                 ["目标结果", experience.primaryOutcome],
                 ["工作区", screenSpec.module.label],
-                ["布局", immersiveDashboard ? "系统首页总控台" : "业务概览面板"],
+                ["布局", isHomeScreen ? "系统首页总控台" : String(screen.label || "当前工作区")],
                 ["主流程", actionSummary.primary],
                 ["支撑检查", actionSummary.support],
                 ["任务", screen.action_count],
@@ -300,23 +301,51 @@
             && unresolvedRequiredFields(action).length === 0;
     }
 
-    async function loadDashboardPanel(panel) {
+    async function loadDashboardPanel(panel, options = {}) {
         const container = els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`);
         if (!container) {
             return;
         }
         container.panelRequestController?.abort();
         container.panelRequestController = new AbortController();
+        container.panelRequestPassiveRead = false;
         const signal = state.dashboardController
             ? AbortSignal.any([state.dashboardController.signal, container.panelRequestController.signal])
             : container.panelRequestController.signal;
-        const params = state.dashboardFilters[panel.key] || {};
+        const preservePrevious = options.preservePrevious === true;
+        const previousPanelViewModel = container.panelViewModel;
+        const previousFilters = { ...(state.dashboardFilters[panel.key] || {}) };
+        const previousPage = Object.prototype.hasOwnProperty.call(options, "previousPage")
+            ? (options.previousPage
+                ? { ...options.previousPage, params: { ...(options.previousPage.params || {}) } }
+                : null)
+            : (panelPages[panel.key]
+                ? { ...panelPages[panel.key], params: { ...(panelPages[panel.key].params || {}) } }
+                : null);
+        const rawParams = {
+            ...(options.paramsOverride || state.dashboardFilters[panel.key] || {}),
+        };
+        const panelAction = currentAction(panel.action_key);
+        const params = typeof declaredPanelRequestParams === "function"
+            ? declaredPanelRequestParams(panelAction, rawParams)
+            : rawParams;
+        if (preservePrevious) {
+            setDashboardPanelPending(container, panel, params, previousPage);
+        } else {
+            state.dashboardFilters[panel.key] = { ...params };
+            panelPages[panel.key] = {
+                ...(panelPages[panel.key] || {}),
+                params: { ...params },
+            };
+            container.panelViewModel = null;
+        }
         const expanded = Boolean(container.querySelector("details")?.open);
         const restoreDisclosure = () => {
             const disclosure = container.querySelector("details");
             if (expanded && disclosure) disclosure.open = true;
         };
         if (!panel.action_key) {
+            clearDashboardPanelPending(container);
             container.innerHTML = renderDashboardPanelShell(
                 panel,
                 renderPanelPlaceholder(panel, panel.empty_message || "等待发布数据源。"),
@@ -328,8 +357,8 @@
         const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
             ? operatorHomePanelSectionKey(panel)
             : "";
-        const panelAction = currentAction(panel.action_key);
         if (!operatorSectionKey && !dashboardActionCanAutoRun(panelAction)) {
+            clearDashboardPanelPending(container);
             container.innerHTML = renderDashboardPanelShell(
                 panel,
                 renderDashboardActionPrompt(panel, panelAction),
@@ -345,6 +374,8 @@
             idle.textContent = '读取业务数据...';
             idle.removeAttribute('data-panel-idle');
         }
+        // This controller is only used after the automatic passive-read gate.
+        container.panelRequestPassiveRead = Boolean(operatorSectionKey || isPassiveRead(panelAction));
         try {
             let viewModel = null;
             let panelBadge = null;
@@ -357,6 +388,10 @@
                     params,
                 });
                 if (hosted) {
+                    const hostedStatus = dashboardResultStatus(hosted);
+                    if (hostedStatus >= 400) {
+                        throw dashboardResultError(hosted, hostedStatus);
+                    }
                     viewModel = hosted.view_model || hosted;
                     panelBadge = hosted.badge || badgeCountsFromRows(viewModel.rows || []);
                 }
@@ -379,11 +414,24 @@
                     body: JSON.stringify({ params }),
                     signal,
                 });
+                const resultStatus = dashboardResultStatus(result);
+                if (resultStatus >= 400) {
+                    throw dashboardResultError(result, resultStatus);
+                }
                 viewModel = result.view_model;
                 panelBadge = badgeCountsFromRows(Array.isArray(viewModel?.rows) ? viewModel.rows : []);
             }
             if (signal?.aborted || !container.isConnected) return;
+            clearDashboardPanelPending(container);
+            state.dashboardFilters[panel.key] = { ...params };
             container.panelViewModel = viewModel;
+            const pager = viewModel?.pager || null;
+            panelPages[panel.key] = {
+                ...(panelPages[panel.key] || {}),
+                page: Number(pager?.page || panelPages[panel.key]?.page || 1),
+                pager,
+                params: { ...params },
+            };
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
                 state.homePanelBadges[panel.key] = panelBadge;
             }
@@ -392,6 +440,10 @@
                 bindCopyButtons(container);
                 bindDashboardRowActions(container, panel);
                 bindPanelPagination(container, panel, viewModel);
+                if (typeof bindResultPagerControls === "function") {
+                    bindResultPagerControls(container, panelAction, viewModel?.pager, params, panel.key);
+                }
+                bindNextStepButtons(container, viewModel.next_steps);
                 bindDashboardPanelOpenControls(container);
                 processHostSlot(container);
             }
@@ -407,6 +459,21 @@
             return true;
         } catch (error) {
             if (signal?.aborted || !container.isConnected) return;
+            if (preservePrevious && isRetryableDashboardPanelError(error) && previousPanelViewModel) {
+                state.dashboardFilters[panel.key] = previousFilters;
+                if (previousPage) {
+                    panelPages[panel.key] = previousPage;
+                }
+                container.panelViewModel = previousPanelViewModel;
+                renderDashboardPanelPageRetry(container, panel, params, error, previousPage);
+                return false;
+            }
+            if ((isDashboardAuthorizationError(error) || isDashboardScopeInvalid(error))
+                && isDashboardSelectorPanel(panel)) {
+                clearDashboardSelectorState(panel);
+            }
+            clearDashboardPanelPending(container);
+            container.panelViewModel = null;
             container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
             bindDashboardPanelOpenControls(container);
             bindDashboardPanelRecovery(container, panel);
@@ -454,7 +521,7 @@
                 const container = form.closest("[data-dashboard-panel]");
                 if (!container) {
                     const action = currentAction(panel.action_key);
-                    const reset = paginationParamPatch(action, state.lastPager || {}, state.lastParams, 1 - Number(state.lastPager?.page || 1)) || {};
+                    const reset = paginationParamPatch(action, state.lastPager || {}, state.lastParams, 1 - Number(state.lastPager?.page || 1), { legacyFallback: true }) || {};
                     runGridQuery({ ...state.lastParams, ...reset, ...params });
                     return;
                 }
@@ -587,7 +654,7 @@
         return true;
     }
 
-    function renderDashboardPanelBody(panel, viewModel) {
+    function renderDashboardPanelBody(panel, viewModel, context = {}) {
         const blocker = String(viewModel?.blocking_reason || "").trim();
         const notice = blocker
             ? `<div class="tui-empty-state" role="alert" data-panel-blocking-notice>
@@ -595,10 +662,10 @@
                 <p>${escapeHtml(blocker)}</p>
                </div>`
             : "";
-        return notice + renderDashboardPanelContent(panel, viewModel);
+        return notice + renderDashboardPanelContent(panel, viewModel, context);
     }
 
-    function renderDashboardPanelContent(panel, viewModel) {
+    function renderDashboardPanelContent(panel, viewModel, context = {}) {
         if (!viewModel) {
             return renderPanelPlaceholder(panel, panel.empty_message || "暂无可显示数据。");
         }
@@ -633,7 +700,7 @@
             return renderPanelDataGrid(panel, viewModel);
         }
         if (viewModel.kind === "detail") {
-            return renderPanelDetail(panel, viewModel);
+            return renderPanelDetail(panel, viewModel, context);
         }
         return `<div class="tui-message">${escapeHtml(viewModel.message || viewModel.status || "正常")}</div>`;
     }
@@ -725,26 +792,45 @@
     function renderPanelDataGrid(panel, viewModel) {
         const filterable = dashboardFilterFields(panel).length > 0;
         const sourceRows = viewModel.rows || [];
-        const paging = panelPages[panel.key] || { page: 1, size: 20 };
-        const pageCount = Math.max(1, Math.ceil(sourceRows.length / paging.size));
-        paging.page = Math.min(paging.page, pageCount);
+        const pager = viewModel?.pager && typeof viewModel.pager === "object" ? viewModel.pager : null;
+        const serverPaged = pager?.client_side === false;
+        const clientPaged = pager?.client_side === true;
+        const paging = panelPages[panel.key] || { page: 1, size: Number(pager?.page_size || 20) };
+        const pageSize = Math.max(1, Number(paging.size || pager?.page_size || 20));
+        const pageCount = serverPaged
+            ? Math.max(1, Number(pager.total_pages || Math.ceil(Number(pager.total_rows || sourceRows.length) / pageSize)))
+            : Math.max(1, Math.ceil(sourceRows.length / pageSize));
+        paging.page = Math.min(Math.max(1, Number(serverPaged ? pager.page || paging.page : paging.page)), pageCount);
+        paging.size = pageSize;
+        paging.pager = pager;
         panelPages[panel.key] = paging;
-        const rows = filterable ? sourceRows.slice((paging.page - 1) * paging.size, paging.page * paging.size)
-            : sourceRows.slice(0, Number(panel.max_rows || 8));
+        const rows = serverPaged
+            ? sourceRows
+            : (clientPaged || filterable)
+                ? sourceRows.slice((paging.page - 1) * pageSize, paging.page * pageSize)
+                : sourceRows.slice(0, Number(panel.max_rows || 8));
         const panelColumns = Array.isArray(panel.columns) ? panel.columns : [];
         const preferredColumns = panelColumns;
         const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
         const columns = sourceColumns;
         if (!rows.length || !columns.length) {
-            return `${filterable ? '<div class="tui-panel-caption" role="status">实际展示 0 条</div>' : ""}${renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。")}`;
+            return `${filterable || clientPaged || serverPaged ? '<div class="tui-panel-caption" role="status">实际展示 0 条</div>' : ""}${renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。")}`;
         }
         const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);
         if (rowActions.length) {
             headers.push("操作");
         }
+        const showPager = filterable || clientPaged || serverPaged;
+        const hasPrevious = serverPaged ? Boolean(pager.has_previous) : paging.page > 1;
+        const hasNext = serverPaged ? Boolean(pager.has_next) : paging.page < pageCount;
+        const caption = serverPaged
+            ? `当前页 ${rows.length} 条${pager.total_rows != null ? ` / 共 ${pager.total_rows} 条` : ""}`
+            : filterable || clientPaged
+                ? `实际展示 ${rows.length} 条 / 已加载 ${sourceRows.length} 条`
+                : `显示前 ${rows.length} 条${pager?.total_rows != null ? `，共 ${pager.total_rows} 条` : ''}`;
         return `
-            <div class="tui-panel-caption" role="status">${filterable ? `实际展示 ${rows.length} 条 / 已加载 ${sourceRows.length} 条` : `显示前 ${rows.length} 条${viewModel.pager?.total_rows != null ? `，共 ${viewModel.pager.total_rows} 条` : ''}`}</div>
+            <div class="tui-panel-caption" role="status">${caption}</div>
             <div class="tui-table-scroll" tabindex="0" aria-label="${escapeHtml(panel.title || "表格")}">
             <table class="tui-mini-table">
                 <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
@@ -761,8 +847,8 @@
                 </tbody>
             </table>
             </div>
-            ${filterable ? `<div class="tui-datagrid-pager"><label>每页 <select data-panel-page-size aria-label="${escapeHtml(panel.title)}每页条数">${[20,50,100].map(size => `<option value="${size}" ${size === paging.size ? 'selected' : ''}>${size}</option>`).join('')}</select> 条</label><button type="button" data-panel-page-delta="-1" ${paging.page <= 1 ? 'disabled' : ''}>上一页</button><span>第 ${paging.page} / ${pageCount} 页</span><button type="button" data-panel-page-delta="1" ${paging.page >= pageCount ? 'disabled' : ''}>下一页</button></div>` : ''}
-            ${(!filterable && (sourceRows.length > rows.length || viewModel.pager?.has_next)) || (filterable && viewModel.pager?.has_next) ? '<button type="button" data-panel-full-list>查看完整列表</button>' : ''}
+            ${showPager ? `<div class="tui-datagrid-pager">${clientPaged || filterable ? `<label>每页 <select data-panel-page-size aria-label="${escapeHtml(panel.title)}每页条数">${[20,50,100].map(size => `<option value="${size}" ${size === paging.size ? 'selected' : ''}>${size}</option>`).join('')}</select> 条</label>` : ''}<button type="button" data-panel-page-delta="-1" ${hasPrevious ? '' : 'disabled'}>上一页</button><span>第 ${paging.page} / ${pageCount} 页</span><button type="button" data-panel-page-delta="1" ${hasNext ? '' : 'disabled'}>下一页</button></div>` : ''}
+            ${(!serverPaged && !filterable && (sourceRows.length > rows.length || pager?.has_next)) || (filterable && pager?.has_next) ? '<button type="button" data-panel-full-list>查看完整列表</button>' : ''}
         `;
     }
 
@@ -893,6 +979,20 @@
                     const descriptor = (panel.row_actions || []).find(
                         (item) => item.action_key === button.dataset.rowActionKey,
                     ) || {};
+                    if (isDashboardSelectorPanel(panel)) {
+                        const panelContainer = button.closest("[data-dashboard-panel]");
+                        const signatureParams = typeof dashboardTargetParams === "function"
+                            ? dashboardTargetParams(action, params)
+                            : params;
+                        const signature = selectionParamsSignature(signatureParams);
+                        if (panelContainer?.dataset.selectedScopeSignature
+                            && panelContainer.dataset.selectedScopeSignature !== signature) {
+                            clearDashboardTargetResults(panel);
+                        }
+                        if (panelContainer) {
+                            panelContainer.dataset.selectedScopeSignature = signature;
+                        }
+                    }
                     if (!els.main.querySelector('[data-dashboard-panel]')) {
                         await loadScreen(state.screen.screen.key, { skipCapture: true, skipRestoreAction: true, suppressAutoAction: true });
                     }
@@ -928,24 +1028,50 @@
         });
     }
 
-    function renderPanelDetail(panel, viewModel) {
+    function renderPanelDetail(panel, viewModel, context = {}) {
         const semantics = panelEffectiveSemantics(panel);
+        const pagerMarkup = typeof renderResultPagerMarkup === "function"
+            ? renderResultPagerMarkup(viewModel?.pager)
+            : "";
+        const nextMarkup = Array.isArray(viewModel.next_steps) && viewModel.next_steps.length
+            ? renderEmptyState("建议下一步", [], viewModel.next_steps)
+            : "";
+        const isResearchSnapshot = typeof researchEvidenceIsSnapshotViewModel === "function"
+            && researchEvidenceIsSnapshotViewModel(viewModel);
+        if (isResearchSnapshot && typeof renderResearchEvidenceSections === "function") {
+            return `${renderResearchEvidenceSections(viewModel)}${pagerMarkup}${nextMarkup}`;
+        }
+        const summaryMarkup = renderTaskDashboardSummary(viewModel);
+        const sectionMarkup = renderPanelDetailSections(viewModel);
         if (semantics.length) {
-            return renderSemanticDetailView(viewModel, semantics, { compact: true, panel });
+            return `${summaryMarkup}${renderSemanticDetailView(viewModel, semantics, { compact: true, panel })}${sectionMarkup}${pagerMarkup}${nextMarkup}`;
         }
         const fields = applyPanelFieldRules(viewModel.fields || [], panel)
             .slice(0, Number(panel.max_rows || 8));
         if (!fields.length) {
             const nested = (viewModel.nested || []).slice(0, Number(panel.max_rows || 8));
             if (nested.length) {
-                return renderMiniTable(["项目", "数量"], nested.map((item) => [item.label, item.count]));
+                return `${renderMiniTable(["项目", "数量"], nested.map((item) => [item.label, item.count]))}${sectionMarkup}${pagerMarkup}${nextMarkup}`;
             }
-            return renderPanelPlaceholder(panel, "暂无摘要数据。");
+            return `${renderPanelPlaceholder(panel, "暂无摘要数据。")} ${sectionMarkup}${pagerMarkup}${nextMarkup}`;
         }
         return `
+            ${summaryMarkup}
             ${renderMiniTable(["项目", "值"], fields.map((field) => [field.label, field.value]))}
             ${panel.note ? `<div class="tui-panel-note">${escapeHtml(panel.note)}</div>` : ""}
+            ${sectionMarkup}
+            ${pagerMarkup}
+            ${nextMarkup}
         `;
+    }
+
+    function renderPanelDetailSections(viewModel) {
+        const sections = Array.isArray(viewModel?.sections) ? viewModel.sections : [];
+        return sections.map((section) => (
+            typeof renderDetailSectionMarkup === "function"
+                ? renderDetailSectionMarkup(section)
+                : ""
+        )).join("");
     }
 
     function currentActionSemantics() {

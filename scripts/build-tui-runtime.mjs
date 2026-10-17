@@ -34,6 +34,7 @@ const workbenchSegments = [
     "frontend/tui-workbench/src/30-actions.js",
     "frontend/tui-workbench/src/35-next-step-navigation.js",
     "frontend/tui-workbench/src/36-research-entry.js",
+    "frontend/tui-workbench/src/38-task-focus-panels.js",
     "frontend/tui-workbench/src/39-research-evidence.js",
     "frontend/tui-workbench/src/40-views.js",
     "frontend/tui-workbench/src/45-pagination.js",
@@ -79,6 +80,7 @@ async function buildWorkbenchBundle() {
     const result = await transform(wrapped, {
         loader: "js",
         minify: true,
+        supported: { "template-literal": false },
         target: "es2020",
     });
     return Buffer.from(result.code, "utf8");
@@ -108,6 +110,10 @@ const metadataApplicationFiles = await sortedPythonFiles(
     resolve(root, "apps/terminal/application"),
     "tui_metadata",
 );
+const taskApplicationFiles = await sortedPythonFiles(
+    resolve(root, "apps/terminal/application"),
+    "tui_task_",
+);
 const metadataInfrastructureDirectory = resolve(root, "apps/terminal/infrastructure");
 const metadataInfrastructureFiles = [
     resolve(metadataInfrastructureDirectory, "tui_information_architecture.py"),
@@ -122,6 +128,7 @@ for (const absolutePath of [
     "apps/terminal/application/tui_research_snapshot_result.py",
     "apps/terminal/application/tui_workbench.py",
     "apps/terminal/application/tui_workbench_execution.py",
+    "apps/terminal/application/tui_workbench_result_models.py",
     "apps/terminal/application/tui_workbench_calendar_result_models.py",
     "apps/terminal/application/tui_workbench_result_models_specialized.py",
     "apps/terminal/interface/api_views.py",
@@ -141,6 +148,7 @@ for (const absolutePath of [
 ].map((path) => resolve(root, path)).concat(
     resolve(root, "config/tui/ia/tui_information_architecture.v1.json"),
     metadataApplicationFiles,
+    taskApplicationFiles,
     metadataInfrastructureFiles,
 )) {
     const path = relativePath(absolutePath);

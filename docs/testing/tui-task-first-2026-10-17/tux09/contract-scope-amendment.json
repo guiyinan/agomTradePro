@@ -1,0 +1,15 @@
+{
+  "source_thread": "01a14268-4d88-75e2-812a-fdbdd60b1b24",
+  "authorization": "Root explicitly approved this exact path and exactly two semantic changes; all other fields, rules, legacy_tests and thresholds must remain complete.",
+  "path": "config/tui/contracts/tui_static_source_contracts.json",
+  "preimage_raw_sha256": "e9c6c35227ded9ae81d3746b0cea41f11b91c80ba57d26bc4b538d5f050e475f",
+  "preimage_lf_sha256": "2f91059d4a50da3d1a1fa97375a86b7a8f438537489c5ac61c92db5ce2b9eaef",
+  "strict_json_reverse_comparison_equal": true,
+  "runtime_input": false,
+  "runtime_input_evidence": "scripts/build-tui-runtime.mjs explicit file list and sortedPythonFiles inputs do not include config/tui/contracts/tui_static_source_contracts.json; build consistency rerun after amendment.",
+  "changes": [
+    "Add maintained 38-task-focus-panels.js source to workbench_js.paths after 30-actions.js.",
+    "Sync only the existing renderDashboardActionResult literal to the implemented context parameter."
+  ],
+  "postimage_raw_sha256": "182c04d614717515a7c9126a3eb7bc878b7d48e0cd41656daaf7ea60a199a3c9"
+}

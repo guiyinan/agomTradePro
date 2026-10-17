@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v264",
+  "version": "2026-10-18.v266",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -310,7 +310,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-08 bounded research task is repository-verified with frozen local owner/browser evidence. TUX-09/10 remain planned and require a separate bounded handoff; private preparation is allowed. Preserve canonical ASH-08 ownership. No five-person user or production acceptance is claimed. The A-share Goal still owns its two size and nine retirement failures; full repository/release gates remain open.",
+      "next_gate": "TUX-09 today-focus and authorized portfolio stored-facts tasks are repository-verified on frozen local source, including bounded unavailable market recovery, actual owner reads, paging, revocation, retry and professional handoff. Evidence: docs/testing/tui-task-first-2026-10-17/tux09/acceptance.json. Current architecture, size, type and retirement gates pass without baseline changes. TUX-10 remains planned and waits behind the concurrent A-share Fee A window; its fresh scope and integrated keyboard/history acceptance require another explicit handoff. Preserve canonical ASH-08 ownership. No human onboarding study, normal external-market-source or production/trading acceptance is claimed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-18.v76",
+    "version": "2026-10-18.v78",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1865,7 +1865,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Connect today-focus and portfolio checks to canonical workspaces",
         "depends_on": [
           "TUX-08"

@@ -1,0 +1,223 @@
+{
+  "scope": "Frozen local repository acceptance; no production or real-user authority",
+  "base_head": "609ea12151975fe6dcc7845173a9bc6130935826",
+  "command": [
+    "npm.cmd",
+    "run",
+    "test:tui-js"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_feature_609ea_settings",
+  "settings_sha256": "2b71567c2c00bc8b393e62b05f6468a575627a67f1cfa348cc77736ad8add6ec",
+  "source_inputs": {
+    "apps/terminal/application/tui_task_scope_contracts.py": {
+      "raw_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140",
+      "lf_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140"
+    },
+    "apps/terminal/application/tui_task_selector_result.py": {
+      "raw_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f",
+      "lf_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f"
+    },
+    "apps/terminal/application/tui_task_focus_result.py": {
+      "raw_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b",
+      "lf_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b"
+    },
+    "apps/terminal/application/tui_task_focus_result_contracts.py": {
+      "raw_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647",
+      "lf_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647"
+    },
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "fdea7758351cb5d20bc10ae068110142557a849bfc94318fae8b5e93d97c02cc",
+      "lf_sha256": "6a74c5ededebd889de8efeef348e1c2e5e63da60543f7a5c5cd1b141ebabcf16"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "a727d5ca26d707e55a59680fa0c3b296f0316e47ed1b0766b4e94631d2b60e9b",
+      "lf_sha256": "4fb88de41983a0793aa1e23861d811a3ea8e5e14340a1e0bc32eeb023b2fc3ec"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "91477cf77fcb1801286a505b38e71049bc33b437f7e7761c995fe42c892a8bbd",
+      "lf_sha256": "034f356cc152da70ac2c7d8f7cfc63268784426566b547430e574ac03bcf9ae6"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "c998cf0bb795eb065682fe25983d1e84874cf805f403dec8241db61820567497",
+      "lf_sha256": "f57ec2f8ca8e639590643ee74688e3155c03e69ea791ddc5e3f14ff85d7ea68b"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": {
+      "raw_sha256": "57c536399a788ce77aed1791e79c15b084505c2ce3d4018b7af18d54ca16dfcf",
+      "lf_sha256": "5b41b5bb917266be0196b5e60a7868491b1a5cba1453b25f711b30354fe93bd5"
+    },
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "7d84b083afc5bd391259cc066c8339763d179c2a82add847f44d3e39b01e1776",
+      "lf_sha256": "02729fe8fd02e245215d8822c380be2fcb7a194f43538e1bed3606c41371af1d"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968",
+      "lf_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587",
+      "lf_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": {
+      "raw_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61",
+      "lf_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61"
+    },
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de",
+      "lf_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
+      "lf_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "79b189db8b3ce0b0791e02558569fdfe2b69fc85cf966ca53cf1211e352f8b4f",
+      "lf_sha256": "3fb1ce67920d46de77acbaae5ae2e071da92346d28a05d432d69ea0acdaf9755"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "a96b9bb60f69b111fcaab5ffe9a168022c50ce1f71e322b31683991bb4731686",
+      "lf_sha256": "a43ab2a65ee617a184baf4f3143f5426cc66b09b20928b6fa06a0dd77d9f7105"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": {
+      "raw_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c",
+      "lf_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c"
+    },
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "4f4ec480e36f7c4560b09a8af34eda09562630e241e843636e799d44a381bcc6",
+      "lf_sha256": "ea53341e1979a9a893d3e7b07dbc3a9ef03eaf2e080ddb798fd28d0f406ac954"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": {
+      "raw_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604",
+      "lf_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604"
+    },
+    "tests/unit/terminal/test_tui_task_focus_result.py": {
+      "raw_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae",
+      "lf_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae"
+    },
+    "tests/unit/terminal/test_tui_task_focus_execution.py": {
+      "raw_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092",
+      "lf_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092"
+    },
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": {
+      "raw_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd",
+      "lf_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd"
+    },
+    "tests/component/test_tui_task_focus_browser.py": {
+      "raw_sha256": "763ef0f2e9892258091bbc368e1da8464037beb44663979b62ae793c17571727",
+      "lf_sha256": "763ef0f2e9892258091bbc368e1da8464037beb44663979b62ae793c17571727"
+    },
+    "static/css/tui-workbench.css": {
+      "raw_sha256": "0a538dc8ca241bff2dc37ec8d8215fd9b072bcbfc575141652f28a65f935789f",
+      "lf_sha256": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f"
+    }
+  },
+  "started_at": "2026-10-17T19:50:24.371763+00:00",
+  "pid": 67740,
+  "exit_code": 0,
+  "finished_at": "2026-10-17T19:51:57.978929+00:00",
+  "output": "\n> agomtradepro@1.0.0 test:tui-js\n> node --test --test-concurrency=1 frontend/agomtui-runtime/tests/*.test.mjs frontend/agomtradepro-host/tests/*.test.mjs frontend/tui-workbench/tests/*.test.mjs\n\n✔ dashboard wires the shared chat widget instead of duplicate inline handlers (6.9889ms)\n✔ sendText feeds the shared widget's normal send path (9.1471ms)\n✔ home lane is read from explicit workflow metadata (19.971ms)\n✔ home action copy does not hardcode workflow step count (4.6745ms)\n✔ home actions are filtered by server-published action keys (2.8727ms)\n✔ resume action presents a catalog label instead of an internal screen key (3.262ms)\n✔ runtime urls support optimized bootstrap and legacy endpoints (0.9287ms)\n✔ client pagination activates only above the configured page size (0.2492ms)\n✔ dashboard layout precedence is explicit metadata then host fallback then journey (0.1698ms)\n✔ generic bundle does not contain AgomTradePro business identifiers (1.9879ms)\n✔ manifest integrity uses content hashes instead of the repository head (0.8505ms)\n✔ manifest content normalization is independent of checkout line endings (0.9133ms)\n✔ Classic Alpha refresh shows loading, bounded wait and read-only status retry (1181.9982ms)\n✔ Classic Alpha refresh hides server diagnostics and offers state-first recovery (1406.119ms)\n✔ Classic policy row actions follow the event state in the all-events tab (3.2648ms)\n✔ same-tab handoff keeps token in memory and cancellation discards the pending confirmation (5.328ms)\n✔ cancelling the actual confirmation modal discards only its matching handoff (4.0299ms)\n✔ closing the source confirmation modal invalidates its late response (2.1629ms)\n✔ closing an old source modal does not cancel a newer source request (1.9796ms)\n✔ cancelling an ordinary confirmation modal leaves unrelated handoff state unchanged (2.1694ms)\n✔ Escape route closes the actual confirmation modal through cancellation cleanup (2.9162ms)\n✔ confirming the actual modal keeps the handoff until the target submission consumes it (2.7116ms)\n✔ an old modal cannot discard a newer preview for the same target (1.0058ms)\n✔ new preview invalidates an earlier handoff and a failed result cannot restore it (0.9649ms)\n✔ out-of-order source responses and cancelled pending previews cannot replace a newer handoff (10.6443ms)\n✔ expired or malformed owner continuation fails closed and is not retained (114.2014ms)\n✔ continuation values duplicated into render or debug data are rejected (226.4196ms)\n✔ handoff state is isolated by controller and never enters safe UI parameters (2.3454ms)\n✔ confirmed continuation retry retains exact private request identity without retaining reauth (1.821ms)\n✔ retry request context expires and is cleared by cancellation, a new preview, and screen exit (9.3143ms)\n✔ same-screen unrelated action clears an unconsumed continuation (1.4877ms)\n✔ same-screen unrelated action clears a continuation retry context (1.0998ms)\n✔ action-context retention preserves the active pair and rejects a superseded source result (0.9854ms)\n✔ password challenge submission preserves retry context but cancellation discards it (3.3438ms)\n✔ workbench maintained sources stay split by responsibility (12.7823ms)\n✔ target recovery retains selected path identity but excludes credentials and handoff values (3.6017ms)\n✔ authorization loss invalidates a pending related read before clearing its facts (1.3782ms)\n✔ selector invalidation does not abort an unrelated mutation (0.8769ms)\n✔ detail sections preserve zero and missing units while escaping stored text (2.1569ms)\n✔ page-only owner metadata never invents page size or follows a next URL (1.1031ms)\n✔ only a published task dashboard exposes the primary result and every restriction (1.1371ms)\n✔ nested owner authorization takes precedence over transport success (0.8726ms)\n✔ scope invalid is exact and an authorization envelope cannot reuse its old view model (1.6004ms)\n✔ selection replacement aborts related reads and target panel work, never a mutation (2.6036ms)\n✔ full-screen passive authorization loss clears stale facts while mutation state survives (1.953ms)\n✔ a related mutation keeps its submission context when a selector becomes unavailable (0.8165ms)\n✔ an unauthorized successful-transport envelope never renders its supplied facts (0.8692ms)\n✔ scope invalid with a missing nested status remains a reselect error (0.7616ms)\n✔ a failed passive read retries only on explicit click and keeps safe parameters (6.0415ms)\n✔ required hidden, secret and continuation inputs cannot be replayed (7.2835ms)\n✔ mutation retry preserves its original explicit confirmation and submission identity (2.8868ms)\n✔ evidence renders owner restrictions, zero values and original clocks as collapsed disclosures (4.5339ms)\n✔ execution outcome stays visible independently of the owner status (3.6603ms)\n✔ primary source clocks never substitute publication or fetch for the event (0.8695ms)\n✔ untrusted evidence is escaped, bounded and cannot access prototype map entries (1.7202ms)\n✔ task entry preserves action identity, unique controls, explicit submit and safe workspace drafts (6.1914ms)\n✔ cross-screen target loads with safe reveal and no automatic run (3.0456ms)\n✔ return reloads source and refreshes only a passive read (1.882ms)\n✔ write source returns to form without replay (2.3918ms)\n✔ fresh target metadata rejects stale currentAction and keeps recovery (2.0075ms)\n✔ missing loaded screen key cannot claim target and keeps recovery (1.1361ms)\n✔ required unsafe field reveals source form without passive replay (1.1255ms)\n✔ false reveal result is unavailable without optimistic open and remains recoverable (1.6422ms)\n✔ failed target load preserves a visible source recovery (1.0385ms)\n✔ failed source return keeps context for a later retry (1.2048ms)\n✔ late navigation is discarded after invalidation (0.9865ms)\n✔ missing source action returns to screen without replay (0.859ms)\n✔ same-screen next step preserves direct runAction path (0.2325ms)\n✔ candidate mounts a visible return button in the workflow host (0.5922ms)\n✔ cross-screen location clears old business query and history state (1.3636ms)\n✔ mutation identity survives confirmation and network retry but changes for a new submission (3706.0401ms)\n✔ calendar continuation target retries the same confirmed submission after network abort (1547.8372ms)\n✔ calendar continuation target retries the same confirmed submission after HTTP 503 (1754.114ms)\n✔ same-screen unrelated action clears a calendar continuation before target submission (1204.2575ms)\n✔ an unconfirmed continuation retry returns through confirmation before publishing (1710.1642ms)\n✔ calendar continuation keeps request identity across a password challenge without retaining the password (1363.5182ms)\n✔ dashboard displays blocking evidence with cached rows (3629.8187ms)\n✔ dashboard displays blocking evidence with empty rows (939.4187ms)\n✔ UX summary full-list entry returns to the overview (1287.075ms)\n✔ UX blocked business outcome removes the operated checklist mark (965.1309ms)\n✔ UX row task navigation prefills the object without submitting a write (910.5419ms)\n✔ UX candidate count is independent of page size and preserves every loaded row (981.2917ms)\n✔ UX navigation never restores password drafts (727.525ms)\n✔ UX unknown cursor totals are not presented as zero or random pages (800.2483ms)\n✔ UX pagination offers page size, range and direct page navigation (755.4474ms)\n✔ UX returning to a screen restores safe drafts, filter and client page (798.1356ms)\n✔ UX refreshing a queued AI run only observes the existing run (1167.826ms)\n✔ UX server pagination retains the table and recovers from a failed page (2758.5236ms)\n✔ action deep links reveal, focus, and prefill the requested task (953.9243ms)\n✔ F9 exposes support and advanced tasks before focusing the task search (1754.5901ms)\n✔ confirmed mutations leave loading only after the real response settles (1554.3139ms)\n✔ queued Agent action submits once and replays server status and events (1494.2792ms)\n✔ immersive dashboard deep links locate their matching panel (930.2152ms)\n✔ non-immersive dashboard deep links prioritize the explicit read (1462.4043ms)\n✔ catalog suppresses a redundant single-module heading (756.4314ms)\n✔ client pagination keeps second-page row selection aligned (906.5605ms)\n✔ action filtering and toggles preserve form and file input nodes (968.3563ms)\n✔ password fields render as masked controls and keep values out of markup (816.468ms)\n✔ AI configuration preserves boolean selections and never fills masked secrets from rows (1238.7793ms)\n✔ next steps without params do not inherit the previous action form (1213.201ms)\n✔ production shell exposes screen address and restores it after Escape (1161.4266ms)\n✔ primary list selectors update the same panel without truncating requested rows (1984.3138ms)\n✔ collapsed support panels load once on expansion and remain open (3083.7294ms)\n✔ leaving a dashboard aborts obsolete panel requests (1079.2092ms)\n✔ dashboard auto-loads passive reads and never auto-runs sensitive actions (1075.8683ms)\n✔ dashboard action guidance renders once when panel note and action copy match (769.7848ms)\n✔ shell pager is visible only for a paginated result (926.9483ms)\n✔ wide governance rows scroll horizontally without breaking dates or row actions (1277.1161ms)\n✔ regime dashboard fails closed when its result contract drifts (1352.4443ms)\n✔ blank KPI results fail closed instead of rendering a synthetic zero (1798.3744ms)\n✔ admin governance row action shows a receipt and refreshes the source panel (1034.5197ms)\n✔ editable dashboard row action opens a form before sending the update (1391.1784ms)\n✔ public immersive row edit opens a prefilled modal without HTTP metadata (1009.8656ms)\n✔ advanced action referenced by a dashboard panel remains reachable (1017.5986ms)\n✔ required read action referenced by a dashboard panel waits for form input (971.4033ms)\n✔ screen navigation updates shareable history and browser back restores the screen (806.609ms)\n✔ user-owned state is namespaced and structured values never render as object placeholders (793.8744ms)\n✔ menus expose menuitem semantics and return focus on Escape (1640.9815ms)\n✔ chart view renders every series with an accessible text summary (884.4336ms)\n✔ detail and chart empty results render reviewed task guidance (965.84ms)\n✔ chart view has no overlap or page overflow at three acceptance viewports (3410.8023ms)\n✔ modal traps focus and clears sensitive markup on close (1267.3435ms)\n✔ task failures render traceable recovery without leaking exception text (1046.2289ms)\n✔ late stale errors cannot replace the latest action result (1161.8192ms)\n✔ audit unsafe defaults only reveal a form on navigation and refresh (870.4648ms)\n✔ audit access package stays masked until explicitly revealed (807.8795ms)\n✔ audit wide tables retain columns and conditional row tasks in the full list (1504.5306ms)\n✔ server experience renders a quiet task landing with three permission-filtered entries (1256.3143ms)\n✔ experience mode switch only changes navigation and preserves URL, result DOM and requests (938.4889ms)\n✔ explicit Today entry exits the quiet landing and loads its dashboard (1135.5439ms)\n✔ quiet task landing preserves full home portfolio and row filters (1232.6046ms)\n✔ legacy catalogs retain professional navigation and hide experience controls (1161.6405ms)\n✔ raw response control stays hidden without server diagnostic authority (969.7043ms)\n✔ task landing reload and per-user mode preference retain routing intent (1229.3437ms)\n✔ mode changes preserve partial result and nullable counts while denied diagnostics close (1943.0746ms)\nℹ tests 135\nℹ suites 0\nℹ pass 135\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 92887.9519\n",
+  "raw_stdout_sha256": "5feb65f57243566484d922df30a6224de97a766d8b9005f28b2417b508ddf910",
+  "utf8_output_roundtrip_sha256": "5feb65f57243566484d922df30a6224de97a766d8b9005f28b2417b508ddf910",
+  "source_inputs_after": {
+    "apps/terminal/application/tui_task_scope_contracts.py": {
+      "raw_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140",
+      "lf_sha256": "3ecec87ec7401d6e6630ce5db8a9d6e79648ee4c246a690360a99d668abea140"
+    },
+    "apps/terminal/application/tui_task_selector_result.py": {
+      "raw_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f",
+      "lf_sha256": "9bdde58841474354640f9676c0fd4335f1a72afa7f5b73ce039dc7cff220fa8f"
+    },
+    "apps/terminal/application/tui_task_focus_result.py": {
+      "raw_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b",
+      "lf_sha256": "879a34e29f6ad40b31f0edf753c7a6ea123b4904f998efd60a8ada969c08d25b"
+    },
+    "apps/terminal/application/tui_task_focus_result_contracts.py": {
+      "raw_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647",
+      "lf_sha256": "592ed6f0411ec0462088698fd01188ec22818d646e015029deb2e4781c934647"
+    },
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "fdea7758351cb5d20bc10ae068110142557a849bfc94318fae8b5e93d97c02cc",
+      "lf_sha256": "6a74c5ededebd889de8efeef348e1c2e5e63da60543f7a5c5cd1b141ebabcf16"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "a727d5ca26d707e55a59680fa0c3b296f0316e47ed1b0766b4e94631d2b60e9b",
+      "lf_sha256": "4fb88de41983a0793aa1e23861d811a3ea8e5e14340a1e0bc32eeb023b2fc3ec"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "91477cf77fcb1801286a505b38e71049bc33b437f7e7761c995fe42c892a8bbd",
+      "lf_sha256": "034f356cc152da70ac2c7d8f7cfc63268784426566b547430e574ac03bcf9ae6"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "c998cf0bb795eb065682fe25983d1e84874cf805f403dec8241db61820567497",
+      "lf_sha256": "f57ec2f8ca8e639590643ee74688e3155c03e69ea791ddc5e3f14ff85d7ea68b"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": {
+      "raw_sha256": "57c536399a788ce77aed1791e79c15b084505c2ce3d4018b7af18d54ca16dfcf",
+      "lf_sha256": "5b41b5bb917266be0196b5e60a7868491b1a5cba1453b25f711b30354fe93bd5"
+    },
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "7d84b083afc5bd391259cc066c8339763d179c2a82add847f44d3e39b01e1776",
+      "lf_sha256": "02729fe8fd02e245215d8822c380be2fcb7a194f43538e1bed3606c41371af1d"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968",
+      "lf_sha256": "e71cdccde8e944f0368c0bec4efdc12aedf42be1a1edbcb363ee988554830968"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587",
+      "lf_sha256": "ac4b59e3efc3e8cd32bab55113b03bed93ad4374f429f1a4387bba31de342587"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": {
+      "raw_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61",
+      "lf_sha256": "4776a6b37bb8439f7577fc0561ad3b69366c070a0bf46f43c7bffab0145b6b61"
+    },
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de",
+      "lf_sha256": "992da34e8fe041edd6d7dc096a60cc2d9cbd0c0d62be25f34963b99ce7d766de"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d",
+      "lf_sha256": "83368d1dd0e36600dcf9964c48140de9a8e1868c5f5ce3a7771a559d7ff5994d"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "79b189db8b3ce0b0791e02558569fdfe2b69fc85cf966ca53cf1211e352f8b4f",
+      "lf_sha256": "3fb1ce67920d46de77acbaae5ae2e071da92346d28a05d432d69ea0acdaf9755"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "a96b9bb60f69b111fcaab5ffe9a168022c50ce1f71e322b31683991bb4731686",
+      "lf_sha256": "a43ab2a65ee617a184baf4f3143f5426cc66b09b20928b6fa06a0dd77d9f7105"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": {
+      "raw_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c",
+      "lf_sha256": "7150b79479bc35c971cab9f7f64e4fcc012af083ad1354c64cc9123453d8f88c"
+    },
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "4f4ec480e36f7c4560b09a8af34eda09562630e241e843636e799d44a381bcc6",
+      "lf_sha256": "ea53341e1979a9a893d3e7b07dbc3a9ef03eaf2e080ddb798fd28d0f406ac954"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": {
+      "raw_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604",
+      "lf_sha256": "2b84f3c430c909d2588b1e08c268639a46573b5530b09610100ab6e1caaa0604"
+    },
+    "tests/unit/terminal/test_tui_task_focus_result.py": {
+      "raw_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae",
+      "lf_sha256": "d6d6761c0d7331e3bc7ce502600c9597c33e103cf3b0ed20496d420bfb34eeae"
+    },
+    "tests/unit/terminal/test_tui_task_focus_execution.py": {
+      "raw_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092",
+      "lf_sha256": "a6e0453f6d34bfb6b4386c0159426cc8a05412473addb2d3c9b64c8c67e35092"
+    },
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": {
+      "raw_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd",
+      "lf_sha256": "f3ef52284e678492241828814e5da2f13959d07c3d5fb88bf59a7a28499667bd"
+    },
+    "tests/component/test_tui_task_focus_browser.py": {
+      "raw_sha256": "763ef0f2e9892258091bbc368e1da8464037beb44663979b62ae793c17571727",
+      "lf_sha256": "763ef0f2e9892258091bbc368e1da8464037beb44663979b62ae793c17571727"
+    },
+    "static/css/tui-workbench.css": {
+      "raw_sha256": "0a538dc8ca241bff2dc37ec8d8215fd9b072bcbfc575141652f28a65f935789f",
+      "lf_sha256": "a421b6b612c922ecfdeb90aea8486eea610bef8ce5e1b43b902640636879c36f"
+    }
+  }
+}

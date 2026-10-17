@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from apps.terminal.application.tui_task_focus_result import project_tui_task_focus_result
+from apps.terminal.application.tui_task_selector_result import (
+    project_account_selector_payload,
+    project_portfolio_selector_payload,
+)
 from apps.terminal.application.tui_workbench_collection_result_models import (
     TuiWorkbenchCollectionResultMixin,
 )
@@ -69,6 +74,37 @@ class TuiWorkbenchResultModelMixin(
         status_code: int,
         request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        action_key = str(action.get("key") or "")
+        task_model: dict[str, Any] | None = None
+        if action_key == "today-focus.account-selector":
+            task_model = dict(project_account_selector_payload(payload, http_status=status_code))
+        elif action_key == "portfolio-check.portfolios":
+            task_model = dict(
+                project_portfolio_selector_payload(
+                    payload,
+                    requested_page=(request_params or {}).get("page", 1),
+                    http_status=status_code,
+                )
+            )
+        elif action_key in {
+            "today-focus.market-context",
+            "today-focus.queue",
+            "portfolio-check.recorded-facts",
+            "account.portfolio-recorded-facts",
+        }:
+            task_model = dict(
+                project_tui_task_focus_result(
+                    action_key,
+                    payload,
+                    requested_params=request_params,
+                    http_status=status_code,
+                    professional_target=action.get("_task_focus_professional_target"),
+                )
+            )
+        if task_model is not None:
+            return self._finalize_view_model(
+                action, task_model, payload=payload, status_code=status_code
+            )
         data = self._unwrap_payload(payload)
         custom_model = self._custom_view_model(
             action,

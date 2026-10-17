@@ -1,0 +1,149 @@
+{
+  "scope": "Frozen local repository acceptance; no production or real-user authority",
+  "base_head": "609ea12151975fe6dcc7845173a9bc6130935826",
+  "command": [
+    "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+    "-B",
+    "-X",
+    "utf8",
+    "-m",
+    "pytest",
+    ".tmp/tux09-feature-609ea-01/test_tux09_missing_tasks_red.py",
+    "-q",
+    "--disable-warnings"
+  ],
+  "cwd": "D:\\githv\\agomTradePro",
+  "settings_module": "tux09_feature_609ea_settings",
+  "settings_sha256": "2b71567c2c00bc8b393e62b05f6468a575627a67f1cfa348cc77736ad8add6ec",
+  "source_inputs": {
+    "apps/terminal/application/tui_task_scope_contracts.py": null,
+    "apps/terminal/application/tui_task_selector_result.py": null,
+    "apps/terminal/application/tui_task_focus_result.py": null,
+    "apps/terminal/application/tui_task_focus_result_contracts.py": null,
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "182c2ad51a6b5ce99ef3dd7c1b517bde1278b3c9cee717764304d1ea5125b45e",
+      "lf_sha256": "b18492e057e926a936f73c2978820440121bb23a242ba6caabe4c2041b7cb76e"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "ca6af0456b7eb10d42e0e9e1f46711d33762faa474661f9315446a279b39668d",
+      "lf_sha256": "b5df47ac0871bb3ad11c28bcfc6ed8a0835b961ee905607a4a2310ae99c6c879"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "0929ff0215af47eecfdc112e8ab990561c0a320f24a6eaebffde616f96721c74",
+      "lf_sha256": "bc054f673f15123faa8d37dbbe11ce6ecebbbef2021d550237ddfc15bd549dad"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "5bfb22c651622468eac12fd219f0dd24e8b7c94f9223fb0ac84aeca49dd9edef",
+      "lf_sha256": "201f2e0934255c06abbc8fb9bb9b6ac91d5829cce1376abeb4f29b437f5b7eed"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": null,
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "da271727d09a3d08eb96c72fa53450bb5bbb69553d75e30c7a8aa936eec2d052",
+      "lf_sha256": "0d00e29af75f8a452d38f7fe23f9406793713f55a2b2d31ed1b691b5e3b7ef8d"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "31f4cf9d6617eefc632f789d83e5dde38bfbb3cc27817e08ddec28768c1c24cf",
+      "lf_sha256": "808afb959ff240171af5b0ea439dfc515c49831c6827d03a9864919618769781"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "de62cc985cd627f8984433ce800809f2bcba2ee43f93dc443f8b452dcce21565",
+      "lf_sha256": "bc0a41ca56fe8f28ec9d955019a6cccce6dfaa012d67db5fb8ec822500efc6ba"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": null,
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "f83b265b3350e7298c2cd3d753db4b8561c63e47020146ee630b05ecf4f0bc1f",
+      "lf_sha256": "a774c6a5b315074841af618eec9b1e8629f259dccdafa9b92b094107670895b7"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "a7773f18769cf36d98d6300eff1143876651054819e69d2c774166416b14c522",
+      "lf_sha256": "8c477c05c3a38ef630b49f28fc0ae1dc387b9ae6217c043889d25c426f641c2a"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "c280198a3c6426c3e9d8433c672f091fe44190cf9c5ddac0654edb13f5b773c3",
+      "lf_sha256": "bae95578cd01cb06790f8277d0775cf38735a7b49817b6ea65ca7a03de2a511d"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "8a9b588a2fb26cf2a635c97905a795c7fd16d80fc1c8b32593d5828e3066db90",
+      "lf_sha256": "4ab36ee90cd757974fc0a1282d7cbb4ee7a950f2fc39a53b228eea52f997fb8c"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": null,
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+      "lf_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": null,
+    "tests/unit/terminal/test_tui_task_focus_result.py": null,
+    "tests/unit/terminal/test_tui_task_focus_execution.py": null,
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": null,
+    "tests/component/test_tui_task_focus_browser.py": null
+  },
+  "started_at": "2026-10-17T18:53:39.335418+00:00",
+  "pid": 39948,
+  "exit_code": 1,
+  "finished_at": "2026-10-17T19:00:40.156053+00:00",
+  "output": "FF                                                                       [100%]\r\n================================== FAILURES ===================================\r\n__________ test_required_task_screen_is_published[task.today-focus] ___________\r\n.tmp\\tux09-feature-609ea-01\\test_tux09_missing_tasks_red.py:18: in test_required_task_screen_is_published\r\n    assert response.status_code == 200\r\nE   assert 404 == 200\r\nE    +  where 404 = <Response status_code=404, \"application/json\">.status_code\r\n---------------------------- Captured stdout setup ----------------------------\r\n[Migration 0007] Data backfill completed: event_type=0, gate_effective=0\r\n---------------------------- Captured stderr call -----------------------------\r\nRequest completed: GET /api/tui/screens/task.today-focus/ - 404 (11932ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/screens/task.today-focus/ - 404 (11932ms)\r\n________ test_required_task_screen_is_published[task.portfolio-check] _________\r\n.tmp\\tux09-feature-609ea-01\\test_tux09_missing_tasks_red.py:18: in test_required_task_screen_is_published\r\n    assert response.status_code == 200\r\nE   assert 404 == 200\r\nE    +  where 404 = <Response status_code=404, \"application/json\">.status_code\r\n---------------------------- Captured stderr call -----------------------------\r\nRequest completed: GET /api/tui/screens/task.portfolio-check/ - 404 (73ms)\r\n------------------------------ Captured log call ------------------------------\r\nWARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/tui/screens/task.portfolio-check/ - 404 (73ms)\r\n=========================== short test summary info ===========================\r\nFAILED .tmp/tux09-feature-609ea-01/test_tux09_missing_tasks_red.py::test_required_task_screen_is_published[task.today-focus]\r\nFAILED .tmp/tux09-feature-609ea-01/test_tux09_missing_tasks_red.py::test_required_task_screen_is_published[task.portfolio-check]\r\n2 failed in 400.64s (0:06:40)\r\n",
+  "raw_stdout_sha256": "d8fcb67ecb9635575d8049c102676e6ab50973081c18399cd89c21f8556c4768",
+  "utf8_output_roundtrip_sha256": "d8fcb67ecb9635575d8049c102676e6ab50973081c18399cd89c21f8556c4768",
+  "source_inputs_after": {
+    "apps/terminal/application/tui_task_scope_contracts.py": null,
+    "apps/terminal/application/tui_task_selector_result.py": null,
+    "apps/terminal/application/tui_task_focus_result.py": null,
+    "apps/terminal/application/tui_task_focus_result_contracts.py": null,
+    "apps/terminal/application/tui_workbench_execution.py": {
+      "raw_sha256": "182c2ad51a6b5ce99ef3dd7c1b517bde1278b3c9cee717764304d1ea5125b45e",
+      "lf_sha256": "b18492e057e926a936f73c2978820440121bb23a242ba6caabe4c2041b7cb76e"
+    },
+    "apps/terminal/application/tui_workbench_result_models.py": {
+      "raw_sha256": "ca6af0456b7eb10d42e0e9e1f46711d33762faa474661f9315446a279b39668d",
+      "lf_sha256": "b5df47ac0871bb3ad11c28bcfc6ed8a0835b961ee905607a4a2310ae99c6c879"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_action_patch_execution.py": {
+      "raw_sha256": "0929ff0215af47eecfdc112e8ab990561c0a320f24a6eaebffde616f96721c74",
+      "lf_sha256": "bc054f673f15123faa8d37dbbe11ce6ecebbbef2021d550237ddfc15bd549dad"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_registry.py": {
+      "raw_sha256": "5bfb22c651622468eac12fd219f0dd24e8b7c94f9223fb0ac84aeca49dd9edef",
+      "lf_sha256": "201f2e0934255c06abbc8fb9bb9b6ac91d5829cce1376abeb4f29b437f5b7eed"
+    },
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_task_focus.py": null,
+    "config/tui/ia/tui_information_architecture.v1.json": {
+      "raw_sha256": "da271727d09a3d08eb96c72fa53450bb5bbb69553d75e30c7a8aa936eec2d052",
+      "lf_sha256": "0d00e29af75f8a452d38f7fe23f9406793713f55a2b2d31ed1b691b5e3b7ef8d"
+    },
+    "frontend/tui-workbench/src/20-dashboard.js": {
+      "raw_sha256": "31f4cf9d6617eefc632f789d83e5dde38bfbb3cc27817e08ddec28768c1c24cf",
+      "lf_sha256": "808afb959ff240171af5b0ea439dfc515c49831c6827d03a9864919618769781"
+    },
+    "frontend/tui-workbench/src/30-actions.js": {
+      "raw_sha256": "de62cc985cd627f8984433ce800809f2bcba2ee43f93dc443f8b452dcce21565",
+      "lf_sha256": "bc0a41ca56fe8f28ec9d955019a6cccce6dfaa012d67db5fb8ec822500efc6ba"
+    },
+    "frontend/tui-workbench/src/38-task-focus-panels.js": null,
+    "frontend/tui-workbench/src/40-views.js": {
+      "raw_sha256": "f83b265b3350e7298c2cd3d753db4b8561c63e47020146ee630b05ecf4f0bc1f",
+      "lf_sha256": "a774c6a5b315074841af618eec9b1e8629f259dccdafa9b92b094107670895b7"
+    },
+    "frontend/tui-workbench/src/45-pagination.js": {
+      "raw_sha256": "a7773f18769cf36d98d6300eff1143876651054819e69d2c774166416b14c522",
+      "lf_sha256": "8c477c05c3a38ef630b49f28fc0ae1dc387b9ae6217c043889d25c426f641c2a"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "c280198a3c6426c3e9d8433c672f091fe44190cf9c5ddac0654edb13f5b773c3",
+      "lf_sha256": "bae95578cd01cb06790f8277d0775cf38735a7b49817b6ea65ca7a03de2a511d"
+    },
+    "frontend/tui-workbench/tests/source-layout.test.mjs": {
+      "raw_sha256": "8a9b588a2fb26cf2a635c97905a795c7fd16d80fc1c8b32593d5828e3066db90",
+      "lf_sha256": "4ab36ee90cd757974fc0a1282d7cbb4ee7a950f2fc39a53b228eea52f997fb8c"
+    },
+    "frontend/tui-workbench/tests/task-focus-panels.test.mjs": null,
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+      "lf_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c"
+    },
+    "tests/unit/terminal/test_tui_task_scope_contracts.py": null,
+    "tests/unit/terminal/test_tui_task_focus_result.py": null,
+    "tests/unit/terminal/test_tui_task_focus_execution.py": null,
+    "tests/unit/terminal/test_tui_task_focus_metadata.py": null,
+    "tests/component/test_tui_task_focus_browser.py": null
+  }
+}
