@@ -1008,9 +1008,10 @@ class PublishedTuiMetadataRepository:
         actions: list[dict[str, Any]],
         ia_owned_action_copy: dict[str, dict[str, Any]] | None = None,
     ) -> int:
-        """Inject one runtime bundle and report inserted or replaced item count."""
+        """Inject private metadata copies and report inserted or replaced item count."""
 
-        owned_action_copy = ia_owned_action_copy or {}
+        bundle = copy.deepcopy(bundle)
+        owned_action_copy = copy.deepcopy(ia_owned_action_copy or {})
         injected = 0
         injected += PublishedTuiMetadataRepository._append_unique_payloads(
             payloads=groups,

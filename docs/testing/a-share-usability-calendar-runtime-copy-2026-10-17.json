@@ -1,0 +1,936 @@
+{
+  "status": "bounded-runtime-injection-input-ownership-fix-accepted",
+  "base_commit": "cf44a32f304936d00e1d90928f17d24658dcf1e7",
+  "source_tree": "15d1d86e50fcae48aa361201aeda7954bb47b6cf",
+  "source_commit": "472667533d768befbc11a1e0c17eeaab8ba46b5c",
+  "production": [
+    "apps/terminal/infrastructure/tui_metadata_repository.py"
+  ],
+  "tests": [
+    "tests/unit/terminal/test_runtime_injection_input_ownership.py"
+  ],
+  "source_lf_sha256": {
+    "apps/terminal/infrastructure/tui_metadata_repository.py": "d80f3a3de3ba732e830c3cb388bfafabbf7521a1e8e34bdd6af80cbf3e4fc4a8",
+    "tests/unit/terminal/test_runtime_injection_input_ownership.py": "90e2fb7905a7fcc11e4e0000ecf6eb7daabc9bea95f0897e2bfa50865e78eddc"
+  },
+  "source_raw_and_lf_sha256": {
+    "apps/terminal/infrastructure/tui_metadata_repository.py": {
+      "raw_sha256": "be889113761254326415c6fee518a4db74b26fa18ffebed92c0733922995122d",
+      "lf_sha256": "d80f3a3de3ba732e830c3cb388bfafabbf7521a1e8e34bdd6af80cbf3e4fc4a8"
+    },
+    "tests/unit/terminal/test_runtime_injection_input_ownership.py": {
+      "raw_sha256": "90e2fb7905a7fcc11e4e0000ecf6eb7daabc9bea95f0897e2bfa50865e78eddc",
+      "lf_sha256": "90e2fb7905a7fcc11e4e0000ecf6eb7daabc9bea95f0897e2bfa50865e78eddc"
+    }
+  },
+  "protected_raw_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "held_calendar_candidate_raw_and_lf_sha256": {
+    "apps/terminal/application/tui_workbench_result_models_specialized.py": {
+      "raw_sha256": "00ab1e184c418c0f93abd14107cdf5b7a48ea6c7fca076e41d6b2c8b9f697eb6",
+      "lf_sha256": "718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6"
+    },
+    "apps/terminal/application/tui_workbench_calendar_result_models.py": {
+      "raw_sha256": "d7e92a820168df890190bd939b41592b215ab92761e3c1026bf692a75790b695",
+      "lf_sha256": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7"
+    },
+    "tests/unit/test_tui_runtime_manifest_contract.py": {
+      "raw_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+      "lf_sha256": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c"
+    },
+    "scripts/build-tui-runtime.mjs": {
+      "raw_sha256": "779b5b125967f4022581cf950f25febd41685fe9ed6f518f5db104f9e88cb182",
+      "lf_sha256": "806bb51b0b83c6b2b8f2e5aaa69db1b35e4dbfbaadb3797ddeacaba1bee6b7b5"
+    }
+  },
+  "revision_proof": {
+    "old_source_tree": "b6192347f1c43e6dc5c8a3f7b847dcf15dfe5ab5",
+    "new_source_tree": "15d1d86e50fcae48aa361201aeda7954bb47b6cf",
+    "only_changed_path": [
+      "tests/unit/terminal/test_runtime_injection_input_ownership.py"
+    ],
+    "production_and_all_other_committed_inputs_byte_identical": true,
+    "test_correction": "Restore the required workspace default_action_key removed by the empty-action test factory; ownership assertions unchanged",
+    "generated_outputs_copied_from_actual_official_build": {
+      "config/tui/agomtui-runtime.manifest.json": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37",
+      "governance/module_map.json": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+    },
+    "reuse_boundary": "Only production/config/frontend/component inputs with exact Git-blob equality may reuse completed root-1 build, typing, Node and native reports; final full Python suite, test style and governance rerun under root-2; no shared CI/S6 identity claimed."
+  },
+  "verified": {
+    "actual_phase_exit_codes": {
+      "reused_root1": {
+        "build": {
+          "runtime-build": 0,
+          "runtime-check": 0,
+          "module-build": 0
+        },
+        "node": {
+          "node-regression": 0
+        },
+        "typing": {
+          "incremental-mypy": 0,
+          "full-mypy": 0
+        },
+        "native": {
+          "native-before": 0,
+          "native-journey": 0,
+          "native-after": 0
+        }
+      },
+      "root2_rerun": {
+        "unit": {
+          "python-regression": 0
+        },
+        "style": {
+          "black": 0,
+          "isort": 0,
+          "ruff": 0,
+          "architecture": 0,
+          "size": 0
+        },
+        "governance": {
+          "check_module_map": 0,
+          "check_current_data_contracts": 0,
+          "check_audit_event_contracts": 0,
+          "check_celery_task_contracts": 0,
+          "check_data_dictionary": 0,
+          "data_center_architecture_inventory": 0,
+          "data_center_entrypoint_inventory": 0,
+          "full-governance": 1,
+          "retirement": 1
+        }
+      }
+    },
+    "reuse_boundary": {
+      "reused_source_tree": "b6192347f1c43e6dc5c8a3f7b847dcf15dfe5ab5",
+      "final_source_tree": "15d1d86e50fcae48aa361201aeda7954bb47b6cf",
+      "changed_path": "tests/unit/terminal/test_runtime_injection_input_ownership.py",
+      "only_production_config_frontend_component_and_conftest_inputs_reused_after_git_blob_identity": true,
+      "no_single_tree_ci_or_s6_claim": true
+    },
+    "python_unit": {
+      "passed": 501,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 300.89
+    },
+    "node_subset": {
+      "actual": {
+        "tests": 26,
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source_tree": "b6192347f1c43e6dc5c8a3f7b847dcf15dfe5ab5",
+      "files": [
+        "static/js/agomtui-runtime-core.js",
+        "static/js/tui-agomtradepro-adapter.js",
+        "static/js/tui-workbench.js"
+      ],
+      "test_files": [
+        "frontend/agomtui-runtime/tests/runtime.test.mjs",
+        "frontend/tui-workbench/tests/source-layout.test.mjs",
+        "frontend/tui-workbench/tests/result-continuation.test.mjs"
+      ]
+    },
+    "native_http_and_browser": {
+      "count": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 70.12
+      },
+      "source_tree": "b6192347f1c43e6dc5c8a3f7b847dcf15dfe5ab5",
+      "scope": "Existing real root HTTP/Session/CSRF/owner/continuation/Audit/browser flow, synthetic external calendar and preview secret only; explicit existing child DB, no production or provider qualification",
+      "external_calendar_and_preview_secret": "synthetic",
+      "database_claim": "Root reports the reused child PostgreSQL HTTP/browser journey; no production or provider qualification."
+    },
+    "red_history": {
+      "corrected_parent_red": {
+        "result": {
+          "base_commit": "cf44a32f304936d00e1d90928f17d24658dcf1e7",
+          "actual_pytest_exit": 1,
+          "test_lf_sha256": "90e2fb7905a7fcc11e4e0000ecf6eb7daabc9bea95f0897e2bfa50865e78eddc",
+          "all_five_reach_ownership_assertions": true
+        },
+        "log": "calendar-runtime-copy-valid-fixtures-red.txt",
+        "all_five_reach_ownership_assertions": true
+      },
+      "original_parent_probe_red": {
+        "result": {
+          "base_commit": "cf44a32f304936d00e1d90928f17d24658dcf1e7",
+          "actual_pytest_exit": 1
+        },
+        "log": "calendar-runtime-copy-parent-1-red.txt",
+        "actual_failures": 1
+      },
+      "root1_invalid_fixture_red": {
+        "log": "calendar-runtime-copy-root-1-red.txt",
+        "actual_failures": 5,
+        "fixture_precondition_failures": 2,
+        "not_counted_as_valid_red": true
+      },
+      "root1_invalid_fixture_unit_run": {
+        "log": "calendar-runtime-copy-root-1-python-regression.txt",
+        "summary": {
+          "passed": 499,
+          "failed": 2,
+          "skipped": 0,
+          "seconds": 388.83
+        },
+        "accepted_as_green": false
+      },
+      "old_calendar_failure": {
+        "reference": {
+          "base_commit": "cf44a32f304936d00e1d90928f17d24658dcf1e7",
+          "source_tree": "93d0490a5e403bacea3dcfa1fcbbb31acdeac967",
+          "source_commit": "aa80aade7b47200d675f811376c4ac41dc2289d0",
+          "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-calendar-result-size-k_wprvws",
+          "production": [
+            "apps/terminal/application/tui_workbench_result_models_specialized.py",
+            "apps/terminal/application/tui_workbench_calendar_result_models.py"
+          ],
+          "tests": [
+            "tests/unit/test_tui_runtime_manifest_contract.py"
+          ],
+          "tooling": [
+            "scripts/build-tui-runtime.mjs"
+          ],
+          "source_lf_sha256": {
+            "apps/terminal/application/tui_workbench_result_models_specialized.py": "718ba7f010c7b33212c04208564c776b3beffc4c170f990707ac45f974a6e1d6",
+            "apps/terminal/application/tui_workbench_calendar_result_models.py": "3612b9fd7bf5f92388a2c60cefc6d8330933b4d87f19fb116b0e9285f0ff74d7",
+            "tests/unit/test_tui_runtime_manifest_contract.py": "d01d49614251d405edbac8eb887b937edb9f733508deedca2a1c1be4e35d299c",
+            "scripts/build-tui-runtime.mjs": "806bb51b0b83c6b2b8f2e5aaa69db1b35e4dbfbaadb3797ddeacaba1bee6b7b5"
+          },
+          "protected_raw_sha256": {
+            "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+            "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+          }
+        },
+        "log": "tui-calendar-result-size-root-1-python-regression.txt",
+        "summary": {
+          "passed": 495,
+          "failed": 1,
+          "skipped": 0,
+          "seconds": 489.45
+        },
+        "accepted_as_green": false
+      }
+    },
+    "input_ownership": {
+      "production_behavior": "Private deepcopy of the frozen injection bundle and IA-owned overlay before normalization; merge order, owner attribution, insertion/replacement counters and replacement decisions remain unchanged.",
+      "test_boundary": "IA fields overlay is a synthetic generic overlay; the current owner-map builder exposes label/description only.",
+      "independent_review": ".tmp\\ash-calendar-runtime-copy-independent-review-20261017.md",
+      "independent_review_raw_sha256": "ccae938eb60b62ba3b36b4cea55fca30f9175d1e7cf67fdbcbfbe1fde0335290"
+    },
+    "generated_outputs": {
+      "manifest": {
+        "base": {
+          "raw_sha256": "d094ecdfc74f1847ed14bf10ef171764f0e22e628500ab981ee3182c5882ac8a",
+          "lf_sha256": "d094ecdfc74f1847ed14bf10ef171764f0e22e628500ab981ee3182c5882ac8a"
+        },
+        "official_root1_build": {
+          "raw_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37",
+          "lf_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37"
+        },
+        "root2_export": {
+          "raw_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37",
+          "lf_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37"
+        },
+        "allowed_file_hash_changes": [
+          "apps/terminal/infrastructure/tui_metadata_repository.py"
+        ],
+        "upstream_commit": "cf44a32f304936d00e1d90928f17d24658dcf1e7",
+        "build_id": "agomtui-runtime-0.2.0+f403f6368fb7",
+        "only_allowed_top_level_changes": true
+      },
+      "frontend_bundles": {
+        "static/js/agomtui-runtime-core.js": {
+          "base": {
+            "raw_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+            "lf_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90"
+          },
+          "official_root1_build": {
+            "raw_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90",
+            "lf_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90"
+          },
+          "root2_export": {
+            "raw_sha256": "b90be7e8f45021424575f23976ad32df800735a770b947ae27f819d6c68ca7e1",
+            "lf_sha256": "988216a4761b3053cc72c36a5ac7a83d84f6844c590c6bdc1045fff7a4b98e90"
+          },
+          "lf_equal_to_parent": true
+        },
+        "static/js/tui-agomtradepro-adapter.js": {
+          "base": {
+            "raw_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+            "lf_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f"
+          },
+          "official_root1_build": {
+            "raw_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f",
+            "lf_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f"
+          },
+          "root2_export": {
+            "raw_sha256": "c27a3e9afd191176a10fdbff76cebafaa28da11e5e14b17f86ec08a0dc76a4b5",
+            "lf_sha256": "c53ca2ea9daabd633051942eb5af67b871922d5af63ed32e0ba23809a951d21f"
+          },
+          "lf_equal_to_parent": true
+        },
+        "static/js/tui-workbench.js": {
+          "base": {
+            "raw_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb",
+            "lf_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb"
+          },
+          "official_root1_build": {
+            "raw_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb",
+            "lf_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb"
+          },
+          "root2_export": {
+            "raw_sha256": "a068618101e08fe12cabf40d8465c85fa16619006063a4a2d087ffa63a26fd78",
+            "lf_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb"
+          },
+          "lf_equal_to_parent": true
+        }
+      },
+      "projections": {
+        "governance/module_map.json": {
+          "base": {
+            "raw_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1",
+            "lf_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+          },
+          "working_tree": {
+            "raw_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1",
+            "lf_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+          },
+          "official_root1_build": {
+            "raw_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1",
+            "lf_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+          },
+          "root2_export": {
+            "raw_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1",
+            "lf_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+          },
+          "lf_equal_to_parent": true,
+          "copied_or_committed": false
+        },
+        "governance/data_center_architecture_inventory.json": {
+          "base": {
+            "raw_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897",
+            "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897"
+          },
+          "working_tree": {
+            "raw_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897",
+            "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897"
+          },
+          "official_root1_build": {
+            "raw_sha256": "59b43fbf73f0d5ba02562fbc5588e97e13d9346e0fc54ee76cb3e69f1370936c",
+            "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897"
+          },
+          "root2_export": {
+            "raw_sha256": "59b43fbf73f0d5ba02562fbc5588e97e13d9346e0fc54ee76cb3e69f1370936c",
+            "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897"
+          },
+          "lf_equal_to_parent": true,
+          "copied_or_committed": false
+        },
+        "governance/data_center_entrypoints.json": {
+          "base": {
+            "raw_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61",
+            "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61"
+          },
+          "working_tree": {
+            "raw_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61",
+            "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61"
+          },
+          "official_root1_build": {
+            "raw_sha256": "9db40ef1c3e11826d3c71cb9cdacc5e78186d0e645ff56058415596e28ee8b37",
+            "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61"
+          },
+          "root2_export": {
+            "raw_sha256": "9db40ef1c3e11826d3c71cb9cdacc5e78186d0e645ff56058415596e28ee8b37",
+            "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61"
+          },
+          "lf_equal_to_parent": true,
+          "copied_or_committed": false
+        }
+      }
+    },
+    "governance": {
+      "report": {
+        "baseline_version": "2026-09-09.v220",
+        "violation_count": 3,
+        "sections": [
+          {
+            "name": "governance_baseline",
+            "violation_count": 0,
+            "data": {
+              "baseline_version": "2026-09-09.v220",
+              "required_key_count": 14,
+              "missing_required_keys": [],
+              "mcp_governance_required_key_count": 13,
+              "mcp_governance_entry_count": 13,
+              "module_shape_entry_count": 44,
+              "allowed_application_import_file_count": 0,
+              "allowed_large_file_count": 0
+            },
+            "violations": []
+          },
+          {
+            "name": "docs_consistency",
+            "violation_count": 0,
+            "data": {
+              "actual_mcp_tool_count": 377,
+              "expected_mcp_tool_count": 377,
+              "actual_business_module_count": 44,
+              "expected_business_module_count": 44,
+              "actual_static_test_function_count": 19435,
+              "expected_static_test_function_count": 12264,
+              "dynamic_governance_doc_count": 21,
+              "core_version": "0.8.0",
+              "pyproject_version": "0.8.0"
+            },
+            "violations": []
+          },
+          {
+            "name": "docs_links",
+            "violation_count": 0,
+            "data": {
+              "checked_links": 76
+            },
+            "violations": []
+          },
+          {
+            "name": "governance_docs",
+            "violation_count": 0,
+            "data": {
+              "required_token_count": 9,
+              "missing_tokens": []
+            },
+            "violations": []
+          },
+          {
+            "name": "module_shape",
+            "violation_count": 0,
+            "data": {
+              "account": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "agent_runtime": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "interface/urls.py"
+                ]
+              },
+              "ai_capability": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "interface/urls.py"
+                ]
+              },
+              "ai_provider": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "interface/views.py"
+                ]
+              },
+              "alpha": {
+                "score": 11,
+                "missing": []
+              },
+              "alpha_trigger": {
+                "score": 8,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py",
+                  "interface/api_urls.py"
+                ]
+              },
+              "asset_analysis": {
+                "score": 10,
+                "missing": [
+                  "domain/rules.py"
+                ]
+              },
+              "audit": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "backtest": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "beta_gate": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "broker_execution": {
+                "score": 10,
+                "missing": [
+                  "application/dtos.py"
+                ]
+              },
+              "config_center": {
+                "score": 8,
+                "missing": [
+                  "domain/rules.py",
+                  "domain/services.py",
+                  "application/dtos.py"
+                ]
+              },
+              "dashboard": {
+                "score": 11,
+                "missing": []
+              },
+              "data_center": {
+                "score": 10,
+                "missing": [
+                  "domain/services.py"
+                ]
+              },
+              "decision_rhythm": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "interface/views.py"
+                ]
+              },
+              "equity": {
+                "score": 10,
+                "missing": [
+                  "application/dtos.py"
+                ]
+              },
+              "events": {
+                "score": 11,
+                "missing": []
+              },
+              "factor": {
+                "score": 10,
+                "missing": [
+                  "domain/rules.py"
+                ]
+              },
+              "filter": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "fixed_income": {
+                "score": 5,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py",
+                  "interface/views.py",
+                  "interface/serializers.py",
+                  "interface/urls.py",
+                  "interface/api_urls.py"
+                ]
+              },
+              "fund": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "hedge": {
+                "score": 10,
+                "missing": [
+                  "domain/rules.py"
+                ]
+              },
+              "macro": {
+                "score": 9,
+                "missing": [
+                  "infrastructure/repositories.py",
+                  "interface/views.py"
+                ]
+              },
+              "macro_factor": {
+                "score": 4,
+                "missing": [
+                  "domain/rules.py",
+                  "domain/services.py",
+                  "application/dtos.py",
+                  "interface/views.py",
+                  "interface/serializers.py",
+                  "interface/urls.py",
+                  "interface/api_urls.py"
+                ]
+              },
+              "operational_readiness": {
+                "score": 1,
+                "missing": [
+                  "domain/entities.py",
+                  "domain/rules.py",
+                  "domain/services.py",
+                  "application/use_cases.py",
+                  "application/dtos.py",
+                  "infrastructure/models.py",
+                  "infrastructure/repositories.py",
+                  "interface/views.py",
+                  "interface/serializers.py",
+                  "interface/urls.py"
+                ]
+              },
+              "policy": {
+                "score": 8,
+                "missing": [
+                  "domain/services.py",
+                  "application/dtos.py",
+                  "interface/views.py"
+                ]
+              },
+              "portfolio": {
+                "score": 6,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py",
+                  "interface/views.py",
+                  "interface/serializers.py",
+                  "interface/urls.py"
+                ]
+              },
+              "prompt": {
+                "score": 11,
+                "missing": []
+              },
+              "pulse": {
+                "score": 11,
+                "missing": []
+              },
+              "realtime": {
+                "score": 11,
+                "missing": []
+              },
+              "regime": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "research": {
+                "score": 5,
+                "missing": [
+                  "domain/entities.py",
+                  "domain/rules.py",
+                  "domain/services.py",
+                  "application/dtos.py",
+                  "interface/views.py",
+                  "interface/urls.py"
+                ]
+              },
+              "risk_center": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "rotation": {
+                "score": 10,
+                "missing": [
+                  "domain/rules.py"
+                ]
+              },
+              "sector": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "sentiment": {
+                "score": 11,
+                "missing": []
+              },
+              "setup_wizard": {
+                "score": 8,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py",
+                  "interface/serializers.py"
+                ]
+              },
+              "share": {
+                "score": 10,
+                "missing": [
+                  "domain/rules.py"
+                ]
+              },
+              "signal": {
+                "score": 9,
+                "missing": [
+                  "domain/services.py",
+                  "application/dtos.py"
+                ]
+              },
+              "simulated_trading": {
+                "score": 10,
+                "missing": [
+                  "application/dtos.py"
+                ]
+              },
+              "strategy": {
+                "score": 11,
+                "missing": []
+              },
+              "task_monitor": {
+                "score": 8,
+                "missing": [
+                  "domain/rules.py",
+                  "domain/services.py",
+                  "interface/api_urls.py"
+                ]
+              },
+              "terminal": {
+                "score": 9,
+                "missing": [
+                  "domain/rules.py",
+                  "application/dtos.py"
+                ]
+              },
+              "valuation": {
+                "score": 11,
+                "missing": []
+              }
+            },
+            "violations": []
+          },
+          {
+            "name": "misplaced_app_config",
+            "violation_count": 0,
+            "data": {
+              "violation_count": 0
+            },
+            "violations": []
+          },
+          {
+            "name": "singular_dto_files",
+            "violation_count": 0,
+            "data": {
+              "violation_count": 0
+            },
+            "violations": []
+          },
+          {
+            "name": "architecture_ruleset",
+            "violation_count": 0,
+            "data": {
+              "rules_version": "2026-10-09.v9",
+              "boundary_rule_count": 7,
+              "audit_rule_count": 20,
+              "duplicate_rule_ids": []
+            },
+            "violations": []
+          },
+          {
+            "name": "module_dependency_baseline",
+            "violation_count": 0,
+            "data": {
+              "baseline_version": "2026-08-13.v25",
+              "module_count": 44,
+              "outbound_budget_count": 44,
+              "inbound_budget_count": 44,
+              "max_outbound_modules_per_app": 24,
+              "max_inbound_modules_per_app": 30,
+              "max_app_import_edges": 206
+            },
+            "violations": []
+          },
+          {
+            "name": "ci_governance_wiring",
+            "violation_count": 0,
+            "data": {
+              "architecture_workflow": ".github/workflows/architecture-layer-guard.yml",
+              "consistency_workflow": ".github/workflows/consistency-check.yml",
+              "architecture_required_token_count": 7,
+              "consistency_required_token_count": 10
+            },
+            "violations": []
+          },
+          {
+            "name": "application_third_party_imports",
+            "violation_count": 0,
+            "data": {},
+            "violations": []
+          },
+          {
+            "name": "core_integration_debt",
+            "violation_count": 0,
+            "data": {
+              "actual_infrastructure_import_count": 0,
+              "expected_infrastructure_import_count": 0,
+              "actual_orm_access_count": 0,
+              "expected_orm_access_count": 0,
+              "files": {}
+            },
+            "violations": []
+          },
+          {
+            "name": "core_management_command_debt",
+            "violation_count": 0,
+            "data": {
+              "actual_infrastructure_import_count": 0,
+              "expected_infrastructure_import_count": 0,
+              "actual_orm_access_count": 0,
+              "expected_orm_access_count": 0,
+              "files": {}
+            },
+            "violations": []
+          },
+          {
+            "name": "large_python_files",
+            "violation_count": 3,
+            "data": {
+              "line_limit": 1200,
+              "large_file_count": 3,
+              "large_files": {
+                "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+                "apps/simulated_trading/domain/execution_settlement_uow.py": 1296,
+                "apps/terminal/application/tui_workbench_result_models_specialized.py": 1373
+              },
+              "allowed_large_file_count": 0
+            },
+            "violations": [
+              {
+                "code": "large_python_file_missing_baseline",
+                "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+                "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+              },
+              {
+                "code": "large_python_file_missing_baseline",
+                "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+                "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+              },
+              {
+                "code": "large_python_file_missing_baseline",
+                "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+                "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+              }
+            ]
+          },
+          {
+            "name": "large_file_remediation",
+            "violation_count": 0,
+            "data": {
+              "allowed_path_count": 0,
+              "remediation_path_count": 0,
+              "review_date": "2026-10-17"
+            },
+            "violations": []
+          }
+        ],
+        "violations": [
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+            "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+            "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+            "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+          }
+        ]
+      },
+      "size_violation_paths": [
+        "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "apps/terminal/application/tui_workbench_result_models_specialized.py"
+      ],
+      "retirement_violations": [
+        "module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+        "module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+        "no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+        "no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+        "unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+        "unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+        "unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+        "unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+        "unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py"
+      ],
+      "full_governance_exit": 1,
+      "retirement_exit": 1
+    },
+    "source_patch_sha256": "b3a9bcfa138d4d325904ae130a5e78990e012a556535ab37517dedbdb625efb9",
+    "source_patch_reconstructs_exact_tree": true,
+    "limitations": [
+      "No single-tree CI/S6 claim: build, Node, typing and native phases are reused from b619 only because the revision proof changes only the ownership test and all other Git inputs match.",
+      "The Node run is the three-file runtime/source-layout/result-continuation subset.",
+      "Calendar external provider and preview secret remain synthetic; this does not qualify a production/provider path.",
+      "Three full-governance size violations and nine retirement violations remain Goal-owned; no baseline, floor, pin or allowlist relaxation.",
+      "The previous calendar extraction run with 495 passed and one failure is retained as unaccepted evidence."
+    ],
+    "post_document_scope": {
+      "source_tree": "15d1d86e50fcae48aa361201aeda7954bb47b6cf",
+      "postdoc_tree": "8f39ede93c5bf4ef977926e6c68c995af9ea50d5",
+      "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-calendar-runtime-copy-postdoc-jm3fzm1o",
+      "overlaid_owned_paths": [
+        "config/tui/agomtui-runtime.manifest.json",
+        "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+        "docs/testing/a-share-usability-calendar-runtime-copy-2026-10-17.json",
+        "governance/active_plan_registry.json"
+      ],
+      "held_calendar_inputs_excluded": true,
+      "source_inputs_exact": true
+    },
+    "post_document_actual_exits": {
+      "registry": 0,
+      "registry-tests": 0,
+      "docs-links": 0,
+      "module": 0,
+      "dc-architecture": 0,
+      "dc-entrypoint": 0,
+      "runtime": 0
+    },
+    "post_document_registry_tests_passed": 8,
+    "generated_output_raw_and_lf_sha256": {
+      "config/tui/agomtui-runtime.manifest.json": {
+        "raw_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37",
+        "lf_sha256": "47a15ae27ce76e914ec60a5025dc17e6900cb8f845d3efd64955177812628d37"
+      },
+      "governance/module_map.json": {
+        "raw_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1",
+        "lf_sha256": "f0802325a2cf111c75cc7ba4b8f164ec9bfdff85693bec8be244749118d2dab1"
+      },
+      "governance/data_center_architecture_inventory.json": {
+        "raw_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897",
+        "lf_sha256": "21f3e4fb07baeb65dfc7260d27241163487563716e9c5e4b95ee71a37e519897"
+      },
+      "governance/data_center_entrypoints.json": {
+        "raw_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61",
+        "lf_sha256": "dcce3c8dce6db666778d77598c529db47cb7391770e560f691c6f5be63413b61"
+      }
+    }
+  },
+  "next": "Rebind the calendar-result extraction to this accepted runtime-copy parent and validate it independently; then hand off the bounded TUX08 window explicitly before Domain/formal-calendar and financial gaps. The full ASH01-12 Goal remains open.",
+  "rollback": "Revert only the runtime input-copy fix, its focused ownership test and this bounded evidence; no database migration or restore.",
+  "evidence_bundle": "artifacts/a-share-usability/ash01/calendar-runtime-copy-evidence-2026-10-17.json"
+}

@@ -1196,3 +1196,16 @@ Root发现服务端缓存只依赖主metadata文件，故同批把新helper加�
 不可变导出实际Python回归484通过、Node 100通过；覆盖workbench/continuation、compiler、manifest、experience，以及terminal agent/SDK/SSL最小包。实际PostgreSQL子库原生HTTP与Chromium旅程2通过，走真实Session/CSRF、owner、准备、确认、发布、读取与审计脱敏；外部日历输入和预览密钥为synthetic。前后只读核对子库546、父库544迁移，父库权限singleton仍(1,0)。这不授予真实Provider或生产权限。增量/默认全量mypy、Black/isort/Ruff、架构、增量大小、官方投影/契约检查均为0。
 
 全量治理仍实际exit1，Goal自产超大文件4→3；版本退役仍exit1共9项。未提高baseline/floor/pin或allowlist。ASH-02唯一focus、79units、closure72与C-quality条件保持；保护中的原结算/费用RED未修改、未暂存。下一批先完成calendar result projection，随后明确交回TUX08窗口，再继续Domain/formal calendar及金融缺口。ASH01–12完整Goal仍active。详细证据：`docs/testing/a-share-usability-tui-continuation-size-2026-10-17.json`。
+
+
+### 19.54 Runtime 注入输入所有权隔离与 calendar 批次重绑定
+
+本批 parent 为 cf44a32f304936d00e1d90928f17d24658dcf1e7，Root-2 冻结源码树为 15d1d86e50fcae48aa361201aeda7954bb47b6cf。生产文件只在运行时注入入口深拷贝 frozen bundle 与 IA-owned overlay；归一化因此不能污染调用方嵌套字典或全局声明。合并顺序、owner attribution、插入/替换计数与 replace 判定保持原样。IA fields 用例是通用 overlay 合成输入；当前 owner-map builder 仍只带 label/description。
+
+不可变 parent 的修正夹具真实得到五条 ownership RED，全部到达所有权断言。第一次 Root-1 RED 保留为历史：其中两条因 fixture 缺少合法 default_action_key 提前失败，Root-1 全套 499 pass/2 fail 不计为通过；旧 calendar 批次 495 pass/1 fail 也仍未验收。Root-2 修正夹具后的全套单元测试实际 501 pass。Node 26 项、typing、构建和真实 PostgreSQL HTTP/browser 两项来自 Root-1 源码树 b6192347f1c43e6dc5c8a3f7b847dcf15dfe5ab5；revision proof 证明相对它只修正 ownership test，生产与其余 committed inputs 的 Git blob 全等，因此没有将这些门声称为同一源码树或 CI/S6 运行。Node 范围只有 runtime、source-layout、result-continuation 三个测试文件；外部日历与 preview secret 为 synthetic。
+
+官方 manifest 仅有 apps/terminal/infrastructure/tui_metadata_repository.py 文件 hash 变化，以及派生 build_id/upstream_commit；三份 JS bundle 的 LF bytes 与 parent 相同。module_map、Data Center architecture 与 entrypoint projection 的 LF bytes 均与 parent 相同，未复制或提交。新增的 calendar 四个 held paths 保持既有 candidate LF hashes。
+
+Root-2 全量治理实际保留 3 个 size violation 与 9 个 retirement violation，由 Goal 后续处理；未改 baseline、floor、pin 或 allowlist。ASH02 focus、79 units 与 closure72 保持。下一步用此 parent 重新绑定 calendar result extraction，再显式交接 bounded TUX08，随后继续 Domain/formal-calendar 与金融缺口；完整 ASH01-12 Goal 仍开放。
+
+实际日志、输入所有权独立审查、source patch 重建证明与生成 hash 汇总见 docs\testing\a-share-usability-calendar-runtime-copy-2026-10-17.json。
