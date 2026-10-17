@@ -1,0 +1,60 @@
+{
+  "status": "accepted_test_fixture_only",
+  "reference": {
+    "base_commit": "799fd2c51eb72dce809b4e26cae79cf119baf216",
+    "source_tree": "155785963ae4eecf926230a6af410678d7e917d0",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-scope-permission-eloyux6v",
+    "test_path": "tests/unit/test_tui_workbench.py",
+    "test_raw_sha256": "b8e1b9aef35e589957095e273d7a04b9c4e5523f769f44b3ed21bae26336ec18",
+    "production_changes": [],
+    "other_top_level_test_functions_raw_equal_to_base": true,
+    "release_ci_s6_identity": false
+  },
+  "gates": {
+    "source_tree": "155785963ae4eecf926230a6af410678d7e917d0",
+    "results": {
+      "tests": 0,
+      "black": 0,
+      "isort": 0,
+      "ruff": 0,
+      "module-map": 0,
+      "dc-entrypoints": 0
+    },
+    "exit": 0,
+    "changed_during_run": []
+  },
+  "passed_tests": 413,
+  "production_changes": [],
+  "other_top_level_test_functions_unchanged": true,
+  "source_patch_reconstructed": true,
+  "base_red_copies": {
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic-probe.txt": "a2c533d2c5a3179b9db2f7ad1755b05abf491fd6f7fc5a06142e464c5423aea6",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic.txt": "70a920233d4effaa5e942477a2ac506549a6b818746daba1b2aaf111ce73573d",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-reference.json": "d7c6ed54ff66e85c209d1a51ba770b718916ee66142c0adf3374e1c4d59fa673",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-result.json": "6e958ed6fbf287b381192dfebfbf68a4557c4d669f18dccaf131c5735d637d2e",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-test.txt": "d95c934ae1fe31c5792762e23210b33b55478a8dc19310d095a7e79135db33fe"
+  },
+  "artifacts_raw_sha256": {
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic-probe.txt": "a2c533d2c5a3179b9db2f7ad1755b05abf491fd6f7fc5a06142e464c5423aea6",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic.txt": "70a920233d4effaa5e942477a2ac506549a6b818746daba1b2aaf111ce73573d",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-reference.json": "d7c6ed54ff66e85c209d1a51ba770b718916ee66142c0adf3374e1c4d59fa673",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-result.json": "6e958ed6fbf287b381192dfebfbf68a4557c4d669f18dccaf131c5735d637d2e",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-test.txt": "d95c934ae1fe31c5792762e23210b33b55478a8dc19310d095a7e79135db33fe",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-black.txt": "a7a30f381d4b14ef4d375a395de9872d02444683d6e712c819754e881bf88847",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-dc-entrypoints.txt": "9768690763556a2a299460be9bf221a55a553488e0a03e3bee30e2117927eefc",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-isort.txt": "6fb453df128faacd2e2b4aff993c3e591e19102c21b41c9ab44d1e9311d81509",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-module-map.txt": "a76376cd83e6aa7ab8ac139d381df12a80d6b6c5454c4fa63a4685363551bd65",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-reference.json": "62afa2cd8d50654c0400d72a2a92c486ad0181727081159c62604f034c99fc4a",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-result.json": "26c1bd274706dc37011b62d4a6ba27896faea0f290d2fefcd5513527e006dff3",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-ruff.txt": "6d7d78532355ed47efc1fa404165c1421378d09fc2dfbf9e8382cf4c2ee40cce",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-source.patch": "41d940ffedb1330b8c1657d8d77457a8a5ac910226e4ae7a2b470294ece19f2d",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-tests.txt": "f9b7f6983474891716941ebf79d3c3d854c0faa8891f28c2ea7a4c5bde85dbe1"
+  },
+  "review": "Luna Max read-only review accepted public owner seam and unchanged production transaction guard.",
+  "not_claimed": [
+    "New native PostgreSQL calendar transaction acceptance.",
+    "Full release/CI/S6.",
+    "19.45 business acceptance.",
+    "Full A-share Goal completion."
+  ]
+}

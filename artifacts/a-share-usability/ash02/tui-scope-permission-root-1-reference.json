@@ -1,0 +1,10 @@
+{
+  "base_commit": "799fd2c51eb72dce809b4e26cae79cf119baf216",
+  "source_tree": "155785963ae4eecf926230a6af410678d7e917d0",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-tui-scope-permission-eloyux6v",
+  "test_path": "tests/unit/test_tui_workbench.py",
+  "test_raw_sha256": "b8e1b9aef35e589957095e273d7a04b9c4e5523f769f44b3ed21bae26336ec18",
+  "production_changes": [],
+  "other_top_level_test_functions_raw_equal_to_base": true,
+  "release_ci_s6_identity": false
+}

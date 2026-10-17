@@ -1,0 +1,110 @@
+{
+  "source_tree": "155785963ae4eecf926230a6af410678d7e917d0",
+  "before_proof_tree": "03736eb475cc85324c2cb295d164505c8086c611",
+  "staged": {
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic-probe.txt": {
+      "raw_sha256": "a2c533d2c5a3179b9db2f7ad1755b05abf491fd6f7fc5a06142e464c5423aea6",
+      "git_blob_sha256": "a2c533d2c5a3179b9db2f7ad1755b05abf491fd6f7fc5a06142e464c5423aea6"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic.txt": {
+      "raw_sha256": "70a920233d4effaa5e942477a2ac506549a6b818746daba1b2aaf111ce73573d",
+      "git_blob_sha256": "70a920233d4effaa5e942477a2ac506549a6b818746daba1b2aaf111ce73573d"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-reference.json": {
+      "raw_sha256": "d7c6ed54ff66e85c209d1a51ba770b718916ee66142c0adf3374e1c4d59fa673",
+      "git_blob_sha256": "d7c6ed54ff66e85c209d1a51ba770b718916ee66142c0adf3374e1c4d59fa673"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-result.json": {
+      "raw_sha256": "6e958ed6fbf287b381192dfebfbf68a4557c4d669f18dccaf131c5735d637d2e",
+      "git_blob_sha256": "6e958ed6fbf287b381192dfebfbf68a4557c4d669f18dccaf131c5735d637d2e"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-test.txt": {
+      "raw_sha256": "d95c934ae1fe31c5792762e23210b33b55478a8dc19310d095a7e79135db33fe",
+      "git_blob_sha256": "d95c934ae1fe31c5792762e23210b33b55478a8dc19310d095a7e79135db33fe"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-active-plan-check.txt": {
+      "raw_sha256": "c8887b029bccc91b457866ebe8e9bd0eb3141d4a68e69b9362d57b9390407c50",
+      "git_blob_sha256": "c8887b029bccc91b457866ebe8e9bd0eb3141d4a68e69b9362d57b9390407c50"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-black.txt": {
+      "raw_sha256": "a7a30f381d4b14ef4d375a395de9872d02444683d6e712c819754e881bf88847",
+      "git_blob_sha256": "a7a30f381d4b14ef4d375a395de9872d02444683d6e712c819754e881bf88847"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-dc-entrypoints.txt": {
+      "raw_sha256": "9768690763556a2a299460be9bf221a55a553488e0a03e3bee30e2117927eefc",
+      "git_blob_sha256": "9768690763556a2a299460be9bf221a55a553488e0a03e3bee30e2117927eefc"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-isort.txt": {
+      "raw_sha256": "6fb453df128faacd2e2b4aff993c3e591e19102c21b41c9ab44d1e9311d81509",
+      "git_blob_sha256": "6fb453df128faacd2e2b4aff993c3e591e19102c21b41c9ab44d1e9311d81509"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-module-map.txt": {
+      "raw_sha256": "a76376cd83e6aa7ab8ac139d381df12a80d6b6c5454c4fa63a4685363551bd65",
+      "git_blob_sha256": "a76376cd83e6aa7ab8ac139d381df12a80d6b6c5454c4fa63a4685363551bd65"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-reference.json": {
+      "raw_sha256": "62afa2cd8d50654c0400d72a2a92c486ad0181727081159c62604f034c99fc4a",
+      "git_blob_sha256": "62afa2cd8d50654c0400d72a2a92c486ad0181727081159c62604f034c99fc4a"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-result.json": {
+      "raw_sha256": "26c1bd274706dc37011b62d4a6ba27896faea0f290d2fefcd5513527e006dff3",
+      "git_blob_sha256": "26c1bd274706dc37011b62d4a6ba27896faea0f290d2fefcd5513527e006dff3"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-ruff.txt": {
+      "raw_sha256": "6d7d78532355ed47efc1fa404165c1421378d09fc2dfbf9e8382cf4c2ee40cce",
+      "git_blob_sha256": "6d7d78532355ed47efc1fa404165c1421378d09fc2dfbf9e8382cf4c2ee40cce"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-source.patch": {
+      "raw_sha256": "41d940ffedb1330b8c1657d8d77457a8a5ac910226e4ae7a2b470294ece19f2d",
+      "git_blob_sha256": "41d940ffedb1330b8c1657d8d77457a8a5ac910226e4ae7a2b470294ece19f2d"
+    },
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-tests.txt": {
+      "raw_sha256": "f9b7f6983474891716941ebf79d3c3d854c0faa8891f28c2ea7a4c5bde85dbe1",
+      "git_blob_sha256": "f9b7f6983474891716941ebf79d3c3d854c0faa8891f28c2ea7a4c5bde85dbe1"
+    },
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md": {
+      "raw_sha256": "8ec516e63fccd39cfb1b85b20149e5e34c7108bd45e191bab1d77641427c0aad",
+      "git_blob_sha256": "fc5a5e6885b592bdcbdf2aa4aee1ef00fe21fba39fac6a19a7559454d8908dd1"
+    },
+    "docs/testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json": {
+      "raw_sha256": "788ded22f5e47c7b7aef693b396dad0d4e0c986d4d497c09c9bf78287246ec6c",
+      "git_blob_sha256": "22b6fd69724ff690993350a12cb92a7474ef2f5b966ab6d4f3d1da7f1f0ee12f"
+    },
+    "governance/active_plan_registry.json": {
+      "raw_sha256": "20d5491b8e082995ba207cc09758863ce826005e5ac2fe691c4b426f48a13d47",
+      "git_blob_sha256": "c4b7844cab463129742e7d26394953be65c353fea52ccb60325cf9dc34c64ac4"
+    },
+    "tests/unit/test_tui_workbench.py": {
+      "raw_sha256": "7014409dfa443280520dda77a203d122bc1264078baa2ba0ad974db641d58dd3",
+      "git_blob_sha256": "eae1902d507435b9705d8a939902ad9c1a233bb14e5b9c34240e4f6d93427788"
+    }
+  },
+  "staged_raw_artifact_blobs_not_lf": [
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic-probe.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-diagnostic.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-reference.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-result.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-test.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-active-plan-check.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-black.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-dc-entrypoints.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-isort.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-module-map.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-reference.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-result.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-ruff.txt",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-tests.txt"
+  ],
+  "active_plan_exit": 0,
+  "production_changes": [],
+  "first_staging_verifier_stop": "Raw active-plan output contains CRCRLF and Git text=auto preserved bytes; original log retained.",
+  "source_test_document_exceptions": [],
+  "exact_immutable_evidence_whitespace_exceptions": [
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-reference.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-base-root-1-result.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-reference.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-result.json",
+    "artifacts/a-share-usability/ash02/tui-scope-permission-root-1-source.patch"
+  ],
+  "outcome_work_and_original_ash01_and_roadshow_excluded": true
+}

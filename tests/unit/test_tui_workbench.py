@@ -10655,6 +10655,34 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(
     monkeypatch,
 ):
     from apps.data_center.application import market_calendar
+    from apps.data_center.application.calendar_workbench_scope import (
+        CalendarWorkbenchCurrentPointerStatus,
+        CalendarWorkbenchScopeContext,
+        CalendarWorkbenchScopeMetadataStatus,
+        CalendarWorkbenchSecretRuntimeStatus,
+    )
+    from apps.data_center.interface import calendar_workbench_api_views
+
+    # This matrix exercises TUI permission/confirmation gates in pytest's outer
+    # transaction. The owner composition requires its own outer transaction and
+    # is verified separately; do not disable that guard or flush this test DB.
+    scope_context = CalendarWorkbenchScopeContext(
+        metadata_status=CalendarWorkbenchScopeMetadataStatus.BLOCKED,
+        metadata=None,
+        blocked_reason="CALENDAR_CAPTURE_DATASET_MISSING",
+        secret_runtime_status=CalendarWorkbenchSecretRuntimeStatus.NOT_CHECKED,
+        current_pointer_status=CalendarWorkbenchCurrentPointerStatus.NOT_SCOPED,
+        known_at=timezone.now(),
+    )
+    scope_reads: list[None] = []
+
+    def read_scope_metadata() -> CalendarWorkbenchScopeContext:
+        scope_reads.append(None)
+        return scope_context
+
+    monkeypatch.setattr(
+        calendar_workbench_api_views, "read_calendar_workbench_scope_context", read_scope_metadata
+    )
 
     def open_sessions(now):
         local_date = now.astimezone(market_calendar.CN_MARKET_TIMEZONE).date()
@@ -10766,6 +10794,7 @@ def test_published_tui_write_and_admin_actions_are_gated_consistently(
             )
 
     assert not failures, failures[:5]
+    assert scope_reads == [None]
 
 
 def test_audit_policy_projection_preserves_review_states_and_reasons():

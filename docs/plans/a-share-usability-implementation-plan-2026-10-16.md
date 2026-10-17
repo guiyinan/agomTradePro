@@ -1047,3 +1047,19 @@ Luna Max按纯Domain结果、engine与原测试、任务/API适配分工，Root�
 验收覆盖策略/legacy四买卖分支、策略查找失败不可回退误交易、缺价格/资产池/风险阻断、账户间隔离、无操作、部分失败、全失败、已成交后置失败、执行结果不明、输入非法与缺失/伪造结果。新wire严格类型，不将旧buy/sell-only字典补成成功；异常原文不向用户泄露。Task Monitor复用现有业务outcome解释器，Celery机器合同登记实际具体测试函数。此结果修复不授予任何来源、研究或交易资格，也不关闭原ASH-01 T+1/零股消费者反例。
 
 两批均保持ASH-02为唯一集成焦点与74个登记单元不变；正式身份/日历用途资格、普通买卖/回测接线、历史PIT、整体ASH-01～12 Goal、九项既有版本退役失败、DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁继续开放。另已核实历史导入缺费用被记作实际零费，保留为独立后续事项，不混入这两批。
+
+19.44现已独立提交799fd2c51，才开放本批HTTP改动。交叉审查发现strategy gateway会先把repository查询异常吞成None，原引擎便将其当成无绑定；仅模拟facade工厂异常的单测不足以证明真实链已修。Root以原799810cfb生产源码加唯一隔离探针，经真实Gateway→Facade→Engine和抛错query repository，实际仍调用legacy buy(quantity1800)，1 failed/1.30秒（1e9672c76720582e57749fa404bd406db03eede2）。另保留原factory异常探针7a55c891a0dd31eac914a534f95349a3c8c1a086，两者均不访问DB/行情/券商。Gateway现有公开读取入口须区分正常None与可识别读取失败，不能增一个strict接口却让原入口继续吞错。
+
+Root还用真实普通买入UC和Django Repository复现候选遗漏：冻结4f0ae57b475e46ac84acd98b970c81af40ea0e1a实际已写trade/position/cash，legacy buy却未调用注入的执行关联记录器，其故障被报告成SUCCESS而期望PARTIAL，1 failed/12.56秒。修复只复用既有成交后helper，保留真实trade与确认数，recommendation_id=None、match_if_missing=True；不将signal_id冒充推荐身份。记录器正常返回None可能是无匹配，不据此宣称已有推荐关联。
+
+Task Monitor另有独立真实red：typed任务候选与原Monitor的1d43432dbe5a125bbd574fe79fb4c27a191d4745执行实际Celery.apply、生命周期信号、attempt identity与DB记录，大结果压缩后counts_unavailable从true丢成None，1 failed/9.70秒。该窗口只替换engine/外部依赖，内存Celery backend、真实监控UseCase/Repository，不投递broker或通知。修复在现有有界投影保留明确unknown布尔值及必要字段，不新增监控框架。两个DB红窗口旧helper的source_unchanged字段比较了导出原字节与变动中的live工作树LF，实际为false；原件保留，另以原reference的raw hash逐项核对冻结导出确未变化，不把该诊断字段当成冻结源码漂移。
+
+本批共享Application结果适配器供task与HTTP共同使用；额外或畸形mapping会令stored未知，迭代中断前已读出的有效确认量仍保留。业务请求进入engine后的不确定返回为HTTP200加typed failed/partial；执行前构造失败仍500且只输出安全原因。Root组件会复验原账户/Session/CSRF范围以及完整outcome矩阵、真实UC部分写账与成交后置失败、实际Celery/Task Monitor闭环，再按本批完整源码独立验收。上述反例是明确区分的原生产/候选集成窗口，不拼成同一CI/S6或真实市场资格。
+
+### 19.46 TUI权限矩阵事务夹具隔离：19.45独立前置验收
+
+19.45完整高风险回归实际出现1 failed、354 passed；在原799fd2c51生产与目标测试逐字不改的隔离导出中，单独重放同样1 failed。Root进一步读取真实TUI响应，外层200、内层503，因通用权限矩阵的pytest外层事务触发calendar scope owner要求自主事务的既有保护。原始红日志、只读诊断与引用按原字节另存，不把这次既有失败记作自动交易回归通过。
+
+本批只修改该权限测试函数：在API view公开owner读取入口注入合法blocked metadata DTO，不伪造数据就绪；其余登录、action、HTTP状态、确认和参数断言保持，并验证owner恰好被调用一次。没有修改生产事务guard，没有transaction=True或全库flush。其他顶层测试函数逐字与parent相同。Luna Max只读复核通过；正式配置/事务行为由专用owner/composition测试继续承担。本批不涉及生产Python，因此不把类型检查记为本批新执行。
+
+冻结源码与完整TUI及三组calendar单元回归、风格和模块/入口投影检查见[独立检查点](../testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json)。本次只提交测试夹具及对应证据/计划登记，19.45业务文件继续待四项高风险复验，Goal及74单元状态不变。

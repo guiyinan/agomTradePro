@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v237",
+  "version": "2026-10-17.v238",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.44 accepted bounded authenticated auto-trading account scope. Omission selects own eligible simulated accounts; [] is noop; entire explicit managed scope preflight precedes engine construction. Root original real HTTP cross-owner red and41 unit/SQLite17(15HTTP+2probes)/native15 passed. Final docstring-only source window independently41 unit, zero incremental/full mypy, architecture/annotations/style and six projection checks passed; unchanged legacy T5 full-Black debt retained. DB window1 and final source2 separately bound, no release CI/S6 identity. Plan19.45 now integrates typed outcomes through real engine/task/API: strategy lookup fail must not legacy-buy; preserve confirmed trades, unknown stored on possible writes, no whole-batch retry after engine entry. Existing9 retirement failures and lock-time owner/ordinary T+1/odd-lot/source-purpose/PIT remain open. ASH02 sole focus;74 units unchanged; DATA18 gatesASH11; FullGoal/ASH01/02/03 open; no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-auto-trading-scope-2026-10-17.json.",
+      "next_gate": "Plan19.46 independent test-only prerequisite accepted: parent799fd2c51 reproduced pre-existing TUI permission-matrix calendar transaction guard failure; isolate only public owner read with valid blocked metadata DTO, preserve production ownership guard and real HTTP/auth/confirmation checks. Frozen 413 TUI/calendar tests and scoped style/module/entry checks passed. Plan19.45 real automatic outcome closure still awaiting final four high-risk packages on prerequisite commit; its unit373/native53/SQLite55/type and functional windows remain separately bound, no CI/S6 claim. ASH02 sole focus,74units unchanged; fullGoal/ASH01/02/03, nine inherited retirement failures, ordinary settlement/source qualification/PIT remain open. Evidence: docs/testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

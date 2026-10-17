@@ -1,0 +1,137 @@
+source_tree=33a245f17ac069c8b1348a6f0a726ef14f0c4439
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-base-tui-l7ny7xq3
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_published_tui_write_and_admin_actions_are_gated_consistently ______
+
+client = <django.test.client.Client object at 0x000002010C7420D0>
+tui_admin_user = <User: tui_admin>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002010B8B6520>
+
+    @pytest.mark.django_db
+    def test_published_tui_write_and_admin_actions_are_gated_consistently(
+        client,
+        tui_admin_user,
+        monkeypatch,
+    ):
+        from apps.data_center.application import market_calendar
+    
+        def open_sessions(now):
+            local_date = now.astimezone(market_calendar.CN_MARKET_TIMEZONE).date()
+            return tuple(
+                local_date - timedelta(days=days_ago)
+                for days_ago in range(10, 0, -1)
+                if (local_date - timedelta(days=days_ago)).weekday() < 5
+            )
+    
+        monkeypatch.setattr(market_calendar, "_open_sessions_for", open_sessions)
+        save_production_coverage_universe_config_payload(
+            universe_id="active_a_share",
+            asset_type="stock",
+            exchanges=["SSE", "SZSE", "BSE"],
+            include_inactive=False,
+            min_active_asset_count=4000,
+            min_star_market_count=200,
+            min_chinext_count=0,
+            min_bse_count=50,
+            description="TUI published-action contract fixture",
+        )
+        client.force_login(tui_admin_user)
+    
+        metadata = PublishedTuiMetadataRepository().load_published()
+        service = TuiWorkbenchService(
+            metadata_repository=PublishedTuiMetadataRepository(),
+            action_executor=get_tui_action_executor(),
+            registry_key="default",
+        )
+        visible_action_keys = {
+            action["key"] for action in service._visible_actions(metadata, user=tui_admin_user)
+        }
+        guarded_actions = [
+            action
+            for action in metadata["actions"]
+            if action.get("risk") in {"write", "admin"} and action["key"] in visible_action_keys
+        ]
+    
+        failures = []
+        for action in guarded_actions:
+            response = client.post(
+                f"/api/tui/actions/{action['key']}/run/",
+                data=json.dumps({"params": {}}),
+                content_type="application/json",
+            )
+            payload = response.json()
+            view_model = payload.get("view_model", {})
+            required = [
+                field["key"]
+                for field in (action.get("fields") or [])
+                if field.get("required") and field.get("default") in (None, "")
+            ]
+    
+            if required:
+                if not (
+                    response.status_code == 200
+                    and payload["response"]["status_code"] == 400
+                    and view_model.get("status") == "需要参数"
+                ):
+                    failures.append(
+                        {
+                            "action_key": action["key"],
+                            "expected": "missing_fields",
+                            "http": response.status_code,
+                            "inner_status": payload.get("response", {}).get("status_code"),
+                            "kind": view_model.get("kind"),
+                            "status": view_model.get("status"),
+                            "error": payload.get("error"),
+                        }
+                    )
+                continue
+    
+            if str(action.get("method", "")).upper() == "GET":
+                if not (
+                    response.status_code == 200
+                    and payload.get("confirmation_required") is False
+                    and payload["response"]["status_code"] == 200
+                    and payload.get("error") is None
+                ):
+                    failures.append(
+                        {
+                            "action_key": action["key"],
+                            "expected": "admin_read_ok",
+                            "http": response.status_code,
+                            "inner_status": payload.get("response", {}).get("status_code"),
+                            "kind": view_model.get("kind"),
+                            "status": view_model.get("status"),
+                            "error": payload.get("error"),
+                        }
+                    )
+                continue
+    
+            if not (
+                response.status_code == 200
+                and payload.get("confirmation_required") is True
+                and payload["response"]["status_code"] == 409
+                and view_model.get("status") == "待确认"
+            ):
+                failures.append(
+                    {
+                        "action_key": action["key"],
+                        "expected": "confirmation_required",
+                        "http": response.status_code,
+                        "inner_status": payload.get("response", {}).get("status_code"),
+                        "kind": view_model.get("kind"),
+                        "status": view_model.get("status"),
+                        "error": payload.get("error"),
+                    }
+                )
+    
+>       assert not failures, failures[:5]
+E       AssertionError: [{'action_key': 'data-center.calendar-workbench-scope', 'error': None, 'expected': 'admin_read_ok', 'http': 200, ...}]
+E       assert not [{'action_key': 'data-center.calendar-workbench-scope', 'error': None, 'expected': 'admin_read_ok', 'http': 200, ...}]
+
+tests\unit\test_tui_workbench.py:10768: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_published_tui_write_and_admin_actions_are_gated_consistently
+1 failed in 35.42s
