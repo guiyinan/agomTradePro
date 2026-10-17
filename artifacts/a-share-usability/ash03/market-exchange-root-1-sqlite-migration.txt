@@ -1,0 +1,10 @@
+source_tree=fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-i4atq4x_
+...ss.ss                                                                 [100%]
+============================== warnings summary ===============================
+core\settings\development_sqlite.py:4
+  D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-i4atq4x_\core\settings\development_sqlite.py:4: UserWarning: AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    from .base import *  # noqa: F403
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+4 passed, 4 skipped, 1 warning in 455.63s (0:07:35)

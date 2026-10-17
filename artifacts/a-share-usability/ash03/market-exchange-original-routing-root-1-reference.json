@@ -1,0 +1,9 @@
+{
+  "recorded_at": "2026-10-17T04:37:28.795609+00:00",
+  "base_commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779",
+  "source_tree": "49e3493f4ee2392d6bde1b345acf789e19f9742c",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-market-exchange-original-red-sxeawhgq",
+  "test_path": "tests/unit/simulated_trading/test_original_market_exchange_routing_red.py",
+  "test_export_sha256": "a67e1f033c2c1743ec4505935a76f75cfac65d71fbe8db37a51d4a1845b34f84",
+  "scope": "Original unit routing counterexample only; no database, actual mapping owner, provider, source qualification or ledger writes."
+}

@@ -1,0 +1,18 @@
+.................F..........F.....................                       [100%]
+================================== FAILURES ===================================
+___ test_execute_uses_source_exchange_without_replacing_rule_or_fee_market ____
+tests\unit\simulated_trading\test_execution_settlement_uow.py:702: in test_execute_uses_source_exchange_without_replacing_rule_or_fee_market
+    receipt = use_case.execute(_intent())
+apps\simulated_trading\application\execution_settlement_uow.py:442: in execute
+    raise SimulatedTradeExecutionBlocked(
+E   apps.simulated_trading.application.execution_settlement_uow.SimulatedTradeExecutionBlocked: simulated ledger result differs from the exact request
+_________ test_exact_idempotency_replay_does_not_read_identity_again __________
+tests\unit\simulated_trading\test_execution_settlement_uow.py:915: in test_exact_idempotency_replay_does_not_read_identity_again
+    replay = use_case.execute(_intent())
+apps\simulated_trading\application\execution_settlement_uow.py:283: in execute
+    raise SimulatedTradeIdempotencyConflict(
+E   apps.simulated_trading.application.execution_settlement_uow.SimulatedTradeIdempotencyConflict: idempotency key already belongs to another exact request
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_uses_source_exchange_without_replacing_rule_or_fee_market
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_exact_idempotency_replay_does_not_read_identity_again
+2 failed, 48 passed in 2.35s

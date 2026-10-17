@@ -1,0 +1,826 @@
+{
+  "status": "accepted_bounded_development_with_inherited_retirement_gate_failure",
+  "base_commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779",
+  "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+  "source_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_uow.py": "79a966175b807b7a2e229f4d3098a0992820899c602d4732d714475cd389fa02",
+    "apps/simulated_trading/domain/execution_settlement_identity.py": "1c28e1ea07bb3da3bad4f5b46345214210209fd04bd14e458b5de94156fe420c",
+    "apps/simulated_trading/domain/execution_settlement_plan_binding.py": "67b0b2646029bb6215a026c048d0904f02e53e82410fc4ce4263fb4f36411beb",
+    "apps/simulated_trading/application/execution_settlement_uow.py": "db2abc18a07a2164d530b766d838d13cee1e41115b85bc463f98fc9ac2a66022",
+    "apps/simulated_trading/execution_settlement_composition.py": "a1023d2de24d8c271ee995667e465b2cef0eeea68af25dd9874df05798fa5c15",
+    "apps/simulated_trading/infrastructure/models.py": "a9603ba581aa2553b468b75497054fdc34f959a09a19bc0099847f5b21e4a6f4",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "c6ced0c6aecd6d5bb132ffd36b864ebfd30e04b36e2ffe58e48f8e749a6c0f1f",
+    "apps/simulated_trading/migrations/0027_separate_settlement_exchange_identity.py": "417951d8fb739c6131f174005cfe46afb5ff925caf47ea6d375f73f3bc09b200",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py": "c1d98bf5fe8c24b9b5e8f4973eaa61986a7a018bc50bd72af2164ccc1e8be9aa",
+    "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py": "d01a2879db138c85717cc50d32b3a5999c80d04690a0c05f15be8a0cb13e1075",
+    "tests/unit/simulated_trading/test_execution_settlement_composition.py": "85153fe2827830b631bae481e57cf4f3d495ff74fc51748afc3a6b42dbd14a3f",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "6eef49044999f9cdee5bf3f6a5b1f87eaaefb5569648343fa3b66e1a373d2a3b",
+    "tests/component/simulated_trading/test_settlement_exchange_migration.py": "3629ac19dfb848d2127a1948f4451b0ac1802c2299c9221de24d4d3d5c1a1623",
+    "governance/current_data_contracts.json": "b7af6fdc4962964df7ba3523fadff5d95724af69588eca3a269213c83efd1e4e",
+    "governance/data_center_operational_entrypoints.json": "46b6979350e07a0f199cc7cfc46a17e79387eb33fcd56c86be50b33f1a4ea6dd"
+  },
+  "gates": {
+    "style": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "unit": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "unit": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "typing": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "native-upgrade": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "native-target-before-incremental-upgrade": 0,
+        "native-incremental-upgrade": 0,
+        "native-target-after-incremental-upgrade": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "native": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "native-target-before-component": 0,
+        "native-component": 0,
+        "native-target-after-component-before-migration": 0,
+        "native-migration": 0,
+        "native-target-after-migration": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "sqlite": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "sqlite-component": 0,
+        "sqlite-migration": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "architecture": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "architecture": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "projections-scoped": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "exit": 0,
+      "scope": "Model state, four official generators, and six applicable projection/governance checks only.",
+      "results": {
+        "model-state": {
+          "actual_exit": 0,
+          "sha256": "89bd7869f76d59f0905a21a4bb6294372bc749b38772cc23096fbc31e57a541a"
+        },
+        "dictionary-build": {
+          "actual_exit": 0,
+          "sha256": "702e63967dd1abff770f858b97de003702d6539550feebbb68ff7d11e3d7f804"
+        },
+        "module-build": {
+          "actual_exit": 0,
+          "sha256": "a457f30ade0fb796acdb293f72f647e89477b10a8e3bb7856ad3986c59a716ff"
+        },
+        "dc-architecture-build": {
+          "actual_exit": 0,
+          "sha256": "8b41ae3efd628219d35df6b8ffacd6a5366ff208a97b4511b7b402c60967cf48"
+        },
+        "dc-entry-build": {
+          "actual_exit": 0,
+          "sha256": "de0198b1292db349fe40d9864c8bf6d8dd7559ad8a8c43276d9454f3683cd7de"
+        },
+        "check_data_dictionary": {
+          "actual_exit": 0,
+          "sha256": "e0772de9cfcb5eaf3f8e5f3c6807879d16d15dfb1171bb577425b3160d3c7474"
+        },
+        "check_module_map": {
+          "actual_exit": 0,
+          "sha256": "d31549e21ba3f793063cb15e9d6a0691202318535ac85c16997d1e6380351f93"
+        },
+        "check_current_data_contracts": {
+          "actual_exit": 0,
+          "sha256": "631ec874829210459eadd00aa0afec359bdec432cdde5a0ff6af9e974a51f03e"
+        },
+        "check_audit_event_contracts": {
+          "actual_exit": 0,
+          "sha256": "66b9f24b042cd3b2db2744ac93469236fa742c5034d37232a59c424651404616"
+        },
+        "data_center_architecture_inventory": {
+          "actual_exit": 0,
+          "sha256": "8b41ae3efd628219d35df6b8ffacd6a5366ff208a97b4511b7b402c60967cf48"
+        },
+        "data_center_entrypoint_inventory": {
+          "actual_exit": 0,
+          "sha256": "de0198b1292db349fe40d9864c8bf6d8dd7559ad8a8c43276d9454f3683cd7de"
+        }
+      },
+      "changed_during_run": [],
+      "original_additional_check_aggregate_exit": 1,
+      "additional_retirement_check": {
+        "actual_exit": 1,
+        "passed": false,
+        "same_nine_failures_on_exact_base": true,
+        "comparison": "market-exchange-root-1-retirement-comparison.json",
+        "baseline_or_checker_changed": false
+      },
+      "all_repository_gates_passed": false,
+      "release_ci_s6_identity": false
+    },
+    "annotations": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {},
+      "exit": 0,
+      "changed_during_run": []
+    },
+    "parent-check": {
+      "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "results": {
+        "parent-target": 0
+      },
+      "exit": 0,
+      "changed_during_run": []
+    }
+  },
+  "domain_coverage_per_file": {
+    "apps\\simulated_trading\\domain\\execution_settlement_identity.py": {
+      "covered_lines": 206,
+      "num_statements": 206,
+      "percent_covered": 100.0,
+      "percent_covered_display": "100.0",
+      "missing_lines": 0,
+      "excluded_lines": 0,
+      "num_branches": 88,
+      "num_partial_branches": 0,
+      "covered_branches": 88,
+      "missing_branches": 0
+    },
+    "apps\\simulated_trading\\domain\\execution_settlement_plan_binding.py": {
+      "covered_lines": 372,
+      "num_statements": 398,
+      "percent_covered": 91.97080291970804,
+      "percent_covered_display": "92.0",
+      "missing_lines": 26,
+      "excluded_lines": 0,
+      "num_branches": 150,
+      "num_partial_branches": 18,
+      "covered_branches": 132,
+      "missing_branches": 18
+    },
+    "apps\\simulated_trading\\domain\\execution_settlement_uow.py": {
+      "covered_lines": 673,
+      "num_statements": 706,
+      "percent_covered": 95.0920245398773,
+      "percent_covered_display": "95.1",
+      "missing_lines": 33,
+      "excluded_lines": 0,
+      "num_branches": 272,
+      "num_partial_branches": 15,
+      "covered_branches": 257,
+      "missing_branches": 15
+    }
+  },
+  "additional_retirement_gate": {
+    "base_commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779",
+    "candidate_source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+    "base_actual_exit": 1,
+    "candidate_actual_exit": 1,
+    "base_violations": [
+      "module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+      "module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+      "no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+      "no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+      "unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+      "unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+      "unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+      "unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+      "unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py"
+    ],
+    "candidate_violations": [
+      "module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+      "module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+      "no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+      "no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+      "unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+      "unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+      "unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+      "unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+      "unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py"
+    ],
+    "new_violations": [],
+    "baseline_or_checker_changed": false,
+    "gate_passed": false,
+    "policy": "Do not alter the sealed retirement baseline or checker pin to conceal inherited failures. This check remains open."
+  },
+  "all_repository_gates_passed": false,
+  "generated_projection_counts": {
+    "apps": 42,
+    "models": 588,
+    "fields": 9091,
+    "modules": 44,
+    "dependency_edges": 210,
+    "freshness_surfaces": 86,
+    "audit_events": 23,
+    "data_center_entrypoints": 1365,
+    "candidate_review_entrypoints": 11
+  },
+  "scope": "Candidate simulated settlement market/exchange wiring, original persisted identity and historical V1 compatibility.",
+  "separate_test_packages": {
+    "unit": {
+      "passed": 218
+    },
+    "sqlite_component": {
+      "business_passed": 43,
+      "target_probes": 2,
+      "native_only_skipped": 4
+    },
+    "sqlite_migration": {
+      "business_passed": 2,
+      "target_probes": 2,
+      "native_only_skipped": 4
+    },
+    "native_component": {
+      "passed": 47,
+      "two_connection_races": 4
+    },
+    "native_migration": {
+      "passed": 6,
+      "modules": [
+        "0026",
+        "0027"
+      ],
+      "actual_up_down_up": true,
+      "actual_guard_writer_lock_timeout": "55P03",
+      "complete_concurrent_unapply_claimed": false
+    },
+    "native_schema": {
+      "incremental_before": 545,
+      "incremental_after": 546,
+      "clean_full_schema_replay": false
+    }
+  },
+  "red_windows": [
+    {
+      "tree": "49e3493f4ee2392d6bde1b345acf789e19f9742c",
+      "kind": "original_calendar_routing",
+      "failed": 1,
+      "database": false
+    },
+    {
+      "tree": "e79fd1f110b02247b2e473546c488009bd80806b",
+      "kind": "candidate_identity_chronology",
+      "failed": 1,
+      "database": false
+    },
+    {
+      "tree": "e58e876897342f2ddaa3691dfade39f99a0353bc",
+      "kind": "old_exact_V1_storage_rejects_new_V2_plan",
+      "failed": 1,
+      "database": "dedicated_task_child_postgresql"
+    },
+    {
+      "tree": "4b9134f8aa68dfb83c88a5192264c65823dcdd24",
+      "kind": "candidate_V1_row_market_cross_binding_regression",
+      "failed": 1,
+      "database": false
+    }
+  ],
+  "preflight_and_fixture_failures": [
+    "Native red first target probe lacked export PYTHONPATH; core import failed before DB.",
+    "Native red first resume path assertion failed before DB/test; same frozen source resumed with preserved original logs.",
+    "Author initial Application source_market whitespace fixture and Domain initial invalid local chronology were fixture failures, not business reds."
+  ],
+  "source_patch_reconstruction": [
+    {
+      "patch": "artifacts/a-share-usability/ash03/market-exchange-original-routing-root-1-source.patch",
+      "reconstructed_tree": "49e3493f4ee2392d6bde1b345acf789e19f9742c",
+      "matches_recorded_tree": true
+    },
+    {
+      "patch": "artifacts/a-share-usability/ash03/market-exchange-identity-clock-root-1-source.patch",
+      "reconstructed_tree": "e79fd1f110b02247b2e473546c488009bd80806b",
+      "matches_recorded_tree": true
+    },
+    {
+      "patch": "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-source.patch",
+      "reconstructed_tree": "e58e876897342f2ddaa3691dfade39f99a0353bc",
+      "matches_recorded_tree": true
+    },
+    {
+      "patch": "artifacts/a-share-usability/ash03/market-exchange-v1-cross-binding-root-1-source.patch",
+      "reconstructed_tree": "4b9134f8aa68dfb83c88a5192264c65823dcdd24",
+      "matches_recorded_tree": true
+    },
+    {
+      "patch": "artifacts/a-share-usability/ash03/market-exchange-root-1-source.patch",
+      "reconstructed_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+      "matches_recorded_tree": true
+    }
+  ],
+  "rollback": "Stop candidate writers/releases and preserve V2 rows/columns. Reverse guard locks the trade table in the same atomic PostgreSQL migration transaction and refuses evidence loss.",
+  "unresolved": [
+    "Extra version-retirement checker actually fails the same nine sealed inventory/floor violations on base and candidate; not waived or passed.",
+    "Production identity owner and source-purpose adapter absent; real reference True/None retained.",
+    "Ordinary buy/sell, automatic simulation, HTTP, backtest and QMT consumers are not activated.",
+    "Original ASH01 five regression tests and historical PIT remain open.",
+    "ASH01/02/03 and entire ASH01-12 Goal remain open; ASH02 sole integration focus; DATA18 gates ASH11."
+  ],
+  "qualification": {
+    "production": false,
+    "real_provider": false,
+    "source_or_trading_authority_granted": false,
+    "broker_order_evidence_integrated": false,
+    "release_ci_s6_identity": false
+  },
+  "artifacts": {
+    "artifacts/a-share-usability/ash03/market-exchange-application-black-20261017.txt": {
+      "raw_sha256": "6bbc2ac033624906c5451432e1bb3e325ef17dc41fc14e806bd82beb023e1501",
+      "git_lf_sha256": "c8b1360c10bf9b7c1c00de0e3aa63a5bf629b9e30cb7d295e6f132bbbead24ef"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-black-final-20261017.txt": {
+      "raw_sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7",
+      "git_lf_sha256": "26a5fd9505f2b5608a20c4fed4b4c4795e0783d03b72ade02a6af34dae8ad086"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-isort-20261017.txt": {
+      "raw_sha256": "eb614dafb1e395915751f7288479eb0bfdb7af90d28f91c1ff9dd5872586a231",
+      "git_lf_sha256": "164a326369e3af3144e564d1f81f962c49983f119d29aadfd6db0335788041d0"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-isort-final-20261017.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "git_lf_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-mypy-20261017.txt": {
+      "raw_sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "git_lf_sha256": "89d286d7f4267404c84e295cc38bb811c98b2dc89aa6bf994c28801661a88361"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-mypy-final-20261017.txt": {
+      "raw_sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69",
+      "git_lf_sha256": "89d286d7f4267404c84e295cc38bb811c98b2dc89aa6bf994c28801661a88361"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-red-20261017.txt": {
+      "raw_sha256": "a1453a7243e2305df838056089e1da543bc754a0040aadd0db56ed3d21e7745c",
+      "git_lf_sha256": "950071d4fdaf8b0a1cfa7e46c4766a46d8b649afe999cf61b798e1883f700f80"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-red-attempt2-20261017.txt": {
+      "raw_sha256": "eeb858233981edaf38991c2a128f830ee35c1f3ef67935d481b8fa4803de61a1",
+      "git_lf_sha256": "e14d9099c9ffc223a77d23732ba425095e6f348e85d1066d886fd2e22a15e6ee"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-ruff-20261017.txt": {
+      "raw_sha256": "74b366c765bd8e4290c41949ee6bb8e2ac9743e4b0ea00827ead582f1884ca16",
+      "git_lf_sha256": "74b366c765bd8e4290c41949ee6bb8e2ac9743e4b0ea00827ead582f1884ca16"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-ruff-final-20261017.txt": {
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "git_lf_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-unit-20261017.txt": {
+      "raw_sha256": "a4e50c2f39de69a5a932b8c0dff57be70f64d0fe77c1f581d7563d9e45a95b91",
+      "git_lf_sha256": "15921da1334974743ec0b328e381cf5544b04daf6917a2d55235b036c07e8af3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-unit-attempt2-20261017.txt": {
+      "raw_sha256": "d989f5717d946238987ff07b1521de5ba0bbce7076ab0d94bc4d436dc691e0b4",
+      "git_lf_sha256": "007c8c30afdfde563b0b71e7495ccaa94b2773a75572939ba541c08012004c71"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-unit-final-20261017.txt": {
+      "raw_sha256": "b19902f9dd9bcb64cf1834b72d90be76517703ecb2a1b53fccb5f76376d81dca",
+      "git_lf_sha256": "6629820d9b1bf4325c46a3537e56c13575ecdca0401105275af75aa79a64265b"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-application-unit-final2-20261017.txt": {
+      "raw_sha256": "4719cbdd696bd873d16c101b927c8ff82ba857abe164d12dd618252b11ec907b",
+      "git_lf_sha256": "01d8468025e37fd41b5de5710165a3e96d18fe25f2b467bc3981ec61cbc7c959"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-black-final-01.txt": {
+      "raw_sha256": "457452a10d0552c7500a5cc6a9fb2f7c2aea8915b8a8faf5fc4dca0b87e6e4bd",
+      "git_lf_sha256": "68893e77eb1f28a279b4cc26ea589f7754dba7258558053f6cd37e04e369d919"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-01.json": {
+      "raw_sha256": "061587bd0acefa8145304baf3fd25bd0a5c5cff01012187732873123edbbeb9f",
+      "git_lf_sha256": "061587bd0acefa8145304baf3fd25bd0a5c5cff01012187732873123edbbeb9f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-01.txt": {
+      "raw_sha256": "4c22232873fe49449d91533376869c12a25f0e0d8310b9ee1bba53bd335dfe01",
+      "git_lf_sha256": "13abc3864bfb523709e1564e324330f98075a020a39969cfb30285ea519bbef2"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-02.json": {
+      "raw_sha256": "ee2ded8f6aa90749f88f317de186f4b75f99262f89bac10a6152951954531bbf",
+      "git_lf_sha256": "ee2ded8f6aa90749f88f317de186f4b75f99262f89bac10a6152951954531bbf"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-02.txt": {
+      "raw_sha256": "c10d9a1900ed03da69317dcccdf8a77fa9ffcbc03e5c25fcc782d061685f6bd7",
+      "git_lf_sha256": "457c4184cc379e0b001513fe97425b0409e0293d8aba7ee63a5dc85f6b01c5b7"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-03.json": {
+      "raw_sha256": "fdb2760684e3739a927f38b18476a7cdeaa8a65555a69134d0e9490b0cfd4a85",
+      "git_lf_sha256": "fdb2760684e3739a927f38b18476a7cdeaa8a65555a69134d0e9490b0cfd4a85"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-03.txt": {
+      "raw_sha256": "d115b8566636ab3af764cf27474adbecbc494f36e78835fe38928abb33c23ba6",
+      "git_lf_sha256": "aaee5651927ddf62cbd5f13ba0946bc9d77ba810a6ac7d8a41bbde848dbc6f0d"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-final-01.json": {
+      "raw_sha256": "f918081c2d9f4aa3a20e215bf8847e1ce2ef5523fe5cc7947da59a121423dae2",
+      "git_lf_sha256": "f918081c2d9f4aa3a20e215bf8847e1ce2ef5523fe5cc7947da59a121423dae2"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-coverage-final-01.txt": {
+      "raw_sha256": "fe63aadb695fd97174430d7555e21c84704423c74bacb4e77a146bd6017ed057",
+      "git_lf_sha256": "1368b76a08270171dcf5b833b0c0a8360f9f892b5d059af26faac476538ea2b8"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-format-fix-01.txt": {
+      "raw_sha256": "679a4f9a787e53e73c26788953b6142ad97c03228521452c882cdbb1532ea7ed",
+      "git_lf_sha256": "815862b0de0176263da86626f25db7e235bd8251f3a24e3ec332e7026fc7276b"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-01.txt": {
+      "raw_sha256": "42807afec195f303708c1f85c28d263a2531cf0059d7665bdb906c973c78becb",
+      "git_lf_sha256": "cbd632fbdf5d3298172fbfb91bc05630686b6881e2f85db4cebd0d0cef9bb26d"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-02.txt": {
+      "raw_sha256": "a0139d9c65ec23338b3b03e0b63a29012320a96c59a238df2039e20d6414f06e",
+      "git_lf_sha256": "82dcb717580eaefc4cedc7ee247eb6f265facc92cf0fd1c91df4515277836d7c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-03.txt": {
+      "raw_sha256": "c0b7bf9b81ab884667724a73f278ae8ccef8c511c46dc097ea7aa1536af5054e",
+      "git_lf_sha256": "eb312aeaa0adc7e4ca0d3dd00df12d0c26e1f84e3548d48f538f12f37a5edf13"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-04.txt": {
+      "raw_sha256": "eca9a7d241fca9086496d67cef1cd8fdd28b15f3d6ae0a8ad78491c8c0d20d79",
+      "git_lf_sha256": "44d177bfce76721e39c7c044c529e6fdec0a4da49e917f5380c0032e91ea50c9"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-05.txt": {
+      "raw_sha256": "368ba91d389e15d3dd0b7885ec0b112b0691dfa4299f6cd0d5124aabd2eb6988",
+      "git_lf_sha256": "2c82d661c21c4d020064ce8f9917d1bfea6e1778f4d5e50c68fd4340950f4f5e"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-06.txt": {
+      "raw_sha256": "3c802d28d1f8d3ecee37fb93502a9379389f00df6ff8ab67c16339621f16de69",
+      "git_lf_sha256": "cad1c3462813897aeea8dc5d872aff3d6e17136ce1a68c145b27f253c99c8778"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-green-final-01.txt": {
+      "raw_sha256": "433422e3a064c2d64b860ed4e7fad951ed36aa5f954ff1f582e199304fe42397",
+      "git_lf_sha256": "ac12c5cb2053202357a3340e41431f08a14f9a9a2cf907928ba67d8925c2ce83"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-isort-ruff-final-01.txt": {
+      "raw_sha256": "36583103ec599ac71ff0729a55541ab327441f39c08b2f03d8517977e7e4430b",
+      "git_lf_sha256": "d7b579b573c581f3f5ff7427f13e33c44ecb669a47e3f02aba252c227e7daf78"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-mypy-final-01.txt": {
+      "raw_sha256": "1bf56f3e4b846ed18d0f84373a457c49627d2a6274dcaa5cc2bc5d7e34887d6e",
+      "git_lf_sha256": "3246020d409abad3da377fd03f357516eeefe8c20e0c44c37666bee76f73f251"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-mypy-final-02.txt": {
+      "raw_sha256": "d0900ac295cc2427c4d66d20eaaad347f01ab4f61ddd809745efedd2b64f4d88",
+      "git_lf_sha256": "a43dbca8fc7c948a72be91b78807c79219684ba0bd35a2fb92bc53701fb45e55"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-red-01.txt": {
+      "raw_sha256": "5726afc45d6cfc86a53ad3f48b451d582c8d882e6945847b375c175733925e60",
+      "git_lf_sha256": "9ba7100e7d97b00563864fbb17e7fe0712b4114bd79a11da77bf3ac0d86041ff"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-red-clock-01.txt": {
+      "raw_sha256": "624e742f463426675a1d445ce106e2c4a1218371c4e33ae13975d65e0394ee7c",
+      "git_lf_sha256": "4a19f59b5ddaf31ef75d3eac018290fd53f22586f32c55a31d343800779c3d43"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-red-clock-02.txt": {
+      "raw_sha256": "a1547da05f0020b6781060ac6155ab192cfdd87f6d4b4c3d90d2e0ccb59809ed",
+      "git_lf_sha256": "358a6737766f4dd5105323f5f462b7c3f5649d9d28abb78bb81569b044555653"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-domain-style-final-02.txt": {
+      "raw_sha256": "f9decf995ceacb70cd6fe307399f15058b0ea74b1f190624975e965b1646727d",
+      "git_lf_sha256": "d5746266497ad134555ff7c0ab11512ce6dc6ea036a287c761b506c2cccc101c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-identity-clock-root-1-reference.json": {
+      "raw_sha256": "f5549dba55185601e179f592ac0596de0cc8b9f752d732e66040892bf1101446",
+      "git_lf_sha256": "24f25a2b28ba0bb91d41d1a1acafb25c63792bcf8945d9b2aec3c657b1e7d170"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-identity-clock-root-1-result.json": {
+      "raw_sha256": "a060bf1b1de1926122278bdf6d3e31353393dcd3a69e0cbdb024e1b8c0eba19e",
+      "git_lf_sha256": "129e00367b18c08cb20ff8eecd5ee5c3f1c02a6817cadace4d4aeed11115fe64"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-identity-clock-root-1-source.patch": {
+      "raw_sha256": "b2b2b02c5e18c2a9a9ae95e46805e715b582dbc9051c5e62d8031b494eea8640",
+      "git_lf_sha256": "b2b2b02c5e18c2a9a9ae95e46805e715b582dbc9051c5e62d8031b494eea8640"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-identity-clock-root-1-tests.txt": {
+      "raw_sha256": "6b096442dc131be7ceefbfdf6e359fe398451843e5b6da6e5daf44f05984d5a6",
+      "git_lf_sha256": "7592b31ba34761c37a6120cc3bcf163701737d2363c226b9854edd33d9623144"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-preflight-failure.json": {
+      "raw_sha256": "d16aad3966da454bef03488f3383916a32a868ff540d0f45be65503d70b1873b",
+      "git_lf_sha256": "6352cf58f40eb399554767f3d9304f6680a7269f5adf016e9a9f956518fbb524"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-reference.json": {
+      "raw_sha256": "310042476b03f10c0d7b5c62c4fb2c3467cab3eb0a6c4b70a3e19e9641cbb9a5",
+      "git_lf_sha256": "925a53d10c626c626ddc0165e70979bab708e9c3ce0aa26a8abf26252aae8e28"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-result.json": {
+      "raw_sha256": "3988d753316bbc3c39cee0d1ed1a05ca31717887ab6dc55e43d6ef05af3e5241",
+      "git_lf_sha256": "6d0bd9f9cb46abc3cf776f6abd33cbee703670a6215f436027eb4a59d6f14bd4"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-resume-preflight-note.json": {
+      "raw_sha256": "ad5efcd21a8ab8979ef6eb2b2aa9707b4925e583f016ee933440984c77a1e732",
+      "git_lf_sha256": "ad5efcd21a8ab8979ef6eb2b2aa9707b4925e583f016ee933440984c77a1e732"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-source.patch": {
+      "raw_sha256": "76bddfe3d1dceb49b3b568ef6baa1c18d916f5d7588ebdd8c308df480e95c6ac",
+      "git_lf_sha256": "76bddfe3d1dceb49b3b568ef6baa1c18d916f5d7588ebdd8c308df480e95c6ac"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-target-after-retry.json": {
+      "raw_sha256": "01363994eac563d325713b8de023149a7121822335ef1ba236b3940850894a89",
+      "git_lf_sha256": "941eff18258362ea906565cbf30d4dc2429a2202e1658336f8e91a111301e589"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-target-after-retry.txt": {
+      "raw_sha256": "9248b05643f4beaab3a850a4c8eb0d4209c428eadae6cc70eda2ab29329b0874",
+      "git_lf_sha256": "a9b63c151339c25b8d80932f30e4112c342755981d874bf8076a0425ccf14d14"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-target-before-retry.json": {
+      "raw_sha256": "6c0c1a3cf4c84a6c4821cd3b66a767a5659195e85ab8f0e5dc4fdc681a4e6191",
+      "git_lf_sha256": "368461f37af521bdfc51eeeb1d182129fc0e90f32280fbf6030380abc7efbcb3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-target-before-retry.txt": {
+      "raw_sha256": "9248b05643f4beaab3a850a4c8eb0d4209c428eadae6cc70eda2ab29329b0874",
+      "git_lf_sha256": "a9b63c151339c25b8d80932f30e4112c342755981d874bf8076a0425ccf14d14"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-target-before.txt": {
+      "raw_sha256": "0ee01e48ec144587d332388c98fdb2795be6dbf264e1c99c7c661bcfb74521fb",
+      "git_lf_sha256": "2a2142bf48d139d8bb7fef5e01004647c2ee9ba8075a5f248519ebf8595e77a1"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-native-guard-root-1-tests.txt": {
+      "raw_sha256": "0eb940fc6fdf5b27383cc24125e40219230b4eae8792150321fe45e63ad7f13c",
+      "git_lf_sha256": "a85621d90254ab6040af2ecd0ab81a75ef8c4d0d460ee3249d6c0fb2eb19cb0c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-original-routing-root-1-reference.json": {
+      "raw_sha256": "8a9312a0693dc2bde942f564bc72e41203a6820fb1b622f826bd0d3cd313bab9",
+      "git_lf_sha256": "6c5ca091798c5e590f24a51001061af587ff7ff807e5fa5e6ac472ea00a946cb"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-original-routing-root-1-result.json": {
+      "raw_sha256": "60898483ec830ab3e41dd02953a4a1cd6e47f65f6e38b1f470493ba1241606d4",
+      "git_lf_sha256": "abb7649eea6236445b1812ec4650c592789e5c5a3abebbd6f4bf2a935565ef6e"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-original-routing-root-1-source.patch": {
+      "raw_sha256": "efa818d6321ce205a9b416c9f20392295c3255bf56cc5ba1b01e17683d8ef524",
+      "git_lf_sha256": "efa818d6321ce205a9b416c9f20392295c3255bf56cc5ba1b01e17683d8ef524"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-original-routing-root-1-tests.txt": {
+      "raw_sha256": "12da9a1c70965c3a3e2aea801c0fe7f23c4090e26bcf5dd4f4e4fd5f731a2119",
+      "git_lf_sha256": "532561ed1090f1517c6b4af9a85dc50e390183185876d267d47b0627de6e633b"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-retirement-base-1-check.txt": {
+      "raw_sha256": "dc22bd09e7207df901be72fdc752eda8ce961587812eefc945ca1e0472a7d60f",
+      "git_lf_sha256": "9bd14e79a27adba23c36875dccc192b48c5175599ea076f6950f49435e1fc003"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-retirement-base-1-reference.json": {
+      "raw_sha256": "7a8c9a7285e2b5f1cd0c7c40b874079bc734566646f148006072c485de1057f5",
+      "git_lf_sha256": "2f379877756e55e0478329bf9b3e331ca5b69a1756bdf99f7e92ba68b46b58f7"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-annotations-result.json": {
+      "raw_sha256": "bbde8645dea41596229bbf394ea86cfa2270737d4a2403f12b805ea42430c9eb",
+      "git_lf_sha256": "e1080adc5e50c879c4474e486da9643c16051aafa14bfa225b6b3733bc0c9440"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-annotations.json": {
+      "raw_sha256": "1bb11c8530f9e705bf2b5cfa010680c1dcf9981c38c36f175116624073afd5a9",
+      "git_lf_sha256": "b62463bda1706da765d5e2ec8faa5bb1483cb5066168bba12d825476c2a093ea"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-architecture-result.json": {
+      "raw_sha256": "d46ed29699c77b373f3ef99651347b352b50c5710108642e24d277ba2e4f98f9",
+      "git_lf_sha256": "05ee752741e054fd42e8c8ce0955c0f5a2634cbc86c53f5c201c2e7c08f31ab3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-architecture.txt": {
+      "raw_sha256": "19b9c5cda32cff051b566456931ce533b27d8723674b7c7d32a3580875cd03e9",
+      "git_lf_sha256": "bdc20c5f072b138d9355b67939d1e4477f02183f64e6dbf964c4c084b8586779"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-black.txt": {
+      "raw_sha256": "e083e91082f3e34be8ec216f83da715bfae97cbfe128bba9c789c5c09a60e580",
+      "git_lf_sha256": "042b3fea077c8fb5aec8a91d887c7a1eb777bb3bebff6d41f376617bc46fd9a7"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-check_audit_event_contracts.txt": {
+      "raw_sha256": "66b9f24b042cd3b2db2744ac93469236fa742c5034d37232a59c424651404616",
+      "git_lf_sha256": "3a8f1699c76c3bcbfdbc9e82c7731358f4534bc3a4550d22d2c3afe9dd99188c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-check_current_data_contracts.txt": {
+      "raw_sha256": "631ec874829210459eadd00aa0afec359bdec432cdde5a0ff6af9e974a51f03e",
+      "git_lf_sha256": "164235d6ffe8131785da5f8695b1c83e02c850c06f184feb3078cce775990d92"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-check_data_dictionary.txt": {
+      "raw_sha256": "e0772de9cfcb5eaf3f8e5f3c6807879d16d15dfb1171bb577425b3160d3c7474",
+      "git_lf_sha256": "dbfdbf137303a74d413907d16e68c56c2f2867e0209e8a32f10b2467a49b51c0"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-check_module_map.txt": {
+      "raw_sha256": "d31549e21ba3f793063cb15e9d6a0691202318535ac85c16997d1e6380351f93",
+      "git_lf_sha256": "dda99e383b22b64d34b60fdbd013fe44556ceb5cc5c3abec4b8423bc98fd1932"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-check_versioned_surface_retirement.txt": {
+      "raw_sha256": "24175f61e8314a797cc405bd332217019e62d2485fcbcba8a73ff5064aa408c1",
+      "git_lf_sha256": "a331b90fb429d178dc6b78dae22a79244e1fc792fbeacf90fcb9531001402a65"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-coverage.json": {
+      "raw_sha256": "787f6febf769f980b43e11b6cd3229b7e5aace47d6490a88a00fbb7c4049ad98",
+      "git_lf_sha256": "787f6febf769f980b43e11b6cd3229b7e5aace47d6490a88a00fbb7c4049ad98"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-data_center_architecture_inventory.txt": {
+      "raw_sha256": "8b41ae3efd628219d35df6b8ffacd6a5366ff208a97b4511b7b402c60967cf48",
+      "git_lf_sha256": "0a76e92c2ed2e4c473794e863e3bec9a4699134249b765192b19f5c4716fc771"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-data_center_entrypoint_inventory.txt": {
+      "raw_sha256": "de0198b1292db349fe40d9864c8bf6d8dd7559ad8a8c43276d9454f3683cd7de",
+      "git_lf_sha256": "31ed38844e8b76279f8155c0513f4e195b4650e9ab9931eabd0b72ff8c85c0d3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-dc-architecture-build.txt": {
+      "raw_sha256": "8b41ae3efd628219d35df6b8ffacd6a5366ff208a97b4511b7b402c60967cf48",
+      "git_lf_sha256": "0a76e92c2ed2e4c473794e863e3bec9a4699134249b765192b19f5c4716fc771"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-dc-entry-build.txt": {
+      "raw_sha256": "de0198b1292db349fe40d9864c8bf6d8dd7559ad8a8c43276d9454f3683cd7de",
+      "git_lf_sha256": "31ed38844e8b76279f8155c0513f4e195b4650e9ab9931eabd0b72ff8c85c0d3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-dictionary-build.txt": {
+      "raw_sha256": "702e63967dd1abff770f858b97de003702d6539550feebbb68ff7d11e3d7f804",
+      "git_lf_sha256": "64cdcb22d87e3b39140e5c7ca2437bc89b80bb86ff2cca72717cfc71c255b525"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-full-mypy.txt": {
+      "raw_sha256": "93ebe992b2a0f0ece11bff82d50a68ea20f3bbc6f0de37b7e400bc31de094384",
+      "git_lf_sha256": "f3bb970b54213ed40976c151a097ba76af21a5c56e361b11edfb9e81ab579b45"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-incremental-mypy.txt": {
+      "raw_sha256": "53830015373816a3252d9eb2a2d085543ef3b546ded3268d38acd7f4e7ff057d",
+      "git_lf_sha256": "f16b06aff6950a3969367fe4247e2ef58e4bd1a57baca0ff37ea93002ef6be71"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-isort.txt": {
+      "raw_sha256": "12d344ed929c565bc6b7a28710c9b2f6d0662cec65cbb2982f2b7c04d2a24a70",
+      "git_lf_sha256": "b0728fdab6ee95f2d099c16c2468e4340fdd51486167f2cce7b90edcfc3794e8"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-model-state.txt": {
+      "raw_sha256": "89bd7869f76d59f0905a21a4bb6294372bc749b38772cc23096fbc31e57a541a",
+      "git_lf_sha256": "a518c0e2e2499ed72bc4034311948526c2b5c4343fb1bf50522c30cd66df513c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-module-build.txt": {
+      "raw_sha256": "a457f30ade0fb796acdb293f72f647e89477b10a8e3bb7856ad3986c59a716ff",
+      "git_lf_sha256": "7480e53e9780e2a647e833bd5aecfdcc9dc75e9afcd0f28f14806e552c3f1ef5"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-component.txt": {
+      "raw_sha256": "ec5a8a8aad6beb07fc012a786ae3d3039be4d3cea51b7ee5c2d6ce5f86530d8b",
+      "git_lf_sha256": "95051cf482b309918c429e565c8dd1eee6d2c2f6081e69091c9a9dd44598648c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-incremental-upgrade.txt": {
+      "raw_sha256": "73b96867b5d59e6ae2003816a85898750c662e92b9a6f5da23c3d0737495a2fe",
+      "git_lf_sha256": "1ef238f472e556ae9557548e91f7e1ac2ebd80cb185dbb69893ca65101b1c17c"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-migration.txt": {
+      "raw_sha256": "49a667677a523f33b7317203f28c22404a21a6310bf23070f4af25c1a36359e5",
+      "git_lf_sha256": "c63216dadf3618e001bbce27d6252cfd29dfb55e02aebc02a06d073eba43b044"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-result.json": {
+      "raw_sha256": "672534713d836f17ee794794bd3e2a2bb7df41d53757026290d9004750411ec1",
+      "git_lf_sha256": "08df32229a2e659f13643901dfdd2b6dc191e8a9db11df8096b66b2f88b9fba3"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-component-before-migration.json": {
+      "raw_sha256": "a9227e9da32eafdaa05e276cae7c0761279997e6b2b88eacbe5212c088c5bd4c",
+      "git_lf_sha256": "23ebcc6086fcf30f7d4981cd7438e6dd5b05b9811e85a13df1539c33aac5eb58"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-component-before-migration.txt": {
+      "raw_sha256": "0c22147bc8f7535a50fd2fc847ec61886874e9a112dd3a49a6fbaf4616e2a88a",
+      "git_lf_sha256": "81f78bfbeda8b5420130a6f6e3ba9429e36f51e526e2c56b78231ac9dc8d5f6f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-incremental-upgrade.json": {
+      "raw_sha256": "70b44fe0d7702db9e8d92708c64ce9c253929ace1875f20c532cb9fb7738734d",
+      "git_lf_sha256": "b403116f378367c99c52be9ca1434f95b53eba116678f602b7feb8b55773d539"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-incremental-upgrade.txt": {
+      "raw_sha256": "0c22147bc8f7535a50fd2fc847ec61886874e9a112dd3a49a6fbaf4616e2a88a",
+      "git_lf_sha256": "81f78bfbeda8b5420130a6f6e3ba9429e36f51e526e2c56b78231ac9dc8d5f6f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-migration.json": {
+      "raw_sha256": "b06f75a11c46cfcae370efc58d0c08e424f8f43addfe660dd1dbb93c0ae68344",
+      "git_lf_sha256": "ca5804c760d15f099116519a9897b8bff2f050ca04863506f391e48209700a78"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-after-migration.txt": {
+      "raw_sha256": "0c22147bc8f7535a50fd2fc847ec61886874e9a112dd3a49a6fbaf4616e2a88a",
+      "git_lf_sha256": "81f78bfbeda8b5420130a6f6e3ba9429e36f51e526e2c56b78231ac9dc8d5f6f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-before-component.json": {
+      "raw_sha256": "70b44fe0d7702db9e8d92708c64ce9c253929ace1875f20c532cb9fb7738734d",
+      "git_lf_sha256": "b403116f378367c99c52be9ca1434f95b53eba116678f602b7feb8b55773d539"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-before-component.txt": {
+      "raw_sha256": "0c22147bc8f7535a50fd2fc847ec61886874e9a112dd3a49a6fbaf4616e2a88a",
+      "git_lf_sha256": "81f78bfbeda8b5420130a6f6e3ba9429e36f51e526e2c56b78231ac9dc8d5f6f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-before-incremental-upgrade.json": {
+      "raw_sha256": "d1981fadc0fbd936a9e6e0e93746a90714d9305db13a362f76a7051eb344fd70",
+      "git_lf_sha256": "c7c2e25fe04af6bad0af934a9e5410bc1daed0a69f3ddcd2c02b9615f9480cee"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-target-before-incremental-upgrade.txt": {
+      "raw_sha256": "7adc811cf395fbe47e4c2c279bf5cebc92d41989567104d633eda5ef2ebd4c30",
+      "git_lf_sha256": "04b6013944dbf0f3df7af2e9d0b005e9b7f4bf945f14b42a5c58e737cbf6a6da"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-native-upgrade-result.json": {
+      "raw_sha256": "72b95041f0b008b00663d5440a43d23b0079a56e91a985d8aa2204f7f2b3c63b",
+      "git_lf_sha256": "0c43dc347bfb8b9c075be1f713b8ea8be2a58a340b25a392770fda4076c6d3a6"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-parent-check-result.json": {
+      "raw_sha256": "7202875a6750c242b752eff7ce9558f56eb64cf7f57576f3d1a6a54968561bde",
+      "git_lf_sha256": "221c7746505f852b48eeeb5db1562cc4f41c1b4c51e945163883d91f365865f6"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-parent-target.json": {
+      "raw_sha256": "285c8fe6cb5b62b8e146d5dcbfa65f727c6e4686945db85fb578213f9d3a4354",
+      "git_lf_sha256": "ed4f46c97ed57d6d5f485ec6f827dbe0e4284a78b692ae84ff0195b22709b754"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-parent-target.txt": {
+      "raw_sha256": "c97b77c90c4ea741a2fa3dd59b3228b2bc119e6e7073358e479ab07de22a3d62",
+      "git_lf_sha256": "c8be697dddb39865a165c3c0348e3b0f0331c2d04d38748773afd0b678a14da6"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-projection-scope-recorder-note.json": {
+      "raw_sha256": "137de948fdff4b50d365a118ec15d1bbe5cebd633fd5033f7f804f3361c24cce",
+      "git_lf_sha256": "39cfca91c2276153223e9f51d8a3758be3150354f96281896c1b21fd9c9c6c09"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-projections-scoped-result.json": {
+      "raw_sha256": "fb8e2fec2bf9eb3d87018896c4fd1decbe72502fab3becc25ef1a2d2bd8d1936",
+      "git_lf_sha256": "fc9bd20d322d8f77a5407d75c236632ecba69982d1a9d1630ee954d32e324d1d"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-reference.json": {
+      "raw_sha256": "03d757383c1e6a8eca92ce010e46ba62d6f0c00c2036691b9afb68b14c6e29d6",
+      "git_lf_sha256": "145ae2e53131e0f004bfce2f88480a4901ce76b71ca3536a5e380b2ca296c1df"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-retirement-comparison.json": {
+      "raw_sha256": "62e70be1030344d3befbe7fa3127596b63f419e5c981185141dc87a70d17ad3e",
+      "git_lf_sha256": "6d3fc5fb41ac92810e293e6996b33fd7677fc0acf4c4c0282f015acd70e60d62"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-ruff.txt": {
+      "raw_sha256": "b4cc508bad2baaf24c9aaeb9f80f0098e703db2555b46858162f0b8d97a43703",
+      "git_lf_sha256": "2f9cdd007086255974dfe988c60258a1ffaa001fa5a8875319097b4bcf4ac154"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-source-patch-manifest.json": {
+      "raw_sha256": "36af6fdcc4880a7c81cda47e668d7bbca026a2423eac801fc6c2a30578730df8",
+      "git_lf_sha256": "54765f7ccc77f60e511e1b6356503d669cf99630d81b6822c38c0ec0e4d5b45b"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-source-reconstruction.json": {
+      "raw_sha256": "8d096110f347c0a905d15c957473001eafee2b04c8d63f4fad488d7794a48e0d",
+      "git_lf_sha256": "fd8d2d17bc605f8af52c9a6bf830d96e6f516e333d1716e3f715fad6cce9e5a5"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-source.patch": {
+      "raw_sha256": "4c6c949bc63b3e131ace1b822f8eee50d647e1c017432b2bea35540b7dc802d2",
+      "git_lf_sha256": "4c6c949bc63b3e131ace1b822f8eee50d647e1c017432b2bea35540b7dc802d2"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-sqlite-component.txt": {
+      "raw_sha256": "6125b987a8d408bc8a8e300721495167ce4c04c6ad6f8a64c24cce9fa4441f91",
+      "git_lf_sha256": "8ed3de8622fe7e2d18621ce4efb349394e46775cb98560fdf95c1ff59e091db5"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-sqlite-migration.txt": {
+      "raw_sha256": "742f54a68b61166f03b85798faa92c0ee1b8ccbab9b80edea0f39523fb31449b",
+      "git_lf_sha256": "1f436dc5d4212db966a4690d7266bb0cf565002af0799cd5f1a7c87bccce2d63"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-sqlite-result.json": {
+      "raw_sha256": "1265fbc3388d9c99892bac21842c0f97f4ca598cbe3147f5c0f49c946e5d10ec",
+      "git_lf_sha256": "fcb731df00986b6251bb6520b687e3fd202cf0f060d81132a2ee14a02fd31bcd"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-style-result.json": {
+      "raw_sha256": "b97b3b1071032400e761d236eb1e6c3228be137a231ad24a56eca9d56b968641",
+      "git_lf_sha256": "7daf933c033f76a723468dddbc6abbc4f893cc3bbce38305d88a81901fb5131a"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-typing-result.json": {
+      "raw_sha256": "87efdcd3a3f9a5e9d30701fe14a80f6b02ea2f9ea16c288e1c1f38e30d081b69",
+      "git_lf_sha256": "679c8f1f89ba32c225215f325415fcbfabd75c39960962c38a71dafe0884de50"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-unit-result.json": {
+      "raw_sha256": "083b0748690247090c080275ab07b1fc41c3d4f7bc61f9e699febf9e2fbb2548",
+      "git_lf_sha256": "e1845bc5443bef7e470d3cd203039da4992b9c8a1f3fbdc83409eaf4d48be0d8"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-root-1-unit.txt": {
+      "raw_sha256": "9c038345973a5faa58d83dd0564a22f004536ad78adef69677893a7017bc48dd",
+      "git_lf_sha256": "1c64734c5147f9425b703838ac5b8cc360e27e9497ef3f0e14377a9e399b8c04"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-v1-cross-binding-root-1-reference.json": {
+      "raw_sha256": "cd2da9950614a14d5becac0b79c95ac8316513c8500ae78587bebe6a9af3eaa5",
+      "git_lf_sha256": "4c4877ec8bee8b82670b1e998362438dfe5c049ac5a390203dfda122c1766390"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-v1-cross-binding-root-1-result.json": {
+      "raw_sha256": "96c425fc9187c13bc39c1c97dae37926bc6ef23c364f71e364b5494064e4d5fc",
+      "git_lf_sha256": "13bc4db1e31633e9f3a6e378e223e775c57874eda193d233c38a0830c2f47d9f"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-v1-cross-binding-root-1-source.patch": {
+      "raw_sha256": "0854b900a3d7e4684cd40b13808059aae19e9c0497d33232206249b486b96858",
+      "git_lf_sha256": "0854b900a3d7e4684cd40b13808059aae19e9c0497d33232206249b486b96858"
+    },
+    "artifacts/a-share-usability/ash03/market-exchange-v1-cross-binding-root-1-tests.txt": {
+      "raw_sha256": "c6824677ac44712343b06fbea8da2505b97fa9f9d8b416b9bcd2f5340e38e4f1",
+      "git_lf_sha256": "e0126372067565a6c5357679bb7867a31dbaf89555e05f5ddb9747c6ff28997f"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+apps\simulated_trading\domain\execution_settlement_identity.py:334: error: Redundant cast to "str | None"  [redundant-cast]
+Found 1 error in 1 file (checked 3 source files)
+Mypy regression(s):
+- apps/simulated_trading/domain/execution_settlement_identity.py: redundant-cast increased from 0 to 1

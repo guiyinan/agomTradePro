@@ -1,0 +1,6 @@
+{
+  "business_test_failure": false,
+  "source_changed": false,
+  "database_access": false,
+  "note": "The first scoped-result recorder expected OK/total/counts for every successful generator log. DC architecture generator prints a bare counts object, causing a helper assertion before writing a result; the recorder was corrected to recognize its actual approved_non_data_http_imports output. Actual generator/check logs were preserved unchanged."
+}

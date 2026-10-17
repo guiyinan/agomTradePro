@@ -1,0 +1,8 @@
+{
+  "source_tree": "e58e876897342f2ddaa3691dfade39f99a0353bc",
+  "expected_business_red": false,
+  "stage": "first target-before probe, before database connection",
+  "actual_exit": 1,
+  "cause": "Generated .tmp script lacked exported repository on PYTHONPATH; settings import could not find core.",
+  "resolution": "Resume same frozen production/test bytes with explicit exported repository on PYTHONPATH; preserve failed preflight raw."
+}

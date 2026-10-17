@@ -1,0 +1,12 @@
+{
+  "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+  "results": {
+    "native-target-before-component": 0,
+    "native-component": 0,
+    "native-target-after-component-before-migration": 0,
+    "native-migration": 0,
+    "native-target-after-migration": 0
+  },
+  "exit": 0,
+  "changed_during_run": []
+}

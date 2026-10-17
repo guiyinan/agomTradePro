@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta, timezone, tzinfo
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 
@@ -36,6 +37,8 @@ from apps.risk_center.domain.price_submission_range import (
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
     ExecutionCalendarUnavailable,
+    ExecutionInstrumentIdentityUnavailable,
+    ReleaseDueSimulatedSettlementsUseCase,
     SimulatedTradeExecutionBlocked,
 )
 from apps.simulated_trading.domain import execution_settlement_uow as domain
@@ -44,6 +47,11 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     FeeTransactionCase,
     SimulatedFeePolicyV2,
+)
+from apps.simulated_trading.domain.execution_settlement_identity import (
+    ExecutionInstrumentIdentityEvidenceV1,
+    PendingSettlementScopeV1,
+    SettlementExecutionPlanV2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarEvidenceValidationError,
@@ -200,6 +208,41 @@ def _calendar(
         else None
     )
     return ExecutionCalendarEvidence(snapshot=snapshot, publication=publication)
+
+
+def _qualified_identity_evidence(
+    **changes: object,
+) -> ExecutionInstrumentIdentityEvidenceV1:
+    """Create explicitly synthetic, source-clock-qualified identity evidence."""
+
+    evidence = ExecutionInstrumentIdentityEvidenceV1(
+        security_id="SH.UOW.SECURITY",
+        asset_code="600000.SH",
+        source_code="600000.SH",
+        source_exchange="SSE",
+        source_market="MAIN_BOARD",
+        rule_market="SH",
+        board="MAIN",
+        snapshot_id=UUID("f418fc8b-8843-4cd8-9693-95b67834827b"),
+        snapshot_content_hash="sha256:" + "a" * 64,
+        snapshot_record_digest="sha256:" + "b" * 64,
+        first_seen_at=AS_OF - timedelta(minutes=20),
+        snapshot_recorded_at=AS_OF - timedelta(minutes=10),
+        mapping_record_id=UUID("f618fc8b-8843-4cd8-9693-95b67834827b"),
+        mapping_id="synthetic-mapping",
+        mapping_version="test-v1",
+        mapping_content_hash="sha256:" + "c" * 64,
+        mapping_record_digest="sha256:" + "d" * 64,
+        mapping_recorded_at=AS_OF - timedelta(minutes=30),
+        response_completed_at=AS_OF - timedelta(minutes=20),
+        source_observed_at=AS_OF - timedelta(hours=1),
+        source_available_at=AS_OF - timedelta(minutes=30),
+        identity_valid_from=AS_OF - timedelta(days=1),
+        identity_valid_until=AS_OF + timedelta(days=1),
+        must_not_use_for_decision=False,
+        must_not_execute=False,
+    )
+    return replace(evidence, **changes)
 
 
 def _intent(
@@ -464,14 +507,43 @@ class _RuleReader:
 
 
 class _CalendarReader:
-    def __init__(self, evidence: ExecutionCalendarEvidence | None) -> None:
+    def __init__(
+        self,
+        evidence: ExecutionCalendarEvidence | None,
+        *,
+        expected_exchange: str = "SH",
+    ) -> None:
         self.evidence = evidence
+        self.expected_exchange = expected_exchange
+        self.calls: list[str] = []
+        self.coverage_starts: list[date | None] = []
 
     def get_effective_execution_calendar(
         self, *, exchange: str, as_of: datetime, coverage_start: date | None
     ) -> ExecutionCalendarEvidence | None:
-        assert exchange == "SH"
+        self.calls.append(exchange)
+        self.coverage_starts.append(coverage_start)
+        assert exchange == self.expected_exchange
         assert as_of == AS_OF
+        return self.evidence
+
+
+class _IdentityReader:
+    def __init__(
+        self,
+        evidence: ExecutionInstrumentIdentityEvidenceV1 | None,
+    ) -> None:
+        self.evidence = evidence
+        self.calls: list[tuple[str, str, datetime]] = []
+
+    def get_execution_instrument_identity(
+        self,
+        *,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> ExecutionInstrumentIdentityEvidenceV1 | None:
+        self.calls.append((security_id, asset_code, as_of))
         return self.evidence
 
 
@@ -527,29 +599,63 @@ def _fee_policy() -> SimulatedFeePolicyV2:
 
 
 class _RecordingRepository:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        pending_scope: PendingSettlementScopeV1 | None = None,
+        previous: SimulatedTradeExecutionReceipt | None = None,
+        result: object | None = None,
+    ) -> None:
         self.plans: list[object] = []
+        self.pending_scope = pending_scope
+        self.previous = previous
+        self.result = result
+        self.pending_scope_reads = 0
+        self.release_calls: list[ExecutionCalendarEvidence] = []
 
     def find_idempotent_result(
         self, *, account_id: int, user_id: int, idempotency_key: str
-    ) -> None:
-        return None
+    ) -> SimulatedTradeExecutionReceipt | None:
+        return self.previous
 
     def get_pending_settlement_start(
         self, *, account_id: int, user_id: int, asset_code: str
     ) -> None:
         return None
 
+    def get_pending_settlement_scope(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        asset_code: str,
+    ) -> PendingSettlementScopeV1 | None:
+        self.pending_scope_reads += 1
+        return self.pending_scope
+
     def execute_trade(self, *, plan: object, clock: object) -> object:
         self.plans.append(plan)
-        return plan
+        return self.result if self.result is not None else plan
+
+    def release_due_settlements(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        asset_code: str,
+        calendar_evidence: ExecutionCalendarEvidence,
+        clock: object,
+    ) -> int:
+        self.release_calls.append(calendar_evidence)
+        return 1
 
 
 def test_application_blocks_missing_calendar_before_repository_mutation() -> None:
     repository = _RecordingRepository()
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(),
-        calendar_reader=_CalendarReader(None),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=_CalendarReader(None, expected_exchange="SSE"),
         fee_policy_reader=_FeeReader(),
         repository=repository,
         clock=_FixedClock(),
@@ -565,7 +671,8 @@ def test_application_rejects_calendar_scope_mismatch_before_repository_mutation(
     repository = _RecordingRepository()
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(),
-        calendar_reader=_CalendarReader(_calendar(exchange="SZ")),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=_CalendarReader(_calendar(exchange="SZ"), expected_exchange="SSE"),
         fee_policy_reader=_FeeReader(),
         repository=repository,
         clock=_FixedClock(),
@@ -574,6 +681,247 @@ def test_application_rejects_calendar_scope_mismatch_before_repository_mutation(
     with pytest.raises(SimulatedTradeExecutionBlocked):
         use_case.execute(_intent())
 
+    assert repository.plans == []
+
+
+def test_execute_uses_source_exchange_without_replacing_rule_or_fee_market() -> None:
+    intent = _intent()
+    expected_receipt = _receipt(request_payload_hash=intent.request_payload_hash)
+    repository = _RecordingRepository(result=expected_receipt)
+    identity_reader = _IdentityReader(_qualified_identity_evidence())
+    calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=identity_reader,
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    receipt = use_case.execute(intent)
+
+    assert receipt == expected_receipt
+    assert identity_reader.calls == [("SH.UOW.SECURITY", "600000.SH", AS_OF)]
+    assert calendar_reader.calls == ["SSE"]
+    assert len(repository.plans) == 1
+    plan = repository.plans[0]
+    assert type(plan) is SettlementExecutionPlanV2
+    assert plan.intent.market == "SH"
+    assert plan.calendar_evidence.snapshot.exchange == "SSE"
+    assert plan.identity_evidence.source_exchange == "SSE"
+
+
+def test_execute_blocks_pending_scope_from_another_source_exchange() -> None:
+    repository = _RecordingRepository(
+        pending_scope=PendingSettlementScopeV1(
+            earliest_session=date(2026, 10, 16),
+            source_exchange="SZSE",
+        )
+    )
+    calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_IdentityReader(_qualified_identity_evidence()),
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        use_case.execute(_intent())
+
+    assert repository.pending_scope_reads == 1
+    assert calendar_reader.calls == []
+    assert repository.plans == []
+
+
+def _assert_identity_blocks_before_calendar_or_ledger(
+    evidence: ExecutionInstrumentIdentityEvidenceV1,
+) -> None:
+    repository = _RecordingRepository()
+    calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_IdentityReader(evidence),
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        use_case.execute(_intent())
+
+    assert calendar_reader.calls == []
+    assert repository.plans == []
+
+
+def test_execute_blocks_identity_with_unknown_source_clocks_before_calendar_or_ledger() -> None:
+    _assert_identity_blocks_before_calendar_or_ledger(
+        _qualified_identity_evidence(source_observed_at=None, source_available_at=None)
+    )
+
+
+def test_execute_blocks_identity_with_forbidden_reference_flags_before_calendar_or_ledger() -> None:
+    _assert_identity_blocks_before_calendar_or_ledger(
+        _qualified_identity_evidence(must_not_use_for_decision=True)
+    )
+    _assert_identity_blocks_before_calendar_or_ledger(
+        _qualified_identity_evidence(must_not_execute=True)
+    )
+
+
+def test_execute_blocks_identity_known_after_cutoff_before_calendar_or_ledger() -> None:
+    _assert_identity_blocks_before_calendar_or_ledger(
+        _qualified_identity_evidence(snapshot_recorded_at=AS_OF + timedelta(seconds=1))
+    )
+
+
+def test_execute_blocks_identity_at_half_open_expiry_before_calendar_or_ledger() -> None:
+    _assert_identity_blocks_before_calendar_or_ledger(
+        _qualified_identity_evidence(identity_valid_until=AS_OF)
+    )
+
+
+def test_execute_blocks_identity_security_market_or_board_mismatch_before_calendar_or_ledger() -> (
+    None
+):
+    for change in (
+        {"security_id": "OTHER.SECURITY"},
+        {"asset_code": "000001.SZ"},
+        {"rule_market": "SZ"},
+        {"board": "STAR"},
+        {"source_market": None},
+    ):
+        _assert_identity_blocks_before_calendar_or_ledger(_qualified_identity_evidence(**change))
+
+
+def test_execute_blocks_missing_identity_before_calendar_or_ledger() -> None:
+    repository = _RecordingRepository()
+    calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_IdentityReader(None),
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    with pytest.raises(ExecutionInstrumentIdentityUnavailable):
+        use_case.execute(_intent())
+
+    assert calendar_reader.calls == []
+    assert repository.plans == []
+
+
+def test_release_uses_stored_pending_source_exchange_and_original_start() -> None:
+    original_start = date(2026, 10, 16)
+    repository = _RecordingRepository(
+        pending_scope=PendingSettlementScopeV1(
+            earliest_session=original_start,
+            source_exchange="SSE",
+        )
+    )
+    calendar_reader = _CalendarReader(_calendar(exchange="SSE"), expected_exchange="SSE")
+    use_case = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=calendar_reader,
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    released = use_case.execute(
+        account_id=7,
+        user_id=11,
+        asset_code="600000.SH",
+        exchange="SSE",
+    )
+
+    assert released == 1
+    assert calendar_reader.calls == ["SSE"]
+    assert calendar_reader.coverage_starts == [original_start]
+    assert len(repository.release_calls) == 1
+    assert repository.release_calls[0].snapshot.exchange == "SSE"
+
+
+def test_release_exchange_argument_is_only_an_exact_pending_scope_assertion() -> None:
+    repository = _RecordingRepository(
+        pending_scope=PendingSettlementScopeV1(
+            earliest_session=date(2026, 10, 16),
+            source_exchange="SSE",
+        )
+    )
+    calendar_reader = _CalendarReader(None)
+    use_case = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=calendar_reader,
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        use_case.execute(
+            account_id=7,
+            user_id=11,
+            asset_code="600000.SH",
+            exchange="SH",
+        )
+
+    assert calendar_reader.calls == []
+    assert repository.release_calls == []
+
+
+def test_release_without_pending_scope_does_not_read_calendar() -> None:
+    repository = _RecordingRepository()
+    calendar_reader = _CalendarReader(None)
+    use_case = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=calendar_reader,
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    released = use_case.execute(
+        account_id=7,
+        user_id=11,
+        asset_code="600000.SH",
+        exchange="SH",
+    )
+
+    assert released == 0
+    assert calendar_reader.calls == []
+    assert repository.release_calls == []
+
+
+def test_exact_idempotency_replay_does_not_read_identity_again() -> None:
+    class _UnexpectedIdentityReader:
+        def get_execution_instrument_identity(
+            self,
+            *,
+            security_id: str,
+            asset_code: str,
+            as_of: datetime,
+        ) -> ExecutionInstrumentIdentityEvidenceV1 | None:
+            raise AssertionError("exact idempotency replay must not reread identity evidence")
+
+    intent = _intent()
+    original = _receipt(request_payload_hash=intent.request_payload_hash)
+    repository = _RecordingRepository(previous=original)
+    calendar_reader = _CalendarReader(None)
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+        rule_reader=_RuleReader(),
+        identity_reader=_UnexpectedIdentityReader(),
+        calendar_reader=calendar_reader,
+        fee_policy_reader=_FeeReader(),
+        repository=repository,
+        clock=_FixedClock(),
+    )
+
+    replay = use_case.execute(intent)
+
+    assert replay.replayed is True
+    assert replay.trade_id == original.trade_id
+    assert calendar_reader.calls == []
     assert repository.plans == []
 
 
@@ -1059,7 +1407,9 @@ def test_fee_calculation_handles_both_sides_and_rejects_untyped_requests() -> No
 
 
 def _receipt(
-    *, side: SimulatedTradeSide = SimulatedTradeSide.BUY
+    *,
+    side: SimulatedTradeSide = SimulatedTradeSide.BUY,
+    request_payload_hash: str = "a" * 64,
 ) -> SimulatedTradeExecutionReceipt:
     """Build one exact successful receipt for the Domain result contract."""
 
@@ -1068,7 +1418,7 @@ def _receipt(
         trade_id=1,
         account_id=7,
         idempotency_key="intent-001",
-        request_payload_hash="a" * 64,
+        request_payload_hash=request_payload_hash,
         side=side,
         asset_code="600000.SH",
         quantity=Decimal("100"),

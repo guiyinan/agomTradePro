@@ -44,8 +44,15 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeeTransactionCase,
     SimulatedFeePolicyV2,
 )
+from apps.simulated_trading.domain.execution_settlement_identity import (
+    ExecutionInstrumentIdentityEvidenceV1,
+    PendingSettlementScopeV1,
+    SettlementExecutionPlanV2,
+)
 from apps.simulated_trading.domain.execution_settlement_plan_binding import (
     SimulatedSettlementPlanBindingV1,
+    SimulatedSettlementPlanBindingV2,
+    bind_settlement_execution_plan_v2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarPublicationReference,
@@ -57,6 +64,7 @@ from apps.simulated_trading.domain.execution_settlement_uow import (
     FeeRateStoragePrecision,
     FeeRoundingPolicy,
     RawCalendarReference,
+    SettlementExecutionPlan,
     SimulatedTradeIntent,
     SimulatedTradeSide,
 )
@@ -155,6 +163,49 @@ class _CalendarReader:
         if self.evidence is not None:
             self.evidence.validate_for(as_of)
         return self.evidence
+
+
+class _IdentityReader:
+    def __init__(self, source_exchange: str = "SH") -> None:
+        self.source_exchange = source_exchange
+        self.reads = 0
+
+    def get_execution_instrument_identity(
+        self,
+        *,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> ExecutionInstrumentIdentityEvidenceV1:
+        self.reads += 1
+        response_completed_at = as_of - timedelta(hours=2)
+        return ExecutionInstrumentIdentityEvidenceV1(
+            security_id=security_id,
+            asset_code=asset_code,
+            source_code="600000",
+            source_exchange=self.source_exchange,
+            source_market="SH",
+            rule_market="SH",
+            board="MAIN",
+            snapshot_id=uuid4(),
+            snapshot_content_hash="sha256:" + "1" * 64,
+            snapshot_record_digest="sha256:" + "2" * 64,
+            first_seen_at=response_completed_at,
+            snapshot_recorded_at=as_of - timedelta(hours=1),
+            mapping_record_id=uuid4(),
+            mapping_id="component-test-market-exchange-map",
+            mapping_version="1",
+            mapping_content_hash="sha256:" + "3" * 64,
+            mapping_record_digest="sha256:" + "4" * 64,
+            mapping_recorded_at=as_of - timedelta(hours=1, minutes=30),
+            response_completed_at=response_completed_at,
+            source_observed_at=as_of - timedelta(hours=4),
+            source_available_at=as_of - timedelta(hours=3),
+            identity_valid_from=as_of - timedelta(days=1),
+            identity_valid_until=as_of + timedelta(days=1),
+            must_not_use_for_decision=False,
+            must_not_execute=False,
+        )
 
 
 class _MissingFeePolicyReader:
@@ -349,6 +400,7 @@ def _calendar(
     *,
     as_of: datetime,
     open_dates: set[date],
+    exchange: str = "SH",
     start: date = date(2026, 10, 16),
     end: date = date(2026, 10, 21),
 ) -> ExecutionCalendarEvidence:
@@ -359,7 +411,7 @@ def _calendar(
     for offset in range((end - start).days + 1):
         current = start + timedelta(days=offset)
         is_open = current in open_dates
-        rows.append(ExchangeCalendarDay("SH", current, is_open, previous_open))
+        rows.append(ExchangeCalendarDay(exchange, current, is_open, previous_open))
         if is_open:
             previous_open = current
     response_completed = as_of - timedelta(hours=2)
@@ -369,7 +421,7 @@ def _calendar(
         record_digest="sha256:" + "d" * 64,
         body_sha256="e" * 64,
         retained_content_sha256="e" * 64,
-        request_scope_sha256=exchange_calendar_request_scope_hash("SH", start, end),
+        request_scope_sha256=exchange_calendar_request_scope_hash(exchange, start, end),
         original_body_retained=True,
         response_completed_at=response_completed,
         provider_name="fixture-calendar",
@@ -378,7 +430,7 @@ def _calendar(
     )
     snapshot = ExchangeCalendarSnapshot(
         snapshot_id=str(uuid4()),
-        exchange="SH",
+        exchange=exchange,
         coverage_start=start,
         coverage_end=end,
         days=tuple(rows),
@@ -404,6 +456,109 @@ def _calendar(
         timezone_name="Asia/Shanghai",
     )
     return ExecutionCalendarEvidence(snapshot=snapshot, publication=publication)
+
+
+def _v2_plan(
+    *,
+    repository: DjangoSimulatedTradeExecutionRepository,
+    intent: SimulatedTradeIntent,
+    as_of: datetime,
+    source_exchange: str,
+) -> SettlementExecutionPlanV2:
+    """Build a fully synthetic V2 plan with separate rule-market and exchange identities."""
+
+    bundle = _bundle(as_of=as_of)
+    evidence = _calendar(
+        as_of=as_of,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+        exchange=source_exchange,
+    )
+    fee_policy = repository.get_execution_fee_policy(
+        account_id=intent.account_id,
+        user_id=intent.user_id,
+        asset_type=intent.asset_type,
+        market=intent.market,
+        board=intent.board,
+        side=intent.side,
+        as_of=as_of,
+    )
+    assert fee_policy is not None
+    identity = _IdentityReader(source_exchange).get_execution_instrument_identity(
+        security_id=intent.security_id,
+        asset_code=intent.asset_code,
+        as_of=as_of,
+    )
+    market_session = evidence.current_open_session(as_of)
+    lag = bundle.settlement_policy_v1.settlement_lag_sessions
+    return SettlementExecutionPlanV2(
+        intent=intent,
+        market_session=market_session,
+        pre_read_at=as_of,
+        settlement_lag_sessions=lag,
+        settlement_release_date=evidence.release_session(market_session, lag),
+        settlement_bundle_id=bundle.bundle_id,
+        settlement_bundle_version=bundle.bundle_version,
+        settlement_bundle_hash=bundle.content_hash,
+        settlement_policy_id=bundle.settlement_policy_v1.policy_id,
+        settlement_policy_version=bundle.settlement_policy_v1.policy_version,
+        settlement_policy_hash=bundle.settlement_policy_v1.content_hash,
+        execution_rule_v2_hash=bundle.execution_submission_v2.content_hash,
+        bundle_source_observed_at=bundle.latest_source_observed_at,
+        bundle_source_available_at=bundle.source_available_at,
+        bundle_effective_from=bundle.effective_from,
+        bundle_valid_until=bundle.valid_until,
+        calendar_evidence=evidence,
+        fee_policy_v2=fee_policy,
+        identity_evidence=identity,
+    )
+
+
+def _v1_plan(
+    *,
+    repository: DjangoSimulatedTradeExecutionRepository,
+    intent: SimulatedTradeIntent,
+    as_of: datetime,
+) -> SettlementExecutionPlan:
+    """Build an exact legacy V1 plan for historical repository compatibility tests."""
+
+    bundle = _bundle(as_of=as_of)
+    evidence = _calendar(
+        as_of=as_of,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+        exchange=intent.market,
+    )
+    fee_policy = repository.get_execution_fee_policy(
+        account_id=intent.account_id,
+        user_id=intent.user_id,
+        asset_type=intent.asset_type,
+        market=intent.market,
+        board=intent.board,
+        side=intent.side,
+        as_of=as_of,
+    )
+    assert fee_policy is not None
+    market_session = evidence.current_open_session(as_of)
+    lag = bundle.settlement_policy_v1.settlement_lag_sessions
+    return SettlementExecutionPlan(
+        intent=intent,
+        market_session=market_session,
+        pre_read_at=as_of,
+        settlement_lag_sessions=lag,
+        settlement_release_date=evidence.release_session(market_session, lag),
+        settlement_bundle_id=bundle.bundle_id,
+        settlement_bundle_version=bundle.bundle_version,
+        settlement_bundle_hash=bundle.content_hash,
+        settlement_policy_id=bundle.settlement_policy_v1.policy_id,
+        settlement_policy_version=bundle.settlement_policy_v1.policy_version,
+        settlement_policy_hash=bundle.settlement_policy_v1.content_hash,
+        execution_rule_v2_hash=bundle.execution_submission_v2.content_hash,
+        bundle_source_observed_at=bundle.latest_source_observed_at,
+        bundle_source_available_at=bundle.source_available_at,
+        bundle_effective_from=bundle.effective_from,
+        bundle_valid_until=bundle.valid_until,
+        calendar_evidence=evidence,
+        fee_policy_v2=fee_policy,
+    )
 
 
 def _intent(
@@ -451,6 +606,7 @@ def _execute_use_case(
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=rule_reader,
+        identity_reader=_IdentityReader(),
         calendar_reader=calendar_reader,
         fee_policy_reader=repository,
         repository=repository,
@@ -522,14 +678,17 @@ def test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idemp
 
     first = use_case.execute(intent)
     first_trade = SimulatedTradeModel.objects.get(pk=first.trade_id)
-    assert first_trade.settlement_plan_binding_version == 1
+    assert first_trade.settlement_plan_binding_version == 2
     assert first_trade.settlement_plan_binding_payload is not None
     assert first_trade.settlement_plan_binding_hash is not None
-    first_binding = SimulatedSettlementPlanBindingV1.from_payload(
+    first_binding = SimulatedSettlementPlanBindingV2.from_payload(
         first_trade.settlement_plan_binding_payload
     )
     assert first_binding.content_hash == first_trade.settlement_plan_binding_hash
-    assert first_binding.executed_at == first_trade.execution_time
+    assert first_binding.common_binding.executed_at == first_trade.execution_time
+    assert first_binding.identity_evidence.source_exchange == "SH"
+    assert first_trade.settlement_market == "SH"
+    assert first_trade.settlement_exchange == "SH"
 
     second = use_case.execute(intent)
     position = PositionModel.objects.get(account=account, asset_code="600000.SH")
@@ -555,6 +714,244 @@ def test_created_buy_starts_with_zero_sellable_quantity_and_exact_retry_is_idemp
     account.refresh_from_db()
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
     assert account.current_cash == Decimal("98997.98")
+
+
+def test_v2_trade_persists_rule_market_separately_from_source_exchange(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="market-exchange-001")
+    plan = _v2_plan(
+        repository=repository,
+        intent=intent,
+        as_of=AS_OF,
+        source_exchange="SSE",
+    )
+
+    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    binding = SimulatedSettlementPlanBindingV2.from_payload(trade.settlement_plan_binding_payload)
+
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_market == "SH"
+    assert trade.settlement_exchange == "SSE"
+    assert binding.content_hash == trade.settlement_plan_binding_hash
+    assert binding.identity_evidence.source_exchange == trade.settlement_exchange
+    assert binding.common_binding.calendar_snapshot.exchange == trade.settlement_exchange
+    assert repository.get_pending_settlement_scope(
+        account_id=account.pk,
+        user_id=user.pk,
+        asset_code=intent.asset_code,
+    ) == PendingSettlementScopeV1(date(2026, 10, 16), "SSE")
+
+
+def test_v1_historical_repository_receipt_and_release_remain_readable(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="historical-v1-001")
+    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF)
+
+    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    original_payload = trade.settlement_plan_binding_payload
+    original_hash = trade.settlement_plan_binding_hash
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_exchange is None
+    assert original_payload is not None
+    assert original_hash is not None
+    v1_binding = SimulatedSettlementPlanBindingV1.from_payload(original_payload)
+    assert v1_binding.content_hash == original_hash
+    assert repository.get_pending_settlement_scope(
+        account_id=account.pk,
+        user_id=user.pk,
+        asset_code=intent.asset_code,
+    ) == PendingSettlementScopeV1(date(2026, 10, 16), "SH")
+
+    replay = repository.find_idempotent_result(
+        account_id=account.pk,
+        user_id=user.pk,
+        idempotency_key=intent.idempotency_key,
+    )
+    assert replay is not None
+    assert replay.trade_id == receipt.trade_id
+    assert replay.replayed is False
+
+    release_time = AS_OF + timedelta(days=5)
+    release_count = repository.release_due_settlements(
+        account_id=account.pk,
+        user_id=user.pk,
+        asset_code=intent.asset_code,
+        calendar_evidence=_calendar(
+            as_of=release_time,
+            open_dates={
+                date(2026, 10, 16),
+                date(2026, 10, 19),
+                date(2026, 10, 20),
+                date(2026, 10, 21),
+            },
+        ),
+        clock=_Clock(release_time),
+    )
+
+    trade.refresh_from_db()
+    position = PositionModel.objects.get(account=account, asset_code=intent.asset_code)
+    assert release_count == 1
+    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_exchange is None
+    assert trade.settlement_plan_binding_payload == original_payload
+    assert trade.settlement_plan_binding_hash == original_hash
+    assert trade.settlement_status == "released"
+    assert position.available_quantity == Decimal("100.000000")
+
+
+def test_v1_receipt_rejects_resealed_calendar_exchange_detached_from_market(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """The unchanged V1 receipt must bind its calendar exchange to its rule market."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    intent = _intent(user_id=user.pk, account_id=account.pk, key="historical-v1-exchange-tamper")
+    plan = _v1_plan(repository=repository, intent=intent, as_of=AS_OF)
+    receipt = repository.execute_trade(plan=plan, clock=_Clock(AS_OF))
+    trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
+    payload = dict(trade.settlement_plan_binding_payload)
+    snapshot = dict(payload["calendar_snapshot"])
+    snapshot["exchange"] = "SZSE"
+    payload["calendar_snapshot"] = snapshot
+    resealed_hash = SimulatedSettlementPlanBindingV1.from_payload(payload).content_hash
+    SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
+        settlement_plan_binding_payload=payload,
+        settlement_plan_binding_hash=resealed_hash,
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.find_idempotent_result(
+            account_id=account.pk,
+            user_id=user.pk,
+            idempotency_key=intent.idempotency_key,
+        )
+
+
+def test_mixed_pending_source_exchanges_block_release_without_any_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """A corrupted mixed-exchange batch cannot partially release its first row."""
+
+    user, account = ledger
+    repository = DjangoSimulatedTradeExecutionRepository(using="default")
+    original_intent = _intent(user_id=user.pk, account_id=account.pk, key="mixed-exchange-sse")
+    original_plan = _v2_plan(
+        repository=repository,
+        intent=original_intent,
+        as_of=AS_OF,
+        source_exchange="SSE",
+    )
+    original_receipt = repository.execute_trade(plan=original_plan, clock=_Clock(AS_OF))
+    original_trade = SimulatedTradeModel.objects.get(pk=original_receipt.trade_id)
+
+    alternate_intent = _intent(user_id=user.pk, account_id=account.pk, key="mixed-exchange-szse")
+    alternate_plan = _v2_plan(
+        repository=repository,
+        intent=alternate_intent,
+        as_of=AS_OF,
+        source_exchange="SZSE",
+    )
+    alternate_binding = bind_settlement_execution_plan_v2(
+        alternate_plan,
+        executed_at=AS_OF,
+    )
+    alternate_calendar = alternate_plan.calendar_evidence
+    alternate_snapshot = alternate_calendar.snapshot
+    alternate_publication = alternate_calendar.publication
+    assert alternate_publication is not None
+
+    # Seed a second internally consistent, test-only pending row to represent
+    # mixed legacy/source data. This does not claim a second real trade journey.
+    alternate_trade = SimulatedTradeModel.objects.get(pk=original_trade.pk)
+    alternate_trade.pk = None
+    alternate_trade._state.adding = True
+    alternate_trade.idempotency_key = alternate_intent.idempotency_key
+    alternate_trade.request_payload_hash = alternate_intent.request_payload_hash
+    alternate_trade.settlement_plan_binding_version = 2
+    alternate_trade.settlement_plan_binding_payload = alternate_binding.to_payload()
+    alternate_trade.settlement_plan_binding_hash = alternate_binding.content_hash
+    alternate_trade.settlement_exchange = "SZSE"
+    alternate_trade.execution_time = AS_OF
+    alternate_trade.order_date = alternate_plan.market_session
+    alternate_trade.execution_date = alternate_plan.market_session
+    alternate_trade.settlement_market_session = alternate_plan.market_session
+    alternate_trade.settlement_lag_sessions = alternate_plan.settlement_lag_sessions
+    alternate_trade.settlement_release_date = alternate_plan.settlement_release_date
+    alternate_trade.settlement_calendar_snapshot_id = str(alternate_snapshot.snapshot_id)
+    alternate_trade.settlement_calendar_content_hash = alternate_snapshot.content_hash
+    alternate_trade.settlement_calendar_record_digest = alternate_snapshot.record_digest
+    alternate_trade.settlement_calendar_publication_id = alternate_publication.publication_id
+    alternate_trade.settlement_calendar_publication_hash = alternate_publication.publication_hash
+    alternate_trade.settlement_calendar_policy_hash = alternate_publication.policy_hash
+    alternate_trade.settlement_calendar_evidence_hash = alternate_calendar.evidence_hash
+    alternate_trade.settlement_calendar_timezone = alternate_publication.timezone_name
+    alternate_trade.save(force_insert=True)
+    SimulatedTradeModel._base_manager.filter(pk=alternate_trade.pk).update(execution_time=AS_OF)
+
+    position = PositionModel.objects.get(account=account, asset_code=original_intent.asset_code)
+    account.refresh_from_db()
+    before_account = (account.current_cash, account.current_market_value, account.total_value)
+    before_position = (position.quantity, position.available_quantity, position.total_cost)
+    before_rows = tuple(
+        SimulatedTradeModel.objects.filter(account=account)
+        .order_by("pk")
+        .values_list(
+            "pk",
+            "settlement_status",
+            "settlement_released_at",
+            "settlement_plan_binding_version",
+            "settlement_exchange",
+        )
+    )
+
+    release_time = AS_OF + timedelta(days=5)
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        repository.release_due_settlements(
+            account_id=account.pk,
+            user_id=user.pk,
+            asset_code=original_intent.asset_code,
+            calendar_evidence=_calendar(
+                as_of=release_time,
+                open_dates={
+                    date(2026, 10, 16),
+                    date(2026, 10, 19),
+                    date(2026, 10, 20),
+                    date(2026, 10, 21),
+                },
+                exchange="SSE",
+            ),
+            clock=_Clock(release_time),
+        )
+
+    account.refresh_from_db()
+    position.refresh_from_db()
+    after_rows = tuple(
+        SimulatedTradeModel.objects.filter(account=account)
+        .order_by("pk")
+        .values_list(
+            "pk",
+            "settlement_status",
+            "settlement_released_at",
+            "settlement_plan_binding_version",
+            "settlement_exchange",
+        )
+    )
+    assert (
+        account.current_cash,
+        account.current_market_value,
+        account.total_value,
+    ) == before_account
+    assert (position.quantity, position.available_quantity, position.total_cost) == before_position
+    assert after_rows == before_rows
 
 
 def test_legacy_v1_fee_snapshot_receipt_replays_after_policy_window_expires(
@@ -583,6 +980,7 @@ def test_legacy_v1_fee_snapshot_receipt_replays_after_policy_window_expires(
         settlement_plan_binding_version=0,
         settlement_plan_binding_payload=None,
         settlement_plan_binding_hash=None,
+        settlement_exchange=None,
     )
 
     replayed = DjangoSimulatedTradeExecutionRepository(using="default").find_idempotent_result(
@@ -608,6 +1006,7 @@ def test_trade_replay_and_mutation_are_scoped_to_the_account_owner(
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     owner_use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(evidence),
         fee_policy_reader=repository,
         repository=repository,
@@ -626,6 +1025,7 @@ def test_trade_replay_and_mutation_are_scoped_to_the_account_owner(
     )
     stranger_use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(evidence),
         fee_policy_reader=repository,
         repository=repository,
@@ -673,6 +1073,7 @@ def test_locked_clock_cannot_move_before_the_external_evidence_cutoff(
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(evidence),
         fee_policy_reader=repository,
         repository=repository,
@@ -1134,6 +1535,7 @@ def test_release_blocks_when_persisted_lag_differs_from_original_policy_binding(
     [
         ("settlement_lag_sessions", 1),
         ("settlement_policy_hash", "f" * 64),
+        ("settlement_exchange", "SZSE"),
         ("settlement_calendar_snapshot_id", "00000000-0000-4000-8000-000000000001"),
         ("settlement_calendar_publication_hash", "9" * 64),
         ("execution_time", AS_OF + timedelta(minutes=1)),
@@ -1159,7 +1561,7 @@ def test_bound_plan_rejects_shape_valid_trade_column_drift(
     )
     receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
-    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_version == 2
     assert trade.settlement_plan_binding_hash is not None
 
     changed = SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(
@@ -1245,7 +1647,14 @@ def test_bound_pending_buy_rejects_execution_status_drift(
 
 @pytest.mark.parametrize(
     "corruption",
-    ["missing_key", "extra_key", "unknown_schema", "wrong_hash", "resealed_policy"],
+    [
+        "missing_key",
+        "extra_key",
+        "unknown_schema",
+        "wrong_hash",
+        "resealed_policy",
+        "resealed_identity",
+    ],
 )
 def test_bound_plan_rejects_malformed_or_resealed_payload(
     ledger: tuple[object, SimulatedAccountModel],
@@ -1271,7 +1680,7 @@ def test_bound_plan_rejects_malformed_or_resealed_payload(
     assert binding_hash is not None
 
     if corruption == "missing_key":
-        payload.pop("calendar_evidence_hash")
+        payload.pop("identity_evidence")
     elif corruption == "extra_key":
         payload["unrecognized_binding_field"] = "must be rejected"
     elif corruption == "unknown_schema":
@@ -1279,8 +1688,15 @@ def test_bound_plan_rejects_malformed_or_resealed_payload(
     elif corruption == "wrong_hash":
         binding_hash = "0" * 64
     elif corruption == "resealed_policy":
-        payload["settlement_policy_hash"] = "f" * 64
-        binding_hash = SimulatedSettlementPlanBindingV1.from_payload(payload).content_hash
+        common_binding = dict(payload["common_binding"])
+        common_binding["settlement_policy_hash"] = "f" * 64
+        payload["common_binding"] = common_binding
+        binding_hash = SimulatedSettlementPlanBindingV2.from_payload(payload).content_hash
+    elif corruption == "resealed_identity":
+        identity = dict(payload["identity_evidence"])
+        identity["security_id"] = "SZ.UOW.SECURITY"
+        payload["identity_evidence"] = identity
+        binding_hash = SimulatedSettlementPlanBindingV2.from_payload(payload).content_hash
     else:
         raise AssertionError(f"unhandled test corruption {corruption!r}")
 
@@ -1355,7 +1771,7 @@ def test_corrupt_member_blocks_entire_pending_release_batch(
         trade.refresh_from_db()
         assert trade.settlement_status == "pending"
         assert trade.settlement_released_at is None
-        assert trade.settlement_plan_binding_version == 1
+        assert trade.settlement_plan_binding_version == 2
         assert trade.settlement_plan_binding_payload == original_binding[trade.pk][0]
         expected_hash = "0" * 64 if trade.pk == damaged_trade.pk else original_binding[trade.pk][1]
         assert trade.settlement_plan_binding_hash == expected_hash
@@ -1388,6 +1804,7 @@ def test_legacy_version_zero_replays_receipt_but_cannot_release_pending_shares(
         settlement_plan_binding_version=0,
         settlement_plan_binding_payload=None,
         settlement_plan_binding_hash=None,
+        settlement_exchange=None,
     )
 
     replay = use_case.execute(intent)
@@ -1456,15 +1873,16 @@ def test_legacy_model_create_defaults_to_unbound_version_zero(
         },
         {"settlement_plan_binding_payload": None},
         {"settlement_plan_binding_hash": None},
-        {"settlement_plan_binding_version": 2},
+        {"settlement_exchange": None},
+        {"settlement_plan_binding_version": 3},
     ],
-    ids=["clear-pair", "clear-payload", "clear-hash", "unknown-version"],
+    ids=["clear-pair", "clear-payload", "clear-hash", "missing-exchange", "unknown-version"],
 )
-def test_version_one_binding_database_constraint_rejects_incomplete_state(
+def test_version_two_binding_database_constraint_rejects_incomplete_state(
     ledger: tuple[object, SimulatedAccountModel],
     changes: dict[str, object],
 ) -> None:
-    """Version one rows cannot lose either seal column or change to an unknown version."""
+    """Version two rows require both seals and the exchange, with no unknown version."""
 
     user, account = ledger
     evidence = _calendar(
@@ -1479,7 +1897,7 @@ def test_version_one_binding_database_constraint_rejects_incomplete_state(
     )
     receipt = use_case.execute(_intent(user_id=user.pk, account_id=account.pk))
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
-    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_version == 2
     assert trade.settlement_plan_binding_payload is not None
     assert trade.settlement_plan_binding_hash is not None
     original_payload = trade.settlement_plan_binding_payload
@@ -1490,7 +1908,7 @@ def test_version_one_binding_database_constraint_rejects_incomplete_state(
             SimulatedTradeModel._base_manager.filter(pk=trade.pk).update(**changes)
 
     trade.refresh_from_db()
-    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_version == 2
     assert trade.settlement_plan_binding_payload == original_payload
     assert trade.settlement_plan_binding_hash == original_hash
 
@@ -1502,6 +1920,7 @@ def test_missing_formal_calendar_blocks_without_writing_a_trade(
     repository = DjangoSimulatedTradeExecutionRepository(using="default")
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(None),
         fee_policy_reader=repository,
         repository=repository,
@@ -1526,6 +1945,7 @@ def test_missing_explicit_fee_schedule_blocks_without_defaulting_rates(
     )
     use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=_RuleReader(_bundle()),
+        identity_reader=_IdentityReader(),
         calendar_reader=_CalendarReader(evidence),
         fee_policy_reader=_MissingFeePolicyReader(),
         repository=repository,
@@ -1587,6 +2007,7 @@ def _run_racing_submissions(
             repository = DjangoSimulatedTradeExecutionRepository(using="default")
             use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
                 rule_reader=_RuleReader(_bundle()),
+                identity_reader=_IdentityReader(),
                 calendar_reader=_CalendarReader(evidence),
                 fee_policy_reader=repository,
                 repository=repository,
@@ -1630,6 +2051,9 @@ def test_concurrent_exact_idempotency_replay_writes_one_trade(
     assert [outcome[0] for outcome in outcomes] == ["success", "success"]
     assert sorted(outcome[1] for outcome in outcomes) == [False, True]
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+    trade = SimulatedTradeModel.objects.get(account=account)
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_exchange == "SH"
     account.refresh_from_db()
     assert account.current_cash == Decimal("98997.98")
 
@@ -1659,6 +2083,9 @@ def test_concurrent_buys_cannot_spend_the_same_cash_twice(
 
     assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "success"]
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+    trade = SimulatedTradeModel.objects.get(account=account)
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_exchange == "SH"
     account.refresh_from_db()
     assert account.current_cash == Decimal("0.00")
 
@@ -1704,6 +2131,9 @@ def test_concurrent_sells_cannot_consume_the_same_available_position_twice(
 
     assert sorted(outcome[0] for outcome in outcomes) == ["blocked", "success"]
     assert SimulatedTradeModel.objects.filter(account=account, action="sell").count() == 1
+    trade = SimulatedTradeModel.objects.get(account=account, action="sell")
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_exchange == "SH"
     assert not PositionModel.objects.filter(account=account, asset_code="600000.SH").exists()
     account.refresh_from_db()
     assert account.total_trades == 1
@@ -1738,7 +2168,8 @@ def test_concurrent_releases_add_original_pending_shares_once_and_preserve_bindi
     trade = SimulatedTradeModel.objects.get(pk=receipt.trade_id)
     original_payload = trade.settlement_plan_binding_payload
     original_hash = trade.settlement_plan_binding_hash
-    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_exchange == "SH"
     assert original_payload is not None
     assert original_hash is not None
 
@@ -1777,6 +2208,7 @@ def test_concurrent_releases_add_original_pending_shares_once_and_preserve_bindi
     assert position.quantity == Decimal("100.000000")
     assert position.available_quantity == Decimal("100.000000")
     assert trade.settlement_status == "released"
-    assert trade.settlement_plan_binding_version == 1
+    assert trade.settlement_plan_binding_version == 2
+    assert trade.settlement_exchange == "SH"
     assert trade.settlement_plan_binding_payload == original_payload
     assert trade.settlement_plan_binding_hash == original_hash

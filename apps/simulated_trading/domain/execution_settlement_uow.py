@@ -949,6 +949,12 @@ class SettlementExecutionPlan:
     calendar_evidence: ExecutionCalendarEvidence
     fee_policy_v2: SimulatedFeePolicyContract
 
+    @property
+    def _expected_calendar_exchange(self) -> str:
+        """Return the exchange required by this plan's versioned identity contract."""
+
+        return self.intent.market
+
     def __post_init__(self) -> None:
         """Validate settlement scope, source clocks, and the computed release session."""
 
@@ -1006,7 +1012,7 @@ class SettlementExecutionPlan:
         if type(self.fee_policy_v2.fee_schedule_v1) is not ExecutionFeeSchedule:
             raise SimulatedSettlementContractError("fee policy has no exact V1 numeric schedule")
         self.fee_policy_v2.fee_schedule_v1.__post_init__()
-        if self.calendar_evidence.snapshot.exchange != self.intent.market:
+        if self.calendar_evidence.snapshot.exchange != self._expected_calendar_exchange:
             raise CalendarEvidenceValidationError(
                 "calendar exchange differs from the order market scope"
             )

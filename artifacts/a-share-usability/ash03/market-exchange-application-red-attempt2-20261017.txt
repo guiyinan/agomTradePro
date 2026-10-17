@@ -1,0 +1,64 @@
+FFFFFFFFFF                                                               [100%]
+================================== FAILURES ===================================
+_____ test_application_blocks_missing_calendar_before_repository_mutation _____
+tests\unit\simulated_trading\test_execution_settlement_uow.py:651: in test_application_blocks_missing_calendar_before_repository_mutation
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_ test_application_rejects_calendar_scope_mismatch_before_repository_mutation _
+tests\unit\simulated_trading\test_execution_settlement_uow.py:668: in test_application_rejects_calendar_scope_mismatch_before_repository_mutation
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+___ test_execute_uses_source_exchange_without_replacing_rule_or_fee_market ____
+tests\unit\simulated_trading\test_execution_settlement_uow.py:689: in test_execute_uses_source_exchange_without_replacing_rule_or_fee_market
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_ test_execute_blocks_identity_with_unknown_source_clocks_before_calendar_or_ledger _
+tests\unit\simulated_trading\test_execution_settlement_uow.py:733: in test_execute_blocks_identity_with_unknown_source_clocks_before_calendar_or_ledger
+    _assert_identity_blocks_before_calendar_or_ledger(
+tests\unit\simulated_trading\test_execution_settlement_uow.py:716: in _assert_identity_blocks_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_ test_execute_blocks_identity_with_forbidden_reference_flags_before_calendar_or_ledger _
+tests\unit\simulated_trading\test_execution_settlement_uow.py:739: in test_execute_blocks_identity_with_forbidden_reference_flags_before_calendar_or_ledger
+    _assert_identity_blocks_before_calendar_or_ledger(
+tests\unit\simulated_trading\test_execution_settlement_uow.py:716: in _assert_identity_blocks_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+__ test_execute_blocks_identity_known_after_cutoff_before_calendar_or_ledger __
+tests\unit\simulated_trading\test_execution_settlement_uow.py:748: in test_execute_blocks_identity_known_after_cutoff_before_calendar_or_ledger
+    _assert_identity_blocks_before_calendar_or_ledger(
+tests\unit\simulated_trading\test_execution_settlement_uow.py:716: in _assert_identity_blocks_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_ test_execute_blocks_identity_at_half_open_expiry_before_calendar_or_ledger __
+tests\unit\simulated_trading\test_execution_settlement_uow.py:754: in test_execute_blocks_identity_at_half_open_expiry_before_calendar_or_ledger
+    _assert_identity_blocks_before_calendar_or_ledger(
+tests\unit\simulated_trading\test_execution_settlement_uow.py:716: in _assert_identity_blocks_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_ test_execute_blocks_identity_security_market_or_board_mismatch_before_calendar_or_ledger _
+tests\unit\simulated_trading\test_execution_settlement_uow.py:765: in test_execute_blocks_identity_security_market_or_board_mismatch_before_calendar_or_ledger
+    _assert_identity_blocks_before_calendar_or_ledger(_qualified_identity_evidence(**change))
+tests\unit\simulated_trading\test_execution_settlement_uow.py:716: in _assert_identity_blocks_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_______ test_execute_blocks_missing_identity_before_calendar_or_ledger ________
+tests\unit\simulated_trading\test_execution_settlement_uow.py:771: in test_execute_blocks_missing_identity_before_calendar_or_ledger
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+_________ test_exact_idempotency_replay_does_not_read_identity_again __________
+tests\unit\simulated_trading\test_execution_settlement_uow.py:801: in test_exact_idempotency_replay_does_not_read_identity_again
+    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
+E   TypeError: ExecuteSettlementBoundSimulatedTradeUseCase.__init__() got an unexpected keyword argument 'identity_reader'
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_application_blocks_missing_calendar_before_repository_mutation
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_application_rejects_calendar_scope_mismatch_before_repository_mutation
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_uses_source_exchange_without_replacing_rule_or_fee_market
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_identity_with_unknown_source_clocks_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_identity_with_forbidden_reference_flags_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_identity_known_after_cutoff_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_identity_at_half_open_expiry_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_identity_security_market_or_board_mismatch_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_execute_blocks_missing_identity_before_calendar_or_ledger
+FAILED tests/unit/simulated_trading/test_execution_settlement_uow.py::test_exact_idempotency_replay_does_not_read_identity_again
+10 failed, 33 deselected in 3.58s

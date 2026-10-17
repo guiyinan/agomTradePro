@@ -1,0 +1,2 @@
+source_tree=e58e876897342f2ddaa3691dfade39f99a0353bc
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-market-exchange-native-red-djtv0_26

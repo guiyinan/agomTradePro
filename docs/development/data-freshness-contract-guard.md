@@ -137,6 +137,13 @@ ASH-02 的 `data_center.exchange_calendar_reference` 登记精确日历快照的
 完整明确的自然日覆盖范围内查找，范围不足必须阻断，不能用周末算术、跨交易所日历或
 最新一行补出执行证据。正式 Publication 引用及普通模拟消费者的接线另行验收。
 
+候选模拟成交 V2 的身份 reader 必须按明确证券/资产和知识截止点提供原 snapshot/mapping 引用、
+来源 exchange 与规则 market/board，以及独立来源时钟和明确半开有效窗。来源禁止标记、未知
+observation/availability、未来知识或到期均阻断；本地 response completion 不能替代上游时间，
+且已含事实的原响应不得早于该事实的可获得时间。真实 Data Center 参考快照仍为 True/None，
+没有默认生产身份或用途资格 adapter。幂等重放和 pending scope 按原已保存证据核验，不能用
+今日映射改写历史交易所；该候选合同及合成测试不授予参考数据执行资格。
+
 `data_center.formal_calendar_current_pointer_contract` 登记后续正式日历的纯契约切片。
 TTL 从原始响应的 `first_seen_at` 计算，未知的供应商 observation/availability/publication
 时间继续为空；新发布时钟不能刷新响应年龄。当前读取只接受精确指针的 `PUBLISHED`

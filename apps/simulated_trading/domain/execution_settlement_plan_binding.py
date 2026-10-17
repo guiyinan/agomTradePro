@@ -17,6 +17,11 @@ from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_settlement_identity import (
+    ExecutionInstrumentIdentityEvidenceV1,
+    IdentityEvidenceValidationError,
+    SettlementExecutionPlanV2,
+)
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarEvidenceValidationError,
     CalendarPublicationReference,
@@ -902,19 +907,90 @@ class SimulatedSettlementPlanBindingV1:
         )
 
 
-def bind_settlement_execution_plan(
+@dataclass(frozen=True, slots=True)
+class SimulatedSettlementPlanBindingV2:
+    """V2 checksum wrapper joining the unchanged common summary and identity.
+
+    The nested V1 summary retains its original payload and digest semantics.
+    This outer unkeyed digest detects storage inconsistency only; it does not
+    authorize execution or make source-reference evidence decision-ready.
+    """
+
+    common_binding: SimulatedSettlementPlanBindingV1
+    identity_evidence: ExecutionInstrumentIdentityEvidenceV1
+
+    def __post_init__(self) -> None:
+        """Validate the exact nested contracts and their exchange/time binding."""
+
+        if type(self.common_binding) is not SimulatedSettlementPlanBindingV1:
+            raise SettlementPlanBindingValidationError(
+                "common_binding must be SimulatedSettlementPlanBindingV1"
+            )
+        if type(self.identity_evidence) is not ExecutionInstrumentIdentityEvidenceV1:
+            raise SettlementPlanBindingValidationError(
+                "identity_evidence must be ExecutionInstrumentIdentityEvidenceV1"
+            )
+        self.common_binding.__post_init__()
+        self.identity_evidence.__post_init__()
+        if self.common_binding.calendar_snapshot.exchange != self.identity_evidence.source_exchange:
+            raise SettlementPlanBindingValidationError(
+                "identity source exchange differs from the bound calendar exchange"
+            )
+        try:
+            self.identity_evidence.validate_at(as_of=self.common_binding.pre_read_at)
+            self.identity_evidence.validate_at(as_of=self.common_binding.executed_at)
+        except IdentityEvidenceValidationError as error:
+            raise SettlementPlanBindingValidationError(str(error)) from error
+
+    @property
+    def content_hash(self) -> str:
+        """Return the unprefixed SHA-256 over this exact v2 envelope."""
+
+        return _canonical_hash(self.to_payload())
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the strict V2 envelope without embedding its storage hash."""
+
+        self.__post_init__()
+        return {
+            "schema": "simulated-settlement-plan-binding.v2",
+            "common_binding": self.common_binding.to_payload(),
+            "identity_evidence": self.identity_evidence.to_payload(),
+        }
+
+    @classmethod
+    def from_payload(cls, payload: object) -> SimulatedSettlementPlanBindingV2:
+        """Strictly decode one exact V2 envelope using the unchanged V1 codec."""
+
+        fields = _expect_object(
+            payload,
+            expected_keys=frozenset({"schema", "common_binding", "identity_evidence"}),
+            field_name="binding_v2",
+        )
+        if (
+            type(fields["schema"]) is not str
+            or fields["schema"] != "simulated-settlement-plan-binding.v2"
+        ):
+            raise SettlementPlanBindingValidationError("binding_v2 schema is unsupported")
+        return cls(
+            common_binding=SimulatedSettlementPlanBindingV1.from_payload(fields["common_binding"]),
+            identity_evidence=ExecutionInstrumentIdentityEvidenceV1.from_payload(
+                fields["identity_evidence"]
+            ),
+        )
+
+
+def _build_settlement_plan_common_binding(
     plan: SettlementExecutionPlan,
     *,
     executed_at: datetime,
 ) -> SimulatedSettlementPlanBindingV1:
-    """Seal the exact validated plan and its evidence identities for persistence.
+    """Build the unchanged V1 common summary for either exact plan version.
 
-    The supplied execution time is normalized to UTC and revalidates the original
+    The supplied execution time is normalized to UTC and revalidates the exact
     plan after its evidence cutoff. It is not a new market/source timestamp.
     """
 
-    if type(plan) is not SettlementExecutionPlan:
-        raise SettlementPlanBindingValidationError("plan must be SettlementExecutionPlan")
     try:
         SettlementExecutionPlan.__post_init__(plan)
         normalized_executed_at = _normalize_utc(executed_at, "executed_at")
@@ -942,9 +1018,9 @@ def bind_settlement_execution_plan(
             raise SettlementPlanBindingValidationError(
                 "fee policy payload does not match its declared content hash"
             )
-        if snapshot.exchange != intent.market:
+        if snapshot.exchange != plan._expected_calendar_exchange:
             raise SettlementPlanBindingValidationError(
-                "calendar exchange does not match the exact plan market"
+                "calendar exchange does not match the exact plan exchange"
             )
         return SimulatedSettlementPlanBindingV1(
             account_id=intent.account_id,
@@ -1025,11 +1101,48 @@ def bind_settlement_execution_plan(
         ) from error
 
 
+def bind_settlement_execution_plan(
+    plan: SettlementExecutionPlan,
+    *,
+    executed_at: datetime,
+) -> SimulatedSettlementPlanBindingV1:
+    """Seal one exact V1 plan while preserving its established wire contract."""
+
+    if type(plan) is not SettlementExecutionPlan:
+        raise SettlementPlanBindingValidationError("plan must be SettlementExecutionPlan")
+    return _build_settlement_plan_common_binding(plan, executed_at=executed_at)
+
+
+def bind_settlement_execution_plan_v2(
+    plan: SettlementExecutionPlanV2,
+    *,
+    executed_at: datetime,
+) -> SimulatedSettlementPlanBindingV2:
+    """Seal one exact V2 plan with the common V1 summary and identity receipt."""
+
+    if type(plan) is not SettlementExecutionPlanV2:
+        raise SettlementPlanBindingValidationError("plan must be SettlementExecutionPlanV2")
+    try:
+        common_binding = _build_settlement_plan_common_binding(plan, executed_at=executed_at)
+        return SimulatedSettlementPlanBindingV2(
+            common_binding=common_binding,
+            identity_evidence=plan.identity_evidence,
+        )
+    except SettlementPlanBindingValidationError:
+        raise
+    except (AttributeError, ArithmeticError, TypeError, ValueError) as error:
+        raise SettlementPlanBindingValidationError(
+            "settlement V2 plan failed binding validation"
+        ) from error
+
+
 __all__: tuple[str, ...] = (
     "CalendarPublicationBindingV1",
     "CalendarRawReferenceBindingV1",
     "CalendarSnapshotBindingV1",
     "SettlementPlanBindingValidationError",
     "SimulatedSettlementPlanBindingV1",
+    "SimulatedSettlementPlanBindingV2",
     "bind_settlement_execution_plan",
+    "bind_settlement_execution_plan_v2",
 )

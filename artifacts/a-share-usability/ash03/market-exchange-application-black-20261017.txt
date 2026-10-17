@@ -1,0 +1,4 @@
+would reformat tests\unit\simulated_trading\test_execution_settlement_uow.py
+
+Oh no! 💥 💔 💥
+1 file would be reformatted, 3 files would be left unchanged.

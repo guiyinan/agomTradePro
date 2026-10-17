@@ -459,6 +459,12 @@
       "evidence": "reviewed simulated-ledger-only settlement binding migration and isolated PostgreSQL writer-lock verification; test-owned rows and actual MigrationExecutor operations, no production invocation or Data Center fact qualification",
       "path": "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py",
       "status": "adjacent_operational"
+    },
+    {
+      "category": "test_evidence",
+      "evidence": "reviewed test-owned simulated-trade source-exchange migration roundtrip and PostgreSQL reverse-guard writer locking; explicit synthetic markers, partial-app cleanup and restored original migration leaves, no production invocation or Data Center source-purpose qualification",
+      "path": "tests/component/simulated_trading/test_settlement_exchange_migration.py",
+      "status": "adjacent_operational"
     }
   ],
   "owner": "data_center",

@@ -1,0 +1,14 @@
+{
+  "target": [
+    "test_ash_plan_binding_01a14268",
+    "public"
+  ],
+  "migrations": 545,
+  "account_singleton": [
+    [
+      1,
+      46
+    ]
+  ],
+  "read_only": true
+}

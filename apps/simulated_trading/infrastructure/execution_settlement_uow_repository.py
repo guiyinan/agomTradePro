@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
 from math import isfinite
-from typing import cast
+from typing import TypeAlias
 
 from django.db import transaction
 from django.db.models import QuerySet
@@ -16,9 +16,15 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SimulatedTradeIdempotencyConflict,
 )
 from apps.simulated_trading.domain.execution_fee_policy_v2 import SimulatedFeePolicyV2
+from apps.simulated_trading.domain.execution_settlement_identity import (
+    PendingSettlementScopeV1,
+    SettlementExecutionPlanV2,
+)
 from apps.simulated_trading.domain.execution_settlement_plan_binding import (
     SimulatedSettlementPlanBindingV1,
+    SimulatedSettlementPlanBindingV2,
     bind_settlement_execution_plan,
+    bind_settlement_execution_plan_v2,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import (
     ExecutionCalendarEvidence,
@@ -43,6 +49,10 @@ from apps.simulated_trading.infrastructure.models import (
 
 _MONEY_CENT = Decimal("0.01")
 _PRICE_TICK = Decimal("0.0001")
+SettlementPlan: TypeAlias = SettlementExecutionPlan | SettlementExecutionPlanV2
+SettlementPlanBinding: TypeAlias = (
+    SimulatedSettlementPlanBindingV1 | SimulatedSettlementPlanBindingV2
+)
 
 
 def _aware_time(value: object) -> datetime:
@@ -239,10 +249,27 @@ class DjangoSimulatedTradeExecutionRepository:
         user_id: int,
         asset_code: str,
     ) -> date | None:
-        """Read the earliest pending source-derived buy session before external IO."""
+        """Read and validate the earliest original session before external IO."""
 
-        row = (
+        scope = self.get_pending_settlement_scope(
+            account_id=account_id,
+            user_id=user_id,
+            asset_code=asset_code,
+        )
+        return scope.earliest_session if scope is not None else None
+
+    def get_pending_settlement_scope(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        asset_code: str,
+    ) -> PendingSettlementScopeV1 | None:
+        """Return the validated earliest session and original source exchange."""
+
+        rows = list(
             SimulatedTradeModel._default_manager.using(self._using)
+            .select_related("account")
             .filter(
                 account_id=account_id,
                 account__user_id=user_id,
@@ -251,27 +278,21 @@ class DjangoSimulatedTradeExecutionRepository:
                 settlement_status="pending",
             )
             .order_by("settlement_market_session", "pk")
-            .values_list("settlement_market_session", flat=True)
-            .first()
         )
-        if row is None:
-            return None
-        if type(row) is not date:
-            raise SimulatedTradeExecutionBlocked(
-                "pending simulated trade is missing its original market session"
-            )
-        return row
+        return self._pending_scope_for_rows(rows)
 
     def execute_trade(
         self,
         *,
-        plan: SettlementExecutionPlan,
+        plan: SettlementPlan,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
         """Lock account, position, and pending rows in order and commit one UoW."""
 
-        if type(plan) is not SettlementExecutionPlan:
-            raise SimulatedTradeExecutionBlocked("repository requires an exact settlement plan")
+        if type(plan) not in (SettlementExecutionPlan, SettlementExecutionPlanV2):
+            raise SimulatedTradeExecutionBlocked(
+                "repository requires an exact V1 or V2 settlement plan"
+            )
         fee_policy_value: object = plan.fee_policy_v2
         if type(fee_policy_value) is not SimulatedFeePolicyV2:
             raise SimulatedTradeExecutionBlocked(
@@ -279,7 +300,7 @@ class DjangoSimulatedTradeExecutionRepository:
             )
         fee_policy = fee_policy_value
         try:
-            SettlementExecutionPlan.__post_init__(plan)
+            plan.__post_init__()
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionBlocked("settlement plan failed revalidation") from error
         intent = plan.intent
@@ -307,13 +328,25 @@ class DjangoSimulatedTradeExecutionRepository:
 
                 position = self._locked_position(intent.account_id, intent.asset_code)
                 pending_rows = self._locked_pending(intent.account_id, intent.asset_code)
+                pending_scope = self._pending_scope_for_rows(pending_rows)
                 now = self._now(clock)
                 try:
                     plan.validate_at(now)
                     current_session = plan.calendar_evidence.current_open_session(now)
-                    if pending_rows:
-                        earliest = self._pending_start(pending_rows)
-                        plan.calendar_evidence.elapsed_open_sessions(earliest, current_session)
+                    if pending_scope is not None:
+                        plan_exchange = (
+                            plan.identity_evidence.source_exchange
+                            if type(plan) is SettlementExecutionPlanV2
+                            else plan.intent.market
+                        )
+                        if pending_scope.source_exchange != plan_exchange:
+                            raise ValueError(
+                                "pending source exchange differs from the execution plan"
+                            )
+                        plan.calendar_evidence.elapsed_open_sessions(
+                            pending_scope.earliest_session,
+                            current_session,
+                        )
                 except (ArithmeticError, TypeError, ValueError) as error:
                     raise SimulatedTradeExecutionBlocked(
                         "settlement evidence expired or changed before row locks were acquired"
@@ -361,13 +394,20 @@ class DjangoSimulatedTradeExecutionRepository:
                 )
                 position = self._locked_position(account_id, asset_code)
                 pending_rows = self._locked_pending(account_id, asset_code)
+                pending_scope = self._pending_scope_for_rows(pending_rows)
                 now = self._now(clock)
                 try:
                     calendar_evidence.validate_for(now)
                     current_session = calendar_evidence.current_open_session(now)
-                    if pending_rows:
-                        earliest = self._pending_start(pending_rows)
-                        calendar_evidence.elapsed_open_sessions(earliest, current_session)
+                    if pending_scope is not None:
+                        if pending_scope.source_exchange != calendar_evidence.snapshot.exchange:
+                            raise ValueError(
+                                "calendar exchange differs from the original pending source"
+                            )
+                        calendar_evidence.elapsed_open_sessions(
+                            pending_scope.earliest_session,
+                            current_session,
+                        )
                 except (ArithmeticError, TypeError, ValueError) as error:
                     raise SimulatedTradeExecutionBlocked(
                         "published calendar does not cover the complete release interval"
@@ -439,15 +479,68 @@ class DjangoSimulatedTradeExecutionRepository:
         )
         return list(rows)
 
-    def _pending_start(self, rows: list[SimulatedTradeModel]) -> date:
-        """Validate the original session of every locked pending row."""
+    def _pending_scope_for_rows(
+        self,
+        rows: list[SimulatedTradeModel],
+    ) -> PendingSettlementScopeV1 | None:
+        """Validate every pending receipt and derive one unambiguous source scope."""
 
-        values = [row.settlement_market_session for row in rows]
-        if not values or any(type(value) is not date for value in values):
+        if not rows:
+            return None
+        sessions: list[date] = []
+        exchanges: set[str] = set()
+        for row in rows:
+            session = row.settlement_market_session
+            if type(session) is not date:
+                raise SimulatedTradeExecutionBlocked(
+                    "pending settlement is missing its original market session"
+                )
+            sessions.append(session)
+            exchanges.add(self._pending_source_exchange(row))
+        if len(exchanges) != 1:
             raise SimulatedTradeExecutionBlocked(
-                "pending settlement rows are missing an original market session"
+                "pending settlements contain multiple original source exchanges"
             )
-        return min(cast(list[date], values))
+        exchange = next(iter(exchanges))
+        try:
+            return PendingSettlementScopeV1(min(sessions), exchange)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked(
+                "pending settlement scope failed exact validation"
+            ) from error
+
+    def _pending_source_exchange(self, row: SimulatedTradeModel) -> str:
+        """Validate one persisted pending receipt and return its original exchange."""
+
+        self._receipt(row)
+        version = row.settlement_plan_binding_version
+        payload = row.settlement_plan_binding_payload
+        if type(version) is not int or type(payload) is not dict:
+            raise SimulatedTradeExecutionBlocked(
+                "pending settlement has no immutable original execution-plan binding"
+            )
+        if version == 1:
+            if row.settlement_exchange is not None:
+                raise SimulatedTradeExecutionBlocked(
+                    "legacy V1 settlement row unexpectedly contains a V2 exchange column"
+                )
+            binding_v1 = SimulatedSettlementPlanBindingV1.from_payload(payload)
+            if binding_v1.calendar_snapshot.exchange != row.settlement_market:
+                raise SimulatedTradeExecutionBlocked(
+                    "legacy V1 calendar exchange differs from its original rule market"
+                )
+            return binding_v1.calendar_snapshot.exchange
+        if version == 2:
+            binding_v2 = SimulatedSettlementPlanBindingV2.from_payload(payload)
+            source_exchange = binding_v2.identity_evidence.source_exchange
+            if row.settlement_exchange != source_exchange:
+                raise SimulatedTradeExecutionBlocked(
+                    "V2 settlement exchange differs from its original identity binding"
+                )
+            return source_exchange
+        raise SimulatedTradeExecutionBlocked(
+            "pending settlement has no immutable original execution-plan binding"
+        )
 
     def _now(self, clock: SimulatedTradeExecutionClock) -> datetime:
         """Read and validate the fresh clock only after all row locks are held."""
@@ -469,13 +562,10 @@ class DjangoSimulatedTradeExecutionRepository:
         # value. Version 0 is the explicit pre-binding/legacy state and cannot
         # prove which original plan authorized a pending release.
         for row in pending_rows:
-            if type(row.settlement_plan_binding_version) is not int or (
-                row.settlement_plan_binding_version != 1
-            ):
+            if self._pending_source_exchange(row) != evidence.snapshot.exchange:
                 raise SimulatedTradeExecutionBlocked(
-                    "pending settlement has no immutable original execution-plan binding"
+                    "current calendar exchange differs from the frozen trade source exchange"
                 )
-            self._receipt(row)
 
         if pending_rows and position is None:
             raise SimulatedTradeExecutionBlocked(
@@ -504,9 +594,14 @@ class DjangoSimulatedTradeExecutionRepository:
                 raise SimulatedTradeExecutionBlocked(
                     "pending trade lacks its immutable original settlement lag/session"
                 )
-            if row.settlement_market != evidence.snapshot.exchange:
+            expected_exchange = (
+                row.settlement_market
+                if row.settlement_plan_binding_version == 1
+                else row.settlement_exchange
+            )
+            if expected_exchange != evidence.snapshot.exchange:
                 raise SimulatedTradeExecutionBlocked(
-                    "current calendar exchange differs from the frozen trade market"
+                    "current calendar exchange differs from the frozen trade source exchange"
                 )
             try:
                 elapsed = evidence.elapsed_open_sessions(trade_session, through_session)
@@ -582,7 +677,7 @@ class DjangoSimulatedTradeExecutionRepository:
         *,
         account: SimulatedAccountModel,
         position: PositionModel | None,
-        plan: SettlementExecutionPlan,
+        plan: SettlementPlan,
         fee_policy: SimulatedFeePolicyV2,
         execution_time: datetime,
     ) -> SimulatedTradeExecutionReceipt:
@@ -590,7 +685,17 @@ class DjangoSimulatedTradeExecutionRepository:
 
         intent = plan.intent
         try:
-            plan_binding = bind_settlement_execution_plan(plan, executed_at=execution_time)
+            if type(plan) is SettlementExecutionPlanV2:
+                plan_binding: SettlementPlanBinding = bind_settlement_execution_plan_v2(
+                    plan,
+                    executed_at=execution_time,
+                )
+                binding_version = 2
+                settlement_exchange: str | None = plan.identity_evidence.source_exchange
+            else:
+                plan_binding = bind_settlement_execution_plan(plan, executed_at=execution_time)
+                binding_version = 1
+                settlement_exchange = None
             plan_binding_payload = plan_binding.to_payload()
             plan_binding_hash = plan_binding.content_hash
         except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
@@ -734,7 +839,7 @@ class DjangoSimulatedTradeExecutionRepository:
             status="executed",
             idempotency_key=intent.idempotency_key,
             request_payload_hash=intent.request_payload_hash,
-            settlement_plan_binding_version=1,
+            settlement_plan_binding_version=binding_version,
             settlement_plan_binding_payload=plan_binding_payload,
             settlement_plan_binding_hash=plan_binding_hash,
             fee_config_id=fee_schedule.config_id,
@@ -746,6 +851,7 @@ class DjangoSimulatedTradeExecutionRepository:
             settlement_status=settlement_status,
             settlement_security_id=intent.security_id,
             settlement_market=intent.market,
+            settlement_exchange=settlement_exchange,
             settlement_board=intent.board,
             settlement_market_session=plan.market_session,
             settlement_lag_sessions=plan.settlement_lag_sessions,
@@ -1143,13 +1249,13 @@ class DjangoSimulatedTradeExecutionRepository:
         row: SimulatedTradeModel,
         intent: SimulatedTradeIntent,
         fee_policy_v2: SimulatedFeePolicyV2 | None,
-    ) -> SimulatedSettlementPlanBindingV1 | None:
+    ) -> SettlementPlanBinding | None:
         """Revalidate a stored original-plan envelope against its trade row.
 
         Version 0 is a deliberately unbound pre-existing row and can only use
-        the legacy receipt path. Version 1 requires a complete independently
-        hashed binding; that digest is an integrity checksum, not a source
-        signature or a substitute for source revalidation.
+        the legacy receipt path. Versions 1 and 2 require complete independently
+        hashed bindings; those digests are integrity checksums, not source
+        signatures or substitutes for source revalidation.
         """
 
         version = row.settlement_plan_binding_version
@@ -1160,12 +1266,16 @@ class DjangoSimulatedTradeExecutionRepository:
                 "persisted settlement-plan binding version is invalid"
             )
         if version == 0:
-            if payload is not None or supplied_hash is not None:
+            if (
+                payload is not None
+                or supplied_hash is not None
+                or row.settlement_exchange is not None
+            ):
                 raise SimulatedTradeExecutionBlocked(
                     "legacy settlement-plan version unexpectedly contains binding data"
                 )
             return None
-        if version != 1:
+        if version not in (1, 2):
             raise SimulatedTradeExecutionBlocked(
                 "persisted settlement-plan binding version is unsupported"
             )
@@ -1178,8 +1288,47 @@ class DjangoSimulatedTradeExecutionRepository:
                 "persisted settlement-plan binding pair is incomplete"
             )
 
-        binding = SimulatedSettlementPlanBindingV1.from_payload(payload)
-        if binding.content_hash != supplied_hash:
+        binding: SettlementPlanBinding
+        common_binding: SimulatedSettlementPlanBindingV1
+        binding_content_hash: str
+        if version == 1:
+            if row.settlement_exchange is not None:
+                raise SimulatedTradeExecutionBlocked(
+                    "V1 settlement binding unexpectedly has a source-exchange column"
+                )
+            binding_v1 = SimulatedSettlementPlanBindingV1.from_payload(payload)
+            binding = binding_v1
+            common_binding = binding_v1
+            binding_content_hash = binding_v1.content_hash
+            source_exchange = binding_v1.calendar_snapshot.exchange
+            if source_exchange != row.settlement_market:
+                raise SimulatedTradeExecutionBlocked(
+                    "legacy V1 calendar exchange differs from its original rule market"
+                )
+        else:
+            if row.settlement_exchange is None:
+                raise SimulatedTradeExecutionBlocked(
+                    "V2 settlement binding is missing its explicit source exchange"
+                )
+            binding_v2 = SimulatedSettlementPlanBindingV2.from_payload(payload)
+            binding = binding_v2
+            common_binding = binding_v2.common_binding
+            binding_content_hash = binding_v2.content_hash
+            identity = binding_v2.identity_evidence
+            identity_row_values: tuple[tuple[str, object, object], ...] = (
+                ("identity.security_id", identity.security_id, intent.security_id),
+                ("identity.asset_code", identity.asset_code, row.asset_code),
+                ("identity.source_exchange", identity.source_exchange, row.settlement_exchange),
+                ("identity.rule_market", identity.rule_market, row.settlement_market),
+                ("identity.board", identity.board, row.settlement_board),
+            )
+            for field_name, binding_value, row_value in identity_row_values:
+                if binding_value != row_value:
+                    raise SimulatedTradeExecutionBlocked(
+                        f"V2 instrument identity differs from trade field {field_name}"
+                    )
+            source_exchange = identity.source_exchange
+        if binding_content_hash != supplied_hash:
             raise SimulatedTradeExecutionBlocked(
                 "persisted settlement-plan binding hash differs from its exact payload"
             )
@@ -1189,57 +1338,73 @@ class DjangoSimulatedTradeExecutionRepository:
                 "bound trade is missing its exact owner or V2 fee policy"
             )
         fee_snapshot = fee_policy_v2.to_payload()
-        calendar_snapshot = binding.calendar_snapshot
-        calendar_publication = binding.calendar_publication
+        calendar_snapshot = common_binding.calendar_snapshot
+        calendar_publication = common_binding.calendar_publication
         expected_row_values: tuple[tuple[str, object, object], ...] = (
-            ("account_id", binding.account_id, row.account_id),
-            ("user_id", binding.user_id, account_user_id),
-            ("idempotency_key", binding.idempotency_key, row.idempotency_key),
-            ("request_payload_hash", binding.request_payload_hash, row.request_payload_hash),
-            ("executed_at", binding.executed_at, row.execution_time),
-            ("market_session/order_date", binding.market_session, row.order_date),
-            ("market_session/execution_date", binding.market_session, row.execution_date),
+            ("account_id", common_binding.account_id, row.account_id),
+            ("user_id", common_binding.user_id, account_user_id),
+            ("idempotency_key", common_binding.idempotency_key, row.idempotency_key),
+            (
+                "request_payload_hash",
+                common_binding.request_payload_hash,
+                row.request_payload_hash,
+            ),
+            ("executed_at", common_binding.executed_at, row.execution_time),
+            ("market_session/order_date", common_binding.market_session, row.order_date),
+            ("market_session/execution_date", common_binding.market_session, row.execution_date),
             (
                 "market_session/settlement_market_session",
-                binding.market_session,
+                common_binding.market_session,
                 row.settlement_market_session,
             ),
             (
                 "settlement_lag_sessions",
-                binding.settlement_lag_sessions,
+                common_binding.settlement_lag_sessions,
                 row.settlement_lag_sessions,
             ),
             (
                 "settlement_release_date",
-                binding.settlement_release_date,
+                common_binding.settlement_release_date,
                 row.settlement_release_date,
             ),
-            ("settlement_bundle_id", binding.settlement_bundle_id, row.settlement_bundle_id),
+            (
+                "settlement_bundle_id",
+                common_binding.settlement_bundle_id,
+                row.settlement_bundle_id,
+            ),
             (
                 "settlement_bundle_version",
-                binding.settlement_bundle_version,
+                common_binding.settlement_bundle_version,
                 row.settlement_bundle_version,
             ),
             (
                 "settlement_bundle_hash",
-                binding.settlement_bundle_hash,
+                common_binding.settlement_bundle_hash,
                 row.settlement_bundle_hash,
             ),
-            ("settlement_policy_id", binding.settlement_policy_id, row.settlement_policy_id),
+            (
+                "settlement_policy_id",
+                common_binding.settlement_policy_id,
+                row.settlement_policy_id,
+            ),
             (
                 "settlement_policy_version",
-                binding.settlement_policy_version,
+                common_binding.settlement_policy_version,
                 row.settlement_policy_version,
             ),
             (
                 "settlement_policy_hash",
-                binding.settlement_policy_hash,
+                common_binding.settlement_policy_hash,
                 row.settlement_policy_hash,
             ),
-            ("execution_rule_v2_hash", binding.execution_rule_v2_hash, row.execution_rule_v2_hash),
+            (
+                "execution_rule_v2_hash",
+                common_binding.execution_rule_v2_hash,
+                row.execution_rule_v2_hash,
+            ),
             (
                 "calendar_evidence_hash",
-                binding.calendar_evidence_hash,
+                common_binding.calendar_evidence_hash,
                 row.settlement_calendar_evidence_hash,
             ),
             (
@@ -1247,7 +1412,7 @@ class DjangoSimulatedTradeExecutionRepository:
                 calendar_snapshot.snapshot_id,
                 row.settlement_calendar_snapshot_id,
             ),
-            ("calendar_exchange", calendar_snapshot.exchange, row.settlement_market),
+            ("calendar_exchange", calendar_snapshot.exchange, source_exchange),
             (
                 "calendar_content_hash",
                 calendar_snapshot.content_hash,
@@ -1278,16 +1443,24 @@ class DjangoSimulatedTradeExecutionRepository:
                 calendar_publication.timezone_name,
                 row.settlement_calendar_timezone,
             ),
-            ("fee_policy_schema", binding.fee_policy_schema, fee_snapshot.get("schema")),
-            ("fee_policy_content_hash", binding.fee_policy_content_hash, row.fee_schedule_hash),
-            ("fee_policy_hash", binding.fee_policy_content_hash, fee_policy_v2.content_hash),
+            ("fee_policy_schema", common_binding.fee_policy_schema, fee_snapshot.get("schema")),
+            (
+                "fee_policy_content_hash",
+                common_binding.fee_policy_content_hash,
+                row.fee_schedule_hash,
+            ),
+            (
+                "fee_policy_hash",
+                common_binding.fee_policy_content_hash,
+                fee_policy_v2.content_hash,
+            ),
         )
         for field_name, binding_value, row_value in expected_row_values:
             if binding_value != row_value:
                 raise SimulatedTradeExecutionBlocked(
                     f"persisted settlement-plan binding differs from trade field {field_name}"
                 )
-        if binding.request_payload_hash != intent.request_payload_hash:
+        if common_binding.request_payload_hash != intent.request_payload_hash:
             raise SimulatedTradeExecutionBlocked(
                 "settlement-plan binding differs from the recomputed trade intent hash"
             )

@@ -1,0 +1,6 @@
+reformatted apps\simulated_trading\domain\execution_settlement_identity.py
+reformatted apps\simulated_trading\domain\execution_settlement_plan_binding.py
+reformatted tests\unit\simulated_trading\test_execution_settlement_plan_binding.py
+
+All done! ✨ 🍰 ✨
+3 files reformatted, 1 file left unchanged.

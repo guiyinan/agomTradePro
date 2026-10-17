@@ -1,0 +1,58 @@
+{
+  "base_commit": "1d3a3ccbbec1c20147c435bf2c7bca4cfd5ef779",
+  "source_tree": "fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-market-exchange-i4atq4x_",
+  "scope": {
+    "production": [
+      "apps/simulated_trading/domain/execution_settlement_uow.py",
+      "apps/simulated_trading/domain/execution_settlement_identity.py",
+      "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "apps/simulated_trading/application/execution_settlement_uow.py",
+      "apps/simulated_trading/execution_settlement_composition.py",
+      "apps/simulated_trading/infrastructure/models.py",
+      "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "apps/simulated_trading/migrations/0027_separate_settlement_exchange_identity.py"
+    ],
+    "tests": [
+      "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+      "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
+      "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+      "tests/component/simulated_trading/test_execution_settlement_uow.py",
+      "tests/component/simulated_trading/test_settlement_exchange_migration.py"
+    ],
+    "support": [
+      "governance/current_data_contracts.json",
+      "governance/data_center_operational_entrypoints.json"
+    ],
+    "unit_tests": [
+      "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+      "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
+      "tests/unit/simulated_trading/test_execution_settlement_composition.py"
+    ],
+    "component_tests": [
+      "tests/component/simulated_trading/test_execution_settlement_uow.py"
+    ],
+    "migration_tests": [
+      "tests/component/simulated_trading/test_execution_settlement_plan_binding_migration.py",
+      "tests/component/simulated_trading/test_settlement_exchange_migration.py"
+    ]
+  },
+  "source_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_uow.py": "79a966175b807b7a2e229f4d3098a0992820899c602d4732d714475cd389fa02",
+    "apps/simulated_trading/domain/execution_settlement_identity.py": "1c28e1ea07bb3da3bad4f5b46345214210209fd04bd14e458b5de94156fe420c",
+    "apps/simulated_trading/domain/execution_settlement_plan_binding.py": "67b0b2646029bb6215a026c048d0904f02e53e82410fc4ce4263fb4f36411beb",
+    "apps/simulated_trading/application/execution_settlement_uow.py": "db2abc18a07a2164d530b766d838d13cee1e41115b85bc463f98fc9ac2a66022",
+    "apps/simulated_trading/execution_settlement_composition.py": "a1023d2de24d8c271ee995667e465b2cef0eeea68af25dd9874df05798fa5c15",
+    "apps/simulated_trading/infrastructure/models.py": "a9603ba581aa2553b468b75497054fdc34f959a09a19bc0099847f5b21e4a6f4",
+    "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": "c6ced0c6aecd6d5bb132ffd36b864ebfd30e04b36e2ffe58e48f8e749a6c0f1f",
+    "apps/simulated_trading/migrations/0027_separate_settlement_exchange_identity.py": "417951d8fb739c6131f174005cfe46afb5ff925caf47ea6d375f73f3bc09b200",
+    "tests/unit/simulated_trading/test_execution_settlement_uow.py": "c1d98bf5fe8c24b9b5e8f4973eaa61986a7a018bc50bd72af2164ccc1e8be9aa",
+    "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py": "d01a2879db138c85717cc50d32b3a5999c80d04690a0c05f15be8a0cb13e1075",
+    "tests/unit/simulated_trading/test_execution_settlement_composition.py": "85153fe2827830b631bae481e57cf4f3d495ff74fc51748afc3a6b42dbd14a3f",
+    "tests/component/simulated_trading/test_execution_settlement_uow.py": "6eef49044999f9cdee5bf3f6a5b1f87eaaefb5569648343fa3b66e1a373d2a3b",
+    "tests/component/simulated_trading/test_settlement_exchange_migration.py": "3629ac19dfb848d2127a1948f4451b0ac1802c2299c9221de24d4d3d5c1a1623",
+    "governance/current_data_contracts.json": "b7af6fdc4962964df7ba3523fadff5d95724af69588eca3a269213c83efd1e4e",
+    "governance/data_center_operational_entrypoints.json": "46b6979350e07a0f199cc7cfc46a17e79387eb33fcd56c86be50b33f1a4ea6dd"
+  },
+  "qualification": "Candidate UoW only; not production, actual provider/identity owner, ordinary consumers, broker or release CI/S6."
+}

@@ -23,10 +23,15 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     SimulatedFeePolicyV2,
 )
+from apps.simulated_trading.domain.execution_settlement_identity import (
+    ExecutionInstrumentIdentityEvidenceV1,
+    IdentityEvidenceValidationError,
+    PendingSettlementScopeV1,
+    SettlementExecutionPlanV2,
+)
 from apps.simulated_trading.domain.execution_settlement_uow import (
     CalendarEvidenceValidationError,
     ExecutionCalendarEvidence,
-    SettlementExecutionPlan,
     SimulatedTradeExecutionReceipt,
     SimulatedTradeIntent,
     SimulatedTradeSide,
@@ -58,6 +63,13 @@ class ExecutionCalendarUnavailable(MissingConfigError):
 
     default_message = "可验证的交易所日历发布引用不可用"
     default_code = "EXECUTION_CALENDAR_UNAVAILABLE"
+
+
+class ExecutionInstrumentIdentityUnavailable(MissingConfigError):
+    """Raised when no exact, currently qualified source identity is available."""
+
+    default_message = "证券身份来源证据不可用"
+    default_code = "EXECUTION_INSTRUMENT_IDENTITY_UNAVAILABLE"
 
 
 class ExecutionFeeScheduleUnavailable(MissingConfigError):
@@ -101,6 +113,19 @@ class PublishedExecutionCalendarReader(Protocol):
         """Return full-day coverage from the requested date and bind formal publication."""
 
 
+class ExecutionInstrumentIdentityReader(Protocol):
+    """Read an exact source identity mapping for one security at one cutoff."""
+
+    def get_execution_instrument_identity(
+        self,
+        *,
+        security_id: str,
+        asset_code: str,
+        as_of: datetime,
+    ) -> ExecutionInstrumentIdentityEvidenceV1 | None:
+        """Return exact identity evidence without inferring an exchange or board."""
+
+
 class ExecutionFeePolicyReader(Protocol):
     """Read one exact effective V2 fee policy for a normal simulated estimate."""
 
@@ -129,12 +154,21 @@ class SimulatedTradeExecutionRepository(Protocol):
     def get_pending_settlement_start(
         self, *, account_id: int, user_id: int, asset_code: str
     ) -> date | None:
-        """Return the earliest stored buy-session date requiring release verification."""
+        """Return the legacy date-only view for existing internal readers."""
+
+    def get_pending_settlement_scope(
+        self,
+        *,
+        account_id: int,
+        user_id: int,
+        asset_code: str,
+    ) -> PendingSettlementScopeV1 | None:
+        """Return the exact original exchange and earliest session of pending buys."""
 
     def execute_trade(
         self,
         *,
-        plan: SettlementExecutionPlan,
+        plan: SettlementExecutionPlanV2,
         clock: SimulatedTradeExecutionClock,
     ) -> SimulatedTradeExecutionReceipt:
         """Apply the plan, due releases, cash, position, and trade in one transaction."""
@@ -209,6 +243,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         self,
         *,
         rule_reader: SettlementV3RuleReader,
+        identity_reader: ExecutionInstrumentIdentityReader,
         calendar_reader: PublishedExecutionCalendarReader,
         fee_policy_reader: ExecutionFeePolicyReader,
         repository: SimulatedTradeExecutionRepository,
@@ -217,6 +252,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         """Require explicit Risk, published-calendar, ledger, and clock ports."""
 
         self._rule_reader = rule_reader
+        self._identity_reader = identity_reader
         self._calendar_reader = calendar_reader
         self._fee_policy_reader = fee_policy_reader
         self._repository = repository
@@ -252,11 +288,53 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
         as_of = _require_aware_clock(self._clock.now())
         bundle = self._rule_reader.execute(security_id=intent.security_id, as_of=as_of)
         _validate_bundle_scope(bundle, intent, as_of)
-        pending_start = self._repository.get_pending_settlement_start(
+        try:
+            identity_evidence = self._identity_reader.get_execution_instrument_identity(
+                security_id=intent.security_id,
+                asset_code=intent.asset_code,
+                as_of=as_of,
+            )
+        except IdentityEvidenceValidationError as error:
+            raise SimulatedTradeExecutionBlocked(
+                "instrument identity evidence failed exact source validation"
+            ) from error
+        if identity_evidence is None:
+            raise ExecutionInstrumentIdentityUnavailable(
+                "no qualified exact security/source identity is available"
+            )
+        if type(identity_evidence) is not ExecutionInstrumentIdentityEvidenceV1:
+            raise SimulatedTradeExecutionBlocked(
+                "instrument identity reader returned an invalid contract"
+            )
+        try:
+            ExecutionInstrumentIdentityEvidenceV1.__post_init__(identity_evidence)
+            identity_evidence.validate_for(intent=intent, as_of=as_of)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked(
+                "instrument identity evidence is restricted, unknown, stale, or mismatched"
+            ) from error
+
+        pending_scope = self._repository.get_pending_settlement_scope(
             account_id=intent.account_id,
             user_id=intent.user_id,
             asset_code=intent.asset_code,
         )
+        if pending_scope is not None:
+            if type(pending_scope) is not PendingSettlementScopeV1:
+                raise SimulatedTradeExecutionBlocked(
+                    "simulated ledger returned an invalid pending settlement scope"
+                )
+            try:
+                PendingSettlementScopeV1.__post_init__(pending_scope)
+            except (ArithmeticError, TypeError, ValueError) as error:
+                raise SimulatedTradeExecutionBlocked(
+                    "pending settlement scope failed exact validation"
+                ) from error
+            if pending_scope.source_exchange != identity_evidence.source_exchange:
+                raise SimulatedTradeExecutionBlocked(
+                    "pending settlements belong to a different source exchange"
+                )
+        pending_start = pending_scope.earliest_session if pending_scope is not None else None
         try:
             fee_policy = self._fee_policy_reader.get_execution_fee_policy(
                 account_id=intent.account_id,
@@ -294,7 +372,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 "fee policy failed integrity, transaction-case, or account-scope validation"
             ) from error
         evidence = self._calendar_reader.get_effective_execution_calendar(
-            exchange=intent.market,
+            exchange=identity_evidence.source_exchange,
             as_of=as_of,
             coverage_start=pending_start,
         )
@@ -306,9 +384,9 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
             raise SimulatedTradeExecutionBlocked("calendar owner returned an invalid evidence type")
         try:
             evidence.validate_for(as_of)
-            if evidence.snapshot.exchange != intent.market:
+            if evidence.snapshot.exchange != identity_evidence.source_exchange:
                 raise CalendarEvidenceValidationError(
-                    "calendar exchange differs from the trade market"
+                    "calendar exchange differs from the exact instrument source exchange"
                 )
             market_session = evidence.current_open_session(as_of)
             if pending_start is not None:
@@ -319,7 +397,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 if intent.side.value == "buy"
                 else None
             )
-            plan = SettlementExecutionPlan(
+            plan = SettlementExecutionPlanV2(
                 intent=intent,
                 market_session=market_session,
                 pre_read_at=as_of,
@@ -338,6 +416,7 @@ class ExecuteSettlementBoundSimulatedTradeUseCase:
                 bundle_valid_until=bundle.valid_until,
                 calendar_evidence=evidence,
                 fee_policy_v2=fee_policy,
+                identity_evidence=identity_evidence,
             )
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionBlocked(
@@ -404,18 +483,32 @@ class ReleaseDueSimulatedSettlementsUseCase:
             or any(character.isspace() for character in exchange)
         ):
             raise SimulatedTradeExecutionInputError("exchange must be a canonical token")
-        pending_start = self._repository.get_pending_settlement_start(
+        pending_scope = self._repository.get_pending_settlement_scope(
             account_id=account_id,
             user_id=user_id,
             asset_code=asset_code,
         )
-        if pending_start is None:
+        if pending_scope is None:
             return 0
+        if type(pending_scope) is not PendingSettlementScopeV1:
+            raise SimulatedTradeExecutionBlocked(
+                "simulated ledger returned an invalid pending settlement scope"
+            )
+        try:
+            PendingSettlementScopeV1.__post_init__(pending_scope)
+        except (ArithmeticError, TypeError, ValueError) as error:
+            raise SimulatedTradeExecutionBlocked(
+                "pending settlement scope failed exact validation"
+            ) from error
+        if exchange != pending_scope.source_exchange:
+            raise SimulatedTradeExecutionBlocked(
+                "requested release exchange differs from the stored pending scope"
+            )
         as_of = _require_aware_clock(self._clock.now())
         evidence = self._calendar_reader.get_effective_execution_calendar(
-            exchange=exchange,
+            exchange=pending_scope.source_exchange,
             as_of=as_of,
-            coverage_start=pending_start,
+            coverage_start=pending_scope.earliest_session,
         )
         if evidence is None:
             raise ExecutionCalendarUnavailable(
@@ -425,10 +518,10 @@ class ReleaseDueSimulatedSettlementsUseCase:
             raise SimulatedTradeExecutionBlocked("calendar owner returned an invalid evidence type")
         try:
             evidence.validate_for(as_of)
-            if evidence.snapshot.exchange != exchange:
+            if evidence.snapshot.exchange != pending_scope.source_exchange:
                 raise CalendarEvidenceValidationError("calendar exchange scope mismatch")
             current_session = evidence.current_open_session(as_of)
-            evidence.elapsed_open_sessions(pending_start, current_session)
+            evidence.elapsed_open_sessions(pending_scope.earliest_session, current_session)
         except (ArithmeticError, TypeError, ValueError) as error:
             raise SimulatedTradeExecutionBlocked(
                 "calendar cannot establish a known current open exchange session"
@@ -444,6 +537,8 @@ class ReleaseDueSimulatedSettlementsUseCase:
 
 __all__: tuple[str, ...] = (
     "ExecutionCalendarUnavailable",
+    "ExecutionInstrumentIdentityReader",
+    "ExecutionInstrumentIdentityUnavailable",
     "ExecutionFeePolicyReader",
     "ExecutionFeeScheduleUnavailable",
     "PublishedExecutionCalendarReader",

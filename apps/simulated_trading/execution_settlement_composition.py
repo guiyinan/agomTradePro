@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
+    ExecutionInstrumentIdentityReader,
     PublishedExecutionCalendarReader,
     ReleaseDueSimulatedSettlementsUseCase,
     SettlementV3RuleReader,
@@ -18,19 +19,23 @@ def build_execute_settlement_bound_simulated_trade_use_case(
     *,
     using: str,
     rule_reader: SettlementV3RuleReader,
+    identity_reader: ExecutionInstrumentIdentityReader,
     calendar_reader: PublishedExecutionCalendarReader,
     clock: SimulatedTradeExecutionClock,
 ) -> ExecuteSettlementBoundSimulatedTradeUseCase:
     """Compose one trade use case with explicit source ports and DB alias.
 
-    No rule, calendar, or clock provider is selected here. Callers must inject
-    adapters that enforce their own source and database scope. The ledger and
-    FeeConfig reads share one repository instance bound to ``using``.
+    No rule, identity, calendar, or clock provider is selected here. Callers
+    must inject adapters that enforce their own source and database scope; the
+    identity adapter must supply the exact source exchange without inference.
+    The ledger and FeeConfig reads share one repository instance bound to
+    ``using``.
     """
 
     repository = DjangoSimulatedTradeExecutionRepository(using=using)
     return ExecuteSettlementBoundSimulatedTradeUseCase(
         rule_reader=rule_reader,
+        identity_reader=identity_reader,
         calendar_reader=calendar_reader,
         fee_policy_reader=repository,
         repository=repository,

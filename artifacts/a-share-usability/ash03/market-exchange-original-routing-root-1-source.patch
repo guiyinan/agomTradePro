@@ -1,0 +1,28 @@
+diff --git a/tests/unit/simulated_trading/test_original_market_exchange_routing_red.py b/tests/unit/simulated_trading/test_original_market_exchange_routing_red.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2eb966eddffd0016c9e880b652324459d165704b
+--- /dev/null
++++ b/tests/unit/simulated_trading/test_original_market_exchange_routing_red.py
+@@ -0,0 +1,22 @@
++"""Synthetic source-exchange routing counterexample; no source qualification."""
++from datetime import date, datetime
++import runpy
++from apps.simulated_trading.application.execution_settlement_uow import ExecuteSettlementBoundSimulatedTradeUseCase
++
++fixture = runpy.run_path('tests/unit/simulated_trading/test_execution_settlement_uow.py')
++
++class ExplicitSourceExchangeReader:
++    def get_effective_execution_calendar(self, *, exchange: str, as_of: datetime, coverage_start: date | None):
++        # The source uses a different exchange namespace; Risk/Fee remain SH.
++        assert exchange == 'SSE', 'source exchange must not be replaced by rule market'
++        raise AssertionError('not reached on the defective baseline')
++
++def test_calendar_reader_receives_explicit_source_exchange_instead_of_rule_market():
++    intent = fixture['_intent']()
++    assert intent.market == 'SH'
++    repository = fixture['_RecordingRepository']()
++    use_case = ExecuteSettlementBoundSimulatedTradeUseCase(
++        rule_reader=fixture['_RuleReader'](), calendar_reader=ExplicitSourceExchangeReader(),
++        fee_policy_reader=fixture['_FeeReader'](), repository=repository,
++        clock=fixture['_FixedClock']())
++    use_case.execute(intent)

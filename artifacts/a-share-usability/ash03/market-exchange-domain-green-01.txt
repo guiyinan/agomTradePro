@@ -1,0 +1,60 @@
+.FF......F.......FF..................................................... [ 70%]
+..............................                                           [100%]
+================================== FAILURES ===================================
+__ test_v2_plan_separates_rule_market_from_calendar_exchange_and_round_trips __
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:297: in test_v2_plan_separates_rule_market_from_calendar_exchange_and_round_trips
+    plan = _execution_plan_v2()
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:237: in _execution_plan_v2
+    return SettlementExecutionPlanV2(
+<string>:22: in __init__
+    ???
+apps\simulated_trading\domain\execution_settlement_identity.py:420: in __post_init__
+    super().__post_init__()
+E   TypeError: super(type, obj): obj (instance of SettlementExecutionPlanV2) is not an instance or subtype of type (SettlementExecutionPlanV2).
+_____ test_v1_plan_and_binding_keep_the_existing_market_exchange_contract _____
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:332: in test_v1_plan_and_binding_keep_the_existing_market_exchange_contract
+    _execution_plan_v2(source_exchange="SZSE")
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:237: in _execution_plan_v2
+    return SettlementExecutionPlanV2(
+<string>:22: in __init__
+    ???
+apps\simulated_trading\domain\execution_settlement_identity.py:420: in __post_init__
+    super().__post_init__()
+E   TypeError: super(type, obj): obj (instance of SettlementExecutionPlanV2) is not an instance or subtype of type (SettlementExecutionPlanV2).
+_ test_v2_plan_fails_closed_for_restricted_unknown_or_out_of_window_identity[changes6-IDENTITY_EVIDENCE_NOT_KNOWN_AT_CUTOFF] _
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:361: in test_v2_plan_fails_closed_for_restricted_unknown_or_out_of_window_identity
+    evidence = _identity_evidence(**changes)
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:218: in _identity_evidence
+    return ExecutionInstrumentIdentityEvidenceV1(**values)  # type: ignore[arg-type]
+<string>:28: in __init__
+    ???
+apps\simulated_trading\domain\execution_settlement_identity.py:209: in __post_init__
+    raise IdentityEvidenceValidationError("IDENTITY_KNOWLEDGE_CLOCK_ORDER_INVALID")
+E   apps.simulated_trading.domain.execution_settlement_identity.IdentityEvidenceValidationError: IDENTITY_KNOWLEDGE_CLOCK_ORDER_INVALID
+_ test_identity_payload_rejects_scope_mismatch_and_v2_rejects_wrong_calendar_exchange _
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:440: in test_identity_payload_rejects_scope_mismatch_and_v2_rejects_wrong_calendar_exchange
+    _execution_plan_v2(identity_evidence=_identity_evidence(source_exchange="SZSE"))
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:237: in _execution_plan_v2
+    return SettlementExecutionPlanV2(
+<string>:22: in __init__
+    ???
+apps\simulated_trading\domain\execution_settlement_identity.py:420: in __post_init__
+    super().__post_init__()
+E   TypeError: super(type, obj): obj (instance of SettlementExecutionPlanV2) is not an instance or subtype of type (SettlementExecutionPlanV2).
+_ test_v2_binding_rejects_tampered_envelopes_and_old_factory_rejects_v2_plan __
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:444: in test_v2_binding_rejects_tampered_envelopes_and_old_factory_rejects_v2_plan
+    plan = _execution_plan_v2()
+tests\unit\simulated_trading\test_execution_settlement_plan_binding.py:237: in _execution_plan_v2
+    return SettlementExecutionPlanV2(
+<string>:22: in __init__
+    ???
+apps\simulated_trading\domain\execution_settlement_identity.py:420: in __post_init__
+    super().__post_init__()
+E   TypeError: super(type, obj): obj (instance of SettlementExecutionPlanV2) is not an instance or subtype of type (SettlementExecutionPlanV2).
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_v2_plan_separates_rule_market_from_calendar_exchange_and_round_trips
+FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_v1_plan_and_binding_keep_the_existing_market_exchange_contract
+FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_v2_plan_fails_closed_for_restricted_unknown_or_out_of_window_identity[changes6-IDENTITY_EVIDENCE_NOT_KNOWN_AT_CUTOFF]
+FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_identity_payload_rejects_scope_mismatch_and_v2_rejects_wrong_calendar_exchange
+FAILED tests/unit/simulated_trading/test_execution_settlement_plan_binding.py::test_v2_binding_rejects_tampered_envelopes_and_old_factory_rejects_v2_plan
+5 failed, 97 passed in 3.67s

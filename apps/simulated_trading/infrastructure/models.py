@@ -298,6 +298,7 @@ class SimulatedTradeModel(models.Model):
     )
     settlement_security_id = models.CharField(max_length=192, null=True, blank=True)
     settlement_market = models.CharField(max_length=32, null=True, blank=True)
+    settlement_exchange = models.CharField(max_length=32, null=True, blank=True)
     settlement_board = models.CharField(max_length=32, null=True, blank=True)
     settlement_market_session = models.DateField(null=True, blank=True)
     settlement_lag_sessions = models.PositiveIntegerField(null=True, blank=True)
@@ -371,6 +372,7 @@ class SimulatedTradeModel(models.Model):
                     settlement_plan_binding_version=0,
                     settlement_plan_binding_payload__isnull=True,
                     settlement_plan_binding_hash__isnull=True,
+                    settlement_exchange__isnull=True,
                 )
                 | Q(
                     settlement_plan_binding_version=1,
@@ -378,6 +380,15 @@ class SimulatedTradeModel(models.Model):
                     request_payload_hash__isnull=False,
                     settlement_plan_binding_payload__isnull=False,
                     settlement_plan_binding_hash__isnull=False,
+                    settlement_exchange__isnull=True,
+                )
+                | Q(
+                    settlement_plan_binding_version=2,
+                    idempotency_key__isnull=False,
+                    request_payload_hash__isnull=False,
+                    settlement_plan_binding_payload__isnull=False,
+                    settlement_plan_binding_hash__isnull=False,
+                    settlement_exchange__isnull=False,
                 ),
                 name="sim_trade_plan_binding_pair_ck",
             ),
@@ -393,6 +404,7 @@ class SimulatedTradeModel(models.Model):
                     settlement_market_session__isnull=True,
                     settlement_security_id__isnull=True,
                     settlement_market__isnull=True,
+                    settlement_exchange__isnull=True,
                     settlement_board__isnull=True,
                     settlement_lag_sessions__isnull=True,
                     settlement_bundle_id__isnull=True,

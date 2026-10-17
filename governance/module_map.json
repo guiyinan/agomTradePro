@@ -10484,6 +10484,8 @@
           "ExecutionCalendarUnavailable",
           "ExecutionFeePolicyReader",
           "ExecutionFeeScheduleUnavailable",
+          "ExecutionInstrumentIdentityReader",
+          "ExecutionInstrumentIdentityUnavailable",
           "PublishedExecutionCalendarReader",
           "ReleaseDueSimulatedSettlementsUseCase",
           "SettlementV3RuleReader",
@@ -10733,7 +10735,7 @@
       },
       "layers": {
         "application": 31,
-        "domain": 10,
+        "domain": 11,
         "infrastructure": 37,
         "interface": 15,
         "management": 5,

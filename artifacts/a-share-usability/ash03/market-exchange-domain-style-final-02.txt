@@ -1,0 +1,3 @@
+black_exit=0
+isort_exit=0
+ruff_exit=0

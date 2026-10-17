@@ -8897,6 +8897,90 @@
           "test_function": "test_current_view_accepts_only_exchange_and_returns_reference_only_data"
         }
       ]
+    },
+    {
+      "id": "simulated_trading.execution_identity_v1_temporal_scope",
+      "surface": "Candidate V2 simulated settlement identity only: explicit internal/source association, exact snapshot/mapping references, separate local/upstream clocks and half-open qualification window; source-only True/None remains blocked, no production identity or calendar-purpose adapter, no latest/PIT reconstruction or trading authority",
+      "source_files": [
+        "apps/simulated_trading/domain/execution_settlement_identity.py",
+        "apps/simulated_trading/application/execution_settlement_uow.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/domain/execution_settlement_identity.py": [
+          "source_observed_at",
+          "source_available_at",
+          "response_completed_at",
+          "IDENTITY_SOURCE_RESTRICTED",
+          "IDENTITY_SOURCE_CLOCK_UNKNOWN",
+          "IDENTITY_SOURCE_CLOCK_ORDER_INVALID",
+          "IDENTITY_EVIDENCE_NOT_KNOWN_AT_CUTOFF",
+          "IDENTITY_EVIDENCE_OUTSIDE_VALIDITY_WINDOW"
+        ],
+        "apps/simulated_trading/application/execution_settlement_uow.py": [
+          "identity_evidence.validate_for(intent=intent, as_of=as_of)",
+          "exchange=identity_evidence.source_exchange",
+          "pending_scope.source_exchange != identity_evidence.source_exchange"
+        ],
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py": [
+          "get_pending_settlement_scope",
+          "_pending_scope_for_rows",
+          "settlement_exchange",
+          "row.execution_time"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "unknown_source_clocks_do_not_become_response_time",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_execute_blocks_identity_with_unknown_source_clocks_before_calendar_or_ledger"
+        },
+        {
+          "case": "source_restrictions_do_not_grant_execution",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_execute_blocks_identity_with_forbidden_reference_flags_before_calendar_or_ledger"
+        },
+        {
+          "case": "future_local_knowledge_rejected",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_execute_blocks_identity_known_after_cutoff_before_calendar_or_ledger"
+        },
+        {
+          "case": "half_open_identity_window_expiry_rejected",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_execute_blocks_identity_at_half_open_expiry_before_calendar_or_ledger"
+        },
+        {
+          "case": "security_market_board_remain_exact",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_execute_blocks_identity_security_market_or_board_mismatch_before_calendar_or_ledger"
+        },
+        {
+          "case": "original_replay_does_not_reselect_current_identity",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_exact_idempotency_replay_does_not_read_identity_again"
+        },
+        {
+          "case": "availability_cannot_postdate_original_response",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
+          "test_function": "test_identity_source_availability_cannot_follow_the_captured_response"
+        },
+        {
+          "case": "availability_at_original_response_boundary_allowed",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
+          "test_function": "test_identity_source_availability_equal_to_response_completion_is_valid"
+        },
+        {
+          "case": "reference_true_and_unknown_clocks_remain_representable",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_plan_binding.py",
+          "test_function": "test_identity_payload_preserves_unknown_clocks_and_restrictive_flags"
+        },
+        {
+          "case": "native_stored_rule_market_and_source_exchange_are_separate",
+          "test_file": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "test_function": "test_v2_trade_persists_rule_market_separately_from_source_exchange"
+        }
+      ]
     }
   ]
 }

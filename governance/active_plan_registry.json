@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v235",
+  "version": "2026-10-17.v236",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.42 accepts original simulated settlement-plan consistency only: final source6 unit154, Native component40 including four two-connection races, separate migration3, incremental/full mypy0, architecture and official projections passed. Source4 SQLite component38/4 skipped and source5 SQLite migration3/1 skipped remain separate qualified windows; source2 fresh Native545 is not relabeled as final clean replay. Keep version0 legacy read-only and reject pending rows without original proof; rollback preserves evidence. Next fix explicit security/rule-market/source-exchange wiring and source-purpose qualification, then existing UoW consumers; original ASH01 legacy failures and historical PIT remain open. FullGoal/ASH01/02/03 open;74units unchanged; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-original-plan-binding-2026-10-17.json.",
+      "next_gate": "Plan19.43 accepted bounded candidate market/exchange wiring: explicit required identity reader, compatible V2 plan/binding, independent stored exchange and original pending scope. Risk/Fee retain rule market; Calendar uses exact source exchange. 218 unit, SQLite45+4skip/component and4+4skip/migration, native47 component and6 migration passed; actual dedicated child increment545-to546, not clean full schema replay. Types/style/architecture/annotations/official projections and six applicable governance checks passed. Extra retirement check actually fails the same9 legacy registration/floor violations on exact base and candidate; no baseline/checker edits and no whole-release pass. Preserve V1 bytes/source True/None. Identify a genuine identity/calendar purpose owner before positive ordinary trading; avoid a permanently blocked adapter or invented clocks/qualification. Production identity/purpose owner, original ASH01 failures, legacy consumer/PIT, retirement gate and FullGoal/ASH01/02/03 remain open; 74units unchanged; DATA18 gatesASH11; no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-market-exchange-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

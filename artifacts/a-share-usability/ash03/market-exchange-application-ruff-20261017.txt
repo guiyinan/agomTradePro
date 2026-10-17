@@ -1,0 +1,167 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> apps\simulated_trading\application\execution_settlement_uow.py:9:1
+   |
+ 7 |   """
+ 8 |
+ 9 | / from __future__ import annotations
+10 | |
+11 | | from dataclasses import replace
+12 | | from datetime import date, datetime
+13 | | from typing import Protocol
+14 | |
+15 | | from apps.risk_center.domain.execution_settlement_v3 import (
+16 | |     ExecutionSettlementBundleV3,
+17 | |     SettlementBasis,
+18 | | )
+19 | | from apps.simulated_trading.application.fee_policy_v2 import (
+20 | |     FeePolicyVersionStorageUnavailable,
+21 | | )
+22 | | from apps.simulated_trading.domain.execution_fee_policy_v2 import (
+23 | |     FeePolicyAccountScope,
+24 | |     SimulatedFeePolicyV2,
+25 | | )
+26 | | from apps.simulated_trading.domain.execution_settlement_uow import (
+27 | |     CalendarEvidenceValidationError,
+28 | |     ExecutionCalendarEvidence,
+29 | |     SimulatedTradeExecutionReceipt,
+30 | |     SimulatedTradeIntent,
+31 | |     SimulatedTradeSide,
+32 | | )
+33 | | from apps.simulated_trading.domain.execution_settlement_identity import (
+34 | |     ExecutionInstrumentIdentityEvidenceV1,
+35 | |     IdentityEvidenceValidationError,
+36 | |     PendingSettlementScopeV1,
+37 | |     SettlementExecutionPlanV2,
+38 | | )
+39 | | from core.exceptions import (
+40 | |     BusinessLogicError,
+41 | |     DuplicateResourceError,
+42 | |     InvalidInputError,
+43 | |     MissingConfigError,
+44 | | )
+   | |_^
+help: Organize imports
+   |
+25 | )
+26 + from apps.simulated_trading.domain.execution_settlement_identity import (
+27 +     ExecutionInstrumentIdentityEvidenceV1,
+28 +     IdentityEvidenceValidationError,
+29 +     PendingSettlementScopeV1,
+30 +     SettlementExecutionPlanV2,
+31 + )
+32 | from apps.simulated_trading.domain.execution_settlement_uow import (
+--------------------------------------------------------------------------------
+37 |     SimulatedTradeSide,
+   - )
+   - from apps.simulated_trading.domain.execution_settlement_identity import (
+   -     ExecutionInstrumentIdentityEvidenceV1,
+   -     IdentityEvidenceValidationError,
+   -     PendingSettlementScopeV1,
+   -     SettlementExecutionPlanV2,
+38 | )
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\unit\simulated_trading\test_execution_settlement_uow.py:3:1
+   |
+ 1 |   """Unit contracts for the settlement-bound simulated-trade ledger entry."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from dataclasses import replace
+ 6 | | from datetime import UTC, date, datetime, timedelta, timezone, tzinfo
+ 7 | | from decimal import Decimal
+ 8 | | from uuid import UUID
+ 9 | |
+10 | | import pytest
+11 | |
+12 | | from apps.data_center.domain.exchange_calendar import ExchangeCalendarDay as SourceCalendarDay
+13 | | from apps.data_center.domain.exchange_calendar import (
+14 | |     ExchangeCalendarRawReference as SourceRawCalendarReference,
+15 | | )
+16 | | from apps.data_center.domain.exchange_calendar import (
+17 | |     ExchangeCalendarSnapshotCandidate,
+18 | |     exchange_calendar_request_scope_hash,
+19 | |     make_exchange_calendar_snapshot,
+20 | | )
+21 | | from apps.risk_center.domain.execution_settlement_v3 import (
+22 | |     ExecutionSettlementBundleV3,
+23 | |     SettlementBasis,
+24 | |     SettlementPolicyV1,
+25 | | )
+26 | | from apps.risk_center.domain.execution_submission_v2 import ExecutionSubmissionRuleV2
+27 | | from apps.risk_center.domain.execution_trading_constraints import (
+28 | |     AShareExecutionRule,
+29 | |     ExecutionQuantityConstraint,
+30 | |     SellOddLotMode,
+31 | | )
+32 | | from apps.risk_center.domain.price_submission_range import (
+33 | |     PriceRoundingMode,
+34 | |     PriceSubmissionRangeRule,
+35 | |     PriceSubmissionStage,
+36 | | )
+37 | | from apps.simulated_trading.application.execution_settlement_uow import (
+38 | |     ExecuteSettlementBoundSimulatedTradeUseCase,
+39 | |     ExecutionCalendarUnavailable,
+40 | |     ExecutionInstrumentIdentityUnavailable,
+41 | |     ReleaseDueSimulatedSettlementsUseCase,
+42 | |     SimulatedTradeExecutionBlocked,
+43 | | )
+44 | | from apps.simulated_trading.domain.execution_settlement_identity import (
+45 | |     ExecutionInstrumentIdentityEvidenceV1,
+46 | |     PendingSettlementScopeV1,
+47 | |     SettlementExecutionPlanV2,
+48 | | )
+49 | | from apps.simulated_trading.domain import execution_settlement_uow as domain
+50 | | from apps.simulated_trading.domain.execution_fee_policy_v2 import (
+51 | |     FeeApplicability,
+52 | |     FeePolicyAccountScope,
+53 | |     FeeTransactionCase,
+54 | |     SimulatedFeePolicyV2,
+55 | | )
+56 | | from apps.simulated_trading.domain.execution_settlement_uow import (
+57 | |     CalendarEvidenceValidationError,
+58 | |     CalendarPublicationReference,
+59 | |     ExchangeCalendarDay,
+60 | |     ExchangeCalendarSnapshot,
+61 | |     ExecutionCalendarEvidence,
+62 | |     ExecutionFeeSchedule,
+63 | |     FeeCalculationPurpose,
+64 | |     FeeRateStoragePrecision,
+65 | |     FeeRoundingPolicy,
+66 | |     RawCalendarReference,
+67 | |     SettlementExecutionPlan,
+68 | |     SimulatedSettlementContractError,
+69 | |     SimulatedTradeExecutionReceipt,
+70 | |     SimulatedTradeIntent,
+71 | |     SimulatedTradeSide,
+72 | |     calculate_trade_fees,
+73 | |     validate_ledger_money,
+74 | |     validate_ledger_price,
+75 | |     validate_ledger_quantity,
+76 | | )
+   | |_^
+77 |
+78 |   AS_OF = datetime(2026, 10, 16, 2, 0, tzinfo=UTC)
+   |
+help: Organize imports
+   |
+43 | )
+   - from apps.simulated_trading.domain.execution_settlement_identity import (
+   -     ExecutionInstrumentIdentityEvidenceV1,
+   -     PendingSettlementScopeV1,
+   -     SettlementExecutionPlanV2,
+   - )
+44 | from apps.simulated_trading.domain import execution_settlement_uow as domain
+--------------------------------------------------------------------------------
+50 | )
+51 + from apps.simulated_trading.domain.execution_settlement_identity import (
+52 +     ExecutionInstrumentIdentityEvidenceV1,
+53 +     PendingSettlementScopeV1,
+54 +     SettlementExecutionPlanV2,
+55 + )
+56 | from apps.simulated_trading.domain.execution_settlement_uow import (
+   |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

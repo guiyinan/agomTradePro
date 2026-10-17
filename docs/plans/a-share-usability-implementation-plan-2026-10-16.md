@@ -986,3 +986,35 @@ SQLite保留独立source4核心组件38 passed/4 Native-only skipped（36业务+
 完整原件、原始与Git LF摘要、限定源窗口和未完成项见[原成交计划绑定检查点](../testing/a-share-usability-original-plan-binding-2026-10-17.json)。计划登记v235 / 74单元，本批按完整事项独立提交。下一批修复显式证券身份、规则market与源exchange的接线及用途资格，再将已验收UoW接入普通模拟消费者；原ASH-01五项旧消费者反例仍开放，不把本候选端口验收称为T+1用户闭环。历史PIT、ASH-01/02/03和完整Goal继续开放，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。
 
 最终暂存后whitespace检查仅发现原始PG guard red日志第10行pytest生成的`E`后空格，Root脚本因此在已暂存后退出2。原件及hash不改；仅该原始日志逐行/摘要核验并精确排除空白格式检查，其余源码、测试、文档和原件全部检查。该编排诊断不算业务失败，不放宽生产格式门禁。
+
+### 19.43 规则市场与来源交易所接线独立验收
+
+1d3a3ccbb已独立提交原计划一致性。本批针对候选UoW实际参数错误：Risk和Fee要求规则market/board，日历reader却直接收到intent.market，Plan/账本/释放又重复把market当exchange。只加独立DTO不能关闭该问题；本批联合修改候选成交、原记录持久化与后续释放，仍不切换普通买卖、自动模拟、HTTP、回测或QMT。
+
+实施边界：新增必需注入的精确身份reader，明确internal security_id与source_code关联、asset_code及snapshot/mapping的精确身份、分类与原知识时点；不猜后缀、不推断代码相等、不选latest。其返回证据保留source_observed/source_available的None和原must_not标记；新成交在禁止、未知来源时钟、无明确有效窗或身份/market/board差异时阻断。现有Data Center参考输出仍True/None，目前没有production身份owner或用途资格adapter；合成单测provider不能填补此缺口，不添加自动资格或通用grant框架。
+
+Domain用V2 Plan复用V1共同行为，只分离明确exchange校验；V1原wire/hash/golden不改。V2绑定包裹既有严格原计划摘要与身份摘要，不复制千行解析器。已有成交表新增settlement_exchange，settlement_market继续规则市场；新Application成交写入V2完整绑定，历史V0/V1不回填exchange。Infrastructure保留明确exact V1契约兼容分支用于历史回执/释放回归，不作为新Application缺identity的回退；尚未切换的旧Model入口仍默认V0。V1回执及原证据释放兼容，V0 pending仍阻断；未知版本、列与原绑定差异整笔失败。0027回退先保护V2/非空exchange，PG同事务持排他锁，不能降级丢证据。
+
+pending预读改为从全部原成交绑定验证并返回最早会话和原交易所；混合交易所阻断，锁内仍逐行复验。新成交的identity不能替换旧pending的交易所；Release原必填exchange参数只作一致性断言，真正按原scope读取日历。幂等重放返回原收据并校验原存储，不重新以新mapping/规则改写历史。
+
+Luna Max分别负责Domain+单元、Application/composition+单元、Infrastructure/迁移+组件；Root独占Git、生成投影及真实数据库验收。完成标准：规则市场与来源交易所不同的真实反例、正确Risk/Fee/Calendar参数和V2落库/释放通过；缺证、禁止/未知来源、过期/未来知识、身份/market/board/交易所不符与混合pending无写入；V1 golden及历史回执不变；真实SQLite/PG迁移及Native两连接回执/成交/释放竞争通过；增量与全库mypy、风格、架构、Domain覆盖率、官方生成投影和适用治理检查通过，再完整事项独立提交。源码与数据库目标须绑定；夹具/编排失败与业务red区分，不复用共享父库做flush。
+
+本阶段不代表已接正式来源或用户交易入口，不能据候选UoW单测关闭原ASH-01 T+1。ASH-01/02/03、历史PIT与完整Goal继续开放；DATA-18对ASH-11及原生产/Provider/研究/Evidence/dispatch/券商门禁保留。
+
+Root在原提交1d3a3ccbb加唯一隔离反例的冻结源码49e3493f4ee2392d6bde1b345acf789e19f9742c真实复现日历选源错误：Risk/Fee保持SH，日历reader要求其独立SSE命名空间，却实际收到SH，1 failed / 2.58秒。此反例未连接数据库，尚无正式identity owner或真实来源资格，不把外部预期值冒充已注入的生产映射；原件market-exchange-original-routing-root-1-*保留。初步接口审查另纠正身份DTO的security_id应沿用Intent/Risk的str语义，只有快照和mapping记录为UUID；不为新DTO擅改既有证券身份。
+
+新候选身份时钟另有Root真实反例：冻结源码e79fd1f110b02247b2e473546c488009bd80806b允许source_available晚于已包含事实的原response_completed，只要两者都早于查询时点就放行；1 failed / 1.52秒，DID NOT RAISE。已要求按observed≤available≤原response_completed完整顺序拒绝，不使用查询时刻修复原值；原件market-exchange-identity-clock-root-1-*保留。日历的正式用途资格adapter仍缺失，本批只改候选UoW市场接线，不因合成Calendar/Identity端口而宣称参考日历获准执行。
+
+V2与既有存储契约的集成反例在源码e58e876897342f2ddaa3691dfade39f99a0353bc的指定PG16子库实际得到1 failed / 24.24秒：exact V1 Repository拒绝V2 Plan，尚未尝试写新列；前后目标均545迁移、旧schema与单例正常。此窗口明确纳入新Domain/组件并保留原提交Infrastructure，证明缺失的V2存储支持，不冒充最终完整候选。首次目标探针因Root未把导出目录加入PYTHONPATH而在core导入前失败，随后恢复脚本搜索未转义路径的assert也在DB/测试命令前失败；修复后同一冻结业务源码继续执行，旧日志/说明均保留，两个编排错误不计业务red。原件market-exchange-native-guard-root-1-*。
+
+独立只读复查再发现候选V1兼容回归：calendar exchange被改为与自身比较，漏掉原row.settlement_market。Root冻结修复前源码4b9134f8aa68dfb83c88a5192264c65823dcdd24，在实际validator与未保存ORM边界行上真实得到1 failed / 2.99秒；只更改V1 Calendar exchange并重封hash，原请求/市场不改仍被接受。该unit不做DB资格声明；ledger另有真实持久行回执反例待Root最终Native验证。修复限定恢复V1原市场关联，V2仍独立核对规则市场与来源交易所。原件market-exchange-v1-cross-binding-root-1-*。
+
+最终冻结源码fe2190f3ef54b0dd8c10bc1ddaeade4ecad92d0c的218项单元回归通过。新增identity语句206/206、分支88/88；binding语句372/398、分支132/150，既有UoW语句673/706、分支257/272，语句与分支分开报告。八生产文件增量mypy零回归、全库债务零，13个Python文件Black/isort/Ruff通过；46个新增/修改生产函数完整标注，架构八文件1,124新增行boundary/audit零。
+
+同一冻结源码真实SQLite组件45 passed/4 Native-only skipped（43业务+2目标探针）；SQLite迁移4 passed/4 Native-only skipped（2业务+2目标探针）。本机专用PG16子库先实际增量545→546迁移，再完成47项组件（包含四项双连接竞争）和独立6项迁移回归。历史0026与本次0027实际up/down/up、保留V2证据拒绝回退、guard仍在原子事务中持排他锁使writer得到55P03、非atomic拒绝通过；持锁用例不声称完整双连接unapply。Native前后目标探针确认专库546迁移/新列存在；原共享父库独立只读仍544迁移、singleton=(1,0)。本批并非从空重放全部迁移，SQLite跳过也不算并发通过。
+
+官方字典/模块/DC架构/入口生成及六项适用投影/治理检查通过：42 app / 588 model / 9,091 field、44模块/210依赖、86 freshness surface、23 Audit event、1,365入口（candidate-review仍11）。Root额外运行版本退役检查实际退出1：既有交易规则catalog/codec V2/V3的两组并存/两组无后缀登记及floor缺口，以及fee_policy_v2_composition未登记，共九项；精确父提交1d3a3ccbb隔离导出也实际失败同九项，本批无新增。原封存政策不允许直接重绑baseline摘要来消除缺口，未改检查器/manifest/floor，不把“无新回归”写成全通过。仅本批有界开发接受，既有退役门继续开放并阻断对应完整发布质量声明。
+
+五个Root红绿源码窗口均保留base→tree原始patch，并通过辅助index重建匹配，避免只依赖未引用Git对象或本地导出。失败原件中的pytest空格及patch上下文按原字节保留，独立绑定摘要；生产、测试、文档及生成投影仍完整检查空白。不同源码窗口不拼成唯一CI/S6/release身份。
+
+完整源、独立测试包、真实反例/编排问题和原始/LF字节摘要见[市场与交易所接线检查点](../testing/a-share-usability-market-exchange-2026-10-17.json)。计划登记v236 / 74单元，本事项单独提交。下一批先确认真正可提供身份/日历来源时点、内部证券绑定与用途有效窗的owner，不新增必然永久blocked的拼装adapter；继续选择可独立落地的普通用户任务缺口。不得把合成reader或本地测试变成来源资格。正式identity owner/用途adapter、普通买卖/自动模拟/回测消费者、历史PIT、原ASH-01五项反例、退役登记缺口与整体Goal均未关闭；ASH-02仍唯一集成焦点，DATA-18对ASH-11及生产/Provider/研究/Evidence/dispatch/券商门禁不变。

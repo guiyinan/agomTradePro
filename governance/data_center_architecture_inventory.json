@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5791,
+    "current_surface_references": 5797,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20651,6 +20651,18 @@
       "text": "\"\"\"Persisted performance values exposed with an account summary.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/domain/execution_settlement_identity.py",
+      "text": "mapping. Current source snapshots remain blocked while they carry source"
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "The nested V1 summary retains its original payload and digest semantics."
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Build the unchanged V1 common summary for either exact plan version."
+    },
+    {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Canonical integrity summary of one fully validated settlement plan."
     },
@@ -20664,6 +20676,10 @@
     },
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"Seal one exact V2 plan with the common V1 summary and identity receipt.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Strictly decode one exact calendar snapshot identity summary.\"\"\""
     },
     {
@@ -20673,6 +20689,10 @@
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
       "text": "\"\"\"Strictly decode one exact raw-response identity summary.\"\"\""
+    },
+    {
+      "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
+      "text": "\"\"\"V2 checksum wrapper joining the unchanged common summary and identity."
     },
     {
       "path": "apps/simulated_trading/domain/execution_settlement_plan_binding.py",
@@ -20736,7 +20756,11 @@
     },
     {
       "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
-      "text": "\"current calendar exchange differs from the frozen trade market\""
+      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "text": "\"current calendar exchange differs from the frozen trade source exchange\""
     },
     {
       "path": "apps/simulated_trading/infrastructure/inspection_repository.py",

@@ -9,7 +9,7 @@
       "celery_dispatch_edge": 18,
       "celery_task": 130,
       "compatibility_facade": 95,
-      "current_data_surface": 85,
+      "current_data_surface": 86,
       "dynamic_import_edge": 14,
       "management_command": 49,
       "management_command_edge": 65,
@@ -26,17 +26,17 @@
       "script": 19,
       "sdk": 57,
       "terminal_tui": 28,
-      "test_evidence": 96,
+      "test_evidence": 97,
       "workflow_step": 11
     },
     "by_status": {
-      "active_public": 872,
-      "adjacent_operational": 342,
+      "active_public": 873,
+      "adjacent_operational": 343,
       "candidate-review": 11,
       "compatibility": 138,
       "retired_blocked": 0
     },
-    "total": 1363
+    "total": 1365
   },
   "entries": [
     {
@@ -5897,6 +5897,16 @@
       "path": "governance/current_data_contracts.json",
       "status": "active_public",
       "symbol": "simulated_trading.account_execution_projection",
+      "target": ""
+    },
+    {
+      "category": "current_data_surface",
+      "evidence": "governed current-data contract; source_files=3",
+      "id": "current_data_surface:governance/current_data_contracts.json:simulated_trading.execution_identity_v1_temporal_scope:Candidate V2 simulated settlement identity only: explicit internal/source association, exact snapshot/mapping references, separate local/upstream clocks and half-open qualification window; source-only True/None remains blocked, no production identity or calendar-purpose adapter, no latest/PIT reconstruction or trading authority",
+      "locator": "Candidate V2 simulated settlement identity only: explicit internal/source association, exact snapshot/mapping references, separate local/upstream clocks and half-open qualification window; source-only True/None remains blocked, no production identity or calendar-purpose adapter, no latest/PIT reconstruction or trading authority",
+      "path": "governance/current_data_contracts.json",
+      "status": "active_public",
+      "symbol": "simulated_trading.execution_identity_v1_temporal_scope",
       "target": ""
     },
     {
@@ -13041,6 +13051,16 @@
     },
     {
       "category": "test_evidence",
+      "evidence": "reviewed test-owned simulated-trade source-exchange migration roundtrip and PostgreSQL reverse-guard writer locking; explicit synthetic markers, partial-app cleanup and restored original migration leaves, no production invocation or Data Center source-purpose qualification",
+      "id": "test_evidence:tests/component/simulated_trading/test_settlement_exchange_migration.py:test_settlement_exchange_migration:",
+      "locator": "",
+      "path": "tests/component/simulated_trading/test_settlement_exchange_migration.py",
+      "status": "adjacent_operational",
+      "symbol": "test_settlement_exchange_migration",
+      "target": ""
+    },
+    {
+      "category": "test_evidence",
       "evidence": "registered executable evidence for database backup, restore, archive, retention, or deployment behavior",
       "id": "test_evidence:tests/component/test_macro_periodic_tasks.py:test_macro_periodic_tasks:",
       "locator": "",
@@ -13681,9 +13701,9 @@
   },
   "source_contract_counts": {
     "celery_tasks": 95,
-    "current_data_contracts": 85,
+    "current_data_contracts": 86,
     "legacy_entrypoints_and_wrappers": 0,
-    "operational_governance_rules": 44,
+    "operational_governance_rules": 45,
     "runtime_config_keys": 45
   },
   "source_contracts": [
