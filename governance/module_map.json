@@ -10771,7 +10771,7 @@
         "infrastructure": 39,
         "interface": 15,
         "management": 5,
-        "root": 12
+        "root": 11
       },
       "orm_models": {
         "infrastructure/models.py": [

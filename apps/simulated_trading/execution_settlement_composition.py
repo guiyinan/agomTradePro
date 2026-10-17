@@ -1,4 +1,4 @@
-"""Explicit composition for the settlement-bound simulated-ledger use cases."""
+"""Compose explicit simulated fee policies and settlement-bound ledger use cases."""
 
 from __future__ import annotations
 
@@ -10,8 +10,14 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     SettlementV3RuleReader,
     SimulatedTradeExecutionClock,
 )
+from apps.simulated_trading.application.fee_policy_v2 import (
+    CreateFeePolicyVersionUseCase,
+)
 from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
     DjangoSimulatedTradeExecutionRepository,
+)
+from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
+    DjangoFeePolicyV2Repository,
 )
 
 
@@ -61,3 +67,13 @@ def build_release_due_simulated_settlements_use_case(
         repository=repository,
         clock=clock,
     )
+
+
+def build_create_fee_policy_version_use_case(
+    *,
+    using: str,
+) -> CreateFeePolicyVersionUseCase:
+    """Compose the operator use case with one explicit FeeConfig database alias."""
+
+    repository = DjangoFeePolicyV2Repository(using=using)
+    return CreateFeePolicyVersionUseCase(repository=repository)

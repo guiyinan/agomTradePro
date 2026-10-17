@@ -11,16 +11,24 @@ from apps.simulated_trading.application.execution_settlement_uow import (
     ExecuteSettlementBoundSimulatedTradeUseCase,
     ReleaseDueSimulatedSettlementsUseCase,
 )
+from apps.simulated_trading.application.fee_policy_v2 import (
+    CreateFeePolicyVersionUseCase,
+    FeePolicyVersionStorageUnavailable,
+)
 from apps.simulated_trading.domain.execution_settlement_identity import (
     ExecutionInstrumentIdentityEvidenceV1,
 )
 from apps.simulated_trading.domain.execution_settlement_uow import ExecutionCalendarEvidence
 from apps.simulated_trading.execution_settlement_composition import (
+    build_create_fee_policy_version_use_case,
     build_execute_settlement_bound_simulated_trade_use_case,
     build_release_due_simulated_settlements_use_case,
 )
 from apps.simulated_trading.infrastructure.execution_settlement_uow_repository import (
     DjangoSimulatedTradeExecutionRepository,
+)
+from apps.simulated_trading.infrastructure.fee_policy_v2_repository import (
+    DjangoFeePolicyV2Repository,
 )
 
 
@@ -105,3 +113,21 @@ def test_composition_rejects_an_invalid_alias_without_provider_defaults() -> Non
             calendar_reader=_CalendarReader(),
             clock=_Clock(),
         )
+
+
+def test_fee_policy_composition_retains_explicit_alias_without_database_access() -> None:
+    """An operator-selected alias reaches the policy repository unchanged."""
+
+    use_case = build_create_fee_policy_version_use_case(using="fee_operator_test")
+
+    assert type(use_case) is CreateFeePolicyVersionUseCase
+    assert type(use_case._repository) is DjangoFeePolicyV2Repository
+    assert use_case._repository._using == "fee_operator_test"
+
+
+@pytest.mark.parametrize("alias", ["", " ", "default "])
+def test_fee_policy_composition_rejects_invalid_alias_without_a_default(alias: str) -> None:
+    """A missing or noncanonical alias cannot fall back to the default database."""
+
+    with pytest.raises(FeePolicyVersionStorageUnavailable, match="database alias"):
+        build_create_fee_policy_version_use_case(using=alias)

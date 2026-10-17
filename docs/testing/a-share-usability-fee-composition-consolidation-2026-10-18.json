@@ -1,0 +1,73 @@
+{
+  "schema_version": "a_share_bounded_acceptance.v1",
+  "batch": "fee-composition-consolidation-e2ab",
+  "date": "2026-10-18",
+  "status": "passed",
+  "base": "e2ab295ac39963b08187131d9a4a412614316f1a",
+  "source_commit": "7bfeb1ce81f888f31d239ccfae442efb6aba6b82",
+  "source_tree": "cc3551d5d50a8c1b7471b9d527a270f2184e3a4c",
+  "source_paths": [
+    "apps/simulated_trading/fee_policy_v2_composition.py",
+    "apps/simulated_trading/execution_settlement_composition.py",
+    "apps/simulated_trading/management/commands/create_simulated_fee_policy_v2.py",
+    "tests/unit/simulated_trading/test_execution_settlement_composition.py"
+  ],
+  "present_source_count": 3,
+  "deleted_source_count": 1,
+  "actual": {
+    "status": "passed",
+    "source_tree": "cc3551d5d50a8c1b7471b9d527a270f2184e3a4c",
+    "commands": 19,
+    "commands_passed": 19,
+    "commands_failed": 0,
+    "all_expected_exit_zero": true,
+    "junit_total": 69,
+    "junit_passed": 69,
+    "junit_failed": 0,
+    "junit_errors": 0,
+    "junit_skipped": 0,
+    "module_map_lf_sha256": "9491bb81801106cdc7ee6fa33fbe7b82caa72832863863019640609620e14553",
+    "retirement_exit_code": 0,
+    "retirement_green": true,
+    "full_governance_exit_code": 0,
+    "red_reproduction": {
+      "status": "expected_collection_red",
+      "valid_red": true,
+      "gate_green": false,
+      "exit_code": 2,
+      "collection_errors": 1
+    }
+  },
+  "module_map": {
+    "strict_delta": true,
+    "lf_sha256": "9491bb81801106cdc7ee6fa33fbe7b82caa72832863863019640609620e14553",
+    "review_raw_sha256": "6602d34be2a835e9fdf92dd635b9a9515abceecb7a0649d9bc629cddfff92254"
+  },
+  "compatibility_limit": "Repository imports now target the consolidated module; external direct imports of the deleted internal Python path remain unknown.",
+  "evidence_bundle": "artifacts/a-share-usability/ash01/fee-composition-consolidation-evidence-2026-10-18.json",
+  "open_items": [
+    "Fee behavior/cost acceptance",
+    "Full ASH-01–12 Goal",
+    "ordinary settlement",
+    "MCP",
+    "PIT",
+    "source qualification",
+    "external Python import-path compatibility",
+    "real production validation",
+    "RC and S6"
+  ],
+  "scope_statement": "Bounded repository evidence only; no trading, broker, PostgreSQL concurrency, RC, S6, Goal-completion, or production authority is granted.",
+  "acceptance_preflight_failures_retained": 2,
+  "postdoc": {
+    "registry_tests_passed": 8,
+    "skipped": 0,
+    "actual_exit_codes": {
+      "registry": 0,
+      "registry-tests": 0,
+      "full-governance": 0
+    },
+    "report_raw_sha256": "7ded7beee1aabae8d7a75d0db9aeee7d34c07b4c078539d4d23dacbb96257ab0",
+    "postdoc_preflight_failures": 0,
+    "runtime_and_postdoc_tests_total": 77
+  }
+}

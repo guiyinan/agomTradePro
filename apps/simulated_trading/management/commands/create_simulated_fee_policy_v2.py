@@ -19,7 +19,7 @@ from apps.simulated_trading.domain.execution_fee_policy_v2 import (
     FeePolicyAccountScope,
     FeeTransactionCase,
 )
-from apps.simulated_trading.fee_policy_v2_composition import (
+from apps.simulated_trading.execution_settlement_composition import (
     build_create_fee_policy_version_use_case,
 )
 from shared.numeric import safe_float

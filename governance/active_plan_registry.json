@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v263",
+  "version": "2026-10-18.v264",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Risk version consolidation source tree e687847e78b2c3098995dd63a012b2f2104535b3 is accepted as a bounded same-tree result: 18 of 18 non-retirement checks passed; the exact version-retirement check exited 1 and remains non-green. The official module map strict delta was accepted. This batch does not complete the A-share Goal, ordinary settlement, fees, MCP, PIT, source qualification, RC, S6, or production validation. Evidence: artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json.",
+      "next_gate": "Fee composition consolidation source tree cc3551d5d50a8c1b7471b9d527a270f2184e3a4c passed all 19 bounded repository checks; SQLite unit/component JUnit recorded 69/69 pass with no skips. The prior isolated test-only RED was one expected collection ImportError, not a business assertion result. The official generated module map has a strict one-field root-count delta. This batch does not complete the A-share Goal, fee behavior/cost acceptance, ordinary settlement, MCP, PIT, source qualification, external Python import-path compatibility, RC, S6, or production validation. No SQL or schema changed; PostgreSQL tests were not run in this bounded composition-only batch. Evidence: artifacts/a-share-usability/ash01/fee-composition-consolidation-evidence-2026-10-18.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

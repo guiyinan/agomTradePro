@@ -1259,3 +1259,19 @@ Root strict projection review `481b649a028a9e37bfe85962b12e357dd97f089fed13620f1
 详细证据：`docs/testing/a-share-usability-risk-version-consolidation-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/risk-version-consolidation-evidence-2026-10-18.json`。
 
 登记更新后的独立补充验收实际通过8项registry单元，registry检查和再次full-governance均exit0；与冻结源码113项合计121项通过。首次私有postdoc脚本仅在gitignored证据可见性前置判断失败、未运行检查，修正后通过，原失败及前后driver均保留。该补充记录在检查后写入证据包，保留实际输入摘要，不冒充最终发布SHA或S6。
+
+### 19.59 Fee composition consolidation bounded acceptance
+
+本批以 `e2ab295ac39963b08187131d9a4a412614316f1a` 为 base，冻结 source tree 为 `cc3551d5d50a8c1b7471b9d527a270f2184e3a4c`，source commit 为 `7bfeb1ce81f888f31d239ccfae442efb6aba6b82`。费用策略 builder 迁入既有 `execution_settlement_composition`，管理命令同步使用该入口；完整builder AST、原两个结算builder与命令主体保持不变，显式using、preview默认与--apply写入语义保留。不增加独立 composition 模块、费用行为或数据库迁移。官方 module map 经 strict-delta review，LF SHA-256 为 `9491bb81801106cdc7ee6fa33fbe7b82caa72832863863019640609620e14553`，仅复制官方生成结果。
+
+冻结树实际完成 19 项检查且全部通过；SQLite 单元与组件 JUnit 实际为 69/69 通过，无失败、错误或 skip。先前 test-only RED 是 1 个 import collection error，用于记录迁移前缺失的组合入口，不作为业务断言或绿色验收。具体逐文件数量与原始证据见证据包。
+
+实际为单元40、SQLite仓储/命令21、完整退役测试8，合计69通过且无skip；真实仓库退役断言及独立checker均通过。独立retirement与full-governance均实际exit0；本Goal引入的七项超大文件问题和九项版本面违规至此全部收口，未修改baseline、封存floor、checker pin或allowlist。无SQL、模型、事务变化，本批未运行原生PostgreSQL，不新增其并发验收声明。ASH-02完整focus/policy、closure字典v76及79个完整unit与其他workstreams保持原样。
+
+两次私有接受前置失败原件保留：一处SHA字面量转录错误已按真实QA pin更正；原候选缺失规范删除metadata，Git将其解析为改名并产生空dev/null。Root在独立临时目录实际复现原补丁副产物，再用规范Git diff重放确认仅四个源路径且postimages与已测版本完全一致，将Root自有空文件可逆移入.tmp。正式source patch为规范版本；后续应用补丁须先用Git实际numstat核对精确白名单。以上不改变生产源码或原始QA结果。
+
+仓内调用已按现有模块边界收敛；外部直接导入旧内部 Python 路径的消费者仍未知。本批不完成完整 A-share Goal、实际成交费用missing/zero与成本闭环、普通结算、MCP默认账户范围、PIT、数据源资格、production、RC 或 S6 验收。
+
+详细证据：`docs/testing/a-share-usability-fee-composition-consolidation-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/fee-composition-consolidation-evidence-2026-10-18.json`。
+
+登记更新后的独立补充验收实际通过8项registry单元，registry检查和再次full-governance均exit0；与冻结源码69项合计77项通过。补充证据在检查后写入并保留实际输入摘要，不冒充最终发布SHA或S6。
