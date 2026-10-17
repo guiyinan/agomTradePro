@@ -30,6 +30,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.simulated_trading.application import interface_services as simulated_interface_services
+from apps.simulated_trading.application.auto_trading_outcome_reporting import (
+    serialize_auto_trading_batch_outcome,
+)
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
@@ -675,20 +678,8 @@ class AutoTradingAPIView(APIView):
             "account_ids": [1, 2]  // 可选；省略只选本人适格模拟账户，[]不执行
         }
 
-        Response:
-        {
-            "success": true,
-            "trade_date": "2024-01-15",
-            "total_accounts": 2,
-            "results": {
-                "1": {"buy_count": 3, "sell_count": 1},
-                "2": {"buy_count": 2, "sell_count": 0}
-            },
-            "summary": {
-                "total_buy_count": 5,
-                "total_sell_count": 1
-            }
-        }
+        The response contains a normalized batch outcome, per-account issues,
+        confirmed trade counts, and a nullable stored count when writes are uncertain.
         """
         # 1. 验证请求
         serializer = AutoTradingRunRequestSerializer(data=request.data)
@@ -708,48 +699,24 @@ class AutoTradingAPIView(APIView):
                 },
                 status=scope.status_code or status.HTTP_403_FORBIDDEN,
             )
-        if not scope.account_ids:
-            return Response(
-                {
-                    "success": True,
-                    "trade_date": trade_date.isoformat(),
-                    "total_accounts": 0,
-                    "results": {},
-                    "summary": {"total_buy_count": 0, "total_sell_count": 0},
-                }
-            )
-
-        # 2. 初始化引擎
-        engine = simulated_interface_services.build_auto_trading_engine()
-
-        # 3. 执行自动交易
         try:
-            results = engine.run_daily_trading(
-                trade_date,
-                account_ids=list(scope.account_ids),
+            batch = simulated_interface_services.run_auto_trading_for_scope(
+                trade_date=trade_date,
+                account_ids=scope.account_ids,
             )
-
-            # 汇总统计
-            total_buy_count = sum(r["buy_count"] for r in results.values())
-            total_sell_count = sum(r["sell_count"] for r in results.values())
-
+        except Exception:
+            # Engine assembly failed before run_daily_trading began, so no write
+            # outcome is claimed and the caller receives an operational failure.
             return Response(
                 {
-                    "success": True,
-                    "trade_date": trade_date.isoformat(),
-                    "total_accounts": len(results),
-                    "results": results,
-                    "summary": {
-                        "total_buy_count": total_buy_count,
-                        "total_sell_count": total_sell_count,
-                    },
-                }
+                    "success": False,
+                    "error": "自动交易引擎初始化失败",
+                    "stable_error_code": "AUTO_TRADING_SETUP_FAILED",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        except Exception as e:
-            return Response(
-                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        payload = serialize_auto_trading_batch_outcome(batch, trade_date=trade_date)
+        return Response(payload)
 
 
 class DailyInspectionRunAPIView(APIView):

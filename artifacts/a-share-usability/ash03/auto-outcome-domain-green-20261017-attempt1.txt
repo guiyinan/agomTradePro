@@ -1,0 +1,11 @@
+..................................                                       [100%]
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.13.5-final-0 _______________
+
+Name                                                     Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------------------------------
+apps\simulated_trading\domain\auto_trading_outcomes.py     305     23     90     19  88.9%   89, 109, 115, 123, 126-127, 132, 224, 330, 333, 357, 363, 367, 369, 390-392, 470, 534, 537, 577, 585, 590
+----------------------------------------------------------------------------------------------------
+TOTAL                                                      305     23     90     19  88.9%
+Coverage JSON written to file artifacts/a-share-usability/ash03/auto-outcome-domain-coverage-20261017-attempt1.json
+34 passed in 1.08s

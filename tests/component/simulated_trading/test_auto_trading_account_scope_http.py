@@ -18,6 +18,11 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.simulated_trading.application import interface_services
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AccountAutoTradingOutcome,
+    AutoTradingIssue,
+    AutoTradingIssueKind,
+)
 from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
@@ -82,16 +87,26 @@ class _EngineSpy:
     def __init__(self) -> None:
         self.builds = 0
         self.calls: list[tuple[date, list[int] | None]] = []
+        self.result_override: object | None = None
+        self.error: Exception | None = None
+        self.build_error: Exception | None = None
 
     def build(self) -> _EngineSpy:
         self.builds += 1
+        if self.build_error is not None:
+            raise self.build_error
         return self
 
-    def run_daily_trading(
-        self, trade_date: date, account_ids: list[int] | None = None
-    ) -> dict[int, dict[str, int]]:
+    def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> object:
         self.calls.append((trade_date, account_ids))
-        return {}
+        if self.error is not None:
+            raise self.error
+        if self.result_override is not None:
+            return self.result_override
+        return {
+            account_id: AccountAutoTradingOutcome(account_id, 0, 0)
+            for account_id in account_ids or []
+        }
 
 
 @pytest.fixture
@@ -170,6 +185,8 @@ def test_scope_http_explicit_empty_is_no_work_without_engine(
     response = _post(client, token, {"account_ids": []})
     assert response.status_code == 200
     assert response.json()["total_accounts"] == 0
+    assert response.json()["outcome"] == "noop"
+    assert response.json()["requested"] == response.json()["stored"] == 0
     assert engine.builds == 0 and engine.calls == []
 
 
@@ -188,6 +205,29 @@ def test_scope_http_anonymous_request_is_unauthorized(engine: _EngineSpy) -> Non
     response = _post(client, token, {})
     assert response.status_code == 403
     assert engine.builds == 0 and engine.calls == []
+
+
+def test_scope_http_missing_account_stops_before_engine(
+    accounts: _Accounts, engine: _EngineSpy
+) -> None:
+    client, token = _client(accounts.owner)
+    missing_id = max(SimulatedAccountModel.objects.values_list("pk", flat=True), default=0) + 1
+    response = _post(client, token, {"account_ids": [missing_id]})
+    assert response.status_code == 404
+    assert engine.builds == 0 and engine.calls == []
+
+
+def test_scope_http_engine_setup_failure_is_safe_and_does_not_enter_run(
+    accounts: _Accounts, engine: _EngineSpy
+) -> None:
+    engine.build_error = RuntimeError("private connection details must stay out of JSON")
+    client, token = _client(accounts.owner)
+    response = _post(client, token, {"account_ids": [accounts.own_simulated.pk]})
+    assert response.status_code == 500
+    assert response.json()["stable_error_code"] == "AUTO_TRADING_SETUP_FAILED"
+    assert response.json()["success"] is False
+    assert "private connection details" not in response.content.decode()
+    assert engine.builds == 1 and engine.calls == []
 
 
 def test_scope_http_session_mutation_requires_csrf(accounts: _Accounts, engine: _EngineSpy) -> None:
@@ -220,3 +260,80 @@ def test_scope_http_admin_explicit_managed_simulated_account_is_allowed(
     response = _post(client, token, {"account_ids": [accounts.foreign_simulated.pk]})
     assert response.status_code == 200
     assert engine.calls[0][1] == [accounts.foreign_simulated.pk]
+
+
+@pytest.mark.parametrize(
+    ("kind", "outcome", "confirmed", "stored", "succeeded"),
+    [
+        ("success", "success", 1, 1, 1),
+        ("noop", "noop", 0, 0, 1),
+        ("partial", "partial", 1, 1, 0),
+        ("blocked", "blocked", 0, 0, 0),
+        ("failed", "failed", 0, 0, 0),
+        ("unknown", "failed", 0, None, 0),
+        ("missing", "failed", 0, None, 0),
+        ("old_shape", "failed", 0, None, 0),
+        ("extra", "partial", 1, None, 0),
+        ("engine_error", "failed", 0, None, 0),
+    ],
+)
+def test_actual_http_preserves_typed_business_outcome_after_scope_preflight(
+    accounts: _Accounts,
+    engine: _EngineSpy,
+    kind: str,
+    outcome: str,
+    confirmed: int,
+    stored: int | None,
+    succeeded: int,
+) -> None:
+    """Session/CSRF and ownership precede a typed, explicitly scoped result."""
+
+    account_id = accounts.own_simulated.pk
+    issue = AutoTradingIssue(
+        kind=AutoTradingIssueKind.BLOCKED if kind == "blocked" else AutoTradingIssueKind.FAILED,
+        stage="local_fixture",
+        code="LOCAL_OUTCOME_UNAVAILABLE",
+        effects_indeterminate=kind == "unknown",
+    )
+    issues = (issue,) if kind in {"partial", "blocked", "failed", "unknown"} else ()
+    engine.result_override = {
+        account_id: AccountAutoTradingOutcome(account_id, confirmed, 0, issues)
+    }
+    if kind == "missing":
+        engine.result_override = {}
+    elif kind == "old_shape":
+        engine.result_override = {account_id: {"buy_count": 1, "sell_count": 0}}
+    elif kind == "extra":
+        engine.result_override = {
+            account_id: AccountAutoTradingOutcome(account_id, 1, 0),
+            accounts.foreign_simulated.pk: AccountAutoTradingOutcome(
+                accounts.foreign_simulated.pk, 2, 0
+            ),
+        }
+    elif kind == "engine_error":
+        engine.error = RuntimeError("private database diagnostic must stay out of JSON")
+
+    client, token = _client(accounts.owner)
+    response = _post(client, token, {"trade_date": "2026-10-16", "account_ids": [account_id]})
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["outcome"] == outcome
+    assert payload["success"] is (outcome in {"success", "partial", "noop"})
+    assert payload["requested"] == payload["total_accounts"] == 1
+    assert payload["succeeded"] == succeeded
+    assert payload["failed"] == 1 - succeeded
+    assert payload["stored"] == stored
+    assert payload["counts_unavailable"] is (stored is None)
+    assert payload["count_unit"] == "account"
+    assert payload["stored_count_unit"] == "trade"
+    if outcome in {"partial", "blocked", "failed"}:
+        assert isinstance(payload["stable_error_code"], str) and payload["stable_error_code"]
+    assert payload["summary"]["total_buy_count"] == confirmed
+    assert payload["summary"]["total_sell_count"] == 0
+    assert set(payload["results"]) == {str(account_id)}
+    assert payload["results"][str(account_id)]["confirmed_trade_count"] == confirmed
+    assert engine.calls == [(date(2026, 10, 16), [account_id])]
+    assert engine.builds == 1
+    assert "private database diagnostic" not in response.content.decode()
+    assert SimulatedTradeModel.objects.count() == 0

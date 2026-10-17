@@ -1,0 +1,26 @@
+{
+  "windows": [
+    {
+      "prefix": "auto-outcome-legacy-link-root-1",
+      "source_tree": "4f0ae57b475e46ac84acd98b970c81af40ea0e1a",
+      "frozen_export_raw_hashes_equal_original_reference": {
+        "apps/simulated_trading/domain/auto_trading_outcomes.py": true,
+        "apps/simulated_trading/application/auto_trading_engine.py": true,
+        "tests/component/simulated_trading/test_auto_trading_outcome_persistence.py": true
+      },
+      "legacy_result_source_unchanged_false_compares_moving_live_worktree": true
+    },
+    {
+      "prefix": "auto-outcome-monitor-root-1",
+      "source_tree": "1d43432dbe5a125bbd574fe79fb4c27a191d4745",
+      "frozen_export_raw_hashes_equal_original_reference": {
+        "apps/simulated_trading/domain/auto_trading_outcomes.py": true,
+        "apps/simulated_trading/application/tasks.py": true,
+        "tests/component/simulated_trading/test_auto_trading_task_lifecycle.py": true
+      },
+      "legacy_result_source_unchanged_false_compares_moving_live_worktree": true
+    }
+  ],
+  "diagnostic": "The original helper compared archive raw bytes with LF-normalized current working files after the test. That field is not a frozen-export stability check. Original false results are preserved; independent original-reference raw hashes above verify both isolated exports.",
+  "release_ci_s6_identity": false
+}

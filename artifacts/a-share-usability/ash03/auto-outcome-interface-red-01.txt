@@ -1,0 +1,28 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor ______
+tests\unit\test_auto_trading_task_wiring.py:127: in test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+    assert result == {
+E   assert {'error': "'A...sted': 1, ...} == {'accounts': ...': False, ...}
+E     
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'failed': 1} != {'failed': 0}
+E     {'succeeded': 0} != {'succeeded': 1}
+E     {'success': False} != {'success': True}
+E     {'outcome': 'failed'} != {'outcome': 'success'}...
+E     
+E     ...Full output truncated (37 lines hidden), use '-vv' to show
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+=========================== short test summary info ===========================
+FAILED tests/unit/test_auto_trading_task_wiring.py::test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+1 failed in 2.00s

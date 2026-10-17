@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5798,
+    "current_surface_references": 5796,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -20347,6 +20347,10 @@
       "text": "\"\"\"Return whether current price satisfies optional execution bands.\"\"\""
     },
     {
+      "path": "apps/simulated_trading/application/auto_trading_outcome_reporting.py",
+      "text": "\"summary\": {"
+    },
+    {
       "path": "apps/simulated_trading/application/canonical_account_creation_read.py",
       "text": "\"\"\"Lock and read an active row only when current owner and type match.\"\"\""
     },
@@ -20620,6 +20624,10 @@
     },
     {
       "path": "apps/simulated_trading/application/tasks.py",
+      "text": "\"summary\": {"
+    },
+    {
+      "path": "apps/simulated_trading/application/tasks.py",
       "text": "from apps.realtime.application.price_polling_service import PricePollingUseCase"
     },
     {
@@ -20637,10 +20645,6 @@
     {
       "path": "apps/simulated_trading/application/tasks.py",
       "text": "raise ValueError(\"realtime polling returned malformed evidence\")"
-    },
-    {
-      "path": "apps/simulated_trading/application/tasks.py",
-      "text": "summary={"
     },
     {
       "path": "apps/simulated_trading/application/tasks.py",
@@ -21016,7 +21020,7 @@
     },
     {
       "path": "apps/simulated_trading/interface/serializers.py",
-      "text": "summary = serializers.DictField("
+      "text": "summary = AutoTradingRunSummarySerializer()"
     },
     {
       "path": "apps/simulated_trading/interface/serializers.py",
@@ -21025,18 +21029,6 @@
     {
       "path": "apps/simulated_trading/interface/tui_views.py",
       "text": "\"\"\"Read or update the current user's account notification settings.\"\"\""
-    },
-    {
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "\"summary\": {"
-    },
-    {
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "\"summary\": {"
-    },
-    {
-      "path": "apps/simulated_trading/interface/views.py",
-      "text": "\"summary\": {\"total_buy_count\": 0, \"total_sell_count\": 0},"
     },
     {
       "path": "apps/simulated_trading/interface/views.py",

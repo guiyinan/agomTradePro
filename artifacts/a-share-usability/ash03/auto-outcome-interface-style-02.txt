@@ -1,0 +1,5 @@
+> -X utf8 -m isort apps/simulated_trading/application/tasks.py tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py tests/unit/test_auto_trading_task_wiring.py
+Fixing D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py
+> -X utf8 -m black apps/simulated_trading/application/tasks.py tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py tests/unit/test_auto_trading_task_wiring.py
+All done! ✨ 🍰 ✨
+3 files left unchanged.

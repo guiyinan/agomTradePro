@@ -1,0 +1,52 @@
+{
+  "measured_runtime_source_tree": "8ab97b72f1fea8050c2b0cfff9056d198a328616",
+  "final_source_tree": "16c47eeb4e5e2417d46fb446084b91df3b639600",
+  "changed_source_paths": [
+    "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py"
+  ],
+  "all_nine_production_sources_raw_identical": true,
+  "all_other_selected_tests_and_support_raw_identical": true,
+  "changed_test_full_module_ast_identical": true,
+  "exact_change": "Restore four untouched legacy test functions to base formatting; retain all outcome tests and runtime semantics.",
+  "runtime_database_package_unchanged": true,
+  "final_style_and_unit_checks_are_separate_windows": true,
+  "release_ci_s6_identity": false,
+  "source_patches": [
+    {
+      "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+      "source_tree": "7a55c891a0dd31eac914a534f95349a3c8c1a086",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-original-fallback-root-1-source.patch",
+      "raw_sha256": "83a57b7b42762d251ec306c457ba1a93f35b6dd2f94eda028756bb91d0955743"
+    },
+    {
+      "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+      "source_tree": "1e9672c76720582e57749fa404bd406db03eede2",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-repository-fallback-root-1-source.patch",
+      "raw_sha256": "8d6897487e96ef1afded31b2fda3afaf9d88d143c1ce8e5a6dc8df0f45b650b7"
+    },
+    {
+      "base_commit": "799810cfb2895f4bd49bc0121ddbd270444c5dff",
+      "source_tree": "4f0ae57b475e46ac84acd98b970c81af40ea0e1a",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-legacy-link-root-1-source.patch",
+      "raw_sha256": "9de5466a85a1a4988146298aba9e9eb10da70d4941a32a56598fc9892761b110"
+    },
+    {
+      "base_commit": "799fd2c51eb72dce809b4e26cae79cf119baf216",
+      "source_tree": "1d43432dbe5a125bbd574fe79fb4c27a191d4745",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-monitor-root-1-source.patch",
+      "raw_sha256": "826322a60b6c14451469f3e03718f4dbfd342852199d702076a2afb10ce1064f"
+    },
+    {
+      "base_commit": "799fd2c51eb72dce809b4e26cae79cf119baf216",
+      "source_tree": "8ab97b72f1fea8050c2b0cfff9056d198a328616",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-root-1-source.patch",
+      "raw_sha256": "9993a2ececf0131a8954eddb6d9697958b639f0b9ea5709e96e7af52f14ad867"
+    },
+    {
+      "base_commit": "799fd2c51eb72dce809b4e26cae79cf119baf216",
+      "source_tree": "16c47eeb4e5e2417d46fb446084b91df3b639600",
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-root-2-source.patch",
+      "raw_sha256": "3790b785c97d3bfd3f79d78162dc0400610af6da37062ddc66d0e3d589117a44"
+    }
+  ]
+}

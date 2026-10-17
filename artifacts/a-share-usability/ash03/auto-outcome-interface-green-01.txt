@@ -1,0 +1,18 @@
+...........F.                                                            [100%]
+================================== FAILURES ===================================
+______ test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor ______
+tests\unit\test_auto_trading_task_wiring.py:127: in test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+    assert result == {
+E   AssertionError: assert {'accounts': ...t', ...}, ...} == {'accounts': ...': False, ...}
+E     
+E     Omitting 17 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'count_units': {'buy_count': 'trade',
+E                      'confirmed_trade_count': 'trade',
+E                      'failed': 'account',
+E                      'partial_account_count': 'account',...
+E     
+E     ...Full output truncated (5 lines hidden), use '-vv' to show
+=========================== short test summary info ===========================
+FAILED tests/unit/test_auto_trading_task_wiring.py::test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+1 failed, 12 passed in 1.57s

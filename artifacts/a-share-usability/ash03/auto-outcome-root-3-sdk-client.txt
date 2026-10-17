@@ -1,0 +1,19 @@
+source_tree=3be31ad2fb8b0350e7222283947ab42445182801
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
+django: version: 5.2.12, settings: core.settings.development_sqlite (from option)
+rootdir: D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-j0wotub0\sdk
+configfile: pyproject.toml
+plugins: Faker-37.11.0, cov-7.0.0, django-4.11.1, mock-3.15.1, xdist-3.8.0, requests-mock-1.12.1, anyio-4.7.0, base-url-2.1.0, playwright-0.7.2, timeout-2.4.0
+collected 23 items
+
+sdk\tests\test_sdk\test_client.py .......................                [100%]
+
+============================== warnings summary ===============================
+C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\conf\__init__.py:190
+  C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\conf\__init__.py:190: RemovedInDjango60Warning: The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 23 passed, 1 warning in 1.63s ========================

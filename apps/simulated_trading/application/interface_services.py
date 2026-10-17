@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -18,6 +19,10 @@ from apps.share.application.query_services import list_share_links_for_account_o
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
+from apps.simulated_trading.application.auto_trading_outcome_reporting import (
+    build_auto_trading_batch_outcome_from_engine_results,
+    build_indeterminate_auto_trading_batch,
+)
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
     build_decision_rhythm_exit_advisor,
@@ -37,9 +42,15 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AutoTradingBatchOutcome,
+    build_auto_trading_batch_outcome,
+)
+from core.integration.decision_execution_links import build_decision_execution_link_recorder
 from core.integration.portfolio_account_access import PortfolioAccountAccessResult
 
 MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE = 10_000
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -519,7 +530,44 @@ def build_auto_trading_engine() -> AutoTradingEngine:
         price_provider=UnifiedPriceService(),
         signal_service=signal_repo,
         exit_advisor=build_decision_rhythm_exit_advisor(),
+        execution_link_recorder=build_decision_execution_link_recorder(),
     )
+
+
+def run_auto_trading_for_scope(
+    *,
+    trade_date: date,
+    account_ids: tuple[int, ...],
+) -> AutoTradingBatchOutcome:
+    """Execute one already-authorized API scope and preserve its typed result.
+
+    Engine construction happens before execution and may fail without writes. Once
+    ``run_daily_trading`` begins, exceptions are reported as indeterminate rather
+    than inviting a whole-batch retry.
+    """
+    if type(trade_date) is not date:
+        raise ValueError("trade_date must be an exact date")
+    if (
+        type(account_ids) is not tuple
+        or len(account_ids) > MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE
+        or any(type(account_id) is not int or account_id <= 0 for account_id in account_ids)
+    ):
+        raise ValueError("account_ids must be a bounded tuple of positive exact integers")
+    if len(set(account_ids)) != len(account_ids):
+        raise ValueError("account_ids must not contain duplicates")
+    if not account_ids:
+        return build_auto_trading_batch_outcome((), {})
+
+    engine = build_auto_trading_engine()
+    try:
+        engine_results = engine.run_daily_trading(trade_date, account_ids=list(account_ids))
+    except Exception:
+        logger.exception("手动自动交易执行结果不确定；不重试整批")
+        return build_indeterminate_auto_trading_batch(
+            account_ids,
+            code="EXECUTION_OUTCOME_UNKNOWN",
+        )
+    return build_auto_trading_batch_outcome_from_engine_results(account_ids, engine_results)
 
 
 def run_daily_inspection(

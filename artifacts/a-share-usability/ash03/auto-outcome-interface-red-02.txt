@@ -1,0 +1,190 @@
+FFFFFFFFFF.                                                              [100%]
+================================== FAILURES ===================================
+________ test_task_aggregates_typed_account_outcomes_in_account_units _________
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:96: in test_task_aggregates_typed_account_outcomes_in_account_units
+    assert result["outcome"] == "partial"
+E   AssertionError: assert 'failed' == 'partial'
+E     
+E     - partial
+E     + failed
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+____ test_task_keeps_confirmed_trades_but_marks_uncertain_storage_unknown _____
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:147: in test_task_keeps_confirmed_trades_but_marks_uncertain_storage_unknown
+    assert result["outcome"] == "partial"
+E   AssertionError: assert 'failed' == 'partial'
+E     
+E     - partial
+E     + failed
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+_________ test_engine_exception_after_execution_starts_is_not_retried _________
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:176: in test_engine_exception_after_execution_starts_is_not_retried
+    assert result["stored"] is None
+E   assert 0 is None
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: vendor write outcome unknown
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 289, in daily_auto_trading_task
+    results = engine.run_daily_trading(target_date, account_ids=validated_account_ids)
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1228, in _execute_mock_call
+    raise effect
+RuntimeError: vendor write outcome unknown
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+____________ test_default_scope_is_frozen_before_engine_execution _____________
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:990: in assert_called_once_with
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to be called once. Called 0 times.
+
+During handling of the above exception, another exception occurred:
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:205: in test_default_scope_is_frozen_before_engine_execution
+    account_repository.get_active_accounts.assert_called_once_with()
+E   AssertionError: Expected 'mock' to be called once. Called 0 times.
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+_________ test_default_scope_with_only_real_accounts_is_an_empty_noop _________
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:990: in assert_called_once_with
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to be called once. Called 0 times.
+
+During handling of the above exception, another exception occurred:
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:227: in test_default_scope_with_only_real_accounts_is_an_empty_noop
+    account_repository.get_active_accounts.assert_called_once_with()
+E   AssertionError: Expected 'mock' to be called once. Called 0 times.
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: object of type 'Mock' has no len()
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 292, in daily_auto_trading_task
+    total_accounts = len(results)
+TypeError: object of type 'Mock' has no len()
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+_________ test_default_scope_failure_does_not_invent_account_counters _________
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:265: in test_default_scope_failure_does_not_invent_account_counters
+    assert result["reason_code"] == "ACCOUNT_SCOPE_UNAVAILABLE"
+E   KeyError: 'reason_code'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: must not be reached
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 248, in daily_auto_trading_task
+    position_repo = get_simulated_position_repository()
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1228, in _execute_mock_call
+    raise effect
+AssertionError: must not be reached
+___ test_reporting_invalid_engine_mapping_preserves_typed_confirmed_counts ____
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:288: in test_reporting_invalid_engine_mapping_preserves_typed_confirmed_counts
+    assert result["buy_count"] == 2
+E   KeyError: 'buy_count'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+__________ test_empty_scope_is_noop_without_constructing_the_engine ___________
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:308: in test_empty_scope_is_noop_without_constructing_the_engine
+    assert result["outcome"] == "noop"
+E   AssertionError: assert 'failed' == 'noop'
+E     
+E     - noop
+E     + failed
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: object of type 'Mock' has no len()
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 292, in daily_auto_trading_task
+    total_accounts = len(results)
+TypeError: object of type 'Mock' has no len()
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+_________ test_pre_engine_assembly_failure_can_still_schedule_a_retry _________
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:334: in test_pre_engine_assembly_failure_can_still_schedule_a_retry
+    with pytest.raises(Retry):
+E   Failed: DID NOT RAISE <class 'celery.exceptions.Retry'>
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: setup unavailable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 248, in daily_auto_trading_task
+    position_repo = get_simulated_position_repository()
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1169, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1173, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\unittest\mock.py", line 1228, in _execute_mock_call
+    raise effect
+RuntimeError: setup unavailable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+______ test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor ______
+tests\unit\test_auto_trading_task_wiring.py:127: in test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+    assert result == {
+E   assert {'error': "'A...sted': 1, ...} == {'accounts': ...': False, ...}
+E     
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'success': False} != {'success': True}
+E     {'succeeded': 0} != {'succeeded': 1}
+E     {'failed': 1} != {'failed': 0}
+E     {'stored': 0} != {'stored': 3}...
+E     
+E     ...Full output truncated (37 lines hidden), use '-vv' to show
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.tasks:tasks.py:329 自动交易任务执行失败: 'AccountAutoTradingOutcome' object is not subscriptable
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in daily_auto_trading_task
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py", line 293, in <genexpr>
+    total_buy_count = sum(r["buy_count"] for r in results.values())
+                          ~^^^^^^^^^^^^^
+TypeError: 'AccountAutoTradingOutcome' object is not subscriptable
+WARNING  apps.simulated_trading.application.tasks:tasks.py:336 任务将在 1 分钟后重试
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_task_aggregates_typed_account_outcomes_in_account_units
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_task_keeps_confirmed_trades_but_marks_uncertain_storage_unknown
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_engine_exception_after_execution_starts_is_not_retried
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_default_scope_is_frozen_before_engine_execution
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_default_scope_with_only_real_accounts_is_an_empty_noop
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_default_scope_failure_does_not_invent_account_counters
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_reporting_invalid_engine_mapping_preserves_typed_confirmed_counts
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_empty_scope_is_noop_without_constructing_the_engine
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_pre_engine_assembly_failure_can_still_schedule_a_retry
+FAILED tests/unit/test_auto_trading_task_wiring.py::test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor
+10 failed, 1 passed in 2.02s

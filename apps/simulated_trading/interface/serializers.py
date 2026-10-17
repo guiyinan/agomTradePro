@@ -18,6 +18,10 @@ from apps.simulated_trading.application.canonical_account_creation_input import 
 from apps.simulated_trading.application.interface_services import (
     MAX_AUTO_TRADING_ACCOUNT_SCOPE_SIZE,
 )
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AutoTradingIssueKind,
+    AutoTradingOutcome,
+)
 from apps.simulated_trading.domain.entities import AccountType
 
 # ============================================================================
@@ -453,16 +457,65 @@ class AutoTradingRunRequestSerializer(serializers.Serializer[dict[str, Any]]):
     )
 
 
-class AutoTradingRunResponseSerializer(serializers.Serializer[dict[str, Any]]):
-    """执行自动交易响应序列化器"""
+class AutoTradingIssueResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Expose only stable, user-safe issue details from one account result."""
 
+    kind = serializers.ChoiceField(choices=[item.value for item in AutoTradingIssueKind])
+    stage = serializers.CharField()
+    code = serializers.CharField()
+    asset_code = serializers.CharField(allow_null=True)
+    effects_indeterminate = serializers.BooleanField()
+
+
+class AutoTradingAccountOutcomeResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe one account's confirmed trades and any blocked/failed effects."""
+
+    account_id = serializers.IntegerField(min_value=1)
+    outcome = serializers.ChoiceField(choices=[item.value for item in AutoTradingOutcome])
     success = serializers.BooleanField()
+    buy_count = serializers.IntegerField(min_value=0)
+    sell_count = serializers.IntegerField(min_value=0)
+    confirmed_trade_count = serializers.IntegerField(min_value=0)
+    stored = serializers.IntegerField(min_value=0, allow_null=True)
+    counts_unavailable = serializers.BooleanField()
+    reason_code = serializers.CharField(allow_null=True)
+    issues = AutoTradingIssueResponseSerializer(many=True)
+
+
+class AutoTradingRunSummarySerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe aggregate trade counts without mixing account and trade units."""
+
+    total_buy_count = serializers.IntegerField(min_value=0)
+    total_sell_count = serializers.IntegerField(min_value=0)
+    confirmed_trade_count = serializers.IntegerField(min_value=0)
+    stored_trade_count = serializers.IntegerField(min_value=0, allow_null=True)
+    counts_unavailable = serializers.BooleanField()
+
+
+class AutoTradingRunResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Describe normalized account and trade counts from one API run."""
+
+    outcome = serializers.ChoiceField(choices=[item.value for item in AutoTradingOutcome])
+    success = serializers.BooleanField()
+    requested = serializers.IntegerField(min_value=0)
+    succeeded = serializers.IntegerField(min_value=0)
+    failed = serializers.IntegerField(min_value=0)
+    partial_account_count = serializers.IntegerField(min_value=0)
+    stored = serializers.IntegerField(min_value=0, allow_null=True)
+    counts_unavailable = serializers.BooleanField()
+    buy_count = serializers.IntegerField(min_value=0)
+    sell_count = serializers.IntegerField(min_value=0)
+    confirmed_trade_count = serializers.IntegerField(min_value=0)
+    reason_code = serializers.CharField(allow_null=True)
+    stable_error_code = serializers.CharField(allow_null=True)
     trade_date = serializers.CharField()
     total_accounts = serializers.IntegerField()
-    results = serializers.DictField(child=serializers.DictField(child=serializers.IntegerField()))
-    summary = serializers.DictField(
-        child=serializers.IntegerField(), help_text="汇总统计：{total_buy_count, total_sell_count}"
-    )
+    accounts = serializers.ListField(child=AutoTradingAccountOutcomeResponseSerializer())
+    results = serializers.DictField(child=AutoTradingAccountOutcomeResponseSerializer())
+    summary = AutoTradingRunSummarySerializer()
+    count_unit = serializers.CharField()
+    stored_count_unit = serializers.CharField()
+    count_units = serializers.DictField(child=serializers.CharField())
     error = serializers.CharField(allow_null=True, required=False)
 
 

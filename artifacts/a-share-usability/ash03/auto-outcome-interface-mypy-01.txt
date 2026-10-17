@@ -1,0 +1,7 @@
+Mypy regression(s):
+- apps/simulated_trading/application/tasks.py: arg-type increased from 0 to 4
+apps\simulated_trading\application\tasks.py:527: error: Argument 1 to "ExecuteBuyOrderUseCase" has incompatible type "_AutoTradingAccountRepository"; expected "SimulatedAccountRepositoryProtocol"  [arg-type]
+apps\simulated_trading\application\tasks.py:534: error: Argument 1 to "ExecuteSellOrderUseCase" has incompatible type "_AutoTradingAccountRepository"; expected "SimulatedAccountRepositoryProtocol"  [arg-type]
+apps\simulated_trading\application\tasks.py:539: error: Argument 1 to "GetAccountPerformanceUseCase" has incompatible type "_AutoTradingAccountRepository"; expected "SimulatedAccountRepositoryProtocol"  [arg-type]
+apps\simulated_trading\application\tasks.py:548: error: Argument "account_repo" to "AutoTradingEngine" has incompatible type "_AutoTradingAccountRepository"; expected "SimulatedAccountRepositoryProtocol"  [arg-type]
+Found 4 errors in 1 file (checked 1 source file)

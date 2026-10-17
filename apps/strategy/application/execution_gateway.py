@@ -31,6 +31,7 @@ from apps.strategy.application.repository_provider import (
     build_strategy_executor,
     get_strategy_gateway_repository,
 )
+from core.exceptions import AgomTradeProException, ExternalServiceError
 
 logger = __import__("logging").getLogger(__name__)
 
@@ -251,9 +252,18 @@ class StrategyExecutionGateway:
         """
         try:
             return self._get_query_repository().get_active_strategy_binding(account_id)
-        except Exception as e:
-            logger.error(f"Error getting active strategy binding for account {account_id}: {e}")
-            return None
+        except AgomTradeProException:
+            raise
+        except Exception as error:
+            logger.error(
+                "Active strategy binding lookup failed for account %s (error_type=%s)",
+                account_id,
+                type(error).__name__,
+            )
+            raise ExternalServiceError(
+                "策略绑定信息暂不可用",
+                code="STRATEGY_BINDING_UNAVAILABLE",
+            ) from error
 
     def is_strategy_active(self, strategy_id: int) -> bool:
         """

@@ -22,6 +22,9 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
 )
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    build_account_auto_trading_outcome,
+)
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
     SimulatedAccountModel,
@@ -130,12 +133,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
         )
 
         # 3. 处理账户（应该使用原有逻辑）
-        buy_count, sell_count = engine._process_account(account=account, trade_date=date.today())
+        result = engine._process_account(account=account, trade_date=date.today())
 
         # 4. 验证原有逻辑正常工作
         # 由于没有买入候选，应该返回 0, 0
-        self.assertEqual(buy_count, 0)
-        self.assertEqual(sell_count, 0)
+        self.assertEqual(result.buy_count, 0)
+        self.assertEqual(result.sell_count, 0)
 
     def test_account_with_strategy_uses_strategy_executor(self):
         """
@@ -235,16 +238,14 @@ class TestStrategyAutoTradingIntegration(TestCase):
             "apps.strategy.application.execution_gateway.get_strategy_execution_gateway",
             return_value=mock_gateway,
         ):
-            buy_count, sell_count = engine._process_account(
-                account=account, trade_date=date.today()
-            )
+            result = engine._process_account(account=account, trade_date=date.today())
 
         # 7. 验证网关被调用
         mock_gateway.execute_for_account.assert_called_once()
 
         # 8. 验证买入信号被执行
-        self.assertEqual(buy_count, 1)
-        self.assertEqual(sell_count, 0)
+        self.assertEqual(result.buy_count, 1)
+        self.assertEqual(result.sell_count, 0)
 
         # 9. 验证持仓
         positions = self.position_repo.get_by_account(account.account_id)
@@ -352,13 +353,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
             "apps.strategy.application.execution_gateway.get_strategy_execution_gateway",
             return_value=mock_gateway,
         ):
-            buy_count, sell_count = engine._process_account(
-                account=account, trade_date=date.today()
-            )
+            result = engine._process_account(account=account, trade_date=date.today())
 
         # 7. 验证卖出信号被执行
-        self.assertEqual(buy_count, 0)
-        self.assertEqual(sell_count, 1)
+        self.assertEqual(result.buy_count, 0)
+        self.assertEqual(result.sell_count, 1)
 
         # 8. 验证持仓已清空
         positions = self.position_repo.get_by_account(account.account_id)
@@ -430,7 +429,15 @@ class TestStrategyAutoTradingIntegration(TestCase):
             performance_use_case=Mock(),
         )
 
-        with patch.object(engine, "_process_account", return_value=(1, 0)) as process_account:
+        with patch.object(
+            engine,
+            "_process_account",
+            return_value=build_account_auto_trading_outcome(
+                account2.account_id,
+                buy_count=1,
+                sell_count=0,
+            ),
+        ) as process_account:
             results = engine.run_daily_trading(date.today(), account_ids=[account2.account_id])
 
         self.assertEqual(list(results.keys()), [account2.account_id])
@@ -492,11 +499,11 @@ class TestStrategyAutoTradingIntegration(TestCase):
         )
 
         # 4. 处理账户（应该优雅处理失败）
-        buy_count, sell_count = engine._process_account(account=account, trade_date=date.today())
+        result = engine._process_account(account=account, trade_date=date.today())
 
         # 5. 验证没有交易发生
-        self.assertEqual(buy_count, 0)
-        self.assertEqual(sell_count, 0)
+        self.assertEqual(result.buy_count, 0)
+        self.assertEqual(result.sell_count, 0)
 
 
 @pytest.mark.django_db

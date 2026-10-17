@@ -25,7 +25,23 @@
 | 无效列表或不适格账户 | 400 | 不构造引擎 |
 | 授权范围或明确空范围 | 200 | 非空范围仅以明确 ID 列表调用引擎 |
 
-响应使用 JSON。范围错误保留 `success=false` 与用户可理解的 `error`；成功请求保留 `trade_date`、`total_accounts`、`results` 和 `summary.total_buy_count/total_sell_count`。业务执行的完整 `outcome` 与不确定写入统计属于下一独立结果契约批次，不把这次范围修复解释为所有订单成功。
+响应使用 JSON。范围错误保留 `success=false` 与用户可理解的 `error`；通过范围预检的业务执行返回 200，并保留 `trade_date`、`total_accounts`、`results` 和 `summary.total_buy_count/total_sell_count`。业务是否完成以 `outcome` 为准，不能只看 HTTP 200 或兼容字段 `success`。
+
+## 业务结果
+
+| outcome | 含义 | 兼容 success |
+| --- | --- | --- |
+| `success` | 有确认成交且所请求账户没有处理问题 | true |
+| `partial` | 有确认成交，同时存在失败、阻断或写入不确定 | true |
+| `noop` | 合法执行但没有确认成交；包括明确空范围 | true |
+| `blocked` | 没有确认成交，处理受到明确业务阻断 | false |
+| `failed` | 没有确认成交且处理失败或执行结果不明 | false |
+
+顶层 `requested/succeeded/failed` 的单位是账户；仅完整 success/noop 的账户计入 succeeded，partial 账户计入 failed 并单列 `partial_account_count`。`buy_count/sell_count/confirmed_trade_count` 是确认成交笔数。`stored` 是已知成交写入笔数；任何可能已部分写账但未正常返回的执行都会让 `stored` 为 null、`counts_unavailable` 为 true。确认笔数仍保留，不能把 null 当作零。`count_unit=account`、`stored_count_unit=trade` 和 `count_units` 明确这些单位。
+
+`results` 按所请求账户 ID 返回完整的账户结果，包含稳定原因码和 issue 列表。漏掉请求账户、旧 buy/sell-only 结果、额外账户或畸形映射均不能被解释为普通成功；已有有效的确认笔数仍保留，写入数量转为未知。底层异常原文不进入响应。成交成功后的执行关联或绩效失败返回 partial；关联记录器正常返回空匹配不表示已经建立推荐关联。
+
+激活策略绑定读取失败会阻断该账户，只有确认没有激活的策略绑定才使用既有无策略逻辑。引擎调用开始后的异常不触发服务端整批自动重试；普通消费者仍需后续完成原子结算和幂等接线，手动重复触发不能据此认定安全。
 
 ## 验证范围
 

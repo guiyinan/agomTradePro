@@ -1,0 +1,40 @@
+{
+  "patches": [
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-original-fallback-root-1-source.patch",
+      "reconstructed_tree": "7a55c891a0dd31eac914a534f95349a3c8c1a086",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-repository-fallback-root-1-source.patch",
+      "reconstructed_tree": "1e9672c76720582e57749fa404bd406db03eede2",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-legacy-link-root-1-source.patch",
+      "reconstructed_tree": "4f0ae57b475e46ac84acd98b970c81af40ea0e1a",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-monitor-root-1-source.patch",
+      "reconstructed_tree": "1d43432dbe5a125bbd574fe79fb4c27a191d4745",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-root-1-source.patch",
+      "reconstructed_tree": "8ab97b72f1fea8050c2b0cfff9056d198a328616",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-root-2-source.patch",
+      "reconstructed_tree": "16c47eeb4e5e2417d46fb446084b91df3b639600",
+      "matches_recorded_tree": true
+    },
+    {
+      "path": "artifacts/a-share-usability/ash03/auto-outcome-root-3-source.patch",
+      "reconstructed_tree": "3be31ad2fb8b0350e7222283947ab42445182801",
+      "matches_recorded_tree": true
+    }
+  ],
+  "release_ci_s6_identity": false
+}

@@ -16,6 +16,7 @@ from apps.strategy.application.execution_gateway import (
 from apps.strategy.application.target_portfolio_use_cases import (
     BuildTargetPortfolioUseCase,
 )
+from core.exceptions import ExternalServiceError
 
 
 def test_target_portfolio_is_deterministic_and_requires_snapshot() -> None:
@@ -126,7 +127,8 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
     )
     repository.evaluate_position_rule = lambda *args: (_ for _ in ()).throw(RuntimeError("offline"))
     assert gateway.get_strategy_info(3) is None
-    assert gateway.get_active_strategy_binding(4) is None
+    with pytest.raises(ExternalServiceError):
+        gateway.get_active_strategy_binding(4)
     assert gateway.get_inspection_selection(4).strategy_id is None
     assert gateway.evaluate_position_rule(9, {}) is None
 
@@ -134,3 +136,31 @@ def test_strategy_gateway_query_fallbacks_and_singleton(monkeypatch) -> None:
 
     monkeypatch.setattr(gateway_module, "_gateway_instance", None)
     assert get_strategy_execution_gateway() is get_strategy_execution_gateway()
+
+
+def test_active_strategy_binding_read_failure_is_not_reported_as_no_binding() -> None:
+    """A failed binding lookup must stay distinct from a real unbound account."""
+
+    def fail_lookup(_account_id: int) -> None:
+        raise RuntimeError("private database details")
+
+    gateway = StrategyExecutionGateway(
+        query_repository=SimpleNamespace(get_active_strategy_binding=fail_lookup)
+    )
+
+    with pytest.raises(ExternalServiceError) as caught:
+        gateway.get_active_strategy_binding(4)
+
+    assert caught.value.code == "STRATEGY_BINDING_UNAVAILABLE"
+    assert caught.value.status_code == 503
+    assert "private database details" not in str(caught.value)
+
+
+def test_active_strategy_binding_none_remains_a_real_unbound_result() -> None:
+    """A repository's explicit absence still selects the existing unbound path."""
+
+    gateway = StrategyExecutionGateway(
+        query_repository=SimpleNamespace(get_active_strategy_binding=lambda _account_id: None)
+    )
+
+    assert gateway.get_active_strategy_binding(4) is None

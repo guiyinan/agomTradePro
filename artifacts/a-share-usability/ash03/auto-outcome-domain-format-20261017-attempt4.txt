@@ -1,0 +1,7 @@
+reformatted tests\unit\simulated_trading\test_auto_trading_outcomes.py
+
+All done! \u2728 \U0001f370 \u2728
+1 file reformatted, 1 file left unchanged.
+All done! \u2728 \U0001f370 \u2728
+2 files would be left unchanged.
+All checks passed!

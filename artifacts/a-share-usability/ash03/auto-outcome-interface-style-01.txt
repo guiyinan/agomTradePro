@@ -1,0 +1,9 @@
+> -X utf8 -m isort apps/simulated_trading/application/tasks.py tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py tests/unit/test_auto_trading_task_wiring.py
+Fixing D:\githv\agomTradePro\apps\simulated_trading\application\tasks.py
+Fixing D:\githv\agomTradePro\tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py
+> -X utf8 -m black apps/simulated_trading/application/tasks.py tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py tests/unit/test_auto_trading_task_wiring.py
+reformatted tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py
+reformatted apps\simulated_trading\application\tasks.py
+
+All done! ✨ 🍰 ✨
+2 files reformatted, 1 file left unchanged.

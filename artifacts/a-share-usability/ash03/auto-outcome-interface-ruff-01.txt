@@ -1,0 +1,36 @@
+F401 [*] `django.core.mail.send_mail` imported but unused
+  --> apps\simulated_trading\application\tasks.py:19:30
+   |
+17 | from celery.exceptions import Retry
+18 | from django.conf import settings
+19 | from django.core.mail import send_mail
+   |                              ^^^^^^^^^
+20 |
+21 | from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
+   |
+help: Remove unused import: `django.core.mail.send_mail`
+   |
+18 | from django.conf import settings
+   - from django.core.mail import send_mail
+19 |
+   |
+
+F401 [*] `shared.infrastructure.notification_service.NotificationConfig` imported but unused
+  --> apps\simulated_trading\application\tasks.py:63:56
+   |
+61 | from core.exceptions import DataFetchError
+62 | from core.integration.decision_execution_links import build_decision_execution_link_recorder
+63 | from shared.infrastructure.notification_service import NotificationConfig
+   |                                                        ^^^^^^^^^^^^^^^^^^
+64 |
+65 | logger = logging.getLogger(__name__)
+   |
+help: Remove unused import: `shared.infrastructure.notification_service.NotificationConfig`
+   |
+62 | from core.integration.decision_execution_links import build_decision_execution_link_recorder
+   - from shared.infrastructure.notification_service import NotificationConfig
+63 |
+   |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

@@ -1,0 +1,22 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+___________________ test_auto_trading_success_and_exception ___________________
+tests\unit\simulated_trading\test_t5_simulated_view_contracts.py:451: in test_auto_trading_success_and_exception
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response status_code=500, "text/html; charset=utf-8">.status_code
+______ test_auto_trading_missing_requested_result_is_unknown_not_success ______
+tests\unit\simulated_trading\test_t5_simulated_view_contracts.py:500: in test_auto_trading_missing_requested_result_is_unknown_not_success
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response status_code=500, "text/html; charset=utf-8">.status_code
+_______ test_auto_trading_extra_result_marks_confirmed_storage_unknown ________
+tests\unit\simulated_trading\test_t5_simulated_view_contracts.py:536: in test_auto_trading_extra_result_marks_confirmed_storage_unknown
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response status_code=500, "text/html; charset=utf-8">.status_code
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_t5_simulated_view_contracts.py::test_auto_trading_success_and_exception
+FAILED tests/unit/simulated_trading/test_t5_simulated_view_contracts.py::test_auto_trading_missing_requested_result_is_unknown_not_success
+FAILED tests/unit/simulated_trading/test_t5_simulated_view_contracts.py::test_auto_trading_extra_result_marks_confirmed_storage_unknown
+3 failed in 3.48s

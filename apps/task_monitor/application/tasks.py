@@ -261,7 +261,13 @@ def _bounded_business_result(retval: Mapping[str, Any]) -> str:
     outcome = _safe_result_text(retval.get("outcome"), limit=16)
     if outcome in {"success", "partial", "noop", "blocked", "failed"}:
         projected["outcome"] = outcome
-    for key in ("success", "partial_success", "publication_updated", "must_not_use_for_decision"):
+    for key in (
+        "success",
+        "partial_success",
+        "publication_updated",
+        "must_not_use_for_decision",
+        "counts_unavailable",
+    ):
         value = retval.get(key)
         if isinstance(value, bool):
             projected[key] = value
@@ -340,6 +346,7 @@ def _bounded_business_result(retval: Mapping[str, Any]) -> str:
         "succeeded",
         "failed",
         "stored",
+        "counts_unavailable",
         "phase",
         "current_phase",
         "count_unit",
@@ -403,6 +410,7 @@ def _bounded_business_result(retval: Mapping[str, Any]) -> str:
                     "succeeded",
                     "failed",
                     "stored",
+                    "counts_unavailable",
                     "phase",
                     "error_code",
                     "blocked_reason",

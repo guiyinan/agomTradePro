@@ -1,0 +1,4 @@
+Mypy regression(s):
+- apps/simulated_trading/application/auto_trading_engine.py: return-value increased from 0 to 1
+apps\simulated_trading\application\auto_trading_engine.py:669: error: No return value expected  [return-value]
+Found 1 error in 1 file (checked 1 source file)

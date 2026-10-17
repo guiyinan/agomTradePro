@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch
 
 
 def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
+    from apps.simulated_trading.domain.auto_trading_outcomes import (
+        AccountAutoTradingOutcome,
+    )
+
     account_repo = object()
     position_repo = object()
     trade_repo = object()
@@ -19,7 +23,8 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
     exit_advisor = object()
     execution_link_recorder = object()
     engine = MagicMock()
-    engine.run_daily_trading.return_value = {1: {"buy_count": 1, "sell_count": 2}}
+    account_outcome = AccountAutoTradingOutcome(account_id=1, buy_count=1, sell_count=2)
+    engine.run_daily_trading.return_value = {1: account_outcome}
 
     with (
         patch(
@@ -118,19 +123,43 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
         execution_link_recorder=execution_link_recorder,
     )
     engine.run_daily_trading.assert_called_once_with(date(2026, 4, 30), account_ids=[1])
+    account_payload = account_outcome.to_payload()
     assert result == {
         "outcome": "success",
         "success": True,
         "requested": 1,
         "succeeded": 1,
         "failed": 0,
+        "partial_account_count": 0,
         "stored": 3,
+        "counts_unavailable": False,
+        "buy_count": 1,
+        "sell_count": 2,
+        "confirmed_trade_count": 3,
+        "reason_code": None,
+        "accounts": [account_payload],
         "trade_date": "2026-04-30",
         "total_accounts": 1,
-        "results": {1: {"buy_count": 1, "sell_count": 2}},
+        "results": {1: account_payload},
         "summary": {
             "total_buy_count": 1,
             "total_sell_count": 2,
+            "confirmed_trade_count": 3,
+            "stored_trade_count": 3,
+            "counts_unavailable": False,
+        },
+        "stable_error_code": None,
+        "count_unit": "account",
+        "stored_count_unit": "trade",
+        "count_units": {
+            "requested": "account",
+            "succeeded": "account",
+            "failed": "account",
+            "partial_account_count": "account",
+            "buy_count": "trade",
+            "sell_count": "trade",
+            "confirmed_trade_count": "trade",
+            "stored": "trade",
         },
     }
 

@@ -1038,7 +1038,7 @@ Black完整检查其余五个文件、对既有T5检查修改行；T5内四个�
 
 最终字节核验首次因旧isort诊断含CRCRLF、Git text=auto按原字节保留而停止，尚未提交；原件不改。恢复后逐路径以实际Git clean hash/object对照索引，明确记录这些原始日志blob并非LF投影；其他源码/测试/文档/生成投影仍逐字LF匹配。该编排假设错误不计业务失败。
 
-### 19.45 自动模拟业务结果闭环：实施中（依赖19.44）
+### 19.45 自动模拟业务结果闭环独立验收
 
 真实调用链另一缺口：策略和legacy买卖的异常只日志，AccountTradingResult只有buy/sell计数；Celery按已遍历账户数得出success，HTTP返回固定success=true。需要贯通Domain结果、真实engine、任务和API，不能用另一个永远blocked的候选入口替代现有路径。
 
@@ -1055,6 +1055,18 @@ Root还用真实普通买入UC和Django Repository复现候选遗漏：冻结4f0
 Task Monitor另有独立真实red：typed任务候选与原Monitor的1d43432dbe5a125bbd574fe79fb4c27a191d4745执行实际Celery.apply、生命周期信号、attempt identity与DB记录，大结果压缩后counts_unavailable从true丢成None，1 failed/9.70秒。该窗口只替换engine/外部依赖，内存Celery backend、真实监控UseCase/Repository，不投递broker或通知。修复在现有有界投影保留明确unknown布尔值及必要字段，不新增监控框架。两个DB红窗口旧helper的source_unchanged字段比较了导出原字节与变动中的live工作树LF，实际为false；原件保留，另以原reference的raw hash逐项核对冻结导出确未变化，不把该诊断字段当成冻结源码漂移。
 
 本批共享Application结果适配器供task与HTTP共同使用；额外或畸形mapping会令stored未知，迭代中断前已读出的有效确认量仍保留。业务请求进入engine后的不确定返回为HTTP200加typed failed/partial；执行前构造失败仍500且只输出安全原因。Root组件会复验原账户/Session/CSRF范围以及完整outcome矩阵、真实UC部分写账与成交后置失败、实际Celery/Task Monitor闭环，再按本批完整源码独立验收。上述反例是明确区分的原生产/候选集成窗口，不拼成同一CI/S6或真实市场资格。
+
+19.45最终验收：业务源码8ab97b72f1fea8050c2b0cfff9056d198a328616的373项单元、53项专用PG16组件/原集成、55项SQLite组件/原集成（包含2个内存目标探针）通过；2条原生产回退探针在同一候选真实重放通过。PG覆盖实际HTTP/Session/CSRF/归属与outcome矩阵、普通UC真实trade/position/cash写入后的link/performance失败、实际先写trade再position失败的unknown结果，以及实际Celery.apply/生命周期/attempt/Task Monitor存储与大结果投影。engine、候选、价格、风险或外部composition替身各按测试边界声明，没有真实来源或券商执行。沿用546迁移专用子库，前后探针通过；共享父库独立只读仍544迁移、singleton=(1,0)，没有重建或flush父库，也不声称本批验证了并发原子结算。
+
+Root质量门发现作者对既有T5四个无关函数作了全文格式化；初次style在确认该保留边界时以Black.NothingChanged停止，不算完整style通过。Root只恢复这四个与原提交AST相同函数的原格式，格式修复窗口源码16c47eeb4e5e2417d46fb446084b91df3b639600与前窗九个生产文件及其余测试/支持文件逐字相同，整份T5 AST相同。最终窗再跑373项单元和完整新增修改代码Black/isort/Ruff；T5原四函数格式债务逐字保留，未声称其全文Black通过。生产字节相同的首窗九文件增量mypy零、全库债务零；架构九文件1,854新增行boundary/audit零、69新增修改函数完整标注。新增Domain语句303/303、分支88/88，覆盖率100%。数据库、类型与最终测试格式窗口分别绑定，不拼成同一CI/S6身份。
+
+官方模型状态/字典/module/DC投影生成、最终七项适用治理复核（含六种已有投影/契约及Celery任务失败矩阵）通过。四项规定高风险包及其实际数量列于检查点；SDK扩展在373单元内另测真实路由参数契约，不把mock传输变成远程验收。现有SDK Filter sunset告警及开发环境缺AI密钥加密配置的告警保留，未新增Filter消费者或写AI密钥。七个Root红绿源码patch均经辅助index重建匹配；原日志/patch按原字节和真实Git blob摘要保留，混合CR日志不冒充LF。完整检查点见[自动交易结果闭环](../testing/a-share-usability-auto-trading-outcomes-2026-10-17.json)。
+
+本事项与799fd2c51账户安全批分开提交。结果统计正确不代表普通买卖已具备原子性、幂等或T+1；写入不明时应先停止对应自动触发并核对账本，不盲目重放。HTTP与Celery均注入既有执行关联记录器，但空匹配不等于已建立推荐链。既有九项封存版本退役门失败仍开放，未改floor/登记/检查器，不宣称全库发布门通过。ASH-02仍唯一集成焦点、74单元不变；ASH-01/02/03、普通结算消费者/锁内owner、正式身份/日历用途资格、历史PIT、DATA-18对ASH-11及完整Goal继续开放，生产/Provider/研究/Evidence/dispatch/QMT门禁不变。下一独立事项先验证并修复MCP显式空账户范围被转为默认范围的问题，再处理已确认的历史手工导入“费用缺失被记为实际零”问题，不回填历史金额、不用估算替代实际费用。
+
+最终整合窗3be31ad2fb8b0350e7222283947ab42445182801在独立19.46测试提交505c9de396c8d666b0133c153212b352f780b3fd上冻结；本批全部22个选定生产/测试/支持文件与格式修复窗口原字节相同，九个生产文件也与实测DB/类型首窗相同。该最终窗重新执行四项规定高风险包、完整适用风格与七项治理复核；官方投影生成在生产字节相同的首窗已实测，最终窗载入相同输出并完整复核，没有声称在最终窗重复生成。实际数量列于检查点。首窗TUI的1 failed/354 passed与原parent单独重放失败原件保留；本次通过依赖已独立提交的测试夹具隔离，不抹去原失败，也不改生产scope事务保护。
+
+沿未修改的MCP owner调用方复核发现，handler使用account_ids or []及normalized_account_ids or None，schema允许空数组，因此API已修的显式[]语义仍可能在MCP入口丢失。当前四项高风险包只含SDK客户端，没有声称本批已验收MCP确认链。该适配问题及默认预览的分页/启用范围绑定另列后续独立事项；费用预览作者已通过公开UseCase和注入端口保留1 failed/1 passed反例，文件与日志不纳入本次提交。
 
 ### 19.46 TUI权限矩阵事务夹具隔离：19.45独立前置验收
 

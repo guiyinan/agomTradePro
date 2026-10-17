@@ -13,7 +13,13 @@ from django.http import Http404
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AccountAutoTradingOutcome,
+    AutoTradingIssue,
+    AutoTradingIssueKind,
+)
 from apps.simulated_trading.interface import views as view_module
+from apps.simulated_trading.interface.serializers import AutoTradingRunResponseSerializer
 from apps.simulated_trading.interface.views import (
     AutoTradingAPIView,
     DailyInspectionReportListAPIView,
@@ -423,8 +429,19 @@ def test_auto_trading_success_and_exception(
     )
     engine = MagicMock()
     engine.run_daily_trading.return_value = {
-        1: {"buy_count": 2, "sell_count": 1},
-        2: {"buy_count": 1, "sell_count": 0},
+        1: AccountAutoTradingOutcome(account_id=1, buy_count=2, sell_count=1),
+        2: AccountAutoTradingOutcome(
+            account_id=2,
+            buy_count=0,
+            sell_count=0,
+            issues=(
+                AutoTradingIssue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="risk_check",
+                    code="ACCOUNT_BLOCKED",
+                ),
+            ),
+        ),
     }
     monkeypatch.setattr(
         view_module.simulated_interface_services,
@@ -432,13 +449,133 @@ def test_auto_trading_success_and_exception(
         lambda: engine,
     )
     response = AutoTradingAPIView().post(_request(data={"trade_date": date(2026, 7, 1)}))
-    assert response.data["summary"] == {"total_buy_count": 3, "total_sell_count": 1}
+    assert response.status_code == 200
+    assert response.data["outcome"] == "partial"
+    assert response.data["success"] is True
+    assert response.data["requested"] == 2
+    assert response.data["failed"] == 1
+    assert response.data["stored"] == 3
+    assert response.data["summary"] == {
+        "total_buy_count": 2,
+        "total_sell_count": 1,
+        "confirmed_trade_count": 3,
+        "stored_trade_count": 3,
+        "counts_unavailable": False,
+    }
+    response_contract = AutoTradingRunResponseSerializer(data=response.data)
+    assert response_contract.is_valid(), response_contract.errors
+    assert response.data["count_unit"] == "account"
+    assert response.data["stored_count_unit"] == "trade"
+    assert response.data["stable_error_code"] == "ACCOUNT_BLOCKED"
     engine.run_daily_trading.assert_called_once_with(date(2026, 7, 1), account_ids=[1, 2])
 
-    engine.run_daily_trading = lambda *_args, **_kwargs: (_ for _ in ()).throw(
-        RuntimeError("engine down")
+    engine.run_daily_trading.side_effect = RuntimeError("engine down")
+    indeterminate = AutoTradingAPIView().post(_request(data={}))
+    assert indeterminate.status_code == 200
+    assert indeterminate.data["outcome"] == "failed"
+    assert indeterminate.data["stored"] is None
+    assert indeterminate.data["counts_unavailable"] is True
+
+
+def test_auto_trading_missing_requested_result_is_unknown_not_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "resolve_auto_trading_account_scope",
+        lambda *_args: SimpleNamespace(
+            allowed=True,
+            account_ids=(1, 2),
+            error=None,
+            status_code=None,
+        ),
     )
-    assert AutoTradingAPIView().post(_request(data={})).status_code == 500
+    engine = MagicMock()
+    engine.run_daily_trading.return_value = {
+        1: AccountAutoTradingOutcome(account_id=1, buy_count=2, sell_count=0),
+    }
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        lambda: engine,
+    )
+
+    response = AutoTradingAPIView().post(_request(data={}))
+
+    assert response.status_code == 200
+    assert response.data["outcome"] == "partial"
+    assert response.data["requested"] == 2
+    assert response.data["failed"] == 1
+    assert response.data["buy_count"] == 2
+    assert response.data["stored"] is None
+    assert response.data["stable_error_code"] == "ACCOUNT_RESULT_MISSING"
+    assert response.data["results"][2]["issues"][0]["code"] == "ACCOUNT_RESULT_MISSING"
+
+
+def test_auto_trading_extra_result_marks_confirmed_storage_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "resolve_auto_trading_account_scope",
+        lambda *_args: SimpleNamespace(
+            allowed=True,
+            account_ids=(1,),
+            error=None,
+            status_code=None,
+        ),
+    )
+    engine = MagicMock()
+    engine.run_daily_trading.return_value = {
+        1: AccountAutoTradingOutcome(account_id=1, buy_count=2, sell_count=0),
+        99: AccountAutoTradingOutcome(account_id=99, buy_count=1, sell_count=0),
+    }
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        lambda: engine,
+    )
+
+    response = AutoTradingAPIView().post(_request(data={}))
+
+    assert response.status_code == 200
+    assert response.data["buy_count"] == 2
+    assert response.data["stored"] is None
+    assert response.data["counts_unavailable"] is True
+    assert response.data["stable_error_code"] == "TASK_RESULT_CONTRACT_INVALID"
+    assert response.data["results"][1]["issues"][-1]["effects_indeterminate"] is True
+
+
+def test_auto_trading_engine_setup_failure_stays_an_operational_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(view_module, "AutoTradingRunRequestSerializer", FakeSerializer)
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "resolve_auto_trading_account_scope",
+        lambda *_args: SimpleNamespace(
+            allowed=True,
+            account_ids=(1,),
+            error=None,
+            status_code=None,
+        ),
+    )
+    monkeypatch.setattr(
+        view_module.simulated_interface_services,
+        "build_auto_trading_engine",
+        MagicMock(side_effect=RuntimeError("private configuration detail")),
+    )
+
+    response = AutoTradingAPIView().post(_request(data={}))
+
+    assert response.status_code == 500
+    assert response.data == {
+        "success": False,
+        "error": "自动交易引擎初始化失败",
+        "stable_error_code": "AUTO_TRADING_SETUP_FAILED",
+    }
 
 
 def test_auto_trading_rejects_unowned_account_before_building_engine(
@@ -539,9 +676,18 @@ def test_auto_trading_empty_resolved_scope_returns_zero_summary_without_engine(
     )
 
     assert response.status_code == 200
+    assert response.data["outcome"] == "noop"
+    assert response.data["requested"] == 0
+    assert response.data["stored"] == 0
     assert response.data["total_accounts"] == 0
     assert response.data["results"] == {}
-    assert response.data["summary"] == {"total_buy_count": 0, "total_sell_count": 0}
+    assert response.data["summary"] == {
+        "total_buy_count": 0,
+        "total_sell_count": 0,
+        "confirmed_trade_count": 0,
+        "stored_trade_count": 0,
+        "counts_unavailable": False,
+    }
     build_engine.assert_not_called()
 
 

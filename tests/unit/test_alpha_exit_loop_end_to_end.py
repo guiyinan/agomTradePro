@@ -173,8 +173,8 @@ def _build_engine(
         exit_advisor=exit_advisor,
         execution_link_recorder=execution_link_recorder,
     )
-    engine._get_buy_candidates = Mock(return_value=[])
-    engine._update_account_performance = Mock()
+    engine._get_buy_candidates = Mock(return_value=([], None))
+    engine._update_account_performance = Mock(return_value=True)
     return engine, buy_use_case
 
 
@@ -238,11 +238,11 @@ def test_buy_then_position_invalidation_then_next_auto_trading_sells():
     position.invalidation_reason = "PMI 跌破 50"
     position_repo.save(position)
 
-    buy_count, sell_count = engine._execute_legacy_trading(account_repo.account, date(2026, 4, 30))
+    result = engine._execute_legacy_trading(account_repo.account, date(2026, 4, 30))
 
     assert buy_trade.signal_id == 99
-    assert buy_count == 0
-    assert sell_count == 1
+    assert result.buy_count == 0
+    assert result.sell_count == 1
     assert position_repo.get_position(1, "000001.SZ") is None
     assert len(trade_repo.saved) == 2
     assert trade_repo.saved[-1].action == TradeAction.SELL
@@ -282,10 +282,10 @@ def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
         signal_id=99,
     )
 
-    buy_count, sell_count = engine._execute_legacy_trading(account_repo.account, date(2026, 4, 30))
+    result = engine._execute_legacy_trading(account_repo.account, date(2026, 4, 30))
 
-    assert buy_count == 0
-    assert sell_count == 1
+    assert result.buy_count == 0
+    assert result.sell_count == 1
     assert position_repo.get_position(1, "000001.SZ") is None
     assert len(trade_repo.saved) == 2
     assert trade_repo.saved[-1].action == TradeAction.SELL

@@ -10,8 +10,9 @@ Application层核心组件：
 
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, Protocol
 
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
@@ -29,7 +30,18 @@ from apps.simulated_trading.application.use_cases import (
     PositionRepositoryProtocol,
     SimulatedAccountRepositoryProtocol,
 )
-from apps.simulated_trading.domain.entities import Position, SimulatedAccount, SimulatedTrade
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AccountAutoTradingOutcome,
+    AutoTradingIssue,
+    AutoTradingIssueKind,
+    build_account_auto_trading_outcome,
+)
+from apps.simulated_trading.domain.entities import (
+    AccountType,
+    Position,
+    SimulatedAccount,
+    SimulatedTrade,
+)
 from apps.simulated_trading.domain.rules import PositionSizingRule
 from shared.numeric import safe_float
 
@@ -125,11 +137,55 @@ class AutoTradingTradeRepositoryProtocol(Protocol):
         ...
 
 
-class AccountTradingResult(TypedDict):
-    """Daily execution counters for one simulated account."""
+@dataclass(slots=True)
+class _AccountOutcomeState:
+    """Collect confirmed trades and stable issues for one account run."""
 
-    buy_count: int
-    sell_count: int
+    account_id: int
+    buy_count: int = 0
+    sell_count: int = 0
+    issues: list[AutoTradingIssue] = field(default_factory=list)
+
+    def add_issue(
+        self,
+        *,
+        kind: AutoTradingIssueKind,
+        stage: str,
+        code: str,
+        asset_code: str | None = None,
+        effects_indeterminate: bool = False,
+    ) -> None:
+        """Add one stable issue without exception text."""
+
+        self.issues.append(
+            AutoTradingIssue(
+                kind=kind,
+                stage=stage,
+                code=code,
+                asset_code=asset_code,
+                effects_indeterminate=effects_indeterminate,
+            )
+        )
+
+    def confirm_trade(self, action: str) -> None:
+        """Count a use-case return immediately as a confirmed trade."""
+
+        if action == "buy":
+            self.buy_count += 1
+        elif action == "sell":
+            self.sell_count += 1
+        else:
+            raise ValueError("action must be buy or sell")
+
+    def build(self) -> AccountAutoTradingOutcome:
+        """Build the immutable account outcome accumulated so far."""
+
+        return build_account_auto_trading_outcome(
+            self.account_id,
+            buy_count=self.buy_count,
+            sell_count=self.sell_count,
+            issues=tuple(self.issues),
+        )
 
 
 class AutoTradingEngine:
@@ -189,16 +245,15 @@ class AutoTradingEngine:
         self,
         trade_date: date,
         account_ids: list[int] | None = None,
-    ) -> dict[int, AccountTradingResult]:
-        """
-        执行每日自动交易
+    ) -> dict[int, AccountAutoTradingOutcome]:
+        """Execute the daily automatic-trading cycle for selected active accounts.
 
         Args:
             trade_date: 交易日期
             account_ids: 指定账户ID列表，None表示全部活跃账户
 
         Returns:
-            {account_id: {buy_count: int, sell_count: int}}
+            A typed outcome for each active account considered by the cycle.
         """
         logger.info("=" * 60)
         logger.info(f"开始执行模拟盘自动交易: {trade_date}")
@@ -211,16 +266,51 @@ class AutoTradingEngine:
             accounts = [account for account in accounts if account.account_id in allowed_ids]
         logger.info(f"找到 {len(accounts)} 个活跃模拟账户")
 
-        results: dict[int, AccountTradingResult] = {}
+        results: dict[int, AccountAutoTradingOutcome] = {}
         for account in accounts:
+            if account.account_type is not AccountType.SIMULATED:
+                logger.warning(
+                    "阻断非模拟账户自动交易: account_id=%s",
+                    account.account_id,
+                )
+                results[account.account_id] = self._unsupported_account_type_outcome(
+                    account.account_id
+                )
+                continue
             if not account.auto_trading_enabled:
                 logger.info(
                     f"账户 {account.account_name} (ID={account.account_id}) 未启用自动交易,跳过"
                 )
+                state = _AccountOutcomeState(account_id=account.account_id)
+                state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="account",
+                    code="AUTO_TRADING_DISABLED",
+                )
+                results[account.account_id] = state.build()
                 continue
 
-            buy_count, sell_count = self._process_account(account, trade_date)
-            results[account.account_id] = {"buy_count": buy_count, "sell_count": sell_count}
+            try:
+                results[account.account_id] = self._process_account(account, trade_date)
+            except Exception:
+                logger.error(
+                    "账户自动交易处理异常: account_id=%s",
+                    account.account_id,
+                    exc_info=True,
+                )
+                results[account.account_id] = build_account_auto_trading_outcome(
+                    account.account_id,
+                    buy_count=0,
+                    sell_count=0,
+                    issues=(
+                        AutoTradingIssue(
+                            AutoTradingIssueKind.FAILED,
+                            "account_processing",
+                            "ACCOUNT_PROCESSING_FAILED",
+                            effects_indeterminate=True,
+                        ),
+                    ),
+                )
 
         logger.info("=" * 60)
         logger.info(f"模拟盘自动交易完成: {results}")
@@ -228,32 +318,72 @@ class AutoTradingEngine:
 
         return results
 
-    def _process_account(self, account: SimulatedAccount, trade_date: date) -> tuple[int, int]:
-        """
-        处理单个账户的自动交易
+    @staticmethod
+    def _unsupported_account_type_outcome(account_id: int) -> AccountAutoTradingOutcome:
+        """Build a stable blocked result for non-simulated or unknown accounts."""
+
+        return build_account_auto_trading_outcome(
+            account_id,
+            buy_count=0,
+            sell_count=0,
+            issues=(
+                AutoTradingIssue(
+                    AutoTradingIssueKind.BLOCKED,
+                    "account",
+                    "AUTO_TRADING_ACCOUNT_TYPE_UNSUPPORTED",
+                ),
+            ),
+        )
+
+    def _process_account(
+        self, account: SimulatedAccount, trade_date: date
+    ) -> AccountAutoTradingOutcome:
+        """Process one account and preserve errors as a typed outcome.
 
         Phase 5 更新：
         - 检查账户是否绑定了策略
         - 如果有策略，使用策略执行引擎
         - 如果没有策略，使用原有逻辑（向后兼容）
-
-        Returns:
-            (买入次数, 卖出次数)
         """
+        if account.account_type is not AccountType.SIMULATED:
+            return self._unsupported_account_type_outcome(account.account_id)
+
+        state = _AccountOutcomeState(account_id=account.account_id)
         logger.info(f"\n处理账户: {account.account_name} (ID={account.account_id})")
         logger.info(
             f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元"
         )
 
         # Phase 5: 检查是否绑定了策略
-        active_strategy_id = self._get_account_strategy_id(account.account_id)
+        try:
+            active_strategy_id = self._get_account_strategy_id(account.account_id)
+        except Exception:
+            logger.warning(
+                "获取账户策略绑定失败，阻断本次账户自动交易: account_id=%s", account.account_id
+            )
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="strategy_binding",
+                code="STRATEGY_BINDING_UNAVAILABLE",
+            )
+            return state.build()
 
-        if active_strategy_id:
-            logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行网关")
-            return self._execute_strategy_based_trading(account, active_strategy_id, trade_date)
-        else:
+        try:
+            if active_strategy_id is not None:
+                logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行网关")
+                return self._execute_strategy_based_trading(
+                    account, active_strategy_id, trade_date, state
+                )
             logger.info("  账户未绑定策略，使用原有逻辑")
-            return self._execute_legacy_trading(account, trade_date)
+            return self._execute_legacy_trading(account, trade_date, state)
+        except Exception:
+            logger.error("账户自动交易处理异常: account_id=%s", account.account_id, exc_info=True)
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="account_processing",
+                code="ACCOUNT_PROCESSING_FAILED",
+            )
+            return state.build()
 
     def _get_account_strategy_id(self, account_id: int) -> int | None:
         """
@@ -269,19 +399,23 @@ class AutoTradingEngine:
         Returns:
             策略ID，如果未绑定则返回 None
         """
-        try:
-            from apps.simulated_trading.application.facade import get_simulated_trading_facade
+        from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
-            facade = get_simulated_trading_facade()
-            strategy_id = facade.get_active_strategy_id(account_id)
-            return strategy_id if isinstance(strategy_id, int) else None
-        except Exception as e:
-            logger.warning(f"获取账户策略失败: {e}")
+        facade = get_simulated_trading_facade()
+        strategy_id = facade.get_active_strategy_id(account_id)
+        if strategy_id is None:
             return None
+        if type(strategy_id) is not int or strategy_id <= 0:
+            raise ValueError("strategy binding reader returned an invalid strategy ID")
+        return strategy_id
 
     def _execute_strategy_based_trading(
-        self, account: SimulatedAccount, strategy_id: int, trade_date: date
-    ) -> tuple[int, int]:
+        self,
+        account: SimulatedAccount,
+        strategy_id: int,
+        trade_date: date,
+        state: _AccountOutcomeState | None = None,
+    ) -> AccountAutoTradingOutcome:
         """
         使用策略执行引擎进行交易
 
@@ -294,12 +428,8 @@ class AutoTradingEngine:
             strategy_id: 策略ID
             trade_date: 交易日期
 
-        Returns:
-            (买入次数, 卖出次数)
         """
-        buy_count = 0
-        sell_count = 0
-
+        execution_state = state or _AccountOutcomeState(account_id=account.account_id)
         try:
             # 1. 执行策略，获取信号推荐 - 使用 Gateway 模式
             from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
@@ -308,255 +438,380 @@ class AutoTradingEngine:
             execution_result = gateway.execute_for_account(
                 strategy_id=strategy_id, account_id=account.account_id, as_of_date=trade_date
             )
+        except Exception:
+            logger.warning("策略执行网关失败: account_id=%s", account.account_id)
+            execution_state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="strategy_execution",
+                code="STRATEGY_EXECUTION_FAILED",
+            )
+            return execution_state.build()
 
-            if not execution_result.success:
-                logger.error(f"策略执行失败: {execution_result.error_message}")
-                return 0, 0
+        if not execution_result.success:
+            execution_state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="strategy_execution",
+                code="STRATEGY_EXECUTION_FAILED",
+            )
+            return execution_state.build()
 
-            logger.info(f"  策略执行成功，生成 {len(execution_result.signals)} 个信号")
-
-            # 2. 处理卖出信号
+        try:
+            signals = execution_result.signals
             positions = self.position_repo.get_by_account(account.account_id)
-            held_codes = {p.asset_code for p in positions}
+        except Exception:
+            execution_state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="strategy_signals",
+                code="STRATEGY_SIGNAL_READ_FAILED",
+            )
+            return execution_state.build()
+        held_positions = {position.asset_code: position for position in positions}
+        held_codes = set(held_positions)
 
-            for signal in execution_result.signals:
-                # SignalInfo.action 是字符串而非枚举
-                if signal.action == "sell" and signal.asset_code in held_codes:
-                    try:
-                        price = self._get_current_price(signal.asset_code, trade_date)
-                        if price is None:
-                            logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过卖出")
-                            continue
-                        if not self._is_price_triggered(
-                            action="sell",
-                            price=price,
-                            payload=getattr(signal, "metadata", {}) or {},
-                        ):
-                            logger.info(
-                                "    跳过 %s: 当前价 %.4f 未进入卖出触发区间",
-                                signal.asset_code,
-                                price,
-                            )
-                            continue
+        for signal in signals:
+            if signal.action != "sell":
+                continue
+            asset_code = signal.asset_code
+            position = held_positions.get(asset_code)
+            if position is None:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELL_POSITION_NOT_FOUND",
+                    asset_code=asset_code,
+                )
+                continue
+            try:
+                price = self._get_current_price(asset_code, trade_date)
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="price",
+                    code="SELL_PRICE_READ_FAILED",
+                    asset_code=asset_code,
+                )
+                continue
+            if price is None:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="price",
+                    code="SELL_PRICE_UNAVAILABLE",
+                    asset_code=asset_code,
+                )
+                continue
+            if not self._is_price_triggered(
+                action="sell", price=price, payload=getattr(signal, "metadata", {}) or {}
+            ):
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELL_PRICE_NOT_TRIGGERED",
+                    asset_code=asset_code,
+                )
+                continue
+            sell_quantity = int(
+                signal.quantity if signal.quantity is not None else position.quantity
+            )
+            if sell_quantity <= 0:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELL_QUANTITY_INVALID",
+                    asset_code=asset_code,
+                )
+                continue
+            try:
+                trade = self.sell_use_case.execute(
+                    account_id=account.account_id,
+                    asset_code=asset_code,
+                    quantity=sell_quantity,
+                    price=price,
+                    reason=f"策略信号: {signal.reason}",
+                    execution_date=trade_date,
+                )
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="sell_execution",
+                    code="SELL_EXECUTION_OUTCOME_UNKNOWN",
+                    asset_code=asset_code,
+                    effects_indeterminate=True,
+                )
+                continue
+            execution_state.confirm_trade("sell")
+            self._record_confirmed_execution_link(
+                execution_state,
+                trade=trade,
+                account_id=account.account_id,
+                asset_code=asset_code,
+                action="sell",
+                recommendation_id=None,
+                match_if_missing=True,
+                notes="Auto strategy sell",
+            )
 
-                        position = next(p for p in positions if p.asset_code == signal.asset_code)
-                        sell_quantity = int(
-                            signal.quantity if signal.quantity is not None else position.quantity
-                        )
-                        if sell_quantity <= 0:
-                            logger.warning(
-                                "    跳过 %s: 卖出数量必须为正数",
-                                signal.asset_code,
-                            )
-                            continue
+        for signal in signals:
+            if signal.action != "buy":
+                continue
+            asset_code = signal.asset_code
+            if asset_code in held_codes:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="buy_signal",
+                    code="BUY_POSITION_ALREADY_HELD",
+                    asset_code=asset_code,
+                )
+                continue
+            self._execute_strategy_buy_signal(account, signal, trade_date, execution_state)
 
-                        trade = self.sell_use_case.execute(
-                            account_id=account.account_id,
-                            asset_code=signal.asset_code,
-                            quantity=sell_quantity,
-                            price=price,
-                            reason=f"策略信号: {signal.reason}",
-                            execution_date=trade_date,
-                        )
-                        self._record_execution_link(
-                            trade_id=trade.trade_id,
-                            account_id=account.account_id,
-                            security_code=signal.asset_code,
-                            actual_action="sell",
-                            executed_at=trade.execution_time,
-                            match_if_missing=True,
-                            notes=f"Auto strategy sell: {signal.reason}",
-                        )
-                        sell_count += 1
-                        logger.info(
-                            f"    ✓ 卖出: {signal.asset_name} x{sell_quantity} @ {price:.2f} (原因: {signal.reason})"
-                        )
-                    except Exception as e:
-                        logger.error(f"    ✗ 卖出失败: {signal.asset_code}, 错误: {e}")
+        self._record_performance_outcome(account.account_id, trade_date, execution_state)
+        return execution_state.build()
 
-            # 3. 处理买入信号
-            for signal in execution_result.signals:
-                # SignalInfo.action 是字符串而非枚举
-                if signal.action == "buy":
-                    try:
-                        # 检查是否已有持仓
-                        if signal.asset_code in held_codes:
-                            logger.info(f"    跳过 {signal.asset_code}: 已有持仓")
-                            continue
+    def _execute_strategy_buy_signal(
+        self,
+        account: SimulatedAccount,
+        signal: object,
+        trade_date: date,
+        state: _AccountOutcomeState,
+    ) -> None:
+        """Execute one strategy buy signal and append any stable failure issue."""
 
-                        price = self._get_current_price(signal.asset_code, trade_date)
-                        if price is None:
-                            logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过")
-                            continue
-                        if not self._is_price_triggered(
-                            action="buy",
-                            price=price,
-                            payload=getattr(signal, "metadata", {}) or {},
-                        ):
-                            logger.info(
-                                "    跳过 %s: 当前价 %.4f 未进入买入触发区间",
-                                signal.asset_code,
-                                price,
-                            )
-                            continue
-
-                        # 计算买入数量
-                        buy_quantity = signal.quantity
-                        if buy_quantity is None:
-                            # 根据权重计算数量
-                            positions = self.position_repo.get_by_account(account.account_id)
-                            buy_quantity = PositionSizingRule.calculate_buy_quantity(
-                                account=account,
-                                asset_price=price,
-                                asset_score=signal.confidence * 100,
-                                existing_positions=positions,
-                            )
-
-                        if buy_quantity <= 0:
-                            logger.info(f"    跳过 {signal.asset_code}: 买入数量必须为正数")
-                            continue
-
-                        if not self._passes_pre_trade_buy_risk(
-                            account=account,
-                            asset_code=signal.asset_code,
-                            quantity=buy_quantity,
-                            price=price,
-                        ):
-                            continue
-
-                        trade = self.buy_use_case.execute(
-                            account_id=account.account_id,
-                            asset_code=signal.asset_code,
-                            asset_name=signal.asset_name,
-                            asset_type="equity",
-                            quantity=buy_quantity,
-                            price=price,
-                            reason=f"策略信号: {signal.reason}",
-                            signal_id=signal.signal_id,
-                            execution_date=trade_date,
-                        )
-                        self._record_execution_link(
-                            trade_id=trade.trade_id,
-                            account_id=account.account_id,
-                            security_code=signal.asset_code,
-                            actual_action="buy",
-                            executed_at=trade.execution_time,
-                            match_if_missing=True,
-                            notes=f"Auto strategy buy: {signal.reason}",
-                        )
-                        buy_count += 1
-                        logger.info(
-                            f"    ✓ 买入: {signal.asset_name} x{buy_quantity} @ {price:.2f} (原因: {signal.reason})"
-                        )
-                    except Exception as e:
-                        logger.error(f"    ✗ 买入失败: {signal.asset_code}, 错误: {e}")
-
-            # 4. 更新账户绩效
-            self._update_account_performance(account.account_id, trade_date)
-
-            logger.info(f"  账户处理完成(策略模式): 买入{buy_count}次, 卖出{sell_count}次")
-
-        except Exception as e:
-            logger.error(f"策略执行异常: {e}", exc_info=True)
-
-        return buy_count, sell_count
+        asset_code = getattr(signal, "asset_code", None)
+        if not isinstance(asset_code, str) or not asset_code:
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_signal",
+                code="BUY_SIGNAL_INVALID",
+            )
+            return
+        try:
+            price = self._get_current_price(asset_code, trade_date)
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="price",
+                code="BUY_PRICE_READ_FAILED",
+                asset_code=asset_code,
+            )
+            return
+        if price is None:
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="price",
+                code="BUY_PRICE_UNAVAILABLE",
+                asset_code=asset_code,
+            )
+            return
+        metadata = getattr(signal, "metadata", {}) or {}
+        if not self._is_price_triggered(action="buy", price=price, payload=metadata):
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_signal",
+                code="BUY_PRICE_NOT_TRIGGERED",
+                asset_code=asset_code,
+            )
+            return
+        try:
+            buy_quantity = getattr(signal, "quantity", None)
+            if buy_quantity is None:
+                positions = self.position_repo.get_by_account(account.account_id)
+                buy_quantity = PositionSizingRule.calculate_buy_quantity(
+                    account=account,
+                    asset_price=price,
+                    asset_score=float(getattr(signal, "confidence", 0.0)) * 100,
+                    existing_positions=positions,
+                )
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="buy_sizing",
+                code="BUY_QUANTITY_CALCULATION_FAILED",
+                asset_code=asset_code,
+            )
+            return
+        if type(buy_quantity) is not int or buy_quantity <= 0:
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_signal",
+                code="BUY_QUANTITY_INVALID",
+                asset_code=asset_code,
+            )
+            return
+        risk_issue = self._buy_risk_issue(
+            account=account,
+            asset_code=asset_code,
+            quantity=buy_quantity,
+            price=price,
+        )
+        if risk_issue is not None:
+            state.issues.append(risk_issue)
+            return
+        try:
+            trade = self.buy_use_case.execute(
+                account_id=account.account_id,
+                asset_code=asset_code,
+                asset_name=str(getattr(signal, "asset_name", asset_code)),
+                asset_type="equity",
+                quantity=buy_quantity,
+                price=price,
+                reason="策略信号",
+                signal_id=getattr(signal, "signal_id", None),
+                execution_date=trade_date,
+            )
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="buy_execution",
+                code="BUY_EXECUTION_OUTCOME_UNKNOWN",
+                asset_code=asset_code,
+                effects_indeterminate=True,
+            )
+            return
+        state.confirm_trade("buy")
+        self._record_confirmed_execution_link(
+            state,
+            trade=trade,
+            account_id=account.account_id,
+            asset_code=asset_code,
+            action="buy",
+            recommendation_id=None,
+            match_if_missing=True,
+            notes="Auto strategy buy",
+        )
 
     def _execute_legacy_trading(
-        self, account: SimulatedAccount, trade_date: date
-    ) -> tuple[int, int]:
-        """
-        使用原有逻辑进行交易（向后兼容）
-
-        Args:
-            account: 账户实体
-            trade_date: 交易日期
-
-        Returns:
-            (买入次数, 卖出次数)
-        """
-        buy_count = 0
-        sell_count = 0
-
-        # 1. 获取当前持仓
-        positions = self.position_repo.get_by_account(account.account_id)
-        logger.info(f"  当前持仓: {len(positions)} 个")
-        advisor_map = self._build_exit_advice_map(account.account_id, positions, trade_date)
-
-        # 2. 检查是否需要卖出现有持仓
-        for position in positions:
-            exit_advice = self._get_position_exit_advice(
-                position=position,
-                account=account,
-                trade_date=trade_date,
-                advisor_map=advisor_map,
+        self,
+        account: SimulatedAccount,
+        trade_date: date,
+        state: _AccountOutcomeState | None = None,
+    ) -> AccountAutoTradingOutcome:
+        """Run legacy sell/buy checks while recording confirmed results and issues."""
+        execution_state = state or _AccountOutcomeState(account_id=account.account_id)
+        try:
+            positions = self.position_repo.get_by_account(account.account_id)
+        except Exception:
+            execution_state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="position_read",
+                code="ACCOUNT_POSITION_READ_FAILED",
             )
-            if exit_advice and (exit_advice.should_exit or exit_advice.should_reduce):
-                try:
-                    price = self._get_current_price(position.asset_code, trade_date)
-                    if price is None:
-                        logger.warning(f"    无法获取 {position.asset_code} 价格,跳过卖出")
-                        continue
-                    if not self._is_exit_advice_price_triggered(exit_advice, price):
-                        logger.info(
-                            "    跳过 %s: 当前价 %.4f 未进入退出触发区间",
-                            position.asset_code,
-                            price,
-                        )
-                        continue
+            self._record_performance_outcome(account.account_id, trade_date, execution_state)
+            return execution_state.build()
 
-                    quantity = self._resolve_exit_quantity(position, exit_advice)
-                    if quantity <= 0:
-                        logger.info(f"    跳过 {position.asset_code}: 退出建议数量为0")
-                        continue
+        logger.info("  当前持仓: %s 个", len(positions))
+        advisor_map = self._build_exit_advice_map(
+            account.account_id, positions, trade_date, execution_state
+        )
 
-                    trade = self.sell_use_case.execute(
-                        account_id=account.account_id,
-                        asset_code=position.asset_code,
-                        quantity=quantity,
-                        price=price,
-                        reason=self._get_sell_reason(position, exit_advice),
-                        execution_date=trade_date,
-                    )
-                    self._record_execution_link(
-                        trade_id=trade.trade_id,
-                        account_id=account.account_id,
-                        security_code=position.asset_code,
-                        actual_action="sell",
-                        executed_at=trade.execution_time,
-                        recommendation_id=exit_advice.recommendation_id,
-                        match_if_missing=False,
-                        notes=(
-                            f"Auto exit via {exit_advice.source}: " f"{exit_advice.reason_code}"
-                        ),
-                    )
-                    sell_count += 1
-                    logger.info(f"    ✓ 卖出: {position.asset_name} x{quantity} @ {price:.2f}")
-                except Exception as e:
-                    logger.error(f"    ✗ 卖出失败: {position.asset_code}, 错误: {e}")
-
-        # 3. 检查是否需要买入新资产
-        buy_candidates = self._get_buy_candidates(account, trade_date)
-        logger.info(f"  买入候选: {len(buy_candidates)} 个")
-
-        for candidate in buy_candidates:
+        for position in positions:
             try:
-                if self._execute_buy(account, candidate, trade_date):
-                    buy_count += 1
-            except Exception as e:
-                logger.error(f"    ✗ 买入失败: {candidate.get('asset_code')}, 错误: {e}")
+                exit_advice = self._get_position_exit_advice(
+                    position=position,
+                    account=account,
+                    trade_date=trade_date,
+                    advisor_map=advisor_map,
+                )
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="position_exit_check",
+                    code="POSITION_EXIT_CHECK_FAILED",
+                    asset_code=position.asset_code,
+                )
+                continue
+            if not exit_advice or not (exit_advice.should_exit or exit_advice.should_reduce):
+                continue
+            try:
+                price = self._get_current_price(position.asset_code, trade_date)
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="price",
+                    code="SELL_PRICE_READ_FAILED",
+                    asset_code=position.asset_code,
+                )
+                continue
+            if price is None:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="price",
+                    code="SELL_PRICE_UNAVAILABLE",
+                    asset_code=position.asset_code,
+                )
+                continue
+            if not self._is_exit_advice_price_triggered(exit_advice, price):
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELL_PRICE_NOT_TRIGGERED",
+                    asset_code=position.asset_code,
+                )
+                continue
+            try:
+                quantity = self._resolve_exit_quantity(position, exit_advice)
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="sell_sizing",
+                    code="SELL_QUANTITY_CALCULATION_FAILED",
+                    asset_code=position.asset_code,
+                )
+                continue
+            if quantity <= 0:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELL_QUANTITY_INVALID",
+                    asset_code=position.asset_code,
+                )
+                continue
+            try:
+                trade = self.sell_use_case.execute(
+                    account_id=account.account_id,
+                    asset_code=position.asset_code,
+                    quantity=quantity,
+                    price=price,
+                    reason=self._get_sell_reason(position, exit_advice),
+                    execution_date=trade_date,
+                )
+            except Exception:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="sell_execution",
+                    code="SELL_EXECUTION_OUTCOME_UNKNOWN",
+                    asset_code=position.asset_code,
+                    effects_indeterminate=True,
+                )
+                continue
+            execution_state.confirm_trade("sell")
+            self._record_confirmed_execution_link(
+                execution_state,
+                trade=trade,
+                account_id=account.account_id,
+                asset_code=position.asset_code,
+                action="sell",
+                recommendation_id=exit_advice.recommendation_id or None,
+                match_if_missing=False,
+                notes=f"Auto exit via {exit_advice.source}: {exit_advice.reason_code}",
+            )
+            logger.info("    ✓ 卖出: %s x%s @ %.2f", position.asset_name, quantity, price)
 
-        # 4. 更新账户绩效
-        self._update_account_performance(account.account_id, trade_date)
+        candidates, candidate_issue = self._get_buy_candidates(account, trade_date)
+        if candidate_issue is not None:
+            execution_state.issues.append(candidate_issue)
+        logger.info("  买入候选: %s 个", len(candidates))
+        for candidate in candidates:
+            self._execute_buy(account, candidate, trade_date, execution_state)
 
-        logger.info(f"  账户处理完成(原有模式): 买入{buy_count}次, 卖出{sell_count}次")
-
-        return buy_count, sell_count
+        self._record_performance_outcome(account.account_id, trade_date, execution_state)
+        return execution_state.build()
 
     def _build_exit_advice_map(
         self,
         account_id: int,
         positions: list[Position],
         trade_date: date,
+        state: _AccountOutcomeState,
     ) -> dict[str, PositionExitAdvice]:
         if self.exit_advisor is None:
             return {}
@@ -568,8 +823,13 @@ class AutoTradingEngine:
                 position_objects,
                 trade_date,
             )
-        except Exception as exc:
-            logger.warning("exit_advisor 执行失败，回退旧卖出逻辑: %s", exc)
+        except Exception:
+            logger.warning("exit_advisor 执行失败，回退旧卖出逻辑: account_id=%s", account_id)
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="exit_advisor",
+                code="EXIT_ADVISOR_UNAVAILABLE",
+            )
             return {}
 
         return {
@@ -589,9 +849,9 @@ class AutoTradingEngine:
         recommendation_id: str | None = None,
         match_if_missing: bool = False,
         notes: str = "",
-    ) -> None:
+    ) -> bool:
         if self.execution_link_recorder is None or not trade_id:
-            return
+            return True
 
         try:
             self.execution_link_recorder.record_execution(
@@ -604,13 +864,68 @@ class AutoTradingEngine:
                 match_if_missing=match_if_missing,
                 notes=notes,
             )
-        except Exception as exc:
+            return True
+        except Exception:
             logger.warning(
-                "记录自动交易执行关联失败: trade=%s asset=%s action=%s error=%s",
+                "记录自动交易执行关联失败: trade=%s asset=%s action=%s",
                 trade_id,
                 security_code,
                 actual_action,
-                exc,
+            )
+            return False
+
+    def _record_confirmed_execution_link(
+        self,
+        state: _AccountOutcomeState,
+        *,
+        trade: SimulatedTrade,
+        account_id: int,
+        asset_code: str,
+        action: str,
+        recommendation_id: str | None,
+        match_if_missing: bool,
+        notes: str,
+    ) -> None:
+        """Record optional trade linkage after counting the confirmed trade."""
+
+        if self.execution_link_recorder is None:
+            return
+        trade_id = getattr(trade, "trade_id", None)
+        executed_at = getattr(trade, "execution_time", None)
+        if type(trade_id) is not int or trade_id <= 0 or not isinstance(executed_at, datetime):
+            linked = False
+        else:
+            linked = self._record_execution_link(
+                trade_id=trade_id,
+                account_id=account_id,
+                security_code=asset_code,
+                actual_action=action,
+                executed_at=executed_at,
+                recommendation_id=recommendation_id,
+                match_if_missing=match_if_missing,
+                notes=notes,
+            )
+        if not linked:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="execution_link",
+                code="EXECUTION_LINK_RECORD_FAILED",
+                asset_code=asset_code,
+            )
+
+    def _record_performance_outcome(
+        self,
+        account_id: int,
+        trade_date: date,
+        state: _AccountOutcomeState,
+    ) -> None:
+        """Record a stable issue if post-trade performance bookkeeping fails."""
+
+        if not self._update_account_performance(account_id, trade_date):
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="account_performance",
+                code="ACCOUNT_PERFORMANCE_UPDATE_FAILED",
             )
 
     def _get_position_exit_advice(
@@ -729,9 +1044,8 @@ class AutoTradingEngine:
         self,
         account: SimulatedAccount,
         trade_date: date,
-    ) -> list[dict[str, object]]:
-        """
-        获取买入候选资产
+    ) -> tuple[list[dict[str, object]], AutoTradingIssue | None]:
+        """Load candidate assets and distinguish an empty result from a read failure.
 
         策略:
         1. 从可投池获取高分资产
@@ -740,7 +1054,11 @@ class AutoTradingEngine:
         """
         if not self.asset_pool_service:
             logger.warning("资产池服务未配置，无法获取买入候选")
-            return []
+            return [], AutoTradingIssue(
+                AutoTradingIssueKind.BLOCKED,
+                "buy_candidates",
+                "BUY_CANDIDATE_SOURCE_UNAVAILABLE",
+            )
 
         try:
             # 1. 获取可投池且有有效信号的资产
@@ -750,7 +1068,7 @@ class AutoTradingEngine:
 
             if not candidates:
                 logger.info("  未找到符合条件的有信号资产")
-                return []
+                return [], None
 
             # 2. 过滤掉已持仓的资产
             existing_positions = self.position_repo.get_by_account(account.account_id)
@@ -771,28 +1089,34 @@ class AutoTradingEngine:
                 f"过滤持仓后剩余 {len(filtered_candidates)} 个"
             )
 
-            return filtered_candidates
+            return filtered_candidates, None
 
-        except Exception as e:
-            logger.error(f"获取买入候选失败: {e}")
-            return []
+        except Exception:
+            logger.error("获取买入候选失败")
+            return [], AutoTradingIssue(
+                AutoTradingIssueKind.FAILED,
+                "buy_candidates",
+                "BUY_CANDIDATE_READ_FAILED",
+            )
 
     def _execute_buy(
         self,
         account: SimulatedAccount,
         candidate: dict[str, object],
         trade_date: date,
+        state: _AccountOutcomeState | None = None,
     ) -> bool:
-        """
-        执行买入
-
-        Returns:
-            是否成功买入
-        """
+        """Execute one legacy buy candidate and update the account result."""
+        state = state or _AccountOutcomeState(account_id=account.account_id)
         raw_asset_code = candidate.get("asset_code")
         asset_code = raw_asset_code.strip().upper() if isinstance(raw_asset_code, str) else ""
         if not asset_code:
             logger.warning("    买入候选缺少有效证券代码,跳过")
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_candidate",
+                code="BUY_CANDIDATE_INVALID",
+            )
             return False
 
         raw_asset_name = candidate.get("asset_name")
@@ -810,9 +1134,24 @@ class AutoTradingEngine:
         )
 
         # 1. 获取当前价格
-        price = self._get_current_price(asset_code, trade_date)
+        try:
+            price = self._get_current_price(asset_code, trade_date)
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="price",
+                code="BUY_PRICE_READ_FAILED",
+                asset_code=asset_code,
+            )
+            return False
         if price is None:
             logger.warning(f"    无法获取 {asset_code} 价格,跳过")
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="price",
+                code="BUY_PRICE_UNAVAILABLE",
+                asset_code=asset_code,
+            )
             return False
         if not self._is_price_triggered(action="buy", price=price, payload=candidate):
             logger.info(
@@ -820,53 +1159,112 @@ class AutoTradingEngine:
                 asset_code,
                 price,
             )
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_candidate",
+                code="BUY_PRICE_NOT_TRIGGERED",
+                asset_code=asset_code,
+            )
             return False
 
         # 2. 检查是否已有持仓
-        existing = self.position_repo.get_position(account.account_id, asset_code)
+        try:
+            existing = self.position_repo.get_position(account.account_id, asset_code)
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="position_read",
+                code="BUY_POSITION_READ_FAILED",
+                asset_code=asset_code,
+            )
+            return False
         if existing:
             logger.info(f"    跳过 {asset_code}: 已有持仓 {existing.quantity} 股")
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_candidate",
+                code="BUY_POSITION_ALREADY_HELD",
+                asset_code=asset_code,
+            )
             return False
 
         # 3. 计算买入数量
-        positions = self.position_repo.get_by_account(account.account_id)
-        quantity = PositionSizingRule.calculate_buy_quantity(
-            account=account,
-            asset_price=price,
-            asset_score=asset_score,
-            existing_positions=positions,
-        )
+        try:
+            positions = self.position_repo.get_by_account(account.account_id)
+            quantity = PositionSizingRule.calculate_buy_quantity(
+                account=account,
+                asset_price=price,
+                asset_score=asset_score,
+                existing_positions=positions,
+            )
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="buy_sizing",
+                code="BUY_QUANTITY_CALCULATION_FAILED",
+                asset_code=asset_code,
+            )
+            return False
 
         if quantity <= 0:
             logger.info(f"    跳过 {asset_code}: 买入数量必须为正数")
+            state.add_issue(
+                kind=AutoTradingIssueKind.BLOCKED,
+                stage="buy_sizing",
+                code="BUY_QUANTITY_INVALID",
+                asset_code=asset_code,
+            )
             return False
 
-        if not self._passes_pre_trade_buy_risk(
+        risk_issue = self._buy_risk_issue(
             account=account,
             asset_code=asset_code,
             quantity=quantity,
             price=price,
             positions=positions,
-        ):
+        )
+        if risk_issue is not None:
+            state.issues.append(risk_issue)
             return False
 
         # 4. 执行买入
-        self.buy_use_case.execute(
+        try:
+            trade = self.buy_use_case.execute(
+                account_id=account.account_id,
+                asset_code=asset_code,
+                asset_name=asset_name,
+                asset_type=asset_type,
+                quantity=quantity,
+                price=price,
+                reason="自动交易引擎买入",
+                signal_id=signal_id,
+                execution_date=trade_date,
+            )
+        except Exception:
+            state.add_issue(
+                kind=AutoTradingIssueKind.FAILED,
+                stage="buy_execution",
+                code="BUY_EXECUTION_OUTCOME_UNKNOWN",
+                asset_code=asset_code,
+                effects_indeterminate=True,
+            )
+            return False
+
+        state.confirm_trade("buy")
+        self._record_confirmed_execution_link(
+            state,
+            trade=trade,
             account_id=account.account_id,
             asset_code=asset_code,
-            asset_name=asset_name,
-            asset_type=asset_type,
-            quantity=quantity,
-            price=price,
-            reason="自动交易引擎买入",
-            signal_id=signal_id,
-            execution_date=trade_date,
+            action="buy",
+            recommendation_id=None,
+            match_if_missing=True,
+            notes="Auto legacy buy",
         )
-
         logger.info(f"    ✓ 买入: {asset_name} x{quantity} @ {price:.2f}")
         return True
 
-    def _passes_pre_trade_buy_risk(
+    def _buy_risk_issue(
         self,
         *,
         account: SimulatedAccount,
@@ -874,21 +1272,20 @@ class AutoTradingEngine:
         quantity: float,
         price: float,
         positions: list[Position] | None = None,
-    ) -> bool:
-        """Check centralized risk-center limits before a buy order is submitted."""
-        positions = (
-            positions
-            if positions is not None
-            else self.position_repo.get_by_account(account.account_id)
-        )
-        normalized_asset_code = asset_code.strip().upper()
-        current_symbol_position_value = sum(
-            float(position.market_value)
-            for position in positions
-            if position.asset_code.strip().upper() == normalized_asset_code
-        )
-
+    ) -> AutoTradingIssue | None:
+        """Return a stable issue when the centralized buy risk check blocks or fails."""
         try:
+            resolved_positions = (
+                positions
+                if positions is not None
+                else self.position_repo.get_by_account(account.account_id)
+            )
+            normalized_asset_code = asset_code.strip().upper()
+            current_symbol_position_value = sum(
+                float(position.market_value)
+                for position in resolved_positions
+                if position.asset_code.strip().upper() == normalized_asset_code
+            )
             result = self.pre_trade_risk_guard.execute(
                 account_id=account.account_id,
                 symbol=normalized_asset_code,
@@ -900,17 +1297,27 @@ class AutoTradingEngine:
                 cash_balance=float(account.current_cash),
                 current_symbol_position_value=current_symbol_position_value,
             )
-        except Exception as exc:
-            logger.error("    风控中心前置检查异常, 跳过 %s: %s", asset_code, exc)
-            return False
+        except Exception:
+            logger.error("风控中心前置检查异常: asset=%s", asset_code)
+            return AutoTradingIssue(
+                AutoTradingIssueKind.FAILED,
+                "pre_trade_risk",
+                "PRE_TRADE_RISK_UNAVAILABLE",
+                asset_code,
+            )
 
         if not result.passed:
-            logger.warning("    风控中心拒绝买入 %s: %s", asset_code, "; ".join(result.violations))
-            return False
+            logger.warning("风控中心拒绝买入: asset=%s", asset_code)
+            return AutoTradingIssue(
+                AutoTradingIssueKind.BLOCKED,
+                "pre_trade_risk",
+                "PRE_TRADE_RISK_REJECTED",
+                asset_code,
+            )
 
         for warning in result.warnings:
             logger.info("    风控中心提示 %s: %s", asset_code, warning)
-        return True
+        return None
 
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
@@ -996,7 +1403,7 @@ class AutoTradingEngine:
             return parsed
         return None
 
-    def _update_account_performance(self, account_id: int, trade_date: date) -> None:
+    def _update_account_performance(self, account_id: int, trade_date: date) -> bool:
         """
         更新账户绩效
 
@@ -1008,6 +1415,9 @@ class AutoTradingEngine:
         Args:
             account_id: 账户ID
             trade_date: 交易日期
+
+        Returns:
+            Whether the daily performance update completed.
         """
         try:
             from apps.simulated_trading.application.daily_net_value_service import (
@@ -1032,9 +1442,11 @@ class AutoTradingEngine:
                     f"最大回撤={metrics.get('max_drawdown', 0):.2f}%, "
                     f"夏普比率={metrics.get('sharpe_ratio', 0):.2f}"
                 )
+            return True
 
-        except Exception as e:
-            logger.error(f"更新账户绩效失败: {e}", exc_info=True)
+        except Exception:
+            logger.error("更新账户绩效失败: account_id=%s", account_id, exc_info=True)
+            return False
 
 
 class MockPriceProvider:

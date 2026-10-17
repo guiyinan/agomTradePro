@@ -1,0 +1,23 @@
+{
+  "source_tree": "3be31ad2fb8b0350e7222283947ab42445182801",
+  "path": "tests/unit/simulated_trading/test_t5_simulated_view_contracts.py",
+  "changed_line_ranges": [
+    "16-20",
+    "22-22",
+    "432-444",
+    "452-469",
+    "472-492",
+    "494-578",
+    "679-681",
+    "684-690"
+  ],
+  "black_changed_line_exit": 0,
+  "untouched_base_functions_with_full_file_black_debt": [
+    "test_daily_inspection_run_and_history_contracts",
+    "test_equity_curve_validation_success_and_data_fetch_error",
+    "test_manual_trade_buy_sell_and_business_error",
+    "test_my_accounts_page_validation_create_and_get"
+  ],
+  "exact_debt_function_source_equal_to_base": true,
+  "full_legacy_test_black_claimed_pass": false
+}

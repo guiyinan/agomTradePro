@@ -1,0 +1,2 @@
+source_tree=16c47eeb4e5e2417d46fb446084b91df3b639600
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-gu1gvows

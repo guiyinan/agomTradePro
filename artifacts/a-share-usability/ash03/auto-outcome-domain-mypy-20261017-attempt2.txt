@@ -1,0 +1,4 @@
+apps\simulated_trading\domain\auto_trading_outcomes.py:601: error: Incompatible types in assignment (expression has type "AccountAutoTradingOutcome | None", variable has type "AccountAutoTradingOutcome")  [assignment]
+Found 1 error in 1 file (checked 1 source file)
+Mypy regression(s):
+- apps/simulated_trading/domain/auto_trading_outcomes.py: assignment increased from 0 to 1

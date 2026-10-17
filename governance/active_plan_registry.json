@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v238",
+  "version": "2026-10-17.v240",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -374,7 +374,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.46 independent test-only prerequisite accepted: parent799fd2c51 reproduced pre-existing TUI permission-matrix calendar transaction guard failure; isolate only public owner read with valid blocked metadata DTO, preserve production ownership guard and real HTTP/auth/confirmation checks. Frozen 413 TUI/calendar tests and scoped style/module/entry checks passed. Plan19.45 real automatic outcome closure still awaiting final four high-risk packages on prerequisite commit; its unit373/native53/SQLite55/type and functional windows remain separately bound, no CI/S6 claim. ASH02 sole focus,74units unchanged; fullGoal/ASH01/02/03, nine inherited retirement failures, ordinary settlement/source qualification/PIT remain open. Evidence: docs/testing/a-share-usability-tui-calendar-permission-fixture-2026-10-17.json.",
+      "next_gate": "Plan19.45 accepted bounded real auto-trading engine/task/API outcome closure after19.44 commit799fd2c51 and independent19.46 test-only prerequisite505c9de39. Real strategy-query failure cannot legacy-buy; confirmed trades survive post-link/performance errors; partial writes/missing/extra/malformed results retain known confirmations and stored=null, no whole-batch retry after engine entry. Shared normalizer/serializer, explicit account/trade units, HTTP recorder and bounded Monitor unknown flag. Root373 unit, native53, SQLite55(includes2probes), original2 probes and four high-risk packages passed; Domain303/303 lines88/88 branches;9-file incremental/full mypy0, architecture/69 annotations and seven applicable governance checks passed. Final integration window on committed TUI prerequisite has22 selected sources identical to format window;9 production bytes identical to DB/type window, no release CI/S6. Existing9 retirement failures, ordinary T+1/odd-lot/atomicity/idempotency/lock-time owner/source-purpose/PIT open. Next independently verify/fix MCP explicit-empty account scope preservation; default preview pagination/eligibility binding also open, then actual-import fee missing-vs-zero closure without historical amount backfill. ASH02 sole focus;74units unchanged;DATA18 gatesASH11; FullGoal/ASH01/02/03 remain open;no production/Provider/research/Evidence/dispatch/broker qualification. Evidence: docs/testing/a-share-usability-auto-trading-outcomes-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

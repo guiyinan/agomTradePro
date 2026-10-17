@@ -1,0 +1,16 @@
+import json
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client
+
+@pytest.mark.django_db
+def test_calendar_scope_tui_status():
+    user=get_user_model().objects.create_superuser(username="scope-diagnostic",email="local@example.test",password="local-test-password")
+    client=Client();client.force_login(user)
+    response=client.post("/api/tui/actions/data-center.calendar-workbench-scope/run/",data=json.dumps({"params":{}}),content_type="application/json")
+    payload=response.json();inner=payload.get("response",{});body=inner.get("data",{})
+    selected={"outer":response.status_code,"inner":inner.get("status_code"),"confirmation":payload.get("confirmation_required"),"error":payload.get("error"),"view_status":payload.get("view_model",{}).get("status"),"inner_keys":list(inner)}
+    if isinstance(body,dict):
+        selected["body_selected"]={key:body[key] for key in ["detail","code","error_code","stable_error_code","outcome"] if key in body}
+    print("SAFE_SCOPE_DIAGNOSTIC="+json.dumps(selected,ensure_ascii=True))
+    assert inner.get("status_code")==200

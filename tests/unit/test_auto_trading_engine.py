@@ -24,8 +24,8 @@ def _build_engine(*, positions, exit_advisor=None, signal_service=None):
         signal_service=signal_service,
         exit_advisor=exit_advisor,
     )
-    engine._get_buy_candidates = Mock(return_value=[])
-    engine._update_account_performance = Mock()
+    engine._get_buy_candidates = Mock(return_value=([], None))
+    engine._update_account_performance = Mock(return_value=True)
     return engine
 
 
@@ -74,10 +74,10 @@ def test_invalidated_position_has_highest_exit_priority():
     ]
     engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
 
-    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+    result = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
 
-    assert buy_count == 0
-    assert sell_count == 1
+    assert result.buy_count == 0
+    assert result.sell_count == 1
     engine.sell_use_case.execute.assert_called_once()
     assert engine.sell_use_case.execute.call_args.kwargs["quantity"] == 1000
     assert engine.sell_use_case.execute.call_args.kwargs["reason"] == "PMI 跌破阈值"
@@ -98,10 +98,10 @@ def test_exit_advisor_reduce_generates_partial_sell():
     ]
     engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
 
-    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+    result = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
 
-    assert buy_count == 0
-    assert sell_count == 1
+    assert result.buy_count == 0
+    assert result.sell_count == 1
     engine.sell_use_case.execute.assert_called_once()
     assert engine.sell_use_case.execute.call_args.kwargs["quantity"] == 300
     assert engine.sell_use_case.execute.call_args.kwargs["reason"] == "统一调仓建议减仓"
@@ -122,13 +122,13 @@ def test_exit_advisor_reduce_without_quantity_does_not_close_position():
     ]
     engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
 
-    buy_count, sell_count = engine._execute_legacy_trading(
+    result = engine._execute_legacy_trading(
         _build_account(),
         date(2026, 4, 30),
     )
 
-    assert buy_count == 0
-    assert sell_count == 0
+    assert result.buy_count == 0
+    assert result.sell_count == 0
     engine.sell_use_case.execute.assert_not_called()
 
 
@@ -150,10 +150,10 @@ def test_exit_advisor_sell_waits_until_target_price_band():
     ]
     engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
 
-    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+    result = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
 
-    assert buy_count == 0
-    assert sell_count == 0
+    assert result.buy_count == 0
+    assert result.sell_count == 0
     engine.sell_use_case.execute.assert_not_called()
 
 
@@ -175,10 +175,10 @@ def test_exit_advisor_sell_allows_stop_loss_even_below_target_band():
     ]
     engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
 
-    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+    result = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
 
-    assert buy_count == 0
-    assert sell_count == 1
+    assert result.buy_count == 0
+    assert result.sell_count == 1
     engine.sell_use_case.execute.assert_called_once()
 
 
@@ -313,12 +313,13 @@ def test_buy_candidates_exclude_existing_position_case_insensitively():
         )
     )
 
-    candidates = engine._get_buy_candidates(
+    candidates, issue = engine._get_buy_candidates(
         _build_account(),
         date(2026, 4, 30),
     )
 
     assert candidates == []
+    assert issue is None
 
 
 def test_current_price_rejects_non_positive_provider_values():

@@ -1,0 +1,86 @@
+FFFFFFFFF                                                                [100%]
+================================== FAILURES ===================================
+____ test_strategy_binding_read_failure_does_not_execute_legacy_candidate _____
+C:\ProgramData\anaconda3\Lib\unittest\mock.py:940: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'execute' to not have been called. Called 1 times.
+E   Calls: [call(account_id=17, asset_code='000001.SZ', asset_name='平安银行', asset_type='equity', quantity=1800, price=10.0, reason='自动交易引擎买入', signal_id=42, execution_date=datetime.date(2026, 10, 16))].
+
+During handling of the above exception, another exception occurred:
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:87: in test_strategy_binding_read_failure_does_not_execute_legacy_candidate
+    buy_use_case.execute.assert_not_called()
+E   AssertionError: Expected 'execute' to not have been called. Called 1 times.
+E   Calls: [call(account_id=17, asset_code='000001.SZ', asset_name='平安银行', asset_type='equity', quantity=1800, price=10.0, reason='自动交易引擎买入', signal_id=42, execution_date=datetime.date(2026, 10, 16))].
+E   
+E   pytest introspection follows:
+E   
+E   Kwargs:
+E   assert {'account_id'...'equity', ...} == {}
+E     
+E     Left contains 9 more items:
+E     {'account_id': 17,
+E      'asset_code': '000001.SZ',
+E      'asset_name': '平安银行',
+E      'asset_type': 'equity',
+E      'execution_date': datetime.date(2026, 10, 16),...
+E     
+E     ...Full output truncated (5 lines hidden), use '-vv' to show
+------------------------------ Captured log call ------------------------------
+WARNING  apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:279 获取账户策略失败: strategy store unavailable
+_________ test_candidate_source_failure_is_reported_instead_of_a_noop _________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:105: in test_candidate_source_failure_is_reported_instead_of_a_noop
+    assert result.outcome is AutoTradingOutcome.FAILED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:777 获取买入候选失败: candidate source unavailable
+_____________ test_missing_candidate_price_is_reported_as_blocked _____________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:124: in test_missing_candidate_price_is_reported_as_blocked
+    assert result.outcome is AutoTradingOutcome.BLOCKED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+WARNING  apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:815     无法获取 000001.SZ 价格,跳过
+_________________ test_risk_rejection_is_reported_as_blocked __________________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:142: in test_risk_rejection_is_reported_as_blocked
+    assert result.outcome is AutoTradingOutcome.BLOCKED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+WARNING  apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:908     风控中心拒绝买入 000001.SZ:
+________ test_buy_use_case_exception_marks_write_effects_indeterminate ________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:158: in test_buy_use_case_exception_marks_write_effects_indeterminate
+    assert result.outcome is AutoTradingOutcome.FAILED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:546     ✗ 买入失败: 000001.SZ, 错误: write outcome unknown
+_______ test_confirmed_sell_survives_execution_link_failure_as_partial ________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:190: in test_confirmed_sell_survives_execution_link_failure_as_partial
+    assert result.outcome is AutoTradingOutcome.PARTIAL
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:535     ✗ 卖出失败: 000001.SZ, 错误: 'types.SimpleNamespace' object has no attribute 'unrealized_pnl_pct'
+____________ test_performance_failure_does_not_erase_confirmed_buy ____________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:212: in test_performance_failure_does_not_erase_confirmed_buy
+    assert result.outcome is AutoTradingOutcome.PARTIAL
+E   AttributeError: 'dict' object has no attribute 'outcome'
+___________ test_strategy_execution_failure_is_not_reported_as_noop ___________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:237: in test_strategy_execution_failure_is_not_reported_as_noop
+    assert result.outcome is AutoTradingOutcome.FAILED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:313 策略执行失败: private error details
+___________________ test_failure_is_isolated_to_its_account ___________________
+tests\unit\simulated_trading\test_auto_trading_engine_outcomes.py:263: in test_failure_is_isolated_to_its_account
+    assert results[first.account_id].outcome is AutoTradingOutcome.BLOCKED
+E   AttributeError: 'dict' object has no attribute 'outcome'
+------------------------------ Captured log call ------------------------------
+WARNING  apps.simulated_trading.application.auto_trading_engine:auto_trading_engine.py:279 获取账户策略失败: first account assignment unavailable
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_strategy_binding_read_failure_does_not_execute_legacy_candidate
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_candidate_source_failure_is_reported_instead_of_a_noop
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_missing_candidate_price_is_reported_as_blocked
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_risk_rejection_is_reported_as_blocked
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_buy_use_case_exception_marks_write_effects_indeterminate
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_confirmed_sell_survives_execution_link_failure_as_partial
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_performance_failure_does_not_erase_confirmed_buy
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_strategy_execution_failure_is_not_reported_as_noop
+FAILED tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py::test_failure_is_isolated_to_its_account
+9 failed in 2.74s

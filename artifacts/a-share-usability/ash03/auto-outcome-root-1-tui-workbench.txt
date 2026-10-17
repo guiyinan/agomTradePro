@@ -1,0 +1,24 @@
+source_tree=8ab97b72f1fea8050c2b0cfff9056d198a328616
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-_m13xm3p
+........................................................................ [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 60%]
+.........................................F.............................. [ 81%]
+...................................................................      [100%]
+================================== FAILURES ===================================
+______ test_published_tui_write_and_admin_actions_are_gated_consistently ______
+tests\unit\test_tui_workbench.py:10768: in test_published_tui_write_and_admin_actions_are_gated_consistently
+    assert not failures, failures[:5]
+E   AssertionError: [{'action_key': 'data-center.calendar-workbench-scope', 'error': None, 'expected': 'admin_read_ok', 'http': 200, ...}]
+E   assert not [{'action_key': 'data-center.calendar-workbench-scope', 'error': None, 'expected': 'admin_read_ok', 'http': 200, ...}]
+------------------------------ Captured log call ------------------------------
+WARNING  apps.operational_readiness.application.monitor_service:monitor_service.py:49 Personal readiness calendar coverage is unavailable: Authoritative trading calendar is unavailable or stale for readiness evidence
+============================== warnings summary ===============================
+core\settings\development_sqlite.py:4
+  D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-_m13xm3p\core\settings\development_sqlite.py:4: UserWarning: AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    from .base import *  # noqa: F403
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_tui_workbench.py::test_published_tui_write_and_admin_actions_are_gated_consistently
+1 failed, 354 passed, 1 warning in 239.98s (0:03:59)

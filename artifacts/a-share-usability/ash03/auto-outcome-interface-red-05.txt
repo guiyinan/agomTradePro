@@ -1,0 +1,36 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_engine_mapping_iteration_failure_preserves_already_read_confirmation __
+tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py:413: in test_engine_mapping_iteration_failure_preserves_already_read_confirmation
+    assert result["outcome"] == "partial"
+E   AssertionError: assert 'failed' == 'partial'
+E     
+E     - partial
+E     + failed
+------------------------------ Captured log call ------------------------------
+ERROR    apps.simulated_trading.application.auto_trading_outcome_reporting:auto_trading_outcome_reporting.py:48 模拟自动交易引擎返回了无效的账户结果映射
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_outcome_reporting.py", line 43, in build_auto_trading_batch_outcome_from_engine_results
+    return build_auto_trading_batch_outcome(
+        requested_account_ids,
+        cast(Mapping[int, AccountAutoTradingOutcome], engine_results),
+    )
+  File "D:\githv\agomTradePro\apps\simulated_trading\domain\auto_trading_outcomes.py", line 589, in build_auto_trading_batch_outcome
+    for account_id, supplied_outcome in results.items():
+                                        ~~~~~~~~~~~~~^^
+  File "<frozen _collections_abc>", line 898, in __iter__
+  File "D:\githv\agomTradePro\tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py", line 401, in __iter__
+    raise RuntimeError("mapping iteration failed after one account")
+RuntimeError: mapping iteration failed after one account
+ERROR    apps.simulated_trading.application.auto_trading_outcome_reporting:auto_trading_outcome_reporting.py:66 无法读取模拟自动交易引擎结果映射
+Traceback (most recent call last):
+  File "D:\githv\agomTradePro\apps\simulated_trading\application\auto_trading_outcome_reporting.py", line 55, in build_auto_trading_batch_outcome_from_engine_results
+    for raw_account_id, raw_outcome in engine_results.items():
+                                       ~~~~~~~~~~~~~~~~~~~~^^
+  File "<frozen _collections_abc>", line 898, in __iter__
+  File "D:\githv\agomTradePro\tests\unit\simulated_trading\test_auto_trading_outcome_interfaces.py", line 401, in __iter__
+    raise RuntimeError("mapping iteration failed after one account")
+RuntimeError: mapping iteration failed after one account
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_outcome_interfaces.py::test_engine_mapping_iteration_failure_preserves_already_read_confirmation
+1 failed in 1.28s

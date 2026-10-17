@@ -1,0 +1,10 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_account_outcome_is_derived_from_confirmed_trades_and_issues[2-1-issues0-success] _
+tests\unit\simulated_trading\test_auto_trading_outcomes.py:61: in test_account_outcome_is_derived_from_confirmed_trades_and_issues
+    assert outcome.outcome is expected
+E   AssertionError: assert <AutoTradingOutcome.NOOP: 'noop'> is <AutoTradingOutcome.SUCCESS: 'success'>
+E    +  where <AutoTradingOutcome.NOOP: 'noop'> = AccountAutoTradingOutcome(account_id=17, buy_count=2, sell_count=1, issues=()).outcome
+=========================== short test summary info ===========================
+FAILED tests/unit/simulated_trading/test_auto_trading_outcomes.py::test_account_outcome_is_derived_from_confirmed_trades_and_issues[2-1-issues0-success]
+1 failed in 2.08s

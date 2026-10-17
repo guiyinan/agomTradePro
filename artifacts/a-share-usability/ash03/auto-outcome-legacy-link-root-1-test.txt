@@ -1,0 +1,13 @@
+source_tree=4f0ae57b475e46ac84acd98b970c81af40ea0e1a
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-auto-outcome-link-red-c205a9es
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_confirmed_database_trade_survives_post_trade_failure_in_result[link] __
+tests\component\simulated_trading\test_auto_trading_outcome_persistence.py:137: in test_confirmed_database_trade_survives_post_trade_failure_in_result
+    assert result.outcome is AutoTradingOutcome.PARTIAL
+E   AssertionError: assert <AutoTradingOutcome.SUCCESS: 'success'> is <AutoTradingOutcome.PARTIAL: 'partial'>
+E    +  where <AutoTradingOutcome.SUCCESS: 'success'> = AccountAutoTradingOutcome(account_id=1, buy_count=1, sell_count=0, issues=()).outcome
+E    +  and   <AutoTradingOutcome.PARTIAL: 'partial'> = AutoTradingOutcome.PARTIAL
+=========================== short test summary info ===========================
+FAILED tests/component/simulated_trading/test_auto_trading_outcome_persistence.py::test_confirmed_database_trade_survives_post_trade_failure_in_result[link]
+1 failed, 2 deselected in 12.56s

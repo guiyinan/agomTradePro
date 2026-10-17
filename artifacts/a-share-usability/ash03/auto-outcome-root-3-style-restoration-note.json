@@ -1,0 +1,9 @@
+{
+  "first_style_window": 1,
+  "full_style_gate_passed_in_first_window": false,
+  "observed_stop": "black.report.NothingChanged while checking retention of four unrelated legacy debt functions.",
+  "individual_black_changed_hunks_isort_ruff_exits": 0,
+  "restoration": "auto-outcome-root-1-unrelated-test-format-restoration.json",
+  "final_style_gate": "auto-outcome-root-3-style-result.json",
+  "production_sources_modified": false
+}

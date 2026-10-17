@@ -5,6 +5,10 @@
 
 ## 目标
 
+2026-10-17 自动模拟交易：`daily_auto_trading_task` 在执行前冻结账户范围；默认仅选择明确为模拟且活跃、已启用自动交易的账户。`requested/succeeded/failed` 按账户计数，`buy_count/sell_count/confirmed_trade_count/stored` 按成交计数；partial 账户计入 failed，并单列 `partial_account_count`。兼容 `success` 在 partial 为 true，监控和调用方以 `outcome` 为准。空范围为有明确原因的 noop。
+
+普通买卖用例尚非完整原子结算链，执行中异常可能发生在部分写账之后。此时保留已确认成交，`stored=null`、`counts_unavailable=true`，不得把未知写入记成零；缺失、额外或畸形引擎结果同样保留有效确认数量并标记不确定。引擎调用开始后不整批重试；仅执行前准备失败沿用有限重试。默认账户范围读取失败且重试耗尽时，账户分母为 null，尚未进入引擎的已知写入数为零。Task Monitor 的大结果投影保留数量未知标记和账户/成交单位。该结果契约不替代普通消费者的原子性、幂等、T+1 或来源资格验收。
+
 2026-09-19 全市场刷新：`refresh_full_market_publications_task` 冻结有效 A 股范围，分批执行带审计的 quote/valuation fact-only 同步。全部批次成功且快照、估值源日期等于最近完成交易日后，才原子发布整个 quote/valuation/price 范围；独立财报缺少可用时间不再阻止市场数据发布。日线保留停牌股票真实末次观测，不填充价格，发布成功不表示所有成员可用于决策。计数单位为同步/发布操作，`stored` 为报价/估值事实行（不含日线补录量），部分同步或发布失败必须为 partial/failed，禁止发布中间批次。生产定时在推理前刷新快照并经过中台补录/校验当日日线后发布；`price_scope_verified` 和 `suspended_codes` 单独记录验证范围。
 
 2026-09-26 分母护栏：刷新后的 `active_count` 和规范代码集合 SHA-256 必须与冻结集合精确一致；valuation seed 的返回身份和成功身份必须覆盖完整冻结集合。Provider 未返回证券只能形成 `CURRENT_VALUATION_SCOPE_INCOMPLETE` 阻断和缺失清单，不能自动归类为停牌、未上市或“非交易”，也不能把缩小后的集合传给正式 Publication。显式排除必须另有可验证的交易状态或上市状态证据并进入治理策略。

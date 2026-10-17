@@ -14,8 +14,8 @@ from datetime import date
 from typing import Any, Protocol, TypeVar, cast
 
 from celery import shared_task
+from celery.exceptions import Retry
 from django.conf import settings
-from django.core.mail import send_mail
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
@@ -23,6 +23,12 @@ from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
+from apps.simulated_trading.application.auto_trading_outcome_reporting import (
+    auto_trading_count_units,
+    build_auto_trading_batch_outcome_from_engine_results,
+    build_indeterminate_auto_trading_batch,
+    serialize_auto_trading_batch_outcome,
+)
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
     build_decision_rhythm_exit_advisor,
@@ -48,10 +54,18 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
+    SimulatedAccountRepositoryProtocol,
 )
+from apps.simulated_trading.domain.auto_trading_outcomes import (
+    AccountAutoTradingOutcome,
+    AutoTradingBatchOutcome,
+    AutoTradingIssue,
+    AutoTradingIssueKind,
+    build_auto_trading_batch_outcome,
+)
+from apps.simulated_trading.domain.entities import AccountType, SimulatedAccount
 from core.exceptions import DataFetchError
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
-from shared.infrastructure.notification_service import NotificationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +172,118 @@ def _failed_task_result(error: Exception, *, requested: int = 1) -> dict[str, An
     )
 
 
+def _auto_trading_unavailable_scope_result(*, target_date: date) -> dict[str, Any]:
+    """Report a default-scope failure without inventing an account denominator."""
+    return {
+        "outcome": "failed",
+        "success": False,
+        "requested": None,
+        "succeeded": None,
+        "failed": None,
+        "partial_account_count": None,
+        "stored": 0,
+        "counts_unavailable": True,
+        "buy_count": 0,
+        "sell_count": 0,
+        "confirmed_trade_count": 0,
+        "reason_code": "ACCOUNT_SCOPE_UNAVAILABLE",
+        "stable_error_code": "ACCOUNT_SCOPE_UNAVAILABLE",
+        "task_issue": {
+            "kind": AutoTradingIssueKind.FAILED.value,
+            "stage": "task_scope",
+            "code": "ACCOUNT_SCOPE_UNAVAILABLE",
+        },
+        "accounts": [],
+        "trade_date": target_date.isoformat(),
+        "total_accounts": None,
+        "results": {},
+        "summary": {
+            "total_buy_count": 0,
+            "total_sell_count": 0,
+            "confirmed_trade_count": 0,
+            "stored_trade_count": 0,
+            "counts_unavailable": True,
+        },
+        "count_unit": "account",
+        "stored_count_unit": "trade",
+        "count_units": auto_trading_count_units(),
+    }
+
+
+def _build_pre_execution_failure_batch(
+    account_ids: tuple[int, ...],
+) -> AutoTradingBatchOutcome:
+    """Create determinate zero-write failures for a known pre-engine scope."""
+    results = {
+        account_id: AccountAutoTradingOutcome(
+            account_id=account_id,
+            buy_count=0,
+            sell_count=0,
+            issues=(
+                AutoTradingIssue(
+                    kind=AutoTradingIssueKind.FAILED,
+                    stage="task_setup",
+                    code="TASK_SETUP_FAILED",
+                ),
+            ),
+        )
+        for account_id in account_ids
+    }
+    return build_auto_trading_batch_outcome(account_ids, results)
+
+
+def _resolve_default_auto_trading_account_ids(
+    account_repository: SimulatedAccountRepositoryProtocol,
+) -> list[int]:
+    """Freeze only active, enabled accounts explicitly typed as simulated."""
+    accounts = account_repository.get_active_accounts()
+    if type(accounts) is not list:
+        raise ValueError("active account repository returned an invalid collection")
+    seen_ids: set[int] = set()
+    selected_ids: list[int] = []
+    for account in accounts:
+        if not isinstance(account, SimulatedAccount):
+            raise ValueError("active account repository returned an invalid account")
+        if type(account.account_id) is not int or account.account_id <= 0:
+            raise ValueError("active account repository returned an invalid identifier")
+        if account.account_id in seen_ids:
+            raise ValueError("active account repository returned duplicate identifiers")
+        seen_ids.add(account.account_id)
+        if type(account.account_type) is not AccountType:
+            raise ValueError("active account repository returned an unknown account type")
+        if account.account_type is AccountType.SIMULATED:
+            selected_ids.append(account.account_id)
+    if len(selected_ids) > _MAX_TASK_BATCH_SIZE:
+        raise ValueError("default account scope exceeds the supported batch size")
+    return selected_ids
+
+
+def _handle_pre_execution_failure(
+    task: _BoundTaskProtocol,
+    error: Exception,
+    *,
+    target_date: date,
+    account_ids: tuple[int, ...] | None,
+) -> dict[str, Any]:
+    """Retry only setup failures and return a safe result after exhaustion."""
+    logger.exception("模拟自动交易任务执行前准备失败", exc_info=error)
+    retries = task.request.retries
+    max_retries = task.max_retries
+    if type(retries) is int and type(max_retries) is int and retries < max_retries:
+        try:
+            raise task.retry(exc=error, countdown=60 * (2**retries))
+        except Retry:
+            raise
+        except Exception:
+            logger.exception("无法安排模拟自动交易任务准备重试")
+    if account_ids is None:
+        return _auto_trading_unavailable_scope_result(target_date=target_date)
+    return serialize_auto_trading_batch_outcome(
+        _build_pre_execution_failure_batch(account_ids),
+        trade_date=target_date,
+    )
+
+
 def _parse_task_date(value: str | None, field_name: str) -> date:
     """Validate an optional ISO task date at the Application boundary."""
     if value is None:
@@ -226,25 +352,42 @@ def daily_auto_trading_task(
 
     Args:
         trade_date: 交易日期（YYYY-MM-DD，默认今天）
-        account_ids: 指定账户ID列表（None表示全部活跃账户）
+        account_ids: 指定账户ID列表（None表示全部活跃且启用的模拟账户）
 
     Returns:
         任务结果字典
     """
-    # 1. 确定交易日期并在任何依赖访问前校验 Celery 输入。
+    # 1. Validate Celery input before touching repositories or external services.
     try:
         target_date = _parse_task_date(trade_date, "trade_date")
         validated_account_ids = _validate_optional_ids(account_ids, "account_ids")
     except (TypeError, ValueError) as exc:
         return _failed_task_result(exc)
 
+    if validated_account_ids == []:
+        empty_batch = build_auto_trading_batch_outcome((), {})
+        return serialize_auto_trading_batch_outcome(empty_batch, trade_date=target_date)
+
     logger.info("=" * 60)
     logger.info(f"模拟盘自动交易任务开始: {target_date}")
     logger.info("=" * 60)
 
+    resolved_account_ids: tuple[int, ...] | None = (
+        tuple(validated_account_ids) if validated_account_ids is not None else None
+    )
     try:
-        # 2. 初始化依赖
-        account_repo = get_simulated_account_repository()
+        # Freeze the default scope before assembling the rest of the engine.
+        account_repo = cast(
+            SimulatedAccountRepositoryProtocol,
+            get_simulated_account_repository(),
+        )
+        if resolved_account_ids is None:
+            resolved_account_ids = tuple(_resolve_default_auto_trading_account_ids(account_repo))
+            if not resolved_account_ids:
+                empty_batch = build_auto_trading_batch_outcome((), {})
+                return serialize_auto_trading_batch_outcome(empty_batch, trade_date=target_date)
+
+        # 2. Assemble dependencies. Failures here are safe to retry because the engine has not run.
         position_repo = get_simulated_position_repository()
         trade_repo = get_simulated_trade_repository()
         fee_config_repo = get_simulated_fee_config_repository()
@@ -270,7 +413,7 @@ def daily_auto_trading_task(
             asset_pool_repo=get_asset_pool_query_repository(),
             signal_repo=signal_repo,
         )
-        # 3. 创建引擎
+        # 3. Create the engine after a stable account scope is known.
         engine = AutoTradingEngine(
             account_repo=account_repo,
             position_repo=position_repo,
@@ -285,66 +428,50 @@ def daily_auto_trading_task(
             execution_link_recorder=build_decision_execution_link_recorder(),
         )
 
-        # 4. 执行交易
-        results = engine.run_daily_trading(target_date, account_ids=validated_account_ids)
-
-        # 5. 汇总统计
-        total_accounts = len(results)
-        total_buy_count = sum(r["buy_count"] for r in results.values())
-        total_sell_count = sum(r["sell_count"] for r in results.values())
-
-        logger.info("=" * 60)
-        logger.info("模拟盘自动交易任务完成")
-        logger.info(f"  处理账户: {total_accounts} 个")
-        logger.info(f"  总买入: {total_buy_count} 笔")
-        logger.info(f"  总卖出: {total_sell_count} 笔")
-        logger.info("=" * 60)
-
-        requested_count = (
-            len(validated_account_ids) if validated_account_ids is not None else total_accounts
-        )
-        failed_count = max(requested_count - total_accounts, 0)
-        if total_accounts == 0:
-            outcome = "failed" if failed_count else "noop"
-        elif failed_count:
-            outcome = "partial"
-        else:
-            outcome = "success"
-        return _task_result(
-            outcome=outcome,
-            requested=requested_count,
-            succeeded=total_accounts,
-            failed=failed_count,
-            stored=total_buy_count + total_sell_count,
-            trade_date=target_date.isoformat(),
-            total_accounts=total_accounts,
-            results=results,
-            summary={
-                "total_buy_count": total_buy_count,
-                "total_sell_count": total_sell_count,
-            },
+    except Exception as error:
+        if resolved_account_ids is None:
+            # A default-scope read failed, so its denominator is genuinely unknown.
+            return _handle_pre_execution_failure(
+                self,
+                error,
+                target_date=target_date,
+                account_ids=None,
+            )
+        return _handle_pre_execution_failure(
+            self,
+            error,
+            target_date=target_date,
+            account_ids=resolved_account_ids,
         )
 
-    except Exception as e:
-        logger.exception(f"自动交易任务执行失败: {e}")
+    if resolved_account_ids is None:
+        return _auto_trading_unavailable_scope_result(target_date=target_date)
 
-        # 重试逻辑
-        if self.request.retries < self.max_retries:
-            try:
-                raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
-            except Exception:
-                logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
-
-        requested_count = len(validated_account_ids) if validated_account_ids else 1
-        return _task_result(
-            outcome="failed",
-            requested=requested_count,
-            succeeded=0,
-            failed=requested_count,
-            stored=0,
-            trade_date=target_date.isoformat(),
-            error=str(e),
+    # Once this call starts, an exception may follow partial writes: never retry the batch.
+    try:
+        engine_results = engine.run_daily_trading(
+            target_date,
+            account_ids=list(resolved_account_ids),
         )
+    except Exception:
+        logger.exception("模拟自动交易引擎执行结果不确定，不重试整批")
+        batch = build_indeterminate_auto_trading_batch(
+            resolved_account_ids,
+            code="EXECUTION_OUTCOME_UNKNOWN",
+        )
+    else:
+        batch = build_auto_trading_batch_outcome_from_engine_results(
+            resolved_account_ids,
+            engine_results,
+        )
+
+    logger.info("=" * 60)
+    logger.info("模拟盘自动交易任务完成")
+    logger.info("  处理账户: %s 个", batch.requested)
+    logger.info("  总买入: %s 笔", batch.buy_count)
+    logger.info("  总卖出: %s 笔", batch.sell_count)
+    logger.info("=" * 60)
+    return serialize_auto_trading_batch_outcome(batch, trade_date=target_date)
 
 
 @typed_shared_task(
