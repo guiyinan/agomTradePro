@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-17.v258",
-  "updated_at": "2026-10-17",
+  "version": "2026-10-18.v259",
+  "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
     "allowed_parallel_execution_modes": [
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.55: calendar result projection extracted with exact 12-method/4-constant AST, dispatch and MRO preservation. Frozen tree 1fa72ec7c4d973eb6bc94bb766c75d59c5b52ead actual 501 Python/26 Node/native journey 2 passed; all same-tree phase markers checked. Manifest adds only two production paths, bundles unchanged, module/DC projections match strict deltas. Root retains 2 size and 9 retirement violations without waiver. Next: explicit bounded TUX08 handoff, then Domain/formal-calendar and remaining financial work; ASH02 focus/79 units/closure unchanged, full Goal open. Evidence: docs/testing/a-share-usability-tui-calendar-result-size-2026-10-17.json.",
+      "next_gate": "Plan19.56: Settlement Domain extraction verified on frozen tree eddaab3b3ed64bee30263c8b6ccbab18826735aa; actual results: 218 unit, 61 SQLite with 4 PostgreSQL-only skips, 65 native component passes. Domain coverage 95.937/93.617/95.408; module map only simulated_trading.domain +2. Governance and retirement remain non-green at actual exit 1 each (one size and nine retirement violations). Keep ASH-02 focus and closure v74/79 unchanged; full Goal remains open. Evidence: artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

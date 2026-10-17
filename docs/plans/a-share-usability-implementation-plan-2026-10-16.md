@@ -1220,3 +1220,14 @@ Root-2 全量治理实际保留 3 个 size violation 与 9 个 retirement violat
 实际冻结树验证：Python 501 passed、Node 26 项、既有 PostgreSQL HTTP 与 browser journey 2 项；Black/isort/Ruff、architecture、size、typing、runtime/module/DC build 与 required contract 检查实际结果见 checkpoint 和 evidence bundle。Full governance 实际退出 1，仍有 2 项本 Goal 尚未收敛的 size 违规；versioned-surface retirement 实际退出 1，仍有 9 项本 Goal 的退役违规。没有放宽 baseline、floor、pin 或 allowlist。ASH-02 focus、79 units、closure 和 full Goal 保持原值。下一步需先明确交接 TUX08 bounded window，再继续 Domain/formal-calendar 与剩余金融/数据工作。
 
 详细证据：docs/testing/a-share-usability-tui-calendar-result-size-2026-10-17.json
+
+
+### 19.56 Settlement Domain extraction bounded acceptance
+
+本批以 `8aae306ecca152bdf77365ed4a1b6e8768ca4d71` 为 base，冻结 source tree 为 `eddaab3b3ed64bee30263c8b6ccbab18826735aa`，仅含三个 Settlement Domain production 文件。完整 AST 对照证明相对原 base 的 36 个定义与 10 个常量／赋值主体不变；格式化前后的候选 import 名称／alias 绑定集合一致（不将此集合比较误称为原模块所有附带导入名不变）。旧 facade 仍显式重导出业务符号，真实导入身份与运行时注解已经验证。原文件由 1,296 降至 662 个非空行，新 primitives 为 244、calendar 为 459；没有字段、schema、业务、锁或事务改动。source patch 仅含这三个文件，并可由私有 Git index 重建到冻结 tree。
+
+九阶段实际结果、reference、全部 phase logs/JUnit/coverage、AST proof、driver、binder 和 prior failure 内容及 SHA-256 均嵌入 `artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json`。本次 unit 218 pass；SQLite 61 pass、4 个 PostgreSQL-only 用例按预期跳过；Native PostgreSQL 实际 65 pass、0 skip。三个 Domain 文件覆盖率为 95.937% / 93.617% / 95.408%。官方 module map 仅将 `simulated_trading.domain` 从 12 增至 14。
+
+Full governance 与 retirement 实际各退出 1，分别保留一个已知 size violation 和九个 retirement violation，均不记为 green。ASH-02 focus/policy 与 closure v74 的 79 个 units 保持原样。此批不代表 ASH01–12 Goal、RC、S6 或 production 完成。
+
+详细证据：`docs/testing/a-share-usability-settlement-domain-size-2026-10-18.json` 与 `artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json`。

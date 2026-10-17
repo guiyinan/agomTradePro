@@ -1,0 +1,153 @@
+{
+  "status": "bounded-settlement-domain-extraction-verified",
+  "acceptance_date": "2026-10-18",
+  "base_commit": "8aae306ecca152bdf77365ed4a1b6e8768ca4d71",
+  "source_tree": "eddaab3b3ed64bee30263c8b6ccbab18826735aa",
+  "source_commit": "dfb7c05ff3c8c2bbeab856fb4974fe0bdf5c8114",
+  "production": [
+    "apps/simulated_trading/domain/execution_settlement_uow.py",
+    "apps/simulated_trading/domain/execution_settlement_primitives.py",
+    "apps/simulated_trading/domain/execution_settlement_calendar.py"
+  ],
+  "source_lf_sha256": {
+    "apps/simulated_trading/domain/execution_settlement_uow.py": "5779af3521dc3dee0f27c3d603ae46849f02792796c7bdc1a5c0e02868690724",
+    "apps/simulated_trading/domain/execution_settlement_primitives.py": "0f6cfd4677d32f595b8464a6bbfe0712309b608c369b3e00590acb76f6268f9a",
+    "apps/simulated_trading/domain/execution_settlement_calendar.py": "4f4800ae74987a576032921bd18561b0613825ebd13fc306b1848d165a008752"
+  },
+  "actual_phase_exit_codes": {
+    "style": {
+      "black": 0,
+      "isort": 0,
+      "ruff": 0
+    },
+    "typing": {
+      "incremental-mypy": 0,
+      "full-mypy": 0
+    },
+    "unit": {
+      "unit-coverage": 0
+    },
+    "sqlite": {
+      "sqlite-component": 0
+    },
+    "runtime": {
+      "runtime-contract": 0
+    },
+    "structure": {
+      "changed-file-size": 0,
+      "architecture": 0
+    },
+    "projections": {
+      "build_module_map": 0,
+      "check_module_map": 0,
+      "check_current_data_contracts": 0,
+      "check_audit_event_contracts": 0,
+      "check_celery_task_contracts": 0,
+      "check_data_dictionary": 0
+    },
+    "native": {
+      "native-parent-before": 0,
+      "native-target-before": 0,
+      "native-component": 0,
+      "native-target-after": 0,
+      "native-parent-after": 0
+    },
+    "governance": {
+      "full-governance": 1,
+      "retirement": 1
+    }
+  },
+  "pytest_actual_counts": {
+    "unit-coverage": {
+      "passed": 218,
+      "skipped": [],
+      "total": 218,
+      "junit_path": "D:/githv/agomTradePro-ash-index-qa-01a14268/ash-settlement-domain-size-tdja9wp4/.tmp/settlement-domain-size-root-1-unit-coverage-junit.xml"
+    },
+    "sqlite-component": {
+      "passed": 61,
+      "skipped": [
+        "test_concurrent_buys_cannot_spend_the_same_cash_twice",
+        "test_concurrent_exact_idempotency_replay_writes_one_trade",
+        "test_concurrent_releases_add_original_pending_shares_once_and_preserve_binding",
+        "test_concurrent_sells_cannot_consume_the_same_available_position_twice"
+      ],
+      "total": 65,
+      "junit_path": "D:/githv/agomTradePro-ash-index-qa-01a14268/ash-settlement-domain-size-tdja9wp4/.tmp/settlement-domain-size-root-1-sqlite-component-junit.xml"
+    },
+    "native-component": {
+      "passed": 65,
+      "skipped": [],
+      "total": 65,
+      "junit_path": "D:/githv/agomTradePro-ash-index-qa-01a14268/ash-settlement-domain-size-tdja9wp4/.tmp/settlement-domain-size-root-1-native-component-junit.xml"
+    }
+  },
+  "domain_coverage_percent_by_file": {
+    "apps/simulated_trading/domain/execution_settlement_calendar.py": 95.40816326530613,
+    "apps/simulated_trading/domain/execution_settlement_primitives.py": 93.61702127659575,
+    "apps/simulated_trading/domain/execution_settlement_uow.py": 95.93679458239278
+  },
+  "governance": {
+    "green": false,
+    "known_failures": [
+      {
+        "label": "full-governance",
+        "actual_exit_code": 1,
+        "green": false,
+        "known_violation": {
+          "code": "large_python_file_missing_baseline",
+          "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py"
+        }
+      },
+      {
+        "label": "retirement",
+        "actual_exit_code": 1,
+        "green": false,
+        "known_violations": [
+          "module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+          "module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+          "no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+          "no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+          "unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py",
+          "unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py",
+          "unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py",
+          "unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py",
+          "unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py"
+        ],
+        "known_violation_count": 9,
+        "prior_log_sha256_raw": "faec3ecdde781b272aa4c9add21f9a1c9e19a1bebb66c4945abd98d5f0f317d1"
+      }
+    ]
+  },
+  "source_patch_sha256_raw": "400026a695f64835b0d03afac3f71cd4d434b2e951f7ad4eec3f48237009673b",
+  "source_patch_reconstructs_exact_tree": true,
+  "module_map": {
+    "base_domain_count": 12,
+    "generated_domain_count": 14,
+    "sha256_lf": "4104d74dd73e537f6eea4202e2f8ed863d244654e9a8556bea8661b5de758c1e",
+    "only_expected_delta": "simulated_trading.domain +2"
+  },
+  "registry_invariants": {
+    "version": "2026-10-18.v259",
+    "closure_version": "2026-10-17.v74",
+    "closure_units": 79,
+    "focus_unit": "ASH-02",
+    "focus_and_policy_unchanged": true
+  },
+  "goal_completion": "not_assessed",
+  "release_candidate": "not_assessed",
+  "s6": "not_assessed",
+  "production_validation": "not_assessed",
+  "qualification": "Bounded same-tree Domain extraction evidence only; full A-share Goal remains open.",
+  "evidence_json": "artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json",
+  "owned_commit_files": [
+    "apps/simulated_trading/domain/execution_settlement_uow.py",
+    "apps/simulated_trading/domain/execution_settlement_primitives.py",
+    "apps/simulated_trading/domain/execution_settlement_calendar.py",
+    "governance/module_map.json",
+    "docs/testing/a-share-usability-settlement-domain-size-2026-10-18.json",
+    "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
+    "governance/active_plan_registry.json",
+    "artifacts/a-share-usability/ash01/settlement-domain-size-evidence-2026-10-18.json"
+  ]
+}
