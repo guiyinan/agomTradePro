@@ -2622,7 +2622,8 @@
           "class EquityResearchSnapshotUseCase:",
           "def _payload_block_reason(",
           "decision_readiness_blocked",
-          "equity_core_evidence_incomplete"
+          "equity_core_evidence_incomplete",
+          "\"outcome\": outcome"
         ],
         "apps/equity/interface/research_snapshot_views.py": [
           "class EquityResearchSnapshotAPIView(APIView):",
@@ -2682,6 +2683,21 @@
           "case": "mcp_single_sdk_call",
           "test_file": "sdk/tests/test_mcp/test_equity_research_snapshot_registry.py",
           "test_function": "test_research_snapshot_is_a_single_sdk_call_and_preserves_envelope"
+        },
+        {
+          "case": "owner_execution_outcome_unknown_fail_closed",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_unknown_owner_status_is_conservatively_blocked_without_rewriting_status"
+        },
+        {
+          "case": "owner_execution_outcome_restricted_state",
+          "test_file": "tests/unit/equity/test_research_snapshot_use_case.py",
+          "test_function": "test_restricted_fresh_or_partial_state_cannot_publish_success"
+        },
+        {
+          "case": "real_http_and_tui_outcome_consumer",
+          "test_file": "tests/component/test_equity_research_outcome_consumer.py",
+          "test_function": "test_research_outcome_reaches_real_http_and_existing_tui_executor"
         }
       ]
     },

@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/black-final.log",
+  "raw_bytes_sha256": "33c6fee336c2550604eaf33dcfc2b89ff60ceb8c829cbff855e8051508078157",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'black', '--check', 'apps/equity/application/research_snapshot.py', 'tests/unit/equity/test_research_snapshot_use_case.py', 'tests/component/test_equity_research_outcome_consumer.py']\r\nAll done! ✨ 🍰 ✨\r\n3 files would be left unchanged.\r\n\r\nEXIT_CODE: 0\r\n"
+}

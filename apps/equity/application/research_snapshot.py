@@ -112,10 +112,20 @@ class EquityResearchSnapshotResult:
     must_not_use_for_decision: bool
 
     def to_payload(self) -> JsonObject:
-        """Serialize the typed result using the legacy MCP-compatible shape."""
+        """Serialize the result with an execution outcome, not trade qualification."""
 
+        outcome = (
+            "success"
+            if self.status == "fresh" and not self.must_not_use_for_decision
+            else (
+                "partial"
+                if self.status == "partial" and not self.must_not_use_for_decision
+                else "blocked"
+            )
+        )
         payload: JsonObject = {
             "status": self.status,
+            "outcome": outcome,
             "stock_code": self.stock_code,
             "identity": self.identity.to_payload(),
             "sections": {name: section.to_payload() for name, section in self.sections.items()},

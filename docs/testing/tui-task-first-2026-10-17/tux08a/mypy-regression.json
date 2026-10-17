@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/mypy-regression.log",
+  "raw_bytes_sha256": "318bab449456e73e62541838580ae603260b30dbc7d8b370217dd1b3ae7e835b",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_mypy_regression.py', 'apps/equity/application/research_snapshot.py']\r\nSuccess: no issues found in 1 source file\r\nMypy regressions: 0 (legacy errors observed: 0)\r\n\r\nEXIT_CODE: 0\r\n"
+}

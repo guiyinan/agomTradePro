@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/mypy-debt.log",
+  "raw_bytes_sha256": "bbc70b9483d838a71ede605a119729a9fa2d912b6c9a11b66807a97f03c083a1",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_mypy_debt_ceiling.py']\r\nFull mypy debt ceiling passed: 0 errors in 0 files\r\n\r\nEXIT_CODE: 0\r\n"
+}

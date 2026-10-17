@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/registry-tests-final.log",
+  "raw_bytes_sha256": "9f34fcd12339fab0ac210d83eab6cf79d69dc9493d48835c6807b6d1ca8fd9e4",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/test_active_plan_registry.py', '-q', '--ds=tux07_settings', '--reuse-db', '--basetemp=.tmp/pytest-tux08a-registry-final']\r\n........                                                                 [100%]\r\n8 passed in 0.99s\r\n\r\nEXIT_CODE: 0\r\n"
+}

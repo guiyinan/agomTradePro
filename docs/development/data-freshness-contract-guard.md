@@ -21,6 +21,13 @@ pytest tests/unit/ci/test_check_current_data_contracts.py -q
 
 ## 五条不可破坏的语义
 
+研究聚合 `mcp.equity_research_snapshot` 同时发布 owner 原始 `status` 与规范化
+`outcome`：完整读取为 `success`，可选材料缺失为 `partial`，受阻、身份未解析、
+未知结果状态或明确禁止决策为 `blocked`。HTTP 200 只证明传输成功；此附加字段
+保留分区、可靠性、限制与源时间，不改变真实数据就绪度、研究或执行资格。
+对应 HTTP/TUI 消费测试只供给读取端口及名称端口，真实走既有视图和执行器，
+不是 Publication、四项就绪度或浏览器主任务验收。
+
 财务公告范围发现 v2 以两份响应共同的知识截止点选择最新已可用公告，不能让尚不可用的最新行遮蔽旧的已可用公告。
 缺失/占位日期隔离并保留原文；全集逐资产分类，`partial` 不具有完整财务刷新能力。范围 eligible 不等于财务事实 fresh，
 不得绕过 Publication 的 freshness 与独立授权。登记见 `data_center.financial_scope_latest_available`。

@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/python-green.log",
+  "raw_bytes_sha256": "67d06956f3dc7dcb10a49ee3711633c8ca636e75c9fa9386a74ca36127d32ad0",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/equity/test_research_snapshot_use_case.py', 'tests/api/test_equity_research_snapshot_api.py', 'tests/component/test_equity_research_outcome_consumer.py', 'sdk/tests/test_sdk/test_equity_module.py', 'sdk/tests/test_mcp/test_equity_research_snapshot_registry.py', 'tests/unit/test_ai_capability/test_equity_research_routing.py', 'tests/unit/ci/test_check_current_data_contracts.py', 'tests/unit/test_active_plan_registry.py', '-q', '--ds=tux07_settings', '--reuse-db', '--basetemp=.tmp/pytest-tux08a-green']\r\n........................................................................ [ 91%]\r\n.......                                                                  [100%]\r\n79 passed in 87.63s (0:01:27)\r\n\r\nEXIT_CODE: 0\r\n"
+}

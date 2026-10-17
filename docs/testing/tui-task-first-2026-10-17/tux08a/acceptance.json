@@ -1,0 +1,131 @@
+{
+  "status": "bounded-owner-outcome-prerequisite-verified",
+  "unit": "TUX-08",
+  "slice": "TUX-08a",
+  "base_commit": "7d3a8f3556a32739ed706beb0817db315f6afde1",
+  "scope": "Additive canonical outcome in one Equity owner production file; no new published TUI action/screen",
+  "verified": {
+    "focused_unique_tests": 79,
+    "focused_log": "python-green.json",
+    "final_consumer_recheck": 4,
+    "final_consumer_log": "consumer-final.json",
+    "incremental_mypy_errors": 0,
+    "full_mypy_errors": 0,
+    "full_mypy_files_with_errors": 0,
+    "style": "Black/isort/Ruff all pass in *-final.json",
+    "architecture_audit": "architecture.json",
+    "current_contract": "current-contracts.json",
+    "doc_api_sdk": "doc-route-sdk.json",
+    "registry_final": {
+      "violations": 0,
+      "tests_passed": 8,
+      "logs": [
+        "registry-final.json",
+        "registry-tests-final.json"
+      ]
+    },
+    "global_governance": {
+      "exit_code": 1,
+      "violations": 6,
+      "all_other_sections_zero": true,
+      "report": "governance-report.json"
+    },
+    "version_retirement": {
+      "exit_code": 1,
+      "violations": 9,
+      "log": "version-retirement.json"
+    },
+    "changed_production_size": {
+      "official_finder_against_stage_zero": true,
+      "base_non_empty": 301,
+      "head_non_empty": 311,
+      "growth_limit": 1000,
+      "violations": 0,
+      "log": "staged-size.json"
+    }
+  },
+  "regressions": {
+    "effective_red": "owner-consumer-red-offline.json",
+    "effective_red_failed": 15,
+    "effective_red_passed": 7,
+    "real_consumer_counterexamples": "HTTP 200 partial/blocked/missing became success through unchanged executor/run_action",
+    "unknown_result_status": "preserved status; blocked outcome",
+    "source_preservation": "Original section data/observed_at/snapshot_at/fetched_at/reliability are retained",
+    "visible_status": [
+      "已读取",
+      "部分完成",
+      "不可用于决策"
+    ]
+  },
+  "test_scope": {
+    "real": [
+      "HTTP view",
+      "existing TuiInternalActionExecutor",
+      "TuiWorkbenchService.run_action",
+      "existing result projection"
+    ],
+    "supplied": [
+      "Data Center read ports",
+      "display-name port"
+    ],
+    "runtime": "Explicit isolated SQLite test state; not real strict readiness",
+    "network": "Effective RED and final consumer forbid socket connect/connect_ex and assert no attempts",
+    "database_settings": ".tmp/tux07-env/tux07_settings.py; own .tmp/tux07-test.sqlite3 only; no Root PostgreSQL database"
+  },
+  "corrections": [
+    "unit-red.json includes an initially overbroad unknown-readiness test; corrected to unknown owner result status before the effective RED.",
+    "owner-consumer-red.json failed on fixture runtime 503; not used as the functional counterexample.",
+    "owner-consumer-red-final.json reached real consumer but lacked a network observation boundary for display-name read-through; no zero-network claim for that earlier round.",
+    "owner-consumer-red-offline.json is the valid network-denied baseline RED before owner fix.",
+    "ruff.json captures C420 in the supplied-name fixture; corrected equivalently to dict.fromkeys, and the four final consumer cases passed again."
+  ],
+  "review": {
+    "implementation_worker": "gpt-5.6-luna / max",
+    "parent_reviewed": true,
+    "readonly_luna_review": "No substantive P1/P2 finding"
+  },
+  "restored_focus": {
+    "registry_version": "2026-10-17.v251",
+    "closure_version": "2026-10-17.v72",
+    "unit_count": 79,
+    "execution_focus": "Exact ASH-02 lease focus/policy restored",
+    "TUX-08": "planned; full task incomplete",
+    "exact_base_comparison": "All original registry fields match base except registry/closure versions and TUI next_gate; all 79 units and ASH-02 focus/policy equal base."
+  },
+  "not_claimed": [
+    "Full TUX-08 task or browser acceptance",
+    "Real Publication/source proof/four strict readiness gates",
+    "Trade qualification or authority",
+    "User onboarding research",
+    "Production deploy/data writes/paid AI/QMT/trading",
+    "Remote CI/S6",
+    "Global governance pass"
+  ],
+  "remaining": [
+    "TUX-08 direct input, curated evidence and authorized professional return",
+    "TUX-09 today and portfolio tasks",
+    "TUX-10 integrated acceptance/handoff"
+  ],
+  "known_root_owned_open_gates": {
+    "size_failures": 6,
+    "version_retirement_failures": 9,
+    "owner": "Concurrent A-share Goal root; exact final actual failures archived; no waivers or baseline increases"
+  },
+  "generated_artifacts": "Not triggered: no module/ORM/metadata/runtime changes",
+  "source_sha256": {
+    "apps/equity/application/research_snapshot.py": "766956168049238eb1ba4e82cb9994f4bdb61e944311c0960adaac0cd1867923",
+    "tests/unit/equity/test_research_snapshot_use_case.py": "c3ab6704b0ec6358c070fa294327674ec4912234249354db5401c820e9128351",
+    "tests/component/test_equity_research_outcome_consumer.py": "dd2a7ebef3cf2a699f0e2a64cbeabe192f35484116289bf829b50fb07b551736",
+    "governance/current_data_contracts.json": "a9af73d986b00a91a5cee834083c6f2765d43fa2fe8e3a0d2bec29a6b94071b7",
+    "governance/active_plan_registry.json": "1a8f182dcb5c984cf61a8976bb7129104f1f117cff57b39f124ea9b2b8b7a062",
+    "docs/development/data-freshness-contract-guard.md": "c4a779bcc6919081ada84240ec1509c8daf5404e017f4d7ca0341930a5097404",
+    "docs/plans/tui-task-first-experience-plan-2026-10-17.md": "b9add27be624df40c3327a8dfec4b130d920144efa0875d980566f3ed16d346f"
+  },
+  "log_format": "Raw UTF-8 log text is JSON escaped without stripping whitespace; raw-byte SHA256 retained.",
+  "rollback": "Reverse only this slice owned diff; preserve Root commits and both protected user tests; no reset or database restore",
+  "reproduction": {
+    "settings_source": "isolated-settings.txt",
+    "python": "agomtradepro/Scripts/python.exe -X utf8",
+    "environment": "Set PYTHONPATH to .tmp/tux07-env plus repository root; recreate tux07_settings.py from isolated-settings.txt, then run exact commands in logs."
+  }
+}

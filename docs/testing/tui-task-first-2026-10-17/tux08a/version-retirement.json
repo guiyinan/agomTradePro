@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/version-retirement.log",
+  "raw_bytes_sha256": "5d3dafeb374dbcc9fe3374c309ac907ccadc55033d77adbf16c6bfc765f6605e",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_versioned_surface_retirement.py']\r\nVersioned surface retirement violations: module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py\r\n\r\nEXIT_CODE: 1\r\n"
+}

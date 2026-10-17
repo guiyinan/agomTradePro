@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/doc-route-sdk.log",
+  "raw_bytes_sha256": "e2a1f66cce65fe2eab8c9e8bd57379a30e4a0b250bc69139ca3306df1c34dd70",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_doc_route_sdk_consistency.py']\r\nExtracting Django routes...\r\n  Found 2289 routes\r\nParsing documentation files...\r\n  Found 86 documentation files with route references\r\nParsing SDK files...\r\n  Found 34 SDK modules with endpoints\r\n\r\nChecking documentation route references...\r\n\r\nChecking SDK endpoint coverage...\r\n\r\nChecking unified ledger alignment rules...\r\n  ✓ No unified ledger violations found\r\n\r\n[PASS] Consistency check passed\r\n\r\nEXIT_CODE: 0\r\n"
+}

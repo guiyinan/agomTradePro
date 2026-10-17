@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/ruff-final.log",
+  "raw_bytes_sha256": "e53e01a42ba83ac9712307401a3888eff29a654d4c871c4143c669f03f744ef8",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'ruff', 'check', 'apps/equity/application/research_snapshot.py', 'tests/unit/equity/test_research_snapshot_use_case.py', 'tests/component/test_equity_research_outcome_consumer.py']\r\nAll checks passed!\n\r\nEXIT_CODE: 0\r\n"
+}

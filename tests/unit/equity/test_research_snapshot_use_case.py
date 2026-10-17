@@ -1,6 +1,7 @@
 """Pure unit tests for the equity research snapshot application use case."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 
 import pytest
 
@@ -76,6 +77,7 @@ def test_snapshot_resolves_name_and_forwards_all_bounded_limits() -> None:
     assert result.status == "fresh"
     assert result.stock_code == "002156.SZ"
     assert result.must_not_use_for_decision is False
+    assert result.to_payload()["outcome"] == "success"
     assert reader.calls == [
         ("identity", "通富微电", None),
         ("latest_quote", "002156.SZ", True),
@@ -98,6 +100,7 @@ def test_optional_gaps_are_partial_but_decision_usable() -> None:
     )
 
     assert payload["status"] == "partial"
+    assert payload["outcome"] == "partial"
     assert payload["must_not_use_for_decision"] is False
     assert payload["missing_optional_sections"] == ["news", "capital_flows"]
 
@@ -131,6 +134,7 @@ def test_core_section_fail_closed_for_publication_freshness_and_empty_evidence(
     sections = payload["sections"]
 
     assert payload["status"] == "blocked"
+    assert payload["outcome"] == "blocked"
     assert payload["must_not_use_for_decision"] is True
     assert isinstance(sections, dict)
     assert sections["financials"]["block_reason_code"] == reason
@@ -161,6 +165,7 @@ def test_unresolved_identity_stops_before_section_reads() -> None:
 
     assert payload["stock_code"] is None
     assert payload["status"] == "missing"
+    assert payload["outcome"] == "blocked"
     assert payload["sections"] == {}
     assert payload["reliability"]["block_reason_code"] == "equity_identity_unresolved"
     assert reader.calls == [("identity", "不存在", None)]
@@ -201,3 +206,64 @@ def test_request_rejects_invalid_limits(field_name: str, value: int | bool) -> N
     kwargs = {field_name: value}
     with pytest.raises(ValueError):
         EquityResearchSnapshotRequest(stock_code="002156.SZ", **kwargs)
+
+
+def test_unknown_owner_status_is_conservatively_blocked_without_rewriting_status() -> None:
+    reader = FakeResearchSnapshotReader()
+    result = EquityResearchSnapshotUseCase(reader).execute(
+        EquityResearchSnapshotRequest("002156.SZ")
+    )
+    unknown_status = replace(result, status="unknown")
+
+    payload = unknown_status.to_payload()
+
+    assert payload["status"] == "unknown"
+    assert payload["outcome"] == "blocked"
+
+
+@pytest.mark.parametrize("owner_status", ["fresh", "partial"])
+def test_restricted_fresh_or_partial_state_cannot_publish_success(owner_status: str) -> None:
+    reader = FakeResearchSnapshotReader()
+    result = EquityResearchSnapshotUseCase(reader).execute(
+        EquityResearchSnapshotRequest("002156.SZ")
+    )
+    restricted = replace(
+        result,
+        status=owner_status,
+        must_not_use_for_decision=True,
+    )
+
+    payload = restricted.to_payload()
+
+    assert payload["status"] == owner_status
+    assert payload["must_not_use_for_decision"] is True
+    assert payload["outcome"] == "blocked"
+
+
+def test_snapshot_payload_preserves_sections_source_times_and_reliability() -> None:
+    reader = FakeResearchSnapshotReader()
+    quote_payload: ReadPayload = {
+        "results": [
+            {
+                "asset_code": "002156.SZ",
+                "current_price": 12.34,
+                "snapshot_at": "2026-10-17T09:30:00+08:00",
+            }
+        ],
+        "observed_at": "2026-10-17T09:30:00+08:00",
+        "available_at": "2026-10-17T09:30:01+08:00",
+        "fetched_at": "2026-10-17T09:30:02+08:00",
+    }
+    reader.overrides["latest_quote"] = quote_payload
+
+    payload = (
+        EquityResearchSnapshotUseCase(reader)
+        .execute(EquityResearchSnapshotRequest("002156.SZ"))
+        .to_payload()
+    )
+
+    assert payload["status"] == "fresh"
+    assert payload["outcome"] == "success"
+    assert payload["sections"]["latest_quote"]["data"] == quote_payload
+    assert payload["reliability"]["status"] == "fresh"
+    assert payload["reliability"]["source"] == "agomtradepro_api"

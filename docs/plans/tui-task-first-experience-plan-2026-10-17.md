@@ -337,3 +337,42 @@ bridge、真实本地浏览器和计划登记；前端 Node/Playwright **100 pas
 不重置共享分支。验收提交后归还唯一 repository 窗口给 ASH-02，后续 TUX-08
 须再次明确交接。七项文件尺寸与 A 股主代理另报的九项 version-retirement 问题
 继续由其独立整改，本批不声明这些门禁通过。
+
+### 11.6 TUX-08a：研究结果状态前置
+
+A 股主代理在 `7d3a8f3556a32739ed706beb0817db315f6afde1` 后明确交出极窄窗口，
+本批只处理 Equity owner 的附加结果状态、直接消费测试与对应契约/证据。
+TUX-08 临时作为唯一焦点；提交前恢复交接时捕获的 ASH-02 完整单元、焦点及
+policy，保留 79 个单元。此项前置不完成 TUX-08，不提前接入新 screen/action。
+
+旧研究 owner 只有 `status`，现有执行器在 HTTP 200 且没有规范化 `outcome` 时
+会记为成功。禁网的真实 REST → 既有内部执行器 → `run_action` 回归确认，
+`partial`、`blocked`、`missing` 三种结果都会被外层记为 `success`。
+Luna Max 只修改 `EquityResearchSnapshotResult.to_payload()`：完整可用读取发布
+`success`，可选材料缺失发布 `partial`，身份未解析、受阻、未知结果状态或明确
+禁止决策发布 `blocked`。原始状态、分区数据、源时间、可靠性和限制均保留；
+不增加数据就绪度规则，也不改变研究或执行资格。
+
+正式回归 **79 passed**，涵盖 owner、REST、真实既有 TUI consumer、SDK/MCP、
+AI 路由及机器契约/登记。此后只对测试名称夹具作等价风格修正，四个 consumer
+场景再次 **4 passed**。断言最终可见状态分别为“已读取”“部分完成”及
+“不可用于决策”；普通用户的诊断原文仍不可用。增量 mypy 与全库 mypy 债务均为
+零，最终 Black/isort/Ruff、架构（含 audit）、新鲜度契约与文档/API/SDK 检查通过。
+完整命令、源码指纹及有效红绿记录见
+[TUX-08a 证据](../testing/tui-task-first-2026-10-17/tux08a/acceptance.json)。
+
+测试只供给 Data Center 读取端口和标的名称端口，真实执行视图、内部执行器和
+结果投影。运行状态是明确标注的隔离 SQLite 测试夹具，不证明四项严格数据
+就绪度、Publication 来源或生产 authority。准备轮曾因缺运行状态返回 503；
+另发现通用名称补查可能 read-through，早期未记录该路径网络行为，不能声明
+零外部读取。最终有效 RED 与 consumer 已显式供给名称并禁止 socket 连接，
+断言无网络尝试。早期失败、修正及其适用边界分别保留。
+
+本批没有修改 terminal 生产文件、IA、前端、Data Center、SDK/MCP 或生成物，
+也没有部署、生产写入、付费模型调用、QMT 或交易。未进行研究主任务浏览器
+验收或真人上手研究。TUX-08 主体仍须交付直接输入、事实/证据分层、带参数的
+授权专业详情与返回；TUX-09/10 仍待后续实施。六项尺寸及九项版本退役失败由
+A 股 Goal 主代理继续负责，不据此宣布全仓治理或发布门通过。
+
+回滚边界为本批 owner 附加字段、对应测试及契约/文档；按本提交 owned diff
+逆向恢复，保留独立 A 股提交和两份用户测试，不重置共享分支或恢复数据库。

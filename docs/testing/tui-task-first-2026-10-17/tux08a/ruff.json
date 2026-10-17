@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/ruff.log",
+  "raw_bytes_sha256": "5345ee82621f678c328ca5e7321c7bd297f8729d8c148afe18c21e145c7f9e53",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'ruff', 'check', 'apps/equity/application/research_snapshot.py', 'tests/unit/equity/test_research_snapshot_use_case.py', 'tests/component/test_equity_research_outcome_consumer.py']\r\nC420 [*] Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead\n  --> tests\\component\\test_equity_research_outcome_consumer.py:47:23\n   |\n45 |     monkeypatch.setattr(\n46 |         \"apps.terminal.application.tui_workbench.resolve_asset_names\",\n47 |         lambda codes: {code: \"Fixture\" for code in codes},\n   |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n48 |     )\n49 |     yield\n   |\nhelp: Replace with `dict.fromkeys(iterable)`)\n   |\n46 |         \"apps.terminal.application.tui_workbench.resolve_asset_names\",\n   -         lambda codes: {code: \"Fixture\" for code in codes},\n47 +         lambda codes: dict.fromkeys(codes, \"Fixture\"),\n48 |     )\n   |\n\nFound 1 error.\n[*] 1 fixable with the `--fix` option.\n\r\nEXIT_CODE: 1\r\n"
+}

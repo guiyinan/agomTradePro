@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/architecture.log",
+  "raw_bytes_sha256": "e06c2f164e77ae765fa2971b3988265699d3ccabc097f72d7421bbb41cd803bb",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_architecture_delta.py', '--base-ref', '7d3a8f3556a32739ed706beb0817db315f6afde1', '--include-audit', '--fail-on-audit-violations']\r\nArchitecture delta guard\r\nBase ref: 7d3a8f3556a32739ed706beb0817db315f6afde1\r\nHead ref: <working-tree>\r\nChanged files: 1\r\nAdded lines: 12\r\nArchitecture rules version: 2026-10-09.v9\r\nScan roots: apps, core, shared\r\nScanned files: 3484\r\nBoundary rules: 7\r\nBoundary violations: 0\r\n\r\nAudit rules: 20\r\nAudit violations: 0\r\n\r\nEXIT_CODE: 0\r\n"
+}

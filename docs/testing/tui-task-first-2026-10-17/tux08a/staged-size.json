@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/staged-size.log",
+  "raw_bytes_sha256": "50e0d8a74f960e300fd597f32e8b0173ea91832facf2bed9113e2792a14a7271",
+  "encoding": "utf-8",
+  "text": "Official changed-size finder against actual stage-0 blobs; base=7d3a8f3556a32739ed706beb0817db315f6afde1; limit=1000\r\napps/equity/application/research_snapshot.py: 301 -> 311 non-empty lines\r\nViolations: 0\r\n"
+}

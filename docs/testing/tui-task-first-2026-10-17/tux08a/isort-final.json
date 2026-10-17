@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/isort-final.log",
+  "raw_bytes_sha256": "59c78ef6d7e99760b0f318d00f7367b52765f55b3d04c1d0b444d8d00dc4e6ff",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'isort', '--check-only', 'apps/equity/application/research_snapshot.py', 'tests/unit/equity/test_research_snapshot_use_case.py', 'tests/component/test_equity_research_outcome_consumer.py']\r\n\r\nEXIT_CODE: 0\r\n"
+}

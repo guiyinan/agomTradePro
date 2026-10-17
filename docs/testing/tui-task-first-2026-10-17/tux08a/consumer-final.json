@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/consumer-final.log",
+  "raw_bytes_sha256": "a9810db5e02634e271364ca11ebd9df67e3213faa3ab911406d84fc64e123372",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/component/test_equity_research_outcome_consumer.py', '-q', '--ds=tux07_settings', '--reuse-db', '--basetemp=.tmp/pytest-tux08a-consumer-final']\r\n....                                                                     [100%]\r\n4 passed in 14.93s\r\n\r\nEXIT_CODE: 0\r\n"
+}

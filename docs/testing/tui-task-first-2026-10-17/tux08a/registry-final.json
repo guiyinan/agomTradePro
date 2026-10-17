@@ -1,0 +1,6 @@
+{
+  "source_log": ".tmp/tux08a/registry-final.log",
+  "raw_bytes_sha256": "8f7d9875dee0fc913e50974382cd5da6e20cb1d8340c1ae90fc93c63555f6015",
+  "encoding": "utf-8",
+  "text": "COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_active_plan_registry.py']\r\nactive-plan-registry version=2026-10-17.v251 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\r\n\r\nEXIT_CODE: 0\r\n"
+}

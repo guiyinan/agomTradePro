@@ -1,0 +1,8 @@
+"""Isolated local test databases for the frozen TUX-07 acceptance run."""
+from copy import deepcopy
+from pathlib import Path
+from core.settings.development_sqlite import *
+DATABASES = deepcopy(DATABASES)
+TUX07_TEMP = Path(BASE_DIR) / '.tmp'
+DATABASES['default']['NAME'] = str(TUX07_TEMP / 'tux07-runtime.sqlite3')
+DATABASES['default']['TEST']['NAME'] = str(TUX07_TEMP / 'tux07-test.sqlite3')
