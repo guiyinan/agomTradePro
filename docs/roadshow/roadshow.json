@@ -1,0 +1,978 @@
+{
+  "schema_version": "1.2",
+  "deck": {
+    "title": "AgomTradePro 客户路演",
+    "short_title": "AgomTradePro",
+    "subtitle": "搭建一个人的投研队伍，原生 AI 加持的个人投研平台",
+    "content_version": "3.2.0",
+    "product_version": "0.8.0",
+    "updated_at": "2026-10-17",
+    "author": "agom",
+    "language": "zh-CN",
+    "sources": [
+      "README.md",
+      "LICENSE",
+      "docs/VERSION.md",
+      "docs/development/tui-workbench.md",
+      "docs/development/data-freshness-contract-guard.md",
+      "docs/business/risk-center.md",
+      "apps/signal/application/use_cases.py",
+      "apps/data_center/application/publication_query_bounds.py",
+      "apps/risk_center/application/trade_guard.py",
+      "sdk/README.md",
+      "docs/architecture/adr-0008-terminal-agent-runtime-boundary.md",
+      "tests/unit/data_center/test_current_publication_evidence.py",
+      "tests/unit/data_center/test_published_fact_versions.py"
+    ],
+    "audience": "客户交流与试点评估",
+    "evidence_as_of": "2026-10-17",
+    "evidence_scope": "本地仓库功能与契约核对；未进行本次生产环境或客户验收",
+    "main_slide_count": 17,
+    "short_route": [
+      "cover",
+      "customer-pain",
+      "product-value",
+      "product-loop",
+      "data-trust",
+      "case-story",
+      "risk-proof",
+      "ai-workflow",
+      "differentiation",
+      "live-demo",
+      "pilot-plan",
+      "closing"
+    ],
+    "evidence_register": [
+      {
+        "slides": [
+          "data-trust",
+          "risk-proof"
+        ],
+        "sources": [
+          "docs/development/data-freshness-contract-guard.md",
+          "apps/data_center/application/publication_query_bounds.py",
+          "apps/data_center/infrastructure/published_fact_versions.py",
+          "tests/unit/data_center/test_current_publication_evidence.py",
+          "tests/unit/data_center/test_published_fact_versions.py"
+        ],
+        "scope": "实现与契约核对，测试代码已阅读，未在本次运行；不代表所有数据集、原始响应留存或生产验收"
+      },
+      {
+        "slides": [
+          "decision-features",
+          "risk-proof"
+        ],
+        "sources": [
+          "apps/signal/domain/entities.py",
+          "apps/signal/application/use_cases.py"
+        ],
+        "scope": "信号实体及验证入口，未进行目标环境端到端验证"
+      },
+      {
+        "slides": [
+          "risk-proof",
+          "case-story"
+        ],
+        "sources": [
+          "docs/business/risk-center.md",
+          "apps/risk_center/application/trade_guard.py"
+        ],
+        "scope": "已接入的模拟买入及策略预检路径；不泛化为所有交易入口"
+      },
+      {
+        "slides": [
+          "ai-workflow",
+          "open-integration",
+          "customer-qa"
+        ],
+        "sources": [
+          "sdk/README.md",
+          "docs/architecture/adr-0008-terminal-agent-runtime-boundary.md"
+        ],
+        "scope": "SDK、权限和运行时契约；队列、并发容量与生产 UAT 单独验收"
+      },
+      {
+        "slides": [
+          "interface-terminal",
+          "interface-dashboard",
+          "open-integration"
+        ],
+        "sources": [
+          "README.md",
+          "docs/development/tui-workbench.md"
+        ],
+        "scope": "已查看仓库留存截图，拍摄日期未标注；不能当作当前 TUI 外观、实时数据或验收证据"
+      },
+      {
+        "slides": [
+          "deployment",
+          "customer-qa"
+        ],
+        "sources": [
+          "docs/VERSION.md",
+          "LICENSE"
+        ],
+        "scope": "版本与自部署口径；不含商业交付、第三方数据授权或服务等级承诺"
+      },
+      {
+        "slides": [
+          "customer-pain",
+          "customer-fit",
+          "case-story",
+          "differentiation",
+          "live-demo",
+          "pilot-plan",
+          "pilot-acceptance"
+        ],
+        "sources": [
+          "README.md",
+          "docs/business/risk-center.md",
+          "sdk/README.md"
+        ],
+        "scope": "作者编排的使用场景、定性流程比较与试点建议，不是客户案例、竞品调研或实测成效"
+      },
+      {
+        "slides": [
+          "cover",
+          "product-value",
+          "customer-fit",
+          "product-loop",
+          "differentiation",
+          "closing"
+        ],
+        "sources": [
+          "README.md",
+          "docs/business/risk-center.md",
+          "sdk/README.md"
+        ],
+        "scope": "用户指定的一人投研队伍定位及职责映射。六类职责来自现有模块能力，不代表六个自主 Agent；机构级能力具体指研究分工、分析框架和决策纪律，不是机构资源、资质或投资效果的等同性证明。"
+      }
+    ],
+    "core_positioning": "搭建一个人的投研队伍，让原生 AI 加持，让个人具备机构级能力",
+    "positioning_scope": "机构级能力指研究分工、分析框架与决策纪律的产品目标；不等于机构同等资源、资质、业绩或服务保证",
+    "risk_notice": "投资有风险，决策需谨慎。本系统提供投研辅助，不构成投资建议，不保证盈利。"
+  },
+  "slides": [
+    {
+      "id": "cover",
+      "type": "cover",
+      "chapter": "01 · 定位与队伍",
+      "title": "搭建一个人的投研队伍",
+      "subtitle": "原生 AI 加持，让个人拥有机构化投研能力",
+      "description": "把数据助理、宏观研究、标的分析、量化验证、风险控制与复盘的能力组织在同一平台。由你掌握方向，让 AI 和系统共同承接研究工作。",
+      "tags": [
+        "一个人的投研队伍",
+        "原生 AI 协作",
+        "机构化研究框架",
+        "个人掌握决策"
+      ],
+      "footer": "客户交流版 · 产品 v0.8.0 · 材料更新 2026-10-17",
+      "notes": "新的核心定位：搭建一个人的投研队伍，让原生 AI 加持，让个人具备机构级能力。讲清这里的机构级：把研究分工、分析框架、风险约束和复盘纪律带到个人工作流；不宣称资源、资质、服务等级或业绩与某类机构相同。六类研究职责是产品能力的组织方式，不代表六个独立自主 Agent 已运行。今天通过一项研究任务展示这支队伍如何支持个人。"
+    },
+    {
+      "id": "customer-pain",
+      "type": "comparison",
+      "title": "一个人做投资，往往要同时承担多种研究职责",
+      "lead": "找数据、看宏观、研究标的、验证策略、控制风险、跟踪复盘——每项工作都在争夺你的时间与注意力。",
+      "columns": [
+        {
+          "eyebrow": "ONE PERSON / MANY RESPONSIBILITIES",
+          "title": "个人研究者面对的工作负担",
+          "bullets": [
+            "数据助理的工作：搜集信息，核对来源、日期与口径",
+            "研究员的工作：判断环境，检验标的与策略假设",
+            "风控的工作：检查仓位、集中度与现金约束",
+            "复盘的工作：追踪变化，回看依据和决策结果"
+          ]
+        },
+        {
+          "eyebrow": "YOUR AI-NATIVE RESEARCH TEAM",
+          "title": "把这些职责，组织成你的投研队伍",
+          "bullets": [
+            "数据底座承接采集、标准化与可用状态管理",
+            "研究模块与 AI 工具支持分析、验证和提案",
+            "风险规则与确认流程约束关键动作",
+            "关联研究、审批和模拟记录，支持持续复盘"
+          ]
+        }
+      ],
+      "footnote": "你担任研究负责人：设定研究问题、选择假设，并确认关键决策。",
+      "notes": "先讲个人的能力和精力边界，随后引出投研队伍的分工。这里只用职责来解释平台能力，不编造客户访谈或效率统计，不把现有模块说成六个自主运行的智能体。依据 README 功能一览、risk-center 与 SDK AI 调用契约。",
+      "chapter": "02 · 定位与队伍"
+    },
+    {
+      "id": "product-value",
+      "type": "cards",
+      "chapter": "03 · 定位与队伍",
+      "title": "让一个人，调动一套完整的投研能力",
+      "lead": "平台组织研究职责，原生 AI 连接数据与工具，你负责判断与关键确认。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "研究有分工",
+          "meta": "把工作组织起来",
+          "body": "数据、宏观、标的、量化、风控与复盘各有支撑，围绕同一研究问题衔接。"
+        },
+        {
+          "index": "02",
+          "title": "AI 有上下文",
+          "meta": "把分析接到业务里",
+          "body": "AI 通过授权工具读取业务数据、整理研究依据并提出方案，持续围绕你的研究任务协作。"
+        },
+        {
+          "index": "03",
+          "title": "决策有纪律",
+          "meta": "把机构化方法带到个人",
+          "body": "用环境前提、证伪条件、风险预检和审批流程约束行动，让研究有方法、决策有边界。"
+        },
+        {
+          "index": "04",
+          "title": "经验有积累",
+          "meta": "把每次研究留下来",
+          "body": "把信号、确认、模拟与复盘记录沉淀在系统里，让后续研究有据可查。"
+        }
+      ],
+      "footnote": "“机构化能力”落在研究分工、分析框架与决策纪律；具体价值通过同一研究任务的试点验证。",
+      "notes": "这是本稿的价值总纲：一个人调动整套能力，而不是一个人完成全部杂务。数据可信、观点证伪、风险约束与过程追溯是支撑这套定位的机制，留到后面展示。机构级不是收益或资质承诺；AI 仅使用已授权且已启用的工具。依据 README、signal/application/use_cases、risk-center、sdk/README。"
+    },
+    {
+      "id": "customer-fit",
+      "type": "cards",
+      "title": "你的投研队伍，覆盖六类关键研究职责",
+      "lead": "系统能力按研究职责组织，AI 基于已接入的数据与工具参与任务，由你主导判断与确认。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "数据助理",
+          "meta": "准备可信的研究材料",
+          "body": "接入多源数据，核对来源、单位与观测时间，说明数据能否用于当前研究。"
+        },
+        {
+          "index": "02",
+          "title": "宏观研究员",
+          "meta": "建立环境前提",
+          "body": "结合增长、通胀与政策状态，为标的判断提供统一研究语境。"
+        },
+        {
+          "index": "03",
+          "title": "标的研究员",
+          "meta": "形成可检验的观点",
+          "body": "结合估值、候选信号与研究依据，记录观点及明确的证伪条件。"
+        },
+        {
+          "index": "04",
+          "title": "量化研究员",
+          "meta": "用历史与模型检验假设",
+          "body": "通过因子评估、回测与归因，辅助检验研究假设并认识其适用范围。"
+        },
+        {
+          "index": "05",
+          "title": "风险控制",
+          "meta": "在行动前检查约束",
+          "body": "在已接入路径检查仓位、集中度与现金等规则，保留预检和确认过程。"
+        },
+        {
+          "index": "06",
+          "title": "复盘助理",
+          "meta": "跟踪变化与结果",
+          "body": "围绕信号、模拟持仓和决策记录回看判断，整理下一轮研究问题。"
+        }
+      ],
+      "footnote": "六类职责是平台能力的分工示意；按任务调用已启用模块与 AI 工具。",
+      "notes": "用队伍的分工解释模块价值：数据助理对应 data_center，宏观对应 regime/policy，标的对应 valuation/signal/alpha，量化对应 factor/backtest/audit，风险对应 risk_center，复盘对应 audit 与 simulated_trading。这里只做职责映射，不宣称六个独立自主 Agent、自动并行研究或无人值守交易。客户无需记住模块名，只需理解自己可调动哪些研究能力。",
+      "chapter": "04 · 定位与队伍"
+    },
+    {
+      "id": "product-loop",
+      "type": "flow",
+      "chapter": "05 · 研究协作",
+      "title": "让这支队伍，围绕同一个研究问题工作",
+      "lead": "从数据准备、环境判断到观点验证、风险预检和模拟复盘，各项职责共享研究上下文。",
+      "steps": [
+        {
+          "index": "01",
+          "title": "看清环境",
+          "body": "核对数据时间与可用性，查看增长、通胀和政策状态。"
+        },
+        {
+          "index": "02",
+          "title": "形成观点",
+          "body": "结合研究与历史验证，记录候选信号、研究理由和证伪条件。"
+        },
+        {
+          "index": "03",
+          "title": "控制执行",
+          "body": "核对仓位、集中度和现金约束，按已启用流程审批与模拟。"
+        },
+        {
+          "index": "04",
+          "title": "持续复盘",
+          "body": "跟踪组合与告警，沉淀审计和绩效归因，把结果反馈到下一轮研究。"
+        }
+      ],
+      "footnote": "主链为产品能力关系示意；能否完整演示取决于目标环境的数据、权限和功能开关。",
+      "notes": "强调研究职责之间的交接。你提出研究问题，数据与宏观能力准备前提，标的和量化能力检验假设，风险流程约束动作，模拟与复盘留下记录。这是能力协作示意，具体流程依赖目标环境的已发布入口。"
+    },
+    {
+      "id": "regime",
+      "type": "matrix",
+      "chapter": "06 · 研究协作",
+      "title": "让每个观点，都带着环境前提",
+      "lead": "增长与通胀形成统一的研究坐标，政策状态补充约束，让标的研究有共同的环境语境。",
+      "axes": {
+        "horizontal": "通胀动量 →",
+        "vertical": "增长动量 →"
+      },
+      "quadrants": [
+        {
+          "title": "Recovery · 复苏",
+          "signal": "增长 ↑ / 通胀 ↓",
+          "body": "研究问题：增长改善是否得到更多指标支持？",
+          "tone": "mint"
+        },
+        {
+          "title": "Overheat · 过热",
+          "signal": "增长 ↑ / 通胀 ↑",
+          "body": "研究问题：通胀压力是否改变原有估值假设？",
+          "tone": "amber"
+        },
+        {
+          "title": "Deflation · 通缩",
+          "signal": "增长 ↓ / 通胀 ↓",
+          "body": "研究问题：需求走弱会怎样影响盈利与现金流？",
+          "tone": "blue"
+        },
+        {
+          "title": "Stagflation · 滞胀",
+          "signal": "增长 ↓ / 通胀 ↑",
+          "body": "研究问题：成本压力与增长放缓如何影响风险预算？",
+          "tone": "rose"
+        }
+      ],
+      "footnote": "四象限为研究框架示意；实际判断依赖数据、配置与就绪状态，不直接构成配置或交易建议。",
+      "notes": "这一页讲统一前提：研究观点必须说明成立于什么环境，环境变化后重新检查。不要将四象限直接读成资产买卖清单；当期数据或 Regime 被阻断时，只展示历史或示意，不声称今天适合买入。"
+    },
+    {
+      "id": "data-trust",
+      "type": "cards",
+      "title": "数据可信，体现在每一次读取的细节里",
+      "lead": "对于已纳入发布契约的数据，把来源、时间、版本和可用边界一并交给研究流程。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "时间可核对",
+          "meta": "看见数据的年龄",
+          "body": "保留源观测时间，区分历史收盘、缓存与当期数据；重新读取不会把旧数据变新。"
+        },
+        {
+          "index": "02",
+          "title": "口径可解释",
+          "meta": "来源与单位有据",
+          "body": "宏观指标按目录规则统一单位，保留原始单位审计信息，减少研究口径歧义。"
+        },
+        {
+          "index": "03",
+          "title": "修订可追踪",
+          "meta": "保留发布时的事实",
+          "body": "已被发布引用的市场事实修订时追加版本，旧发布继续绑定原记录，供核对历史依据。"
+        },
+        {
+          "index": "04",
+          "title": "不可用可说明",
+          "meta": "停止也有明确原因",
+          "body": "数据过期、范围缺失或完整性校验失败时发布阻断标记，避免以不可靠结果继续决策。"
+        }
+      ],
+      "footnote": "描述纳入契约的实现机制；不代表所有数据集已验收，也不等于供应商原始响应均已完整留存。",
+      "notes": "演示至少查来源、观测时间、可用状态，并展示一条 stale/blocked 结果。版本能力核对 data-freshness-contract-guard 2026-09-20 修订说明、data_center/migrations/0085、published_fact_versions 实现和 current_publication_evidence 测试。哈希验证不能证明源数据天然正确；不同数据集的原始响应留存范围有差异。",
+      "chapter": "07 · 研究协作"
+    },
+    {
+      "id": "decision-features",
+      "type": "cards",
+      "chapter": "08 · 研究协作",
+      "title": "把“我看好”，变成可以跟踪和检验的研究记录",
+      "lead": "研究理由、证伪条件、估值参考与历史验证共同支撑观点，关键约束继续进入后续流程。",
+      "cards": [
+        {
+          "index": "R",
+          "title": "信号管理",
+          "meta": "SIGNAL",
+          "body": "记录投资理由、有效状态和证伪条件，让观点从创建之初就具备检验标准。"
+        },
+        {
+          "index": "V",
+          "title": "估值与回测",
+          "meta": "VALUATION · BACKTEST",
+          "body": "提供估值快照、价格带、历史验证与 Brinson 归因，支持多角度研究。"
+        },
+        {
+          "index": "G",
+          "title": "风险与决策闸门",
+          "meta": "POLICY · RISK · GATE",
+          "body": "将宏观、政策、舆情、频率和风险规则转化为行动前的约束条件。"
+        },
+        {
+          "index": "S",
+          "title": "策略与仓位",
+          "meta": "STRATEGY · PORTFOLIO",
+          "body": "通过可配置的策略与仓位规则连接组合，行动前核对账户约束。"
+        }
+      ],
+      "footnote": "回测与模型评分是研究证据；历史表现和候选分数不代表未来收益。",
+      "notes": "不要逐个读功能。重点说明每个功能都有明确产品输出，并且这些输出会继续进入下一步，而不是停留在独立分析页面。"
+    },
+    {
+      "id": "case-story",
+      "type": "timeline",
+      "title": "从一个研究问题，调动整支投研队伍",
+      "lead": "示例：你希望判断一个候选标的是否适合纳入模拟组合，由不同研究职责逐步提供依据。",
+      "items": [
+        {
+          "stage": "准备依据",
+          "title": "数据与宏观职责先到位",
+          "body": "核对数据时间与可用性，查看增长、通胀和政策背景，明确这次研究的环境前提。"
+        },
+        {
+          "stage": "检验观点",
+          "title": "研究与风控职责共同参与",
+          "body": "形成候选信号与证伪条件，结合历史验证检验假设，检查仓位和现金约束后按配置确认。"
+        },
+        {
+          "stage": "跟踪复盘",
+          "title": "模拟与复盘职责接续",
+          "body": "观察模拟持仓与记录，检查假设、证伪和风险变化；由你决定保留、调整或终止观点。"
+        }
+      ],
+      "footnote": "流程示意，不是实测投资案例；无收益或实盘成交结论。",
+      "notes": "全程固定同一测试账户、同一候选标的、同一时间边界。先演示证据齐全路径，再展示缺数据或超风险上限时停止。没有准备好的端到端环境就只讲示意，不用切换多个无关记录制造连贯效果。",
+      "chapter": "09 · 研究协作"
+    },
+    {
+      "id": "risk-proof",
+      "type": "table",
+      "title": "优势可以现场验证：给动作，也给停止条件",
+      "lead": "选三类异常输入，观察系统是否按已配置规则给出拒绝或阻断。",
+      "headers": [
+        "验证场景",
+        "应看到的处理",
+        "给客户的价值"
+      ],
+      "rows": [
+        [
+          "数据已过期或发布缺失",
+          "当前数据返回不可用于决策及原因",
+          "研究人员能识别证据缺口"
+        ],
+        [
+          "信号未写清证伪逻辑",
+          "信号校验未通过并给出具体问题",
+          "观点从创建起就有检验要求"
+        ],
+        [
+          "买入后超过账户集中度等约束",
+          "已接入的交易路径拒绝或跳过买入",
+          "规则在动作之前发生作用"
+        ]
+      ],
+      "footnote": "现场预期，尚非本次运行结果；账户策略和实际入口需提前核对。",
+      "notes": "数据证据：publication_query_bounds.blocked_publication_result；信号：ValidateSignalUseCase.execute；风控：EvaluatePreTradeRiskUseCase，risk-center 文档的模拟买入及策略编排路径。不能将这些检查泛化为所有卖出、所有手工下单和券商端均已接入。使用隔离模拟账户，不修改生产数据以制造故障。",
+      "chapter": "10 · AI、风控与复盘"
+    },
+    {
+      "id": "ai-workflow",
+      "type": "comparison",
+      "chapter": "11 · AI、风控与复盘",
+      "title": "原生 AI：连接你的研究职责、数据与工具",
+      "lead": "AI 在真实业务上下文中参与查询、分析与提案，让个人能够调动系统内的研究能力。",
+      "notes": "这一页解释原生 AI：AI 的价值来自接入业务上下文、能力工具和受控工作流。可用动作由发布目录、角色权限与运行开关决定，不把模型通用能力当作已集成事实。AI 辅助承担研究职责，个人保留关键判断和确认。多用户队列与并发能力仍需单独验收。来源 sdk/README 与 ADR-0008。",
+      "footnote": "Agent 多用户队列与并发能力需单独验收；自部署时仍须明确外部模型及数据源边界。",
+      "columns": [
+        {
+          "eyebrow": "AI / RESEARCH CONTEXT",
+          "title": "让 AI 进入你的研究任务",
+          "bullets": [
+            "读取授权的宏观、信号与组合上下文",
+            "结合数据来源与时间整理研究依据",
+            "调用已启用工具，辅助分析并提出方案"
+          ]
+        },
+        {
+          "eyebrow": "YOU / DECISION OWNER",
+          "title": "让关键判断始终由你掌握",
+          "bullets": [
+            "你提出问题，审阅假设与证伪条件",
+            "按配置完成预检、确认与审计",
+            "用同一任务记录连接研究与模拟复盘"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "execution-review",
+      "type": "timeline",
+      "chapter": "12 · AI、风控与复盘",
+      "title": "复盘能找到当时的依据，研究才能持续改进",
+      "lead": "把信号、审核与模拟记录关联起来，区分观点变化、规则约束和执行结果。",
+      "notes": "展示整合思路，不把旧截图冒充当天运行情况。正式演示应在目标环境 /tui/ 用同一测试账户查一条已准备的信号、审批和模拟记录，说明哪些记录已关联，哪些仍需手动核对。无法复现的环节不声称已通过。来源：README 截图、tui-workbench、risk-center。",
+      "footnote": "研究、预检与模拟记录的关联程度，以目标环境实际启用的流程为准。",
+      "items": [
+        {
+          "stage": "研究依据",
+          "title": "当时为什么这样判断？",
+          "body": "沿信号记录回看环境前提、研究理由、来源时间与证伪条件。"
+        },
+        {
+          "stage": "行动过程",
+          "title": "约束与确认是否发挥作用？",
+          "body": "核对风险预检、审批及模拟记录，区分观点、规则与执行的影响。"
+        },
+        {
+          "stage": "后续变化",
+          "title": "下一次研究可以改进什么？",
+          "body": "跟踪模拟持仓与风险变化，把复盘问题反馈给下一轮研究。"
+        }
+      ]
+    },
+    {
+      "id": "differentiation",
+      "type": "table",
+      "title": "个人能力的扩展，来自一整套研究协作方式",
+      "lead": "数据、研究、风控与复盘连接起来，让个人可以调动更完整的研究能力。",
+      "headers": [
+        "研究职责",
+        "独自分散处理时的工作",
+        "平台与原生 AI 的支撑"
+      ],
+      "rows": [
+        [
+          "数据准备",
+          "搜集数据，再逐项核对时间与口径",
+          "统一数据底座，携带来源与可用状态"
+        ],
+        [
+          "研究分析",
+          "在不同工具间搬运材料与假设",
+          "研究模块与授权 AI 工具共享业务上下文"
+        ],
+        [
+          "决策约束",
+          "逐笔回想仓位限制与证伪条件",
+          "信号验证与已接入的风险预检支撑纪律"
+        ],
+        [
+          "跟踪复盘",
+          "回找聊天、表格与模拟记录",
+          "沿业务记录回看依据、过程与结果"
+        ],
+        [
+          "持续扩展",
+          "自行拼接数据、模型与研究脚本",
+          "通过 Provider、SDK 和 MCP 接入更多能力"
+        ]
+      ],
+      "footnote": "定性流程比较，不是具名竞品评测；减少重复核对的程度需在客户试点中测量。",
+      "notes": "比较个人的工作组织方式，不比较具名机构或竞品。机构化能力来自职责分工、方法和纪律，不能推出同等机构资源、投资业绩或资质。减少重复劳动和增加研究覆盖的程度需要在客户任务上测量。",
+      "chapter": "13 · AI、风控与复盘"
+    },
+    {
+      "id": "live-demo",
+      "type": "flow",
+      "title": "现场演示：看这支队伍如何支持你完成研究",
+      "lead": "建议安排 8–10 分钟：围绕同一候选记录，展示数据、研究、风险与复盘职责的衔接。",
+      "steps": [
+        {
+          "index": "01",
+          "title": "看数据",
+          "body": "在任务工作台展示来源、观测时间与可用状态，解释一条阻断。"
+        },
+        {
+          "index": "02",
+          "title": "看观点",
+          "body": "打开同一候选信号，说明研究理由和何时应推翻判断。"
+        },
+        {
+          "index": "03",
+          "title": "看约束",
+          "body": "用隔离模拟账户预览风险检查，并查看已准备的审批记录。"
+        },
+        {
+          "index": "04",
+          "title": "看结果",
+          "body": "关联模拟持仓、交易与决策记录，还原一条完整研究过程。"
+        }
+      ],
+      "footnote": "只演示已预演的环境和授权数据；AI 查询可作为加演，真实券商下单单独验收。",
+      "notes": "演示前：冻结代码版本、测试账户、数据截止时间和入口；主路径与三个阻断路径各预演一次。记录对应页面和业务记录 ID。入口优先 /tui/，具体 screen 以现场发布目录为准。未启用的 Agent 队列不展示成可用；若环境阻断，解释原因并转离线流程图，不编造成功结果。",
+      "chapter": "14 · 体验与试点"
+    },
+    {
+      "id": "pilot-plan",
+      "type": "timeline",
+      "title": "从一个人的真实任务，开始搭建投研队伍",
+      "lead": "先接住最需要支持的研究职责，再扩展数据、工具与工作流；具体交付范围由双方约定。",
+      "items": [
+        {
+          "stage": "范围确认",
+          "title": "选定任务和数据边界",
+          "body": "明确使用者、研究范围、授权数据、部署位置与外部模型发送范围，冻结评估口径。"
+        },
+        {
+          "stage": "运行验证",
+          "title": "完成模拟与阻断案例",
+          "body": "配置账户和规则，用同一批任务验证数据查询、信号、预检与复盘，保存过程证据。"
+        },
+        {
+          "stage": "效果评估",
+          "title": "按基线决定是否扩展",
+          "body": "比较原流程与试点的核对耗时、记录完整度和任务完成情况；先处理缺口再扩展。"
+        }
+      ],
+      "footnote": "试点产出建议：任务清单、数据说明、规则配置、演示记录和待改进项；不预设商业报价或投资效果。",
+      "notes": "建议由客户指定一位业务使用者和一位技术联系人，确认具体责任后再推进。没有数据授权、不能接受外部模型发送范围或无法完成模拟任务时，先缩小试点范围。不得把建议步骤包装为已承诺的交付服务。",
+      "chapter": "15 · 体验与试点"
+    },
+    {
+      "id": "pilot-acceptance",
+      "type": "cards",
+      "title": "用四类验收问题，把价值落到证据上",
+      "lead": "指标是试点设计建议；先记录原流程基线，再约定目标，不预填提升百分比。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "依据是否齐全？",
+          "meta": "可追溯性",
+          "body": "抽查研究记录能否找到来源时间、适用范围和证伪条件，统计完整项与缺失项。"
+        },
+        {
+          "index": "02",
+          "title": "规则是否生效？",
+          "meta": "约束有效性",
+          "body": "测试过期数据、缺少证伪和超限买入，核对预期拒绝、实际结果与原因是否一致。"
+        },
+        {
+          "index": "03",
+          "title": "流程是否顺畅？",
+          "meta": "任务完成度",
+          "body": "观察使用者是否能独立完成指定模拟任务，记录耗时、重复录入与求助次数。"
+        },
+        {
+          "index": "04",
+          "title": "复盘是否有据？",
+          "meta": "记录完整度",
+          "body": "抽取同一条信号、确认和模拟记录，检查能否还原判断、动作与后续变化。"
+        }
+      ],
+      "footnote": "评估研究效率与流程质量；回测表现、模拟盈亏和实际投资收益分别解释。",
+      "notes": "将目标写入双方确认的验收表。这里的统计是人工或试点报告口径，不声称产品已经提供这些商业分析面板。生产决策就绪还需独立 readiness、权限与授权、调度、数据覆盖及观察窗口证据。",
+      "chapter": "16 · 体验与试点"
+    },
+    {
+      "id": "closing",
+      "type": "closing",
+      "chapter": "17 · 体验与试点",
+      "title": "搭建属于你的，一个人的投研队伍",
+      "subtitle": "原生 AI 加持，把机构化研究方法带到个人。",
+      "description": "你提出问题、把握方向、确认决策；数据、宏观、标的研究、量化验证、风险与复盘能力围绕你的任务组织起来。从一个真实研究任务开始，验证这支队伍如何帮助你。",
+      "links": [
+        {
+          "label": "查看开源仓库",
+          "url": "https://github.com/guiyinan/agomTradePro"
+        }
+      ],
+      "tags": [
+        "一个人的投研队伍",
+        "原生 AI 加持",
+        "机构化研究方法",
+        "个人掌握决策"
+      ],
+      "footnote": "产品能力交流与试点评估材料；不构成投资建议，不承诺投资收益。",
+      "notes": "收尾回到用户核心定位：搭建一个人的投研队伍，让原生 AI 加持，让个人具备机构级能力。解释为研究分工、分析框架和决策纪律的扩展，不承诺机构同等资源、资质或业绩。邀请客户选一个真实任务，共同验证最有价值的职责与流程；商业交付另行约定。后续为技术和问答附录。"
+    },
+    {
+      "id": "business-architecture",
+      "type": "cards",
+      "chapter": "附录 01 · 技术与交付",
+      "title": "业务架构：六大能力域，共同支撑一条决策链",
+      "lead": "按业务职责拆分模块，让数据、研究、执行和 AI 可以独立演进，也能通过公开入口协同。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "宏观层",
+          "meta": "macro · regime · policy",
+          "body": "回答“现在是什么环境”，提供宏观数据、Regime 与政策状态。"
+        },
+        {
+          "index": "02",
+          "title": "决策层",
+          "meta": "signal · beta_gate · alpha_trigger · decision_rhythm",
+          "body": "回答“现在该不该做”，承载信号、触发与决策频率约束。"
+        },
+        {
+          "index": "03",
+          "title": "执行层",
+          "meta": "strategy · simulated_trading · realtime",
+          "body": "回答“怎么执行、怎么跟踪”，连接策略、模拟交易与实时监控。"
+        },
+        {
+          "index": "04",
+          "title": "分析层",
+          "meta": "valuation · backtest · audit · factor · rotation · hedge",
+          "body": "回答“值不值得、为什么有效、哪里错了”，支撑研究与归因。"
+        },
+        {
+          "index": "05",
+          "title": "平台层",
+          "meta": "data_center · config_center · risk_center · readiness",
+          "body": "统一数据、配置、风险、任务监控和运行就绪证据。"
+        },
+        {
+          "index": "06",
+          "title": "AI 层",
+          "meta": "terminal · agent_runtime · ai_capability · prompt · ai_provider",
+          "body": "让 Agent 通过受治理的能力目录和运行时接入真实业务。"
+        }
+      ],
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。六类能力域来自当前仓库业务架构。强调模块化不是目的，真正的价值是降低新增数据源、策略、界面或 Agent 时的改动范围。"
+    },
+    {
+      "id": "technical-architecture",
+      "type": "layers",
+      "chapter": "附录 02 · 技术与交付",
+      "title": "技术架构：以清晰分层保护核心业务规则",
+      "lead": "业务模块按 Interface、Application、Domain、Infrastructure 划分职责，通过协议与公开入口降低耦合。",
+      "layers": [
+        {
+          "index": "L1",
+          "title": "Interface · 接口层",
+          "meta": "HTTP / DRF · Serializers · Admin · API Routes",
+          "body": "负责输入验证、用例调用和输出格式化，不承载业务规则。"
+        },
+        {
+          "index": "L2",
+          "title": "Application · 应用层",
+          "meta": "Use Cases · Query Services · DTO · Protocols",
+          "body": "编排业务用例，通过 Protocol、Facade 或依赖注入访问外部能力。"
+        },
+        {
+          "index": "L3",
+          "title": "Domain · 领域层",
+          "meta": "Entities · Value Objects · Business Rules · Domain Services",
+          "body": "沉淀金融实体与纯业务规则，保持 Python 标准库实现和框架无关。"
+        },
+        {
+          "index": "L4",
+          "title": "Infrastructure · 基础设施层",
+          "meta": "Django ORM · Repositories · Providers · Cache · External APIs",
+          "body": "实现协议并处理数据库、外部数据、文件与网络 I/O，完成输入标准化。"
+        }
+      ],
+      "tags": [
+        "Django 5.x",
+        "Python 3.11+",
+        "PostgreSQL / SQLite",
+        "Celery + Redis",
+        "Pandas / NumPy"
+      ],
+      "footnote": "依赖约束：Interface / Infrastructure → Application → Domain；跨 App 优先调用公开 Application 入口，避免直接连接对方 Infrastructure。",
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。这一页讲架构带来的产品可扩展性：可以替换数据源而不改金融规则，可以替换界面而不改策略内核，也可以接入自己的 Agent 而复用审批与审计链。"
+    },
+    {
+      "id": "trust-governance",
+      "type": "cards",
+      "chapter": "附录 03 · 技术与交付",
+      "title": "治理机制：能解释成功，也能解释为什么停止",
+      "lead": "把数据状态、权限边界和业务结果明确呈现，支持排查与验收。",
+      "cards": [
+        {
+          "index": "01",
+          "title": "数据可用性",
+          "meta": "FRESHNESS · RELIABILITY",
+          "body": "区分排序最新与真正新鲜，保留源观测时间，并显式发布决策阻断原因。"
+        },
+        {
+          "index": "02",
+          "title": "多源容灾",
+          "meta": "FAILOVER · RECONCILIATION",
+          "body": "数据源提供主备切换与一致性校验契约；过期响应应继续尝试后续来源。"
+        },
+        {
+          "index": "03",
+          "title": "权限与审批",
+          "meta": "RBAC · APPROVAL",
+          "body": "将模型能力、用户权限和关键执行分离，重要动作经过预检与审批。"
+        },
+        {
+          "index": "04",
+          "title": "架构与运行门禁",
+          "meta": "CI GUARDRAILS · READINESS",
+          "body": "通过架构扫描、任务监控和 readiness 证据，防止边界与运行状态倒退。"
+        }
+      ],
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。补充业务 outcome：技术任务完成不等于数据写入成功，部分成功、零写入和阻断应分别解释。默认 1% 是数据源一致性契约的常用容差，不能泛化为所有数据集质量保证。来源 AGENTS.md、data-freshness-contract-guard 与 celery-task-contract-guard；本次未执行业务测试或生产 readiness。",
+      "footnote": "治理规则覆盖范围和各业务路径接入程度需按实际环境核查，不能由门禁存在推导为全链路验收通过。"
+    },
+    {
+      "id": "deployment",
+      "type": "comparison",
+      "chapter": "附录 04 · 技术与交付",
+      "title": "运行架构：同一套产品，匹配两种部署阶段",
+      "lead": "降低首次体验门槛，同时为正式生产保留持久化、异步任务和验收能力。",
+      "columns": [
+        {
+          "eyebrow": "LOCAL / FIRST RUN",
+          "title": "本地轻量运行，快速形成研究闭环",
+          "bullets": [
+            "Python 3.11+，支持 Windows、Linux 与 macOS",
+            "默认 SQLite + 同步任务，无需先部署 Docker",
+            "Setup Wizard 引导密钥、管理员、AI 与数据源配置",
+            "适合个人研究、功能演示和二次开发"
+          ]
+        },
+        {
+          "eyebrow": "FORMAL PRODUCTION",
+          "title": "生产持久化运行，以验收证据作为门禁",
+          "bullets": [
+            "正式生产推荐 PostgreSQL + Redis + Celery",
+            "worker 与 beat 支撑异步任务和调度运行",
+            "数据库、媒体、日志、审计与 readiness 证据持久化",
+            "通过调度状态、连续窗口和 VPS 包校验完成验收"
+          ]
+        }
+      ],
+      "tags": [
+        "自部署",
+        "PostgreSQL",
+        "Redis",
+        "Celery",
+        "Docker",
+        "Apache-2.0"
+      ],
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。本地和生产是两种明确运行姿态。SQLite 在 VPS 只作为演示、迁移或诊断路径，不能替代正式生产验收。"
+    },
+    {
+      "id": "status-roadmap",
+      "type": "timeline",
+      "chapter": "附录 05 · 技术与交付",
+      "title": "能力与交付边界：以目标环境的证据为准",
+      "lead": "仓库能力、目标环境可用性和生产决策就绪分开核对。",
+      "items": [
+        {
+          "stage": "仓库能力",
+          "title": "研究、模拟与 AI 接入有实现基础",
+          "body": "宏观、信号、风险、模拟、SDK 与 MCP 等提供实现和契约；工作台体验持续演进。"
+        },
+        {
+          "stage": "演示与试点",
+          "title": "用指定账户和数据完成指定任务",
+          "body": "核对权限、数据时间和功能开关，留存成功与阻断案例；模拟与真实券商执行分别验收。"
+        },
+        {
+          "stage": "生产验收",
+          "title": "按候选、环境和观察窗口核验",
+          "body": "完整数据范围、来源授权、审计、调度、容量与恢复证据需独立评估；队列 Agent 仍受运行门控制。"
+        }
+      ],
+      "footnote": "2026-10-17 本地材料核对；本次未在线验证 VPS、数据授权、并发容量或生产决策就绪。",
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。以透明边界建立信任。既讲清已经可用的核心能力，也明确仍在演进的部分和正式生产需要满足的证据门槛。"
+    },
+    {
+      "id": "customer-qa",
+      "type": "table",
+      "title": "客户常见问题：把边界讲清，便于选择试点范围",
+      "lead": "下列回答依据当前仓库能力与契约；具体环境需要单独核验。",
+      "headers": [
+        "客户问题",
+        "说明口径"
+      ],
+      "rows": [
+        [
+          "能否使用自己的数据和模型？",
+          "有数据 Provider 与 AI Provider 接入路径；适配、许可与发送范围需评估。"
+        ],
+        [
+          "是否可以自部署？",
+          "支持自部署；生产推荐 PostgreSQL、Redis 与 Celery，并留存审计和运行证据。"
+        ],
+        [
+          "能否直接自动实盘？",
+          "本稿主线为研究、审批与模拟；券商接入、权限和真实执行必须单独验收。"
+        ],
+        [
+          "是否已经适合多人并发使用？",
+          "角色权限与并发容量分别验证；Agent 队列仍受运行门控制，不承诺并发指标。"
+        ],
+        [
+          "怎样证明有效？",
+          "按同一研究任务的证据完整度、约束表现和完成情况评估，不承诺收益。"
+        ]
+      ],
+      "footnote": "未在本材料中承诺价格、工期、服务等级、监管认证或生产性能指标。",
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。开源许可证为 Apache-2.0，不自动授予第三方行情转售、模型服务使用或客户数据出域许可。外部模型与数据源边界需要配置，自部署不能推导为绝不出域。参考 LICENSE、sdk/README、VERSION 和 ADR-0008。",
+      "chapter": "附录 06 · 技术与交付"
+    },
+    {
+      "id": "capability-map",
+      "type": "image",
+      "chapter": "附录 07 · 界面与能力图",
+      "title": "一支投研队伍背后，是一套连贯的能力底座",
+      "lead": "补充查看数据、研究、决策与模拟复盘之间的关系；主讲以个人研究任务为主线。",
+      "image": {
+        "src": "../images/readme/system-capability-map-cn-v1.png",
+        "alt": "AgomTradePro 系统功能全景：数据底座、研究分析、决策控制与执行复盘，贯穿 AI 协作和运行保障",
+        "caption": "产品功能关系图 · 实际可用范围以部署配置与最新就绪状态为准",
+        "theme": "light"
+      },
+      "notes": "上方四段是用户主任务，下方两条能力带是平台复用能力。强调这是围绕同一条决策链设计的功能体系，不是简单堆叠菜单。"
+    },
+    {
+      "id": "interface-terminal",
+      "type": "image",
+      "title": "历史界面：AI 工具与业务上下文",
+      "lead": "留存界面用于说明产品演进；当前可用入口、权限与工具目录请在目标环境核对。",
+      "image": {
+        "src": "../images/readme/terminal_cli.png",
+        "alt": "AgomTradePro Terminal CLI，展示系统命令、当前 Regime 和 AI Provider 配置",
+        "caption": "历史界面示例 · Terminal CLI · 拍摄日期未标注，不代表当前工作台外观",
+        "theme": "dark"
+      },
+      "notes": "历史截图集中在附录。保留原图颜色与可见日期，不作当期界面或生产验收证明。Terminal 源观测日期为 2026-03-23，拍摄日期未标注。",
+      "chapter": "附录 08 · 界面与能力图"
+    },
+    {
+      "id": "interface-dashboard",
+      "type": "image",
+      "title": "历史界面：账户、研究与工作流",
+      "lead": "留存界面展示账户与研究信息的整合思路；当前主入口优先使用任务工作台。",
+      "image": {
+        "src": "../images/readme/dashboard_logged_in.png",
+        "alt": "AgomTradePro 研究总览界面，展示账户、宏观状态、主流程与待执行队列",
+        "caption": "历史界面示例 · Classic Dashboard · 展示整合思路，不代表当前 TUI 外观或实时数据",
+        "theme": "light"
+      },
+      "notes": "历史截图集中在附录。保留原图颜色与可见日期，不作当期界面或生产验收证明。Classic Dashboard 拍摄日期未标注，不代表当前 TUI 外观。",
+      "chapter": "附录 09 · 界面与能力图"
+    },
+    {
+      "id": "open-integration",
+      "type": "media",
+      "chapter": "附录 10 · 界面与能力图",
+      "title": "开放集成：把已有研究工具接到同一业务底座",
+      "lead": "Python SDK 与 MCP 提供程序和 AI 接入路径，复用服务端权限与业务规则。",
+      "bullets": [
+        "Python SDK：按业务模块提供统一编程接口",
+        "MCP Server：连接 Claude、Cursor 及其他 MCP 兼容工具",
+        "RBAC：以角色权限约束不同调用方的能力边界",
+        "工具治理：统一查看 Schema，管理 Terminal 与 Routing 状态"
+      ],
+      "image": {
+        "src": "../images/readme/mcp_tools.png",
+        "alt": "AgomTradePro MCP 工具管理页，展示工具目录、Schema 和路由开关",
+        "caption": "历史界面示例 · MCP 工具目录 · 拍摄日期未标注，实际工具与权限需现场核对",
+        "theme": "light"
+      },
+      "notes": "附录：按客户问题跳转，主讲不必逐页展开。这页面向开发者和生态合作场景。开放不是暴露一组无序接口，而是让多个入口复用同一套业务能力、权限和治理规则。",
+      "footnote": "开发者接入附录；具体工具以目标环境发布目录与授权范围为准。"
+    }
+  ]
+}
