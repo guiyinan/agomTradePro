@@ -43,6 +43,11 @@
         clientPageSize: 20,
         operatorHomePayload: null,
         operatorHomePromise: null,
+        experienceMode: "professional",
+        experienceModeInitialized: false,
+        experienceHomeFresh: false,
+        rawResponseAllowed: false,
+        rawResponseAvailable: false,
         modalReturnFocus: null,
         menuSourceButton: null,
     };
@@ -81,6 +86,9 @@
         inspectorResizeHandle: document.querySelector("[data-inspector-resize-handle]"),
         themeStatus: document.querySelector("[data-theme-status]"),
         themeIndicatorCode: document.querySelector("[data-theme-indicator-code]"),
+        experienceControls: document.querySelector("[data-experience-controls]"),
+        experienceModeButtons: Array.from(document.querySelectorAll("[data-experience-mode]")),
+        experienceHome: document.querySelector("[data-experience-home]"),
     };
 
     const menuItems = {
@@ -130,6 +138,7 @@
     const pinnedScreensStorageKey = "agom-tui-pinned-screen-keys:v1";
     const preferredHomeLaneStorageKey = "agom-tui-preferred-home-lane:v1";
     const resumeOnBootStorageKey = "agom-tui-resume-on-boot:v1";
+    const experienceModeStorageKey = "agom-tui-experience-mode:v1";
     const inspectorWidthMin = 220;
     const inspectorWidthMax = 640;
     const inspectorDesktopBreakpoint = 980;
@@ -223,13 +232,6 @@
         } catch (_error) {
             // Persisted UI state is optional; the current session remains usable.
         }
-    }
-
-    function userStorageKey(baseKey) {
-        const userKey = String(els.app?.dataset.userKey || "anonymous")
-            .trim()
-            .replace(/[^a-zA-Z0-9_-]+/g, "_");
-        return `${baseKey}:user:${userKey || "anonymous"}`;
     }
 
     function screenKeyFromBrowserLocation() {
@@ -353,12 +355,6 @@
         return `${baseUrl}${suffix}`;
     }
 
-    function isOperatorHomeScreen(screenKey) {
-        if (typeof runtimeHooks.isOperatorHomeScreen === "function") {
-            return Boolean(runtimeHooks.isOperatorHomeScreen(screenKey));
-        }
-        return false;
-    }
 
     function isHomeClientAction(actionKey) {
         return (runtimeConfig.host?.homeActionKeys || []).includes(String(actionKey || ""));
@@ -944,6 +940,9 @@
     }
 
     async function refreshGovernanceBadges() {
+        if (state.experienceHomeFresh && isExperienceHomeScreen(state.screen?.screen?.key)) {
+            return;
+        }
         try {
             if (typeof runtimeHooks.loadNavigationBadges === "function") {
                 const navigationBadges = await runtimeHooks.loadNavigationBadges({
@@ -1342,7 +1341,7 @@
     function bindDashboardPanelRecovery(root, panel) {
         root.querySelector("[data-panel-retry]")?.addEventListener("click", () => loadDashboardPanel(panel));
         root.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
+            button.addEventListener("click", () => loadRecoveryScreen(button.dataset.panelRecoveryScreen));
         });
     }
 
@@ -1374,7 +1373,7 @@
             loadScreen(screenKey);
         });
         els.main.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
+            button.addEventListener("click", () => loadRecoveryScreen(button.dataset.panelRecoveryScreen));
         });
         setStatus("请求未完成");
     }

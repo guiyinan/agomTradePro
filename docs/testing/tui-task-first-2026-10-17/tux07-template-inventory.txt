@@ -1,0 +1,4 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/web_template_migration_inventory.py', '--check']
+Web-to-TUI inventory OK: templates=196 route_pages=117 A=131 B=17 C=41 D=7
+
+EXIT_CODE: 0

@@ -3796,3 +3796,135 @@ a {
 
 .tui-row-actions { width: max-content; }
 .tui-row-action { font: inherit; }
+/* Server-published task/professional navigation. */
+.tui-experience-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--tui-border);
+    background: var(--tui-panel);
+}
+
+.tui-experience-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tui-experience-modes button,
+.tui-experience-home-button {
+    border: 1px solid var(--tui-border);
+    background: transparent;
+    color: var(--tui-text);
+    padding: 4px 10px;
+    min-height: 30px;
+    cursor: pointer;
+    font: inherit;
+}
+
+.tui-experience-modes button:hover,
+.tui-experience-modes button.is-active,
+.tui-experience-modes button:focus-visible,
+.tui-experience-home-button:hover,
+.tui-experience-home-button:focus-visible {
+    background: var(--tui-accent);
+    color: var(--tui-inverse);
+}
+
+.tui-experience-rail,
+.tui-experience-current {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.tui-experience-rail-entry {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--tui-border);
+    background: transparent;
+    color: var(--tui-text);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.tui-experience-rail-entry small,
+.tui-experience-current small {
+    color: var(--tui-muted);
+}
+
+.tui-experience-rail-entry:hover,
+.tui-experience-rail-entry:focus-visible,
+.tui-experience-current .tui-screen-button:focus-visible {
+    background: var(--tui-accent);
+    color: var(--tui-inverse);
+}
+
+.tui-experience-home {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.tui-experience-home-primary,
+.tui-experience-home-utilities {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tui-experience-home-utilities {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.tui-experience-entry,
+.tui-experience-utility {
+    min-height: 76px;
+}
+
+.tui-experience-home-empty {
+    padding: 16px;
+    border: 1px dashed var(--tui-border);
+    color: var(--tui-muted);
+}
+
+.tui-experience-home-empty p {
+    margin: 0 0 6px;
+    color: var(--tui-text);
+}
+
+@media (max-width: 640px) {
+    .tui-experience-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .tui-experience-modes button,
+    .tui-experience-home-button {
+        flex: 1 1 0;
+    }
+
+    .tui-experience-home-primary,
+    .tui-experience-home-utilities {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tui-app[data-experience-enabled] {
+    grid-template-rows: var(--tui-menubar-height) auto var(--tui-system-height) minmax(0, 1fr) var(--tui-status-height) var(--tui-footer-height);
+}
+.tui-experience-bar[hidden],
+.tui-experience-home-button[hidden] {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .tui-app[data-experience-enabled] {
+        grid-template-rows: auto auto auto minmax(0, 1fr) var(--tui-status-height) var(--tui-footer-height);
+    }
+}

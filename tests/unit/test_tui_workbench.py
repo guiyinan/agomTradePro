@@ -45,6 +45,7 @@ from apps.terminal.infrastructure.tui_metadata_repository import (
 TUI_WORKBENCH_SOURCE_SEGMENTS = (
     "00-runtime.js",
     "10-navigation.js",
+    "12-experience.js",
     "20-dashboard.js",
     "30-actions.js",
     "40-views.js",
@@ -2864,7 +2865,9 @@ def test_tui_screen_api_returns_bounded_not_found_error(client, tui_user):
     }
     assert payload["error_code"] == "tui_screen_not_found"
     assert payload["title"] == "页面不存在"
-    assert payload["recovery_actions"] == [{"label": "返回首页", "screen_key": "home"}]
+    assert payload["recovery_actions"] == [
+        {"label": "返回首页", "screen_key": "command-center.overview"}
+    ]
     assert payload["trace_id"]
     assert "/api/" not in str(payload)
 
@@ -5459,12 +5462,10 @@ def test_tui_action_api_can_access_public_share_without_password(client, tui_use
     payload = response.json()
     assert payload["response"]["status_code"] == 200
     assert payload["view_model"]["kind"] == "detail"
-    assert (
-        payload["debug"]["raw_response"]["share_link"]["title"] == f"Share {share_link.short_code}"
-    )
-    assert payload["debug"]["raw_response"]["snapshot"]["summary"]["account_name"] == (
-        f"TUI Share {share_link.short_code}"
-    )
+    assert payload["debug"] == {"raw_available": False, "raw_response": None}
+    rendered = json.dumps(payload["view_model"], ensure_ascii=False)
+    assert f"Share {share_link.short_code}" in rendered
+    assert f"TUI Share {share_link.short_code}" in rendered
 
 
 def test_tui_action_api_reuses_session_for_password_protected_public_share(
@@ -5541,8 +5542,9 @@ def test_tui_action_api_reuses_session_for_password_protected_public_share(
     assert access_response.status_code == 200
     access_payload = access_response.json()
     assert access_payload["response"]["status_code"] == 200
-    assert access_payload["debug"]["raw_response"]["share_link"]["title"] == (
-        f"Share {share_link.short_code}"
+    assert access_payload["debug"] == {"raw_available": False, "raw_response": None}
+    assert f"Share {share_link.short_code}" in json.dumps(
+        access_payload["view_model"], ensure_ascii=False
     )
 
     snapshot_response = client.post(
@@ -5555,8 +5557,9 @@ def test_tui_action_api_reuses_session_for_password_protected_public_share(
     snapshot_payload = snapshot_response.json()
     assert snapshot_payload["response"]["status_code"] == 200
     assert snapshot_payload["view_model"]["status"] == "已读取"
-    assert snapshot_payload["debug"]["raw_response"]["summary"]["account_name"] == (
-        f"TUI Share {share_link.short_code}"
+    assert snapshot_payload["debug"] == {"raw_available": False, "raw_response": None}
+    assert f"TUI Share {share_link.short_code}" in json.dumps(
+        snapshot_payload["view_model"], ensure_ascii=False
     )
 
 

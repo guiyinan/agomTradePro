@@ -9,6 +9,7 @@ const sourceNames = [
     "05-result-continuation.js",
     "00-runtime.js",
     "10-navigation.js",
+    "12-experience.js",
     "15-workspace-state.js",
     "20-dashboard.js",
     "30-actions.js",

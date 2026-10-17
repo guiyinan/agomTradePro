@@ -28,6 +28,7 @@ from apps.terminal.application.tui_errors import (
     TuiScreenForbiddenError,
     TuiScreenNotFoundError,
 )
+from apps.terminal.application.tui_experience import project_experience
 from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
 from apps.terminal.application.tui_workbench_execution import TuiWorkbenchExecutionMixin
 from apps.terminal.application.tui_workbench_result_models import (
@@ -226,10 +227,29 @@ class TuiWorkbenchService(
             "groups": groups,
             "modules": [self._module_summary(module) for module in metadata["modules"]],
         }
+        visible_screen_keys = frozenset(
+            str(screen["key"])
+            for group in groups
+            for module in group["modules"]
+            for screen in module["screens"]
+        )
+        experience = project_experience(
+            metadata.get("experience"),
+            all_screen_keys=frozenset(self._screen_by_key(metadata)),
+            visible_screen_keys=visible_screen_keys,
+        )
+        if experience is not None:
+            catalog["experience"] = experience
+        catalog["diagnostics"] = {"raw_response_allowed": self._diagnostics_allowed(user)}
         metadata_health = metadata.get("metadata_health")
         if isinstance(metadata_health, dict):
             catalog["metadata_health"] = dict(metadata_health)
         return catalog
+
+    def get_default_screen_key(self) -> str:
+        """Return the validated canonical recovery destination without executing a task."""
+
+        return str(self._metadata()["default_screen"])
 
     def get_bootstrap(
         self,
@@ -246,11 +266,7 @@ class TuiWorkbenchService(
             metadata,
             requested or str(catalog["default_screen"]),
         )
-        try:
-            screen = self.get_screen(resolved, user=user)
-        except TuiScreenNotFoundError:
-            resolved = str(catalog["default_screen"])
-            screen = self.get_screen(resolved, user=user)
+        screen = self.get_screen(resolved, user=user)
         return {
             "contract": "tui-bootstrap.v1",
             "catalog": catalog,
@@ -454,6 +470,17 @@ class TuiWorkbenchService(
         if self._is_admin_user(user):
             allowed |= ADMIN_RUNTIME_RISKS
         return allowed
+
+    def _diagnostics_allowed(self, user: Any | None) -> bool:
+        """Grant raw diagnostics only to an active identified authenticated administrator."""
+
+        return bool(
+            user is not None
+            and getattr(user, "is_authenticated", False)
+            and getattr(user, "is_active", False)
+            and getattr(user, "pk", None) not in (None, "")
+            and self._is_admin_user(user)
+        )
 
     def _is_admin_user(self, user: Any | None) -> bool:
         if user is None:

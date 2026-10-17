@@ -6,6 +6,7 @@
       "paths": [
         "frontend/tui-workbench/src/00-runtime.js",
         "frontend/tui-workbench/src/10-navigation.js",
+        "frontend/tui-workbench/src/12-experience.js",
         "frontend/tui-workbench/src/15-workspace-state.js",
         "frontend/tui-workbench/src/20-dashboard.js",
         "frontend/tui-workbench/src/30-actions.js",
@@ -3199,7 +3200,7 @@
       "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:001",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "const isResumeAttempt",
+      "value": "const resumeAttempt",
       "legacy_tests": [
         "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
       ]
@@ -3208,7 +3209,7 @@
       "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:002",
       "source": "workbench_js",
       "relation": "contains",
-      "value": "if (!loaded && (isResumeAttempt || deepLinkedScreen))",
+      "value": "if (!loaded && resumeAttempt)",
       "legacy_tests": [
         "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
       ]

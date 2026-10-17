@@ -32,6 +32,8 @@ class TuiWorkbenchExecutionMixin:
             self, action_key: str, *, user: Any | None = None
         ) -> dict[str, Any] | None: ...
 
+        def _diagnostics_allowed(self, user: Any | None) -> bool: ...
+
         def _allowed_runtime_risks(self, user: Any | None) -> set[str]: ...
 
         def _ensure_tui_audit_sink(self, action: dict[str, Any]) -> None: ...
@@ -233,6 +235,7 @@ class TuiWorkbenchExecutionMixin:
                 status_code=status_code,
                 request_params=request_params,
             )
+            raw_allowed = self._diagnostics_allowed(user) and action.get("raw_debug", True) is True
             envelope = {
                 "version": "tui-workbench.v2",
                 "outcome": self._execution_outcome(safe_payload, status_code),
@@ -243,8 +246,8 @@ class TuiWorkbenchExecutionMixin:
                 },
                 "view_model": view_model,
                 "debug": {
-                    "raw_available": bool(action.get("raw_debug", True)),
-                    "raw_response": safe_payload if action.get("raw_debug", True) else None,
+                    "raw_available": raw_allowed,
+                    "raw_response": safe_payload if raw_allowed else None,
                 },
             }
             envelope.update(self._result_head_payload(view_model))

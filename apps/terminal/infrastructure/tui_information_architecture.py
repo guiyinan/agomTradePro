@@ -7,6 +7,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
+from apps.terminal.application.tui_experience import validate_experience
+
 TUI_IA_PATH = (
     Path(__file__).resolve().parents[3]
     / "config"
@@ -63,9 +65,15 @@ def screen_specs(registry: dict[str, Any] | None = None) -> dict[str, dict[str, 
 def public_screen_spec(screen: dict[str, Any]) -> dict[str, Any]:
     """Strip compiler-only source aliases from a screen definition."""
 
-    return {
+    public = {
         key: value for key, value in screen.items() if key not in {"sources", "runtime_sources"}
     }
+    if "dashboard_panels" in screen:
+        public["dashboard_panels"] = [
+            {key: value for key, value in panel.items() if key != "runtime_only"}
+            for panel in screen["dashboard_panels"]
+        ]
+    return public
 
 
 def _validate_tui_information_architecture(payload: dict[str, Any]) -> None:
@@ -92,6 +100,9 @@ def _validate_tui_information_architecture(payload: dict[str, Any]) -> None:
             raise ValueError(f"TUI screen {screen_key} references unknown module {module_key}")
         if group_key not in groups or str(modules[module_key]["group"]) != group_key:
             raise ValueError(f"TUI screen {screen_key} has inconsistent group/module ownership")
+        for panel in screen.get("dashboard_panels", []):
+            if "runtime_only" in panel and type(panel["runtime_only"]) is not bool:
+                raise ValueError("TUI IA panel runtime_only must be a boolean")
         for source in [
             *screen.get("sources", []),
             *screen.get("runtime_sources", []),
@@ -107,3 +118,6 @@ def _validate_tui_information_architecture(payload: dict[str, Any]) -> None:
         raise ValueError("TUI daily workflow must contain eight unique screens")
     if not set(workflow_keys).issubset(published_keys):
         raise ValueError("TUI daily workflow references a non-published screen")
+
+    if "experience" in payload:
+        validate_experience(payload["experience"], frozenset(screen_keys))

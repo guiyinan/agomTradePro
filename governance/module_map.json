@@ -11424,6 +11424,14 @@
           "TuiScreenNavigationError",
           "TuiScreenNotFoundError"
         ],
+        "application/tui_experience.py": [
+          "Experience",
+          "ExperienceEntry",
+          "ExperienceMode",
+          "project_experience",
+          "validate_experience",
+          "validate_metadata_experience"
+        ],
         "application/tui_metadata.py": [
           "compact_tui_metadata_payload",
           "validate_tui_metadata"
@@ -11497,7 +11505,7 @@
         ]
       },
       "layers": {
-        "application": 27,
+        "application": 28,
         "domain": 5,
         "infrastructure": 89,
         "interface": 9,

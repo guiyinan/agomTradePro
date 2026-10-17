@@ -998,10 +998,27 @@
     }
 
     function updateRawDrawer() {
-        els.rawPanel.textContent = state.lastRaw === null ? "尚未加载原始响应。" : JSON.stringify(state.lastRaw, null, 2);
+        const available = rawResponseCanOpen();
+        if (els.rawToggle) {
+            els.rawToggle.hidden = !available;
+            els.rawToggle.disabled = !available;
+            els.rawToggle.setAttribute("aria-hidden", available ? "false" : "true");
+        }
+        if (els.rawDrawer && !available) {
+            els.rawDrawer.hidden = true;
+        }
+        els.rawPanel.textContent = available
+            ? JSON.stringify(state.lastRaw, null, 2)
+            : "当前结果没有可查看的依据。";
     }
 
     function toggleRawDrawer(show) {
+        if (!rawResponseCanOpen()) {
+            if (els.rawDrawer) {
+                els.rawDrawer.hidden = true;
+            }
+            return;
+        }
         els.rawDrawer.hidden = typeof show === "boolean" ? !show : !els.rawDrawer.hidden;
         setStatus(els.rawDrawer.hidden ? "原始响应关闭" : "原始响应打开");
     }

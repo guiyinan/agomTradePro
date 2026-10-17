@@ -8,6 +8,7 @@ from functools import lru_cache
 from string import Formatter
 from typing import Any
 
+from apps.terminal.application.tui_experience import validate_metadata_experience
 from apps.terminal.application.tui_metadata_constants import (
     ALLOWED_TUI_ACTION_EFFECTS,
     ALLOWED_TUI_CHART_TYPES,
@@ -52,12 +53,8 @@ from apps.terminal.application.tui_metadata_filter_validation import (
 
 try:
     from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
-    from jsonschema import exceptions as jsonschema_exceptions
-
-    JsonSchemaValidationError = jsonschema_exceptions.ValidationError
 except ImportError:  # pragma: no cover - local validator still protects runtime.
     Draft202012Validator = None
-    JsonSchemaValidationError = Exception
 
 
 def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
@@ -1340,6 +1337,7 @@ def _contains_internal_contract_token(value: str) -> bool:
 
 
 def _validate_with_json_schema(payload: dict[str, Any]) -> None:
+    validate_metadata_experience(payload)
     if Draft202012Validator is None:
         return
     validator = _tui_metadata_schema_validator()

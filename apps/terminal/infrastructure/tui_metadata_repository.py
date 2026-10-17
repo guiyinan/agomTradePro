@@ -412,6 +412,7 @@ class PublishedTuiMetadataRepository:
         contract_paths = [
             TUI_IA_PATH,
             application_metadata_path,
+            infrastructure_dir.parent / "application" / "tui_experience.py",
             Path(__file__).resolve(),
             infrastructure_dir / "tui_information_architecture.py",
             *sorted(
@@ -727,6 +728,7 @@ class PublishedTuiMetadataRepository:
         normalized["actions"] = actions
         normalized["default_screen"] = "command-center.overview"
         normalized["ia_version"] = str(registry["version"])
+        normalized["experience"] = copy.deepcopy(registry["experience"])
         normalized["legacy_screen_aliases"] = {
             source: target for source, target in aliases.items() if source != target
         }

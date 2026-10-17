@@ -14,17 +14,25 @@
         const layout = dashboardLayout(panels, screen);
         setWorkspaceViewKind("dashboard");
         els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
+        const suppressHomeAutoLoad = Boolean(options.suppressHomeAutoLoad && isExperienceHomeScreen(screen.key));
         els.main.innerHTML = `
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
-            <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
-                ${panels.map((panel, index) => `
-                    <article class="tui-dash-panel" data-panel-kind="${escapeHtml(panel.kind)}" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
-                        ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
-                            ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
-                            : '<div class="tui-loading">读取业务数据...</div>')}
-                    </article>
-                `).join("")}
-            </div>
+            ${suppressHomeAutoLoad ? `
+                <div class="tui-experience-home-empty" data-task-home-placeholder>
+                    <p>选择一个任务开始查看。</p>
+                    <small>首次进入先选择任务；数据会在你打开任务后读取。</small>
+                </div>
+            ` : `
+                <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
+                    ${panels.map((panel) => `
+                        <article class="tui-dash-panel" data-panel-kind="${escapeHtml(panel.kind)}" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
+                            ${renderDashboardPanelShell(panel, dashboardPanelShouldCollapse(panel)
+                                ? '<div class="tui-panel-caption" data-panel-idle>展开后读取业务数据。</div>'
+                                : '<div class="tui-loading">读取业务数据...</div>')}
+                        </article>
+                    `).join("")}
+                </div>
+            `}
         `;
         renderInspector({
             title: screen.label,
@@ -57,7 +65,8 @@
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
-        if (options.suppressAutoActions && !immersiveDashboard) {
+        bindExperienceHomeControls(els.main);
+        if (suppressHomeAutoLoad || (options.suppressAutoActions && !immersiveDashboard)) {
             return;
         }
         const visiblePanels = panels.filter((panel) => !dashboardPanelShouldCollapse(panel));

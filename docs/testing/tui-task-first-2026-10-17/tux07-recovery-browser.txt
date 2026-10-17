@@ -1,0 +1,5 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/terminal/test_tui_experience.py', 'tests/unit/test_tui_workbench.py::test_tui_screen_api_returns_bounded_not_found_error', 'tests/unit/test_tui_workbench.py::test_tui_screen_api_returns_bounded_forbidden_error', 'tests/component/test_tui_task_first_browser.py', '-q', '--ds=tux07_settings', '--reuse-db', '--basetemp=.tmp/pytest-tux07-final']
+..........................                                               [100%]
+26 passed in 30.55s
+
+EXIT_CODE: 0

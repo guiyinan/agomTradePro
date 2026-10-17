@@ -1,0 +1,15 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/terminal/test_tui_experience.py', '-k', 'non_mcp_forbidden', '-q']
+F                                                                        [100%]
+================================== FAILURES ===================================
+__________ test_non_mcp_forbidden_screen_recovers_to_canonical_home ___________
+tests\unit\terminal\test_tui_experience.py:294: in test_non_mcp_forbidden_screen_recovers_to_canonical_home
+    assert response.data["recovery_actions"] == [
+E   AssertionError: assert [{'label': '返...elf-service'}] == [{'label': '返...er.overview'}]
+E
+E     At index 0 diff: {'label': '返回我的 MCP 接入', 'screen_key': 'capability-router.self-service'} != {'label': '返回首页', 'screen_key': 'command-center.overview'}
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/unit/terminal/test_tui_experience.py::test_non_mcp_forbidden_screen_recovers_to_canonical_home
+1 failed, 22 deselected in 1.55s
+
+EXIT_CODE: 1

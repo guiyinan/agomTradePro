@@ -1,0 +1,4 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_module_map.py']
+module map OK: D:\githv\agomTradePro\governance\module_map.json matches the source tree (modules=44 edges=210)
+
+EXIT_CODE: 0

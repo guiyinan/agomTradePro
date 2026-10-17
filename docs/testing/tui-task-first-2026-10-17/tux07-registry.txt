@@ -1,0 +1,5 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/test_active_plan_registry.py', '-q']
+........                                                                 [100%]
+8 passed in 0.70s
+
+EXIT_CODE: 0

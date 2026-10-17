@@ -1,0 +1,12 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/test_tui_workbench.py', 'tests/unit/test_terminal_agent_service.py', 'sdk/tests/test_sdk/test_client.py', 'tests/unit/test_internal_ssl_redirect.py', 'tests/unit/terminal/test_tui_experience.py', 'tests/unit/terminal/test_tui_information_architecture.py', 'tests/unit/test_tui_metadata_compiler.py', 'tests/unit/test_tui_runtime_manifest_contract.py', 'tests/unit/test_tui_metadata_source_consistency.py', 'tests/unit/test_tui_static_contracts.py', 'tests/component/test_tui_runtime_optimization.py', 'tests/component/test_tui_agent_action_bridge.py', 'tests/component/test_tui_task_first_browser.py', 'tests/unit/test_active_plan_registry.py', '-q', '--ds=tux07_settings', '--reuse-db', '--basetemp=.tmp/pytest-tux07-final']
+........................................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 38%]
+........................................................................ [ 50%]
+........................................................................ [ 63%]
+........................................................................ [ 76%]
+........................................................................ [ 89%]
+..............................................................           [100%]
+566 passed in 291.94s (0:04:51)
+
+EXIT_CODE: 0

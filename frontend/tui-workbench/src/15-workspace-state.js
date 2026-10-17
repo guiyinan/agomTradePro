@@ -38,7 +38,7 @@
 
     function captureWorkspace() {
         const key = state.screen?.screen?.key;
-        if (!key) return;
+        if (!key || (state.experienceHomeFresh && isExperienceHomeScreen(key))) return;
         const drafts = {};
         for (const action of state.screen.actions || []) {
             const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);

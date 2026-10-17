@@ -175,6 +175,8 @@
 
 TUI 升级按已授权的 [阶段计划](tui-task-first-experience-plan-2026-10-17.md) 和 `TUX-06`～`TUX-10` 登记推进；与 A 股 Goal 的共享代码、测试冻结和提交窗口须串行交接，不据聊天中的历史说明抢占 repository focus。
 
+TUX-07 模式外壳的 [仓库验收记录](../testing/tui-task-first-2026-10-17/tux07-acceptance.json) 保留冻结源、契约回归及真实本地角色/视口证据。三项入口后的研究、今日与组合完整任务仍按后续单元验收；该记录不赋予生产或交易资格。
+
 读取机器注册表的 `execution_focus.unit_id`、`allowed_parallel_execution_modes` 与 `policy`，再查对应 `closure_backlog.units` 的依赖和退出门。该字段才是 repository 执行锁；不得沿用历史日志中的“唯一焦点”或从工作流的 active 状态推定执行权。
 
 ## 去重后的收口 Backlog

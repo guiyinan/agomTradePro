@@ -1,0 +1,3 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', '-m', 'isort', '--check-only', 'apps/terminal/application/tui_experience.py', 'apps/terminal/application/tui_metadata.py', 'apps/terminal/application/tui_workbench.py', 'apps/terminal/application/tui_workbench_execution.py', 'apps/terminal/infrastructure/tui_information_architecture.py', 'apps/terminal/infrastructure/tui_metadata_repository.py', 'apps/terminal/interface/api_views.py', 'tui-metadata-compiler/scripts/promote_tui_business_screens.py']
+
+EXIT_CODE: 0

@@ -51,7 +51,7 @@
       "dashboard_panels": [
         {"key": "policy-create", "title": "创建政策事件", "kind": "detail", "action_key": "policy.event-create", "user_priority": "p2", "presentation_semantic": "next_step", "note": "需要补充政策事实时，填写日期、档位、标题、说明和证据链接。", "empty_message": "点击“创建政策事件”开始记录。"},
         {"key": "policy-summary", "title": "政策摘要", "kind": "detail", "action_key": "policy.queue_summary", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无政策摘要。", "max_rows": 4},
-        {"key": "policy-items", "title": "待处理政策", "kind": "datagrid", "action_key": "policy.workbench_items", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "暂无待处理政策事件。", "columns": [{"key": "title", "label": "标题"}, {"key": "audit_status", "label": "审核状态"}, {"key": "gate_effective", "label": "已生效"}, {"key": "event_date", "label": "日期"}, {"key": "level", "label": "档位"}, {"key": "gate_level", "label": "闸门"}, {"key": "id", "label": "事件 ID"}, {"key": "review_notes", "label": "审核理由"}, {"key": "rollback_reason", "label": "回滚理由"}], "row_actions": [{"action_key": "policy.workbench-item-detail", "label_template": "查看 {title}", "param_map": {"event_id": "id"}, "result_panel_key": "operation-receipt"}, {"action_key": "policy.workbench-approve", "label_template": "批准 {title}", "param_map": {"event_id": "id"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "audit_status", "values": ["pending", "pending_review"]}}, {"action_key": "policy.workbench-reject", "label_template": "拒绝 {title}", "param_map": {"event_id": "id", "reason": "review_notes"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "audit_status", "values": ["pending", "pending_review"]}}, {"action_key": "policy.workbench-rollback", "label_template": "回滚 {title}", "param_map": {"event_id": "id", "reason": "rollback_reason"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "gate_effective", "values": [true, "是"]}}, {"action_key": "policy.workbench-override", "label_template": "临时豁免 {title}", "param_map": {"event_id": "id", "reason": "review_notes"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "gate_effective", "values": [true, "是"]}}], "filter_fields": ["search", "tab", "start_date", "end_date"]},
+        {"key": "policy-items", "runtime_only": true, "title": "待处理政策", "kind": "datagrid", "action_key": "policy.workbench_items", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "暂无待处理政策事件。", "columns": [{"key": "title", "label": "标题"}, {"key": "audit_status", "label": "审核状态"}, {"key": "gate_effective", "label": "已生效"}, {"key": "event_date", "label": "日期"}, {"key": "level", "label": "档位"}, {"key": "gate_level", "label": "闸门"}, {"key": "id", "label": "事件 ID"}, {"key": "review_notes", "label": "审核理由"}, {"key": "rollback_reason", "label": "回滚理由"}], "row_actions": [{"action_key": "policy.workbench-item-detail", "label_template": "查看 {title}", "param_map": {"event_id": "id"}, "result_panel_key": "operation-receipt"}, {"action_key": "policy.workbench-approve", "label_template": "批准 {title}", "param_map": {"event_id": "id"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "audit_status", "values": ["pending", "pending_review"]}}, {"action_key": "policy.workbench-reject", "label_template": "拒绝 {title}", "param_map": {"event_id": "id", "reason": "review_notes"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "audit_status", "values": ["pending", "pending_review"]}}, {"action_key": "policy.workbench-rollback", "label_template": "回滚 {title}", "param_map": {"event_id": "id", "reason": "rollback_reason"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "gate_effective", "values": [true, "是"]}}, {"action_key": "policy.workbench-override", "label_template": "临时豁免 {title}", "param_map": {"event_id": "id", "reason": "review_notes"}, "refresh_panel_key": "policy-items", "result_panel_key": "operation-receipt", "visible_when": {"field": "gate_effective", "values": [true, "是"]}}], "filter_fields": ["search", "tab", "start_date", "end_date"]},
         {"key": "policy-rss-reader", "title": "RSS 政策阅读", "kind": "datagrid", "action_key": "policy.rss-reader", "user_priority": "p2", "presentation_semantic": "supporting_list", "empty_message": "暂无已标准化的 RSS 政策条目。", "columns": [{"key": "event_date", "label": "日期"}, {"key": "level", "label": "档位"}, {"key": "title", "label": "标题"}, {"key": "info_category", "label": "类别"}, {"key": "rss_source_name", "label": "来源"}, {"key": "audit_status", "label": "审核状态"}, {"key": "risk_impact", "label": "风险影响"}, {"key": "evidence_url", "label": "证据链接"}]},
         {"key": "operation-receipt", "title": "最近操作回执", "kind": "detail", "user_priority": "p2", "presentation_semantic": "primary_status", "empty_message": "处理列表中的事项后，在这里核对操作对象与结果。"}
       ]
@@ -200,5 +200,79 @@
     {"screen_key": "macro-regime.strategy", "label": "策略与风控", "role": "确认约束"},
     {"screen_key": "execution.audit", "label": "事件与复盘", "role": "复盘留痕"}
   ],
-  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8}, "task_group_limit": 4}
+  "action_density": {"default_primary_operation_limit": 5, "screen_limits": {"command-center.decision-flow": 6, "prompt.workbench": 8}, "task_group_limit": 4},
+  "experience": {
+    "home_screen_key": "command-center.overview",
+    "default_mode": "task",
+    "modes": [
+      {
+        "key": "task",
+        "label": "任务模式",
+        "entries": [
+          {
+            "key": "today",
+            "kind": "screen",
+            "label": "今日关注",
+            "description": "查看市场环境和已有待办；进入后读取当前任务。",
+            "screen_key": "command-center.overview"
+          },
+          {
+            "key": "research",
+            "kind": "screen",
+            "label": "研究标的",
+            "description": "进入已有研究工作区，选择要研究的标的。",
+            "screen_key": "research.asset-lab"
+          },
+          {
+            "key": "portfolio",
+            "kind": "screen",
+            "label": "检查组合",
+            "description": "查看已授权的账户与持仓，核对可用事实。",
+            "screen_key": "execution.accounts"
+          }
+        ]
+      },
+      {
+        "key": "professional",
+        "label": "专业模式",
+        "entries": []
+      }
+    ],
+    "utilities": [
+      {
+        "key": "resume",
+        "kind": "resume",
+        "label": "继续上次任务",
+        "description": "重新检查权限并读取任务数据。"
+      },
+      {
+        "key": "settings",
+        "kind": "screen",
+        "label": "个人设置",
+        "description": "维护个人资料与交易设置。",
+        "screen_key": "account.self-service"
+      },
+      {
+        "key": "ai",
+        "kind": "screen",
+        "label": "我的 AI 服务",
+        "description": "需要使用 AI 时再配置。",
+        "screen_key": "ai-ops.providers"
+      },
+      {
+        "key": "mcp",
+        "kind": "screen",
+        "label": "我的 MCP 接入",
+        "description": "按需获取个人服务接入信息。",
+        "screen_key": "capability-router.self-service"
+      },
+      {
+        "key": "governance",
+        "kind": "screen",
+        "label": "系统治理",
+        "description": "管理员维护系统设置。",
+        "screen_key": "system.settings"
+      }
+    ]
+  }
 }

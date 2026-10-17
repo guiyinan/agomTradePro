@@ -29,6 +29,14 @@
             </div>
         </header>
 
+        <nav class="tui-experience-bar" data-experience-controls hidden aria-label="工作模式">
+            <div class="tui-experience-modes" role="tablist" aria-label="工作模式">
+                <button type="button" role="tab" data-experience-mode="task" aria-selected="false">任务模式</button>
+                <button type="button" role="tab" data-experience-mode="professional" aria-selected="false">专业模式</button>
+            </div>
+            <button type="button" class="tui-experience-home-button" data-experience-home hidden>返回任务首页</button>
+        </nav>
+
         <section class="tui-system-strip" aria-label="System status">
             <div class="tui-system-primary">
                 <span>工作台: <strong class="tui-green">界面已载入</strong></span>
@@ -70,7 +78,7 @@
                     <section class="tui-panel tui-main-panel">
                         <div class="tui-panel-title">
                             <span data-main-title>视图</span>
-                            <button class="tui-panel-command" type="button" data-raw-toggle>原始</button>
+                            <button class="tui-panel-command" type="button" data-raw-toggle hidden>诊断：原始响应</button>
                         </div>
                         <div class="tui-workflow-strip" data-workflow-strip hidden></div>
                         <div class="tui-panel-body tui-main-body" data-main-panel>
@@ -118,7 +126,7 @@
             <span>状态: <strong data-workbench-status>就绪</strong></span>
             <span data-pager-status hidden></span>
             <span>最近收到数据: <strong data-last-refresh>--:--:--</strong></span>
-            <span>原始响应: <strong>调试入口</strong></span>
+            <span>诊断工具: <strong>按权限显示</strong></span>
         </section>
 
         <footer class="tui-function-bar">

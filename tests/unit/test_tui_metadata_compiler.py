@@ -121,6 +121,113 @@ def test_v3_schema_requires_explicit_screen_audience() -> None:
     ]
 
 
+def test_promotion_and_runtime_use_the_same_permission_filtered_task_map(promoter_module):
+    from apps.terminal.application.tui_experience import project_experience
+    from apps.terminal.infrastructure.tui_information_architecture import (
+        load_tui_information_architecture,
+    )
+    from apps.terminal.infrastructure.tui_metadata_repository import PublishedTuiMetadataRepository
+
+    root = Path(__file__).resolve().parents[2]
+    payload = json.loads(
+        (root / "config/tui/published/tui_operation_graph.published.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    promoted, _ = promoter_module.promote_payload(payload)
+    registry = load_tui_information_architecture()
+    all_keys = frozenset(
+        screen["key"] for screen in [*registry["published_screens"], *registry["runtime_screens"]]
+    )
+    expected = project_experience(
+        registry["experience"],
+        all_screen_keys=all_keys,
+        visible_screen_keys=frozenset(screen["key"] for screen in promoted["screens"]),
+    )
+    assert promoted["experience"] == expected
+    repository = PublishedTuiMetadataRepository()
+    runtime = repository._normalize_runtime_payload(promoted)
+    assert runtime["experience"] == registry["experience"]
+
+
+def test_full_promotion_validates_and_defers_runtime_owned_panel_contract(promoter_module):
+    from copy import deepcopy
+
+    from apps.terminal.application.tui_metadata import validate_tui_metadata
+    from apps.terminal.infrastructure.tui_metadata_repository import PublishedTuiMetadataRepository
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "config/tui/published/tui_operation_graph.published.json"
+    )
+    source = json.loads(path.read_text(encoding="utf-8"))
+    approved = {action["key"] for action in source["actions"]}
+    repository = PublishedTuiMetadataRepository()
+    before = repository._normalize_runtime_payload(validate_tui_metadata(deepcopy(source)))
+    promoted, _ = promoter_module.promote_payload(source)
+    valid = validate_tui_metadata(promoted)
+    assert {action["key"] for action in valid["actions"]} == approved
+    policy = next(screen for screen in valid["screens"] if screen["key"] == "policy.workbench")
+    assert all(panel["key"] != "policy-items" for panel in policy["dashboard_panels"])
+    runtime = repository._normalize_runtime_payload(valid)
+    runtime_policy = next(
+        screen for screen in runtime["screens"] if screen["key"] == "policy.workbench"
+    )
+    panel = next(
+        panel for panel in runtime_policy["dashboard_panels"] if panel["key"] == "policy-items"
+    )
+    assert panel["filter_fields"] == ["search", "tab", "start_date", "end_date"]
+    assert "runtime_only" not in panel
+    execution_fields = (
+        "endpoint",
+        "method",
+        "risk",
+        "fields",
+        "confirmation_required",
+        "session_auth_required",
+        "result_continuation",
+        "raw_debug",
+        "screen_key",
+    )
+
+    def contracts(payload):
+        return {
+            action["key"]: {key: action.get(key) for key in execution_fields}
+            for action in payload["actions"]
+        }
+
+    assert contracts(runtime) == contracts(before)
+
+
+def test_promoter_cli_runs_without_django_initialization(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    env.pop("DJANGO_SETTINGS_MODULE", None)
+    output = tmp_path / "promoted.json"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-X",
+            "utf8",
+            str(root / "tui-metadata-compiler/scripts/promote_tui_business_screens.py"),
+            "--output",
+            str(output),
+        ],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(output.read_text(encoding="utf-8"))["experience"]["default_mode"] == "task"
+
+
 def test_v3_action_schema_declares_server_session_auth_flag_as_boolean() -> None:
     schema = json.loads(
         (

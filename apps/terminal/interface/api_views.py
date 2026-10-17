@@ -533,6 +533,21 @@ class TuiWorkbenchBootstrapView(APIView):
                 requested_screen=requested_screen,
                 user=request.user,
             )
+        except TuiScreenNotFoundError:
+            return _tui_timed_response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_screen_not_found",
+                    title="工作区不可用",
+                    detail="这个工作区不存在，请检查屏幕地址。",
+                    recovery_actions=[
+                        {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+                    ],
+                ),
+                metric="tui_bootstrap",
+                started_at=started_at,
+                response_status=status.HTTP_404_NOT_FOUND,
+            )
         except TuiScreenForbiddenError:
             return _tui_timed_response(
                 _tui_error_payload(
@@ -540,7 +555,9 @@ class TuiWorkbenchBootstrapView(APIView):
                     error_code="tui_screen_forbidden",
                     title="无权访问",
                     detail="当前账号不能打开这个工作区。",
-                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                    recovery_actions=[
+                        {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+                    ],
                 ),
                 metric="tui_bootstrap",
                 started_at=started_at,
@@ -606,23 +623,25 @@ class TuiWorkbenchScreenView(APIView):
                     error_code="tui_screen_not_found",
                     title="页面不存在",
                     detail="这个工作区没有发布，或已被移除。",
-                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                    recovery_actions=[
+                        {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+                    ],
                 ),
                 status=status.HTTP_404_NOT_FOUND,
             )
         except TuiScreenForbiddenError:
+            recovery_action = (
+                {"label": "返回我的 MCP 接入", "screen_key": "capability-router.self-service"}
+                if screen_key.startswith("capability-router.")
+                else {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+            )
             return Response(
                 _tui_error_payload(
                     request=request,
                     error_code="tui_screen_forbidden",
                     title="无权访问",
                     detail="当前账号不能打开这个工作区。",
-                    recovery_actions=[
-                        {
-                            "label": "返回我的 MCP 接入",
-                            "screen_key": "capability-router.self-service",
-                        }
-                    ],
+                    recovery_actions=[recovery_action],
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -742,7 +761,7 @@ class TuiWorkbenchActionRunView(APIView):
                         error_code="tui_confirmation_invalid",
                         title="确认信息无效",
                         detail="请重新打开任务并确认后再提交。",
-                        recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                        recovery_actions=[],
                     ),
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -762,7 +781,7 @@ class TuiWorkbenchActionRunView(APIView):
             require_audit_sink=True,
         )
         task_label = "当前任务"
-        task_recovery_actions: list[dict[str, str]] = [{"label": "返回首页", "screen_key": "home"}]
+        task_recovery_actions: list[dict[str, str]] = []
         try:
             if service.action_requires_session_auth(action_key, user=request.user) and (
                 not _has_tui_session_authentication(request)
@@ -773,10 +792,15 @@ class TuiWorkbenchActionRunView(APIView):
                         error_code="tui_session_auth_required",
                         title="请使用浏览器会话",
                         detail="此任务只能通过已验证的浏览器会话执行。",
-                        recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                        recovery_actions=[
+                            {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+                        ],
                     ),
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            task_recovery_actions = [
+                {"label": "返回首页", "screen_key": service.get_default_screen_key()}
+            ]
             service.action_executor = get_tui_action_executor()
             error_context = service.get_action_error_context(action_key, user=request.user)
             task_label = str(error_context.get("label") or task_label)
@@ -804,7 +828,7 @@ class TuiWorkbenchActionRunView(APIView):
                     error_code="tui_action_not_found",
                     title="任务不存在",
                     detail="这个任务没有发布，或已被移除。",
-                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                    recovery_actions=task_recovery_actions,
                 ),
                 status=status.HTTP_404_NOT_FOUND,
             )

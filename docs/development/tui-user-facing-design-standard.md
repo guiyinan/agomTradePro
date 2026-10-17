@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-09-08
+> Last updated: 2026-10-17
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -78,7 +78,7 @@ New user-facing semantics:
 
 The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is the only source of truth for TUI groups, modules, canonical screens, legacy aliases, the daily workflow, audiences, panels, and action-density budgets. Compiler promotion, database normalization, runtime injection, and deep-link resolution must load this registry; they must not maintain parallel screen-routing dictionaries.
 
-The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 13 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
+The current contract has three groups (`daily`, `research`, `system`), 12 published screens, 14 runtime screens, and an eight-step daily workflow. The registry separates published inputs from runtime inputs so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
 
 The `research` group is explicitly divided into four user-task modules: `investment-research`, `ai-workspace`, `personal-services`, and `personal-settings`. Do not recreate a generic research-tools catch-all or place account settings, personal service access, and asset research in one undifferentiated module.
 
@@ -422,3 +422,50 @@ research. Source dates and decision gates remain unchanged.
 Alpha 清单将最近一次相关推理的业务失败投影到现有 `business_summary` / `blocking_reason` 契约，包含真实评分日、目标日及尝试时间。dashboard 面板同样展示阻断原因，不能因空表或旧缓存而隐藏。任务异常只映射为安全用户文案，不呈现原始 traceback、凭据或其他组合的信息；新的成功评分清除旧失败。测试见 `tests/unit/dashboard/test_alpha_refresh_notice.py` 及浏览器 `dashboard displays blocking evidence` 用例。
 
 2026-09-20：Dashboard 概览投影与数值格式化拆入 `TuiDashboardResultMixin`，由原 specialized mixin 继承，保持结果协议与现有调用入口不变。
+
+
+## Task and professional presentation modes
+
+The optional metadata root `experience` is owned by the IA registry. It declares
+`home_screen_key`, `default_mode: task`, task/professional mode labels, passive screen
+entries and local resume utilities. Entry destinations must be canonical, present
+screen keys, and the experience home must match the metadata default screen;
+duplicate entries, unknown modes and executable navigation payloads
+are rejected. Compiler promotion projects this map onto its published screens;
+runtime normalization overlays the complete IA map after injecting runtime screens.
+The catalog then filters against the actual authorized visible screen inventory,
+without modifying cached metadata. Metadata without this contract retains the
+legacy professional navigation.
+
+Mode preference is presentation state scoped to the signed-in user. A mode toggle
+must not execute tasks, reload the current screen, rewrite routing/history, submit
+forms or alter confirmation, continuation, credentials or retry identity. An explicit
+screen/action deep link takes priority over a saved preference or local resume.
+Unknown and forbidden explicit bootstrap destinations return bounded 404/403;
+only a stale local resume may recover by opening the default entry.
+
+Diagnostics are a separate server capability, never a third mode. Catalog
+`diagnostics.raw_response_allowed` requires an authenticated, active principal
+with a nonempty database identity and the existing administrator/RBAC policy.
+An executed action also needs its own `raw_debug` policy to return raw data.
+Ordinary and unidentified actors receive `debug.raw_available: false` and
+`debug.raw_response: null`; hiding a drawer alone is insufficient. Existing result
+continuation exclusion and output redaction remain mandatory. Business outcomes,
+including partial/blocked/failed and nullable counts, retain owner semantics in
+all modes. This repository contract does not establish production/user acceptance.
+
+The experience validator is included in the repository cache contract fingerprint.
+The runtime manifest also binds experience projection, workbench execution,
+interface recovery and compiler promotion sources, so a changed server contract
+cannot be represented by an unchanged frontend-only artifact identity.
+
+
+IA panels may declare compiler-only `runtime_only: true` when their effective
+contract belongs to runtime injection even though a stale published action key
+still exists. Static promotion defers those panels, and references to known
+runtime-only screens, rather than emitting invalid static references. Runtime
+projection restores the complete IA panels and strips the compiler marker.
+Unknown destinations still fail validation; selector and action-kind guards are
+unchanged. Regression compares the complete effective owner endpoint, method,
+risk, field, confirmation, session, continuation and raw-policy maps before and
+after compilation. The standalone CLI must work without Django initialization.

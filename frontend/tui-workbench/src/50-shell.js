@@ -704,7 +704,9 @@
     }
 
     function openMenu(menuName, sourceButton) {
-        const items = menuItems[menuName] || [];
+        const items = (menuItems[menuName] || []).filter(([command]) => (
+            command !== "raw" || rawResponseCanOpen()
+        ));
         if (state.menuSourceButton && state.menuSourceButton !== sourceButton) {
             state.menuSourceButton.setAttribute("aria-expanded", "false");
         }
@@ -909,6 +911,40 @@
         });
         els.rawToggle.addEventListener("click", () => toggleRawDrawer());
         els.rawClose.addEventListener("click", () => toggleRawDrawer(false));
+        els.experienceModeButtons.forEach((button, index, buttons) => {
+            button.addEventListener("click", () => {
+                selectExperienceMode(button.dataset.experienceMode);
+            });
+            button.addEventListener("keydown", (event) => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+                    return;
+                }
+                event.preventDefault();
+                const delta = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+                const nextIndex = event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                        ? buttons.length - 1
+                        : (index + delta + buttons.length) % buttons.length;
+                const next = buttons[nextIndex];
+                if (next) {
+                    selectExperienceMode(next.dataset.experienceMode);
+                    next.focus();
+                }
+            });
+        });
+        els.experienceHome?.addEventListener("click", () => {
+            const homeKey = experienceHomeScreenKey();
+            if (!homeKey) {
+                return;
+            }
+            selectExperienceMode("task");
+            const quietHome = true;
+            loadScreen(homeKey, {
+                experienceEntry: true,
+                suppressHomeAutoLoad: quietHome,
+            });
+        });
         els.modalClose.addEventListener("click", closeModal);
         els.filterInput.addEventListener("input", () => {
             state.filterText = els.filterInput.value;
@@ -1023,8 +1059,9 @@
             setStatus("启动中");
             const deepLinkedScreen = screenKeyFromBrowserLocation();
             const deepLinkedAction = actionKeyFromBrowserLocation();
+            const resumeAttempt = Boolean(!deepLinkedScreen && shouldResumeOnBoot() && state.lastNonHomeScreen);
             const requestedScreen = deepLinkedScreen || (
-                shouldResumeOnBoot() && state.lastNonHomeScreen
+                resumeAttempt
                     ? state.lastNonHomeScreen
                     : ""
             );
@@ -1034,6 +1071,15 @@
                     const payload = await fetchJson(optimizedUrl);
                     if (payload?.contract === "tui-bootstrap.v1" && payload.catalog && payload.screen) {
                         renderCatalog(payload.catalog);
+                        const staleResumeFallback = Boolean(
+                            resumeAttempt && payload.resolved_screen && payload.resolved_screen !== requestedScreen
+                        );
+                        const freshTaskHome = Boolean(
+                            !deepLinkedScreen
+                            && (!resumeAttempt || staleResumeFallback)
+                            && state.experienceMode === "task"
+                            && isExperienceHomeScreen(payload.screen?.screen?.key)
+                        );
                         clearResumeOnBootFlag();
                         if (isOperatorHomeScreen(payload.screen?.screen?.key)) {
                             state.operatorHomePayload = null;
@@ -1042,12 +1088,15 @@
                         renderScreen(payload.screen, {
                             suppressAutoAction: Boolean(deepLinkedAction),
                             deepLinkedActionKey: deepLinkedAction,
+                            suppressHomeAutoLoad: freshTaskHome,
                         });
                         focusDeepLinkedAction(payload.screen, deepLinkedAction);
-                        syncBrowserScreenLocation(payload.screen?.screen?.key, {
-                            replace: true,
-                            preserveAction: Boolean(deepLinkedAction),
-                        });
+                        if (!freshTaskHome) {
+                            syncBrowserScreenLocation(payload.screen?.screen?.key, {
+                                replace: true,
+                                preserveAction: Boolean(deepLinkedAction),
+                            });
+                        }
                         refreshGovernanceBadges();
                         if (requestedScreen && payload.resolved_screen !== requestedScreen) {
                             setStatus("上次工作区已不可用，已返回首页");
@@ -1056,28 +1105,40 @@
                         return;
                     }
                 } catch (optimizedError) {
-                    if (![0, 404, 405].includes(Number(optimizedError?.status || 0))) {
+                    if (![0, 403, 404, 405].includes(Number(optimizedError?.status || 0))) {
                         throw optimizedError;
                     }
                 }
             }
             const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
-            const isResumeAttempt = Boolean(!deepLinkedScreen && shouldResumeOnBoot() && state.lastNonHomeScreen);
             const initialScreen = deepLinkedScreen || (
-                isResumeAttempt ? state.lastNonHomeScreen : catalog.default_screen
+                resumeAttempt ? state.lastNonHomeScreen : catalog.default_screen
+            );
+            const freshTaskHome = Boolean(
+                !deepLinkedScreen
+                && !resumeAttempt
+                && state.experienceMode === "task"
+                && isExperienceHomeScreen(initialScreen, catalog)
             );
             clearResumeOnBootFlag();
             const loaded = await loadScreen(initialScreen, {
                 replaceHistory: true,
+                suppressHistory: freshTaskHome,
                 preserveAction: Boolean(deepLinkedAction),
                 deepLinkedActionKey: deepLinkedAction,
+                suppressHomeAutoLoad: freshTaskHome,
             });
-            if (!loaded && (isResumeAttempt || deepLinkedScreen)) {
-                setStatus(deepLinkedScreen
-                    ? "链接中的工作区不可用，已返回首页"
-                    : "上次工作区已不可用，已返回首页");
-                await loadScreen(catalog.default_screen, { replaceHistory: true });
+            if (!loaded && resumeAttempt) {
+                setStatus("上次工作区已不可用，已返回首页");
+                const quietHome = state.experienceMode === "task"
+                    && isExperienceHomeScreen(catalog.default_screen, catalog);
+                await loadScreen(catalog.default_screen, {
+                    replaceHistory: true,
+                    suppressHomeAutoLoad: quietHome,
+                });
+            } else if (!loaded && deepLinkedScreen) {
+                setStatus("链接中的工作区不可用");
             }
             runtimeCore.mark?.("shell-ready");
         } catch (error) {
@@ -1134,7 +1195,8 @@
         bindControls();
         window.addEventListener("popstate", () => {
             const screenKey = screenKeyFromBrowserLocation();
-            if (screenKey && screenKey !== state.screen?.screen?.key) {
+            const restoreExplicitHome = Boolean(screenKey && state.experienceHomeFresh && isExperienceHomeScreen(screenKey));
+            if (screenKey && (screenKey !== state.screen?.screen?.key || restoreExplicitHome)) {
                 loadScreen(screenKey, {
                     suppressHistory: true,
                     preserveAction: true,
@@ -1142,6 +1204,13 @@
                 });
             } else if (screenKey) {
                 focusDeepLinkedAction(state.screen, actionKeyFromBrowserLocation());
+            } else if (!screenKey && isExperienceNavigationEnabled() && experienceHomeScreenKey()) {
+                const quietHome = state.experienceMode === "task";
+                loadScreen(experienceHomeScreenKey(), {
+                    suppressHistory: true,
+                    experienceEntry: true,
+                    suppressHomeAutoLoad: quietHome,
+                });
             }
         });
         updateClock();

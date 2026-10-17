@@ -12,6 +12,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from apps.terminal.application.tui_experience import project_experience
 from apps.terminal.application.tui_metadata import (
     compact_tui_metadata_payload,
     validate_tui_metadata,
@@ -2814,6 +2815,10 @@ def _prune_runtime_only_dashboard_panels(payload: dict[str, Any]) -> int:
         for action in payload.get("actions", [])
         if str(action.get("key") or "").strip()
     }
+    screen_keys = {str(screen.get("key") or "") for screen in payload.get("screens", [])}
+    runtime_screen_keys = {
+        str(screen["key"]) for screen in TUI_INFORMATION_ARCHITECTURE["runtime_screens"]
+    }
     removed = 0
     for screen in payload.get("screens", []):
         panels = screen.get("dashboard_panels")
@@ -2821,6 +2826,14 @@ def _prune_runtime_only_dashboard_panels(payload: dict[str, Any]) -> int:
             continue
         kept_panels = []
         for panel in panels:
+            if isinstance(panel, dict) and panel.pop("runtime_only", False):
+                removed += 1
+                continue
+            target = str(panel.get("target_screen") or "") if isinstance(panel, dict) else ""
+            canonical_target = LEGACY_SCREEN_ALIASES.get(target, target)
+            if canonical_target not in screen_keys and canonical_target in runtime_screen_keys:
+                removed += 1
+                continue
             action_key = str(panel.get("action_key") or "") if isinstance(panel, dict) else ""
             if action_key and action_key not in action_keys:
                 removed += 1
@@ -2883,11 +2896,24 @@ def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
 
 
 def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """Promote approved actions and IA-owned screens with passive task navigation."""
+
     payload["groups"] = copy.deepcopy(TUI_INFORMATION_ARCHITECTURE["groups"])
     payload["modules"] = copy.deepcopy(TUI_INFORMATION_ARCHITECTURE["modules"])
     payload["screens"] = [copy.deepcopy(spec) for spec in SCREEN_SPECS.values()]
     payload["default_screen"] = "command-center.overview"
     payload["ia_version"] = str(TUI_INFORMATION_ARCHITECTURE["version"])
+    payload["experience"] = project_experience(
+        TUI_INFORMATION_ARCHITECTURE["experience"],
+        all_screen_keys=frozenset(
+            str(screen["key"])
+            for screen in [
+                *TUI_INFORMATION_ARCHITECTURE["published_screens"],
+                *TUI_INFORMATION_ARCHITECTURE["runtime_screens"],
+            ]
+        ),
+        visible_screen_keys=frozenset(SCREEN_SPECS),
+    )
     payload["legacy_screen_aliases"] = {
         source: target for source, target in LEGACY_SCREEN_ALIASES.items() if source != target
     }

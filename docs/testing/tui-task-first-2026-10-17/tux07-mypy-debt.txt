@@ -1,0 +1,4 @@
+COMMAND: ['agomtradepro/Scripts/python.exe', '-X', 'utf8', 'scripts/check_mypy_debt_ceiling.py']
+Full mypy debt ceiling passed: 0 errors in 0 files
+
+EXIT_CODE: 0

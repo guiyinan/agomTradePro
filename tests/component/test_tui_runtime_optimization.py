@@ -39,7 +39,7 @@ def test_tui_bootstrap_returns_catalog_and_screen_with_server_timing(client) -> 
 
 
 @pytest.mark.django_db
-def test_tui_bootstrap_falls_back_for_stale_screen(client) -> None:
+def test_tui_bootstrap_bounds_explicit_unknown_screen(client) -> None:
     user = get_user_model().objects.create_user(
         username="tui-bootstrap-fallback-user",
         password="bootstrap-pass",
@@ -48,11 +48,9 @@ def test_tui_bootstrap_falls_back_for_stale_screen(client) -> None:
 
     response = client.get("/api/tui/bootstrap/?screen_key=removed.screen")
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["requested_screen"] == "removed.screen"
-    assert payload["resolved_screen"] == payload["catalog"]["default_screen"]
-    assert payload["restored"] is False
+    assert response.status_code == 404
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["error_code"] == "tui_screen_not_found"
 
 
 @pytest.mark.django_db

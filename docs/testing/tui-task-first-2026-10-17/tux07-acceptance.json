@@ -1,0 +1,135 @@
+{
+  "status": "repository-shell-exit-verified",
+  "unit": "TUX-07",
+  "date": "2026-10-17",
+  "base_commit": "5a373862db8a03417f98e48d89cc2865696c2975",
+  "scope": "Repository task/professional shell and separately authorized diagnostics; local auth/metadata/browser acceptance only",
+  "verified": {
+    "python": {
+      "passed": 566,
+      "log": "tux07-python.txt"
+    },
+    "node": {
+      "passed": 100,
+      "log": "tux07-node.txt",
+      "executed_bundle_sha256": "4548f13e19c83ae3f5890b0082aed766929a342206356a1f9137768d0eaf4fbb",
+      "note": "A trailing blank-line cleanup left the compiled bundle byte-identical. Later backend recovery changed only a manifest source fingerprint; official build/check refreshed it."
+    },
+    "real_browser": {
+      "roles": [
+        "ordinary",
+        "admin"
+      ],
+      "viewports": [
+        [
+          1440,
+          1000
+        ],
+        [
+          390,
+          844
+        ]
+      ],
+      "log": "shell-real-server-review.json",
+      "screenshots_visually_reviewed": true,
+      "result": "All GET, no page errors, no business action submissions; bounded explicit errors and canonical recovery"
+    },
+    "runtime_screen_count": 14,
+    "total_screen_count": 26,
+    "static_rules": 407,
+    "module_map": {
+      "modules": 44,
+      "edges": 210
+    },
+    "template_inventory": "tux07-template-inventory.txt",
+    "incremental_mypy": {
+      "errors": 0,
+      "source_files": 8,
+      "log": "tux07-mypy.txt"
+    },
+    "full_mypy_debt": {
+      "errors": 0,
+      "files_with_errors": 0,
+      "log": "tux07-mypy-debt.txt"
+    },
+    "doc_route_sdk": "tux07-doc-route-sdk.txt",
+    "black": "tux07-black.txt",
+    "isort": "tux07-isort.txt",
+    "ruff": "tux07-ruff.txt",
+    "approved_static_action_keys": 413,
+    "registry": {
+      "tests_passed": 8,
+      "violations": 0,
+      "log": "tux07-registry.txt"
+    }
+  },
+  "review": {
+    "workers": "gpt-5.6-luna / max; one bounded frontend writer, one read-only contract reviewer",
+    "parent_accepted_worker_diff": true,
+    "latest_readonly_review": "No actionable P1/P2 defect in bounded recovery/session-policy changes"
+  },
+  "corrections": [
+    "Quiet home no longer overwrites the full-home portfolio/row filter snapshot; Node red observed 10 != 20 before fix.",
+    "Explicit unknown screens recover via canonical default instead of nonexistent home alias.",
+    "Forbidden non-MCP screens recover to canonical home; MCP retains its dedicated self-service recovery.",
+    "Updated obsolete inventory assertions without removing QMT.",
+    "Standalone compiler defers declared runtime-only panels; effective 413-action contracts unchanged.",
+    "Windows browser policy and independent role-session setup corrected only in test adapter."
+  ],
+  "prior_failed_run": {
+    "log": "tux07-python-initial-failures.txt",
+    "passed": 563,
+    "failed": 2,
+    "reason": "Old home-key assertion and Windows Playwright subprocess policy; kept separate from final successful run."
+  },
+  "open_global_gates": {
+    "large_python_files": 7,
+    "attribution": "All seven introduced by the concurrent A-share Goal prior commits; its root owns remediation. This slice reduces tui_metadata from 1256 to 1255 nonempty lines and does not change specialized result models.",
+    "version_retirement": "A-share root separately reports nine pre-existing Goal regressions; no pass is claimed here.",
+    "full_governance_pass": false
+  },
+  "not_accepted": [
+    "TUX-08 single-asset research results",
+    "TUX-09 Today/portfolio end-to-end owner results",
+    "Five-person real-user onboarding study",
+    "Production/deployment/CI-S6/release/trading qualification"
+  ],
+  "rollback": "Reverse only the owned TUX-07 commit diff, preserve independent commits/user files, then use official runtime/manifest/module-map generators; no database restore or shared-branch reset.",
+  "handoff": "Restore ASH-02 sole focus after verified commit; TUX-08 requires a new bounded handoff.",
+  "python_environment": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:37:03) [MSC v.1929 64 bit (AMD64)]",
+  "registry_handoff": {
+    "version": "2026-10-17.v247",
+    "closure_version": "2026-10-17.v70",
+    "restored_focus": "ASH-02",
+    "all_prior_ash_units_preserved": true
+  },
+  "artifact_sha256": {
+    "tux07-black.txt": "85aeb52fa04ef33e62cb91562dc214a64919610735886781625ce6828cd6dfc0",
+    "tux07-doc-route-sdk.txt": "e2a1f66cce65fe2eab8c9e8bd57379a30e4a0b250bc69139ca3306df1c34dd70",
+    "tux07-forbidden-recovery-red.txt": "90fd143a21185c6238e66b8068a1a82fc4942151bd2c62856e609ea09cafc0be",
+    "tux07-frozen-inputs.json": "a3bf37ecedb464ef5aba2234ffb1a816233464b2708f1b30d851235c30925a03",
+    "tux07-governance.txt": "8ebad5d12e3a0ba4b08e564b98144d14d3bb9afe2b2ce8b049898e09032286b2",
+    "tux07-isolated-test-settings.txt": "91a59bd4fdbaf79d081ba42a79f12ba7305aca2613f558ae8607aa897f45ead7",
+    "tux07-isort.txt": "6ce9858d5be1f16244915ce8285161be2635bb99fd1be302420356a24fd6e2c6",
+    "tux07-module-map.txt": "8fa5e909308a5a73aa7bd0fece2143a353a059267557e04eb69f7978a041530e",
+    "tux07-mypy-debt.txt": "bbc70b9483d838a71ede605a119729a9fa2d912b6c9a11b66807a97f03c083a1",
+    "tux07-mypy.txt": "1eaaa93e500f6c7ed304b953fd190274fa492f1795d4dba91d273cda25b83535",
+    "tux07-node.txt": "7edfbaf01e83547dd9443a7c0f442f06722c3255b329bdb59c28494bce522aaf",
+    "tux07-python-initial-failures.txt": "573356ce2c784ff9c69b1608c9f4f3c59c403c193b61f44db02bf598dbc6aec8",
+    "tux07-python.txt": "177da11a129a3b49a5ae3e965a12f526c20fbca8ab8ac45de39c67a1f590239e",
+    "tux07-recovery-browser.txt": "a964158396c70f8aa5b49792cd95478ef285d5ae9a35e9d89bc5689abd52c89b",
+    "tux07-ruff.txt": "8d7bf9e780e11e0dbd6f1fd1c74527bc6eb9afed1a8d8bc624309da7aee9dc07",
+    "tux07-template-inventory.txt": "6d641816b8d2c7ad023486a384adf9a4b68be16261d5e16a38db067efed9b634",
+    "shell-admin-1440.png": "856d85d347e732da27e108ff19e6d38a5b3c8ac708af6b3547a960dc0c9c4a4e",
+    "shell-admin-390.png": "ddec2112aa9d8d0bbdd7d9577f2c1c69d481ba3e098aabe6a0e25544ae662b9b",
+    "shell-real-server-review.json": "7bae2bfb0b22c76759da7ba1350a5b4aaa7981c8a7c58ad89bae5d4173bd1595",
+    "shell-user-1440.png": "fa34bc4fc5fb513edd4ec714a1012dfa41d4e25f6c5d2d855ab859b54fbee71e",
+    "shell-user-390.png": "27a42449e4ddd10766e96f00113a0a2f9c7ee3f8813a5e3df066223c852b3296",
+    "tux07-registry.txt": "d44682e308bb6fc449645e82a740df38d2ee9e80d873e53e0ddc02847731b554"
+  },
+  "log_original_sha256": {
+    "tux07-forbidden-recovery-red.txt": "430c1385eb74f86e523b014a7e0c83120fb18403cbb20679307709cf3eb1f98a",
+    "tux07-python-initial-failures.txt": "50b1c82f1933259bcfe33fd05f53dca5f95712283ca7383624a22d3c3a657f93"
+  },
+  "log_archive_normalization": "Removed trailing spaces from pytest blank diagnostic lines for Git whitespace checks; original exact logs remain in .tmp, with original hashes recorded. Command/results/assertions are unchanged."
+}

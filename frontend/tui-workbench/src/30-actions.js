@@ -415,6 +415,7 @@
 
     function renderContinuationFailure(action, code) {
         state.lastRaw = null;
+        state.rawResponseAvailable = false;
         state.lastAction = action.key;
         state.lastParams = {};
         renderViewModel({
@@ -611,7 +612,7 @@
             .every((field) => Object.prototype.hasOwnProperty.call(deepLinkedParams, field.key));
     }
 
-    function focusDeepLinkedAction(screenSpec, actionKey) {
+    function focusDeepLinkedAction(screenSpec, actionKey, options = {}) {
         const normalizedKey = String(actionKey || "").trim();
         if (!normalizedKey) {
             return;
@@ -672,7 +673,7 @@
         )
             && String(action.method || "GET").toUpperCase() === "GET"
             && !action.confirmation_required;
-        if (safeRead && requiredFieldsArePresent) {
+        if (safeRead && requiredFieldsArePresent && !options.suppressAutoRun) {
             runAction(normalizedKey, null, { params: runnableParams });
             return;
         }
@@ -790,7 +791,8 @@
                 state.operatorHomePayload = null;
                 state.operatorHomePromise = null;
             }
-            const snapshot = !options.deepLinkedActionKey ? workspaceStates.get(screenSpec.screen.key) : null;
+            const quietHome = Boolean(options.suppressHomeAutoLoad && isExperienceHomeScreen(screenSpec.screen.key));
+            const snapshot = !options.deepLinkedActionKey && !quietHome ? workspaceStates.get(screenSpec.screen.key) : null;
             renderScreen(screenSpec, {
                 ...options,
                 snapshot,
@@ -804,12 +806,18 @@
                 renderViewModel(snapshot.queued);
                 refreshQueuedObservation(snapshot.queued);
             }
-            focusDeepLinkedAction(screenSpec, options.deepLinkedActionKey || "");
+            focusDeepLinkedAction(screenSpec, options.deepLinkedActionKey || "", {
+                suppressAutoRun: Boolean(options.experienceEntry),
+            });
             if (!options.suppressHistory) {
-                syncBrowserScreenLocation(screenSpec?.screen?.key || screenKey, {
-                    replace: Boolean(options.replaceHistory),
-                    preserveAction: Boolean(options.preserveAction),
-                });
+                if (quietHome) {
+                    syncExperienceHomeLocation({ replace: Boolean(options.replaceHistory) });
+                } else {
+                    syncBrowserScreenLocation(screenSpec?.screen?.key || screenKey, {
+                        replace: Boolean(options.replaceHistory),
+                        preserveAction: Boolean(options.preserveAction),
+                    });
+                }
             }
             refreshGovernanceBadges();
             return screenSpec;
@@ -1182,6 +1190,7 @@
                     debug: { raw_available: false, raw_response: null },
                 };
                 state.lastRaw = null;
+                state.rawResponseAvailable = false;
             }
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 if (continuationTarget && result.missing_fields.some(field =>
@@ -1195,6 +1204,7 @@
                     return;
                 }
                 state.lastRaw = null;
+                state.rawResponseAvailable = false;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
@@ -1207,6 +1217,7 @@
             if (result.confirmation_required) {
                 if (continuationTarget) resultContinuations.clearTargetRequest(action);
                 state.lastRaw = null;
+                state.rawResponseAvailable = false;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
@@ -1220,6 +1231,7 @@
             }
             if (result.password_challenge_required) {
                 state.lastRaw = null;
+                state.rawResponseAvailable = false;
                 if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
@@ -1238,6 +1250,7 @@
             }
             if (!retainedGrid) markActionCompleted(action, result);
             state.lastRaw = result.debug?.raw_response ?? null;
+            state.rawResponseAvailable = result.debug?.raw_available === true && state.lastRaw !== null;
             if (isTargetedDashboardAction) {
                 if (hasDashboardResultTarget) {
                     renderDashboardActionResult(dashboardResultPanelKey, result.view_model, action);

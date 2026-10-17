@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v246",
+  "version": "2026-10-17.v247",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -310,7 +310,7 @@
       "priority": "P1",
       "owner": "terminal",
       "status": "active",
-      "next_gate": "TUX-06 planning/real-capability/concurrency contract is completed with evidence in docs/testing/tui-task-first-2026-10-17/planning-baseline.json. TUX-07 production mode-shell remains planned until A-share engine/task size remediation exits and an explicit sole-focus handoff is recorded; the preceding MCP slice is committed as 581bcb337e721657d956b7370aeec7a3ac0c63cb. TUX-08 research must publish the existing equity snapshot owner action without inventing narratives or falsification; TUX-09 cannot treat portfolio statistics as verified risk/freshness. Preserve ASH business ownership, prior completed TUX units, raw/confirmation/continuation authority and all TUI-02 production restrictions.",
+      "next_gate": "TUX-07 task/professional shell and authorized diagnostics repository exit is verified in docs/testing/tui-task-first-2026-10-17/tux07-acceptance.json (566 Python, 100 frontend checks, isolated real local role/viewport journeys). Sole repository focus returns to ASH-02 after the bounded commit handoff; TUX-08 remains planned and requires a new explicit window. It must publish the existing equity snapshot owner action without invented narratives or falsification; TUX-09 cannot treat portfolio statistics as verified risk/freshness. Preserve ASH business ownership, prior completed TUX units, raw/confirmation/continuation authority and all TUI-02 production restrictions. Human onboarding, production, CI/S6 and global size/version-retirement gates are not claimed passed.",
       "documents": [
         {
           "path": "docs/plans/tui-usability-and-metadata-governance-plan-2026-08-18.md",
@@ -393,7 +393,7 @@
   ],
   "review_queue": [],
   "closure_backlog": {
-    "version": "2026-10-17.v69",
+    "version": "2026-10-17.v70",
     "legacy_unchecked_count": 142,
     "legacy_unchecked_by_workstream": {
       "evidence-hard-gate": 0,
@@ -1839,7 +1839,7 @@
         "wave": 5,
         "priority": "P1",
         "execution_mode": "repository",
-        "status": "planned",
+        "status": "completed",
         "title": "Add task-first home and reversible professional-mode navigation",
         "depends_on": [
           "TUX-06"

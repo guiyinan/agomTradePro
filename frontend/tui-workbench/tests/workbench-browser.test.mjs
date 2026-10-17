@@ -12,7 +12,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 test("mutation identity survives confirmation and network retry but changes for a new submission", async () => {
     const { browser, page } = await openHarness(
         "https://app.test/?screen=test.grid&action=test.edit&code=identity-code",
-        { waitForInitialRows: false },
+        { waitForInitialRows: false, catalog: experienceCatalog },
     );
     const keys = [];
     let failedOnce = false;
@@ -28,7 +28,15 @@ test("mutation identity survives confirmation and network retry but changes for 
         });
         const form = page.locator('form[data-action-ui-key="test.edit"]');
         await form.locator('.tui-action-submit').click();
+        await page.locator('[data-confirm-action]').waitFor();
+        await page.locator('[data-experience-mode="professional"]').evaluate(button => button.click());
+        assert.equal(await page.locator('[data-confirm-action]').isVisible(), true);
+        assert.equal(keys.length, 1);
         await page.locator('[data-confirm-action]').click();
+        await page.locator('[data-action-submission-retry]').waitFor();
+        await page.locator('[data-experience-mode="task"]').click();
+        assert.equal(await form.locator('[name="code"]').inputValue(), 'identity-code');
+        assert.equal(keys.length, 2);
         await page.locator('[data-action-submission-retry]').click();
         await page.waitForFunction(() => document.querySelector('[data-workbench-status]')?.textContent === '操作完成');
         assert.equal(keys.length, 3);
@@ -665,6 +673,7 @@ test("UX summary full-list entry returns to the overview", async () => {
         await page.locator('.tui-datagrid').waitFor();
         await page.locator('[data-return-dashboard]').click();
         await page.locator('[data-dashboard-panel="summary"]').waitFor();
+        await page.waitForFunction(() => document.querySelectorAll('[data-dashboard-panel="summary"] tbody tr').length === 8);
         assert.equal(await page.locator('[data-dashboard-panel="summary"] tbody tr').count(), 8);
     } finally { await browser.close(); }
 });
@@ -851,6 +860,10 @@ const harnessHtml = `<!doctype html>
   <button data-menu-command="action">任务</button>
   <button data-menu-command="view">视图</button>
   <button data-menu-command="help">帮助</button>
+  <nav data-experience-controls hidden><div role="tablist">
+    <button role="tab" data-experience-mode="task" aria-selected="false">任务模式</button>
+    <button role="tab" data-experience-mode="professional" aria-selected="false">专业模式</button>
+  </div><button data-experience-home hidden>返回任务首页</button></nav>
   <span data-tui-clock></span><span data-theme-status></span><span data-theme-indicator-code></span>
   <input data-current-location value="screen:boot">
   <div data-menu-popover role="menu" hidden></div>
@@ -1045,6 +1058,54 @@ const screen = {
         user_experience: { primary_task: "浏览记录", primary_outcome: "选中正确记录" },
     },
     actions,
+};
+
+const experienceCatalog = {
+    ...catalog,
+    default_screen: "test.dashboard",
+    diagnostics: { raw_response_allowed: false },
+    experience: {
+        home_screen_key: "test.dashboard",
+        default_mode: "task",
+        modes: [
+            {
+                key: "task",
+                label: "任务模式",
+                entries: [
+                    {
+                        key: "today",
+                        kind: "screen",
+                        label: "今日关注",
+                        description: "查看今日任务。",
+                        screen_key: "test.dashboard",
+                    },
+                    {
+                        key: "research",
+                        kind: "screen",
+                        label: "研究标的",
+                        description: "进入研究工作区。",
+                        screen_key: "test.grid",
+                    },
+                    {
+                        key: "portfolio",
+                        kind: "screen",
+                        label: "检查组合",
+                        description: "查看组合事实。",
+                        screen_key: "test.user-governance",
+                    },
+                ],
+            },
+            { key: "professional", label: "专业模式", entries: [] },
+        ],
+        utilities: [
+            {
+                key: "resume",
+                kind: "resume",
+                label: "继续上次任务",
+                description: "回到最近工作区。",
+            },
+        ],
+    },
 };
 
 function makeCalendarContinuationScreen() {
@@ -1325,7 +1386,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
             return;
         }
         if (url.pathname === "/api/tui/catalog/") {
-            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(catalog) });
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(options.catalog || catalog) });
             return;
         }
         if (url.pathname === "/api/tui/screens/test.grid/") {
@@ -1610,7 +1671,7 @@ async function openHarness(url = "https://app.test/", options = {}) {
         } else {
             await page.waitForSelector("[data-screen-title]");
         }
-        return { browser, page, requestLog };
+        return { browser, page, requestLog, browserErrors };
     } catch (error) {
         const status = await page.locator("[data-workbench-status]").textContent().catch(() => "");
         const main = await page.locator("[data-main-panel]").innerText().catch(() => "");
@@ -2614,5 +2675,225 @@ test("audit wide tables retain columns and conditional row tasks in the full lis
         await page.locator('[data-dashboard-row-action]').first().click();
         await page.locator('[data-dashboard-panel]').first().waitFor();
         assert.equal(await page.locator('[data-dashboard-panel="receipt"] details').getAttribute('open'), '');
+    } finally { await browser.close(); }
+});
+
+test("server experience renders a quiet task landing with three permission-filtered entries", async () => {
+    const { browser, page, requestLog } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator("[data-task-home]").waitFor({ state: "attached" });
+        if (await page.locator("[data-task-home]").count() === 0) {
+            throw new Error(`experience landing missing; status=${await page.locator("[data-workbench-status]").innerText()} main=${await page.locator("[data-main-panel]").innerText()}`);
+        }
+        assert.equal(await page.locator("[data-experience-entry]").count(), 3);
+        assert.deepEqual(await page.locator("[data-experience-entry] strong").allTextContents(), [
+            "今日关注",
+            "研究标的",
+            "检查组合",
+        ]);
+        assert.equal(await page.locator("[data-dashboard-panel]").count(), 0);
+        assert.equal(new URL(page.url()).search, "");
+        assert.equal(requestLog.some((item) => item.includes("/actions/")), false);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("experience mode switch only changes navigation and preserves URL, result DOM and requests", async () => {
+    const { browser, page, requestLog } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator("[data-task-home]").waitFor({ state: "attached" });
+        const beforeRequests = requestLog.length;
+        const beforeUrl = page.url();
+        const beforeStatus = await page.locator("[data-workbench-status]").innerText();
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-experience-mode="professional"]').waitFor({ state: "visible" });
+        assert.equal(await page.locator('[data-experience-mode="professional"]').getAttribute("aria-selected"), "true");
+        assert.equal(await page.locator("[data-experience-entry]").count(), 0);
+        assert.ok((await page.locator('[data-module-tree] [data-screen-key]').count()) >= 4);
+        assert.equal(page.url(), beforeUrl);
+        assert.equal(requestLog.length, beforeRequests);
+        assert.equal(await page.locator("[data-workbench-status]").innerText(), beforeStatus);
+        await page.locator('[data-experience-mode="task"]').focus();
+        await page.locator('[data-experience-mode="task"]').press("ArrowRight");
+        assert.equal(await page.locator('[data-experience-mode="professional"]').getAttribute("aria-selected"), "true");
+        await page.locator('[data-experience-mode="task"]').click();
+        assert.equal(await page.locator("[data-experience-entry]").count(), 3);
+        assert.equal(page.url(), beforeUrl);
+        assert.equal(requestLog.length, beforeRequests);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("explicit Today entry exits the quiet landing and loads its dashboard", async () => {
+    const { browser, page } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator('[data-experience-entry="today"]').waitFor({ state: "attached" });
+        await page.locator('[data-experience-entry="today"]').click();
+        await page.locator('[data-dashboard-panel="regime"]').waitFor();
+        assert.match(new URL(page.url()).search, /screen=test\.dashboard/);
+        assert.ok(await page.locator("[data-dashboard-panel]").count() > 0);
+        await page.goBack();
+        await page.locator("[data-task-home]").waitFor();
+        assert.equal(new URL(page.url()).search, "");
+        assert.equal(await page.locator("[data-dashboard-panel]").count(), 0);
+        await page.goForward();
+        await page.locator('[data-dashboard-panel="regime"]').waitFor();
+        assert.match(new URL(page.url()).search, /screen=test\.dashboard/);
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-experience-home]').click();
+        await page.locator('[data-experience-entry="today"]').waitFor();
+        assert.equal(await page.locator('[data-dashboard-panel]').count(), 0);
+        assert.equal(new URL(page.url()).search, "");
+        assert.equal(await page.locator('[data-experience-mode="task"]').getAttribute('aria-selected'), 'true');
+    } finally {
+        await browser.close();
+    }
+});
+
+test("quiet task landing preserves full home portfolio and row filters", async () => {
+    const filterScreen = structuredClone(dashboardScreen);
+    filterScreen.actions = [action("test.list", { fields: [
+        { key: "top_n", label: "展示数量", input_type: "select", value_type: "integer", default: 10, options: ["10", "20"], presentation_semantic: "primary_selector" },
+        { key: "portfolio_id", label: "投资组合", input_type: "select", value_type: "integer", options: [{ value: "", label: "通用研究" }, { value: 7, label: "我的组合" }], presentation_semantic: "primary_selector" },
+    ] })];
+    filterScreen.screen.dashboard_panels = [{ key: "list", title: "候选清单", kind: "datagrid", action_key: "test.list", user_priority: "p0", presentation_semantic: "primary_list", filter_fields: ["portfolio_id", "top_n"], max_rows: 10 }];
+    const { browser, page } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog, dashboardScreen: filterScreen, waitForInitialRows: false,
+    });
+    try {
+        await page.route("**/actions/test.list/run/", async route => {
+            const params = route.request().postDataJSON().params;
+            await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ view_model: {
+                kind: "datagrid", columns: [{ key: "code", label: "证券代码" }],
+                rows: Array.from({ length: params.top_n || 10 }, (_, i) => ({ code: `stock-${i}` })),
+            } }) });
+        });
+        await page.locator('[data-experience-entry="today"]').click();
+        const panel = page.locator('[data-dashboard-panel="list"]');
+        await panel.getByText("实际展示 10 条").waitFor();
+        await panel.getByLabel("展示数量").selectOption("20");
+        await panel.getByLabel("投资组合").selectOption("7");
+        await panel.getByRole("button", { name: "更新清单" }).click();
+        await panel.getByText("实际展示 20 条").waitFor();
+        await page.locator('[data-experience-home]').click();
+        await page.locator('[data-experience-entry="today"]').waitFor();
+        assert.equal(await page.locator('[data-dashboard-panel]').count(), 0);
+        await page.locator('[data-experience-entry="today"]').click();
+        await panel.getByLabel("展示数量").waitFor();
+        assert.equal(await panel.getByLabel("展示数量").inputValue(), "20");
+        assert.equal(await panel.getByLabel("投资组合").inputValue(), "7");
+        await panel.getByText("实际展示 20 条").waitFor();
+    } finally { await browser.close(); }
+});
+
+test("legacy catalogs retain professional navigation and hide experience controls", async () => {
+    const { browser, page } = await openHarness("https://app.test/", { waitForInitialRows: false });
+    try {
+        await page.locator('[data-screen-key="test.grid"]').waitFor();
+        assert.equal(await page.locator("[data-experience-controls]").isHidden(), true);
+        assert.equal(await page.locator('[data-experience-mode="task"]').count(), 1);
+        assert.equal(await page.locator('[data-experience-mode="task"]').isHidden(), true);
+    } finally {
+        await browser.close();
+    }
+});
+
+test("raw response control stays hidden without server diagnostic authority", async () => {
+    const { browser, page } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog,
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator("[data-task-home]").waitFor({ state: "attached" });
+        assert.equal(await page.locator("[data-raw-toggle]").isHidden(), true);
+        await page.locator('[data-menu-command="view"]').click();
+        assert.equal(await page.locator('[data-menu-popover] [data-menu-action="raw"]').count(), 0);
+    } finally {
+        await browser.close();
+    }
+});
+
+
+test("task landing reload and per-user mode preference retain routing intent", async () => {
+    const { browser, page, requestLog } = await openHarness("https://app.test/", {
+        catalog: experienceCatalog, waitForInitialRows: false,
+    });
+    try {
+        await page.locator('[data-experience-entry="today"]').waitFor();
+        const reloadShell = async (userKey = "test-user") => {
+            await page.reload();
+            await page.locator('[data-tui-app]').evaluate((node, key) => node.dataset.userKey = key, userKey);
+            await page.addStyleTag({ path: cssPath });
+            await page.addScriptTag({ path: bundlePath });
+            await page.locator('[data-task-home]').waitFor();
+        };
+        await reloadShell();
+        assert.equal(await page.locator('[data-dashboard-panel]').count(), 0);
+        assert.equal(new URL(page.url()).search, "");
+        assert.equal(requestLog.some(line => line.includes('/actions/')), false);
+        await page.locator('[data-experience-mode="professional"]').click();
+        assert.equal(await page.evaluate(() => localStorage.getItem('agom-tui-experience-mode:v1:user:test-user')), 'professional');
+        await reloadShell("another-user");
+        assert.equal(await page.locator('[data-experience-mode="task"]').getAttribute('aria-selected'), 'true');
+        assert.equal(await page.evaluate(() => localStorage.getItem('agom-tui-experience-mode:v1:user:test-user')), 'professional');
+        assert.equal(await page.locator('[data-dashboard-panel]').count(), 0);
+    } finally { await browser.close(); }
+});
+
+test("mode changes preserve partial result and nullable counts while denied diagnostics close", async () => {
+    const { browser, page, requestLog, browserErrors } = await openHarness("https://app.test/", {
+        catalog: { ...experienceCatalog, diagnostics: { raw_response_allowed: true } },
+        waitForInitialRows: false,
+    });
+    try {
+        await page.locator('[data-experience-entry="research"]').waitFor();
+        let permitted = true;
+        await page.route('**/actions/test.list/run/', async route => {
+            const owner = { outcome: 'partial', success: true, requested: 2, succeeded: 1, failed: 1, stored: null, counts_unavailable: true, confirmed_trade_count: 2 };
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+                action: actions.find(item => item.key === 'test.list'),
+                response: { status_code: 200 },
+                outcome: owner.outcome,
+                view_model: { kind: 'detail', title: '部分完成', status: '部分失败', fields: [
+                    { label: '已确认成交', value: 2, presentation: 'metadata' },
+                    { label: '写入数量', value: '未知', presentation: 'metadata' },
+                ] },
+                debug: { raw_available: permitted, raw_response: permitted ? owner : null },
+            }) });
+        });
+        await page.locator('[data-experience-entry="research"]').click();
+        await page.locator('[data-raw-toggle]').waitFor({ state: 'visible' }).catch(async error => {
+            throw new Error(`${error.message} STATUS=${await page.locator('[data-workbench-status]').innerText()} MAIN=${await page.locator('[data-main-panel]').innerText()} REQUESTS=${JSON.stringify(requestLog)} ERRORS=${JSON.stringify(browserErrors)}`);
+        });
+        await page.locator('[data-raw-toggle]').click();
+        const raw = page.locator('[data-raw-panel]');
+        assert.equal(JSON.parse(await raw.textContent()).stored, null);
+        assert.equal(JSON.parse(await raw.textContent()).confirmed_trade_count, 2);
+        const before = { requests: requestLog.length, url: page.url(), text: await page.locator('[data-main-panel]').innerText(), status: await page.locator('[data-workbench-status]').innerText() };
+        await page.locator('[data-experience-mode="professional"]').click();
+        await page.locator('[data-experience-mode="task"]').click();
+        assert.equal(requestLog.length, before.requests);
+        assert.equal(page.url(), before.url);
+        assert.equal(await page.locator('[data-main-panel]').innerText(), before.text);
+        assert.equal(await page.locator('[data-workbench-status]').innerText(), before.status);
+        assert.equal(JSON.parse(await raw.textContent()).counts_unavailable, true);
+        permitted = false;
+        await page.locator('[data-raw-close]').click();
+        await delay(500);
+        await page.locator('form[data-action-ui-key="test.list"] .tui-action-button').click();
+        await page.waitForFunction(() => document.querySelector('[data-raw-toggle]').hidden);
+        assert.equal(await page.locator('[data-raw-drawer]').isHidden(), true);
+        assert.doesNotMatch(await raw.textContent(), /confirmed_trade_count/);
     } finally { await browser.close(); }
 });

@@ -1,10 +1,20 @@
     function renderCatalog(catalog) {
         state.catalog = catalog;
+        if (!state.experienceModeInitialized) {
+            loadExperienceMode(catalog);
+        } else {
+            state.experienceMode = normalizeExperienceMode(state.experienceMode, catalog);
+        }
+        setRawDiagnosticAuthority(catalog);
+        renderExperienceControls();
+        const experience = catalogExperience(catalog);
         const groups = catalog.groups || [];
         let screenIndex = 0;
         const previousFocusKey = document.activeElement?.closest?.("[data-screen-key]")?.dataset?.screenKey || "";
         const previousScrollTop = els.moduleTree.scrollTop;
-        els.moduleTree.innerHTML = groups.map((group) => `
+        els.moduleTree.innerHTML = experience && state.experienceMode === "task"
+            ? experienceTaskRailMarkup(catalog)
+            : groups.map((group) => `
             <section class="tui-group">
                 <div class="tui-group-title">${escapeHtml(group.label)}</div>
                 ${(group.modules || []).map((module) => `
@@ -302,6 +312,7 @@
         state.lastAction = null;
         state.lastParams = {};
         state.lastRaw = null;
+        state.rawResponseAvailable = false;
         state.lastPager = null;
         state.homePanelBadges = {};
         resetGridState();
@@ -319,11 +330,17 @@
         els.mainTitle.textContent = screen.label.toUpperCase();
         setCurrentLocation(null);
         markActiveScreen(screen.key);
-        renderWorkflowStrip(screen.workflow || {});
+        const quietExperienceHome = Boolean(
+            options.suppressHomeAutoLoad
+            && isExperienceHomeScreen(screen.key)
+        );
+        markExperienceHomeFresh(quietExperienceHome);
+        renderExperienceControls();
+        renderWorkflowStrip(quietExperienceHome ? {} : screen.workflow || {});
         const dashboardScreen = hasDashboardPanels(screen) && (screen.entry_state?.mode !== "parameter_gate");
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
-        els.actions.closest(".tui-panel").hidden = immersiveDashboard;
-        els.inspector.closest(".tui-panel").hidden = immersiveDashboard;
+        els.actions.closest(".tui-panel").hidden = immersiveDashboard || quietExperienceHome;
+        els.inspector.closest(".tui-panel").hidden = immersiveDashboard || quietExperienceHome;
         els.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard", dashboardScreen);
         setWorkspaceViewKind(dashboardScreen ? "dashboard" : "idle");
         state.showSupportTasks = false;
@@ -336,6 +353,7 @@
             renderDashboardHome(screenSpec, {
                 snapshot: options.snapshot,
                 preserveTaskStatus: Boolean(options.deepLinkedActionKey),
+                suppressHomeAutoLoad: quietExperienceHome,
                 suppressAutoActions: deepLinkedActionCanAutoRun(
                     screenSpec,
                     options.deepLinkedActionKey,
@@ -343,7 +361,21 @@
             });
             updatePager(null);
             updateRawDrawer();
-            setStatus('正在加载主任务数据');
+            setStatus(quietExperienceHome ? "请选择任务" : "正在加载主任务数据");
+            return;
+        }
+        if (quietExperienceHome) {
+            els.main.innerHTML = `
+                ${renderHomeActionStrip()}
+                <div class="tui-experience-home-empty" data-task-home-placeholder>
+                    <p>选择一个任务开始查看。</p>
+                    <small>首次进入先选择任务；数据会在你打开任务后读取。</small>
+                </div>
+            `;
+            bindExperienceHomeControls(els.main);
+            updatePager(null);
+            updateRawDrawer();
+            setStatus("请选择任务");
             return;
         }
         renderActions(screenSpec.actions || [], screen);
@@ -645,6 +677,37 @@
     }
 
     function renderHomeActionStrip() {
+        const experience = catalogExperience();
+        if (experience) {
+            const entries = state.experienceMode === "task" ? experienceEntries("task") : [];
+            const utilities = experienceUtilities().filter((entry) => (
+                entry.kind !== "resume" || Boolean(catalogScreen(state.lastNonHomeScreen))
+            ));
+            return `
+                <section class="tui-experience-home" data-task-home aria-label="任务首页入口">
+                    ${entries.length ? `
+                        <div class="tui-experience-home-primary" data-experience-entries>
+                            ${entries.map((entry) => `
+                                <button type="button" class="tui-home-action tui-experience-entry" data-experience-entry="${escapeHtml(entry.key)}" data-experience-kind="${escapeHtml(entry.kind)}" data-experience-screen-key="${escapeHtml(entry.screen_key || "")}">
+                                    <strong>${escapeHtml(entry.label)}</strong>
+                                    <span>${escapeHtml(entry.description)}</span>
+                                </button>
+                            `).join("")}
+                        </div>
+                    ` : ""}
+                    ${utilities.length ? `
+                        <div class="tui-experience-home-utilities" data-experience-utilities aria-label="常用入口">
+                            ${utilities.map((entry) => `
+                                <button type="button" class="tui-home-action tui-experience-utility" data-experience-utility="${escapeHtml(entry.key)}" data-experience-kind="${escapeHtml(entry.kind)}" data-experience-screen-key="${escapeHtml(entry.screen_key || "")}">
+                                    <strong>${escapeHtml(entry.label)}</strong>
+                                    <span>${escapeHtml(entry.description)}</span>
+                                </button>
+                            `).join("")}
+                        </div>
+                    ` : ""}
+                </section>
+            `;
+        }
         const actions = typeof runtimeHooks.getHomeActions === "function"
             ? runtimeHooks.getHomeActions({
                 lastWorkspace: state.lastNonHomeScreen,
