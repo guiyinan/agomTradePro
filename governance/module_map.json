@@ -10753,16 +10753,13 @@
       "layers": {
         "application": 34,
         "domain": 12,
-        "infrastructure": 38,
+        "infrastructure": 39,
         "interface": 15,
         "management": 5,
         "root": 12
       },
       "orm_models": {
         "infrastructure/models.py": [
-          "SimulatedAccountModel",
-          "PositionModel",
-          "SimulatedTradeModel",
           "FeeConfigModel",
           "DailyInspectionReportModel",
           "DailyInspectionNotificationConfigModel",

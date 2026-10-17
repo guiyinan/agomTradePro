@@ -1,0 +1,866 @@
+{
+  "reference": {
+    "base_commit": "60ec8c94b35cc69293a12e506de5a5179a77c624",
+    "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+    "source_commit": "b7c73eb2998bd0e30d80ac015cf4e8b8c1765fda",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-simulated-models-size-635ftyj5",
+    "production": [
+      "apps/simulated_trading/infrastructure/models.py",
+      "apps/simulated_trading/infrastructure/simulated_account_trade_models.py"
+    ],
+    "tests": [
+      "tests/unit/simulated_trading/test_simulated_model_registration.py"
+    ],
+    "source_lf_sha256": {
+      "apps/simulated_trading/infrastructure/models.py": "a0b069bdb6627f54c0c8b234acf54ddbcabe7d3e16734465731c80d5a7cd4646",
+      "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "cc7b22139e178575771f52947e49f9de584782776afcc37ea21582d0dc5d4d23",
+      "tests/unit/simulated_trading/test_simulated_model_registration.py": "674ba92e10b6c3c4198c2422e8603b480bd76a0c15f8d1d4bee9cda1f485d5ec"
+    },
+    "protected_raw_sha256": {
+      "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+      "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+    },
+    "scope": {
+      "unit": "All committed simulated_trading unit tests plus new registry test; protected uncommitted test absent from Git export",
+      "compatibility": [
+        "tests/integration/test_simulated_trading_integration.py",
+        "tests/integration/account/test_account_readonly_api.py",
+        "tests/integration/simulated_trading/test_account_create_api.py",
+        "tests/integration/simulated_trading/test_account_delete_api.py",
+        "tests/integration/simulated_trading/test_account_api_scope.py"
+      ],
+      "persistence_sqlite": [
+        "tests/component/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_fee_policy_v2_immutable_instance.py"
+      ]
+    },
+    "qualification": "Pure model relocation; local isolated SQLite and no socket connections. No new financial/source/trading authority; PG concurrency not rerun unless schema/SQL evidence demands it."
+  },
+  "actual_phases": {
+    "unit-2": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "unit-2": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "compatibility": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "compatibility": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "persistence": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "persistence-sqlite": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "typing": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "style": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0,
+        "architecture": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "size": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "changed-file-size": 0,
+        "size-counts": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "projections": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "model-state": 0,
+        "django-check": 0,
+        "dictionary-build": 0,
+        "module-build": 0,
+        "check_data_dictionary": 0,
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0,
+        "data_center_architecture_inventory": 0,
+        "data_center_entrypoint_inventory": 0
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    },
+    "governance": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "actual_exit_codes": {
+        "full-governance": 1,
+        "retirement": 1
+      },
+      "source_lf_unchanged": true,
+      "protected_raw_unchanged": true
+    }
+  },
+  "raw_logs": {
+    "simulated-models-size-root-1-architecture.txt": {
+      "raw_sha256": "d177d23a49cea8f78107e4ee45e06d5a8af32520c44551aeb06be36866677344",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_architecture_delta.py', '--base-ref', '60ec8c94b35cc69293a12e506de5a5179a77c624', '--head-ref', '8590440dba31bd7d721105b344a24f09260bd9a1', '--format', 'json', '--include-audit', '--fail-on-audit-violations']\n{\r\n  \"rules_version\": \"2026-10-09.v9\",\r\n  \"scan_roots\": [\r\n    \"apps\",\r\n    \"core\",\r\n    \"shared\"\r\n  ],\r\n  \"scanned_files\": 3486,\r\n  \"boundary_rule_count\": 7,\r\n  \"violation_count\": 0,\r\n  \"violations\": [],\r\n  \"modules\": [\r\n    {\r\n      \"module\": \"account\",\r\n      \"role\": \"business\",\r\n      \"patterns\": [\r\n        \"Repository\",\r\n        \"Query Service\"\r\n      ],\r\n      \"note\": \"Interface reads from account-owned repositories instead of simulated_trading ORM imports.\",\r\n      \"outbound_modules\": [\r\n        \"config_center\",\r\n        \"data_center\",\r\n        \"events\",\r\n        \"fund\",\r\n        \"hedge\",\r\n        \"prompt\",\r\n        \"pulse\",\r\n        \"regime\",\r\n        \"risk_center\",\r\n        \"rotation\",\r\n        \"sector\",\r\n        \"signal\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"ai_capability\",\r\n        \"alpha\",\r\n        \"audit\",\r\n        \"backtest\",\r\n        \"broker_execution\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"factor\",\r\n        \"simulated_trading\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 12,\r\n      \"inbound_count\": 12\r\n    },\r\n    {\r\n      \"module\": \"agent_runtime\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"ai_provider\",\r\n        \"audit\",\r\n        \"beta_gate\",\r\n        \"data_center\",\r\n        \"decision_rhythm\",\r\n        \"events\",\r\n        \"policy\",\r\n        \"realtime\",\r\n        \"regime\",\r\n        \"sentiment\",\r\n        \"signal\",\r\n        \"simulated_trading\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 13,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"ai_capability\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"ai_provider\",\r\n        \"asset_analysis\",\r\n        \"policy\",\r\n        \"prompt\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 6,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"ai_provider\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"ai_capability\",\r\n        \"alpha\",\r\n        \"beta_gate\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"policy\",\r\n        \"prompt\",\r\n        \"sentiment\",\r\n        \"setup_wizard\",\r\n        \"strategy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 12\r\n    },\r\n    {\r\n      \"module\": \"alpha\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"ai_provider\",\r\n        \"config_center\",\r\n        \"data_center\",\r\n        \"equity\",\r\n        \"fund\",\r\n        \"task_monitor\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 7,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"alpha_trigger\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"events\",\r\n        \"policy\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 5,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"asset_analysis\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"policy\",\r\n        \"regime\",\r\n        \"sentiment\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"ai_capability\",\r\n        \"alpha_trigger\",\r\n        \"beta_gate\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"fund\",\r\n        \"realtime\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"strategy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 3,\r\n      \"inbound_count\": 12\r\n    },\r\n    {\r\n      \"module\": \"audit\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"backtest\",\r\n        \"data_center\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"dashboard\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 4,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"backtest\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"config_center\",\r\n        \"data_center\",\r\n        \"equity\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"audit\"\r\n      ],\r\n      \"outbound_count\": 5,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"beta_gate\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"asset_analysis\",\r\n        \"events\",\r\n        \"policy\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 5,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"broker_execution\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"data_center\",\r\n        \"decision_rhythm\",\r\n        \"risk_center\",\r\n        \"simulated_trading\",\r\n        \"task_monitor\"\r\n      ],\r\n      \"inbound_modules\": [],\r\n      \"outbound_count\": 6,\r\n      \"inbound_count\": 0\r\n    },\r\n    {\r\n      \"module\": \"config_center\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"alpha\",\r\n        \"backtest\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"dashboard\",\r\n      \"role\": \"aggregation\",\r\n      \"patterns\": [\r\n        \"Query Service\"\r\n      ],\r\n      \"note\": \"Dashboard keeps cross-module reads in query/DTO boundaries.\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"ai_provider\",\r\n        \"alpha\",\r\n        \"alpha_trigger\",\r\n        \"asset_analysis\",\r\n        \"audit\",\r\n        \"beta_gate\",\r\n        \"data_center\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"fund\",\r\n        \"policy\",\r\n        \"pulse\",\r\n        \"regime\",\r\n        \"rotation\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"strategy\",\r\n        \"task_monitor\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 19,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"data_center\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"agent_runtime\",\r\n        \"alpha\",\r\n        \"alpha_trigger\",\r\n        \"audit\",\r\n        \"backtest\",\r\n        \"broker_execution\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"factor\",\r\n        \"filter\",\r\n        \"fixed_income\",\r\n        \"fund\",\r\n        \"hedge\",\r\n        \"macro\",\r\n        \"policy\",\r\n        \"pulse\",\r\n        \"realtime\",\r\n        \"regime\",\r\n        \"research\",\r\n        \"risk_center\",\r\n        \"sector\",\r\n        \"sentiment\",\r\n        \"setup_wizard\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"strategy\",\r\n        \"terminal\",\r\n        \"valuation\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 30\r\n    },\r\n    {\r\n      \"module\": \"decision_rhythm\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"ai_provider\",\r\n        \"alpha\",\r\n        \"alpha_trigger\",\r\n        \"asset_analysis\",\r\n        \"beta_gate\",\r\n        \"data_center\",\r\n        \"equity\",\r\n        \"events\",\r\n        \"macro\",\r\n        \"policy\",\r\n        \"pulse\",\r\n        \"realtime\",\r\n        \"regime\",\r\n        \"risk_center\",\r\n        \"rotation\",\r\n        \"sentiment\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"task_monitor\",\r\n        \"valuation\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"broker_execution\",\r\n        \"dashboard\",\r\n        \"share\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 21,\r\n      \"inbound_count\": 5\r\n    },\r\n    {\r\n      \"module\": \"equity\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"fund\",\r\n        \"realtime\",\r\n        \"regime\",\r\n        \"sector\",\r\n        \"signal\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"alpha\",\r\n        \"backtest\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"research\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 8,\r\n      \"inbound_count\": 6\r\n    },\r\n    {\r\n      \"module\": \"events\",\r\n      \"role\": \"integration\",\r\n      \"patterns\": [\r\n        \"Registry\",\r\n        \"Repository wrapper\"\r\n      ],\r\n      \"note\": \"Event fan-out should stop at registry/repository boundaries.\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"agent_runtime\",\r\n        \"alpha_trigger\",\r\n        \"beta_gate\",\r\n        \"decision_rhythm\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 5\r\n    },\r\n    {\r\n      \"module\": \"factor\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"data_center\",\r\n        \"rotation\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 3,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"filter\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 0\r\n    },\r\n    {\r\n      \"module\": \"fixed_income\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"portfolio\",\r\n        \"research\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 2\r\n    },\r\n    {\r\n      \"module\": \"fund\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"policy\",\r\n        \"regime\",\r\n        \"sentiment\",\r\n        \"signal\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"alpha\",\r\n        \"dashboard\",\r\n        \"equity\"\r\n      ],\r\n      \"outbound_count\": 6,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"hedge\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"signal\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"macro\",\r\n      \"role\": \"core\",\r\n      \"patterns\": [\r\n        \"Orchestration\"\r\n      ],\r\n      \"note\": \"Macro sync is invoked through regime orchestration boundaries.\",\r\n      \"outbound_modules\": [\r\n        \"data_center\",\r\n        \"pulse\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"decision_rhythm\"\r\n      ],\r\n      \"outbound_count\": 3,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"macro_factor\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"research\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"operational_readiness\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [],\r\n      \"inbound_modules\": [\r\n        \"task_monitor\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 0,\r\n      \"inbound_count\": 2\r\n    },\r\n    {\r\n      \"module\": \"policy\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"data_center\",\r\n        \"regime\",\r\n        \"task_monitor\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"ai_capability\",\r\n        \"alpha_trigger\",\r\n        \"asset_analysis\",\r\n        \"beta_gate\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"fund\",\r\n        \"sentiment\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 4,\r\n      \"inbound_count\": 12\r\n    },\r\n    {\r\n      \"module\": \"portfolio\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"fixed_income\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"research\",\r\n        \"strategy\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 2\r\n    },\r\n    {\r\n      \"module\": \"prompt\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"ai_capability\",\r\n        \"strategy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"pulse\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"macro\",\r\n        \"regime\",\r\n        \"simulated_trading\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 7\r\n    },\r\n    {\r\n      \"module\": \"realtime\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"asset_analysis\",\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"simulated_trading\"\r\n      ],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"regime\",\r\n      \"role\": \"core\",\r\n      \"patterns\": [\r\n        \"Protocol\",\r\n        \"Adapter\",\r\n        \"Gateway\"\r\n      ],\r\n      \"note\": \"Runtime access to macro is mediated by regime-owned abstractions.\",\r\n      \"outbound_modules\": [\r\n        \"data_center\",\r\n        \"pulse\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"agent_runtime\",\r\n        \"ai_capability\",\r\n        \"alpha_trigger\",\r\n        \"asset_analysis\",\r\n        \"audit\",\r\n        \"backtest\",\r\n        \"beta_gate\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"fund\",\r\n        \"macro\",\r\n        \"policy\",\r\n        \"prompt\",\r\n        \"rotation\",\r\n        \"sector\",\r\n        \"sentiment\",\r\n        \"signal\",\r\n        \"simulated_trading\",\r\n        \"strategy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 22\r\n    },\r\n    {\r\n      \"module\": \"research\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\",\r\n        \"equity\",\r\n        \"fixed_income\",\r\n        \"macro_factor\",\r\n        \"portfolio\",\r\n        \"signal\"\r\n      ],\r\n      \"inbound_modules\": [],\r\n      \"outbound_count\": 6,\r\n      \"inbound_count\": 0\r\n    },\r\n    {\r\n      \"module\": \"risk_center\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"broker_execution\",\r\n        \"decision_rhythm\",\r\n        \"simulated_trading\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"rotation\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"factor\",\r\n        \"signal\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 5\r\n    },\r\n    {\r\n      \"module\": \"sector\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"equity\",\r\n        \"signal\"\r\n      ],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"sentiment\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"data_center\",\r\n        \"policy\",\r\n        \"regime\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"asset_analysis\",\r\n        \"decision_rhythm\",\r\n        \"fund\"\r\n      ],\r\n      \"outbound_count\": 4,\r\n      \"inbound_count\": 4\r\n    },\r\n    {\r\n      \"module\": \"setup_wizard\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 0\r\n    },\r\n    {\r\n      \"module\": \"share\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"decision_rhythm\",\r\n        \"simulated_trading\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"simulated_trading\"\r\n      ],\r\n      \"outbound_count\": 2,\r\n      \"inbound_count\": 1\r\n    },\r\n    {\r\n      \"module\": \"signal\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"hedge\",\r\n        \"policy\",\r\n        \"regime\",\r\n        \"rotation\",\r\n        \"sector\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"account\",\r\n        \"agent_runtime\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"fund\",\r\n        \"research\",\r\n        \"simulated_trading\",\r\n        \"strategy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 7,\r\n      \"inbound_count\": 10\r\n    },\r\n    {\r\n      \"module\": \"simulated_trading\",\r\n      \"role\": \"business\",\r\n      \"patterns\": [\r\n        \"Facade\",\r\n        \"Gateway\"\r\n      ],\r\n      \"note\": \"Simulated trading should not reach strategy ORM directly.\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"policy\",\r\n        \"pulse\",\r\n        \"realtime\",\r\n        \"regime\",\r\n        \"risk_center\",\r\n        \"share\",\r\n        \"signal\",\r\n        \"strategy\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"agent_runtime\",\r\n        \"broker_execution\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"share\"\r\n      ],\r\n      \"outbound_count\": 11,\r\n      \"inbound_count\": 5\r\n    },\r\n    {\r\n      \"module\": \"strategy\",\r\n      \"role\": \"business\",\r\n      \"patterns\": [\r\n        \"Facade\",\r\n        \"Gateway\"\r\n      ],\r\n      \"note\": \"Strategy should not reach simulated_trading ORM directly.\",\r\n      \"outbound_modules\": [\r\n        \"ai_provider\",\r\n        \"asset_analysis\",\r\n        \"data_center\",\r\n        \"portfolio\",\r\n        \"prompt\",\r\n        \"regime\",\r\n        \"signal\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"dashboard\",\r\n        \"simulated_trading\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 7,\r\n      \"inbound_count\": 3\r\n    },\r\n    {\r\n      \"module\": \"task_monitor\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"operational_readiness\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"alpha\",\r\n        \"broker_execution\",\r\n        \"dashboard\",\r\n        \"decision_rhythm\",\r\n        \"policy\",\r\n        \"terminal\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 6\r\n    },\r\n    {\r\n      \"module\": \"terminal\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"account\",\r\n        \"agent_runtime\",\r\n        \"ai_capability\",\r\n        \"ai_provider\",\r\n        \"alpha\",\r\n        \"alpha_trigger\",\r\n        \"asset_analysis\",\r\n        \"audit\",\r\n        \"beta_gate\",\r\n        \"config_center\",\r\n        \"dashboard\",\r\n        \"data_center\",\r\n        \"decision_rhythm\",\r\n        \"equity\",\r\n        \"factor\",\r\n        \"hedge\",\r\n        \"operational_readiness\",\r\n        \"policy\",\r\n        \"prompt\",\r\n        \"pulse\",\r\n        \"regime\",\r\n        \"signal\",\r\n        \"strategy\",\r\n        \"task_monitor\"\r\n      ],\r\n      \"inbound_modules\": [],\r\n      \"outbound_count\": 24,\r\n      \"inbound_count\": 0\r\n    },\r\n    {\r\n      \"module\": \"valuation\",\r\n      \"role\": \"\",\r\n      \"patterns\": [],\r\n      \"note\": \"\",\r\n      \"outbound_modules\": [\r\n        \"data_center\"\r\n      ],\r\n      \"inbound_modules\": [\r\n        \"decision_rhythm\"\r\n      ],\r\n      \"outbound_count\": 1,\r\n      \"inbound_count\": 1\r\n    }\r\n  ],\r\n  \"audit\": {\r\n    \"rule_count\": 20,\r\n    \"violation_count\": 0,\r\n    \"violations\": [],\r\n    \"top_rules\": [],\r\n    \"top_files\": []\r\n  },\r\n  \"mode\": \"delta\",\r\n  \"base_ref\": \"60ec8c94b35cc69293a12e506de5a5179a77c624\",\r\n  \"head_ref\": \"8590440dba31bd7d721105b344a24f09260bd9a1\",\r\n  \"changed_files\": [\r\n    \"apps/simulated_trading/infrastructure/models.py\",\r\n    \"apps/simulated_trading/infrastructure/simulated_account_trade_models.py\"\r\n  ],\r\n  \"changed_file_count\": 2,\r\n  \"changed_line_count\": 505\r\n}\r\n"
+    },
+    "simulated-models-size-root-1-black.txt": {
+      "raw_sha256": "b3bffc24cd84ef3efd360a9bc824de2b895d5f4b34edcef5990c25f066e44c1e",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'black', '--check', 'apps/simulated_trading/infrastructure/models.py', 'apps/simulated_trading/infrastructure/simulated_account_trade_models.py', 'tests/unit/simulated_trading/test_simulated_model_registration.py']\nAll done! ✨ 🍰 ✨\r\n3 files would be left unchanged.\r\n"
+    },
+    "simulated-models-size-root-1-changed-file-size.txt": {
+      "raw_sha256": "bebfbb1c4007cc6ca835562be47af1d100707c9b060d26e753c54521a38f3867",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_changed_python_file_size.py', '--base', '60ec8c94b35cc69293a12e506de5a5179a77c624', '--head', 'b7c73eb2998bd0e30d80ac015cf4e8b8c1765fda']\nPython file-size growth guard passed for 2 changed production files (limit: 1000).\r\n"
+    },
+    "simulated-models-size-root-1-check_audit_event_contracts.txt": {
+      "raw_sha256": "c9d63a3100b2adf7578e31169bac6c6342077261d79282d4a395ce4056c090b4",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_audit_event_contracts.py']\nAudit event contracts OK: events=23; status=active; implementation=wired\r\n"
+    },
+    "simulated-models-size-root-1-check_celery_task_contracts.txt": {
+      "raw_sha256": "c2e71264bec26068324ecae3b931de86c63702fd9c89ece647723ad594245276",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_celery_task_contracts.py']\nCelery task contracts OK: 95 registered task(s), 21 exemption(s), 24 governed file(s)\r\n"
+    },
+    "simulated-models-size-root-1-check_current_data_contracts.txt": {
+      "raw_sha256": "a358d12c66ac7fb0faa901ad7db037107d0e1f39b6b914114876d19af48057ea",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_current_data_contracts.py']\nCurrent-data freshness contracts OK: 86 surface(s)\r\n"
+    },
+    "simulated-models-size-root-1-check_data_dictionary.txt": {
+      "raw_sha256": "69dcc4371c6a0948a7857d311a78663bedc6ec435a7697f6d5f233a5f8e5a710",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_data_dictionary.py']\ndata dictionary OK: D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-simulated-models-size-635ftyj5\\governance\\data_dictionary.json and D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-simulated-models-size-635ftyj5\\docs\\architecture\\DATA_DICTIONARY.md match the source tree (apps=42 models=588)\r\n"
+    },
+    "simulated-models-size-root-1-check_module_map.txt": {
+      "raw_sha256": "7141867e49773d7916717a1b5835991ea43c02471bbdc7ef3099c2d468e96e5a",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_module_map.py']\nmodule map OK: D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-simulated-models-size-635ftyj5\\governance\\module_map.json matches the source tree (modules=44 edges=210)\r\n"
+    },
+    "simulated-models-size-root-1-compatibility.txt": {
+      "raw_sha256": "6febacaca8fbd7ee9227fe329e94248da09dd997afa4165d1e6beac2914a9618",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/integration/test_simulated_trading_integration.py', 'tests/integration/account/test_account_readonly_api.py', 'tests/integration/simulated_trading/test_account_create_api.py', 'tests/integration/simulated_trading/test_account_delete_api.py', 'tests/integration/simulated_trading/test_account_api_scope.py', '-q', '--tb=short', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '-p', 'ash_sim_models_no_network', '--basetemp=.tmp/pytest-simulated-models-size-root-1-compatibility']\n.................................                                        [100%]No socket connection attempts in isolated model relocation checks.\r\n\r\n33 passed in 72.51s (0:01:12)\r\n"
+    },
+    "simulated-models-size-root-1-data_center_architecture_inventory.txt": {
+      "raw_sha256": "687ad501682bc2cebb2b249125eaf93f8e954af89972551f3a69284d2b8a6cfd",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_architecture_inventory.py']\n{\"approved_non_data_http_imports\": 5, \"cross_app_orm_imports\": 47, \"current_surface_references\": 5801, \"data_write_task_decorators\": 66, \"direct_data_center_imports_outside_data_center\": 0, \"external_http_imports_for_review\": 0, \"legacy_fact_references\": 0, \"provider_imports_outside_data_center\": 0, \"runtime_parameter_references\": 56}\r\n"
+    },
+    "simulated-models-size-root-1-data_center_entrypoint_inventory.txt": {
+      "raw_sha256": "2efdbd8239e81784353d0d05528d7fbcfd4fc3ab547b878de07348699e94c591",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_entrypoint_inventory.py']\n{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\r\n"
+    },
+    "simulated-models-size-root-1-dictionary-build.txt": {
+      "raw_sha256": "613818aa3fb8d0a6a1019c30957df763cab1476a591f33ace56333f9aa98ac36",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/build_data_dictionary.py']\ndata dictionary OK: apps=42 models=588 fields=9091\r\n"
+    },
+    "simulated-models-size-root-1-django-check.txt": {
+      "raw_sha256": "fa083008b7d13d2b8479cbe6a50b60435d7632b2118eab9aa5cc5f4c9f848692",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'manage.py', 'check']\nSystem check identified no issues (0 silenced).\r\n"
+    },
+    "simulated-models-size-root-1-full-governance.txt": {
+      "raw_sha256": "440f4a039af59caf2de11aab48fcbd005c5f596c83cd701ac385b692f56bcb4b",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_governance_consistency.py', '--write-report', 'D:\\\\githv\\\\agomTradePro\\\\artifacts\\\\a-share-usability\\\\ash01\\\\simulated-models-size-root-1-full-governance.json']\nGovernance baseline version: 2026-09-09.v220\r\nGovernance violations: 4\r\n- governance_baseline: 0 violation(s)\r\n- docs_consistency: 0 violation(s)\r\n- docs_links: 0 violation(s)\r\n- governance_docs: 0 violation(s)\r\n- module_shape: 0 violation(s)\r\n- misplaced_app_config: 0 violation(s)\r\n- singular_dto_files: 0 violation(s)\r\n- architecture_ruleset: 0 violation(s)\r\n- module_dependency_baseline: 0 violation(s)\r\n- ci_governance_wiring: 0 violation(s)\r\n- application_third_party_imports: 0 violation(s)\r\n- core_integration_debt: 0 violation(s)\r\n- core_management_command_debt: 0 violation(s)\r\n- large_python_files: 4 violation(s)\r\n- large_file_remediation: 0 violation(s)\r\n\r\nViolations:\r\n- large_python_file_missing_baseline: apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py - Production Python file has 1731 non-empty lines, above limit 1200.\r\n- large_python_file_missing_baseline: apps/simulated_trading/domain/execution_settlement_uow.py - Production Python file has 1296 non-empty lines, above limit 1200.\r\n- large_python_file_missing_baseline: apps/terminal/application/tui_metadata.py - Production Python file has 1255 non-empty lines, above limit 1200.\r\n- large_python_file_missing_baseline: apps/terminal/application/tui_workbench_result_models_specialized.py - Production Python file has 1373 non-empty lines, above limit 1200.\r\n"
+    },
+    "simulated-models-size-root-1-full-mypy.txt": {
+      "raw_sha256": "14cb285b72c966884ea619d815ddb5afae4ed3a1f474726a8ec5c8ff7348ee43",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_mypy_debt_ceiling.py']\nFull mypy debt ceiling passed: 0 errors in 0 files\r\n"
+    },
+    "simulated-models-size-root-1-incremental-mypy.txt": {
+      "raw_sha256": "f1daf1408314c133f4b097bbd63a9c1a01cb5517de6cfdb50539fb1fd171dc73",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_mypy_regression.py', 'apps/simulated_trading/infrastructure/models.py', 'apps/simulated_trading/infrastructure/simulated_account_trade_models.py']\nSuccess: no issues found in 2 source files\r\nMypy regressions: 0 (legacy errors observed: 0)\r\n"
+    },
+    "simulated-models-size-root-1-isort.txt": {
+      "raw_sha256": "8038aea0fcd659893061c9e8347d08648c2ff8c25d4981105f10c0f31eb4821e",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'isort', '--check-only', 'apps/simulated_trading/infrastructure/models.py', 'apps/simulated_trading/infrastructure/simulated_account_trade_models.py', 'tests/unit/simulated_trading/test_simulated_model_registration.py']\n"
+    },
+    "simulated-models-size-root-1-model-state.txt": {
+      "raw_sha256": "a80f6e69f180bf03a263c6514ba4655351d6483418e63f89e5f16535cec91577",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'manage.py', 'makemigrations', 'simulated_trading', '--check', '--dry-run', '--noinput']\nNo changes detected in app 'simulated_trading'\r\n"
+    },
+    "simulated-models-size-root-1-module-build.txt": {
+      "raw_sha256": "4c0ad83b499652dbd82110beec1551b3250aacce39f02ecb7c203d6ae4130956",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/build_module_map.py']\nmodule map OK: modules=44 edges=210\r\n"
+    },
+    "simulated-models-size-root-1-persistence-sqlite.txt": {
+      "raw_sha256": "9b6c7115be5f1e0c022f89f820ca4530345a4f51a4db8f8f17dd5dedd83afa7a",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/component/simulated_trading/test_execution_settlement_uow.py', 'tests/component/simulated_trading/test_fee_policy_v2_immutable_instance.py', '-q', '--tb=short', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '-p', 'ash_sim_models_no_network', '--basetemp=.tmp/pytest-simulated-models-size-root-1-persistence-sqlite']\n...........................................ssss...                       [100%]No socket connection attempts in isolated model relocation checks.\r\n\r\n46 passed, 4 skipped in 88.86s (0:01:28)\r\n"
+    },
+    "simulated-models-size-root-1-postdoc-dictionary.txt": {
+      "raw_sha256": "fd497b343ff9b7aa1340c19837f42b87c4f4fa924dd7ccb8a337f1789107272d",
+      "utf8": "Post-document Root state; production exact frozen 8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['scripts/check_data_dictionary.py']\ndata dictionary OK: D:\\githv\\agomTradePro\\governance\\data_dictionary.json and D:\\githv\\agomTradePro\\docs\\architecture\\DATA_DICTIONARY.md match the source tree (apps=42 models=588)\r\n"
+    },
+    "simulated-models-size-root-1-postdoc-docs-links.txt": {
+      "raw_sha256": "539ab01aa6fe7adb19349a0667a69cf46e3595d13b6618c3c450e98ba0687ed4",
+      "utf8": "Post-document Root state; production exact frozen 8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['-c', 'from scripts.check_governance_consistency import check_docs_links; v,d=check_docs_links(); print(d); print([x.to_dict() for x in v]); assert not v']\n{'checked_links': 76}\r\n[]\r\n"
+    },
+    "simulated-models-size-root-1-postdoc-module.txt": {
+      "raw_sha256": "215479aef1cb942fe8630a6626b7e9df11b8c0d092c179774604580d98e2a9b4",
+      "utf8": "Post-document Root state; production exact frozen 8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['scripts/check_module_map.py']\nmodule map OK: D:\\githv\\agomTradePro\\governance\\module_map.json matches the source tree (modules=44 edges=210)\r\n"
+    },
+    "simulated-models-size-root-1-postdoc-registry-tests.txt": {
+      "raw_sha256": "cced40261633883006641150ac2f356ca007acf54d95c6be90e5ea199481d7ef",
+      "utf8": "Post-document Root state; production exact frozen 8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['-m', 'pytest', 'tests/unit/test_active_plan_registry.py', '-q', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '--basetemp=.tmp/pytest-simulated-models-size-root-1-postdoc']\n........                                                                 [100%]\r\n8 passed in 1.17s\r\n"
+    },
+    "simulated-models-size-root-1-postdoc-registry.txt": {
+      "raw_sha256": "74f4d28bcaf099e710bbccdc2578ca06ef722b2c6e351316498ba6903301470c",
+      "utf8": "Post-document Root state; production exact frozen 8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['scripts/check_active_plan_registry.py']\nactive-plan-registry version=2026-10-17.v253 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\r\n"
+    },
+    "simulated-models-size-root-1-retirement.txt": {
+      "raw_sha256": "86c3f9d36767b6286a29dd9bec9ea8169018b8934b94746d23084c1bc1ee9078",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/check_versioned_surface_retirement.py']\nVersioned surface retirement violations: module_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; module_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; no_suffix_group_retention_floor_missing:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; no_suffix_group_retention_floor_missing:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_multi_version_group:apps/risk_center/application/ashare_execution_rule_v#_catalog.py; unregistered_multi_version_group:apps/risk_center/infrastructure/ashare_execution_rule_v#_codec.py; unregistered_no_suffix_version_group:apps/risk_center/application/ashare_execution_rule_catalog{_v#}.py; unregistered_no_suffix_version_group:apps/risk_center/infrastructure/ashare_execution_rule_codec{_v#}.py; unregistered_singleton_versioned_composition:apps/simulated_trading/fee_policy_v2_composition.py\r\n"
+    },
+    "simulated-models-size-root-1-ruff.txt": {
+      "raw_sha256": "af8052c2f8d8d29cf91f63894b607aa573a0ca95b6584bae7cbbc035a934a9df",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'ruff', 'check', 'apps/simulated_trading/infrastructure/models.py', 'apps/simulated_trading/infrastructure/simulated_account_trade_models.py', 'tests/unit/simulated_trading/test_simulated_model_registration.py']\nAll checks passed!\n"
+    },
+    "simulated-models-size-root-1-size-counts.txt": {
+      "raw_sha256": "3982b3881209c4227f91ea9bafcf6f42f97ec2889e614473daf3a7baa68d14bf",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-c', 'import json\\nfrom scripts.check_changed_python_file_size import get_changed_python_files,count_non_empty_lines,read_revision_file\\nbase=\\'60ec8c94b35cc69293a12e506de5a5179a77c624\\'; head=\\'b7c73eb2998bd0e30d80ac015cf4e8b8c1765fda\\'\\nrows=[{\"path\":c.head_path,\"base\":count_non_empty_lines(read_revision_file(base,c.base_path)) if c.base_path else 0,\"head\":count_non_empty_lines(read_revision_file(head,c.head_path))} for c in get_changed_python_files(base,head)]\\nassert len(rows)==2 and all(x[\"head\"]<1200 for x in rows)\\nprint(json.dumps(rows))\\n']\n[{\"path\": \"apps/simulated_trading/infrastructure/models.py\", \"base\": 1372, \"head\": 927}, {\"path\": \"apps/simulated_trading/infrastructure/simulated_account_trade_models.py\", \"base\": 0, \"head\": 454}]\r\n"
+    },
+    "simulated-models-size-root-1-socketpair-guard-probe.txt": {
+      "raw_sha256": "f5bf8c455f8326a71908bc920513f7d16f6ff88c5f0dbc6e3c4a4900dd5116f7",
+      "utf8": "Guard probe: one actual standard-library socketpair allowed; arbitrary application loopback connect and connect_ex both blocked before I/O.\r\n"
+    },
+    "simulated-models-size-root-1-unit-2.txt": {
+      "raw_sha256": "3b8dd8500961bb2d7b7a0d4cacdc83ff23a7b0c42e47813eb60e1ce25d3aacaa",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/simulated_trading', '-q', '--tb=short', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '-p', 'ash_sim_models_no_network_v2', '--basetemp=.tmp/pytest-simulated-models-size-root-1-unit-2']\n........................................................................ [ 10%]\r\n........................................................................ [ 20%]\r\n........................................................................ [ 30%]\r\n........................................................................ [ 40%]\r\n........................................................................ [ 51%]\r\n........................................................................ [ 61%]\r\n........................................................................ [ 71%]\r\n........................................................................ [ 81%]\r\n........................................................................ [ 92%]\r\n.......................................................                  [100%]No application socket connect/connect_ex attempts; CPython local socketpairs: 1\r\n\r\n703 passed in 7.76s\r\n"
+    },
+    "simulated-models-size-root-1-unit.txt": {
+      "raw_sha256": "ca8cc2a1b68272f2e3ea4f318057f9af402ecb0d65f2cb5f4f1b3aaaf46a178e",
+      "utf8": "source_tree=8590440dba31bd7d721105b344a24f09260bd9a1\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/unit/simulated_trading', '-q', '--tb=short', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '-p', 'ash_sim_models_no_network', '--basetemp=.tmp/pytest-simulated-models-size-root-1-unit']\n........................................F............................... [ 10%]\r\n........................................................................ [ 20%]\r\n........................................................................ [ 30%]\r\n........................................................................ [ 40%]\r\n........................................................................ [ 51%]\r\n........................................................................ [ 61%]\r\n........................................................................ [ 71%]\r\n........................................................................ [ 81%]\r\n........................................................................ [ 92%]\r\n.......................................................                  [100%]Rejected socket connection attempts: 1\r\n\r\n================================== FAILURES ===================================\r\n________ test_bound_provider_rejects_inherited_identity_in_child_task _________\r\ntests\\unit\\simulated_trading\\test_account_physical_row_v2_provider.py:473: in test_bound_provider_rejects_inherited_identity_in_child_task\r\n    asyncio.run(parent())\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\runners.py:194: in run\r\n    with Runner(debug=debug, loop_factory=loop_factory) as runner:\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\runners.py:58: in __enter__\r\n    self._lazy_init()\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\runners.py:137: in _lazy_init\r\n    self._loop = events.new_event_loop()\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\events.py:837: in new_event_loop\r\n    return get_event_loop_policy().new_event_loop()\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\events.py:734: in new_event_loop\r\n    return self._loop_factory()\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\selector_events.py:66: in __init__\r\n    self._make_self_pipe()\r\nC:\\ProgramData\\anaconda3\\Lib\\asyncio\\selector_events.py:120: in _make_self_pipe\r\n    self._ssock, self._csock = socket.socketpair()\r\nC:\\ProgramData\\anaconda3\\Lib\\socket.py:623: in _fallback_socketpair\r\n    csock.connect((addr, port))\r\n.tmp\\ash_sim_models_no_network.py:5: in _blocked\r\n    raise AssertionError(\"Socket connection forbidden in isolated model relocation checks\")\r\nE   AssertionError: Socket connection forbidden in isolated model relocation checks\r\n============================== warnings summary ===============================\r\ntests/unit/simulated_trading/test_auto_trading_account_scope.py::test_default_scope_rejects_more_than_the_technical_account_limit\r\n  D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-simulated-models-size-635ftyj5\\tests\\unit\\simulated_trading\\test_auto_trading_account_scope.py:20: RuntimeWarning: coroutine 'test_bound_provider_rejects_inherited_identity_in_child_task.<locals>.parent' was never awaited\r\n    return SimpleNamespace(\r\n  Enable tracemalloc to get traceback where the object was allocated.\r\n  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.\r\n\r\ntests/unit/simulated_trading/test_auto_trading_account_scope.py::test_default_scope_rejects_more_than_the_technical_account_limit\r\n  C:\\ProgramData\\anaconda3\\Lib\\site-packages\\_pytest\\unraisableexception.py:85: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseEventLoop.__del__ at 0x0000017E4A27D120>\r\n  \r\n  Traceback (most recent call last):\r\n    File \"C:\\ProgramData\\anaconda3\\Lib\\asyncio\\base_events.py\", line 766, in __del__\r\n      self.close()\r\n      ~~~~~~~~~~^^\r\n    File \"C:\\ProgramData\\anaconda3\\Lib\\asyncio\\selector_events.py\", line 104, in close\r\n      self._close_self_pipe()\r\n      ~~~~~~~~~~~~~~~~~~~~~^^\r\n    File \"C:\\ProgramData\\anaconda3\\Lib\\asyncio\\selector_events.py\", line 111, in _close_self_pipe\r\n      self._remove_reader(self._ssock.fileno())\r\n                          ^^^^^^^^^^^\r\n  AttributeError: '_WindowsSelectorEventLoop' object has no attribute '_ssock'\r\n  \r\n    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n=========================== short test summary info ===========================\r\nFAILED tests/unit/simulated_trading/test_account_physical_row_v2_provider.py::test_bound_provider_rejects_inherited_identity_in_child_task\r\n1 failed, 702 passed, 2 warnings in 20.38s\r\n"
+    },
+    "simulated-models-original-root-1-dc-architecture.txt": {
+      "raw_sha256": "a47af924b204a2138fadb0fcfabff39d7a9751a4a617bd7c98ece5af9d587fe9",
+      "utf8": "Exact original 60ec8c94b35cc69293a12e506de5a5179a77c624\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_architecture_inventory.py']\n{\"approved_non_data_http_imports\": 5, \"cross_app_orm_imports\": 47, \"current_surface_references\": 5801, \"data_write_task_decorators\": 66, \"direct_data_center_imports_outside_data_center\": 0, \"external_http_imports_for_review\": 0, \"legacy_fact_references\": 0, \"provider_imports_outside_data_center\": 0, \"runtime_parameter_references\": 56}\r\n"
+    },
+    "simulated-models-original-root-1-dc-entry.txt": {
+      "raw_sha256": "90135aa2d22e2ba823847e02c325b4cedf74031fd595012fd5ed193a4bd1603f",
+      "utf8": "Exact original 60ec8c94b35cc69293a12e506de5a5179a77c624\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', 'scripts/data_center_entrypoint_inventory.py']\n{\"by_category\": {\"admin_surface\": 16, \"agent_skill\": 3, \"application_consumer\": 160, \"beat_schedule\": 61, \"capability_runtime\": 25, \"celery_dispatch_edge\": 18, \"celery_task\": 130, \"compatibility_facade\": 95, \"current_data_surface\": 86, \"dynamic_import_edge\": 14, \"management_command\": 49, \"management_command_edge\": 65, \"mcp_tool\": 40, \"migration_evidence\": 14, \"operational_dispatch_edge\": 72, \"operational_script\": 40, \"orchestration_entry\": 18, \"public_port\": 97, \"rest_url\": 80, \"runbook\": 7, \"runtime_config_key\": 45, \"scheduler_writer\": 18, \"script\": 19, \"sdk\": 57, \"terminal_tui\": 28, \"test_evidence\": 97, \"workflow_step\": 11}, \"by_status\": {\"active_public\": 873, \"adjacent_operational\": 343, \"candidate-review\": 11, \"compatibility\": 138, \"retired_blocked\": 0}, \"total\": 1365}\r\n"
+    },
+    "simulated-models-original-root-1-tests.txt": {
+      "raw_sha256": "741c0f438ebfcddb724a1b6b83b92032441785fb430334b7cc57cbd94506185d",
+      "utf8": "base_commit=60ec8c94b35cc69293a12e506de5a5179a77c624\ncommand=['D:\\\\githv\\\\agomTradePro\\\\agomtradepro\\\\Scripts\\\\python.exe', '-X', 'utf8', '-m', 'pytest', 'tests/integration/test_simulated_trading_integration.py', 'tests/integration/account/test_account_readonly_api.py', '-q', '--tb=short', '--no-migrations', '--ds=ash_sim_models_sqlite_settings', '-p', 'ash_sim_models_no_network', '--basetemp=.tmp/pytest-simulated-models-original-root-1']\n..................                                                       [100%]No socket connection attempts in isolated model relocation checks.\r\n\r\n18 passed in 25.04s\r\n"
+    }
+  },
+  "author_red_green": {
+    "ash-simulated-model-registration-red.exit.txt": {
+      "raw_sha256": "f1b2f662800122bed0ff255693df89c4487fbdcf453d3524a42d4ec20c3d9c04",
+      "utf8": "1\r\n"
+    },
+    "ash-simulated-model-registration-red.stderr.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "utf8": ""
+    },
+    "ash-simulated-model-registration-red.stdout.txt": {
+      "raw_sha256": "41a3b5c14a8725821cd02092f47b9a21fc5d617b5ef8c9feb677eeb3e686034d",
+      "utf8": "F                                                                        [100%]\r\n================================== FAILURES ===================================\r\n_____________ test_simulated_models_keep_one_registered_identity ______________\r\ntests\\unit\\simulated_trading\\test_simulated_model_registration.py:49: in test_simulated_models_keep_one_registered_identity\r\n    extracted_models: ModuleType = import_module(\r\nC:\\ProgramData\\anaconda3\\Lib\\importlib\\__init__.py:88: in import_module\r\n    return _bootstrap._gcd_import(name[level:], package, level)\r\n<frozen importlib._bootstrap>:1387: in _gcd_import\r\n    ???\r\n<frozen importlib._bootstrap>:1360: in _find_and_load\r\n    ???\r\n<frozen importlib._bootstrap>:1324: in _find_and_load_unlocked\r\n    ???\r\nE   ModuleNotFoundError: No module named 'apps.simulated_trading.infrastructure.simulated_account_trade_models'\r\n============================== warnings summary ===============================\r\nC:\\ProgramData\\anaconda3\\Lib\\site-packages\\_pytest\\config\\__init__.py:1441\r\n  C:\\ProgramData\\anaconda3\\Lib\\site-packages\\_pytest\\config\\__init__.py:1441: PytestConfigWarning: Unknown config option: cache_dir\r\n  \r\n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n=========================== short test summary info ===========================\r\nFAILED tests/unit/simulated_trading/test_simulated_model_registration.py::test_simulated_models_keep_one_registered_identity\r\n1 failed, 1 warning in 0.86s\r\n"
+    },
+    "ash-simulated-model-registration-green.exit.txt": {
+      "raw_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+      "utf8": "0"
+    },
+    "ash-simulated-model-registration-green.stderr.txt": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "utf8": ""
+    },
+    "ash-simulated-model-registration-green.stdout.txt": {
+      "raw_sha256": "d821f20c04a12f9d1bd510aef0cb4b1ab9c00a29682deb7187f6986b6fb8ecfe",
+      "utf8": ".                                                                        [100%]\r\n1 passed in 0.25s\r\n"
+    }
+  },
+  "independent_static_review": {
+    "ash-simulated-models-move-review-luna-max.md": "# Simulated trading model split: independent static review\n\n## Scope and evidence\n\n- Reviewed `.tmp/ash-simulated-models-move-candidate.patch` (SHA-256 `ba93aeeceee8b09a8e58b7ac2ac3fcf4494ec31e71f1ea2f0c354d4859d34f22`).\n- Reconstructed the patch in memory with `.tmp/read_size_candidate_patch.py`; its exact-context assertions passed against the current source. No formal file was changed.\n- The source's raw-byte SHA is `217e571af204f12ee4c7d7e724ebcf05de5e03377714877fb7a8b2aac8d6c339`; after universal-newline reading and UTF-8 re-encoding, its LF SHA is `7af8e8ea9b9d660a06ade7421cef56bbccb63e90c5c29a0d0ccaedccdd3a92dc`, matching the task's source SHA. The file contains mixed CRLF/LF endings, so the raw-byte difference is not source drift.\n- Static physical-line counts from the current source and reconstructed output are 1565 original, 1079 candidate facade, and 500 new-module lines. The repository governance metric counts non-empty lines: 1372 original, 928 candidate facade, and 454 new-module lines, matching the supplied estimate exactly.\n- Used only Python standard-library text/AST/symbol-table analysis and repository text search. No Django setup, migrations, tests, mypy, database, network, or generated files were run.\n\n## Findings\n\nThe complete ASTs for `SimulatedAccountModel`, `PositionModel`, and `SimulatedTradeModel` are identical between the current source and reconstructed new module. This includes their class bases, every field constructor and default, `ForeignKey` target and options, `Meta` contents, constraints, indexes, and methods. The new module preserves `from __future__ import annotations`. Its only referenced module globals for those classes are `settings`, `models`, `Q`, and the earlier-defined `SimulatedAccountModel`; all are available in the new module. The only method annotations found are `__str__ -> str`. No moved class references `FeeConfigModel`, `FeeConfigQuerySet`, or another symbol defined later in the old file.\n\nThe facade imports the new module at the original registration slot: after its child-model imports and before `FeeConfigQuerySet`/`FeeConfigModel`. The new module defines account, position, then trade in the original order. Later facade models that directly refer to `SimulatedAccountModel` execute after this import. The new module has no import back to `infrastructure.models` or any other simulated-trading module, so the suspected cycle through not-yet-defined fee classes is not present in this patch.\n\nThe explicit facade imports bind the original names to the exact classes from the new module; no wrapper or duplicate class is introduced. The later `SimulatedPositionModel = PositionModel` assignment remains, preserving that alias. `apps/simulated_trading/models.py` still wildcard-reexports the infrastructure facade. Existing repositories, admin code, commands, and tests that import these model names from the old paths therefore keep those paths. For example, `tests/integration/account/test_account_readonly_api.py` imports `PositionModel as SimulatedPositionModel` from the old facade.\n\nThe class objects' `__module__` will naturally become `apps.simulated_trading.infrastructure.simulated_account_trade_models`. Repository search found pickle usage for Qlib artifacts and unrelated contracts, but no serialization of these three model classes or references to their `__module__`. The old facade still exposes the old module/name path, which supports resolving legacy pickle references. Whether externally persisted artifacts depend on the new module path is unknown; there is no repository evidence to justify manually overriding `__module__`.\n\nThere is one small namespace compatibility change: removing `from django.conf import settings` removes `settings` from the old infrastructure facade and, through its wildcard import, from `apps.simulated_trading.models`. No repository caller of those accidental exports was found. The module has no `__all__`, so this is technically observable to external importers; preserve it only if that undocumented namespace is intended as a compatibility contract.\n\nNo migration change is indicated: model names, app placement, fields, relations, and options are unchanged, and migrations use the app registry/model names rather than these Python module paths. This is a static conclusion, not a Django migration check.\n\n## Minimum verification after applying\n\n1. Run Django startup/check and assert that imports through the new module, `apps.simulated_trading.infrastructure.models`, and `apps.simulated_trading.models` resolve to the same three objects as `apps.get_model(\"simulated_trading\", ...)`; also assert `SimulatedPositionModel is PositionModel`.\n2. Run `makemigrations --check --dry-run simulated_trading` to confirm there is no schema-state change.\n3. Run the existing focused compatibility paths `tests/integration/account/test_account_readonly_api.py` (legacy position alias) and `tests/integration/test_simulated_trading_integration.py` (account/position/trade operations).\n\n## Review outcome\n\nNo blocking class-definition, ordering, or import-cycle defect was found in the candidate. Runtime registry and migration checks remain unverified under this review's read-only restrictions.\n",
+    "ash-simulated-models-move-review-luna-max-blockers.md": "# Blockers and residual risks\n\n## Blocking defects\n\nNone found by static review.\n\n## Residual items\n\n- Django registry startup, `apps.get_model` identity, migration autodetection, and focused integration tests were not run; the reviewing task explicitly prohibited Django/tests/DB operations. The parent QA window should perform the checks listed in the companion memo.\n- `__module__` changes as a natural result of moving class definitions. No repository evidence shows these models are pickled. External persisted pickle consumers are unknown; do not override `__module__` without concrete evidence.\n- The old facade's wildcard-visible `settings` symbol disappears because its import moves. No in-repository consumer was found. Decide whether this accidental export is part of the external compatibility contract before applying if strict namespace preservation is required.\n"
+  },
+  "source_proof": {
+    "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+    "three_complete_class_asts_exact": true,
+    "all_other_nonimport_facade_nodes_exact": true,
+    "class_definition_order_exact": [
+      "SimulatedAccountModel",
+      "PositionModel",
+      "SimulatedTradeModel"
+    ],
+    "child_import_then_model_registration_slot_exact": [
+      "simulated_account_raw_observation_models",
+      "simulated_account_row_source_models",
+      "simulated_account_row_source_v2_models",
+      "simulated_account_trade_models"
+    ],
+    "explicit_facade_reexports_exact": true,
+    "settings_namespace_retained": true,
+    "retained_source_check_correction": "Initial assertion assumed a single ImportFrom node for all aliases; isort legitimately emitted three cached imports. Deduplicated execution-module order and merged explicit aliases verified without changing production source.",
+    "only_moved_methods": "Three fully typed __str__ methods; no new public business function",
+    "original_source_lf_sha256": "7af8e8ea9b9d660a06ade7421cef56bbccb63e90c5c29a0d0ccaedccdd3a92dc",
+    "not_claimed": "Static proof complements, and does not substitute for, Django registry/schema/tests."
+  },
+  "harness_v2": {
+    "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+    "private_plugin_lf_sha256": "495d1250b649e8d0d9029a39ddf8ffc0273d7b380e7d5dd77954ae2f252da3f5",
+    "private_plugin": "import socket\nimport sys\n_attempts=[]\n_local_pairs=0\n_original_connect=socket.socket.connect\n_socketpair_code=socket.socketpair.__code__\ndef _blocked_connect(sock,address):\n    global _local_pairs\n    frame=sys._getframe(1)\n    if (frame.f_code is _socketpair_code\n            and frame.f_locals.get(\"csock\") is sock\n            and address == (frame.f_locals.get(\"addr\"),frame.f_locals.get(\"port\"))\n            and address[0] in {\"127.0.0.1\",\"::1\"}):\n        _local_pairs+=1\n        return _original_connect(sock,address)\n    _attempts.append(True)\n    raise AssertionError(\"Application socket connection forbidden in isolated model checks\")\ndef _blocked_connect_ex(*args,**kwargs):\n    _attempts.append(True)\n    raise AssertionError(\"Application socket connection forbidden in isolated model checks\")\ndef pytest_sessionstart(session):\n    socket.socket.connect=_blocked_connect\n    socket.socket.connect_ex=_blocked_connect_ex\ndef pytest_sessionfinish(session,exitstatus):\n    if _attempts:\n        session.exitstatus=1\n        print(\"Rejected application socket attempts:\",len(_attempts))\n    else:\n        print(\"No application socket connect/connect_ex attempts; CPython local socketpairs:\",_local_pairs)\n",
+    "guard_probe": "import socket\nimport ash_sim_models_no_network_v2 as guard\nguard.pytest_sessionstart(None)\nleft,right=socket.socketpair()\nleft.close();right.close()\nassert guard._local_pairs==1\nwith socket.socket() as application_socket:\n    try:\n        application_socket.connect((\"127.0.0.1\",1))\n    except AssertionError:\n        pass\n    else:\n        raise AssertionError(\"Arbitrary application loopback connect was admitted\")\nwith socket.socket() as application_socket:\n    try:\n        application_socket.connect_ex((\"127.0.0.1\",1))\n    except AssertionError:\n        pass\n    else:\n        raise AssertionError(\"Application connect_ex was admitted\")\nassert len(guard._attempts)==2\nprint(\"Guard probe: one actual standard-library socketpair allowed; arbitrary application loopback connect and connect_ex both blocked before I/O.\")\n",
+    "actual_probe_exit": 0,
+    "correction": "Initial blanket socket guard rejected CPython Windows asyncio self-pipe; only the exact stdlib socketpair code object, its own csock identity and exact bound loopback endpoint are permitted. No production or test source changed.",
+    "not_claimed": "This guard observes socket connect/connect_ex; it is not a general OS network-activity audit."
+  },
+  "initial_failed_unit_run": {
+    "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+    "actual_exit_codes": {
+      "unit": 1
+    },
+    "source_lf_unchanged": true,
+    "protected_raw_unchanged": true
+  },
+  "original_source_baseline": {
+    "base_commit": "60ec8c94b35cc69293a12e506de5a5179a77c624",
+    "actual_pytest_exit": 0,
+    "log": "simulated-models-original-root-1-tests.txt"
+  },
+  "original_dc_checks": {
+    "base_commit": "60ec8c94b35cc69293a12e506de5a5179a77c624",
+    "actual_exit_codes": {
+      "dc-architecture": 0,
+      "dc-entry": 0
+    }
+  },
+  "full_governance_actual_report": {
+    "baseline_version": "2026-09-09.v220",
+    "violation_count": 4,
+    "sections": [
+      {
+        "name": "governance_baseline",
+        "violation_count": 0,
+        "data": {
+          "baseline_version": "2026-09-09.v220",
+          "required_key_count": 14,
+          "missing_required_keys": [],
+          "mcp_governance_required_key_count": 13,
+          "mcp_governance_entry_count": 13,
+          "module_shape_entry_count": 44,
+          "allowed_application_import_file_count": 0,
+          "allowed_large_file_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "docs_consistency",
+        "violation_count": 0,
+        "data": {
+          "actual_mcp_tool_count": 377,
+          "expected_mcp_tool_count": 377,
+          "actual_business_module_count": 44,
+          "expected_business_module_count": 44,
+          "actual_static_test_function_count": 19432,
+          "expected_static_test_function_count": 12264,
+          "dynamic_governance_doc_count": 21,
+          "core_version": "0.8.0",
+          "pyproject_version": "0.8.0"
+        },
+        "violations": []
+      },
+      {
+        "name": "docs_links",
+        "violation_count": 0,
+        "data": {
+          "checked_links": 76
+        },
+        "violations": []
+      },
+      {
+        "name": "governance_docs",
+        "violation_count": 0,
+        "data": {
+          "required_token_count": 9,
+          "missing_tokens": []
+        },
+        "violations": []
+      },
+      {
+        "name": "module_shape",
+        "violation_count": 0,
+        "data": {
+          "account": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "agent_runtime": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/urls.py"
+            ]
+          },
+          "ai_capability": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/urls.py"
+            ]
+          },
+          "ai_provider": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/views.py"
+            ]
+          },
+          "alpha": {
+            "score": 11,
+            "missing": []
+          },
+          "alpha_trigger": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "asset_analysis": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "audit": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "backtest": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "beta_gate": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "broker_execution": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "config_center": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py"
+            ]
+          },
+          "dashboard": {
+            "score": 11,
+            "missing": []
+          },
+          "data_center": {
+            "score": 10,
+            "missing": [
+              "domain/services.py"
+            ]
+          },
+          "decision_rhythm": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "interface/views.py"
+            ]
+          },
+          "equity": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "events": {
+            "score": 11,
+            "missing": []
+          },
+          "factor": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "filter": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "fixed_income": {
+            "score": 5,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "fund": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "hedge": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "macro": {
+            "score": 9,
+            "missing": [
+              "infrastructure/repositories.py",
+              "interface/views.py"
+            ]
+          },
+          "macro_factor": {
+            "score": 4,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "operational_readiness": {
+            "score": 1,
+            "missing": [
+              "domain/entities.py",
+              "domain/rules.py",
+              "domain/services.py",
+              "application/use_cases.py",
+              "application/dtos.py",
+              "infrastructure/models.py",
+              "infrastructure/repositories.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py"
+            ]
+          },
+          "policy": {
+            "score": 8,
+            "missing": [
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py"
+            ]
+          },
+          "portfolio": {
+            "score": 6,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/serializers.py",
+              "interface/urls.py"
+            ]
+          },
+          "prompt": {
+            "score": 11,
+            "missing": []
+          },
+          "pulse": {
+            "score": 11,
+            "missing": []
+          },
+          "realtime": {
+            "score": 11,
+            "missing": []
+          },
+          "regime": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "research": {
+            "score": 5,
+            "missing": [
+              "domain/entities.py",
+              "domain/rules.py",
+              "domain/services.py",
+              "application/dtos.py",
+              "interface/views.py",
+              "interface/urls.py"
+            ]
+          },
+          "risk_center": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "rotation": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "sector": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "sentiment": {
+            "score": 11,
+            "missing": []
+          },
+          "setup_wizard": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py",
+              "interface/serializers.py"
+            ]
+          },
+          "share": {
+            "score": 10,
+            "missing": [
+              "domain/rules.py"
+            ]
+          },
+          "signal": {
+            "score": 9,
+            "missing": [
+              "domain/services.py",
+              "application/dtos.py"
+            ]
+          },
+          "simulated_trading": {
+            "score": 10,
+            "missing": [
+              "application/dtos.py"
+            ]
+          },
+          "strategy": {
+            "score": 11,
+            "missing": []
+          },
+          "task_monitor": {
+            "score": 8,
+            "missing": [
+              "domain/rules.py",
+              "domain/services.py",
+              "interface/api_urls.py"
+            ]
+          },
+          "terminal": {
+            "score": 9,
+            "missing": [
+              "domain/rules.py",
+              "application/dtos.py"
+            ]
+          },
+          "valuation": {
+            "score": 11,
+            "missing": []
+          }
+        },
+        "violations": []
+      },
+      {
+        "name": "misplaced_app_config",
+        "violation_count": 0,
+        "data": {
+          "violation_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "singular_dto_files",
+        "violation_count": 0,
+        "data": {
+          "violation_count": 0
+        },
+        "violations": []
+      },
+      {
+        "name": "architecture_ruleset",
+        "violation_count": 0,
+        "data": {
+          "rules_version": "2026-10-09.v9",
+          "boundary_rule_count": 7,
+          "audit_rule_count": 20,
+          "duplicate_rule_ids": []
+        },
+        "violations": []
+      },
+      {
+        "name": "module_dependency_baseline",
+        "violation_count": 0,
+        "data": {
+          "baseline_version": "2026-08-13.v25",
+          "module_count": 44,
+          "outbound_budget_count": 44,
+          "inbound_budget_count": 44,
+          "max_outbound_modules_per_app": 24,
+          "max_inbound_modules_per_app": 30,
+          "max_app_import_edges": 206
+        },
+        "violations": []
+      },
+      {
+        "name": "ci_governance_wiring",
+        "violation_count": 0,
+        "data": {
+          "architecture_workflow": ".github/workflows/architecture-layer-guard.yml",
+          "consistency_workflow": ".github/workflows/consistency-check.yml",
+          "architecture_required_token_count": 7,
+          "consistency_required_token_count": 10
+        },
+        "violations": []
+      },
+      {
+        "name": "application_third_party_imports",
+        "violation_count": 0,
+        "data": {},
+        "violations": []
+      },
+      {
+        "name": "core_integration_debt",
+        "violation_count": 0,
+        "data": {
+          "actual_infrastructure_import_count": 0,
+          "expected_infrastructure_import_count": 0,
+          "actual_orm_access_count": 0,
+          "expected_orm_access_count": 0,
+          "files": {}
+        },
+        "violations": []
+      },
+      {
+        "name": "core_management_command_debt",
+        "violation_count": 0,
+        "data": {
+          "actual_infrastructure_import_count": 0,
+          "expected_infrastructure_import_count": 0,
+          "actual_orm_access_count": 0,
+          "expected_orm_access_count": 0,
+          "files": {}
+        },
+        "violations": []
+      },
+      {
+        "name": "large_python_files",
+        "violation_count": 4,
+        "data": {
+          "line_limit": 1200,
+          "large_file_count": 4,
+          "large_files": {
+            "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py": 1731,
+            "apps/simulated_trading/domain/execution_settlement_uow.py": 1296,
+            "apps/terminal/application/tui_metadata.py": 1255,
+            "apps/terminal/application/tui_workbench_result_models_specialized.py": 1373
+          },
+          "allowed_large_file_count": 0
+        },
+        "violations": [
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+            "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+            "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/terminal/application/tui_metadata.py",
+            "message": "Production Python file has 1255 non-empty lines, above limit 1200."
+          },
+          {
+            "code": "large_python_file_missing_baseline",
+            "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+            "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+          }
+        ]
+      },
+      {
+        "name": "large_file_remediation",
+        "violation_count": 0,
+        "data": {
+          "allowed_path_count": 0,
+          "remediation_path_count": 0,
+          "review_date": "2026-10-17"
+        },
+        "violations": []
+      }
+    ],
+    "violations": [
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/data_center/infrastructure/formal_exchange_calendar_publication_repository.py",
+        "message": "Production Python file has 1731 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/simulated_trading/domain/execution_settlement_uow.py",
+        "message": "Production Python file has 1296 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/terminal/application/tui_metadata.py",
+        "message": "Production Python file has 1255 non-empty lines, above limit 1200."
+      },
+      {
+        "code": "large_python_file_missing_baseline",
+        "path": "apps/terminal/application/tui_workbench_result_models_specialized.py",
+        "message": "Production Python file has 1373 non-empty lines, above limit 1200."
+      }
+    ]
+  },
+  "postdoc_actual_exits": {
+    "registry": 0,
+    "registry-tests": 0,
+    "docs-links": 0,
+    "module": 0,
+    "dictionary": 0
+  },
+  "source_patch": {
+    "raw_sha256": "a229c92f8b917827ea26b291ed97c4b365f3023637d246d66d36362cd72c8ba9",
+    "utf8": "diff --git a/apps/simulated_trading/infrastructure/models.py b/apps/simulated_trading/infrastructure/models.py\nindex 688a6bf2d..03fe430ff 100644\n--- a/apps/simulated_trading/infrastructure/models.py\n+++ b/apps/simulated_trading/infrastructure/models.py\n@@ -17,7 +17,7 @@ from __future__ import annotations\n from math import isfinite\n from typing import Any\n \n-from django.conf import settings\n+from django.conf import settings as settings\n from django.core.exceptions import ValidationError\n from django.db import models, router, transaction\n from django.db.models import Q\n@@ -30,498 +30,10 @@ from .simulated_account_raw_observation_models import (  # noqa: F401\n from .simulated_account_row_source_models import SimulatedAccountRowSourceModel  # noqa: F401\n from .simulated_account_row_source_v2_models import SimulatedAccountRowSourceV2Model  # noqa: F401\n \n-\n-class SimulatedAccountModel(models.Model):\n-    \"\"\"\n-    投资组合账户模型（统一）\n-\n-    ⭐ 重构说明：\n-    - 统一管理实仓和模拟仓\n-    - 用户可以创建多个投资组合\n-    - 每个投资组合可以选择类型：real（实仓）或 simulated（模拟仓）\n-    - 替代老的 PortfolioModel 系统\n-    \"\"\"\n-\n-    # Data migration 0013 assigns a default user to existing null records.\n-    # Kept nullable until use cases and mappers pass user consistently.\n-    user = models.ForeignKey(\n-        settings.AUTH_USER_MODEL,\n-        on_delete=models.CASCADE,\n-        related_name=\"investment_accounts\",\n-        verbose_name=\"用户\",\n-        db_index=True,\n-        null=True,\n-        blank=True,\n-    )\n-\n-    account_name = models.CharField(\"账户名称\", max_length=100)  # ⭐ 删除 unique 约束\n-    account_type = models.CharField(\n-        \"账户类型\",\n-        max_length=20,\n-        choices=[\n-            (\"real\", \"实仓\"),\n-            (\"simulated\", \"模拟仓\"),\n-        ],\n-        default=\"simulated\",\n-        db_index=True,\n-    )\n-\n-    # 资金信息\n-    initial_capital = models.DecimalField(\"初始资金(元)\", max_digits=15, decimal_places=2)\n-    current_cash = models.DecimalField(\"当前现金(元)\", max_digits=15, decimal_places=2)\n-    current_market_value = models.DecimalField(\n-        \"当前持仓市值(元)\", max_digits=15, decimal_places=2, default=0\n-    )\n-    total_value = models.DecimalField(\"总资产(元)\", max_digits=15, decimal_places=2)\n-\n-    # 绩效指标\n-    total_return = models.FloatField(\"总收益率(%)\", default=0.0)\n-    annual_return = models.FloatField(\"年化收益率(%)\", default=0.0)\n-    max_drawdown = models.FloatField(\"最大回撤(%)\", default=0.0)\n-    sharpe_ratio = models.FloatField(\"夏普比率\", default=0.0)\n-    win_rate = models.FloatField(\"胜率(%)\", default=0.0)\n-\n-    # 交易统计\n-    total_trades = models.IntegerField(\"总交易次数\", default=0)\n-    winning_trades = models.IntegerField(\"盈利交易次数\", default=0)\n-\n-    # 时间信息\n-    start_date = models.DateField(\"开始日期\", auto_now_add=True)\n-    last_trade_date = models.DateField(\"最后交易日期\", null=True, blank=True)\n-    is_active = models.BooleanField(\"是否激活\", default=True, db_index=True)\n-\n-    # 策略配置\n-    auto_trading_enabled = models.BooleanField(\"启用自动交易\", default=True)\n-    max_position_pct = models.FloatField(\"单资产最大持仓比例(%)\", default=20.0)\n-    max_total_position_pct = models.FloatField(\"总持仓比例上限(%)\", default=95.0)\n-    stop_loss_pct = models.FloatField(\"止损比例(%)\", null=True, blank=True)\n-\n-    # 关联策略（可选）- 临时注释以修复 migration 问题\n-    # active_strategy = models.ForeignKey(\n-    #     'strategy.StrategyModel',\n-    #     on_delete=models.SET_NULL,\n-    #     null=True,\n-    #     blank=True,\n-    #     related_name='portfolios',\n-    #     verbose_name=\"激活策略\",\n-    #     help_text=\"绑定策略后，自动交易将使用策略引擎执行\",\n-    #     db_index=True\n-    # )\n-\n-    # 费用配置\n-    commission_rate = models.FloatField(\"手续费率\", default=0.0003)\n-    slippage_rate = models.FloatField(\"滑点率\", default=0.001)\n-\n-    # 元数据\n-    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n-    updated_at = models.DateTimeField(\"更新时间\", auto_now=True)\n-\n-    class Meta:\n-        db_table = \"simulated_account\"\n-        verbose_name = \"投资组合账户\"\n-        verbose_name_plural = \"投资组合账户\"\n-        ordering = [\"-created_at\"]\n-        indexes = [\n-            models.Index(fields=[\"user\", \"-created_at\"]),\n-            models.Index(fields=[\"user\", \"account_type\"]),\n-            models.Index(fields=[\"user\", \"is_active\"]),\n-            models.Index(fields=[\"is_active\", \"auto_trading_enabled\"]),\n-            models.Index(fields=[\"-start_date\"]),\n-            # models.Index(fields=[\"active_strategy\", \"is_active\"]),  # 临时注释\n-        ]\n-\n-    def __str__(self) -> str:\n-        type_label = \"实仓\" if self.account_type == \"real\" else \"模拟仓\"\n-        return f\"{self.account_name} ({type_label})\"\n-\n-\n-class PositionModel(models.Model):\n-    \"\"\"持仓模型\"\"\"\n-\n-    account = models.ForeignKey(\n-        SimulatedAccountModel,\n-        on_delete=models.CASCADE,\n-        related_name=\"positions\",\n-        verbose_name=\"所属账户\",\n-    )\n-\n-    asset_code = models.CharField(\"资产代码\", max_length=20, db_index=True)\n-    asset_name = models.CharField(\"资产名称\", max_length=100)\n-    asset_type = models.CharField(\n-        \"资产类型\", max_length=20, choices=[(\"equity\", \"股票\"), (\"fund\", \"基金\"), (\"bond\", \"债券\")]\n-    )\n-\n-    # 持仓数量 (DecimalField 支持非整数股份，兼容旧账本浮点 shares)\n-    quantity = models.DecimalField(\"持仓数量\", max_digits=20, decimal_places=6)\n-    available_quantity = models.DecimalField(\"可卖数量\", max_digits=20, decimal_places=6)\n-\n-    # 成本信息\n-    avg_cost = models.DecimalField(\"平均成本(元)\", max_digits=10, decimal_places=4)\n-    total_cost = models.DecimalField(\"总成本(元)\", max_digits=15, decimal_places=2)\n-\n-    # 当前信息\n-    current_price = models.DecimalField(\"当前价格(元)\", max_digits=10, decimal_places=4)\n-    market_value = models.DecimalField(\"市值(元)\", max_digits=15, decimal_places=2)\n-\n-    # 盈亏信息\n-    unrealized_pnl = models.DecimalField(\"浮动盈亏(元)\", max_digits=15, decimal_places=2, default=0)\n-    unrealized_pnl_pct = models.FloatField(\"浮动盈亏率(%)\", default=0.0)\n-\n-    # 时间信息\n-    first_buy_date = models.DateField(\"首次买入日期\")\n-    last_update_date = models.DateField(\"最后更新日期\", auto_now=True)\n-\n-    # 关联信号\n-    signal_id = models.IntegerField(\"关联信号ID\", null=True, blank=True)\n-    entry_reason = models.CharField(\"入场原因\", max_length=200, blank=True)\n-\n-    # ==================== 证伪条件跟踪 ====================\n-    # 从信号继承的证伪条件（副本，即使信号被删除也不影响）\n-    invalidation_rule_json = models.JSONField(\n-        \"证伪规则\", null=True, blank=True, help_text=\"从信号继承的结构化证伪规则\"\n-    )\n-    invalidation_description = models.TextField(\n-        \"证伪描述\", blank=True, help_text=\"人类可读的证伪条件描述\"\n-    )\n-\n-    # 证伪状态\n-    is_invalidated = models.BooleanField(\n-        \"是否已证伪\", default=False, db_index=True, help_text=\"证伪条件已满足，建议平仓\"\n-    )\n-    invalidation_reason = models.TextField(\"证伪原因\", blank=True, help_text=\"证伪原因说明\")\n-    invalidation_checked_at = models.DateTimeField(\n-        \"最后检查时间\", null=True, blank=True, help_text=\"最后一次检查证伪条件的时间\"\n-    )\n-    # =====================================================\n-\n-    # 元数据\n-    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n-    updated_at = models.DateTimeField(\"更新时间\", auto_now=True)\n-\n-    class Meta:\n-        db_table = \"simulated_position\"\n-        verbose_name = \"模拟持仓\"\n-        verbose_name_plural = \"模拟持仓\"\n-        ordering = [\"-market_value\"]\n-        unique_together = [[\"account\", \"asset_code\"]]\n-        indexes = [\n-            models.Index(fields=[\"account\", \"asset_code\"]),\n-            models.Index(fields=[\"-market_value\"]),\n-            models.Index(fields=[\"account\", \"is_invalidated\"]),  # 证伪状态查询\n-            models.Index(fields=[\"is_invalidated\", \"invalidation_checked_at\"]),  # 定期检查\n-        ]\n-\n-    def __str__(self) -> str:\n-        return f\"{self.asset_name} ({self.quantity})\"\n-\n-\n-class SimulatedTradeModel(models.Model):\n-    \"\"\"模拟交易记录模型\"\"\"\n-\n-    account = models.ForeignKey(\n-        SimulatedAccountModel,\n-        on_delete=models.CASCADE,\n-        related_name=\"trades\",\n-        verbose_name=\"所属账户\",\n-    )\n-\n-    # 资产信息\n-    asset_code = models.CharField(\"资产代码\", max_length=20, db_index=True)\n-    asset_name = models.CharField(\"资产名称\", max_length=100)\n-    asset_type = models.CharField(\"资产类型\", max_length=20)\n-\n-    # 交易信息\n-    action = models.CharField(\n-        \"交易动作\", max_length=10, choices=[(\"buy\", \"买入\"), (\"sell\", \"卖出\")]\n-    )\n-    quantity = models.DecimalField(\"交易数量\", max_digits=20, decimal_places=6)\n-    price = models.DecimalField(\"成交价格(元)\", max_digits=10, decimal_places=4)\n-    amount = models.DecimalField(\"成交金额(元)\", max_digits=15, decimal_places=2)\n-\n-    # 费用\n-    commission = models.DecimalField(\"手续费(元)\", max_digits=10, decimal_places=2, default=0)\n-    transfer_fee = models.DecimalField(\n-        \"过户费(元)\", max_digits=10, decimal_places=2, null=True, blank=True\n-    )\n-    stamp_duty = models.DecimalField(\n-        \"印花税(元)\", max_digits=10, decimal_places=2, null=True, blank=True\n-    )\n-    slippage = models.DecimalField(\"滑点损失(元)\", max_digits=10, decimal_places=2, default=0)\n-    total_cost = models.DecimalField(\"总成本(元)\", max_digits=15, decimal_places=2)\n-\n-    # 盈亏(仅SELL时有)\n-    realized_pnl = models.DecimalField(\n-        \"已实现盈亏(元)\", max_digits=15, decimal_places=2, null=True, blank=True\n-    )\n-    realized_pnl_pct = models.FloatField(\"已实现盈亏率(%)\", null=True, blank=True)\n-\n-    # 交易原因\n-    reason = models.CharField(\"交易原因\", max_length=200, blank=True)\n-    signal_id = models.IntegerField(\"关联信号ID\", null=True, blank=True)\n-\n-    # 时间信息\n-    order_date = models.DateField(\"订单日期\", db_index=True)\n-    execution_date = models.DateField(\"执行日期\")\n-    execution_time = models.DateTimeField(\"执行时间\", auto_now_add=True)\n-\n-    # 状态\n-    status = models.CharField(\n-        \"订单状态\",\n-        max_length=20,\n-        choices=[\n-            (\"pending\", \"待执行\"),\n-            (\"executed\", \"已执行\"),\n-            (\"cancelled\", \"已取消\"),\n-            (\"failed\", \"执行失败\"),\n-        ],\n-        default=\"pending\",\n-    )\n-\n-    # 元数据\n-    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n-\n-    # Exact metadata for the new settlement-bound normal-simulation UoW. Legacy\n-    # and imported facts leave these columns NULL and are never backfilled.\n-    idempotency_key = models.CharField(max_length=128, null=True, blank=True)\n-    request_payload_hash = models.CharField(max_length=64, null=True, blank=True)\n-    fee_config_id = models.PositiveBigIntegerField(null=True, blank=True)\n-    fee_schedule_hash = models.CharField(max_length=64, null=True, blank=True)\n-    fee_schedule_snapshot = models.JSONField(null=True, blank=True)\n-    fee_precision_basis = models.CharField(max_length=32, null=True, blank=True)\n-    fee_calculation_purpose = models.CharField(max_length=32, null=True, blank=True)\n-    fee_rounding_policy = models.CharField(max_length=48, null=True, blank=True)\n-    settlement_status = models.CharField(\n-        max_length=12,\n-        choices=[(\"pending\", \"待结算\"), (\"released\", \"已结算\")],\n-        null=True,\n-        blank=True,\n-    )\n-    settlement_security_id = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_market = models.CharField(max_length=32, null=True, blank=True)\n-    settlement_exchange = models.CharField(max_length=32, null=True, blank=True)\n-    settlement_board = models.CharField(max_length=32, null=True, blank=True)\n-    settlement_market_session = models.DateField(null=True, blank=True)\n-    settlement_lag_sessions = models.PositiveIntegerField(null=True, blank=True)\n-    settlement_plan_binding_version = models.PositiveSmallIntegerField(default=0)\n-    settlement_plan_binding_payload = models.JSONField(null=True, blank=True)\n-    settlement_plan_binding_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_bundle_id = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_bundle_version = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_bundle_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_policy_id = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_policy_version = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n-    execution_rule_v2_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_release_date = models.DateField(null=True, blank=True)\n-    settlement_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)\n-    settlement_calendar_content_hash = models.CharField(max_length=71, null=True, blank=True)\n-    settlement_calendar_record_digest = models.CharField(max_length=71, null=True, blank=True)\n-    settlement_calendar_publication_id = models.CharField(max_length=192, null=True, blank=True)\n-    settlement_calendar_publication_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_calendar_evidence_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_released_at = models.DateTimeField(null=True, blank=True)\n-    settlement_release_session = models.DateField(null=True, blank=True)\n-    settlement_release_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)\n-    settlement_release_calendar_content_hash = models.CharField(\n-        max_length=71, null=True, blank=True\n-    )\n-    settlement_release_calendar_record_digest = models.CharField(\n-        max_length=71, null=True, blank=True\n-    )\n-    settlement_release_calendar_publication_id = models.CharField(\n-        max_length=192, null=True, blank=True\n-    )\n-    settlement_release_calendar_publication_hash = models.CharField(\n-        max_length=64, null=True, blank=True\n-    )\n-    settlement_release_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n-    settlement_release_calendar_evidence_hash = models.CharField(\n-        max_length=64, null=True, blank=True\n-    )\n-    settlement_release_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)\n-\n-    class Meta:\n-        db_table = \"simulated_trade\"\n-        verbose_name = \"模拟交易记录\"\n-        verbose_name_plural = \"模拟交易记录\"\n-        ordering = [\"-execution_date\", \"-execution_time\"]\n-        indexes = [\n-            models.Index(fields=[\"account\", \"-execution_date\"]),\n-            models.Index(fields=[\"asset_code\", \"-execution_date\"]),\n-            models.Index(fields=[\"-execution_date\"]),\n-            models.Index(\n-                fields=[\"account\", \"asset_code\", \"settlement_status\", \"settlement_market_session\"],\n-                name=\"sim_trade_settle_due_ix\",\n-            ),\n-        ]\n-        constraints = [\n-            models.UniqueConstraint(\n-                fields=(\"account\", \"idempotency_key\"),\n-                condition=Q(idempotency_key__isnull=False),\n-                name=\"sim_trade_account_idemp_uq\",\n-            ),\n-            models.CheckConstraint(\n-                condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True)\n-                | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False),\n-                name=\"sim_trade_idemp_pair_ck\",\n-            ),\n-            models.CheckConstraint(\n-                condition=Q(\n-                    settlement_plan_binding_version=0,\n-                    settlement_plan_binding_payload__isnull=True,\n-                    settlement_plan_binding_hash__isnull=True,\n-                    settlement_exchange__isnull=True,\n-                )\n-                | Q(\n-                    settlement_plan_binding_version=1,\n-                    idempotency_key__isnull=False,\n-                    request_payload_hash__isnull=False,\n-                    settlement_plan_binding_payload__isnull=False,\n-                    settlement_plan_binding_hash__isnull=False,\n-                    settlement_exchange__isnull=True,\n-                )\n-                | Q(\n-                    settlement_plan_binding_version=2,\n-                    idempotency_key__isnull=False,\n-                    request_payload_hash__isnull=False,\n-                    settlement_plan_binding_payload__isnull=False,\n-                    settlement_plan_binding_hash__isnull=False,\n-                    settlement_exchange__isnull=False,\n-                ),\n-                name=\"sim_trade_plan_binding_pair_ck\",\n-            ),\n-            models.CheckConstraint(\n-                condition=Q(\n-                    idempotency_key__isnull=True,\n-                    fee_config_id__isnull=True,\n-                    fee_schedule_hash__isnull=True,\n-                    fee_schedule_snapshot__isnull=True,\n-                    fee_precision_basis__isnull=True,\n-                    fee_calculation_purpose__isnull=True,\n-                    fee_rounding_policy__isnull=True,\n-                    settlement_market_session__isnull=True,\n-                    settlement_security_id__isnull=True,\n-                    settlement_market__isnull=True,\n-                    settlement_exchange__isnull=True,\n-                    settlement_board__isnull=True,\n-                    settlement_lag_sessions__isnull=True,\n-                    settlement_bundle_id__isnull=True,\n-                    settlement_bundle_version__isnull=True,\n-                    settlement_bundle_hash__isnull=True,\n-                    settlement_policy_id__isnull=True,\n-                    settlement_policy_version__isnull=True,\n-                    settlement_policy_hash__isnull=True,\n-                    execution_rule_v2_hash__isnull=True,\n-                    settlement_calendar_snapshot_id__isnull=True,\n-                    settlement_calendar_content_hash__isnull=True,\n-                    settlement_calendar_record_digest__isnull=True,\n-                    settlement_calendar_publication_id__isnull=True,\n-                    settlement_calendar_publication_hash__isnull=True,\n-                    settlement_calendar_policy_hash__isnull=True,\n-                    settlement_calendar_evidence_hash__isnull=True,\n-                    settlement_calendar_timezone__isnull=True,\n-                )\n-                | Q(\n-                    idempotency_key__isnull=False,\n-                    fee_config_id__isnull=False,\n-                    fee_schedule_hash__isnull=False,\n-                    fee_schedule_snapshot__isnull=False,\n-                    fee_precision_basis__isnull=False,\n-                    fee_calculation_purpose__isnull=False,\n-                    fee_rounding_policy__isnull=False,\n-                    settlement_market_session__isnull=False,\n-                    settlement_security_id__isnull=False,\n-                    settlement_market__isnull=False,\n-                    settlement_board__isnull=False,\n-                    settlement_lag_sessions__isnull=False,\n-                    settlement_bundle_id__isnull=False,\n-                    settlement_bundle_version__isnull=False,\n-                    settlement_bundle_hash__isnull=False,\n-                    settlement_policy_id__isnull=False,\n-                    settlement_policy_version__isnull=False,\n-                    settlement_policy_hash__isnull=False,\n-                    execution_rule_v2_hash__isnull=False,\n-                    settlement_calendar_snapshot_id__isnull=False,\n-                    settlement_calendar_content_hash__isnull=False,\n-                    settlement_calendar_record_digest__isnull=False,\n-                    settlement_calendar_publication_id__isnull=False,\n-                    settlement_calendar_publication_hash__isnull=False,\n-                    settlement_calendar_policy_hash__isnull=False,\n-                    settlement_calendar_evidence_hash__isnull=False,\n-                    settlement_calendar_timezone__isnull=False,\n-                ),\n-                name=\"sim_trade_uow_binding_ck\",\n-            ),\n-            models.CheckConstraint(\n-                condition=Q(\n-                    idempotency_key__isnull=True,\n-                    settlement_status__isnull=True,\n-                    settlement_release_date__isnull=True,\n-                    settlement_released_at__isnull=True,\n-                    settlement_release_session__isnull=True,\n-                    settlement_release_calendar_snapshot_id__isnull=True,\n-                    settlement_release_calendar_content_hash__isnull=True,\n-                    settlement_release_calendar_record_digest__isnull=True,\n-                    settlement_release_calendar_publication_id__isnull=True,\n-                    settlement_release_calendar_publication_hash__isnull=True,\n-                    settlement_release_calendar_policy_hash__isnull=True,\n-                    settlement_release_calendar_evidence_hash__isnull=True,\n-                    settlement_release_calendar_timezone__isnull=True,\n-                )\n-                | Q(\n-                    action=\"sell\",\n-                    idempotency_key__isnull=False,\n-                    settlement_status__isnull=True,\n-                    settlement_release_date__isnull=True,\n-                    settlement_released_at__isnull=True,\n-                    settlement_release_session__isnull=True,\n-                    settlement_release_calendar_snapshot_id__isnull=True,\n-                    settlement_release_calendar_content_hash__isnull=True,\n-                    settlement_release_calendar_record_digest__isnull=True,\n-                    settlement_release_calendar_publication_id__isnull=True,\n-                    settlement_release_calendar_publication_hash__isnull=True,\n-                    settlement_release_calendar_policy_hash__isnull=True,\n-                    settlement_release_calendar_evidence_hash__isnull=True,\n-                    settlement_release_calendar_timezone__isnull=True,\n-                )\n-                | Q(\n-                    action=\"buy\",\n-                    settlement_status=\"pending\",\n-                    settlement_release_date__isnull=False,\n-                    settlement_released_at__isnull=True,\n-                    settlement_release_session__isnull=True,\n-                    settlement_release_calendar_snapshot_id__isnull=True,\n-                    settlement_release_calendar_content_hash__isnull=True,\n-                    settlement_release_calendar_record_digest__isnull=True,\n-                    settlement_release_calendar_publication_id__isnull=True,\n-                    settlement_release_calendar_publication_hash__isnull=True,\n-                    settlement_release_calendar_policy_hash__isnull=True,\n-                    settlement_release_calendar_evidence_hash__isnull=True,\n-                    settlement_release_calendar_timezone__isnull=True,\n-                )\n-                | Q(\n-                    action=\"buy\",\n-                    settlement_status=\"released\",\n-                    settlement_release_date__isnull=False,\n-                    settlement_released_at__isnull=False,\n-                    settlement_release_session__isnull=False,\n-                    settlement_release_calendar_snapshot_id__isnull=False,\n-                    settlement_release_calendar_content_hash__isnull=False,\n-                    settlement_release_calendar_record_digest__isnull=False,\n-                    settlement_release_calendar_publication_id__isnull=False,\n-                    settlement_release_calendar_publication_hash__isnull=False,\n-                    settlement_release_calendar_policy_hash__isnull=False,\n-                    settlement_release_calendar_evidence_hash__isnull=False,\n-                    settlement_release_calendar_timezone__isnull=False,\n-                ),\n-                name=\"sim_trade_settlement_release_ck\",\n-            ),\n-        ]\n-\n-    def __str__(self) -> str:\n-        return f\"{self.get_action_display()} {self.asset_name} x{self.quantity} @ {self.execution_date}\"\n+# Import here to preserve the models' historical Django registration point.\n+from .simulated_account_trade_models import PositionModel as PositionModel\n+from .simulated_account_trade_models import SimulatedAccountModel as SimulatedAccountModel\n+from .simulated_account_trade_models import SimulatedTradeModel as SimulatedTradeModel\n \n \n class FeeConfigQuerySet(models.QuerySet[\"FeeConfigModel\"]):\ndiff --git a/apps/simulated_trading/infrastructure/simulated_account_trade_models.py b/apps/simulated_trading/infrastructure/simulated_account_trade_models.py\nnew file mode 100644\nindex 000000000..9361a695f\n--- /dev/null\n+++ b/apps/simulated_trading/infrastructure/simulated_account_trade_models.py\n@@ -0,0 +1,500 @@\n+\"\"\"Account, position, and trade ORM models for simulated trading.\"\"\"\n+\n+from __future__ import annotations\n+\n+from django.conf import settings\n+from django.db import models\n+from django.db.models import Q\n+\n+\n+class SimulatedAccountModel(models.Model):\n+    \"\"\"\n+    投资组合账户模型（统一）\n+\n+    ⭐ 重构说明：\n+    - 统一管理实仓和模拟仓\n+    - 用户可以创建多个投资组合\n+    - 每个投资组合可以选择类型：real（实仓）或 simulated（模拟仓）\n+    - 替代老的 PortfolioModel 系统\n+    \"\"\"\n+\n+    # Data migration 0013 assigns a default user to existing null records.\n+    # Kept nullable until use cases and mappers pass user consistently.\n+    user = models.ForeignKey(\n+        settings.AUTH_USER_MODEL,\n+        on_delete=models.CASCADE,\n+        related_name=\"investment_accounts\",\n+        verbose_name=\"用户\",\n+        db_index=True,\n+        null=True,\n+        blank=True,\n+    )\n+\n+    account_name = models.CharField(\"账户名称\", max_length=100)  # ⭐ 删除 unique 约束\n+    account_type = models.CharField(\n+        \"账户类型\",\n+        max_length=20,\n+        choices=[\n+            (\"real\", \"实仓\"),\n+            (\"simulated\", \"模拟仓\"),\n+        ],\n+        default=\"simulated\",\n+        db_index=True,\n+    )\n+\n+    # 资金信息\n+    initial_capital = models.DecimalField(\"初始资金(元)\", max_digits=15, decimal_places=2)\n+    current_cash = models.DecimalField(\"当前现金(元)\", max_digits=15, decimal_places=2)\n+    current_market_value = models.DecimalField(\n+        \"当前持仓市值(元)\", max_digits=15, decimal_places=2, default=0\n+    )\n+    total_value = models.DecimalField(\"总资产(元)\", max_digits=15, decimal_places=2)\n+\n+    # 绩效指标\n+    total_return = models.FloatField(\"总收益率(%)\", default=0.0)\n+    annual_return = models.FloatField(\"年化收益率(%)\", default=0.0)\n+    max_drawdown = models.FloatField(\"最大回撤(%)\", default=0.0)\n+    sharpe_ratio = models.FloatField(\"夏普比率\", default=0.0)\n+    win_rate = models.FloatField(\"胜率(%)\", default=0.0)\n+\n+    # 交易统计\n+    total_trades = models.IntegerField(\"总交易次数\", default=0)\n+    winning_trades = models.IntegerField(\"盈利交易次数\", default=0)\n+\n+    # 时间信息\n+    start_date = models.DateField(\"开始日期\", auto_now_add=True)\n+    last_trade_date = models.DateField(\"最后交易日期\", null=True, blank=True)\n+    is_active = models.BooleanField(\"是否激活\", default=True, db_index=True)\n+\n+    # 策略配置\n+    auto_trading_enabled = models.BooleanField(\"启用自动交易\", default=True)\n+    max_position_pct = models.FloatField(\"单资产最大持仓比例(%)\", default=20.0)\n+    max_total_position_pct = models.FloatField(\"总持仓比例上限(%)\", default=95.0)\n+    stop_loss_pct = models.FloatField(\"止损比例(%)\", null=True, blank=True)\n+\n+    # 关联策略（可选）- 临时注释以修复 migration 问题\n+    # active_strategy = models.ForeignKey(\n+    #     'strategy.StrategyModel',\n+    #     on_delete=models.SET_NULL,\n+    #     null=True,\n+    #     blank=True,\n+    #     related_name='portfolios',\n+    #     verbose_name=\"激活策略\",\n+    #     help_text=\"绑定策略后，自动交易将使用策略引擎执行\",\n+    #     db_index=True\n+    # )\n+\n+    # 费用配置\n+    commission_rate = models.FloatField(\"手续费率\", default=0.0003)\n+    slippage_rate = models.FloatField(\"滑点率\", default=0.001)\n+\n+    # 元数据\n+    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n+    updated_at = models.DateTimeField(\"更新时间\", auto_now=True)\n+\n+    class Meta:\n+        db_table = \"simulated_account\"\n+        verbose_name = \"投资组合账户\"\n+        verbose_name_plural = \"投资组合账户\"\n+        ordering = [\"-created_at\"]\n+        indexes = [\n+            models.Index(fields=[\"user\", \"-created_at\"]),\n+            models.Index(fields=[\"user\", \"account_type\"]),\n+            models.Index(fields=[\"user\", \"is_active\"]),\n+            models.Index(fields=[\"is_active\", \"auto_trading_enabled\"]),\n+            models.Index(fields=[\"-start_date\"]),\n+            # models.Index(fields=[\"active_strategy\", \"is_active\"]),  # 临时注释\n+        ]\n+\n+    def __str__(self) -> str:\n+        type_label = \"实仓\" if self.account_type == \"real\" else \"模拟仓\"\n+        return f\"{self.account_name} ({type_label})\"\n+\n+\n+class PositionModel(models.Model):\n+    \"\"\"持仓模型\"\"\"\n+\n+    account = models.ForeignKey(\n+        SimulatedAccountModel,\n+        on_delete=models.CASCADE,\n+        related_name=\"positions\",\n+        verbose_name=\"所属账户\",\n+    )\n+\n+    asset_code = models.CharField(\"资产代码\", max_length=20, db_index=True)\n+    asset_name = models.CharField(\"资产名称\", max_length=100)\n+    asset_type = models.CharField(\n+        \"资产类型\", max_length=20, choices=[(\"equity\", \"股票\"), (\"fund\", \"基金\"), (\"bond\", \"债券\")]\n+    )\n+\n+    # 持仓数量 (DecimalField 支持非整数股份，兼容旧账本浮点 shares)\n+    quantity = models.DecimalField(\"持仓数量\", max_digits=20, decimal_places=6)\n+    available_quantity = models.DecimalField(\"可卖数量\", max_digits=20, decimal_places=6)\n+\n+    # 成本信息\n+    avg_cost = models.DecimalField(\"平均成本(元)\", max_digits=10, decimal_places=4)\n+    total_cost = models.DecimalField(\"总成本(元)\", max_digits=15, decimal_places=2)\n+\n+    # 当前信息\n+    current_price = models.DecimalField(\"当前价格(元)\", max_digits=10, decimal_places=4)\n+    market_value = models.DecimalField(\"市值(元)\", max_digits=15, decimal_places=2)\n+\n+    # 盈亏信息\n+    unrealized_pnl = models.DecimalField(\"浮动盈亏(元)\", max_digits=15, decimal_places=2, default=0)\n+    unrealized_pnl_pct = models.FloatField(\"浮动盈亏率(%)\", default=0.0)\n+\n+    # 时间信息\n+    first_buy_date = models.DateField(\"首次买入日期\")\n+    last_update_date = models.DateField(\"最后更新日期\", auto_now=True)\n+\n+    # 关联信号\n+    signal_id = models.IntegerField(\"关联信号ID\", null=True, blank=True)\n+    entry_reason = models.CharField(\"入场原因\", max_length=200, blank=True)\n+\n+    # ==================== 证伪条件跟踪 ====================\n+    # 从信号继承的证伪条件（副本，即使信号被删除也不影响）\n+    invalidation_rule_json = models.JSONField(\n+        \"证伪规则\", null=True, blank=True, help_text=\"从信号继承的结构化证伪规则\"\n+    )\n+    invalidation_description = models.TextField(\n+        \"证伪描述\", blank=True, help_text=\"人类可读的证伪条件描述\"\n+    )\n+\n+    # 证伪状态\n+    is_invalidated = models.BooleanField(\n+        \"是否已证伪\", default=False, db_index=True, help_text=\"证伪条件已满足，建议平仓\"\n+    )\n+    invalidation_reason = models.TextField(\"证伪原因\", blank=True, help_text=\"证伪原因说明\")\n+    invalidation_checked_at = models.DateTimeField(\n+        \"最后检查时间\", null=True, blank=True, help_text=\"最后一次检查证伪条件的时间\"\n+    )\n+    # =====================================================\n+\n+    # 元数据\n+    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n+    updated_at = models.DateTimeField(\"更新时间\", auto_now=True)\n+\n+    class Meta:\n+        db_table = \"simulated_position\"\n+        verbose_name = \"模拟持仓\"\n+        verbose_name_plural = \"模拟持仓\"\n+        ordering = [\"-market_value\"]\n+        unique_together = [[\"account\", \"asset_code\"]]\n+        indexes = [\n+            models.Index(fields=[\"account\", \"asset_code\"]),\n+            models.Index(fields=[\"-market_value\"]),\n+            models.Index(fields=[\"account\", \"is_invalidated\"]),  # 证伪状态查询\n+            models.Index(fields=[\"is_invalidated\", \"invalidation_checked_at\"]),  # 定期检查\n+        ]\n+\n+    def __str__(self) -> str:\n+        return f\"{self.asset_name} ({self.quantity})\"\n+\n+\n+class SimulatedTradeModel(models.Model):\n+    \"\"\"模拟交易记录模型\"\"\"\n+\n+    account = models.ForeignKey(\n+        SimulatedAccountModel,\n+        on_delete=models.CASCADE,\n+        related_name=\"trades\",\n+        verbose_name=\"所属账户\",\n+    )\n+\n+    # 资产信息\n+    asset_code = models.CharField(\"资产代码\", max_length=20, db_index=True)\n+    asset_name = models.CharField(\"资产名称\", max_length=100)\n+    asset_type = models.CharField(\"资产类型\", max_length=20)\n+\n+    # 交易信息\n+    action = models.CharField(\n+        \"交易动作\", max_length=10, choices=[(\"buy\", \"买入\"), (\"sell\", \"卖出\")]\n+    )\n+    quantity = models.DecimalField(\"交易数量\", max_digits=20, decimal_places=6)\n+    price = models.DecimalField(\"成交价格(元)\", max_digits=10, decimal_places=4)\n+    amount = models.DecimalField(\"成交金额(元)\", max_digits=15, decimal_places=2)\n+\n+    # 费用\n+    commission = models.DecimalField(\"手续费(元)\", max_digits=10, decimal_places=2, default=0)\n+    transfer_fee = models.DecimalField(\n+        \"过户费(元)\", max_digits=10, decimal_places=2, null=True, blank=True\n+    )\n+    stamp_duty = models.DecimalField(\n+        \"印花税(元)\", max_digits=10, decimal_places=2, null=True, blank=True\n+    )\n+    slippage = models.DecimalField(\"滑点损失(元)\", max_digits=10, decimal_places=2, default=0)\n+    total_cost = models.DecimalField(\"总成本(元)\", max_digits=15, decimal_places=2)\n+\n+    # 盈亏(仅SELL时有)\n+    realized_pnl = models.DecimalField(\n+        \"已实现盈亏(元)\", max_digits=15, decimal_places=2, null=True, blank=True\n+    )\n+    realized_pnl_pct = models.FloatField(\"已实现盈亏率(%)\", null=True, blank=True)\n+\n+    # 交易原因\n+    reason = models.CharField(\"交易原因\", max_length=200, blank=True)\n+    signal_id = models.IntegerField(\"关联信号ID\", null=True, blank=True)\n+\n+    # 时间信息\n+    order_date = models.DateField(\"订单日期\", db_index=True)\n+    execution_date = models.DateField(\"执行日期\")\n+    execution_time = models.DateTimeField(\"执行时间\", auto_now_add=True)\n+\n+    # 状态\n+    status = models.CharField(\n+        \"订单状态\",\n+        max_length=20,\n+        choices=[\n+            (\"pending\", \"待执行\"),\n+            (\"executed\", \"已执行\"),\n+            (\"cancelled\", \"已取消\"),\n+            (\"failed\", \"执行失败\"),\n+        ],\n+        default=\"pending\",\n+    )\n+\n+    # 元数据\n+    created_at = models.DateTimeField(\"创建时间\", auto_now_add=True)\n+\n+    # Exact metadata for the new settlement-bound normal-simulation UoW. Legacy\n+    # and imported facts leave these columns NULL and are never backfilled.\n+    idempotency_key = models.CharField(max_length=128, null=True, blank=True)\n+    request_payload_hash = models.CharField(max_length=64, null=True, blank=True)\n+    fee_config_id = models.PositiveBigIntegerField(null=True, blank=True)\n+    fee_schedule_hash = models.CharField(max_length=64, null=True, blank=True)\n+    fee_schedule_snapshot = models.JSONField(null=True, blank=True)\n+    fee_precision_basis = models.CharField(max_length=32, null=True, blank=True)\n+    fee_calculation_purpose = models.CharField(max_length=32, null=True, blank=True)\n+    fee_rounding_policy = models.CharField(max_length=48, null=True, blank=True)\n+    settlement_status = models.CharField(\n+        max_length=12,\n+        choices=[(\"pending\", \"待结算\"), (\"released\", \"已结算\")],\n+        null=True,\n+        blank=True,\n+    )\n+    settlement_security_id = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_market = models.CharField(max_length=32, null=True, blank=True)\n+    settlement_exchange = models.CharField(max_length=32, null=True, blank=True)\n+    settlement_board = models.CharField(max_length=32, null=True, blank=True)\n+    settlement_market_session = models.DateField(null=True, blank=True)\n+    settlement_lag_sessions = models.PositiveIntegerField(null=True, blank=True)\n+    settlement_plan_binding_version = models.PositiveSmallIntegerField(default=0)\n+    settlement_plan_binding_payload = models.JSONField(null=True, blank=True)\n+    settlement_plan_binding_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_bundle_id = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_bundle_version = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_bundle_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_policy_id = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_policy_version = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n+    execution_rule_v2_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_release_date = models.DateField(null=True, blank=True)\n+    settlement_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)\n+    settlement_calendar_content_hash = models.CharField(max_length=71, null=True, blank=True)\n+    settlement_calendar_record_digest = models.CharField(max_length=71, null=True, blank=True)\n+    settlement_calendar_publication_id = models.CharField(max_length=192, null=True, blank=True)\n+    settlement_calendar_publication_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_calendar_evidence_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_released_at = models.DateTimeField(null=True, blank=True)\n+    settlement_release_session = models.DateField(null=True, blank=True)\n+    settlement_release_calendar_snapshot_id = models.CharField(max_length=36, null=True, blank=True)\n+    settlement_release_calendar_content_hash = models.CharField(\n+        max_length=71, null=True, blank=True\n+    )\n+    settlement_release_calendar_record_digest = models.CharField(\n+        max_length=71, null=True, blank=True\n+    )\n+    settlement_release_calendar_publication_id = models.CharField(\n+        max_length=192, null=True, blank=True\n+    )\n+    settlement_release_calendar_publication_hash = models.CharField(\n+        max_length=64, null=True, blank=True\n+    )\n+    settlement_release_calendar_policy_hash = models.CharField(max_length=64, null=True, blank=True)\n+    settlement_release_calendar_evidence_hash = models.CharField(\n+        max_length=64, null=True, blank=True\n+    )\n+    settlement_release_calendar_timezone = models.CharField(max_length=64, null=True, blank=True)\n+\n+    class Meta:\n+        db_table = \"simulated_trade\"\n+        verbose_name = \"模拟交易记录\"\n+        verbose_name_plural = \"模拟交易记录\"\n+        ordering = [\"-execution_date\", \"-execution_time\"]\n+        indexes = [\n+            models.Index(fields=[\"account\", \"-execution_date\"]),\n+            models.Index(fields=[\"asset_code\", \"-execution_date\"]),\n+            models.Index(fields=[\"-execution_date\"]),\n+            models.Index(\n+                fields=[\"account\", \"asset_code\", \"settlement_status\", \"settlement_market_session\"],\n+                name=\"sim_trade_settle_due_ix\",\n+            ),\n+        ]\n+        constraints = [\n+            models.UniqueConstraint(\n+                fields=(\"account\", \"idempotency_key\"),\n+                condition=Q(idempotency_key__isnull=False),\n+                name=\"sim_trade_account_idemp_uq\",\n+            ),\n+            models.CheckConstraint(\n+                condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True)\n+                | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False),\n+                name=\"sim_trade_idemp_pair_ck\",\n+            ),\n+            models.CheckConstraint(\n+                condition=Q(\n+                    settlement_plan_binding_version=0,\n+                    settlement_plan_binding_payload__isnull=True,\n+                    settlement_plan_binding_hash__isnull=True,\n+                    settlement_exchange__isnull=True,\n+                )\n+                | Q(\n+                    settlement_plan_binding_version=1,\n+                    idempotency_key__isnull=False,\n+                    request_payload_hash__isnull=False,\n+                    settlement_plan_binding_payload__isnull=False,\n+                    settlement_plan_binding_hash__isnull=False,\n+                    settlement_exchange__isnull=True,\n+                )\n+                | Q(\n+                    settlement_plan_binding_version=2,\n+                    idempotency_key__isnull=False,\n+                    request_payload_hash__isnull=False,\n+                    settlement_plan_binding_payload__isnull=False,\n+                    settlement_plan_binding_hash__isnull=False,\n+                    settlement_exchange__isnull=False,\n+                ),\n+                name=\"sim_trade_plan_binding_pair_ck\",\n+            ),\n+            models.CheckConstraint(\n+                condition=Q(\n+                    idempotency_key__isnull=True,\n+                    fee_config_id__isnull=True,\n+                    fee_schedule_hash__isnull=True,\n+                    fee_schedule_snapshot__isnull=True,\n+                    fee_precision_basis__isnull=True,\n+                    fee_calculation_purpose__isnull=True,\n+                    fee_rounding_policy__isnull=True,\n+                    settlement_market_session__isnull=True,\n+                    settlement_security_id__isnull=True,\n+                    settlement_market__isnull=True,\n+                    settlement_exchange__isnull=True,\n+                    settlement_board__isnull=True,\n+                    settlement_lag_sessions__isnull=True,\n+                    settlement_bundle_id__isnull=True,\n+                    settlement_bundle_version__isnull=True,\n+                    settlement_bundle_hash__isnull=True,\n+                    settlement_policy_id__isnull=True,\n+                    settlement_policy_version__isnull=True,\n+                    settlement_policy_hash__isnull=True,\n+                    execution_rule_v2_hash__isnull=True,\n+                    settlement_calendar_snapshot_id__isnull=True,\n+                    settlement_calendar_content_hash__isnull=True,\n+                    settlement_calendar_record_digest__isnull=True,\n+                    settlement_calendar_publication_id__isnull=True,\n+                    settlement_calendar_publication_hash__isnull=True,\n+                    settlement_calendar_policy_hash__isnull=True,\n+                    settlement_calendar_evidence_hash__isnull=True,\n+                    settlement_calendar_timezone__isnull=True,\n+                )\n+                | Q(\n+                    idempotency_key__isnull=False,\n+                    fee_config_id__isnull=False,\n+                    fee_schedule_hash__isnull=False,\n+                    fee_schedule_snapshot__isnull=False,\n+                    fee_precision_basis__isnull=False,\n+                    fee_calculation_purpose__isnull=False,\n+                    fee_rounding_policy__isnull=False,\n+                    settlement_market_session__isnull=False,\n+                    settlement_security_id__isnull=False,\n+                    settlement_market__isnull=False,\n+                    settlement_board__isnull=False,\n+                    settlement_lag_sessions__isnull=False,\n+                    settlement_bundle_id__isnull=False,\n+                    settlement_bundle_version__isnull=False,\n+                    settlement_bundle_hash__isnull=False,\n+                    settlement_policy_id__isnull=False,\n+                    settlement_policy_version__isnull=False,\n+                    settlement_policy_hash__isnull=False,\n+                    execution_rule_v2_hash__isnull=False,\n+                    settlement_calendar_snapshot_id__isnull=False,\n+                    settlement_calendar_content_hash__isnull=False,\n+                    settlement_calendar_record_digest__isnull=False,\n+                    settlement_calendar_publication_id__isnull=False,\n+                    settlement_calendar_publication_hash__isnull=False,\n+                    settlement_calendar_policy_hash__isnull=False,\n+                    settlement_calendar_evidence_hash__isnull=False,\n+                    settlement_calendar_timezone__isnull=False,\n+                ),\n+                name=\"sim_trade_uow_binding_ck\",\n+            ),\n+            models.CheckConstraint(\n+                condition=Q(\n+                    idempotency_key__isnull=True,\n+                    settlement_status__isnull=True,\n+                    settlement_release_date__isnull=True,\n+                    settlement_released_at__isnull=True,\n+                    settlement_release_session__isnull=True,\n+                    settlement_release_calendar_snapshot_id__isnull=True,\n+                    settlement_release_calendar_content_hash__isnull=True,\n+                    settlement_release_calendar_record_digest__isnull=True,\n+                    settlement_release_calendar_publication_id__isnull=True,\n+                    settlement_release_calendar_publication_hash__isnull=True,\n+                    settlement_release_calendar_policy_hash__isnull=True,\n+                    settlement_release_calendar_evidence_hash__isnull=True,\n+                    settlement_release_calendar_timezone__isnull=True,\n+                )\n+                | Q(\n+                    action=\"sell\",\n+                    idempotency_key__isnull=False,\n+                    settlement_status__isnull=True,\n+                    settlement_release_date__isnull=True,\n+                    settlement_released_at__isnull=True,\n+                    settlement_release_session__isnull=True,\n+                    settlement_release_calendar_snapshot_id__isnull=True,\n+                    settlement_release_calendar_content_hash__isnull=True,\n+                    settlement_release_calendar_record_digest__isnull=True,\n+                    settlement_release_calendar_publication_id__isnull=True,\n+                    settlement_release_calendar_publication_hash__isnull=True,\n+                    settlement_release_calendar_policy_hash__isnull=True,\n+                    settlement_release_calendar_evidence_hash__isnull=True,\n+                    settlement_release_calendar_timezone__isnull=True,\n+                )\n+                | Q(\n+                    action=\"buy\",\n+                    settlement_status=\"pending\",\n+                    settlement_release_date__isnull=False,\n+                    settlement_released_at__isnull=True,\n+                    settlement_release_session__isnull=True,\n+                    settlement_release_calendar_snapshot_id__isnull=True,\n+                    settlement_release_calendar_content_hash__isnull=True,\n+                    settlement_release_calendar_record_digest__isnull=True,\n+                    settlement_release_calendar_publication_id__isnull=True,\n+                    settlement_release_calendar_publication_hash__isnull=True,\n+                    settlement_release_calendar_policy_hash__isnull=True,\n+                    settlement_release_calendar_evidence_hash__isnull=True,\n+                    settlement_release_calendar_timezone__isnull=True,\n+                )\n+                | Q(\n+                    action=\"buy\",\n+                    settlement_status=\"released\",\n+                    settlement_release_date__isnull=False,\n+                    settlement_released_at__isnull=False,\n+                    settlement_release_session__isnull=False,\n+                    settlement_release_calendar_snapshot_id__isnull=False,\n+                    settlement_release_calendar_content_hash__isnull=False,\n+                    settlement_release_calendar_record_digest__isnull=False,\n+                    settlement_release_calendar_publication_id__isnull=False,\n+                    settlement_release_calendar_publication_hash__isnull=False,\n+                    settlement_release_calendar_policy_hash__isnull=False,\n+                    settlement_release_calendar_evidence_hash__isnull=False,\n+                    settlement_release_calendar_timezone__isnull=False,\n+                ),\n+                name=\"sim_trade_settlement_release_ck\",\n+            ),\n+        ]\n+\n+    def __str__(self) -> str:\n+        return f\"{self.get_action_display()} {self.asset_name} x{self.quantity} @ {self.execution_date}\"\ndiff --git a/tests/unit/simulated_trading/test_simulated_model_registration.py b/tests/unit/simulated_trading/test_simulated_model_registration.py\nnew file mode 100644\nindex 000000000..fb0ee1ed3\n--- /dev/null\n+++ b/tests/unit/simulated_trading/test_simulated_model_registration.py\n@@ -0,0 +1,71 @@\n+\"\"\"Django app-registry identity checks for the extracted simulated models.\"\"\"\n+\n+from __future__ import annotations\n+\n+from importlib import import_module\n+from types import ModuleType\n+from typing import cast\n+\n+from django.apps import apps\n+from django.db.models import Model\n+\n+from apps.simulated_trading import models as public_models\n+from apps.simulated_trading.infrastructure import models as infrastructure_models\n+\n+_EXPECTED_REGISTERED_MODEL_NAMES: tuple[str, ...] = (\n+    \"SimulatedAccountRawObservationModel\",\n+    \"SimulatedAccountRowSourceModel\",\n+    \"SimulatedAccountRowSourceV2Model\",\n+    \"SimulatedAccountModel\",\n+    \"PositionModel\",\n+    \"SimulatedTradeModel\",\n+    \"FeeConfigModel\",\n+    \"DailyInspectionReportModel\",\n+    \"DailyInspectionNotificationConfigModel\",\n+    \"DailyNetValueModel\",\n+    \"RebalanceProposalModel\",\n+    \"NotificationHistoryModel\",\n+    \"LedgerMigrationMapModel\",\n+    \"AccountBenchmarkComponentModel\",\n+    \"UnifiedAccountCashFlowModel\",\n+    \"AccountPositionValuationSnapshotModel\",\n+)\n+\n+_MOVED_MODELS: tuple[tuple[str, str], ...] = (\n+    (\"SimulatedAccountModel\", \"simulated_account\"),\n+    (\"PositionModel\", \"simulated_position\"),\n+    (\"SimulatedTradeModel\", \"simulated_trade\"),\n+)\n+\n+\n+def test_simulated_models_keep_one_registered_identity() -> None:\n+    \"\"\"All compatibility paths share the original class objects and app order.\"\"\"\n+\n+    registry_models: tuple[type[Model], ...] = tuple(\n+        apps.get_app_config(\"simulated_trading\").get_models()\n+    )\n+    assert tuple(model.__name__ for model in registry_models) == _EXPECTED_REGISTERED_MODEL_NAMES\n+\n+    extracted_models: ModuleType = import_module(\n+        \"apps.simulated_trading.infrastructure.simulated_account_trade_models\"\n+    )\n+    compatibility_modules: tuple[ModuleType, ...] = (\n+        public_models,\n+        infrastructure_models,\n+        extracted_models,\n+    )\n+\n+    for model_name, expected_table in _MOVED_MODELS:\n+        registered_model = cast(type[Model], apps.get_model(\"simulated_trading\", model_name))\n+\n+        assert all(\n+            getattr(module, model_name) is registered_model for module in compatibility_modules\n+        )\n+        assert registered_model._meta.app_label == \"simulated_trading\"\n+        assert registered_model._meta.db_table == expected_table\n+        assert sum(model is registered_model for model in registry_models) == 1\n+        assert sum(model.__name__ == model_name for model in registry_models) == 1\n+\n+    position_model = cast(type[Model], apps.get_model(\"simulated_trading\", \"PositionModel\"))\n+    assert infrastructure_models.SimulatedPositionModel is position_model\n+    assert public_models.SimulatedPositionModel is position_model\n",
+    "reconstructs_exact_tree": true
+  },
+  "qualification": "Local bounded model relocation only; no PG rerun, CI/S6, deployment, live source or broker authority; four/nine failures remain."
+}

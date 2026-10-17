@@ -13637,38 +13637,6 @@
 | `sent_at` | `DateTimeField` | 是 |  |  | 发送时间 |  |
 | `metadata` | `JSONField` |  |  | dict | 元数据 |  |
 
-### PositionModel
-
-- 来源文件：`apps/simulated_trading/infrastructure/models.py`
-- 数据表：`simulated_position`
-- 说明：持仓模型
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `account` | `ForeignKey` |  |  |  | 所属账户 | SimulatedAccountModel |
-| `asset_code` | `CharField` |  |  |  | 资产代码 |  |
-| `asset_name` | `CharField` |  |  |  | 资产名称 |  |
-| `asset_type` | `CharField` |  |  |  | 资产类型 |  |
-| `quantity` | `DecimalField` |  |  |  | 持仓数量 |  |
-| `available_quantity` | `DecimalField` |  |  |  | 可卖数量 |  |
-| `avg_cost` | `DecimalField` |  |  |  | 平均成本(元) |  |
-| `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
-| `current_price` | `DecimalField` |  |  |  | 当前价格(元) |  |
-| `market_value` | `DecimalField` |  |  |  | 市值(元) |  |
-| `unrealized_pnl` | `DecimalField` |  |  | 0 | 浮动盈亏(元) |  |
-| `unrealized_pnl_pct` | `FloatField` |  |  | 0.0 | 浮动盈亏率(%) |  |
-| `first_buy_date` | `DateField` |  |  |  | 首次买入日期 |  |
-| `last_update_date` | `DateField` |  |  |  | 最后更新日期 |  |
-| `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
-| `entry_reason` | `CharField` |  |  |  | 入场原因 |  |
-| `invalidation_rule_json` | `JSONField` | 是 |  |  | 从信号继承的结构化证伪规则 |  |
-| `invalidation_description` | `TextField` |  |  |  | 人类可读的证伪条件描述 |  |
-| `is_invalidated` | `BooleanField` |  |  | False | 证伪条件已满足，建议平仓 |  |
-| `invalidation_reason` | `TextField` |  |  |  | 证伪原因说明 |  |
-| `invalidation_checked_at` | `DateTimeField` | 是 |  |  | 最后一次检查证伪条件的时间 |  |
-| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
-| `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
-
 ### RebalanceProposalModel
 
 - 来源文件：`apps/simulated_trading/infrastructure/models.py`
@@ -13697,115 +13665,6 @@
 | `metadata` | `JSONField` |  |  | dict | 额外的上下文信息 |  |
 | `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
 | `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
-
-### SimulatedAccountModel
-
-- 来源文件：`apps/simulated_trading/infrastructure/models.py`
-- 数据表：`simulated_account`
-- 说明：投资组合账户模型（统一）
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `user` | `ForeignKey` | 是 |  |  | 用户 | settings.AUTH_USER_MODEL |
-| `account_name` | `CharField` |  |  |  | 账户名称 |  |
-| `account_type` | `CharField` |  |  | simulated | 账户类型 |  |
-| `initial_capital` | `DecimalField` |  |  |  | 初始资金(元) |  |
-| `current_cash` | `DecimalField` |  |  |  | 当前现金(元) |  |
-| `current_market_value` | `DecimalField` |  |  | 0 | 当前持仓市值(元) |  |
-| `total_value` | `DecimalField` |  |  |  | 总资产(元) |  |
-| `total_return` | `FloatField` |  |  | 0.0 | 总收益率(%) |  |
-| `annual_return` | `FloatField` |  |  | 0.0 | 年化收益率(%) |  |
-| `max_drawdown` | `FloatField` |  |  | 0.0 | 最大回撤(%) |  |
-| `sharpe_ratio` | `FloatField` |  |  | 0.0 | 夏普比率 |  |
-| `win_rate` | `FloatField` |  |  | 0.0 | 胜率(%) |  |
-| `total_trades` | `IntegerField` |  |  | 0 | 总交易次数 |  |
-| `winning_trades` | `IntegerField` |  |  | 0 | 盈利交易次数 |  |
-| `start_date` | `DateField` |  |  |  | 开始日期 |  |
-| `last_trade_date` | `DateField` | 是 |  |  | 最后交易日期 |  |
-| `is_active` | `BooleanField` |  |  | True | 是否激活 |  |
-| `auto_trading_enabled` | `BooleanField` |  |  | True | 启用自动交易 |  |
-| `max_position_pct` | `FloatField` |  |  | 20.0 | 单资产最大持仓比例(%) |  |
-| `max_total_position_pct` | `FloatField` |  |  | 95.0 | 总持仓比例上限(%) |  |
-| `stop_loss_pct` | `FloatField` | 是 |  |  | 止损比例(%) |  |
-| `commission_rate` | `FloatField` |  |  | 0.0003 | 手续费率 |  |
-| `slippage_rate` | `FloatField` |  |  | 0.001 | 滑点率 |  |
-| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
-| `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
-
-### SimulatedTradeModel
-
-- 来源文件：`apps/simulated_trading/infrastructure/models.py`
-- 数据表：`simulated_trade`
-- 说明：模拟交易记录模型
-
-| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `account` | `ForeignKey` |  |  |  | 所属账户 | SimulatedAccountModel |
-| `asset_code` | `CharField` |  |  |  | 资产代码 |  |
-| `asset_name` | `CharField` |  |  |  | 资产名称 |  |
-| `asset_type` | `CharField` |  |  |  | 资产类型 |  |
-| `action` | `CharField` |  |  |  | 交易动作 |  |
-| `quantity` | `DecimalField` |  |  |  | 交易数量 |  |
-| `price` | `DecimalField` |  |  |  | 成交价格(元) |  |
-| `amount` | `DecimalField` |  |  |  | 成交金额(元) |  |
-| `commission` | `DecimalField` |  |  | 0 | 手续费(元) |  |
-| `transfer_fee` | `DecimalField` | 是 |  |  | 过户费(元) |  |
-| `stamp_duty` | `DecimalField` | 是 |  |  | 印花税(元) |  |
-| `slippage` | `DecimalField` |  |  | 0 | 滑点损失(元) |  |
-| `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
-| `realized_pnl` | `DecimalField` | 是 |  |  | 已实现盈亏(元) |  |
-| `realized_pnl_pct` | `FloatField` | 是 |  |  | 已实现盈亏率(%) |  |
-| `reason` | `CharField` |  |  |  | 交易原因 |  |
-| `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
-| `order_date` | `DateField` |  |  |  | 订单日期 |  |
-| `execution_date` | `DateField` |  |  |  | 执行日期 |  |
-| `execution_time` | `DateTimeField` |  |  |  | 执行时间 |  |
-| `status` | `CharField` |  |  | pending | 订单状态 |  |
-| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
-| `idempotency_key` | `CharField` | 是 |  |  |  |  |
-| `request_payload_hash` | `CharField` | 是 |  |  |  |  |
-| `fee_config_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
-| `fee_schedule_hash` | `CharField` | 是 |  |  |  |  |
-| `fee_schedule_snapshot` | `JSONField` | 是 |  |  |  |  |
-| `fee_precision_basis` | `CharField` | 是 |  |  |  |  |
-| `fee_calculation_purpose` | `CharField` | 是 |  |  |  |  |
-| `fee_rounding_policy` | `CharField` | 是 |  |  |  |  |
-| `settlement_status` | `CharField` | 是 |  |  |  |  |
-| `settlement_security_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_market` | `CharField` | 是 |  |  |  |  |
-| `settlement_exchange` | `CharField` | 是 |  |  |  |  |
-| `settlement_board` | `CharField` | 是 |  |  |  |  |
-| `settlement_market_session` | `DateField` | 是 |  |  |  |  |
-| `settlement_lag_sessions` | `PositiveIntegerField` | 是 |  |  |  |  |
-| `settlement_plan_binding_version` | `PositiveSmallIntegerField` |  |  | 0 |  |  |
-| `settlement_plan_binding_payload` | `JSONField` | 是 |  |  |  |  |
-| `settlement_plan_binding_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_bundle_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_bundle_version` | `CharField` | 是 |  |  |  |  |
-| `settlement_bundle_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_policy_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_policy_version` | `CharField` | 是 |  |  |  |  |
-| `settlement_policy_hash` | `CharField` | 是 |  |  |  |  |
-| `execution_rule_v2_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_date` | `DateField` | 是 |  |  |  |  |
-| `settlement_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_calendar_timezone` | `CharField` | 是 |  |  |  |  |
-| `settlement_released_at` | `DateTimeField` | 是 |  |  |  |  |
-| `settlement_release_session` | `DateField` | 是 |  |  |  |  |
-| `settlement_release_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
-| `settlement_release_calendar_timezone` | `CharField` | 是 |  |  |  |  |
 
 ### UnifiedAccountCashFlowModel
 
@@ -13966,6 +13825,147 @@
 | `record_seal` | `CharField` |  | 是 |  |  |  |
 | `ledger_seal` | `CharField` |  | 是 |  |  |  |
 | `persisted_at` | `DateTimeField` |  |  |  |  |  |
+
+### PositionModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/simulated_account_trade_models.py`
+- 数据表：`simulated_position`
+- 说明：持仓模型
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  | 所属账户 | SimulatedAccountModel |
+| `asset_code` | `CharField` |  |  |  | 资产代码 |  |
+| `asset_name` | `CharField` |  |  |  | 资产名称 |  |
+| `asset_type` | `CharField` |  |  |  | 资产类型 |  |
+| `quantity` | `DecimalField` |  |  |  | 持仓数量 |  |
+| `available_quantity` | `DecimalField` |  |  |  | 可卖数量 |  |
+| `avg_cost` | `DecimalField` |  |  |  | 平均成本(元) |  |
+| `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
+| `current_price` | `DecimalField` |  |  |  | 当前价格(元) |  |
+| `market_value` | `DecimalField` |  |  |  | 市值(元) |  |
+| `unrealized_pnl` | `DecimalField` |  |  | 0 | 浮动盈亏(元) |  |
+| `unrealized_pnl_pct` | `FloatField` |  |  | 0.0 | 浮动盈亏率(%) |  |
+| `first_buy_date` | `DateField` |  |  |  | 首次买入日期 |  |
+| `last_update_date` | `DateField` |  |  |  | 最后更新日期 |  |
+| `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
+| `entry_reason` | `CharField` |  |  |  | 入场原因 |  |
+| `invalidation_rule_json` | `JSONField` | 是 |  |  | 从信号继承的结构化证伪规则 |  |
+| `invalidation_description` | `TextField` |  |  |  | 人类可读的证伪条件描述 |  |
+| `is_invalidated` | `BooleanField` |  |  | False | 证伪条件已满足，建议平仓 |  |
+| `invalidation_reason` | `TextField` |  |  |  | 证伪原因说明 |  |
+| `invalidation_checked_at` | `DateTimeField` | 是 |  |  | 最后一次检查证伪条件的时间 |  |
+| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
+| `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
+
+### SimulatedAccountModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/simulated_account_trade_models.py`
+- 数据表：`simulated_account`
+- 说明：投资组合账户模型（统一）
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `user` | `ForeignKey` | 是 |  |  | 用户 | settings.AUTH_USER_MODEL |
+| `account_name` | `CharField` |  |  |  | 账户名称 |  |
+| `account_type` | `CharField` |  |  | simulated | 账户类型 |  |
+| `initial_capital` | `DecimalField` |  |  |  | 初始资金(元) |  |
+| `current_cash` | `DecimalField` |  |  |  | 当前现金(元) |  |
+| `current_market_value` | `DecimalField` |  |  | 0 | 当前持仓市值(元) |  |
+| `total_value` | `DecimalField` |  |  |  | 总资产(元) |  |
+| `total_return` | `FloatField` |  |  | 0.0 | 总收益率(%) |  |
+| `annual_return` | `FloatField` |  |  | 0.0 | 年化收益率(%) |  |
+| `max_drawdown` | `FloatField` |  |  | 0.0 | 最大回撤(%) |  |
+| `sharpe_ratio` | `FloatField` |  |  | 0.0 | 夏普比率 |  |
+| `win_rate` | `FloatField` |  |  | 0.0 | 胜率(%) |  |
+| `total_trades` | `IntegerField` |  |  | 0 | 总交易次数 |  |
+| `winning_trades` | `IntegerField` |  |  | 0 | 盈利交易次数 |  |
+| `start_date` | `DateField` |  |  |  | 开始日期 |  |
+| `last_trade_date` | `DateField` | 是 |  |  | 最后交易日期 |  |
+| `is_active` | `BooleanField` |  |  | True | 是否激活 |  |
+| `auto_trading_enabled` | `BooleanField` |  |  | True | 启用自动交易 |  |
+| `max_position_pct` | `FloatField` |  |  | 20.0 | 单资产最大持仓比例(%) |  |
+| `max_total_position_pct` | `FloatField` |  |  | 95.0 | 总持仓比例上限(%) |  |
+| `stop_loss_pct` | `FloatField` | 是 |  |  | 止损比例(%) |  |
+| `commission_rate` | `FloatField` |  |  | 0.0003 | 手续费率 |  |
+| `slippage_rate` | `FloatField` |  |  | 0.001 | 滑点率 |  |
+| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
+| `updated_at` | `DateTimeField` |  |  |  | 更新时间 |  |
+
+### SimulatedTradeModel
+
+- 来源文件：`apps/simulated_trading/infrastructure/simulated_account_trade_models.py`
+- 数据表：`simulated_trade`
+- 说明：模拟交易记录模型
+
+| 字段 | 类型 | null | unique | 默认值 | 说明 | 关系目标 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `account` | `ForeignKey` |  |  |  | 所属账户 | SimulatedAccountModel |
+| `asset_code` | `CharField` |  |  |  | 资产代码 |  |
+| `asset_name` | `CharField` |  |  |  | 资产名称 |  |
+| `asset_type` | `CharField` |  |  |  | 资产类型 |  |
+| `action` | `CharField` |  |  |  | 交易动作 |  |
+| `quantity` | `DecimalField` |  |  |  | 交易数量 |  |
+| `price` | `DecimalField` |  |  |  | 成交价格(元) |  |
+| `amount` | `DecimalField` |  |  |  | 成交金额(元) |  |
+| `commission` | `DecimalField` |  |  | 0 | 手续费(元) |  |
+| `transfer_fee` | `DecimalField` | 是 |  |  | 过户费(元) |  |
+| `stamp_duty` | `DecimalField` | 是 |  |  | 印花税(元) |  |
+| `slippage` | `DecimalField` |  |  | 0 | 滑点损失(元) |  |
+| `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
+| `realized_pnl` | `DecimalField` | 是 |  |  | 已实现盈亏(元) |  |
+| `realized_pnl_pct` | `FloatField` | 是 |  |  | 已实现盈亏率(%) |  |
+| `reason` | `CharField` |  |  |  | 交易原因 |  |
+| `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
+| `order_date` | `DateField` |  |  |  | 订单日期 |  |
+| `execution_date` | `DateField` |  |  |  | 执行日期 |  |
+| `execution_time` | `DateTimeField` |  |  |  | 执行时间 |  |
+| `status` | `CharField` |  |  | pending | 订单状态 |  |
+| `created_at` | `DateTimeField` |  |  |  | 创建时间 |  |
+| `idempotency_key` | `CharField` | 是 |  |  |  |  |
+| `request_payload_hash` | `CharField` | 是 |  |  |  |  |
+| `fee_config_id` | `PositiveBigIntegerField` | 是 |  |  |  |  |
+| `fee_schedule_hash` | `CharField` | 是 |  |  |  |  |
+| `fee_schedule_snapshot` | `JSONField` | 是 |  |  |  |  |
+| `fee_precision_basis` | `CharField` | 是 |  |  |  |  |
+| `fee_calculation_purpose` | `CharField` | 是 |  |  |  |  |
+| `fee_rounding_policy` | `CharField` | 是 |  |  |  |  |
+| `settlement_status` | `CharField` | 是 |  |  |  |  |
+| `settlement_security_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_market` | `CharField` | 是 |  |  |  |  |
+| `settlement_exchange` | `CharField` | 是 |  |  |  |  |
+| `settlement_board` | `CharField` | 是 |  |  |  |  |
+| `settlement_market_session` | `DateField` | 是 |  |  |  |  |
+| `settlement_lag_sessions` | `PositiveIntegerField` | 是 |  |  |  |  |
+| `settlement_plan_binding_version` | `PositiveSmallIntegerField` |  |  | 0 |  |  |
+| `settlement_plan_binding_payload` | `JSONField` | 是 |  |  |  |  |
+| `settlement_plan_binding_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_bundle_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_bundle_version` | `CharField` | 是 |  |  |  |  |
+| `settlement_bundle_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_version` | `CharField` | 是 |  |  |  |  |
+| `settlement_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `execution_rule_v2_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_date` | `DateField` | 是 |  |  |  |  |
+| `settlement_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_calendar_timezone` | `CharField` | 是 |  |  |  |  |
+| `settlement_released_at` | `DateTimeField` | 是 |  |  |  |  |
+| `settlement_release_session` | `DateField` | 是 |  |  |  |  |
+| `settlement_release_calendar_snapshot_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_content_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_record_digest` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_publication_id` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_publication_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_policy_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_evidence_hash` | `CharField` | 是 |  |  |  |  |
+| `settlement_release_calendar_timezone` | `CharField` | 是 |  |  |  |  |
 
 
 ## strategy

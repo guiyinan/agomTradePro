@@ -85948,298 +85948,6 @@
           "bases": [
             "models.Model"
           ],
-          "class_name": "PositionModel",
-          "docstring": "持仓模型",
-          "fields": [
-            {
-              "field_type": "ForeignKey",
-              "kwargs": {
-                "on_delete": "models.CASCADE",
-                "related_name": "positions",
-                "verbose_name": "所属账户"
-              },
-              "name": "account",
-              "positional_args": [
-                "SimulatedAccountModel"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "asset_code",
-              "positional_args": [
-                "'资产代码'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 100
-              },
-              "name": "asset_name",
-              "positional_args": [
-                "'资产名称'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": [
-                  [
-                    "equity",
-                    "股票"
-                  ],
-                  [
-                    "fund",
-                    "基金"
-                  ],
-                  [
-                    "bond",
-                    "债券"
-                  ]
-                ],
-                "max_length": 20
-              },
-              "name": "asset_type",
-              "positional_args": [
-                "'资产类型'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 6,
-                "max_digits": 20
-              },
-              "name": "quantity",
-              "positional_args": [
-                "'持仓数量'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 6,
-                "max_digits": 20
-              },
-              "name": "available_quantity",
-              "positional_args": [
-                "'可卖数量'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 4,
-                "max_digits": 10
-              },
-              "name": "avg_cost",
-              "positional_args": [
-                "'平均成本(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "total_cost",
-              "positional_args": [
-                "'总成本(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 4,
-                "max_digits": 10
-              },
-              "name": "current_price",
-              "positional_args": [
-                "'当前价格(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "market_value",
-              "positional_args": [
-                "'市值(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "default": 0,
-                "max_digits": 15
-              },
-              "name": "unrealized_pnl",
-              "positional_args": [
-                "'浮动盈亏(元)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "unrealized_pnl_pct",
-              "positional_args": [
-                "'浮动盈亏率(%)'"
-              ]
-            },
-            {
-              "field_type": "DateField",
-              "name": "first_buy_date",
-              "positional_args": [
-                "'首次买入日期'"
-              ]
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "last_update_date",
-              "positional_args": [
-                "'最后更新日期'"
-              ]
-            },
-            {
-              "field_type": "IntegerField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "signal_id",
-              "null": true,
-              "positional_args": [
-                "'关联信号ID'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 200
-              },
-              "name": "entry_reason",
-              "positional_args": [
-                "'入场原因'"
-              ]
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "从信号继承的结构化证伪规则",
-                "null": true
-              },
-              "name": "invalidation_rule_json",
-              "null": true,
-              "positional_args": [
-                "'证伪规则'"
-              ]
-            },
-            {
-              "field_type": "TextField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "人类可读的证伪条件描述"
-              },
-              "name": "invalidation_description",
-              "positional_args": [
-                "'证伪描述'"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "BooleanField",
-              "kwargs": {
-                "db_index": true,
-                "default": false,
-                "help_text": "证伪条件已满足，建议平仓"
-              },
-              "name": "is_invalidated",
-              "positional_args": [
-                "'是否已证伪'"
-              ]
-            },
-            {
-              "field_type": "TextField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "证伪原因说明"
-              },
-              "name": "invalidation_reason",
-              "positional_args": [
-                "'证伪原因'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "help_text": "最后一次检查证伪条件的时间",
-                "null": true
-              },
-              "name": "invalidation_checked_at",
-              "null": true,
-              "positional_args": [
-                "'最后检查时间'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "created_at",
-              "positional_args": [
-                "'创建时间'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "updated_at",
-              "positional_args": [
-                "'更新时间'"
-              ]
-            }
-          ],
-          "meta": {
-            "db_table": "simulated_position",
-            "indexes": "[models.Index(fields=['account', 'asset_code']), models.Index(fields=['-market_value']), models.Index(fields=['account', 'is_invalidated']), models.Index(fields=['is_invalidated', 'invalidation_checked_at'])]",
-            "ordering": [
-              "-market_value"
-            ],
-            "unique_together": [
-              [
-                "account",
-                "asset_code"
-              ]
-            ],
-            "verbose_name": "模拟持仓",
-            "verbose_name_plural": "模拟持仓"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
           "class_name": "RebalanceProposalModel",
           "docstring": "再平衡建议草案模型",
           "fields": [
@@ -86513,1086 +86221,6 @@
             ],
             "verbose_name": "再平衡建议草案",
             "verbose_name_plural": "再平衡建议草案"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "SimulatedAccountModel",
-          "docstring": "投资组合账户模型（统一）",
-          "fields": [
-            {
-              "db_index": true,
-              "field_type": "ForeignKey",
-              "kwargs": {
-                "blank": true,
-                "db_index": true,
-                "null": true,
-                "on_delete": "models.CASCADE",
-                "related_name": "investment_accounts",
-                "verbose_name": "用户"
-              },
-              "name": "user",
-              "null": true,
-              "positional_args": [
-                "settings.AUTH_USER_MODEL"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 100
-              },
-              "name": "account_name",
-              "positional_args": [
-                "'账户名称'"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": [
-                  [
-                    "real",
-                    "实仓"
-                  ],
-                  [
-                    "simulated",
-                    "模拟仓"
-                  ]
-                ],
-                "db_index": true,
-                "default": "simulated",
-                "max_length": 20
-              },
-              "name": "account_type",
-              "positional_args": [
-                "'账户类型'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "initial_capital",
-              "positional_args": [
-                "'初始资金(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "current_cash",
-              "positional_args": [
-                "'当前现金(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "default": 0,
-                "max_digits": 15
-              },
-              "name": "current_market_value",
-              "positional_args": [
-                "'当前持仓市值(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "total_value",
-              "positional_args": [
-                "'总资产(元)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "total_return",
-              "positional_args": [
-                "'总收益率(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "annual_return",
-              "positional_args": [
-                "'年化收益率(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "max_drawdown",
-              "positional_args": [
-                "'最大回撤(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "sharpe_ratio",
-              "positional_args": [
-                "'夏普比率'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0
-              },
-              "name": "win_rate",
-              "positional_args": [
-                "'胜率(%)'"
-              ]
-            },
-            {
-              "field_type": "IntegerField",
-              "kwargs": {
-                "default": 0
-              },
-              "name": "total_trades",
-              "positional_args": [
-                "'总交易次数'"
-              ]
-            },
-            {
-              "field_type": "IntegerField",
-              "kwargs": {
-                "default": 0
-              },
-              "name": "winning_trades",
-              "positional_args": [
-                "'盈利交易次数'"
-              ]
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "start_date",
-              "positional_args": [
-                "'开始日期'"
-              ]
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "last_trade_date",
-              "null": true,
-              "positional_args": [
-                "'最后交易日期'"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "BooleanField",
-              "kwargs": {
-                "db_index": true,
-                "default": true
-              },
-              "name": "is_active",
-              "positional_args": [
-                "'是否激活'"
-              ]
-            },
-            {
-              "field_type": "BooleanField",
-              "kwargs": {
-                "default": true
-              },
-              "name": "auto_trading_enabled",
-              "positional_args": [
-                "'启用自动交易'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 20.0
-              },
-              "name": "max_position_pct",
-              "positional_args": [
-                "'单资产最大持仓比例(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 95.0
-              },
-              "name": "max_total_position_pct",
-              "positional_args": [
-                "'总持仓比例上限(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "stop_loss_pct",
-              "null": true,
-              "positional_args": [
-                "'止损比例(%)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.0003
-              },
-              "name": "commission_rate",
-              "positional_args": [
-                "'手续费率'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "default": 0.001
-              },
-              "name": "slippage_rate",
-              "positional_args": [
-                "'滑点率'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "created_at",
-              "positional_args": [
-                "'创建时间'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now": true
-              },
-              "name": "updated_at",
-              "positional_args": [
-                "'更新时间'"
-              ]
-            }
-          ],
-          "meta": {
-            "db_table": "simulated_account",
-            "indexes": "[models.Index(fields=['user', '-created_at']), models.Index(fields=['user', 'account_type']), models.Index(fields=['user', 'is_active']), models.Index(fields=['is_active', 'auto_trading_enabled']), models.Index(fields=['-start_date'])]",
-            "ordering": [
-              "-created_at"
-            ],
-            "verbose_name": "投资组合账户",
-            "verbose_name_plural": "投资组合账户"
-          },
-          "source_file": "infrastructure/models.py"
-        },
-        {
-          "bases": [
-            "models.Model"
-          ],
-          "class_name": "SimulatedTradeModel",
-          "docstring": "模拟交易记录模型",
-          "fields": [
-            {
-              "field_type": "ForeignKey",
-              "kwargs": {
-                "on_delete": "models.CASCADE",
-                "related_name": "trades",
-                "verbose_name": "所属账户"
-              },
-              "name": "account",
-              "positional_args": [
-                "SimulatedAccountModel"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "CharField",
-              "kwargs": {
-                "db_index": true,
-                "max_length": 20
-              },
-              "name": "asset_code",
-              "positional_args": [
-                "'资产代码'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 100
-              },
-              "name": "asset_name",
-              "positional_args": [
-                "'资产名称'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "max_length": 20
-              },
-              "name": "asset_type",
-              "positional_args": [
-                "'资产类型'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": [
-                  [
-                    "buy",
-                    "买入"
-                  ],
-                  [
-                    "sell",
-                    "卖出"
-                  ]
-                ],
-                "max_length": 10
-              },
-              "name": "action",
-              "positional_args": [
-                "'交易动作'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 6,
-                "max_digits": 20
-              },
-              "name": "quantity",
-              "positional_args": [
-                "'交易数量'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 4,
-                "max_digits": 10
-              },
-              "name": "price",
-              "positional_args": [
-                "'成交价格(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "amount",
-              "positional_args": [
-                "'成交金额(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "default": 0,
-                "max_digits": 10
-              },
-              "name": "commission",
-              "positional_args": [
-                "'手续费(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 2,
-                "max_digits": 10,
-                "null": true
-              },
-              "name": "transfer_fee",
-              "null": true,
-              "positional_args": [
-                "'过户费(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 2,
-                "max_digits": 10,
-                "null": true
-              },
-              "name": "stamp_duty",
-              "null": true,
-              "positional_args": [
-                "'印花税(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "default": 0,
-                "max_digits": 10
-              },
-              "name": "slippage",
-              "positional_args": [
-                "'滑点损失(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "decimal_places": 2,
-                "max_digits": 15
-              },
-              "name": "total_cost",
-              "positional_args": [
-                "'总成本(元)'"
-              ]
-            },
-            {
-              "field_type": "DecimalField",
-              "kwargs": {
-                "blank": true,
-                "decimal_places": 2,
-                "max_digits": 15,
-                "null": true
-              },
-              "name": "realized_pnl",
-              "null": true,
-              "positional_args": [
-                "'已实现盈亏(元)'"
-              ]
-            },
-            {
-              "field_type": "FloatField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "realized_pnl_pct",
-              "null": true,
-              "positional_args": [
-                "'已实现盈亏率(%)'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 200
-              },
-              "name": "reason",
-              "positional_args": [
-                "'交易原因'"
-              ]
-            },
-            {
-              "field_type": "IntegerField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "signal_id",
-              "null": true,
-              "positional_args": [
-                "'关联信号ID'"
-              ]
-            },
-            {
-              "db_index": true,
-              "field_type": "DateField",
-              "kwargs": {
-                "db_index": true
-              },
-              "name": "order_date",
-              "positional_args": [
-                "'订单日期'"
-              ]
-            },
-            {
-              "field_type": "DateField",
-              "name": "execution_date",
-              "positional_args": [
-                "'执行日期'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "execution_time",
-              "positional_args": [
-                "'执行时间'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "choices": [
-                  [
-                    "pending",
-                    "待执行"
-                  ],
-                  [
-                    "executed",
-                    "已执行"
-                  ],
-                  [
-                    "cancelled",
-                    "已取消"
-                  ],
-                  [
-                    "failed",
-                    "执行失败"
-                  ]
-                ],
-                "default": "pending",
-                "max_length": 20
-              },
-              "name": "status",
-              "positional_args": [
-                "'订单状态'"
-              ]
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "auto_now_add": true
-              },
-              "name": "created_at",
-              "positional_args": [
-                "'创建时间'"
-              ]
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 128,
-                "null": true
-              },
-              "name": "idempotency_key",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "request_payload_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveBigIntegerField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "fee_config_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "fee_schedule_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "fee_schedule_snapshot",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 32,
-                "null": true
-              },
-              "name": "fee_precision_basis",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 32,
-                "null": true
-              },
-              "name": "fee_calculation_purpose",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 48,
-                "null": true
-              },
-              "name": "fee_rounding_policy",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "choices": [
-                  [
-                    "pending",
-                    "待结算"
-                  ],
-                  [
-                    "released",
-                    "已结算"
-                  ]
-                ],
-                "max_length": 12,
-                "null": true
-              },
-              "name": "settlement_status",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_security_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 32,
-                "null": true
-              },
-              "name": "settlement_market",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 32,
-                "null": true
-              },
-              "name": "settlement_exchange",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 32,
-                "null": true
-              },
-              "name": "settlement_board",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_market_session",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveIntegerField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_lag_sessions",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "PositiveSmallIntegerField",
-              "kwargs": {
-                "default": 0
-              },
-              "name": "settlement_plan_binding_version",
-              "positional_args": []
-            },
-            {
-              "field_type": "JSONField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_plan_binding_payload",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_plan_binding_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_bundle_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_bundle_version",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_bundle_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_policy_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_policy_version",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_policy_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "execution_rule_v2_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_release_date",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 36,
-                "null": true
-              },
-              "name": "settlement_calendar_snapshot_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 71,
-                "null": true
-              },
-              "name": "settlement_calendar_content_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 71,
-                "null": true
-              },
-              "name": "settlement_calendar_record_digest",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_calendar_publication_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_calendar_publication_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_calendar_policy_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_calendar_evidence_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_calendar_timezone",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateTimeField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_released_at",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "DateField",
-              "kwargs": {
-                "blank": true,
-                "null": true
-              },
-              "name": "settlement_release_session",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 36,
-                "null": true
-              },
-              "name": "settlement_release_calendar_snapshot_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 71,
-                "null": true
-              },
-              "name": "settlement_release_calendar_content_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 71,
-                "null": true
-              },
-              "name": "settlement_release_calendar_record_digest",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 192,
-                "null": true
-              },
-              "name": "settlement_release_calendar_publication_id",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_release_calendar_publication_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_release_calendar_policy_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_release_calendar_evidence_hash",
-              "null": true,
-              "positional_args": []
-            },
-            {
-              "field_type": "CharField",
-              "kwargs": {
-                "blank": true,
-                "max_length": 64,
-                "null": true
-              },
-              "name": "settlement_release_calendar_timezone",
-              "null": true,
-              "positional_args": []
-            }
-          ],
-          "meta": {
-            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), condition=Q(idempotency_key__isnull=False), name='sim_trade_account_idemp_uq'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True) | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False), name='sim_trade_idemp_pair_ck'), models.CheckConstraint(condition=Q(settlement_plan_binding_version=0, settlement_plan_binding_payload__isnull=True, settlement_plan_binding_hash__isnull=True, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=1, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=2, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False), name='sim_trade_plan_binding_pair_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, fee_config_id__isnull=True, fee_schedule_hash__isnull=True, fee_schedule_snapshot__isnull=True, fee_precision_basis__isnull=True, fee_calculation_purpose__isnull=True, fee_rounding_policy__isnull=True, settlement_market_session__isnull=True, settlement_security_id__isnull=True, settlement_market__isnull=True, settlement_exchange__isnull=True, settlement_board__isnull=True, settlement_lag_sessions__isnull=True, settlement_bundle_id__isnull=True, settlement_bundle_version__isnull=True, settlement_bundle_hash__isnull=True, settlement_policy_id__isnull=True, settlement_policy_version__isnull=True, settlement_policy_hash__isnull=True, execution_rule_v2_hash__isnull=True, settlement_calendar_snapshot_id__isnull=True, settlement_calendar_content_hash__isnull=True, settlement_calendar_record_digest__isnull=True, settlement_calendar_publication_id__isnull=True, settlement_calendar_publication_hash__isnull=True, settlement_calendar_policy_hash__isnull=True, settlement_calendar_evidence_hash__isnull=True, settlement_calendar_timezone__isnull=True) | Q(idempotency_key__isnull=False, fee_config_id__isnull=False, fee_schedule_hash__isnull=False, fee_schedule_snapshot__isnull=False, fee_precision_basis__isnull=False, fee_calculation_purpose__isnull=False, fee_rounding_policy__isnull=False, settlement_market_session__isnull=False, settlement_security_id__isnull=False, settlement_market__isnull=False, settlement_board__isnull=False, settlement_lag_sessions__isnull=False, settlement_bundle_id__isnull=False, settlement_bundle_version__isnull=False, settlement_bundle_hash__isnull=False, settlement_policy_id__isnull=False, settlement_policy_version__isnull=False, settlement_policy_hash__isnull=False, execution_rule_v2_hash__isnull=False, settlement_calendar_snapshot_id__isnull=False, settlement_calendar_content_hash__isnull=False, settlement_calendar_record_digest__isnull=False, settlement_calendar_publication_id__isnull=False, settlement_calendar_publication_hash__isnull=False, settlement_calendar_policy_hash__isnull=False, settlement_calendar_evidence_hash__isnull=False, settlement_calendar_timezone__isnull=False), name='sim_trade_uow_binding_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='sell', idempotency_key__isnull=False, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='pending', settlement_release_date__isnull=False, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='released', settlement_release_date__isnull=False, settlement_released_at__isnull=False, settlement_release_session__isnull=False, settlement_release_calendar_snapshot_id__isnull=False, settlement_release_calendar_content_hash__isnull=False, settlement_release_calendar_record_digest__isnull=False, settlement_release_calendar_publication_id__isnull=False, settlement_release_calendar_publication_hash__isnull=False, settlement_release_calendar_policy_hash__isnull=False, settlement_release_calendar_evidence_hash__isnull=False, settlement_release_calendar_timezone__isnull=False), name='sim_trade_settlement_release_ck')]",
-            "db_table": "simulated_trade",
-            "indexes": "[models.Index(fields=['account', '-execution_date']), models.Index(fields=['asset_code', '-execution_date']), models.Index(fields=['-execution_date']), models.Index(fields=['account', 'asset_code', 'settlement_status', 'settlement_market_session'], name='sim_trade_settle_due_ix')]",
-            "ordering": [
-              "-execution_date",
-              "-execution_time"
-            ],
-            "verbose_name": "模拟交易记录",
-            "verbose_name_plural": "模拟交易记录"
           },
           "source_file": "infrastructure/models.py"
         },
@@ -88650,6 +87278,1378 @@
             "indexes": "[models.Index(fields=('source_id', 'account_namespace', 'account_id', 'recorded_at'), name='sim_row_v2_chain_ix')]"
           },
           "source_file": "infrastructure/simulated_account_row_source_v2_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "PositionModel",
+          "docstring": "持仓模型",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.CASCADE",
+                "related_name": "positions",
+                "verbose_name": "所属账户"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": [
+                "'资产代码'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "asset_name",
+              "positional_args": [
+                "'资产名称'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "equity",
+                    "股票"
+                  ],
+                  [
+                    "fund",
+                    "基金"
+                  ],
+                  [
+                    "bond",
+                    "债券"
+                  ]
+                ],
+                "max_length": 20
+              },
+              "name": "asset_type",
+              "positional_args": [
+                "'资产类型'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "quantity",
+              "positional_args": [
+                "'持仓数量'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "available_quantity",
+              "positional_args": [
+                "'可卖数量'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 4,
+                "max_digits": 10
+              },
+              "name": "avg_cost",
+              "positional_args": [
+                "'平均成本(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "total_cost",
+              "positional_args": [
+                "'总成本(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 4,
+                "max_digits": 10
+              },
+              "name": "current_price",
+              "positional_args": [
+                "'当前价格(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "market_value",
+              "positional_args": [
+                "'市值(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "unrealized_pnl",
+              "positional_args": [
+                "'浮动盈亏(元)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "unrealized_pnl_pct",
+              "positional_args": [
+                "'浮动盈亏率(%)'"
+              ]
+            },
+            {
+              "field_type": "DateField",
+              "name": "first_buy_date",
+              "positional_args": [
+                "'首次买入日期'"
+              ]
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "last_update_date",
+              "positional_args": [
+                "'最后更新日期'"
+              ]
+            },
+            {
+              "field_type": "IntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "signal_id",
+              "null": true,
+              "positional_args": [
+                "'关联信号ID'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "entry_reason",
+              "positional_args": [
+                "'入场原因'"
+              ]
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "从信号继承的结构化证伪规则",
+                "null": true
+              },
+              "name": "invalidation_rule_json",
+              "null": true,
+              "positional_args": [
+                "'证伪规则'"
+              ]
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "人类可读的证伪条件描述"
+              },
+              "name": "invalidation_description",
+              "positional_args": [
+                "'证伪描述'"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "BooleanField",
+              "kwargs": {
+                "db_index": true,
+                "default": false,
+                "help_text": "证伪条件已满足，建议平仓"
+              },
+              "name": "is_invalidated",
+              "positional_args": [
+                "'是否已证伪'"
+              ]
+            },
+            {
+              "field_type": "TextField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "证伪原因说明"
+              },
+              "name": "invalidation_reason",
+              "positional_args": [
+                "'证伪原因'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "help_text": "最后一次检查证伪条件的时间",
+                "null": true
+              },
+              "name": "invalidation_checked_at",
+              "null": true,
+              "positional_args": [
+                "'最后检查时间'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": [
+                "'创建时间'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": [
+                "'更新时间'"
+              ]
+            }
+          ],
+          "meta": {
+            "db_table": "simulated_position",
+            "indexes": "[models.Index(fields=['account', 'asset_code']), models.Index(fields=['-market_value']), models.Index(fields=['account', 'is_invalidated']), models.Index(fields=['is_invalidated', 'invalidation_checked_at'])]",
+            "ordering": [
+              "-market_value"
+            ],
+            "unique_together": [
+              [
+                "account",
+                "asset_code"
+              ]
+            ],
+            "verbose_name": "模拟持仓",
+            "verbose_name_plural": "模拟持仓"
+          },
+          "source_file": "infrastructure/simulated_account_trade_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "SimulatedAccountModel",
+          "docstring": "投资组合账户模型（统一）",
+          "fields": [
+            {
+              "db_index": true,
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "blank": true,
+                "db_index": true,
+                "null": true,
+                "on_delete": "models.CASCADE",
+                "related_name": "investment_accounts",
+                "verbose_name": "用户"
+              },
+              "name": "user",
+              "null": true,
+              "positional_args": [
+                "settings.AUTH_USER_MODEL"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "account_name",
+              "positional_args": [
+                "'账户名称'"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "real",
+                    "实仓"
+                  ],
+                  [
+                    "simulated",
+                    "模拟仓"
+                  ]
+                ],
+                "db_index": true,
+                "default": "simulated",
+                "max_length": 20
+              },
+              "name": "account_type",
+              "positional_args": [
+                "'账户类型'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "initial_capital",
+              "positional_args": [
+                "'初始资金(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "current_cash",
+              "positional_args": [
+                "'当前现金(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 15
+              },
+              "name": "current_market_value",
+              "positional_args": [
+                "'当前持仓市值(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "total_value",
+              "positional_args": [
+                "'总资产(元)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "total_return",
+              "positional_args": [
+                "'总收益率(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "annual_return",
+              "positional_args": [
+                "'年化收益率(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "max_drawdown",
+              "positional_args": [
+                "'最大回撤(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "sharpe_ratio",
+              "positional_args": [
+                "'夏普比率'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0
+              },
+              "name": "win_rate",
+              "positional_args": [
+                "'胜率(%)'"
+              ]
+            },
+            {
+              "field_type": "IntegerField",
+              "kwargs": {
+                "default": 0
+              },
+              "name": "total_trades",
+              "positional_args": [
+                "'总交易次数'"
+              ]
+            },
+            {
+              "field_type": "IntegerField",
+              "kwargs": {
+                "default": 0
+              },
+              "name": "winning_trades",
+              "positional_args": [
+                "'盈利交易次数'"
+              ]
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "start_date",
+              "positional_args": [
+                "'开始日期'"
+              ]
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "last_trade_date",
+              "null": true,
+              "positional_args": [
+                "'最后交易日期'"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "BooleanField",
+              "kwargs": {
+                "db_index": true,
+                "default": true
+              },
+              "name": "is_active",
+              "positional_args": [
+                "'是否激活'"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": true
+              },
+              "name": "auto_trading_enabled",
+              "positional_args": [
+                "'启用自动交易'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 20.0
+              },
+              "name": "max_position_pct",
+              "positional_args": [
+                "'单资产最大持仓比例(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 95.0
+              },
+              "name": "max_total_position_pct",
+              "positional_args": [
+                "'总持仓比例上限(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "stop_loss_pct",
+              "null": true,
+              "positional_args": [
+                "'止损比例(%)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.0003
+              },
+              "name": "commission_rate",
+              "positional_args": [
+                "'手续费率'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "default": 0.001
+              },
+              "name": "slippage_rate",
+              "positional_args": [
+                "'滑点率'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": [
+                "'创建时间'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now": true
+              },
+              "name": "updated_at",
+              "positional_args": [
+                "'更新时间'"
+              ]
+            }
+          ],
+          "meta": {
+            "db_table": "simulated_account",
+            "indexes": "[models.Index(fields=['user', '-created_at']), models.Index(fields=['user', 'account_type']), models.Index(fields=['user', 'is_active']), models.Index(fields=['is_active', 'auto_trading_enabled']), models.Index(fields=['-start_date'])]",
+            "ordering": [
+              "-created_at"
+            ],
+            "verbose_name": "投资组合账户",
+            "verbose_name_plural": "投资组合账户"
+          },
+          "source_file": "infrastructure/simulated_account_trade_models.py"
+        },
+        {
+          "bases": [
+            "models.Model"
+          ],
+          "class_name": "SimulatedTradeModel",
+          "docstring": "模拟交易记录模型",
+          "fields": [
+            {
+              "field_type": "ForeignKey",
+              "kwargs": {
+                "on_delete": "models.CASCADE",
+                "related_name": "trades",
+                "verbose_name": "所属账户"
+              },
+              "name": "account",
+              "positional_args": [
+                "SimulatedAccountModel"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "CharField",
+              "kwargs": {
+                "db_index": true,
+                "max_length": 20
+              },
+              "name": "asset_code",
+              "positional_args": [
+                "'资产代码'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 100
+              },
+              "name": "asset_name",
+              "positional_args": [
+                "'资产名称'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "max_length": 20
+              },
+              "name": "asset_type",
+              "positional_args": [
+                "'资产类型'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "buy",
+                    "买入"
+                  ],
+                  [
+                    "sell",
+                    "卖出"
+                  ]
+                ],
+                "max_length": 10
+              },
+              "name": "action",
+              "positional_args": [
+                "'交易动作'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 6,
+                "max_digits": 20
+              },
+              "name": "quantity",
+              "positional_args": [
+                "'交易数量'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 4,
+                "max_digits": 10
+              },
+              "name": "price",
+              "positional_args": [
+                "'成交价格(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "amount",
+              "positional_args": [
+                "'成交金额(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 10
+              },
+              "name": "commission",
+              "positional_args": [
+                "'手续费(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 10,
+                "null": true
+              },
+              "name": "transfer_fee",
+              "null": true,
+              "positional_args": [
+                "'过户费(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 10,
+                "null": true
+              },
+              "name": "stamp_duty",
+              "null": true,
+              "positional_args": [
+                "'印花税(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "default": 0,
+                "max_digits": 10
+              },
+              "name": "slippage",
+              "positional_args": [
+                "'滑点损失(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "decimal_places": 2,
+                "max_digits": 15
+              },
+              "name": "total_cost",
+              "positional_args": [
+                "'总成本(元)'"
+              ]
+            },
+            {
+              "field_type": "DecimalField",
+              "kwargs": {
+                "blank": true,
+                "decimal_places": 2,
+                "max_digits": 15,
+                "null": true
+              },
+              "name": "realized_pnl",
+              "null": true,
+              "positional_args": [
+                "'已实现盈亏(元)'"
+              ]
+            },
+            {
+              "field_type": "FloatField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "realized_pnl_pct",
+              "null": true,
+              "positional_args": [
+                "'已实现盈亏率(%)'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 200
+              },
+              "name": "reason",
+              "positional_args": [
+                "'交易原因'"
+              ]
+            },
+            {
+              "field_type": "IntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "signal_id",
+              "null": true,
+              "positional_args": [
+                "'关联信号ID'"
+              ]
+            },
+            {
+              "db_index": true,
+              "field_type": "DateField",
+              "kwargs": {
+                "db_index": true
+              },
+              "name": "order_date",
+              "positional_args": [
+                "'订单日期'"
+              ]
+            },
+            {
+              "field_type": "DateField",
+              "name": "execution_date",
+              "positional_args": [
+                "'执行日期'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "execution_time",
+              "positional_args": [
+                "'执行时间'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "choices": [
+                  [
+                    "pending",
+                    "待执行"
+                  ],
+                  [
+                    "executed",
+                    "已执行"
+                  ],
+                  [
+                    "cancelled",
+                    "已取消"
+                  ],
+                  [
+                    "failed",
+                    "执行失败"
+                  ]
+                ],
+                "default": "pending",
+                "max_length": 20
+              },
+              "name": "status",
+              "positional_args": [
+                "'订单状态'"
+              ]
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "auto_now_add": true
+              },
+              "name": "created_at",
+              "positional_args": [
+                "'创建时间'"
+              ]
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 128,
+                "null": true
+              },
+              "name": "idempotency_key",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "request_payload_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveBigIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_config_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "fee_schedule_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "fee_schedule_snapshot",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "fee_precision_basis",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "fee_calculation_purpose",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 48,
+                "null": true
+              },
+              "name": "fee_rounding_policy",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "choices": [
+                  [
+                    "pending",
+                    "待结算"
+                  ],
+                  [
+                    "released",
+                    "已结算"
+                  ]
+                ],
+                "max_length": 12,
+                "null": true
+              },
+              "name": "settlement_status",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_security_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "settlement_market",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "settlement_exchange",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 32,
+                "null": true
+              },
+              "name": "settlement_board",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_market_session",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveIntegerField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_lag_sessions",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "PositiveSmallIntegerField",
+              "kwargs": {
+                "default": 0
+              },
+              "name": "settlement_plan_binding_version",
+              "positional_args": []
+            },
+            {
+              "field_type": "JSONField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_plan_binding_payload",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_plan_binding_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_bundle_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_bundle_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_bundle_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_policy_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_policy_version",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "execution_rule_v2_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_release_date",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 36,
+                "null": true
+              },
+              "name": "settlement_calendar_snapshot_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_calendar_content_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_calendar_record_digest",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_calendar_publication_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_publication_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_evidence_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_calendar_timezone",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateTimeField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_released_at",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "DateField",
+              "kwargs": {
+                "blank": true,
+                "null": true
+              },
+              "name": "settlement_release_session",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 36,
+                "null": true
+              },
+              "name": "settlement_release_calendar_snapshot_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_release_calendar_content_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 71,
+                "null": true
+              },
+              "name": "settlement_release_calendar_record_digest",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 192,
+                "null": true
+              },
+              "name": "settlement_release_calendar_publication_id",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_publication_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_policy_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_evidence_hash",
+              "null": true,
+              "positional_args": []
+            },
+            {
+              "field_type": "CharField",
+              "kwargs": {
+                "blank": true,
+                "max_length": 64,
+                "null": true
+              },
+              "name": "settlement_release_calendar_timezone",
+              "null": true,
+              "positional_args": []
+            }
+          ],
+          "meta": {
+            "constraints": "[models.UniqueConstraint(fields=('account', 'idempotency_key'), condition=Q(idempotency_key__isnull=False), name='sim_trade_account_idemp_uq'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, request_payload_hash__isnull=True) | Q(idempotency_key__isnull=False, request_payload_hash__isnull=False), name='sim_trade_idemp_pair_ck'), models.CheckConstraint(condition=Q(settlement_plan_binding_version=0, settlement_plan_binding_payload__isnull=True, settlement_plan_binding_hash__isnull=True, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=1, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=True) | Q(settlement_plan_binding_version=2, idempotency_key__isnull=False, request_payload_hash__isnull=False, settlement_plan_binding_payload__isnull=False, settlement_plan_binding_hash__isnull=False, settlement_exchange__isnull=False), name='sim_trade_plan_binding_pair_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, fee_config_id__isnull=True, fee_schedule_hash__isnull=True, fee_schedule_snapshot__isnull=True, fee_precision_basis__isnull=True, fee_calculation_purpose__isnull=True, fee_rounding_policy__isnull=True, settlement_market_session__isnull=True, settlement_security_id__isnull=True, settlement_market__isnull=True, settlement_exchange__isnull=True, settlement_board__isnull=True, settlement_lag_sessions__isnull=True, settlement_bundle_id__isnull=True, settlement_bundle_version__isnull=True, settlement_bundle_hash__isnull=True, settlement_policy_id__isnull=True, settlement_policy_version__isnull=True, settlement_policy_hash__isnull=True, execution_rule_v2_hash__isnull=True, settlement_calendar_snapshot_id__isnull=True, settlement_calendar_content_hash__isnull=True, settlement_calendar_record_digest__isnull=True, settlement_calendar_publication_id__isnull=True, settlement_calendar_publication_hash__isnull=True, settlement_calendar_policy_hash__isnull=True, settlement_calendar_evidence_hash__isnull=True, settlement_calendar_timezone__isnull=True) | Q(idempotency_key__isnull=False, fee_config_id__isnull=False, fee_schedule_hash__isnull=False, fee_schedule_snapshot__isnull=False, fee_precision_basis__isnull=False, fee_calculation_purpose__isnull=False, fee_rounding_policy__isnull=False, settlement_market_session__isnull=False, settlement_security_id__isnull=False, settlement_market__isnull=False, settlement_board__isnull=False, settlement_lag_sessions__isnull=False, settlement_bundle_id__isnull=False, settlement_bundle_version__isnull=False, settlement_bundle_hash__isnull=False, settlement_policy_id__isnull=False, settlement_policy_version__isnull=False, settlement_policy_hash__isnull=False, execution_rule_v2_hash__isnull=False, settlement_calendar_snapshot_id__isnull=False, settlement_calendar_content_hash__isnull=False, settlement_calendar_record_digest__isnull=False, settlement_calendar_publication_id__isnull=False, settlement_calendar_publication_hash__isnull=False, settlement_calendar_policy_hash__isnull=False, settlement_calendar_evidence_hash__isnull=False, settlement_calendar_timezone__isnull=False), name='sim_trade_uow_binding_ck'), models.CheckConstraint(condition=Q(idempotency_key__isnull=True, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='sell', idempotency_key__isnull=False, settlement_status__isnull=True, settlement_release_date__isnull=True, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='pending', settlement_release_date__isnull=False, settlement_released_at__isnull=True, settlement_release_session__isnull=True, settlement_release_calendar_snapshot_id__isnull=True, settlement_release_calendar_content_hash__isnull=True, settlement_release_calendar_record_digest__isnull=True, settlement_release_calendar_publication_id__isnull=True, settlement_release_calendar_publication_hash__isnull=True, settlement_release_calendar_policy_hash__isnull=True, settlement_release_calendar_evidence_hash__isnull=True, settlement_release_calendar_timezone__isnull=True) | Q(action='buy', settlement_status='released', settlement_release_date__isnull=False, settlement_released_at__isnull=False, settlement_release_session__isnull=False, settlement_release_calendar_snapshot_id__isnull=False, settlement_release_calendar_content_hash__isnull=False, settlement_release_calendar_record_digest__isnull=False, settlement_release_calendar_publication_id__isnull=False, settlement_release_calendar_publication_hash__isnull=False, settlement_release_calendar_policy_hash__isnull=False, settlement_release_calendar_evidence_hash__isnull=False, settlement_release_calendar_timezone__isnull=False), name='sim_trade_settlement_release_ck')]",
+            "db_table": "simulated_trade",
+            "indexes": "[models.Index(fields=['account', '-execution_date']), models.Index(fields=['asset_code', '-execution_date']), models.Index(fields=['-execution_date']), models.Index(fields=['account', 'asset_code', 'settlement_status', 'settlement_market_session'], name='sim_trade_settle_due_ix')]",
+            "ordering": [
+              "-execution_date",
+              "-execution_time"
+            ],
+            "verbose_name": "模拟交易记录",
+            "verbose_name_plural": "模拟交易记录"
+          },
+          "source_file": "infrastructure/simulated_account_trade_models.py"
         }
       ]
     },

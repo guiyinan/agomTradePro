@@ -1172,3 +1172,16 @@ TUX-08a在`28c8650fe2faca38b6795991789b3729cf41e39a`独立提交并显式归还�
 两生产文件增量mypy和默认apps/core/shared全库债务门均实际退出0；Black/isort/Ruff、架构含audit、运行时注解与官方module map生成/检查、current/audit/Celery合同复核均0。正式治理仍实际退出1：尺寸由6降至5；版本退役门仍实际退出1、九项未解决，全部继续由本Goal负责。没有提高baseline/allowlist或修改retirement-only floor/checker pin，也不将比较成功等同全门通过。
 
 源码patch以JSON保留原UTF-8及摘要，经辅助index重建匹配精确冻结树；对应独立审查、原始日志及退出码在统一证据包保存。初次增量尺寸CLI因内部three-dot diff不能接受tree引用而退出1；保留失败，只创建同tree/原parent的无分支质量commit重跑官方原CLI，通过，未改检查器或生产。详见[绑定校验尺寸整改检查点](../testing/a-share-usability-settlement-binding-size-2026-10-17.json)。官方module投影同步生成输出，模型/字段和字典不变。Domain/TUI/SDK/SSL生产未改，不重复其完整包；无新增Domain覆盖率声明。本批不激活候选普通结算、不授予来源/研究/Evidence/订单资格；ASH-02、其余五项尺寸/九项版本、费用missing/zero、默认MCP范围冻结和完整ASH-01～12继续开放。下一步仍按19.49顺序拆分模拟模型、Domain、正式日历与terminal，再分批收敛版本实现。
+
+
+### 19.52 模拟账户／持仓／成交模型职责提取独立验收
+
+本批以`60ec8c94b35cc69293a12e506de5a5179a77c624`为parent，Luna Max先补no-DB注册测试：原16项注册顺序先通过，新模块缺失时取得真实ModuleNotFoundError；提取后同一测试通过。最终冻结树`8590440dba31bd7d721105b344a24f09260bd9a1`只含两个生产源与该测试；Root完整AST对照证明三个类（字段、Meta、默认、方法）逐节点不变、原其余非import顶层节点不变。相对导入仍按raw/row/v2/trade顺序，isort将三显式alias拆为三条from语句，模块只执行一次；原facade、公开facade、AppRegistry与新模块共享同一类对象，`SimulatedPositionModel`及`settings`兼容名保留。不改`__module__`伪装物理来源。
+
+Root实际703项已提交模拟交易模块单元（含新注册测试）通过7.76秒，33项旧交易/只读/账户CRUD-scope HTTP兼容通过72.51秒，46项SQLite UoW/费率不可变仓储通过88.86秒；原4项仅PG并发用例按条件skip，没有把它们算成通过。本批无schema/SQL变动，实际Django check0、makemigrations dry-run无变化；不重复上一批PG测试，也不将其47项结果称作本批新路径的原生验收。两个原未提交用户测试仍原字节/暂存状态且不在冻结树。
+
+首轮全模块单元实际702passed/1failed：私有网络隔离工具误拦Windows asyncio内部socketpair，发生在业务断言前；原失败与warnings保留。只修私有harness，严格限定CPython socketpair code object、它的csock身份和精确loopback地址；独立实测任意应用loopback connect与connect_ex仍阻断。同一生产/测试源码重跑703全通过，只有1次标准库内部socketpair，应用连接尝试0。兼容/仓储仍用原全阻断插件且无尝试；该插件只观测connect/connect_ex，不冒充OS全网络审计。首次静态检查把三条缓存import误当重复注册顺序，Root改检查为模块首次执行顺序并合并alias核对，未改生产源。
+
+两源增量mypy与默认apps/core/shared全库债务门实际0；三源Black/isort/Ruff、架构含audit、官方增量尺寸门0。原models.py1372→927非空行，新文件454；完整治理仍实际exit1，尺寸5→4；retirement仍exit1九项，全部Goal责任，未改baseline/allowlist/floor/checker pin。Domain逻辑未改，无新增覆盖率声明。原parent的18项同组集成及DC两库存实际通过；本批官方字典/Markdown/module生成，字典只三source_file与派生位置变，其余模型/字段/Meta/数量不变。module map现有启发式只扫models.py/models包，因此静态ORM列表去掉三条、infra数+1；这不代表真实模型减少，Django仍16。current/audit/Celery与DC投影复核保持，不手改生成物。源patch经辅助index重建匹配，原始日志/摘要与红绿保留在[检查点](../testing/a-share-usability-simulated-model-size-2026-10-17.json)的统一证据包。
+
+本批只提交职责搬移及对应测试/投影/文档，不授予普通结算、来源/研究/Evidence/订单资格。ASH-02唯一集成焦点、79单元/closure72、完整ASH-01～12、其余4尺寸/9版本、费用missing/zero和默认MCP名单冻结继续开放。为让并行TUI主任务有界集成，已协调将19.49中两个独立terminal提取切片提前至本批之后，完成并独立提交后再明确借出TUX08主体窗口；Domain/calendar随后接回。只是独立批次顺序调整，不放宽原验收、停止线或真实用户任务要求。

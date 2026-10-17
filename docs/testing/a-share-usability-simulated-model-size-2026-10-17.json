@@ -1,0 +1,154 @@
+{
+  "status": "bounded-model-responsibility-extraction-verified",
+  "base_commit": "60ec8c94b35cc69293a12e506de5a5179a77c624",
+  "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+  "source_commit": "b7c73eb2998bd0e30d80ac015cf4e8b8c1765fda",
+  "production": [
+    "apps/simulated_trading/infrastructure/models.py",
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py"
+  ],
+  "tests": [
+    "tests/unit/simulated_trading/test_simulated_model_registration.py"
+  ],
+  "source_lf_sha256": {
+    "apps/simulated_trading/infrastructure/models.py": "a0b069bdb6627f54c0c8b234acf54ddbcabe7d3e16734465731c80d5a7cd4646",
+    "apps/simulated_trading/infrastructure/simulated_account_trade_models.py": "cc7b22139e178575771f52947e49f9de584782776afcc37ea21582d0dc5d4d23",
+    "tests/unit/simulated_trading/test_simulated_model_registration.py": "674ba92e10b6c3c4198c2422e8603b480bd76a0c15f8d1d4bee9cda1f485d5ec"
+  },
+  "verified": {
+    "unit": {
+      "passed": 703,
+      "skipped": 0,
+      "seconds": 7.76
+    },
+    "http_and_legacy_compatibility": {
+      "passed": 33,
+      "skipped": 0,
+      "seconds": 72.51
+    },
+    "sqlite_persistence": {
+      "passed": 46,
+      "skipped": 4,
+      "seconds": 88.86
+    },
+    "actual_phase_exit_codes": {
+      "unit-2": {
+        "unit-2": 0
+      },
+      "compatibility": {
+        "compatibility": 0
+      },
+      "persistence": {
+        "persistence-sqlite": 0
+      },
+      "typing": {
+        "incremental-mypy": 0,
+        "full-mypy": 0
+      },
+      "style": {
+        "black": 0,
+        "isort": 0,
+        "ruff": 0,
+        "architecture": 0
+      },
+      "size": {
+        "changed-file-size": 0,
+        "size-counts": 0
+      },
+      "projections": {
+        "model-state": 0,
+        "django-check": 0,
+        "dictionary-build": 0,
+        "module-build": 0,
+        "check_data_dictionary": 0,
+        "check_module_map": 0,
+        "check_current_data_contracts": 0,
+        "check_audit_event_contracts": 0,
+        "check_celery_task_contracts": 0,
+        "data_center_architecture_inventory": 0,
+        "data_center_entrypoint_inventory": 0
+      },
+      "governance": {
+        "full-governance": 1,
+        "retirement": 1
+      }
+    },
+    "official_sizes": [
+      {
+        "path": "apps/simulated_trading/infrastructure/models.py",
+        "base": 1372,
+        "head": 927
+      },
+      {
+        "path": "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+        "base": 0,
+        "head": 454
+      }
+    ],
+    "source_proof": {
+      "source_tree": "8590440dba31bd7d721105b344a24f09260bd9a1",
+      "three_complete_class_asts_exact": true,
+      "all_other_nonimport_facade_nodes_exact": true,
+      "class_definition_order_exact": [
+        "SimulatedAccountModel",
+        "PositionModel",
+        "SimulatedTradeModel"
+      ],
+      "child_import_then_model_registration_slot_exact": [
+        "simulated_account_raw_observation_models",
+        "simulated_account_row_source_models",
+        "simulated_account_row_source_v2_models",
+        "simulated_account_trade_models"
+      ],
+      "explicit_facade_reexports_exact": true,
+      "settings_namespace_retained": true,
+      "retained_source_check_correction": "Initial assertion assumed a single ImportFrom node for all aliases; isort legitimately emitted three cached imports. Deduplicated execution-module order and merged explicit aliases verified without changing production source.",
+      "only_moved_methods": "Three fully typed __str__ methods; no new public business function",
+      "original_source_lf_sha256": "7af8e8ea9b9d660a06ade7421cef56bbccb63e90c5c29a0d0ccaedccdd3a92dc",
+      "not_claimed": "Static proof complements, and does not substitute for, Django registry/schema/tests."
+    },
+    "registry": "All original16 model registrations in order; same objects through both old facades/new module/AppRegistry; aliases preserved",
+    "schema": "Django check0; actual makemigrations check/dry-run reports no changes",
+    "source_patch_reconstructs_exact_tree": true,
+    "post_document_actual_exits": {
+      "registry": 0,
+      "registry-tests": 0,
+      "docs-links": 0,
+      "module": 0,
+      "dictionary": 0
+    },
+    "post_document_registry_tests_passed": 8
+  },
+  "projection_contract": {
+    "dictionary": "Only three model source_file values and derived source-order positions change; all fields/Meta/other records equal",
+    "module_map": "Infrastructure file count+1; three moved models disappear from existing models.py-only heuristic. This is not a real model deletion; actual Django model count remains16.",
+    "generated_only": true,
+    "data_center_projections": "Original and final exact-source inventories checked without changes"
+  },
+  "retained_corrections": [
+    "First full unit pass had702pass/1fail because private socket guard blocked CPython asyncio socketpair before business code. Same production/tests rerun with narrow code-object/own-socket/exact-loopback allowance; arbitrary application connect/connect_ex still blocked.",
+    "Initial assertion assumed a single ImportFrom node for all aliases; isort legitimately emitted three cached imports. Deduplicated execution-module order and merged explicit aliases verified without changing production source."
+  ],
+  "verification_limits": [
+    "Four native-PG-only cases skipped on SQLite; prior batch PG47 result not claimed on these new module paths",
+    "No new financial/source/identity/Evidence/QMT qualification",
+    "No full terminal/SDK/SSL repeat; their production unchanged",
+    "No CI/S6 or deployment",
+    "No new Domain coverage claim; Domain unchanged"
+  ],
+  "open_gates": {
+    "full_governance_exit": 1,
+    "size_failures": 4,
+    "retirement_exit": 1,
+    "retirement_failures": 9,
+    "all_owned_by_goal": true,
+    "no_baseline_floor_pin_allowlist_relaxation": true
+  },
+  "protected_raw_sha256": {
+    "tests/unit/simulated_trading/test_ash01_settlement_regressions.py": "7014ccdbf73d6ac77e0d10e5232b67f2c54ebca2790964ffddae670fb8e8add1",
+    "tests/unit/account/test_manual_trade_fee_availability.py": "763363a4be8e52d1398e6ba650419eccae8dd97f5b088a87a8ac594dd6b13521"
+  },
+  "evidence": "artifacts/a-share-usability/ash01/simulated-models-size-evidence-2026-10-17.json",
+  "next": "Prioritize the two independent terminal responsibility slices before Domain/calendar to release the coordinated TUX08 window; preserve all original acceptance criteria",
+  "rollback": "Reverse this independent owned relocation and projections/docs; no schema migration or database restore required"
+}

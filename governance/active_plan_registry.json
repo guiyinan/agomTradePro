@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.v252",
+  "version": "2026-10-17.v253",
   "updated_at": "2026-10-17",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "Plan19.51: stateless settlement binding validator extracted with original wrapper/call seam and exact body; frozen 0a29cdf4 actual 185 unit/47 native PostgreSQL tests passed; incremental and default full mypy/style/architecture/projections0. Remaining5 size/9 retirement gates are Goal-owned and still fail; continue19.49 bounded model/Domain/calendar/terminal and version consolidation without waiver or historical schema/hash loss. ASH02 single focus,79units/closure72 and C-quality requirements preserved. Ordinary settlement/source-purpose/PIT,fees missing-vs-zero,default MCP frozen eligible scope/fullGoal remain open; DATA18/EVID/production/provider/broker stops unchanged. Evidence: docs/testing/a-share-usability-settlement-binding-size-2026-10-17.json.",
+      "next_gate": "Plan19.52: three simulated models relocated with complete AST/old facades/16-model registry order preserved; frozen8590440d actual703unit/33HTTPcompat/46SQLite passed,4PG-only skip, schema unchanged; default full and incremental mypy/style/architecture/official projections0. Initial private socketpair guard and cached-import source-check assumptions corrected without production changes; original failures retained. Root owns remaining4 size/9 retirement failures; no baseline/floor/pin waiver. Prioritize the two independent terminal extraction slices then bounded TUX08 handoff, before resuming Domain/calendar; all acceptance criteria preserved. ASH02 single focus,79units/closure72,C-quality requirements/stops unchanged. Ordinary settlement/source-purpose/PIT,fees missing-vs-zero,default MCP frozen scope/fullGoal remain open. Evidence: docs/testing/a-share-usability-simulated-model-size-2026-10-17.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",
