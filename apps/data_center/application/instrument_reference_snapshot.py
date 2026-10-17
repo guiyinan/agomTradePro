@@ -11,6 +11,7 @@ from apps.data_center.domain.instrument_reference_snapshot import (
     InstrumentReferenceSnapshotContent,
     InstrumentReferenceSnapshotRecord,
 )
+from core.exceptions import DataValidationError, InvalidInputError
 
 
 class InstrumentReferenceSnapshotRepositoryPort(Protocol):
@@ -30,6 +31,12 @@ class InstrumentReferenceSnapshotRepositoryPort(Protocol):
 
     def get_snapshot(self, snapshot_id: UUID) -> InstrumentReferenceSnapshotRecord | None:
         """Return one fully revalidated snapshot by exact immutable identity."""
+
+    def get_mapping(
+        self,
+        mapping_record_id: UUID,
+    ) -> InstrumentReferenceMappingRecord | None:
+        """Return one fully revalidated mapping receipt by exact row identity."""
 
 
 class SaveInstrumentReferenceMappingUseCase:
@@ -80,7 +87,41 @@ class GetInstrumentReferenceSnapshotUseCase:
         return self._repository.get_snapshot(snapshot_id)
 
 
+class GetInstrumentReferenceMappingUseCase:
+    """Application query for one explicit, immutable mapping receipt."""
+
+    def __init__(self, repository: InstrumentReferenceSnapshotRepositoryPort) -> None:
+        """Inject the persistence boundary that revalidates the exact mapping row."""
+
+        self._repository = repository
+
+    def execute(self, mapping_record_id: UUID) -> InstrumentReferenceMappingRecord | None:
+        """Return only the exact requested mapping record, or ``None`` if absent.
+
+        The query never selects a latest version and never derives inverse mappings.
+        """
+
+        if not isinstance(mapping_record_id, UUID):
+            raise InvalidInputError(
+                "mapping_record_id must be a UUID",
+                code="INSTRUMENT_REFERENCE_MAPPING_ID_INVALID",
+            )
+        record = self._repository.get_mapping(mapping_record_id)
+        if record is None:
+            return None
+        if (
+            type(record) is not InstrumentReferenceMappingRecord
+            or record.mapping_record_id != mapping_record_id
+        ):
+            raise DataValidationError(
+                "The mapping repository returned a different or invalid record.",
+                code="INSTRUMENT_REFERENCE_MAPPING_RESULT_INVALID",
+            )
+        return record
+
+
 __all__ = [
+    "GetInstrumentReferenceMappingUseCase",
     "GetInstrumentReferenceSnapshotUseCase",
     "InstrumentReferenceSnapshotRepositoryPort",
     "SaveInstrumentReferenceMappingUseCase",

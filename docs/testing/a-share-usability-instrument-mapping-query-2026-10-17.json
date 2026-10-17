@@ -1,0 +1,64 @@
+{
+  "recorded_at": "2026-10-17T02:50:11.032590+00:00",
+  "status": "bounded_exact_instrument_mapping_query",
+  "reference": {
+    "recorded_at": "2026-10-17T02:33:35.068442+00:00",
+    "base_commit": "d0ce4d93ef69478c0f04de4057432324ada2b916",
+    "source_tree": "65a757b4f7629bae4f6f8bf77353696a3ee70453",
+    "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-exact-mapping-query-yspdf6t9",
+    "source_sha256": {
+      "apps/data_center/application/instrument_reference_snapshot.py": "9e28153c2f024f818248be60d5675a5a60a009f5ede617af5f9a17618610c14a",
+      "tests/unit/data_center/test_instrument_reference_mapping_query.py": "66113ee6dcca4b6f35cce8eb28ed9bdb86d3c845b1b1decede5aaba3af71a6a1"
+    },
+    "scope": "Exact immutable mapping query only; no consumers/eligibility/model/route/DB/Provider changes."
+  },
+  "unit_passed": 28,
+  "generated": {
+    "exit": 0,
+    "source_tree": "65a757b4f7629bae4f6f8bf77353696a3ee70453",
+    "changed_during_run": [],
+    "generated_sha256": {
+      "governance/module_map.json": "fd280ed61afae25a2e3a87f31e9b05e503789652e6b5b3a51e87f5d741c98005",
+      "governance/data_center_architecture_inventory.json": "05b574e7f2115cc783fcfd3d76bb0efcc4f8498c3934a97316c91a6097ee4c2d",
+      "governance/data_center_entrypoints.json": "d17f36d2363f03011f64f9109977517484f7b2180997d5f2dc1b8b1b19555161"
+    }
+  },
+  "goal_complete": false,
+  "limits": [
+    "Unit/typed public-port qualification; no real DB/Provider/consumer activation.",
+    "Exact configuration mapping identity does not confer source-fact or trading eligibility.",
+    "Root driver import failure retained; successful prior gates not repeated on same frozen source."
+  ],
+  "artifact_sha256": {
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-black-final.txt": "83abf4b47e6b6e216d698b30f1f030922562c86836a54764d86a0e463467807e",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-black.txt": "e67f256978337282052c133879515c25b8fd26013b217239a9940312d0b3cd55",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-green.txt": "7263c11949ab609226a0f1952497ba4193605ac705dd3cd39c465f12c4be7aa2",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-isort-final.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-isort.txt": "0e7ff3cb7513738db1ff62a0d3f520f9bc461b8896316c067e8829c5f2c5a207",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-mypy-final.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-mypy.txt": "1696369e79514135c6c84d87d82a0fc9c6a7026a4b6fda77e8a7e9b50eef135b",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-red.txt": "d4daae6ab2455aa199e8279df411e3a941db9b8cfd7610b1836cce9e8f64f724",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-architecture-build.txt": "ac83cd43905ce5cfadb4da2e907ab145802836cd2552bca465dc818364db5f88",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-architecture-delta.txt": "4e4a9b91a1cc398726c14952854c4432e27837d4ddf7fb72844a8c5e8c08d5d5",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-black.txt": "d90353341cab720e65ceadeec1ab47ab32271038133f33ddb2bde2df301b6a88",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-check_audit_event_contracts.txt": "ea96e364724598d81a621c61b344641af33152463d51259bdbc32f1ea7c69bd1",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-check_current_data_contracts.txt": "08b2a9415756c55a9a38824e8bad47c2bfea8db59deb3489233bfaf6e171cbd4",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-check_data_dictionary.txt": "3eb8f468bc5a0675f1e9360e0a340876bde4370961c5415cc106e9e7d9248d1c",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-check_module_map.txt": "c825daa10fb272b8b8e3db4d51bf7e0964d47aff635ffa4070669e7f92791051",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-data_center_architecture_inventory.txt": "ac83cd43905ce5cfadb4da2e907ab145802836cd2552bca465dc818364db5f88",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-data_center_entrypoint_inventory.txt": "a4ac9009bab1b9ab45305c422358d52039ef8b330091112fcfcc9e02c5b4232e",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-driver-import-failure.json": "f1f156b097c1595c80b7e342fb22fbcfa1d5bac351c21080eec0a4c4b6f868a5",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-entries-build.txt": "a4ac9009bab1b9ab45305c422358d52039ef8b330091112fcfcc9e02c5b4232e",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-full-mypy.txt": "ff31d7a7d63f23c7d657716f1bf896809064bbc29fe67b76566a94289c530cef",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-incremental-mypy.txt": "86e35536285dc05335a3623348d80745fb7eb4a62d5ee40f558f8099da85b55f",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-isort.txt": "30f9b19f0100d3502d675e7af6d94f1a683ab797e577a7ecfbaf77268c2538a1",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-module-map-build.txt": "42d55c7ac4d1e41a583c904afca42bc355c195be99969e5a3681510f09167eba",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-reference.json": "44e78886986ae15c2cb679de18b980645c5c8458fa9bf7dc77d904ff1fd1ca4c",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-result.json": "fa65ffc3dfc2b177bd082d4f25aef04de228e93f355bc0ac6cacd464983c9524",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-ruff.txt": "4c9aecbd2efda37da2fa7f5b0c90e90189354e0944f39047c912d75889a28974",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-root-1-tests.txt": "285d9d01cac01af4e3290e054c001bfa9e59b8266c10680c4c3d096315de2e26",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-ruff-final.txt": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-ruff.txt": "b93f8d3dc858cc744f3eb27a4050919395249548b89557ea28ee2599c4c70942",
+    "artifacts/a-share-usability/ash02/instrument-reference-mapping-query-tests.txt": "abd5b2f44c9ae7c2d896c1ac29243dff1cf57441f4793144bc49cee90c39a195"
+  }
+}

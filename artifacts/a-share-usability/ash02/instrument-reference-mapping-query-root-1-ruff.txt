@@ -1,0 +1,3 @@
+source_tree=65a757b4f7629bae4f6f8bf77353696a3ee70453
+export=D:\githv\agomTradePro-ash-index-qa-01a14268\ash-exact-mapping-query-yspdf6t9
+All checks passed!

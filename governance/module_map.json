@@ -4629,6 +4629,7 @@
           "target_date_universe_evidence"
         ],
         "application/instrument_reference_snapshot.py": [
+          "GetInstrumentReferenceMappingUseCase",
           "GetInstrumentReferenceSnapshotUseCase",
           "InstrumentReferenceSnapshotRepositoryPort",
           "SaveInstrumentReferenceMappingUseCase",

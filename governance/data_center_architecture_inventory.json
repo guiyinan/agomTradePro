@@ -39,7 +39,7 @@
   "counts": {
     "approved_non_data_http_imports": 5,
     "cross_app_orm_imports": 47,
-    "current_surface_references": 5753,
+    "current_surface_references": 5754,
     "data_write_task_decorators": 66,
     "direct_data_center_imports_outside_data_center": 0,
     "external_http_imports_for_review": 0,
@@ -9101,6 +9101,10 @@
     {
       "path": "apps/data_center/application/full_market_refresh_orchestration.py",
       "text": "if not authority_latch.current:"
+    },
+    {
+      "path": "apps/data_center/application/instrument_reference_snapshot.py",
+      "text": "The query never selects a latest version and never derives inverse mappings."
     },
     {
       "path": "apps/data_center/application/interface_services.py",

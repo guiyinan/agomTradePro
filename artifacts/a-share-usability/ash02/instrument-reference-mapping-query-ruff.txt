@@ -1,0 +1,69 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> apps\data_center\application\instrument_reference_snapshot.py:3:1
+   |
+ 1 |   """Application ports and use cases for immutable instrument snapshots."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from typing import Protocol
+ 6 | | from uuid import UUID
+ 7 | |
+ 8 | | from core.exceptions import DataValidationError, InvalidInputError
+ 9 | |
+10 | | from apps.data_center.domain.instrument_reference_snapshot import (
+11 | |     InstrumentReferenceMappingContent,
+12 | |     InstrumentReferenceMappingRecord,
+13 | |     InstrumentReferenceSnapshotContent,
+14 | |     InstrumentReferenceSnapshotRecord,
+15 | | )
+   | |_^
+help: Organize imports
+   |
+7  |
+   - from core.exceptions import DataValidationError, InvalidInputError
+   -
+8  | from apps.data_center.domain.instrument_reference_snapshot import (
+--------------------------------------------------------------------------------
+13 | )
+14 + from core.exceptions import DataValidationError, InvalidInputError
+15 |
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\unit\data_center\test_instrument_reference_mapping_query.py:3:1
+   |
+ 1 |   """Application contract tests for exact instrument mapping reads."""
+ 2 |
+ 3 | / from __future__ import annotations
+ 4 | |
+ 5 | | from datetime import UTC, datetime
+ 6 | | from typing import cast
+ 7 | | from uuid import UUID
+ 8 | |
+ 9 | | import pytest
+10 | |
+11 | | from apps.data_center.application.instrument_reference_snapshot import (
+12 | |     GetInstrumentReferenceMappingUseCase,
+13 | |     InstrumentReferenceSnapshotRepositoryPort,
+14 | | )
+15 | | from apps.data_center.domain.instrument_reference_snapshot import (
+16 | |     InstrumentReferenceMappingContent,
+17 | |     InstrumentReferenceMappingRecord,
+18 | |     InstrumentReferenceSnapshotContent,
+19 | |     InstrumentReferenceSnapshotRecord,
+20 | |     make_instrument_reference_mapping_record,
+21 | | )
+22 | | from apps.data_center.domain.instrument_reference_source import (
+23 | |     InstrumentReferenceExchangeSuffixCrosswalk,
+24 | | )
+25 | | from core.exceptions import DataValidationError, InvalidInputError
+   | |__________________________________________________________________^
+help: Organize imports
+   |
+26 |
+   -
+27 | _MAPPING_RECORD_ID = UUID("b560c9a7-e489-4a6c-9cef-7d1ccfd865fb")
+   |
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.

@@ -927,3 +927,13 @@ scope 无 query，只显示非秘密配置元数据。新 current 仅接受一�
 真实公开投影red先复现KeyError(method)，定向6项Python/19项controller绿保留独立窗口，不累加为唯一用例数。Root一轮检查调度早于依赖export完成，只在读取reference时失败，未启动质量/DB命令；修正等待顺序后重跑，单列编排错误而非业务red。完整绑定见[机器请求方法检查点](../testing/a-share-usability-tui-public-action-method-2026-10-17.json)。
 
 计划登记v232 / 74单元，下一批继续Calendar runtime/IA、当前参考投影和真实Native/browser主任务验收，再整合精确mapping查询及模拟结算消费者前置。ASH-01/02/03与整体Goal保持开放；DATA-18对ASH-11和生产/Provider/研究/Evidence/dispatch/券商门禁不变。
+
+### 19.40 公开的精确交易所映射记录读取
+
+本批接受Data Center的GetInstrumentReferenceMappingUseCase和既有Repository port的get_mapping声明。输入必须是明确UUID；不存在返回None，错误类型在仓储前拒绝，适配器返回错误类型或另一记录时稳定拒绝。复用现有按主键重建内容/索引/seal的Django仓储与composition factory；保留原mapping ID、版本、content hash、record digest、recorded_at及单向映射语义，不选latest、不倒推、不猜证券后缀或默认交易所。
+
+冻结源码 65a757b4f7629bae4f6f8bf77353696a3ee70453 的28项mapping query/既有snapshot单元回归通过；单生产文件增量mypy与全生产债务为零，Black/isort/Ruff、架构boundary/audit零。module map和Data Center架构/入口投影均由官方脚本产生，六项治理stale-check通过。实际测试未连接数据库/Provider，没有新模型、迁移、API/路由、种子或消费者切换。
+
+作者先保留缺公开UseCase导致ImportError的red，随后定向绿。Root驱动在前置测试/增量类型已通过后，因缓存复制helper漏导入shutil停止；完整类型和生成命令当时尚未运行。已修正驱动并在同一冻结导出从该门继续，旧原件未覆盖，编排问题不计业务red。完整源与原件见[精确映射读取检查点](../testing/a-share-usability-instrument-mapping-query-2026-10-17.json)。
+
+此查询不授予映射或日历任何交易资格，也没有把参考数据转换成结算证据。计划登记v233 / 74单元；Calendar工作台继续关闭P0投影/时间格式反例并完成最终Native/browser/type/生成验收。后续分别处理market与exchange、原始限制、用途资格、历史知识时点及既有settlement UoW消费者。ASH-01/02/03与完整Goal仍开放，DATA-18对ASH-11及生产/Evidence/QMT门禁不变。

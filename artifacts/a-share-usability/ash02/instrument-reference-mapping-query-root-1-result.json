@@ -1,0 +1,10 @@
+{
+  "exit": 0,
+  "source_tree": "65a757b4f7629bae4f6f8bf77353696a3ee70453",
+  "changed_during_run": [],
+  "generated_sha256": {
+    "governance/module_map.json": "fd280ed61afae25a2e3a87f31e9b05e503789652e6b5b3a51e87f5d741c98005",
+    "governance/data_center_architecture_inventory.json": "05b574e7f2115cc783fcfd3d76bb0efcc4f8498c3934a97316c91a6097ee4c2d",
+    "governance/data_center_entrypoints.json": "d17f36d2363f03011f64f9109977517484f7b2180997d5f2dc1b8b1b19555161"
+  }
+}

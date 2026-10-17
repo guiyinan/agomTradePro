@@ -1,0 +1,11 @@
+{
+  "recorded_at": "2026-10-17T02:33:35.068442+00:00",
+  "base_commit": "d0ce4d93ef69478c0f04de4057432324ada2b916",
+  "source_tree": "65a757b4f7629bae4f6f8bf77353696a3ee70453",
+  "export": "D:\\githv\\agomTradePro-ash-index-qa-01a14268\\ash-exact-mapping-query-yspdf6t9",
+  "source_sha256": {
+    "apps/data_center/application/instrument_reference_snapshot.py": "9e28153c2f024f818248be60d5675a5a60a009f5ede617af5f9a17618610c14a",
+    "tests/unit/data_center/test_instrument_reference_mapping_query.py": "66113ee6dcca4b6f35cce8eb28ed9bdb86d3c845b1b1decede5aaba3af71a6a1"
+  },
+  "scope": "Exact immutable mapping query only; no consumers/eligibility/model/route/DB/Provider changes."
+}
