@@ -40,6 +40,7 @@ def _position(
     values: dict[str, object] = {
         "asset_code": asset_code,
         "quantity": quantity,
+        "available_quantity_known": True,
         "current_price": 10.0,
         "market_value": 1000.0,
     }

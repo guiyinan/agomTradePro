@@ -10,6 +10,7 @@ Verifies the rework requirements:
 6. close creates a SimulatedTradeModel sell record; partial close leaves correct remainder.
 """
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -21,14 +22,14 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PositionModel,
 )
+from apps.simulated_trading.infrastructure import models as simulated_ledger_models
 from apps.simulated_trading.infrastructure.models import (
     LedgerMigrationMapModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
-from apps.simulated_trading.infrastructure.models import (
-    PositionModel as SimPositionModel,
-)
+
+SimPositionModel = simulated_ledger_models.PositionModel
 
 # ── helper fixtures ───────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ def test_migration_two_portfolios_create_two_independent_accounts(alice, portfol
 
     with mock.patch("builtins.input", return_value="yes"):
         from django.core.management import call_command
+
         call_command("migrate_account_ledger", f"--user-id={alice.id}")
 
     # Verify 1-to-1 mapping entries exist for BOTH portfolios
@@ -104,9 +106,9 @@ def test_migration_two_portfolios_create_two_independent_accounts(alice, portfol
     map_b = LedgerMigrationMapModel.objects.get(
         source_app="account", source_table="portfolio", source_id=portfolio_b.id
     )
-    assert map_a.target_id != map_b.target_id, (
-        "Two portfolios must not map to the same real account"
-    )
+    assert (
+        map_a.target_id != map_b.target_id
+    ), "Two portfolios must not map to the same real account"
 
     # Confirm the two mapped accounts are distinct real accounts
     acct_a = SimulatedAccountModel.objects.get(id=map_a.target_id)
@@ -131,13 +133,14 @@ def test_migration_non_integer_shares_preserved(alice, portfolio_a):
 
     with mock.patch("builtins.input", return_value="yes"):
         from django.core.management import call_command
+
         call_command("migrate_account_ledger", f"--user-id={alice.id}")
 
     sim_pos = SimPositionModel.objects.filter(asset_code="000001.SZ").first()
     assert sim_pos is not None, "Migrated position not found"
-    assert abs(float(sim_pos.quantity) - 10.5) < 1e-4, (
-        f"Expected quantity ~10.5, got {sim_pos.quantity}"
-    )
+    assert (
+        abs(float(sim_pos.quantity) - 10.5) < 1e-4
+    ), f"Expected quantity ~10.5, got {sim_pos.quantity}"
 
 
 # ── 3. PATCH is_closed is ignored ────────────────────────────────────────────
@@ -226,7 +229,9 @@ def test_account_api_create_visible_in_account_positions(alice_client, portfolio
     assert float(sim_pos.avg_cost) == pytest.approx((500 * 8 + 50 * 10) / 550, abs=1e-4)
     assert buy_trades.count() == 2
 
-    list_resp = alice_client.get("/api/account/positions/", {"portfolio_id": portfolio_a.id}, format="json")
+    list_resp = alice_client.get(
+        "/api/account/positions/", {"portfolio_id": portfolio_a.id}, format="json"
+    )
     assert list_resp.status_code == 200
     list_payload = list_resp.json()
     rows = list_payload.get("results", list_payload)
@@ -249,6 +254,7 @@ def test_migration_idempotent(alice, portfolio_a):
     def _run():
         with mock.patch("builtins.input", return_value="yes"):
             from django.core.management import call_command
+
             call_command("migrate_account_ledger", f"--user-id={alice.id}")
 
     _run()
@@ -258,19 +264,22 @@ def test_migration_idempotent(alice, portfolio_a):
     positions_after_first = SimPositionModel.objects.count()
 
     _run()
-    assert SimulatedAccountModel.objects.filter(
-        user=alice, account_type="real"
-    ).count() == accounts_after_first, "Second migration run must not create duplicate accounts"
+    assert (
+        SimulatedAccountModel.objects.filter(user=alice, account_type="real").count()
+        == accounts_after_first
+    ), "Second migration run must not create duplicate accounts"
 
-    assert SimPositionModel.objects.count() == positions_after_first, (
-        "Second migration run must not create duplicate positions"
-    )
+    assert (
+        SimPositionModel.objects.count() == positions_after_first
+    ), "Second migration run must not create duplicate positions"
 
 
 # ── helpers for API-created positions (so the ledger mapping is recorded) ──────
 
 
-def _api_create_position(client, portfolio, asset_code="LEDGER_TEST", shares=200, avg_cost="10.00", price="12.00"):
+def _api_create_position(
+    client, portfolio, asset_code="LEDGER_TEST", shares=200, avg_cost="10.00", price="12.00"
+):
     resp = client.post(
         "/api/account/positions/",
         {
@@ -288,9 +297,11 @@ def _api_create_position(client, portfolio, asset_code="LEDGER_TEST", shares=200
     )
     assert resp.status_code == 201, resp.data
     # PositionCreateSerializer does not expose id; query by portfolio + asset_code
-    return PositionModel.objects.filter(
-        portfolio=portfolio, asset_code=asset_code
-    ).order_by("-id").first()
+    return (
+        PositionModel.objects.filter(portfolio=portfolio, asset_code=asset_code)
+        .order_by("-id")
+        .first()
+    )
 
 
 # ── 6. close creates sell trade; partial close leaves correct remainder ────────
@@ -333,3 +344,510 @@ def test_partial_close_leaves_correct_remainder(alice_client, portfolio_a):
     ).first()
     assert sell_trade is not None
     assert abs(float(sell_trade.quantity) - 300) < 1e-4
+
+
+@pytest.mark.django_db
+def test_legacy_portfolio_read_keeps_total_and_reports_available_unknown(alice, portfolio_a):
+    """A legacy-only holding keeps its total without inventing a simulated BUY."""
+
+    legacy = _mk_position(
+        portfolio_a,
+        asset_code="LEGACY_READ_UNKNOWN",
+        shares=300,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    assert not SimPositionModel._default_manager.filter(pk=legacy.id).exists()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    url = f"/api/account/portfolios/{portfolio_a.id}/positions/"
+    first = client.get(url)
+    assert first.status_code == 200, first.data
+    assert first["Content-Type"].split(";", 1)[0] == "application/json"
+    assert first.data["count"] == 1
+    second = client.get(url)
+    assert second.status_code == 200, second.data
+    assert second["Content-Type"].split(";", 1)[0] == "application/json"
+    assert second.data["count"] == 1
+
+    account_mapping = LedgerMigrationMapModel._default_manager.get(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio_a.id,
+    )
+    sim_position = SimPositionModel._default_manager.get(
+        account_id=account_mapping.target_id,
+        asset_code=legacy.asset_code,
+    )
+    legacy_mapping_count = LedgerMigrationMapModel._default_manager.filter(
+        source_app="account",
+        source_table="position",
+        source_id=legacy.id,
+        target_table="simulated_position",
+        target_id=sim_position.id,
+    ).count()
+    trade_count = SimulatedTradeModel._default_manager.filter(
+        account_id=account_mapping.target_id,
+        asset_code=legacy.asset_code,
+    ).count()
+    row = second.data["data"][0]
+    available_value = row.get("available_quantity")
+    assert row.get("first_buy_date") is None
+    assert row.get("first_buy_date_known") is False
+
+    assert (
+        Decimal(str(sim_position.quantity)),
+        float(row["shares"]),
+        available_value,
+        row.get("available_quantity_status"),
+        getattr(sim_position, "available_quantity_known", None),
+        SimPositionModel._default_manager.filter(
+            account_id=account_mapping.target_id,
+            asset_code=legacy.asset_code,
+        ).count(),
+        legacy_mapping_count,
+        trade_count,
+    ) == (
+        Decimal("300"),
+        300.0,
+        None,
+        "unknown",
+        False,
+        1,
+        1,
+        0,
+    )
+
+
+@pytest.mark.django_db
+def test_legacy_position_detail_read_has_same_unknown_availability(alice, portfolio_a):
+    """Legacy-id detail lookup uses the same non-trading bootstrap contract."""
+
+    legacy = _mk_position(
+        portfolio_a,
+        asset_code="600009.SH",
+        shares=300,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    assert not SimPositionModel._default_manager.filter(pk=legacy.id).exists()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    url = f"/api/account/positions/{legacy.id}/"
+    first = client.get(url)
+    assert first.status_code == 200, first.data
+    assert first["Content-Type"].split(";", 1)[0] == "application/json"
+    second = client.get(url)
+    assert second.status_code == 200, second.data
+    assert second["Content-Type"].split(";", 1)[0] == "application/json"
+
+    account_mapping = LedgerMigrationMapModel._default_manager.get(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio_a.id,
+    )
+    sim_position = SimPositionModel._default_manager.get(
+        account_id=account_mapping.target_id,
+        asset_code=legacy.asset_code,
+    )
+    legacy_mapping_count = LedgerMigrationMapModel._default_manager.filter(
+        source_app="account",
+        source_table="position",
+        source_id=legacy.id,
+        target_table="simulated_position",
+        target_id=sim_position.id,
+    ).count()
+    trade_count = SimulatedTradeModel._default_manager.filter(
+        account_id=account_mapping.target_id,
+        asset_code=legacy.asset_code,
+    ).count()
+    row = second.data
+    assert row.get("first_buy_date") is None
+    assert row.get("first_buy_date_known") is False
+
+    assert (
+        Decimal(str(sim_position.quantity)),
+        float(row["shares"]),
+        row.get("available_quantity"),
+        row.get("available_quantity_status"),
+        getattr(sim_position, "available_quantity_known", None),
+        SimPositionModel._default_manager.filter(
+            account_id=account_mapping.target_id,
+            asset_code=legacy.asset_code,
+        ).count(),
+        legacy_mapping_count,
+        trade_count,
+    ) == (
+        Decimal("300"),
+        300.0,
+        None,
+        "unknown",
+        False,
+        1,
+        1,
+        0,
+    )
+
+
+# ── 7. Legacy bootstrap rejects ambiguous or corrupt ledger relationships ────
+
+
+def _create_mapped_real_account(portfolio):
+    """Create the unified real account already selected for this portfolio."""
+
+    account = SimulatedAccountModel._default_manager.create(
+        user=portfolio.user,
+        account_name=f"{portfolio.name} legacy conflict fixture",
+        account_type="real",
+        initial_capital=Decimal("0.00"),
+        current_cash=Decimal("0.00"),
+        total_value=Decimal("0.00"),
+        auto_trading_enabled=False,
+    )
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio.id,
+        target_table="simulated_account",
+        target_id=account.id,
+    )
+    return account
+
+
+def _create_unified_position(account, asset_code, quantity=Decimal("75")):
+    """Create an existing unified row for a ledger-conflict fixture."""
+
+    return SimPositionModel._default_manager.create(
+        account=account,
+        asset_code=asset_code,
+        asset_name=asset_code,
+        asset_type="equity",
+        quantity=quantity,
+        available_quantity=quantity,
+        avg_cost=Decimal("10.00"),
+        total_cost=quantity * Decimal("10.00"),
+        current_price=Decimal("10.00"),
+        market_value=quantity * Decimal("10.00"),
+        first_buy_date=date(2026, 1, 1),
+    )
+
+
+def _ledger_side_effect_snapshot() -> tuple[tuple[dict[str, object], ...], ...]:
+    """Capture every stored ledger field, including knowledge flags and costs."""
+    return tuple(
+        tuple(model._default_manager.order_by("pk").values())
+        for model in (SimPositionModel, LedgerMigrationMapModel, SimulatedTradeModel)
+    )
+
+
+def _assert_legacy_reconciliation_conflict(response):
+    """Assert the stable JSON conflict contract for unsafe legacy adoption."""
+
+    assert response.status_code == 409, response.data
+    assert response["Content-Type"].split(";", 1)[0] == "application/json"
+    assert response.data.get("code") == "LEGACY_POSITION_RECONCILIATION_REQUIRED"
+
+
+@pytest.mark.django_db
+def test_duplicate_legacy_assets_conflict_without_unified_writes(alice, portfolio_a):
+    """Two legacy rows for one asset must not bootstrap a partial unified ledger."""
+
+    account = _create_mapped_real_account(portfolio_a)
+    _mk_position(portfolio_a, asset_code="DUP_LEGACY_01", shares=100)
+    _mk_position(portfolio_a, asset_code="DUP_LEGACY_01", shares=200)
+    before = _ledger_side_effect_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _ledger_side_effect_snapshot() == before
+    assert not SimPositionModel._default_manager.filter(account=account).exists()
+
+
+@pytest.mark.django_db
+def test_unmapped_unified_asset_conflicts_without_merging_legacy_quantity(alice, portfolio_a):
+    """An existing same-account asset without a source map must never be added to."""
+
+    account = _create_mapped_real_account(portfolio_a)
+    legacy = _mk_position(
+        portfolio_a,
+        asset_code="UNMAPPED_TARGET",
+        shares=300,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    target = _create_unified_position(
+        account,
+        legacy.asset_code,
+        quantity=Decimal("75"),
+    )
+    assert not LedgerMigrationMapModel._default_manager.filter(
+        source_app="account",
+        source_table="position",
+        source_id=legacy.id,
+    ).exists()
+    before = _ledger_side_effect_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _ledger_side_effect_snapshot() == before
+    target.refresh_from_db()
+    assert target.quantity == Decimal("75")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "mapping_problem",
+    ["wrong_target_table", "wrong_account", "wrong_asset", "dangling_target"],
+)
+def test_invalid_legacy_source_mapping_conflicts_without_changes(
+    alice, portfolio_a, mapping_problem
+):
+    """A source map must target the exact unified position in the selected account."""
+
+    account = _create_mapped_real_account(portfolio_a)
+    legacy = _mk_position(
+        portfolio_a,
+        asset_code="600009.SH",
+        shares=300,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    if mapping_problem == "wrong_target_table":
+        target = _create_unified_position(account, legacy.asset_code)
+        target_table = "simulated_trade"
+        target_id = target.id
+    elif mapping_problem == "wrong_account":
+        foreign_account = SimulatedAccountModel._default_manager.create(
+            user=alice,
+            account_name="Unrelated legacy conflict fixture",
+            account_type="real",
+            initial_capital=Decimal("0.00"),
+            current_cash=Decimal("0.00"),
+            total_value=Decimal("0.00"),
+            auto_trading_enabled=False,
+        )
+        target = _create_unified_position(foreign_account, legacy.asset_code)
+        target_table = "simulated_position"
+        target_id = target.id
+    elif mapping_problem == "wrong_asset":
+        target = _create_unified_position(account, "600010.SH")
+        target_table = "simulated_position"
+        target_id = target.id
+    else:
+        assert mapping_problem == "dangling_target"
+        target_table = "simulated_position"
+        target_id = -1
+        assert not SimPositionModel._default_manager.filter(pk=target_id).exists()
+
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="position",
+        source_id=legacy.id,
+        target_table=target_table,
+        target_id=target_id,
+    )
+    before = _ledger_side_effect_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _ledger_side_effect_snapshot() == before
+
+
+def _portfolio_atomic_business_snapshot() -> tuple[tuple[dict[str, object], ...], ...]:
+    """Capture complete source and unified portfolio, position, map, trade, and account rows."""
+
+    return tuple(
+        tuple(model._default_manager.order_by("pk").values())
+        for model in (
+            PortfolioModel,
+            PositionModel,
+            SimPositionModel,
+            LedgerMigrationMapModel,
+            SimulatedTradeModel,
+            SimulatedAccountModel,
+        )
+    )
+
+
+@pytest.mark.django_db
+def test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged(
+    alice: User,
+    portfolio_a: PortfolioModel,
+) -> None:
+    """A late source-map conflict must roll back an earlier valid legacy adoption."""
+
+    account = _create_mapped_real_account(portfolio_a)
+    first_legacy = _mk_position(
+        portfolio_a,
+        asset_code="ATOMIC_FIRST_01",
+        shares=100,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    conflicting_legacy = _mk_position(
+        portfolio_a,
+        asset_code="ATOMIC_LATER_02",
+        shares=200,
+        avg_cost="11.00",
+        price="13.00",
+    )
+    assert first_legacy.id < conflicting_legacy.id
+    assert not LedgerMigrationMapModel._default_manager.filter(
+        source_app="account",
+        source_table="position",
+        source_id=first_legacy.id,
+    ).exists()
+    assert not SimPositionModel._default_manager.filter(
+        account=account,
+        asset_code=first_legacy.asset_code,
+    ).exists()
+
+    conflicting_target = _create_unified_position(account, conflicting_legacy.asset_code)
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="position",
+        source_id=conflicting_legacy.id,
+        target_table="simulated_trade",
+        target_id=conflicting_target.id,
+    )
+    before = _portfolio_atomic_business_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _portfolio_atomic_business_snapshot() == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "mapping_problem",
+    ("dangling", "wrong_table", "wrong_owner", "wrong_account_type"),
+)
+def test_invalid_existing_portfolio_mapping_conflicts_without_repair(
+    alice: User,
+    portfolio_a: PortfolioModel,
+    mapping_problem: str,
+) -> None:
+    """Reject a dangling or inconsistent portfolio map without touching ledger rows."""
+
+    target_table = "simulated_account"
+    if mapping_problem == "dangling":
+        target_id = -1
+    else:
+        account_owner: User = alice
+        account_type = "real"
+        if mapping_problem == "wrong_table":
+            target_table = "simulated_position"
+        elif mapping_problem == "wrong_owner":
+            account_owner = User.objects.create_user(
+                username="wrong_portfolio_map_owner",
+                password="unused",
+            )
+        elif mapping_problem == "wrong_account_type":
+            account_type = "simulated"
+        else:
+            pytest.fail(f"Unexpected mapping problem: {mapping_problem}")
+
+        account = SimulatedAccountModel._default_manager.create(
+            user=account_owner,
+            account_name=f"invalid portfolio map {mapping_problem}",
+            account_type=account_type,
+            initial_capital=Decimal("1000.00"),
+            current_cash=Decimal("1000.00"),
+            current_market_value=Decimal("0.00"),
+            total_value=Decimal("1000.00"),
+            auto_trading_enabled=False,
+        )
+        target_id = account.id
+
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio_a.id,
+        target_table=target_table,
+        target_id=target_id,
+    )
+    before = _portfolio_atomic_business_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _portfolio_atomic_business_snapshot() == before
+
+
+@pytest.mark.django_db
+def test_duplicate_reverse_source_maps_conflict_without_changes(
+    alice: User,
+    portfolio_a: PortfolioModel,
+) -> None:
+    """Reject two source maps that both claim the same unified position."""
+
+    account = _create_mapped_real_account(portfolio_a)
+    open_legacy = _mk_position(
+        portfolio_a,
+        asset_code="600011.SH",
+        shares=100,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    unified_position = _create_unified_position(
+        account,
+        open_legacy.asset_code,
+        quantity=Decimal("100"),
+    )
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="position",
+        source_id=open_legacy.id,
+        target_table="simulated_position",
+        target_id=unified_position.id,
+    )
+
+    closed_legacy = _mk_position(
+        portfolio_a,
+        asset_code=open_legacy.asset_code,
+        shares=0,
+        avg_cost="10.00",
+        price="12.00",
+    )
+    closed_legacy.is_closed = True
+    closed_legacy.save(update_fields=["is_closed"])
+    LedgerMigrationMapModel._default_manager.create(
+        source_app="account",
+        source_table="position",
+        source_id=closed_legacy.id,
+        target_table="simulated_position",
+        target_id=unified_position.id,
+    )
+    assert (
+        LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="position",
+            target_table="simulated_position",
+            target_id=unified_position.id,
+        ).count()
+        == 2
+    )
+    before = _portfolio_atomic_business_snapshot()
+
+    client = APIClient()
+    client.force_authenticate(alice)
+    response = client.get(f"/api/account/portfolios/{portfolio_a.id}/positions/")
+
+    _assert_legacy_reconciliation_conflict(response)
+    assert _portfolio_atomic_business_snapshot() == before

@@ -179,6 +179,9 @@ class TradingConstraintRule:
         if price is not None and price <= 0:
             return False, "卖出价格必须大于0"
 
+        if position.available_quantity_known is not True:
+            return False, "可卖数量未核实，请先完成持仓对账"
+
         # 2. 检查持仓数量
         if quantity > position.available_quantity:
             return False, f"可卖数量不足(需要{quantity},可用{position.available_quantity})"

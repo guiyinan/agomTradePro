@@ -75,14 +75,23 @@ class PositionListAPIView(APIView):
                 "asset_name": pos.asset_name,
                 "asset_type": pos.asset_type,
                 "quantity": pos.quantity,
-                "available_quantity": pos.available_quantity,
+                "available_quantity": (
+                    pos.available_quantity if pos.available_quantity_known is True else None
+                ),
+                "available_quantity_known": pos.available_quantity_known is True,
+                "available_quantity_status": (
+                    "known" if pos.available_quantity_known is True else "unknown"
+                ),
                 "avg_cost": str(pos.avg_cost),
                 "total_cost": str(pos.total_cost),
                 "current_price": str(pos.current_price),
                 "market_value": str(pos.market_value),
                 "unrealized_pnl": str(pos.unrealized_pnl),
                 "unrealized_pnl_pct": pos.unrealized_pnl_pct,
-                "first_buy_date": pos.first_buy_date.isoformat(),
+                "first_buy_date": (
+                    pos.first_buy_date.isoformat() if pos.first_buy_date_known is True else None
+                ),
+                "first_buy_date_known": pos.first_buy_date_known is True,
                 "last_update_date": pos.last_update_date.isoformat(),
                 "signal_id": pos.signal_id,
                 "entry_reason": pos.entry_reason,

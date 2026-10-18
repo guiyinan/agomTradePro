@@ -8,7 +8,7 @@
 
 - App 数：42
 - 模型数：588
-- 字段数：9095
+- 字段数：9097
 
 口径说明：仅覆盖 `apps/*/infrastructure/` 下的 `models.py`、`models/` 包与 `*_models.py`；字段为类体内显式赋值的 Django 字段，继承字段不展开，动态字段与隐式自增主键不在投影内。
 
@@ -13844,6 +13844,7 @@
 | `asset_type` | `CharField` |  |  |  | 资产类型 |  |
 | `quantity` | `DecimalField` |  |  |  | 持仓数量 |  |
 | `available_quantity` | `DecimalField` |  |  |  | 可卖数量 |  |
+| `available_quantity_known` | `BooleanField` |  |  | True | 可卖数量是否已知 |  |
 | `avg_cost` | `DecimalField` |  |  |  | 平均成本(元) |  |
 | `total_cost` | `DecimalField` |  |  |  | 总成本(元) |  |
 | `current_price` | `DecimalField` |  |  |  | 当前价格(元) |  |
@@ -13851,6 +13852,7 @@
 | `unrealized_pnl` | `DecimalField` |  |  | 0 | 浮动盈亏(元) |  |
 | `unrealized_pnl_pct` | `FloatField` |  |  | 0.0 | 浮动盈亏率(%) |  |
 | `first_buy_date` | `DateField` |  |  |  | 首次买入日期 |  |
+| `first_buy_date_known` | `BooleanField` |  |  | True | 首次买入日期是否已知 |  |
 | `last_update_date` | `DateField` |  |  |  | 最后更新日期 |  |
 | `signal_id` | `IntegerField` | 是 |  |  | 关联信号ID |  |
 | `entry_reason` | `CharField` |  |  |  | 入场原因 |  |

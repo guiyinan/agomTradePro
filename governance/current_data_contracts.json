@@ -8347,13 +8347,14 @@
     },
     {
       "id": "simulated_trading.account_execution_projection",
-      "surface": "Scoped legacy ledger quantity fidelity only; absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
+      "surface": "Scoped legacy ledger quantity fidelity only; explicitly unknown sellability blocks the complete projection even when numeric storage is zero or equals total. Absent broker source time, settlement completeness and reservations remain unverified and cannot become trusted SELL evidence",
       "source_files": [
         "apps/simulated_trading/application/query_services.py"
       ],
       "required_markers": {
         "apps/simulated_trading/application/query_services.py": [
           "get_account_execution_projection",
+          "position.available_quantity_known is not True",
           "getattr(position, \"available_quantity\", None)",
           "available_quantity > quantity",
           "Decimal(str(numeric_value)) != quantity",
@@ -8361,6 +8362,11 @@
         ]
       },
       "required_tests": [
+        {
+          "case": "unknown_sellability_is_not_a_verified_numeric_balance",
+          "test_file": "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
+          "test_function": "test_execution_risk_projection_rejects_unknown_sellability"
+        },
         {
           "case": "persisted_sellable_is_distinct_from_total",
           "test_file": "tests/unit/simulated_trading/test_account_execution_projection.py",

@@ -229,6 +229,11 @@ class Position:
     first_buy_date: date
     last_update_date: date
 
+    # Numeric compatibility storage is not evidence when this flag is false.
+    available_quantity_known: bool = field(default=True, kw_only=True)
+    # Legacy opened_at is not proof of the historical first trade date.
+    first_buy_date_known: bool = field(default=True, kw_only=True)
+
     # 关联信号
     signal_id: int | None = None
     entry_reason: str = ""

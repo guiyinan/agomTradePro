@@ -26,6 +26,7 @@ from apps.simulated_trading.domain.entities import (
 )
 from apps.simulated_trading.domain.rules import TradingConstraintRule
 from apps.simulated_trading.domain.services import PositionCostBasisService
+from core.exceptions import BusinessLogicError
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
@@ -310,6 +311,12 @@ class ExecuteBuyOrderUseCase:
         existing_position = self.position_repo.get_position(account_id, asset_code)
         if existing_position and existing_position.is_invalidated:
             raise ValueError(f"持仓已触发证伪条件，禁止加仓: {asset_code}")
+        if existing_position and existing_position.available_quantity_known is not True:
+            raise BusinessLogicError(
+                "现有持仓可卖数量未知，拒绝加仓",
+                code="SELLABLE_BALANCE_UNKNOWN",
+                details={"account_id": account_id, "asset_code": asset_code},
+            )
         current_position_value = (
             _as_float(existing_position.quantity) * price if existing_position else 0.0
         )
@@ -408,6 +415,8 @@ class ExecuteBuyOrderUseCase:
                 unrealized_pnl=(price - new_avg_cost) * new_quantity,
                 unrealized_pnl_pct=((price - new_avg_cost) / new_avg_cost) * 100,
                 first_buy_date=existing_position.first_buy_date,
+                first_buy_date_known=existing_position.first_buy_date_known,
+                available_quantity_known=existing_position.available_quantity_known,
                 last_update_date=effective_date,
                 signal_id=signal_id,
                 entry_reason=reason or existing_position.entry_reason,
@@ -478,8 +487,8 @@ class ExecuteBuyOrderUseCase:
         if self.signal_repo is None:
             return None, ""
         try:
-            payload: tuple[str | None, str] = (
-                self.signal_repo.get_signal_invalidation_payload(signal_id)
+            payload: tuple[str | None, str] = self.signal_repo.get_signal_invalidation_payload(
+                signal_id
             )
             return payload
         except Exception:
@@ -536,6 +545,12 @@ class ExecuteSellOrderUseCase:
         position = self.position_repo.get_position(account_id, asset_code)
         if not position:
             raise ValueError(f"持仓不存在: {asset_code}")
+        if position.available_quantity_known is not True:
+            raise BusinessLogicError(
+                "现有持仓可卖数量未知，拒绝卖出",
+                code="SELLABLE_BALANCE_UNKNOWN",
+                details={"account_id": account_id, "asset_code": asset_code},
+            )
 
         effective_date = execution_date or date.today()
         order_quantity = _as_float(quantity)
@@ -617,6 +632,8 @@ class ExecuteSellOrderUseCase:
                 unrealized_pnl=(price - position_avg_cost) * remaining_quantity,
                 unrealized_pnl_pct=((price - position_avg_cost) / position_avg_cost) * 100,
                 first_buy_date=position.first_buy_date,
+                first_buy_date_known=position.first_buy_date_known,
+                available_quantity_known=position.available_quantity_known,
                 last_update_date=effective_date,
                 signal_id=position.signal_id,
                 entry_reason=position.entry_reason,

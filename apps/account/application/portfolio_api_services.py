@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, cast
 
 from apps.account.application.portfolio_api_contracts import (
@@ -23,6 +24,15 @@ from apps.account.application.repository_provider import (
     get_portfolio_api_repository,
 )
 from apps.account.application.simulated_trading_gateway import get_unified_position_service
+from core.exceptions import BusinessLogicError
+
+
+class LegacyPositionAdoptionConflict(BusinessLogicError):
+    """Report an ambiguous legacy holding without adding a reverse App dependency."""
+
+    default_message = "旧持仓与统一账本关系不明确，需先完成核对"
+    default_code = "LEGACY_POSITION_RECONCILIATION_REQUIRED"
+    default_status_code = 409
 
 
 class PortfolioNotFoundError(LookupError):
@@ -420,43 +430,53 @@ def _validate_portfolio_access(
 
 
 def _ensure_portfolio_ledger_synced(portfolio: PortfolioRecord) -> int:
-    """Ensure the portfolio and its open legacy positions exist in the unified ledger."""
+    """Adopt each unique open legacy asset before exposing the unified ledger."""
 
-    account_id = _portfolio_api_repo().ensure_real_account(portfolio)
-    for legacy_position in _portfolio_api_repo().list_open_legacy_positions(portfolio):
-        _sync_unified_position_from_legacy(legacy_position)
-    return account_id
+    repository = _portfolio_api_repo()
+    with repository.legacy_sync_transaction(
+        portfolio_id=portfolio.id, owner_user_id=portfolio.user_id
+    ):
+        legacy_positions = repository.list_open_legacy_positions(portfolio)
+        asset_codes: set[str] = set()
+        for legacy_position in legacy_positions:
+            if legacy_position.asset_code in asset_codes:
+                raise LegacyPositionAdoptionConflict()
+            asset_codes.add(legacy_position.asset_code)
+
+        account_id = repository.ensure_real_account(portfolio)
+        for legacy_position in legacy_positions:
+            _sync_unified_position_from_legacy(legacy_position, account_id=account_id)
+        return account_id
 
 
 def _sync_unified_position_from_legacy(
     legacy_position: LegacyPositionRecord,
+    *,
+    account_id: int,
 ) -> UnifiedPositionRecord:
-    """Bootstrap one legacy position into the unified ledger when needed."""
+    """Adopt one legacy balance through the Simulated Trading public application port."""
 
-    existing_mapping = _portfolio_api_repo().get_position_mapping_for_source(legacy_position.id)
-    if existing_mapping is not None:
-        unified_existing = _portfolio_api_repo().get_unified_position(existing_mapping.target_id)
-        if unified_existing is not None:
-            return unified_existing
-        _portfolio_api_repo().delete_position_mapping_for_source(legacy_position.id)
-
-    unified_model = _position_service().create_position(
-        account_id=_portfolio_api_repo().ensure_real_account(legacy_position.portfolio),
+    unified_position_id = _position_service().adopt_legacy_position(
+        account_id=account_id,
+        owner_user_id=legacy_position.portfolio.user_id,
+        portfolio_id=legacy_position.portfolio.id,
+        source_position_id=legacy_position.id,
         asset_code=legacy_position.asset_code,
-        shares=float(legacy_position.shares),
-        price=float(legacy_position.avg_cost),
-        current_price=float(legacy_position.current_price or legacy_position.avg_cost),
         asset_name=legacy_position.asset_code,
         asset_type=_map_account_asset_type(legacy_position.asset_class),
-        source=legacy_position.source,
-        source_id=legacy_position.source_id,
-        entry_reason=f"bootstrap from account.position:{legacy_position.id}",
+        quantity=Decimal(str(legacy_position.shares)),
+        avg_cost=legacy_position.avg_cost,
+        current_price=(
+            legacy_position.current_price
+            if legacy_position.current_price is not None
+            else legacy_position.avg_cost
+        ),
+        source_recorded_at=legacy_position.opened_at,
     )
-    _portfolio_api_repo().create_position_mapping(
-        source_id=legacy_position.id,
-        target_id=unified_model.id,
-    )
-    return unified_model
+    unified_position = _portfolio_api_repo().get_unified_position(unified_position_id)
+    if unified_position is None:
+        raise LegacyPositionAdoptionConflict()
+    return unified_position
 
 
 def _resolve_position_context(
@@ -464,7 +484,7 @@ def _resolve_position_context(
     user_id: int,
     position_id: int,
 ) -> tuple[UnifiedPositionRecord, PortfolioAccessContext]:
-    """Resolve one position from the unified ledger or legacy projection."""
+    """Resolve a unified position ID or adopt its open legacy projection safely."""
 
     unified_position = _portfolio_api_repo().get_unified_position(position_id)
     if unified_position is not None:
@@ -481,4 +501,25 @@ def _resolve_position_context(
         user_id=user_id,
         portfolio=legacy_projection.portfolio,
     )
-    return _sync_unified_position_from_legacy(legacy_projection), context
+    if legacy_projection.is_closed:
+        mapping = _portfolio_api_repo().get_position_mapping_for_source(legacy_projection.id)
+        if mapping is None:
+            raise PositionNotFoundError(f"持仓 {position_id} 不存在")
+        repository = _portfolio_api_repo()
+        with repository.legacy_sync_transaction(
+            portfolio_id=context.portfolio.id, owner_user_id=context.portfolio.user_id
+        ):
+            account_id = repository.ensure_real_account(context.portfolio)
+            return (
+                _sync_unified_position_from_legacy(legacy_projection, account_id=account_id),
+                context,
+            )
+
+    _ensure_portfolio_ledger_synced(context.portfolio)
+    mapping = _portfolio_api_repo().get_position_mapping_for_source(legacy_projection.id)
+    if mapping is None:
+        raise LegacyPositionAdoptionConflict()
+    unified_position = _portfolio_api_repo().get_unified_position(mapping.target_id)
+    if unified_position is None:
+        raise LegacyPositionAdoptionConflict()
+    return unified_position, context

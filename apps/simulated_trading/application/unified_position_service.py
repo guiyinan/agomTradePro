@@ -23,6 +23,9 @@ from typing import Any, Protocol
 
 from django.utils import timezone
 
+from apps.simulated_trading.application.legacy_position_adoption_errors import (
+    LegacyPositionAdoptionConflict,
+)
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_position_mutation_repository,
@@ -35,6 +38,12 @@ from apps.simulated_trading.domain.entities import (
     SimulatedTrade,
     TradeAction,
 )
+from apps.simulated_trading.domain.execution_settlement_primitives import (
+    validate_ledger_money,
+    validate_ledger_price,
+    validate_ledger_quantity,
+)
+from core.exceptions import BusinessLogicError
 from shared.domain.position_calculations import recalculate_derived_fields
 
 logger = logging.getLogger(__name__)
@@ -47,6 +56,9 @@ SIMULATED_POSITION_STATE_INVALID_ERROR = "simulated_position_state_invalid"
 CLOSE_SHARES_INVALID_ERROR = "close_shares_invalid"
 CLOSE_SHARES_EXCEEDS_POSITION_ERROR = "close_shares_exceeds_position"
 CLOSE_PRICE_INVALID_ERROR = "close_price_invalid"
+SELLABLE_BALANCE_UNKNOWN_ERROR = "SELLABLE_BALANCE_UNKNOWN"
+SELLABLE_BALANCE_INSUFFICIENT_ERROR = "SELLABLE_BALANCE_INSUFFICIENT"
+POSITION_BALANCE_INVALID_ERROR = "POSITION_BALANCE_INVALID"
 
 
 class PositionLifecycleRepositoryProtocol(Protocol):
@@ -74,6 +86,23 @@ class PositionLifecycleRepositoryProtocol(Protocol):
 class PositionMutationRepositoryProtocol(Protocol):
     """Atomic position mutation operations required by the service."""
 
+    def adopt_legacy_position_projection(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        portfolio_id: int,
+        source_position_id: int,
+        asset_code: str,
+        asset_name: str,
+        asset_type: str,
+        quantity: Decimal,
+        avg_cost: Decimal,
+        current_price: Decimal,
+        first_buy_date: date,
+    ) -> int | None:
+        """Adopt one legacy balance without writing a simulated trade."""
+
     def create_or_merge_position_with_buy_trade(
         self,
         *,
@@ -81,6 +110,7 @@ class PositionMutationRepositoryProtocol(Protocol):
         asset_code: str,
         position_defaults: dict[str, Any],
         trade_payload: dict[str, Any],
+        expected_position: Position | None = None,
     ) -> Any:
         """Persist a buy trade and its resulting position."""
 
@@ -140,6 +170,82 @@ class UnifiedPositionService:
 
     # ── writes ─────────────────────────────────────────────────────────────
 
+    def adopt_legacy_position(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        portfolio_id: int,
+        source_position_id: int,
+        asset_code: str,
+        asset_name: str,
+        asset_type: str,
+        quantity: Decimal,
+        avg_cost: Decimal,
+        current_price: Decimal | None,
+        source_recorded_at: datetime,
+    ) -> int:
+        """Adopt one legacy balance as an unknown-availability position.
+
+        The existing ledger position and source map are written atomically;
+        this operation never creates a SimulatedTrade row.
+        """
+        identifiers = (account_id, owner_user_id, portfolio_id, source_position_id)
+        if any(type(value) is not int or value <= 0 for value in identifiers):
+            raise LegacyPositionAdoptionConflict()
+        if any(
+            type(value) is not str or not value for value in (asset_code, asset_name, asset_type)
+        ):
+            raise LegacyPositionAdoptionConflict()
+        if (
+            not isinstance(source_recorded_at, datetime)
+            or source_recorded_at.tzinfo is None
+            or source_recorded_at.utcoffset() is None
+        ):
+            raise LegacyPositionAdoptionConflict()
+        try:
+            stored_quantity = validate_ledger_quantity(
+                quantity, "legacy position quantity", allow_zero=False
+            )
+            stored_avg_cost = validate_ledger_price(
+                avg_cost, "legacy position average cost", allow_zero=False
+            )
+            stored_current_price = validate_ledger_price(
+                current_price if current_price is not None else stored_avg_cost,
+                "legacy position valuation baseline",
+                allow_zero=False,
+            )
+            validate_ledger_money(
+                (stored_quantity * stored_avg_cost).quantize(_VALUE_PLACES, rounding=ROUND_HALF_UP),
+                "legacy position total cost",
+                allow_zero=False,
+            )
+            validate_ledger_money(
+                (stored_quantity * stored_current_price).quantize(
+                    _VALUE_PLACES, rounding=ROUND_HALF_UP
+                ),
+                "legacy position local valuation",
+                allow_zero=False,
+            )
+        except (ArithmeticError, TypeError, ValueError) as exc:
+            raise LegacyPositionAdoptionConflict() from exc
+        saved_position_id = self._mutation_repo.adopt_legacy_position_projection(
+            account_id=account_id,
+            owner_user_id=owner_user_id,
+            portfolio_id=portfolio_id,
+            source_position_id=source_position_id,
+            asset_code=asset_code,
+            asset_name=asset_name,
+            asset_type=asset_type,
+            quantity=stored_quantity,
+            avg_cost=stored_avg_cost,
+            current_price=stored_current_price,
+            first_buy_date=source_recorded_at.date(),
+        )
+        if saved_position_id is None:
+            raise LegacyPositionAdoptionConflict()
+        return saved_position_id
+
     def create_position(
         self,
         account_id: int,
@@ -183,11 +289,17 @@ class UnifiedPositionService:
             mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
                 float(combined_qty), float(blended_cost), float(cur_price_d)
             )
+            available_quantity = min(
+                _to_decimal(existing.available_quantity, _QUANTITY_PLACES),
+                combined_qty,
+            )
+            available_quantity_known = existing.available_quantity_known is True
             position_defaults = {
                 "asset_name": existing.asset_name,
                 "asset_type": existing.asset_type,
                 "quantity": combined_qty,
-                "available_quantity": combined_qty,
+                "available_quantity": available_quantity,
+                "available_quantity_known": available_quantity_known,
                 "avg_cost": blended_cost,
                 "total_cost": (blended_cost * combined_qty).quantize(_VALUE_PLACES),
                 "current_price": cur_price_d,
@@ -195,6 +307,7 @@ class UnifiedPositionService:
                 "unrealized_pnl": _to_decimal(pnl2, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct2,
                 "first_buy_date": existing.first_buy_date,
+                "first_buy_date_known": existing.first_buy_date_known,
                 "last_update_date": date.today(),
                 "signal_id": existing.signal_id,
                 "entry_reason": existing.entry_reason,
@@ -213,6 +326,7 @@ class UnifiedPositionService:
                 "asset_type": asset_type,
                 "quantity": qty,
                 "available_quantity": qty,
+                "available_quantity_known": True,
                 "avg_cost": avg_cost_d,
                 "total_cost": (avg_cost_d * qty).quantize(_VALUE_PLACES),
                 "current_price": cur_price_d,
@@ -220,6 +334,7 @@ class UnifiedPositionService:
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct,
                 "first_buy_date": execution_date,
+                "first_buy_date_known": True,
                 "last_update_date": execution_date,
                 "signal_id": source_id if source == "signal" else None,
                 "entry_reason": entry_reason or f"created via {source}",
@@ -250,6 +365,7 @@ class UnifiedPositionService:
             asset_code=asset_code,
             position_defaults=position_defaults,
             trade_payload=trade_payload,
+            expected_position=existing,
         )
 
         return model
@@ -277,7 +393,8 @@ class UnifiedPositionService:
                 f"Position not found: account_id={account_id}, asset_code={asset_code}"
             )
 
-        quantity = _to_decimal(model.quantity, _QUANTITY_PLACES)
+        original_quantity = _to_decimal(model.quantity, _QUANTITY_PLACES)
+        quantity = original_quantity
         next_avg_cost = Decimal(str(model.avg_cost))
         next_current_price = Decimal(str(model.current_price))
 
@@ -293,6 +410,13 @@ class UnifiedPositionService:
             float(next_avg_cost),
             float(next_current_price),
         )
+        available_quantity = min(
+            _to_decimal(model.available_quantity, _QUANTITY_PLACES),
+            quantity,
+        )
+        available_quantity_known = (
+            model.available_quantity_known is True and quantity == original_quantity
+        )
         self._position_repo.save_position_record(
             account_id=account_id,
             asset_code=asset_code,
@@ -300,7 +424,8 @@ class UnifiedPositionService:
                 "asset_name": model.asset_name,
                 "asset_type": model.asset_type,
                 "quantity": quantity,
-                "available_quantity": quantity,
+                "available_quantity": available_quantity,
+                "available_quantity_known": available_quantity_known,
                 "avg_cost": next_avg_cost,
                 "total_cost": (next_avg_cost * quantity).quantize(_VALUE_PLACES),
                 "current_price": next_current_price,
@@ -308,6 +433,7 @@ class UnifiedPositionService:
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct,
                 "first_buy_date": model.first_buy_date,
+                "first_buy_date_known": model.first_buy_date_known,
                 "last_update_date": date.today(),
                 "signal_id": model.signal_id,
                 "entry_reason": model.entry_reason,
@@ -361,6 +487,37 @@ class UnifiedPositionService:
         )
         if not price_d.is_finite() or price_d <= 0:
             raise ValueError(CLOSE_PRICE_INVALID_ERROR)
+        if model.available_quantity_known is not True:
+            raise BusinessLogicError(
+                "可卖数量未知，拒绝卖出",
+                code=SELLABLE_BALANCE_UNKNOWN_ERROR,
+                details={"account_id": account_id, "asset_code": asset_code},
+            )
+        available_quantity = _to_decimal(model.available_quantity, _QUANTITY_PLACES)
+        if (
+            not available_quantity.is_finite()
+            or available_quantity < 0
+            or available_quantity > position_quantity
+        ):
+            raise BusinessLogicError(
+                "持仓可卖数量无效，拒绝卖出",
+                code=POSITION_BALANCE_INVALID_ERROR,
+                details={
+                    "account_id": account_id,
+                    "asset_code": asset_code,
+                    "available_quantity": str(available_quantity),
+                    "total_quantity": str(position_quantity),
+                },
+            )
+        if qty_to_close > available_quantity:
+            raise BusinessLogicError(
+                "可卖数量不足，拒绝卖出",
+                code=SELLABLE_BALANCE_INSUFFICIENT_ERROR,
+                details={
+                    "requested_quantity": str(qty_to_close),
+                    "available_quantity": str(available_quantity),
+                },
+            )
         execution_time = traded_at or timezone.now()
         execution_date = execution_time.date()
         amount = (qty_to_close * price_d).quantize(_VALUE_PLACES)
@@ -403,6 +560,9 @@ class UnifiedPositionService:
             return None
 
         remaining = remaining.quantize(_QUANTITY_PLACES)
+        remaining_available_quantity = (available_quantity - qty_to_close).quantize(
+            _QUANTITY_PLACES
+        )
         mv, pnl, pnl_pct = recalculate_derived_fields(
             float(remaining), float(avg_cost_d), float(price_d)
         )
@@ -413,7 +573,8 @@ class UnifiedPositionService:
                 "asset_name": model.asset_name,
                 "asset_type": model.asset_type,
                 "quantity": remaining,
-                "available_quantity": remaining,
+                "available_quantity": remaining_available_quantity,
+                "available_quantity_known": model.available_quantity_known,
                 "avg_cost": avg_cost_d,
                 "total_cost": (avg_cost_d * remaining).quantize(_VALUE_PLACES),
                 "current_price": price_d,
@@ -421,6 +582,7 @@ class UnifiedPositionService:
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct,
                 "first_buy_date": model.first_buy_date,
+                "first_buy_date_known": model.first_buy_date_known,
                 "last_update_date": execution_date,
                 "signal_id": model.signal_id,
                 "entry_reason": model.entry_reason,

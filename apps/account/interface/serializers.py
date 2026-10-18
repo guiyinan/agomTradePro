@@ -158,6 +158,13 @@ class PositionSerializer(serializers.Serializer[Any]):
     region = serializers.CharField(read_only=True, allow_null=True)
     cross_border = serializers.CharField(read_only=True, allow_null=True)
     shares = serializers.FloatField(read_only=True)
+    available_quantity = serializers.DecimalField(
+        max_digits=20, decimal_places=6, read_only=True, allow_null=True
+    )
+    available_quantity_known = serializers.BooleanField(read_only=True)
+    available_quantity_status = serializers.CharField(read_only=True)
+    first_buy_date = serializers.DateField(read_only=True, allow_null=True)
+    first_buy_date_known = serializers.BooleanField(read_only=True)
     avg_cost = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
     current_price = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
     market_value = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)

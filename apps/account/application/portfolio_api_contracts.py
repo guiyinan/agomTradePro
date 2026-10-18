@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime
+from contextlib import AbstractContextManager
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Protocol
 
@@ -42,6 +43,7 @@ class LegacyPositionRecord(Protocol):
     source: str
     source_id: int | None
     is_closed: bool
+    opened_at: datetime
 
 
 class UnifiedPositionRecord(Protocol):
@@ -52,6 +54,11 @@ class UnifiedPositionRecord(Protocol):
     asset_code: str
     asset_name: str
     asset_type: str
+    quantity: Decimal
+    available_quantity: Decimal
+    available_quantity_known: bool
+    first_buy_date: date
+    first_buy_date_known: bool
     signal_id: int | None
 
 
@@ -86,6 +93,11 @@ class PortfolioQuerySet(Protocol):
 
 class PortfolioApiRepository(Protocol):
     """Persistence port for portfolio access and ledger projection orchestration."""
+
+    def legacy_sync_transaction(
+        self, *, portfolio_id: int, owner_user_id: int
+    ) -> AbstractContextManager[None]:
+        """Serialize and atomically adopt all balances of one owned portfolio."""
 
     def get_portfolio_with_owner(self, portfolio_id: int) -> PortfolioRecord | None:
         """Return one portfolio with its owner loaded."""
@@ -230,6 +242,23 @@ class LegacyPositionMutationRepository(Protocol):
 
 class UnifiedPositionService(Protocol):
     """Unified ledger lifecycle port used by Account."""
+
+    def adopt_legacy_position(
+        self,
+        *,
+        account_id: int,
+        owner_user_id: int,
+        portfolio_id: int,
+        source_position_id: int,
+        asset_code: str,
+        asset_name: str,
+        asset_type: str,
+        quantity: Decimal,
+        avg_cost: Decimal,
+        current_price: Decimal | None,
+        source_recorded_at: datetime,
+    ) -> int:
+        """Adopt one legacy balance without synthesizing a trade."""
 
     def create_position(
         self,

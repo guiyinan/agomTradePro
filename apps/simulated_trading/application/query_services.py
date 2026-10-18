@@ -21,10 +21,8 @@ def get_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
         resolved_account_id = int(account_id)
     except ValueError as exc:
         raise ValueError("account_id must be an integer") from exc
-    snapshots: list[dict[str, Any]] = (
-        get_simulated_position_repository().get_position_snapshots(
-            account_id=resolved_account_id
-        )
+    snapshots: list[dict[str, Any]] = get_simulated_position_repository().get_position_snapshots(
+        account_id=resolved_account_id
     )
     return snapshots
 
@@ -38,8 +36,8 @@ def list_held_asset_codes() -> list[str]:
 
 def list_active_account_models_for_user(user_id: int) -> list[Any]:
     """Return active account rows for UI contexts that rely on model display helpers."""
-    accounts: list[Any] = (
-        get_simulated_account_repository().get_active_account_models_for_user(user_id)
+    accounts: list[Any] = get_simulated_account_repository().get_active_account_models_for_user(
+        user_id
     )
     return accounts
 
@@ -47,9 +45,7 @@ def list_active_account_models_for_user(user_id: int) -> list[Any]:
 def list_active_account_targets() -> list[dict[str, Any]]:
     """Return active account/user id pairs for scheduled application jobs."""
 
-    targets: list[dict[str, Any]] = (
-        get_simulated_account_repository().list_active_account_targets()
-    )
+    targets: list[dict[str, Any]] = get_simulated_account_repository().list_active_account_targets()
     return targets
 
 
@@ -138,9 +134,9 @@ def list_user_position_payloads(
                 "market_value": float(position.market_value),
                 "unrealized_pnl": float(position.unrealized_pnl),
                 "unrealized_pnl_pct": position.unrealized_pnl_pct,
-                "opened_at": position.first_buy_date.strftime("%Y-%m-%d")
-                if position.first_buy_date
-                else "",
+                "opened_at": (
+                    position.first_buy_date.strftime("%Y-%m-%d") if position.first_buy_date else ""
+                ),
                 "signal_id": position.signal_id,
                 "invalidation_description": position.invalidation_description or "",
                 "is_invalidated": bool(position.is_invalidated),
@@ -183,6 +179,8 @@ def get_account_execution_projection(
         return None
     positions: list[dict[str, Any]] = []
     for position in position_repo.get_by_account(account.account_id):
+        if position.available_quantity_known is not True:
+            return None
         quantity = _execution_projection_quantity(position.quantity)
         available_quantity = _execution_projection_quantity(
             getattr(position, "available_quantity", None)
@@ -248,7 +246,11 @@ def get_user_performance_payload(
 
     if account_id is not None:
         owned_account = next(
-            (account for account in account_repo.get_by_user(user_id) if int(account.account_id) == int(account_id)),
+            (
+                account
+                for account in account_repo.get_by_user(user_id)
+                if int(account.account_id) == int(account_id)
+            ),
             None,
         )
         if owned_account is None:

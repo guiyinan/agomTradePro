@@ -87415,6 +87415,16 @@
               ]
             },
             {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": true
+              },
+              "name": "available_quantity_known",
+              "positional_args": [
+                "'可卖数量是否已知'"
+              ]
+            },
+            {
               "field_type": "DecimalField",
               "kwargs": {
                 "decimal_places": 4,
@@ -87485,6 +87495,16 @@
               "name": "first_buy_date",
               "positional_args": [
                 "'首次买入日期'"
+              ]
+            },
+            {
+              "field_type": "BooleanField",
+              "kwargs": {
+                "default": true
+              },
+              "name": "first_buy_date_known",
+              "positional_args": [
+                "'首次买入日期是否已知'"
               ]
             },
             {

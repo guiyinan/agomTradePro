@@ -603,6 +603,11 @@ class DjangoSimulatedTradeExecutionRepository:
                 "pending settlement exists without its account/security position"
             )
         if position is not None:
+            if position.available_quantity_known is not True:
+                raise SimulatedTradeExecutionBlocked(
+                    "position sellable quantity is unknown",
+                    code="SELLABLE_BALANCE_UNKNOWN",
+                )
             quantity = validate_ledger_quantity(position.quantity, "position.quantity")
             available = validate_ledger_quantity(
                 position.available_quantity,
@@ -958,6 +963,7 @@ class DjangoSimulatedTradeExecutionRepository:
                 asset_type=intent.asset_type,
                 quantity=new_quantity,
                 available_quantity=(new_quantity if released_immediately else Decimal("0")),
+                available_quantity_known=True,
                 avg_cost=avg_cost,
                 total_cost=total_cost,
                 current_price=intent.price,
@@ -1110,6 +1116,11 @@ class DjangoSimulatedTradeExecutionRepository:
     def _validate_position(self, position: PositionModel) -> None:
         """Reject malformed historic aggregates without rebuilding missing lot history."""
 
+        if position.available_quantity_known is not True:
+            raise SimulatedTradeExecutionBlocked(
+                "position sellable quantity is unknown",
+                code="SELLABLE_BALANCE_UNKNOWN",
+            )
         quantity = validate_ledger_quantity(position.quantity, "position.quantity")
         available = validate_ledger_quantity(
             position.available_quantity,

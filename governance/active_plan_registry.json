@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-18.v280",
+  "version": "2026-10-18.v281",
   "updated_at": "2026-10-18",
   "execution_focus": {
     "unit_id": "ASH-02",
@@ -378,7 +378,7 @@
       "priority": "P0/P1",
       "owner": "portfolio+risk_center+data_center+simulated_trading+backtest+broker_execution+terminal",
       "status": "active",
-      "next_gate": "C3c remains completed. Ordinary simulated equity ManualTradeAPIView BUY/SELL is locally connected through exact current-purpose identity, original settlement UOW, stable SDK/MCP key and binding3 migration;755 unique current-source tests plus separate182 Domain tests passed. Next bounded development slice is ASH03 actual broker-fill fact import, explicit baseline inclusion and holdings/sellability reconciliation. Preserve actual traded_at vs local known_at and actual fill facts; do not infer all shares sellable or treat historical PIT/new databases as global prerequisites. Actual Owner source/configuration and M1/M2/M3 production acceptance remain open; no ASH02-12 unit is closed by this checkpoint. Automation stays default off until explicit in-system user opt-in and real execution gates. See main plan19.75 and docs/testing/a-share-usability-current-reference-manual-2026-10-18.json.",
+      "next_gate": "C3c remains completed. ASH03-A legacy read adoption is locally complete: atomic portfolio reconciliation, no synthetic trades, explicit unknown availability/date, locked final-row guards and migration0030;612 unique tests including404 minimum tests passed with type/architecture/governance checks. Next bounded slice preserves actual broker-fill facts independently of baseline projection and adds explicit balance inclusion/reconciliation/retry. Compatibility True is not broker provenance; actual traded_at and local known_at remain distinct. Actual facts must not depend on historical PIT/current quotes/local sellability. Owner source/configuration and M1/M2/M3 production acceptance remain open; no ASH02-12 unit closes here. Real automation remains off until explicit in-system account opt-in and execution gates. See main plan19.76 and docs/testing/a-share-usability-legacy-holding-adoption-2026-10-18.json.",
       "documents": [
         {
           "path": "docs/plans/a-share-usability-implementation-plan-2026-10-16.md",

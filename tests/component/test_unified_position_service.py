@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
+from core.exceptions import BusinessLogicError
 
 pytestmark = pytest.mark.django_db
 
@@ -32,7 +33,13 @@ class _FakePositionRepository:
         key = (account_id, asset_code)
         record = self._records.get(key)
         if record is None:
-            record = SimpleNamespace(id=self._next_id, account_id=account_id, asset_code=asset_code)
+            record = SimpleNamespace(
+                id=self._next_id,
+                account_id=account_id,
+                asset_code=asset_code,
+                available_quantity_known=True,
+                first_buy_date_known=True,
+            )
             self._next_id += 1
         for field, value in defaults.items():
             setattr(record, field, value)
@@ -69,6 +76,7 @@ class _FakePositionMutationRepository:
         asset_code: str,
         position_defaults: dict,
         trade_payload: dict,
+        expected_position=None,
     ):
         record = self._position_repo.save_position_record(
             account_id=account_id,
@@ -349,3 +357,215 @@ def test_close_position_rejects_quantity_above_position_without_mutation():
 
     assert position_repo.get_position(6, "000001.SZ").quantity == Decimal("10.000000")
     assert trade_repo.saved_entities == []
+
+
+def _position_defaults_for_sellability_test(
+    *,
+    quantity: Decimal,
+    available_quantity: Decimal,
+    available_quantity_known: bool,
+) -> dict[str, object]:
+    """Build one complete in-memory record for availability lifecycle tests."""
+
+    return {
+        "asset_name": "Sellability fixture",
+        "asset_type": "equity",
+        "quantity": quantity,
+        "available_quantity": available_quantity,
+        "available_quantity_known": available_quantity_known,
+        "avg_cost": Decimal("10.0000"),
+        "total_cost": Decimal("1000.00"),
+        "current_price": Decimal("10.0000"),
+        "market_value": Decimal("1000.00"),
+        "unrealized_pnl": Decimal("0.00"),
+        "unrealized_pnl_pct": 0.0,
+        "first_buy_date": date(2026, 10, 1),
+        "last_update_date": date(2026, 10, 1),
+        "signal_id": None,
+        "entry_reason": "sellability fixture",
+        "invalidation_rule_json": None,
+        "invalidation_description": "",
+        "is_invalidated": False,
+        "invalidation_reason": "",
+        "invalidation_checked_at": None,
+    }
+
+
+def test_close_position_rejects_unknown_available_quantity_without_writes():
+    position_repo = _FakePositionRepository()
+    trade_repo = _FakeTradeRepository()
+    service = _make_service(position_repo=position_repo, trade_repo=trade_repo)
+    position = position_repo.save_position_record(
+        account_id=7,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("100"),
+            available_quantity_known=False,
+        ),
+    )
+
+    with pytest.raises(BusinessLogicError):
+        service.close_position(
+            account_id=7,
+            asset_code="600000.SH",
+            close_shares=Decimal("50"),
+            close_price=Decimal("10"),
+        )
+
+    assert position.quantity == Decimal("100")
+    assert position.available_quantity == Decimal("100")
+    assert position.available_quantity_known is False
+    assert trade_repo.saved_entities == []
+
+
+def test_close_position_rejects_sell_larger_than_known_available_quantity():
+    position_repo = _FakePositionRepository()
+    trade_repo = _FakeTradeRepository()
+    service = _make_service(position_repo=position_repo, trade_repo=trade_repo)
+    position = position_repo.save_position_record(
+        account_id=8,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=True,
+        ),
+    )
+
+    with pytest.raises(BusinessLogicError):
+        service.close_position(
+            account_id=8,
+            asset_code="600000.SH",
+            close_shares=Decimal("50"),
+            close_price=Decimal("10"),
+        )
+
+    assert position.quantity == Decimal("100")
+    assert position.available_quantity == Decimal("40")
+    assert position.available_quantity_known is True
+    assert trade_repo.saved_entities == []
+
+
+def test_create_position_merge_does_not_upgrade_unknown_available_quantity():
+    position_repo = _FakePositionRepository()
+    service = _make_service(position_repo=position_repo)
+    existing = position_repo.save_position_record(
+        account_id=9,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=False,
+        ),
+    )
+
+    merged = service.create_position(
+        account_id=9,
+        asset_code="600000.SH",
+        shares=10,
+        price=10,
+    )
+
+    assert merged.id == existing.id
+    assert merged.available_quantity_known is False
+
+
+def test_update_position_does_not_upgrade_unknown_available_quantity():
+    position_repo = _FakePositionRepository()
+    service = _make_service(position_repo=position_repo)
+    existing = position_repo.save_position_record(
+        account_id=10,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=False,
+        ),
+    )
+
+    updated = service.update_position(
+        account_id=10,
+        asset_code="600000.SH",
+        shares=120,
+        avg_cost=10,
+        current_price=10,
+    )
+
+    assert updated is not None
+    assert updated.available_quantity_known is False
+    assert existing.available_quantity_known is False
+
+
+def test_price_update_preserves_known_partial_sellable_balance() -> None:
+    """A valuation change supplies no evidence that pending shares became sellable."""
+    repository = _FakePositionRepository()
+    repository.save_position_record(
+        account_id=11,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=True,
+        ),
+    )
+
+    result = _make_service(position_repo=repository).update_position(
+        account_id=11,
+        asset_code="600000.SH",
+        current_price=11,
+    )
+
+    assert result is not None
+    assert result.available_quantity == Decimal("40")
+    assert result.available_quantity_known is True
+
+
+def test_total_quantity_calibration_does_not_certify_sellability() -> None:
+    """Changing only total shares does not establish the broker's available shares."""
+    repository = _FakePositionRepository()
+    repository.save_position_record(
+        account_id=12,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=True,
+        ),
+    )
+
+    result = _make_service(position_repo=repository).update_position(
+        account_id=12,
+        asset_code="600000.SH",
+        shares=120,
+    )
+
+    assert result is not None
+    assert result.quantity == Decimal("120")
+    assert result.available_quantity_known is False
+
+
+def test_partial_close_subtracts_from_known_available_balance() -> None:
+    """Selling part of the available balance cannot release the remaining pending shares."""
+    repository = _FakePositionRepository()
+    repository.save_position_record(
+        account_id=13,
+        asset_code="600000.SH",
+        defaults=_position_defaults_for_sellability_test(
+            quantity=Decimal("100"),
+            available_quantity=Decimal("40"),
+            available_quantity_known=True,
+        ),
+    )
+
+    result = _make_service(position_repo=repository).close_position(
+        account_id=13,
+        asset_code="600000.SH",
+        close_shares=30,
+        close_price=10,
+    )
+
+    assert result is not None
+    assert result.quantity == Decimal("70")
+    assert result.available_quantity == Decimal("10")
+    assert result.available_quantity_known is True

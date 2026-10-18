@@ -341,18 +341,28 @@ class SimulatedPositionAdmin(SimulatedPositionAdminBase):
         "asset_name",
         "asset_type",
         "quantity",
+        "available_quantity_known",
         "avg_cost_display",
         "current_price_display",
         "market_value_display",
         "unrealized_pnl_display",
         "unrealized_pnl_pct_display",
         "first_buy_date",
+        "first_buy_date_known",
         "last_update_date",
     ]
-    list_filter = ["asset_type", "first_buy_date", "last_update_date"]
+    list_filter = [
+        "asset_type",
+        "available_quantity_known",
+        "first_buy_date",
+        "first_buy_date_known",
+        "last_update_date",
+    ]
     search_fields = ["asset_code", "asset_name", "account__account_name"]
     readonly_fields = [
         "id",
+        "available_quantity_known",
+        "first_buy_date_known",
         "last_update_date",
         "market_value",
         "unrealized_pnl",
@@ -373,7 +383,10 @@ class SimulatedPositionAdmin(SimulatedPositionAdminBase):
                 )
             },
         ),
-        ("持仓数量", {"fields": ("quantity", "available_quantity")}),
+        (
+            "持仓数量",
+            {"fields": ("quantity", "available_quantity", "available_quantity_known")},
+        ),
         (
             "成本与价格",
             {
@@ -401,6 +414,7 @@ class SimulatedPositionAdmin(SimulatedPositionAdminBase):
                     "signal_id",
                     "entry_reason",
                     "first_buy_date",
+                    "first_buy_date_known",
                     "last_update_date",
                 )
             },

@@ -1,0 +1,808 @@
+{
+  "schema": "a-share-usability.legacy-holding-adoption.local-evidence.v1",
+  "date": "2026-10-18",
+  "status": "bounded_local_checks_passed",
+  "base_head": "d376380c90048bdd5ccfab0978c0e76e99b50a26",
+  "source_manifest": ".tmp/ash03-a-review-green-source-01.json",
+  "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+  "source_files": [
+    {
+      "path": "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
+      "raw_sha256": "60d45862a0c1172b50b0eb59842c55d0d562c628dec8a078afa08610280632fa",
+      "lf_sha256": "60d45862a0c1172b50b0eb59842c55d0d562c628dec8a078afa08610280632fa"
+    },
+    {
+      "path": "apps/simulated_trading/domain/entities.py",
+      "raw_sha256": "65ba01d6d66eeb2ebc9ee806780f6d115b173631f337e6296b3e5879b3d6faec",
+      "lf_sha256": "51ef98fb9c9f110b7d65e57e8b110e5ddb0109d9118e287d3da8c41f44476242"
+    },
+    {
+      "path": "apps/simulated_trading/domain/rules.py",
+      "raw_sha256": "f52342bc3f8898b0b3a650d48dda7eccd8c1b56346ac0a46dc37f8e2e62e85eb",
+      "lf_sha256": "7e36e557fc24e23f98af079c73ab7b95ad71009e17a24ac7983ce4418db29d45"
+    },
+    {
+      "path": "apps/simulated_trading/application/query_services.py",
+      "raw_sha256": "de16c3fe1173eabaf5817fb613afa68b7b712e069efeee92807e90cc46f5ecc4",
+      "lf_sha256": "28a748a5340f9813b25183f6e848fec2419b80db08f5f31b94459238128f07d5"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_account_execution_projection.py",
+      "raw_sha256": "22ddf428d53a3ab312cd00cddef39f2b4cd0f3703fa05b048cf1f2f5c75eaca8",
+      "lf_sha256": "22ddf428d53a3ab312cd00cddef39f2b4cd0f3703fa05b048cf1f2f5c75eaca8"
+    },
+    {
+      "path": "tests/integration/account/test_ledger_unification_acceptance.py",
+      "raw_sha256": "a77e585b56ab0b484812bcf34aef9b3dd4eb3b52b10b39de506924a6fdac6a85",
+      "lf_sha256": "39aef29890dd30e87871eba0518d0f30cd01482c4e5a366c9f63afc9a0cbbc07"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_execution_settlement_uow.py",
+      "raw_sha256": "25fb4145db8a3738eb9d8b46be834a8808c24517efef02a41d038f7a90c13f88",
+      "lf_sha256": "25fb4145db8a3738eb9d8b46be834a8808c24517efef02a41d038f7a90c13f88"
+    },
+    {
+      "path": "tests/component/test_unified_position_service.py",
+      "raw_sha256": "d0a1e2dff9c9efe0ef0cbc782cf792f6b7aac214b426ff5689a9dfeced10db25",
+      "lf_sha256": "0b9417c41a85a3d8e681197c74cf1ea3ee988aac34a1256cce2dbcb69d3eb5ae"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+      "raw_sha256": "0d6a3bdb0491b8873025735fa9404410f0dd10dd75a66d65eaebe16d77d5462b",
+      "lf_sha256": "0d6a3bdb0491b8873025735fa9404410f0dd10dd75a66d65eaebe16d77d5462b"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_position_sellability_mapper.py",
+      "raw_sha256": "afe3b8a26217a33f2c704a5864c2b11bd6262f3937afbcd7b28727d98c8c00fc",
+      "lf_sha256": "ac699686ab8f15a00670f0596a6ca24ac7d082e7f1409c823f2250042d0ab922"
+    },
+    {
+      "path": "governance/current_data_contracts.json",
+      "raw_sha256": "f2ffd33fa46e08c22d3331d47c0b20f941024fa8bf916f1e1c3c0f62b54e3e9a",
+      "lf_sha256": "31ccdbe0cc69f7f64f5351e093a228ddc3a591df745690a9f4277d607a6b71af"
+    },
+    {
+      "path": "apps/simulated_trading/application/auto_trading_engine.py",
+      "raw_sha256": "025721379fbee04140bd24e5f2542a646f611001b54087507abb27f1dc1c03a4",
+      "lf_sha256": "87177d31278faa7b6141d4bfe4910825db0a4b751d4fbcfbe2775d4db789f7a4"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_contracts.py",
+      "raw_sha256": "29b85eb0d55d2742777cf6a01a239658a20d8f5c488661a873b366db462542a0",
+      "lf_sha256": "536147699957a8332f9c5de35b13d34d94eea85f2f24e84fe1ab194e1e9c9d84"
+    },
+    {
+      "path": "apps/account/application/portfolio_api_services.py",
+      "raw_sha256": "ab1828c2d5a5d3812f2b85d1a4ef4122a0b44d38ea26d53bae34291f8c067909",
+      "lf_sha256": "28c087259a3faa76aa2c65ad19802022cc8b7cf49900d39a91385b0eb10dff3d"
+    },
+    {
+      "path": "apps/account/interface/serializers.py",
+      "raw_sha256": "e7cbda2fecdd0264e1422e45d0fc517cf3be60e5e97eb04daf7e1218c259e0cc",
+      "lf_sha256": "91137f8812158dc3a8a5748fb3f2cb2513ca49d97cd010ff9d268ff5bfbf148d"
+    },
+    {
+      "path": "apps/simulated_trading/application/unified_position_service.py",
+      "raw_sha256": "c1abd50e6aecfa4bfdaf7f6055012a4bd077c369abd74e6b1902c16791338900",
+      "lf_sha256": "12e394d686f19f29d4db44d5c1058a06cd5de0926612b22f8d2af39a568f32b1"
+    },
+    {
+      "path": "apps/simulated_trading/application/use_cases.py",
+      "raw_sha256": "4016802ef08d046698d4b5951bafccb7b3f9d03c01717f9aca3afa7124ee5e16",
+      "lf_sha256": "8efa2fd187156fcf190211791fbe74b1dfdbb1c135515dccb125724e1ee4d938"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+      "raw_sha256": "9915637188d8fcbd5db31dfdb6122cc1d6fb08472fc4b338d45a848a939d0235",
+      "lf_sha256": "f996545625e31ae4f64e3c08e97d3dc07308c8fae52346d47fd83fa38ae80139"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+      "raw_sha256": "755377f55800a5e2bbd850619bb38ed72ef2466b23500699baf4fcd281645fcd",
+      "lf_sha256": "a5223ae36134e7bab1a3e52a52184708fabb173312d7d6c24d88ef0529eb35b8"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/position_repository.py",
+      "raw_sha256": "8be46561e6927d1c8fae55e02255417b94a1d30a7c7761925e534e427dd74e8f",
+      "lf_sha256": "0d6dd6d283492acb2f127e85b72fddcb5564fdeb9c5967b0eb5e3aa29192eaed"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+      "raw_sha256": "180db19b51b99f0fd8a8d49aae6456df31aebe08478bd4a5b99ab99021368e52",
+      "lf_sha256": "d2a12f6e571250154dba579687fa5482e010bb4315740c4cee00f2af61f4e4b0"
+    },
+    {
+      "path": "apps/simulated_trading/interface/_portfolio_views.py",
+      "raw_sha256": "7157398e7b0052507e49765d725ae2b5d5e7ae391ea55a65d22370c1e018b641",
+      "lf_sha256": "7157398e7b0052507e49765d725ae2b5d5e7ae391ea55a65d22370c1e018b641"
+    },
+    {
+      "path": "apps/simulated_trading/interface/admin.py",
+      "raw_sha256": "62bb30002663524e2261cc375bfd19b03c4398e40b08e1da0e23cb39ed91a569",
+      "lf_sha256": "c62733dad6be13c85aea30b8076de12a28bbc4df9c4a258249dd064e801bc933"
+    },
+    {
+      "path": "apps/simulated_trading/interface/serializers.py",
+      "raw_sha256": "47e75bd0ce87de4356ea96f456155a2983a3e5b370d39b191e51f181ed4b9d50",
+      "lf_sha256": "5d3db538b428b4d4d154b07d38b84438b0b4366384b13350222ca93665f8299a"
+    },
+    {
+      "path": "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+      "raw_sha256": "29c2de28176b481a62ff999ff0e974c417fb54b587c413eb6e9408e8f0535dca",
+      "lf_sha256": "29c2de28176b481a62ff999ff0e974c417fb54b587c413eb6e9408e8f0535dca"
+    },
+    {
+      "path": "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+      "raw_sha256": "d7442843ab255ada844ab28638fe0bd7052c99314fe942325fec38c2cb6109b5",
+      "lf_sha256": "36808a22a5c39cad53a462911284b005c050d34aa2e9edcc5a919da9c3d2928c"
+    },
+    {
+      "path": "apps/simulated_trading/migrations/0030_position_knowledge_flags.py",
+      "raw_sha256": "b1b6dc16cd956a677ca70d439a85f6ab8f66ba4cf2cb0d5213a77c46a5de11ec",
+      "lf_sha256": "419539cd7892c2823c6230128abde1ce899ec695061e226d03564396d8bf7268"
+    },
+    {
+      "path": "tests/component/simulated_trading/test_position_knowledge_migration.py",
+      "raw_sha256": "0565e43e0d6ab0fb26eba069cfe4dccd680ed798f1656b2a9dbac5d5480fcfb8",
+      "lf_sha256": "0565e43e0d6ab0fb26eba069cfe4dccd680ed798f1656b2a9dbac5d5480fcfb8"
+    },
+    {
+      "path": "governance/module_map.json",
+      "raw_sha256": "5bb28adfedf2fb0d5bdee6229b9fb62107047a1b40049a30141631fefff07dcf",
+      "lf_sha256": "5bb28adfedf2fb0d5bdee6229b9fb62107047a1b40049a30141631fefff07dcf"
+    },
+    {
+      "path": "governance/data_dictionary.json",
+      "raw_sha256": "19791d32a8a787412756b18ea5eb69685aa814a8c70fa802749155672f3cf7da",
+      "lf_sha256": "19791d32a8a787412756b18ea5eb69685aa814a8c70fa802749155672f3cf7da"
+    },
+    {
+      "path": "docs/architecture/DATA_DICTIONARY.md",
+      "raw_sha256": "af4a44d6dd71e1151df969cfe7c5c40a84bf6b7d744147f93062001f4b4da59c",
+      "lf_sha256": "af4a44d6dd71e1151df969cfe7c5c40a84bf6b7d744147f93062001f4b4da59c"
+    }
+  ],
+  "counts": {
+    "runs": {
+      "ash03-a-http-service-green-01": 112,
+      "ash03-a-native-migrations-uow-green-01": 72,
+      "ash03-a-high-risk-minimum-01": 404,
+      "ash03-a-domain-coverage-01": 29
+    },
+    "overlap": 5,
+    "unique_passed": 612,
+    "unresolved_failures_errors_skips": 0
+  },
+  "coverage": {
+    "scope": "Two changed Domain files only; not overall project/Domain-suite coverage",
+    "files": {
+      "apps/simulated_trading/domain/entities.py": {
+        "covered_lines": 237,
+        "num_statements": 239,
+        "percent_covered": 98.36734693877551,
+        "percent_covered_display": "98.4",
+        "missing_lines": 2,
+        "excluded_lines": 0,
+        "num_branches": 6,
+        "num_partial_branches": 2,
+        "covered_branches": 4,
+        "missing_branches": 2
+      },
+      "apps/simulated_trading/domain/rules.py": {
+        "covered_lines": 49,
+        "num_statements": 56,
+        "percent_covered": 83.72093023255815,
+        "percent_covered_display": "83.7",
+        "missing_lines": 7,
+        "excluded_lines": 0,
+        "num_branches": 30,
+        "num_partial_branches": 7,
+        "covered_branches": 23,
+        "missing_branches": 7
+      }
+    },
+    "statement_percent": 96.94915254237289,
+    "line_and_branch_percent": 94.5619335347432,
+    "raw_json_sha256": "e28174c33ee3c3450342f612c2ae2b797eec5bafa6605235964e45d591325d41",
+    "parallel_data_combined_with_keep": true
+  },
+  "checks": [
+    {
+      "record": {
+        "tag": "ash03a-http-service-green-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/integration/account/test_ledger_unification_acceptance.py",
+          "tests/component/account/test_manual_trade_sync.py",
+          "tests/api/test_manual_trade_current_reference.py",
+          "tests/component/test_unified_position_service.py",
+          "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+          "tests/unit/simulated_trading/test_account_execution_projection.py",
+          "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
+          "tests/component/simulated_trading/test_position_sellability_mapper.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_manual_s3_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-http-service-green-01.xml",
+          "--basetemp=.tmp/ash03-a-http-service-green-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-http-service-green-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 74.662,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-http-service-green-01.log",
+        "log_sha256": "c49dc1684eb78d15df96b60a55035fdacf4d100592f43bfd3c2eb5c18bcb7396"
+      },
+      "record_sha256": "1510c0b5dc00ef4e0369a673d6496b7c89f28b0ef059ecbaf3200eaffafc1815",
+      "log_text": "........................................................................ [ 64%]\n........................................                                 [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n============================== warnings summary ===============================\ntests/component/account/test_manual_trade_sync.py::test_manual_import_preserves_source_instants_and_replay[buy-source]\ntests/component/account/test_manual_trade_sync.py::test_manual_import_preserves_source_instants_and_replay[partial-sell]\ntests/component/account/test_manual_trade_sync.py::test_manual_import_preserves_source_instants_and_replay[full-sell]\n  tests\\component\\account\\test_manual_trade_sync.py:82: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')\n    @pytest.mark.parametrize(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-http-service-green-01.xml -\n112 passed, 3 warnings in 59.16s\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-native-migrations-uow-green-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_execution_settlement_uow.py",
+          "tests/component/simulated_trading/test_position_knowledge_migration.py",
+          "tests/component/simulated_trading/test_current_reference_binding_migration.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_math_s2_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-native-migrations-uow-green-01.xml",
+          "--basetemp=.tmp/ash03-a-native-migrations-uow-green-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-native-migrations-uow-green-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 577.277,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-native-migrations-uow-green-01.log",
+        "log_sha256": "312e42b5dde7c459ee6a9115d554ebb23ae75bac6298e2e8500d585489528e39"
+      },
+      "record_sha256": "e73d74beaf60751f00672c46b48d4a9363ea99a591a21588d2dde1be23f45d4f",
+      "log_text": "........................................................................ [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-native-migrations-uow-green-01.xml -\n72 passed in 561.93s (0:09:21)\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-high-risk-minimum-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/unit/test_tui_workbench.py",
+          "tests/unit/test_terminal_agent_service.py",
+          "sdk/tests/test_sdk/test_client.py",
+          "tests/unit/test_internal_ssl_redirect.py",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_manual_s3_native_settings",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-high-risk-minimum-01.xml",
+          "--basetemp=.tmp/ash03-a-high-risk-minimum-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-high-risk-minimum-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 367.153,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-high-risk-minimum-01.log",
+        "log_sha256": "4e1c8c5ddf82e2c66859f55a5c3d0b7fa8bca609de38695688165cd06a02e191"
+      },
+      "record_sha256": "2882ca58fdcab95888bda133b80965b47b51fccbf71a7dd8968c24ba576c73ce",
+      "log_text": "........................................................................ [ 17%]\n........................................................................ [ 35%]\n........................................................................ [ 53%]\n........................................................................ [ 71%]\n........................................................................ [ 89%]\n............................................                             [100%]\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-high-risk-minimum-01.xml -\n404 passed in 314.62s (0:05:14)\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-domain-coverage-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "coverage",
+          "run",
+          "--data-file=.tmp/ash03-a-domain-coverage-01",
+          "--source=apps/simulated_trading/domain",
+          "-m",
+          "pytest",
+          "tests/unit/domain/simulated_trading",
+          "tests/unit/simulated_trading/test_position_sellability_knowledge.py",
+          "-q",
+          "--tb=short",
+          "--ds=ash02_math_s2_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-domain-coverage-01.xml",
+          "--basetemp=.tmp/ash03-a-domain-coverage-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-domain-coverage-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 106.759,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-domain-coverage-01.log",
+        "log_sha256": "134149c7539e7b56d5dc28dedba21bc20172512a7ae2fd03080fecec227ace4d"
+      },
+      "record_sha256": "552792d619b4472e131466da94b8a6f62bc9da63e2f14379d878ec513aac78dc",
+      "log_text": ".............................                                            [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-domain-coverage-01.xml -\n29 passed in 2.08s\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-mypy-incremental-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_regression.py",
+          "apps/account/application/portfolio_api_contracts.py",
+          "apps/account/application/portfolio_api_services.py",
+          "apps/account/interface/serializers.py",
+          "apps/simulated_trading/application/auto_trading_engine.py",
+          "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+          "apps/simulated_trading/application/query_services.py",
+          "apps/simulated_trading/application/unified_position_service.py",
+          "apps/simulated_trading/application/use_cases.py",
+          "apps/simulated_trading/domain/entities.py",
+          "apps/simulated_trading/domain/rules.py",
+          "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+          "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+          "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+          "apps/simulated_trading/infrastructure/position_repository.py",
+          "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+          "apps/simulated_trading/interface/_portfolio_views.py",
+          "apps/simulated_trading/interface/admin.py",
+          "apps/simulated_trading/interface/serializers.py",
+          "apps/simulated_trading/migrations/0030_position_knowledge_flags.py"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 103.393,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-mypy-incremental-01.log",
+        "log_sha256": "69ab3039783a10435e64cb3b909e4b1aa0e299bb23cb93f00cec780535dc2212"
+      },
+      "record_sha256": "65eac6a5fddbf8c2887e05a05af8850212aedde9f2840eeb1742425fbebcb3d3",
+      "log_text": "Success: no issues found in 19 source files\nMypy regressions: 0 (legacy errors observed: 0)\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-mypy-debt-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "scripts/check_mypy_debt_ceiling.py"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 381.456,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-mypy-debt-01.log",
+        "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+      },
+      "record_sha256": "db028e8d8d534a6d2bab4706dcb0c51fe94a9dc5c839fd2107bc5980abf88f81",
+      "log_text": "Full mypy debt ceiling passed: 0 errors in 0 files\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-architecture-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          ".tmp/check_ash03_a_architecture_01.py"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 80.166,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-architecture-01.log",
+        "log_sha256": "3ef8f0c555ebcef5e1e066358e534ffcf4985becd55866801ef1a68df81d85d5"
+      },
+      "record_sha256": "a8b7296f3a7f2c7875166d0fafab75a449033207a88e41e9171fa627a1aad92d",
+      "log_text": "Architecture delta guard\nBase ref: d376380c90048bdd5ccfab0978c0e76e99b50a26\nHead ref: 7af304b5cb74fef0c0fceb60b1aa8872d134fb22\nChanged files: 19\nAdded lines: 843\nArchitecture rules version: 2026-10-09.v9\nScan roots: apps, core, shared\nScanned files: 3508\nBoundary rules: 7\nBoundary violations: 0\n\nAudit rules: 20\nAudit violations: 0\n{\"review_tree\": \"7af304b5cb74fef0c0fceb60b1aa8872d134fb22\", \"main_index_unchanged\": true}\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-governance-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          ".tmp/run_ash03_a_governance_01.py"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 214.364,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-governance-01.log",
+        "log_sha256": "52ad8da63ff2fc3d645a2c3e5f377c39a4162b17c243363a61771e8bf3f5c954"
+      },
+      "record_sha256": "3583b04f7c0b7e0691170b1b637d9420e1753105213e4fe93bc17377e9deecf8",
+      "log_text": "Current-data freshness contracts OK: 88 surface(s)\nmodule map OK: D:\\githv\\agomTradePro\\governance\\module_map.json matches the source tree (modules=44 edges=211)\ndata dictionary OK: D:\\githv\\agomTradePro\\governance\\data_dictionary.json and D:\\githv\\agomTradePro\\docs\\architecture\\DATA_DICTIONARY.md match the source tree (apps=42 models=588)\nGovernance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n{\"commands\": [[\"scripts/check_current_data_contracts.py\"], [\"scripts/check_module_map.py\"], [\"scripts/check_data_dictionary.py\"], [\"scripts/check_governance_consistency.py\", \"--baseline\", \"governance/governance_baseline.json\", \"--format\", \"text\"]], \"return_codes\": [0, 0, 0, 0]}\n"
+    },
+    {
+      "record": {
+        "tag": "ash03a-migration-graph-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          ".tmp/check_ash03_a_migration_graph_01.py"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 0,
+        "seconds": 56.005,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-review-green-source-01.json",
+        "source_manifest_sha256": "6639557542d2001b8aeedff95bea010a82f442f71f5af1a7d08a10d0a3e474f2",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-migration-graph-01.log",
+        "log_sha256": "339e4a5208d8f669f753e2a8ebb1d038cac5f5ba3eb78f5af3fc0731e950a28d"
+      },
+      "record_sha256": "d0f19795d2295f869ecc982ab8bbbc0529029d21962689cd77b4792de9b73d77",
+      "log_text": "{\"scope\": \"Goal-owned S3 native test database\", \"unapplied_migration_count\": 0}\nNo changes detected\n"
+    }
+  ],
+  "formatting": [
+    {
+      "command": [
+        "-m",
+        "isort",
+        "--settings-path",
+        "pyproject.toml",
+        "apps/account/application/portfolio_api_contracts.py",
+        "apps/account/application/portfolio_api_services.py",
+        "apps/account/interface/serializers.py",
+        "apps/simulated_trading/application/auto_trading_engine.py",
+        "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+        "apps/simulated_trading/application/query_services.py",
+        "apps/simulated_trading/application/unified_position_service.py",
+        "apps/simulated_trading/application/use_cases.py",
+        "apps/simulated_trading/domain/entities.py",
+        "apps/simulated_trading/domain/rules.py",
+        "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+        "apps/simulated_trading/infrastructure/position_repository.py",
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+        "apps/simulated_trading/interface/_portfolio_views.py",
+        "apps/simulated_trading/interface/admin.py",
+        "apps/simulated_trading/interface/serializers.py",
+        "apps/simulated_trading/migrations/0030_position_knowledge_flags.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_position_knowledge_migration.py",
+        "tests/component/simulated_trading/test_position_sellability_mapper.py",
+        "tests/component/test_unified_position_service.py",
+        "tests/integration/account/test_ledger_unification_acceptance.py",
+        "tests/unit/simulated_trading/test_account_execution_projection.py",
+        "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+        "tests/unit/simulated_trading/test_position_sellability_knowledge.py"
+      ],
+      "exit_code": 0,
+      "output": "Fixing D:\\githv\\agomTradePro\\tests\\integration\\account\\test_ledger_unification_acceptance.py\n"
+    },
+    {
+      "command": [
+        "-m",
+        "black",
+        "--config",
+        "pyproject.toml",
+        "--workers",
+        "1",
+        "apps/account/application/portfolio_api_contracts.py",
+        "apps/account/application/portfolio_api_services.py",
+        "apps/account/interface/serializers.py",
+        "apps/simulated_trading/application/auto_trading_engine.py",
+        "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+        "apps/simulated_trading/application/query_services.py",
+        "apps/simulated_trading/application/unified_position_service.py",
+        "apps/simulated_trading/application/use_cases.py",
+        "apps/simulated_trading/domain/entities.py",
+        "apps/simulated_trading/domain/rules.py",
+        "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+        "apps/simulated_trading/infrastructure/position_repository.py",
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+        "apps/simulated_trading/interface/_portfolio_views.py",
+        "apps/simulated_trading/interface/admin.py",
+        "apps/simulated_trading/interface/serializers.py",
+        "apps/simulated_trading/migrations/0030_position_knowledge_flags.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_position_knowledge_migration.py",
+        "tests/component/simulated_trading/test_position_sellability_mapper.py",
+        "tests/component/test_unified_position_service.py",
+        "tests/integration/account/test_ledger_unification_acceptance.py",
+        "tests/unit/simulated_trading/test_account_execution_projection.py",
+        "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+        "tests/unit/simulated_trading/test_position_sellability_knowledge.py"
+      ],
+      "exit_code": 0,
+      "output": "All done! ✨ 🍰 ✨\n27 files left unchanged.\n"
+    },
+    {
+      "command": [
+        "-m",
+        "isort",
+        "--settings-path",
+        "pyproject.toml",
+        "--check-only",
+        "apps/account/application/portfolio_api_contracts.py",
+        "apps/account/application/portfolio_api_services.py",
+        "apps/account/interface/serializers.py",
+        "apps/simulated_trading/application/auto_trading_engine.py",
+        "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+        "apps/simulated_trading/application/query_services.py",
+        "apps/simulated_trading/application/unified_position_service.py",
+        "apps/simulated_trading/application/use_cases.py",
+        "apps/simulated_trading/domain/entities.py",
+        "apps/simulated_trading/domain/rules.py",
+        "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+        "apps/simulated_trading/infrastructure/position_repository.py",
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+        "apps/simulated_trading/interface/_portfolio_views.py",
+        "apps/simulated_trading/interface/admin.py",
+        "apps/simulated_trading/interface/serializers.py",
+        "apps/simulated_trading/migrations/0030_position_knowledge_flags.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_position_knowledge_migration.py",
+        "tests/component/simulated_trading/test_position_sellability_mapper.py",
+        "tests/component/test_unified_position_service.py",
+        "tests/integration/account/test_ledger_unification_acceptance.py",
+        "tests/unit/simulated_trading/test_account_execution_projection.py",
+        "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+        "tests/unit/simulated_trading/test_position_sellability_knowledge.py"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "-m",
+        "ruff",
+        "check",
+        "--config",
+        "pyproject.toml",
+        "apps/account/application/portfolio_api_contracts.py",
+        "apps/account/application/portfolio_api_services.py",
+        "apps/account/interface/serializers.py",
+        "apps/simulated_trading/application/auto_trading_engine.py",
+        "apps/simulated_trading/application/legacy_position_adoption_errors.py",
+        "apps/simulated_trading/application/query_services.py",
+        "apps/simulated_trading/application/unified_position_service.py",
+        "apps/simulated_trading/application/use_cases.py",
+        "apps/simulated_trading/domain/entities.py",
+        "apps/simulated_trading/domain/rules.py",
+        "apps/simulated_trading/infrastructure/account_portfolio_repository.py",
+        "apps/simulated_trading/infrastructure/execution_settlement_uow_repository.py",
+        "apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py",
+        "apps/simulated_trading/infrastructure/position_repository.py",
+        "apps/simulated_trading/infrastructure/simulated_account_trade_models.py",
+        "apps/simulated_trading/interface/_portfolio_views.py",
+        "apps/simulated_trading/interface/admin.py",
+        "apps/simulated_trading/interface/serializers.py",
+        "apps/simulated_trading/migrations/0030_position_knowledge_flags.py",
+        "tests/component/simulated_trading/test_execution_settlement_uow.py",
+        "tests/component/simulated_trading/test_position_knowledge_migration.py",
+        "tests/component/simulated_trading/test_position_sellability_mapper.py",
+        "tests/component/test_unified_position_service.py",
+        "tests/integration/account/test_ledger_unification_acceptance.py",
+        "tests/unit/simulated_trading/test_account_execution_projection.py",
+        "tests/unit/simulated_trading/test_auto_trading_engine_outcomes.py",
+        "tests/unit/simulated_trading/test_position_sellability_knowledge.py"
+      ],
+      "exit_code": 0,
+      "output": "All checks passed!\n"
+    }
+  ],
+  "independent_reviews": [
+    {
+      "path": ".tmp/ash03-adoption-independent-review-01.md",
+      "sha256": "727562a5156c3bff9421f44e173c76cf2751bea63b92a4b815fb2920cde35634",
+      "text": "# ASH03 legacy adoption — independent static review 01\n\n审查范围：以只读方式检查当前共享源码、冻结候选 `.tmp/ash03-legacy-adoption-implementation-v1/`、C1 V2 函数 AST 范围，以及 Root 的未入共享锁/事务私有草稿 `.tmp/ash03-portfolio-atomic-fix-01.patch`。没有改生产源码，没有导入项目模块，没有运行测试、数据库、Git 或 QA。已阅读仓库 `AGENTS.md` 与 `.agents/skills/django-expert/SKILL.md`。\n\n## 结论\n\n当前共享代码还不满足 ASH03 的原子承接与并发写入边界；Root 的私有事务草稿解决了主要的分批提交/锁序问题方向，但需配合 adoption 写入和普通 BUY 的并发冲突处理才能安全合入。静态审查不构成 B1 或生产验收结论。\n\n## 发现\n\n### P1 — 持仓创建/更新在并发无行分支可能丢失知识状态或余额\n\n当前 `apps/simulated_trading/infrastructure/position_repository.py:199–230` 的 `save_position_record` 先用 `select_for_update().first()` 检查；无行时再调用 `update_or_create`。PostgreSQL 不会因“查无行”锁住 `(account_id, asset_code)` 间隙。若 adopter 在两步之间插入 `available_quantity_known=False` 的承接行，`update_or_create(defaults=...)` 会覆盖为调用者传入的陈旧 `True`。\n\n`create_or_merge_position_with_buy_trade`（同文件 `443–475`）也先查锁定行、无行时再 `update_or_create`。将其换成 `select_for_update().get_or_create` 并 AND knowledge flags 可避免旗标被陈旧 defaults 升级，但还不能单独修好 BUY create-race：调用者预读无行后，另一个 BUY 先创建 q1，第二个调用拿到 `created=False` 时若把只含 q2 的 defaults 写到 q1 行，就会只留 q2 但仍插入第二笔 trade。若该行是刚承接的 `available_quantity_known=False` 余额，Repo 也必须在最终锁定行上拒绝 BUY，而不能只保留 False 后继续改余额/插交易。建议 `save_position_record` 与 BUY 合并分开处理；BUY 在竞争后对未知行返回可识别业务冲突，对已知并发行重读重算或拒绝并重试。\n\nPositionModel 的 `(account, asset_code)` 有唯一约束（`apps/simulated_trading/infrastructure/simulated_account_trade_models.py:185`），所以该键上的 `select_for_update().get_or_create` 对 READ COMMITTED PostgreSQL 的撞行回查可锁住最终行。但 adopter 当前 `legacy_position_adoption_repository.py:105–145` 对同 asset 先查、再直接 `.create()`；普通保存/BUY 不锁 Account 行，因此未提交的普通插入可能不被 adoption 查询看到，随后 unique 冲突会直接抛 `IntegrityError`，而不是按业务规则返回 409/无写入。adoption 也应把这个并发唯一冲突转换为同资产冲突，并保证事务回滚。\n\n### P1 — 当前共享同步循环会在后续冲突后留下部分承接\n\n当前 `apps/account/application/portfolio_api_services.py:432–445` 在事务外读取全部源余额，随后调用 `ensure_real_account`，再逐条同步；每次 adoption 自己有事务。因此后面的源映射/目标冲突发生时，之前已创建的 Position、mapping，以及新建 account/map 都可能已经提交，返回 409 但并非零写入。\n\nRoot 私有 patch 将整个循环包在 `legacy_sync_transaction` 中，且在上下文内先锁源持仓列表，能通过异常传播实现全批回滚；这是正确方向。合并时要保持 `with` 覆盖读源、ensure、所有 adoption，不能让任何 per-position 错误被捕获后吞掉。\n\n### P1 — 现有 `ensure_real_account` 会修复坏映射，而不是拒绝冲突\n\n当前 `apps/simulated_trading/infrastructure/account_portfolio_repository.py:83–124` 只取一条源映射；目标账户缺失时会新建 real account 并 `update_or_create` 覆盖旧 map。重复、错误 target_table/source_app、目标账户属于其他 owner/type 等情况也没有严格拒绝。若先调用它再做严格 adoption 校验，会在最终 409 前制造 account/map 写入。\n\nRoot 的私有上下文草稿在 `ensure_real_account` 前验证 portfolio 源 map、目标账户 owner/type、锁后重读和反向 account map，能够覆盖主同步路径。请确认所有会触发承接的入口都先走此上下文；当前 `_resolve_position_context` 的 legacy closed 分支（`portfolio_api_services.py:500–508`）仍直接调用 `ensure_real_account`，若这条路径被视为 adoption/映射冲突契约，也需验证无损拒绝行为。\n\n### P1 — source map 幂等分支没有验证唯一反向 Position map\n\n`apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py:80–103` 对 `source_table/source_id` 验证恰好一条、目标表正确、目标 Position 存在且 account/asset 匹配，然后视作幂等成功；没有验证 `target_table='simulated_position', target_id=<该 Position>` 是否恰好只有对应的同一 source map。映射表仅对 source key 唯一，target 索引不是唯一约束（`apps/simulated_trading/infrastructure/models.py:874–913`）。额外 source 指向同一 Position 时当前会把歧义状态当作成功；应按 409/无写入处理。Root 已告知此项准备补齐。\n\n### P1 — proposed lock order 合理，但前提是严格保持它\n\n对私有 patch 的静态锁序核对：`Portfolio(P) → 非锁读 map 定位 → Account(A) → 正向/反向 map → legacy Position(source)`。这与 adoption 的 `A → map → unified Position` 一致，也与 Account 批量持仓写入的 `P → source Position` 顺序兼容。关键是事务上下文必须在 `list_open_legacy_positions` 之前锁定 A/map；当前 patch 的调用顺序是先进入上下文再读/锁源行，能避免“先持 source Position 再等待 A”与持 A 的 close 更新 legacy source 形成死锁。`select_for_update(of=('self',))` 仅锁源 Position，而不是 `select_related` 的关联表，范围正确。此结论依赖真实 PostgreSQL/native transaction 回归，静态审查不能证明运行时无死锁。\n\n### P2 — 冻结候选曾缺 first-buy unknown 输出；当前共享源码已修\n\n冻结候选的手写响应曾对 `first_buy_date` 无条件 `.isoformat()` 且未输出 `first_buy_date_known`，会把 unknown placeholder 暴露成已知日期，并和 serializer 契约不符。当前共享 `apps/simulated_trading/interface/_portfolio_views.py` 已按 `first_buy_date_known` 返回 null 并输出旗标，故不再列为当前阻断项。\n\n### P2 — compatibility `True` 语义需按已批准计划标明边界\n\n字段默认 `True` 是为了保留既有本地账本兼容值，新 adoption 明确写 False；不应在本批批量将旧行改为 False。Root 已确认 knowledge 表示本地字段值是否可解释，不表示券商来源核验资格，存量回填/事实保全留给后续批次。因此当前不应要求新增 provenance 模型或全量改数。但冻结模型/迁移的 verbose name “是否已核实”容易被理解为券商已核实；建议统一改成“是否已知”，并在公开文档明确历史 True 是本地兼容值、新 adoption 为 False。对外 null/unknown 输出仍须严格受旗标控制。\n\n### P2 — 源 `current_price` 缺失时使用成本价会把未知估值呈现为零盈亏\n\n`LegacyPositionRecord` 暴露 `current_price: Decimal | None` 但不暴露 legacy `market_value`；`portfolio_api_services.py:463–469` 在价格缺失时将 `avg_cost` 作为 current price，Infra 再按此计算市值与盈亏。这会让没有来源价格的持仓看起来有成本价市值/零盈亏。现有接口没有 current-price-knowledge 状态；请确认此回退是明确业务约定，或避免把估值估算呈现为源实时市值。数量、平均成本和总成本的精度校验是精确拒绝不可表示输入（6位数量/4位价格/分），没有静默舍入到存储精度的迹象。\n\n### P2 — C1/C2 同文件合并不可用 C2 整文件 postimage 覆盖\n\nC1 V2 的 AST delta 明确修改 `UnifiedPositionService.create_position/update_position/close_position` 与 `ExecuteBuyOrderUseCase.execute/ExecuteSellOrderUseCase.execute`；C2 的服务文件 postimage 是基于旧底稿的完整文件。C2 adoption 只应按方法/Protocol 的小段合入，不能用 C2 `candidate_sources` 的完整 `unified_position_service.py` 覆盖当前 C1 函数，否则会丢 C1 对未知可卖余额 BUY/SELL、部分平仓旗标和锁内余额校验的改动。应以当前共享/C1 函数为基底逐段补 adoption API。\n\n### P2 — serializer 将分数量声明为 IntegerField\n\n`PositionModel.quantity/available_quantity` 支持 6 位 Decimal，C1 文档也声明保留非整数份额；但 `PositionResponseSerializer` 对 `quantity` 和 `available_quantity` 仍声明 `IntegerField`。当前 view 手写 payload 绕过 serializer，导致该 serializer 契约与真实模型/统一服务能力不一致；如该 serializer 被其他接口调用，分数量会被错误收窄或拒绝。建议至少确认其调用范围，并将数值字段契约与 fractional-share 规则统一。此项可能是既有契约，不是 adoption 专属。\n\n## 未验证项\n\n没有执行 tests、mypy、migration、PostgreSQL 并发或 HTTP 契约。Root 负责这些检查。本 memo 只报告文本静态结果，不替代 B1/生产验收。\n"
+    },
+    {
+      "path": ".tmp/ash03-adoption-independent-review-02.md",
+      "sha256": "ed991b79d3176188d1b471259286eb6031232468585d00fc50b52a3d9cc96cca",
+      "text": "# ASH03 legacy adoption — independent static review 02\n\n审查范围：只读复核当前共享源码及 `.tmp/ash03-a-format-paths-01.json` 所列 27 个 owned Python 路径中与本次缺陷相关的实际实现。未改共享源码，未运行测试/QA、项目导入、数据库或 Git 操作。结果只说明静态代码路径，不能替代 RED/GREEN、真实 PostgreSQL 并发或生产验收。\n\n## 结论\n\n首轮列出的主要阻断项在当前共享源码中已按预期修正：整批同步事务、严格 portfolio/account map 校验、Position map 双向唯一校验、`save_position_record` 的并发缺行保护、BUY 锁内未知余额/expected snapshot 检查，以及 adoption 的并发同资产冲突处理均可从静态代码确认。closed-legacy 分支也已进入同一同步上下文。没有在本轮指定范围内发现新的静态阻断项。\n\n## 已修复项\n\n- **整批同步与零写入冲突：** `apps/account/application/portfolio_api_services.py:432–449` 在同一 `legacy_sync_transaction` 内读取并锁定所有 open legacy Position、检测重复 asset、确保 unified account 并逐行 adoption。异常不被吞掉，后续冲突会回滚前面行及新建 account/map。`list_open_legacy_positions` 在 `apps/simulated_trading/infrastructure/account_portfolio_repository.py:215–227` 用 `select_for_update(of=(\"self\",))` 锁源 Position。闭合 legacy ID 分支在 `portfolio_api_services.py:504–516` 也进入该事务上下文后再调用 ensure/adoption。\n- **Portfolio/account map：** `apps/simulated_trading/infrastructure/account_portfolio_repository.py:39–100` 先锁 Portfolio，再读 map 定位目标、锁定 owner/type 正确的 real account、锁后重读 source map、检查反向 target map；重复、错表、错 owner/type、dangling 或不一致映射均抛 409 冲突，不进入 helper 修复分支。`ensure_real_account` 自身仍保留既有 repair 语义，但两条 reviewed adoption 路径都先经过严格上下文；`manual_trade_sync` 的直接调用不属于本轮 adoption 入口审查范围。\n- **Position map 双向唯一性：** `apps/simulated_trading/infrastructure/legacy_position_adoption_repository.py:80–111` 对 source map 检查唯一和 source/target table，再锁目标 Position 验证 account/asset，并要求该 Position 的反向 map 恰好是同一行。映射损坏时返回冲突而不写入。\n- **普通 `save_position_record` 无行竞争：** `apps/simulated_trading/infrastructure/position_repository.py:199–230` 改用锁定 `get_or_create`。撞到已提交的 adoption 行时取回最终持久化行，并通过 `persisted flag AND incoming flag` 保留 False；仅实际创建行时使用 create defaults。Position 的 `(account, asset_code)` 唯一约束为冲突回查提供数据库边界。\n- **普通 BUY 并发快照：** `position_repository.py:435–477` 在事务内锁定/取回最终行，先拒绝 `available_quantity_known is not True`；创建与预读存在行状态不符或现有行不等于 `expected_position` 时返回 `POSITION_CHANGED_RETRY_REQUIRED`，且在检查通过之前不写 position/trade。Application 的 `UnifiedPositionService.create_position` 将预读实体传为 `expected_position`（`apps/simulated_trading/application/unified_position_service.py` `create_position` 调用）。因此两个同时预读“无行”的 BUY 不会互相覆盖数量或多写成交；调用方需要对 retry code 决定重试策略。\n- **adoption 与普通创建竞态：** `legacy_position_adoption_repository.py:115–154` 仍先检测已提交同资产行，再对 Position 做锁定 `get_or_create`；如果间隙出现并发创建，`created=False` 返回 None，Application 将其转为 adoption conflict。Position 创建与 source map 在同一事务，冲突没有成功路径上的部分写入。\n- **兼容字段文案/外部 unknown：** 模型与 `0030_position_knowledge_flags.py` 当前都用“是否已知”；API 两处 payload 在 False 时对 available quantity/first buy date 返回 null，并输出 known/status 字段。\n\n## 锁序核对\n\n已映射 portfolio 的同步顺序为 `Portfolio → SimulatedAccount → portfolio map(s) → legacy Position → adoption 中的 source/target map 与 unified Position`。Adoption 单行路径是 `SimulatedAccount → map → unified Position`；Account 批量源写入是 `Portfolio → legacy Position`。同步上下文在读/锁源 Position 前拿到已映射账户锁，因而不会出现首轮指出的“先持有 source Position，再等 Account，而 close 持 Account 再等 source Position”的反向等待。无 portfolio map 的首次建账路径先锁 Portfolio，之后 list 锁源行、ensure 创建 account/map，再 adoption；账户在提交前不可被其他正常路径使用。\n\n该结论依赖真实 PostgreSQL 锁/隔离级别行为；静态审查不能证明数据库实际等待、超时或异常传播符合预期。\n\n## 保留的非阻断观察\n\n- adoption 输入的 `current_price` 仍在源字段为空时回退到 `avg_cost`（`portfolio_api_services.py:467–474`），再据此算市值与未实现盈亏。它会将缺价估值表现为成本价基准/近似零盈亏；作为既有行为观察保留，不据此要求新增价格知识模型。\n- `PositionModel` 与统一服务支持 6 位小数份额，但 `apps/simulated_trading/interface/serializers.py:200–210` 的 `PositionResponseSerializer` 仍将 quantity/available quantity 声明为 `IntegerField`。Account serializer 已使用 DecimalField，且当前 manual sim position view 是手写 payload。该契约范围需由既有 fractional-share API 约定决定；不作为 ASH03 adoption 阻断，也不扩本批模型范围。\n- 兼容默认 True 仍是既有本地账本值的可解释性语义，不表示券商来源核验；本轮未要求批量回填旧行或新增 provenance。后续事实保全批负责处理旧值来源。\n\n## 未验证项\n\n本轮没有运行 RED/GREEN、mypy、迁移、HTTP、并发或 native PostgreSQL 回归。尤其是 `select_for_update().get_or_create` 撞行时异常/回查路径、外层 transaction 的 rollback 证据、BUY retry 码的 HTTP 映射与调用方行为，均留给 Root 的测试和环境验证。不能据此宣称 ASH03 或生产验收完成。\n\n### 条件性观察 — closed legacy 的 source row 在锁前读取\n\n`_resolve_position_context` 在 `portfolio_api_services.py:496–502` 先读 `legacy_projection` 并判断 `is_closed`；closed 分支随后进入 `legacy_sync_transaction`，但上下文只锁 Portfolio/map，不重读或锁这条 legacy Position。若 closed row 允许并发改 asset/portfolio/reopen，后续 `_sync_unified_position_from_legacy` 会用锁前字段与 map 做幂等校验，可能按旧 snapshot 返回 unified Position。若闭合行在业务上不可变，则只是边界说明；若允许变化，应在 P/account/map 锁之后按 source id 锁行并重验 owner/portfolio/asset/closed 状态。它不影响本轮确认的整批 open sync 原子性。\n"
+    }
+  ],
+  "failure_history": [
+    {
+      "tag": "ash03a-portfolio-atomic-red-01",
+      "classification": "local database was not running; connection timeout is not a business RED",
+      "record": {
+        "tag": "ash03a-portfolio-atomic-red-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/integration/account/test_ledger_unification_acceptance.py",
+          "-k",
+          "later_legacy_mapping_conflict",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_manual_s3_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-portfolio-atomic-red-01.xml",
+          "--basetemp=.tmp/ash03-a-portfolio-atomic-red-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-portfolio-atomic-red-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 1,
+        "seconds": 24.532,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-portfolio-atomic-red-source-01.json",
+        "source_manifest_sha256": "66bed1f636342af0592d6e1550033145636e835786220ee13beb029041c38342",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-portfolio-atomic-red-01.log",
+        "log_sha256": "b9ef7aabc4e67ffae5b6717881e9fbd9de2f5866402aaceefc49a08c200687f5"
+      },
+      "log_sha256": "b9ef7aabc4e67ffae5b6717881e9fbd9de2f5866402aaceefc49a08c200687f5",
+      "log_text": "E                                                                        [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n=================================== ERRORS ====================================\n_ ERROR at setup of test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged _\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:279: in ensure_connection\n    self.connect()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:256: in connect\n    self.connection = self.get_new_connection(conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:332: in get_new_connection\n    connection = self.Database.connect(**conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\psycopg\\connection.py:120: in connect\n    raise last_ex.with_traceback(None)\nE   psycopg.errors.ConnectionTimeout: connection timeout expired\n\nThe above exception was the direct cause of the following exception:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:507: in _nodb_cursor\n    with super()._nodb_cursor() as cursor:\nC:\\ProgramData\\anaconda3\\Lib\\contextlib.py:141: in __enter__\n    return next(self.gen)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:712: in _nodb_cursor\n    with conn.cursor() as cursor:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:320: in cursor\n    return self._cursor()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:296: in _cursor\n    self.ensure_connection()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:278: in ensure_connection\n    with self.wrap_database_errors:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\utils.py:91: in __exit__\n    raise dj_exc_value.with_traceback(traceback) from exc_value\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:279: in ensure_connection\n    self.connect()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:256: in connect\n    self.connection = self.get_new_connection(conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:332: in get_new_connection\n    connection = self.Database.connect(**conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\psycopg\\connection.py:120: in connect\n    raise last_ex.with_traceback(None)\nE   django.db.utils.OperationalError: connection timeout expired\n\nDuring handling of the above exception, another exception occurred:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:279: in ensure_connection\n    self.connect()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:256: in connect\n    self.connection = self.get_new_connection(conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:332: in get_new_connection\n    connection = self.Database.connect(**conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\psycopg\\connection.py:120: in connect\n    raise last_ex.with_traceback(None)\nE   psycopg.errors.ConnectionTimeout: connection timeout expired\n\nThe above exception was the direct cause of the following exception:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\pytest_django\\fixtures.py:198: in django_db_setup\n    db_cfg = setup_databases(\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\test\\utils.py:204: in setup_databases\n    connection.creation.create_test_db(\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\creation.py:62: in create_test_db\n    self._create_test_db(verbosity, autoclobber, keepdb)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\creation.py:202: in _create_test_db\n    with self._nodb_cursor() as cursor:\nC:\\ProgramData\\anaconda3\\Lib\\contextlib.py:141: in __enter__\n    return next(self.gen)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:533: in _nodb_cursor\n    with conn.cursor() as cursor:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:320: in cursor\n    return self._cursor()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:296: in _cursor\n    self.ensure_connection()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:278: in ensure_connection\n    with self.wrap_database_errors:\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\utils.py:91: in __exit__\n    raise dj_exc_value.with_traceback(traceback) from exc_value\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:279: in ensure_connection\n    self.connect()\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\base\\base.py:256: in connect\n    self.connection = self.get_new_connection(conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\utils\\asyncio.py:26: in inner\n    return func(*args, **kwargs)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:332: in get_new_connection\n    connection = self.Database.connect(**conn_params)\nC:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\psycopg\\connection.py:120: in connect\n    raise last_ex.with_traceback(None)\nE   django.db.utils.OperationalError: connection timeout expired\n============================== warnings summary ===============================\ntests/integration/account/test_ledger_unification_acceptance.py::test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged\n  C:\\Users\\muku\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\db\\backends\\postgresql\\base.py:512: RuntimeWarning: Normally Django will use a connection to the 'postgres' database to avoid running initialization queries against the production database when it's not needed (for example, when running tests). Django was unable to create a connection to the 'postgres' database and will use the first PostgreSQL database instead.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-portfolio-atomic-red-01.xml -\n=========================== short test summary info ===========================\nERROR tests/integration/account/test_ledger_unification_acceptance.py::test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged\n19 deselected, 1 warning, 1 error in 11.33s\n"
+    },
+    {
+      "tag": "ash03a-portfolio-atomic-red-02",
+      "classification": "five target business failures: partial writes and four corrupt portfolio mappings accepted/repaired",
+      "record": {
+        "tag": "ash03a-portfolio-atomic-red-02",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/integration/account/test_ledger_unification_acceptance.py",
+          "-k",
+          "later_legacy_mapping_conflict or invalid_existing_portfolio_mapping or duplicate_reverse_position_mapping",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_manual_s3_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-portfolio-atomic-red-02.xml",
+          "--basetemp=.tmp/ash03-a-portfolio-atomic-red-02-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-portfolio-atomic-red-02-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 1,
+        "seconds": 30.795,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-portfolio-atomic-red-source-02.json",
+        "source_manifest_sha256": "3956ecdee981e14e7d731c832047c979e941a1f23252602d5f49cf7ede60d6fd",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-portfolio-atomic-red-02.log",
+        "log_sha256": "c18c6ca32eb53e7ba6fd67064c91a3df67566090093e86fb4366de8c5e594328"
+      },
+      "log_sha256": "c18c6ca32eb53e7ba6fd67064c91a3df67566090093e86fb4366de8c5e594328",
+      "log_text": "FFFFF                                                                    [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n================================== FAILURES ===================================\n__ test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged __\ntests\\integration\\account\\test_ledger_unification_acceptance.py:723: in test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged\n    assert _portfolio_atomic_business_snapshot() == before\nE   AssertionError: assert (({'base_curr... False, ...})) == (({'base_curr... False, ...}))\nE     \nE     At index 2 diff: ({'id': 371, 'account_id': 2398, 'asset_code': 'ATOMIC_LATER_02', 'asset_name': 'ATOMIC_LATER_02', 'asset_type': 'equity', 'quantity': Decimal('75.000000'), 'available_quantity': Decimal('75.000000'), 'available_quantity_known': True, 'avg_cost': Decimal('10.0000'), 'total_cost': Decimal('750.00'), 'current_price': Decimal('10.0000'), 'market_value': Decimal('750.00'), 'unrealized_pnl': Decimal('0.00'), 'unrealized_pnl_pct': 0.0, 'first_buy_date': datetime.date(2026, 1, 1), 'first_buy_date_known': True, 'last_update_date': datetime.date(2026, 10, 18), '...\nE     \nE     ...Full output truncated (2 lines hidden), use '-vv' to show\n------------------------------ Captured log call ------------------------------\nWARNING  core.exceptions:exceptions.py:281 AgomTradeProException raised: LEGACY_POSITION_RECONCILIATION_REQUIRED - 旧持仓与统一账本关系不明确，需先完成核对\nWARNING  core.middleware.logging:logging.py:204 Request completed: GET /api/account/portfolios/97/positions/ - 409 (3338ms)\nWARNING  django.request:log.py:253 Conflict: /api/account/portfolios/97/positions/\n_ test_invalid_existing_portfolio_mapping_conflicts_without_repair[dangling] __\ntests\\integration\\account\\test_ledger_unification_acceptance.py:779: in test_invalid_existing_portfolio_mapping_conflicts_without_repair\n    _assert_legacy_reconciliation_conflict(response)\ntests\\integration\\account\\test_ledger_unification_acceptance.py:537: in _assert_legacy_reconciliation_conflict\n    assert response.status_code == 409, response.data\nE   AssertionError: {'count': 0, 'data': [], 'success': True}\nE   assert 200 == 409\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\n_ test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_table] _\ntests\\integration\\account\\test_ledger_unification_acceptance.py:779: in test_invalid_existing_portfolio_mapping_conflicts_without_repair\n    _assert_legacy_reconciliation_conflict(response)\ntests\\integration\\account\\test_ledger_unification_acceptance.py:537: in _assert_legacy_reconciliation_conflict\n    assert response.status_code == 409, response.data\nE   AssertionError: {'count': 0, 'data': [], 'success': True}\nE   assert 200 == 409\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\n_ test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_owner] _\ntests\\integration\\account\\test_ledger_unification_acceptance.py:779: in test_invalid_existing_portfolio_mapping_conflicts_without_repair\n    _assert_legacy_reconciliation_conflict(response)\ntests\\integration\\account\\test_ledger_unification_acceptance.py:537: in _assert_legacy_reconciliation_conflict\n    assert response.status_code == 409, response.data\nE   AssertionError: {'count': 0, 'data': [], 'success': True}\nE   assert 200 == 409\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\n_ test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_account_type] _\ntests\\integration\\account\\test_ledger_unification_acceptance.py:779: in test_invalid_existing_portfolio_mapping_conflicts_without_repair\n    _assert_legacy_reconciliation_conflict(response)\ntests\\integration\\account\\test_ledger_unification_acceptance.py:537: in _assert_legacy_reconciliation_conflict\n    assert response.status_code == 409, response.data\nE   AssertionError: {'count': 0, 'data': [], 'success': True}\nE   assert 200 == 409\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\n- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-portfolio-atomic-red-02.xml -\n=========================== short test summary info ===========================\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_later_legacy_mapping_conflict_leaves_full_portfolio_ledger_unchanged\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_invalid_existing_portfolio_mapping_conflicts_without_repair[dangling]\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_table]\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_owner]\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_invalid_existing_portfolio_mapping_conflicts_without_repair[wrong_account_type]\n5 failed, 20 deselected in 13.71s\n"
+    },
+    {
+      "tag": "ash03a-race-red-01",
+      "classification": "four target business failures: duplicate reverse map accepted, False flag upgraded and unknown/changed known BUY did not refuse",
+      "record": {
+        "tag": "ash03a-race-red-01",
+        "command": [
+          "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "pytest",
+          "tests/component/simulated_trading/test_position_sellability_mapper.py",
+          "tests/integration/account/test_ledger_unification_acceptance.py",
+          "-k",
+          "row_appears or duplicate_reverse_source_maps",
+          "-q",
+          "--tb=short",
+          "--reuse-db",
+          "--migrations",
+          "--ds=ash02_manual_s3_native_settings",
+          "-p",
+          "ash_domain_local_network_fence",
+          "-o",
+          "addopts=",
+          "--junitxml=.tmp/ash03-a-race-red-01.xml",
+          "--basetemp=.tmp/ash03-a-race-red-01-pytest",
+          "-o",
+          "cache_dir=.tmp/ash03-a-race-red-01-cache"
+        ],
+        "cwd": "D:\\githv\\agomTradePro",
+        "exit_code": 1,
+        "seconds": 35.632,
+        "source_manifest": "D:\\githv\\agomTradePro\\.tmp\\ash03-a-race-red-source-01.json",
+        "source_manifest_sha256": "7291923aff3072f7b6f9feae1c675ca9900103010f31bea33a4182f750024106",
+        "window_sha256": "f84e71b72bef813c457328f4a2021bf1a959184667b431ee069e20e3a81cc745",
+        "driver_sha256": "4d2b05e4284a1c767a5029ccb2da649e80f4c5f5cf823992ad5530aa1dee482d",
+        "log": "D:\\githv\\agomTradePro\\.tmp\\ash02-admission-ash03a-race-red-01.log",
+        "log_sha256": "03d658f2b34266ede991d953951d04384e489b43959695ad6b9d3103a9d69bb3"
+      },
+      "log_sha256": "03d658f2b34266ede991d953951d04384e489b43959695ad6b9d3103a9d69bb3",
+      "log_text": "FFFF                                                                     [100%]Rejected application socket/DNS attempts: 0\nExact internal CPython/Twisted wakeup pairs: 1 1\n\n================================== FAILURES ===================================\n_________ test_duplicate_reverse_source_maps_conflict_without_changes _________\ntests\\integration\\account\\test_ledger_unification_acceptance.py:839: in test_duplicate_reverse_source_maps_conflict_without_changes\n    _assert_legacy_reconciliation_conflict(response)\ntests\\integration\\account\\test_ledger_unification_acceptance.py:537: in _assert_legacy_reconciliation_conflict\n    assert response.status_code == 409, response.data\nE   AssertionError: {'count': 1, 'data': [{'id': 373, 'portfolio': 102, 'portfolio_name': 'Portfolio-A', 'asset_code': '600011.SH', 'asset...-10-18T20:03:52.522468+08:00', 'updated_at': '2026-10-18T20:03:52.522475+08:00', 'source': 'manual'}], 'success': True}\nE   assert 200 == 409\nE    +  where 200 = <Response status_code=200, \"application/json\">.status_code\n_ test_save_position_record_does_not_upgrade_flags_when_row_appears_after_empty_read _\ntests\\component\\simulated_trading\\test_position_sellability_mapper.py:197: in test_save_position_record_does_not_upgrade_flags_when_row_appears_after_empty_read\n    assert persisted.available_quantity_known is False\nE   assert True is False\nE    +  where True = <PositionModel: Latest repository facts (125.000000)>.available_quantity_known\n_ test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read[False-SELLABLE_BALANCE_UNKNOWN] _\ntests\\component\\simulated_trading\\test_position_sellability_mapper.py:272: in test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read\n    with pytest.raises(BusinessLogicError) as error:\nE   Failed: DID NOT RAISE <class 'core.exceptions.BusinessLogicError'>\n_ test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read[True-POSITION_CHANGED_RETRY_REQUIRED] _\ntests\\component\\simulated_trading\\test_position_sellability_mapper.py:272: in test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read\n    with pytest.raises(BusinessLogicError) as error:\nE   Failed: DID NOT RAISE <class 'core.exceptions.BusinessLogicError'>\n--- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-race-red-01.xml ----\n=========================== short test summary info ===========================\nFAILED tests/integration/account/test_ledger_unification_acceptance.py::test_duplicate_reverse_source_maps_conflict_without_changes\nFAILED tests/component/simulated_trading/test_position_sellability_mapper.py::test_save_position_record_does_not_upgrade_flags_when_row_appears_after_empty_read\nFAILED tests/component/simulated_trading/test_position_sellability_mapper.py::test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read[False-SELLABLE_BALANCE_UNKNOWN]\nFAILED tests/component/simulated_trading/test_position_sellability_mapper.py::test_buy_mutation_rejects_changed_position_when_row_appears_after_empty_read[True-POSITION_CHANGED_RETRY_REQUIRED]\n4 failed, 25 deselected in 21.66s\n"
+    },
+    {
+      "classification": "Initial formatter failures were UTC alias/import-order issues; all final 27 files passed. Coverage initially needed combining its parallel-suffix data; tests were not rerun to alter results."
+    }
+  ],
+  "limits": [
+    "Local development validation only. No live broker/order, production registration/backfill/deployment, main merge, push, RC/CI/S6 or Owner M1/M2/M3 qualification.",
+    "Existing rows retain compatibility True flags; these describe existing local values and do not certify broker provenance. Newly adopted legacy holdings explicitly have both flags False, external null/unknown, and no synthetic BUY.",
+    "Actual broker-fill preservation, explicit baseline inclusion, durable projection reconciliation/retry and authoritative sellability remain next ASH03 work. Historical PIT, current quotes and local sellability must not become prerequisites for recording actual fills.",
+    "Once False rows exist, code that ignores the new flags is not an approved code-only rollback. Reverse migration refuses while either flag is False; freezing writes and an audited reconciliation/rollback plan are required before an older implementation can be considered.",
+    "Deterministic ORM interleaving tests use one connection and real stored rows. They verify flags and refusal decisions, not two-connection PostgreSQL lock stress. Native UOW/migration checks are separate evidence.",
+    "Closed legacy source rows are read before entering the new context; if closed rows may be reassigned/reopened concurrently, a locked source re-read remains a follow-up. Reviewed open-portfolio adoption is atomic.",
+    "Existing missing-price cost fallback and unused simulated response serializer IntegerField/fractional-share mismatch remain disclosed observations, not source-freshness or fractional-share certification.",
+    "Offline migrate_account_ledger is unchanged and is not covered by the new read-adoption guarantees. Historical numeric/date values were not rewritten.",
+    "SDK real local HTTP tests run in the separate 404-test pack without the Domain network fence. The fenced HTTP/UOW/Domain slices reported zero rejected application socket/DNS attempts."
+  ]
+}

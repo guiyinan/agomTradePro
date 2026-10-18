@@ -428,6 +428,14 @@ class AutoTradingEngine:
                     asset_code=asset_code,
                 )
                 continue
+            if position.available_quantity_known is not True:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELLABLE_BALANCE_UNKNOWN",
+                    asset_code=asset_code,
+                )
+                continue
             try:
                 price = self._get_current_price(asset_code, trade_date)
             except Exception:
@@ -667,6 +675,14 @@ class AutoTradingEngine:
                 )
                 continue
             if not exit_advice or not (exit_advice.should_exit or exit_advice.should_reduce):
+                continue
+            if position.available_quantity_known is not True:
+                execution_state.add_issue(
+                    kind=AutoTradingIssueKind.BLOCKED,
+                    stage="sell_signal",
+                    code="SELLABLE_BALANCE_UNKNOWN",
+                    asset_code=position.asset_code,
+                )
                 continue
             try:
                 price = self._get_current_price(position.asset_code, trade_date)

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -27,13 +29,75 @@ if TYPE_CHECKING:
     from apps.simulated_trading.infrastructure.models import (
         LedgerMigrationMapModel,
     )
-    from apps.simulated_trading.infrastructure.models import (
-        PositionModel as UnifiedPositionModel,
-    )
+    from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
 
 
 class PortfolioApiRepository:
     """Persistence helpers for the account portfolio/position API boundary."""
+
+    @contextmanager
+    def legacy_sync_transaction(self, *, portfolio_id: int, owner_user_id: int) -> Iterator[None]:
+        """Lock the portfolio and roll back its entire legacy adoption on conflict."""
+        from apps.simulated_trading.application.legacy_position_adoption_errors import (
+            LegacyPositionAdoptionConflict,
+        )
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            SimulatedAccountModel,
+        )
+
+        with transaction.atomic():
+            portfolio = (
+                PortfolioModel._default_manager.select_for_update()
+                .filter(pk=portfolio_id, user_id=owner_user_id)
+                .first()
+            )
+            if portfolio is None:
+                raise LegacyPositionAdoptionConflict()
+            mappings = list(
+                LedgerMigrationMapModel._default_manager.filter(
+                    source_table="portfolio", source_id=portfolio_id
+                ).order_by("pk")
+            )
+            if mappings:
+                if (
+                    len(mappings) != 1
+                    or mappings[0].source_app != "account"
+                    or mappings[0].target_table != "simulated_account"
+                ):
+                    raise LegacyPositionAdoptionConflict()
+                account = (
+                    SimulatedAccountModel._default_manager.select_for_update()
+                    .filter(
+                        pk=mappings[0].target_id,
+                        user_id=owner_user_id,
+                        account_type="real",
+                    )
+                    .first()
+                )
+                if account is None:
+                    raise LegacyPositionAdoptionConflict()
+                locked_mappings = list(
+                    LedgerMigrationMapModel._default_manager.select_for_update()
+                    .filter(source_table="portfolio", source_id=portfolio_id)
+                    .order_by("pk")
+                )
+                if (
+                    len(locked_mappings) != 1
+                    or locked_mappings[0].pk != mappings[0].pk
+                    or locked_mappings[0].source_app != "account"
+                    or locked_mappings[0].target_table != "simulated_account"
+                    or locked_mappings[0].target_id != account.pk
+                ):
+                    raise LegacyPositionAdoptionConflict()
+                reverse_mappings = list(
+                    LedgerMigrationMapModel._default_manager.select_for_update()
+                    .filter(target_table="simulated_account", target_id=account.pk)
+                    .order_by("pk")
+                )
+                if len(reverse_mappings) != 1 or reverse_mappings[0].pk != mappings[0].pk:
+                    raise LegacyPositionAdoptionConflict()
+            yield
 
     def get_portfolio_with_owner(self, portfolio_id: int) -> PortfolioModel | None:
         """Return one portfolio with owner/base currency loaded when available."""
@@ -101,9 +165,10 @@ class PortfolioApiRepository:
                 )
                 .first()
             )
-            if mapping is not None and SimulatedAccountModel._default_manager.filter(
-                pk=mapping.target_id
-            ).exists():
+            if (
+                mapping is not None
+                and SimulatedAccountModel._default_manager.filter(pk=mapping.target_id).exists()
+            ):
                 return int(mapping.target_id)
 
             real_account = SimulatedAccountModel._default_manager.create(
@@ -150,15 +215,16 @@ class PortfolioApiRepository:
     def list_open_legacy_positions(
         self,
         portfolio: PortfolioModel,
-    ) -> QuerySet[PositionModel]:
-        """Return open legacy positions for one portfolio."""
+    ) -> list[PositionModel]:
+        """Lock and materialize source balances within the portfolio sync transaction."""
 
-        queryset: QuerySet[PositionModel] = (
-            portfolio.positions.filter(is_closed=False)
+        queryset = (
+            portfolio.positions.select_for_update(of=("self",))
+            .filter(is_closed=False)
             .select_related("category", "currency", "portfolio", "portfolio__user")
             .order_by("id")
         )
-        return queryset
+        return list(queryset)
 
     def get_legacy_position_by_id(self, position_id: int) -> PositionModel | None:
         """Return one legacy position projection with related fields loaded."""
@@ -492,6 +558,21 @@ class PortfolioApiRepository:
             "region": region,
             "cross_border": cross_border,
             "shares": float(unified_position.quantity),
+            "available_quantity": (
+                float(unified_position.available_quantity)
+                if unified_position.available_quantity_known is True
+                else None
+            ),
+            "available_quantity_known": (unified_position.available_quantity_known is True),
+            "available_quantity_status": (
+                "known" if unified_position.available_quantity_known is True else "unknown"
+            ),
+            "first_buy_date": (
+                unified_position.first_buy_date
+                if unified_position.first_buy_date_known is True
+                else None
+            ),
+            "first_buy_date_known": unified_position.first_buy_date_known is True,
             "avg_cost": unified_position.avg_cost,
             "current_price": unified_position.current_price,
             "market_value": unified_position.market_value,

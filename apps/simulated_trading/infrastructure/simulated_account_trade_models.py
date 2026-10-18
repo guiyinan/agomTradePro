@@ -131,6 +131,7 @@ class PositionModel(models.Model):
     # 持仓数量 (DecimalField 支持非整数股份，兼容旧账本浮点 shares)
     quantity = models.DecimalField("持仓数量", max_digits=20, decimal_places=6)
     available_quantity = models.DecimalField("可卖数量", max_digits=20, decimal_places=6)
+    available_quantity_known = models.BooleanField("可卖数量是否已知", default=True)
 
     # 成本信息
     avg_cost = models.DecimalField("平均成本(元)", max_digits=10, decimal_places=4)
@@ -146,6 +147,7 @@ class PositionModel(models.Model):
 
     # 时间信息
     first_buy_date = models.DateField("首次买入日期")
+    first_buy_date_known = models.BooleanField("首次买入日期是否已知", default=True)
     last_update_date = models.DateField("最后更新日期", auto_now=True)
 
     # 关联信号

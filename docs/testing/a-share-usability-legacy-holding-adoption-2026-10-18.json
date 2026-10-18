@@ -1,0 +1,76 @@
+{
+  "schema": "a-share-usability.legacy-holding-adoption.local-validation.v1",
+  "date": "2026-10-18",
+  "status": "bounded_local_checks_passed",
+  "base_head": "d376380c90048bdd5ccfab0978c0e76e99b50a26",
+  "scope": "Atomic legacy holding adoption without synthetic trades; explicit unknown sellability/date; final-row knowledge guards and stale BUY preconditions; migration0030.",
+  "counts": {
+    "runs": {
+      "ash03-a-http-service-green-01": 112,
+      "ash03-a-native-migrations-uow-green-01": 72,
+      "ash03-a-high-risk-minimum-01": 404,
+      "ash03-a-domain-coverage-01": 29
+    },
+    "overlap": 5,
+    "unique_passed": 612,
+    "unresolved_failures_errors_skips": 0
+  },
+  "changed_domain_coverage": {
+    "scope": "Two changed Domain files only; not overall project/Domain-suite coverage",
+    "files": {
+      "apps/simulated_trading/domain/entities.py": {
+        "covered_lines": 237,
+        "num_statements": 239,
+        "percent_covered": 98.36734693877551,
+        "percent_covered_display": "98.4",
+        "missing_lines": 2,
+        "excluded_lines": 0,
+        "num_branches": 6,
+        "num_partial_branches": 2,
+        "covered_branches": 4,
+        "missing_branches": 2
+      },
+      "apps/simulated_trading/domain/rules.py": {
+        "covered_lines": 49,
+        "num_statements": 56,
+        "percent_covered": 83.72093023255815,
+        "percent_covered_display": "83.7",
+        "missing_lines": 7,
+        "excluded_lines": 0,
+        "num_branches": 30,
+        "num_partial_branches": 7,
+        "covered_branches": 23,
+        "missing_branches": 7
+      }
+    },
+    "statement_percent": 96.94915254237289,
+    "line_and_branch_percent": 94.5619335347432,
+    "raw_json_sha256": "e28174c33ee3c3450342f612c2ae2b797eec5bafa6605235964e45d591325d41",
+    "parallel_data_combined_with_keep": true
+  },
+  "evidence": "artifacts/a-share-usability/ash03/legacy-holding-adoption-evidence-2026-10-18.json",
+  "evidence_sha256": "9b0779ddbc9a77989a7dea323f9ad54df199c50d79c328a861a76afb3896e8f2",
+  "limits": [
+    "Local development validation only. No live broker/order, production registration/backfill/deployment, main merge, push, RC/CI/S6 or Owner M1/M2/M3 qualification.",
+    "Existing rows retain compatibility True flags; these describe existing local values and do not certify broker provenance. Newly adopted legacy holdings explicitly have both flags False, external null/unknown, and no synthetic BUY.",
+    "Actual broker-fill preservation, explicit baseline inclusion, durable projection reconciliation/retry and authoritative sellability remain next ASH03 work. Historical PIT, current quotes and local sellability must not become prerequisites for recording actual fills.",
+    "Once False rows exist, code that ignores the new flags is not an approved code-only rollback. Reverse migration refuses while either flag is False; freezing writes and an audited reconciliation/rollback plan are required before an older implementation can be considered.",
+    "Deterministic ORM interleaving tests use one connection and real stored rows. They verify flags and refusal decisions, not two-connection PostgreSQL lock stress. Native UOW/migration checks are separate evidence.",
+    "Closed legacy source rows are read before entering the new context; if closed rows may be reassigned/reopened concurrently, a locked source re-read remains a follow-up. Reviewed open-portfolio adoption is atomic.",
+    "Existing missing-price cost fallback and unused simulated response serializer IntegerField/fractional-share mismatch remain disclosed observations, not source-freshness or fractional-share certification.",
+    "Offline migrate_account_ledger is unchanged and is not covered by the new read-adoption guarantees. Historical numeric/date values were not rewritten.",
+    "SDK real local HTTP tests run in the separate 404-test pack without the Domain network fence. The fenced HTTP/UOW/Domain slices reported zero rejected application socket/DNS attempts."
+  ],
+  "next": "ASH03 actual broker-fill fact preservation, explicit balance inclusion and durable reconciliation; M1/M2/M3 production acceptance remains open.",
+  "postdoc_checks": {
+    "record": ".tmp/ash02-admission-ash03a-postdoc-01.json",
+    "record_sha256": "215902cc8e9ae386a91aed4d60c378e445e772f4db6f9b7381e37f2aa218e159",
+    "log_sha256": "de0eab827e7497deaf08242cbcd41e687e9a772304bd25ca484cbcd5667cff4d",
+    "log_text": "CHECK: D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -X utf8 scripts/check_active_plan_registry.py\nactive-plan-registry version=2026-10-18.v281 workstreams=13 primary=22 support=37 review=0 units=79 paths=59 violations=0\nCHECK: D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -X utf8 -m pytest tests/unit/test_active_plan_registry.py -q -o addopts= --ds=ash02_manual_s3_native_settings --junitxml=.tmp/ash03-a-postdoc-01.xml --basetemp=.tmp/ash03-a-postdoc-01-pytest -o cache_dir=.tmp/ash03-a-postdoc-01-cache\n............                                                             [100%]\n---- generated xml file: D:\\githv\\agomTradePro\\.tmp\\ash03-a-postdoc-01.xml ----\n12 passed in 0.87s\nCHECK: D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe -X utf8 scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text\nGovernance baseline version: 2026-09-09.v220\nGovernance violations: 0\n- governance_baseline: 0 violation(s)\n- docs_consistency: 0 violation(s)\n- docs_links: 0 violation(s)\n- governance_docs: 0 violation(s)\n- module_shape: 0 violation(s)\n- misplaced_app_config: 0 violation(s)\n- singular_dto_files: 0 violation(s)\n- architecture_ruleset: 0 violation(s)\n- module_dependency_baseline: 0 violation(s)\n- ci_governance_wiring: 0 violation(s)\n- application_third_party_imports: 0 violation(s)\n- core_integration_debt: 0 violation(s)\n- core_management_command_debt: 0 violation(s)\n- large_python_files: 0 violation(s)\n- large_file_remediation: 0 violation(s)\n",
+    "registry_tests_passed": 12,
+    "registry_violations": 0,
+    "governance_violations": 0,
+    "checked_checkpoint_preimage_sha256": "20211e44e323dea1959a1177151c501a02e35cb4f3907c28b55cfbfd0188a2c2",
+    "note": "Result-only annotation after checks. Production, tests, contracts, generated projections, plan and registry remain identical to the checked inputs."
+  }
+}

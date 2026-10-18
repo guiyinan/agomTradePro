@@ -780,6 +780,7 @@
           "UnifiedPositionService"
         ],
         "application/portfolio_api_services.py": [
+          "LegacyPositionAdoptionConflict",
           "PortfolioAccessContext",
           "PortfolioAccessDeniedError",
           "PortfolioNotFoundError",
@@ -10585,6 +10586,9 @@
           "run_daily_inspection",
           "save_inspection_notification_config"
         ],
+        "application/legacy_position_adoption_errors.py": [
+          "LegacyPositionAdoptionConflict"
+        ],
         "application/manual_trade_execution.py": [
           "CurrentReferenceManualIdentityReader",
           "ExecuteCurrentReferenceManualTradeUseCase",
@@ -10795,9 +10799,9 @@
         ]
       },
       "layers": {
-        "application": 35,
+        "application": 36,
         "domain": 15,
-        "infrastructure": 39,
+        "infrastructure": 40,
         "interface": 15,
         "management": 5,
         "root": 12

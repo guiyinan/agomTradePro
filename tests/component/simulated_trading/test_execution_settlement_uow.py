@@ -3425,3 +3425,160 @@ def test_current_reference_v3_reader_rejects_foreign_owner_and_row_exchange_mirr
     assert trade.settlement_market == "SH"
     assert account.current_cash == Decimal("98997.98")
     assert SimulatedTradeModel.objects.filter(account=account).count() == 1
+
+
+@pytest.mark.parametrize(
+    ("side", "key"),
+    [
+        (SimulatedTradeSide.BUY, "unknown-available-buy"),
+        (SimulatedTradeSide.SELL, "unknown-available-sell"),
+    ],
+    ids=["buy", "sell"],
+)
+def test_unknown_available_quantity_blocks_buy_and_sell_without_ledger_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+    side: SimulatedTradeSide,
+    key: str,
+) -> None:
+    """A sufficiently large numeric placeholder cannot authorize either trade side."""
+
+    user, account = ledger
+    position = _seed_position(
+        account,
+        quantity=Decimal("200"),
+        available_quantity=Decimal("200"),
+    )
+    changed = PositionModel._base_manager.filter(pk=position.pk).update(
+        available_quantity_known=False
+    )
+    assert changed == 1
+    position.refresh_from_db()
+    assert position.available_quantity_known is False
+
+    evidence = _calendar(
+        as_of=AS_OF,
+        open_dates={date(2026, 10, 16), date(2026, 10, 19), date(2026, 10, 20)},
+    )
+    use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=evidence,
+    )
+    intent = _intent(
+        user_id=user.pk,
+        account_id=account.pk,
+        side=side,
+        key=key,
+        quantity=Decimal("100"),
+    )
+    account.refresh_from_db()
+    account_before = SimulatedAccountModel.objects.filter(pk=account.pk).values().get()
+    position_before = PositionModel.objects.filter(pk=position.pk).values().get()
+    trade_rows_before = tuple(
+        SimulatedTradeModel.objects.filter(account=account).order_by("pk").values()
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        use_case.execute(intent)
+
+    account.refresh_from_db()
+    position.refresh_from_db()
+    assert SimulatedAccountModel.objects.filter(pk=account.pk).values().get() == account_before
+    assert PositionModel.objects.filter(pk=position.pk).values().get() == position_before
+    assert (
+        tuple(SimulatedTradeModel.objects.filter(account=account).order_by("pk").values())
+        == trade_rows_before
+    )
+    assert trade_rows_before == ()
+
+
+def test_unknown_available_quantity_blocks_due_release_without_receipt_writes(
+    ledger: tuple[object, SimulatedAccountModel],
+) -> None:
+    """Due settlement release cannot convert an unknown numeric balance into sellable shares."""
+
+    user, account = ledger
+    position = _seed_position(
+        account,
+        quantity=Decimal("200"),
+        available_quantity=Decimal("200"),
+    )
+    initial_calendar = _calendar(
+        as_of=AS_OF,
+        open_dates={
+            date(2026, 10, 16),
+            date(2026, 10, 19),
+            date(2026, 10, 20),
+            date(2026, 10, 21),
+        },
+    )
+    buy_use_case, _, _ = _execute_use_case(
+        account_id=account.pk,
+        user_id=user.pk,
+        as_of=AS_OF,
+        evidence=initial_calendar,
+    )
+    buy_receipt = buy_use_case.execute(
+        _intent(
+            user_id=user.pk,
+            account_id=account.pk,
+            key="unknown-available-release-source-buy",
+            quantity=Decimal("100"),
+        )
+    )
+    pending_trade = SimulatedTradeModel.objects.get(pk=buy_receipt.trade_id)
+    position.refresh_from_db()
+    assert pending_trade.settlement_status == "pending"
+    assert position.quantity == Decimal("300.000000")
+    assert position.available_quantity == Decimal("200.000000")
+
+    changed = PositionModel._base_manager.filter(pk=position.pk).update(
+        available_quantity_known=False
+    )
+    assert changed == 1
+    position.refresh_from_db()
+    pending_trade.refresh_from_db()
+    account.refresh_from_db()
+    account_before = SimulatedAccountModel.objects.filter(pk=account.pk).values().get()
+    position_before = PositionModel.objects.filter(pk=position.pk).values().get()
+    trade_rows_before = tuple(
+        SimulatedTradeModel.objects.filter(account=account).order_by("pk").values()
+    )
+
+    release_time = AS_OF + timedelta(days=5)
+    release_calendar = _calendar(
+        as_of=release_time,
+        open_dates={
+            date(2026, 10, 16),
+            date(2026, 10, 19),
+            date(2026, 10, 20),
+            date(2026, 10, 21),
+        },
+    )
+    release_use_case = ReleaseDueSimulatedSettlementsUseCase(
+        calendar_reader=_CalendarReader(release_calendar),
+        repository=DjangoSimulatedTradeExecutionRepository(using="default"),
+        clock=_Clock(release_time),
+    )
+
+    with pytest.raises(SimulatedTradeExecutionBlocked):
+        release_use_case.execute(
+            account_id=account.pk,
+            user_id=user.pk,
+            asset_code="600000.SH",
+            exchange="SH",
+        )
+
+    account.refresh_from_db()
+    position.refresh_from_db()
+    pending_trade.refresh_from_db()
+    assert SimulatedAccountModel.objects.filter(pk=account.pk).values().get() == account_before
+    assert PositionModel.objects.filter(pk=position.pk).values().get() == position_before
+    assert (
+        tuple(SimulatedTradeModel.objects.filter(account=account).order_by("pk").values())
+        == trade_rows_before
+    )
+    assert len(trade_rows_before) == 1
+    assert trade_rows_before[0]["settlement_status"] == "pending"
+    assert trade_rows_before[0]["settlement_released_at"] is None

@@ -233,6 +233,8 @@ def test_sell_use_case_exception_preserves_unknown_ledger_effects() -> None:
         asset_code="000001.SZ",
         asset_name="平安银行",
         quantity=100,
+        available_quantity=100,
+        available_quantity_known=True,
         unrealized_pnl_pct=0.0,
     )
     engine.position_repo.get_by_account.return_value = [position]
@@ -268,6 +270,8 @@ def test_confirmed_sell_survives_execution_link_failure_as_partial() -> None:
         asset_code="000001.SZ",
         asset_name="平安银行",
         quantity=100,
+        available_quantity=100,
+        available_quantity_known=True,
         unrealized_pnl_pct=0.0,
     )
     engine.position_repo.get_by_account.return_value = [position]
@@ -432,7 +436,13 @@ def test_strategy_sell_exception_marks_unknown_effects_without_losing_result() -
     account = _account()
     engine, _ = _engine_with_legacy_candidate(account)
     engine.position_repo.get_by_account.return_value = [
-        SimpleNamespace(asset_code="000001.SZ", asset_name="平安银行", quantity=100)
+        SimpleNamespace(
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            quantity=100,
+            available_quantity=100,
+            available_quantity_known=True,
+        )
     ]
     engine.sell_use_case.execute.side_effect = RuntimeError("private storage error")
     signal = SignalInfo(
@@ -523,7 +533,13 @@ def test_strategy_buy_and_sell_success_return_typed_counts() -> None:
         )
         if action == "sell":
             engine.position_repo.get_by_account.return_value = [
-                SimpleNamespace(asset_code="000001.SZ", asset_name="平安银行", quantity=100)
+                SimpleNamespace(
+                    asset_code="000001.SZ",
+                    asset_name="平安银行",
+                    quantity=100,
+                    available_quantity=100,
+                    available_quantity_known=True,
+                )
             ]
         gateway = Mock()
         gateway.execute_for_account.return_value = ExecutionResult(success=True, signals=[signal])
@@ -573,3 +589,65 @@ def test_failure_is_isolated_to_its_account() -> None:
     assert _issue_codes(results[first.account_id]) == {"STRATEGY_BINDING_UNAVAILABLE"}
     assert results[second.account_id].outcome is AutoTradingOutcome.NOOP
     buy_use_case.execute.assert_not_called()
+
+
+def test_strategy_sell_unknown_available_quantity_blocks_before_quote_or_write() -> None:
+    """An unknown balance is a determinate block before price or sell side effects."""
+
+    from apps.strategy.application.execution_gateway import ExecutionResult, SignalInfo
+
+    account = _account()
+    engine, _ = _engine_with_legacy_candidate(account)
+    engine._update_account_performance = Mock(return_value=True)
+    engine.position_repo.get_by_account.return_value = [
+        SimpleNamespace(
+            asset_code="000001.SZ",
+            asset_name="平安银行",
+            quantity=100,
+            available_quantity=100,
+            available_quantity_known=False,
+            unrealized_pnl_pct=0.0,
+        )
+    ]
+    signal = SignalInfo(
+        signal_id=91,
+        asset_code="000001.SZ",
+        asset_name="平安银行",
+        action="sell",
+        quantity=100,
+        confidence=0.9,
+        reason="unknown sellable balance",
+    )
+    gateway = Mock()
+    gateway.execute_for_account.return_value = ExecutionResult(success=True, signals=[signal])
+    price_provider = Mock(
+        get_price=Mock(return_value=10.0),
+        require_price=Mock(return_value=10.0),
+    )
+    engine.price_provider = price_provider
+    trade_repo = Mock()
+    engine.trade_repo = trade_repo
+    execution_link_recorder = Mock()
+    engine.execution_link_recorder = execution_link_recorder
+
+    with (
+        patch(
+            "apps.simulated_trading.application.facade.get_simulated_trading_facade",
+            return_value=SimpleNamespace(get_active_strategy_id=Mock(return_value=91)),
+        ),
+        patch(
+            "apps.strategy.application.execution_gateway.get_strategy_execution_gateway",
+            return_value=gateway,
+        ),
+    ):
+        result = engine.run_daily_trading(date(2026, 10, 16))[account.account_id]
+
+    assert result.outcome is AutoTradingOutcome.BLOCKED
+    assert _issue_codes(result) == {"SELLABLE_BALANCE_UNKNOWN"}
+    assert result.confirmed_trade_count == 0
+    assert result.issues[0].effects_indeterminate is False
+    engine.sell_use_case.execute.assert_not_called()
+    price_provider.get_price.assert_not_called()
+    price_provider.require_price.assert_not_called()
+    assert trade_repo.mock_calls == []
+    execution_link_recorder.record_execution.assert_not_called()
