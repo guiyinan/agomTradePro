@@ -218,4 +218,5 @@ __all__ = [
     "confirm_calendar_publication",
     "preview_calendar_publication",
     "read_current_exchange_calendar",
+    "read_current_exchange_calendar_at",
 ]

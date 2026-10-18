@@ -41,4 +41,13 @@
 
 配套 `get_active_runtime_value(environment=..., definition_key=..., as_of=...)` 只选择当前活动配置；显式截止点同时验证 profile/snapshot 身份、完整持久值 hash、实际公开投影及 snapshot hash。profile 的 `created_at/activated_at` 与 snapshot 的 `generated_at/effective_from` 均须为已知 aware 时刻且不晚于截止点，activation 与 effective 相等；其他时钟之间不增加排序假设。不传或传 `None` 保持旧读取行为。
 
-`config_center.market.exchange_timezone_map` 仅是可选、非 secret、NORMAL typed JSON 定义，复用已有初始化及配置管理，没有默认值、种子或旧 profile 必填要求。缺值时 generic getter 返回 `None`；本批没有实际 ZoneInfo 或结算日历 consumer，不能据定义登记宣称已完成时区或来源接线。正向正式记录到结算证据的映射、TTL/RawPayload/Audit 集成、证券身份资格与生产验收仍独立开放。验证与限制见[本批记录](../testing/a-share-usability-calendar-cutoff-2026-10-18.json)。
+`config_center.market.exchange_timezone_map` 仅是可选、非 secret、NORMAL typed JSON 定义，复用已有初始化及配置管理，没有默认值、种子或旧 profile 必填要求。缺值时 generic getter 返回 `None`；该 cutoff 批次只建立定义与读取端口，日期 consumer 的后续实现见下节；证券身份资格、真实调用方与生产验收仍独立开放。验证与限制见[本批记录](../testing/a-share-usability-calendar-cutoff-2026-10-18.json)。
+
+
+## 正式记录到模拟结算日期引用
+
+内部 `build_current_published_execution_calendar_reader(*, dataset_key, runtime_environment)` 无默认scope，构造不读数据。其既有Protocol方法按精确exchange与同一UTC cutoff读取正式current及可选时区配置；完整映射原日期、原件/hash、本地和上游时钟、publication/member/policy引用与半开窗口。member_id精确指snapshot UUID；publication recorded_at来自同一pointer激活事件，不是独立物理首次写入。源发布时间未知仍为None，完整日期不会按coverage_start裁剪或要求查询当天开市。
+
+缺current仅在既有稳定missing错误时返回空；缺时区配置/精确exchange为ExecutionCalendarUnavailable；错scope/cutoff、坏map/zone/hash/window或其他已知owner错误为SimulatedTradeExecutionBlocked并保留cause。两owner读共享逻辑cutoff，不宣称共同数据库快照；不触发供应商采集、账本或broker写入，也不增加嵌套事务。
+
+该adapter仅供组合日期端口，不自动选择生产dataset/environment、不配置实际timezone、不接线真实用户caller，也不授证券/订单执行资格。来源must_not_execute保持true。81项本地验证与限制见[适配器记录](../testing/a-share-usability-published-calendar-adapter-2026-10-18.json)；当前身份和手工模拟交易接线见实施计划§19.74。

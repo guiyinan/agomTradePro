@@ -3370,6 +3370,9 @@
         "backtest": {
           "imports": 1
         },
+        "simulated_trading": {
+          "imports": 1
+        },
         "terminal": {
           "imports": 3
         }
@@ -4008,7 +4011,7 @@
           "imports": 3
         },
         "simulated_trading": {
-          "imports": 8
+          "imports": 14
         },
         "strategy": {
           "imports": 1
@@ -10381,10 +10384,17 @@
             "domain"
           ]
         },
+        "config_center": {
+          "imports": 1,
+          "target_layers": [
+            "application"
+          ]
+        },
         "data_center": {
-          "imports": 8,
+          "imports": 14,
           "target_layers": [
             "application",
+            "calendar_publication_operations_composition",
             "domain"
           ]
         },

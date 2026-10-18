@@ -1462,3 +1462,26 @@ Owner 后续明确允许真实自动下单，但必须用户在系统主动开�
 4. **有限结束。** 按上述范围核验通过后结束 ASH-02，进入 ASH-03→有界 ASH-04→ASH-07→ASH-08→ASH-05→ASH-11→ASH-10；不为了扩大来源历史、架构抽象或重做 C3c 继续扩展 ASH-02。M1 可读调仓计划、M2 成交后持仓/T+1 和 M3 生产闭环各自按真实证据验收，未通过不能假关闭。
 
 当前代码状态仍是 §19.71 已提交的 cutoff 入口；正式日历适配器尚处测试准备阶段，证券用途合同尚未修改，ASH-02/M1/M2/M3仍开放。已有有限范围授权直接推进，不重复询问购买新库或是否接受历史不完整；仅将现有资源中确实无法自行取得的具体账户/券商原件精准列为待补材料。首次周发布的具体候选计划确认、独立 B1 与 Owner 签字仍按原规则执行。本节没有执行生产注册、回填、部署、账户开关开启或下单。
+
+
+### 19.73 正式当前日历到结算日期引用
+
+本批 base 为 `e51b1e9cc051a8da47935bc0aea4d6ceebd11b84`。仅两个既有生产文件变化：Sim composition 增加显式 `build_current_published_execution_calendar_reader(dataset_key=..., runtime_environment=...)`；Data Center composition 只将已有 exact-cutoff reader 加入 `__all__`。原三个 builder 的函数 AST 保持。factory 无默认值且构造不读配置、来源或账本；返回的既有 Protocol reader 通过公开 owner 端口使用同一 aware UTC cutoff，保留完整日期、原件/hash、快照/发布/成员/策略引用及原半开 TTL，不刷新源年龄、不回退历史指针。两个 owner 读取不构成共同数据库快照。
+
+时区来自已版本化的可选配置，严格收窄字符串键值并以原 Domain/ZoneInfo 验证，无默认交易所时区。缺配置/交易所为既有 unavailable；只有稳定的 exact-current publication missing 映射为空，其他已知 owner/证据错误保留 cause 并阻断。publication recorded_at 精确使用 pointer.updated_at，与 canonical published_at 是同一事件时钟，不声称独立物理首次写入；底层真实 reader 另查物理知识时钟。源 source_published_at=None 与 must_not_execute=True 保持。
+
+最终 Source02 实际 **81项通过，0失败、0错误、0跳过**：20目标节点与原实际RED全集一致，61兼容节点与其互斥；两组应用DNS/socket尝试均为0。native正向真实走现有RuntimeProfile、Session权限、正式发布、Core Audit/Outbox与RawPayload，并证明读取不新增发布/指针/Audit行；四日完整覆盖保留18日闭市，仅在覆盖内计算15→16日结算。另一个native用真实已发布current确认缺可选时区值的阻断。夹具dataset与Etc/UTC均为合成输入，不能冒充生产配置或实际用户验收。
+
+保留失败：新增12条RED全在明确缺factory断言处失败，原8条通过；不冒称深层行为已在旧代码运行。首格式Ruff I001后以目标类原名修正混合别名，独立AST/31导入绑定等价核对通过。Source01虽81项及八项fast检查通过，但增量mypy有2新增错误而未验收；改为直接从定义模块导入异常、显式收窄pointer可空时钟后，Source02完整重跑81及全部门禁。原失败不覆盖，不增加债务。最终两生产增量mypy、默认全库债务、四Python Black/isort/Ruff、架构delta/audit、87个current合同、41个canonical运行配置定义覆盖、官方module map和full governance均通过。无Domain修改，不借用前批覆盖率。
+
+验证、命令与真实输入哈希见[本批记录](../testing/a-share-usability-published-calendar-adapter-2026-10-18.json)。此批只完成日期来源适配；真实调用方、证券当前用途、ASH02/M1/M2/M3与生产仍开放，旧17路径V3包继续冻结。未执行生产注册、回填、部署、账户开关开启或下单。
+
+### 19.74 下一业务系列的有限真实入口
+
+两份静态盘点确认：现有stock_basic完整原件、append-only snapshot/mapping与实际本地recorded_at可形成“从首次留证起已知”的有限当前名录参考，上游两个clock仍为None；没有资格恢复更早历史。真实 `account.import.broker_trades` 不经过新settlement UOW，不能为事实入账增加历史PIT前置；其legacy持仓承接、首次SELL、导入后T+1/可卖量问题仍归ASH03。既有 `ManualTradeAPIView` 当前仍用旧BUY/SELL用例，尚未因新UOW而获得身份/结算保护，不能把它称为已接线。
+
+后续只按同一个现有手工模拟入口准备两项必要业务提交，方案尚未准入或实现：A在同一提交接通owner模拟账户、明确A股equity的当前用途身份、完整证据及BUY；B在同一入口接通SELL并完成锁内数量/结算与回执兼容验收。A的未完成方向不能回退旧直写分支，中间态不部署；该系列两方向实际验证后才宣称caller完成。不新建交易路由、来源供应商或平行账本，不恢复旧held17路径包。
+
+身份选择复用ConfigCenter版本化显式选择与Data Center exact snapshot/mapping回读，必须显式绑定Risk security_id与完整源代码、真实mapping版本及原件/hash，不能按前缀猜身份。用途与本地选用窗口/参考年龄政策必须明确，不能编造provider有效期或用checked_at瞬间冒充未来资格；上游None和源限制保持，当前用途不授历史回放、自动交易或真实下单。旧identity/plan/binding payload、hash与回读语义保持；若新用途确需版本/迁移，须随真实caller和兼容反例同批交付，不另开纯library或抽象整改批次。
+
+接线继续复用既有Rule V3、current Calendar、账户级Fee V2和锁内UOW，保留手工输入quantity/Decimal price；不为取价恢复完整市场准入包。缺失、过期、未来、篡改、错身份/用途与配置必须给具体阻断且账本零变化。需要稳定幂等键时，同批同步真实TUI/SDK调用方，复用既有意图/确认机制，不要求用户手填技术键或由服务器每次请求随机造键。研究/可读计划与已发生事实按各自用途继续，不因单个模拟动作缺证据而全局封禁。当前实际代码验收仅到§19.73；该系列完成后按§19.72有限退出线核验ASH02，再进入既定ASH03顺序，不把整个M1/M2倒塞ASH02。

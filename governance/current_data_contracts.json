@@ -8914,6 +8914,71 @@
       ]
     },
     {
+      "id": "simulated_trading.current_published_calendar_reference",
+      "surface": "Internal exact-current published-calendar date evidence for explicit simulated settlement ports; complete original days/raw/hash/knowledge clocks and half-open TTL, same caller cutoff for two owner reads without a shared database-snapshot claim; no production caller selection, historical reconstruction or broker authority",
+      "source_files": [
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py"
+      ],
+      "required_markers": {
+        "apps/simulated_trading/execution_settlement_composition.py": [
+          "def build_current_published_execution_calendar_reader(",
+          "CALENDAR_CURRENT_PUBLICATION_MISSING",
+          "current.__post_init__()",
+          "config_center.market.exchange_timezone_map",
+          "source_published_at=source_snapshot.source_published_at",
+          "reference_valid_until=publication_window.valid_until",
+          "evidence.validate_for(as_of)"
+        ],
+        "apps/data_center/calendar_publication_operations_composition.py": [
+          "def read_current_exchange_calendar_at(",
+          "CALENDAR_CURRENT_READ_TRANSACTION_OWNER_INVALID"
+        ]
+      },
+      "required_tests": [
+        {
+          "case": "exact_full_evidence_scope_and_same_cutoff_no_construction_io",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "test_function": "test_published_calendar_adapter_maps_exact_current_source_and_cutoff"
+        },
+        {
+          "case": "stable_exact_absence_only",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "test_function": "test_published_calendar_adapter_returns_none_only_for_exact_missing_publication"
+        },
+        {
+          "case": "nonabsence_owner_error_keeps_typed_cause",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "test_function": "test_published_calendar_adapter_wraps_nonabsence_owner_errors"
+        },
+        {
+          "case": "optional_missing_and_malformed_timezone_fail_closed",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "test_function": "test_published_calendar_adapter_fails_closed_on_timezone_configuration"
+        },
+        {
+          "case": "scope_cutoff_and_untrimmed_coverage_revalidated",
+          "test_file": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+          "test_function": "test_published_calendar_adapter_rejects_source_scope_cutoff_and_range_drift"
+        },
+        {
+          "case": "native_real_profile_publication_audit_raw_complete_mapping",
+          "test_file": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+          "test_function": "test_execution_calendar_adapter_maps_real_publication_and_runtime_profile"
+        },
+        {
+          "case": "native_missing_map_with_existing_current_publication",
+          "test_file": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+          "test_function": "test_execution_calendar_adapter_blocks_missing_runtime_map_with_existing_current"
+        },
+        {
+          "case": "owner_original_response_ttl_half_open_bounds",
+          "test_file": "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+          "test_function": "test_formal_record_uses_original_response_ttl_and_half_open_bounds"
+        }
+      ]
+    },
+    {
       "id": "data_center.calendar_workbench_current_reference",
       "surface": "Exact current exchange-calendar reference for the unique configured dataset; original publication response window; unknown upstream observation; reference only, no execution authority",
       "source_files": [

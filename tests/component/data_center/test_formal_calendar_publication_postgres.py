@@ -801,3 +801,289 @@ def test_real_audit_missing_half_blocks_replay_and_forward_without_repair(
     assert CanonicalPublicationPointerModel._default_manager.get().publication_id == UUID(
         first.record.publication_id
     )
+
+
+@pytest.mark.django_db(
+    transaction=True,
+    available_apps=[
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "apps.data_center",
+        "apps.audit",
+        "apps.config_center",
+    ],
+)
+def test_execution_calendar_adapter_maps_real_publication_and_runtime_profile() -> None:
+    """Map one real current publication without granting execution permission."""
+
+    import importlib
+    import os
+    from datetime import date
+
+    from apps.config_center.application.runtime_public import (
+        activate_runtime_profile_patch,
+        get_active_runtime_value,
+    )
+    from apps.config_center.infrastructure.models import (
+        RuntimeConfigDefinitionModel,
+        RuntimeConfigProfileModel,
+        RuntimeConfigRevisionModel,
+        RuntimeConfigSnapshotModel,
+        RuntimeConfigValueModel,
+    )
+    from apps.data_center.calendar_publication_operations_composition import (
+        read_current_exchange_calendar_at,
+    )
+    from tests.support.isolated_schema import isolated_schema
+    from tests.support.runtime_config import configure_critical_runtime
+
+    runtime_models = (
+        RuntimeConfigDefinitionModel,
+        RuntimeConfigProfileModel,
+        RuntimeConfigValueModel,
+        RuntimeConfigRevisionModel,
+        RuntimeConfigSnapshotModel,
+    )
+    with isolated_schema(runtime_models):
+        settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+        runtime_environment = (
+            "production" if settings_module.endswith(".production") else "development"
+        )
+        exchange = "SSE"
+        configure_critical_runtime()
+        activate_runtime_profile_patch(
+            environment=runtime_environment,
+            patch={"config_center.market.exchange_timezone_map": {"SSE": "Etc/UTC"}},
+            actor="calendar-adapter-test",
+            reason="exercise explicit optional timezone-map consumption",
+        )
+
+        _snapshot, _audit, _clock, _principal, request = _ready()
+        _user, proof = _actual_publisher("calendar-adapter-real-current")
+        authority = DjangoCalendarPublisherAuthorityRepository(using=DEFAULT_DB_ALIAS)
+        repository = DjangoFormalExchangeCalendarPublicationRepository(
+            audit_port=_real_audit_bridge(),
+            using=DEFAULT_DB_ALIAS,
+        )
+        publish = PublishExchangeCalendarSnapshotUseCase(repository)
+        published = _authorized_publish(
+            authority=authority,
+            use_case=publish,
+            proof=proof,
+            request=request,
+        )
+        assert _counts() == (1, 1, 1, 1)
+
+        as_of = timezone.now().astimezone(UTC)
+        query = ReadCurrentExchangeCalendarPublicationQuery(
+            dataset_key=_DATASET.value,
+            exchange=exchange,
+            as_of=as_of,
+        )
+        before_current_read = _counts()
+        current = read_current_exchange_calendar_at(query)
+        assert current.record == published.record
+        assert current.pointer == published.pointer
+        assert current.as_of == as_of
+        assert current.must_not_execute is True
+        assert _counts() == before_current_read
+
+        assert get_active_runtime_value(
+            environment=runtime_environment,
+            definition_key="config_center.market.exchange_timezone_map",
+            as_of=as_of,
+        ) == {"SSE": "Etc/UTC"}
+
+        composition = importlib.import_module(
+            "apps.simulated_trading.execution_settlement_composition"
+        )
+        factory = getattr(
+            composition,
+            "build_current_published_execution_calendar_reader",
+            None,
+        )
+        assert callable(factory), "current published-calendar reader factory is missing"
+        reader = factory(
+            dataset_key=_DATASET.value,
+            runtime_environment=runtime_environment,
+        )
+        get_calendar = getattr(reader, "get_effective_execution_calendar", None)
+        assert callable(get_calendar), "published-calendar reader method is missing"
+        before_adapter_read = _counts()
+        evidence = get_calendar(
+            exchange=exchange,
+            as_of=as_of,
+            coverage_start=date(2026, 10, 15),
+        )
+        assert evidence is not None, "exact current publication did not map to evidence"
+        assert _counts() == before_adapter_read
+
+        source_snapshot = current.record.seal.snapshot
+        mapped_snapshot = evidence.snapshot
+        assert mapped_snapshot.snapshot_id == source_snapshot.snapshot_id
+        assert mapped_snapshot.exchange == source_snapshot.exchange
+        assert mapped_snapshot.coverage_start == source_snapshot.coverage_start
+        assert mapped_snapshot.coverage_end == source_snapshot.coverage_end
+        assert mapped_snapshot.provider_name == source_snapshot.provider_name
+        assert mapped_snapshot.first_seen_at == source_snapshot.first_seen_at
+        assert mapped_snapshot.recorded_at == source_snapshot.recorded_at
+        assert mapped_snapshot.source_published_at is None
+        assert source_snapshot.source_published_at is None
+        assert mapped_snapshot.content_hash == source_snapshot.content_hash
+        assert mapped_snapshot.record_digest == source_snapshot.record_digest
+        assert mapped_snapshot.raw_reference.to_payload() == (
+            source_snapshot.raw_reference.to_payload()
+        )
+        assert RawPayloadModel._default_manager.filter(
+            payload_id=UUID(source_snapshot.raw_reference.payload_id)
+        ).exists()
+        assert source_snapshot.raw_reference.original_body_retained is True
+        assert source_snapshot.raw_reference.retained_content_sha256 == (
+            source_snapshot.raw_reference.body_sha256
+        )
+        assert tuple(day.to_payload() for day in mapped_snapshot.days) == tuple(
+            day.to_payload() for day in source_snapshot.days
+        )
+        assert tuple(day.calendar_date for day in mapped_snapshot.days) == (
+            date(2026, 10, 15),
+            date(2026, 10, 16),
+            date(2026, 10, 17),
+            date(2026, 10, 18),
+        )
+        assert mapped_snapshot.days[-1].is_open is False
+        assert evidence.release_session(date(2026, 10, 15), 1) == date(2026, 10, 16)
+
+        publication = evidence.publication
+        assert publication is not None
+        seal = current.record.seal
+        assert publication.publication_id == current.record.publication_id
+        assert publication.member_id == source_snapshot.snapshot_id
+        assert publication.publication_hash == seal.publication_hash
+        assert publication.fact_content_hash == seal.member_reference.member.fact_content_hash
+        assert publication.policy_hash == seal.policy.content_hash
+        assert publication.published_at == current.record.published_at
+        assert publication.recorded_at == current.pointer.updated_at
+        assert publication.recorded_at == publication.published_at
+        assert publication.reference_valid_from == current.record.window.valid_from
+        assert publication.reference_valid_until == current.record.window.valid_until
+        assert publication.timezone_name == "Etc/UTC"
+        assert seal.calendar_response_max_age_seconds == 3600
+        assert current.record.window.response_expires_at == (
+            source_snapshot.first_seen_at + timedelta(seconds=3600)
+        )
+        assert as_of < publication.reference_valid_until
+        evidence.validate_for(as_of)
+        assert current.must_not_execute is True
+        assert _counts() == before_adapter_read
+
+
+@pytest.mark.django_db(
+    transaction=True,
+    available_apps=[
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.sessions",
+        "apps.data_center",
+        "apps.audit",
+        "apps.config_center",
+    ],
+)
+def test_execution_calendar_adapter_blocks_missing_runtime_map_with_existing_current() -> None:
+    """Distinguish absent optional timezone configuration from absent publication."""
+
+    import importlib
+    import os
+    from datetime import date
+
+    from apps.config_center.application.runtime_public import get_active_runtime_value
+    from apps.config_center.infrastructure.models import (
+        RuntimeConfigDefinitionModel,
+        RuntimeConfigProfileModel,
+        RuntimeConfigRevisionModel,
+        RuntimeConfigSnapshotModel,
+        RuntimeConfigValueModel,
+    )
+    from apps.data_center.calendar_publication_operations_composition import (
+        read_current_exchange_calendar_at,
+    )
+    from apps.simulated_trading.application.execution_settlement_uow import (
+        ExecutionCalendarUnavailable,
+    )
+    from tests.support.isolated_schema import isolated_schema
+    from tests.support.runtime_config import configure_critical_runtime
+
+    runtime_models = (
+        RuntimeConfigDefinitionModel,
+        RuntimeConfigProfileModel,
+        RuntimeConfigValueModel,
+        RuntimeConfigRevisionModel,
+        RuntimeConfigSnapshotModel,
+    )
+    with isolated_schema(runtime_models):
+        settings_module = str(os.environ.get("DJANGO_SETTINGS_MODULE") or "").strip()
+        runtime_environment = (
+            "production" if settings_module.endswith(".production") else "development"
+        )
+        exchange = "SSE"
+        configure_critical_runtime()
+
+        _snapshot, _audit, _clock, _principal, request = _ready()
+        _user, proof = _actual_publisher("calendar-adapter-missing-map")
+        authority = DjangoCalendarPublisherAuthorityRepository(using=DEFAULT_DB_ALIAS)
+        repository = DjangoFormalExchangeCalendarPublicationRepository(
+            audit_port=_real_audit_bridge(),
+            using=DEFAULT_DB_ALIAS,
+        )
+        publish = PublishExchangeCalendarSnapshotUseCase(repository)
+        published = _authorized_publish(
+            authority=authority,
+            use_case=publish,
+            proof=proof,
+            request=request,
+        )
+        assert _counts() == (1, 1, 1, 1)
+
+        as_of = timezone.now().astimezone(UTC)
+        current = read_current_exchange_calendar_at(
+            ReadCurrentExchangeCalendarPublicationQuery(
+                dataset_key=_DATASET.value,
+                exchange=exchange,
+                as_of=as_of,
+            )
+        )
+        assert current.record == published.record
+        assert current.must_not_execute is True
+        assert (
+            get_active_runtime_value(
+                environment=runtime_environment,
+                definition_key="config_center.market.exchange_timezone_map",
+                as_of=as_of,
+            )
+            is None
+        )
+
+        composition = importlib.import_module(
+            "apps.simulated_trading.execution_settlement_composition"
+        )
+        factory = getattr(
+            composition,
+            "build_current_published_execution_calendar_reader",
+            None,
+        )
+        assert callable(factory), "current published-calendar reader factory is missing"
+        reader = factory(
+            dataset_key=_DATASET.value,
+            runtime_environment=runtime_environment,
+        )
+        get_calendar = getattr(reader, "get_effective_execution_calendar", None)
+        assert callable(get_calendar), "published-calendar reader method is missing"
+
+        before_adapter_read = _counts()
+        with pytest.raises(ExecutionCalendarUnavailable):
+            get_calendar(
+                exchange=exchange,
+                as_of=as_of,
+                coverage_start=date(2026, 10, 15),
+            )
+        assert _counts() == before_adapter_read

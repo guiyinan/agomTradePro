@@ -564,7 +564,8 @@
       "migration_status": "canonical_only_fail_closed",
       "materialization_required": false,
       "consumers": [
-        "apps/config_center/application/runtime_public.py::get_active_runtime_value"
+        "apps/config_center/application/runtime_public.py::get_active_runtime_value",
+        "apps/simulated_trading/execution_settlement_composition.py::_CurrentPublishedExecutionCalendarReader.get_effective_execution_calendar"
       ],
       "definition_source": "apps/config_center/application/runtime_definition_reconcile.py::DEFAULT_RUNTIME_DEFINITIONS",
       "bootstrap_command": "python manage.py initialize_runtime_definitions",
@@ -572,9 +573,12 @@
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_exchange_timezone_map_definition_is_optional_typed_json_configuration",
         "tests/unit/config_center/test_runtime_definition_reconcile.py::test_unconfigured_timezone_definition_does_not_block_unrelated_profile_patch",
         "tests/unit/config_center/test_runtime_public.py::test_timezone_runtime_value_blocks_when_optional_map_is_absent",
-        "tests/unit/config_center/test_runtime_public.py::test_existing_market_projection_does_not_require_timezone_map"
+        "tests/unit/config_center/test_runtime_public.py::test_existing_market_projection_does_not_require_timezone_map",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_maps_real_publication_and_runtime_profile",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_blocks_missing_runtime_map_with_existing_current"
       ],
-      "notes": "Optional non-secret definition only; no default, seed value, migration, activation or legacy market requirement. Generic cutoff getter returns None when absent; actual ZoneInfo/calendar adapter remains unimplemented."
+      "notes": "Optional non-secret definition; no default, seed, activation or legacy market requirement. The internal explicit-scope calendar adapter reads it at the identical UTC cutoff, narrows exact string keys/values and validates the selected ZoneInfo through existing Domain evidence. No production dataset/environment selection or approved production timezone is supplied."
     },
     {
       "config_key": "task_monitor.retention_days",

@@ -1,0 +1,443 @@
+{
+  "schema": "a-share-usability.published-calendar-adapter.local-validation.v1",
+  "date": "2026-10-18",
+  "base_head": "e51b1e9cc051a8da47935bc0aea4d6ceebd11b84",
+  "scope": "Explicit internal current published-calendar date evidence using real local formal publication, retained raw body, Core Audit and versioned runtime profile fixtures. No production caller or trading authority.",
+  "source_manifest": ".tmp/ash02-published-calendar-adapter-qa-source-02.json",
+  "source_manifest_sha256": "1a42471e06841883b21e7e4c66cd4670c5596905818d3d4d301770340e64c4da",
+  "source_input_count": 5274,
+  "code_files": [
+    {
+      "path": "apps/data_center/calendar_publication_operations_composition.py",
+      "raw_sha256": "58edbd065643336e35e193e0d20f8361238d0475fcd9e8bbbedb9ed453e1a473"
+    },
+    {
+      "path": "apps/simulated_trading/execution_settlement_composition.py",
+      "raw_sha256": "c20f70a43d88f8c7214c57e913d1b06854aed8f170d20fafb250317130ea179a"
+    },
+    {
+      "path": "governance/current_data_contracts.json",
+      "raw_sha256": "0175eb3a0c805c679e25171c36ed5c64634124df7b8687c831108345d108b958"
+    },
+    {
+      "path": "governance/module_map.json",
+      "raw_sha256": "8634efb17d3327f539988b75b119464331eb2ce77121c9b548e083ef12246fec"
+    },
+    {
+      "path": "governance/runtime_config_contracts.json",
+      "raw_sha256": "7fdc3e97d98467926106b1d2e830fbe400e5d05bbe3e064ae913960bdf54aacf"
+    },
+    {
+      "path": "tests/component/data_center/test_formal_calendar_publication_postgres.py",
+      "raw_sha256": "773e903616613baff8fb7ab41d77afcbd01702cc48bcdfb797767cb7726fcc96"
+    },
+    {
+      "path": "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+      "raw_sha256": "6e3bca47af4882f4e31b5960f4c59b23c992cdf8a33cf4873c4d4727f639eb62"
+    }
+  ],
+  "tests": {
+    "status": "all_actual_tests_passed_static_gates_separate",
+    "base_head": "e51b1e9cc051a8da47935bc0aea4d6ceebd11b84",
+    "source_manifest": ".tmp\\ash02-published-calendar-adapter-qa-source-02.json",
+    "source_manifest_sha256": "1a42471e06841883b21e7e4c66cd4670c5596905818d3d4d301770340e64c4da",
+    "source_input_count": 5274,
+    "tests": 81,
+    "passed": 81,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "groups_disjoint": true,
+    "target_equals_actual_red_nodes": true,
+    "groups": [
+      {
+        "name": "green",
+        "tests": 20,
+        "passed": 20,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "application_socket_dns_attempts": 0,
+        "record_sha256": "e450f807c08e3e4ce746ea58a00576b5b3a2dc19130d5b5e5ddb9b38006d7f67",
+        "log_sha256": "1218951fd396cdf46338819724121e6363e97ecebe2038b3822a66094726778d",
+        "junit_sha256": "6fcca3cfddbc40f3937da99898372a973077e9ffe0ab843e24d608417a758dc0",
+        "nodes": [
+          "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_blocks_missing_runtime_map_with_existing_current",
+          "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_maps_real_publication_and_runtime_profile",
+          "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_real_session_publish_replay_read_after_revocation_and_replay_denial",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_composition_rejects_an_invalid_alias_without_provider_defaults",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_fee_policy_composition_rejects_invalid_alias_without_a_default[ ]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_fee_policy_composition_rejects_invalid_alias_without_a_default[]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_fee_policy_composition_rejects_invalid_alias_without_a_default[default ]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_fee_policy_composition_retains_explicit_alias_without_database_access",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[None-ExecutionCalendarUnavailable]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[runtime_value1-ExecutionCalendarUnavailable]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[runtime_value2-SimulatedTradeExecutionBlocked]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[runtime_value3-SimulatedTradeExecutionBlocked]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[runtime_value4-SimulatedTradeExecutionBlocked]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_fails_closed_on_timezone_configuration[runtime_value5-SimulatedTradeExecutionBlocked]",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_maps_exact_current_source_and_cutoff",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_rejects_source_scope_cutoff_and_range_drift",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_returns_none_only_for_exact_missing_publication",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_published_calendar_adapter_wraps_nonabsence_owner_errors",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_release_composition_requires_calendar_and_explicit_database_alias",
+          "tests/unit/simulated_trading/test_execution_settlement_composition.py::test_trade_composition_requires_ports_and_shares_alias_bound_repository"
+        ]
+      },
+      {
+        "name": "compat",
+        "tests": 61,
+        "passed": 61,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "application_socket_dns_attempts": 0,
+        "record_sha256": "77aa2a5bad272e7b7027a771f6117b2ff030be1ce9fd76086b3afc369177541f",
+        "log_sha256": "79ca83f60cb5933182bc405fe73f0b621a45e2abff5653feb0f6dd262cc65ca1",
+        "junit_sha256": "2486e7eaa0c71c1f502b7d287fd4535a5d9938d5bacd619a99e62c54f6005d37",
+        "nodes": [
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_capture_uses_locked_default_and_same_outer_clock",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_confirm_composes_the_formal_publisher_usecase_over_audited_repository",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_owns_one_outer_transaction_without_publisher_authority",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_current_read_rejects_a_caller_owned_outer_transaction",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_publisher_operation_propagates_authority_exit_failure",
+          "tests/unit/data_center/test_calendar_publication_operations_composition.py::test_read_current_calendar_at_uses_typed_cutoff_inside_one_default_transaction",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_calendar_natural_keys_reject_ambiguous_exchange_and_coverage[SSE-2026-01-01-coverage_end1-CALENDAR_FORMAL_COVERAGE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_calendar_natural_keys_reject_ambiguous_exchange_and_coverage[SSE-coverage_start2-coverage_end2-CALENDAR_FORMAL_COVERAGE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_calendar_natural_keys_reject_ambiguous_exchange_and_coverage[SSE/SH-coverage_start0-coverage_end0-CALENDAR_FORMAL_EXCHANGE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_content_hash_helper_rejects_untyped_or_mismatched_hash_inputs",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_blocks_superseded_history_and_noncurrent_pointer",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_rejects_pointer_epoch_created_after_cutoff",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_rejects_superseded_record_even_inside_its_old_window",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_rejects_unpublished_future_and_expired_evidence",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_use_case_blocks_historical_query_and_missing_pointer",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_current_read_use_case_returns_only_exact_pointer_current_object",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_exact_current_replay_preserves_old_audit_time_and_requires_original_actor",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_formal_hash_binds_ttl_contract_policy_and_member_manifest",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_formal_record_rejects_ttl_expired_at_publish_and_unsupported_lifecycle",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_formal_record_uses_original_response_ttl_and_half_open_bounds",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_formal_seal_creation_rejects_unpersisted_or_wrong_exchange_snapshot",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_formal_seal_payload_exposes_the_hash_inputs_and_policy_identity",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_low_level_calendar_publication_identifiers_are_strict",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_manifest_hash_helper_rejects_wrong_typed_inputs",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_pointer_expectation_and_transition_decision_reject_partial_identities",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_publish_use_case_rejects_commit_with_mismatched_audit_or_early_time",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_publish_use_case_requires_authorized_exact_commit_and_preserves_gates",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_record_revalidation_rejects_corrupt_lifecycle_and_unknown_cutoff",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_request_rejects_pointer_for_another_exchange_scope",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_catalog_knowledge_after_the_requested_publication_cutoff",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_member_drift_from_exact_snapshot[fact_pk-different-snapshot-CALENDAR_FORMAL_MEMBER_SNAPSHOT_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_member_drift_from_exact_snapshot[fetched_at-value3-CALENDAR_FORMAL_MEMBER_TIME_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_member_drift_from_exact_snapshot[natural_key-SH:2026-10-16:2026-10-16-CALENDAR_FORMAL_MEMBER_SCOPE_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_member_drift_from_exact_snapshot[raw_payload_hash-sha256:9999999999999999999999999999999999999999999999999999999999999999-CALENDAR_FORMAL_MEMBER_RAW_PAYLOAD_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_member_drift_from_exact_snapshot[source_record_id-different-snapshot-CALENDAR_FORMAL_MEMBER_SNAPSHOT_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[-1]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[0]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[1.5]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[60]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[9223372036854775808]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_missing_or_noncanonical_response_ttl[True]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_policy_that_requires_unknown_source_time",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_rejects_policy_without_explicit_nullable_codec",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[bool_ttl-CALENDAR_FORMAL_TTL_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[dataset_type-CALENDAR_FORMAL_DATASET_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[exchange_token-CALENDAR_FORMAL_EXCHANGE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[manifest_hash-CALENDAR_FORMAL_MEMBER_MANIFEST_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[member_type-CALENDAR_FORMAL_MEMBER_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[nested_dataset_invalid-CALENDAR_FORMAL_NESTED_EVIDENCE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[policy_codec-CALENDAR_FORMAL_POLICY_CODEC_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[policy_dataset-CALENDAR_FORMAL_POLICY_DATASET_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[policy_type-CALENDAR_FORMAL_POLICY_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[publication_hash-CALENDAR_FORMAL_PUBLICATION_HASH_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[publication_key-CALENDAR_FORMAL_PUBLICATION_KEY_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[recorded_before_response-CALENDAR_FORMAL_SNAPSHOT_KNOWLEDGE_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[snapshot_provider-CALENDAR_FORMAL_MEMBER_SNAPSHOT_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[snapshot_reference_mismatch-CALENDAR_FORMAL_MEMBER_SNAPSHOT_MISMATCH]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[snapshot_reference_type-CALENDAR_FORMAL_SNAPSHOT_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_seal_revalidation_fails_closed_after_in_memory_drift[snapshot_type-CALENDAR_FORMAL_SNAPSHOT_INVALID]",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_transition_requires_exact_pointer_and_only_exact_current_replay",
+          "tests/unit/data_center/test_formal_exchange_calendar_publication.py::test_transition_requires_scope_target_and_allows_forward_publish"
+        ]
+      }
+    ],
+    "scope": "Internal published-calendar adapter with real local formal publication/profile/Audit fixtures; no production caller, identity qualification or broker/Owner acceptance."
+  },
+  "checks": [
+    {
+      "check": "green",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-green-02.json",
+      "record_sha256": "e450f807c08e3e4ce746ea58a00576b5b3a2dc19130d5b5e5ddb9b38006d7f67",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_real_session_publish_replay_read_after_revocation_and_replay_denial",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_maps_real_publication_and_runtime_profile",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py::test_execution_calendar_adapter_blocks_missing_runtime_map_with_existing_current",
+        "-q",
+        "--tb=short",
+        "--reuse-db",
+        "--migrations",
+        "--ds=ash02_math_s1_native_settings",
+        "-p",
+        "ash_domain_local_network_fence",
+        "-o",
+        "addopts=",
+        "-o",
+        "junit_family=xunit1",
+        "--junitxml=.tmp/ash02-published-calendar-adapter-green-02.xml",
+        "--basetemp=.tmp/ash02-published-calendar-adapter-green-02-temp",
+        "-o",
+        "cache_dir=.tmp/ash02-published-calendar-adapter-green-02-cache"
+      ],
+      "seconds": 73.743,
+      "log_sha256": "1218951fd396cdf46338819724121e6363e97ecebe2038b3822a66094726778d"
+    },
+    {
+      "check": "compat",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-compat-02.json",
+      "record_sha256": "77aa2a5bad272e7b7027a771f6117b2ff030be1ce9fd76086b3afc369177541f",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "pytest",
+        "tests/unit/data_center/test_formal_exchange_calendar_publication.py",
+        "tests/unit/data_center/test_calendar_publication_operations_composition.py",
+        "-q",
+        "--tb=short",
+        "--reuse-db",
+        "--migrations",
+        "--ds=ash02_math_s2_native_settings",
+        "-p",
+        "ash_domain_local_network_fence",
+        "-o",
+        "addopts=",
+        "-o",
+        "junit_family=xunit1",
+        "--junitxml=.tmp/ash02-published-calendar-adapter-compat-02.xml",
+        "--basetemp=.tmp/ash02-published-calendar-adapter-compat-02-temp",
+        "-o",
+        "cache_dir=.tmp/ash02-published-calendar-adapter-compat-02-cache"
+      ],
+      "seconds": 33.461,
+      "log_sha256": "79ca83f60cb5933182bc405fe73f0b621a45e2abff5653feb0f6dd262cc65ca1"
+    },
+    {
+      "check": "mypy",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-mypy-02.json",
+      "record_sha256": "7cec09d77e6f7480a27c4f8b9c20a0defa2852087a5dfdaa02611027d7c1e760",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_regression.py",
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py"
+      ],
+      "seconds": 107.063,
+      "log_sha256": "5ba4fad13a81b04a0a55439e46f84ebb25f1dcefaf8a0f67d0e71ba1266e2e69"
+    },
+    {
+      "check": "debt",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-debt-02.json",
+      "record_sha256": "8256233d4d5ec069de9c4e02d5ad0f99945b4fb7e01b396baf012fa581b3088d",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_mypy_debt_ceiling.py"
+      ],
+      "seconds": 226.666,
+      "log_sha256": "def6c561b37227470bcda90c8450d9837ca85dd34af34d05e7d6af2afdf85ab1"
+    },
+    {
+      "check": "black",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-black-02.json",
+      "record_sha256": "e66288ca19ac655b6a597e13c6376561c0782ffa0a128b760df77dd973acb988",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "black",
+        "--check",
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py"
+      ],
+      "seconds": 1.34,
+      "log_sha256": "ce29a48ef7d7d961badb0f7aec2eb4c319c19c85fc5e9b698ba6b9b4bec2d2c7"
+    },
+    {
+      "check": "isort",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-isort-02.json",
+      "record_sha256": "19b78c32abb53ce42fc0a6576cd11c24c2681869ab7336a622bbc8582e479fa9",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "isort",
+        "--check-only",
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py"
+      ],
+      "seconds": 0.674,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "check": "ruff",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-ruff-02.json",
+      "record_sha256": "6081ef688ead6d48ff6330a8e135b6e725a1dc7c8f0d7dc7e04e78bfd4065e87",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "-m",
+        "ruff",
+        "check",
+        "apps/simulated_trading/execution_settlement_composition.py",
+        "apps/data_center/calendar_publication_operations_composition.py",
+        "tests/unit/simulated_trading/test_execution_settlement_composition.py",
+        "tests/component/data_center/test_formal_calendar_publication_postgres.py"
+      ],
+      "seconds": 0.455,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "check": "architecture",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-architecture-02.json",
+      "record_sha256": "2647efbaba9f3d5aacea104b17a4e8cb104fb555741f3312ac1b5ef169444194",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_architecture_delta.py",
+        "--base-ref",
+        "e51b1e9cc051a8da47935bc0aea4d6ceebd11b84",
+        "--include-audit",
+        "--fail-on-audit-violations",
+        "--format",
+        "text"
+      ],
+      "seconds": 75.238,
+      "log_sha256": "f95ac40b04a4da2a35107a2f0102ff7f6ebce6f9247f4f61e106f54c5cefa487"
+    },
+    {
+      "check": "current",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-current-02.json",
+      "record_sha256": "6437ef17b98c1869215ca84484fae6aae8a4f09cf4fecf813cb3458985479e88",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_current_data_contracts.py"
+      ],
+      "seconds": 31.13,
+      "log_sha256": "7b7f284c3c8c2efdc463c39bc81008f7d3bb7fb24c60b42b84b4a649315627af"
+    },
+    {
+      "check": "runtime-coverage",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-runtime-coverage-02.json",
+      "record_sha256": "c8a4c030d274ac5831fb1c56f6a283da1b90c64eb352db86e7f6a40d7187325e",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_runtime_config_coverage.py"
+      ],
+      "seconds": 0.345,
+      "log_sha256": "74d80a9fbe9e4b802e545dda62c6fe1f401b36aa44c370e62b33726331b48f96"
+    },
+    {
+      "check": "module-map",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-module-map-02.json",
+      "record_sha256": "ac015883f663e20505ad6c9a6a667ac141789688144cfb542fc3c98b1d556bf3",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_module_map.py"
+      ],
+      "seconds": 27.208,
+      "log_sha256": "1809db2609af97a9adfb26829974780c6071711f44f9d593a3c804185ad6e6ff"
+    },
+    {
+      "check": "governance",
+      "record": ".tmp/ash02-admission-published-calendar-adapter-governance-02.json",
+      "record_sha256": "d0d1e4e171ffdd40ccd317b1790e1480f30f5f6941a1c43262dabeda0930df78",
+      "command": [
+        "D:\\githv\\agomTradePro\\agomtradepro\\Scripts\\python.exe",
+        "-X",
+        "utf8",
+        "scripts/check_governance_consistency.py",
+        "--baseline",
+        "governance/governance_baseline.json",
+        "--format",
+        "text"
+      ],
+      "seconds": 23.276,
+      "log_sha256": "50824cda33db620929040684fffe76d54284292edfd06fd75b4dedc034571c6b"
+    }
+  ],
+  "static_reviews": [
+    {
+      "path": ".tmp/ash02-published-calendar-adapter-tests-static-review-01.md",
+      "raw_sha256": "3cab006c9ad9b74eda1f97524b153fb7b4874a2c3f4a2a129d05f801e47c9e9f"
+    },
+    {
+      "path": ".tmp/ash02-published-calendar-adapter-fix-static-review-01.md",
+      "raw_sha256": "6f2f5ce81b71f67a83d2f400d97bc76823c8592898c54f117ba288292e3827a1"
+    },
+    {
+      "path": ".tmp/ash02-published-calendar-adapter-alias-static-review-01.md",
+      "raw_sha256": "c55c5367eb6942d4edad5da3b8f74428d1e923e111d663fb61710ffb24ec7440"
+    },
+    {
+      "path": ".tmp/ash02-published-calendar-adapter-type-static-review-01.md",
+      "raw_sha256": "847dddf166abd6986703f737746808494f9025d91a46efb5ffbe4d2d565d1fc0"
+    }
+  ],
+  "failure_history": {
+    "baseline": "Original 8 nodes passed at unchanged production/test source162. Governance-only e51 was rebound without relabelling that original baseline.",
+    "red": {
+      "tests": 20,
+      "passed": 8,
+      "failed": 12,
+      "errors": 0,
+      "skipped": 0,
+      "review": ".tmp/ash02-published-calendar-adapter-red-review-01.json",
+      "review_sha256": "fb1ff1dcb88a28944a32cb7c4f51ff9f69c5ea70cdfc78fd5ec903e0591daf37",
+      "classification": "Every new failure was an explicit missing-factory assertion; native fixture/profile/formal-current reads completed first. Deeper behavior assertions were exercised in GREEN, not claimed as independent RED behavior failures."
+    },
+    "format": "First preparation Ruff I001 failed because isort split mixed aliases differently. Canonical target class names plus exact identifier/import-binding equivalence review corrected it; original failed record remains.",
+    "first_source": "Source01 had 81 actual passing nodes and eight passing fast checks, but two incremental mypy regressions; it was not accepted. Source02 imports the exception from its defining Domain module and explicitly narrows the pointer clock, then freshly reruns all 81 and all gates. No baseline increase.",
+    "root_preparation": "Initial owner-scope freeze detected an approval-log path absent from inherited inputs before QA; verified that preimage against actual committed bytes before adding it. First RED review needed Windows JUnit path normalization; original runtime output unchanged."
+  },
+  "semantics": [
+    "Explicit keyword-only dataset_key/runtime_environment, no defaults, no source/config/ledger reads on construction.",
+    "Same supplied aware UTC cutoff for both public owner reads; no claim of a combined database snapshot.",
+    "Complete days/raw/snapshot/pub/fact/policy hashes and original half-open TTL; no trimming, clock replacement, source-age refresh or historical-pointer fallback.",
+    "Publication recorded_at is the exact pointer event clock equal to canonical published_at, not physical first-write time; real Data Center read separately checks physical knowledge clocks.",
+    "Missing optional timezone or exchange is typed unavailable; only stable exact-current publication missing becomes None; malformed/other typed failures retain blocking causes.",
+    "Native fixture covers four days including a closed last day and a covered15-to16 settlement calculation; source must_not_execute remains true."
+  ],
+  "domain_coverage": "Not measured: no Domain code changed; no previous coverage result is reused.",
+  "not_proven": [
+    "Production source/configuration readiness",
+    "Automatic production dataset/environment selection",
+    "Historical upstream clocks/PIT reconstruction",
+    "Current security identity qualification or connected manual-trade caller",
+    "Legacy holdings/imported-fill T+1 or M1/M2/M3",
+    "Independent Owner B1/signature, RC/S6, VPS deployment, broker opt-in or order"
+  ],
+  "next_boundary": "Main plan sections19.72-19.74: existing sources only, current-purpose exact identity and one authenticated normal-simulated equity ManualTradeAPIView BUY/SELL series; keep broker fact import independent and ASH03 holdings work in ASH03."
+}
